@@ -430,16 +430,26 @@ pub mod node {
 ///
 /// See the [`WidgetBuilder`], [`WidgetBuilding`], [`NestGroup`] and [`Importance`] for more details.
 ///
-/// [`WidgetBuilder`]: widget_builder::WidgetBuilder
-/// [`WidgetType`]: widget_builder::WidgetType
-/// [`WidgetBuilding`]: widget_builder::WidgetBuilding
-/// [`NestGroup`]: widget_builder::NestGroup
-/// [`Importance`]: widget_builder::Importance
-/// [`push_build_action`]: widget_builder::WidgetBuilder::push_build_action
-/// [`UiNode`]: widget_node::UiNode
-/// [`WidgetBase`]: struct@widget::base::WidgetBase
-/// [`Importance::WIDGET`]: widget_builder::Importance::WIDGET
-/// [`Importance::INSTANCE`]: widget_builder::Importance::INSTANCE
+/// [`WidgetBuilder`]: builder::WidgetBuilder
+/// [`WidgetType`]: builder::WidgetType
+/// [`WidgetBuilding`]: builder::WidgetBuilding
+/// [`NestGroup`]: builder::NestGroup
+/// [`Importance`]: builder::Importance
+/// [`push_build_action`]: builder::WidgetBuilder::push_build_action
+/// [`UiNode`]: node::UiNode
+/// [`WidgetBase`]: struct@WidgetBase
+/// [`Importance::WIDGET`]: builder::Importance::WIDGET
+/// [`Importance::INSTANCE`]: builder::Importance::INSTANCE
+///
+/// <script>
+/// // hide re-exported docs
+/// let me = document.currentScript;
+/// document.addEventListener("DOMContentLoaded", function() {
+///     while(me.nextElementSibling !== null) {
+///         me.nextElementSibling.remove();
+///     }
+/// });
+/// </script>
 pub use zero_ui_app::widget::widget;
 
 /// Expands a struct to a widget mix-in.
@@ -483,6 +493,16 @@ pub use zero_ui_app::widget::widget;
 ///
 /// All widget `impl` items can be declared in a mix-in, including the `fn widget_build(&mut self) -> T`, multiple mix-ins can be inherited
 /// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`, mix-ins cannot inherit even from other mix-ins.
+///
+/// <script>
+/// // hide re-exported docs
+/// let me = document.currentScript;
+/// document.addEventListener("DOMContentLoaded", function() {
+///     while(me.nextElementSibling !== null) {
+///         me.nextElementSibling.remove();
+///     }
+/// });
+/// </script>
 pub use zero_ui_app::widget::widget_mixin;
 
 /// Expands a property assign to include an easing animation.
@@ -494,14 +514,14 @@ pub use zero_ui_app::widget::widget_mixin;
 /// The attribute takes one required argument and one optional that matches the [`Var::easing`]
 /// parameters. The required first arg is the duration, the second arg is an easing function, if not present the [`easing::linear`] is used.
 ///
-/// Some items are auto-imported in each argument scope, [`TimeUnits`] for the first first arg and the [`easing`] functions 
+/// Some items are auto-imported in each argument scope, [`TimeUnits`] for the first first arg and the [`easing`] functions
 /// for the second. This enables syntax like `#[easing(300.ms(), expo)]`.
 ///
 /// ## Unset
 ///
 /// An alternative argument `unset` can be used instead to remove animations set by the inherited context or styles.
 ///
-/// [`TimeUnits`]: zero_ui::unit::TimeUnits
+/// [`TimeUnits`]: zero_ui::layout::TimeUnits
 /// [`easing`]: mod@zero_ui::var::animation::easing
 /// [`easing::linear`]: zero_ui::var::animation::easing::linear
 /// [property build action]: crate::widget::builder::WidgetBuilder::push_property_build_action
@@ -546,8 +566,16 @@ pub use zero_ui_app::widget::widget_mixin;
 ///
 /// The attribute only works in properties that only have variable inputs of types that are [`Transitionable`], if the attribute
 /// is set in a property that does not match this a cryptic type error occurs, with a mention of `easing_property_input_Transitionable`.
-/// 
-/// -----------------------
+///
+/// <script>
+/// // hide re-exported docs
+/// let me = document.currentScript;
+/// document.addEventListener("DOMContentLoaded", function() {
+///     while(me.nextElementSibling !== null) {
+///         me.nextElementSibling.remove();
+///     }
+/// });
+/// </script>
 ///
 /// [`Transitionable`]: crate::var::animation::Transitionable
 pub use zero_ui_app::widget::easing;
@@ -743,7 +771,7 @@ pub use zero_ui_app::widget::easing;
 /// [`property_id!`]: crate::widget::builder::property_id
 /// [`property_args!`]: crate::widget::builder::property_args
 /// [`ui_node`]: macro@ui_node
-/// [`with_context_var`]: zero_ui_app::var::with_context_var
+/// [`with_context_var`]: crate::widget::node::with_context_var
 /// [`VarValue`]: crate::var::VarValue
 /// [`IntoValue<T>`]: crate::var::IntoValue
 /// [`IntoVar<T>`]: crate::var::IntoVar
@@ -757,6 +785,16 @@ pub use zero_ui_app::widget::easing;
 /// [`InputKind::UiNodeList`]: crate::widget::builder::InputKind::UiNodeList
 /// [`InputKind::WidgetHandler`]: crate::widget::builder::InputKind::WidgetHandler
 /// [`event_property!`]: crate::event::event_property
+///
+/// <script>
+/// // hide re-exported docs
+/// let me = document.currentScript;
+/// document.addEventListener("DOMContentLoaded", function() {
+///     while(me.nextElementSibling !== null) {
+///         me.nextElementSibling.remove();
+///     }
+/// });
+/// </script>
 pub use zero_ui_app::widget::property;
 
 /// Expands an `impl` block into an [`UiNode`] trait implementation or new node declaration.
@@ -958,5 +996,15 @@ pub use zero_ui_app::widget::property;
 /// [`measure`]: crate::widget::node::UiNode::measure
 /// [`layout`]: crate::widget::node::UiNode::layout
 /// [`render`]: crate::widget::node::UiNode::render
-/// [`WIDGET`]: crate::update::WIDGET
+/// [`WIDGET`]: crate::widget::WIDGET
+///
+/// <script>
+/// // hide re-exported docs
+/// let me = document.currentScript;
+/// document.addEventListener("DOMContentLoaded", function() {
+///     while(me.nextElementSibling !== null) {
+///         me.nextElementSibling.remove();
+///     }
+/// });
+/// </script>
 pub use zero_ui_app::widget::ui_node;
