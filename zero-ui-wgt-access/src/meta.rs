@@ -85,7 +85,7 @@ pub fn active_descendant(child: impl UiNode, descendant: impl IntoVar<WidgetId>)
 
 /// Indicate that the widget toggles the visibility of related widgets.
 ///
-/// Use  [`controls`], or [`owns`] to indicate the widgets that change visibility based on
+/// Use [`controls`], or [`owns`] to indicate the widgets that change visibility based on
 /// this value.
 ///
 /// [`controls`]: fn@controls

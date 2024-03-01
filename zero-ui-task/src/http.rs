@@ -803,28 +803,28 @@ impl AsyncRead for Body {
 
 /// Send a GET request to the `uri`.
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn get(uri: impl TryUri) -> Result<Response, Error> {
     default_client().get(uri).await
 }
 
 /// Send a GET request to the `uri` and read the response as a string.
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn get_text(uri: impl TryUri) -> Result<Txt, Error> {
     default_client().get_text(uri).await
 }
 
 /// Send a GET request to the `uri` and read the response as raw bytes.
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn get_bytes(uri: impl TryUri) -> Result<Vec<u8>, Error> {
     default_client().get_bytes(uri).await
 }
 
 /// Send a GET request to the `uri` and de-serializes the response.
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn get_json<O>(uri: impl TryUri) -> Result<O, Box<dyn std::error::Error>>
 where
     O: serde::de::DeserializeOwned + std::marker::Unpin,
@@ -834,35 +834,35 @@ where
 
 /// Send a HEAD request to the `uri`.
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn head(uri: impl TryUri) -> Result<Response, Error> {
     default_client().head(uri).await
 }
 
 /// Send a PUT request to the `uri` with a given request body.
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn put(uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
     default_client().put(uri, body).await
 }
 
 /// Send a POST request to the `uri` with a given request body.
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn post(uri: impl TryUri, body: impl TryBody) -> Result<Response, Error> {
     default_client().post(uri, body).await
 }
 
 /// Send a DELETE request to the `uri`.
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn delete(uri: impl TryUri) -> Result<Response, Error> {
     default_client().delete(uri).await
 }
 
 /// Send a custom [`Request`].
 ///
-/// The [`default_client`]  is used to send the request.
+/// The [`default_client`] is used to send the request.
 pub async fn send(request: Request) -> Result<Response, Error> {
     default_client().send(request).await
 }
@@ -1126,7 +1126,7 @@ impl Client {
         self.client.cookie_jar()
     }
 
-    ///  Send a GET request to the `uri`.
+    /// Send a GET request to the `uri`.
     pub async fn get(&self, uri: impl TryUri) -> Result<Response, Error> {
         self.send(Request::get(uri)?.build()).await
     }

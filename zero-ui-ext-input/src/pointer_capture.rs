@@ -175,7 +175,7 @@ impl PointerCaptureManager {
                 if let Some(w_info) = info.get(widget_id) {
                     let point = point.to_px(info.scale_factor());
                     if w_info.hit_test(point).contains(widget_id) {
-                        //  capture for widget
+                        // capture for widget
                         self.set_capture(&mut cap, w_info.interaction_path(), mode);
                         return;
                     }

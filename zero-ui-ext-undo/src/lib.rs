@@ -523,7 +523,7 @@ pub trait UndoInfo: Send + Sync + Any {
     fn description(&self) -> Txt;
 
     /// Any extra metadata associated with the item. This can be a thumbnail of an image
-    ///  edit action for example, or an icon.
+    /// edit action for example, or an icon.
     ///
     /// Is empty by default.
     fn meta(&self) -> StateMapRef<UNDO> {

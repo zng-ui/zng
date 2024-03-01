@@ -14,7 +14,7 @@ use crate::{VarUpdateId, VarValue, VARS};
 /// Changes are logged using the [`VecChange`] enum, note that the enum only tracks indexes at the
 /// moment the change happens, that means that you cannot get the removed items and [`VecChange::Insert`]
 /// must be the last change in an update cycle. If any change is made that invalidates an `Insert` all
-/// changes for the cycle are collapsed to [`VecChange::Clear`], to avoid  this try to only `remove`
+/// changes for the cycle are collapsed to [`VecChange::Clear`], to avoid this try to only `remove`
 /// before `insert`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObservableVec<T: VarValue> {

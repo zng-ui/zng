@@ -267,7 +267,7 @@ where
 ///     drop(data);
 /// });
 ///
-///  println!("{data:?}");
+/// println!("{data:?}");
 /// # on_click }
 /// ```
 #[macro_export]
@@ -844,7 +844,7 @@ where
 ///     drop(data);
 /// })).perm();
 ///
-///  println!("{data:?}");
+/// println!("{data:?}");
 /// # }
 /// ```
 #[macro_export]

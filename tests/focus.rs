@@ -592,7 +592,7 @@ pub fn tab_index_skip() {
 pub fn tab_inner_container() {
     let app = TestApp::start();
 
-    // sanity check for  `tab_skip_inner_container`.
+    // sanity check for `tab_skip_inner_container`.
 
     let mut inner_buttons = ui_vec![Button! { child = Text!("Button 1") }, Button! { child = Text!("Button 2") },];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
@@ -686,7 +686,7 @@ pub fn tab_inner_scope_continue() {
     ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { id = "Button 0";  child = Text!("Button 0") },
+        Button! { id = "Button 0"; child = Text!("Button 0") },
         Stack! {
             id = "Scope Continue";
             direction = StackDirection::top_to_bottom();

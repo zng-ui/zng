@@ -182,7 +182,7 @@ event_property! {
 
     /// Widget interactions where blocked or unblocked.
     ///
-    /// Note  that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
+    /// Note that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
     ///
     /// Note that an event is received when the widget first initializes in the widget info tree, this is because the interactivity *changed*
     /// from `None`, this initial event can be detected using the [`is_new`] method in the args.
@@ -276,7 +276,7 @@ event_property! {
 
     /// Widget interactions now blocked.
     ///
-    /// Note  that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
+    /// Note that blocked widgets may still be visually enabled, see [`Interactivity`] for more details.
     ///
     /// Note that an event is received when the widget first initializes in the widget info tree if it starts blocked,
     /// this initial event can be detected using the [`is_new`] method in the args.

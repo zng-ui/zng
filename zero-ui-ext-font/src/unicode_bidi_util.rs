@@ -516,7 +516,7 @@ pub(super) fn implicit_resolve_weak(sequence: &IsolatingRunSequence, processing_
     let mut prev_class_before_w1 = sequence.sos;
     let mut last_strong_is_al = false;
     let mut et_run_indices = Vec::new(); // for W5
-    let mut bn_run_indices = Vec::new(); // for W5 +  <https://www.unicode.org/reports/tr9/#Retaining_Explicit_Formatting_Characters>
+    let mut bn_run_indices = Vec::new(); // for W5 + <https://www.unicode.org/reports/tr9/#Retaining_Explicit_Formatting_Characters>
 
     for (run_index, level_run) in sequence.runs.iter().enumerate() {
         for i in &mut level_run.clone() {
@@ -1025,7 +1025,7 @@ pub(super) fn implicit_resolve_levels(original_classes: &[BidiClass], levels: &m
 
 /// Assign levels to characters removed by rule X9.
 ///
-/// The levels assigned to these characters are not specified by the algorithm.  This function
+/// The levels assigned to these characters are not specified by the algorithm. This function
 /// assigns each one the level of the previous character, to avoid breaking level runs.
 pub(super) fn assign_levels_to_removed_chars(para_level: Level, classes: &[BidiClass], levels: &mut [Level]) {
     for i in 0..levels.len() {

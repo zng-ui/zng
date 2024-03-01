@@ -523,7 +523,7 @@ impl MatrixDecomposed3D {
         skew.2 /= scale.2;
 
         // At this point, the matrix (in rows) is orthonormal.
-        // Check for a coordinate system flip.  If the determinant
+        // Check for a coordinate system flip. If the determinant
         // is -1, then negate the matrix and the scaling factors.
         if dot(row[0], cross(row[1], row[2])) < 0.0 {
             scale.0 *= -1.0;

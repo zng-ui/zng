@@ -511,7 +511,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             when_expr_vars.extend(quote! {
                 let (#var_input, #var) = {
-                    let meta__ =  #get_meta
+                    let meta__ = #get_meta
                     meta__.allowed_in_when_expr();
                     meta__.inputs #generics().#member_ident()
                 };

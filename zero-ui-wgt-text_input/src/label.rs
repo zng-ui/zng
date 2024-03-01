@@ -17,7 +17,7 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 ///
 /// # Shorthand
 ///
-/// The widget macro supports the shorthand  that sets the `txt` and `target` properties.
+/// The widget macro supports the shorthand that sets the `txt` and `target` properties.
 ///
 /// ```
 /// # zero_ui_wgt::enable_widget_macros!();

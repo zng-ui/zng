@@ -88,7 +88,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
 
     /// Indicate that the widget toggles the visibility of related widgets.
     ///
-    /// Use  [`push_controls`], or [`push_owns`] to indicate the widgets that change visibility based on
+    /// Use [`push_controls`], or [`push_owns`] to indicate the widgets that change visibility based on
     /// this value.
     ///
     /// [`push_controls`]: Self::push_controls
@@ -483,7 +483,7 @@ impl WidgetInfoTree {
 
     /// Build partial access trees for widgets that changed transform, size or visibility.
     ///
-    /// Returns `None` if not [`access_enabled`] or no transform/visibility changed.  The [`focused`] value is always set
+    /// Returns `None` if not [`access_enabled`] or no transform/visibility changed. The [`focused`] value is always set
     /// to the root ID, it must be changed to the correct focused widget.
     ///
     /// This is usually called by window implementers after each frame that is not [`to_access_updates`].

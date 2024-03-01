@@ -3851,9 +3851,9 @@ impl Font {
     pub fn h_line_hits(&self, glyph_id: GlyphIndex, line_y_range: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
         // Algorithm:
         //
-        //  - Ignore curves, everything is direct line.
-        //  - If a line-y crosses `line_y_range` register the min-x and max-x from the two points.
-        //  - Same if a line is inside `line_y_range`.
+        // - Ignore curves, everything is direct line.
+        // - If a line-y crosses `line_y_range` register the min-x and max-x from the two points.
+        // - Same if a line is inside `line_y_range`.
         struct InterseptsSink {
             start: Option<euclid::Point2D<f32, Px>>,
             curr: euclid::Point2D<f32, Px>,

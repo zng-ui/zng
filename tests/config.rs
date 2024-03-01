@@ -85,7 +85,7 @@ macro_rules! test_config {
             pretty_assertions::assert_eq!(expected_value, read_value, "test read {}", stringify!($key));
         } else {
             CONFIG
-            .get($key, ||  $($init)*)
+            .get($key, || $($init)*)
                 .update()
                 .unwrap();
         }

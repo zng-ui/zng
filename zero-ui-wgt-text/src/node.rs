@@ -322,7 +322,7 @@ impl ResolvedText {
 /// Info about the last text render or render update.
 #[derive(Debug, Clone)]
 pub struct RenderInfo {
-    /// Render transform of the text, in  the window space.
+    /// Render transform of the text, in the window space.
     pub transform: PxTransform,
     /// Render scale factor of the text.
     pub scale_factor: Factor,
@@ -423,7 +423,7 @@ context_local! {
     /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
     static RESOLVED_TEXT: RwLock<ResolvedText> = RwLock::new(ResolvedText::no_context());
     /// Represents the contextual [`LaidoutText`] setup by the [`layout_text`] node.
-    static LAIDOUT_TEXT: RwLock<LaidoutText>  = RwLock::new(LaidoutText::no_context());
+    static LAIDOUT_TEXT: RwLock<LaidoutText> = RwLock::new(LaidoutText::no_context());
 }
 
 bitflags! {

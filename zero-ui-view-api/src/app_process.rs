@@ -446,7 +446,7 @@ impl Controller {
             match Self::spawn_view_process(&self.view_process_exe, self.headless) {
                 Ok(r) => break r,
                 Err(e) => {
-                    tracing::error!(target: "vp_respawn",  "failed to respawn, {e:?}");
+                    tracing::error!(target: "vp_respawn", "failed to respawn, {e:?}");
                     retries -= 1;
                     if retries == 0 {
                         panic!("failed to respawn `view-process` after 3 retries");

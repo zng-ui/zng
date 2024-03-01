@@ -217,7 +217,7 @@ pub fn with_context_var_init<T: VarValue>(
 /// See [`on_event`] and [`on_pre_event`] for more information.
 ///
 /// If you don't provide a filter predicate the default always allows, so all app events targeting the widget and not already handled
-/// are allowed by default.  Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`]
+/// are allowed by default. Note that events that represent an *interaction* with the widget are send for both [`ENABLED`] and [`DISABLED`]
 /// widgets, event properties should probably distinguish if they fire on normal interactions versus on *disabled* interactions.
 ///
 /// # Async

@@ -354,7 +354,7 @@ macro_rules! nest_group_items {
         ///
         /// [`border`]: crate::widget::border
         pub const BORDER: NestGroup = NestGroup(NestGroup::WIDGET_INNER.0 + NestGroup::NEXT_GROUP);
-        /// Property defines a visual of the  widget.
+        /// Property defines a visual of the widget.
         ///
         /// This is the main render group, it usually defines things like a background fill, but it can render over child nodes simply
         /// by choosing to render after the render is delegated to the inner child.

@@ -1952,7 +1952,7 @@ pub(crate) struct FrameReadyMsg {
     pub composite_needed: bool,
 }
 
-/// Abstraction over channel senders  that can inject [`AppEvent`] in the app loop.
+/// Abstraction over channel senders that can inject [`AppEvent`] in the app loop.
 #[derive(Clone)]
 pub(crate) enum AppEventSender {
     Headed(EventLoopProxy<AppEvent>, flume::Sender<RequestEvent>),

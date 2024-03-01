@@ -29,7 +29,7 @@ pub struct FilterArgs<'a> {
     pub level: Level,
     /// Event or span name.
     pub name: &'static str,
-    /// Event or span  target.
+    /// Event or span target.
     pub target: &'static str,
     /// File where the event or span where declared.
     pub file: Option<&'static str>,

@@ -1,4 +1,4 @@
-//! Tests for `#[widget(..)]`  macro.
+//! Tests for `#[widget(..)]` macro.
 //!
 //! Note: Compile error tests are in the integration tests folder: `tests/build/widget` and `tests/build/widget_new`
 
@@ -256,7 +256,7 @@ pub fn wgt_same_nest_group_order() {
 }
 
 /*
- *  Tests widget when.
+ * Tests widget when.
  */
 #[widget($crate::tests::widget::WhenWgt)]
 pub struct WhenWgt(crate::widget::base::WidgetBase);

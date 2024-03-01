@@ -394,7 +394,7 @@ mod ansi_fn {
         /// Widget function for [`TextFnArgs`].
         ///
         /// The returned widgets are layout by the [`LINE_FN_VAR`]. The default view is [`default_text_fn`].
-        pub static TEXT_FN_VAR: WidgetFn<TextFnArgs> = wgt_fn!(|args: TextFnArgs|  {
+        pub static TEXT_FN_VAR: WidgetFn<TextFnArgs> = wgt_fn!(|args: TextFnArgs| {
             default_text_fn(args)
         });
 
@@ -527,7 +527,7 @@ mod ansi_fn {
             args.text.remove(0)
         } else {
             Stack! {
-                direction =  StackDirection::start_to_end();
+                direction = StackDirection::start_to_end();
                 children = args.text;
             }
             .boxed()

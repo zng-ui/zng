@@ -178,7 +178,7 @@ impl WATCHER {
         WATCHER_SV.write().read_status(file.into(), init, read)
     }
 
-    /// Read a directory into a variable,  the `init` value will start the variable and the `read` closure will be called
+    /// Read a directory into a variable, the `init` value will start the variable and the `read` closure will be called
     /// once immediately and every time any changes happen inside the dir, if the closure returns `Some(O)` the variable updates with the new value.
     ///
     /// The `read` closure parameter is a directory walker from the [`walkdir`](https://docs.rs/walkdir) crate.
@@ -485,7 +485,7 @@ const TRANSACTION_LOCK_EXT: &str = "6eIw3bYMS0uKaQMkTIQacQ-lock.tmp";
 /// The temp file is the actual file path with file extension replaced with `{path/.file-name.ext}.{GUID}-{n}.tmp`, the `n` is a
 /// number from 0 to 999, if a temp file exists unlocked it will be reused.
 ///
-/// The lock file is  `{path/.file-name.ext}.{GUID}-lock.tmp`. Note that this
+/// The lock file is `{path/.file-name.ext}.{GUID}-lock.tmp`. Note that this
 /// lock file only helps for apps that use [`WriteFile`], but even without it the risk is minimal as the slow
 /// write operations are already flushed when it is time to commit.
 ///

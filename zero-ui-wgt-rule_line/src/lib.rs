@@ -144,7 +144,7 @@ pub mod hr {
                 self;
                 orientation = LineOrientation::Horizontal;
                 color = COLOR_VAR;
-                stroke_thickness  = STROKE_THICKNESS_VAR;
+                stroke_thickness = STROKE_THICKNESS_VAR;
                 line_style = LINE_STYLE_VAR;
                 margin = MARGIN_VAR;
             }
@@ -205,7 +205,7 @@ pub mod vr {
                 self;
                 orientation = LineOrientation::Vertical;
                 color = COLOR_VAR;
-                stroke_thickness  = STROKE_THICKNESS_VAR;
+                stroke_thickness = STROKE_THICKNESS_VAR;
                 line_style = LINE_STYLE_VAR;
                 margin = MARGIN_VAR;
             }

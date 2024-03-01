@@ -50,7 +50,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// # use zero_ui_var::*;
 /// # #[property(CONTEXT)] pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 /// # #[widget($crate::Wgt)]
-/// #  pub struct Wgt(WidgetBase);
+/// # pub struct Wgt(WidgetBase);
 /// # fn main() {
 /// # let flag = true;
 /// #
@@ -413,7 +413,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// ### Variable Reference
 ///
 /// Other variable can also be referenced, context variables or any locally declared variable can be referenced. Like with properties
-/// the variable value is inserted in the expression as a reference  so you may need to deref in case the var is a simple [`Copy`] value.
+/// the variable value is inserted in the expression as a reference so you may need to deref in case the var is a simple [`Copy`] value.
 ///
 /// ```
 /// # use zero_ui_app::{*, widget::{node::*, property, self}};

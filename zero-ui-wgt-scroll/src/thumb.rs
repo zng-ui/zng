@@ -21,7 +21,7 @@ impl Thumb {
                 background_color = rgba(200, 200, 200, 70.pct());
             }
 
-            when *#is_cap_pressed  {
+            when *#is_cap_pressed {
                 background_color = rgba(200, 200, 200, 90.pct());
             }
         }

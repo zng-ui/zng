@@ -855,7 +855,7 @@ impl WINDOWS {
                 }
             }
         } else if let Some(args) = WINDOW_CLOSE_EVENT.on(update) {
-            // finish close, this notifies  `UiNode::deinit` and drops the window
+            // finish close, this notifies `UiNode::deinit` and drops the window
             // causing the ViewWindow to drop and close.
 
             for w in args.windows.iter() {

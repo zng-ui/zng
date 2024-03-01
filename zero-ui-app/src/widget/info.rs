@@ -1779,11 +1779,11 @@ impl WidgetInfo {
     }
 
     /// Spatial iterator over all widgets, self and descendants, with [`center`] in the direction defined by `orientation` and
-    /// within `max_distance` of  the `origin`, widgets are only visited once and the distance is clipped by the [`spatial_bounds`].
+    /// within `max_distance` of the `origin`, widgets are only visited once and the distance is clipped by the [`spatial_bounds`].
     ///
     /// Use [`Px::MAX`] on the distance to visit all widgets in the direction.
     ///
-    /// The direction is defined by a 45º frustum cast from  the `origin`, see [`Orientation2D::point_is`] for more details.
+    /// The direction is defined by a 45º frustum cast from the `origin`, see [`Orientation2D::point_is`] for more details.
     ///
     /// [`spatial_bounds`]: WidgetInfoTree::spatial_bounds
     /// [`center`]: WidgetInfo::center
@@ -1817,7 +1817,7 @@ impl WidgetInfo {
     ///
     /// Use [`Px::MAX`] on the distance to visit all widgets in the direction.
     ///
-    /// The direction is a collision check between  inner-bounds and origin, see [`Orientation2D::box_is`] for more details.
+    /// The direction is a collision check between inner-bounds and origin, see [`Orientation2D::box_is`] for more details.
     ///
     /// [`spatial_bounds`]: WidgetInfoTree::spatial_bounds
     /// [`inner_bounds`]: WidgetInfo::inner_bounds

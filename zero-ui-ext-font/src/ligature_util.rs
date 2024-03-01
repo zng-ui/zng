@@ -40,10 +40,10 @@ impl LigatureCaretList {
 
         GDEF Header
 
-        Type     Name 	                  Description
-        uint16 	 majorVersion 	          Major version of the GDEF table, = 1
-        uint16 	 minorVersion 	          Minor version of the GDEF table, = 0
-        Offset16 glyphClassDefOffset 	  Offset to class definition table for glyph type, from beginning of GDEF header (may be NULL)
+        Type     Name                     Description
+        uint16   majorVersion             Major version of the GDEF table, = 1
+        uint16   minorVersion             Minor version of the GDEF table, = 0
+        Offset16 glyphClassDefOffset      Offset to class definition table for glyph type, from beginning of GDEF header (may be NULL)
         Offset16 attachListOffset         Offset to attachment point list table, from beginning of GDEF header (may be NULL)
         Offset16 ligCaretListOffset       Offset to ligature caret list table, from beginning of GDEF header (may be NULL)
         ..
@@ -73,9 +73,9 @@ impl LigatureCaretList {
 
         Ligature Caret List table (LigCaretList)
 
-        Type     Name                          Description
-        Offset16 coverageOffset 	            Offset to Coverage table - from beginning of LigCaretList table
-        uint16 	 ligGlyphCount                  Number of ligature glyphs
+        Type     Name                           Description
+        Offset16 coverageOffset                 Offset to Coverage table - from beginning of LigCaretList table
+        uint16   ligGlyphCount                  Number of ligature glyphs
         Offset16 ligGlyphOffsets[ligGlyphCount] Array of offsets to LigGlyph tables, from beginning of LigCaretList table —in Coverage Index order
         */
 
@@ -86,21 +86,21 @@ impl LigatureCaretList {
         Coverage Table
 
         Coverage Format 1: Individual glyph indices
-        Type   Name 	              Description
+        Type   Name                   Description
         uint16 coverageFormat         Format identifier — format = 1
-        uint16 glyphCount 	          Number of glyphs in the glyph array
+        uint16 glyphCount             Number of glyphs in the glyph array
         uint16 glyphArray[glyphCount] Array of glyph IDs — in numerical order
 
         Coverage Format 2: Range of glyphs
-        Type 	    Name 	                 Description
-        uint16 	    coverageFormat 	         Format identifier — format = 2
-        uint16 	    rangeCount 	             Number of RangeRecords
+        Type        Name                     Description
+        uint16      coverageFormat           Format identifier — format = 2
+        uint16      rangeCount               Number of RangeRecords
         RangeRecord rangeRecords[rangeCount] Array of glyph ranges — ordered by startGlyphID.
 
         RangeRecord:
         Type   Name               Description
-        uint16 startGlyphID 	  First glyph ID in the range
-        uint16 endGlyphID 	      Last glyph ID in the range
+        uint16 startGlyphID       First glyph ID in the range
+        uint16 endGlyphID         Last glyph ID in the range
         uint16 startCoverageIndex Coverage Index of first glyph ID in range
         */
         let return_offset = cursor.position();
@@ -173,25 +173,24 @@ impl LigatureCaretList {
                 Caret Values table (CaretValues)
 
                 CaretValue Format 1
-                Type   Name 	        Description
+                Type   Name             Description
                 uint16 CaretValueFormat Format identifier-format = 1
-                int16  Coordinate 	    X or Y value, in design units
+                int16  Coordinate       X or Y value, in design units
 
                 CaretValue Format 2
-                Type   Name 	            Description
-                uint16 CaretValueFormat 	Format identifier-format = 2
+                Type   Name                 Description
+                uint16 CaretValueFormat     Format identifier-format = 2
                 uint16 caretValuePointIndex Contour point index on glyph
 
                 CaretValue Format 3
-                Type 	 Name 	          Description
-                uint16 	 CaretValueFormat Format identifier-format = 3
-                int16 	 Coordinate 	  X or Y value, in design units
-                Offset16 DeviceOffset 	  Offset to Device table for X or Y value-from beginning of CaretValue table
+                Type     Name             Description
+                uint16   CaretValueFormat Format identifier-format = 3
+                int16    Coordinate       X or Y value, in design units
+                Offset16 DeviceOffset     Offset to Device table for X or Y value-from beginning of CaretValue table
                 */
 
                 let caret_value_format = cursor.read_u16::<BigEndian>()?;
 
-                // we don't do sub-pixel caret positioning, so we
                 match caret_value_format {
                     1 => {
                         let coordinate = cursor.read_i16::<BigEndian>()?;

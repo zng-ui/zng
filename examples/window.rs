@@ -519,11 +519,11 @@ fn native() -> impl UiNode {
                 child = Text!("Messages");
                 tooltip = Tip!(Text!(r#"Shows a "Yes/No" message, then an "Ok" message dialogs."#));
                 on_click = async_hn!(|_| {
-                    let rsp = WINDOWS.native_message_dialog(WINDOW.id(),  native_dialog::MsgDialog {
+                    let rsp = WINDOWS.native_message_dialog(WINDOW.id(), native_dialog::MsgDialog {
                         title: Txt::from_static("Question?"),
                         message: Txt::from_static("Example message. Yes -> Warn, No -> Error."),
-                        icon:  native_dialog::MsgDialogIcon::Info,
-                        buttons:  native_dialog::MsgDialogButtons::YesNo,
+                        icon: native_dialog::MsgDialogIcon::Info,
+                        buttons: native_dialog::MsgDialogButtons::YesNo,
                     }).wait_rsp().await;
                     let icon = match rsp {
                         native_dialog::MsgDialogResponse::Yes => {
@@ -537,11 +537,11 @@ fn native() -> impl UiNode {
                             return;
                         },
                     };
-                    WINDOWS.native_message_dialog(WINDOW.id(),  native_dialog::MsgDialog {
+                    WINDOWS.native_message_dialog(WINDOW.id(), native_dialog::MsgDialog {
                         title: Txt::from_static("Title"),
                         message: Txt::from_static("Message"),
                         icon,
-                        buttons:  native_dialog::MsgDialogButtons::Ok,
+                        buttons: native_dialog::MsgDialogButtons::Ok,
                     });
                 });
             },
@@ -549,12 +549,12 @@ fn native() -> impl UiNode {
                 child = Text!("File Picker");
                 tooltip = Tip!(Text!(r#"Shows a "Directory Picker", then an "Open Many Files", then a "Save File" dialogs."#));
                 on_click = async_hn!(|_| {
-                    let res = WINDOWS.native_file_dialog(WINDOW.id(),  native_dialog::FileDialog {
+                    let res = WINDOWS.native_file_dialog(WINDOW.id(), native_dialog::FileDialog {
                         title: "Select Dir".into(),
                         starting_dir: "".into(),
                         starting_name: "".into(),
                         filters: "".into(),
-                        kind:  native_dialog::FileDialogKind::SelectFolder,
+                        kind: native_dialog::FileDialogKind::SelectFolder,
                     }).wait_rsp().await;
                     let dir = match res {
                         native_dialog::FileDialogResponse::Selected(mut s) => {
@@ -570,12 +570,12 @@ fn native() -> impl UiNode {
                         }
                     };
 
-                    let mut dlg =  native_dialog::FileDialog {
+                    let mut dlg = native_dialog::FileDialog {
                         title: "Open Files".into(),
                         starting_dir: dir,
                         starting_name: "".into(),
                         filters: "".into(),
-                        kind:  native_dialog::FileDialogKind::OpenFiles,
+                        kind: native_dialog::FileDialogKind::OpenFiles,
                     };
                     dlg.push_filter("Text", &["*.txt", "*.md"]);
                     dlg.push_filter("All", &["*.*"]);
@@ -596,7 +596,7 @@ fn native() -> impl UiNode {
                     };
 
                     dlg.title = "Save File".into();
-                    dlg.kind =  native_dialog::FileDialogKind::SaveFile;
+                    dlg.kind = native_dialog::FileDialogKind::SaveFile;
                     dlg.starting_dir = first_file.parent().map(|p| p.to_owned()).unwrap_or_default();
                     dlg.starting_name = first_file.file_name().map(|p| Txt::from_str(&p.to_string_lossy())).unwrap_or_default();
                     let res = WINDOWS.native_file_dialog(WINDOW.id(), dlg.clone()).wait_rsp().await;

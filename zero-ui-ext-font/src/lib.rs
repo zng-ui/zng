@@ -1597,7 +1597,7 @@ impl FontList {
         &self.fonts[0]
     }
 
-    /// Font size requested in the query that generated  this font list.
+    /// Font size requested in the query that generated this font list.
     pub fn requested_size(&self) -> Px {
         self.fonts[0].size()
     }

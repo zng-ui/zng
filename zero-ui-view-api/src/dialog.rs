@@ -103,7 +103,7 @@ pub struct FileDialog {
     /// [`push_filter`]: Self::push_filter
     pub filters: Txt,
 
-    /// Defines the file  dialog looks and what kind of result is expected.
+    /// Defines the file dialog looks and what kind of result is expected.
     pub kind: FileDialogKind,
 }
 impl FileDialog {

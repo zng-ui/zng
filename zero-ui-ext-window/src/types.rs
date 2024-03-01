@@ -419,7 +419,7 @@ event_args! {
     pub struct WindowCloseArgs {
         /// Id of windows that were closed.
         ///
-        ///  This is at least one window, is multiple if the close operation was requested as group.
+        /// This is at least one window, is multiple if the close operation was requested as group.
         pub windows: IdSet<WindowId>,
 
         ..

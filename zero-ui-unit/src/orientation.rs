@@ -17,7 +17,7 @@ pub enum Orientation2D {
 impl Orientation2D {
     /// Check if `point` is orientation from `origin`.
     ///
-    /// Returns `true` if  the point is hit by a 45º frustum cast from origin in the direction defined by the orientation.
+    /// Returns `true` if the point is hit by a 45º frustum cast from origin in the direction defined by the orientation.
     pub fn point_is(self, origin: PxPoint, point: PxPoint) -> bool {
         let (a, b, c, d) = match self {
             Orientation2D::Above => (point.y, origin.y, point.x, origin.x),

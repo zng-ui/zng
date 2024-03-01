@@ -63,11 +63,11 @@ fn controls() -> impl UiNode {
         auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
         text::font_size = 14.pt();
         cells = ui_vec![
-            b_squre,  b_sroot,  b_clear,  b_back,
-            bn('7'),  bn('8'),  bn('9'),  bn('/'),
-            bn('4'),  bn('5'),  bn('6'),  bn('*'),
-            bn('1'),  bn('2'),  bn('3'),  bn('-'),
-            bn('0'),  bn('.'),  b_equal,  bn('+'),
+            b_squre, b_sroot, b_clear, b_back,
+            bn('7'), bn('8'), bn('9'), bn('/'),
+            bn('4'), bn('5'), bn('6'), bn('*'),
+            bn('1'), bn('2'), bn('3'), bn('-'),
+            bn('0'), bn('.'), b_equal, bn('+'),
         ];
     }
 }

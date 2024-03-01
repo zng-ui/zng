@@ -131,7 +131,7 @@ macro_rules! __command {
             }
             $crate::event::app_local! {
                 static EVENT: $crate::event::EventData = const { $crate::event::EventData::new(std::stringify!($COMMAND)) };
-                static DATA: $crate::event::CommandData =  $crate::event::CommandData::new(__meta_init__);
+                static DATA: $crate::event::CommandData = $crate::event::CommandData::new(__meta_init__);
             }
             $crate::event::Command::new(&EVENT, &DATA)
         };
@@ -150,7 +150,7 @@ macro_rules! __command {
                 ///
                 ///| metadata | value |
                 ///|----------|-------|
-                $(#[doc = concat!("|  ", stringify!($meta_ident), "  |  ", stringify!($meta_init), "  |")])+
+                $(#[doc = concat!("| ", stringify!($meta_ident), " | ", stringify!($meta_init), " |")])+
                 ///
                 $vis static $COMMAND => |cmd| {
                     $(

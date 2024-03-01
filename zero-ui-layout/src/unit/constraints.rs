@@ -538,14 +538,14 @@ impl PxConstraints2d {
     }
 
     /// Returns a copy of the current constraints with the **x** maximum and minimum set to `x`
-    /// clamped by the  current constraints.
+    /// clamped by the current constraints.
     pub fn with_exact_x(mut self, x: Px) -> Self {
         self.x = self.x.with_exact(x);
         self
     }
 
     /// Returns a copy of the current constraints with the **y** maximum and minimum set to `y`
-    /// clamped by the  current constraints.
+    /// clamped by the current constraints.
     pub fn with_exact_y(mut self, y: Px) -> Self {
         self.y = self.y.with_exact(y);
         self

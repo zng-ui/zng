@@ -276,8 +276,8 @@ where
     // Is there a better way to do this? I hope so.
     //
     // SAFETY:
-    //  * We are extending `'_` to `'scope`, that is one of the documented valid usages of `transmute`.
-    //  * No use after free because `rayon::scope` joins all threads before returning and we only drop `ctx` after.
+    // * We are extending `'_` to `'scope`, that is one of the documented valid usages of `transmute`.
+    // * No use after free because `rayon::scope` joins all threads before returning and we only drop `ctx` after.
     let ctx_ref: &'_ LocalContext = &ctx;
     let ctx_scope_ref: &'scope LocalContext = unsafe { std::mem::transmute(ctx_ref) };
 

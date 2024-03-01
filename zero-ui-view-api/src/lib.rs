@@ -304,7 +304,7 @@ declare_api! {
     /// Set the window taskbar icon visibility.
     pub fn set_taskbar_visible(&mut self, id: WindowId, visible: bool);
 
-    /// Bring the window to  the Z top, without focusing it.
+    /// Bring the window to the Z top, without focusing it.
     pub fn bring_to_top(&mut self, id: WindowId);
 
     /// Set the window state, position, size.
@@ -457,7 +457,7 @@ declare_api! {
     /// Set the video mode used when the window is in exclusive fullscreen.
     pub fn set_video_mode(&mut self, id: WindowId, mode: window::VideoMode);
 
-    ///  Render a new frame.
+    /// Render a new frame.
     pub fn render(&mut self, id: WindowId, frame: window::FrameRequest);
 
     /// Update the current frame and re-render it.

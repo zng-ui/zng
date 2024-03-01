@@ -54,7 +54,7 @@ impl AppExtension for ClipboardManager {
 }
 
 app_local! {
-    static CLIPBOARD_SV: ClipboardService  = ClipboardService::default();
+    static CLIPBOARD_SV: ClipboardService = ClipboardService::default();
 }
 
 #[derive(Default)]

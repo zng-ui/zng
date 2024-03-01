@@ -142,7 +142,7 @@ impl<A: EventArgs> Event<A> {
         self.as_any().is_subscriber(widget_id)
     }
 
-    /// Returns `true`  if at least one widget is subscribed to this event.
+    /// Returns `true` if at least one widget is subscribed to this event.
     pub fn has_subscribers(&self) -> bool {
         self.as_any().has_subscribers()
     }
@@ -437,7 +437,7 @@ impl AnyEvent {
         self.local.read().widget_subs.contains_key(&widget_id)
     }
 
-    /// Returns `true`  if at least one widget is subscribed to this event.
+    /// Returns `true` if at least one widget is subscribed to this event.
     pub fn has_subscribers(&self) -> bool {
         !self.local.read().widget_subs.is_empty()
     }

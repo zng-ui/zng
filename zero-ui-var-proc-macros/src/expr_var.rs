@@ -32,7 +32,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let (ident, eval) = &vars[0];
 
         if token_stream_eq(expr.clone(), quote!(#ident)) || token_stream_eq(expr.clone(), quote!(*#ident)) {
-            // full expr is an interpolation, just return the  var.
+            // full expr is an interpolation, just return the var.
             quote_spanned! {expr.span()=>
                 #mod_::types::expr_var_as(#eval)
             }

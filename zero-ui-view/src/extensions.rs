@@ -47,7 +47,7 @@ pub trait ViewExtension: Send + Any {
     fn low_memory(&mut self) {}
 }
 
-///  Represents a view extension associated with a renderer instance.
+/// Represents a view extension associated with a renderer instance.
 pub trait RendererExtension: Any {
     /// Edit options for the new renderer.
     fn configure(&mut self, args: &mut RendererConfigArgs) {
@@ -216,7 +216,7 @@ pub struct RedrawArgs<'a> {
 
     /// OpenGL context used by the renderer.
     ///
-    /// The context is  current, and Webrender has already redraw.
+    /// The context is current, and Webrender has already redraw.
     pub gl: &'a dyn gleam::gl::Gl,
 }
 

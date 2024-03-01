@@ -188,7 +188,7 @@ event_args! {
     }
 
     /// Arguments for the [`ACCESS_TOOLTIP_EVENT`].
-    pub struct AccessToolTipArgs  {
+    pub struct AccessToolTipArgs {
         /// Target window.
         pub window_id: WindowId,
 

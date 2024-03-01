@@ -1528,7 +1528,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Setup two hooks that assigns `other` with the new values of `self` and `self` with the new values of `other`.
     ///
-    /// Only a  weak reference to each variable is held by the other.
+    /// Only a weak reference to each variable is held by the other.
     ///
     /// Note that the current value is not assigned, only the subsequent updates, you can assign
     /// `other` using [`set_from`] and then bind to fully sync the variables.

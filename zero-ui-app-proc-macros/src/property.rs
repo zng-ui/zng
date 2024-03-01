@@ -504,7 +504,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #cfg
             #[doc(hidden)]
             #[allow(non_camel_case_types)]
-            #vis struct #ident_meta  { }
+            #vis struct #ident_meta { }
             #cfg
             #[doc(hidden)]
             #[allow(dead_code)]
@@ -535,7 +535,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     }
                 }
 
-                #vis const fn input_types #impl_gens(&self) ->  #core::widget::builder::PropertyInputTypes<(#(#storage_tys,)*)> #where_gens {
+                #vis const fn input_types #impl_gens(&self) -> #core::widget::builder::PropertyInputTypes<(#(#storage_tys,)*)> #where_gens {
                     #core::widget::builder::PropertyInputTypes::unit()
                 }
 

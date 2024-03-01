@@ -156,7 +156,7 @@ impl Parse for PropertyValue {
         if input.peek(Ident) && input.peek2(Token![!]) && (input.peek3(Token![;]) || input.peek3(Ident::peek_any) || !peek_any3(input)) {
             let ident: Ident = input.parse().unwrap();
             if ident != "unset" {
-                return Err(Error::new(ident.span(), "unknown special value,  expected `unset!`"));
+                return Err(Error::new(ident.span(), "unknown special value, expected `unset!`"));
             }
             let r = PropertyValue::Special(ident, input.parse().unwrap());
             return Ok(r);

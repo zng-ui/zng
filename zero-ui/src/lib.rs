@@ -440,7 +440,7 @@
 #![warn(missing_docs)]
 
 // manually expanded enable_widget_macros to avoid error running doc tests:
-//  macro-expanded `extern crate` items cannot shadow names passed with `--extern`
+// macro-expanded `extern crate` items cannot shadow names passed with `--extern`
 #[doc(hidden)]
 #[allow(unused_extern_crates)]
 extern crate self as zero_ui;

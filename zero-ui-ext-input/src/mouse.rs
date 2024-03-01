@@ -597,7 +597,7 @@ impl MouseWheelArgs {
 
     /// If the modifiers allow the event to be used for zooming.
     ///
-    /// Is `true` if only `CTRL` is pressed.  If `true` the [`zoom_delta`] method returns a value.
+    /// Is `true` if only `CTRL` is pressed. If `true` the [`zoom_delta`] method returns a value.
     ///
     /// [`zoom_delta`]: Self::zoom_delta
     pub fn is_zoom(&self) -> bool {

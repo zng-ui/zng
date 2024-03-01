@@ -660,7 +660,7 @@ context_var! {
     /// Strikethrough thickness.
     pub static STRIKETHROUGH_THICKNESS_VAR: TextLineThickness = 0;
     /// Strikethrough style.
-    pub static  STRIKETHROUGH_STYLE_VAR: LineStyle = LineStyle::Hidden;
+    pub static STRIKETHROUGH_STYLE_VAR: LineStyle = LineStyle::Hidden;
     /// Strikethrough color, inherits from [`FONT_COLOR_VAR`].
     pub static STRIKETHROUGH_COLOR_VAR: Rgba = FONT_COLOR_VAR;
 
@@ -1542,7 +1542,7 @@ pub enum AutoSelection {
 
     /// Select-all on keyboard focus ([highlight]).
     ///
-    ///  [highlight]: zero_ui_ext_input::focus::FocusChangedArgs::highlight
+    /// [highlight]: zero_ui_ext_input::focus::FocusChangedArgs::highlight
     Enabled,
 
     /// Select-all on keyboard focus ([highlight]) if the text is not [`accepts_enter`].

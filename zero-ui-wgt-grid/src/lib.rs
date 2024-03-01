@@ -43,7 +43,7 @@ impl Grid {
 /// Note that you don't need to use the cell widget, only the [`cell`] properties.
 ///
 /// If the column or row index is set to [`usize::MAX`] the widget is positioned using the
-/// logical index *i*, the column *i % columns* and the row  *i / columns*.
+/// logical index *i*, the column *i % columns* and the row *i / columns*.
 ///
 /// [`Cell!`]: struct@Cell
 #[property(CHILD, capture, widget_impl(Grid))]
@@ -1003,7 +1003,7 @@ pub mod cell {
     }
 
     /// Value for [`at`] that causes the cell to be positioned based on the logical index *i*,
-    /// for columns *i % columns* and for rows  *i / columns*.
+    /// for columns *i % columns* and for rows *i / columns*.
     ///
     /// [`at`]: fn@at
     pub const AT_AUTO: (usize, usize) = (usize::MAX, usize::MAX);
@@ -1331,9 +1331,9 @@ impl GridLayout {
         }
 
         // Measure cells when needed, collect widest/tallest.
-        //  - For `Default` columns&rows to get their size.
-        //  - For `leftover` columns&rows when the grid is not fill or exact size, to get the `1.lft()` length.
-        //  - For leftover x default a second pass later in case the constrained leftover causes a different default.
+        // - For `Default` columns&rows to get their size.
+        // - For `leftover` columns&rows when the grid is not fill or exact size, to get the `1.lft()` length.
+        // - For leftover x default a second pass later in case the constrained leftover causes a different default.
         let mut has_leftover_x_default = false;
         let columns_len = self.columns.len();
         if has_default || (fill_x.is_none() && has_leftover_cols) || (fill_y.is_none() && has_leftover_rows) {

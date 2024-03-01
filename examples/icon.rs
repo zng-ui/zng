@@ -271,7 +271,7 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
                                             ico = ico.clone();
                                             ico_size = size;
 
-                                            background_color =  color_scheme_map(
+                                            background_color = color_scheme_map(
                                                 colors::BLACK.with_alpha(85.pct()),
                                                 colors::WHITE.with_alpha(85.pct())
                                             );

@@ -107,7 +107,7 @@
 //! # let _scope = APP.defaults(); let _ =
 //! Window! {
 //!     child_align = Align::CENTER;
-//!     child = Stack!(top_to_bottom, 50,  ui_vec![
+//!     child = Stack!(top_to_bottom, 50, ui_vec![
 //!         Button! {
 //!             on_click = hn!(|_| {
 //!                 use zero_ui::access::ACCESS;

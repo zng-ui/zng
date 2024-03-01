@@ -97,7 +97,7 @@ pub fn children_align(align: impl IntoVar<Align>) {}
 
 /// Wrap node.
 ///
-/// Can be used directly to inline widgets without declaring a wrap widget info.  This node is the child
+/// Can be used directly to inline widgets without declaring a wrap widget info. This node is the child
 /// of the `Wrap!` widget.
 pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
     let children = PanelList::new(children).track_info_range(&PANEL_LIST_ID);

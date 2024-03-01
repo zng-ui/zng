@@ -562,15 +562,15 @@ pub trait WidgetInfoFocusExt {
     ///
     /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more details on the parameters.
     ///
-    /// [`FOCUS.focus_disabled_widgets`]:  crate::focus::FOCUS::focus_disabled_widgets
-    /// [`FOCUS.focus_hidden_widgets`]:  crate::focus::FOCUS::focus_hidden_widgets
+    /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
+    /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
     fn into_focus_info(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> WidgetFocusInfo;
     /// Returns a wrapped [`WidgetFocusInfo`] if the [`WidgetInfo`] is focusable.
     ///
     /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more details on the parameters.
     ///
-    /// [`FOCUS.focus_disabled_widgets`]:  crate::focus::FOCUS::focus_disabled_widgets
-    /// [`FOCUS.focus_hidden_widgets`]:  crate::focus::FOCUS::focus_hidden_widgets
+    /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
+    /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
     fn into_focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Option<WidgetFocusInfo>;
 }
 impl WidgetInfoFocusExt for WidgetInfo {
@@ -598,8 +598,8 @@ impl WidgetFocusInfo {
     ///
     /// See the [`FOCUS.focus_disabled_widgets`] and [`FOCUS.focus_hidden_widgets`] config for more details on the parameters.
     ///
-    /// [`FOCUS.focus_disabled_widgets`]:  crate::focus::FOCUS::focus_disabled_widgets
-    /// [`FOCUS.focus_hidden_widgets`]:  crate::focus::FOCUS::focus_hidden_widgets
+    /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
+    /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
     pub fn new(widget_info: WidgetInfo, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Self {
         WidgetFocusInfo {
             info: widget_info,
@@ -1205,7 +1205,7 @@ impl WidgetFocusInfo {
     }
 
     /// Find the focusable descendant with center point nearest of `origin` within the `max_distance` and with `orientation`
-    ///  to origin that passes the `filter`.
+    /// to origin that passes the `filter`.
     pub fn nearest_oriented_filtered(
         &self,
         origin: PxPoint,

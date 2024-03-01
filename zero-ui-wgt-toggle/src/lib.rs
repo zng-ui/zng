@@ -912,7 +912,7 @@ impl DefaultStyle {
         widget_set! {
             self;
             replace = true;
-            when *#is_checked  {
+            when *#is_checked {
                 background_color = zero_ui_wgt_button::color_scheme_pressed(zero_ui_wgt_button::BASE_COLORS_VAR);
                 border = {
                     widths: 1,

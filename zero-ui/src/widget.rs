@@ -991,7 +991,7 @@ pub use zero_ui_app::widget::property;
 /// ## Subscription
 ///
 /// You can mark members with the `#[var]` or `#[event]` pseudo attributes to generate initialization code that subscribes the var or
-/// event to the [`WIDGET`]  context. The init code is placed in a method with signature `fn auto_subs(&mut self)`,
+/// event to the [`WIDGET`] context. The init code is placed in a method with signature `fn auto_subs(&mut self)`,
 /// if you manually implement the `init` node method you must call `self.auto_subs();` in it, a compile time error is emitted if the call is missing.
 ///
 /// ## Limitations

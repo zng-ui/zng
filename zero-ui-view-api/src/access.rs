@@ -235,7 +235,7 @@ pub enum AccessState {
 
     /// Indicate that the widget toggles the visibility of related widgets.
     ///
-    /// Use  [`Controls`], or [`Owns`] to indicate the widgets that change visibility based on
+    /// Use [`Controls`], or [`Owns`] to indicate the widgets that change visibility based on
     /// this value.
     ///
     /// [`Controls`]: Self::Controls
@@ -460,9 +460,9 @@ bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct Invalid: u8 {
         /// Indicates the entered value does not conform to the format expected by the application.
-        const ANY =    0b001;
+        const ANY      = 0b001;
         /// Indicates the entered value contains a grammatical error.
-        const GRAMMAR =  0b011;
+        const GRAMMAR  = 0b011;
          /// Indicates the entered value contains a spelling error.
         const SPELLING = 0b101;
     }

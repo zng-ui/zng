@@ -47,7 +47,7 @@ use super::{LaidoutText, PendingLayout, RenderInfo, LAIDOUT_TEXT, TEXT};
 /// This node setups the [`LaidoutText`] for all inner nodes, the `Text!` widget includes this
 /// node in the `NestGroup::CHILD_LAYOUT + 100` nest group, so all properties in [`NestGroup::CHILD_LAYOUT`]
 /// can affect the layout normally and custom properties can be created to be inside this group and have access
-///  to the [`TEXT::laidout`] method.
+/// to the [`TEXT::laidout`] method.
 ///
 /// [`ResolvedText`]: super::ResolvedText
 pub fn layout_text(child: impl UiNode) -> impl UiNode {

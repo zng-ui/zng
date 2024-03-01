@@ -301,7 +301,7 @@ macro_rules! __async_clmv {
 /// ```
 /// # use zero_ui_clone_move::async_clmv_fn;
 /// # use std::future::Future;
-/// async fn foo<F: Future<Output=()>, H:  FnMut(bool) -> F + 'static>(mut f: H) {
+/// async fn foo<F: Future<Output=()>, H: FnMut(bool) -> F + 'static>(mut f: H) {
 ///     f(true).await;
 /// }
 ///
@@ -319,7 +319,7 @@ macro_rules! __async_clmv {
 /// ```
 /// # use zero_ui_clone_move::async_clmv_fn;
 /// # use std::future::Future;
-/// # async fn foo<F: Future<Output=()>, H:  FnMut(bool) -> F + 'static>(mut f: H) {
+/// # async fn foo<F: Future<Output=()>, H: FnMut(bool) -> F + 'static>(mut f: H) {
 /// #     f(true).await;
 /// # }
 /// # let bar = "Cool!".to_owned();
@@ -430,7 +430,7 @@ macro_rules! __async_clmv_fn {
     };
 
     // match end of closure inputs, the closure body is in a block
-    (@args [  { $($closure_clones:tt)* }{ $($async_clones:tt)* } ] [$($args:tt)*] | { $($rest:tt)+ }) => {
+    (@args [ { $($closure_clones:tt)* }{ $($async_clones:tt)* } ] [$($args:tt)*] | { $($rest:tt)+ }) => {
         {
             $($closure_clones)*
             move |$($args)*| {
@@ -442,7 +442,7 @@ macro_rules! __async_clmv_fn {
         }
     };
     // match end of closure inputs, the closure body is in a block
-    (@args [  { $($closure_clones:tt)* }{ $($async_clones:tt)* } ] [$($args:tt)*] | $($rest:tt)+) => {
+    (@args [ { $($closure_clones:tt)* }{ $($async_clones:tt)* } ] [$($args:tt)*] | $($rest:tt)+) => {
         {
             $($closure_clones)*
             move |$($args)*| {
@@ -478,7 +478,7 @@ macro_rules! __async_clmv_fn {
 /// ```
 /// # use zero_ui_clone_move::async_clmv_fn;
 /// # use std::future::Future;
-/// async fn foo<F: Future<Output=()>, H:  FnOnce(bool) -> F + 'static>(mut f: H) {
+/// async fn foo<F: Future<Output=()>, H: FnOnce(bool) -> F + 'static>(mut f: H) {
 ///     f(true).await;
 /// }
 ///
@@ -496,7 +496,7 @@ macro_rules! __async_clmv_fn {
 /// ```
 /// # use zero_ui_clone_move::async_clmv_fn;
 /// # use std::future::Future;
-/// # async fn foo<F: Future<Output=()>, H:  FnOnce(bool) -> F + 'static>(mut f: H) {
+/// # async fn foo<F: Future<Output=()>, H: FnOnce(bool) -> F + 'static>(mut f: H) {
 /// #     f(true).await;
 /// # }
 /// # let bar = "Cool!".to_owned();

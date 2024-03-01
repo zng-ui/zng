@@ -26,7 +26,7 @@ pub use paste::paste;
 /// Declare a new unique id type that is backed by a `NonZeroU32`.
 #[macro_export]
 macro_rules! unique_id_32 {
-    ($(#[$attrs:meta])* $vis:vis struct $Type:ident $(< $T:ident $(:($($bounds:tt)+))? >)?  $(: $ParentId:path)? ;) => {
+    ($(#[$attrs:meta])* $vis:vis struct $Type:ident $(< $T:ident $(:($($bounds:tt)+))? >)? $(: $ParentId:path)? ;) => {
        $crate::unique_id! {
             request {
                 $(#[$attrs])*
@@ -53,7 +53,7 @@ macro_rules! unique_id_32 {
                 /// create a lightweight lazy ID factory that will generate the ID on the first get.
                 ///
                 /// [`new_static`]: Self::new_static
-                $vis struct $Type $(< $T $(:($($bounds)+))? >)?  $(: $ParentId)? ;
+                $vis struct $Type $(< $T $(:($($bounds)+))? >)? $(: $ParentId)? ;
             }
             non_zero {
                 std::num::NonZeroU32
@@ -80,7 +80,7 @@ macro_rules! unique_id_32 {
 /// Declare a new unique id type that is backed by a `NonZeroU64`.
 #[macro_export]
 macro_rules! unique_id_64 {
-    ($(#[$attrs:meta])* $vis:vis struct $Type:ident $(< $T:ident $(:($($bounds:tt)+))? >)?  $(: $ParentId:path)? ;) => {
+    ($(#[$attrs:meta])* $vis:vis struct $Type:ident $(< $T:ident $(:($($bounds:tt)+))? >)? $(: $ParentId:path)? ;) => {
         $crate::unique_id! {
             request {
                 $(#[$attrs])*
@@ -106,7 +106,7 @@ macro_rules! unique_id_64 {
                 /// create a lightweight lazy ID factory that will generate the ID on the first get.
                 ///
                 /// [`new_static`]: Self::new_static
-                $vis struct $Type $(< $T $(:($($bounds)+))? >)?  $(: $ParentId)? ;
+                $vis struct $Type $(< $T $(:($($bounds)+))? >)? $(: $ParentId)? ;
             }
             non_zero {
                 std::num::NonZeroU64
@@ -154,7 +154,7 @@ macro_rules! impl_bytemuck {
 macro_rules! unique_id {
     (
         request {
-            $(#[$attrs:meta])* $vis:vis struct $Type:ident $(< $T:ident $(:($($bounds:tt)+))? >)?  $(: $ParentId:path)? ;
+            $(#[$attrs:meta])* $vis:vis struct $Type:ident $(< $T:ident $(:($($bounds:tt)+))? >)? $(: $ParentId:path)? ;
         }
         non_zero {
             $non_zero:path
@@ -301,8 +301,8 @@ macro_rules! unique_id {
                 }
             }
 
-            impl $(<$T $(: $($bounds)+)?>)? From<&'static [<Static $Type>]  $(<$T>)?> for $Type  $(<$T>)? {
-                fn from(st: &'static [<Static $Type>]  $(<$T>)?) -> $Type  $(<$T>)? {
+            impl $(<$T $(: $($bounds)+)?>)? From<&'static [<Static $Type>] $(<$T>)?> for $Type $(<$T>)? {
+                fn from(st: &'static [<Static $Type>] $(<$T>)?) -> $Type $(<$T>)? {
                     st.get()
                 }
             }
@@ -311,7 +311,7 @@ macro_rules! unique_id {
 
     (
         new_unique {
-            $ParentId:path,  $(<$T:ident>)?
+            $ParentId:path, $(<$T:ident>)?
         }
         atomic {
             $atomic:path
