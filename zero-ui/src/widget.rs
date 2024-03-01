@@ -744,7 +744,7 @@ pub use zero_ui_app::widget::easing;
 /// The input kind is [`InputKind::WidgetHandler`]. A no-op handler is used for the default if no other is provided.
 ///
 /// Event handler properties usually have the `on_` name prefix. You can use the [`event_property!`] macro to generate standard event properties.
-/// 
+///
 /// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
 ///
 /// # Getter Properties
@@ -757,21 +757,21 @@ pub use zero_ui_app::widget::easing;
 ///
 /// Getter properties are configured with a default read-write variable, so that they can be used in `when` expressions directly,
 /// for example, `when *#is_pressed`, the `is_pressed` property has a `default(var(false))`, so it automatically initializes
-/// with a read-write variable that is used in the when condition. The property attribute tries to generate defaults automatically
-/// based on the prefix, attempting to use a read-write var with the `T::default()`, this can be overwritten just by setting
-/// the default, but it enforces the requirement of a default, it is not possible to declare a getter property without default.
+/// with a read-write variable that is used in the when condition. The property attribute generates defaults automatically
+/// based on the prefix, the default is `var(T::default())`, this can be overwritten just by setting the default,
+/// it is not possible to declare a getter property without default.
 ///
 /// # Generics
 ///
-/// Apart from the `impl` generics of inputs and *child* a very limited named generic types is supported, only `T: VarValue`, that is
-/// an simple ident name constrained by [`VarValue`]. Named generics can only be used as the argument for `impl IntoVar<T>`, `impl IntoValue<T>`
-/// and `impl WidgetHandler<T>`.
+/// Apart from the `impl` generics of inputs and child, there is some support for named generic types, only one named generic is allowed
+/// for inputs `impl IntoVar<T>`, `impl IntoValue<T>` and `impl WidgetHandler<A>`.
 ///
 /// # Output
 ///
 /// The property output type must be any type that implements [`UiNode`], usually an opaque type `impl UiNode` is used. The property
-/// node can be anything, as long as it delegates to the child node, see [`ui_node`] about implementing a node. Some common
-/// property patterns have helpers functions, for example, to setup a context var you can use [`with_context_var`] function.
+/// node can be anything, as long as it delegates to the child node, see [`match_node`] or [`ui_node`] about implementing a node.
+///
+/// Some common property patterns have helper functions, for example, to setup a context var you can use the [`with_context_var`] function.
 ///
 /// # More Details
 ///
@@ -781,6 +781,7 @@ pub use zero_ui_app::widget::easing;
 /// [`property_id!`]: crate::widget::builder::property_id
 /// [`property_args!`]: crate::widget::builder::property_args
 /// [`ui_node`]: macro@ui_node
+/// [`match_node`]: crate::widget::node::match_node
 /// [`with_context_var`]: crate::widget::node::with_context_var
 /// [`VarValue`]: crate::var::VarValue
 /// [`IntoValue<T>`]: crate::var::IntoValue
