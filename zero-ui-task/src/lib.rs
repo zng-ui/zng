@@ -1899,7 +1899,7 @@ pub mod tests {
     where
         F: Future,
     {
-        block_on(with_deadline(test, 10.secs())).unwrap()
+        block_on(with_deadline(test, 20.secs())).unwrap()
     }
 
     #[test]

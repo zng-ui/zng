@@ -1,4 +1,4 @@
-error: unknown special value,  expected `unset!`
+error: unknown special value, expected `unset!`
  --> cases/widget_new/invalid_special.rs:6:28
   |
 6 |         background_color = invalid!;
