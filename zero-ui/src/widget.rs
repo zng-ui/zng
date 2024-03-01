@@ -582,18 +582,23 @@ pub use zero_ui_app::widget::easing;
 
 /// Expands a function to a widget property.
 ///
-/// Property functions take one [`UiNode`] child input and one or more other inputs and produces a [`UiNode`] that implements
-/// the property feature. The attribute expansion does not modify the function, it can still be used as a function directly, some
-/// properties are implemented by calling other property functions to generate a derived effect. The attribute expansion generates
-/// a hidden module of the same name and visibility, the module contains helper code that defines the property for widgets.
+/// Property functions take one [`UiNode`] child input and one or more other inputs and produces an [`UiNode`] that implements
+/// the property feature.
+///
+/// The attribute expansion does not modify the function, it can still be used as a function directly. Some
+/// properties are implemented by calling other property functions to generate a derived effect.
+///
+/// The attribute expansion generates a hidden trait of the same name and visibility, the trait is implemented for widget builders,
+/// the widget macros use this to set the property. Because it has the same name it is imported together with the property
+/// function, in practice this only matters in doc links where you must use the `fn@` disambiguator.
 ///
 /// # Attribute
 ///
 /// The property attribute has one required argument and three optional.
 ///
-/// ## Nest Group
+/// #### Nest Group
 ///
-/// The first argument is the property [`NestGroup`], written as one the `const` group names. The group defines the overall nest position
+/// The first argument is the property [`NestGroup`]. The group defines the overall nest position
 /// of the property, for example, `LAYOUT` properties always wrap `FILL` properties. This is important as widgets are open and any combination
 /// of properties may end-up instantiated in the same widget.
 ///
@@ -603,12 +608,13 @@ pub use zero_ui_app::widget::easing;
 ///
 /// #[property(LAYOUT)]
 /// pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+///     // ..
 /// #   child
 /// }
 /// ```
 ///
-/// The nest group can be tweaked, by adding or subtracting integers, in the example bellow `size` is always inside
-/// `max_size`, but both are in the `SIZE` range.
+/// The nest group can be tweaked, by adding or subtracting integers, in the example bellow both properties are in the `SIZE` group,
+/// but `size` is always inside `max_size`.
 ///
 /// ```
 /// # fn main() { }
@@ -616,16 +622,18 @@ pub use zero_ui_app::widget::easing;
 ///
 /// #[property(SIZE+1)]
 /// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+///     // ..
 /// #   child
 /// }
 ///
 /// #[property(SIZE)]
 /// pub fn max_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
+///     // ..
 /// #   child
 /// }
 /// ```
 ///
-/// ## Default
+/// #### Default
 ///
 /// The next argument is an optional `default(args..)`. It defines the value to use when the property must be instantiated and no value was provided.
 /// The defaults should cause the property to behave as if it is not set, as the default value will be used in widgets that only set the
@@ -637,6 +645,7 @@ pub use zero_ui_app::widget::easing;
 ///
 /// #[property(FILL, default(rgba(0, 0, 0, 0)))]
 /// pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+///     // ..
 /// #   child
 /// }
 /// ```
@@ -644,18 +653,19 @@ pub use zero_ui_app::widget::easing;
 /// In the example above the `background_color` defines a transparent color as the default, so if the background color is only set in a `when`
 /// block if will only be visible when it is active.
 ///
-/// For properties with multiple inputs the default args may be defined in a comma separated list of params, `default(dft0, dft1, ..)`.
+/// For properties with multiple inputs the default args may be defined in a comma separated list of params, `default(dft0, ..)`.
 ///
-/// ## Impl For
+/// #### Impl For
 ///
-/// The last argument is an optional `impl(<widget-type>)`, it generates `impl <widget-type>` methods for the property strongly associating
-/// the property with the widget, users can set this property on the widget or descendants without needing to import the property. Note that
-/// this makes the property have priority over all others of the same name, only a derived widget can override with another strongly associated
-/// property.
+/// The last argument is an optional `impl(<widget-type>)`, it strongly associates
+/// the property with a widget, users can set this property on the widget without needing to import the property.
 ///
-/// Note that you can use the [`widget_impl!`] in widget declarations to implement existing properties for a widget.
+/// Note that this makes the property have priority over all others of the same name, only a derived widget can override
+/// with another strongly associated property.
 ///
-/// ## Capture
+/// Note that you can also use the [`widget_impl!`] in widget declarations to implement existing properties for a widget.
+///
+/// #### Capture
 ///
 /// After the nest group and before default the `, capture, ` value indicates that the property is capture-only. This flag
 /// changes how the property must be declared, the first argument is a property input and the function can have only one input,
@@ -678,38 +688,68 @@ pub use zero_ui_app::widget::easing;
 ///
 /// # Args
 ///
-/// The property function requires at least two args, the first is the *child* node and the other(s) the input values. The
+/// The property function requires at least two args, the first is the child node and the other(s) the input values. The
 /// number and type of inputs is validated at compile time, the types are limited and are identified and validated by their
 /// token name, so you cannot use renamed types.
 ///
-/// ## Child
+/// #### Child
 ///
-/// The first function argument must be of type `impl UiNode`, it represents the *child* node and the property node must
+/// The first function arg must be of type `impl UiNode`, it represents the child node and the property node must
 /// delegate to it so that the UI tree functions correctly. The type must be an `impl` generic, a full path to [`UiNode`]
 /// is allowed, but no import renames as the proc-macro attribute can only use tokens to identify the type.
 ///
-/// ## Inputs
+/// #### Inputs
 ///
 /// The second arg and optional other args define the property inputs. When a property is assigned in a widget only these inputs
-/// are defined by the user, the *child* arg is provided by the widget builder. Property inputs are limited, and must be identifiable
-/// by their token name alone. The types are validated at compile time, the `impl` generic types must be declared using `impl` generics,
+/// are defined by the user, the child arg is provided by the widget builder. Property inputs are limited, and must be identifiable
+/// by their token name alone. The types are validated at compile time, they must be declared using `impl` generics,
 /// a full path to the generic traits is allowed, but no import renames.
 ///
-/// ### Input Types
+/// #### Input Types
 ///
 /// These are the allowed input types:
 ///
-/// #### `impl IntoVar<T>`
+/// ##### `impl IntoVar<T>`
 ///
 /// The most common type, accepts any value that can be converted [`IntoVar<T>`], usually the property defines the `T`, but it can be generic.
 /// The property node must respond to var updates. The input kind is [`InputKind::Var`]. No auto-default is generated for this type, property
 /// implementation should provide a default value that causes the property to behave as if it was not set.
 ///
-/// Only properties with inputs exclusive of this kind can be assigned in `when` blocks. The inputs can also be read in `when` expressions.
+/// The input can be read in `when` expressions and can be assigned in `when` blocks.
 ///
-/// ##### Getter Properties
+/// ##### `impl IntoValue<T>`
 ///
-/// Most properties with var inputs are *setters*, that is the inputs configure an effect on the widget. But some properties
+/// Accepts any value that can be converted [`IntoValue<T>`] that does not change, usually the property
+/// defines the `T`, but it can be generic. The input kind is [`InputKind::Value`]. No auto-default is generated for this type.
+///
+/// The input can be read in `when` expressions, but cannot be assigned in `when` blocks.
+///
+/// ##### `impl UiNode`
+///
+/// This input accepts another [`UiNode`], the implementation must handle it like it handles the child node, delegating all methods. The
+/// input kind is [`InputKind::UiNode`]. The [`NilUiNode`] is used as the default value if no other is provided.
+///
+/// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
+///
+/// ##### `impl UiNodeList`
+///
+/// This input accepts an [`UiNodeList`], the implementation must handle it like it handles the child node, delegating all methods. The
+/// input kind is [`InputKind::UiNodeList`]. An empty list is used as the default value if no other is provided.
+///
+/// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
+///
+/// ##### `impl WidgetHandler<A>`
+///
+/// This input accepts any [`WidgetHandler<A>`] for the argument type `A`, usually the property defines the `A`, but it can be generic.
+/// The input kind is [`InputKind::WidgetHandler`]. A no-op handler is used for the default if no other is provided.
+///
+/// Event handler properties usually have the `on_` name prefix. You can use the [`event_property!`] macro to generate standard event properties.
+/// 
+/// The input cannot be read in `when` expressions, but can be assigned in `when` blocks.
+///
+/// # Getter Properties
+///
+/// Most properties with var inputs are *setters*, that is the inputs affect the widget. Some properties
 /// can be *getters*, detecting widget state and setting it on the *input* variable. These properties are usually named with
 /// a prefix that indicates their input is actually for getting state, the prefixes `is_` and `has_` mark a property with
 /// a single `bool` input that reads a widget state, the prefix `get_` and `actual_` marks a property that reads a non-boolean state from
@@ -720,36 +760,6 @@ pub use zero_ui_app::widget::easing;
 /// with a read-write variable that is used in the when condition. The property attribute tries to generate defaults automatically
 /// based on the prefix, attempting to use a read-write var with the `T::default()`, this can be overwritten just by setting
 /// the default, but it enforces the requirement of a default, it is not possible to declare a getter property without default.
-///
-/// #### `impl IntoValue<T>`
-///
-/// The [`IntoValue<T>`] defines an initialization input that does not change for the property node instance, usually the property
-/// defines the `T`, but it can be generic. The input kind is [`InputKind::Value`]. No auto-default is generated for this type.
-///
-/// The input can be read in `when` expressions, but cannot be assigned in `when` blocks.
-///
-/// #### `impl UiNode`
-///
-/// This input accepts another [`UiNode`], the implementation must handle it like it handles the *child* node, delegating all methods. The
-/// input kind is [`InputKind::UiNode`]. The [`NilUiNode`] is used as the default value if no other is provided.
-///
-/// The input cannot be read in `when` expressions and cannot be assigned in `when` blocks.
-///
-/// #### `impl UiNodeList`
-///
-/// This input accepts another [`UiNodeList`], the implementation must handle it like it handles the *child* node, delegating all methods. The
-/// input kind is [`InputKind::UiNodeList`]. An empty list is used as the default value if no other is provided.
-///
-/// The input cannot be read in `when` expressions and cannot be assigned in `when` blocks.
-///
-/// #### `impl WidgetHandler<A>`
-///
-/// This input accepts any [`WidgetHandler<A>`] for the argument type `A`, usually the property defines the `A`, but it can be generic.
-/// The input kind is [`InputKind::WidgetHandler`]. A no-op handler is used for the default if no other is provided.
-///
-/// The input cannot be read in `when` expressions and cannot be assigned in `when` blocks.
-///
-/// Event handler properties usually have the `on_` name prefix and are generated by the [`event_property!`] macro.
 ///
 /// # Generics
 ///
