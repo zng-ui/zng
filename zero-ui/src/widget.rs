@@ -227,11 +227,11 @@ pub mod node {
 
 /// Expands a struct to a widget struct and macro.
 ///
-/// Each widget is a struct and macro pair that constructs a [`WidgetBuilder`] and instantiates a custom widget type. Widgets
-/// *inherit* from one other widget and multiple mix-ins, they can have intrinsic nodes and default properties and can build
-/// to a custom output type.
+/// Each widget is a struct and macro pair of the same name that builds a custom widget using [`WidgetBuilder`]. Widgets
+/// *inherit* from one other widget and can also inherit multiple mix-ins. Widgets can have intrinsic nodes, default properties
+/// and can build to a custom output type.
 ///
-/// Properties can be declared for the widget using the `#[property(.., widget_impl(Widget))]` directive, existing properties
+/// Properties can be strongly associated with the widget using the `#[property(.., widget_impl(Widget))]` directive, existing properties
 /// can be implemented for the widget using the [`widget_impl!`] macro.
 ///
 /// # Attribute
@@ -254,7 +254,7 @@ pub mod node {
 ///
 /// # Inherit
 ///
-/// The widget struct field must be a path to the parent widget type, all widgets must inherit from another or the
+/// The widget struct field must be the parent widget type. All widgets inherit from another or the
 /// [`WidgetBase`], the parent widgets intrinsic properties and nodes are all included in the new widget. The intrinsic
 /// properties are included by deref, the new widget will dereference to the parent widget, during widget build auto-deref will select
 /// the property methods first, this mechanism even allows for property overrides.
@@ -262,7 +262,7 @@ pub mod node {
 /// # Intrinsic
 ///
 /// The widget struct can define a method `widget_intrinsic` that includes custom build actions in the [`WidgetBuilder`], this special
-/// method will be called once for its own widget or derived widgets.
+/// method will be called once for the widget. The same method is also called for the inherited widgets.
 ///
 /// ```
 /// # fn main() { }
@@ -280,15 +280,15 @@ pub mod node {
 /// }
 /// ```
 ///
-/// The example above demonstrate the function used to [`push_build_action`]. This is the primary mechanism for widgets to define their
-/// own behavior that does not depend on properties. Note that the widget inherits from [`WidgetBase`], during [instantiation](#instantiation)
+/// The example above demonstrates the intrinsic method used to [`push_build_action`]. This is the primary mechanism for widgets to define their
+/// own behavior that does not depend on properties. Note that the widget inherits from [`WidgetBase`], during instantiation
 /// of `Foo!` the base `widget_intrinsic` is called first, then the `Foo!` `widget_intrinsic` is called.
 ///
-/// The method does not need to be `pub`, and is not required.
+/// The method does not need to be `pub`, and it is not required.
 ///
 /// # Build
 ///
-/// The widget struct can define a method that *builds* the final widget instance.
+/// The widget struct can define a method that builds the final widget instance.
 ///
 /// ```
 /// # fn main() { }
@@ -300,50 +300,69 @@ pub mod node {
 /// impl Foo {
 ///     /// Custom build.
 ///     pub fn widget_build(&mut self) -> impl UiNode {
-///         zero_ui_app::widget::base::node::build(self.widget_take())
+///         println!("on build!");
+///         WidgetBase::widget_build(self)
 ///     }
 /// }
 /// ```
 ///
 /// The build method must have the same visibility as the widget, and can define its own
-/// return type, this is the **widget type**. If the build method is not defined the inherited parent build method is used.
+/// return type, this is the widget instance type. If the build method is not defined the inherited parent build method is used.
 ///
-/// Unlike the [widget_intrinsic](#intrinsic) method, the widget only has one `widget_build`, if defined it overrides the parent
-/// `widget_build`. Most widgets don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base type
-/// is an opaque `impl UiNode`, normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets,
-/// the widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
-/// The base widget implementation is in [`zero_ui_app::widget::base::node::widget`], you can use it directly, so even if you need
-/// to run code on build or define a custom type you don't need to start from scratch.
+/// Unlike the [intrinsic](#intrinsic) method, the widget only has one `widget_build`, if defined it overrides the parent
+/// `widget_build`. Most widgets don't define their own build, leaving it to be inherited from [`WidgetBase`]. The base instance type
+/// is an opaque `impl UiNode`.
+///
+/// Normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets.
+/// The widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
+/// Note that you can still use the parent type build implementation, so even if you need
+/// to run code on build or define a custom type you don't deref to to the parent type to build.
 ///
 /// # Defaults
 ///
-/// The [`widget_set!`] macro can be used inside `widget_intrinsic` to set properties and when conditions that are applied on the widget if not
-/// overridden by derived widgets or the widget instance code. During the call to `widget_intrinsic` the `self.importance()` value is [`Importance::WIDGET`],
-/// after it is changed to [`Importance::INSTANCE`], so just by setting properties in `widget_intrinsic` they define the *default* value.
+/// The [`widget_set!`] macro can be used inside `widget_intrinsic` to set properties and when conditions that are applied on the widget by default,
+/// if not overridden by derived widgets or the widget instance. During the call to `widget_intrinsic` the `self.importance()` value is
+/// [`Importance::WIDGET`], after it is changed to [`Importance::INSTANCE`], so just by setting properties in `widget_intrinsic` they
+/// will have less importance allowing for the override mechanism to replace them.
 ///
 /// # Impl Properties
 ///
 /// The [`widget_impl!`] macro can be used inside a `impl WgtIdent { }` block to strongly associate a property with the widget,
-/// and the [`property`] attribute has an `impl(WgtIdent)` directive that also strongly associates a property with the widget.
-/// These two mechanisms can be used to define properties for the widget, the impl properties are visually different in the widget
-/// macro as the have the *immutable method* style, while the other properties have the *mutable method* style.
+/// and the [`property`] attribute has a `widget_impl(WgtIdent)` directive that also strongly associates a property with the widget.
+///
+/// These two mechanisms can be used to define properties for the widget, the impl properties don't need to be imported and are
+/// always selected over other properties of the same name. They also appear in the widget documentation and can have a distinct
+/// visual in IDEs as they are represented by immutable methods while standalone properties are represented by mutable trait methods.
+///
+/// As a general rule only properties that are captured by the widget, or only work with the widget, or have an special meaning in the widget
+/// are implemented like this, standalone properties that can be used in any widget are not implemented.
 ///
 /// # Generated Macro
 ///
-/// The generated widget macro has the same syntax as [`widget_set!`], except that is also starts the widget and builds it at the end,
+/// The generated widget macro has the same syntax as [`widget_set!`], except that is also starts the widget and builds it at the end.
+///
+/// This widget macro call:
+///
 /// ```
-/// use zero_ui::prelude_wgt::*;
-///
-/// #[widget($crate::Foo)]
-/// pub struct Foo(WidgetBase);
-///
+/// # use zero_ui::prelude_wgt::*;
+/// # #[widget($crate::Foo)]
+/// # pub struct Foo(WidgetBase);
+/// #
 /// # fn main() {
 /// let wgt = Foo! {
 ///     id = "foo";
 /// };
+/// # }
+/// ```
 ///
-/// // is equivalent to:
+/// Expands to this:
 ///
+/// ```
+/// # use zero_ui::prelude_wgt::*;
+/// # #[widget($crate::Foo)]
+/// # pub struct Foo(WidgetBase);
+/// #
+/// # fn main() {
 /// let wgt = {
 ///     let mut wgt = Foo::widget_new();
 ///     widget_set! {
@@ -355,9 +374,9 @@ pub mod node {
 /// # }
 /// ```
 ///
-/// ## Custom Rules
+/// #### Custom Rules
 ///
-/// You can declare custom rules for the widget macro, this can be used to declare **custom shorthand** syntax for the widget.
+/// You can declare custom rules for the widget macro, this can be used to declare custom shorthand syntax for the widget.
 ///
 /// The custom rules are declared inside braces after the widget path in the widget attribute. The syntax is similar to `macro_rules!`
 /// rules, but the expanded tokens are the direct input of the normal widget expansion.
@@ -371,15 +390,13 @@ pub mod node {
 /// Note that custom rules are not inherited, they apply only to the declaring widget macro, inherited widgets must replicate
 /// the rules if desired.
 ///
-/// ### Examples
-///
-/// Example of a text widget that declares a shorthand syntax to implicitly set the `id` property:
+/// Example of a widget that declares a shorthand syntax to implicitly set the `id` property:
 ///
 /// ```
 /// use zero_ui::prelude_wgt::*;
 ///
 /// #[widget($crate::Foo {
-///     ($id:tt) => {
+///     ($id:expr) => {
 ///         id = $id;
 ///     };
 /// })]
@@ -396,7 +413,7 @@ pub mod node {
 /// # use zero_ui::prelude_wgt::*;
 /// # #[widget($crate::Foo)]
 /// # pub struct Foo(WidgetBase);
-///
+/// #
 /// # fn main() {
 /// let wgt = Foo! {
 ///     id = "foo";
@@ -404,31 +421,28 @@ pub mod node {
 /// # }
 /// ```
 ///
-/// ### Limitations
+/// #### Limitations
 ///
 /// The expanded tokens can only be a recursive input for the same widget macro, you can't expand to a different widget.
 ///
 /// Some rules are intercepted by the default widget rules:
 ///
-/// * `$(#[$attr:meta])* $property:ident = $($rest:tt)*`, blocks all custom `$ident = $tt*` patterns.
+/// * `$(#[$attr:meta])* $($property:ident)::+ = $($rest:tt)*`, blocks all custom `$ident = $tt*` patterns.
 /// * `$(#[$attr:meta])* when $($rest:tt)*`, blocks all custom `when $tt*` patterns.
 ///
 /// Note that the default single property shorthand syntax is not blocked, for example `Text!(font_size)` will match
 /// the custom shorthand rule and try to set the `txt` with the `font_size` variable, without the shorthand it would create a widget without
-/// `txt` but with a set `font_size`. So a custom rule `$p:expr` is only recommended for widgets that have a property of central importance.
+/// `txt` that sets `font_size`. So a custom rule `$p:expr` is only recommended for widgets that have a property of central importance.
 ///
 /// # Widget Type
 ///
 /// A public associated function `widget_type` is also generated for the widget, it returns a [`WidgetType`] instance that describes the
-/// widget type.
+/// widget type. Note that this is is not the widget instance type, only the struct and macro type. If compiled with the `"inspector"` feature
+/// the type is also available in the widget info.
 ///
-/// # Builder
+/// # See Also
 ///
-/// Two public methods are available to call in a generated widget struct, `builder` and `take_builder` that first mutable borrows the
-/// underlying [`WidgetBuilder`] and is usually used in `widget_intrinsic` to insert build actions, the second finalizes the insertion of
-/// properties and returns the [`WidgetBuilder`] instance for use finalizing the build, this is usually called in custom `widget_build` implementations.
-///
-/// See the [`WidgetBuilder`], [`WidgetBuilding`], [`NestGroup`] and [`Importance`] for more details.
+/// See the [`WidgetBase`], [`WidgetBuilder`], [`WidgetBuilding`], [`NestGroup`] and [`Importance`] for more details.
 ///
 /// [`WidgetBuilder`]: builder::WidgetBuilder
 /// [`WidgetType`]: builder::WidgetType
@@ -489,10 +503,10 @@ pub use zero_ui_app::widget::widget;
 /// ```
 ///
 /// The example above declares a mix-in `FocusableMix<P>` and a widget `Foo`, the mix-in is used as a parent of the widget, only
-/// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable`.
+/// the `Foo! { }` widget can be instantiated, and it will have the strongly associated property `focusable` from the mix-in.
 ///
-/// All widget `impl` items can be declared in a mix-in, including the `fn widget_build(&mut self) -> T`, multiple mix-ins can be inherited
-/// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`, mix-ins cannot inherit even from other mix-ins.
+/// All widget `impl` items can be declared in a mix-in, including the `fn widget_build(&mut self) -> T`. Multiple mix-ins can be inherited
+/// by nesting the types in a full widget `Foo(AMix<BMix<Base>>)`. Mix-ins cannot inherit from other mix-ins.
 ///
 /// <script>
 /// // hide re-exported docs
@@ -808,7 +822,7 @@ pub use zero_ui_app::widget::easing;
 /// </script>
 pub use zero_ui_app::widget::property;
 
-/// Expands an `impl` block into an [`UiNode`] trait implementation or new node declaration.
+/// Expands an impl block into an [`UiNode`] trait implementation.
 ///
 /// Missing [`UiNode`] methods are generated by this macro. The generation is configured in the macro arguments.
 /// The arguments can be a single keyword, a delegate or an entire struct declaration.
@@ -819,8 +833,8 @@ pub use zero_ui_app::widget::property;
 ///
 /// # Delegate to single `impl UiNode`
 ///
-/// If your node contains a single child node, like most property nodes, you can configure the code
-/// generator to delegate the method calls for the child node.
+/// If your node contains a single child node, you can configure the attribute
+/// to delegate the method calls for the child node.
 ///
 /// ```
 /// # fn main() { }
@@ -848,7 +862,7 @@ pub use zero_ui_app::widget::property;
 /// # Delegate to a `impl UiNodeList`
 ///
 /// If your node contains multiple children nodes in a type that implements [`UiNodeList`],
-/// you can configure the code generator to delegate to the equivalent list methods.
+/// you can configure the attribute to delegate to the equivalent list methods.
 ///
 /// ```
 /// # fn main() { }
@@ -876,7 +890,7 @@ pub use zero_ui_app::widget::property;
 ///
 /// ## Don't Delegate
 ///
-/// If your node does not have any child nodes you can configure the code generator to generate empty missing methods.
+/// If your node does not have any child nodes you can configure the attribute to generate empty missing methods.
 ///
 /// ```
 /// # fn main() { }
@@ -934,11 +948,11 @@ pub use zero_ui_app::widget::property;
 /// The above code expands to two `impl` blocks, one with the associated method and the other with
 /// the [`UiNode`] implementation.
 ///
-/// This is particularly useful for nodes that have a large amount of generic constraints, you just type then once.
+/// This is particularly useful for nodes that have a large amount of generic constraints, you just type them once.
 ///
 /// # New Node
 ///
-/// In all the usage seen so far you must declare the `struct` type yourself, and the generic bounds to
+/// In all the usage seen so far you must declare the `struct` type and the generic bounds to
 /// make it work in the `impl` block, and any var or event in it needs to be subscribed manually. You can
 /// avoid this extra boilerplate by declaring the node `struct` as an arg for the macro.
 ///
@@ -972,35 +986,33 @@ pub use zero_ui_app::widget::property;
 /// Note that you can also use [`node::match_node`] to declare *anonymous* nodes, most of the properties are implemented using
 /// this node instead of the `#[ui_node]` macro.
 ///
-/// ## Generics
+/// #### Generics
 ///
 /// You can declare named generics in the `struct`, those are copied to the implement block, you can also have members with type
 /// `impl Trait`, a named generic is generated for these, the generated name is `T_member`. You can use named generics in the `impl`
 /// generics the same way as you would in a function.
 ///
-/// ## Impl Block
+/// #### Impl Block
 ///
 /// The impl block cannot have any generics, they are added automatically, the `UiNode for` part is optional, like in the delegating
 /// mode, if you omit the trait you must annotate each node method with the `#[UiNode]` pseudo attribute.
 ///
-/// ## Delegation
+/// #### Delegation
 ///
 /// Delegation is limited to members named `child` or `children`, there is no way to declare a custom delegation in *new node*
 /// mode. If no specially named member is present the `none` delegation is used.
 ///
-/// ## Subscription
+/// #### Subscription
 ///
 /// You can mark members with the `#[var]` or `#[event]` pseudo attributes to generate initialization code that subscribes the var or
 /// event to the [`WIDGET`] context. The init code is placed in a method with signature `fn auto_subs(&mut self)`,
 /// if you manually implement the `init` node method you must call `self.auto_subs();` in it, a compile time error is emitted if the call is missing.
 ///
-/// ## Limitations
+/// #### Limitations
 ///
 /// The new node type must be private, you cannot set visibility modifiers. The struct cannot have any attribute set on it, but you can
 /// have attributes in members, the `#[cfg]` attribute is copied to generated generics. The `impl Trait` auto-generics only works for
 /// the entire type of a generic, you cannot declare a type `Vec<impl Debug>` for example.
-///
-/// The new node syntax is designed to alleviate the boilerplate of declaring nodes that are just implementation detail of properties and widgets.
 ///
 /// [`UiNode`]: crate::widget::node::UiNode
 /// [`UiNodeList`]: crate::widget::node::UiNodeList

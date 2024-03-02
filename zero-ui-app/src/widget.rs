@@ -503,7 +503,7 @@ pub use widget_set;
 /// <span data-del-macro-root></span> Implement a property on the widget to strongly associate it with the widget.
 ///
 /// Widget implemented properties can be used on the widget without needing to be imported, they also show in
-/// the widget documentation page. As a general rule only properties are captured by the widget, or only work with the widget,
+/// the widget documentation page. As a general rule only properties that are captured by the widget, or only work with the widget,
 /// or have an special meaning in the widget are implemented like this, standalone properties that can be used in
 /// any widget are not implemented.
 ///
