@@ -150,16 +150,16 @@ impl MonitorInfo {
 
 /// Exclusive video mode info.
 ///
-/// You can get the options for a monitor using [`MonitorInfo::video_modes`]. 
-/// 
-/// Note that actual system video mode is selected by approximation, 
+/// You can get the options for a monitor using [`MonitorInfo::video_modes`].
+///
+/// Note that actual system video mode is selected by approximation,
 /// closest `size`, then `bit_depth`, then `refresh_rate`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VideoMode {
     /// Resolution of this video mode.
     pub size: PxSize,
     /// The bit depth of this video mode.
-    /// This is generally 24 bits or 32 bits on modern systems, 
+    /// This is generally 24 bits or 32 bits on modern systems,
     /// depending on whether the alpha channel is counted or not.
     pub bit_depth: u16,
     /// The refresh rate of this video mode, in millihertz.

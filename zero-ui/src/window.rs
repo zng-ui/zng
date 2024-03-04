@@ -99,6 +99,11 @@
 
 pub use zero_ui_app::window::{MonitorId, StaticMonitorId, StaticWindowId, WindowId, WindowMode, WINDOW};
 
+/// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
+///
+#[cfg(all(windows, doc))]
+pub use zero_ui_app::window::WINDOW as WINDOW_;
+
 pub use zero_ui_ext_window::{
     AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt,
     HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode,
@@ -128,10 +133,10 @@ pub use zero_ui_wgt_window::events::{
 };
 
 /// Native dialog types.
-/// 
+///
 /// Types in this module can be used with [`WINDOWS.native_message_dialog`] and [`WINDOWS.native_file_dialog`]
 /// to show system provided dialog windows.
-/// 
+///
 /// [`WINDOWS.native_message_dialog`]: WINDOWS::native_message_dialog
 /// [`WINDOWS.native_file_dialog`]: WINDOWS::native_file_dialog
 pub mod native_dialog {

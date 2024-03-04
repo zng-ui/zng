@@ -212,8 +212,8 @@ impl WindowsService {
 bitflags! {
     /// Defines what window operations can run in parallel, between windows.
     ///
-    /// Note that this does no define parallelism inside the window, see [`WINDOWS.parallel`] for more details.
-    /// 
+    /// Note that this does not define parallelism inside the window, see [`WINDOWS.parallel`] for more details.
+    ///
     /// [`WINDOWS.parallel`]: WINDOWS::parallel
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     #[serde(transparent)]
@@ -253,18 +253,16 @@ impl_from_and_into_var! {
 /// [`WindowManager`]: crate::WindowManager
 pub struct WINDOWS;
 impl WINDOWS {
-    /// If app process exit is requested when a window closes and there are no more windows open, `true` by default.
+    /// Defines if app process exit should be requested when the last window closes. This is `true` by default.
     ///
-    /// This setting is ignored in headless apps, in headed apps the exit happens when all headed windows
-    /// are closed, headless windows are ignored.
+    /// This setting does not consider headless windows and is fully ignored in headless apps.
     ///
-    /// If app exit is requested directly and there are headed windows open the exit op is canceled, the windows request close
-    /// and this is set to `true` so that another exit request is made after the windows close.
+    /// This is also set to `true` on [`EXIT_REQUESTED_EVENT`] when there are open headed windows.
     pub fn exit_on_last_close(&self) -> ArcVar<bool> {
         WINDOWS_SV.read().exit_on_last_close.clone()
     }
 
-    /// Default render mode of windows opened by this service, the initial value is [`RenderMode::default`].
+    /// Defines the render mode of windows opened by this service.
     ///
     /// Note that this setting only affects windows opened after it is changed, also the view-process may select
     /// a different render mode if it cannot support the requested mode.
@@ -272,19 +270,19 @@ impl WINDOWS {
         WINDOWS_SV.read().default_render_mode.clone()
     }
 
-    /// Defines what parts of windows can update in parallel.
-    ///
-    /// All parallel is enabled by default. See [`ParallelWin`] for details of what parts of the windows can update in parallel.
+    /// Defines what window operations can run in parallel, between windows.
     ///
     /// Note that this config is for parallel execution between windows, see the `parallel` property for parallel execution
     /// within windows and widgets.
+    ///
+    /// See [`ParallelWin`] for the options.
     pub fn parallel(&self) -> ArcVar<ParallelWin> {
         WINDOWS_SV.read().parallel.clone()
     }
 
     /// Requests a new window.
     ///
-    /// The `new_window` future runs in a [`UiTask`] inside the new [`WINDOW`] context.
+    /// The `new_window` future runs in an [`UiTask`] inside the new [`WINDOW`] context.
     ///
     /// Returns a response variable that will update once when the window is opened, note that while the [`WINDOW`] is
     /// available in the `new_window` argument already, the window is only available in this service after
@@ -304,7 +302,7 @@ impl WINDOWS {
     ///
     /// # Panics
     ///
-    /// if the `window_id` is already assigned to an open or opening window.
+    /// If the `window_id` is already assigned to an open or opening window.
     pub fn open_id(
         &self,
         window_id: impl Into<WindowId>,
@@ -343,7 +341,7 @@ impl WINDOWS {
     ///
     /// # Panics
     ///
-    /// if the `window_id` is already assigned to an open or opening window.
+    /// If the `window_id` is already assigned to an open or opening window.
     pub fn open_headless_id(
         &self,
         window_id: impl Into<WindowId>,
@@ -371,14 +369,14 @@ impl WINDOWS {
         }
     }
 
-    /// Gets a handle that stops the window from loading while it exists.
+    /// Gets a handle that stops the window from loading while the handle is alive.
     ///
-    /// A window is only opened in the view-process after it is loaded, without any loading handles the window is considered *loaded*
+    /// A window is only opened in the view-process after it is loaded, without any loading handles the window is considered loaded
     /// after the first layout pass. Nodes in the window can request a loading handle to delay the view opening to after all async resources
-    /// it requires to render correctly are loaded.
+    /// it requires are loaded.
     ///
-    /// Note that a window is only loaded after all handles are dropped or expired, you should set a reasonable `deadline`    
-    /// after a time it is best to partially render a window than not showing anything.
+    /// Note that a window is only loaded after all handles are dropped or expired, you should set a reasonable `deadline`,  
+    /// it is best to partially render a window after a short time than not show anything.
     ///
     /// Returns `None` if the window has already loaded or is not found.
     pub fn loading_handle(&self, window_id: impl Into<WindowId>, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
@@ -395,13 +393,12 @@ impl WINDOWS {
         self.close_together([window_id.into()])
     }
 
-    /// Requests closing multiple windows together, the operation can be canceled by listeners of the
+    /// Starts closing multiple windows together, the operation can be canceled by listeners of
     /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed. Children of each window
-    /// are added to the close together set.
+    /// are also selected the close together.
     ///
     /// Returns a response var that will update once with the result of the operation. Returns
-    /// [`Cancel`] if `windows` is empty or only contained windows that already requested close
-    /// during this update.
+    /// [`Cancel`] if `windows` is empty.
     ///
     /// Returns [`WindowNotFound`] if any of the IDs is not one of the open windows or is only an open request.
     ///
@@ -410,11 +407,11 @@ impl WINDOWS {
         WINDOWS_SV.write().close_together(windows)
     }
 
-    /// Requests close of all open windows together, the operation can be canceled by listeners of
-    /// the [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed.
+    /// Starts closing all open windows together, the operation can be canceled by listeners of
+    /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If canceled none of the windows are closed.
     ///
-    /// Returns a response var that will update once with the result of the operation, Returns
-    /// [`Cancel`] if no window is open or if close was already requested to all of the windows.
+    /// Returns a response var that will update once with the result of the operation. Returns
+    /// [`Cancel`] if no window is open.
     ///
     /// [`Cancel`]: CloseWindowResult::Cancel
     pub fn close_all(&self) -> ResponseVar<CloseWindowResult> {
@@ -439,7 +436,7 @@ impl WINDOWS {
             .ok_or(WindowNotFound(window_id))
     }
 
-    /// Reference the metadata about the window's widgets.
+    /// Returns a shared reference to the latest widget tree info for the window.
     ///
     /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
     pub fn widget_tree(&self, window_id: impl Into<WindowId>) -> Result<WidgetInfoTree, WindowNotFound> {
@@ -452,9 +449,7 @@ impl WINDOWS {
             .ok_or(WindowNotFound(window_id))
     }
 
-    /// Search for the widget in all windows.
-    ///
-    /// Returns [`WindowNotFound`] if none of the current windows contains the `widget_id`.
+    /// Search for the widget info in all windows.
     pub fn widget_info(&self, widget_id: impl Into<WidgetId>) -> Option<WidgetInfo> {
         let widget_id = widget_id.into();
         WINDOWS_SV.read().windows_info.values().find_map(|w| w.widget_tree.get(widget_id))
@@ -464,18 +459,22 @@ impl WINDOWS {
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
-    /// If the window is not found the error is reported in the image error.
+    /// If the window is not found the error is reported in the [image error].
+    ///
+    /// [image error]: zero_ui_ext_image::Img::error
     pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS_SV
             .write()
             .frame_image_impl(window_id.into(), move |vr| vr.frame_image(mask))
     }
 
-    /// Generate an image from a selection of the current rendered frame of the window.
+    /// Generate an image from a rectangular selection of the current rendered frame of the window.
     ///
     /// The image is not loaded at the moment of return, it will update when it is loaded.
     ///
     /// If the window is not found the error is reported in the image error.
+    ///
+    /// [image error]: zero_ui_ext_image::Img::error
     pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS_SV
             .write()
@@ -1549,14 +1548,14 @@ pub trait WINDOW_Ext {
         }
     }
 
-    /// Gets a handle that stops the window from loading while it exists.
+    /// Gets a handle that stops the window from loading while the handle is alive.
     ///
-    /// The window is only opened in the view-process after it is loaded, without any loading handles the window is considered *loaded*
+    /// A window is only opened in the view-process after it is loaded, without any loading handles the window is considered loaded
     /// after the first layout pass. Nodes in the window can request a loading handle to delay the view opening to after all async resources
-    /// it requires to render correctly are loaded.
+    /// it requires are loaded.
     ///
-    /// Note that a window is only loaded after all handles are dropped or expired, you should set a reasonable `deadline`    
-    /// after a time it is best to partially render a window than not showing anything.
+    /// Note that a window is only loaded after all handles are dropped or expired, you should set a reasonable `deadline`,  
+    /// it is best to partially render a window after a short time than not show anything.
     ///
     /// Returns `None` if the window has already loaded.
     fn loading_handle(&self, deadline: impl Into<Deadline>) -> Option<WindowLoadingHandle> {
