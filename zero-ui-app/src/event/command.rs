@@ -147,12 +147,12 @@ macro_rules! __command {
                 /// # Metadata
                 ///
                 /// This command has the following default metadata:
-                /// 
+                ///
                 /// <table>
                 /// <thead><tr><th>metadata</th><th>value</th></tr></thead>
                 /// <tbody>
                 $(#[doc = concat!("<tr> <td>", stringify!($meta_ident), "</td> <td>", stringify!($meta_init), "</td> </tr>")])+
-                /// 
+                ///
                 /// </tbody>
                 /// </table>
                 $vis static $COMMAND => |cmd| {

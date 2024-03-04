@@ -63,10 +63,10 @@ command! {
 
     /// Represents the window **restore** action.
     ///
-    /// Restores the window to its previous not-minimized state or normal state.
+    /// Restores the window to its previous non-minimized state or normal state.
     pub static RESTORE_CMD = {
         name: "Restore",
-        info: "Restores the window to its previous not-minimized state or normal state.",
+        info: "Restores the window to its previous non-minimized state or normal state.",
     };
 
     /// Represents the **close IME** action.

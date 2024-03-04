@@ -63,7 +63,7 @@
 //!                     } else {
 //!                         let parent = WINDOW.id();
 //!                         WINDOWS.open_id(
-//!                             "child-id", 
+//!                             "child-id",
 //!                             async move { child_window(parent) }
 //!                         )
 //!                         .wait_done()
@@ -128,6 +128,12 @@ pub use zero_ui_wgt_window::events::{
 };
 
 /// Native dialog types.
+/// 
+/// Types in this module can be used with [`WINDOWS.native_message_dialog`] and [`WINDOWS.native_file_dialog`]
+/// to show system provided dialog windows.
+/// 
+/// [`WINDOWS.native_message_dialog`]: WINDOWS::native_message_dialog
+/// [`WINDOWS.native_file_dialog`]: WINDOWS::native_file_dialog
 pub mod native_dialog {
     pub use zero_ui_view_api::dialog::{
         FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse,
@@ -136,9 +142,15 @@ pub mod native_dialog {
 
 /// Debug inspection helpers.
 ///
+/// The properties in this module can be set on a window or widget to visualize layout and render internals.
+///
+/// Note that you can also use the [`cmd::INSPECT_CMD`] command to open the Inspector that shows the widget tree and properties.
+///
 /// # Full API
 ///
 /// See [`zero_ui_wgt_inspector`] for the full API.
+///
+/// [`cmd::INSPECT_CMD`]: crate::window::cmd::INSPECT_CMD
 pub mod inspector {
     pub use zero_ui_wgt_inspector::debug::{
         show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode,

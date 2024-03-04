@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::window::cmd::EXCLUSIVE_FULLSCREEN_CMD`.
+        - Last reviewed `zero_ui::window::native_dialog`.
         - Copy some docs from `UiNode` to `UiNodeOp`?
 
 # Publish

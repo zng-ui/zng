@@ -59,10 +59,10 @@ fn app_main() {
                     }
                 ];
             };
-            // zero_ui::properties::inspector::show_center_points = true;
-            // zero_ui::properties::inspector::show_bounds = true;
-            // zero_ui::properties::inspector::show_hit_test = true;
-            // zero_ui::properties::inspector::show_directional_query = Some(zero_ui::core::unit::Orientation2D::Below);
+            // zero_ui::window::inspector::show_center_points = true;
+            // zero_ui::window::inspector::show_bounds = true;
+            // zero_ui::window::inspector::show_hit_test = true;
+            // zero_ui::window::inspector::show_directional_query = Some(zero_ui::core::unit::Orientation2D::Below);
         }
     })
 }

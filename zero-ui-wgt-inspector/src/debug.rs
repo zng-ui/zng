@@ -18,11 +18,11 @@ pub enum InspectMode {
     Widget,
     /// The widget where the inspector property is set and all descendants.
     ///
-    /// This is the `true` value.
+    /// The `true` value converts to this.
     WidgetAndDescendants,
     /// Disable inspection.
     ///
-    /// This is the `false` value.
+    /// The `false` value converts to this.
     #[default]
     Disabled,
 }
@@ -181,7 +181,7 @@ fn show_widget_tree(
 ///
 /// # Window Only
 ///
-/// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
+/// This property only works if set in a window, if set in another widget it will log an error and not render anything.
 #[property(CONTEXT, default(false))]
 pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
@@ -203,7 +203,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
                     handles.clear();
                 }
             } else {
-                tracing::error!("properties that render widget info are only valid in a window");
+                tracing::error!("property `show_hit_test` is only valid in a window");
             }
         }
         UiNodeOp::Deinit => {
@@ -294,7 +294,7 @@ pub fn show_hit_test(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 ///
 /// # Window Only
 ///
-/// This property only works if set in a window, if set in another widget it will log an error and don't render anything.
+/// This property only works if set in a window, if set in another widget it will log an error and not render anything.
 #[property(CONTEXT, default(None))]
 pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Option<Orientation2D>>) -> impl UiNode {
     let orientation = orientation.into_var();
@@ -311,7 +311,7 @@ pub fn show_directional_query(child: impl UiNode, orientation: impl IntoVar<Opti
                     _mouse_hovered_handle = Some(MOUSE_HOVERED_EVENT.subscribe(WIDGET.id()));
                 }
             } else {
-                tracing::error!("properties that render widget info are only valid in a window");
+                tracing::error!("property `show_directional_query` is only valid in a window");
             }
         }
         UiNodeOp::Deinit => {
