@@ -1,4 +1,4 @@
-//! File system watcher service and types.
+//! File system watcher service and other types.
 //!
 //! The [`WATCHER`] service can be used to get notifications when a file or directory is modified. It also provides
 //! ways to bind a file to a variable, automatically synchronizing both.

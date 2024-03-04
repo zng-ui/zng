@@ -1,4 +1,4 @@
-//! Touch service, properties, events and types.
+//! Touch service, properties, events and other types.
 //!
 //! The example below defines a window that shows the active touches and prints the touch state changes. The
 //! touches text text follows the first touch position.

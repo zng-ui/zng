@@ -146,7 +146,7 @@ macro_rules! __command {
                 ///
                 /// # Metadata
                 ///
-                /// This command initializes with the following metadata:
+                /// This command has the following default metadata:
                 ///
                 ///| metadata | value |
                 ///|----------|-------|

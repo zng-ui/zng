@@ -1,8 +1,9 @@
-//! Window service, widget, events, commands and types.
+//! Window service, widget, events, commands and other types.
 //!
-//! The [`Window!`](struct@Window) widget declares a window root.
+//! The [`Window!`](struct@Window) widget instantiates a window root, the windows service uses the window root as the
+//! root widget of new window.
 //!
-//! The example below declares a window that can toggle if it can close.
+//! The example below declares a window that toggles if it can close.
 //!
 //! ```
 //! # fn main() {}
@@ -21,18 +22,18 @@
 //!             }
 //!         });
 //!
-//!         title = "Title";
+//!         title = "Can I Close?";
 //!         child_align = layout::Align::CENTER;
 //!         child = Toggle! {
-//!             child = Text!(allow_close.map(|a| formatx!("allow_close = {a:?}")));
+//!             child = Text!(allow_close.map(|a| formatx!("allow close = {a:?}")));
 //!             checked = allow_close;
 //!         }
 //!     }
 //! }
 //! ```
 //!
-//! The [`WINDOWS`] service can be used to open, manage and close windows. The example below uses the service
-//! to open a parent and child window.
+//! The [`WINDOWS`] service can be used to open, manage and close windows. The example below
+//! opens a parent and child window.
 //!
 //! ```
 //! use zero_ui::prelude::*;
@@ -61,7 +62,12 @@
 //!                         }
 //!                     } else {
 //!                         let parent = WINDOW.id();
-//!                         WINDOWS.open_id("child-id", async move { child_window(parent) }).wait_done().await;
+//!                         WINDOWS.open_id(
+//!                             "child-id", 
+//!                             async move { child_window(parent) }
+//!                         )
+//!                         .wait_done()
+//!                         .await;
 //!                     }
 //!
 //!                     enabled.set(true);

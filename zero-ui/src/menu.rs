@@ -1,4 +1,4 @@
-//! Menu widgets, properties and types.
+//! Menu widgets, properties and other types.
 //!
 //! ```no_run
 //! use zero_ui::prelude::*;

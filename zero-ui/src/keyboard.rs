@@ -1,4 +1,4 @@
-//! Keyboard service, properties, events and types.
+//! Keyboard service, properties, events and other types.
 //!
 //! The example below defines a window that shows the pressed keys and prints the key state changes.
 //!

@@ -1,4 +1,4 @@
-//! Markdown widget, properties and types.
+//! Markdown widget, properties and other types.
 //!
 //! This widget displays [CommonMark] text, without support for HTML code yet .
 //!

@@ -1,4 +1,4 @@
-//! App update service and types.
+//! App update service and other types.
 //!
 //! The [`UPDATES`] service can execute arbitrary futures and setup update handlers. It can also be used to request update,
 //! info rebuild, layout and render for any widget. Note that from inside the widget you should use the [`WIDGET`] service instead,

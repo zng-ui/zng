@@ -1,4 +1,4 @@
-//! Localization service, sources and types.
+//! Localization service, sources and other types.
 //!
 //! Localized text is declared using the [`l10n!`] macro, it provides a read-only text variable that automatically
 //! updates to be best localized text available given the current loaded localization and the app language.

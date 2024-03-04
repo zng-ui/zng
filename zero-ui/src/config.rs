@@ -1,4 +1,4 @@
-//! Config service, sources and types.
+//! Config service, sources and other types.
 //!
 //! The configuration service [`CONFIG`] separates config using from config writing. A config
 //! is a variable of a serializable type, widgets and other components request a config using an unique text name and

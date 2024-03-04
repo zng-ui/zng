@@ -1,4 +1,4 @@
-//! Mouse service, properties, events and types.
+//! Mouse service, properties, events and other types.
 //!
 //! The example below defines a window that shows the pressed mouse buttons and prints the button state changes. The
 //! pressed buttons text follows the cursor position.

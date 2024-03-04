@@ -1,4 +1,4 @@
-//! Clipboard service, commands and types.
+//! Clipboard service, commands and other types.
 //!
 //! This module provides the [`CLIPBOARD`] service and clipboard related commands and command handlers.
 //! The service does not implement the commands, widgets implement the commands and optionally use the service.

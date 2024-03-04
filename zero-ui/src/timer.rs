@@ -1,4 +1,4 @@
-//! App timers service and types.
+//! App timers service and other types.
 //!
 //! The [`TIMERS`] service provides timers that operate directly off the app main loop.
 //!

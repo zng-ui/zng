@@ -1,4 +1,4 @@
-//! Icon widget and types.
+//! Icon widget and other types.
 //!
 //! Icons for this widget are defined in a text font. The [Material Design Icons]
 //! can be embedded using the crate feature `"material_icons"`.

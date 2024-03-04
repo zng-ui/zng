@@ -1,4 +1,4 @@
-//! Text widget, properties and types.
+//! Text widget, properties and other types.
 //!
 //! The [`Text!`] widget implements text layout and rendering, it is also the base widget for
 //! [`SelectableText!`], [`TextInput!`] and [`label!`]. Text properties are largely contextual,

@@ -1,4 +1,4 @@
-//! Focus service, properties, events and types.
+//! Focus service, properties, events and other types.
 //!
 //! # Keyboard Focus
 //!

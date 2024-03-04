@@ -15,20 +15,20 @@ command! {
     /// Represents the window **close** action.
     pub static CLOSE_CMD = {
         name: "Close",
-        info: "Close the current window.",
+        info: "Close the window.",
         shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+'W')],
     };
 
     /// Represents the window **minimize** action.
     pub static MINIMIZE_CMD = {
         name: "Minimize",
-        info: "Minimize the current window.",
+        info: "Minimize the window.",
     };
 
     /// Represents the window **maximize** action.
     pub static MAXIMIZE_CMD = {
         name: "Maximize",
-        info: "Maximize the current window.",
+        info: "Maximize the window.",
     };
 
     /// Represents the window **toggle fullscreen** action.
@@ -39,7 +39,7 @@ command! {
     /// use the [`EXCLUSIVE_FULLSCREEN_CMD`] to toggle *exclusive* video mode fullscreen.
     pub static FULLSCREEN_CMD = {
         name: "Full-Screen",
-        info: "Toggle full-screen mode on the current window.",
+        info: "Toggle full-screen mode on the window.",
         shortcut: {
             let a = if cfg!(target_os = "macos") {
                 shortcut!(CTRL|SHIFT+'F')
@@ -58,7 +58,7 @@ command! {
     /// use the [`FULLSCREEN_CMD`] to toggle *windowed* fullscreen.
     pub static EXCLUSIVE_FULLSCREEN_CMD = {
         name: "Exclusive Full-Screen",
-        info: "Toggle exclusive full-screen mode on the current window.",
+        info: "Toggle exclusive full-screen mode on the window.",
     };
 
     /// Represents the window **restore** action.
@@ -69,6 +69,8 @@ command! {
         info: "Restores the window to its previous not-minimized state or normal state.",
     };
 
+    /// Represents the **close IME** action.
+    ///
     /// If any IME preview is active close it without committing.
     pub static CANCEL_IME_CMD;
 }

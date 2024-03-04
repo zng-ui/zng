@@ -1,4 +1,4 @@
-//! Images service, widget and types.
+//! Images service, widget and other types.
 //!
 //! # Image
 //!

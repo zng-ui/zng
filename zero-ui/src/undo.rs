@@ -1,4 +1,4 @@
-//! Undo service, commands and types.
+//! Undo service, commands and other types.
 //!
 //! The [`UNDO`] service can be used to operate the contextual undo stack, you can also use the service
 //! to implement undo/redo for any variable using [`UNDO.watch_var`]. The [`UNDO_CMD`] and [`REDO_CMD`]

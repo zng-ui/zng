@@ -1,4 +1,4 @@
-//! View process connection and types.
+//! View process connection and other types.
 
 use std::{
     collections::HashMap,
