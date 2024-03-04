@@ -20,7 +20,7 @@ event_args! {
 
         /// Caret/selection within the `txt` when it is preview.
         ///
-        /// The indexes are in byte offsets and indicate where the caret or selection must be placed on
+        /// The indexes are in char byte offsets and indicate where the caret or selection must be placed on
         /// the inserted or preview `txt`, if not set the position is at the end of the insert.
         ///
         /// If this is `None` the text must [`commit`].

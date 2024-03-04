@@ -210,9 +210,11 @@ impl WindowsService {
 }
 
 bitflags! {
-    /// Defines what parts of windows can be updated in parallel.
+    /// Defines what window operations can run in parallel, between windows.
     ///
-    /// See [`WINDOWS.parallel`] for more details.
+    /// Note that this does no define parallelism inside the window, see [`WINDOWS.parallel`] for more details.
+    /// 
+    /// [`WINDOWS.parallel`]: WINDOWS::parallel
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     #[serde(transparent)]
     pub struct ParallelWin: u8 {

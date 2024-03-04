@@ -31,21 +31,19 @@ app_local! {
 ///
 /// Uses of this service:
 ///
-/// ## Start Position
+/// #### Start Position
 ///
-/// Windows are positioned on a *virtual screen* that overlaps all monitors, but all position configuration is done relative to
-/// an specific *parent* monitor, it is important to track the parent monitor as it defines properties that affect the layout of the window,
-/// this service is used to provide information to implement this feature.
+/// Windows are positioned on a virtual screen that overlaps all monitors, but all position configuration is done relative to
+/// an specific parent monitor, it is important to track the parent monitor as it defines properties that affect the layout of the window.
+/// This service is used to provide information to implement this feature.
 ///
-/// See [The Virtual Screen] for more information about this in the Windows OS.
-///
-/// ## Full-Screen
+/// #### Full-Screen
 ///
 /// To set a window to full-screen a monitor must be selected, by default it can be the one the window is at but
-/// the users may want to select a monitor. To enter full-screen exclusive the video mode must be decided also, all video
+/// the users may want to select a monitor. To enter full-screen exclusive the video mode must also be decided, all video
 /// modes supported by the monitor are available in the [`MonitorInfo`] value.
 ///
-/// ## Real-Size Preview
+/// #### Real-Size Preview
 ///
 /// Some apps, like image editors, may implement a feature where the user can preview the *real* dimensions of
 /// the content they are editing, to accurately implement this you must known the real dimensions of the monitor screen,
@@ -55,12 +53,11 @@ app_local! {
 ///
 /// # Provider
 ///
-/// This service is provided by the [`WindowManager`], the service instance is in [`MONITORS`].
+/// This service is provided by the [`WindowManager`].
 ///
 /// [`ppi`]: MonitorInfo::ppi
 /// [`scale_factor`]: MonitorInfo::scale_factor
 /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
-/// [The Virtual Screen]: https://docs.microsoft.com/en-us/windows/win32/gdi/the-virtual-screen
 /// [`WindowManager`]: crate::WindowManager
 pub struct MONITORS;
 impl MONITORS {
@@ -191,7 +188,7 @@ impl HeadlessMonitor {
         }
     }
 
-    /// New with default size `1920x1080` and custom scale.
+    /// New with default size `(11608, 8708)` and custom scale.
     pub fn new_scale(scale_factor: Factor) -> Self {
         HeadlessMonitor {
             scale_factor: Some(scale_factor),
@@ -200,7 +197,7 @@ impl HeadlessMonitor {
     }
 }
 impl Default for HeadlessMonitor {
-    /// New `11608x8708` at `None` scale.
+    /// New `(11608, 8708)` at `None` scale.
     fn default() -> Self {
         (11608, 8708).into()
     }
@@ -268,7 +265,7 @@ impl MonitorInfo {
         self.id
     }
 
-    /// If could determine this monitor is the primary.
+    /// If this monitor is the primary screen.
     pub fn is_primary(&self) -> ReadOnlyArcVar<bool> {
         self.is_primary.read_only()
     }
@@ -297,12 +294,12 @@ impl MonitorInfo {
     pub fn scale_factor(&self) -> ReadOnlyArcVar<Factor> {
         self.scale_factor.read_only()
     }
-    /// PPI config var.
+    /// Pixel-per-inch config var.
     pub fn ppi(&self) -> ArcVar<Ppi> {
         self.ppi.clone()
     }
 
-    /// Gets the monitor area in device pixels.
+    /// Gets the monitor area in pixels.
     pub fn px_rect(&self) -> PxRect {
         let pos = self.position.get();
         let size = self.size.get();

@@ -26,7 +26,7 @@ pub use self::window_properties::*;
 
 /// A window container.
 ///
-/// The instance type is [`WindowRoot`], that can be given to the [`WINDOWS`](zero_ui_ext_window::WINDOWS) service
+/// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zero_ui_ext_window::WINDOWS) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
 /// See [`run_window`](zero_ui_ext_window::AppRunWindowExt::run_window) for more details.
