@@ -85,44 +85,33 @@ impl Window {
     }
 }
 
-/// Window position when it opens.
+/// Defines how the window is positioned when it first opens.
 #[property(LAYOUT, capture, widget_impl(Window))]
 pub fn start_position(position: impl IntoValue<StartPosition>) {}
 
-/// Extra configuration for the window when run in [headless mode](zero_ui_app::window::WindowMode::is_headless).
+/// If the window is steals keyboard focus on open.
 ///
-/// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
-/// is taken from the monitor. In headless mode these values can be configured manually.
-#[property(LAYOUT, capture, widget_impl(Window))]
-pub fn headless_monitor(monitor: impl IntoValue<HeadlessMonitor>) {}
-
-/// If the window is forced to be the foreground keyboard focus after opening.
-///
-/// By default the windows manager decides if the window will receive focus after opening, usually it is focused
-/// only if the process that started the window already has focus. Setting the property to `true` ensures that focus
+/// By default the operating system decides if the window will receive focus after opening, usually it is focused
+/// only if the process that started the window already has focus. Enabling this ensures that focus
 /// is moved to the new window, potentially stealing the focus from other apps and disrupting the user.
 #[property(CONTEXT, capture, widget_impl(Window))]
 pub fn start_focused(enabled: impl IntoValue<bool>) {}
 
 /// Lock-in kiosk mode.
 ///
-/// In kiosk mode the only window states allowed are full-screen or full-screen exclusive, and
+/// In kiosk mode the only window states allowed are fullscreen or fullscreen exclusive, and
 /// all subsequent windows opened are child of the kiosk window.
 ///
-/// Note that this does not configure the windows manager,
-/// you still need to setup a kiosk environment, it does not block `ALT+TAB`. This just stops the
-/// app itself from accidentally exiting kiosk mode.
+/// Note that this does not configure the operating system,
+/// you still need to setup a kiosk environment. This just stops the
+/// app itself from accidentally exiting fullscreen.
 #[property(CONTEXT, capture, widget_impl(Window))]
 pub fn kiosk(kiosk: impl IntoValue<bool>) {}
 
-/// If semi-transparent content is "see-through", mixin with the OS pixels "behind" the window.
+/// If semi-transparent content is see-through, mixing with the operating system pixels behind the window.
 ///
-/// This is `true` by default, as it avoids the screen flashing black for windows opening in maximized or fullscreen modes
-/// in the Microsoft Windows OS.
-///
-/// Note that to make use of this feature you must unset the [`clear_color`] and [`background_color`] or set then to
-/// a semi-transparent color. The composition is a simple alpha blend, effects like blur do not apply to
-/// the pixels "behind" the window.
+/// Note that to actually see behind the window you must set the [`clear_color`] and [`background_color`] to a transparent color.
+/// The composition is a simple alpha blend, effects like blur do not apply to the pixels behind the window.
 ///
 /// [`clear_color`]: fn@clear_color
 /// [`background_color`]: fn@background_color
@@ -142,7 +131,7 @@ pub fn render_mode(mode: impl IntoValue<Option<RenderMode>>) {}
 ///
 /// This event notifies once per window, after the window content is inited.
 ///
-/// This property handles the same event as [`on_pre_window_open`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_open`].
 ///
 /// [`on_pre_window_open`]: fn@events::on_pre_window_open
 #[property(EVENT, widget_impl(Window))]
@@ -152,11 +141,10 @@ pub fn on_open(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) 
 
 /// Event just after the window loads.
 ///
-/// This event notifies once per window, after the window content is inited, updated, layout and the first frame
-/// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
+/// This event notifies once per window, after the first layout and all [`WindowLoadingHandle`]
 /// have expired or dropped.
 ///
-/// This property handles the same event as [`on_pre_window_load`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_load`].
 ///
 /// [`WindowLoadingHandle`]: zero_ui_ext_window::WindowLoadingHandle
 /// [`on_pre_window_load`]: fn@events::on_pre_window_load
@@ -167,16 +155,24 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) 
 
 /// On window close requested.
 ///
-/// This event notifies every time the user or the app tries to close the window, you can stop propagation
-/// to stop the window from being closed.
+/// This event notifies every time an attempt to close the window is made. Close can be cancelled by stopping propagation
+/// on the event args, the window only closes after all handlers receive this event and propagation is not stopped.
+///
+/// This property is the same as [`on_window_close_requested`].
+///
+/// [`on_window_close_requested`]: fn@events::on_window_close_requested
 #[property(EVENT, widget_impl(Window))]
 pub fn on_close_requested(child: impl UiNode, handler: impl WidgetHandler<WindowCloseRequestedArgs>) -> impl UiNode {
     events::on_window_close_requested(child, handler)
 }
 
-/// On window deinited.
+/// On window deinit.
 ///
-/// This event notifies once after the window content is deinited because it is closing.
+/// This event notifies once on deinit.
+///
+/// This property is the same as [`on_deinit`].
+///
+/// [`on_deinit`]: fn@zero_ui_wgt::on_deinit
 #[property(EVENT, widget_impl(Window))]
 pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<zero_ui_wgt::OnNodeOpArgs>) -> impl UiNode {
     zero_ui_wgt::on_deinit(child, handler)
@@ -184,10 +180,10 @@ pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<zero_ui_wgt::OnN
 
 /// On window position changed.
 ///
-/// This event notifies every time the user or app changes the window position. You can also track the window
+/// This event notifies every time the window position changes. You can also track the window
 /// position using the [`actual_position`] variable.
 ///
-/// This property handles the same event as [`on_pre_window_moved`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_moved`].
 ///
 /// [`actual_position`]: zero_ui_ext_window::WindowVars::actual_position
 /// [`on_pre_window_moved`]: fn@events::on_pre_window_moved
@@ -198,10 +194,10 @@ pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArg
 
 /// On window size changed.
 ///
-/// This event notifies every time the user or app changes the window content area size. You can also track
+/// This event notifies every time the window content area size changes. You can also track
 /// the window size using the [`actual_size`] variable.
 ///
-/// This property handles the same event as [`on_pre_window_resized`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_resized`].
 ///
 /// [`actual_size`]: zero_ui_ext_window::WindowVars::actual_size
 /// [`on_pre_window_resized`]: fn@events::on_pre_window_resized
@@ -212,10 +208,12 @@ pub fn on_resized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedA
 
 /// On window state changed.
 ///
-/// This event notifies every time the user or app changes the window state. You can also track the window
+/// This event notifies every time the window state changes.
+///
+/// Note that you can also track the window
 /// state by setting [`state`] to a read-write variable.
 ///
-/// This property handles the same event as [`on_pre_window_state_changed`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_state_changed`].
 ///
 /// [`state`]: fn@state
 /// [`on_pre_window_state_changed`]: fn@events::on_pre_window_state_changed
@@ -226,9 +224,9 @@ pub fn on_state_changed(child: impl UiNode, handler: impl WidgetHandler<WindowCh
 
 /// On window maximized.
 ///
-/// This event notifies every time the user or app changes the window state to maximized.
+/// This event notifies every time the window state changes to maximized.
 ///
-/// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_maximized`].
 ///
 /// [`on_pre_window_maximized`]: fn@events::on_pre_window_maximized
 #[property(EVENT, widget_impl(Window))]
@@ -238,9 +236,9 @@ pub fn on_maximized(child: impl UiNode, handler: impl WidgetHandler<WindowChange
 
 /// On window exited the maximized state.
 ///
-/// This event notifies every time the user or app changes the window state to a different state from maximized.
+/// This event notifies every time the window state changes to a different state from maximized.
 ///
-/// This property handles the same event as [`on_pre_window_unmaximized`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_unmaximized`].
 ///
 /// [`on_pre_window_unmaximized`]: fn@events::on_pre_window_unmaximized
 #[property(EVENT, widget_impl(Window))]
@@ -250,9 +248,9 @@ pub fn on_unmaximized(child: impl UiNode, handler: impl WidgetHandler<WindowChan
 
 /// On window minimized.
 ///
-/// This event notifies every time the user or app changes the window state to maximized.
+/// This event notifies every time the window state changes to minimized.
 ///
-/// This property handles the same event as [`on_pre_window_maximized`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_maximized`].
 ///
 /// [`on_pre_window_maximized`]: fn@events::on_pre_window_maximized
 #[property(EVENT, widget_impl(Window))]
@@ -262,9 +260,9 @@ pub fn on_minimized(child: impl UiNode, handler: impl WidgetHandler<WindowChange
 
 /// On window exited the minimized state.
 ///
-/// This event notifies every time the user or app changes the window state to a different state from minimized.
+/// This event notifies every time the window state changes to a different state from minimized.
 ///
-/// This property handles the same event as [`on_pre_window_unminimized`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_unminimized`].
 ///
 /// [`on_pre_window_unminimized`]: fn@events::on_pre_window_unminimized
 #[property(EVENT, widget_impl(Window))]
@@ -274,9 +272,9 @@ pub fn on_unminimized(child: impl UiNode, handler: impl WidgetHandler<WindowChan
 
 /// On window state changed to [`Normal`].
 ///
-/// This event notifies every time the user or app changes the window state to [`Normal`].
+/// This event notifies every time the window state changes to [`Normal`].
 ///
-/// This property handles the same event as [`on_pre_window_restored`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_restored`].
 ///
 /// [`Normal`]: zero_ui_ext_window::WindowState::Normal
 /// [`on_pre_window_restored`]: fn@events::on_pre_window_restored
@@ -287,9 +285,9 @@ pub fn on_restored(child: impl UiNode, handler: impl WidgetHandler<WindowChanged
 
 /// On window enter one of the fullscreen states.
 ///
-/// This event notifies every time the user or app changes the window state to [`Fullscreen`] or [`Exclusive`].
+/// This event notifies every time the window state changes to [`Fullscreen`] or [`Exclusive`].
 ///
-/// This property handles the same event as [`on_pre_window_fullscreen`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_fullscreen`].
 ///
 /// [`Fullscreen`]: zero_ui_ext_window::WindowState::Fullscreen
 /// [`Exclusive`]: zero_ui_ext_window::WindowState::Exclusive
@@ -301,9 +299,9 @@ pub fn on_fullscreen(child: impl UiNode, handler: impl WidgetHandler<WindowChang
 
 /// On window is no longer fullscreen.
 ///
-/// This event notifies every time the user or app changed the window state to one that is not fullscreen.
+/// This event notifies every time the window state changes to one that is not fullscreen.
 ///
-/// This property handles the same event as [`on_pre_window_exited_fullscreen`] so window handlers see it first.
+/// This property is the same as [`on_pre_window_exited_fullscreen`].
 ///
 /// [`on_pre_window_exited_fullscreen`]: fn@events::on_pre_window_exited_fullscreen
 #[property(EVENT, widget_impl(Window))]
@@ -318,3 +316,7 @@ pub fn on_exited_fullscreen(child: impl UiNode, handler: impl WidgetHandler<Wind
 pub fn on_frame_image_ready(child: impl UiNode, handler: impl WidgetHandler<FrameImageReadyArgs>) -> impl UiNode {
     events::on_pre_frame_image_ready(child, handler)
 }
+
+/// Imaginary monitor used by the window when it runs in [headless mode](zero_ui_app::window::WindowMode::is_headless).
+#[property(LAYOUT, capture, widget_impl(Window))]
+pub fn headless_monitor(monitor: impl IntoValue<HeadlessMonitor>) {}

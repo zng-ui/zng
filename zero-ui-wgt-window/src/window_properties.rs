@@ -120,7 +120,7 @@ map_properties! {
 
 /// Window clear color.
 ///
-/// Color used to *clear* the previous frame pixels before rendering a new frame.
+/// Color used to clear the previous frame pixels before rendering a new frame.
 /// It is visible if window content does not completely fill the content area, this
 /// can happen if you do not set a background or the background is semi-transparent, also
 /// can happen during very fast resizes.
@@ -234,8 +234,10 @@ impl_from_and_into_var! {
 /// If enabled a config entry is created for the window state in [`CONFIG`], and if a config backend is set
 /// the window state is persisted on change and restored when the app reopens.
 ///
-/// This property is enabled by default in the `Window!` widget, it is recommended to open the window with a name if
-/// the app can open more than one window.
+/// It is recommended to open the window with an unique name if
+/// the app can open more than one window, otherwise the state will be associated with the sequential ID of the window.
+///
+/// This property is enabled by default in the `Window!` widget.
 #[property(CONTEXT, default(SaveState::Disabled), widget_impl(Window))]
 pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
     let enabled = enabled.into();
