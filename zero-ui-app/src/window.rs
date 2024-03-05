@@ -104,31 +104,19 @@ impl MonitorId {
 /// Current context window.
 ///
 /// This represents the minimum features required for a window context, see `WINDOW_Ext` for more
-/// features provided by the core window implementation.
+/// features provided by the default window implementation.
+///
+/// # Panics
+///
+/// Most of the methods on this service panic if not called inside a window context.
 pub struct WINDOW;
 impl WINDOW {
-    /// Calls `f` while the window is set to `ctx`.
-    ///
-    /// The `ctx` must be `Some(_)`, it will be moved to the [`WINDOW`] storage and back to `ctx` after `f` returns.
-    pub fn with_context<R>(&self, ctx: &mut WindowCtx, f: impl FnOnce() -> R) -> R {
-        let _span = match ctx.0.as_mut() {
-            Some(c) => UpdatesTrace::window_span(c.id),
-            None => panic!("window is required"),
-        };
-        WINDOW_CTX.with_context(&mut ctx.0, f)
-    }
-
-    /// Calls `f` while no window is available in the context.
-    pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
-        WINDOW_CTX.with_default(f)
-    }
-
     /// Returns `true` if called inside a window.
     pub fn is_in_window(&self) -> bool {
         !WINDOW_CTX.is_default()
     }
 
-    /// Get the widget ID, if called inside a window.
+    /// Gets the window ID, if called inside a window.
     pub fn try_id(&self) -> Option<WindowId> {
         if WINDOW_CTX.is_default() {
             None
@@ -137,42 +125,34 @@ impl WINDOW {
         }
     }
 
-    /// Get the widget ID if called inside a widget, or panic.
+    /// Gets the window ID.
     pub fn id(&self) -> WindowId {
         WINDOW_CTX.get().id
     }
 
-    /// Get the window mode.
+    /// Gets the window mode.
     pub fn mode(&self) -> WindowMode {
         WINDOW_CTX.get().mode
     }
 
     /// Gets the window info tree.
     ///
-    /// Returns `None` if the window is not inited, panics if called outside of a window or window init closure.
+    /// Panics if called before the window future yields the window.
     pub fn info(&self) -> WidgetInfoTree {
         WINDOW_CTX.get().widget_tree.read().clone().expect("window not init")
     }
 
     /// Calls `f` with a read lock on the current window state map.
-    ///
-    /// Note that this locks the entire [`WINDOW`], this is an entry point for widget extensions and must
-    /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state<R>(&self, f: impl FnOnce(StateMapRef<WINDOW>) -> R) -> R {
         f(WINDOW_CTX.get().state.read().borrow())
     }
 
     /// Calls `f` with a write lock on the current window state map.
-    ///
-    /// Note that this locks the entire [`WINDOW`], this is an entry point for widget extensions and must
-    /// return as soon as possible. A common pattern is cloning the stored value.
     pub fn with_state_mut<R>(&self, f: impl FnOnce(StateMapMut<WINDOW>) -> R) -> R {
         f(WINDOW_CTX.get().state.write().borrow_mut())
     }
 
     /// Get the window state `id`, if it is set.
-    ///
-    /// Panics if not called inside a window.
     pub fn get_state<T: StateValue + Clone>(&self, id: impl Into<StateId<T>>) -> Option<T> {
         let id = id.into();
         self.with_state(|s| s.get_clone(id))
@@ -180,7 +160,7 @@ impl WINDOW {
 
     /// Require the window state `id`.
     ///
-    /// Panics if the `id` is not set or is not called inside a window.
+    /// Panics if the `id` is not set.
     pub fn req_state<T: StateValue + Clone>(&self, id: impl Into<StateId<T>>) -> T {
         let id = id.into();
         self.with_state(|s| s.req(id).clone())
@@ -221,6 +201,20 @@ impl WINDOW {
         let id = id.into();
         self.with_state(|s| s.contains(id))
     }
+
+    /// Calls `f` while the window is set to `ctx`.
+    pub fn with_context<R>(&self, ctx: &mut WindowCtx, f: impl FnOnce() -> R) -> R {
+        let _span = match ctx.0.as_mut() {
+            Some(c) => UpdatesTrace::window_span(c.id),
+            None => panic!("window is required"),
+        };
+        WINDOW_CTX.with_context(&mut ctx.0, f)
+    }
+
+    /// Calls `f` while no window is available in the context.
+    pub fn with_no_context<R>(&self, f: impl FnOnce() -> R) -> R {
+        WINDOW_CTX.with_default(f)
+    }
 }
 
 /// Test only methods.
@@ -252,6 +246,13 @@ mod _impl {
         size: PxSize,
     }
 
+    /// Window test helpers.
+    ///
+    /// # Panics
+    ///
+    /// Most of the test methods panic if not called inside [`with_test_context`].
+    ///
+    /// [`with_test_context`]: WINDOW::with_test_context
     impl WINDOW {
         /// Calls `f` inside a new headless window and root widget.
         pub fn with_test_context<R>(&self, update_mode: WidgetUpdateMode, f: impl FnOnce() -> R) -> R {
@@ -273,6 +274,8 @@ mod _impl {
         }
 
         /// Get the test window size.
+        ///
+        /// This size is used by the `test_*` methods that need a window size.
         pub fn test_window_size(&self) -> PxSize {
             WINDOW.with_state_mut(|mut s| s.get_mut(&TEST_WINDOW_CFG).expect("not in test window").size)
         }

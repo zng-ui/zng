@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::window::WINDOWS::frame_image_rect`.
+        - Last reviewed `zero_ui::window::WINDOW`.
         - Copy some docs from `UiNode` to `UiNodeOp`?
 
 # Publish

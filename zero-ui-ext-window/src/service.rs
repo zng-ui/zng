@@ -388,7 +388,7 @@ impl WINDOWS {
     ///
     /// Returns a response var that will update once with the result of the operation.
     ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    /// Returns an error if the `window_id` is not one of the open windows or is only an open request.
     pub fn close(&self, window_id: impl Into<WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
         self.close_together([window_id.into()])
     }
@@ -400,7 +400,7 @@ impl WINDOWS {
     /// Returns a response var that will update once with the result of the operation. Returns
     /// [`Cancel`] if `windows` is empty.
     ///
-    /// Returns [`WindowNotFound`] if any of the IDs is not one of the open windows or is only an open request.
+    /// Returns an error if any of the IDs is not one of the open windows or is only an open request.
     ///
     /// [`Cancel`]: CloseWindowResult::Cancel
     pub fn close_together(&self, windows: impl IntoIterator<Item = WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
@@ -423,7 +423,7 @@ impl WINDOWS {
     ///
     /// This value indicates if the window is headless or not.
     ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    /// Returns an error if the `window_id` is not one of the open windows or is only an open request.
     ///
     /// [mode]: WindowMode
     pub fn mode(&self, window_id: impl Into<WindowId>) -> Result<WindowMode, WindowNotFound> {
@@ -438,7 +438,7 @@ impl WINDOWS {
 
     /// Returns a shared reference to the latest widget tree info for the window.
     ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    /// Returns an error if the `window_id` is not one of the open windows or is only an open request.
     pub fn widget_tree(&self, window_id: impl Into<WindowId>) -> Result<WidgetInfoTree, WindowNotFound> {
         let window_id = window_id.into();
         WINDOWS_SV
@@ -481,9 +481,9 @@ impl WINDOWS {
             .frame_image_impl(window_id.into(), |vr| vr.frame_image_rect(rect, mask))
     }
 
-    /// Reference the [`WindowVars`] for the window.
+    /// Returns a shared reference the variables that control the window.
     ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows or is only an open request.
+    /// Returns an error if the `window_id` is not one of the open windows or is only an open request.
     pub fn vars(&self, window_id: impl Into<WindowId>) -> Result<WindowVars, WindowNotFound> {
         let window_id = window_id.into();
         WINDOWS_SV
@@ -494,9 +494,9 @@ impl WINDOWS {
             .ok_or(WindowNotFound(window_id))
     }
 
-    /// Gets if the window is focused in the OS.
+    /// Gets if the window is focused in the operating system.
     ///
-    /// Returns [`WindowNotFound`] if the `window_id` is not one of the open windows, returns `false` if the `window_id` is
+    /// Returns an error if the `window_id` is not one of the open windows, returns `false` if the `window_id` is
     /// one of the open requests.
     pub fn is_focused(&self, window_id: impl Into<WindowId>) -> Result<bool, WindowNotFound> {
         let window_id = window_id.into();
@@ -510,17 +510,17 @@ impl WINDOWS {
         }
     }
 
-    /// Gets a reference to the widget trees of each open window.
+    /// Returns shared references to the widget trees of each open window.
     pub fn widget_trees(&self) -> Vec<WidgetInfoTree> {
         WINDOWS_SV.read().windows_info.values().map(|w| w.widget_tree.clone()).collect()
     }
 
-    /// Gets the id of the window that is focused in the OS.
+    /// Gets the id of the window that is focused in the operating system.
     pub fn focused_window_id(&self) -> Option<WindowId> {
         WINDOWS_SV.read().windows_info.values().find(|w| w.is_focused).map(|w| w.id)
     }
 
-    /// Gets the latest frame for the focused window.
+    /// Returns a shared reference to the focused window's info.
     pub fn focused_info(&self) -> Option<WidgetInfoTree> {
         WINDOWS_SV
             .read()
@@ -535,7 +535,7 @@ impl WINDOWS {
         WINDOWS_SV.read().windows_info.contains_key(&window_id.into())
     }
 
-    /// Returns `true` if a pending window open request or awaiting open task is associated with the ID.
+    /// Returns `true` if the `window_id` is associated with a pending window open request or open task.
     ///
     /// Window open requests start polling after each update.
     pub fn is_opening(&self, window_id: impl Into<WindowId>) -> bool {
@@ -544,27 +544,27 @@ impl WINDOWS {
         sv.open_loading.contains_key(&window_id)
     }
 
-    /// Returns `true` if the window is not open or has not finished loading.
+    /// Returns `true` if the window is not open or has pending loading handles.
     pub fn is_loading(&self, window_id: impl Into<WindowId>) -> bool {
         let window_id = window_id.into();
         let sv = WINDOWS_SV.read();
         sv.open_loading.contains_key(&window_id) || sv.windows_info.get(&window_id).map(|i| i.is_loaded).unwrap_or(false)
     }
 
-    /// Returns `true` if the window is open and loaded.
+    /// Returns `true` if the window is open and has no pending loading handles.
     pub fn is_loaded(&self, window_id: impl Into<WindowId>) -> bool {
         let window_id = window_id.into();
         WINDOWS_SV.read().windows_info.get(&window_id).map(|i| i.is_loaded).unwrap_or(false)
     }
 
-    /// Requests that the window be made the foreground keyboard focused window.
+    /// Request operating system focus for the window.
     ///
-    /// Prefer using the `FOCUS` service and advanced `FocusRequest` configs instead of using this method directly.
+    /// The window will be made active and steal keyboard focus from the current focused window.
     ///
-    /// This operation can steal keyboard focus from other apps disrupting the user, be careful with it.
+    /// Prefer using the `FOCUS` service and advanced `FocusRequest` configs instead of using this method directly, they integrate
+    /// with the in app widget focus and internally still use this method.
     ///
     /// If the `window_id` is only associated with an open request it is modified to focus the window on open.
-    ///
     /// If more than one focus request is made in the same update cycle only the last request is processed.
     pub fn focus(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
         let window_id = window_id.into();
@@ -596,12 +596,9 @@ impl WINDOWS {
         }
     }
 
-    /// Move the window to the front of the Z stack.
+    /// Move the window to the front of the operating system Z stack.
     ///
-    /// This is ignored if the window is [`always_on_top`], the window is also not focused, the [`focus`] operation
-    /// also moves the window to the front.
-    ///
-    /// Multiple requests can be made in the same update cycle, they are processed in order.
+    /// Note that the window is not focused, the [`focus`] operation also moves the window to the front.
     ///
     /// [`always_on_top`]: WindowVars::always_on_top
     /// [`focus`]: Self::focus
@@ -617,17 +614,17 @@ impl WINDOWS {
         }
     }
 
-    /// Register a closure `extender` to be called with the root of every new window starting on the next update.
+    /// Register the closure `extender` to be called with the root of every new window starting on the next update.
     ///
-    /// The closure must returns the new root node that will be passed to previous registered root extenders until
-    /// the final root node is created.
+    /// The closure returns the new root node that will be passed to any other root extender until
+    /// the actual final root node is created.
     ///
-    /// This is an advanced API that enables features such as themes to inject context in every new window. The
+    /// This is an advanced API that enables app wide features, like themes, to inject context in every new window. The
     /// extender is called in the context of the window, after the window creation future has completed.
     ///
-    /// Note that the *root* node passed to the extender is not the root widget, the extended root will be wrapped
-    /// in the root widget node, that is, the final root widget will be `root(extender_nodes(CONTEXT(EVENT(..))))`,
-    /// so extension nodes should operate as `CONTEXT` properties.
+    /// Note that the *root* node passed to the extender is the child node of the `WindowRoot` widget, not the widget itself.
+    /// The extended root will be wrapped in the root widget node, that is, the final root widget will be
+    /// `root(extender_nodes(CONTEXT(EVENT(..))))`, so extension nodes should operate as `CONTEXT` properties.
     pub fn register_root_extender<E>(&self, mut extender: impl FnMut(WindowRootExtenderArgs) -> E + Send + 'static)
     where
         E: zero_ui_app::widget::node::UiNode,
@@ -639,22 +636,24 @@ impl WINDOWS {
             .push(Box::new(move |a| extender(a).boxed()))
     }
 
-    /// Add `extensions` to the view-process window request extensions.
+    /// Add a view-process extension payload to the window request for the view-process.
     ///
-    /// This must be called between init and the first window layout and must be called again on [`VIEW_PROCESS_INITED_EVENT`]
+    /// This will only work if called on the first [`UiNode::init`] and at most the first [`UiNode::layout`] of the window.
+    ///
+    /// The payload is dropped after it is send, this method must be called again on [`VIEW_PROCESS_INITED_EVENT`]
     /// to reinitialize the extensions after view-process respawn.
     pub fn view_extensions_init(
         &self,
-        id: WindowId,
+        window_id: WindowId,
         extension_id: ApiExtensionId,
         request: ApiExtensionPayload,
     ) -> Result<(), WindowNotFound> {
-        match WINDOWS_SV.write().windows_info.get_mut(&id) {
+        match WINDOWS_SV.write().windows_info.get_mut(&window_id) {
             Some(i) => {
                 i.extensions.push((extension_id, request));
                 Ok(())
             }
-            None => Err(WindowNotFound(id)),
+            None => Err(WindowNotFound(window_id)),
         }
     }
 
@@ -1193,7 +1192,7 @@ impl WINDOWS {
 impl WINDOWS {
     /// Show a native message dialog for the window.
     ///
-    /// The dialog maybe modal in the view-process, in the app-process (caller) it is always async, the
+    /// The dialog can be modal in the view-process, in the app-process it is always async, the
     /// response var will update once when the user responds to the dialog.
     pub fn native_message_dialog(
         &self,
@@ -1216,7 +1215,7 @@ impl WINDOWS {
 
     /// Show a native file dialog for the window.
     ///
-    /// The dialog maybe modal in the view-process, in the app-process (caller) it is always async, the
+    /// The dialog can be modal in the view-process, in the app-process it is always async, the
     /// response var will update once when the user responds to the dialog.
     pub fn native_file_dialog(
         &self,
@@ -1616,6 +1615,7 @@ impl ImageRenderWindowRoot for WindowRoot {
     }
 }
 
+#[doc(hidden)]
 impl ImageRenderWindowsService for WINDOWS {
     fn new_window_root(&self, node: BoxedUiNode, render_mode: RenderMode, scale_factor: Option<Factor>) -> Box<dyn ImageRenderWindowRoot> {
         Box::new(WindowRoot::new_container(
