@@ -316,7 +316,7 @@ pub mod node {
 /// Normal widgets must implement [`UiNode`], otherwise they cannot be used as child of other widgets.
 /// The widget outer-node also must implement the widget context, to ensure that the widget is correctly placed in the UI tree.
 /// Note that you can still use the parent type build implementation, so even if you need
-/// to run code on build or define a custom type you don't deref to to the parent type to build.
+/// to run code on build or define a custom type you don't need to deref to the parent type to build.
 ///
 /// # Defaults
 ///
@@ -437,7 +437,7 @@ pub mod node {
 /// # Widget Type
 ///
 /// A public associated function `widget_type` is also generated for the widget, it returns a [`WidgetType`] instance that describes the
-/// widget type. Note that this is is not the widget instance type, only the struct and macro type. If compiled with the `"inspector"` feature
+/// widget type. Note that this is not the widget instance type, only the struct and macro type. If compiled with the `"inspector"` feature
 /// the type is also available in the widget info.
 ///
 /// # See Also
@@ -528,7 +528,7 @@ pub use zero_ui_app::widget::widget_mixin;
 /// The attribute takes one required argument and one optional that matches the [`Var::easing`]
 /// parameters. The required first arg is the duration, the second arg is an easing function, if not present the [`easing::linear`] is used.
 ///
-/// Some items are auto-imported in each argument scope, [`TimeUnits`] for the first first arg and the [`easing`] functions
+/// Some items are auto-imported in each argument scope, [`TimeUnits`] for the first arg and the [`easing`] functions
 /// for the second. This enables syntax like `#[easing(300.ms(), expo)]`.
 ///
 /// ## Unset

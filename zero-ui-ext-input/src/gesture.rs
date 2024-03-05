@@ -674,7 +674,7 @@ impl GESTURES {
     /// When a shortcut or access primary click happens, targeted widgets can indicate that
     /// they are pressed for this duration.
     ///
-    /// Initial value is `50ms`, set to to `0` to deactivate this type of indication.
+    /// Initial value is `50ms`, set to `0` to deactivate this type of indication.
     pub fn shortcut_pressed_duration(&self) -> ArcVar<Duration> {
         GESTURES_SV.read().shortcut_pressed_duration.clone()
     }

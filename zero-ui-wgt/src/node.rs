@@ -273,7 +273,7 @@ pub fn with_context_var_init<T: VarValue>(
 /// }
 /// ```
 ///
-/// The closure receives two arguments, the handler `UiNode` and a `bool` that is `true` if the closure is called in in the *on_pre_*
+/// The closure receives two arguments, the handler `UiNode` and a `bool` that is `true` if the closure is called in the *on_pre_*
 /// property or `false` when called in the *on_* property.
 ///
 /// [`on_pre_event`]: crate::node::on_pre_event

@@ -56,7 +56,7 @@ pub struct RendererDebug {
     ///
     /// # Syntax
     ///
-    /// Comma-separated list of of tokens with trailing and leading spaces trimmed.
+    /// Comma-separated list of tokens with trailing and leading spaces trimmed.
     /// Each tokens can be:
     /// - A counter name with an optional prefix. The name corresponds to the displayed name.
     ///   - By default (no prefix) the counter is shown as average + max over half a second.

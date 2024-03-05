@@ -1443,7 +1443,7 @@ impl_from_and_into_var! {
     }
 }
 
-/// Node that implements the layers, must be inserted in in the [`NestGroup::EVENT`] group by the window implementer.
+/// Node that implements the layers, must be inserted in the [`NestGroup::EVENT`] group by the window implementer.
 ///
 /// [`NestGroup::EVENT`]: zero_ui_app::widget::builder::NestGroup::EVENT
 pub fn layers_node(child: impl UiNode) -> impl UiNode {

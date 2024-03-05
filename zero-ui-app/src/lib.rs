@@ -207,7 +207,7 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`event_ui`](Self::event_ui) when an event notifies.
     ///
-    /// Extensions can handle this method to to intercept event updates before the UI.
+    /// Extensions can handle this method to intercept event updates before the UI.
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `event_ui`.

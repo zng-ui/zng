@@ -676,8 +676,8 @@ impl FOCUS {
     /// If the widget is not focusable the focus does not move, in this case the highlight changes
     /// for the current focused widget.
     ///
-    /// If the widget widget is in a window that is not focused, but is open and not minimized and the app
-    /// has keyboard focus in another window; the window is focused and the request processed when the focus event is received.
+    /// If the widget is in a window that does not have focus, but is open and not minimized and the app
+    /// has keyboard focus in another window; the window is focused and the request is processed when the focus event is received.
     /// The [`FocusRequest`] type has other more advanced window focus configurations.
     ///
     /// This makes a [`focus`](Self::focus) request using [`FocusRequest::direct`].

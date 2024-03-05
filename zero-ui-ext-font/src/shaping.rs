@@ -1732,7 +1732,7 @@ where
 pub struct TextOverflowInfo {
     /// First overflow line.
     ///
-    /// All segments in this line and next lines are fully overflown. The previous line line may
+    /// All segments in this line and next lines are fully overflown. The previous line may
     /// be partially overflown, the lines before that are fully visible.
     ///
     /// Is the [`ShapedText::lines_len`] if the last line is fully visible.

@@ -1274,7 +1274,7 @@ macro_rules! stops {
             tail: ($color, $stop1)
         }
     };
-    // match first entry as as single color with 2 stops, plus other stops, e.g:
+    // match first entry as single color with 2 stops, plus other stops, e.g:
     // stops![(colors::RED, 0, 20), colors::WHITE]
     (($color:expr, $stop0:expr, $stop1:expr), $($stops:tt)+) => {
         $crate::__stops! {

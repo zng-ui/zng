@@ -1770,7 +1770,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Schedule a keyframed transition animation for the variable, starting from the first key.
     ///
-    /// The variable will be set to to the first keyframe, then animated across all other keys.
+    /// The variable will be set to the first keyframe, then animated across all other keys.
     ///
     /// See [`Var::animate`] for details about animations.
     fn set_ease_keyed<F>(&self, keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
@@ -1783,7 +1783,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Schedule a keyframed transition animation for the variable, starting from the first key, using a custom value sampler.
     ///
-    /// The variable will be set to to the first keyframe, then animated across all other keys.
+    /// The variable will be set to the first keyframe, then animated across all other keys.
     ///
     /// See [`Var::animate`] for details about animations.
     fn set_ease_keyed_with<F, S>(&self, keys: Vec<(Factor, T)>, duration: Duration, easing: F, sampler: S) -> animation::AnimationHandle
@@ -1801,7 +1801,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Schedule a keyframed transition animation for the variable, starting from the current value.
     ///
-    /// The variable will be set to to the first keyframe, then animated across all other keys.
+    /// The variable will be set to the first keyframe, then animated across all other keys.
     ///
     /// See [`Var::animate`] for details about animations.
     fn ease_keyed<F>(&self, keys: Vec<(Factor, T)>, duration: Duration, easing: F) -> animation::AnimationHandle
@@ -1814,7 +1814,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
 
     /// Schedule a keyframed transition animation for the variable, starting from the current value, using a custom value sampler.
     ///
-    /// The variable will be set to to the first keyframe, then animated across all other keys.
+    /// The variable will be set to the first keyframe, then animated across all other keys.
     ///
     /// See [`Var::animate`] for details about animations.
     fn ease_keyed_with<F, S>(&self, mut keys: Vec<(Factor, T)>, duration: Duration, easing: F, sampler: S) -> animation::AnimationHandle

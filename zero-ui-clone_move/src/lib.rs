@@ -465,7 +465,7 @@ macro_rules! __async_clmv_fn {
     };
 }
 
-///<span data-del-macro-root></span> Async clone move closure closure that can only be called once.
+///<span data-del-macro-root></span> Async clone move closure that can only be called once.
 ///
 /// This macro syntax is exactly the same as [`async_clmv_fn!`](macro@crate::async_clmv_fn), but it does not clone variables
 /// again inside the call to move to the returned future. Because if moves the captured variables to the closure returned `Future`

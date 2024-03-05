@@ -363,7 +363,7 @@ declare_api! {
 
     /// Remove an image from cache.
     ///
-    /// Note that if the image is is use in a renderer it will remain in memory until [`delete_image_use`] is
+    /// Note that if the image is in use in a renderer it will remain in memory until [`delete_image_use`] is
     /// called or the renderer is deinited by closing the window.
     ///
     /// [`delete_image_use`]: Api::delete_image_use
@@ -497,7 +497,7 @@ declare_api! {
 
     /// Call the API extension.
     ///
-    /// This is is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
+    /// This is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
     /// with the `id` renderer.
     pub fn render_extension(&mut self, id: WindowId, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
 }

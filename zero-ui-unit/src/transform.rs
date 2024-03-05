@@ -84,7 +84,7 @@ impl PxTransform {
         }
     }
 
-    /// Returns `true` is is the identity transform.
+    /// Returns `true` it is the identity transform.
     pub fn is_identity(&self) -> bool {
         match self {
             PxTransform::Offset(offset) => offset == &euclid::Vector2D::zero(),

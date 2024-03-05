@@ -28,7 +28,7 @@
 //! # ;
 //! ```
 //!
-//! The example above declares a widget is is green when hovered or is holding the pointer capture, the widget also logs
+//! The example above declares a widget is green when hovered or is holding the pointer capture, the widget also logs
 //! when it gets and loses the capture. Note that the [`gesture::is_cap_hovered`] state is not the same as [`gesture::is_hovered`],
 //! if changed to the second the example will not be green when not hovering, even though the widget still holds the capture, pointer
 //! capture changes the target of pointer events, but it does not mask the fact that the pointer is not actually over the widget.

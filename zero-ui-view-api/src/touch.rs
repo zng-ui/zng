@@ -68,6 +68,6 @@ pub enum TouchForce {
     /// If the platform reports the force as normalized, we have no way of
     /// knowing how much pressure 1.0 corresponds to – we know it's the maximum
     /// amount of force, but as to how much force, you might either have to
-    /// press really really hard, or not hard at all, depending on the device.
+    /// press really hard, or not hard at all, depending on the device.
     Normalized(f64),
 }

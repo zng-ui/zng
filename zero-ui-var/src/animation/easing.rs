@@ -312,7 +312,7 @@ pub fn elastic(time: EasingTime) -> EasingStep {
 }
 
 /// Oscillating transition that grows in magnitude, does not go negative, when the curve
-/// is about to to go negative sharply transitions to a new arc of larger magnitude.
+/// is about to go negative it sharply transitions to a new arc of larger magnitude.
 pub fn bounce(time: EasingTime) -> EasingStep {
     const N: f32 = 7.5625;
     const D: f32 = 2.75;
