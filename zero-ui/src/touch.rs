@@ -34,7 +34,7 @@
 //! # ;
 //! ```
 //!
-//! Touch events are send to the the top widget under the touch point. This module also provides touch exclusive gestures like
+//! Touch events are send to the top widget under the touch point. This module also provides touch exclusive gestures like
 //! tap, touch enter/leave and [`on_touch_transform`]. Note some touch gestures are composed with others in [`gesture`] to provide the
 //! final pointer gestures. You should prefer using [`gesture::on_click`] over [`on_touch_tap`], unless you really want to exclusively
 //! touch clicks.

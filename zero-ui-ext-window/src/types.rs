@@ -27,7 +27,7 @@ pub use zero_ui_view_api::window::{FocusIndicator, RenderMode, VideoMode, Window
 use crate::{HeadlessMonitor, WINDOW_Ext as _};
 
 /// Window root node and values.
-/// 
+///
 /// The `Window!` widget instantiates this type.
 ///
 /// This struct contains the window config that does not change, other window config is available in [`WINDOW.vars()`].

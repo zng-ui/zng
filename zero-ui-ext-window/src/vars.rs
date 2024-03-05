@@ -341,11 +341,8 @@ impl WindowVars {
     /// this variable tracks the last normal position and size, it will be the window [`actual_position`] and [`actual_size`] again
     /// when the state is set back to [`Normal`].
     ///
-    /// This is a read-only variable, to programmatically set it assign the [`position`] and [`size`] variables, note that
-    /// unlike this variable the [`position`] is relative to the [`monitor`] top-left.
-    ///
-    /// The initial value is `(30, 30).at(800, 600)` but this is updated quickly to an actual position. The point
-    /// is relative to the origin of the [`actual_monitor`].
+    /// This is a read-only variable, to programmatically set it assign the [`position`] and [`size`] variables. The initial
+    /// value is `(30, 30).at(800, 600)`, it starts updating when the window opens.
     ///
     /// Note that to restore the window you only need to set [`state`] to [`restore_state`], if the restore state is [`Normal`]
     /// this position and size will be applied automatically.
@@ -365,17 +362,16 @@ impl WindowVars {
 
     /// Window top-left offset on the [`monitor`] when the window is [`Normal`].
     ///
-    /// When a dimension is not a finite value it is computed from other variables.
     /// Relative values are computed in relation to the [`monitor`] size, updating every time the
-    /// position or monitor variable updates, not every layout.
+    /// position or monitor variable updates.
     ///
     /// When the user moves the window this value is considered stale, when it updates it overwrites the window position again,
     /// note that the window is only moved if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
-    /// When the the window is moved by the user this variable does **not** update back, to track the current position of the window
+    /// When the window is moved by the user this variable does **not** update back, to track the current position of the window
     /// use [`actual_position`], to track the restore position use [`restore_rect`].
     ///
-    /// The default value causes the window or OS to select a value.
+    /// The [`Length::Default`] value causes the OS to select a value.
     ///
     /// [`restore_rect`]: WindowVars::restore_rect
     /// [`actual_position`]: WindowVars::actual_position
@@ -390,7 +386,7 @@ impl WindowVars {
     /// This is a read-only variable that tracks the computed size of the window, it updates every time
     /// the window resizes.
     ///
-    /// The initial value is `(0, 0)` but this is updated quickly to an actual value.
+    /// The initial value is `(0, 0)`, it starts updating when the window opens.
     pub fn actual_size(&self) -> ReadOnlyArcVar<DipSize> {
         self.0.actual_size.read_only()
     }
@@ -408,18 +404,19 @@ impl WindowVars {
 
     /// Window width and height on the screen when the window is [`Normal`].
     ///
-    /// When a dimension is not a finite value it is computed from other variables.
-    /// Relative values are computed in relation to the full-screen size.
+    /// Relative values are computed in relation to the [`monitor`] size, updating every time the
+    /// size or monitor variable updates.
     ///
     /// When the user resizes the window this value is considered stale, when it updates it overwrites the window size again,
     /// note that the window is only resized if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
-    /// When the window is resized this variable does **not** updated back, to track the current window size use [`actual_size`],
+    /// When the window is resized this variable is **not** updated back, to track the current window size use [`actual_size`],
     /// to track the restore size use [`restore_rect`].
     ///
     /// The default value is `(800, 600)`.
     ///
     /// [`actual_size`]: WindowVars::actual_size
+    /// [`monitor`]: WindowVars::monitor
     /// [`restore_rect`]: WindowVars::restore_rect
     /// [`Normal`]: WindowState::Normal
     pub fn size(&self) -> ArcVar<Size> {
@@ -447,6 +444,7 @@ impl WindowVars {
     /// The default value is [`Point::top_left`].
     ///
     /// [`auto_size`]: Self::auto_size
+    /// [`monitor`]: WindowVars::monitor
     /// [`StartPosition`]: crate::StartPosition
     pub fn auto_size_origin(&self) -> ArcVar<Point> {
         self.0.auto_size_origin.clone()
@@ -454,13 +452,14 @@ impl WindowVars {
 
     /// Minimal window width and height constrain on the [`size`].
     ///
-    /// When a dimension is not a finite value it fallback to the previous valid value.
-    /// Relative values are computed in relation to the full-screen size.
+    /// Relative values are computed in relation to the [`monitor`] size, updating every time the
+    /// size or monitor variable updates.
     ///
     /// Note that the operation systems can have their own minimal size that supersedes this variable.
     ///
     /// The default value is `(192, 48)`.
     ///
+    /// [`monitor`]: WindowVars::monitor
     /// [`size`]: Self::size
     pub fn min_size(&self) -> ArcVar<Size> {
         self.0.min_size.clone()
@@ -468,8 +467,8 @@ impl WindowVars {
 
     /// Maximal window width and height constrain on the [`size`].
     ///
-    /// When a dimension is not a finite value it fallback to the previous valid value.
-    /// Relative values are computed in relation to the full-screen size.
+    /// Relative values are computed in relation to the [`monitor`] size, updating every time the
+    /// size or monitor variable updates.
     ///
     /// Note that the operation systems can have their own maximal size that supersedes this variable.
     ///

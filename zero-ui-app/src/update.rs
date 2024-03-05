@@ -128,7 +128,7 @@ impl UpdateDeliveryList {
         }
     }
 
-    /// If the the list has pending widgets that must be found before delivery can start.
+    /// If the list has pending widgets that must be found before delivery can start.
     pub fn has_pending_search(&mut self) -> bool {
         self.search_root || !self.search.is_empty()
     }

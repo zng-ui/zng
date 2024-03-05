@@ -17,7 +17,7 @@ command! {
     /// the `Option<bool>` param coercing `None` to `false`.
     ///
     /// * [`checked_opt`]: The property cycles or toggles depending on [`tristate`] for no params, otherwise
-    /// it sets the the `bool` or `Option<bool>` param.
+    /// it sets the `bool` or `Option<bool>` param.
     ///
     /// * [`value`]: The property toggles select/unselect the value for no params, otherwise it selects the value
     /// for param `true` or `Some(true)` and deselects the value for param `false` or `None::<bool>`. Note that you

@@ -24,7 +24,7 @@
 //! # ;
 //! ```
 //!
-//! Mouse events are send to the the top widget under the cursor. This module also provides mouse exclusive gestures like mouse clicks
+//! Mouse events are send to the top widget under the cursor. This module also provides mouse exclusive gestures like mouse clicks
 //! and mouse hovered, these gestures are composed with others in [`gesture`] to provide the final pointer gestures. You should
 //! prefer using [`gesture::on_click`] over [`on_mouse_click`], unless you really want to exclusively handle mouse clicks.
 //!

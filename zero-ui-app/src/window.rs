@@ -12,7 +12,7 @@ zero_ui_unique_id::unique_id_32! {
     /// Unique identifier of an open window.
     ///
     /// Can be obtained from [`WINDOW.id`] inside a window.
-    /// 
+    ///
     /// # Name
     ///
     /// IDs are only unique for the same process.

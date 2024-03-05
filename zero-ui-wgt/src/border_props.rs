@@ -162,7 +162,7 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// ```
 ///
 /// This will render a `RED` border around a `GREEN` one, the inner border will fit perfectly inside the outer one,
-/// the `corner_radius` defines the the outer radius, the inner radius is computed automatically to fit.
+/// the `corner_radius` defines the outer radius, the inner radius is computed automatically to fit.
 ///
 /// Note that because both borders have the same [`NestGroup::BORDER`] the position they are declared in the widget matters:
 ///

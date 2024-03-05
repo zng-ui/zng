@@ -913,7 +913,7 @@ pub use zero_ui_app::widget::property;
 /// error is also not shown if the method body contains a call to the [`todo!()`] macro.
 ///
 /// The [`measure`] method is an exception to this and will not show the error, its ideal implementation
-/// is one where the entire sub-tree is skipped from the the computation.
+/// is one where the entire sub-tree is skipped from the computation.
 ///
 /// # Mixing Methods
 ///

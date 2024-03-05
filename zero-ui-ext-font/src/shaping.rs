@@ -566,7 +566,7 @@ impl ShapedText {
     /// If the text first and last lines is defined externally by the inline layout.
     ///
     /// When this is `true` the shaped text only defines aligns horizontally and only the mid-lines. The vertical
-    /// offset is defined by the the first line rectangle plus the [`mid_clear`].
+    /// offset is defined by the first line rectangle plus the [`mid_clear`].
     ///
     /// [`mid_clear`]: Self::mid_clear
     pub fn is_inlined(&self) -> bool {
@@ -2287,7 +2287,7 @@ impl ShapedTextBuilder {
             }
         }
 
-        // split and push the the first half + hyphen
+        // split and push the first half + hyphen
         let end_glyph_x = shaped_seg.glyphs[end_glyph].point.0;
         let (glyphs_a, glyphs_b) = shaped_seg.glyphs.split_at(end_glyph);
         if glyphs_a.is_empty() || glyphs_b.is_empty() {

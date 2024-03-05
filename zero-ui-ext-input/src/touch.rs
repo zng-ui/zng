@@ -840,7 +840,7 @@ impl TouchTransformArgs {
         self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
     }
 
-    /// Gets the the [`first_info`] and [`latest_info`] in the [`WIDGET`] inner bounds space.
+    /// Gets the [`first_info`] and [`latest_info`] in the [`WIDGET`] inner bounds space.
     ///
     /// [`first_info`]: Self::first_info
     /// [`latest_info`]: Self::latest_info

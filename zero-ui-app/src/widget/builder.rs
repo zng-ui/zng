@@ -387,7 +387,7 @@ pub mod nest_group_items {
 
 /// Property nest position group.
 ///
-/// Each group has `u16::MAX / 9` in between, custom groups can be created using the the +/- operations, `SIZE+1` is
+/// Each group has `u16::MAX / 9` in between, custom groups can be created using the +/- operations, `SIZE+1` is
 /// still outside `BORDER`, but slightly inside `SIZE`.
 ///
 /// See [`NestPosition`] for more details.

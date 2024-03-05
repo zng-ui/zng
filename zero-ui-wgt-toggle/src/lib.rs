@@ -235,7 +235,7 @@ pub fn is_checked(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 ///
 /// The widget [`is_checked`] when the value is selected, on click and on value update, the selection
 /// is updated according to the behavior defined in the contextual [`selector`]. If no contextual
-/// [`selector`] is the the widget is never checked.
+/// [`selector`] is the widget is never checked.
 ///
 /// Note that the value can be any type, but must be one of the types accepted by the contextual [`selector`], type
 /// validation happens in run-time, an error is logged if the type is not compatible. Because any type can be used in

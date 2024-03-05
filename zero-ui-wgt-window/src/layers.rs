@@ -1173,7 +1173,7 @@ pub struct AnchorMode {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub visibility: bool,
-    /// The widget [`interactivity`] is set to the the same as the anchor widget.
+    /// The widget [`interactivity`] is set to the same as the anchor widget.
     ///
     /// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
     pub interactivity: bool,

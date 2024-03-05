@@ -964,7 +964,7 @@ impl FrameBuilder {
                             ctx_inside_ref_frame = 1;
                         } else {
                             // extends 3D space, cannot splice a filters stacking context because that
-                            // would disconnect the the sub-tree from the parent space.
+                            // would disconnect the sub-tree from the parent space.
                             tracing::warn!(
                                 "widget `{id}` cannot have filters because it is `Preserve3D` inside `Preserve3D`, filters & blend ignored"
                             );

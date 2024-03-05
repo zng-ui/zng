@@ -38,7 +38,7 @@ impl INSTANT {
         *EPOCH.write().get_or_insert_with(Instant::now)
     }
 
-    /// Defines how the the `now` value updates.
+    /// Defines how the `now` value updates.
     ///
     /// # Panics
     ///
