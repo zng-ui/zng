@@ -12,8 +12,14 @@ zero_ui_unique_id::unique_id_32! {
     /// Unique identifier of an open window.
     ///
     /// Can be obtained from [`WINDOW.id`] inside a window.
+    /// 
+    /// # Name
+    ///
+    /// IDs are only unique for the same process.
+    /// You can associate a [`name`] with an ID to give it a persistent identifier.
     ///
     /// [`WINDOW.id`]: crate::update::WINDOW::id
+    /// [`name`]: WindowId::name
     pub struct WindowId;
 }
 zero_ui_unique_id::impl_unique_id_name!(WindowId);

@@ -26,11 +26,13 @@ pub use zero_ui_view_api::window::{FocusIndicator, RenderMode, VideoMode, Window
 
 use crate::{HeadlessMonitor, WINDOW_Ext as _};
 
-/// Window root widget and configuration.
+/// Window root node and values.
+/// 
+/// The `Window!` widget instantiates this type.
 ///
-/// More window configuration is accessible using the [`WindowVars`] type.
+/// This struct contains the window config that does not change, other window config is available in [`WINDOW.vars()`].
 ///
-/// [`WindowVars`]: crate::WindowVars
+/// [`WINDOW.vars()`]: crate::WINDOW_Ext::vars
 pub struct WindowRoot {
     pub(super) id: WidgetId,
     pub(super) start_position: StartPosition,
@@ -404,7 +406,7 @@ impl Default for FrameCaptureMode {
 event_args! {
     /// [`WINDOW_OPEN_EVENT`] args.
     pub struct WindowOpenArgs {
-        /// Id of window that was opened.
+        /// Id of window that has opened.
         pub window_id: WindowId,
 
         ..
@@ -417,7 +419,7 @@ event_args! {
 
     /// [`WINDOW_CLOSE_EVENT`] args.
     pub struct WindowCloseArgs {
-        /// Id of windows that were closed.
+        /// IDs of windows that have closed.
         ///
         /// This is at least one window, is multiple if the close operation was requested as group.
         pub windows: IdSet<WindowId>,
@@ -432,7 +434,7 @@ event_args! {
 
     /// [`WINDOW_CHANGED_EVENT`] args.
     pub struct WindowChangedArgs {
-        /// Window that was moved, resized or has a state change.
+        /// Window that has moved, resized or has a state change.
         pub window_id: WindowId,
 
         /// Window state change, if it has changed the values are `(prev, new)` states.

@@ -1479,10 +1479,10 @@ impl WindowLoading {
     }
 }
 
-/// Represents a handle that stops a window from opening while it exists.
+/// Represents a handle that stops the window from loading while the handle is alive.
 ///
 /// A handle can be retrieved using [`WINDOWS.loading_handle`] or [`WINDOW.loading_handle`], the window does not
-/// open until all handles are dropped.
+/// open until all handles expire or are dropped.
 ///
 /// [`WINDOWS.loading_handle`]: WINDOWS::loading_handle
 /// [`WINDOW.loading_handle`]: WINDOW::loading_handle

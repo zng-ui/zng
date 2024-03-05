@@ -77,11 +77,11 @@ pub(super) struct WindowVarsData {
     pub(super) access_enabled: ArcVar<AccessEnabled>,
 }
 
-/// Controls properties of an open window using variables.
+/// Variables that configure the opening or open window.
 ///
-/// You can get the controller for any window using [`WINDOWS.vars`].
+/// You can get the vars for any window using [`WINDOWS.vars`].
 ///
-/// You can get the controller for the current context window using [`WINDOW.vars`].
+/// You can get the vars for the current context window using [`WINDOW.vars`].
 ///
 /// [`WINDOWS.vars`]: crate::WINDOWS::vars
 /// [`WINDOW.vars`]: crate::WINDOW_Ext::vars
@@ -162,7 +162,7 @@ impl WindowVars {
         WINDOW.req_state(&WINDOW_VARS_ID)
     }
 
-    /// If the window chrome is visible.
+    /// Defines if the window chrome is visible.
     ///
     /// The window chrome is the non-client area of the window, usually a border with resize handles and a title bar.
     ///
@@ -234,7 +234,7 @@ impl WindowVars {
     ///
     /// Minimized, maximized or full-screen. See [`WindowState`] for details.
     ///
-    /// The default value is [`WindowState::Normal`]
+    /// The default value is [`WindowState::Normal`].
     pub fn state(&self) -> ArcVar<WindowState> {
         self.0.state.clone()
     }
@@ -272,7 +272,7 @@ impl WindowVars {
     /// Current monitor hosting the window.
     ///
     /// This is `None` only if the window has not opened yet (before first render) or if
-    /// no monitors where found in the operating system or if the window if headless without renderer.
+    /// no monitors where found in the operating system or if the window is headless without renderer.
     pub fn actual_monitor(&self) -> ReadOnlyArcVar<Option<MonitorId>> {
         self.0.actual_monitor.read_only()
     }
@@ -299,7 +299,7 @@ impl WindowVars {
     /// This is a read-only variable that tracks the computed position of the window, it updates every
     /// time the window moves.
     ///
-    /// The initial value is `(0, 0)` but this is updated quickly to an actual value. The point
+    /// The initial value is `(0, 0)`, it starts updating once the window opens. The point
     /// is relative to the origin of the [monitor].
     ///
     /// [monitor]: Self::actual_monitor
@@ -312,14 +312,14 @@ impl WindowVars {
     /// This is a read-only variable that tracks the computed position of the window, it updates every
     /// time the window moves.
     ///
-    /// The initial value is `(0, 0)` but this is updated quickly to an actual value.
+    /// The initial value is `(0, 0)`, it starts updating once the window opens.
     pub fn global_position(&self) -> ReadOnlyArcVar<PxPoint> {
         self.0.global_position.read_only()
     }
 
-    /// Window *restore* state.
+    /// Window restore state.
     ///
-    /// The *restore* state that the window must be set to be restored, if the [current state] is [`Maximized`], [`Fullscreen`] or [`Exclusive`]
+    /// The restore state that the window must be set to be restored, if the [current state] is [`Maximized`], [`Fullscreen`] or [`Exclusive`]
     /// the restore state is [`Normal`], if the [current state] is [`Minimized`] the restore state is the previous state.
     ///
     /// When the restore state is [`Normal`] the [`restore_rect`] defines the window position and size.
@@ -335,9 +335,9 @@ impl WindowVars {
         self.0.restore_state.read_only()
     }
 
-    /// Window *restore* position and size when restoring to [`Normal`].
+    /// Window restore position and size when restoring to [`Normal`].
     ///
-    /// The *restore* rectangle is the window position and size when its state is [`Normal`], when the state is not [`Normal`]
+    /// The restore rectangle is the window position and size when its state is [`Normal`], when the state is not [`Normal`]
     /// this variable tracks the last normal position and size, it will be the window [`actual_position`] and [`actual_size`] again
     /// when the state is set back to [`Normal`].
     ///
@@ -373,7 +373,7 @@ impl WindowVars {
     /// note that the window is only moved if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
     /// When the the window is moved by the user this variable does **not** update back, to track the current position of the window
-    /// use [`actual_position`], to track the *restore* position use [`restore_rect`].
+    /// use [`actual_position`], to track the restore position use [`restore_rect`].
     ///
     /// The default value causes the window or OS to select a value.
     ///
@@ -415,7 +415,7 @@ impl WindowVars {
     /// note that the window is only resized if it is in the [`Normal`] state, otherwise only the [`restore_rect`] updates.
     ///
     /// When the window is resized this variable does **not** updated back, to track the current window size use [`actual_size`],
-    /// to track the *restore* size use [`restore_rect`].
+    /// to track the restore size use [`restore_rect`].
     ///
     /// The default value is `(800, 600)`.
     ///

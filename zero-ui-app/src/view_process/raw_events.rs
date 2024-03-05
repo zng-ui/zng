@@ -129,7 +129,7 @@ event_args! {
 
     /// Arguments for the [`RAW_WINDOW_CHANGED_EVENT`].
     pub struct RawWindowChangedArgs {
-        /// Window that was moved, resized or has a state change.
+        /// Window that has moved, resized or has a state change.
         pub window_id: WindowId,
 
         /// New [`WindowStateAll`] if any part of it has changed.
@@ -239,7 +239,7 @@ event_args! {
 
     /// Arguments for the [`RAW_WINDOW_CLOSE_EVENT`].
     pub struct RawWindowCloseArgs {
-        /// Window that was destroyed.
+        /// Window that has closed.
         pub window_id: WindowId,
 
         ..
