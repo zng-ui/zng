@@ -423,7 +423,7 @@ impl WindowVars {
         self.0.size.clone()
     }
 
-    /// Configure window size-to-content.
+    /// Defines if and how the window size is controlled by the content layout.
     ///
     /// When enabled overwrites [`size`](Self::size), but is still coerced by [`min_size`](Self::min_size)
     /// and [`max_size`](Self::max_size). Auto-size is disabled if the user [manually resizes](Self::resizable).
@@ -437,9 +437,9 @@ impl WindowVars {
     ///
     /// When the window size increases it *grows* to the right-bottom, the top-left corner does not move because
     /// the origin of windows it at the top-left and the position did not change, this variables overwrites this origin
-    /// for [`auto_size`] resized, the window position is adjusted so that it is the *center* of the resize.
+    /// for [`auto_size`] size changes, the window position is adjusted so that it is the center of the resize.
     ///
-    /// Note this only applies to auto-resizes, the initial auto-size when the window opens is positioned according to the [`StartPosition`] value.
+    /// Note this only applies to resizes, the initial auto-size when the window opens is positioned according to the [`StartPosition`] value.
     ///
     /// The default value is [`Point::top_left`].
     ///
@@ -450,12 +450,12 @@ impl WindowVars {
         self.0.auto_size_origin.clone()
     }
 
-    /// Minimal window width and height constrain on the [`size`].
+    /// Minimal window width and height constraint on the [`size`].
     ///
     /// Relative values are computed in relation to the [`monitor`] size, updating every time the
     /// size or monitor variable updates.
     ///
-    /// Note that the operation systems can have their own minimal size that supersedes this variable.
+    /// Note that the OS can also define a minimum size that supersedes this variable.
     ///
     /// The default value is `(192, 48)`.
     ///
@@ -465,26 +465,31 @@ impl WindowVars {
         self.0.min_size.clone()
     }
 
-    /// Maximal window width and height constrain on the [`size`].
+    /// Maximal window width and height constraint on the [`size`].
     ///
     /// Relative values are computed in relation to the [`monitor`] size, updating every time the
     /// size or monitor variable updates.
     ///
-    /// Note that the operation systems can have their own maximal size that supersedes this variable.
+    /// Note that the OS can also define a maximum size that supersedes this variable.
     ///
     /// The default value is `(100.pct(), 100.pct())`
     ///
+    /// [`monitor`]: WindowVars::monitor
     /// [`size`]: Self::size
     pub fn max_size(&self) -> ArcVar<Size> {
         self.0.max_size.clone()
     }
 
     /// Root font size.
+    /// 
+    /// This is the font size in all widget branches  that do not override the font size. The [`rem`] unit is relative to this value.
+    /// 
+    /// [`rem`]: LengthUnits::rem
     pub fn font_size(&self) -> ArcVar<Length> {
         self.0.font_size.clone()
     }
 
-    /// If the user can resize the window using the window frame.
+    /// Defines if the user can resize the window using the window frame.
     ///
     /// Note that even if disabled the window can still be resized from other sources.
     ///
@@ -493,7 +498,7 @@ impl WindowVars {
         self.0.resizable.clone()
     }
 
-    /// If the user can move the window using the window frame.
+    /// Defines if the user can move the window using the window frame.
     ///
     /// Note that even if disabled the window can still be moved from other sources.
     ///
@@ -502,7 +507,7 @@ impl WindowVars {
         self.0.movable.clone()
     }
 
-    /// Whether the window should always stay on top of other windows.
+    /// Defines if the window should always stay on top of other windows.
     ///
     /// Note this only applies to other windows that are not also "always-on-top".
     ///
@@ -511,7 +516,7 @@ impl WindowVars {
         self.0.always_on_top.clone()
     }
 
-    /// If the window is visible on the screen and in the task-bar.
+    /// Defines if the window is visible on the screen and in the task-bar.
     ///
     /// This variable is observed only after the first frame render, before that the window
     /// is always not visible.
@@ -521,14 +526,14 @@ impl WindowVars {
         self.0.visible.clone()
     }
 
-    /// If the window is visible in the task-bar.
+    /// Defines if the window is visible in the task-bar.
     ///
     /// The default value is `true`.
     pub fn taskbar_visible(&self) -> ArcVar<bool> {
         self.0.taskbar_visible.clone()
     }
 
-    /// Window parent.
+    /// Defines the parent window.
     ///
     /// If a parent is set this behavior applies:
     ///
@@ -537,16 +542,15 @@ impl WindowVars {
     /// * This window is always on-top of the parent window.
     /// * If the parent window is closed, this window is also closed.
     /// * If [`modal`] is set, the parent window cannot be focused while this window is open.
-    /// * If a [`color_scheme`] is not set, the [`color_scheme`] fallback it the parent's actual scheme.
+    /// * If a [`color_scheme`] is not set, the [`color_scheme`] fallback is the parent's actual scheme.
     ///
     /// The default value is `None`.
     ///
     /// # Validation
     ///
-    /// The parent window cannot have a parent, if it has, that parent id is used, a *debug* message is logged and the parent
-    /// var is updated.
-    ///
-    /// The parent window must exist, this window (child) cannot have children, it also can't set itself as the parent.
+    /// The parent window cannot have a parent, if it has, that parent ID is used instead.
+    /// The parent window must exist. This window (child) cannot have children, it also can't set itself as the parent.
+    /// 
     /// If any of these conditions are not met, an error is logged and the parent var is restored to the previous value.
     ///
     /// [`modal`]: Self::modal
@@ -556,9 +560,9 @@ impl WindowVars {
         self.0.parent.clone()
     }
 
-    /// Configure the [`parent`](Self::parent) connection.
+    /// Defines the [`parent`](Self::parent) connection.
     ///
-    /// Value is ignored is `parent` is not set.
+    /// Value is ignored if `parent` is not set. When this is `true` the parent window cannot be focused while this window is open.
     ///
     /// The default value is `false`.
     pub fn modal(&self) -> ArcVar<bool> {
@@ -595,9 +599,9 @@ impl WindowVars {
     /// If the window is open.
     ///
     /// This is a read-only variable, it starts set to `true` and will update only once,
-    /// when the window finishes closing.
+    /// when the window finishes opening.
     ///
-    /// Note that a window is only actually opened in the operating system after it [`is_loaded`].
+    /// Note that a window is only actually opened in the view-process after it [`is_loaded`].
     ///
     /// [`is_loaded`]: Self::is_loaded
     pub fn is_open(&self) -> ReadOnlyArcVar<bool> {
@@ -616,7 +620,7 @@ impl WindowVars {
         self.0.is_loaded.read_only()
     }
 
-    /// The active user attention required indicator.
+    /// Defines the active user attention required indicator.
     ///
     /// This is usually a visual indication on the taskbar icon that prompts the user to focus on the window, it is automatically
     /// changed to `None` once the window receives focus or you can set it to `None` to cancel the indicator.
@@ -626,9 +630,9 @@ impl WindowVars {
         self.0.focus_indicator.clone()
     }
 
-    /// The window [`FrameCaptureMode`].
+    /// Defines if and how the frame pixels are captured for the next rendered frames.
     ///
-    /// If set to [`Next`] the value will change to [`Sporadic`] after the frame is rendered.
+    /// If set to [`Next`] the value will change to [`Sporadic`] after the next frame is rendered.
     ///
     /// Note that setting this to [`Next`] does not cause a frame request. Use [`WIDGET.render_update`] for that.
     ///
@@ -651,7 +655,7 @@ impl WindowVars {
 
     /// If an accessibility service has requested info from this window.
     ///
-    /// This variable can only add flags, you can enable it in the app-process using [`enable_access`], the
+    /// This variable can only update with more bit flags, you can enable it in the app-process using [`enable_access`], the
     /// view-process can also enable it on the first request for accessibility info by an external tool.
     ///
     /// [`enable_access`]: crate::WINDOW_Ext::enable_access
