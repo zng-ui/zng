@@ -41,28 +41,26 @@ crate::declare_id! {
 
 /// Render backend preference.
 ///
-/// This is mostly a trade-off between performance and power consumption, but the cold startup time can also be a
-/// concern, both `Dedicated` and `Integrated` load the system OpenGL driver, depending on the installed
-/// drivers and hardware this can take up to 500ms in rare cases, in most systems this delay stays around 100ms
+/// This is mostly a trade-off between performance, power consumption and cold startup time.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum RenderMode {
-    /// Prefer the *best* dedicated GPU, probably the best performance after initialization, but also the
+    /// Prefer the best dedicated GPU, probably the best performance after initialization, but also the
     /// most power consumption.
     ///
-    /// Falls-back to `Integrated`, then `Software`.
+    /// Falls back to `Integrated`, then `Software`.
     Dedicated,
 
-    /// Prefer the integrated *GPU*, probably the best power consumption and good performance for most GUI applications,
+    /// Prefer the integrated GPU (provided by the CPU), probably the best power consumption and good performance for most GUI applications,
     /// this is the default value.
     ///
-    /// Falls-back to `Dedicated`, then `Software`.
+    /// Falls back to `Dedicated`, then `Software`.
     Integrated,
 
     /// Use a software render fallback, this has the best compatibility and best initialization time. This is probably the
     /// best pick for one frame render tasks and small windows where the initialization time of a GPU context may not offset
     /// the render time gains.
     ///
-    /// If the view-process implementation has no software fallback it may use one of the GPUs.
+    /// If the view-process implementation has no software, falls back to `Integrated`, then `Dedicated`.
     Software,
 }
 impl Default for RenderMode {

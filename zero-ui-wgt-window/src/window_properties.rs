@@ -148,7 +148,7 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 /// [`save_state`]: fn@save_state
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SaveState {
-    /// Save & restore state.
+    /// Save and restore state.
     Enabled {
         /// Config key that identifies the window.
         ///
@@ -163,7 +163,7 @@ pub enum SaveState {
         /// This is one second by default.
         loading_timeout: Duration,
     },
-    /// Don't save & restore state.
+    /// Don't save nor restore state.
     Disabled,
 }
 impl Default for SaveState {
@@ -196,7 +196,7 @@ impl SaveState {
         }
     }
 
-    /// Get the `loading_timeout` if is enabled and the duration is greater than zero.
+    /// Get the loading timeout if it is enabled and the duration is greater than zero.
     pub fn loading_timeout(&self) -> Option<Duration> {
         match self {
             SaveState::Enabled { loading_timeout, .. } => {
@@ -210,7 +210,7 @@ impl SaveState {
         }
     }
 
-    /// Returns `true` if is enabled.
+    /// Returns `true` if it is enabled.
     pub fn is_enabled(&self) -> bool {
         match self {
             SaveState::Enabled { .. } => true,
@@ -354,17 +354,17 @@ impl BlockWindowLoad {
         BlockWindowLoad::Enabled { deadline: deadline.into() }
     }
 
-    /// Returns `true` if is enabled.
+    /// Returns `true` if it is enabled.
     pub fn is_enabled(self) -> bool {
         matches!(self, Self::Enabled { .. })
     }
 
-    /// Returns `true` if is disabled.
+    /// Returns `true` if it is disabled.
     pub fn is_disabled(self) -> bool {
         matches!(self, Self::Disabled)
     }
 
-    /// Returns the block deadline if is enabled and the deadline has not expired.
+    /// Returns the block deadline if it is enabled and the deadline has not expired.
     pub fn deadline(self) -> Option<Deadline> {
         match self {
             BlockWindowLoad::Enabled { deadline } => {

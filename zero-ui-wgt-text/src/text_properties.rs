@@ -72,7 +72,7 @@ impl FontMix<()> {
 ///
 /// All fonts in the list are resolved according to the [`font_style`], [`font_weight`] and [`font_stretch`] config.
 /// During text shaping the first font on the list is preferred, but if the font does not cover a character or word, that
-/// character or word falls-back to the second font in the list and so on.
+/// character or word  to the second font in the list and so on.
 ///
 /// Sets the [`FONT_FAMILY_VAR`].
 ///

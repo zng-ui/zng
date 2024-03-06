@@ -156,20 +156,20 @@ impl_from_and_into_var! {
 /// Window startup position.
 ///
 /// The startup position affects the window once, at the moment the window
-/// is open just after the first [`UiNode::render`] call.
+/// is open just after the first [`UiNode::layout`] call.
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StartPosition {
-    /// Resolves the `position` property.
+    /// Resolves to [`position`](crate::WindowVars::position).
     Default,
 
-    /// Centralizes the window in the monitor screen, defined by the `monitor` property.
+    /// Centralizes the window in the monitor screen, defined by the [`monitor`](crate::WindowVars::monitor).
     ///
-    /// Uses the `headless_monitor` in headless windows and falls-back to not centering if no
+    /// Uses the `headless_monitor` in headless windows and falls back to not centering if no
     /// monitor was found in headed windows.
     CenterMonitor,
-    /// Centralizes the window in the parent window, defined by the `parent` property.
+    /// Centralizes the window in the parent window, defined by the [`parent`](crate::WindowVars::parent).
     ///
-    /// Falls-back to center on the monitor if the window has no parent.
+    /// Falls back to center on the monitor if the window has no parent.
     CenterParent,
 }
 impl Default for StartPosition {
@@ -377,7 +377,7 @@ pub enum FrameCaptureMode {
     /// Frames are not automatically captured, but you can
     /// use [`WINDOWS.frame_image`] to capture frames.
     ///
-    /// [`WINDOWS.frame_image`]: crate::WINDOWS.frame_image
+    /// [`WINDOWS.frame_image`]: crate::WINDOWS::frame_image
     Sporadic,
     /// The next rendered frame will be captured and available in [`FrameImageReadyArgs::frame_image`]
     /// as a full BGRA8 image.

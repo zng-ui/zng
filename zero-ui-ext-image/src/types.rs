@@ -195,7 +195,7 @@ impl Img {
     /// Calculate an *ideal* layout size for the image.
     ///
     /// The image is scaled considering the [`ppi`] and screen scale factor. If the
-    /// image has no [`ppi`] falls-back to the [`screen_ppi`] in both dimensions.
+    /// image has no [`ppi`] falls back to the [`screen_ppi`] in both dimensions.
     ///
     /// [`ppi`]: Self::ppi
     /// [`screen_ppi`]: LayoutMetrics::screen_ppi

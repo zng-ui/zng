@@ -396,7 +396,7 @@ impl<T: VarValue> ArcWhenVar<T> {
     /// Create a variable similar to [`Var::easing`], but with different duration and easing functions for each condition.
     ///
     /// The `condition_easing` must contain one entry for each when condition, entries can be `None`, the easing used
-    /// is the first entry that corresponds to a `true` condition, or falls-back to the `default_easing`.
+    /// is the first entry that corresponds to a `true` condition, or falls back to the `default_easing`.
     pub fn easing_when(
         &self,
         condition_easing: Vec<Option<(Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>)>>,

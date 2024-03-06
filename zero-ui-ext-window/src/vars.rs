@@ -205,7 +205,7 @@ impl WindowVars {
 
     /// Window custom cursor.
     ///
-    /// When this is set to a loaded image it is used as a cursor, falls-back to [`cursor`].
+    /// When this is set to a loaded image it is used as a cursor, falls back to [`cursor`].
     ///
     /// See [`CursorImg`] for details.
     ///
@@ -481,9 +481,9 @@ impl WindowVars {
     }
 
     /// Root font size.
-    /// 
+    ///
     /// This is the font size in all widget branches  that do not override the font size. The [`rem`] unit is relative to this value.
-    /// 
+    ///
     /// [`rem`]: LengthUnits::rem
     pub fn font_size(&self) -> ArcVar<Length> {
         self.0.font_size.clone()
@@ -550,7 +550,7 @@ impl WindowVars {
     ///
     /// The parent window cannot have a parent, if it has, that parent ID is used instead.
     /// The parent window must exist. This window (child) cannot have children, it also can't set itself as the parent.
-    /// 
+    ///
     /// If any of these conditions are not met, an error is logged and the parent var is restored to the previous value.
     ///
     /// [`modal`]: Self::modal

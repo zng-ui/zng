@@ -695,7 +695,7 @@ impl ViewWindow {
 
     /// Set the window cursor to a custom image.
     ///
-    /// Falls-back to cursor icon if set to `None`.
+    /// Falls back to cursor icon if set to `None`.
     ///
     /// The `hotspot` value is an exact point in the image that is the mouse position. This value is only used if
     /// the image format does not contain a hotspot.

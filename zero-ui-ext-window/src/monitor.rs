@@ -138,7 +138,7 @@ impl MonitorsService {
 pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
     ///
-    /// If set to `None`, falls-back to the [`parent`] scale-factor, or `1.0` if the headless window has not parent.
+    /// If set to `None`, falls back to the [`parent`] scale-factor, or `1.0` if the headless window has not parent.
     ///
     /// `None` by default.
     ///
@@ -334,7 +334,7 @@ impl MonitorInfo {
     }
 }
 
-/// A *selector* that returns a [`MonitorInfo`].
+/// A selector that returns a [`MonitorInfo`].
 #[derive(Clone, Default)]
 pub enum MonitorQuery {
     /// The parent window monitor, or `Primary` if the window has no parent.
@@ -351,6 +351,8 @@ pub enum MonitorQuery {
     /// Custom query closure.
     ///
     /// If the closure returns `None` the `ParentOrPrimary` query is used, if there is any.
+    ///
+    /// You can use the [`MONITORS`] service in the query closure to select a monitor.
     #[allow(clippy::type_complexity)]
     Query(Arc<dyn Fn() -> Option<MonitorInfo> + Send + Sync>),
 }
@@ -369,7 +371,7 @@ impl MonitorQuery {
         }
     }
 
-    /// Runs the query, fallback to `Primary` and [`MonitorInfo::fallback`]
+    /// Runs the query. Falls back to `Primary` or [`MonitorInfo::fallback`].
     pub fn select_fallback(&self) -> MonitorInfo {
         match self {
             MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(),

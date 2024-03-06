@@ -22,7 +22,7 @@ declare_id! {
 pub struct FontOptions {
     /// Font render mode.
     ///
-    /// Default value must be already resolved here, it falls-back to Subpixel.
+    /// Default value must be already resolved here, it falls back to Subpixel.
     pub aa: FontAntiAliasing,
 
     /// If synthetic bold is enabled.
