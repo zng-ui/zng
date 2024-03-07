@@ -562,14 +562,13 @@ impl WindowCtxData {
 pub enum WindowMode {
     /// Normal mode, shows a system window with content rendered.
     Headed,
-
-    /// Headless mode, no system window and no renderer. The window does layout and calls [`UiNode::render`] but
-    /// it does not actually generates frame textures.
+    /// Headless mode, no system window and no renderer. The window does layout and calls [`UiNode::render`], but
+    /// it does not actually generates frame pixels.
     ///
     /// [`UiNode::render`]: crate::widget::node::UiNode::render
     Headless,
     /// Headless mode, no visible system window but with a renderer. The window does everything a [`Headed`](WindowMode::Headed)
-    /// window does, except presenting frame textures in a system window.
+    /// window does, except presenting the frame in a system window.
     HeadlessWithRenderer,
 }
 impl fmt::Debug for WindowMode {
@@ -585,7 +584,7 @@ impl fmt::Debug for WindowMode {
     }
 }
 impl WindowMode {
-    /// If is the [`Headed`](WindowMode::Headed) mode.
+    /// If it is the [`Headed`](WindowMode::Headed) mode.
     pub fn is_headed(self) -> bool {
         match self {
             WindowMode::Headed => true,
@@ -593,7 +592,7 @@ impl WindowMode {
         }
     }
 
-    /// If is the [`Headless`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::Headed) modes.
+    /// If it is the [`Headless`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::Headed) modes.
     pub fn is_headless(self) -> bool {
         match self {
             WindowMode::Headless | WindowMode::HeadlessWithRenderer => true,
@@ -601,7 +600,7 @@ impl WindowMode {
         }
     }
 
-    /// If is the [`Headed`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::HeadlessWithRenderer) modes.
+    /// If it is the [`Headed`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::HeadlessWithRenderer) modes.
     pub fn has_renderer(self) -> bool {
         match self {
             WindowMode::Headed | WindowMode::HeadlessWithRenderer => true,

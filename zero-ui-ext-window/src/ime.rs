@@ -55,7 +55,7 @@ impl ImeArgs {
 }
 
 event! {
-    /// IME event targeting a text input widget.
+    /// Input Method Editor event targeting a text input widget.
     pub static IME_EVENT: ImeArgs;
 }
 

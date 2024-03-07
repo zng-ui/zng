@@ -190,7 +190,7 @@ pub enum Event {
 
     /// Window moved, resized, or minimized/maximized etc.
     ///
-    /// This event coalesces events usually named `WindowMoved`, `WindowResized` and `WindowStateChanged` into a
+    /// This event aggregates events moves, resizes and other state changes into a
     /// single event to simplify tracking composite changes, for example, the window changes size and position
     /// when maximized, this can be trivially observed with this event.
     ///

@@ -424,7 +424,7 @@ event_args! {
         /// Modified monitors.
         ///
         /// The monitor metadata is tracked using variables that are now flagged new.
-        pub changed: Vec<MonitorId>,
+        pub modified: Vec<MonitorId>,
 
         ..
 
@@ -436,6 +436,6 @@ event_args! {
 }
 
 event! {
-    /// Monitors added or removed event.
+    /// Monitors added, removed or modified event.
     pub static MONITORS_CHANGED_EVENT: MonitorsChangedArgs;
 }

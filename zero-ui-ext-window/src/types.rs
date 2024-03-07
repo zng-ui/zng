@@ -209,9 +209,7 @@ bitflags! {
 /// Window icon.
 #[derive(Clone, PartialEq)]
 pub enum WindowIcon {
-    /// Operating system default icon.
-    ///
-    /// In Windows this is the icon associated with the executable.
+    /// The operating system's default icon.
     Default,
     /// Image is requested from [`IMAGES`].
     ///
@@ -242,8 +240,7 @@ impl WindowIcon {
     /// the closure runs in a headless window context, it must return a node to be rendered as an icon.
     ///
     /// The icon node is deinited and dropped after the first render, you can enable [`image::render_retain`] on it
-    /// to cause the icon to re-render when the node itself updates. Note that just because you can update the icon
-    /// does not mean that animating it is a good idea.
+    /// to cause the icon to continue rendering on updates.
     ///
     /// [`image::render_retain`]: fn@zero_ui_ext_image::render_retain
     ///
@@ -623,7 +620,7 @@ impl WindowFocusChangedArgs {
 event! {
     /// Window moved, resized or has a state change.
     ///
-    /// This event coalesces events usually named `WINDOW_MOVED`, `WINDOW_RESIZED` and `WINDOW_STATE_CHANGED` into a
+    /// This event aggregates events moves, resizes and other state changes into a
     /// single event to simplify tracking composite changes, for example, the window changes size and position
     /// when maximized, this can be trivially observed with this event.
     pub static WINDOW_CHANGED_EVENT: WindowChangedArgs;
@@ -637,14 +634,14 @@ event! {
     /// Window focus/blur event.
     pub static WINDOW_FOCUS_CHANGED_EVENT: WindowFocusChangedArgs;
 
-    /// Closing window event.
+    /// Window close requested event.
     ///
     /// Requesting [`propagation().stop()`] on this event cancels the window close.
     ///
     /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
     pub static WINDOW_CLOSE_REQUESTED_EVENT: WindowCloseRequestedArgs;
 
-    /// Close window event.
+    /// Window closed event.
     pub static WINDOW_CLOSE_EVENT: WindowCloseArgs;
 
     /// A window frame has finished rendering.

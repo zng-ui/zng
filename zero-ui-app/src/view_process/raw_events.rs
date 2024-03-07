@@ -660,7 +660,7 @@ event! {
 
     /// A window was moved, resized or has a state change.
     ///
-    /// This event coalesces events usually named `WINDOW_MOVED`, `WINDOW_RESIZED` and `WINDOW_STATE_CHANGED` into a
+    /// This event aggregates events moves, resizes and other state changes into a
     /// single event to simplify tracking composite changes, for example, the window changes size and position
     /// when maximized, this can be trivially observed with this event.
     pub static RAW_WINDOW_CHANGED_EVENT: RawWindowChangedArgs;
@@ -727,7 +727,7 @@ event! {
     /// this change can be monitored using [`RAW_WINDOW_CHANGED_EVENT`].
     pub static RAW_SCALE_FACTOR_CHANGED_EVENT: RawScaleFactorChangedArgs;
 
-    /// Monitors added or removed.
+    /// Monitors added, removed or modified.
     pub static RAW_MONITORS_CHANGED_EVENT: RawMonitorsChangedArgs;
 
     /// Color scheme preference changed for a window.

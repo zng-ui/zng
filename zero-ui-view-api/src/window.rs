@@ -755,10 +755,10 @@ pub struct CursorImage {
     pub hotspot: PxPoint,
 }
 
-/// Window state after a resize.
+/// Window state.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize, Default)]
 pub enum WindowState {
-    /// Window is visible but does not fill the screen.
+    /// Window is visible, but does not fill the screen.
     #[default]
     Normal,
     /// Window is only visible as an icon in the taskbar.
@@ -766,8 +766,10 @@ pub enum WindowState {
     /// Window fills the screen, but not the parts reserved by the system, like the taskbar.
     Maximized,
     /// Window is chromeless and completely fills the screen, including over parts reserved by the system.
+    ///
+    /// Also called borderless fullscreen.
     Fullscreen,
-    /// Window has exclusive access to the video output, so only the window content is visible.
+    /// Window has exclusive access to the monitor's video output, so only the window content is visible.
     Exclusive,
 }
 impl WindowState {
