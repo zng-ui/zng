@@ -34,7 +34,11 @@ event_property! {
         filter: |args| args.window_id == WINDOW.id(),
     }
 
-    /// On window moved, resized or state change.
+    /// On window moved, resized or other state changed.
+    ///
+    /// This event aggregates events moves, resizes and other state changes into a
+    /// single event to simplify tracking composite changes, for example, the window changes size and position
+    /// when maximized, this can be trivially observed with this event.
     pub fn window_changed {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -57,8 +61,9 @@ event_property! {
 
     /// On window close requested.
     ///
-    /// This event notifies every time the user or the app tries to close the window, you can call
-    /// [`cancel`](WindowCloseRequestedArgs::cancel) to stop the window from being closed.
+    /// Calling [`propagation().stop()`] on this event cancels the window close.
+    ///
+    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
     pub fn window_close_requested {
         event: WINDOW_CLOSE_REQUESTED_EVENT,
         args: WindowCloseRequestedArgs,
@@ -125,15 +130,14 @@ event_property! {
         filter: |args| args.window_id == WINDOW.id() && args.exited_fullscreen(),
     }
 
-    /// On window frame rendered. The window can also be configured so that the frame pixels are
-    /// captured in a *screenshot* that is available in the arguments.
+    /// On window frame rendered.
     pub fn frame_image_ready {
         event: FRAME_IMAGE_READY_EVENT,
         args: FrameImageReadyArgs,
         filter: |args| args.window_id == WINDOW.id(),
     }
 
-    /// On IME event.
+    /// On Input Method Editor event.
     pub fn ime {
         event: IME_EVENT,
         args: ImeArgs,

@@ -1538,7 +1538,9 @@ pub trait WINDOW_Ext {
         WINDOWS.is_loaded(WINDOW.id())
     }
 
-    /// Enable accessibility info for the window in the app-process only if it is not already enabled.
+    /// Enable accessibility info.
+    ///
+    /// If access is not already enabled, enables it in the app-process only.
     fn enable_access(&self) {
         let vars = WINDOW.vars();
         let access_enabled = &vars.0.access_enabled;
@@ -1577,7 +1579,7 @@ pub trait WINDOW_Ext {
         WINDOWS.frame_image_rect(WINDOW.id(), rect, mask)
     }
 
-    /// Move the window to the front of the Z stack.
+    /// Move the window to the front of the operating system Z stack.
     ///
     /// See [`WINDOWS.bring_to_top`] for more details.
     ///
@@ -1586,7 +1588,7 @@ pub trait WINDOW_Ext {
         WINDOWS.bring_to_top(WINDOW.id()).ok();
     }
 
-    /// Starts closing a window, the operation can be canceled by listeners of
+    /// Starts closing the window, the operation can be canceled by listeners of
     /// [`WINDOW_CLOSE_REQUESTED_EVENT`]. If the window has children they are closed together.
     ///
     /// Returns a response var that will update once with the result of the operation.

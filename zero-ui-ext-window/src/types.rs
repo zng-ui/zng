@@ -486,7 +486,11 @@ event_args! {
         /// This is *probably* the ID of frame pixels if they are requested immediately.
         pub frame_id: FrameId,
 
-        /// The frame pixels if it was requested when the frame request was sent to the view process.
+        /// The frame pixels if it was requested when the frame request was sent to the view-process.
+        ///
+        /// See [`WindowVars::frame_capture_mode`] for more details.
+        ///
+        /// [`WindowVars::frame_capture_mode`]: crate::WindowVars::frame_capture_mode
         pub frame_image: Option<Img>,
 
         ..
@@ -618,7 +622,7 @@ impl WindowFocusChangedArgs {
 }
 
 event! {
-    /// Window moved, resized or has a state change.
+    /// Window moved, resized or other state changed.
     ///
     /// This event aggregates events moves, resizes and other state changes into a
     /// single event to simplify tracking composite changes, for example, the window changes size and position
@@ -636,7 +640,7 @@ event! {
 
     /// Window close requested event.
     ///
-    /// Requesting [`propagation().stop()`] on this event cancels the window close.
+    /// Calling [`propagation().stop()`] on this event cancels the window close.
     ///
     /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
     pub static WINDOW_CLOSE_REQUESTED_EVENT: WindowCloseRequestedArgs;

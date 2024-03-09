@@ -59,11 +59,11 @@ event! {
     pub static IME_EVENT: ImeArgs;
 }
 
-/// IME extension methods in widget info.
+/// IME extension methods for [`WidgetInfo`].
 pub trait WidgetInfoImeArea {
     /// IME exclusion area in the window space.
     ///
-    /// Widgets are IME targets when they are focused and subscribe to [`IME_EVENT`], this
+    /// Widgets are IME targets when they are focused and subscribe to [`IME_EVENT`]. This
     /// value is an area the IME window should avoid covering, by default it is the widget inner-bounds,
     /// but the widget can override it using [`set_ime_area`].
     ///
@@ -73,7 +73,7 @@ pub trait WidgetInfoImeArea {
     fn ime_area(&self) -> PxRect;
 }
 
-/// IME extension methods for widget info builder.
+/// IME extension methods for [`WidgetInfoBuilder`].
 pub trait WidgetInfoBuilderImeArea {
     /// Set a custom [`ime_area`].
     ///

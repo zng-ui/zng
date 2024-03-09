@@ -5,7 +5,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::window::WINDOW_OPEN_EVENT`.
+        - Last reviewed `zero_ui::window::on_window_close_requested`.
         - Copy some docs from `UiNode` to `UiNodeOp`?
 
 # Publish

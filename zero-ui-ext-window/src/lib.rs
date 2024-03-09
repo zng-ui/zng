@@ -109,7 +109,7 @@ impl AppExtension for WindowManager {
 pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
-    /// The `new_window` future runs inside the [`WINDOW`] context of the new window, the window opens after the future returns it.
+    /// The window opens after the future returns it. The [`WINDOW`] context for the new window is already available in the `new_window` future.
     ///
     /// This method only returns when the app has exited.
     ///
@@ -168,7 +168,7 @@ impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     }
 }
 
-/// Extension trait, adds window control methods to [`HeadlessApp`].
+/// Window extension methods for [`HeadlessApp`].
 ///
 /// [`open_window`]: HeadlessAppWindowExt::open_window
 pub trait HeadlessAppWindowExt {
@@ -191,10 +191,12 @@ pub trait HeadlessAppWindowExt {
 
     /// Copy the current frame pixels of the window.
     ///
-    /// The var will update until it is loaded or error.
+    /// The var will update until the image is loaded or error.
     fn window_frame_image(&mut self, window_id: WindowId, mask: Option<ImageMaskMode>) -> ImageVar;
 
-    /// Sends a close request, returns if the window was found and closed.
+    /// Sends a close request.
+    ///
+    /// Returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
 
     /// Open a new headless window and update the app until the window closes.
