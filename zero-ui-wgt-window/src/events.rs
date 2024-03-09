@@ -14,7 +14,7 @@ use zero_ui_wgt::prelude::*;
 event_property! {
     /// On window opened.
     ///
-    /// This event notifies once per window, as soon as the window is created and the content is inited.
+    /// This event notifies once per window, after the window content is inited.
     pub fn window_open {
         event: WINDOW_OPEN_EVENT,
         args: WindowOpenArgs,
@@ -23,8 +23,7 @@ event_property! {
 
     /// On window loaded.
     ///
-    /// This event notifies once per window, after the window content is inited, updated, layout and the first frame
-    /// was send to the renderer. Windows are considered *loaded* after the first layout and all [`WindowLoadingHandle`]
+    /// This event notifies once per window, after the first layout and all [`WindowLoadingHandle`]
     /// have expired or dropped.
     ///
     /// [`WindowLoadingHandle`]: zero_ui_app::window::WindowLoadingHandle
@@ -72,7 +71,7 @@ event_property! {
 
     /// On window state changed.
     ///
-    /// This event notifies every time the user or the app changes the [`WindowState`].
+    /// This event notifies every time the user or the app changes the [`WindowVars::state`].
     pub fn window_state_changed {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -114,16 +113,14 @@ event_property! {
         filter: |args| args.window_id == WINDOW.id() && args.entered_state(WindowState::Normal),
     }
 
-    /// On window state changed to [`WindowState::Fullscreen`] or [`WindowState::Exclusive`] from a previous not
-    /// fullscreen state.
+    /// On window state changed to [`WindowState::is_fullscreen`].
     pub fn window_fullscreen {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
         filter: |args| args.window_id == WINDOW.id() && args.entered_fullscreen(),
     }
 
-    /// On window state changed from [`WindowState::Fullscreen`] or [`WindowState::Exclusive`] from a new not
-    /// fullscreen state.
+    /// On window state changed from [`WindowState::is_fullscreen`].
     pub fn window_exited_fullscreen {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,

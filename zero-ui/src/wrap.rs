@@ -21,8 +21,8 @@
 //!         ]
 //!     },
 //!     Text!(" The nested Wrap panel content items "),
-//!     text::Strong!("wraps"),
-//!     Text!(" with the parent items"),
+//!     text::Strong!("wrap"),
+//!     Text!(" with the parent items."),
 //! ])
 //! # ;
 //! ```

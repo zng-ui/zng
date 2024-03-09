@@ -49,18 +49,16 @@ impl Wrap {
     widget_impl! {
         /// Alignment of children in this widget and of nested wrap panels and texts.
         ///
-        /// Note that this only sets the [`children_align`] if that property is not set (default) or is set to [`TEXT_ALIGN_VAR`].
+        /// Note that this is only used for children alignment in this widget if [`children_align`] is not set on it.
         ///
         /// [`children_align`]: fn@children_align
         pub txt_align(align: impl IntoVar<Align>);
 
-        /// Spacing in-between rows of this widget and of nested wrap panels and texts.
+        /// Space in between rows of this widget and of nested wrap panels and texts.
         ///
-        /// Note that this only sets the [`row_spacing`] if that property is no set (default), or is set to [`LINE_SPACING_VAR`] mapped to
-        /// the [`GridSpacing::row`] value.
+        /// Note that this is only used for row spacing in this widget if [`spacing`] is not set on it.
         ///
-        /// [`row_spacing`]: fn@zero_ui_wgt_text::row_spacing
-        /// [`LINE_SPACING_VAR`]: zero_ui_wgt_text::LINE_SPACING_VAR
+        /// [`spacing`]: fn@spacing
         pub line_spacing(spacing: impl IntoVar<Length>);
     }
 }
@@ -69,13 +67,9 @@ impl Wrap {
 #[property(CHILD, capture, default(ui_vec![]), widget_impl(Wrap))]
 pub fn children(children: impl UiNodeList) {}
 
-/// Space in-between items and rows.
+/// Space in between items and rows.
 ///
-/// This property only defines the spacing for rows of this panel, but it is set
-/// to [`LINE_SPACING_VAR`] for rows and zero for *column space* by default, so you can use
-/// the [`line_spacing`] property if you want to affect all nested wrap and text widgets.
-///
-/// Note that *column space* is limited for bidirectional inline items as it only inserts spacing between
+/// Note that column space is limited for bidirectional inline items as it only inserts spacing between
 /// items once and bidirectional text can interleave items, consider using [`word_spacing`] for inline text.
 ///
 /// [`LINE_SPACING_VAR`]: zero_ui_wgt_text::LINE_SPACING_VAR
@@ -85,10 +79,6 @@ pub fn children(children: impl UiNodeList) {}
 pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 
 /// Children align.
-///
-/// This property only defines the align for children inside this panel, but it is set
-/// to [`TEXT_ALIGN_VAR`] by default, so you can use the [`txt_align`] property if you want
-/// to affect all nested wrap and text widgets.
 ///
 /// [`TEXT_ALIGN_VAR`]: zero_ui_wgt_text::TEXT_ALIGN_VAR
 /// [`txt_align`]: fn@zero_ui_wgt_text::txt_align
