@@ -529,7 +529,7 @@ pub mod column {
         )
     }
 
-    /// Get the column index for custom `when` expressions.
+    /// Get the column index.
     ///
     /// The column index is zero-based.
     #[property(CONTEXT, widget_impl(Column))]
@@ -582,26 +582,6 @@ pub mod column {
                 }
             },
             |_, &i| if i != 0 { Some(0) } else { None },
-            state,
-        )
-    }
-
-    /// Get the column index as a factor of the total number of columns.
-    #[property(CONTEXT, default(var(0.fct())), widget_impl(Column))]
-    pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
-        widget_state_get_state(
-            child,
-            |w, &f| {
-                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
-                let a = a.1 as f32 / a.0 as f32;
-                let a = Factor(a);
-                if a != f {
-                    Some(a)
-                } else {
-                    None
-                }
-            },
-            |_, &f| if f != 0.fct() { Some(0.fct()) } else { None },
             state,
         )
     }
@@ -701,7 +681,7 @@ pub mod row {
         )
     }
 
-    /// Get the row index for custom `when` expressions.
+    /// Get the row index.
     ///
     /// The row index is zero-based.
     #[property(CONTEXT, widget_impl(Row))]
@@ -754,26 +734,6 @@ pub mod row {
                 }
             },
             |_, &i| if i != 0 { Some(0) } else { None },
-            state,
-        )
-    }
-
-    /// Get the row index as a factor of the total number of rows.
-    #[property(CONTEXT, default(0.fct()), widget_impl(Row))]
-    pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
-        widget_state_get_state(
-            child,
-            |w, &f| {
-                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
-                let a = a.1 as f32 / a.0 as f32;
-                let a = Factor(a);
-                if a != f {
-                    Some(a)
-                } else {
-                    None
-                }
-            },
-            |_, &f| if f != 0.fct() { Some(0.fct()) } else { None },
             state,
         )
     }

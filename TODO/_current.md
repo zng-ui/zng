@@ -1,3 +1,5 @@
+* Review material icon features.
+
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
@@ -5,7 +7,7 @@
     - Review badges.
 * Review docs.
     - Do a full read, look for typos or failed links.
-        - Last reviewed `zero_ui::wrap::Wrap`.
+        - Last reviewed `zero_ui::APP::defaults`.
         - Copy some docs from `UiNode` to `UiNodeOp`?
 
 # Publish

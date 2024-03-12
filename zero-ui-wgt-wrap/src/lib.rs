@@ -122,7 +122,9 @@ pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, child
     })
 }
 
-/// Create a node that estimates the size for a wrap panel children where all items have the same `child_size`.
+/// Create a node that estimates the size of wrap panel children.
+///
+/// The estimation assumes that all items have a size of `child_size`.
 pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_size: impl IntoVar<Size>) -> impl UiNode {
     // we don't use `properties::size(NilUiNode, child_size)` because that size disables inlining.
     let size = child_size.into_var();
@@ -142,7 +144,9 @@ pub fn lazy_size(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSp
     lazy_sample(children_len, spacing, sample)
 }
 
-/// Create a node that estimates the size for a wrap panel children where all items have the same size as `child_sample`.
+/// Create a node that estimates the size of wrap panel children.
+///
+/// The estimation assumes that all items have the size of `child_sample`.
 pub fn lazy_sample(children_len: impl IntoVar<usize>, spacing: impl IntoVar<GridSpacing>, child_sample: impl UiNode) -> impl UiNode {
     let children_len = children_len.into_var();
     let spacing = spacing.into_var();
@@ -1005,7 +1009,7 @@ impl InlineLayout {
 
 static PANEL_LIST_ID: StaticStateId<PanelListRange> = StaticStateId::new_unique();
 
-/// Get the child index for custom `when` expressions.
+/// Get the child index in the parent wrap.
 ///
 /// The child index is zero-based.
 #[property(CONTEXT)]
@@ -1031,20 +1035,6 @@ pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiN
     let state = state.into_var();
     with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id.unwrap_or(0));
-    })
-}
-
-/// Get the child index as a factor of the total number of children.
-#[property(CONTEXT, default(0.fct()))]
-pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
-    let state = state.into_var();
-    with_index_len_node(child, &PANEL_LIST_ID, move |id_len| {
-        let (i, l) = id_len.unwrap_or((0, 0));
-        if i == 0 || l == 0 {
-            let _ = state.set(0.fct());
-        } else {
-            let _ = state.set((l as f32).fct() / (i as f32).fct());
-        }
     })
 }
 
@@ -1092,7 +1082,7 @@ pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     })
 }
 
-/// Extension methods for [`WidgetInfo`] that may be a [`Wrap!`] instance.
+/// Extension methods for [`WidgetInfo`] that may represent a [`Wrap!`] instance.
 ///
 /// [`Wrap!`]: struct@Wrap
 /// [`WidgetInfo`]: zero_ui_app::widget::info::WidgetInfo

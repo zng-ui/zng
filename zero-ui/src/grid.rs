@@ -91,12 +91,10 @@ pub mod cell {
 
 /// Column widget and properties.
 pub mod column {
-    pub use zero_ui_wgt_grid::column::{
-        get_index, get_index_fct, get_index_len, get_rev_index, is_even, is_first, is_last, is_odd, Column,
-    };
+    pub use zero_ui_wgt_grid::column::{get_index, get_index_len, get_rev_index, is_even, is_first, is_last, is_odd, Column};
 }
 
 /// Row widget and properties.
 pub mod row {
-    pub use zero_ui_wgt_grid::row::{get_index, get_index_fct, get_index_len, get_rev_index, is_even, is_first, is_last, is_odd, Row};
+    pub use zero_ui_wgt_grid::row::{get_index, get_index_len, get_rev_index, is_even, is_first, is_last, is_odd, Row};
 }

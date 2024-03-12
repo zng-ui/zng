@@ -12,7 +12,7 @@
 ///
 /// # Examples
 ///
-/// In the example `bar` was *clone-moved* into the `'static` closure given to `foo`.
+/// In the example `bar` is *clone-moved* into the `'static` closure given to `foo`.
 ///
 /// ```
 /// # use zero_ui_clone_move::clmv;
@@ -155,7 +155,7 @@ macro_rules! __clmv {
 ///
 /// # Examples
 ///
-/// In the example `bar` was *clone-moved* into the `'static` future given to `foo`.
+/// In the example `bar` is *clone-moved* into the `'static` future given to `foo`.
 ///
 /// ```
 /// # use std::{future::Future, time::Duration};
@@ -291,7 +291,7 @@ macro_rules! __async_clmv {
 
 ///<span data-del-macro-root></span> Async clone move closure.
 ///
-/// This macro syntax is exactly the same as [`clmv!`](macro@crate::clmv), but it expands to an *async closure* that
+/// The macro syntax is exactly the same as [`clmv!`](macro@crate::clmv), but it expands to an *async closure* that
 /// captures a clone of zero or more variables and moves another clone of these variables into the returned future for each call.
 ///
 /// # Examples
@@ -335,6 +335,10 @@ macro_rules! __async_clmv {
 /// });
 /// # println!("original: {bar}");
 /// ```
+///
+/// # Once
+///
+/// See [`async_clmv_fn_once!`] for creating `FnOnce` closures.
 #[macro_export]
 macro_rules! async_clmv_fn {
     ($($tt:tt)+) => { $crate::__async_clmv_fn! { [{}{}][][] $($tt)+ } }
@@ -467,9 +471,9 @@ macro_rules! __async_clmv_fn {
 
 ///<span data-del-macro-root></span> Async clone move closure that can only be called once.
 ///
-/// This macro syntax is exactly the same as [`async_clmv_fn!`](macro@crate::async_clmv_fn), but it does not clone variables
-/// again inside the call to move to the returned future. Because if moves the captured variables to the closure returned `Future`
-/// it can only be `FnOnce`.
+/// The macro syntax is exactly the same as [`async_clmv_fn!`](macro@crate::async_clmv_fn), but it does not clone variables
+/// again inside the call to move to the returned future. Because it moves the captured variables to the returned `Future`,
+/// the closure can only be `FnOnce`.
 ///
 /// # Examples
 ///

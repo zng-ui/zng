@@ -150,7 +150,9 @@ pub fn node(
     })
 }
 
-/// Create a node that estimates the size for a stack panel children where all items have the same `child_size`.
+/// Create a node that estimates the size of stack panel children.
+///
+/// The estimation assumes that all items have a size of `child_size`.
 pub fn lazy_size(
     children_len: impl IntoVar<usize>,
     direction: impl IntoVar<StackDirection>,
@@ -165,7 +167,9 @@ pub fn lazy_size(
     )
 }
 
-/// Create a node that estimates the size for a stack panel children where all items have the same size as `child_sample`.
+/// Create a node that estimates the size of stack panel children.
+///
+/// The estimation assumes that all items have the size of `child_sample`.
 pub fn lazy_sample(
     children_len: impl IntoVar<usize>,
     direction: impl IntoVar<StackDirection>,
@@ -563,7 +567,7 @@ fn stack_nodes_layout_by_impl(
 
 static PANEL_LIST_ID: StaticStateId<zero_ui_app::widget::node::PanelListRange> = StaticStateId::new_unique();
 
-/// Get the child index for custom `when` expressions.
+/// Get the child index in the parent stack.
 ///
 /// The child index is zero-based.
 #[property(CONTEXT)]
@@ -589,20 +593,6 @@ pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiN
     let state = state.into_var();
     zero_ui_wgt::node::with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id.unwrap_or(0));
-    })
-}
-
-/// Get the child index as a factor of the total number of children.
-#[property(CONTEXT, default(0.fct()))]
-pub fn get_index_fct(child: impl UiNode, state: impl IntoVar<Factor>) -> impl UiNode {
-    let state = state.into_var();
-    zero_ui_wgt::node::with_index_len_node(child, &PANEL_LIST_ID, move |id_len| {
-        let (i, l) = id_len.unwrap_or((0, 0));
-        if i == 0 || l == 0 {
-            let _ = state.set(0.fct());
-        } else {
-            let _ = state.set((l as f32).fct() / (i as f32).fct());
-        }
     })
 }
 
