@@ -41,9 +41,6 @@ pub use zero_ui_layout as layout;
 #[doc(hidden)]
 pub use zero_ui_var as var;
 
-mod running;
-pub use running::*;
-
 pub use zero_ui_time::{DInstant, Deadline, InstantMode, INSTANT};
 
 use update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdatesTrace, WidgetUpdates, UPDATES};
@@ -1079,7 +1076,7 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
 /// Start and manage an app process.
 pub struct APP;
 impl APP {
-    /// If the crate was build with `feature="multi_app"`.
+    /// If the crate was built with `feature="multi_app"`.
     ///
     /// If `true` multiple apps can run in the same process, but only one app per thread at a time.
     pub fn multi_app_enabled(&self) -> bool {
@@ -1088,19 +1085,23 @@ impl APP {
 
     /// If an app is already running in the current thread.
     ///
-    /// An app is *running* as soon as it starts building, and it stops running after
+    /// Apps are *running* as soon as they start building, and stop running after
     /// [`AppExtended::run`] returns or the [`HeadlessApp`] is dropped.
     ///
-    /// You can use `app_local!` to create *static* resources that live for the app lifetime.
+    /// You can use [`app_local!`] to create *static* resources that live for the app lifetime.
+    /// 
+    /// [`app_local!`]: zero_ui_app_context::app_local
     pub fn is_running(&self) -> bool {
         LocalContext::current_app().is_some()
     }
 
-    /// Gets an unique ID for the current app.
+    /// Gets the unique ID of the current app.
     ///
     /// This ID usually does not change as most apps only run once per process, but it can change often during tests.
-    /// Resources that interact with `app_local!` values can use this ID to ensure that they are still operating in the same
+    /// Resources that interact with [`app_local!`] values can use this ID to ensure that they are still operating in the same
     /// app.
+    /// 
+    /// [`app_local!`]: zero_ui_app_context::app_local
     pub fn id(&self) -> Option<AppId> {
         LocalContext::current_app()
     }
@@ -1125,7 +1126,7 @@ impl APP {
 
     /// Returns a [`WindowMode`] value that indicates if the app is headless, headless with renderer or headed.
     ///
-    /// Note that specific windows can be in headless modes even if the app is headed.
+    /// Note that specific windows can be in headless mode even if the app is headed.
     pub fn window_mode(&self) -> WindowMode {
         if VIEW_PROCESS.is_available() {
             if VIEW_PROCESS.is_headless_with_render() {
@@ -1143,13 +1144,16 @@ impl APP {
     }
 
     /// If device events are enabled for the current app.
+    /// 
+    /// See [`AppExtension::enable_device_events`] for more details.
     pub fn device_events(&self) -> bool {
         APP_PROCESS_SV.read().device_events
     }
 }
 
+
 impl APP {
-    /// Application without extensions.
+    /// Starts building an application with no extensions.
     #[cfg(dyn_app_extension)]
     pub fn minimal(&self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         assert_not_view_process();
@@ -1164,7 +1168,7 @@ impl APP {
         }
     }
 
-    /// Application without extensions.
+    /// Starts building an application with no extensions.
     #[cfg(not(dyn_app_extension))]
     pub fn minimal(&self) -> AppExtended<()> {
         assert_not_view_process();
@@ -1341,6 +1345,10 @@ impl<E: AppExtension> AppExtended<E> {
         self.run_headless_impl(with_renderer)
     }
 }
+
+// this module is declared here on purpose so that advanced `impl APP` blocks show later in the docs.
+mod running;
+pub use running::*;
 
 mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed

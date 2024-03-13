@@ -1042,8 +1042,7 @@ impl APP {
 impl APP {
     /// Gets a variable that configures if [`INSTANT.now`] is the same exact value during each update, info, layout or render pass.
     ///
-    /// Time is paused for each single pass by default, setting this to `false` will cause [`INSTANT.now`] to read
-    /// the system time for every call.
+    /// Time is paused by default, setting this to `false` will cause [`INSTANT.now`] to read the system time for every call.
     ///
     /// [`INSTANT.now`]: crate::INSTANT::now
     pub fn pause_time_for_update(&self) -> ArcVar<bool> {
@@ -1063,7 +1062,7 @@ impl APP {
         UPDATES.update(None);
     }
 
-    /// Add the `advance` to the current manual time.
+    /// Adds the `advance` to the current manual time.
     ///
     /// Note that you must ensure an update reaches the code that controls manual time, otherwise
     /// the app loop may end-up stuck on idle or awaiting a timer that never elapses.
@@ -1091,7 +1090,7 @@ impl APP {
         UPDATES.update(None);
     }
 
-    /// Resume normal time.
+    /// Resumes normal time.
     pub fn end_manual_time(&self) {
         INSTANT_APP.set_mode(match APP.pause_time_for_update().get() {
             true => InstantMode::UpdatePaused,

@@ -811,7 +811,7 @@ mod defaults {
         /// * [`ImageManager`]
         /// * [`ClipboardManager`]
         /// * [`UndoManager`]
-        /// * [`MaterialFonts`] if any `material_icons_*` feature is enabled.
+        /// * [`MaterialFonts`] if any `"material_icons*"` feature is enabled.
         ///
         /// [`MaterialFonts`]: zero_ui_wgt_material_icons::MaterialFonts
         pub fn defaults(&self) -> DefaultsAppExtended![] {
