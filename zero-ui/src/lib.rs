@@ -811,7 +811,7 @@ mod defaults {
         /// * [`ImageManager`]
         /// * [`ClipboardManager`]
         /// * [`UndoManager`]
-        /// * [`MaterialFonts`] if `cfg(feature = "material_icons")`.
+        /// * [`MaterialFonts`] if any `material_icons_*` feature is enabled.
         ///
         /// [`MaterialFonts`]: zero_ui_wgt_material_icons::MaterialFonts
         pub fn defaults(&self) -> DefaultsAppExtended![] {
@@ -832,7 +832,12 @@ mod defaults {
                 .extend(ClipboardManager::default())
                 .extend(UndoManager::default());
 
-            #[cfg(feature = "material_icons")]
+            #[cfg(any(
+                feature = "material_icons_outlined",
+                feature = "material_icons_filled",
+                feature = "material_icons_rounded",
+                feature = "material_icons_sharp",
+            ))]
             let r = r.extend(zero_ui_wgt_material_icons::MaterialFonts);
 
             r.extend(DefaultsInit {})

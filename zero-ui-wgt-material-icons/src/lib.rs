@@ -30,9 +30,13 @@ impl MaterialFonts {
     /// The fonts will be available after the current update.
     pub fn register() {
         let sets = [
+            #[cfg(feature = "outlined")]
             (outlined::meta::FONT_NAME, outlined::meta::FONT_BYTES),
+            #[cfg(feature = "filled")]
             (filled::meta::FONT_NAME, filled::meta::FONT_BYTES),
+            #[cfg(feature = "rounded")]
             (rounded::meta::FONT_NAME, rounded::meta::FONT_BYTES),
+            #[cfg(feature = "sharp")]
             (sharp::meta::FONT_NAME, sharp::meta::FONT_BYTES),
         ];
 
