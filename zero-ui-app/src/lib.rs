@@ -1089,7 +1089,7 @@ impl APP {
     /// [`AppExtended::run`] returns or the [`HeadlessApp`] is dropped.
     ///
     /// You can use [`app_local!`] to create *static* resources that live for the app lifetime.
-    /// 
+    ///
     /// [`app_local!`]: zero_ui_app_context::app_local
     pub fn is_running(&self) -> bool {
         LocalContext::current_app().is_some()
@@ -1100,7 +1100,7 @@ impl APP {
     /// This ID usually does not change as most apps only run once per process, but it can change often during tests.
     /// Resources that interact with [`app_local!`] values can use this ID to ensure that they are still operating in the same
     /// app.
-    /// 
+    ///
     /// [`app_local!`]: zero_ui_app_context::app_local
     pub fn id(&self) -> Option<AppId> {
         LocalContext::current_app()
@@ -1144,13 +1144,12 @@ impl APP {
     }
 
     /// If device events are enabled for the current app.
-    /// 
+    ///
     /// See [`AppExtension::enable_device_events`] for more details.
     pub fn device_events(&self) -> bool {
         APP_PROCESS_SV.read().device_events
     }
 }
-
 
 impl APP {
     /// Starts building an application with no extensions.

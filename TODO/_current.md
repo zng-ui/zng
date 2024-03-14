@@ -4,7 +4,7 @@
     - Review what other large crates do.
     - Review badges.
 * Review docs.
-    - Copy some docs from `UiNode` to `UiNodeOp`?
+    - Finish copying docs from `UiNode` to `UiNodeOp`.
 
 # Publish
 

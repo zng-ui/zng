@@ -47,7 +47,7 @@ pub trait UiNode: Any + Send {
     /// Initializes the node in a new UI context.
     ///
     /// Common init operations are subscribing to variables and events and initializing data.
-    /// You can use [`WIDGET`] to subscribe events and vars, the subscriptions live until the widget id deinited.
+    /// You can use [`WIDGET`] to subscribe events and vars, the subscriptions live until the widget is deinited.
     ///
     /// If the node is a custom widget ([`is_widget`]) it must request an info, layout and render updates, other nodes
     /// do not need to request any sort of update on init.
@@ -74,9 +74,9 @@ pub trait UiNode: Any + Send {
     /// Builds widget info.
     ///
     /// This method is called every time there are structural changes in the UI tree such as a node added or removed, you
-    /// can also request and info rebuild using [`WIDGET.update_info`].
+    /// can also request an info rebuild using [`WIDGET.update_info`].
     ///
-    /// Only nodes in widgets that requested info rebuild or ancestor to widgets the requested info receive this call. Other
+    /// Only nodes in widgets that requested info rebuild and nodes in their ancestors receive this call. Other
     /// widgets reuse their info in the new info tree. The widget's latest built info is available in [`WIDGET.info`].
     ///
     /// Note that info rebuild has higher priority over event, update, layout and render, this means that if you set a variable
@@ -92,17 +92,16 @@ pub trait UiNode: Any + Send {
     /// Every call to this method is for a single update of a single event type, you can listen to events
     /// by subscribing to then on init and using the [`Event::on`] method in this method to detect the event.
     ///
-    /// Note that events send to descendant nodes also flow through this method and must be delegated. If you observe
+    /// Note that events sent to descendant nodes also flow through this method and must be delegated. If you observe
     /// an event for a descendant before delegating to the descendant this is a ***preview*** handling, in the normal handling
     /// you delegate first, then check the event propagation.
     ///
     /// [`Event::on`]: crate::event::Event::on
-    /// [`Event`]: crate::event::Event
     fn event(&mut self, update: &EventUpdate);
 
-    /// Receive variable and other non-event updates.
+    /// Receives variable and other non-event updates.
     ///
-    /// Calls to this method aggregate all updates that happen on the last pass, multiple variables can be new at the same time.
+    /// Calls to this method aggregate all updates that happen in the last pass, multiple variables can be new at the same time.
     /// You can listen to variable updates by subscribing to then on init and using the [`Var::get_new`] method in this method to
     /// receive the new values.
     ///

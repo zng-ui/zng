@@ -19,20 +19,80 @@ use super::*;
 #[non_exhaustive]
 pub enum UiNodeOp<'a> {
     /// The [`UiNode::init`].
+    ///
+    /// Initialize the node in a new UI context.
+    ///
+    /// Common init operations are subscribing to variables and events and initializing data.
+    /// You can use [`WIDGET`] to subscribe events and vars, the subscriptions live until the widget is deinited.
+    ///
+    /// This operation can be called again after a [`Deinit`].
+    ///
+    /// [`Deinit`]: Self::Deinit
     Init,
     /// The [`UiNode::deinit`].
+    ///
+    /// Deinitialize the node in the current UI context.
+    ///
+    /// Common deinit operations include dropping allocations and handlers.
+    ///
+    /// [`Init`] can be called again after this.
+    ///
+    /// [`Init`]: Self::Init
     Deinit,
     /// The [`UiNode::info`].
+    ///
+    /// Build widget info.
+    ///
+    /// This operation is called every time there are structural changes in the UI tree such as a node added or removed, you
+    /// can also request an info rebuild using [`WIDGET.update_info`].
+    ///
+    /// Only nodes in widgets that requested info rebuild and nodes in their ancestors receive this call. Other
+    /// widgets reuse their info in the new info tree. The widget's latest built info is available in [`WIDGET.info`].
+    ///
+    /// Note that info rebuild has higher priority over event, update, layout and render, this means that if you set a variable
+    /// and request info update the next info rebuild will still observe the old variable value, you can work around this issue by
+    /// only requesting info rebuild after the variable updates.
+    ///
+    /// [`WIDGET.update_info`]: crate::widget::WIDGET::update_info
+    /// [`WIDGET.info`]: crate::widget::WIDGET::info
     Info {
         ///
         info: &'a mut WidgetInfoBuilder,
     },
     /// The [`UiNode::event`].
+    ///
+    /// Receive an event.
+    ///
+    /// Every call to this operation is for a single update of a single event type, you can listen to events
+    /// by subscribing to then on [`Init`] and using the [`Event::on`] method during this operation to detect the event.
+    ///
+    /// Note that events sent to descendant nodes also flow through the match node and are automatically delegated if
+    /// you don't manually delegate. Automatic delegation happens after the operation is handled, you can call
+    /// `child.event` to manually delegate before handling.
+    ///
+    /// When an ancestor handles the event before the descendants this is a ***preview*** handling, so match nodes handle
+    /// event operations in preview by default.
+    ///
+    /// [`Init`]: Self::Init
+    /// [`Event::on`]: crate::event::Event::on
     Event {
         ///
         update: &'a EventUpdate,
     },
     /// The [`UiNode::update`].
+    ///
+    /// Receive variable and other non-event updates.
+    ///
+    /// Calls to this operation aggregate all updates that happen in the last pass, multiple variables can be new at the same time.
+    /// You can listen to variable updates by subscribing to then on [`Init`] and using the [`Var::get_new`] method during this operation
+    /// to receive the new values.
+    ///
+    /// Common update operations include reacting to variable changes to generate an intermediary value
+    /// for layout or render. You can use [`WIDGET`] to request layout and render. Note that for simple variables
+    /// that are used directly on layout or render you can subscribe to that operation directly, skipping update.
+    ///
+    /// [`Init`]: Self::Init
+    /// [`Var::get_new`]: zero_ui_var::Var::get_new
     Update {
         ///
         updates: &'a WidgetUpdates,
