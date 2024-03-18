@@ -3,8 +3,8 @@
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
-* Review docs.
-    - Finish copying docs from `UiNode` to `UiNodeOp`.
+* Review main docs of other crates.
+    - Reviewed `zero_ui_wgt`.
 
 # Publish
 

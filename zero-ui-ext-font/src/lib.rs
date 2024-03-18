@@ -613,7 +613,7 @@ pub enum FontChange {
 ///
 /// Events this extension provides:
 ///
-/// * [`FONT_CHANGED_EVENT``] - Font config or system fonts changed.
+/// * [`FONT_CHANGED_EVENT`] - Font config or system fonts changed.
 #[derive(Default)]
 pub struct FontManager {}
 impl AppExtension for FontManager {

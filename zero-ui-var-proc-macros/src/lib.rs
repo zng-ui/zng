@@ -1,8 +1,6 @@
 #![doc = include_str!("../../zero-ui-app/README.md")]
 //!
 //! Proc-macros for the `zero-ui-var` crate.
-//!
-//! Don't use directly.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

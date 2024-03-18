@@ -1,6 +1,6 @@
 #![doc = include_str!("../../zero-ui-app/README.md")]
 //!
-//! Proc-macros for `zero-ui-ext-l10n`, don't use directly.
+//! Proc-macros for `zero-ui-ext-l10n`.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

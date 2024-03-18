@@ -2,7 +2,7 @@
 //!
 //! View-Process implementation using [`glutin`].
 //!
-//! This backend supports headed and headless apps and all .
+//! This backend supports headed and headless apps.
 //!
 //! # Usage
 //!

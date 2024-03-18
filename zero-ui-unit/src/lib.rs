@@ -1,6 +1,6 @@
 #![doc = include_str!("../../zero-ui-app/README.md")]
 //!
-//! Pixel unit types.
+//! Base unit types.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

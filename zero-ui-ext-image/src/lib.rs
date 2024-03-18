@@ -35,6 +35,7 @@ mod types;
 pub use types::*;
 
 mod render;
+#[doc(inline)]
 pub use render::{render_retain, ImageRenderWindowRoot, ImageRenderWindowsService, IMAGES_WINDOW, IMAGE_RENDER};
 use zero_ui_layout::unit::{ByteLength, ByteUnits};
 use zero_ui_task::UiTask;

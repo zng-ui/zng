@@ -1,6 +1,6 @@
 #![doc = include_str!("../../zero-ui-app/README.md")]
 //!
-//! Localization service [`L10N`] and helpers.
+//! Localization service, [`l10n!`] and helpers.
 //!
 
 #![warn(unused_extern_crates)]

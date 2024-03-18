@@ -114,7 +114,7 @@ pub trait UiNode: Any + Send {
     /// [`WIDGET.update`]: crate::widget::WIDGET::update
     fn update(&mut self, updates: &WidgetUpdates);
 
-    /// Compute the widget size given the contextual layout metrics.
+    /// Computes the widget size given the contextual layout metrics without actually updating the widget layout.
     ///
     /// Implementers must return the same size [`layout`] returns for the given [`LayoutMetrics`], without
     /// affecting the actual widget render. Panel widgets that implement some complex layouts need to get an
@@ -130,7 +130,7 @@ pub trait UiNode: Any + Send {
     #[must_use]
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize;
 
-    /// Compute the widget layout given the contextual layout metrics.
+    /// Computes the widget layout given the contextual layout metrics.
     ///
     /// Implementers must also implement [`measure`]. This method is called by the parent layout once the final constraints
     /// for the frame are defined, the [`LAYOUT`] context can be used to retrieve the constraints, the [`WidgetLayout`] parameter
@@ -162,7 +162,7 @@ pub trait UiNode: Any + Send {
 
     /// Updates values in the last generated frame.
     ///
-    /// Some display item values and transforms can be updated directly, without needing to re-render the item. All [`FrameBuilder`]
+    /// Some display item values and transforms can be updated directly, without needing to rebuild the display list. All [`FrameBuilder`]
     /// methods that accept a [`FrameValue<T>`] input can be bound to an ID that can be used to update that value.
     ///
     /// Only widgets and ancestors that requested render update receive this call. Note that if any other widget in the same window

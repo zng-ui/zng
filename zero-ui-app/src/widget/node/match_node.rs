@@ -98,25 +98,76 @@ pub enum UiNodeOp<'a> {
         updates: &'a WidgetUpdates,
     },
     /// The [`UiNode::measure`].
+    /// 
+    /// Compute the widget size given the contextual layout metrics without actually updating the widget layout.
+    ///
+    /// Implementers must set `desired_size` to the same size [`Layout`] sets for the given [`LayoutMetrics`], without
+    /// affecting the actual widget render. Panel widgets that implement some complex layouts need to get
+    /// the estimated widget size for a given layout context, this value is used to inform the actual [`Layout`] call.
+    ///
+    /// Nodes that implement [`Layout`] must also implement this operation, the [`LAYOUT`] context can be used to retrieve the metrics,
+    /// the [`WidgetMeasure`] field can be used to communicate with the parent layout, such as disabling inline layout, the
+    /// [`PxSize`] field must be set to the desired size given the layout context.
+    /// 
+    /// [`Layout`]: Self::Layout
+    /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
+    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
     Measure {
         ///
         wm: &'a mut WidgetMeasure,
-        /// The measure return value.
+        ///
         desired_size: &'a mut PxSize,
     },
     /// The [`UiNode::layout`].
+    /// 
+    /// Compute the widget layout given the contextual layout metrics.
+    ///
+    /// Implementers must also implement [`Measure`]. This operation is called by the parent layout once the final constraints
+    /// for the frame are defined, the [`LAYOUT`] context can be used to retrieve the constraints, the [`WidgetLayout`] field
+    /// can be used to communicate layout metadata such as inline segments to the parent layout, the [`PxSize`] field must be
+    /// set to the final size given the layout context.
+    ///
+    /// Only widgets and ancestors that requested layout or use metrics that changed since last layout receive this call. Other
+    /// widgets reuse the last layout result.
+    ///
+    /// Nodes that render can also implement this operation just to observe the latest widget size, if changes are detected
+    /// the [`WIDGET.render`] method can be used to request render.
+    ///
+    /// [`Measure`]: Self::Measure
+    /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
+    /// [`constraints`]: zero_ui_layout::context::LayoutMetrics::constraints
+    /// [`WIDGET.render`]: crate::widget::WIDGET::render
+    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
     Layout {
         ///
         wl: &'a mut WidgetLayout,
-        /// The layout return value.
+        ///
         final_size: &'a mut PxSize,
     },
     /// The [`UiNode::render`].
+    /// 
+    /// Generate render instructions and update transforms and hit-test areas.
+    ///
+    /// This operation does not generate pixels immediately, it generates *display items* that are visual building block instructions
+    /// for the renderer that will run after the window *display list* is built.
+    ///
+    /// Only widgets and ancestors that requested render receive this call, other widgets reuse the display items and transforms
+    /// from the last frame.
     Render {
         ///
         frame: &'a mut FrameBuilder,
     },
     /// The [`UiNode::render_update`].
+    /// 
+    /// Update values in the last generated frame.
+    ///
+    /// Some display item values and transforms can be updated directly, without needing to rebuild the display list. All [`FrameBuilder`]
+    /// methods that accept a [`FrameValue<T>`] input can be bound to an ID that can be used to update that value.
+    ///
+    /// Only widgets and ancestors that requested render update receive this call. Note that if any other widget in the same window
+    /// requests render all pending render update requests are upgraded to render requests.
+    ///
+    /// [`FrameValue<T>`]: crate::render::FrameValue
     RenderUpdate {
         ///
         update: &'a mut FrameUpdate,

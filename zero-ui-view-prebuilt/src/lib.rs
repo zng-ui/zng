@@ -1,6 +1,6 @@
 #![doc = include_str!("../../zero-ui-app/README.md")]
 //!
-//! Dynamically links to [`zero-ui-view`] pre-builds.
+//! Dynamically links to [`zero-ui-view`] pre-built library.
 //!
 //! [`zero-ui-view`]: https://docs.rs/zero-ui-view
 
@@ -47,7 +47,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
     ViewLib::install().unwrap().run_same_process(run_app)
 }
 
-/// Dynamically linked pre-build view.
+/// Dynamically linked pre-built view.
 pub struct ViewLib {
     init_fn: unsafe extern "C" fn(),
     run_same_process_fn: unsafe extern "C" fn(extern "C" fn()),
@@ -136,7 +136,7 @@ impl ViewLib {
         dir.join(file_name)
     }
 
-    /// Link to the pre-build library file.
+    /// Link to the pre-built library file.
     ///
     /// If the file does not have an extension searches for a file without extension then a
     /// `.dll` file in Windows, a `.so` file in Linux and a `.dylib` file in other operating systems.
