@@ -60,7 +60,6 @@ members = [
     "zero-ui-wgt-text",
     "zero-ui-wgt-text_input",
     "zero-ui-wgt-button",
-    "zero-ui-wgt-link",
     "zero-ui-wgt-stack",
     "zero-ui-wgt-panel",
     "zero-ui-wgt-grid",

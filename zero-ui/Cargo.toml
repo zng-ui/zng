@@ -203,7 +203,6 @@ zero-ui-wgt-image = { path = "../zero-ui-wgt-image" }
 zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
 zero-ui-wgt-text_input = { path = "../zero-ui-wgt-text_input" }
 zero-ui-wgt-button = { path = "../zero-ui-wgt-button" }
-zero-ui-wgt-link = { path = "../zero-ui-wgt-link" }
 zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
 zero-ui-wgt-panel = { path = "../zero-ui-wgt-panel" }
 zero-ui-wgt-grid = { path = "../zero-ui-wgt-grid" }

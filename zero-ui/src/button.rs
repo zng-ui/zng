@@ -118,11 +118,9 @@
 //!
 //! See [`zero_ui_wgt_button`] for the full widget API.
 
-pub use zero_ui_wgt_button::{base_colors, style_fn, Button, DefaultStyle, BUTTON};
+pub use zero_ui_wgt_button::{base_colors, style_fn, Button, DefaultStyle, BUTTON, LinkStyle};
 
 /// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
 ///
 #[cfg(all(windows, doc))]
 pub use zero_ui_wgt_button::BUTTON as BUTTON_;
-
-pub use zero_ui_wgt_link::LinkStyle;

@@ -25,7 +25,7 @@ use zero_ui_wgt_input::{
     CursorIcon,
 };
 use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
-use zero_ui_wgt_text::Text;
+use zero_ui_wgt_text::{Text, underline, font_color};
 use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
 
 /// A clickable container.
@@ -343,5 +343,37 @@ impl BUTTON {
     /// [`cmd_param`]: fn@cmd_param
     pub fn cmd_param(&self) -> ReadOnlyContextVar<Option<CommandParam>> {
         CMD_PARAM_VAR.read_only()
+    }
+}
+
+/// Button link style.
+///
+/// Looks like a web hyperlink.
+#[widget($crate::LinkStyle)]
+pub struct LinkStyle(Style);
+impl LinkStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            replace = true;
+
+            font_color = color_scheme_map(web_colors::LIGHT_BLUE, colors::BLUE);
+            cursor = CursorIcon::Pointer;
+            access_role = AccessRole::Link;
+
+            when *#is_cap_hovered {
+                underline = 1, LineStyle::Solid;
+            }
+
+            when *#is_pressed {
+                font_color = color_scheme_map(colors::YELLOW, web_colors::BROWN);
+            }
+
+            when *#is_disabled {
+                saturate = false;
+                child_opacity = 50.pct();
+                cursor = CursorIcon::NotAllowed;
+            }
+        }
     }
 }

@@ -858,7 +858,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
         };
 
         child_bottom = {
-            insert: Stack! {
+            node: Stack! {
                 direction = StackDirection::start_to_end();
                 padding = 10;
                 align = Align::END;

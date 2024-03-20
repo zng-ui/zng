@@ -319,7 +319,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             direction = StackDirection::left_to_right();
             children = ui_vec![
                 Button! {
-                    style_fn = zero_ui_wgt_link::LinkStyle!();
+                    style_fn = zero_ui_wgt_button::LinkStyle!();
 
                     focus_on_init = true;
 

@@ -100,7 +100,7 @@ fn image_button() -> impl UiNode {
         tooltip = Tip!(Text!("image button"));
         on_click = hn!(|_| tracing::info!("Clicked image button"));
         child_start = {
-            insert: Image! {
+            node: Image! {
                 source = include_bytes!("res/window/icon-bytes.png");
                 layout::size = 16;
                 align = Align::CENTER;

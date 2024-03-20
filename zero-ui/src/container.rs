@@ -14,12 +14,12 @@
 //! # let _ =
 //! Container! {
 //!     child_top = {
-//!         insert: Text!("secondary (top)"),
+//!         node: Text!("secondary (top)"),
 //!         spacing: 5,
 //!     };
 //!     child = Text! { txt = "primary"; widget::background_color = colors::BLUE };
 //!     child_bottom = {
-//!         insert: Text!("secondary (bottom)"),
+//!         node: Text!("secondary (bottom)"),
 //!         spacing: 0,
 //!     };
 //! }
