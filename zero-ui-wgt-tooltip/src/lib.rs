@@ -530,7 +530,9 @@ context_var! {
     pub static BASE_COLORS_VAR: ColorPair = (rgb(20, 20, 20), rgb(235, 235, 235));
 }
 
-/// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the tip style.
+/// Sets the colors that is used to compute all background and border colors in the tip style.
+///
+/// Sets [`BASE_COLORS_VAR`].
 #[property(CONTEXT, default(BASE_COLORS_VAR), widget_impl(DefaultStyle))]
 pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_context_var(child, BASE_COLORS_VAR, color)

@@ -579,7 +579,7 @@ mod ansi_fn {
 
     /// ANSI blink animation interval.
     ///
-    /// Set to `ZERO` to disable.
+    /// Set to `ZERO` to disable the blink animation.
     ///
     /// Sets the [`BLINK_INTERVAL_VAR`].
     #[property(CONTEXT, default(BLINK_INTERVAL_VAR), widget_impl(AnsiText))]

@@ -202,7 +202,7 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
             txt = info;
         };
         child_bottom = {
-            insert: Text! {
+            node: Text! {
                 font_weight = zero_ui_ext_font::FontWeight::BOLD;
                 zero_ui_wgt::visibility = has_shortcut.map_into();
                 txt = shortcut;
@@ -261,7 +261,9 @@ pub fn cmd_tooltip_fn(child: impl UiNode, cmd_tooltip: impl IntoVar<WidgetFn<Cmd
     with_context_var(child, CMD_TOOLTIP_FN_VAR, cmd_tooltip)
 }
 
-/// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the button style.
+/// Sets the colors used to compute all background and border colors in the button style.
+///
+/// Sets the [`BASE_COLORS_VAR`].
 #[property(CONTEXT, default(BASE_COLORS_VAR), widget_impl(DefaultStyle))]
 pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_context_var(child, BASE_COLORS_VAR, color)

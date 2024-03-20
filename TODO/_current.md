@@ -1,10 +1,15 @@
+* Respawn test does not work.
+    - Crash respawn with inspector open.
+    - Just respawn does not render (reuse issue?)
+    - Crash respawn also did not work.
+
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
 * Review main docs of other crates.
-    - Reviewed `zero_ui_wgt`.
+    - Reviewed `zero_ui_wgt_link`.
 
 # Publish
 

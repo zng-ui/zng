@@ -79,7 +79,9 @@ context_var! {
     pub static BASE_COLORS_VAR: ColorPair = (rgb(0.12, 0.12, 0.12), rgb(0.88, 0.88, 0.88));
 }
 
-/// Sets the [`BASE_COLORS_VAR`] that is used to compute all background and border colors in the text input style.
+/// Sets the colors used to compute all background and border colors in the text input style.
+///
+/// Sets [`BASE_COLORS_VAR`].
 #[property(CONTEXT, default(BASE_COLORS_VAR), widget_impl(DefaultStyle))]
 pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_context_var(child, BASE_COLORS_VAR, color)

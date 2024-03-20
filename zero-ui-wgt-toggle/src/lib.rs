@@ -936,7 +936,7 @@ impl CheckStyle {
             self;
             replace = true;
             child_start = {
-                insert: {
+                node: {
                     let parent_hovered = var(false);
                     is_hovered(checkmark_visual(parent_hovered.clone()), parent_hovered)
                 },
@@ -1005,7 +1005,7 @@ impl ComboStyle {
             padding = COMBO_SPACING_VAR.map(|e| SideOffsets::new(-1, e.clone(), -1, -1));
             checked = var(false);
             child_end = {
-                insert: combomark_visual(),
+                node: combomark_visual(),
                 spacing: COMBO_SPACING_VAR,
             };
 
@@ -1166,7 +1166,7 @@ impl SwitchStyle {
             replace = true;
 
             child_start = {
-                insert: {
+                node: {
                     let parent_hovered = var(false);
                     is_hovered(switch_visual(parent_hovered.clone()), parent_hovered)
                 },
@@ -1229,7 +1229,7 @@ impl RadioStyle {
 
             access_role = AccessRole::Radio;
             child_start = {
-                insert: {
+                node: {
                     let parent_hovered = var(false);
                     is_hovered(radio_visual(parent_hovered.clone()), parent_hovered)
                 },

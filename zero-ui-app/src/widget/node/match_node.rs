@@ -98,7 +98,7 @@ pub enum UiNodeOp<'a> {
         updates: &'a WidgetUpdates,
     },
     /// The [`UiNode::measure`].
-    /// 
+    ///
     /// Compute the widget size given the contextual layout metrics without actually updating the widget layout.
     ///
     /// Implementers must set `desired_size` to the same size [`Layout`] sets for the given [`LayoutMetrics`], without
@@ -108,7 +108,7 @@ pub enum UiNodeOp<'a> {
     /// Nodes that implement [`Layout`] must also implement this operation, the [`LAYOUT`] context can be used to retrieve the metrics,
     /// the [`WidgetMeasure`] field can be used to communicate with the parent layout, such as disabling inline layout, the
     /// [`PxSize`] field must be set to the desired size given the layout context.
-    /// 
+    ///
     /// [`Layout`]: Self::Layout
     /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
     /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
@@ -119,7 +119,7 @@ pub enum UiNodeOp<'a> {
         desired_size: &'a mut PxSize,
     },
     /// The [`UiNode::layout`].
-    /// 
+    ///
     /// Compute the widget layout given the contextual layout metrics.
     ///
     /// Implementers must also implement [`Measure`]. This operation is called by the parent layout once the final constraints
@@ -145,7 +145,7 @@ pub enum UiNodeOp<'a> {
         final_size: &'a mut PxSize,
     },
     /// The [`UiNode::render`].
-    /// 
+    ///
     /// Generate render instructions and update transforms and hit-test areas.
     ///
     /// This operation does not generate pixels immediately, it generates *display items* that are visual building block instructions
@@ -158,7 +158,7 @@ pub enum UiNodeOp<'a> {
         frame: &'a mut FrameBuilder,
     },
     /// The [`UiNode::render_update`].
-    /// 
+    ///
     /// Update values in the last generated frame.
     ///
     /// Some display item values and transforms can be updated directly, without needing to rebuild the display list. All [`FrameBuilder`]

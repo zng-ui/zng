@@ -1,6 +1,6 @@
 #![doc = include_str!("../../zero-ui-app/README.md")]
 //!
-//! Grid widgets, properties and nodes..
+//! Grid widgets, properties and nodes.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
@@ -435,6 +435,7 @@ impl fmt::Debug for AutoGrowMode {
     }
 }
 
+#[doc(inline)]
 pub use column::Column;
 
 /// Column widget and properties.
@@ -587,6 +588,7 @@ pub mod column {
     }
 }
 
+#[doc(inline)]
 pub use row::Row;
 
 /// Row widget and properties.
@@ -739,6 +741,7 @@ pub mod row {
     }
 }
 
+#[doc(inline)]
 pub use cell::Cell;
 
 /// Cell widget and properties.

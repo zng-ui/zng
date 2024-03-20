@@ -61,34 +61,37 @@ pub fn data_note(child: impl UiNode, level: impl IntoVar<DataNoteLevel>, note: i
     })
 }
 
-/// Insert a data INFO note in the context.
+/// Insert a data [`INFO`] note in the context.
 ///
 /// This properties synchronizes the `note` variable with an [`DATA.inform`] entry. If
 /// the `note` is empty the data note is not inserted.
 ///
 /// [`DATA.inform`]: DATA::inform
+/// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT, default(""))]
 pub fn data_info(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
     data_note(child, DataNoteLevel::INFO, note)
 }
 
-/// Insert a data WARN note in the context.
+/// Insert a data [`WARN`] note in the context.
 ///
 /// This properties synchronizes the `note` variable with an [`DATA.warn`] entry. If
 /// the `note` is empty the data note is not inserted.
 ///
 /// [`DATA.warn`]: DATA::warn
+/// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT, default(""))]
 pub fn data_warn(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
     data_note(child, DataNoteLevel::WARN, note)
 }
 
-/// Insert a data ERROR note in the context.
+/// Insert a data [`ERROR`] note in the context.
 ///
 /// This properties synchronizes the `note` variable with an [`DATA.invalidate`] entry. If
 /// the `note` is empty the data note is not inserted.
 ///
 /// [`DATA.invalidate`]: DATA::invalidate
+/// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT, default(""))]
 pub fn data_error(child: impl UiNode, note: impl IntoVar<Txt>) -> impl UiNode {
     data_note(child, DataNoteLevel::ERROR, note)
@@ -112,7 +115,9 @@ pub fn has_data_notes(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNod
     })
 }
 
-/// Get all `INFO` data notes set on the context.
+/// Get all [`INFO`] data notes set on the context.
+///
+/// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT - 1)]
 pub fn get_data_info(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
     let notes = notes.into_var();
@@ -121,7 +126,9 @@ pub fn get_data_info(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl
     })
 }
 
-/// Write all `INFO` data notes set on the context to a text.
+/// Write all [`INFO`] data notes set on the context to a text.
+///
+/// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT - 1)]
 pub fn get_data_info_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
     let notes = notes.into_var();
@@ -130,7 +137,9 @@ pub fn get_data_info_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl U
     })
 }
 
-/// Gets if any `INFO` data notes are set on the context.
+/// Gets if any [`INFO`] data notes are set on the context.
+///
+/// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT - 1)]
 pub fn has_data_info(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
     let any = any.into_var();
@@ -139,7 +148,9 @@ pub fn has_data_info(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode
     })
 }
 
-/// Get all `WARN` data notes set on the context.
+/// Get all [`WARN`] data notes set on the context.
+///
+/// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT - 1)]
 pub fn get_data_warn(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
     let notes = notes.into_var();
@@ -148,7 +159,9 @@ pub fn get_data_warn(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl
     })
 }
 
-/// Write all `WARN` data notes set on the context to a text.
+/// Write all [`WARN`] data notes set on the context to a text.
+///
+/// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT - 1)]
 pub fn get_data_warn_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
     let notes = notes.into_var();
@@ -157,7 +170,9 @@ pub fn get_data_warn_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl U
     })
 }
 
-/// Gets if any `WARN` data notes are set on the context.
+/// Gets if any [`WARN`] data notes are set on the context.
+///
+/// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT - 1)]
 pub fn has_data_warn(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
     let any = any.into_var();
@@ -166,7 +181,9 @@ pub fn has_data_warn(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode
     })
 }
 
-/// Get all `ERROR` data notes set on the context.
+/// Get all [`ERROR`] data notes set on the context.
+///
+/// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT - 1)]
 pub fn get_data_error(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> impl UiNode {
     let notes = notes.into_var();
@@ -175,7 +192,9 @@ pub fn get_data_error(child: impl UiNode, notes: impl IntoVar<DataNotes>) -> imp
     })
 }
 
-/// Write all `ERROR` data notes set on the context to a text.
+/// Write all [`ERROR`] data notes set on the context to a text.
+///
+/// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT - 1)]
 pub fn get_data_error_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl UiNode {
     let notes = notes.into_var();
@@ -184,7 +203,9 @@ pub fn get_data_error_txt(child: impl UiNode, notes: impl IntoVar<Txt>) -> impl 
     })
 }
 
-/// Gets if any `ERROR` data notes are set on the context.
+/// Gets if any [`ERROR`] data notes are set on the context.
+///
+/// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT - 1)]
 pub fn has_data_error(child: impl UiNode, any: impl IntoVar<bool>) -> impl UiNode {
     let any = any.into_var();
@@ -263,25 +284,31 @@ pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: imp
     )
 }
 
-/// Set the data note `INFO` color.
+/// Set the data note [`INFO`] color.
 ///
 /// The color will be used directly as text color.
+///
+/// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT)]
 pub fn data_info_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::INFO, color)
 }
 
-/// Set the data note `WARN` color.
+/// Set the data note [`WARN`] color.
 ///
 /// The color will be used directly as text color.
+///
+/// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT)]
 pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::WARN, color)
 }
 
-/// Set the data note `ERROR` color.
+/// Set the data note [`ERROR`] color.
 ///
 /// The color will be used directly as text color.
+///
+/// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT)]
 pub fn data_error_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::ERROR, color)
