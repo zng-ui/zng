@@ -827,7 +827,7 @@ impl Z_INDEX {
     pub fn set(&self, index: ZIndex) -> bool {
         let z_ctx = Z_INDEX_CTX.get();
         let valid = z_ctx.panel_id == WIDGET.parent_id() && z_ctx.panel_id.is_some();
-        if valid && index != ZIndex::DEFAULT {
+        if valid {
             z_ctx.resort.store(true, Relaxed);
             WIDGET.set_state(&Z_INDEX_ID, index);
         }
