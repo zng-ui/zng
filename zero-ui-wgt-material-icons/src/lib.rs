@@ -2,7 +2,7 @@
 //!
 //! Material icons for the [`Icon!`] widget.
 //!
-//! The constants are defined in a module for each font. The font files are embedded
+//! A constant for each icon is defined in a module for each font. The font files are embedded
 //! and can be registered using the [`MaterialFonts`] app extension.
 //!
 //! The icons are from the [Material Design Icons] project.

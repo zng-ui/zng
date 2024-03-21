@@ -30,7 +30,7 @@ pub mod web_colors;
 mod mix;
 pub use mix::*;
 
-///<span data-del-macro-root></span> Hexadecimal color literal.
+/// Hexadecimal color literal.
 ///
 /// # Syntax
 ///

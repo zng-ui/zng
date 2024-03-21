@@ -4,7 +4,7 @@
     - Review what other large crates do.
     - Review badges.
 * Review main docs of other crates.
-    - Reviewed `zero_ui_wgt_layer`.
+    - Reviewed `zero_ui_wgt_menu`.
 
 # Publish
 

@@ -40,4 +40,4 @@ serde = { version = "1", features = ["derive"] }
 pretty-type-name = "1"
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--html-in-header", "zero-ui-wgt/doc/html-in-header.html"]
+rustdoc-args = ["--html-in-header", "zero-ui-app/doc/html-in-header.html"]

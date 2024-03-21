@@ -42,6 +42,3 @@ unic-langid = "0.9"
 smallvec = { version = "1", features = ["const_new", "serde"] }
 hashbrown = "0.14"
 pathfinder_geometry = "0.5"
-
-[package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "zero-ui-ext-font/doc/html-in-header.html" ]

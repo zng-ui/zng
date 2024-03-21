@@ -15,6 +15,3 @@ zero-ui-view-api = { path = "../zero-ui-view-api" }
 
 paste = "1"
 serde = "1"
-
-[package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "zero-ui-color/doc/html-in-header.html" ]

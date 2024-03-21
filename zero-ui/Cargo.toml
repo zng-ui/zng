@@ -217,3 +217,9 @@ zero-ui-wgt-markdown = { path = "../zero-ui-wgt-markdown" }
 zero-ui-wgt-inspector = { path = "../zero-ui-wgt-inspector" }
 
 zero-ui-wgt-material-icons = { path = "../zero-ui-wgt-material-icons", default-features = false, optional = true }
+
+[package.metadata.docs.rs]
+rustdoc-args = [
+    "--html-in-header",
+    "target/doc/zero-ui-material-icons-extensions.html",
+]
