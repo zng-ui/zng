@@ -4,7 +4,7 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
 10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
    |                                                          ^^^^^^^^^^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
    |
-   = help: the trait `PartialEq` is not implemented for `NotDefault`
+   = help: the trait `PartialEq` is not implemented for `NotDefault`, which is required by `NotDefault: VarValue`
    = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `IntoVar`
   --> $WORKSPACE/zero-ui-var/src/lib.rs
@@ -23,7 +23,7 @@ error[E0277]: can't compare `NotDefault` with `NotDefault`
 10 | pub fn get_state_invalid(child: impl UiNode, state: impl IntoVar<NotDefault>) -> impl UiNode {
    |                                                                  ^^^^^^^^^^ no implementation for `NotDefault == NotDefault`
    |
-   = help: the trait `PartialEq` is not implemented for `NotDefault`
+   = help: the trait `PartialEq` is not implemented for `NotDefault`, which is required by `NotDefault: VarValue`
    = note: required for `NotDefault` to implement `VarValue`
 note: required by a bound in `WhenInputVar::new`
   --> $WORKSPACE/zero-ui-app/src/widget/builder.rs
