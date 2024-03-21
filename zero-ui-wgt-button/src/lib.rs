@@ -25,7 +25,7 @@ use zero_ui_wgt_input::{
     CursorIcon,
 };
 use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
-use zero_ui_wgt_text::{Text, underline, font_color};
+use zero_ui_wgt_text::{font_color, underline, Text};
 use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
 
 /// A clickable container.

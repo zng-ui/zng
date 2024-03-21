@@ -5,7 +5,7 @@ use zero_ui_app::event::{event, event_args, AnyEventArgs};
 use zero_ui_app::update::EventUpdate;
 use zero_ui_app::view_process::raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
 use zero_ui_app::view_process::VIEW_PROCESS_INITED_EVENT;
-use zero_ui_app::window::{MonitorId, WINDOW};
+use zero_ui_app::window::{MonitorId, WindowId, WINDOW};
 use zero_ui_app_context::app_local;
 use zero_ui_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, PxPoint, PxRect, PxSize, PxToDip};
 use zero_ui_txt::{ToTxt, Txt};
@@ -13,7 +13,7 @@ use zero_ui_unique_id::IdMap;
 use zero_ui_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var, VarValue};
 use zero_ui_view_api::window::VideoMode;
 
-use crate::{WINDOW_Ext, WINDOWS};
+use crate::WINDOWS;
 
 app_local! {
     pub(super) static MONITORS_SV: MonitorsService = const {
@@ -364,8 +364,11 @@ impl MonitorQuery {
 
     /// Runs the query.
     pub fn select(&self) -> Option<MonitorInfo> {
+        self.select_for(WINDOW.id())
+    }
+    fn select_for(&self, win_id: WindowId) -> Option<MonitorInfo> {
         match self {
-            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(),
+            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(win_id),
             MonitorQuery::Primary => Self::primary_query(),
             MonitorQuery::Query(q) => q(),
         }
@@ -374,20 +377,20 @@ impl MonitorQuery {
     /// Runs the query. Falls back to `Primary` or [`MonitorInfo::fallback`].
     pub fn select_fallback(&self) -> MonitorInfo {
         match self {
-            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(),
+            MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(WINDOW.id()),
             MonitorQuery::Primary => Self::primary_query(),
             MonitorQuery::Query(q) => q().or_else(Self::primary_query),
         }
         .unwrap_or_else(MonitorInfo::fallback)
     }
 
-    fn parent_or_primary_query() -> Option<MonitorInfo> {
-        if let Some(parent) = WINDOW.vars().parent().get() {
+    fn parent_or_primary_query(win_id: WindowId) -> Option<MonitorInfo> {
+        if let Some(parent) = WINDOWS.vars(win_id).unwrap().parent().get() {
             if let Ok(w) = WINDOWS.vars(parent) {
                 return if let Some(monitor) = w.actual_monitor().get() {
                     MONITORS.monitor(monitor)
                 } else {
-                    w.monitor().get().select()
+                    w.monitor().get().select_for(parent)
                 };
             }
         }

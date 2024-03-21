@@ -1,5 +1,4 @@
 * Respawn test does not work.
-    - Crash respawn with inspector open.
     - Just respawn does not render (reuse issue?)
     - Crash respawn also did not work.
 
