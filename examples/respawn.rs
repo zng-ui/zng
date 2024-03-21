@@ -17,11 +17,6 @@ fn main() {
             title = "View-Process Respawn Example";
             icon = WindowIcon::render(icon);
             start_position = window::StartPosition::CenterMonitor;
-            keyboard::on_key_down = hn!(|args: &keyboard::KeyInputArgs| {
-                if args.key == keyboard::Key::F5 {
-                    VIEW_PROCESS.respawn();
-                }
-            });
             widget::foreground = window_status();
             child_align = Align::CENTER;
             child = Stack! {
@@ -49,6 +44,7 @@ fn main() {
 fn respawn() -> impl UiNode {
     Button! {
         child = Text!("Respawn (F5)");
+        gesture::click_shortcut = shortcut!(F5);
         on_click = hn!(|_| {
             VIEW_PROCESS.respawn();
         });
