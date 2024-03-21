@@ -31,7 +31,7 @@ use zero_ui_state_map::{OwnedStateMap, StateMapRef};
 use zero_ui_txt::{formatx, Txt};
 use zero_ui_unique_id::{IdEntry, IdMap};
 use zero_ui_var::impl_from_and_into_var;
-use zero_ui_view_api::{display_list::FrameValueUpdate, window::FrameId};
+use zero_ui_view_api::{display_list::FrameValueUpdate, window::FrameId, ViewProcessGen};
 
 use crate::{render::TransformStyle, window::WindowId, DInstant};
 
@@ -132,6 +132,7 @@ struct WidgetInfoTreeFrame {
     stats_update: WidgetInfoTreeStatsUpdate,
     out_of_bounds_update: Vec<(tree::NodeId, bool)>,
     scale_factor: Factor,
+    view_process_gen: ViewProcessGen,
 
     out_of_bounds: Arc<Vec<tree::NodeId>>,
     spatial_bounds: PxBox,
@@ -170,6 +171,13 @@ impl WidgetInfoTree {
     /// Scale factor of the last rendered frame.
     pub fn scale_factor(&self) -> Factor {
         self.0.frame.read().scale_factor
+    }
+
+    /// View-process generation.
+    ///
+    /// Is [`ViewProcessGen::INVALID`] before first render and in headless apps.
+    pub fn view_process_gen(&self) -> ViewProcessGen {
+        self.0.frame.read().view_process_gen
     }
 
     /// Custom metadata associated with the tree during info build.
@@ -249,7 +257,13 @@ impl WidgetInfoTree {
         self.0.frame.write().stats_update.vis_updated += 1;
     }
 
-    pub(crate) fn after_render(&self, frame_id: FrameId, scale_factor: Factor, widget_count_offsets: Option<ParallelSegmentOffsets>) {
+    pub(crate) fn after_render(
+        &self,
+        frame_id: FrameId,
+        scale_factor: Factor,
+        view_process_gen: Option<ViewProcessGen>,
+        widget_count_offsets: Option<ParallelSegmentOffsets>,
+    ) {
         let mut frame = self.0.frame.write();
         let stats_update = frame.stats_update.take();
         frame.stats.update(frame_id, stats_update);
@@ -281,7 +295,9 @@ impl WidgetInfoTree {
         frame.spatial_bounds = spatial_bounds;
 
         frame.scale_factor = scale_factor;
-
+        if let Some(gen) = view_process_gen {
+            frame.view_process_gen = gen;
+        }
         if let Some(w) = widget_count_offsets {
             frame.widget_count_offsets = w;
         }
@@ -343,7 +359,7 @@ impl WidgetInfoTree {
 
     pub(crate) fn after_render_update(&self, frame_id: FrameId) {
         let scale_factor = self.0.frame.read().scale_factor;
-        self.after_render(frame_id, scale_factor, None);
+        self.after_render(frame_id, scale_factor, None, None);
     }
 }
 impl fmt::Debug for WidgetInfoTree {

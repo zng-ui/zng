@@ -537,13 +537,17 @@ impl WriteFile {
         };
 
         let transaction_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_LOCK_EXT}"));
-        let transaction_lock = fs::OpenOptions::new().create(true).write(true).open(&transaction_path)?;
+        let transaction_lock = fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&transaction_path)?;
 
         const TIMEOUT: Duration = Duration::from_secs(5);
 
         lock_exclusive(&transaction_lock, TIMEOUT)?;
 
-        let actual_file = fs::OpenOptions::new().write(true).create(true).open(&actual_path)?;
+        let actual_file = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&actual_path)?;
         lock_exclusive(&actual_file, TIMEOUT)?;
 
         let mut n = 0;
@@ -785,7 +789,7 @@ impl<T: fmt::Debug + std::any::Any + Send + Sync> FsChangeNote for T {
 /// [`WATCHER.annotate`]: WATCHER::annotate
 #[derive(Clone)]
 #[must_use = "the note is removed when the handle is dropped"]
-pub struct FsChangeNoteHandle(Arc<Arc<dyn FsChangeNote>>);
+pub struct FsChangeNoteHandle(#[allow(dead_code)] Arc<Arc<dyn FsChangeNote>>);
 
 /// Annotation for file watcher events and var update tags.
 ///

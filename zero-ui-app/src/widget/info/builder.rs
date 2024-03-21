@@ -344,6 +344,7 @@ impl WidgetInfoBuilder {
                 widget_count_offsets,
                 transform_changed_subs: IdMap::new(),
                 visibility_changed_subs: IdMap::new(),
+                view_process_gen: ViewProcessGen::INVALID,
             }),
 
             tree: self.tree,

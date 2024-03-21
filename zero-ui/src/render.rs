@@ -106,6 +106,6 @@
 
 pub use zero_ui_app::render::{
     ClipBuilder, FontSynthesis, FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, HitTestBuilder, HitTestClipBuilder,
-    ImageRendering, ReferenceFrameId, RepeatMode, SpatialFrameId, StaticSpatialFrameId,
+    ImageRendering, ReferenceFrameId, RepeatMode, ReuseRange, SpatialFrameId, StaticSpatialFrameId,
 };
 pub use zero_ui_view_api::window::FrameId;

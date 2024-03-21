@@ -21,10 +21,10 @@ use zero_ui_var::{impl_from_and_into_var, Var, VarCapabilities, VarValue};
 use zero_ui_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::FontAntiAliasing,
-    display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseRange, ReuseStart},
+    display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseStart},
     font::{GlyphInstance, GlyphOptions},
     window::FrameId,
-    ReferenceFrameId as RenderReferenceFrameId,
+    ReferenceFrameId as RenderReferenceFrameId, ViewProcessGen,
 };
 
 use crate::{
@@ -39,7 +39,7 @@ use crate::{
 };
 
 pub use zero_ui_view_api::{
-    display_list::{FrameValue, FrameValueUpdate},
+    display_list::{FrameValue, FrameValueUpdate, ReuseRange},
     ImageRendering, RepeatMode, TransformStyle,
 };
 
@@ -138,6 +138,7 @@ pub struct FrameBuilder {
     child_offset: PxVector,
     parent_inner_bounds: Option<PxRect>,
 
+    view_process_has_frame: bool,
     can_reuse: bool,
     open_reuse: Option<ReuseStart>,
 
@@ -156,7 +157,9 @@ impl FrameBuilder {
     ///
     /// * `frame_id` - Id of the new frame.
     /// * `root_id` - Id of the window root widget.
-    /// * `renderer` - Connection to the renderer connection that will render the frame, is `None` in renderless mode.
+    /// * `root_bounds` - Root widget bounds info.
+    /// * `info_tree` - Info tree of the last frame.
+    /// * `renderer` - Connection to the renderer that will render the frame, is `None` in renderless mode.
     /// * `scale_factor` - Scale factor that will be used to render the frame, usually the scale factor of the screen the window is at.
     /// * `default_font_aa` - Fallback font anti-aliasing used when the default value is requested.
     /// because WebRender does not let us change the initial clear color.
@@ -177,6 +180,12 @@ impl FrameBuilder {
         let root_size = root_bounds.outer_size();
         let auto_hide_rect = PxRect::from_size(root_size).inflate(root_size.width, root_size.height);
         root_bounds.set_outer_transform(PxTransform::identity(), info_tree);
+
+        let gen = renderer
+            .as_ref()
+            .and_then(|r| r.generation().ok())
+            .unwrap_or(ViewProcessGen::INVALID);
+        let view_process_has_frame = gen != ViewProcessGen::INVALID && gen == info_tree.view_process_gen();
 
         FrameBuilder {
             render_widgets,
@@ -208,7 +217,8 @@ impl FrameBuilder {
             child_offset: PxVector::zero(),
             parent_inner_bounds: None,
             perspective: None,
-            can_reuse: true,
+            view_process_has_frame,
+            can_reuse: view_process_has_frame,
             open_reuse: None,
             auto_hide_rect,
 
@@ -397,6 +407,7 @@ impl FrameBuilder {
             }
             // LAYOUT can be pending if parent called `collapse_child`, cleanup here.
             let _ = WIDGET.take_update(UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
+            let _ = WIDGET.take_render_reuse(&self.render_widgets, &self.render_update_widgets);
             return;
         } else {
             #[cfg(debug_assertions)]
@@ -456,11 +467,12 @@ impl FrameBuilder {
             *o -= self.child_offset;
         }
 
-        let can_reuse = match bounds.render_info() {
-            Some(i) => i.visible == self.visible && i.parent_perspective == self.perspective,
-            // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
-            None => false,
-        };
+        let can_reuse = self.view_process_has_frame
+            && match bounds.render_info() {
+                Some(i) => i.visible == self.visible && i.parent_perspective == self.perspective,
+                // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
+                None => false,
+            };
         let parent_can_reuse = mem::replace(&mut self.can_reuse, can_reuse);
 
         try_reuse &= can_reuse;
@@ -468,12 +480,10 @@ impl FrameBuilder {
         self.widget_count += 1;
         let widget_z = self.widget_count;
 
-        let mut reuse = if try_reuse {
-            WIDGET.take_render_reuse(&self.render_widgets, &self.render_update_widgets)
-        } else {
-            let _ = WIDGET.take_update(UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
-            None
-        };
+        let mut reuse = WIDGET.take_render_reuse(&self.render_widgets, &self.render_update_widgets);
+        if !try_reuse {
+            reuse = None;
+        }
 
         let mut undo_prev_outer_transform = None;
         if reuse.is_some() {
@@ -1812,6 +1822,7 @@ impl FrameBuilder {
             child_offset: self.child_offset,
             parent_inner_bounds: self.parent_inner_bounds,
             perspective: self.perspective,
+            view_process_has_frame: self.view_process_has_frame,
             can_reuse: self.can_reuse,
             open_reuse: None,
             clear_color: None,
@@ -1849,7 +1860,17 @@ impl FrameBuilder {
             info_tree,
         );
 
-        info_tree.after_render(self.frame_id, self.scale_factor, Some(self.widget_count_offsets));
+        info_tree.after_render(
+            self.frame_id,
+            self.scale_factor,
+            Some(
+                self.renderer
+                    .as_ref()
+                    .and_then(|r| r.generation().ok())
+                    .unwrap_or(ViewProcessGen::INVALID),
+            ),
+            Some(self.widget_count_offsets),
+        );
 
         let display_list = self.display_list.finalize();
 

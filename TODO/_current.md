@@ -1,7 +1,3 @@
-* Respawn test does not work.
-    - Just respawn does not render (reuse issue?)
-    - Crash respawn also did not work.
-
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
