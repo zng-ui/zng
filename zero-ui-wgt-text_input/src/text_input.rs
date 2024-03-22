@@ -306,7 +306,7 @@ pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<Widget
     zero_ui_wgt_layer::adorner_fn(child, adorner_fn)
 }
 
-/// Adorner property used by [`FieldStyle`] to show the count/max indicator when the number of chars is limited.
+/// Adorner property used by [`FieldStyle`] to show the count/max indicator.
 ///
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]

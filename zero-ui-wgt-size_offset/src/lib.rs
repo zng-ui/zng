@@ -860,7 +860,7 @@ pub fn actual_size(child: impl UiNode, size: impl IntoVar<DipSize>) -> impl UiNo
     })
 }
 
-/// Getter property, gets the latest rendered widget inner width in device independent pixels.
+/// Getter property, gets the latest rendered widget inner width.
 #[property(LAYOUT)]
 pub fn actual_width(child: impl UiNode, width: impl IntoVar<Dip>) -> impl UiNode {
     let width = width.into_var();
@@ -916,7 +916,7 @@ pub fn actual_height(child: impl UiNode, height: impl IntoVar<Dip>) -> impl UiNo
     })
 }
 
-/// Getter property, gets the latest rendered widget inner size.
+/// Getter property, gets the latest rendered widget inner size, in device pixels.
 #[property(LAYOUT)]
 pub fn actual_size_px(child: impl UiNode, size: impl IntoVar<PxSize>) -> impl UiNode {
     let size = size.into_var();
@@ -933,7 +933,7 @@ pub fn actual_size_px(child: impl UiNode, size: impl IntoVar<PxSize>) -> impl Ui
     })
 }
 
-/// Getter property, gets the latest rendered widget inner width.
+/// Getter property, gets the latest rendered widget inner width, in device pixels.
 #[property(LAYOUT)]
 pub fn actual_width_px(child: impl UiNode, width: impl IntoVar<Px>) -> impl UiNode {
     let width = width.into_var();
@@ -949,7 +949,7 @@ pub fn actual_width_px(child: impl UiNode, width: impl IntoVar<Px>) -> impl UiNo
     })
 }
 
-/// Getter property, gets the latest rendered widget inner height.
+/// Getter property, gets the latest rendered widget inner height, in device pixels.
 #[property(LAYOUT)]
 pub fn actual_height_px(child: impl UiNode, height: impl IntoVar<Px>) -> impl UiNode {
     let height = height.into_var();

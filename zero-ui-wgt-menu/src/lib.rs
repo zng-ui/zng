@@ -53,7 +53,7 @@ context_var! {
     ///
     /// Is a [`Wrap!`] panel by default.
     ///
-    /// [`Panel!`]: struct@Panel
+    /// [`Menu!`]: struct@Menu
     /// [`Wrap!`]: struct@crate::widgets::layouts::Wrap
     pub static PANEL_FN_VAR: WidgetFn<zero_ui_wgt_panel::PanelArgs> = wgt_fn!(|a: zero_ui_wgt_panel::PanelArgs| {
         zero_ui_wgt_wrap::Wrap! {

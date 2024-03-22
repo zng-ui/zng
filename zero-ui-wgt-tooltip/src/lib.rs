@@ -387,8 +387,9 @@ pub fn tooltip_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl 
     with_context_var(child, TOOLTIP_DELAY_VAR, delay)
 }
 
-/// Sets the maximum interval a second tooltip is opened instantly if a previous tip was just closed. The config
-/// applies for tooltips opening on the widget or descendants, but considers previous tooltips opened on any widget.
+/// Sets the maximum interval a second tooltip is opened instantly if a previous tip was just closed.
+///
+/// The config applies for tooltips opening on the widget or descendants, but considers previous tooltips opened on any widget.
 ///
 /// This property sets the [`TOOLTIP_INTERVAL_VAR`].
 #[property(CONTEXT, default(TOOLTIP_INTERVAL_VAR))]

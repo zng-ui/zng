@@ -37,8 +37,8 @@ context_var! {
     ///
     /// Relative lengths are relative to the viewport height, default value is `100.pct()`.
     ///
-    /// [`SCROLL_DOWN_CMD`]: crate::cmd::SCROLL_DOWN_CMD
-    /// [`SCROLL_UP_CMD`]: crate::cmd::SCROLL_UP_CMD
+    /// [`PAGE_DOWN_CMD`]: crate::cmd::PAGE_DOWN_CMD
+    /// [`PAGE_UP_CMD`]: crate::cmd::PAGE_UP_CMD
     pub static VERTICAL_PAGE_UNIT_VAR: Length = 100.pct();
 
     /// Horizontal offset multiplied by the [`MouseScrollDelta::LineDelta`] ***x***.

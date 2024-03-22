@@ -9,7 +9,7 @@ const DIP_TO_PX: i32 = 60;
 
 /// Device pixel.
 ///
-/// Represents an actual device pixel, not scaled/descaled by the pixel scale factor.
+/// Represents an actual device pixel, not descaled by the pixel scale factor.
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, bytemuck::Zeroable, bytemuck::Pod)]
 #[repr(transparent)]
 #[serde(transparent)]

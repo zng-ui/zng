@@ -462,6 +462,8 @@ fn child_max_size(wm: &mut WidgetMeasure, children: &mut PanelList, child_align:
     max_size
 }
 
+/// Basic z-stack node.
+///
 /// Creates a node that updates and layouts the `nodes` in the logical order they appear in the list
 /// and renders them one on top of the other from back(0) to front(len-1). The layout size is the largest item width and height,
 /// the parent constraints are used for the layout of each item.
@@ -474,10 +476,12 @@ pub fn stack_nodes(nodes: impl UiNodeList) -> impl UiNode {
     match_node_list(nodes, |_, _| {})
 }
 
-/// Creates a node that updates the `nodes` in the logical order they appear, renders them one on top of the other from back(0) to front(len-1),
-/// but layouts the `index` item first and uses its size to get `constraints` for the other items.
+/// Basic z-stack node sized by one of the items.
 ///
-/// The layout size is the largest item width and height.
+/// Creates a node that updates the `nodes` in the logical order they appear, renders them one on top of the other from back(0)
+/// to front(len-1), but layouts the `index` item first and uses its size to get `constraints` for the other items.
+///
+/// The layout size is the largest item width and height, usually the `index` size.
 ///
 /// If the `index` is out of range the node logs an error and behaves like [`stack_nodes`].
 pub fn stack_nodes_layout_by(

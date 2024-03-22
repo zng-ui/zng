@@ -153,6 +153,8 @@ pub mod hr {
 
     context_var! {
         /// Line color, inherits from [`FONT_COLOR_VAR`].
+        ///
+        /// [`FONT_COLOR_VAR`]: zero_ui_wgt_text::FONT_COLOR_VAR
         pub static COLOR_VAR: Rgba = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()));
 
         /// Line stroke thickness, default is `1.dip()`
@@ -214,6 +216,8 @@ pub mod vr {
 
     context_var! {
         /// Line color, inherits from [`FONT_COLOR_VAR`].
+        ///
+        /// [`FONT_COLOR_VAR`]: zero_ui_wgt_text::FONT_COLOR_VAR
         pub static COLOR_VAR: Rgba = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()));
 
         /// Line stroke thickness, default is `1.dip()`

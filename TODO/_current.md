@@ -3,8 +3,6 @@
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
-* Review main docs of other crates.
-    - Reviewed `zero_ui_wgt_menu`.
 
 # Publish
 

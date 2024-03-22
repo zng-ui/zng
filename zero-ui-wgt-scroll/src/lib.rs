@@ -24,8 +24,11 @@ pub use types::*;
 mod lazy_prop;
 pub use lazy_prop::*;
 
+#[doc(inline)]
 pub use scrollbar::Scrollbar;
+#[doc(inline)]
 pub use thumb::Thumb;
+
 use zero_ui_ext_input::focus::FocusScopeOnFocus;
 use zero_ui_wgt_container::{child_align, Container};
 use zero_ui_wgt_input::focus::{focus_scope, focus_scope_behavior};
