@@ -23,7 +23,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zero-ui = { version = "0.1", features = ["view_prebuilt"] }
+//! zng = { version = "0.1", features = ["view_prebuilt"] }
 //! ```
 //!
 //! ```no_run
@@ -164,7 +164,7 @@
 //! multiple parallel instances if built with the `"multi_app"` feature. You can use private
 //! [`app_local!`] static variables as backing storage to fulfill this requirement.
 //!
-//! A common pattern in the zero-ui services is to name the app locals with a `_SV` suffix.
+//! A common pattern in the zng services is to name the app locals with a `_SV` suffix.
 //!
 //! Services do not expose the app local locking, all state output is cloned the state is only locked
 //! for the duration of the service method call.

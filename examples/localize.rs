@@ -17,7 +17,7 @@ use zero_ui::{
 // l10n-### This standalone comment is added to all scraped template files.
 
 // Run this command to scrap template:
-// cargo run -p zero-ui-l10n-scraper -- -i"examples/localize*" -o"examples/res/localize"
+// cargo run -p zng-l10n-scraper -- -i"examples/localize*" -o"examples/res/localize"
 
 use zero_ui::view_process::prebuilt as view_process;
 

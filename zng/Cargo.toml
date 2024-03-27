@@ -1,5 +1,5 @@
 [package]
-name = "zero-ui"
+name = "zng"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -12,42 +12,42 @@ default = ["ipc", "debug_default", "view_software"]
 # Enables pre-build views and connecting to views running in another process.
 # 
 # Enabled by default.
-ipc = ["zero-ui-app/ipc", "zero-ui-view-api/ipc", "zero-ui-view?/ipc"]
+ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc"]
 
 # Enables http tasks.
-http = ["zero-ui-task/http", "zero-ui-wgt/http", "zero-ui-ext-image/http"]
+http = ["zng-task/http", "zng-wgt/http", "zng-ext-image/http"]
 
 # Enable the `dyn_*`, `inspector` features for debug builds only.
 #
 # Enabled by default.
 debug_default = [
-    "zero-ui-app/debug_default",
-    "zero-ui-wgt-inspector/debug_default",
-    "zero-ui-wgt-scroll/debug_default",
-    "zero-ui-wgt-window/debug_default",
+    "zng-app/debug_default",
+    "zng-wgt-inspector/debug_default",
+    "zng-wgt-scroll/debug_default",
+    "zng-wgt-window/debug_default",
 ]
 
 # Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_node = ["zero-ui-app/dyn_node"]
+dyn_node = ["zng-app/dyn_node"]
 
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.
-inspector = ["zero-ui-app/inspector", "zero-ui-wgt-inspector/live"]
+inspector = ["zng-app/inspector", "zng-wgt-inspector/live"]
 
 # Use dynamic dispatch at the app-extension level.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_app_extension = ["zero-ui-app/dyn_app_extension"]
+dyn_app_extension = ["zng-app/dyn_app_extension"]
 
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 #
 # This speeds-up compilation time at the cost of runtime.
 dyn_closure = [
-    "zero-ui-wgt/dyn_closure",
-    "zero-ui-wgt-scroll/dyn_closure",
-    "zero-ui-wgt-window/dyn_closure",
+    "zng-wgt/dyn_closure",
+    "zng-wgt-scroll/dyn_closure",
+    "zng-wgt-window/dyn_closure",
 ]
 
 # Test utilities.
@@ -56,7 +56,7 @@ dyn_closure = [
 #
 # Build with this feature to use the core test helper types that show
 # in the documentation.
-test_util = ["zero-ui-app/test_util", "zero-ui-ext-window/test_util"]
+test_util = ["zng-app/test_util", "zng-ext-window/test_util"]
 
 # Allows multiple app instances per-process.
 #
@@ -65,20 +65,20 @@ test_util = ["zero-ui-app/test_util", "zero-ui-ext-window/test_util"]
 # depending on the current thread.
 #
 # Not enabled by default, but enabled by `feature="test_util"`.
-multi_app = ["zero-ui-app/multi_app"]
+multi_app = ["zng-app/multi_app"]
 
 # Instrument every widget outer-most node to trace UI methods.
-trace_widget = ["zero-ui-app/trace_widget"]
+trace_widget = ["zng-app/trace_widget"]
 
 # Instrument every property and intrinsic node to trace UI methods.
 #
 # Note that this can cause very large trace files and bad performance.
-trace_wgt_item = ["zero-ui-app/trace_wgt_item"]
+trace_wgt_item = ["zng-app/trace_wgt_item"]
 
 # Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
 #
 # Not enabled by default.
-deadlock_detection = ["zero-ui-app/deadlock_detection"]
+deadlock_detection = ["zng-app/deadlock_detection"]
 
 # Embed hyphenation dictionaries for all supported languages.
 #
@@ -86,7 +86,7 @@ deadlock_detection = ["zero-ui-app/deadlock_detection"]
 # `Hyphenation::dictionary_source` method.
 #
 # Not enabled by default.
-hyphenation_embed_all = ["zero-ui-ext-font/hyphenation_embed_all"]
+hyphenation_embed_all = ["zng-ext-font/hyphenation_embed_all"]
 
 # Include all Material Icons icon sets in the default app.
 #
@@ -103,123 +103,123 @@ material_icons = [
 #
 # Not enabled by default.
 material_icons_outlined = [
-    "zero-ui-wgt-material-icons",
-    "zero-ui-wgt-material-icons/embedded",
-    "zero-ui-wgt-material-icons/outlined",
+    "zng-wgt-material-icons",
+    "zng-wgt-material-icons/embedded",
+    "zng-wgt-material-icons/outlined",
 ]
 
 # Material Icons Filled icon set.
 #
 # Not enabled by default.
 material_icons_filled = [
-    "zero-ui-wgt-material-icons",
-    "zero-ui-wgt-material-icons/embedded",
-    "zero-ui-wgt-material-icons/filled",
+    "zng-wgt-material-icons",
+    "zng-wgt-material-icons/embedded",
+    "zng-wgt-material-icons/filled",
 ]
 
 # Material Icons Rounded icon set.
 #
 # Not enabled by default.
 material_icons_rounded = [
-    "zero-ui-wgt-material-icons",
-    "zero-ui-wgt-material-icons/embedded",
-    "zero-ui-wgt-material-icons/rounded",
+    "zng-wgt-material-icons",
+    "zng-wgt-material-icons/embedded",
+    "zng-wgt-material-icons/rounded",
 ]
 
 # Material Icons Sharp icon set.
 #
 # Not enabled by default.
 material_icons_sharp = [
-    "zero-ui-wgt-material-icons",
-    "zero-ui-wgt-material-icons/embedded",
-    "zero-ui-wgt-material-icons/sharp",
+    "zng-wgt-material-icons",
+    "zng-wgt-material-icons/embedded",
+    "zng-wgt-material-icons/sharp",
 ]
 
 # Enable TOML configs.
-toml = ["zero-ui-ext-config/toml"]
+toml = ["zng-ext-config/toml"]
 # Enable RON configs.
-ron = ["zero-ui-ext-config/ron"]
+ron = ["zng-ext-config/ron"]
 # Enable YAML configs.
-yaml = ["zero-ui-ext-config/yaml"]
+yaml = ["zng-ext-config/yaml"]
 
 # Include the default view-process implementation.
-view = ["zero-ui-view"]
+view = ["zng-view"]
 # Enables software renderer fallback in the default view-process.
 #
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
 #
 # Feature enabled by default.
-view_software = ["zero-ui-view?/software"]
+view_software = ["zng-view?/software"]
 
 # Include the default view-process implementation as an embedded precompiled binary.
-view_prebuilt = ["zero-ui-view-prebuilt", "ipc"]
+view_prebuilt = ["zng-view-prebuilt", "ipc"]
 
 [dependencies]
 # foundation
-zero-ui-clone_move = { path = "../zero-ui-clone_move" }
-zero-ui-txt = { path = "../zero-ui-txt" }
-zero-ui-state_map = { path = "../zero-ui-state_map" }
-zero-ui-app_context = { path = "../zero-ui-app_context" }
-zero-ui-layout = { path = "../zero-ui-layout" }
-zero-ui-var = { path = "../zero-ui-var" }
-zero-ui-task = { path = "../zero-ui-task" }
-zero-ui-color = { path = "../zero-ui-color" }
+zng-clone_move = { path = "../zng-clone_move" }
+zng-txt = { path = "../zng-txt" }
+zng-state_map = { path = "../zng-state_map" }
+zng-app_context = { path = "../zng-app_context" }
+zng-layout = { path = "../zng-layout" }
+zng-var = { path = "../zng-var" }
+zng-task = { path = "../zng-task" }
+zng-color = { path = "../zng-color" }
 
 # view
-zero-ui-view-api = { path = "../zero-ui-view-api", default-features = false }
-zero-ui-view = { path = "../zero-ui-view", default-features = false, optional = true }
-zero-ui-view-prebuilt = { path = "../zero-ui-view-prebuilt", default-features = false, optional = true }
+zng-view-api = { path = "../zng-view-api", default-features = false }
+zng-view = { path = "../zng-view", default-features = false, optional = true }
+zng-view-prebuilt = { path = "../zng-view-prebuilt", default-features = false, optional = true }
 
 # app
-zero-ui-app = { path = "../zero-ui-app" }
-zero-ui-ext-fs_watcher = { path = "../zero-ui-ext-fs_watcher" }
-zero-ui-ext-config = { path = "../zero-ui-ext-config", default-features = false }
-zero-ui-ext-font = { path = "../zero-ui-ext-font" }
-zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
-zero-ui-ext-image = { path = "../zero-ui-ext-image" }
-zero-ui-ext-clipboard = { path = "../zero-ui-ext-clipboard" }
-zero-ui-ext-window = { path = "../zero-ui-ext-window" }
-zero-ui-ext-input = { path = "../zero-ui-ext-input" }
-zero-ui-ext-undo = { path = "../zero-ui-ext-undo" }
+zng-app = { path = "../zng-app" }
+zng-ext-fs_watcher = { path = "../zng-ext-fs_watcher" }
+zng-ext-config = { path = "../zng-ext-config", default-features = false }
+zng-ext-font = { path = "../zng-ext-font" }
+zng-ext-l10n = { path = "../zng-ext-l10n" }
+zng-ext-image = { path = "../zng-ext-image" }
+zng-ext-clipboard = { path = "../zng-ext-clipboard" }
+zng-ext-window = { path = "../zng-ext-window" }
+zng-ext-input = { path = "../zng-ext-input" }
+zng-ext-undo = { path = "../zng-ext-undo" }
 
 # widgets
-zero-ui-wgt = { path = "../zero-ui-wgt" }
-zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
-zero-ui-wgt-transform = { path = "../zero-ui-wgt-transform" }
-zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
-zero-ui-wgt-data = { path = "../zero-ui-wgt-data" }
-zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
-zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
-zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
-zero-ui-wgt-undo = { path = "../zero-ui-wgt-undo" }
-zero-ui-wgt-data_view = { path = "../zero-ui-wgt-data_view" }
-zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
-zero-ui-wgt-style = { path = "../zero-ui-wgt-style" }
-zero-ui-wgt-checkerboard = { path = "../zero-ui-wgt-checkerboard" }
-zero-ui-wgt-window = { path = "../zero-ui-wgt-window" }
-zero-ui-wgt-layer = { path = "../zero-ui-wgt-layer" }
-zero-ui-wgt-undo_history = { path = "../zero-ui-wgt-undo_history" }
-zero-ui-wgt-image = { path = "../zero-ui-wgt-image" }
-zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
-zero-ui-wgt-text_input = { path = "../zero-ui-wgt-text_input" }
-zero-ui-wgt-button = { path = "../zero-ui-wgt-button" }
-zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
-zero-ui-wgt-panel = { path = "../zero-ui-wgt-panel" }
-zero-ui-wgt-grid = { path = "../zero-ui-wgt-grid" }
-zero-ui-wgt-wrap = { path = "../zero-ui-wgt-wrap" }
-zero-ui-wgt-rule_line = { path = "../zero-ui-wgt-rule_line" }
-zero-ui-wgt-toggle = { path = "../zero-ui-wgt-toggle" }
-zero-ui-wgt-menu = { path = "../zero-ui-wgt-menu" }
-zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
-zero-ui-wgt-ansi_text = { path = "../zero-ui-wgt-ansi_text" }
-zero-ui-wgt-tooltip = { path = "../zero-ui-wgt-tooltip" }
-zero-ui-wgt-markdown = { path = "../zero-ui-wgt-markdown" }
-zero-ui-wgt-inspector = { path = "../zero-ui-wgt-inspector" }
+zng-wgt = { path = "../zng-wgt" }
+zng-wgt-access = { path = "../zng-wgt-access" }
+zng-wgt-transform = { path = "../zng-wgt-transform" }
+zng-wgt-input = { path = "../zng-wgt-input" }
+zng-wgt-data = { path = "../zng-wgt-data" }
+zng-wgt-filter = { path = "../zng-wgt-filter" }
+zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-container = { path = "../zng-wgt-container" }
+zng-wgt-undo = { path = "../zng-wgt-undo" }
+zng-wgt-data_view = { path = "../zng-wgt-data_view" }
+zng-wgt-fill = { path = "../zng-wgt-fill" }
+zng-wgt-style = { path = "../zng-wgt-style" }
+zng-wgt-checkerboard = { path = "../zng-wgt-checkerboard" }
+zng-wgt-window = { path = "../zng-wgt-window" }
+zng-wgt-layer = { path = "../zng-wgt-layer" }
+zng-wgt-undo_history = { path = "../zng-wgt-undo_history" }
+zng-wgt-image = { path = "../zng-wgt-image" }
+zng-wgt-text = { path = "../zng-wgt-text" }
+zng-wgt-text_input = { path = "../zng-wgt-text_input" }
+zng-wgt-button = { path = "../zng-wgt-button" }
+zng-wgt-stack = { path = "../zng-wgt-stack" }
+zng-wgt-panel = { path = "../zng-wgt-panel" }
+zng-wgt-grid = { path = "../zng-wgt-grid" }
+zng-wgt-wrap = { path = "../zng-wgt-wrap" }
+zng-wgt-rule_line = { path = "../zng-wgt-rule_line" }
+zng-wgt-toggle = { path = "../zng-wgt-toggle" }
+zng-wgt-menu = { path = "../zng-wgt-menu" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll" }
+zng-wgt-ansi_text = { path = "../zng-wgt-ansi_text" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip" }
+zng-wgt-markdown = { path = "../zng-wgt-markdown" }
+zng-wgt-inspector = { path = "../zng-wgt-inspector" }
 
-zero-ui-wgt-material-icons = { path = "../zero-ui-wgt-material-icons", default-features = false, optional = true }
+zng-wgt-material-icons = { path = "../zng-wgt-material-icons", default-features = false, optional = true }
 
 [package.metadata.docs.rs]
 rustdoc-args = [
     "--html-in-header",
-    "target/doc/zero-ui-material-icons-extensions.html",
+    "target/doc/zng-material-icons-extensions.html",
 ]

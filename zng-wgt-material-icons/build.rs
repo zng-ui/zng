@@ -97,8 +97,8 @@ fn generate(codepoints: &str, mod_name: &str) -> Result<String, Box<dyn Error>> 
 
 fn write_html_in_header() {
     let doc_dir = doc_dir();
-    let file = doc_dir.join("zero-ui-material-icons-extensions.css");
-    let doc_dir = doc_dir.join("zero-ui-material-icons-extensions");
+    let file = doc_dir.join("zng-material-icons-extensions.css");
+    let doc_dir = doc_dir.join("zng-material-icons-extensions");
     if !doc_dir.exists() {
         fs::create_dir(&doc_dir).unwrap();
     }
@@ -115,19 +115,19 @@ fn write_html_in_header() {
         fs::write(file, font).unwrap();
 
         writeln!(&mut css, "@font-face {{").unwrap();
-        writeln!(&mut css, "   font-family: \"zero-ui-material-icons-extensions-{mod_name}\";").unwrap();
+        writeln!(&mut css, "   font-family: \"zng-material-icons-extensions-{mod_name}\";").unwrap();
         writeln!(
             &mut css,
-            "   src: url('/zero-ui-material-icons-extensions/{mod_name}.{ext}') format(\"{format}\");"
+            "   src: url('/zng-material-icons-extensions/{mod_name}.{ext}') format(\"{format}\");"
         )
         .unwrap();
         writeln!(&mut css, "}}").unwrap();
         writeln!(&mut css, ".material-icons.{mod_name} {{").unwrap();
-        writeln!(&mut css, "   font-family: \"zero-ui-material-icons-extensions-{mod_name}\";").unwrap();
+        writeln!(&mut css, "   font-family: \"zng-material-icons-extensions-{mod_name}\";").unwrap();
         writeln!(&mut css, "}}").unwrap();
     }
     fs::write(&file, css).unwrap();
-    let html = "<link rel=\"stylesheet\" href=\"/zero-ui-material-icons-extensions.css\">";
+    let html = "<link rel=\"stylesheet\" href=\"/zng-material-icons-extensions.css\">";
     let mut file = file;
     file.set_extension("html");
     fs::write(file, html).unwrap();

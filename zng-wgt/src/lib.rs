@@ -1,10 +1,10 @@
-#![doc = include_str!("../../zero-ui-app/README.md")]
+#![doc = include_str!("../../zng-app/README.md")]
 //!
 //! Basic widget properties and helpers for declaring widgets and properties.
 //!
 //! # Widget Instantiation
 //!
-//! See [`enable_widget_macros!`] if you want to instantiate widgets without depending on the `zero-ui` crate.
+//! See [`enable_widget_macros!`] if you want to instantiate widgets without depending on the `zng` crate.
 
 // suppress nag about very simple boxed closure signatures.
 #![allow(clippy::type_complexity)]

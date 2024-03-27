@@ -1,10 +1,10 @@
 [![License](https://img.shields.io/badge/License-Apache--2.0-informational)](https://choosealicense.com/licenses/apache-2.0/)
-[![Crates.io](https://img.shields.io/crates/v/zero-ui)](https://crates.io/crates/zero-ui)
-[![docs.rs](https://img.shields.io/docsrs/zero-ui)](https://docs.rs/zero-ui)
+[![Crates.io](https://img.shields.io/crates/v/zng)](https://crates.io/crates/zng)
+[![docs.rs](https://img.shields.io/docsrs/zng)](https://docs.rs/zng)
 
-# zero-ui
+# zng
 
-Zero-Ui is the pure Rust UI framework with batteries included it provides all that you need to create beautiful,
+Zng is the pure Rust UI framework with batteries included it provides all that you need to create beautiful,
 fast and responsive multi-platform apps. Ready made highly customizable widgets, automatic focus and accessibility
 management, responsive layout, data binding, easy localization and async tasks.
 
@@ -14,7 +14,7 @@ First add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-zero-ui = { version = "0.1", features = ["view_prebuilt"] }
+zng = { version = "0.1", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -46,7 +46,7 @@ See the [`API docs`] for more details.
 
 ## Cargo Features
 
-Zero-Ui provides the following features which can be enabled in your `Cargo.toml` file:
+Zng provides the following features which can be enabled in your `Cargo.toml` file:
 
 - **`view`** — Include the default view-process implementation.
 - **`view_prebuilt`** — Include the default view-process implementation as an embedded precompiled binary.
@@ -120,6 +120,6 @@ The task runner depends on multiple cargo commands, you can run `cargo do instal
 Some workspace settings are included in the repository, in particular, `rust-analyzer` "checkOnSave" 
 and runnables are redirected to the `do` tool.
 
-[`API docs`]: https://docs.rs/zero-ui
+[`API docs`]: https://docs.rs/zng
 [`cargo-expand`]: https://github.com/dtolnay/cargo-expand
 [`cargo-asm`]: https://github.com/gnzlbg/cargo-asm

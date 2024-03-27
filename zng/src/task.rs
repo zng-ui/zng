@@ -57,7 +57,7 @@
 //!
 //! # Async IO
 //!
-//! You can use [`wait`], [`io`] and [`fs`] to do async IO, Zero-UI uses this API for internal async IO, they are just a selection
+//! You can use [`wait`], [`io`] and [`fs`] to do async IO, Zng uses this API for internal async IO, they are just a selection
 //! of external async crates re-exported for convenience and compatibility.
 //!
 //! The [`io`] module just re-exports the [`futures-lite::io`] traits and types, adding only progress tracking. The
@@ -81,7 +81,7 @@
 //!
 //! # HTTP Client
 //!
-//! You can use [`http`] to implement asynchronous HTTP requests. Zero-Ui also uses the [`http`] module for
+//! You can use [`http`] to implement asynchronous HTTP requests. Zng also uses the [`http`] module for
 //! implementing operations such as loading an image from a given URL, the module is a thin wrapper around the [`isahc`] crate.
 //!
 //! ```
@@ -110,7 +110,7 @@
 //!
 //! # Async Crates Integration
 //!
-//! You can use external async crates to create futures and then `.await` then in async code managed by Zero-Ui, but there is some
+//! You can use external async crates to create futures and then `.await` then in async code managed by Zng, but there is some
 //! consideration needed. Async code needs a runtime to execute and some async functions from external crates expect their own runtime
 //! to work properly, as a rule of thumb if the crate starts their own *event reactor* you can just use then without worry.
 //!

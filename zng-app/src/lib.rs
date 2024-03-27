@@ -4,7 +4,7 @@
 //!
 //! # Widget Instantiation
 //!
-//! See [`enable_widget_macros!`] if you want to instantiate widgets without depending on the `zero-ui` crate.
+//! See [`enable_widget_macros!`] if you want to instantiate widgets without depending on the `zng` crate.
 
 #![recursion_limit = "256"]
 // suppress nag about very simple boxed closure signatures.
@@ -48,7 +48,7 @@ use window::WindowMode;
 use zero_ui_app_context::{AppId, AppScope, LocalContext};
 use zero_ui_task::UiTask;
 
-/// Enable widget instantiation in crates that can't depend on the `zero-ui` crate.
+/// Enable widget instantiation in crates that can't depend on the `zng` crate.
 ///
 /// This must be called at the top of the crate:
 ///

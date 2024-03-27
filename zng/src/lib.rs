@@ -1,6 +1,6 @@
 #![allow(clippy::needless_doctest_main)]
 
-//! Zero-Ui is the pure Rust UI framework with batteries included it provides all that you need to create beautiful,
+//! Zng is the pure Rust UI framework with batteries included it provides all that you need to create beautiful,
 //! fast and responsive multi-platform apps. Ready made highly customizable widgets, automatic focus and accessibility
 //! management, responsive layout, data binding, easy localization and async tasks.
 //!
@@ -13,7 +13,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zero-ui = { version = "0.1", features = ["view_prebuilt"] }
+//! zng = { version = "0.1", features = ["view_prebuilt"] }
 //! ```
 //!
 //! Then create your first app:

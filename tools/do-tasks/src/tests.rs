@@ -6,7 +6,7 @@ use std::fs::read_to_string;
 
 pub fn version_in_sync() {
     let version = zero_ui_version();
-    let rgx = Regex::new(r#"zero-ui =.+(?:version = )?"(\d+\.\d+)".*"#).unwrap();
+    let rgx = Regex::new(r#"zng =.+(?:version = )?"(\d+\.\d+)".*"#).unwrap();
 
     let check_file = |path| {
         let path = format!("{manifest_dir}/../../{path}", manifest_dir = env!("CARGO_MANIFEST_DIR"));
@@ -21,13 +21,13 @@ pub fn version_in_sync() {
     };
 
     check_file("README.md");
-    check_file("zero-ui/src/lib.rs");
+    check_file("zng/src/lib.rs");
 }
 
 fn zero_ui_version() -> String {
-    let path = format!("{manifest_dir}/../../zero-ui/Cargo.toml", manifest_dir = env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{manifest_dir}/../../zng/Cargo.toml", manifest_dir = env!("CARGO_MANIFEST_DIR"));
     let toml = read_to_string(&path).expect(&path);
-    assert!(toml.contains(r#"name = "zero-ui""#), "run `do` in the project root");
+    assert!(toml.contains(r#"name = "zng""#), "run `do` in the project root");
     let rgx = Regex::new(r#"version = "(\d+\.\d+).*""#).unwrap();
     rgx.captures(&toml).unwrap().get(1).unwrap().as_str().to_owned()
 }

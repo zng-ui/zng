@@ -1,6 +1,6 @@
-#![doc = include_str!("../../zero-ui-app/README.md")]
+#![doc = include_str!("../../zng-app/README.md")]
 //!
-//! Proc-macros for `zero-ui-task`.
+//! Proc-macros for `zng-task`.
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

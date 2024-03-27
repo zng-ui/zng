@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zero-ui-app/README.md")]
+#![doc = include_str!("../../zng-app/README.md")]
 //!
 //! Localization service, [`l10n!`] and helpers.
 //!
@@ -108,7 +108,7 @@ impl AppExtension for L10nManager {
 ///
 /// # Scrap Template
 ///
-/// The `zero-ui-l10n-scraper` tool can be used to collect all localizable text of Rust code files, it is a text based search that
+/// The `zng-l10n-scraper` tool can be used to collect all localizable text of Rust code files, it is a text based search that
 /// matches this macro name and the two first input literals, avoid renaming this macro to support scrapping, otherwise you will
 /// have to declare the template file manually.
 ///

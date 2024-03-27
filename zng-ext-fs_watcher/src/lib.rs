@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zero-ui-app/README.md")]
+#![doc = include_str!("../../zng-app/README.md")]
 //!
 //! File system events and service.
 

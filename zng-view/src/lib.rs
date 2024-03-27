@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zero-ui-app/README.md")]
+#![doc = include_str!("../../zng-app/README.md")]
 //!
 //! View-Process implementation using [`glutin`].
 //!
@@ -10,8 +10,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zero-ui = "0.1"
-//! zero-ui-view = "0.1"
+//! zng = "0.1"
+//! zng-view = "0.1"
 //! ```
 //!
 //! Then call [`init`] before any other code in `main` to setup a view-process that uses
@@ -57,13 +57,13 @@
 //!
 //! # Pre-built
 //!
-//! There is a pre-built release of this crate, [`zero-ui-view-prebuilt`], it works as a drop-in replacement
+//! There is a pre-built release of this crate, [`zng-view-prebuilt`], it works as a drop-in replacement
 // that dynamically links with a pre-built library, for Windows, Linux and MacOS.
 //!
 //! In the `Cargo.toml` file:
 //!
 //! ```toml
-//! zero-ui-view-prebuilt = "0.1"
+//! zng-view-prebuilt = "0.1"
 //! ```
 //!
 //! Then in the `main.rs` file:
@@ -80,7 +80,7 @@
 //! ```
 //!
 //! The pre-built crate includes the `"software"` and `"ipc"` features, in fact `ipc` is required, even for running on the same process,
-//! you can also configure where the pre-build library is installed, see the [`zero-ui-view-prebuilt`] documentation for details.
+//! you can also configure where the pre-build library is installed, see the [`zng-view-prebuilt`] documentation for details.
 //!
 //! The pre-build crate does not support [`extensions`].
 //!
@@ -88,13 +88,13 @@
 //!
 //! This implementation of the view API provides one extension:
 //!
-//! * `"zero-ui-view.webrender_debug"`: `{ flags: DebugFlags, profiler_ui: String }`, sets Webrender debug flags.
-//!     - The `zero-ui-wgt-webrender-debug` implements a property that uses this extension.
+//! * `"zng-view.webrender_debug"`: `{ flags: DebugFlags, profiler_ui: String }`, sets Webrender debug flags.
+//!     - The `zng-wgt-webrender-debug` implements a property that uses this extension.
 //!
 //! You can also inject your own extensions, see the [`extensions`] module for more details.
 //!
 //! [`glutin`]: https://docs.rs/glutin/
-//! [`zero-ui-view-prebuilt`]: https://docs.rs/zero-ui-view-prebuilt/
+//! [`zng-view-prebuilt`]: https://docs.rs/zng-view-prebuilt/
 
 #![allow(clippy::needless_doctest_main)]
 #![doc(test(no_crate_inject))]
@@ -562,7 +562,7 @@ impl App {
         request_recv: flume::Receiver<RequestEvent>,
         mut ext: ViewExtensions,
     ) -> Self {
-        ext.renderer("zero-ui-view.webrender_debug", extensions::RendererDebugExt::new);
+        ext.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
         ext.init(&app_sender);
         App {
             headless: false,

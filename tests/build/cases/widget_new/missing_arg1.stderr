@@ -10,12 +10,12 @@ error[E0061]: this method takes 2 arguments but 1 argument was supplied
    | |_____- an argument is missing
    |
 note: method defined here
-  --> $WORKSPACE/zero-ui-wgt-fill/src/lib.rs
+  --> $WORKSPACE/zng-wgt-fill/src/lib.rs
    |
    | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
    |        ^^^^^^^^^^^^^^^^^^^
 help: provide the argument
-  --> $WORKSPACE/zero-ui-wgt/src/wgt.rs
+  --> $WORKSPACE/zng-wgt/src/wgt.rs
    |
    | background_gradient(0.deg(), /* stops */)
    |

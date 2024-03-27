@@ -18,12 +18,12 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
    | |_____- an argument is missing
    |
 note: method defined here
-  --> $WORKSPACE/zero-ui-wgt-input/src/misc.rs
+  --> $WORKSPACE/zng-wgt-input/src/misc.rs
    |
    | pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
    |        ^^^^^^
 help: provide the argument
-  --> $WORKSPACE/zero-ui-wgt/src/wgt.rs
+  --> $WORKSPACE/zng-wgt/src/wgt.rs
    |
    | cursor(/* cursor */)
    |

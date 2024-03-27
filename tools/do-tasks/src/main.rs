@@ -56,11 +56,11 @@ fn install(mut args: Vec<&str>) {
 // do doc [-o, --open] [<cargo-doc-args>]
 //        [-s, --serve]
 //
-//    Generate documentation for zero-ui crates.
+//    Generate documentation for zng crates.
 //
 // USAGE:
 //     doc -o
-//         Generate docs, then open the `zero-ui` crate on the browser.
+//         Generate docs, then open the `zng` crate on the browser.
 //     doc -s -o
 //         Generate docs, then start `basic-http-server` on the docs and open
 //         the served URL on the browser.
@@ -82,8 +82,8 @@ fn doc(mut args: Vec<&str>) {
     let package = take_option(&mut args, &["-p", "--package"], "package");
     let mut found_package = false;
 
-    let mut pkgs = util::glob("zero-ui*/Cargo.toml");
-    if let Some(i) = pkgs.iter().position(|p| p.ends_with("zero-ui/Cargo.toml")) {
+    let mut pkgs = util::glob("zng*/Cargo.toml");
+    if let Some(i) = pkgs.iter().position(|p| p.ends_with("zng/Cargo.toml")) {
         let last = pkgs.len() - 1;
         pkgs.swap(i, last);
     }
@@ -231,7 +231,7 @@ fn test(mut args: Vec<&str>) {
             nightly,
             "test",
             "--package",
-            "zero-ui*",
+            "zng*",
             "--lib",
             "--no-fail-fast",
             "--all-features",
@@ -593,12 +593,12 @@ fn release_rust_flags(is_release: bool) -> (&'static str, String) {
 }
 
 // do prebuild
-//    Compile the pre-build `zero-ui-view` release.
+//    Compile the pre-build `zng-view` release.
 fn prebuild(mut args: Vec<&str>) {
     if let Some(t) = args.iter_mut().find(|a| *a == &"-t") {
         *t = "--timings";
     }
-    cmd("cargo", &["build", "-p", "zero-ui-view", "--profile", "prebuild"], &args);
+    cmd("cargo", &["build", "-p", "zng-view", "--profile", "prebuild"], &args);
 
     let files = cdylib_files("target/prebuild/zero_ui_view");
 
@@ -608,14 +608,14 @@ fn prebuild(mut args: Vec<&str>) {
     }
 
     for file in files {
-        let target = format!("zero-ui-view-prebuilt/lib/{}", file.file_name().unwrap().to_string_lossy());
+        let target = format!("zng-view-prebuilt/lib/{}", file.file_name().unwrap().to_string_lossy());
         if let Err(e) = std::fs::copy(&file, &target) {
             error(f!("failed to copy pre-build lib `{}` to `{target}`, {e}", file.display()))
         }
     }
 
     // test build
-    cmd("cargo", &["build", "-p", "zero-ui-view-prebuilt", "--release"], &[]);
+    cmd("cargo", &["build", "-p", "zng-view-prebuilt", "--release"], &[]);
 }
 
 // do clean [--tools] [--workspace] [--release-lto] [--prebuild] [<cargo-clean-args>]

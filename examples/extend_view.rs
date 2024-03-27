@@ -365,7 +365,7 @@ pub mod using_display_items {
         use zero_ui_view_api::api_extension::ApiExtensionName;
 
         pub fn extension_name() -> ApiExtensionName {
-            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_display_items").unwrap()
+            ApiExtensionName::new("zng.examples.extend_renderer.using_display_items").unwrap()
         }
 
         #[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -825,7 +825,7 @@ pub mod using_blob {
         pub use crate::using_display_items::api::*;
 
         pub fn extension_name() -> ApiExtensionName {
-            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_blob").unwrap()
+            ApiExtensionName::new("zng.examples.extend_renderer.using_blob").unwrap()
         }
     }
 }
@@ -1029,7 +1029,7 @@ pub mod using_gl_overlay {
         pub use crate::using_display_items::api::*;
 
         pub fn extension_name() -> ApiExtensionName {
-            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_gl_overlay").unwrap()
+            ApiExtensionName::new("zng.examples.extend_renderer.using_gl_overlay").unwrap()
         }
     }
 }
@@ -1202,7 +1202,7 @@ pub mod using_gl_texture {
         pub use crate::using_display_items::api::*;
 
         pub fn extension_name() -> ApiExtensionName {
-            ApiExtensionName::new("zero-ui.examples.extend_renderer.using_gl_texture").unwrap()
+            ApiExtensionName::new("zng.examples.extend_renderer.using_gl_texture").unwrap()
         }
     }
 }

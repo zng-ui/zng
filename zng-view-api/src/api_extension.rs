@@ -42,16 +42,16 @@ impl ApiExtensionPayload {
 
     /// Value returned when an invalid extension is requested.
     ///
-    /// Value is a string `"zero-ui-view-api.unknown_extension;id={extension_id}"`.
+    /// Value is a string `"zng-view-api.unknown_extension;id={extension_id}"`.
     pub fn unknown_extension(extension_id: ApiExtensionId) -> Self {
-        Self(format!("zero-ui-view-api.unknown_extension;id={extension_id}").into_bytes())
+        Self(format!("zng-view-api.unknown_extension;id={extension_id}").into_bytes())
     }
 
     /// Value returned when an invalid request is made for a valid extension key.
     ///
-    /// Value is a string `"zero-ui-view-api.invalid_request;id={extension_id};error={error}"`.
+    /// Value is a string `"zng-view-api.invalid_request;id={extension_id};error={error}"`.
     pub fn invalid_request(extension_id: ApiExtensionId, error: impl fmt::Display) -> Self {
-        Self(format!("zero-ui-view-api.invalid_request;id={extension_id};error={error}").into_bytes())
+        Self(format!("zng-view-api.invalid_request;id={extension_id};error={error}").into_bytes())
     }
 
     /// If the payload is an [`unknown_extension`] error message, returns the key.
@@ -61,7 +61,7 @@ impl ApiExtensionPayload {
     ///
     /// [`unknown_extension`]: Self::unknown_extension
     pub fn parse_unknown_extension(&self) -> Option<ApiExtensionId> {
-        let p = self.0.strip_prefix(b"zero-ui-view-api.unknown_extension;")?;
+        let p = self.0.strip_prefix(b"zng-view-api.unknown_extension;")?;
         if let Some(p) = p.strip_prefix(b"id=") {
             if let Ok(id_str) = std::str::from_utf8(p) {
                 return match id_str.parse::<ApiExtensionId>() {
@@ -80,7 +80,7 @@ impl ApiExtensionPayload {
     ///
     /// [`invalid_request`]: Self::invalid_request
     pub fn parse_invalid_request(&self) -> Option<(ApiExtensionId, &str)> {
-        let p = self.0.strip_prefix(b"zero-ui-view-api.invalid_request;")?;
+        let p = self.0.strip_prefix(b"zng-view-api.invalid_request;")?;
         if let Some(p) = p.strip_prefix(b"id=") {
             if let Some(id_end) = p.iter().position(|&b| b == b';') {
                 if let Ok(id_str) = std::str::from_utf8(&p[..id_end]) {

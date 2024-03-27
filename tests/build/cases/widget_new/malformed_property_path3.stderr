@@ -10,7 +10,7 @@ error[E0425]: cannot find function `layout` in module `zero_ui::layout`
 6 |         zero_ui::layout:margin = 0;
   |                  ^^^^^^ help: a unit struct with a similar name exists: `LAYOUT`
   |
- ::: $WORKSPACE/zero-ui-layout/src/context.rs
+ ::: $WORKSPACE/zng-layout/src/context.rs
   |
   | pub struct LAYOUT;
   | ----------------- similarly named unit struct `LAYOUT` defined here

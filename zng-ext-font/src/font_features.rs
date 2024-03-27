@@ -472,7 +472,7 @@ impl<'a> FontFeature<'a> {
         self.state().is_disabled()
     }
 
-    /// If the feature is auto enabled zero-ui.
+    /// If the feature is auto enabled.
     pub fn is_auto(&self) -> bool {
         self.state().is_auto()
     }
@@ -565,7 +565,7 @@ impl<'a> FontFeatureSet<'a> {
         self.state().is_disabled()
     }
 
-    /// If the features are auto enabled zero-ui, or in a mixed state.
+    /// If the features are auto enabled , or in a mixed state.
     pub fn is_auto(&self) -> bool {
         self.state().is_auto()
     }

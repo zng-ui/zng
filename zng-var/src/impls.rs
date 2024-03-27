@@ -1,4 +1,4 @@
-//! zero-ui-var depends on zero-ui-[units, txt] so we need to implement these traits here.
+//! zng-var depends on zng-[units, txt] so we need to implement these traits here.
 
 use std::{any::Any, borrow::Cow, path::PathBuf, sync::Arc, time::Duration};
 

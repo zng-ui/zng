@@ -867,7 +867,7 @@ pub async fn send(request: Request) -> Result<Response, Error> {
     default_client().send(request).await
 }
 
-/// The [`Client`] used by the functions in this module and Zero-Ui.
+/// The [`Client`] used by the functions in this module.
 ///
 /// You can replace the default client at the start of the process using [`set_default_client_init`].
 ///
@@ -901,9 +901,8 @@ enum ClientInit {
 
 /// Set a custom initialization function for the [`default_client`].
 ///
-/// The [`default_client`] is used by all Zero-Ui functions and is initialized on the first usage,
-/// you can use this function before any HTTP operation to replace the [`isahc`] client
-/// used by Zero-Ui.
+/// The [`default_client`] is used by all functions in this module and is initialized on the first usage,
+/// you can use this function before any HTTP operation to replace the [`isahc`] client.
 ///
 /// Returns an error if the [`default_client`] was already initialized.
 ///

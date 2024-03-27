@@ -118,7 +118,7 @@ pub struct HeadlessRequest {
 
     /// Initial payload for API extensions.
     ///
-    /// The `zero-ui-view` crate implements this by calling `RendererExtension::configure` with the payload.
+    /// The `zng-view` crate implements this by calling `RendererExtension::configure` with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 
@@ -285,7 +285,7 @@ pub struct FrameUpdateRequest {
 
     /// Update payload for API extensions.
     ///
-    /// The `zero-ui-view` crate implements this by calling `DisplayListExtension::update` with the payload.
+    /// The `zng-view` crate implements this by calling `DisplayListExtension::update` with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// New clear color.
@@ -405,7 +405,7 @@ pub struct WindowRequest {
 
     /// Initial payload for API extensions.
     ///
-    /// The `zero-ui-view` crate implements this by calling `RendererExtension::configure` with the payload.
+    /// The `zng-view` crate implements this by calling `RendererExtension::configure` with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// Initial accessibility info tree root widget.

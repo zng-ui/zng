@@ -12,7 +12,7 @@ rand = "0.8.5"
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 
-zero-ui = { path = "../zero-ui", features = [
+zng = { path = "../zng", features = [
     "http",
     "hyphenation_embed_all",
     "inspector",
@@ -23,10 +23,10 @@ zero-ui = { path = "../zero-ui", features = [
     # "multi_app",
 ] }
 
-zero-ui-app = { path = "../zero-ui-app" }           # for respawn and extend_view examples
-zero-ui-view-api = { path = "../zero-ui-view-api" } # for the extend_view example
-zero-ui-view = { path = "../zero-ui-view" } # for the extend_view example
-zero-ui-wgt-webrender-debug = { path = "../zero-ui-wgt-webrender-debug" } # for the extend_view example
+zng-app = { path = "../zng-app" }           # for respawn and extend_view examples
+zng-view-api = { path = "../zng-view-api" } # for the extend_view example
+zng-view = { path = "../zng-view" } # for the extend_view example
+zng-wgt-webrender-debug = { path = "../zng-wgt-webrender-debug" } # for the extend_view example
 
 examples-util = { path = "util" }
 # backtrace-on-stack-overflow = "0.2"

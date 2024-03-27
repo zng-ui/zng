@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zero-ui-app/README.md")]
+#![doc = include_str!("../../zng-app/README.md")]
 //!
 //! Markdown widget, properties and nodes.
 

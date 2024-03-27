@@ -1,35 +1,35 @@
 [package]
-name = "zero-ui-wgt-markdown"
+name = "zng-wgt-markdown"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
-readme = "../zero-ui-app/README.md"
+readme = "../zng-app/README.md"
 
 [dependencies]
-zero-ui-wgt = { path = "../zero-ui-wgt" }
-zero-ui-wgt-text = { path = "../zero-ui-wgt-text" }
-zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
-zero-ui-wgt-container = { path = "../zero-ui-wgt-container" }
-zero-ui-wgt-button = { path = "../zero-ui-wgt-button" }
-zero-ui-wgt-stack = { path = "../zero-ui-wgt-stack" }
-zero-ui-wgt-wrap = { path = "../zero-ui-wgt-wrap" }
-zero-ui-wgt-rule_line = { path = "../zero-ui-wgt-rule_line" }
-zero-ui-wgt-grid = { path = "../zero-ui-wgt-grid" }
-zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
-zero-ui-wgt-ansi_text = { path = "../zero-ui-wgt-ansi_text" }
-zero-ui-wgt-layer = { path = "../zero-ui-wgt-layer" }
-zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
-zero-ui-wgt-transform = { path = "../zero-ui-wgt-transform" }
-zero-ui-wgt-input = { path = "../zero-ui-wgt-input" }
-zero-ui-wgt-image = { path = "../zero-ui-wgt-image" }
-zero-ui-wgt-tooltip = { path = "../zero-ui-wgt-tooltip" }
-zero-ui-wgt-fill = { path = "../zero-ui-wgt-fill" }
-zero-ui-wgt-filter = { path = "../zero-ui-wgt-filter" }
-zero-ui-ext-input = { path = "../zero-ui-ext-input" }
-zero-ui-ext-image = { path = "../zero-ui-ext-image" }
-zero-ui-ext-font = { path = "../zero-ui-ext-font" }
-zero-ui-app = { path = "../zero-ui-app" }
+zng-wgt = { path = "../zng-wgt" }
+zng-wgt-text = { path = "../zng-wgt-text" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll" }
+zng-wgt-container = { path = "../zng-wgt-container" }
+zng-wgt-button = { path = "../zng-wgt-button" }
+zng-wgt-stack = { path = "../zng-wgt-stack" }
+zng-wgt-wrap = { path = "../zng-wgt-wrap" }
+zng-wgt-rule_line = { path = "../zng-wgt-rule_line" }
+zng-wgt-grid = { path = "../zng-wgt-grid" }
+zng-wgt-access = { path = "../zng-wgt-access" }
+zng-wgt-ansi_text = { path = "../zng-wgt-ansi_text" }
+zng-wgt-layer = { path = "../zng-wgt-layer" }
+zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-transform = { path = "../zng-wgt-transform" }
+zng-wgt-input = { path = "../zng-wgt-input" }
+zng-wgt-image = { path = "../zng-wgt-image" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip" }
+zng-wgt-fill = { path = "../zng-wgt-fill" }
+zng-wgt-filter = { path = "../zng-wgt-filter" }
+zng-ext-input = { path = "../zng-ext-input" }
+zng-ext-image = { path = "../zng-ext-image" }
+zng-ext-font = { path = "../zng-ext-font" }
+zng-app = { path = "../zng-app" }
 
 pulldown-cmark = "0.9"
 http = "1"

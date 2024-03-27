@@ -6,7 +6,7 @@
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 //!
 //! ```toml
-//! zero-ui = { version = "*", features = ["material_icons"] }
+//! zng = { version = "*", features = ["material_icons"] }
 //! ```
 //!
 //! ```
@@ -55,7 +55,7 @@
 
 pub use zero_ui_wgt_text::icon::{ico_color, ico_size, CommandIconExt, GlyphIcon, GlyphSource, Icon};
 
-#[cfg(feature = "zero-ui-wgt-material-icons")]
+#[cfg(feature = "zng-wgt-material-icons")]
 pub use zero_ui_wgt_material_icons::{MaterialFonts, MaterialIcon};
 
 #[cfg(feature = "material_icons_filled")]

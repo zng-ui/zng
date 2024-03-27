@@ -1,29 +1,29 @@
 [package]
-name = "zero-ui-wgt-text"
+name = "zng-wgt-text"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
-readme = "../zero-ui-app/README.md"
+readme = "../zng-app/README.md"
 
 [dependencies]
-zero-ui-wgt = { path = "../zero-ui-wgt" }
-zero-ui-app_context = { path = "../zero-ui-app_context" }
-zero-ui-app = { path = "../zero-ui-app" }
-zero-ui-color = { path = "../zero-ui-color" }
-zero-ui-layout = { path = "../zero-ui-layout" }
-zero-ui-wgt-data = { path = "../zero-ui-wgt-data" }
-zero-ui-wgt-access = { path = "../zero-ui-wgt-access" }
-zero-ui-wgt-size_offset = { path = "../zero-ui-wgt-size_offset" }
-zero-ui-wgt-layer = { path = "../zero-ui-wgt-layer" }
-zero-ui-wgt-scroll = { path = "../zero-ui-wgt-scroll" }
-zero-ui-ext-undo = { path = "../zero-ui-ext-undo" }
-zero-ui-ext-font = { path = "../zero-ui-ext-font" }
-zero-ui-ext-l10n = { path = "../zero-ui-ext-l10n" }
-zero-ui-view-api = { path = "../zero-ui-view-api" }
-zero-ui-ext-clipboard = { path = "../zero-ui-ext-clipboard" }
-zero-ui-ext-input = { path = "../zero-ui-ext-input" }
-zero-ui-ext-window = { path = "../zero-ui-ext-window" }
+zng-wgt = { path = "../zng-wgt" }
+zng-app_context = { path = "../zng-app_context" }
+zng-app = { path = "../zng-app" }
+zng-color = { path = "../zng-color" }
+zng-layout = { path = "../zng-layout" }
+zng-wgt-data = { path = "../zng-wgt-data" }
+zng-wgt-access = { path = "../zng-wgt-access" }
+zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-layer = { path = "../zng-wgt-layer" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll" }
+zng-ext-undo = { path = "../zng-ext-undo" }
+zng-ext-font = { path = "../zng-ext-font" }
+zng-ext-l10n = { path = "../zng-ext-l10n" }
+zng-view-api = { path = "../zng-view-api" }
+zng-ext-clipboard = { path = "../zng-ext-clipboard" }
+zng-ext-input = { path = "../zng-ext-input" }
+zng-ext-window = { path = "../zng-ext-window" }
 
 atomic = "0.6"
 tracing = "0.1"

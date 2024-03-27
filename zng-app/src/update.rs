@@ -704,7 +704,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
 }
 static UPDATES_TRACE_ENABLED: AtomicBool = AtomicBool::new(false);
 impl UpdatesTrace {
-    const UPDATES_TARGET: &'static str = "zero-ui-updates";
+    const UPDATES_TARGET: &'static str = "zng-updates";
 
     fn new() -> Self {
         UpdatesTrace {

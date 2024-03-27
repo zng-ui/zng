@@ -55,10 +55,10 @@ fn crash_respawn() -> impl UiNode {
     Button! {
         child = Text!("Crash View-Process");
         on_click = hn!(|_| {
-            if let Ok(Some(ext)) = VIEW_PROCESS.extension_id("zero-ui.examples.respawn.crash") {
+            if let Ok(Some(ext)) = VIEW_PROCESS.extension_id("zng.examples.respawn.crash") {
                 let _ = VIEW_PROCESS.app_extension::<_, ()>(ext, &());
             } else {
-                tracing::error!(r#"extension "zero-ui-view.crash" unavailable"#)
+                tracing::error!(r#"extension "zng-view.crash" unavailable"#)
             }
         });
     }
@@ -129,6 +129,6 @@ fn icon() -> impl UiNode {
 
 fn test_extensions() -> ViewExtensions {
     let mut ext = ViewExtensions::new();
-    ext.command::<(), ()>("zero-ui.examples.respawn.crash", |_, _| panic!("CRASH"));
+    ext.command::<(), ()>("zng.examples.respawn.crash", |_, _| panic!("CRASH"));
     ext
 }

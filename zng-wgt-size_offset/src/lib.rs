@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zero-ui-app/README.md")]
+#![doc = include_str!("../../zng-app/README.md")]
 //!
 //! Exact size constraints and exact positioning properties.
 
@@ -1020,7 +1020,7 @@ pub enum WidgetLength {
     /// not just the panel constraints. Panels that support this, compute the value for each widget and measure/layout each using
     /// [`LAYOUT.with_leftover`] to inject the computed value.
     ///
-    /// [`LAYOUT.with_leftover`]: zero-ui-wgt::layout::context::LAYOUT::with_leftover
+    /// [`LAYOUT.with_leftover`]: zng_wgt::layout::context::LAYOUT::with_leftover
     Leftover(Factor),
     /// Any of the other [`Length`] kinds. All contextual metrics needed to compute these values is already available
     /// in the [`LayoutMetrics`], panels that support [`Length::Leftover`] can layout this widget first to compute the

@@ -256,13 +256,13 @@ impl GlContextManager {
         #[cfg(not(feature = "software"))]
         {
             let _ = (id, window);
-            return Err("zero-ui-view not build with \"software\" backend".into());
+            return Err("zng-view not build with \"software\" backend".into());
         }
 
         #[cfg(feature = "software")]
         {
             if !blit::Impl::supported() {
-                return Err("zero-ui-view does not fully implement headed \"software\" backend on target OS (missing blit)".into());
+                return Err("zng-view does not fully implement headed \"software\" backend on target OS (missing blit)".into());
             }
 
             let blit = blit::Impl::new(window);
@@ -398,7 +398,7 @@ impl GlContextManager {
         #[cfg(not(feature = "software"))]
         {
             let _ = id;
-            return Err("zero-ui-view not build with \"software\" backend".into());
+            return Err("zng-view not build with \"software\" backend".into());
         }
 
         #[cfg(feature = "software")]

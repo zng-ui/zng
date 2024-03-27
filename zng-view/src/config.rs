@@ -33,7 +33,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
 
     use crate::util;
 
-    let class_name: PCWSTR = windows_sys::w!("zero-ui-view::config_listener");
+    let class_name: PCWSTR = windows_sys::w!("zng-view::config_listener");
 
     unsafe {
         let class = WNDCLASSEXW {

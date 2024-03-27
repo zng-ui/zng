@@ -1,6 +1,6 @@
-#![doc = include_str!("../../zero-ui-app/README.md")]
+#![doc = include_str!("../../zng-app/README.md")]
 //!
-//! Webrender debug flags property for use with `zero-ui-view` view-process.
+//! Webrender debug flags property for use with `zng-view` view-process.
 
 pub use webrender_api::DebugFlags;
 
@@ -10,7 +10,7 @@ use zero_ui_wgt::prelude::*;
 
 /// Sets the Webrender renderer debug flags and profiler UI for the current window.
 ///
-/// Fails silently if the view-process does not implement the `"zero-ui-view.webrender_debug"` extension.
+/// Fails silently if the view-process does not implement the `"zng-view.webrender_debug"` extension.
 #[property(CONTEXT, default(RendererDebug::disabled()))]
 pub fn renderer_debug(child: impl UiNode, debug: impl IntoVar<RendererDebug>) -> impl UiNode {
     let debug = debug.into_var();
@@ -34,7 +34,7 @@ pub fn renderer_debug(child: impl UiNode, debug: impl IntoVar<RendererDebug>) ->
         }
         UiNodeOp::Layout { .. } => {
             if std::mem::take(&mut send) {
-                if let Some(ext_id) = VIEW_PROCESS.extension_id("zero-ui-view.webrender_debug").ok().flatten() {
+                if let Some(ext_id) = VIEW_PROCESS.extension_id("zng-view.webrender_debug").ok().flatten() {
                     debug.with(|d| match WINDOWS.view_render_extension(WINDOW.id(), ext_id, d) {
                         Ok(()) => {}
                         Err(e) => tracing::error!("{e}"),

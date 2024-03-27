@@ -38,9 +38,7 @@ pub fn is_rust_analyzer() -> bool {
     cfg!(rust_analyzer)
 }
 
-/// Return `$crate::core` where `$crate` is the zero-ui
-/// crate name in the crate using our proc-macros. Or, returns `$crate` where `$crate`
-/// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.
+/// Return the equivalent of `$crate`.
 pub fn crate_core() -> TokenStream {
     let (ident, module) = if is_rust_analyzer() {
         // rust-analyzer gets the wrong crate sometimes if we cache, maybe they use the same server instance
@@ -63,19 +61,19 @@ pub fn crate_core() -> TokenStream {
     }
 }
 fn crate_core_parts() -> (String, &'static str) {
-    if let Ok(ident) = crate_name("zero-ui") {
+    if let Ok(ident) = crate_name("zng") {
         // using the main crate.
         match ident {
             FoundCrate::Name(name) => (name, "__proc_macro_util"),
             FoundCrate::Itself => ("zero_ui".to_owned(), "__proc_macro_util"),
         }
-    } else if let Ok(ident) = crate_name("zero-ui-wgt") {
+    } else if let Ok(ident) = crate_name("zng-wgt") {
         // using the wgt crate.
         match ident {
             FoundCrate::Name(name) => (name, "__proc_macro_util"),
             FoundCrate::Itself => ("zero_ui_wgt".to_owned(), "__proc_macro_util"),
         }
-    } else if let Ok(ident) = crate_name("zero-ui-app") {
+    } else if let Ok(ident) = crate_name("zng-app") {
         // using the core crate only.
         match ident {
             FoundCrate::Name(name) => (name, ""),
@@ -743,7 +741,7 @@ pub mod debug_trace {
     pub fn enable(enable: bool) {
         let prev = ENABLED.swap(enable, Ordering::SeqCst);
         if prev != enable {
-            eprintln!("zero-ui-proc-macros::debug_trace {}", if enable { "enabled" } else { "disabled" });
+            eprintln!("zng-proc-macros::debug_trace {}", if enable { "enabled" } else { "disabled" });
         }
     }
 
