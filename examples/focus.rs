@@ -476,9 +476,7 @@ mod inspect {
 
 #[cfg(not(debug_assertions))]
 mod inspect {
-    use super::*;
-
-    pub fn focus(path: &Option<InteractionPath>) -> String {
+    pub fn focus(path: &Option<zng::widget::info::InteractionPath>) -> String {
         path.as_ref()
             .map(|p| format!("{:?}", p.widget_id()))
             .unwrap_or_else(|| "<none>".to_owned())

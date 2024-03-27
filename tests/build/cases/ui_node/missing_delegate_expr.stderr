@@ -11,9 +11,9 @@ error: expected `delegate = <expr>`
    |                    ^
 
 warning: unused import: `UiNode`
- --> cases/ui_node/missing_delegate_expr.rs:1:37
+ --> cases/ui_node/missing_delegate_expr.rs:1:33
   |
 1 | use zng::prelude_wgt::{ui_node, UiNode};
-  |                                     ^^^^^^
+  |                                 ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

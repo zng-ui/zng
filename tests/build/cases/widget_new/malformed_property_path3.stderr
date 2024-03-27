@@ -1,14 +1,14 @@
 error: expected `;`
- --> cases/widget_new/malformed_property_path3.rs:6:24
+ --> cases/widget_new/malformed_property_path3.rs:6:20
   |
 6 |         zng::layout:margin = 0;
-  |                        ^
+  |                    ^
 
 error[E0425]: cannot find function `layout` in module `zng::layout`
- --> cases/widget_new/malformed_property_path3.rs:6:18
+ --> cases/widget_new/malformed_property_path3.rs:6:14
   |
 6 |         zng::layout:margin = 0;
-  |                  ^^^^^^ help: a unit struct with a similar name exists: `LAYOUT`
+  |              ^^^^^^ help: a unit struct with a similar name exists: `LAYOUT`
   |
  ::: $WORKSPACE/zng-layout/src/context.rs
   |
@@ -16,16 +16,16 @@ error[E0425]: cannot find function `layout` in module `zng::layout`
   | ----------------- similarly named unit struct `LAYOUT` defined here
 
 error[E0425]: cannot find value `layout` in this scope
- --> cases/widget_new/malformed_property_path3.rs:6:18
+ --> cases/widget_new/malformed_property_path3.rs:6:14
   |
 6 |         zng::layout:margin = 0;
-  |                  ^^^^^^ not found in this scope
+  |              ^^^^^^ not found in this scope
 
 error[E0599]: no method named `margin` found for mutable reference `&mut Wgt` in the current scope
- --> cases/widget_new/malformed_property_path3.rs:6:25
+ --> cases/widget_new/malformed_property_path3.rs:6:21
   |
 6 |         zng::layout:margin = 0;
-  |                         ^^^^^^ method not found in `&mut Wgt`
+  |                     ^^^^^^ method not found in `&mut Wgt`
   |
   = help: items from traits can only be used if the trait is in scope
 help: the following traits are implemented but not in scope; perhaps add a `use` for one of them:

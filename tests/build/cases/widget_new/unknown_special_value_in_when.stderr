@@ -5,9 +5,9 @@ error: unexpected token
   |                         ^
 
 warning: unused imports: `gesture::is_pressed`, `layout::margin`
- --> cases/widget_new/unknown_special_value_in_when.rs:1:15
+ --> cases/widget_new/unknown_special_value_in_when.rs:1:11
   |
 1 | use zng::{gesture::is_pressed, layout::margin, widget::Wgt, APP};
-  |               ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+  |           ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

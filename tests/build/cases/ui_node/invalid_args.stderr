@@ -5,9 +5,9 @@ error: expected `child`, `children`, `delegate`, or, `delegate_list`
   |           ^^^^^^^^^^^
 
 warning: unused import: `UiNode`
- --> cases/ui_node/invalid_args.rs:1:37
+ --> cases/ui_node/invalid_args.rs:1:33
   |
 1 | use zng::prelude_wgt::{ui_node, UiNode};
-  |                                     ^^^^^^
+  |                                 ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

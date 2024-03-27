@@ -5,9 +5,9 @@ error: expected `delegate = <expr>`
   |     ^^^^^^^^
 
 warning: unused import: `UiNode`
- --> cases/ui_node/incorrect_assign_token.rs:1:48
+ --> cases/ui_node/incorrect_assign_token.rs:1:44
   |
 1 | use zng::prelude_wgt::{ui_node, NilUiNode, UiNode};
-  |                                                ^^^^^^
+  |                                            ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default
