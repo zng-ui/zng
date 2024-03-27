@@ -42,9 +42,7 @@ use zng_view_api::{
     font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
 };
-pub(crate) use zng_view_api::{
-    window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId, Controller, DeviceId as ApiDeviceId,
-};
+pub(crate) use zng_view_api::{window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId, Controller, DeviceId as ApiDeviceId};
 
 use self::raw_device_events::DeviceId;
 
@@ -300,11 +298,7 @@ impl VIEW_PROCESS {
         });
     }
 
-    pub(crate) fn on_window_opened(
-        &self,
-        window_id: WindowId,
-        data: zng_view_api::window::WindowOpenData,
-    ) -> (ViewWindow, WindowOpenData) {
+    pub(crate) fn on_window_opened(&self, window_id: WindowId, data: zng_view_api::window::WindowOpenData) -> (ViewWindow, WindowOpenData) {
         let mut app = self.write();
         let _ = app.check_generation();
 

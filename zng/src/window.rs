@@ -157,7 +157,5 @@ pub mod native_dialog {
 ///
 /// [`cmd::INSPECT_CMD`]: crate::window::cmd::INSPECT_CMD
 pub mod inspector {
-    pub use zng_wgt_inspector::debug::{
-        show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode,
-    };
+    pub use zng_wgt_inspector::debug::{show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode};
 }

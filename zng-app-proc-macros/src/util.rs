@@ -597,10 +597,9 @@ pub fn take_zng_lints(
                             "cannot set zng lints to warn because warning diagnostics are not stable",
                             attr.path().span(),
                         ),
-                        LintLevel::Allow if forbidden.contains(&lint_ident) => errors.push(
-                            format_args!("lint `zng::{lint_ident}` is `forbid` in this context"),
-                            attr.span(),
-                        ),
+                        LintLevel::Allow if forbidden.contains(&lint_ident) => {
+                            errors.push(format_args!("lint `zng::{lint_ident}` is `forbid` in this context"), attr.span())
+                        }
                         _ => {
                             r.push((lint_ident, level, attr));
                         }

@@ -1029,12 +1029,7 @@ impl WidgetAccessInfo {
         true
     }
 
-    fn to_access_updates(
-        &self,
-        prev_tree: &WidgetInfoTree,
-        inverse: &InverseAccess,
-        updates: &mut Vec<zng_view_api::access::AccessTree>,
-    ) {
+    fn to_access_updates(&self, prev_tree: &WidgetInfoTree, inverse: &InverseAccess, updates: &mut Vec<zng_view_api::access::AccessTree>) {
         if !self.is_local_accessible() {
             // not accessible
             *self.access().view_bounds.lock() = None;

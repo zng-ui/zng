@@ -159,12 +159,7 @@ pub fn lazy_size(
     spacing: impl IntoVar<Length>,
     child_size: impl IntoVar<Size>,
 ) -> impl UiNode {
-    lazy_sample(
-        children_len,
-        direction,
-        spacing,
-        zng_wgt_size_offset::size(NilUiNode, child_size),
-    )
+    lazy_sample(children_len, direction, spacing, zng_wgt_size_offset::size(NilUiNode, child_size))
 }
 
 /// Create a node that estimates the size of stack panel children.

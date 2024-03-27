@@ -1,6 +1,4 @@
-use zng_view_api::config::{
-    AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
-};
+use zng_view_api::config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig};
 
 /// Create a hidden window that listens to Windows config change events.
 #[cfg(windows)]

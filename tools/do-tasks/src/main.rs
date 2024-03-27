@@ -227,15 +227,7 @@ fn test(mut args: Vec<&str>) {
     if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
         // unit tests:
 
-        let t_args = vec![
-            nightly,
-            "test",
-            "--package",
-            "zng*",
-            "--lib",
-            "--no-fail-fast",
-            "--all-features",
-        ];
+        let t_args = vec![nightly, "test", "--package", "zng*", "--lib", "--no-fail-fast", "--all-features"];
 
         if unit_tests.contains(&"*") {
             cmd_env("cargo", &t_args, &args, env);

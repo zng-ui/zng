@@ -435,11 +435,7 @@ impl ExternalImages {
     /// The `pixels` are held in memory until [`unregister`] or the window is closed.
     ///
     /// [`unregister`]: Self::unregister
-    pub fn register_image(
-        &mut self,
-        descriptor: webrender::api::ImageDescriptor,
-        pixels: zng_view_api::ipc::IpcBytes,
-    ) -> ExternalImageId {
+    pub fn register_image(&mut self, descriptor: webrender::api::ImageDescriptor, pixels: zng_view_api::ipc::IpcBytes) -> ExternalImageId {
         self.register(crate::image_cache::ImageData::RawData {
             size: descriptor.size.cast().cast_unit(), // not used
             pixels,

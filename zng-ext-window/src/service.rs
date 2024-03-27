@@ -32,9 +32,7 @@ use zng_task::{
 };
 use zng_txt::{formatx, Txt};
 use zng_unique_id::{IdMap, IdSet};
-use zng_var::{
-    impl_from_and_into_var, response_done_var, response_var, var, ArcVar, BoxedVar, LocalVar, ResponderVar, ResponseVar, Var,
-};
+use zng_var::{impl_from_and_into_var, response_done_var, response_var, var, ArcVar, BoxedVar, LocalVar, ResponderVar, ResponseVar, Var};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
