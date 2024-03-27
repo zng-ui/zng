@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use zero_ui_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, CONFIG};
-use zero_ui_ext_window::{
+use zng_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, CONFIG};
+use zng_ext_window::{
     AutoSize, FrameCaptureMode, MonitorQuery, WINDOW_Ext as _, WindowIcon, WindowLoadingHandle, WindowState, WindowVars, MONITORS,
     WINDOW_LOAD_EVENT,
 };
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 use serde::{Deserialize, Serialize};
 
@@ -340,7 +340,7 @@ pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> imp
 pub enum BlockWindowLoad {
     /// Widget requests a [`WindowLoadingHandle`] and retains it until the widget is loaded.
     ///
-    /// [`WindowLoadingHandle`]: zero_ui_ext_window::WindowLoadingHandle
+    /// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
     Enabled {
         /// Handle expiration deadline, if the widget takes longer than this deadline the window loads anyway.
         deadline: Deadline,

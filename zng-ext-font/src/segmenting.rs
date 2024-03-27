@@ -5,8 +5,8 @@ use crate::emoji_util;
 use super::Txt;
 use unicode_bidi::{BidiDataSource as _, BidiInfo};
 
-use zero_ui_layout::context::LayoutDirection;
-pub use zero_ui_layout::context::TextSegmentKind;
+use zng_layout::context::LayoutDirection;
+pub use zng_layout::context::TextSegmentKind;
 
 pub use unicode_bidi::Level as BidiLevel;
 
@@ -245,8 +245,8 @@ impl SegmentedText {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_ext_font::SegmentedText;
-    /// # use zero_ui_layout::context::LayoutDirection;
+    /// # use zng_ext_font::SegmentedText;
+    /// # use zng_layout::context::LayoutDirection;
     /// for (sub_str, seg) in SegmentedText::new("Foo bar!\nBaz.", LayoutDirection::LTR).iter() {
     ///     println!("s: {sub_str:?} is a `{:?}`", seg.kind);
     /// }
@@ -709,8 +709,8 @@ fn into_unic_level(d: LayoutDirection) -> unicode_bidi::Level {
 
 #[cfg(test)]
 mod tests {
-    use zero_ui_layout::context::{LayoutDirection, TextSegmentKind};
-    use zero_ui_txt::ToTxt;
+    use zng_layout::context::{LayoutDirection, TextSegmentKind};
+    use zng_txt::ToTxt;
 
     use crate::{BidiLevel, SegmentedText, TextSegment};
 

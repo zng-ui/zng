@@ -7,10 +7,10 @@ use std::{
 };
 
 use crate::Deadline;
-use zero_ui_app_context::{app_local, AppScope};
-use zero_ui_task::DEADLINE_APP;
-use zero_ui_time::{InstantMode, INSTANT_APP};
-use zero_ui_var::{response_var, ArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
+use zng_app_context::{app_local, AppScope};
+use zng_task::DEADLINE_APP;
+use zng_time::{InstantMode, INSTANT_APP};
+use zng_var::{response_var, ArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
 
 use crate::{
     event::{
@@ -39,8 +39,8 @@ pub(crate) struct RunningApp<E: AppExtension> {
     loop_timer: LoopTimer,
     loop_monitor: LoopMonitor,
 
-    pending_view_events: Vec<zero_ui_view_api::Event>,
-    pending_view_frame_events: Vec<zero_ui_view_api::window::EventFrameRendered>,
+    pending_view_events: Vec<zng_view_api::Event>,
+    pending_view_frame_events: Vec<zng_view_api::window::EventFrameRendered>,
     pending: ContextUpdates,
 
     exited: bool,
@@ -68,7 +68,7 @@ impl<E: AppExtension> RunningApp<E> {
         VARS_APP.init_app_waker(app_waker);
         VARS_APP.init_modify_trace(UpdatesTrace::log_var);
         DEADLINE_APP.init_deadline_service(crate::timer::deadline_service);
-        zero_ui_var::types::TRANSITIONABLE_APP.init_rgba_lerp(zero_ui_color::lerp_rgba);
+        zng_var::types::TRANSITIONABLE_APP.init_rgba_lerp(zng_color::lerp_rgba);
 
         let mut info = AppExtensionsInfo::start();
         {
@@ -141,17 +141,17 @@ impl<E: AppExtension> RunningApp<E> {
         update.call_pos_actions();
     }
 
-    fn device_id(&mut self, id: zero_ui_view_api::DeviceId) -> DeviceId {
+    fn device_id(&mut self, id: zng_view_api::DeviceId) -> DeviceId {
         VIEW_PROCESS.device_id(id)
     }
 
     /// Process a View Process event.
-    fn on_view_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::Event, observer: &mut O) {
+    fn on_view_event<O: AppEventObserver>(&mut self, ev: zng_view_api::Event, observer: &mut O) {
         use crate::view_process::raw_device_events::*;
         use crate::view_process::raw_events::*;
-        use zero_ui_view_api::Event;
+        use zng_view_api::Event;
 
-        fn window_id(id: zero_ui_view_api::window::WindowId) -> WindowId {
+        fn window_id(id: zng_view_api::window::WindowId) -> WindowId {
             WindowId::from_raw(id.get())
         }
 
@@ -468,13 +468,13 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Others
-            Event::Inited(zero_ui_view_api::Inited { .. }) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
+            Event::Inited(zng_view_api::Inited { .. }) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
         }
     }
 
     /// Process a [`Event::FrameRendered`] event.
-    fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zero_ui_view_api::window::EventFrameRendered, observer: &mut O) {
-        debug_assert!(ev.window != zero_ui_view_api::window::WindowId::INVALID);
+    fn on_view_rendered_event<O: AppEventObserver>(&mut self, ev: zng_view_api::window::EventFrameRendered, observer: &mut O) {
+        debug_assert!(ev.window != zng_view_api::window::WindowId::INVALID);
         let window_id = WindowId::from_raw(ev.window.get());
         // view.on_frame_rendered(window_id); // already called in push_coalesce
         let image = ev.frame_image.map(|img| VIEW_PROCESS.on_frame_image(img));
@@ -503,8 +503,8 @@ impl<E: AppExtension> RunningApp<E> {
     fn push_coalesce<O: AppEventObserver>(&mut self, ev: AppEvent, observer: &mut O) {
         match ev {
             AppEvent::ViewEvent(ev) => match ev {
-                zero_ui_view_api::Event::FrameRendered(ev) => {
-                    if ev.window == zero_ui_view_api::window::WindowId::INVALID {
+                zng_view_api::Event::FrameRendered(ev) => {
+                    if ev.window == zng_view_api::window::WindowId::INVALID {
                         tracing::error!("ignored rendered event for invalid window id, {ev:?}");
                         return;
                     }
@@ -525,7 +525,7 @@ impl<E: AppExtension> RunningApp<E> {
 
                     self.pending_view_frame_events.push(ev);
                 }
-                zero_ui_view_api::Event::Inited(zero_ui_view_api::Inited {
+                zng_view_api::Event::Inited(zng_view_api::Inited {
                     generation,
                     is_respawn,
                     available_monitors,
@@ -567,7 +567,7 @@ impl<E: AppExtension> RunningApp<E> {
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
                 }
-                zero_ui_view_api::Event::Disconnected(gen) => {
+                zng_view_api::Event::Disconnected(gen) => {
                     // update ViewProcess immediately.
                     VIEW_PROCESS.handle_disconnect(gen);
                 }
@@ -957,7 +957,7 @@ impl LoopTimer {
         self.now
     }
 }
-impl zero_ui_var::animation::AnimationTimer for LoopTimer {
+impl zng_var::animation::AnimationTimer for LoopTimer {
     fn elapsed(&mut self, deadline: Deadline) -> bool {
         self.elapsed(deadline)
     }
@@ -1138,7 +1138,7 @@ impl AppIntrinsic {
             .read()
             .pause_time_for_updates
             .hook(|a| {
-                if !matches!(INSTANT.mode(), zero_ui_time::InstantMode::Manual) {
+                if !matches!(INSTANT.mode(), zng_time::InstantMode::Manual) {
                     if *a.value() {
                         INSTANT_APP.set_mode(InstantMode::UpdatePaused);
                     } else {
@@ -1205,7 +1205,7 @@ impl AppExtension for AppIntrinsic {
 }
 
 pub(crate) fn assert_not_view_process() {
-    if zero_ui_view_api::ViewConfig::from_env().is_some() {
+    if zng_view_api::ViewConfig::from_env().is_some() {
         panic!("cannot start App in view-process");
     }
 }
@@ -1266,7 +1266,7 @@ app_local! {
         exit_requests: None,
         extensions: None,
         device_events: false,
-        pause_time_for_updates: zero_ui_var::var(true),
+        pause_time_for_updates: zng_var::var(true),
     };
 }
 
@@ -1309,7 +1309,7 @@ impl AppProcessService {
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum AppEvent {
     /// Event from the View Process.
-    ViewEvent(zero_ui_view_api::Event),
+    ViewEvent(zng_view_api::Event),
     /// Notify [`Events`](crate::var::Events).
     Event(crate::event::EventUpdateMsg),
     /// Do an update cycle.
@@ -1338,7 +1338,7 @@ impl AppEventSender {
         Ok(())
     }
 
-    fn send_view_event(&self, event: zero_ui_view_api::Event) -> Result<(), AppDisconnected<AppEvent>> {
+    fn send_view_event(&self, event: zng_view_api::Event) -> Result<(), AppDisconnected<AppEvent>> {
         self.0.send(AppEvent::ViewEvent(event))?;
         Ok(())
     }
@@ -1541,7 +1541,7 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
     fn recv_deadline_sp(&self, deadline: Deadline) -> Result<T, flume::RecvTimeoutError> {
         loop {
             if let Some(d) = deadline.0.checked_duration_since(INSTANT.now()) {
-                if matches!(INSTANT.mode(), zero_ui_time::InstantMode::Manual) {
+                if matches!(INSTANT.mode(), zng_time::InstantMode::Manual) {
                     // manual time is probably desynched from `Instant`, so we use `recv_timeout` that
                     // is slightly less precise, but an app in manual mode probably does not care.
                     match self.recv_timeout(d.checked_sub(WORST_SLEEP_ERR).unwrap_or_default()) {

@@ -1,5 +1,5 @@
-use zero_ui_app_context::app_local;
-use zero_ui_time::INSTANT_APP;
+use zng_app_context::app_local;
+use zng_time::INSTANT_APP;
 
 use crate::update::{UpdatesTrace, UPDATES};
 

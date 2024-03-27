@@ -44,7 +44,7 @@ pub use app_process::*;
 
 mod view_process;
 pub use view_process::*;
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 use std::fmt;
 
@@ -55,7 +55,7 @@ use font::{FontFaceId, FontId, FontOptions, FontVariationName};
 use image::{ImageId, ImageMaskMode, ImageRequest, ImageTextureId};
 use ipc::{IpcBytes, IpcBytesReceiver};
 use window::WindowId;
-use zero_ui_unit::{DipRect, DipSize, Factor, Px, PxRect};
+use zng_unit::{DipRect, DipSize, Factor, Px, PxRect};
 
 /// Packaged API request.
 #[derive(Debug)]

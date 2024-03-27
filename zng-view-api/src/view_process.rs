@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 use crate::{VIEW_MODE, VIEW_SERVER, VIEW_VERSION};
 
@@ -140,7 +140,7 @@ impl ViewConfig {
     /// Used to communicate the `ViewConfig` in the same process, we don't use
     /// a static variable because prebuild view-process implementations don't
     /// statically link with the same variable.
-    const SAME_PROCESS_VAR: &'static str = "zero_ui_view_api::ViewConfig";
+    const SAME_PROCESS_VAR: &'static str = "zng_view_api::ViewConfig";
     const SG_WAITING: &'static str = "WAITING";
     const SG_DONE: &'static str = "DONE";
 }

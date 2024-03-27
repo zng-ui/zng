@@ -14,7 +14,7 @@
 //! to write it.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn local(size: impl IntoVar<layout::Size>) {
 //!     let size = size.into_var();
@@ -40,7 +40,7 @@
 //! all subscribers.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let height = var(2.em());
@@ -60,7 +60,7 @@
 //! this is done so that all widgets in a single update react to the same value. The variable values is updated at the end of the current update.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let number = var(0u8);
@@ -89,7 +89,7 @@
 //! The example below demonstrates how the `modify` closure observes a value that was just set in the same update cycle.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let foo = var(0u8);
@@ -121,7 +121,7 @@
 //! The example below demonstrates a button that updates an integer variable that is mapped to a text.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let count = var(0u32);
@@ -148,7 +148,7 @@
 //! demo to use a [`bind_map`](Var::bind_map) instead.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let count = var(0u32);
@@ -180,7 +180,7 @@
 //!
 //! The example below uses [`Var::easing`] to animate the window background:
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let color = var(colors::AZURE.darken(30.pct()));
@@ -210,7 +210,7 @@
 //! any future into a response var, and you can use [`wait_rsp`] to convert a response var to a future.
 //!
 //! ```no_run
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let rsp = task::respond(async {
@@ -222,7 +222,7 @@
 //! });
 //! # let _ =
 //! SelectableText!(rsp.map(|r| {
-//!     use zero_ui::var::Response::*;
+//!     use zng::var::Response::*;
 //!     match r {
 //!         Waiting => Txt::from("loading.."),
 //!         Done(t) => t.clone(),
@@ -245,7 +245,7 @@
 //! The example below demonstrates the two macros.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let a = var(10u32);
@@ -277,15 +277,15 @@
 //!
 //! ```
 //! # fn main() { }
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! context_var! {
 //!     static FOO_VAR: Txt = "";
 //! }
 //!
-//! #[zero_ui::widget::property(CONTEXT, default(FOO_VAR))]
+//! #[zng::widget::property(CONTEXT, default(FOO_VAR))]
 //! pub fn foo(child: impl UiNode, foo: impl IntoVar<Txt>) -> impl UiNode {
-//!     zero_ui::widget::node::with_context_var(child, FOO_VAR, foo)
+//!     zng::widget::node::with_context_var(child, FOO_VAR, foo)
 //! }
 //!
 //! fn demo() -> impl UiNode {
@@ -309,13 +309,13 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_var`] for the full var API.
+//! See [`zng_var`] for the full var API.
 
-pub use zero_ui_var::types::{
+pub use zng_var::types::{
     AnyWhenVarBuilder, ArcCowVar, ArcWhenVar, ContextualizedVar, ReadOnlyVar, Response, VecChange, WeakArcVar, WeakContextualizedVar,
     WeakReadOnlyVar, WeakWhenVar,
 };
-pub use zero_ui_var::{
+pub use zng_var::{
     context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_default,
     var_from, when_var, AnyVar, AnyVarValue, AnyWeakVar, ArcEq, ArcVar, BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar,
     ContextInitHandle, ContextVar, IntoValue, IntoVar, LocalVar, MergeVarBuilder, ObservableVec, ReadOnlyArcVar, ReadOnlyContextVar,
@@ -323,18 +323,18 @@ pub use zero_ui_var::{
     VarValue, WeakVar, VARS,
 };
 
-pub use zero_ui_app::widget::{AnyVarSubscribe, VarLayout, VarSubscribe};
+pub use zng_app::widget::{AnyVarSubscribe, VarLayout, VarSubscribe};
 
 /// Var animation types and functions.
 pub mod animation {
-    pub use zero_ui_var::animation::{
+    pub use zng_var::animation::{
         Animation, AnimationController, AnimationHandle, ChaseAnimation, ModifyInfo, NilAnimationObserver, Transition, TransitionKeyed,
         Transitionable, WeakAnimationHandle,
     };
 
     /// Common easing functions.
     pub mod easing {
-        pub use zero_ui_var::animation::easing::{
+        pub use zng_var::animation::easing::{
             back, bounce, circ, cubic, cubic_bezier, ease_in, ease_in_out, ease_out, ease_out_in, elastic, expo, linear, none, quad, quart,
             quint, reverse, reverse_out, sine, step_ceil, step_floor, Bezier, EasingFn, EasingStep, EasingTime,
         };

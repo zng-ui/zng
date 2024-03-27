@@ -1,7 +1,7 @@
 use std::{mem, thread::ThreadId, time::Duration};
 
-use zero_ui_app_context::{app_local, context_local};
-use zero_ui_time::INSTANT_APP;
+use zng_app_context::{app_local, context_local};
+use zng_time::INSTANT_APP;
 
 use crate::animation::AnimationTimer;
 
@@ -151,10 +151,10 @@ impl VARS {
     /// stops the `completed` variable is set to `true`.
     ///
     /// ```
-    /// # use zero_ui_var::{*, animation::easing};
-    /// # use zero_ui_txt::*;
-    /// # use zero_ui_unit::*;
-    /// # use zero_ui_clone_move::*;
+    /// # use zng_var::{*, animation::easing};
+    /// # use zng_txt::*;
+    /// # use zng_unit::*;
+    /// # use zng_clone_move::*;
     /// #
     /// fn animate_text(text: &impl Var<Txt>, completed: &impl Var<bool>) {
     ///     let transition = animation::Transition::new(0u8, 100);
@@ -185,9 +185,9 @@ impl VARS {
     /// methods.
     ///
     /// ```
-    /// # use zero_ui_var::{*, animation::easing};
-    /// # use zero_ui_txt::*;
-    /// # use zero_ui_unit::*;
+    /// # use zng_var::{*, animation::easing};
+    /// # use zng_txt::*;
+    /// # use zng_unit::*;
     /// # fn demo() {
     /// let value = var(0u8);
     /// let text = value.map(|v| formatx!("Animation at {v}%"));

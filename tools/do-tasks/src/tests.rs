@@ -5,7 +5,7 @@ use regex::Regex;
 use std::fs::read_to_string;
 
 pub fn version_in_sync() {
-    let version = zero_ui_version();
+    let version = zng_version();
     let rgx = Regex::new(r#"zng =.+(?:version = )?"(\d+\.\d+)".*"#).unwrap();
 
     let check_file = |path| {
@@ -24,7 +24,7 @@ pub fn version_in_sync() {
     check_file("zng/src/lib.rs");
 }
 
-fn zero_ui_version() -> String {
+fn zng_version() -> String {
     let path = format!("{manifest_dir}/../../zng/Cargo.toml", manifest_dir = env!("CARGO_MANIFEST_DIR"));
     let toml = read_to_string(&path).expect(&path);
     assert!(toml.contains(r#"name = "zng""#), "run `do` in the project root");

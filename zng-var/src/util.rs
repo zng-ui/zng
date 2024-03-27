@@ -16,7 +16,7 @@
 /// then implements conversions from literals the user may want to type in a widget:
 ///
 /// ```
-/// # use zero_ui_var::impl_from_and_into_var;
+/// # use zng_var::impl_from_and_into_var;
 /// #[derive(Debug, Clone, PartialEq)]
 /// pub enum FooValue {
 ///     On,
@@ -50,7 +50,7 @@
 ///     }
 /// }///
 /// # pub struct Foo;
-/// # fn assert(_: impl zero_ui_var::IntoVar<FooValue> + Into<FooValue>) { }
+/// # fn assert(_: impl zng_var::IntoVar<FooValue> + Into<FooValue>) { }
 /// # assert(true);
 /// # assert("on");
 /// ```
@@ -151,7 +151,7 @@ macro_rules! __impl_from_and_into_var {
 
         $tt:tt $($rest:tt)+
     ) => {
-        //zero_ui_proc_macros::trace! {
+        //zng_proc_macros::trace! {
         $crate::__impl_from_and_into_var! {
             =generics=>
             [

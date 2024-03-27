@@ -1,5 +1,5 @@
-use zero_ui_layout::unit::PxSize;
-use zero_ui_var::{BoxedVar, Var};
+use zng_layout::unit::PxSize;
+use zng_var::{BoxedVar, Var};
 
 use crate::{
     update::{EventUpdate, WidgetUpdates},

@@ -1,13 +1,13 @@
 //! Commands that control the scoped window.
 
-use zero_ui_app::{
+use zng_app::{
     event::{command, CommandHandle, CommandInfoExt, CommandNameExt},
     shortcut::{shortcut, CommandShortcutExt},
     update::EventUpdate,
     window::{WindowId, WINDOW},
 };
-use zero_ui_var::Var;
-use zero_ui_view_api::window::WindowState;
+use zng_var::Var;
+use zng_view_api::window::WindowState;
 
 use crate::{WindowVars, WINDOWS};
 

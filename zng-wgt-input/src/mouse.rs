@@ -5,11 +5,11 @@
 //! Before using them review the [`gesture`](super::gesture) events, in particular the
 //! [`on_click`](fn@super::gesture::on_click) event.
 
-use zero_ui_ext_input::mouse::{
+use zng_ext_input::mouse::{
     MouseClickArgs, MouseHoverArgs, MouseInputArgs, MouseMoveArgs, MouseWheelArgs, MOUSE_CLICK_EVENT, MOUSE_HOVERED_EVENT,
     MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT,
 };
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 event_property! {
     /// Mouse cursor moved over the widget and cursor capture allows it.

@@ -1,13 +1,13 @@
 //! Window layers.
 
 use parking_lot::Mutex;
-use zero_ui_app::widget::border::CORNER_RADIUS_VAR;
-use zero_ui_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
-use zero_ui_ext_input::mouse::MOUSE;
-use zero_ui_ext_input::touch::TOUCH;
-use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_var::{animation, ContextInitHandle};
-use zero_ui_wgt::prelude::*;
+use zng_app::widget::border::CORNER_RADIUS_VAR;
+use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
+use zng_ext_input::mouse::MOUSE;
+use zng_ext_input::touch::TOUCH;
+use zng_ext_window::WINDOW_Ext as _;
+use zng_var::{animation, ContextInitHandle};
+use zng_wgt::prelude::*;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{fmt, mem, ops};
@@ -628,9 +628,9 @@ impl LAYERS {
         } else {
             let items = WINDOW.with_state(|s| s.req(&WINDOW_LAYERS_ID).items.clone());
             id.hook(Box::new(move |a| {
-                match a.downcast_value::<zero_ui_var::types::Response<WidgetId>>().unwrap() {
-                    zero_ui_var::types::Response::Waiting => true,
-                    zero_ui_var::types::Response::Done(id) => {
+                match a.downcast_value::<zng_var::types::Response<WidgetId>>().unwrap() {
+                    zng_var::types::Response::Waiting => true,
+                    zng_var::types::Response::Done(id) => {
                         // remove item and hook
                         items.remove(*id);
                         false
@@ -1175,7 +1175,7 @@ pub struct AnchorMode {
     pub visibility: bool,
     /// The widget [`interactivity`] is set to the same as the anchor widget.
     ///
-    /// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
+    /// [`interactivity`]: zng_app::widget::info::WidgetInfo::interactivity
     pub interactivity: bool,
 
     /// The widget's corner radius is set for the layer.

@@ -5,26 +5,26 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
 use std::time::Duration;
 
-use zero_ui_app::{access::ACCESS_TOOLTIP_EVENT, widget::OnVarArgs};
-use zero_ui_ext_input::{
+use zng_app::{access::ACCESS_TOOLTIP_EVENT, widget::OnVarArgs};
+use zng_ext_input::{
     focus::FOCUS_CHANGED_EVENT,
     gesture::CLICK_EVENT,
     keyboard::KEY_INPUT_EVENT,
     mouse::{MOUSE, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_WHEEL_EVENT},
 };
-use zero_ui_wgt::{border, corner_radius, hit_test_mode, prelude::*, HitTestMode};
-use zero_ui_wgt_access::{access_role, AccessRole};
-use zero_ui_wgt_container::padding;
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_layer::{
+use zng_wgt::{border, corner_radius, hit_test_mode, prelude::*, HitTestMode};
+use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt_container::padding;
+use zng_wgt_fill::background_color;
+use zng_wgt_layer::{
     popup::{ContextCapture, Popup, PopupState, POPUP},
     AnchorMode,
 };
-use zero_ui_wgt_style::{impl_style_fn, style_fn, Style};
+use zng_wgt_style::{impl_style_fn, style_fn, Style};
 
 /// Widget tooltip.
 ///
@@ -352,7 +352,7 @@ pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> imp
 /// This property sets the [`ACCESS_TOOLTIP_ANCHOR_VAR`].
 ///
 /// [`tooltip_anchor`]: fn@tooltip_anchor
-/// [`ACCESS.show_tooltip`]: zero_ui_app::access::ACCESS::show_tooltip
+/// [`ACCESS.show_tooltip`]: zng_app::access::ACCESS::show_tooltip
 #[property(CONTEXT, default(ACCESS_TOOLTIP_ANCHOR_VAR))]
 pub fn access_tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, ACCESS_TOOLTIP_ANCHOR_VAR, mode)
@@ -421,7 +421,7 @@ pub fn tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) ->
 /// This property sets the [`ACCESS_TOOLTIP_DURATION_VAR`].
 ///
 /// [`tooltip_duration`]: fn@tooltip_duration
-/// [`ACCESS.show_tooltip`]: zero_ui_app::access::ACCESS::show_tooltip
+/// [`ACCESS.show_tooltip`]: zng_app::access::ACCESS::show_tooltip
 #[property(CONTEXT, default(ACCESS_TOOLTIP_DURATION_VAR))]
 pub fn access_tooltip_duration(child: impl UiNode, duration: impl IntoVar<Duration>) -> impl UiNode {
     with_context_var(child, ACCESS_TOOLTIP_DURATION_VAR, duration)
@@ -550,7 +550,7 @@ impl DefaultStyle {
             padding = (2, 4);
             corner_radius = 3;
             background_color = color_scheme_pair(BASE_COLORS_VAR);
-            zero_ui_wgt_text::font_size = 10.pt();
+            zng_wgt_text::font_size = 10.pt();
             border = {
                 widths: 1.px(),
                 sides: color_scheme_highlight(BASE_COLORS_VAR, 0.5).map_into()

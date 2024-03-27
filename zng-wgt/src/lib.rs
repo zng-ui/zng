@@ -11,12 +11,12 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-pub use zero_ui_app::enable_widget_macros;
+pub use zng_app::enable_widget_macros;
 enable_widget_macros!();
 
 #[doc(hidden)]
 #[allow(unused_extern_crates)]
-extern crate self as zero_ui_wgt; // for doc-tests
+extern crate self as zng_wgt; // for doc-tests
 
 /// Prelude for declaring properties and widgets.
 pub mod prelude {
@@ -24,7 +24,7 @@ pub mod prelude {
     pub use crate::__prelude::*;
 }
 mod __prelude {
-    pub use zero_ui_app::{
+    pub use zng_app::{
         event::{
             command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event,
             EventArgs as _, EventHandle, EventHandles, EventPropagationHandle,
@@ -55,13 +55,13 @@ mod __prelude {
         DInstant, Deadline, INSTANT,
     };
 
-    pub use zero_ui_var::{
+    pub use zng_var::{
         context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_from, when_var,
         AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ObservableVec, ReadOnlyArcVar,
         ResponderVar, ResponseVar, Var, VarCapabilities, VarHandle, VarHandles, VarUpdateId, VarValue, WeakVar as _,
     };
 
-    pub use zero_ui_layout::{
+    pub use zng_layout::{
         context::{LayoutDirection, LayoutMetrics, DIRECTION_VAR, LAYOUT},
         unit::{
             Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Dip, DipBox, DipPoint, DipRect, DipSideOffsets,
@@ -72,21 +72,21 @@ mod __prelude {
         },
     };
 
-    pub use zero_ui_txt::{formatx, ToTxt, Txt};
+    pub use zng_txt::{formatx, ToTxt, Txt};
 
-    pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
+    pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
-    pub use zero_ui_task as task;
+    pub use zng_task as task;
 
-    pub use zero_ui_app_context::{
+    pub use zng_app_context::{
         app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext, RunOnDrop,
     };
 
-    pub use zero_ui_state_map::{state_map, OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
+    pub use zng_state_map::{state_map, OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
 
-    pub use zero_ui_unique_id::{IdEntry, IdMap, IdSet};
+    pub use zng_unique_id::{IdEntry, IdMap, IdSet};
 
-    pub use zero_ui_color::{
+    pub use zng_color::{
         color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
         ColorPair, ColorScheme, Hsla, Hsva, MixAdjust as _, MixBlendMode, Rgba,
     };

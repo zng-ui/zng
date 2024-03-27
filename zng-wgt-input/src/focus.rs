@@ -4,10 +4,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use zero_ui_ext_input::focus::*;
-use zero_ui_ext_input::gesture::{CLICK_EVENT, GESTURES};
-use zero_ui_ext_input::mouse::MOUSE_INPUT_EVENT;
-use zero_ui_wgt::prelude::*;
+use zng_ext_input::focus::*;
+use zng_ext_input::gesture::{CLICK_EVENT, GESTURES};
+use zng_ext_input::mouse::MOUSE_INPUT_EVENT;
+use zng_wgt::prelude::*;
 
 /// Makes the widget focusable when set to `true`.
 #[property(CONTEXT, default(false), widget_impl(FocusableMix<P>))]
@@ -497,7 +497,7 @@ impl<P: WidgetImpl> FocusableMix<P> {
             self;
             focusable = true;
             when *#is_focused_hgl {
-                zero_ui_wgt_fill::foreground_highlight = {
+                zng_wgt_fill::foreground_highlight = {
                     offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
                     widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
                     sides: FOCUS_HIGHLIGHT_SIDES_VAR,

@@ -1,6 +1,6 @@
-use zero_ui::{color::filter::hue_rotate, layout::size, prelude::*};
-use zero_ui_view::extensions::ViewExtensions;
-// use zero_ui_wgt_webrender_debug as wr;
+use zng::{color::filter::hue_rotate, layout::size, prelude::*};
+use zng_view::extensions::ViewExtensions;
+// use zng_wgt_webrender_debug as wr;
 
 // Examples of how to extend the view-process with custom renderers.
 //
@@ -10,10 +10,10 @@ use zero_ui_view::extensions::ViewExtensions;
 fn main() {
     examples_util::print_info();
 
-    // zero_ui_view::init_extended(view_extensions);
+    // zng_view::init_extended(view_extensions);
     // app_main();
 
-    zero_ui_view::run_same_process_extended(app_main, view_extensions);
+    zng_view::run_same_process_extended(app_main, view_extensions);
 }
 
 fn app_main() {
@@ -120,12 +120,12 @@ fn view_extensions() -> ViewExtensions {
 pub mod using_display_items {
     /// App-process stuff, nodes.
     pub mod app_side {
-        use zero_ui::{
+        use zng::{
             mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
             prelude_wgt::*,
         };
-        use zero_ui_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
-        use zero_ui_view_api::api_extension::ApiExtensionId;
+        use zng_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
+        use zng_view_api::api_extension::ApiExtensionId;
 
         /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
@@ -241,8 +241,8 @@ pub mod using_display_items {
     pub mod view_side {
         use std::collections::HashMap;
 
-        use zero_ui::prelude_wgt::PxPoint;
-        use zero_ui_view::{
+        use zng::prelude_wgt::PxPoint;
+        use zng_view::{
             extensions::{PxToWr as _, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{
                 api::{
@@ -252,7 +252,7 @@ pub mod using_display_items {
                 euclid,
             },
         };
-        use zero_ui_view_api::api_extension::ApiExtensionId;
+        use zng_view_api::api_extension::ApiExtensionId;
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -361,8 +361,8 @@ pub mod using_display_items {
     pub mod api {
         use std::sync::atomic::{AtomicU32, Ordering};
 
-        use zero_ui::layout::{PxPoint, PxSize};
-        use zero_ui_view_api::api_extension::ApiExtensionName;
+        use zng::layout::{PxPoint, PxSize};
+        use zng_view_api::api_extension::ApiExtensionName;
 
         pub fn extension_name() -> ApiExtensionName {
             ApiExtensionName::new("zng.examples.extend_renderer.using_display_items").unwrap()
@@ -397,9 +397,9 @@ pub mod using_display_items {
 pub mod using_blob {
     /// App-process stuff, nodes.
     pub mod app_side {
-        use zero_ui::prelude::UiNode;
-        use zero_ui_app::view_process::VIEW_PROCESS;
-        use zero_ui_view_api::api_extension::ApiExtensionId;
+        use zng::prelude::UiNode;
+        use zng_app::view_process::VIEW_PROCESS;
+        use zng_view_api::api_extension::ApiExtensionId;
 
         /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
@@ -419,10 +419,10 @@ pub mod using_blob {
     pub mod view_side {
         use std::{collections::HashMap, sync::Arc};
 
-        use zero_ui::layout::{PxPoint, PxSize};
-        use zero_ui::prelude::task::parking_lot::Mutex;
-        use zero_ui_view::extensions::PxToWr as _;
-        use zero_ui_view::{
+        use zng::layout::{PxPoint, PxSize};
+        use zng::prelude::task::parking_lot::Mutex;
+        use zng_view::extensions::PxToWr as _;
+        use zng_view::{
             extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             webrender::{
                 api::{
@@ -433,7 +433,7 @@ pub mod using_blob {
                 euclid,
             },
         };
-        use zero_ui_view_api::api_extension::ApiExtensionId;
+        use zng_view_api::api_extension::ApiExtensionId;
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -458,7 +458,7 @@ pub mod using_blob {
                 false // retain the extension after renderer creation.
             }
 
-            fn configure(&mut self, args: &mut zero_ui_view::extensions::RendererConfigArgs) {
+            fn configure(&mut self, args: &mut zng_view::extensions::RendererConfigArgs) {
                 // Blob entry point inside Webrender.
                 args.blobs.push(Box::new(CustomBlobExtension {
                     renderer: Arc::clone(&self.renderer),
@@ -471,7 +471,7 @@ pub mod using_blob {
                 self.renderer.lock().workers = args.options.workers.clone();
             }
 
-            fn render_start(&mut self, _: &mut zero_ui_view::extensions::RenderArgs) {
+            fn render_start(&mut self, _: &mut zng_view::extensions::RenderArgs) {
                 let mut renderer = self.renderer.lock();
                 for t in renderer.tasks.iter_mut() {
                     if matches!(t.state, CustomRenderTaskState::Used) {
@@ -480,7 +480,7 @@ pub mod using_blob {
                 }
             }
 
-            fn render_end(&mut self, args: &mut zero_ui_view::extensions::RenderArgs) {
+            fn render_end(&mut self, args: &mut zng_view::extensions::RenderArgs) {
                 let mut renderer = self.renderer.lock();
                 for t in renderer.tasks.iter_mut() {
                     match &mut t.state {
@@ -618,8 +618,8 @@ pub mod using_blob {
                         args.list.push_image(
                             &props,
                             rect,
-                            zero_ui_view::webrender::api::ImageRendering::Auto,
-                            zero_ui_view::webrender::api::AlphaType::Alpha,
+                            zng_view::webrender::api::ImageRendering::Auto,
+                            zng_view::webrender::api::AlphaType::Alpha,
                             blob_key.as_image(),
                             ColorF::WHITE,
                         )
@@ -668,7 +668,7 @@ pub mod using_blob {
             renderer: Arc<Mutex<CustomRenderer>>,
         }
         impl BlobExtension for CustomBlobExtension {
-            fn create_blob_rasterizer(&mut self) -> Box<dyn zero_ui_view::extensions::AsyncBlobRasterizer> {
+            fn create_blob_rasterizer(&mut self) -> Box<dyn zng_view::extensions::AsyncBlobRasterizer> {
                 Box::new(CustomBlobRasterizer {
                     // rasterizer is a snapshot of the current state
                     snapshot: self.renderer.lock().clone(),
@@ -681,13 +681,13 @@ pub mod using_blob {
                 })
             }
 
-            fn add(&mut self, _args: &zero_ui_view::extensions::BlobAddArgs) {
+            fn add(&mut self, _args: &zng_view::extensions::BlobAddArgs) {
                 // Webrender received the add request
                 //
                 // In this demo we already added from the display item.
             }
 
-            fn update(&mut self, _args: &zero_ui_view::extensions::BlobUpdateArgs) {
+            fn update(&mut self, _args: &zng_view::extensions::BlobUpdateArgs) {
                 // Webrender received the update request
             }
 
@@ -747,13 +747,13 @@ pub mod using_blob {
             }
         }
         impl AsyncBlobRasterizer for CustomBlobRasterizer {
-            fn rasterize(&mut self, args: &mut zero_ui_view::extensions::BlobRasterizerArgs) {
+            fn rasterize(&mut self, args: &mut zng_view::extensions::BlobRasterizerArgs) {
                 if !self.snapshot.single_threaded {
                     // rasterize all tiles in parallel, Webrender also uses Rayon
                     // but the `rasterize` call is made in the SceneBuilderThread
                     // so we mount the workers thread-pool here.
 
-                    use zero_ui::prelude::task::rayon::prelude::*;
+                    use zng::prelude::task::rayon::prelude::*;
 
                     let tiles = self.snapshot.workers.as_ref().unwrap().install(|| {
                         args.requests.par_iter().filter_map(|r| {
@@ -783,7 +783,7 @@ pub mod using_blob {
             task_keys: HashMap<BlobImageKey, usize>,
             task_params: HashMap<CustomTaskParams, usize>,
             single_threaded: bool,
-            workers: Option<Arc<zero_ui::prelude::task::rayon::ThreadPool>>,
+            workers: Option<Arc<zng::prelude::task::rayon::ThreadPool>>,
         }
 
         #[derive(PartialEq, Eq, Hash, Clone, Copy)]
@@ -820,7 +820,7 @@ pub mod using_blob {
     }
 
     pub mod api {
-        use zero_ui_view_api::api_extension::ApiExtensionName;
+        use zng_view_api::api_extension::ApiExtensionName;
 
         pub use crate::using_display_items::api::*;
 
@@ -834,9 +834,9 @@ pub mod using_blob {
 pub mod using_gl_overlay {
     /// App-process stuff, nodes.
     pub mod app_side {
-        use zero_ui::prelude::UiNode;
-        use zero_ui_app::view_process::VIEW_PROCESS;
-        use zero_ui_view_api::api_extension::ApiExtensionId;
+        use zng::prelude::UiNode;
+        use zng_app::view_process::VIEW_PROCESS;
+        use zng_view_api::api_extension::ApiExtensionId;
 
         /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
@@ -854,12 +854,12 @@ pub mod using_gl_overlay {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use zero_ui::layout::{Px, PxPoint, PxRect, PxSize};
-        use zero_ui_view::{
+        use zng::layout::{Px, PxPoint, PxRect, PxSize};
+        use zng_view::{
             extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
             gleam::gl,
         };
-        use zero_ui_view_api::api_extension::ApiExtensionId;
+        use zng_view_api::api_extension::ApiExtensionId;
 
         use super::api::BindingId;
 
@@ -882,18 +882,18 @@ pub mod using_gl_overlay {
                 false // retain the extension after renderer creation.
             }
 
-            fn renderer_inited(&mut self, args: &mut zero_ui_view::extensions::RendererInitedArgs) {
+            fn renderer_inited(&mut self, args: &mut zng_view::extensions::RendererInitedArgs) {
                 // shaders/programs can be loaded here.
                 self.renderer = Some(CustomRenderer::load(args.gl));
             }
-            fn renderer_deinited(&mut self, args: &mut zero_ui_view::extensions::RendererDeinitedArgs) {
+            fn renderer_deinited(&mut self, args: &mut zng_view::extensions::RendererDeinitedArgs) {
                 // ..and unloaded here.
                 if let Some(r) = self.renderer.take() {
                     r.unload(args.gl);
                 }
             }
 
-            fn render_start(&mut self, _: &mut zero_ui_view::extensions::RenderArgs) {
+            fn render_start(&mut self, _: &mut zng_view::extensions::RenderArgs) {
                 if let Some(r) = &mut self.renderer {
                     r.clear();
                 }
@@ -924,7 +924,7 @@ pub mod using_gl_overlay {
                 }
             }
 
-            fn redraw(&mut self, args: &mut zero_ui_view::extensions::RedrawArgs) {
+            fn redraw(&mut self, args: &mut zng_view::extensions::RedrawArgs) {
                 if let Some(r) = &mut self.renderer {
                     r.redraw(args.size, args.gl);
                 }
@@ -1024,7 +1024,7 @@ pub mod using_gl_overlay {
     }
 
     pub mod api {
-        use zero_ui_view_api::api_extension::ApiExtensionName;
+        use zng_view_api::api_extension::ApiExtensionName;
 
         pub use crate::using_display_items::api::*;
 
@@ -1038,9 +1038,9 @@ pub mod using_gl_overlay {
 pub mod using_gl_texture {
     /// App-process stuff, nodes.
     pub mod app_side {
-        use zero_ui::prelude::UiNode;
-        use zero_ui_app::view_process::VIEW_PROCESS;
-        use zero_ui_view_api::api_extension::ApiExtensionId;
+        use zng::prelude::UiNode;
+        use zng_app::view_process::VIEW_PROCESS;
+        use zng_view_api::api_extension::ApiExtensionId;
 
         /// Node that sends external display item and updates.
         pub fn custom_render_node() -> impl UiNode {
@@ -1058,8 +1058,8 @@ pub mod using_gl_texture {
 
     /// View-process stuff, the actual extension.
     pub mod view_side {
-        use zero_ui::layout::PxRect;
-        use zero_ui_view::{
+        use zng::layout::PxRect;
+        use zng_view::{
             extensions::{PxToWr as _, RenderItemArgs, RendererExtension, ViewExtensions},
             gleam::gl,
             webrender::api::{
@@ -1068,7 +1068,7 @@ pub mod using_gl_texture {
                 ImageDescriptorFlags, ImageFormat, ImageKey, ImageRendering,
             },
         };
-        use zero_ui_view_api::api_extension::ApiExtensionId;
+        use zng_view_api::api_extension::ApiExtensionId;
 
         pub fn extend(exts: &mut ViewExtensions) {
             exts.renderer(super::api::extension_name(), CustomExtension::new);
@@ -1099,7 +1099,7 @@ pub mod using_gl_texture {
                 false // retain the extension after renderer creation.
             }
 
-            fn renderer_inited(&mut self, args: &mut zero_ui_view::extensions::RendererInitedArgs) {
+            fn renderer_inited(&mut self, args: &mut zng_view::extensions::RendererInitedArgs) {
                 // gl available here and in `redraw`.
                 //
                 // dynamic textures can be generated by collecting request on `command` or on `render_push` and
@@ -1142,7 +1142,7 @@ pub mod using_gl_texture {
                     .register_texture(TexelRect::new(0.0, 0.0, size.width as f32, size.height as f32), texture);
 
                 let image_key = args.api.generate_image_key();
-                let mut txn = zero_ui_view::webrender::Transaction::new();
+                let mut txn = zng_view::webrender::Transaction::new();
                 txn.add_image(
                     image_key,
                     ImageDescriptor {
@@ -1152,10 +1152,10 @@ pub mod using_gl_texture {
                         offset: 0,
                         flags: ImageDescriptorFlags::IS_OPAQUE,
                     },
-                    zero_ui_view::webrender::api::ImageData::External(ExternalImageData {
+                    zng_view::webrender::api::ImageData::External(ExternalImageData {
                         id: external_id,
                         channel_index: 0,
-                        image_type: ExternalImageType::TextureHandle(zero_ui_view::webrender::api::ImageBufferKind::Texture2D),
+                        image_type: ExternalImageType::TextureHandle(zng_view::webrender::api::ImageBufferKind::Texture2D),
                     }),
                     None,
                 );
@@ -1168,7 +1168,7 @@ pub mod using_gl_texture {
                 });
             }
 
-            fn renderer_deinited(&mut self, args: &mut zero_ui_view::extensions::RendererDeinitedArgs) {
+            fn renderer_deinited(&mut self, args: &mut zng_view::extensions::RendererDeinitedArgs) {
                 if let Some(t) = self.texture.take() {
                     let _ = t.external_id; // already cleanup by renderer deinit.
                     args.gl.delete_textures(&[t.texture]);
@@ -1197,7 +1197,7 @@ pub mod using_gl_texture {
     }
 
     pub mod api {
-        use zero_ui_view_api::api_extension::ApiExtensionName;
+        use zng_view_api::api_extension::ApiExtensionName;
 
         pub use crate::using_display_items::api::*;
 

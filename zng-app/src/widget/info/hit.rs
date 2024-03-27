@@ -1,7 +1,7 @@
 use std::sync::{atomic::AtomicUsize, Arc};
 
-use zero_ui_layout::unit::{PxBox, PxCornerRadius, PxPoint, PxSize, PxTransform, PxVector};
-use zero_ui_view_api::display_list::{FrameValue, FrameValueUpdate};
+use zng_layout::unit::{PxBox, PxCornerRadius, PxPoint, PxSize, PxTransform, PxVector};
+use zng_view_api::display_list::{FrameValue, FrameValueUpdate};
 
 use crate::widget::WidgetId;
 

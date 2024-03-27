@@ -1,7 +1,7 @@
 //! Focusable info tree iterators.
 //!
 
-use zero_ui_app::widget::info::{
+use zng_app::widget::info::{
     iter::{self as w_iter, TreeIterator},
     WidgetInfo,
 };

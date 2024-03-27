@@ -1,6 +1,6 @@
 use std::mem;
 
-use zero_ui_layout::unit::PxSize;
+use zng_layout::unit::PxSize;
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
@@ -92,7 +92,7 @@ pub enum UiNodeOp<'a> {
     /// that are used directly on layout or render you can subscribe to that operation directly, skipping update.
     ///
     /// [`Init`]: Self::Init
-    /// [`Var::get_new`]: zero_ui_var::Var::get_new
+    /// [`Var::get_new`]: zng_var::Var::get_new
     Update {
         ///
         updates: &'a WidgetUpdates,
@@ -110,8 +110,8 @@ pub enum UiNodeOp<'a> {
     /// [`PxSize`] field must be set to the desired size given the layout context.
     ///
     /// [`Layout`]: Self::Layout
-    /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     Measure {
         ///
         wm: &'a mut WidgetMeasure,
@@ -134,10 +134,10 @@ pub enum UiNodeOp<'a> {
     /// the [`WIDGET.render`] method can be used to request render.
     ///
     /// [`Measure`]: Self::Measure
-    /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
-    /// [`constraints`]: zero_ui_layout::context::LayoutMetrics::constraints
+    /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
+    /// [`constraints`]: zng_layout::context::LayoutMetrics::constraints
     /// [`WIDGET.render`]: crate::widget::WIDGET::render
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     Layout {
         ///
         wl: &'a mut WidgetLayout,
@@ -297,9 +297,9 @@ impl fmt::Display for UiNodeOpMethod {
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::{*, widget::{*, node::*, builder::*}};
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::context::LAYOUT;
+/// # use zng_app::{*, widget::{*, node::*, builder::*}};
+/// # use zng_var::*;
+/// # use zng_layout::context::LAYOUT;
 /// #[property(LAYOUT)]
 /// pub fn count_layout(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 ///     let enabled = enabled.into_var();
@@ -364,9 +364,9 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::{*, widget::{*, node::*, builder::*}};
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::context::LAYOUT;
+/// # use zng_app::{*, widget::{*, node::*, builder::*}};
+/// # use zng_var::*;
+/// # use zng_layout::context::LAYOUT;
 /// #[property(LAYOUT)]
 /// pub fn count_layout(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 ///     let enabled = enabled.into_var();
@@ -902,7 +902,7 @@ pub fn match_node_list<L: UiNodeList>(
         children: MatchNodeChildren<C>,
         closure: impl FnMut(&mut MatchNodeChildren<C>, UiNodeOp) + Send + 'static,
     })]
-    #[allow_(zero_ui::missing_delegate)] // false positive
+    #[allow_(zng::missing_delegate)] // false positive
     impl UiNode for MatchNodeList {
         fn init(&mut self) {
             self.children.delegated = false;

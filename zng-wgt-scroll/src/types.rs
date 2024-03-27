@@ -3,15 +3,15 @@ use std::{fmt, mem, sync::Arc, time::Duration};
 use atomic::{Atomic, Ordering};
 use bitflags::bitflags;
 use parking_lot::Mutex;
-use zero_ui_ext_input::touch::TouchPhase;
-use zero_ui_var::{
+use zng_ext_input::touch::TouchPhase;
+use zng_var::{
     animation::{
         easing::{self, EasingStep, EasingTime},
         AnimationHandle, ChaseAnimation, Transition,
     },
     ReadOnlyContextVar,
 };
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 use super::{cmd, SMOOTH_SCROLLING_VAR};
 

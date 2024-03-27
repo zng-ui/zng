@@ -7,10 +7,10 @@
 
 use std::{fmt, mem};
 
-use zero_ui_layout::unit::{GridSpacing, PxGridSpacing};
-use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_access::{access_role, AccessRole};
-use zero_ui_wgt_size_offset::*;
+use zng_layout::unit::{GridSpacing, PxGridSpacing};
+use zng_wgt::prelude::*;
+use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt_size_offset::*;
 
 /// Grid layout with cells of variable sizes.
 #[widget($crate::Grid)]
@@ -76,7 +76,7 @@ pub fn cells(cells: impl UiNodeList) {}
 /// don't affect the cells.
 ///
 /// [`Column!`]: struct@Column
-/// [`lft`]: zero_ui_layout::unit::LengthUnits::lft
+/// [`lft`]: zng_layout::unit::LengthUnits::lft
 #[property(CHILD, capture, widget_impl(Grid))]
 pub fn columns(cells: impl UiNodeList) {}
 
@@ -756,7 +756,7 @@ pub mod cell {
     ///
     /// [`Grid!`]: struct@Grid
     #[widget($crate::Cell)]
-    pub struct Cell(zero_ui_wgt_container::Container);
+    pub struct Cell(zng_wgt_container::Container);
     impl Cell {
         fn widget_intrinsic(&mut self) {
             widget_set! {

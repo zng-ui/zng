@@ -5,7 +5,7 @@ use std::{
     fmt, mem,
 };
 
-use zero_ui_app::{
+use zng_app::{
     event::{event, event_args},
     update::{EventUpdate, UPDATES},
     view_process::{
@@ -23,11 +23,11 @@ use zero_ui_app::{
     window::{WindowId, WINDOW},
     AppExtension,
 };
-use zero_ui_app_context::app_local;
-use zero_ui_ext_window::WINDOWS;
-use zero_ui_layout::unit::{DipPoint, DipToPx};
-use zero_ui_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var};
-use zero_ui_view_api::{
+use zng_app_context::app_local;
+use zng_ext_window::WINDOWS;
+use zng_layout::unit::{DipPoint, DipToPx};
+use zng_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var};
+use zng_view_api::{
     mouse::{ButtonState, MouseButton},
     touch::{TouchId, TouchPhase},
 };
@@ -343,7 +343,7 @@ pub struct CaptureInfo {
     ///
     /// This is the window root widget for capture mode `Window`.
     ///
-    /// [`ENABLED`]: zero_ui_app::widget::info::Interactivity::ENABLED
+    /// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
     pub target: WidgetPath,
     /// Capture mode, see [`allows`](Self::allows) for more details.
     pub mode: CaptureMode,

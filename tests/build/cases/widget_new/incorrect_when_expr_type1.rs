@@ -1,4 +1,4 @@
-use zero_ui::{
+use zng::{
     color::colors,
     layout::margin,
     widget::{background_color, Wgt},

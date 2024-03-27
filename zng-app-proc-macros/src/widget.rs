@@ -179,7 +179,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         let struct_path = util::set_stream_span(struct_path, Span::call_site());
 
         let macro_new = quote! {
-            zero_ui::__proc_macro_util::widget::widget_new! {
+            zng::__proc_macro_util::widget::widget_new! {
                 new {
                     let mut wgt__ = #struct_path::widget_new();
                     let wgt__ = &mut wgt__;
@@ -205,20 +205,20 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             #[macro_export]
             macro_rules! #macro_ident {
                 // actual new
-                (zero_ui_widget: $($tt:tt)*) => {
+                (zng_widget: $($tt:tt)*) => {
                     #macro_new
                 };
 
                 // enforce normal syntax, property = <expr> ..
                 ($(#[$attr:meta])* $($property_path:ident)::+ = $($rest:tt)*) => {
                     #struct_path! {
-                        zero_ui_widget: $(#[$attr])* $($property_path)::+ = $($rest)*
+                        zng_widget: $(#[$attr])* $($property_path)::+ = $($rest)*
                     }
                 };
                 // enforce normal syntax, when <expr> { .. } ..
                 ($(#[$attr:meta])* when $($rest:tt)*) => {
                     #struct_path! {
-                        zero_ui_widget: $(#[$attr])* when $($rest)*
+                        zng_widget: $(#[$attr])* when $($rest)*
                     }
                 };
 
@@ -228,7 +228,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 // fallback, single property shorthand or error.
                 ($($tt:tt)*) => {
                     #struct_path! {
-                        zero_ui_widget: $($tt)*
+                        zng_widget: $($tt)*
                     }
                 };
             }

@@ -7,7 +7,7 @@
 
 use std::{any::Any, fmt, marker::PhantomData};
 
-use zero_ui_unique_id::unique_id_64;
+use zng_unique_id::unique_id_64;
 
 /// Represents a type that can be a [`StateId`] value.
 ///
@@ -24,7 +24,7 @@ unique_id_64! {
     /// The type `T` is the value type.
     ///
     /// ```
-    /// # use zero_ui_state_map::*;
+    /// # use zng_state_map::*;
     /// static FOO_ID: StaticStateId<bool> = StateId::new_static();
     ///
     /// # fn demo() {
@@ -283,7 +283,7 @@ impl<U> OwnedStateMap<U> {
 pub mod state_map {
     use std::any::Any;
 
-    use zero_ui_unique_id::*;
+    use zng_unique_id::*;
 
     use super::*;
 

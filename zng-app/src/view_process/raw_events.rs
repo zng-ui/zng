@@ -16,9 +16,9 @@
 
 use std::path::PathBuf;
 
-use zero_ui_layout::unit::{DipPoint, DipSize, Factor, PxPoint, PxRect};
-use zero_ui_txt::Txt;
-use zero_ui_view_api::{
+use zng_layout::unit::{DipPoint, DipSize, Factor, PxPoint, PxRect};
+use zng_txt::Txt;
+use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     keyboard::{Key, KeyCode, KeyState},

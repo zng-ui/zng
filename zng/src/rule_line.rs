@@ -5,16 +5,16 @@
 //! each orientation and can be styled separately.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # fn demo() {
 //!
 //! # let _ =
 //! Window! {
 //!     context_menu = ContextMenu!(ui_vec![
-//!         Button!(zero_ui::app::NEW_CMD.scoped(WINDOW.id())),
-//!         Button!(zero_ui::app::OPEN_CMD.scoped(WINDOW.id())),
+//!         Button!(zng::app::NEW_CMD.scoped(WINDOW.id())),
+//!         Button!(zng::app::OPEN_CMD.scoped(WINDOW.id())),
 //!         Hr!(),
-//!         Button!(zero_ui::app::EXIT_CMD),
+//!         Button!(zng::app::EXIT_CMD),
 //!     ]);
 //! }
 //! # ; }
@@ -24,16 +24,16 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_rule_line`] for the full widget API.
+//! See [`zng_wgt_rule_line`] for the full widget API.
 
-pub use zero_ui_wgt_rule_line::RuleLine;
+pub use zng_wgt_rule_line::RuleLine;
 
 /// Horizontal rule line widget and properties.
 pub mod hr {
-    pub use zero_ui_wgt_rule_line::hr::{color, line_style, margin, stroke_thickness, Hr};
+    pub use zng_wgt_rule_line::hr::{color, line_style, margin, stroke_thickness, Hr};
 }
 
 /// Vertical rule line widget and properties.
 pub mod vr {
-    pub use zero_ui_wgt_rule_line::vr::{color, line_style, margin, stroke_thickness, Vr};
+    pub use zng_wgt_rule_line::vr::{color, line_style, margin, stroke_thickness, Vr};
 }

@@ -6,8 +6,8 @@
 //! [`ScrollToLeftmostCommand`]: crate::widgets::scroll::cmd::ScrollToLeftmostCommand
 
 use super::*;
-use zero_ui_app::event::{CommandArgs, CommandParam};
-use zero_ui_ext_window::WINDOWS;
+use zng_app::event::{CommandArgs, CommandParam};
+use zng_ext_window::WINDOWS;
 
 command! {
     /// Represents the **scroll up** by one [`v_line_unit`] action.

@@ -1,7 +1,7 @@
 //! Font types.
 
 use serde::{Deserialize, Serialize};
-use zero_ui_unit::Px;
+use zng_unit::Px;
 
 use crate::{config::FontAntiAliasing, declare_id};
 

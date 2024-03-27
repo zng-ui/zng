@@ -5,17 +5,17 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zero_ui_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
-use zero_ui_ext_window::{
+use zng_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
+use zng_ext_window::{
     FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WindowChangedArgs, WindowCloseRequestedArgs, WindowOpenArgs,
     WindowRoot,
 };
-use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_input::focus::{
+use zng_wgt::prelude::*;
+use zng_wgt_fill::background_color;
+use zng_wgt_input::focus::{
     directional_nav, focus_highlight, focus_scope, focus_scope_behavior, tab_nav, FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR,
 };
-use zero_ui_wgt_text::{font_color, lang, FONT_SIZE_VAR};
+use zng_wgt_text::{font_color, lang, FONT_SIZE_VAR};
 
 pub mod events;
 mod window_properties;
@@ -26,12 +26,12 @@ pub use self::window_properties::*;
 
 /// A window container.
 ///
-/// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zero_ui_ext_window::WINDOWS) service
+/// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zng_ext_window::WINDOWS) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
-/// See [`run_window`](zero_ui_ext_window::AppRunWindowExt::run_window) for more details.
+/// See [`run_window`](zng_ext_window::AppRunWindowExt::run_window) for more details.
 #[widget($crate::Window)]
-pub struct Window(zero_ui_wgt_container::Container);
+pub struct Window(zng_wgt_container::Container);
 impl Window {
     fn widget_intrinsic(&mut self) {
         widget_set! {
@@ -41,10 +41,10 @@ impl Window {
             font_size = FONT_SIZE_VAR;
 
             // optimization, actualize mapping context-vars early, see `context_var!` docs.
-            zero_ui_wgt_text::font_palette = zero_ui_wgt_text::FONT_PALETTE_VAR;
+            zng_wgt_text::font_palette = zng_wgt_text::FONT_PALETTE_VAR;
 
             // set layout direction.
-            lang = zero_ui_ext_l10n::LANG_VAR;
+            lang = zng_ext_l10n::LANG_VAR;
 
             font_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
             background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
@@ -65,7 +65,7 @@ impl Window {
         }
 
         self.widget_builder().push_build_action(|wgt| {
-            wgt.push_intrinsic(NestGroup::EVENT, "layers", zero_ui_wgt_layer::layers_node);
+            wgt.push_intrinsic(NestGroup::EVENT, "layers", zng_wgt_layer::layers_node);
         });
     }
 
@@ -123,7 +123,7 @@ pub fn allow_transparency(allow: impl IntoValue<bool>) {}
 /// The `view-process` will try to match the mode, if it is not available a fallback mode is selected,
 /// see [`RenderMode`] for more details about each mode and fallbacks.
 ///
-/// [`WINDOWS.default_render_mode`]: zero_ui_ext_window::WINDOWS::default_render_mode
+/// [`WINDOWS.default_render_mode`]: zng_ext_window::WINDOWS::default_render_mode
 #[property(CONTEXT, capture, widget_impl(Window))]
 pub fn render_mode(mode: impl IntoValue<Option<RenderMode>>) {}
 
@@ -146,7 +146,7 @@ pub fn on_open(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) 
 ///
 /// This property is the same as [`on_pre_window_load`].
 ///
-/// [`WindowLoadingHandle`]: zero_ui_ext_window::WindowLoadingHandle
+/// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
 /// [`on_pre_window_load`]: fn@events::on_pre_window_load
 #[property(EVENT, widget_impl(Window))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<WindowOpenArgs>) -> impl UiNode {
@@ -172,10 +172,10 @@ pub fn on_close_requested(child: impl UiNode, handler: impl WidgetHandler<Window
 ///
 /// This property is the same as [`on_deinit`].
 ///
-/// [`on_deinit`]: fn@zero_ui_wgt::on_deinit
+/// [`on_deinit`]: fn@zng_wgt::on_deinit
 #[property(EVENT, widget_impl(Window))]
-pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<zero_ui_wgt::OnNodeOpArgs>) -> impl UiNode {
-    zero_ui_wgt::on_deinit(child, handler)
+pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<zng_wgt::OnNodeOpArgs>) -> impl UiNode {
+    zng_wgt::on_deinit(child, handler)
 }
 
 /// On window position changed.
@@ -185,7 +185,7 @@ pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<zero_ui_wgt::OnN
 ///
 /// This property is the same as [`on_pre_window_moved`].
 ///
-/// [`actual_position`]: zero_ui_ext_window::WindowVars::actual_position
+/// [`actual_position`]: zng_ext_window::WindowVars::actual_position
 /// [`on_pre_window_moved`]: fn@events::on_pre_window_moved
 #[property(EVENT, widget_impl(Window))]
 pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
@@ -199,7 +199,7 @@ pub fn on_moved(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArg
 ///
 /// This property is the same as [`on_pre_window_resized`].
 ///
-/// [`actual_size`]: zero_ui_ext_window::WindowVars::actual_size
+/// [`actual_size`]: zng_ext_window::WindowVars::actual_size
 /// [`on_pre_window_resized`]: fn@events::on_pre_window_resized
 #[property(EVENT, widget_impl(Window))]
 pub fn on_resized(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
@@ -276,7 +276,7 @@ pub fn on_unminimized(child: impl UiNode, handler: impl WidgetHandler<WindowChan
 ///
 /// This property is the same as [`on_pre_window_restored`].
 ///
-/// [`Normal`]: zero_ui_ext_window::WindowState::Normal
+/// [`Normal`]: zng_ext_window::WindowState::Normal
 /// [`on_pre_window_restored`]: fn@events::on_pre_window_restored
 #[property(EVENT, widget_impl(Window))]
 pub fn on_restored(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
@@ -289,8 +289,8 @@ pub fn on_restored(child: impl UiNode, handler: impl WidgetHandler<WindowChanged
 ///
 /// This property is the same as [`on_pre_window_fullscreen`].
 ///
-/// [`Fullscreen`]: zero_ui_ext_window::WindowState::Fullscreen
-/// [`Exclusive`]: zero_ui_ext_window::WindowState::Exclusive
+/// [`Fullscreen`]: zng_ext_window::WindowState::Fullscreen
+/// [`Exclusive`]: zng_ext_window::WindowState::Exclusive
 /// [`on_pre_window_fullscreen`]: fn@events::on_pre_window_fullscreen
 #[property(EVENT, widget_impl(Window))]
 pub fn on_fullscreen(child: impl UiNode, handler: impl WidgetHandler<WindowChangedArgs>) -> impl UiNode {
@@ -317,6 +317,6 @@ pub fn on_frame_image_ready(child: impl UiNode, handler: impl WidgetHandler<Fram
     events::on_pre_frame_image_ready(child, handler)
 }
 
-/// Imaginary monitor used by the window when it runs in [headless mode](zero_ui_app::window::WindowMode::is_headless).
+/// Imaginary monitor used by the window when it runs in [headless mode](zng_app::window::WindowMode::is_headless).
 #[property(LAYOUT, capture, widget_impl(Window))]
 pub fn headless_monitor(monitor: impl IntoValue<HeadlessMonitor>) {}

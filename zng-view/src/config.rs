@@ -1,4 +1,4 @@
-use zero_ui_view_api::config::{
+use zng_view_api::config::{
     AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
 };
 
@@ -29,7 +29,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
             UI::WindowsAndMessaging::*,
         },
     };
-    use zero_ui_view_api::Event;
+    use zng_view_api::Event;
 
     use crate::util;
 
@@ -179,7 +179,7 @@ pub fn multi_click_config() -> MultiClickConfig {
     use std::time::Duration;
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::*;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
-    use zero_ui_unit::*;
+    use zng_unit::*;
 
     unsafe {
         MultiClickConfig {
@@ -391,7 +391,7 @@ pub(crate) fn color_scheme_config() -> ColorScheme {
 #[cfg(not(windows))]
 pub(crate) fn locale_config() -> LocaleConfig {
     LocaleConfig {
-        langs: sys_locale::get_locale().into_iter().map(zero_ui_txt::Txt::from).collect(),
+        langs: sys_locale::get_locale().into_iter().map(zng_txt::Txt::from).collect(),
     }
 }
 
@@ -404,7 +404,7 @@ pub(crate) fn locale_config() -> LocaleConfig {
         Foundation::FALSE,
         Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME},
     };
-    use zero_ui_txt::Txt;
+    use zng_txt::Txt;
 
     // Try newer WinRT COM API (Windows8+)
     if let Ok(r) = GlobalizationPreferences::Languages() {

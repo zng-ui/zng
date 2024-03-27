@@ -1,10 +1,10 @@
-error[E0277]: the trait bound `NotUiNode: zero_ui::prelude::UiNode` is not satisfied
+error[E0277]: the trait bound `NotUiNode: zng::prelude::UiNode` is not satisfied
  --> cases/property/return_type_is_not_ui_node.rs:6:74
   |
 5 | #[property(CONTEXT)]
   | -------------------- required by a bound introduced by this call
 6 | pub fn invalid_output(child: impl UiNode, _input: impl IntoVar<bool>) -> NotUiNode {
-  |                                                                          ^^^^^^^^^ the trait `zero_ui::prelude::UiNode` is not implemented for `NotUiNode`
+  |                                                                          ^^^^^^^^^ the trait `zng::prelude::UiNode` is not implemented for `NotUiNode`
   |
-  = help: the following other types implement trait `zero_ui::prelude::UiNode`:
+  = help: the following other types implement trait `zng::prelude::UiNode`:
             <implementers-list>

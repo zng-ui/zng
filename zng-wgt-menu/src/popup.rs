@@ -2,23 +2,23 @@
 
 use std::sync::Arc;
 
-use zero_ui_ext_input::{
+use zng_ext_input::{
     focus::{WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
     keyboard::{Key, KeyState, KEY_INPUT_EVENT},
 };
-use zero_ui_layout::unit::Orientation2D;
-use zero_ui_wgt::{border, prelude::*};
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_input::pointer_capture::{capture_pointer_on_init, CaptureMode};
-use zero_ui_wgt_layer::popup::{PopupCloseMode, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT};
-use zero_ui_wgt_stack::Stack;
-use zero_ui_wgt_style::{impl_style_fn, style_fn};
+use zng_layout::unit::Orientation2D;
+use zng_wgt::{border, prelude::*};
+use zng_wgt_fill::background_color;
+use zng_wgt_input::pointer_capture::{capture_pointer_on_init, CaptureMode};
+use zng_wgt_layer::popup::{PopupCloseMode, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT};
+use zng_wgt_stack::Stack;
+use zng_wgt_style::{impl_style_fn, style_fn};
 
 use super::sub::{SubMenuWidgetInfoExt, HOVER_OPEN_DELAY_VAR};
 
 /// Sub-menu popup.
 #[widget($crate::popup::SubMenuPopup)]
-pub struct SubMenuPopup(zero_ui_wgt_layer::popup::Popup);
+pub struct SubMenuPopup(zng_wgt_layer::popup::Popup);
 impl SubMenuPopup {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
@@ -62,20 +62,20 @@ context_var! {
     /// Is [`default_panel_fn`] by default.
     ///
     /// [`SubMenuPopup!`]: struct@SubMenuPopup
-    pub static PANEL_FN_VAR: WidgetFn<zero_ui_wgt_panel::PanelArgs> = WidgetFn::new(default_panel_fn);
+    pub static PANEL_FN_VAR: WidgetFn<zng_wgt_panel::PanelArgs> = WidgetFn::new(default_panel_fn);
 }
 
 /// Widget function that generates the sub-menu popup layout.
 ///
 /// This property sets [`PANEL_FN_VAR`].
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(SubMenuPopup))]
-pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zero_ui_wgt_panel::PanelArgs>>) -> impl UiNode {
+pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> impl UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 
 /// Sub-menu popup default style.
 #[widget($crate::popup::DefaultStyle)]
-pub struct DefaultStyle(zero_ui_wgt_layer::popup::DefaultStyle);
+pub struct DefaultStyle(zng_wgt_layer::popup::DefaultStyle);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
@@ -83,10 +83,10 @@ impl DefaultStyle {
 
             super::sub::style_fn = style_fn!(|_| super::sub::SubMenuStyle!());
 
-            background_color = color_scheme_pair(zero_ui_wgt_button::BASE_COLORS_VAR);
+            background_color = color_scheme_pair(zng_wgt_button::BASE_COLORS_VAR);
             border = {
                 widths: 1,
-                sides: zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR).map_into(),
+                sides: zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR).map_into(),
             };
         }
     }
@@ -95,32 +95,32 @@ impl DefaultStyle {
 /// Default sub-menu popup panel view.
 ///
 /// See [`PANEL_FN_VAR`] for more details.
-pub fn default_panel_fn(args: zero_ui_wgt_panel::PanelArgs) -> impl UiNode {
+pub fn default_panel_fn(args: zng_wgt_panel::PanelArgs) -> impl UiNode {
     // remove arrow key shortcuts, they are used to nav. focus.
     let scroll_id = WidgetId::new_unique();
-    let _ = zero_ui_wgt_scroll::cmd::SCROLL_UP_CMD
+    let _ = zng_wgt_scroll::cmd::SCROLL_UP_CMD
         .scoped(scroll_id)
         .shortcut()
         .set(Shortcuts::new());
-    let _ = zero_ui_wgt_scroll::cmd::SCROLL_DOWN_CMD
+    let _ = zng_wgt_scroll::cmd::SCROLL_DOWN_CMD
         .scoped(scroll_id)
         .shortcut()
         .set(Shortcuts::new());
 
-    zero_ui_wgt_scroll::Scroll! {
+    zng_wgt_scroll::Scroll! {
         id = scroll_id;
         focusable = false;
         child = Stack! {
             children = args.children;
-            direction = zero_ui_wgt_stack::StackDirection::top_to_bottom();
+            direction = zng_wgt_stack::StackDirection::top_to_bottom();
         };
-        mode = zero_ui_wgt_scroll::ScrollMode::VERTICAL;
+        mode = zng_wgt_scroll::ScrollMode::VERTICAL;
     }
 }
 
 /// Sub-menu popup implementation.
 pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Option<WidgetId>) -> impl UiNode {
-    let child = zero_ui_wgt_panel::node(
+    let child = zng_wgt_panel::node(
         children,
         if parent.is_none() {
             super::context::PANEL_FN_VAR

@@ -2,8 +2,8 @@ use webrender::{
     api::{self as wr},
     euclid,
 };
-use zero_ui_unit::{Px, PxBox, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector, Rgba};
-use zero_ui_view_api::{
+use zng_unit::{Px, PxBox, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector, Rgba};
+use zng_view_api::{
     config::FontAntiAliasing,
     display_list::{FilterOp, FrameValue, FrameValueId, FrameValueUpdate},
     font::FontOptions,

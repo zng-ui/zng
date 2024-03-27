@@ -4,16 +4,16 @@
 //! the transparency checkerboard.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
-//! zero_ui::image::IMAGES.limits().modify(|l| {
-//!     l.to_mut().allow_uri = zero_ui::image::UriFilter::AllowAll;
+//! zng::image::IMAGES.limits().modify(|l| {
+//!     l.to_mut().allow_uri = zng::image::UriFilter::AllowAll;
 //! });
 //!
 //! # let _ =
 //! Image! {
-//!     widget::background = zero_ui::checkerboard::Checkerboard!();
+//!     widget::background = zng::checkerboard::Checkerboard!();
 //!     source = "https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png";
 //! }
 //! # ;
@@ -21,6 +21,6 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_checkerboard`] for the full widget API.
+//! See [`zng_wgt_checkerboard`] for the full widget API.
 
-pub use zero_ui_wgt_checkerboard::{cb_origin, cb_size, colors, Checkerboard, Colors};
+pub use zng_wgt_checkerboard::{cb_origin, cb_size, colors, Checkerboard, Colors};

@@ -5,20 +5,20 @@ use std::{fmt, num::Wrapping, ops, sync::Arc};
 use super::text_properties::*;
 use atomic::{Atomic, Ordering};
 use parking_lot::RwLock;
-use zero_ui_app::render::FontSynthesis;
-use zero_ui_app_context::{MappedRwLockWriteGuardOwned, RwLockReadGuardOwned, RwLockWriteGuardOwned};
-use zero_ui_ext_font::{CaretIndex, FontFaceList, FontList, SegmentedText, ShapedLine, ShapedText, TextOverflowInfo};
-use zero_ui_ext_input::{
+use zng_app::render::FontSynthesis;
+use zng_app_context::{MappedRwLockWriteGuardOwned, RwLockReadGuardOwned, RwLockWriteGuardOwned};
+use zng_ext_font::{CaretIndex, FontFaceList, FontList, SegmentedText, ShapedLine, ShapedText, TextOverflowInfo};
+use zng_ext_input::{
     focus::FOCUS_CHANGED_EVENT,
     keyboard::{Key, KeyState, KEY_INPUT_EVENT},
     mouse::MOUSE_INPUT_EVENT,
     touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT},
 };
-use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_view_api::{mouse::ButtonState, touch::TouchPhase};
-use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_data::{DataNoteHandle, DATA};
-use zero_ui_wgt_layer::{
+use zng_ext_window::WINDOW_Ext as _;
+use zng_view_api::{mouse::ButtonState, touch::TouchPhase};
+use zng_wgt::prelude::*;
+use zng_wgt_data::{DataNoteHandle, DATA};
+use zng_wgt_layer::{
     popup::{ContextCapture, PopupState, POPUP},
     AnchorMode, AnchorTransform,
 };
@@ -455,7 +455,7 @@ bitflags! {
 pub fn line_placeholder(width: impl IntoVar<Length>) -> impl UiNode {
     let child = layout_text(FillUiNode);
     let child = resolve_text(child, " ");
-    zero_ui_wgt_size_offset::width(child, width)
+    zng_wgt_size_offset::width(child, width)
 }
 
 pub(super) fn get_caret_index(child: impl UiNode, index: impl IntoVar<Option<CaretIndex>>) -> impl UiNode {

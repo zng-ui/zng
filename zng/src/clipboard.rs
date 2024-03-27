@@ -11,7 +11,7 @@
 //! The example below uses the service to copy text to the clipboard:
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! let txt = var(Txt::from(""));
@@ -22,7 +22,7 @@
 //!     child_end = Button! {
 //!         child = Text!(copied.map(|&c| if !c { "Copy" } else { "Copied!" }.into()));
 //!         on_click = async_hn!(txt, copied, |_| {
-//!             if zero_ui::clipboard::CLIPBOARD.set_text(txt.get()).wait_rsp().await.is_ok() {
+//!             if zng::clipboard::CLIPBOARD.set_text(txt.get()).wait_rsp().await.is_ok() {
 //!                 copied.set(true);
 //!             }
 //!         });
@@ -35,13 +35,13 @@
 //! text input, that widget uses the clipboard service to get the text.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! Container! {
 //!     child = TextInput! { id = "input-1"; txt = var(Txt::from("")); };
-//!     child_end = Button!(zero_ui::clipboard::PASTE_CMD.scoped(WidgetId::named("input-1"))), 4;
+//!     child_end = Button!(zng::clipboard::PASTE_CMD.scoped(WidgetId::named("input-1"))), 4;
 //! }
 //! # ;
 //! ```
@@ -52,7 +52,7 @@
 //! the each file, in the example they are converted to a text list.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! # let txt = var(Txt::from(""));
@@ -60,7 +60,7 @@
 //! Button! {
 //!     child = Text!("Paste");
 //!     on_click = hn!(|_| {
-//!         if let Ok(Some(f)) = zero_ui::clipboard::CLIPBOARD.file_list() {
+//!         if let Ok(Some(f)) = zng::clipboard::CLIPBOARD.file_list() {
 //!             txt.modify(move |txt| {
 //!                 let txt = txt.to_mut();
 //!                 txt.clear();
@@ -82,8 +82,8 @@
 //! the window implements the paste by setting an image variable.
 //!
 //! ```
-//! use zero_ui::prelude::*;
-//! use zero_ui::clipboard;
+//! use zng::prelude::*;
+//! use zng::clipboard;
 //!
 //! # let mut app = APP.defaults().run_headless(false);
 //! # app.doc_test_window(async {
@@ -103,7 +103,7 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_ext_clipboard`] for the full clipboard API.
+//! See [`zng_ext_clipboard`] for the full clipboard API.
 
-pub use zero_ui_ext_clipboard::{ClipboardError, CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
-pub use zero_ui_wgt_input::cmd::{on_copy, on_cut, on_paste, on_pre_copy, on_pre_cut, on_pre_paste};
+pub use zng_ext_clipboard::{ClipboardError, CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
+pub use zng_wgt_input::cmd::{on_copy, on_cut, on_paste, on_pre_copy, on_pre_cut, on_pre_paste};

@@ -13,7 +13,7 @@
 //! [`gesture::on_click`]: fn@crate::gesture::on_click
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! let count = var(0u8);
@@ -44,16 +44,16 @@
 //! from command metadata, you can manually set some of these properties to override the command default.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! Stack!(left_to_right, 5, ui_vec![
 //!     // shorthand
-//!     Button!(zero_ui::clipboard::COPY_CMD),
+//!     Button!(zng::clipboard::COPY_CMD),
 //!     // cmd with custom child
 //!     Button! {
-//!         cmd = zero_ui::clipboard::PASTE_CMD;
+//!         cmd = zng::clipboard::PASTE_CMD;
 //!         child = Text!("Custom Label");
 //!     },
 //! ])
@@ -67,12 +67,12 @@
 //! visible if you set handlers for those commands.
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //! # fn cmd_btn_example() -> impl UiNode { widget::node::NilUiNode }
 //! # let _ =
-//! zero_ui::clipboard::COPY_CMD.on_event(true, app_hn!(|_, _| { println!("copy") })).perm();
-//! zero_ui::clipboard::PASTE_CMD.on_event(true, app_hn!(|_, _| { println!("paste") })).perm();
+//! zng::clipboard::COPY_CMD.on_event(true, app_hn!(|_, _| { println!("copy") })).perm();
+//! zng::clipboard::PASTE_CMD.on_event(true, app_hn!(|_, _| { println!("paste") })).perm();
 //! Window! {
 //!     child = cmd_btn_example();
 //! }
@@ -95,8 +95,8 @@
 //! an specific command.
 //!
 //! ```
-//! use zero_ui::prelude::*;
-//! use zero_ui::button;
+//! use zng::prelude::*;
+//! use zng::button;
 //!
 //! # let _scope = APP.defaults(); let _ =
 //! Window! {
@@ -116,11 +116,11 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_button`] for the full widget API.
+//! See [`zng_wgt_button`] for the full widget API.
 
-pub use zero_ui_wgt_button::{base_colors, style_fn, Button, DefaultStyle, LinkStyle, BUTTON};
+pub use zng_wgt_button::{base_colors, style_fn, Button, DefaultStyle, LinkStyle, BUTTON};
 
 /// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
 ///
 #[cfg(all(windows, doc))]
-pub use zero_ui_wgt_button::BUTTON as BUTTON_;
+pub use zng_wgt_button::BUTTON as BUTTON_;

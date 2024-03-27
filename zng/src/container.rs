@@ -8,7 +8,7 @@
 //! The top child is also separated from the primary child by 5dip.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -29,7 +29,7 @@
 //! Note that `Window!` inherits from `Container!` to the example above could become the skeleton of a classic app window:
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //! # fn tools() -> impl UiNode { widget::node::NilUiNode }
 //! # fn content() -> impl UiNode { widget::node::NilUiNode }
@@ -54,7 +54,7 @@
 //! The child can by any [`UiNode`] type, not just widgets, you can use this to plug nodes directly on the UI.
 //!
 //! ```
-//! use zero_ui::{prelude::*, prelude_wgt::*};
+//! use zng::{prelude::*, prelude_wgt::*};
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -85,8 +85,8 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_container`] for the full widget API.
+//! See [`zng_wgt_container`] for the full widget API.
 
-pub use zero_ui_wgt_container::{
+pub use zng_wgt_container::{
     child_bottom, child_end, child_insert, child_left, child_out_insert, child_right, child_start, child_top, ChildInsert, Container,
 };

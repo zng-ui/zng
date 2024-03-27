@@ -301,8 +301,8 @@ use super::{UiNode, UiNodeList};
 mod impls {
     use std::sync::Arc;
 
-    use zero_ui_layout::unit::PxSize;
-    use zero_ui_var::Var;
+    use zng_layout::unit::PxSize;
+    use zng_var::Var;
 
     use crate::{
         event::{Event, EventArgs},

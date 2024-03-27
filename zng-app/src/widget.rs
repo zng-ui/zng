@@ -17,14 +17,14 @@ use std::{
     fmt,
     sync::{atomic::Ordering::Relaxed, Arc},
 };
-use zero_ui_app_context::context_local;
-use zero_ui_handle::Handle;
-use zero_ui_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, PxTransform};
-use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
-use zero_ui_task::UiTask;
-use zero_ui_txt::{formatx, Txt};
-use zero_ui_var::{AnyVar, AnyVarHookArgs, AnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarValue};
-use zero_ui_view_api::display_list::ReuseRange;
+use zng_app_context::context_local;
+use zng_handle::Handle;
+use zng_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, PxTransform};
+use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
+use zng_task::UiTask;
+use zng_txt::{formatx, Txt};
+use zng_var::{AnyVar, AnyVarHookArgs, AnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarValue};
+use zng_view_api::display_list::ReuseRange;
 
 use crate::{
     event::{Event, EventArgs, EventHandle, EventHandles},
@@ -37,17 +37,17 @@ use self::info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo};
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_app_proc_macros::{property_impl, property_meta, widget_new};
+pub use zng_app_proc_macros::{property_impl, property_meta, widget_new};
 
-pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
+pub use zng_app_proc_macros::{property, ui_node, widget, widget_mixin};
 
 /// <span data-del-macro-root></span> Sets properties and when condition on a widget builder.
 ///
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{base::*, node::*, widget, property}};
-/// # use zero_ui_var::*;
+/// # use zng_app::{*, widget::{base::*, node::*, widget, property}};
+/// # use zng_var::*;
 /// # #[property(CONTEXT)] pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 /// # #[widget($crate::Wgt)]
 /// # pub struct Wgt(WidgetBase);
@@ -77,10 +77,10 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// Note that properties are designed to have a default *neutral* value that behaves as if unset, in the example case you could more easily write:
 ///
 /// ```
-/// # zero_ui_app::enable_widget_macros!();
-/// # use zero_ui_app::{*, widget::{node::*, base::*, widget, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
+/// # zng_app::enable_widget_macros!();
+/// # use zng_app::{*, widget::{node::*, base::*, widget, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
 /// # #[widget($crate::Wgt)] pub struct Wgt(WidgetBase);
 /// # #[property(CONTEXT)] pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode { child }
 /// # fn main() {
@@ -101,13 +101,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// directly implemented on the widget or from a trait.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// id = "name";
 /// background_color = colors::BLUE;
 /// # }; }
@@ -116,13 +116,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
+/// # let mut wgt = zng_app::widget::base::WidgetBase::widget_new();
 /// wgt.id("name");
 /// wgt.background_color(colors::BLUE);
 /// # }
@@ -137,13 +137,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// A full or partial path can be used to specify exactly what extension property will be set:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// self::background_color = colors::BLUE;
 /// # }; }
 /// ```
@@ -154,13 +154,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
+/// # let mut wgt = zng_app::widget::base::WidgetBase::widget_new();
 /// self::background_color::background_color(&mut wgt, colors::BLUE);
 /// # }
 /// ```
@@ -170,13 +170,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// Properties can have multiple parameters, multiple parameters can be set using the struct init syntax:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = {
 ///     widths: 1,
 ///     sides: colors::RED,
@@ -187,13 +187,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// Note that just like in struct init the parameters don't need to be in order:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = {
 ///     sides: colors::RED,
 ///     widths: 1,
@@ -205,15 +205,15 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// accepting any parameter order. Note each parameter is evaluated in the order they appear, even if they are assigned in a different order after.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
 /// let mut eval_order = vec![];
 ///
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = {
 ///     sides: {
 ///         eval_order.push("sides");
@@ -235,13 +235,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// Properties with multiple parameters don't need to be set using the named syntax:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = 1, colors::RED;
 /// # }; }
 /// ```
@@ -249,13 +249,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
+/// # let mut wgt = zng_app::widget::base::WidgetBase::widget_new();
 /// wgt.border(1, colors::RED);
 /// # }
 /// ```
@@ -265,10 +265,10 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// Is a variable with the same name as a property is in context the `= name` can be omitted:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
@@ -276,7 +276,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// let background_color = colors::BLUE;
 /// let widths = 1;
 ///
-/// let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// let wgt = zng_app::widget::base::WidgetBase! {
 ///     id;
 ///     self::background_color;
 ///     border = {
@@ -292,10 +292,10 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// The above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
@@ -303,7 +303,7 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// let background_color = colors::BLUE;
 /// let widths = 1;
 ///
-/// let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// let wgt = zng_app::widget::base::WidgetBase! {
 ///     id = id;
 ///     self::background_color = background_color;
 ///     border = {
@@ -320,13 +320,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// unset property will not be instantiated:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// border = unset!;
 /// # }; }
 /// ```
@@ -334,13 +334,13 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// The example above is equivalent to:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # fn main() {
-/// # let mut wgt = zero_ui_app::widget::base::WidgetBase::widget_new();
+/// # let mut wgt = zng_app::widget::base::WidgetBase::widget_new();
 /// wgt.unset_border();
 /// # }
 /// ```
@@ -354,14 +354,14 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// Generic properties need a *turbofish* annotation on assign:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn value<T: VarValue>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode { child }
 /// #
 /// # fn main() {
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// value::<f32> = 1.0;
 /// # };}
 /// ```
@@ -372,15 +372,15 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// when the expression is `true` each property has the assigned value, unless it is overridden by a later `when` block.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// # #[property(CONTEXT)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
 /// # #[property(EVENT)] pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode { child }
 /// # fn main() {
 /// # let _scope = APP.minimal();
-/// # let wgt = zero_ui_app::widget::base::WidgetBase! {
+/// # let wgt = zng_app::widget::base::WidgetBase! {
 /// background_color = colors::RED;
 ///
 /// when *#is_pressed {
@@ -416,10 +416,10 @@ pub use zero_ui_app_proc_macros::{property, ui_node, widget, widget_mixin};
 /// the variable value is inserted in the expression as a reference so you may need to deref in case the var is a simple [`Copy`] value.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, property, self}};
-/// # use zero_ui_color::*;
-/// # use zero_ui_var::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::{*, widget::{node::*, property, self}};
+/// # use zng_color::*;
+/// # use zng_var::*;
+/// # use zng_layout::unit::*;
 /// #
 /// # #[property(FILL)]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
@@ -524,10 +524,10 @@ pub use widget_set;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::widget::{*, node::UiNode, base::WidgetBase};
-/// # use zero_ui_layout::unit::Align;
-/// # use zero_ui_var::IntoVar;
-/// # mod zero_ui { use super::*; pub mod widget { use super::*; #[zero_ui_app::widget::property(LAYOUT)] pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode { child } } }
+/// # use zng_app::widget::{*, node::UiNode, base::WidgetBase};
+/// # use zng_layout::unit::Align;
+/// # use zng_var::IntoVar;
+/// # mod zng { use super::*; pub mod widget { use super::*; #[zng_app::widget::property(LAYOUT)] pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode { child } } }
 /// #
 /// #[widget($crate::MyWgt)]
 /// pub struct MyWgt(WidgetBase);
@@ -535,7 +535,7 @@ pub use widget_set;
 /// impl MyWgt {
 ///     widget_impl! {
 ///         /// Docs for the property in the widget.
-///         pub zero_ui::widget::align(align: impl IntoVar<Align>);
+///         pub zng::widget::align(align: impl IntoVar<Align>);
 ///     }
 /// }
 /// ```
@@ -560,7 +560,7 @@ macro_rules! widget_impl {
 #[doc(inline)]
 pub use widget_impl;
 
-zero_ui_unique_id::unique_id_64! {
+zng_unique_id::unique_id_64! {
     /// Unique ID of a widget.
     ///
     /// # Name
@@ -571,10 +571,10 @@ zero_ui_unique_id::unique_id_64! {
     /// [`name`]: WidgetId::name
     pub struct WidgetId;
 }
-zero_ui_unique_id::impl_unique_id_name!(WidgetId);
-zero_ui_unique_id::impl_unique_id_fmt!(WidgetId);
+zng_unique_id::impl_unique_id_name!(WidgetId);
+zng_unique_id::impl_unique_id_fmt!(WidgetId);
 
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     /// Calls [`WidgetId::named`].
     fn from(name: &'static str) -> WidgetId {
         WidgetId::named(name)
@@ -595,8 +595,8 @@ zero_ui_var::impl_from_and_into_var! {
     fn from(name: Txt) -> WidgetId {
         WidgetId::named(name)
     }
-    fn from(id: WidgetId) -> zero_ui_view_api::access::AccessNodeId {
-        zero_ui_view_api::access::AccessNodeId(id.get())
+    fn from(id: WidgetId) -> zng_view_api::access::AccessNodeId {
+        zng_view_api::access::AccessNodeId(id.get())
     }
 
     fn from(some: WidgetId) -> Option<WidgetId>;
@@ -607,7 +607,7 @@ impl fmt::Debug for StaticWidgetId {
         fmt::Debug::fmt(&self.get(), f)
     }
 }
-impl zero_ui_var::IntoValue<WidgetId> for &'static StaticWidgetId {}
+impl zng_var::IntoValue<WidgetId> for &'static StaticWidgetId {}
 impl serde::Serialize for WidgetId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1348,7 +1348,7 @@ pub trait AnyVarSubscribe: AnyVar {
     ///
     /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
     ///
-    /// [`NEW`]: zero_ui_var::VarCapabilities::NEW
+    /// [`NEW`]: zng_var::VarCapabilities::NEW
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle;
 }
 impl<V: AnyVar> AnyVarSubscribe for V {
@@ -1369,7 +1369,7 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     ///
     /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
     ///
-    /// [`NEW`]: zero_ui_var::VarCapabilities::NEW
+    /// [`NEW`]: zng_var::VarCapabilities::NEW
     fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle;
 
     /// Add a preview `handler` that is called every time this variable updates,
@@ -1377,7 +1377,7 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     ///
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] used inside will have the default value.
     ///
-    /// [`ContextVar<T>`]: zero_ui_var::ContextVar
+    /// [`ContextVar<T>`]: zng_var::ContextVar
     fn on_pre_new<H>(&self, handler: H) -> VarHandle
     where
         H: AppHandler<OnVarArgs<T>>,
@@ -1390,7 +1390,7 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     ///
     /// Note that the handler runs on the app context, all [`ContextVar<T>`] used inside will have the default value.
     ///
-    /// [`ContextVar<T>`]: zero_ui_var::ContextVar
+    /// [`ContextVar<T>`]: zng_var::ContextVar
     fn on_new<H>(&self, handler: H) -> VarHandle
     where
         H: AppHandler<OnVarArgs<T>>,
@@ -1435,8 +1435,8 @@ impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
             return VarHandle::dummy();
         }
 
-        self.on_pre_new(app_hn!(|args: &OnVarArgs<zero_ui_var::types::Response<T>>, handler_args| {
-            if let zero_ui_var::types::Response::Done(value) = &args.value {
+        self.on_pre_new(app_hn!(|args: &OnVarArgs<zng_var::types::Response<T>>, handler_args| {
+            if let zng_var::types::Response::Done(value) = &args.value {
                 handler.event(
                     &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
                     &crate::handler::AppHandlerArgs {
@@ -1456,8 +1456,8 @@ impl<T: VarValue> ResponseVarSubscribe<T> for ResponseVar<T> {
             return VarHandle::dummy();
         }
 
-        self.on_new(app_hn!(|args: &OnVarArgs<zero_ui_var::types::Response<T>>, handler_args| {
-            if let zero_ui_var::types::Response::Done(value) = &args.value {
+        self.on_new(app_hn!(|args: &OnVarArgs<zng_var::types::Response<T>>, handler_args| {
+            if let zng_var::types::Response::Done(value) = &args.value {
                 handler.event(
                     &OnVarArgs::new(value.clone(), args.tags.iter().map(|t| (*t).clone_boxed()).collect()),
                     &crate::handler::AppHandlerArgs {
@@ -1562,7 +1562,7 @@ impl<T: VarValue> Clone for OnVarArgs<T> {
 pub trait VarLayout<T: VarValue>: Var<T> {
     /// Compute the pixel value in the current [`LAYOUT`] context.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout(&self) -> T::Px
     where
         T: Layout2d,
@@ -1572,7 +1572,7 @@ pub trait VarLayout<T: VarValue>: Var<T> {
 
     /// Compute the pixel value in the current [`LAYOUT`] context with `default`.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_dft(&self, default: T::Px) -> T::Px
     where
         T: Layout2d,
@@ -1582,7 +1582,7 @@ pub trait VarLayout<T: VarValue>: Var<T> {
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_x(&self) -> Px
     where
         T: Layout1d,
@@ -1592,7 +1592,7 @@ pub trait VarLayout<T: VarValue>: Var<T> {
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_y(&self) -> Px
     where
         T: Layout1d,
@@ -1602,7 +1602,7 @@ pub trait VarLayout<T: VarValue>: Var<T> {
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_z(&self) -> Px
     where
         T: Layout1d,
@@ -1612,7 +1612,7 @@ pub trait VarLayout<T: VarValue>: Var<T> {
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***x*** axis with `default`.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_dft_x(&self, default: Px) -> Px
     where
         T: Layout1d,
@@ -1622,7 +1622,7 @@ pub trait VarLayout<T: VarValue>: Var<T> {
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***y*** axis with `default`.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_dft_y(&self, default: Px) -> Px
     where
         T: Layout1d,
@@ -1632,7 +1632,7 @@ pub trait VarLayout<T: VarValue>: Var<T> {
 
     /// Compute the pixel value in the current [`LAYOUT`] context ***z*** axis with `default`.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     fn layout_dft_z(&self, default: Px) -> Px
     where
         T: Layout1d,

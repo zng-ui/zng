@@ -5,11 +5,11 @@
 //! Before using them review the [`gesture`](super::gesture) events, in particular the
 //! [`on_click`](fn@super::gesture::on_click) event.
 
-use zero_ui_ext_input::touch::{
+use zng_ext_input::touch::{
     TouchInputArgs, TouchLongPressArgs, TouchMoveArgs, TouchTapArgs, TouchTransformArgs, TouchedArgs, TOUCHED_EVENT, TOUCH_INPUT_EVENT,
     TOUCH_LONG_PRESS_EVENT, TOUCH_MOVE_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT,
 };
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 event_property! {
     /// Touch contact moved over the widget and cursor capture allows it.

@@ -5,8 +5,8 @@
 //! [ANSI escape codes]: https://en.wikipedia.org/wiki/ANSI_escape_code
 //!
 //! ```
-//! # let _scope = zero_ui::APP.defaults(); let _ =
-//! zero_ui::ansi_text::AnsiText! {
+//! # let _scope = zng::APP.defaults(); let _ =
+//! zng::ansi_text::AnsiText! {
 //!     txt = "[32;1mGREEN&BOLD[47m";
 //! }
 //! # ;
@@ -16,8 +16,8 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_ansi_text`] for the full widget API.
+//! See [`zng_wgt_ansi_text`] for the full widget API.
 
-pub use zero_ui_wgt_ansi_text::{
+pub use zng_wgt_ansi_text::{
     AnsiColor, AnsiStyle, AnsiText, AnsiTextParser, AnsiTxt, AnsiWeight, LineFnArgs, PageFnArgs, PanelFnArgs, TextFnArgs,
 };

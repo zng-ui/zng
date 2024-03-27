@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::{
+use zng::{
     prelude::*,
     widget::{background_color, border_align, corner_radius},
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -107,7 +107,7 @@ fn clip_to_bounds_demo() -> impl UiNode {
 }
 
 mod widgets {
-    use zero_ui::{
+    use zng::{
         container::Container,
         prelude_wgt::*,
         widget::{self, border},

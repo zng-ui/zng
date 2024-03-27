@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::task::parking_lot::Mutex;
 use hyphenation::{Hyphenator as _, Load as _};
-use zero_ui_app_context::app_local;
-use zero_ui_ext_l10n::Lang;
+use zng_app_context::app_local;
+use zng_ext_l10n::Lang;
 
 app_local! {
     static HYPHENATION_SV: Hyphenation = Hyphenation {
@@ -173,7 +173,7 @@ mod util {
     use super::*;
     use hyphenation::Language::*;
     use regex::Regex;
-    use zero_ui_ext_l10n::{lang, Lang};
+    use zng_ext_l10n::{lang, Lang};
 
     app_local! {
         pub static LANG_TO_LANGUAGE_MAP: Vec<(Lang, hyphenation::Language)> = vec![

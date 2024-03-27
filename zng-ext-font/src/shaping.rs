@@ -5,14 +5,14 @@ use std::{
 };
 
 pub use font_kit::error::GlyphLoadingError;
-use zero_ui_app::widget::info::InlineSegmentInfo;
-use zero_ui_ext_l10n::{lang, Lang};
-use zero_ui_layout::{
+use zng_app::widget::info::InlineSegmentInfo;
+use zng_ext_l10n::{lang, Lang};
+use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
     unit::{euclid, Align, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
-use zero_ui_txt::Txt;
-use zero_ui_view_api::font::{GlyphIndex, GlyphInstance};
+use zng_txt::Txt;
+use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
     font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, LineBreak, SegmentedText, TextSegment, WordBreak,
@@ -4075,9 +4075,9 @@ fn into_harf_direction(d: LayoutDirection) -> harfbuzz_rs::Direction {
 #[cfg(test)]
 mod tests {
     use crate::{Font, FontManager, FontName, FontStretch, FontStyle, FontWeight, SegmentedText, TextShapingArgs, WordContextKey, FONTS};
-    use zero_ui_app::APP;
-    use zero_ui_ext_l10n::lang;
-    use zero_ui_layout::{
+    use zng_app::APP;
+    use zng_ext_l10n::lang;
+    use zng_layout::{
         context::LayoutDirection,
         unit::{Px, PxConstraints2d, TimeUnits},
     };

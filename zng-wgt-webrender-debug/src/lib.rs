@@ -4,9 +4,9 @@
 
 pub use webrender_api::DebugFlags;
 
-use zero_ui_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
-use zero_ui_ext_window::WINDOWS;
-use zero_ui_wgt::prelude::*;
+use zng_app::view_process::{VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT};
+use zng_ext_window::WINDOWS;
+use zng_wgt::prelude::*;
 
 /// Sets the Webrender renderer debug flags and profiler UI for the current window.
 ///

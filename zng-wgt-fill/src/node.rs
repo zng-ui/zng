@@ -1,6 +1,6 @@
 //! Color and gradient fill nodes and builders.
 
-use zero_ui_wgt::prelude::{gradient::*, *};
+use zng_wgt::prelude::{gradient::*, *};
 
 /// Gradient builder start.
 ///

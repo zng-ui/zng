@@ -1,8 +1,8 @@
-use zero_ui::{widget::Wgt, APP};
+use zng::{widget::Wgt, APP};
 
 fn main() {
     let _scope = APP.minimal();
     let _ = Wgt! {
-        zero_ui::layout:margin = 0;
+        zng::layout:margin = 0;
     };
 }

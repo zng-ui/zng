@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::{
+use zng::{
     access::ACCESS,
     app::EXIT_CMD,
     button,
@@ -22,7 +22,7 @@ use zero_ui::{
     window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
 };
 
-use zero_ui::view_process::default as view_process;
+use zng::view_process::default as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -43,9 +43,9 @@ fn app_main() {
 async fn main_window() -> window::WindowRoot {
     // WINDOWS.exit_on_last_close().set(false);
 
-    zero_ui::image::IMAGES.limits().modify(|l| {
+    zng::image::IMAGES.limits().modify(|l| {
         let l = l.to_mut();
-        l.allow_path = zero_ui::image::PathFilter::allow_dir("examples/res");
+        l.allow_path = zng::image::PathFilter::allow_dir("examples/res");
     });
 
     let window_vars = WINDOW.vars();
@@ -287,7 +287,7 @@ fn icon_example() -> impl UiNode {
 }
 
 fn state_commands() -> impl UiNode {
-    use zero_ui::window::cmd::*;
+    use zng::window::cmd::*;
 
     let window_id = WINDOW.id();
 
@@ -399,7 +399,7 @@ fn exclusive_mode() -> impl UiNode {
         checked_popup = wgt_fn!(|_| {
             let vars = WINDOW.vars();
             let selected_opt = vars.video_mode();
-            let default_opt = zero_ui::window::VideoMode::MAX;
+            let default_opt = zng::window::VideoMode::MAX;
             let opts = vars.video_modes().get();
             popup::Popup! {
                 max_height = 80.vh_pct();
@@ -458,7 +458,7 @@ fn misc() -> impl UiNode {
                 checked = window_vars.always_on_top();
             },
             separator(),
-            cmd_btn(zero_ui::window::cmd::INSPECT_CMD.scoped(window_id)),
+            cmd_btn(zng::window::cmd::INSPECT_CMD.scoped(window_id)),
             separator(),
             {
                 let mut child_count = 0;

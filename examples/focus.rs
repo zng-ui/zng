@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::{
+use zng::{
     button,
     color::{color_scheme_map, filter::drop_shadow},
     focus::{
@@ -18,7 +18,7 @@ use zero_ui::{
     window::FocusIndicator,
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -59,10 +59,10 @@ fn app_main() {
                     }
                 ];
             };
-            // zero_ui::window::inspector::show_center_points = true;
-            // zero_ui::window::inspector::show_bounds = true;
-            // zero_ui::window::inspector::show_hit_test = true;
-            // zero_ui::window::inspector::show_directional_query = Some(zero_ui::core::unit::Orientation2D::Below);
+            // zng::window::inspector::show_center_points = true;
+            // zng::window::inspector::show_bounds = true;
+            // zng::window::inspector::show_hit_test = true;
+            // zng::window::inspector::show_directional_query = Some(zng::core::unit::Orientation2D::Below);
         }
     })
 }
@@ -303,7 +303,7 @@ fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNod
 }
 
 fn commands() -> impl UiNode {
-    use zero_ui::focus::cmd::*;
+    use zng::focus::cmd::*;
 
     let cmds = [
         FOCUS_NEXT_CMD,
@@ -368,7 +368,7 @@ fn nested_focusables() -> impl UiNode {
                     color_scheme = color::ColorScheme::Dark;
                     background_color = web_colors::DIM_GRAY;
 
-                    // zero_ui::properties::inspector::show_center_points = true;
+                    // zng::properties::inspector::show_center_points = true;
                     child_align = Align::CENTER;
                     child = Stack! {
                         direction = StackDirection::top_to_bottom();

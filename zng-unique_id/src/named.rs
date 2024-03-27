@@ -23,7 +23,7 @@ const fn default_hash_map_new<K, V>() -> DefaultHashMap<K, V> {
 }
 
 #[doc(no_inline)]
-pub use zero_ui_txt::Txt;
+pub use zng_txt::Txt;
 
 /// Bidirectional map between a `Txt` and a [`unique_id!`] generated id type.
 struct NameIdMap<I> {

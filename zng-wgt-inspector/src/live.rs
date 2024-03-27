@@ -1,13 +1,13 @@
-use zero_ui_app::access::ACCESS_CLICK_EVENT;
-use zero_ui_ext_config::CONFIG;
-use zero_ui_ext_input::{
+use zng_app::access::ACCESS_CLICK_EVENT;
+use zng_ext_config::CONFIG;
+use zng_ext_input::{
     gesture::CLICK_EVENT,
     mouse::{MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT},
     touch::{TOUCHED_EVENT, TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_MOVE_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT},
 };
-use zero_ui_ext_window::{WINDOW_Ext as _, WINDOWS};
-use zero_ui_view_api::window::CursorIcon;
-use zero_ui_wgt::prelude::*;
+use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
+use zng_view_api::window::CursorIcon;
+use zng_wgt::prelude::*;
 
 use crate::INSPECT_CMD;
 
@@ -268,35 +268,35 @@ enum HitSelect {
 mod inspector_window {
     use std::mem;
 
-    use zero_ui_app::widget::{
+    use zng_app::widget::{
         border::{BorderSide, BorderSides},
         builder::{Importance, PropertyArgs, PropertyInfo, WidgetType},
         inspector::{InspectorActualVars, InstanceItem, WidgetInfoInspectorExt as _},
         OnVarArgs,
     };
-    use zero_ui_color::Rgba;
-    use zero_ui_ext_font::{FontStyle, FontWeight};
-    use zero_ui_ext_input::focus::FOCUS;
-    use zero_ui_ext_l10n::lang;
-    use zero_ui_ext_window::{WindowIcon, WindowRoot, WINDOWS};
-    use zero_ui_var::{animation::easing, var_from};
-    use zero_ui_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
-    use zero_ui_wgt_access::{access_role, AccessRole};
-    use zero_ui_wgt_container::{child_align, padding, Container};
-    use zero_ui_wgt_fill::{background, background_color};
-    use zero_ui_wgt_filter::opacity;
-    use zero_ui_wgt_input::{focus::focus_shortcut, gesture::click_shortcut, is_hovered};
-    use zero_ui_wgt_rule_line::hr::Hr;
-    use zero_ui_wgt_scroll::{Scroll, ScrollMode};
-    use zero_ui_wgt_size_offset::{size, width};
-    use zero_ui_wgt_stack::{Stack, StackDirection};
-    use zero_ui_wgt_style::Style;
-    use zero_ui_wgt_text::{font_family, lang, Text};
-    use zero_ui_wgt_text_input::TextInput;
-    use zero_ui_wgt_toggle::{self as toggle, Toggle};
-    use zero_ui_wgt_tooltip::{tooltip, Tip};
-    use zero_ui_wgt_window as window;
-    use zero_ui_wgt_wrap::Wrap;
+    use zng_color::Rgba;
+    use zng_ext_font::{FontStyle, FontWeight};
+    use zng_ext_input::focus::FOCUS;
+    use zng_ext_l10n::lang;
+    use zng_ext_window::{WindowIcon, WindowRoot, WINDOWS};
+    use zng_var::{animation::easing, var_from};
+    use zng_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
+    use zng_wgt_access::{access_role, AccessRole};
+    use zng_wgt_container::{child_align, padding, Container};
+    use zng_wgt_fill::{background, background_color};
+    use zng_wgt_filter::opacity;
+    use zng_wgt_input::{focus::focus_shortcut, gesture::click_shortcut, is_hovered};
+    use zng_wgt_rule_line::hr::Hr;
+    use zng_wgt_scroll::{Scroll, ScrollMode};
+    use zng_wgt_size_offset::{size, width};
+    use zng_wgt_stack::{Stack, StackDirection};
+    use zng_wgt_style::Style;
+    use zng_wgt_text::{font_family, lang, Text};
+    use zng_wgt_text_input::TextInput;
+    use zng_wgt_toggle::{self as toggle, Toggle};
+    use zng_wgt_tooltip::{tooltip, Tip};
+    use zng_wgt_window as window;
+    use zng_wgt_wrap::Wrap;
 
     use super::data_model::*;
 
@@ -383,7 +383,7 @@ mod inspector_window {
                 background_color = SELECTED_BKG_VAR;
             }, 0;
 
-            zero_ui_wgt::on_deinit = hn!(|_| {
+            zng_wgt::on_deinit = hn!(|_| {
                 let _keep_alive = (&hit_select_handle, &focus_selected);
             });
         }
@@ -916,14 +916,14 @@ mod data_model {
     use std::{fmt, ops, sync::Arc};
 
     use parking_lot::Mutex;
-    use zero_ui_app::widget::{
+    use zng_app::widget::{
         builder::WidgetType,
         info::WidgetInfoTree,
         inspector::{InspectorInfo, WidgetInfoInspectorExt},
     };
-    use zero_ui_var::{types::WeakArcVar, WeakVar};
-    use zero_ui_view_api::window::FrameId;
-    use zero_ui_wgt::prelude::*;
+    use zng_var::{types::WeakArcVar, WeakVar};
+    use zng_view_api::window::FrameId;
+    use zng_wgt::prelude::*;
 
     #[derive(Default)]
     pub struct InspectedTreeData {

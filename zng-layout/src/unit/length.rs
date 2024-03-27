@@ -3,7 +3,7 @@ use super::{
 };
 use std::{fmt, mem, ops};
 
-use zero_ui_var::{
+use zng_var::{
     animation::{easing::EasingStep, Transitionable},
     impl_from_and_into_var,
 };
@@ -818,7 +818,7 @@ impl fmt::Display for LengthExpr {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::unit::*;
+/// # use zng_layout::unit::*;
 /// let font_size = 1.em();
 /// let root_font_size = 1.rem();
 /// let viewport_width = 100.vw();

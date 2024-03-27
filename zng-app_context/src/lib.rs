@@ -15,15 +15,15 @@ use std::{
 };
 
 use parking_lot::*;
-use zero_ui_txt::Txt;
-use zero_ui_unique_id::{unique_id_32, IdMap, IdSet};
+use zng_txt::Txt;
+use zng_unique_id::{unique_id_32, IdMap, IdSet};
 
 unique_id_32! {
     /// Identifies an app instance.
     pub struct AppId;
 }
-zero_ui_unique_id::impl_unique_id_name!(AppId);
-zero_ui_unique_id::impl_unique_id_fmt!(AppId);
+zng_unique_id::impl_unique_id_name!(AppId);
+zng_unique_id::impl_unique_id_fmt!(AppId);
 
 impl serde::Serialize for AppId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -778,7 +778,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 /// The example below declares two app locals, note that `BAR` init value automatically converts into the app local type.
 ///
 /// ```
-/// # use zero_ui_app_context::*;
+/// # use zng_app_context::*;
 /// app_local! {
 ///     /// A public documented value.
 ///     pub static FOO: u8 = const { 10u8 };
@@ -1322,7 +1322,7 @@ impl<T> ReadOnlyRwLock<T> {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app_context::*;
+/// # use zng_app_context::*;
 /// context_local! {
 ///     /// A public documented value.
 ///     pub static FOO: u8 = 10u8;
@@ -1343,7 +1343,7 @@ impl<T> ReadOnlyRwLock<T> {
 /// After you declare the context local you can use it by loading a contextual value for the duration of a closure call.
 ///
 /// ```
-/// # use zero_ui_app_context::*;
+/// # use zng_app_context::*;
 /// # use std::sync::Arc;
 /// context_local! { static FOO: String = "default"; }
 ///

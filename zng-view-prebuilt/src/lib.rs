@@ -56,7 +56,7 @@ pub struct ViewLib {
 impl ViewLib {
     /// Extract the embedded library to the temp directory and link to it.
     pub fn install() -> Result<Self, Error> {
-        let dir = env::temp_dir().join("zero_ui_view");
+        let dir = env::temp_dir().join("zng_view");
         std::fs::create_dir_all(&dir)?;
         Self::install_to(dir)
     }
@@ -67,7 +67,7 @@ impl ViewLib {
     ///
     /// [`uninstall_from`]: Self::uninstall_from
     pub fn uninstall() -> Result<bool, io::Error> {
-        let dir = env::temp_dir().join("zero_ui_view");
+        let dir = env::temp_dir().join("zng_view");
         Self::uninstall_from(dir)
     }
 
@@ -76,13 +76,13 @@ impl ViewLib {
         Self::install_to_impl(dir.into())
     }
     fn install_to_impl(dir: PathBuf) -> Result<Self, Error> {
-        #[cfg(not(zero_ui_lib_embedded))]
+        #[cfg(not(zng_lib_embedded))]
         {
             let _ = dir;
             panic!("library not embedded");
         }
 
-        #[cfg(zero_ui_lib_embedded)]
+        #[cfg(zng_lib_embedded)]
         {
             let file = Self::install_path(dir);
 
@@ -105,13 +105,13 @@ impl ViewLib {
         Self::uninstall_from_impl(dir.into())
     }
     fn uninstall_from_impl(dir: PathBuf) -> Result<bool, io::Error> {
-        #[cfg(not(zero_ui_lib_embedded))]
+        #[cfg(not(zng_lib_embedded))]
         {
             let _ = dir;
             Ok(false)
         }
 
-        #[cfg(zero_ui_lib_embedded)]
+        #[cfg(zng_lib_embedded)]
         {
             let file = Self::install_path(dir);
 
@@ -124,7 +124,7 @@ impl ViewLib {
         }
     }
 
-    #[cfg(zero_ui_lib_embedded)]
+    #[cfg(zng_lib_embedded)]
     fn install_path(dir: PathBuf) -> PathBuf {
         #[cfg(target_os = "windows")]
         let file_name = format!("{LIB_NAME}.dll");
@@ -233,10 +233,10 @@ impl ViewLib {
     }
 }
 
-#[cfg(zero_ui_lib_embedded)]
-const LIB: &[u8] = include_bytes!(env!("ZERO_UI_VIEW_LIB"));
-#[cfg(zero_ui_lib_embedded)]
-const LIB_NAME: &str = concat!("zv.", env!("CARGO_PKG_VERSION"), ".", env!("ZERO_UI_VIEW_LIB_HASH"));
+#[cfg(zng_lib_embedded)]
+const LIB: &[u8] = include_bytes!(env!("ZNG_VIEW_LIB"));
+#[cfg(zng_lib_embedded)]
+const LIB_NAME: &str = concat!("zv.", env!("CARGO_PKG_VERSION"), ".", env!("ZNG_VIEW_LIB_HASH"));
 
 /// Error searching or linking to pre-build library.
 #[derive(Debug)]

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use zero_ui_app_proc_macros::{property, widget};
-use zero_ui_var::ContextInitHandle;
+use zng_app_proc_macros::{property, widget};
+use zng_var::ContextInitHandle;
 
 use crate::{
     ui_vec,
@@ -119,10 +119,10 @@ mod util {
         thread::{self, ThreadId},
     };
 
-    use zero_ui_app_context::{context_local, ContextLocal};
-    use zero_ui_app_proc_macros::property;
-    use zero_ui_state_map::StaticStateId;
-    use zero_ui_var::IntoValue;
+    use zng_app_context::{context_local, ContextLocal};
+    use zng_app_proc_macros::property;
+    use zng_state_map::StaticStateId;
+    use zng_var::IntoValue;
 
     use crate::widget::{
         node::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp},

@@ -1,17 +1,17 @@
 use core::fmt;
 use std::sync::Arc;
 
-use zero_ui_app::event::{event, event_args, AnyEventArgs};
-use zero_ui_app::update::EventUpdate;
-use zero_ui_app::view_process::raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
-use zero_ui_app::view_process::VIEW_PROCESS_INITED_EVENT;
-use zero_ui_app::window::{MonitorId, WindowId, WINDOW};
-use zero_ui_app_context::app_local;
-use zero_ui_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, PxPoint, PxRect, PxSize, PxToDip};
-use zero_ui_txt::{ToTxt, Txt};
-use zero_ui_unique_id::IdMap;
-use zero_ui_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var, VarValue};
-use zero_ui_view_api::window::VideoMode;
+use zng_app::event::{event, event_args, AnyEventArgs};
+use zng_app::update::EventUpdate;
+use zng_app::view_process::raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
+use zng_app::view_process::VIEW_PROCESS_INITED_EVENT;
+use zng_app::window::{MonitorId, WindowId, WINDOW};
+use zng_app_context::app_local;
+use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, PxPoint, PxRect, PxSize, PxToDip};
+use zng_txt::{ToTxt, Txt};
+use zng_unique_id::IdMap;
+use zng_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var, VarValue};
+use zng_view_api::window::VideoMode;
 
 use crate::WINDOWS;
 
@@ -57,7 +57,7 @@ app_local! {
 ///
 /// [`ppi`]: MonitorInfo::ppi
 /// [`scale_factor`]: MonitorInfo::scale_factor
-/// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
+/// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
 /// [`WindowManager`]: crate::WindowManager
 pub struct MONITORS;
 impl MONITORS {
@@ -133,7 +133,7 @@ impl MonitorsService {
 
 /// "Monitor" configuration used by windows in [headless mode].
 ///
-/// [headless mode]: zero_ui_app::window::WindowMode::is_headless
+/// [headless mode]: zng_app::window::WindowMode::is_headless
 #[derive(Clone, Copy, PartialEq)]
 pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
@@ -229,8 +229,8 @@ impl fmt::Debug for MonitorInfo {
     }
 }
 impl MonitorInfo {
-    /// New from a [`zero_ui_view_api::MonitorInfo`].
-    fn from_gen(id: MonitorId, info: zero_ui_view_api::window::MonitorInfo) -> Self {
+    /// New from a [`zng_view_api::MonitorInfo`].
+    fn from_gen(id: MonitorId, info: zng_view_api::window::MonitorInfo) -> Self {
         MonitorInfo {
             id,
             is_primary: var(info.is_primary),
@@ -243,9 +243,9 @@ impl MonitorInfo {
         }
     }
 
-    /// Update variables from fresh [`zero_ui_view_api::MonitorInfo`],
+    /// Update variables from fresh [`zng_view_api::MonitorInfo`],
     /// returns if any value changed.
-    fn update(&self, info: zero_ui_view_api::window::MonitorInfo) -> bool {
+    fn update(&self, info: zng_view_api::window::MonitorInfo) -> bool {
         fn check_set<T: VarValue + PartialEq>(var: &impl Var<T>, value: T) -> bool {
             let ne = var.with(|v| v != &value);
             var.set(value).unwrap();

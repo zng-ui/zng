@@ -2,15 +2,15 @@
 
 use std::fmt;
 
-use zero_ui_layout::{
+use zng_layout::{
     context::LayoutMask,
     unit::{about_eq, about_eq_hash, AngleDegree, Factor, FactorUnits, Layout1d, Layout2d, Length, Point},
 };
-use zero_ui_var::{
+use zng_var::{
     animation::{easing::EasingStep, Transitionable},
     impl_from_and_into_var,
 };
-use zero_ui_view_api::display_list::{FilterOp, FrameValue};
+use zng_view_api::display_list::{FilterOp, FrameValue};
 
 use crate::{lerp_rgba, Rgba};
 
@@ -19,8 +19,8 @@ use crate::{lerp_rgba, Rgba};
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::filter::Filter;
-/// use zero_ui_layout::unit::*;
+/// use zng_color::filter::Filter;
+/// use zng_layout::unit::*;
 ///
 /// let filter = Filter::new_opacity(50.pct()).blur(3);
 /// ```
@@ -181,7 +181,7 @@ impl Filter {
     ///
     /// Relative blur radius lengths are calculated using the `constraints().fill_size().width` value.
     ///
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     pub fn layout(&self) -> RenderFilter {
         self.filters
             .iter()

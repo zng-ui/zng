@@ -25,7 +25,7 @@ pub(crate) fn expand_easing(args: proc_macro::TokenStream, input: proc_macro::To
     let is_unset = args.is_unset();
 
     let core = crate_core();
-    let name = "zero_ui::core::widget::easing";
+    let name = "zng::core::widget::easing";
 
     let property_ident = &property.segments.last().unwrap().ident;
     let meta_ident = ident!("{property_ident}_");

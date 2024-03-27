@@ -10,8 +10,8 @@ use glutin::{
 };
 use rustc_hash::FxHashSet;
 use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
-use zero_ui_txt::ToTxt as _;
-use zero_ui_view_api::window::{RenderMode, WindowId};
+use zng_txt::ToTxt as _;
+use zng_view_api::window::{RenderMode, WindowId};
 
 use raw_window_handle::*;
 
@@ -69,7 +69,7 @@ impl GlContextManager {
                         RenderMode::Integrated => "glutin (headed, integrated)",
                         RenderMode::Software => "swgl (headed)",
                     };
-                    let _ = sender.send(AppEvent::Notify(zero_ui_view_api::Event::RecoveredFromComponentPanic {
+                    let _ = sender.send(AppEvent::Notify(zng_view_api::Event::RecoveredFromComponentPanic {
                         component: component.into(),
                         recover: "will try other modes".into(),
                         panic: panic.to_txt(),
@@ -124,7 +124,7 @@ impl GlContextManager {
                         RenderMode::Integrated => "glutin (headless, integrated)",
                         RenderMode::Software => "swgl (headless)",
                     };
-                    let _ = sender.send(AppEvent::Notify(zero_ui_view_api::Event::RecoveredFromComponentPanic {
+                    let _ = sender.send(AppEvent::Notify(zng_view_api::Event::RecoveredFromComponentPanic {
                         component: component.into(),
                         recover: "will try other modes".into(),
                         panic: panic.to_txt(),

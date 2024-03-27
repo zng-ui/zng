@@ -5,7 +5,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 /// Custom transform.
 ///

@@ -16,12 +16,12 @@ use crate::{
 };
 
 use parking_lot::{MappedRwLockReadGuard, MappedRwLockWriteGuard, RwLock};
-use zero_ui_app_context::app_local;
-use zero_ui_layout::unit::{DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
-use zero_ui_task::SignalOnce;
-use zero_ui_txt::Txt;
-use zero_ui_var::ResponderVar;
-use zero_ui_view_api::{
+use zng_app_context::app_local;
+use zng_layout::unit::{DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxSize};
+use zng_task::SignalOnce;
+use zng_txt::Txt;
+use zng_var::ResponderVar;
+use zng_view_api::{
     self,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
     config::{AnimationsConfig, ColorScheme, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
@@ -36,13 +36,13 @@ use zero_ui_view_api::{
     Event, ViewProcessGen, ViewProcessOffline,
 };
 
-use zero_ui_view_api::{
+use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
     config::KeyRepeatConfig,
     font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
 };
-pub(crate) use zero_ui_view_api::{
+pub(crate) use zng_view_api::{
     window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId, Controller, DeviceId as ApiDeviceId,
 };
 
@@ -54,7 +54,7 @@ use super::{AppId, APP};
 #[allow(non_camel_case_types)]
 pub struct VIEW_PROCESS;
 struct ViewProcessService {
-    process: zero_ui_view_api::Controller,
+    process: zng_view_api::Controller,
     device_ids: HashMap<ApiDeviceId, DeviceId>,
     monitor_ids: HashMap<ApiMonitorId, MonitorId>,
 
@@ -68,8 +68,8 @@ struct ViewProcessService {
 
     pending_frames: usize,
 
-    message_dialogs: Vec<(zero_ui_view_api::dialog::DialogId, ResponderVar<MsgDialogResponse>)>,
-    file_dialogs: Vec<(zero_ui_view_api::dialog::DialogId, ResponderVar<FileDialogResponse>)>,
+    message_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<MsgDialogResponse>)>,
+    file_dialogs: Vec<(zng_view_api::dialog::DialogId, ResponderVar<FileDialogResponse>)>,
 }
 app_local! {
     static VIEW_PROCESS_SV: Option<ViewProcessService> = None;
@@ -284,7 +284,7 @@ impl VIEW_PROCESS {
     {
         let _s = tracing::debug_span!("VIEW_PROCESS.start").entered();
 
-        let process = zero_ui_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
+        let process = zng_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
         *VIEW_PROCESS_SV.write() = Some(ViewProcessService {
             data_generation: process.generation(),
             process,
@@ -303,7 +303,7 @@ impl VIEW_PROCESS {
     pub(crate) fn on_window_opened(
         &self,
         window_id: WindowId,
-        data: zero_ui_view_api::window::WindowOpenData,
+        data: zng_view_api::window::WindowOpenData,
     ) -> (ViewWindow, WindowOpenData) {
         let mut app = self.write();
         let _ = app.check_generation();
@@ -341,7 +341,7 @@ impl VIEW_PROCESS {
     pub(crate) fn on_headless_opened(
         &self,
         id: WindowId,
-        data: zero_ui_view_api::window::HeadlessOpenData,
+        data: zng_view_api::window::HeadlessOpenData,
     ) -> (ViewHeadless, HeadlessOpenData) {
         let mut app = self.write();
         let _ = app.check_generation();
@@ -489,7 +489,7 @@ impl VIEW_PROCESS {
         })
     }
 
-    pub(crate) fn on_message_dlg_response(&self, id: zero_ui_view_api::dialog::DialogId, response: MsgDialogResponse) {
+    pub(crate) fn on_message_dlg_response(&self, id: zng_view_api::dialog::DialogId, response: MsgDialogResponse) {
         let mut app = self.write();
         if let Some(i) = app.message_dialogs.iter().position(|(i, _)| *i == id) {
             let (_, r) = app.message_dialogs.swap_remove(i);
@@ -497,7 +497,7 @@ impl VIEW_PROCESS {
         }
     }
 
-    pub(crate) fn on_file_dlg_response(&self, id: zero_ui_view_api::dialog::DialogId, response: FileDialogResponse) {
+    pub(crate) fn on_file_dlg_response(&self, id: zng_view_api::dialog::DialogId, response: FileDialogResponse) {
         let mut app = self.write();
         if let Some(i) = app.file_dialogs.iter().position(|(i, _)| *i == id) {
             let (_, r) = app.file_dialogs.swap_remove(i);
@@ -615,7 +615,7 @@ pub struct WindowOpenData {
     pub color_scheme: ColorScheme,
 }
 impl WindowOpenData {
-    pub(crate) fn new(data: zero_ui_view_api::window::WindowOpenData, map_monitor: impl FnOnce(ApiMonitorId) -> MonitorId) -> Self {
+    pub(crate) fn new(data: zng_view_api::window::WindowOpenData, map_monitor: impl FnOnce(ApiMonitorId) -> MonitorId) -> Self {
         WindowOpenData {
             state: data.state,
             monitor: data.monitor.map(map_monitor),
@@ -704,7 +704,7 @@ impl ViewWindow {
             if let Some(cur) = cursor {
                 let cur = cur.0.read();
                 if p.generation() == cur.generation {
-                    p.set_cursor_image(id, cur.id.map(|img| zero_ui_view_api::window::CursorImage { img, hotspot }))
+                    p.set_cursor_image(id, cur.id.map(|img| zng_view_api::window::CursorImage { img, hotspot }))
                 } else {
                     Err(ViewProcessOffline)
                 }
@@ -779,7 +779,7 @@ impl ViewWindow {
     }
 
     /// Update the window's accessibility info tree.
-    pub fn access_update(&self, update: zero_ui_view_api::access::AccessTreeUpdate) -> Result<()> {
+    pub fn access_update(&self, update: zng_view_api::access::AccessTreeUpdate) -> Result<()> {
         self.0.call(|id, p| p.access_update(id, update))
     }
 

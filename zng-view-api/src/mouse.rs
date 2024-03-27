@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use zero_ui_unit::Px;
+use zng_unit::Px;
 
 /// Identifier for a specific button on some device.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

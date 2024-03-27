@@ -1,5 +1,5 @@
 // FunctionQualifiers: https://doc.rust-lang.org/reference/items/functions.html
-use zero_ui::prelude_wgt::{property, IntoVar, UiNode};
+use zng::prelude_wgt::{property, IntoVar, UiNode};
 
 #[property(CONTEXT)]
 pub async fn invalid_async(child: impl UiNode, _input: impl IntoVar<u32>) -> impl UiNode {

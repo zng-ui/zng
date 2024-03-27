@@ -8,10 +8,10 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use zero_ui_app_context::app_local;
-use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_unique_id::IdSet;
-use zero_ui_var::VARS_APP;
+use zng_app_context::app_local;
+use zng_handle::{Handle, HandleOwner, WeakHandle};
+use zng_unique_id::IdSet;
+use zng_var::VARS_APP;
 
 use crate::{
     event::{AnyEvent, AnyEventArgs, AppDisconnected, EVENTS, EVENTS_SV},

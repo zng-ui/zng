@@ -4,8 +4,8 @@ use std::{fmt, time::Duration};
 
 use serde::{Deserialize, Serialize};
 
-use zero_ui_txt::Txt;
-use zero_ui_unit::{Dip, DipSize};
+use zng_txt::Txt;
+use zng_unit::{Dip, DipSize};
 
 /// System settings needed for implementing double/triple clicks.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
@@ -164,6 +164,6 @@ impl Default for ColorScheme {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: ColorScheme) -> Option<ColorScheme>;
 }

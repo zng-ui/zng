@@ -2,22 +2,22 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use zero_ui_wgt::{prelude::*, *};
+use zng_wgt::{prelude::*, *};
 
-use zero_ui_app::widget::info::TransformChangedArgs;
-use zero_ui_ext_image::ImageSource;
-use zero_ui_ext_input::focus::WidgetInfoFocusExt as _;
-use zero_ui_ext_input::{focus::FOCUS, gesture::ClickArgs};
-use zero_ui_wgt_button::Button;
-use zero_ui_wgt_container::Container;
-use zero_ui_wgt_fill::*;
-use zero_ui_wgt_filter::*;
-use zero_ui_wgt_input::focus::on_blur;
-use zero_ui_wgt_layer::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
-use zero_ui_wgt_scroll::cmd::ScrollToMode;
-use zero_ui_wgt_size_offset::*;
-use zero_ui_wgt_stack::{Stack, StackDirection};
-use zero_ui_wgt_text::{self as text, Text};
+use zng_app::widget::info::TransformChangedArgs;
+use zng_ext_image::ImageSource;
+use zng_ext_input::focus::WidgetInfoFocusExt as _;
+use zng_ext_input::{focus::FOCUS, gesture::ClickArgs};
+use zng_wgt_button::Button;
+use zng_wgt_container::Container;
+use zng_wgt_fill::*;
+use zng_wgt_filter::*;
+use zng_wgt_input::focus::on_blur;
+use zng_wgt_layer::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
+use zng_wgt_scroll::cmd::ScrollToMode;
+use zng_wgt_size_offset::*;
+use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_text::{self as text, Text};
 
 use super::Markdown;
 
@@ -45,7 +45,7 @@ context_var! {
 /// Sets the [`IMAGE_RESOLVER_VAR`].
 ///
 /// [`image_fn`]: fn@crate::image_fn
-/// [`image::img_limits`]: fn@zero_ui_wgt_image::img_limits
+/// [`image::img_limits`]: fn@zng_wgt_image::img_limits
 #[property(CONTEXT, default(IMAGE_RESOLVER_VAR), widget_impl(Markdown))]
 pub fn image_resolver(child: impl UiNode, resolver: impl IntoVar<ImageResolver>) -> impl UiNode {
     with_context_var(child, IMAGE_RESOLVER_VAR, resolver)
@@ -243,7 +243,7 @@ pub fn try_scroll_link(args: &LinkArgs) -> bool {
         if let Some(md) = tree.get(WIDGET.id()).and_then(|w| w.self_and_ancestors().find(|w| w.is_markdown())) {
             if let Some(target) = md.find_anchor(anchor) {
                 // scroll-to
-                zero_ui_wgt_scroll::cmd::scroll_to(target.clone(), LINK_SCROLL_MODE_VAR.get());
+                zng_wgt_scroll::cmd::scroll_to(target.clone(), LINK_SCROLL_MODE_VAR.get());
 
                 // focus if target if focusable
                 if let Some(focus) = target.into_focus_info(true, true).self_and_descendants().find(|w| w.is_focusable()) {
@@ -319,7 +319,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             direction = StackDirection::left_to_right();
             children = ui_vec![
                 Button! {
-                    style_fn = zero_ui_wgt_button::LinkStyle!();
+                    style_fn = zng_wgt_button::LinkStyle!();
 
                     focus_on_init = true;
 

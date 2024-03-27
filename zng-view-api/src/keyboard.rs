@@ -3,7 +3,7 @@
 use std::{fmt, mem};
 
 use serde::{Deserialize, Serialize};
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 /// Contains the platform-native physical key identifier
 ///

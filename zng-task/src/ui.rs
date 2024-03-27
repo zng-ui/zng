@@ -12,7 +12,7 @@ enum UiTaskState<R> {
         future: Pin<Box<dyn Future<Output = R> + Send>>,
         event_loop_waker: Waker,
         #[cfg(debug_assertions)]
-        last_update: Option<zero_ui_var::VarUpdateId>,
+        last_update: Option<zng_var::VarUpdateId>,
     },
     Ready(R),
 }
@@ -74,7 +74,7 @@ impl<R> UiTask<R> {
         {
             #[cfg(debug_assertions)]
             {
-                let update = Some(zero_ui_var::VARS.update_id());
+                let update = Some(zng_var::VARS.update_id());
                 if *last_update == update {
                     tracing::error!("UiTask::update called twice in the same update");
                 }

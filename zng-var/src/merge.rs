@@ -27,8 +27,8 @@ use super::{util::VarData, *};
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_var::*;
-/// # use zero_ui_txt::*;
+/// # use zng_var::*;
+/// # use zng_txt::*;
 /// # macro_rules! Text { ($($tt:tt)*) => { () } }
 /// let var0: ArcVar<Txt> = var_from("Hello");
 /// let var1: ArcVar<Txt> = var_from("World");
@@ -47,7 +47,7 @@ macro_rules! merge_var {
 
 use parking_lot::Mutex;
 #[doc(hidden)]
-pub use zero_ui_var_proc_macros::merge_var as __merge_var;
+pub use zng_var_proc_macros::merge_var as __merge_var;
 
 // used by the __merge_var! proc-macro.
 #[doc(hidden)]

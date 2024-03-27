@@ -8,9 +8,9 @@
 use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
-use zero_ui_ext_font::*;
-use zero_ui_ext_undo::*;
-use zero_ui_wgt::prelude::*;
+use zng_ext_font::*;
+use zng_ext_undo::*;
+use zng_wgt::prelude::*;
 
 use super::{node::TEXT, *};
 
@@ -224,13 +224,13 @@ impl TextEditOp {
 
     /// Remove one *backspace range* ending at the caret index, or removes the selection.
     ///
-    /// See [`zero_ui_ext_font::SegmentedText::backspace_range`] for more details about what is removed.
+    /// See [`zng_ext_font::SegmentedText::backspace_range`] for more details about what is removed.
     pub fn backspace() -> Self {
         Self::backspace_impl(SegmentedText::backspace_range)
     }
     /// Remove one *backspace word range* ending at the caret index, or removes the selection.
     ///
-    /// See [`zero_ui_ext_font::SegmentedText::backspace_word_range`] for more details about what is removed.
+    /// See [`zng_ext_font::SegmentedText::backspace_word_range`] for more details about what is removed.
     pub fn backspace_word() -> Self {
         Self::backspace_impl(SegmentedText::backspace_word_range)
     }
@@ -352,13 +352,13 @@ impl TextEditOp {
 
     /// Remove one *delete range* starting at the caret index, or removes the selection.
     ///
-    /// See [`zero_ui_ext_font::SegmentedText::delete_range`] for more details about what is removed.
+    /// See [`zng_ext_font::SegmentedText::delete_range`] for more details about what is removed.
     pub fn delete() -> Self {
         Self::delete_impl(SegmentedText::delete_range)
     }
     /// Remove one *delete word range* starting at the caret index, or removes the selection.
     ///
-    /// See [`zero_ui_ext_font::SegmentedText::delete_word_range`] for more details about what is removed.
+    /// See [`zng_ext_font::SegmentedText::delete_word_range`] for more details about what is removed.
     pub fn delete_word() -> Self {
         Self::delete_impl(SegmentedText::delete_word_range)
     }

@@ -1,8 +1,8 @@
 use std::{any::Any, sync::Arc, time::Duration};
 
 use super::builder::*;
-use zero_ui_layout::unit::*;
-use zero_ui_var::{
+use zng_layout::unit::*;
+use zng_var::{
     animation::{
         easing::{EasingStep, EasingTime},
         Transitionable,
@@ -11,7 +11,7 @@ use zero_ui_var::{
     BoxedVar, Var, VarValue,
 };
 
-pub use zero_ui_app_proc_macros::easing;
+pub use zng_app_proc_macros::easing;
 
 type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
 

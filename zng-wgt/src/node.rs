@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use zero_ui_app::{
+use zng_app::{
     event::{Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs},
     handler::WidgetHandler,
     render::{FrameBuilder, FrameValueKey},
@@ -20,19 +20,19 @@ use zero_ui_app::{
     },
     window::WINDOW,
 };
-use zero_ui_app_context::{ContextLocal, LocalContext};
-use zero_ui_layout::{
+use zng_app_context::{ContextLocal, LocalContext};
+use zng_layout::{
     context::LAYOUT,
     unit::{PxConstraints2d, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, SideOffsets},
 };
-use zero_ui_state_map::{StateId, StateMapRef, StateValue};
-use zero_ui_var::{types::VecChange, *};
+use zng_state_map::{StateId, StateMapRef, StateValue};
+use zng_var::{types::VecChange, *};
 
 #[doc(hidden)]
 pub use paste::paste;
 
 #[doc(hidden)]
-pub use zero_ui_app;
+pub use zng_app;
 
 /// Helper for declaring properties that sets a context var.
 ///
@@ -44,9 +44,9 @@ pub use zero_ui_app;
 ///
 /// ```
 /// # fn main() -> () { }
-/// # use zero_ui_app::{*, widget::{node::*, *}};
-/// # use zero_ui_var::*;
-/// # use zero_ui_wgt::node::*;
+/// # use zng_app::{*, widget::{node::*, *}};
+/// # use zng_var::*;
+/// # use zng_wgt::node::*;
 /// #
 /// context_var! {
 ///     pub static FOO_VAR: u32 = 0u32;
@@ -70,9 +70,9 @@ pub use zero_ui_app;
 ///
 /// ```
 /// # fn main() -> () { }
-/// # use zero_ui_app::{*, widget::{node::*, *}};
-/// # use zero_ui_var::*;
-/// # use zero_ui_wgt::node::*;
+/// # use zng_app::{*, widget::{node::*, *}};
+/// # use zng_var::*;
+/// # use zng_wgt::node::*;
 /// #
 /// #[derive(Debug, Clone, Default, PartialEq)]
 /// pub struct Config {
@@ -109,11 +109,11 @@ pub use zero_ui_app;
 /// the result will be accessible to the inner properties, the widget user can then set with the composed value in steps and
 /// the final consumer of the composed value only need to monitor to a single context variable.
 ///
-/// [`is_new`]: zero_ui_var::AnyVar::is_new
-/// [`read_only`]: zero_ui_var::Var::read_only
-/// [`actual_var`]: zero_ui_var::Var::actual_var
-/// [`default`]: zero_ui_app::widget::property#default
-/// [`merge_var!`]: zero_ui_var::merge_var
+/// [`is_new`]: zng_var::AnyVar::is_new
+/// [`read_only`]: zng_var::Var::read_only
+/// [`actual_var`]: zng_var::Var::actual_var
+/// [`default`]: zng_app::widget::property#default
+/// [`merge_var!`]: zng_var::merge_var
 pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
     let value = value.into_var();
     let mut actual_value = None;
@@ -185,8 +185,8 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::event::*;
-/// # use zero_ui_wgt::node::*;
+/// # use zng_app::event::*;
+/// # use zng_wgt::node::*;
 /// # #[derive(Clone, Debug, PartialEq)] pub enum KeyState { Pressed }
 /// # event_args! { pub struct KeyInputArgs { pub state: KeyState, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
@@ -235,8 +235,8 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::{event::*, widget::{node::UiNode, widget_mixin}};
-/// # use zero_ui_wgt::node::*;
+/// # use zng_app::{event::*, widget::{node::UiNode, widget_mixin}};
+/// # use zng_wgt::node::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
 /// # fn some_node(child: impl UiNode) -> impl UiNode { child }
@@ -259,8 +259,8 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::{event::*, widget::node::UiNode};
-/// # use zero_ui_wgt::node::*;
+/// # use zng_app::{event::*, widget::node::UiNode};
+/// # use zng_wgt::node::*;
 /// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
 /// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
 /// # fn some_node(child: impl UiNode) -> impl UiNode { child }
@@ -278,10 +278,10 @@ pub fn with_context_var_init<T: VarValue>(
 ///
 /// [`on_pre_event`]: crate::node::on_pre_event
 /// [`on_event`]: crate::node::on_event
-/// [`propagation`]: zero_ui_app::event::AnyEventArgs::propagation
-/// [`ENABLED`]: zero_ui_app::widget::info::Interactivity::ENABLED
-/// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
-/// [`UpdateDeliveryList`]: zero_ui_app::update::UpdateDeliveryList
+/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
+/// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
+/// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
+/// [`UpdateDeliveryList`]: zng_app::update::UpdateDeliveryList
 #[macro_export]
 macro_rules! event_property {
     ($(
@@ -472,15 +472,15 @@ macro_rules! __event_property {
             /// # Async
             ///
             /// You can use async event handlers with this property.
-            #[$crate::node::zero_ui_app::widget::property(
+            #[$crate::node::zng_app::widget::property(
                 EVENT,
-                default( $crate::node::zero_ui_app::handler::hn!(|_|{}) )
+                default( $crate::node::zng_app::handler::hn!(|_|{}) )
                 $($widget_impl)*
             )]
             $vis fn [<on_ $event>](
-                child: impl $crate::node::zero_ui_app::widget::node::UiNode,
-                handler: impl $crate::node::zero_ui_app::handler::WidgetHandler<$Args>,
-            ) -> impl $crate::node::zero_ui_app::widget::node::UiNode {
+                child: impl $crate::node::zng_app::widget::node::UiNode,
+                handler: impl $crate::node::zng_app::handler::WidgetHandler<$Args>,
+            ) -> impl $crate::node::zng_app::widget::node::UiNode {
                 $crate::__event_property!(=> with($crate::node::on_event(child, $EVENT, $filter, handler), false, $($with)?))
             }
 
@@ -495,15 +495,15 @@ macro_rules! __event_property {
             ///
             /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
             /// subsequent code runs in widget updates.
-            #[$crate::node::zero_ui_app::widget::property(
+            #[$crate::node::zng_app::widget::property(
                 EVENT,
-                default( $crate::node::zero_ui_app::handler::hn!(|_|{}) )
+                default( $crate::node::zng_app::handler::hn!(|_|{}) )
                 $($widget_impl)*
             )]
             $vis fn [<on_pre_ $event>](
-                child: impl $crate::node::zero_ui_app::widget::node::UiNode,
-                handler: impl $crate::node::zero_ui_app::handler::WidgetHandler<$Args>,
-            ) -> impl $crate::node::zero_ui_app::widget::node::UiNode {
+                child: impl $crate::node::zng_app::widget::node::UiNode,
+                handler: impl $crate::node::zng_app::handler::WidgetHandler<$Args>,
+            ) -> impl $crate::node::zng_app::widget::node::UiNode {
                 $crate::__event_property!(=> with($crate::node::on_pre_event(child, $EVENT, $filter, handler), true, $($with)?))
             }
         }
@@ -539,9 +539,9 @@ macro_rules! __event_property {
 ///
 /// You can use [`on_command`] to declare command event properties.
 ///
-/// [`propagation`]: zero_ui_app::event::AnyEventArgs::propagation
-/// [`ENABLED`]: zero_ui_app::widget::info::Interactivity::ENABLED
-/// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
+/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
+/// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
+/// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
 pub fn on_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
@@ -607,9 +607,9 @@ where
 ///
 /// You can use [`on_pre_command`] to declare command event properties.
 ///
-/// [`propagation`]: zero_ui_app::event::AnyEventArgs::propagation
-/// [`ENABLED`]: zero_ui_app::widget::info::Interactivity::ENABLED
-/// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
+/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
+/// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
+/// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
 pub fn on_pre_event<C, A, F, H>(child: C, event: Event<A>, filter: F, handler: H) -> impl UiNode
 where
     C: UiNode,
@@ -666,11 +666,11 @@ macro_rules! __command_property {
         /// # Async
         ///
         /// You can use async event handlers with this property.
-        #[$crate::node::zero_ui_app::widget::property(EVENT, default( $crate::node::zero_ui_app::handler::hn!(|_|{}) ))]
+        #[$crate::node::zng_app::widget::property(EVENT, default( $crate::node::zng_app::handler::hn!(|_|{}) ))]
         $vis fn [<on_ $command>](
-            child: impl $crate::node::zero_ui_app::widget::node::UiNode,
-            handler: impl $crate::node::zero_ui_app::handler::WidgetHandler<$crate::node::zero_ui_app::event::CommandArgs>,
-        ) -> impl $crate::node::zero_ui_app::widget::node::UiNode {
+            child: impl $crate::node::zng_app::widget::node::UiNode,
+            handler: impl $crate::node::zng_app::handler::WidgetHandler<$crate::node::zng_app::event::CommandArgs>,
+        ) -> impl $crate::node::zng_app::widget::node::UiNode {
             $crate::node::on_command(child, || $cmd_init, || $enabled_var, handler)
         }
 
@@ -685,11 +685,11 @@ macro_rules! __command_property {
         ///
         /// You can use async event handlers with this property, note that only the code before the fist `.await` is *preview*,
         /// subsequent code runs in widget updates.
-        #[$crate::node::zero_ui_app::widget::property(EVENT, default( $crate::node::zero_ui_app::handler::hn!(|_|{}) ))]
+        #[$crate::node::zng_app::widget::property(EVENT, default( $crate::node::zng_app::handler::hn!(|_|{}) ))]
         $vis fn [<on_pre_ $command>](
-            child: impl $crate::node::zero_ui_app::widget::node::UiNode,
-            handler: impl $crate::node::zero_ui_app::handler::WidgetHandler<$crate::node::zero_ui_app::event::CommandArgs>,
-        ) -> impl $crate::node::zero_ui_app::widget::node::UiNode {
+            child: impl $crate::node::zng_app::widget::node::UiNode,
+            handler: impl $crate::node::zng_app::handler::WidgetHandler<$crate::node::zng_app::event::CommandArgs>,
+        ) -> impl $crate::node::zng_app::widget::node::UiNode {
             $crate::node::on_pre_command(child, || $cmd_init, || $enabled_var, handler)
         }
     } };
@@ -704,7 +704,7 @@ macro_rules! __command_property {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
                 cmd: $cmd_init,
-                enabled: $crate::node::zero_ui_app::var::LocalVar(true),
+                enabled: $crate::node::zng_app::var::LocalVar(true),
             }
         }
     };
@@ -719,9 +719,9 @@ macro_rules! __command_property {
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_app::{event::*, widget::*};
-/// # use zero_ui_app::var::*;
-/// # use zero_ui_wgt::node::*;
+/// # use zng_app::{event::*, widget::*};
+/// # use zng_app::var::*;
+/// # use zng_wgt::node::*;
 /// # command! {
 /// #   pub static PASTE_CMD;
 /// # }
@@ -808,7 +808,7 @@ macro_rules! command_property {
 /// that [`propagation`] must be stopped before the first `.await`, otherwise you are only signaling
 /// other async tasks handling the same event, if they are monitoring the propagation handle.
 ///  
-/// [`propagation`]: zero_ui_app::event::AnyEventArgs::propagation
+/// [`propagation`]: zng_app::event::AnyEventArgs::propagation
 pub fn on_command<U, CB, E, EB, H>(child: U, command_builder: CB, enabled_builder: EB, handler: H) -> impl UiNode
 where
     U: UiNode,
@@ -892,7 +892,7 @@ where
     })
 }
 
-zero_ui_app::event::command! {
+zng_app::event::command! {
     static NIL_CMD;
 }
 
@@ -1636,7 +1636,7 @@ fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
 ///
 /// Panics during init if `ctx` is not from the same app as the init context.
 ///
-/// [`NestGroup::CHILD`]: zero_ui_app::widget::builder::NestGroup::CHILD
+/// [`NestGroup::CHILD`]: zng_app::widget::builder::NestGroup::CHILD
 pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
     match_widget(child, move |c, op| {
         if let UiNodeOp::Init = op {
@@ -1660,10 +1660,10 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode)
 ///
 /// ```
 /// # fn main() -> () { }
-/// # use zero_ui_app::{widget::{property, node::UiNode, WIDGET, WidgetUpdateMode}};
-/// # use zero_ui_var::IntoVar;
-/// # use zero_ui_wgt::node::with_widget_state;
-/// # use zero_ui_state_map::{StaticStateId, StateId};
+/// # use zng_app::{widget::{property, node::UiNode, WIDGET, WidgetUpdateMode}};
+/// # use zng_var::IntoVar;
+/// # use zng_wgt::node::with_widget_state;
+/// # use zng_state_map::{StaticStateId, StateId};
 /// #
 /// pub static FOO_ID: StaticStateId<u32> = StateId::new_static();
 ///
@@ -1924,7 +1924,7 @@ pub fn with_rev_index_node(
 /// Panels must use [`PanelList::track_info_range`] to collect the `panel_list_id`, then implement getter properties
 /// using the methods in this module. See the `stack!` getter properties for examples.
 ///
-/// [`PanelList::track_info_range`]: zero_ui_app::widget::node::PanelList::track_info_range
+/// [`PanelList::track_info_range`]: zng_app::widget::node::PanelList::track_info_range
 pub fn with_index_len_node(
     child: impl UiNode,
     panel_list_id: impl Into<StateId<PanelListRange>>,

@@ -7,11 +7,11 @@
 //! The example below setups a handler that is called every app update.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
-//! zero_ui::update::UPDATES
-//!   .on_pre_update(app_hn!(|args: &zero_ui::update::UpdateArgs, _| {
+//! zng::update::UPDATES
+//!   .on_pre_update(app_hn!(|args: &zng::update::UpdateArgs, _| {
 //!       println!("pre_update #{}", args.count);
 //!   }))
 //!   .perm();
@@ -25,9 +25,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_app::update`] for the full update API.
+//! See [`zng_app::update`] for the full update API.
 
-pub use zero_ui_app::update::{
+pub use zng_app::update::{
     ContextUpdates, EventUpdate, InfoUpdates, LayoutUpdates, OnUpdateHandle, RenderUpdates, UpdateArgs, UpdateDeliveryList, UpdateOp,
     UpdateSubscribers, UpdatesTraceUiNodeExt, WeakOnUpdateHandle, WidgetUpdates, UPDATES,
 };

@@ -9,7 +9,7 @@ use std::{
 };
 
 #[doc(hidden)]
-pub use zero_ui_var::{getter_var, state_var};
+pub use zng_var::{getter_var, state_var};
 
 ///<span data-del-macro-root></span> New [`SourceLocation`] that represents the location you call this macro.
 ///
@@ -74,8 +74,8 @@ impl WidgetExt for WgtInfo {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, builder::*, property, widget}};
-/// # use zero_ui_var::*;
+/// # use zng_app::{*, widget::{node::*, builder::*, property, widget}};
+/// # use zng_var::*;
 /// # pub mod path {
 /// #   use super::*;
 /// #   #[property(CONTEXT)]
@@ -84,7 +84,7 @@ impl WidgetExt for WgtInfo {
 /// #   }
 /// # }
 /// # #[widget($crate::FooWgt)]
-/// # pub struct FooWgt(zero_ui_app::widget::base::WidgetBase);
+/// # pub struct FooWgt(zng_app::widget::base::WidgetBase);
 /// # #[property(CONTEXT, widget_impl(FooWgt))]
 /// # pub fn bar(child: impl UiNode, bar: impl IntoValue<bool>) -> impl UiNode {
 /// #   child
@@ -115,8 +115,8 @@ pub use crate::property_id;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, builder::*, property}};
-/// # use zero_ui_var::*;
+/// # use zng_app::{*, widget::{node::*, builder::*, property}};
+/// # use zng_var::*;
 /// # pub mod path {
 /// #   use super::*;
 /// #[property(CONTEXT)]
@@ -214,11 +214,11 @@ macro_rules! widget_type {
 use parking_lot::Mutex;
 #[doc(inline)]
 pub use widget_type;
-use zero_ui_app_context::context_local;
-use zero_ui_app_proc_macros::widget;
-use zero_ui_txt::{formatx, Txt};
-use zero_ui_unique_id::{unique_id_32, IdEntry, IdMap, IdSet};
-use zero_ui_var::{
+use zng_app_context::context_local;
+use zng_app_proc_macros::widget;
+use zng_txt::{formatx, Txt};
+use zng_unique_id::{unique_id_32, IdEntry, IdMap, IdSet};
+use zng_var::{
     impl_from_and_into_var,
     types::{AnyWhenVarBuilder, ContextualizedVar, WeakContextInitHandle},
     AnyVar, AnyVarValue, BoxedAnyVar, BoxedVar, ContextInitHandle, IntoValue, IntoVar, LocalVar, Var, VarValue,
@@ -2915,8 +2915,8 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// that the type is a tuple even if there is only one input.
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, builder::*, property}};
-/// # use zero_ui_var::*;
+/// # use zng_app::{*, widget::{node::*, builder::*, property}};
+/// # use zng_var::*;
 /// # use std::any::Any;
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
@@ -2935,8 +2935,8 @@ impl Clone for Box<dyn AnyPropertyBuildAction> {
 /// The next example demonstrates a trait that uses auto-deref to convert a trait bound to a `bool`:
 ///
 /// ```
-/// # use zero_ui_app::{*, widget::{node::*, builder::*, property}};
-/// # use zero_ui_var::*;
+/// # use zng_app::{*, widget::{node::*, builder::*, property}};
+/// # use zng_var::*;
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, bar: impl IntoVar<bool>) -> impl UiNode {
 /// #    child

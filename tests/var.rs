@@ -1,5 +1,5 @@
 mod any {
-    use zero_ui::{
+    use zng::{
         prelude::*,
         var::{ArcVar, BoxedVar, ContextVar},
     };
@@ -47,8 +47,8 @@ mod any {
 }
 
 mod bindings {
-    use zero_ui::{prelude::*, var::VARS};
-    use zero_ui_app::AppControlFlow;
+    use zng::{prelude::*, var::VARS};
+    use zng_app::AppControlFlow;
 
     #[test]
     fn one_way_binding() {
@@ -508,7 +508,7 @@ mod bindings {
 }
 
 mod context {
-    use zero_ui::{
+    use zng::{
         app::{AppExtended, AppExtension, HeadlessApp},
         prelude::*,
         prelude_wgt::*,
@@ -585,7 +585,7 @@ mod context {
     fn child(child: impl UiNode) {}
 
     fn test_app(app: AppExtended<impl AppExtension>, root: impl UiNode) -> HeadlessApp {
-        zero_ui_app::test_log();
+        zng_app::test_log();
 
         let mut app = app.run_headless(false);
         WINDOWS.open(async move { window::WindowRoot::new_test(root) });
@@ -840,7 +840,7 @@ mod context {
 
 mod flat_map {
     use std::fmt;
-    use zero_ui::{prelude::*, var::ArcVar};
+    use zng::{prelude::*, var::ArcVar};
 
     #[derive(Clone)]
     pub struct Foo {
@@ -900,7 +900,7 @@ mod flat_map {
 }
 
 mod modify_importance {
-    use zero_ui::{prelude::*, var::VARS};
+    use zng::{prelude::*, var::VARS};
 
     #[test]
     pub fn set_same_importance() {
@@ -1011,7 +1011,7 @@ mod modify_importance {
 mod cow {
     use std::sync::Arc;
 
-    use zero_ui::{prelude::*, task::parking_lot::Mutex};
+    use zng::{prelude::*, task::parking_lot::Mutex};
 
     #[test]
     pub fn cow_base_update() {
@@ -1080,7 +1080,7 @@ mod cow {
 mod multi {
     use std::sync::Arc;
 
-    use zero_ui::{prelude::*, task::parking_lot::Mutex};
+    use zng::{prelude::*, task::parking_lot::Mutex};
 
     #[test]
     fn multi_bidi() {
@@ -1115,7 +1115,7 @@ mod multi {
 }
 
 mod threads {
-    use zero_ui::prelude::*;
+    use zng::prelude::*;
 
     #[test]
     fn set_from_other_thread_once() {
@@ -1168,7 +1168,7 @@ mod threads {
 }
 
 mod contextualized {
-    use zero_ui::{
+    use zng::{
         prelude::*,
         var::{ContextInitHandle, ContextualizedVar},
     };
@@ -1240,7 +1240,7 @@ mod contextualized {
 }
 
 mod vec {
-    use zero_ui::{
+    use zng::{
         prelude::*,
         var::{ObservableVec, VecChange},
     };
@@ -1286,7 +1286,7 @@ mod vec {
 }
 
 mod response {
-    use zero_ui::prelude::*;
+    use zng::prelude::*;
 
     #[test]
     fn race_condition() {

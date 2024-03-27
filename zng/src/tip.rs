@@ -7,7 +7,7 @@
 //! The example below declares a button that toggles enabled showing different tooltips depending on the state.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _app = APP.defaults();
 //!
 //! let enabled = var(true);
@@ -26,9 +26,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_tooltip`] for the full tooltip API.
+//! See [`zng_wgt_tooltip`] for the full tooltip API.
 
-pub use zero_ui_wgt_tooltip::{
+pub use zng_wgt_tooltip::{
     access_tooltip_anchor, access_tooltip_duration, base_colors, disabled_tooltip, disabled_tooltip_fn, style_fn, tooltip, tooltip_anchor,
     tooltip_context_capture, tooltip_delay, tooltip_duration, tooltip_fn, tooltip_interval, DefaultStyle, Tip, TooltipArgs,
 };

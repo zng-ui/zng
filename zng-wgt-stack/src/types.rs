@@ -1,7 +1,7 @@
 use std::{fmt, mem, ops};
-use zero_ui_layout::context::LayoutMask;
-use zero_ui_var::animation::{easing::EasingStep, Transitionable};
-use zero_ui_wgt::prelude::*;
+use zng_layout::context::LayoutMask;
+use zng_var::animation::{easing::EasingStep, Transitionable};
+use zng_wgt::prelude::*;
 
 /// Defines a placement point in the previous item and the origin point of the next.
 ///
@@ -153,7 +153,7 @@ impl StackDirection {
     ///
     /// Note that items are always rendered in the order defined by the [`z_index`] property.
     ///
-    /// [`z_index`]: fn@zero_ui_wgt::z_index
+    /// [`z_index`]: fn@zng_wgt::z_index
     pub fn none() -> Self {
         Self {
             place: Point::zero(),

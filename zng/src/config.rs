@@ -12,7 +12,7 @@
 //! so widgets can just set configs in case a persisting source is setup.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn txt_input() -> impl UiNode {
 //!     TextInput!(CONFIG.get("example.txt", Txt::default))
@@ -38,9 +38,9 @@
 //! a config variable is modified and the variables are updated when the file is modified externally.
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
-//! let cfg = zero_ui::config::JsonConfig::sync("target/tmp/example.config.json");
+//! let cfg = zng::config::JsonConfig::sync("target/tmp/example.config.json");
 //! CONFIG.load(cfg);
 //! ```
 //!
@@ -55,7 +55,7 @@
 //! The crate example `examples/config.rs` demonstrates a more complex setup:
 //!
 //! ```
-//! use zero_ui::config::*;
+//! use zng::config::*;
 //!
 //! fn load_config() -> Box<dyn FallbackConfigReset> {
 //!     // config file for the app, keys with prefix "main." are saved here.
@@ -80,18 +80,18 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_ext_config`] for the full config API.
+//! See [`zng_ext_config`] for the full config API.
 
-pub use zero_ui_ext_config::{
+pub use zng_ext_config::{
     AnyConfig, Config, ConfigKey, ConfigStatus, ConfigValue, FallbackConfig, FallbackConfigReset, JsonConfig, MemoryConfig, RawConfigValue,
     ReadOnlyConfig, SwapConfig, SwitchConfig, CONFIG,
 };
 
 #[cfg(feature = "ron")]
-pub use zero_ui_ext_config::RonConfig;
+pub use zng_ext_config::RonConfig;
 
 #[cfg(feature = "toml")]
-pub use zero_ui_ext_config::TomlConfig;
+pub use zng_ext_config::TomlConfig;
 
 #[cfg(feature = "yaml")]
-pub use zero_ui_ext_config::YamlConfig;
+pub use zng_ext_config::YamlConfig;

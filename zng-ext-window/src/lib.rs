@@ -28,14 +28,14 @@ mod service;
 pub use service::*;
 
 use std::future::Future;
-use zero_ui_app::{
+use zng_app::{
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates},
     view_process::raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
     window::WindowId,
     AppControlFlow, AppExtended, AppExtension, HeadlessApp,
 };
-use zero_ui_ext_image::{ImageVar, IMAGES_WINDOW};
-use zero_ui_view_api::image::ImageMaskMode;
+use zng_ext_image::{ImageVar, IMAGES_WINDOW};
+use zng_view_api::image::ImageMaskMode;
 
 pub mod cmd;
 
@@ -61,7 +61,7 @@ pub mod cmd;
 ///
 /// The [`WINDOWS`] service is also setup as the implementer for [`IMAGES`] rendering.
 ///
-/// [`IMAGES`]: zero_ui_ext_image::IMAGES
+/// [`IMAGES`]: zng_ext_image::IMAGES
 #[derive(Default)]
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
@@ -116,10 +116,10 @@ pub trait AppRunWindowExt {
     /// # Examples
     ///
     /// ```no_run
-    /// # use zero_ui_app::window::WINDOW;
-    /// # use zero_ui_app::APP;
-    /// # use zero_ui_ext_window::AppRunWindowExt as _;
-    /// # trait AppDefaults { fn defaults(&self) -> zero_ui_app::AppExtended<impl zero_ui_app::AppExtension> { APP.minimal() } }
+    /// # use zng_app::window::WINDOW;
+    /// # use zng_app::APP;
+    /// # use zng_ext_window::AppRunWindowExt as _;
+    /// # trait AppDefaults { fn defaults(&self) -> zng_app::AppExtended<impl zng_app::AppExtension> { APP.minimal() } }
     /// # impl AppDefaults for APP { }
     /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// APP.defaults().run_window(async {
@@ -134,11 +134,11 @@ pub trait AppRunWindowExt {
     /// Which is a shortcut for:
     ///
     /// ```no_run
-    /// # use zero_ui_app::window::WINDOW;
-    /// # use zero_ui_ext_window::WINDOWS;
-    /// # use zero_ui_app::APP;
-    /// # use zero_ui_ext_window::AppRunWindowExt as _;
-    /// # trait AppDefaults { fn defaults(&self) -> zero_ui_app::AppExtended<impl zero_ui_app::AppExtension> { APP.minimal() } }
+    /// # use zng_app::window::WINDOW;
+    /// # use zng_ext_window::WINDOWS;
+    /// # use zng_app::APP;
+    /// # use zng_ext_window::AppRunWindowExt as _;
+    /// # trait AppDefaults { fn defaults(&self) -> zng_app::AppExtended<impl zng_app::AppExtension> { APP.minimal() } }
     /// # impl AppDefaults for APP { }
     /// # macro_rules! Window { ($($tt:tt)*) => { unimplemented!() } }
     /// APP.defaults().run(async {
@@ -152,7 +152,7 @@ pub trait AppRunWindowExt {
     /// })
     /// ```
     ///
-    /// [`WINDOW`]: zero_ui_app::window::WINDOW
+    /// [`WINDOW`]: zng_app::window::WINDOW
     fn run_window<F>(self, new_window: F)
     where
         F: Future<Output = WindowRoot> + Send + 'static;
@@ -179,7 +179,7 @@ pub trait HeadlessAppWindowExt {
     /// Returns the [`WindowId`] of the new window after the window is open and loaded and has generated one frame
     /// or if the window already closed before the first frame.
     ///
-    /// [`WINDOW`]: zero_ui_app::window::WINDOW
+    /// [`WINDOW`]: zng_app::window::WINDOW
     fn open_window<F>(&mut self, new_window: F) -> WindowId
     where
         F: Future<Output = WindowRoot> + Send + 'static;
@@ -215,7 +215,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
-        zero_ui_app::APP.extensions().require::<WindowManager>();
+        zng_app::APP.extensions().require::<WindowManager>();
 
         let response = WINDOWS.open(new_window);
         self.run_task(async move {
@@ -223,7 +223,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
             if !WINDOWS.is_loaded(window_id) {
                 let close_rcv = WINDOW_CLOSE_EVENT.receiver();
                 let frame_rcv = FRAME_IMAGE_READY_EVENT.receiver();
-                zero_ui_task::any!(
+                zng_task::any!(
                     async {
                         while let Ok(args) = close_rcv.recv_async().await {
                             if args.windows.contains(&window_id) {
@@ -263,7 +263,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
     }
 
     fn close_window(&mut self, window_id: WindowId) -> bool {
-        use zero_ui_app::view_process::raw_events::*;
+        use zng_app::view_process::raw_events::*;
 
         let args = RawWindowCloseRequestedArgs::now(window_id);
         RAW_WINDOW_CLOSE_REQUESTED_EVENT.notify(args);
@@ -304,12 +304,12 @@ impl HeadlessAppWindowExt for HeadlessApp {
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
-        use zero_ui_layout::unit::TimeUnits;
-        use zero_ui_var::Var;
-        let timer = zero_ui_app::timer::TIMERS.deadline(60.secs());
+        use zng_layout::unit::TimeUnits;
+        use zng_var::Var;
+        let timer = zng_app::timer::TIMERS.deadline(60.secs());
 
-        zero_ui_task::spawn(async {
-            zero_ui_task::deadline(65.secs()).await;
+        zng_task::spawn(async {
+            zng_task::deadline(65.secs()).await;
             eprintln!("doc_test_window reached 65s fallback deadline");
             std::process::exit(-1);
         });

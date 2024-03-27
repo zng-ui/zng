@@ -14,7 +14,7 @@
 //! the other displays debug information about the first.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let txt = "text テキスト 📋";
@@ -61,11 +61,11 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_text`] for the full widget API.
+//! See [`zng_wgt_text`] for the full widget API.
 
-pub use zero_ui_txt::*;
+pub use zng_txt::*;
 
-pub use zero_ui_wgt_text::{
+pub use zng_wgt_text::{
     accepts_enter, accepts_tab, auto_selection, caret_color, change_stop_delay, cmd, direction, font_aa, font_annotation, font_caps,
     font_char_variant, font_cn_variant, font_color, font_common_lig, font_contextual_alt, font_discretionary_lig, font_ea_width,
     font_family, font_features, font_historical_forms, font_historical_lig, font_jp_variant, font_kerning, font_num_fraction,
@@ -85,4 +85,4 @@ pub use zero_ui_wgt_text::{
 /// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
 ///
 #[cfg(all(windows, doc))]
-pub use zero_ui_wgt_text::node::TEXT as TEXT_;
+pub use zng_wgt_text::node::TEXT as TEXT_;

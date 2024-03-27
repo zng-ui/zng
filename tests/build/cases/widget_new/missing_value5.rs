@@ -1,4 +1,4 @@
-use zero_ui::{layout::margin, mouse::cursor, widget::Wgt, APP};
+use zng::{layout::margin, mouse::cursor, widget::Wgt, APP};
 
 fn main() {
     let _scope = APP.minimal();
@@ -6,7 +6,7 @@ fn main() {
         cursor =
         #[allow(unused_imports)]
         margin = {
-            use zero_ui::layout::PxPoint;
+            use zng::layout::PxPoint;
             0
         }
     };

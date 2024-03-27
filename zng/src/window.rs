@@ -7,7 +7,7 @@
 //!
 //! ```
 //! # fn main() {}
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn app() {
 //!     APP.defaults().run_window(async { window() });
@@ -36,7 +36,7 @@
 //! opens a parent and child window.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn app() {
 //!     APP.defaults().run(async {
@@ -95,16 +95,16 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_ext_window`], [`zero_ui_app::window`] and [`zero_ui_wgt_window`] for the full window API.
+//! See [`zng_ext_window`], [`zng_app::window`] and [`zng_wgt_window`] for the full window API.
 
-pub use zero_ui_app::window::{MonitorId, StaticMonitorId, StaticWindowId, WindowId, WindowMode, WINDOW};
+pub use zng_app::window::{MonitorId, StaticMonitorId, StaticWindowId, WindowId, WindowMode, WINDOW};
 
 /// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
 ///
 #[cfg(all(windows, doc))]
-pub use zero_ui_app::window::WINDOW as WINDOW_;
+pub use zng_app::window::WINDOW as WINDOW_;
 
-pub use zero_ui_ext_window::{
+pub use zng_ext_window::{
     AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt,
     HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode,
     WINDOW_Ext, WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon,
@@ -115,15 +115,15 @@ pub use zero_ui_ext_window::{
 
 /// Window commands.
 pub mod cmd {
-    pub use zero_ui_ext_window::cmd::*;
+    pub use zng_ext_window::cmd::*;
 
     #[cfg(inspector)]
-    pub use zero_ui_wgt_inspector::INSPECT_CMD;
+    pub use zng_wgt_inspector::INSPECT_CMD;
 }
 
-pub use zero_ui_wgt_window::{BlockWindowLoad, SaveState, Window};
+pub use zng_wgt_window::{BlockWindowLoad, SaveState, Window};
 
-pub use zero_ui_wgt_window::events::{
+pub use zng_wgt_window::events::{
     on_frame_image_ready, on_ime, on_pre_frame_image_ready, on_pre_ime, on_pre_window_changed, on_pre_window_close_requested,
     on_pre_window_exited_fullscreen, on_pre_window_fullscreen, on_pre_window_load, on_pre_window_maximized, on_pre_window_minimized,
     on_pre_window_moved, on_pre_window_open, on_pre_window_resized, on_pre_window_restored, on_pre_window_state_changed,
@@ -140,7 +140,7 @@ pub use zero_ui_wgt_window::events::{
 /// [`WINDOWS.native_message_dialog`]: WINDOWS::native_message_dialog
 /// [`WINDOWS.native_file_dialog`]: WINDOWS::native_file_dialog
 pub mod native_dialog {
-    pub use zero_ui_view_api::dialog::{
+    pub use zng_view_api::dialog::{
         FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse,
     };
 }
@@ -153,11 +153,11 @@ pub mod native_dialog {
 ///
 /// # Full API
 ///
-/// See [`zero_ui_wgt_inspector`] for the full API.
+/// See [`zng_wgt_inspector`] for the full API.
 ///
 /// [`cmd::INSPECT_CMD`]: crate::window::cmd::INSPECT_CMD
 pub mod inspector {
-    pub use zero_ui_wgt_inspector::debug::{
+    pub use zng_wgt_inspector::debug::{
         show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode,
     };
 }

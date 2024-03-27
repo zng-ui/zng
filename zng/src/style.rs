@@ -10,7 +10,7 @@
 //! The example below demonstrates multiple contexts setting style for buttons.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _app = APP.defaults();
 //!
 //! # let _ =
@@ -18,7 +18,7 @@
 //!     direction = StackDirection::top_to_bottom();
 //!     spacing = 5;
 //!
-//!     zero_ui::button::style_fn = Style! {
+//!     zng::button::style_fn = Style! {
 //!         // override the default background_color for all buttons in the Stack.
 //!         // note that this does not override the hovered/pressed background.
 //!         widget::background_color = colors::BLUE;
@@ -33,7 +33,7 @@
 //!             direction = StackDirection::top_to_bottom();
 //!             spacing = 5;
 //!     
-//!             zero_ui::button::style_fn = Style! {
+//!             zng::button::style_fn = Style! {
 //!                 // override the default border for all buttons in the Stack.
 //!                 widget::border = 2, colors::GREEN;
 //!             };
@@ -48,7 +48,7 @@
 //!                     spacing = 5;
 //!             
 //!
-//!                     zero_ui::button::style_fn = Style! {
+//!                     zng::button::style_fn = Style! {
 //!                         // override the context style background_color in the Stack.
 //!                         widget::background_color = colors::RED;
 //!                     };
@@ -61,7 +61,7 @@
 //!                         // that is `replace=true`.
 //!                         Button! {
 //!                             child = Text!("Default");
-//!                             style_fn = zero_ui::button::DefaultStyle!();
+//!                             style_fn = zng::button::DefaultStyle!();
 //!                         },
 //!                     ]
 //!                 },
@@ -71,7 +71,7 @@
 //!             direction = StackDirection::top_to_bottom();
 //!             spacing = 5;
 //!             
-//!             zero_ui::button::style_fn = Style! {
+//!             zng::button::style_fn = Style! {
 //!                 // replace the default style with this one.
 //!                 replace = true;
 //!                 widget::background_color = colors::RED;
@@ -97,7 +97,7 @@
 //! The example below demonstrates this issue:
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -110,10 +110,10 @@
 //!             spacing = 5;
 //!             widget::parallel = false; // init buttons sequentially
 //!
-//!             zero_ui::button::style_fn = Style! {
+//!             zng::button::style_fn = Style! {
 //!                 // background is `impl UiNode` that can't be cloned. Nodes
 //!                 // are moved to the last place that requests it.
-//!                 widget::background = zero_ui::color::flood(colors::AZURE);
+//!                 widget::background = zng::color::flood(colors::AZURE);
 //!             };
 //!             children = ui_vec![
 //!                 Button! { child = Text!("Default") },
@@ -126,8 +126,8 @@
 //!             spacing = 5;
 //!
 //!             // Sets the style to a closure that will be called for each button.
-//!             zero_ui::button::style_fn = style_fn!(|_| Style! {
-//!                 widget::background = zero_ui::color::flood(colors::AZURE);
+//!             zng::button::style_fn = style_fn!(|_| Style! {
+//!                 widget::background = zng::color::flood(colors::AZURE);
 //!             });
 //!             children = ui_vec![
 //!                 // each button gets its own background node.
@@ -140,4 +140,4 @@
 //! # ;
 //! ```
 
-pub use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleArgs, StyleBuilder, StyleFn, StyleMix};
+pub use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleArgs, StyleBuilder, StyleFn, StyleMix};

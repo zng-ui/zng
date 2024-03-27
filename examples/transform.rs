@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::{
+use zng::{
     button,
     color::color_scheme_map,
     gesture::is_hovered,
@@ -14,7 +14,7 @@ use zero_ui::{
     window::WindowState,
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -390,7 +390,7 @@ fn open_touch_example() -> impl UiNode {
 }
 
 fn touch_example() -> impl UiNode {
-    use zero_ui::touch::TouchTransformMode;
+    use zng::touch::TouchTransformMode;
 
     let mode = var(TouchTransformMode::ALL);
 

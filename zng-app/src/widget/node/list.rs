@@ -9,11 +9,11 @@ use std::{
 
 use parking_lot::Mutex;
 use task::ParallelIteratorExt;
-use zero_ui_app_context::context_local;
-use zero_ui_layout::unit::{Factor, PxSize, PxTransform, PxVector};
-use zero_ui_state_map::{StateId, StaticStateId};
-use zero_ui_task::{self as task, rayon::prelude::*};
-use zero_ui_var::{animation::Transitionable, impl_from_and_into_var};
+use zng_app_context::context_local;
+use zng_layout::unit::{Factor, PxSize, PxTransform, PxVector};
+use zng_state_map::{StateId, StaticStateId};
+use zng_task::{self as task, rayon::prelude::*};
+use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::*;
 
@@ -26,8 +26,8 @@ use super::*;
 /// Create a vec containing a list of nodes/widgets:
 ///
 /// ```
-/// # use zero_ui_app::widget::node::*;
-/// # use zero_ui_app::widget::base::*;
+/// # use zng_app::widget::node::*;
+/// # use zng_app::widget::base::*;
 /// # macro_rules! Text { ($($tt:tt)*) => { NilUiNode } }
 /// let widgets = ui_vec![
 ///     Text!("Hello"),
@@ -38,8 +38,8 @@ use super::*;
 /// Create a vec containing the node repeated **n** times:
 ///
 /// ```
-/// # use zero_ui_app::widget::node::*;
-/// # use zero_ui_app::widget::base::*;
+/// # use zng_app::widget::node::*;
+/// # use zng_app::widget::base::*;
 /// # macro_rules! Text { ($($tt:tt)*) => { NilUiNode } }
 /// let widgets = ui_vec![Text!(" . "); 10];
 /// ```
@@ -846,7 +846,7 @@ static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
 /// Create a Z-index that causes the widget to render in front of all siblings that don't set Z-index.
 ///
 /// ```
-/// # use zero_ui_app::widget::node::ZIndex;
+/// # use zng_app::widget::node::ZIndex;
 /// #
 /// let highlight_z = ZIndex::DEFAULT + 1;
 /// ```
@@ -1517,7 +1517,7 @@ impl EditableUiNodeListRef {
     /// If the widget vectors is layout as a vertical stack to move the widget *up* by one stopping at the top:
     ///
     /// ```
-    /// # fn demo(items: zero_ui_app::widget::node::EditableUiNodeListRef) {
+    /// # fn demo(items: zng_app::widget::node::EditableUiNodeListRef) {
     /// items.move_id("my-widget", |i, _len| i.saturating_sub(1));
     /// # }
     /// ```
@@ -1525,7 +1525,7 @@ impl EditableUiNodeListRef {
     /// And to move *down* stopping at the bottom:
     ///
     /// ```
-    /// # fn demo(items: zero_ui_app::widget::node::EditableUiNodeListRef) {
+    /// # fn demo(items: zng_app::widget::node::EditableUiNodeListRef) {
     /// items.move_id("my-widget", |i, _len| i.saturating_add(1));
     /// # }
     /// ```
@@ -1536,7 +1536,7 @@ impl EditableUiNodeListRef {
     /// The length can be used for implementing wrapping move *down*:
     ///
     /// ```
-    /// # fn demo(items: zero_ui_app::widget::node::EditableUiNodeListRef) {
+    /// # fn demo(items: zng_app::widget::node::EditableUiNodeListRef) {
     /// items.move_id("my-widget", |i, len| {
     ///     let next = i + 1;
     ///     if next < len { next } else { 0 }

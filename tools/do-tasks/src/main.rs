@@ -170,11 +170,11 @@ fn doc(mut args: Vec<&str>) {
         // based on https://github.com/rust-lang/cargo/blob/master/src/cargo/ops/cargo_doc.rs
         let path = if serve {
             // `basic-http-server` default.
-            "http://127.0.0.1:4000/zero_ui/index.html".to_owned()
+            "http://127.0.0.1:4000/zng/index.html".to_owned()
         } else {
             std::env::current_dir()
                 .unwrap()
-                .join("target/doc/zero_ui/index.html")
+                .join("target/doc/zng/index.html")
                 .display()
                 .to_string()
         };
@@ -600,7 +600,7 @@ fn prebuild(mut args: Vec<&str>) {
     }
     cmd("cargo", &["build", "-p", "zng-view", "--profile", "prebuild"], &args);
 
-    let files = cdylib_files("target/prebuild/zero_ui_view");
+    let files = cdylib_files("target/prebuild/zng_view");
 
     if files.is_empty() {
         error("no pre-build `cdylib` output found");

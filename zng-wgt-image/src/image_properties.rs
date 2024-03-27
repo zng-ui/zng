@@ -2,10 +2,10 @@ use super::*;
 use std::fmt;
 
 use node::CONTEXT_IMAGE_VAR;
-use zero_ui_app::render::ImageRendering;
-use zero_ui_ext_image::{ImageDownscale, ImageLimits};
-use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_wgt_window::BlockWindowLoad;
+use zng_app::render::ImageRendering;
+use zng_ext_image::{ImageDownscale, ImageLimits};
+use zng_ext_window::WINDOW_Ext as _;
+use zng_wgt_window::BlockWindowLoad;
 
 /// Image layout mode.
 ///
@@ -199,7 +199,7 @@ pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`MONITORS`] service.
 ///
 /// [`img_crop`]: fn@img_crop
-/// [`MONITORS`]: zero_ui_ext_window::MONITORS
+/// [`MONITORS`]: zng_ext_window::MONITORS
 ///
 /// [`scape_ppi`]: fn@crate::scape_ppi
 #[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR), widget_impl(Image))]
@@ -313,7 +313,7 @@ pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>
 /// the widget is deinited or dropped.
 ///
 /// [`source`]: fn@crate::source
-/// [`IMAGES`]: zero_ui_ext_image::IMAGES
+/// [`IMAGES`]: zng_ext_image::IMAGES
 #[property(CONTEXT, default(IMAGE_CACHE_VAR), widget_impl(Image))]
 pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_CACHE_VAR, enabled)
@@ -325,7 +325,7 @@ pub fn img_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
 ///
 /// See also [`img_downscale`] for a way to still display unexpected large images.
 ///
-/// [`IMAGES.limits`]: zero_ui_ext_image::IMAGES::limits
+/// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`img_downscale`]: fn@img_downscale
 #[property(CONTEXT, default(IMAGE_LIMITS_VAR), widget_impl(Image))]
 pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
@@ -342,7 +342,7 @@ pub fn img_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>)
 /// entries for different downscale values, this means that this property should never be used for responsive resize,use the widget
 /// size and other properties to efficiently resize an image on screen.
 ///
-/// [`IMAGES.limits`]: zero_ui_ext_image::IMAGES::limits
+/// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
 /// [`img_limits`]: fn@img_limits
 #[property(CONTEXT, default(IMAGE_DOWNSCALE_VAR), widget_impl(Image))]
 pub fn img_downscale(child: impl UiNode, downscale: impl IntoVar<Option<ImageDownscale>>) -> impl UiNode {
@@ -383,7 +383,7 @@ pub fn get_img_layout_size(child: impl UiNode, state: impl IntoVar<PxSize>) -> i
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the error message.
 ///
-/// [`wgt_fn!`]: zero_ui_wgt::wgt_fn
+/// [`wgt_fn!`]: zng_wgt::wgt_fn
 #[property(CONTEXT, default(IMAGE_ERROR_FN_VAR), widget_impl(Image))]
 pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_ERROR_FN_VAR, wgt_fn)
@@ -391,7 +391,7 @@ pub fn img_error_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgErrorAr
 
 /// Sets the [`wgt_fn!`] that is used to create a content for the loading message.
 ///
-/// [`wgt_fn!`]: zero_ui_wgt::wgt_fn
+/// [`wgt_fn!`]: zng_wgt::wgt_fn
 #[property(CONTEXT, default(IMAGE_LOADING_FN_VAR), widget_impl(Image))]
 pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadingArgs>>) -> impl UiNode {
     with_context_var(child, IMAGE_LOADING_FN_VAR, wgt_fn)
@@ -521,7 +521,7 @@ pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> 
 /// If the image widget is in the initial window content a [`WindowLoadingHandle`] is used to delay the window
 /// visually opening until the source loads, fails to load or a timeout elapses. By default `true` sets the timeout to 1 second.
 ///
-/// [`WindowLoadingHandle`]: zero_ui_ext_window::WindowLoadingHandle
+/// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
 #[property(LAYOUT, default(false), widget_impl(Image))]
 pub fn img_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
     let enabled = enabled.into();

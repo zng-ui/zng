@@ -3,7 +3,7 @@
 //! The [`Wgt!`](struct@Wgt) widget is a blank widget that entirely shaped by properties.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -35,19 +35,19 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_app::widget`] for the full API.
+//! See [`zng_app::widget`] for the full API.
 
-pub use zero_ui_app::widget::base::{HitTestMode, NonWidgetBase, Parallel, WidgetBase, WidgetExt, WidgetImpl, PARALLEL_VAR};
+pub use zng_app::widget::base::{HitTestMode, NonWidgetBase, Parallel, WidgetBase, WidgetExt, WidgetImpl, PARALLEL_VAR};
 
-pub use zero_ui_app::widget::{widget_impl, widget_set, StaticWidgetId, WidgetId, WidgetUpdateMode, WIDGET};
+pub use zng_app::widget::{widget_impl, widget_set, StaticWidgetId, WidgetId, WidgetUpdateMode, WIDGET};
 
-pub use zero_ui_app::widget::border::{
+pub use zng_app::widget::border::{
     BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER,
 };
-pub use zero_ui_app::widget::info::Visibility;
-pub use zero_ui_app::widget::node::ZIndex;
+pub use zng_app::widget::info::Visibility;
+pub use zng_app::widget::node::ZIndex;
 
-pub use zero_ui_wgt::{
+pub use zng_wgt::{
     auto_hide, border, border_align, border_over, clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline,
     interactive, is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_inited, is_visible, modal, modal_included,
     modal_includes, on_block, on_blocked_changed, on_deinit, on_disable, on_enable, on_enabled_changed, on_info_init, on_init,
@@ -57,7 +57,7 @@ pub use zero_ui_wgt::{
     on_update, on_vis_disable, on_vis_enable, on_vis_enabled_changed, parallel, visibility, wgt_fn, z_index, OnNodeOpArgs, Wgt, WidgetFn,
 };
 
-pub use zero_ui_wgt_fill::{
+pub use zng_wgt_fill::{
     background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground, foreground_color,
     foreground_conic, foreground_fn, foreground_gradient, foreground_highlight, foreground_radial,
 };
@@ -76,10 +76,10 @@ pub use zero_ui_wgt_fill::{
 /// ```
 /// mod widgets {
 ///     use std::fmt::Write as _;
-///     use zero_ui::prelude_wgt::*;
+///     use zng::prelude_wgt::*;
 ///
 ///     #[widget($crate::widgets::ShowProperties)]
-///     pub struct ShowProperties(zero_ui::text::Text);
+///     pub struct ShowProperties(zng::text::Text);
 ///
 ///     impl ShowProperties {
 ///         fn widget_intrinsic(&mut self) {
@@ -108,7 +108,7 @@ pub use zero_ui_wgt_fill::{
 /// }
 ///
 /// # fn main() {
-/// # let _scope = zero_ui::APP.defaults();
+/// # let _scope = zng::APP.defaults();
 /// # let _ =
 /// widgets::ShowProperties! {
 ///     font_size = 20;
@@ -119,9 +119,9 @@ pub use zero_ui_wgt_fill::{
 ///
 /// # Full API
 ///
-/// See [`zero_ui_app::widget::builder`] for the full API.
+/// See [`zng_app::widget::builder`] for the full API.
 pub mod builder {
-    pub use zero_ui_app::widget::builder::{
+    pub use zng_app::widget::builder::{
         property_args, property_id, property_info, property_input_types, source_location, widget_type, AnyWhenArcWidgetHandlerBuilder,
         ArcWidgetHandler, BuilderProperty, BuilderPropertyMut, BuilderPropertyRef, Importance, InputKind, NestGroup, NestPosition,
         PropertyArgs, PropertyBuildAction, PropertyBuildActionArgs, PropertyBuildActions, PropertyBuildActionsWhenData, PropertyId,
@@ -139,7 +139,7 @@ pub mod builder {
 ///
 /// ```
 /// mod custom {
-///     use zero_ui::prelude_wgt::*;
+///     use zng::prelude_wgt::*;
 ///
 ///     static STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
 ///
@@ -168,7 +168,7 @@ pub mod builder {
 /// }
 ///
 /// # fn main() {
-/// # use zero_ui::prelude::*;
+/// # use zng::prelude::*;
 /// # let _scope = APP.defaults();
 /// # let _ =
 /// Wgt! {
@@ -183,7 +183,7 @@ pub mod builder {
 /// # }
 /// ```
 pub mod info {
-    pub use zero_ui_app::widget::info::{
+    pub use zng_app::widget::info::{
         iter, HitInfo, HitTestInfo, InlineSegmentInfo, InteractionPath, Interactivity, InteractivityChangedArgs, InteractivityFilterArgs,
         ParallelBuilder, RelativeHitZ, TransformChangedArgs, TreeFilter, VisibilityChangedArgs, WidgetBorderInfo, WidgetBoundsInfo,
         WidgetDescendantsRange, WidgetInfo, WidgetInfoBuilder, WidgetInfoChangedArgs, WidgetInfoMeta, WidgetInfoTree, WidgetInfoTreeStats,
@@ -193,12 +193,12 @@ pub mod info {
 
     /// Accessibility metadata types.
     pub mod access {
-        pub use zero_ui_app::widget::info::access::{AccessBuildArgs, WidgetAccessInfo, WidgetAccessInfoBuilder};
+        pub use zng_app::widget::info::access::{AccessBuildArgs, WidgetAccessInfo, WidgetAccessInfoBuilder};
     }
 
     /// Helper types for inspecting an UI tree.
     pub mod inspector {
-        pub use zero_ui_app::widget::inspector::{
+        pub use zng_app::widget::inspector::{
             InspectPropertyPattern, InspectWidgetPattern, InspectorActualVars, InspectorInfo, InstanceItem, WidgetInfoInspectorExt,
         };
     }
@@ -209,7 +209,7 @@ pub mod info {
 /// [`UiNode`]: crate::prelude::UiNode
 /// [`UiNodeList`]: crate::prelude::UiNodeList
 pub mod node {
-    pub use zero_ui_app::widget::node::{
+    pub use zng_app::widget::node::{
         extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, AdoptiveChildNode,
         AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList, EditableUiNodeListRef,
         FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver, PanelList, PanelListData,
@@ -217,7 +217,7 @@ pub mod node {
         UiNodeOpMethod, UiNodeVec, WeakNode, WeakNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder, SORTING_LIST, Z_INDEX,
     };
 
-    pub use zero_ui_wgt::node::{
+    pub use zng_wgt::node::{
         bind_state, border_node, event_state, event_state2, event_state3, event_state4, fill_node, interactive_node, list_presenter,
         presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
         with_context_local_init, with_context_var, with_context_var_init, with_index_len_node, with_index_node, with_rev_index_node,
@@ -245,7 +245,7 @@ pub mod node {
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// /// Minimal widget.
 /// #[widget($crate::Foo)]
@@ -266,7 +266,7 @@ pub mod node {
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// #[widget($crate::Foo)]
 /// pub struct Foo(WidgetBase);
@@ -292,7 +292,7 @@ pub mod node {
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// #[widget($crate::Foo)]
 /// pub struct Foo(WidgetBase);
@@ -344,7 +344,7 @@ pub mod node {
 /// This widget macro call:
 ///
 /// ```
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// # #[widget($crate::Foo)]
 /// # pub struct Foo(WidgetBase);
 /// #
@@ -358,7 +358,7 @@ pub mod node {
 /// Expands to this:
 ///
 /// ```
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// # #[widget($crate::Foo)]
 /// # pub struct Foo(WidgetBase);
 /// #
@@ -393,7 +393,7 @@ pub mod node {
 /// Example of a widget that declares a shorthand syntax to implicitly set the `id` property:
 ///
 /// ```
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// #[widget($crate::Foo {
 ///     ($id:expr) => {
@@ -410,7 +410,7 @@ pub mod node {
 /// The macro instance above is equivalent to:
 ///
 /// ```
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// # #[widget($crate::Foo)]
 /// # pub struct Foo(WidgetBase);
 /// #
@@ -464,7 +464,7 @@ pub mod node {
 ///     }
 /// });
 /// </script>
-pub use zero_ui_app::widget::widget;
+pub use zng_app::widget::widget;
 
 /// Expands a struct to a widget mix-in.
 ///
@@ -478,7 +478,7 @@ pub use zero_ui_app::widget::widget;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// /// Make a widget capable of receiving keyboard focus.
 /// #[widget_mixin]
@@ -493,7 +493,7 @@ pub use zero_ui_app::widget::widget;
 ///     
 ///     widget_impl! {
 ///         /// If the widget can receive focus, enabled by default.
-///         pub zero_ui::focus::focusable(enabled: impl IntoVar<bool>);
+///         pub zng::focus::focusable(enabled: impl IntoVar<bool>);
 ///     }
 /// }
 ///
@@ -517,7 +517,7 @@ pub use zero_ui_app::widget::widget;
 ///     }
 /// });
 /// </script>
-pub use zero_ui_app::widget::widget_mixin;
+pub use zng_app::widget::widget_mixin;
 
 /// Expands a property assign to include an easing animation.
 ///
@@ -535,9 +535,9 @@ pub use zero_ui_app::widget::widget_mixin;
 ///
 /// An alternative argument `unset` can be used instead to remove animations set by the inherited context or styles.
 ///
-/// [`TimeUnits`]: zero_ui::layout::TimeUnits
-/// [`easing`]: mod@zero_ui::var::animation::easing
-/// [`easing::linear`]: zero_ui::var::animation::easing::linear
+/// [`TimeUnits`]: zng::layout::TimeUnits
+/// [`easing`]: mod@zng::var::animation::easing
+/// [`easing::linear`]: zng::var::animation::easing::linear
 /// [property build action]: crate::widget::builder::WidgetBuilder::push_property_build_action
 /// [`Var::easing`]: crate::var::Var::easing
 ///
@@ -555,7 +555,7 @@ pub use zero_ui_app::widget::widget_mixin;
 /// The example demonstrates setting and removing easing animations.
 ///
 /// ```
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// # #[widget($crate::Foo)] pub struct Foo(WidgetBase);
 /// # #[property(FILL, default(colors::BLACK))]
 /// # pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
@@ -592,7 +592,7 @@ pub use zero_ui_app::widget::widget_mixin;
 /// </script>
 ///
 /// [`Transitionable`]: crate::var::animation::Transitionable
-pub use zero_ui_app::widget::easing;
+pub use zng_app::widget::easing;
 
 /// Expands a function to a widget property.
 ///
@@ -618,7 +618,7 @@ pub use zero_ui_app::widget::easing;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// #[property(LAYOUT)]
 /// pub fn align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
@@ -632,7 +632,7 @@ pub use zero_ui_app::widget::easing;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// #[property(SIZE+1)]
 /// pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
@@ -655,7 +655,7 @@ pub use zero_ui_app::widget::easing;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// #[property(FILL, default(rgba(0, 0, 0, 0)))]
 /// pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
@@ -693,7 +693,7 @@ pub use zero_ui_app::widget::easing;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// /// Children property, must be captured by panel widgets.
 /// #[property(CONTEXT, capture)]
@@ -820,7 +820,7 @@ pub use zero_ui_app::widget::easing;
 ///     }
 /// });
 /// </script>
-pub use zero_ui_app::widget::property;
+pub use zng_app::widget::property;
 
 /// Expands an impl block into an [`UiNode`] trait implementation.
 ///
@@ -838,7 +838,7 @@ pub use zero_ui_app::widget::property;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// struct MyNode<C> {
 ///     child: C
@@ -851,7 +851,7 @@ pub use zero_ui_app::widget::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// # struct MyNode<C> { child: C }
 /// #[ui_node(child)]
 /// impl<C: UiNode> UiNode for MyNode<C> { }
@@ -866,7 +866,7 @@ pub use zero_ui_app::widget::property;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::prelude_wgt::*;
+/// use zng::prelude_wgt::*;
 ///
 /// struct MyNode<L> {
 ///     children: L
@@ -879,7 +879,7 @@ pub use zero_ui_app::widget::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// # struct MyNode<L> { children: L }
 /// #[ui_node(children)]
 /// impl<L: UiNodeList> UiNode for MyNode<L> { }
@@ -894,7 +894,7 @@ pub use zero_ui_app::widget::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// # struct MyNode { }
 /// #[ui_node(none)]
 /// impl UiNode for MyNode { }
@@ -909,7 +909,7 @@ pub use zero_ui_app::widget::property;
 /// If delegation is configured but no delegation occurs in the manually implemented methods
 /// you get the error ``"auto impl delegates call to `{}` but this manual impl does not"``.
 ///
-/// To disable this error use `#[allow_(zero_ui::missing_delegate)]` in the method or in the `impl` block. The
+/// To disable this error use `#[allow_(zng::missing_delegate)]` in the method or in the `impl` block. The
 /// error is also not shown if the method body contains a call to the [`todo!()`] macro.
 ///
 /// The [`measure`] method is an exception to this and will not show the error, its ideal implementation
@@ -923,7 +923,7 @@ pub use zero_ui_app::widget::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// # struct MyNode { child: BoxedUiNode }
 /// #[ui_node(child)]
 /// impl MyNode {
@@ -958,7 +958,7 @@ pub use zero_ui_app::widget::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::prelude_wgt::*;
+/// # use zng::prelude_wgt::*;
 /// fn my_widget_node(child: impl UiNode, number: impl IntoVar<u32>) -> impl UiNode {
 ///     #[ui_node(struct MyNode {
 ///         child: impl UiNode,
@@ -1030,4 +1030,4 @@ pub use zero_ui_app::widget::property;
 ///     }
 /// });
 /// </script>
-pub use zero_ui_app::widget::ui_node;
+pub use zng_app::widget::ui_node;

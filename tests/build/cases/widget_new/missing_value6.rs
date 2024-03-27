@@ -1,4 +1,4 @@
-use zero_ui::{
+use zng::{
     layout::margin,
     widget::{background_gradient, Wgt},
     APP,

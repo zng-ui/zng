@@ -1,5 +1,5 @@
-use zero_ui_clone_move::clmv;
-use zero_ui_var::MergeVarBuilder;
+use zng_clone_move::clmv;
+use zng_var::MergeVarBuilder;
 
 use super::*;
 

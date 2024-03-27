@@ -45,9 +45,9 @@ mod inspector_only {
 pub(crate) use inspector_only::*;
 
 use parking_lot::RwLock;
-use zero_ui_state_map::StaticStateId;
-use zero_ui_txt::Txt;
-use zero_ui_var::{BoxedAnyVar, BoxedVar, VarValue};
+use zng_state_map::StaticStateId;
+use zng_txt::Txt;
+use zng_var::{BoxedAnyVar, BoxedVar, VarValue};
 
 use std::{any::TypeId, collections::HashMap, sync::Arc};
 
@@ -167,10 +167,10 @@ pub trait WidgetInfoInspectorExt {
     /// an exact widget mod that matches the [`WidgetType::type_id`].
     ///
     /// ```
-    /// # use zero_ui_app::widget::{inspector::*, info::*, builder::*};
+    /// # use zng_app::widget::{inspector::*, info::*, builder::*};
     /// # fn main() { }
     /// mod widgets {
-    ///     use zero_ui_app::widget::*;
+    ///     use zng_app::widget::*;
     ///     
     ///     #[widget($crate::widgets::Button)]
     ///     pub struct Button(base::WidgetBase);
@@ -193,7 +193,7 @@ pub trait WidgetInfoInspectorExt {
     /// Search for a property by name, and then downcast its value.
     ///
     /// ```
-    /// # use zero_ui_app::widget::{info::*, inspector::*};
+    /// # use zng_app::widget::{info::*, inspector::*};
     /// fn inspect_foo(info: WidgetInfo) -> Option<bool> {
     ///     info.inspect_property("foo")?.value(0).as_any().downcast_ref().copied()
     /// }

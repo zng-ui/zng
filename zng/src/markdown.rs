@@ -5,8 +5,8 @@
 //! [CommonMark]: https://commonmark.org/
 //!
 //! ```
-//! # let _scope = zero_ui::APP.defaults(); let _ =
-//! zero_ui::markdown::Markdown! {
+//! # let _scope = zng::APP.defaults(); let _ =
+//! zng::markdown::Markdown! {
 //!     txt = "# Title\n\n- List item 1.\n- List item 2.";
 //! }
 //! # ;
@@ -14,9 +14,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_markdown`] for the full widget API.
+//! See [`zng_wgt_markdown`] for the full widget API.
 
-pub use zero_ui_wgt_markdown::{
+pub use zng_wgt_markdown::{
     anchor, block_quote_fn, code_block_fn, code_inline_fn, footnote_def_fn, footnote_ref_fn, heading_anchor, heading_fn, image_fn,
     image_resolver, link_fn, link_resolver, link_scroll_mode, list_fn, list_item_bullet_fn, list_item_fn, on_link, on_pre_link, panel_fn,
     paragraph_fn, rule_fn, table_fn, text_fn, BlockQuoteFnArgs, CodeBlockFnArgs, CodeInlineFnArgs, FootnoteDefFnArgs, FootnoteRefFnArgs,

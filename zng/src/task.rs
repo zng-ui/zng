@@ -12,7 +12,7 @@
 //! # Examples
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! let enabled = var(false);
 //! # let _scope = APP.defaults();
@@ -65,7 +65,7 @@
 //! so we recommend blob importing [`io`] to start implementing async IO.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! async fn read_numbers() -> Result<Vec<usize>, Box<dyn std::error::Error + Send + Sync>> {
 //!     let mut file = task::fs::File::open("numbers.txt").await?;
@@ -85,7 +85,7 @@
 //! implementing operations such as loading an image from a given URL, the module is a thin wrapper around the [`isahc`] crate.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! let enabled = var(false);
 //! let msg = var("loading..".to_txt());
@@ -139,8 +139,8 @@
 //!
 //! # Full API
 //!
-//! This module fully re-exports [`zero_ui_task`].
+//! This module fully re-exports [`zng_task`].
 
-pub use zero_ui_task::*;
+pub use zng_task::*;
 
-pub use zero_ui_app::widget::UiTaskWidget;
+pub use zng_app::widget::UiTaskWidget;

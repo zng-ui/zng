@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use zero_ui_var::{animation::Transitionable, impl_from_and_into_var};
+use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::{Factor2d, LayoutMask, Length, Point, Px, PxPoint, PxRect};
 
@@ -178,7 +178,7 @@ impl PxLine {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::unit::*;
+/// # use zng_layout::unit::*;
 /// let line = (10, 20).to(100, 120);
 /// assert_eq!(Line::new(Point::new(10, 20), Point::new(100, 120)), line);
 /// ```

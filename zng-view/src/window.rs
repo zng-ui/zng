@@ -21,9 +21,9 @@ use winit::{
     monitor::{MonitorHandle, VideoMode as GVideoMode},
     window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
 };
-use zero_ui_txt::{ToTxt, Txt};
-use zero_ui_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
-use zero_ui_view_api::{
+use zng_txt::{ToTxt, Txt};
+use zng_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
+use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
@@ -35,10 +35,10 @@ use zero_ui_view_api::{
     DeviceId, Event, ViewProcessGen,
 };
 
-use zero_ui_view_api::dialog as dlg_api;
+use zng_view_api::dialog as dlg_api;
 
 #[cfg(windows)]
-use zero_ui_view_api::keyboard::{Key, KeyCode, KeyState};
+use zng_view_api::keyboard::{Key, KeyCode, KeyState};
 
 use crate::{
     display_list::{display_list_to_webrender, DisplayListCache},
@@ -1666,7 +1666,7 @@ impl Window {
     }
 
     /// Update the accessibility info.
-    pub fn access_update(&mut self, update: zero_ui_view_api::access::AccessTreeUpdate, event_sender: &AppEventSender) {
+    pub fn access_update(&mut self, update: zng_view_api::access::AccessTreeUpdate, event_sender: &AppEventSender) {
         if let Some(a) = &self.access {
             // SAFETY: we drop `access` in case of panic.
             let a = std::panic::AssertUnwindSafe(a);

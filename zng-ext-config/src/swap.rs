@@ -1,8 +1,8 @@
 use super::*;
 
 use crate::task::parking_lot::Mutex;
-use zero_ui_clone_move::clmv;
-use zero_ui_var::VarHandle;
+use zng_clone_move::clmv;
+use zng_var::VarHandle;
 
 /// Represents a config source that can swap its backing config source without disconnecting any bound keys.
 ///
@@ -125,8 +125,8 @@ impl Default for SwapConfig {
 
 #[cfg(test)]
 mod tests {
-    use zero_ui_app::APP;
-    use zero_ui_ext_fs_watcher::FsWatcherManager;
+    use zng_app::APP;
+    use zng_ext_fs_watcher::FsWatcherManager;
 
     use super::*;
 

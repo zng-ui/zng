@@ -1,7 +1,7 @@
 use std::{any::Any, fmt, future::Future, mem, sync::Arc};
 
 use parking_lot::Mutex;
-use zero_ui_app::{
+use zng_app::{
     app_hn_once,
     event::AnyEventArgs,
     timer::{DeadlineHandle, TIMERS},
@@ -22,20 +22,20 @@ use zero_ui_app::{
     window::{WindowCtx, WindowId, WindowMode, WINDOW},
     AppEventSender, Deadline, APP, EXIT_REQUESTED_EVENT,
 };
-use zero_ui_app_context::app_local;
+use zng_app_context::app_local;
 
-use zero_ui_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
-use zero_ui_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
-use zero_ui_task::{
+use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
+use zng_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
+use zng_task::{
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
     ParallelIteratorExt, UiTask,
 };
-use zero_ui_txt::{formatx, Txt};
-use zero_ui_unique_id::{IdMap, IdSet};
-use zero_ui_var::{
+use zng_txt::{formatx, Txt};
+use zng_unique_id::{IdMap, IdSet};
+use zng_var::{
     impl_from_and_into_var, response_done_var, response_var, var, ArcVar, BoxedVar, LocalVar, ResponderVar, ResponseVar, Var,
 };
-use zero_ui_view_api::{
+use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     image::ImageMaskMode,
@@ -461,7 +461,7 @@ impl WINDOWS {
     ///
     /// If the window is not found the error is reported in the [image error].
     ///
-    /// [image error]: zero_ui_ext_image::Img::error
+    /// [image error]: zng_ext_image::Img::error
     pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS_SV
             .write()
@@ -474,7 +474,7 @@ impl WINDOWS {
     ///
     /// If the window is not found the error is reported in the image error.
     ///
-    /// [image error]: zero_ui_ext_image::Img::error
+    /// [image error]: zng_ext_image::Img::error
     pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
         WINDOWS_SV
             .write()
@@ -627,7 +627,7 @@ impl WINDOWS {
     /// `root(extender_nodes(CONTEXT(EVENT(..))))`, so extension nodes should operate as `CONTEXT` properties.
     pub fn register_root_extender<E>(&self, mut extender: impl FnMut(WindowRootExtenderArgs) -> E + Send + 'static)
     where
-        E: zero_ui_app::widget::node::UiNode,
+        E: zng_app::widget::node::UiNode,
     {
         WINDOWS_SV
             .write()
@@ -875,7 +875,7 @@ impl WINDOWS {
                 }
             }
 
-            let is_headless_app = zero_ui_app::APP.window_mode().is_headless();
+            let is_headless_app = zng_app::APP.window_mode().is_headless();
             let wns = WINDOWS_SV.read();
 
             // if set to exit on last headed window close in a headed app,
@@ -940,7 +940,7 @@ impl WINDOWS {
             (wns.take_requests(), wns.latest_color_scheme)
         };
 
-        let window_mode = zero_ui_app::APP.window_mode();
+        let window_mode = zng_app::APP.window_mode();
 
         // fulfill open requests.
         for r in open {
@@ -1197,16 +1197,16 @@ impl WINDOWS {
     pub fn native_message_dialog(
         &self,
         window_id: WindowId,
-        dialog: zero_ui_view_api::dialog::MsgDialog,
-    ) -> ResponseVar<zero_ui_view_api::dialog::MsgDialogResponse> {
+        dialog: zng_view_api::dialog::MsgDialog,
+    ) -> ResponseVar<zng_view_api::dialog::MsgDialogResponse> {
         let (responder, rsp) = response_var();
         WINDOWS_SV.write().view_window_task(window_id, move |win| match win {
             Some(win) => {
                 if let Err(e) = win.message_dialog(dialog, responder.clone()) {
-                    responder.respond(zero_ui_view_api::dialog::MsgDialogResponse::Error(formatx!("{e}")))
+                    responder.respond(zng_view_api::dialog::MsgDialogResponse::Error(formatx!("{e}")))
                 }
             }
-            None => responder.respond(zero_ui_view_api::dialog::MsgDialogResponse::Error(Txt::from_static(
+            None => responder.respond(zng_view_api::dialog::MsgDialogResponse::Error(Txt::from_static(
                 "native window not found",
             ))),
         });
@@ -1220,16 +1220,16 @@ impl WINDOWS {
     pub fn native_file_dialog(
         &self,
         window_id: WindowId,
-        dialog: zero_ui_view_api::dialog::FileDialog,
-    ) -> ResponseVar<zero_ui_view_api::dialog::FileDialogResponse> {
+        dialog: zng_view_api::dialog::FileDialog,
+    ) -> ResponseVar<zng_view_api::dialog::FileDialogResponse> {
         let (responder, rsp) = response_var();
         WINDOWS_SV.write().view_window_task(window_id, move |win| match win {
             Some(win) => {
                 if let Err(e) = win.file_dialog(dialog, responder.clone()) {
-                    responder.respond(zero_ui_view_api::dialog::FileDialogResponse::Error(formatx!("{e}")))
+                    responder.respond(zng_view_api::dialog::FileDialogResponse::Error(formatx!("{e}")))
                 }
             }
-            None => responder.respond(zero_ui_view_api::dialog::FileDialogResponse::Error(Txt::from_static(
+            None => responder.respond(zng_view_api::dialog::FileDialogResponse::Error(Txt::from_static(
                 "native window not found",
             ))),
         });
@@ -1545,7 +1545,7 @@ pub trait WINDOW_Ext {
         let vars = WINDOW.vars();
         let access_enabled = &vars.0.access_enabled;
         if access_enabled.get().is_disabled() {
-            access_enabled.modify(|e| *e.to_mut() |= zero_ui_app::widget::info::access::AccessEnabled::APP);
+            access_enabled.modify(|e| *e.to_mut() |= zng_app::widget::info::access::AccessEnabled::APP);
         }
     }
 
@@ -1709,7 +1709,7 @@ pub enum ViewRenderExtensionError {
     /// View-process is not running.
     ViewProcessOffline(ViewProcessOffline),
     /// Api Error.
-    Api(zero_ui_view_api::api_extension::ApiExtensionRecvError),
+    Api(zng_view_api::api_extension::ApiExtensionRecvError),
 }
 impl fmt::Display for ViewRenderExtensionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

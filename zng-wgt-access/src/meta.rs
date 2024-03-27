@@ -1,10 +1,10 @@
-use zero_ui_app::widget::info::access::WidgetAccessInfoBuilder;
-use zero_ui_ext_l10n::Lang;
-use zero_ui_wgt::prelude::*;
+use zng_app::widget::info::access::WidgetAccessInfoBuilder;
+use zng_ext_l10n::Lang;
+use zng_wgt::prelude::*;
 
 use std::num::NonZeroU32;
 
-pub use zero_ui_view_api::access::{
+pub use zng_view_api::access::{
     AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
 };
 

@@ -1,11 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::convert::TryInto;
-use zero_ui::{
+use zng::{
     gesture::{click_shortcut, Shortcuts},
     prelude::*,
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -244,7 +244,7 @@ impl Calculator {
 
 /// set custom fallback font for the ⌫ symbol.
 async fn set_fallback_font() {
-    use zero_ui::font::*;
+    use zng::font::*;
     let und = lang!(und);
 
     if FONTS

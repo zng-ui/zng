@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use task::parking_lot::Mutex;
-use zero_ui_app::widget::info;
+use zng_app::widget::info;
 
 use crate::prelude::*;
 
@@ -30,9 +30,9 @@ context_var! {
 /// grayscale filter for images. Also consider adding disabled interactions, such as a different cursor or a tooltip that explains why the button
 /// is disabled.
 ///
-/// [`ENABLED`]: zero_ui_app::widget::info::Interactivity::ENABLED
-/// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
-/// [`WidgetInfo::interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
+/// [`ENABLED`]: zng_app::widget::info::Interactivity::ENABLED
+/// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
+/// [`WidgetInfo::interactivity`]: zng_app::widget::info::WidgetInfo::interactivity
 /// [`interactive`]: fn@interactive
 /// [`is_enabled`]: fn@is_enabled
 /// [`is_disabled`]: fn@is_disabled
@@ -71,7 +71,7 @@ pub fn enabled(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
 ///
 /// [`enabled`]: fn@enabled
 /// [`BLOCKED`]: Interactivity::BLOCKED
-/// [`WidgetInfo::interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
+/// [`WidgetInfo::interactivity`]: zng_app::widget::info::WidgetInfo::interactivity
 /// [`node::interactive_node`]: crate::node::interactive_node
 #[property(CONTEXT, default(true))]
 pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl UiNode {
@@ -172,7 +172,7 @@ event_property! {
     /// See [`on_interactivity_changed`] for a more general interactivity event.
     ///
     /// [`on_interactivity_changed`]: fn@on_interactivity_changed
-    /// [`Interactivity`]: zero_ui_app::widget::info::Interactivity
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn vis_enabled_changed {
         event: info::INTERACTIVITY_CHANGED_EVENT,
@@ -190,7 +190,7 @@ event_property! {
     /// See [`on_interactivity_changed`] for a more general interactivity event.
     ///
     /// [`on_interactivity_changed`]: fn@on_interactivity_changed
-    /// [`Interactivity`]: zero_ui_app::widget::info::Interactivity
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn blocked_changed {
         event: info::INTERACTIVITY_CHANGED_EVENT,
@@ -209,7 +209,7 @@ event_property! {
     /// See [`on_enabled_changed`] for a more general event.
     ///
     /// [`on_enabled_changed`]: fn@on_enabled_changed
-    /// [`Interactivity`]: zero_ui_app::widget::info::Interactivity
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn enable {
         event: info::INTERACTIVITY_CHANGED_EVENT,
@@ -228,7 +228,7 @@ event_property! {
     /// See [`on_enabled_changed`] for a more general event.
     ///
     /// [`on_enabled_changed`]: fn@on_enabled_changed
-    /// [`Interactivity`]: zero_ui_app::widget::info::Interactivity
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn disable {
         event: info::INTERACTIVITY_CHANGED_EVENT,
@@ -247,7 +247,7 @@ event_property! {
     /// See [`on_vis_enabled_changed`] for a more general event.
     ///
     /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
-    /// [`Interactivity`]: zero_ui_app::widget::info::Interactivity
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn vis_enable {
         event: info::INTERACTIVITY_CHANGED_EVENT,
@@ -266,7 +266,7 @@ event_property! {
     /// See [`on_vis_enabled_changed`] for a more general event.
     ///
     /// [`on_vis_enabled_changed`]: fn@on_vis_enabled_changed
-    /// [`Interactivity`]: zero_ui_app::widget::info::Interactivity
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn vis_disable {
         event: info::INTERACTIVITY_CHANGED_EVENT,
@@ -284,7 +284,7 @@ event_property! {
     /// See [`on_blocked_changed`] for a more general event.
     ///
     /// [`on_blocked_changed`]: fn@on_blocked_changed
-    /// [`Interactivity`]: zero_ui_app::widget::info::Interactivity
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn block {
         event: info::INTERACTIVITY_CHANGED_EVENT,
@@ -302,7 +302,7 @@ event_property! {
     /// See [`on_blocked_changed`] for a more general event.
     ///
     /// [`on_blocked_changed`]: fn@on_blocked_changed
-    /// [`Interactivity`]: zero_ui_app::widget::info::Interactivity
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn unblock {
         event: info::INTERACTIVITY_CHANGED_EVENT,

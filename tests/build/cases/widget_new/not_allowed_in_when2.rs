@@ -1,4 +1,4 @@
-use zero_ui::{
+use zng::{
     gesture::is_pressed,
     layout::margin,
     prelude_wgt::{property, IntoValue, UiNode},

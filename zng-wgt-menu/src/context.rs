@@ -1,14 +1,14 @@
 //! Context menu widget and properties.
 
-use zero_ui_ext_input::gesture::CLICK_EVENT;
-use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_input::focus::alt_focus_scope;
-use zero_ui_wgt_layer::{
+use zng_ext_input::gesture::CLICK_EVENT;
+use zng_wgt::prelude::*;
+use zng_wgt_input::focus::alt_focus_scope;
+use zng_wgt_layer::{
     popup::{PopupState, CONTEXT_CAPTURE_VAR, POPUP},
     AnchorMode,
 };
-use zero_ui_wgt_stack::{Stack, StackDirection};
-use zero_ui_wgt_style::{impl_style_fn, style_fn};
+use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_style::{impl_style_fn, style_fn};
 
 /// Defines the context menu shown when the widget is enabled and receives a context click.
 ///
@@ -151,14 +151,14 @@ context_var! {
     /// Is [`popup::default_panel_fn`] by default.
     ///
     /// [`ContextMenu!`]: struct@ContextMenu
-    pub static PANEL_FN_VAR: WidgetFn<zero_ui_wgt_panel::PanelArgs> = WidgetFn::new(crate::popup::default_panel_fn);
+    pub static PANEL_FN_VAR: WidgetFn<zng_wgt_panel::PanelArgs> = WidgetFn::new(crate::popup::default_panel_fn);
 }
 
 /// Widget function that generates the context menu layout.
 ///
 /// This property sets [`PANEL_FN_VAR`].
 #[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(ContextMenu))]
-pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zero_ui_wgt_panel::PanelArgs>>) -> impl UiNode {
+pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<zng_wgt_panel::PanelArgs>>) -> impl UiNode {
     with_context_var(child, PANEL_FN_VAR, panel)
 }
 
@@ -170,10 +170,10 @@ impl DefaultStyle {
         widget_set! {
             self;
             replace = true;
-            zero_ui_wgt_button::style_fn = style_fn!(|_| super::ButtonStyle!());
-            zero_ui_wgt_toggle::style_fn = style_fn!(|_| super::ToggleStyle!());
-            zero_ui_wgt_rule_line::hr::color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
-            zero_ui_wgt_text::icon::ico_size = 18;
+            zng_wgt_button::style_fn = style_fn!(|_| super::ButtonStyle!());
+            zng_wgt_toggle::style_fn = style_fn!(|_| super::ToggleStyle!());
+            zng_wgt_rule_line::hr::color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
+            zng_wgt_text::icon::ico_size = 18;
         }
     }
 }
@@ -186,12 +186,12 @@ impl TouchStyle {
         widget_set! {
             self;
 
-            panel_fn = wgt_fn!(|args: zero_ui_wgt_panel::PanelArgs| Stack! {
+            panel_fn = wgt_fn!(|args: zng_wgt_panel::PanelArgs| Stack! {
                 direction = StackDirection::left_to_right();
                 children = args.children;
             });
-            zero_ui_wgt_button::style_fn = style_fn!(|_| super::TouchButtonStyle!());
-            zero_ui_wgt_rule_line::vr::color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
+            zng_wgt_button::style_fn = style_fn!(|_| super::TouchButtonStyle!());
+            zng_wgt_rule_line::vr::color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
         }
     }
 }

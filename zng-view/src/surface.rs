@@ -7,8 +7,8 @@ use webrender::{
     api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction,
 };
-use zero_ui_unit::{DipSize, DipToPx, Factor, Px, PxRect, Rgba};
-use zero_ui_view_api::{
+use zng_unit::{DipSize, DipToPx, Factor, Px, PxRect, Rgba};
+use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},

@@ -7,10 +7,10 @@ use std::time::Duration;
 use std::{mem, thread};
 
 #[doc(hidden)]
-pub use zero_ui_clone_move::*;
+pub use zng_clone_move::*;
 
-use zero_ui_handle::{Handle, WeakHandle};
-use zero_ui_task::{self as task, UiTask};
+use zng_handle::{Handle, WeakHandle};
+use zng_task::{self as task, UiTask};
 
 use crate::INSTANT;
 
@@ -128,10 +128,10 @@ where
 /// The example declares an event handler for the `on_click` property.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zero_ui_app::handler::hn;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zng_app::handler::hn;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|_| {
 ///     println!("Clicked!");
@@ -143,10 +143,10 @@ where
 /// if you want to use the event args you must annotate the input type, the context type is inferred.
 ///
 /// ```
-/// # #[derive(Clone)] pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize }
-/// # use zero_ui_app::handler::hn;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # #[derive(Clone)] pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize }
+/// # use zng_app::handler::hn;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = hn!(|args: &ClickArgs| {
 ///     println!("Clicked {}!", args.click_count);
@@ -157,12 +157,12 @@ where
 /// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # #[derive(Clone)] pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize }
-/// # use zero_ui_txt::formatx;
-/// # use zero_ui_var::{var, Var};
-/// # use zero_ui_app::handler::hn;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # #[derive(Clone)] pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize }
+/// # use zng_txt::formatx;
+/// # use zng_var::{var, Var};
+/// # use zng_app::handler::hn;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// let foo = var(0);
 ///
 /// // ..
@@ -239,9 +239,9 @@ where
 /// are ignored by the handler.
 ///
 /// ```
-/// # use zero_ui_app::handler::hn_once;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<()> {
+/// # use zng_app::handler::hn_once;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<()> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_click = hn_once!(|_| {
@@ -256,11 +256,11 @@ where
 /// the type of the input is the event arguments and must be annotated.
 ///
 /// ```
-/// # use zero_ui_app::handler::hn_once;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # use zng_app::handler::hn_once;
+/// # let _scope = zng_app::APP.minimal();
 /// # #[derive(Clone)]
 /// # pub struct ClickArgs { click_count: usize }
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_click = hn_once!(data, |args: &ClickArgs| {
@@ -343,11 +343,11 @@ where
 /// The example declares an async event handler for the `on_click` property.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zero_ui_app::handler::async_hn;
-/// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zng_app::handler::async_hn;
+/// # use zng_task as task;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|_| {
 ///     println!("Clicked!");
@@ -365,11 +365,11 @@ where
 /// if you want to use the event args you must annotate the input type.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zero_ui_app::handler::async_hn;
-/// # use zero_ui_app::widget::WIDGET;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zng_app::handler::async_hn;
+/// # use zng_app::widget::WIDGET;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// # let
 /// on_click = async_hn!(|args: ClickArgs| {
 ///     println!("Clicked {} {} times!", WIDGET.id(), args.click_count);
@@ -381,13 +381,13 @@ where
 /// Internally the [`async_clmv_fn!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zero_ui_app::handler::async_hn;
-/// # use zero_ui_var::{var, Var};
-/// # use zero_ui_task as task;
-/// # use zero_ui_txt::formatx;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zng_app::handler::async_hn;
+/// # use zng_var::{var, Var};
+/// # use zng_task as task;
+/// # use zng_txt::formatx;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// let enabled = var(true);
 ///
 /// // ..
@@ -518,11 +518,11 @@ where
 /// *clone-move* here just to use `data`.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zero_ui_app::handler::async_hn_once;
-/// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zng_app::handler::async_hn_once;
+/// # use zng_task as task;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(|_| {
@@ -541,11 +541,11 @@ where
 /// but will just be moved to the other thread, avoiding a needless clone.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zero_ui_app::handler::async_hn_once;
-/// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zng_app::handler::async_hn_once;
+/// # use zng_task as task;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(data, |_| {
@@ -700,10 +700,10 @@ where
 /// The example declares an event handler for the `CLICK_EVENT`.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_app::handler::app_hn;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_app::handler::app_hn;
+/// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
@@ -718,10 +718,10 @@ where
 /// will be dropped some time before the next event update.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_app::handler::app_hn;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_app::handler::app_hn;
+/// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(app_hn!(|args: &ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
@@ -733,12 +733,12 @@ where
 /// Internally the [`clmv!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_txt::{formatx, ToTxt};
-/// # use zero_ui_var::{var, Var};
-/// # use zero_ui_app::handler::app_hn;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_txt::{formatx, ToTxt};
+/// # use zng_var::{var, Var};
+/// # use zng_app::handler::app_hn;
+/// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// let foo = var("".to_txt());
 ///
@@ -814,10 +814,10 @@ where
 /// are ignored by the handler and it automatically requests unsubscribe.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_app::handler::app_hn_once;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_app::handler::app_hn_once;
+/// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
@@ -833,10 +833,10 @@ where
 /// the type of the input is the event arguments and must be annotated.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_app::handler::app_hn_once;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_app::handler::app_hn_once;
+/// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// let data = vec![1, 2, 3];
 ///
@@ -934,11 +934,11 @@ where
 /// The example declares an async event handler for the `CLICK_EVENT`.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_app::handler::async_app_hn;
-/// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_app::handler::async_app_hn;
+/// # use zng_task as task;
+/// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(async_app_hn!(|_, _| {
 ///     println!("Clicked Somewhere!");
@@ -960,11 +960,11 @@ where
 /// then is by returning early inside the async blocks.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_app::handler::async_app_hn;
-/// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_app::handler::async_app_hn;
+/// # use zng_task as task;
+/// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// CLICK_EVENT.on_event(async_app_hn!(|args: ClickArgs, handle| {
 ///     println!("Clicked {}!", args.target);
@@ -978,14 +978,14 @@ where
 /// Internally the [`async_clmv_fn!`] macro is used so you can *clone-move* variables into the handler.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # zero_ui_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
-/// # use zero_ui_app::handler::async_app_hn;
-/// # use zero_ui_var::{var, Var};
-/// # use zero_ui_task as task;
-/// # use zero_ui_txt::{formatx, ToTxt};
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # zng_app::event::event! { pub static CLICK_EVENT: ClickArgs; }
+/// # use zng_app::handler::async_app_hn;
+/// # use zng_var::{var, Var};
+/// # use zng_task as task;
+/// # use zng_txt::{formatx, ToTxt};
 /// #
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # let _scope = zng_app::APP.minimal();
 /// # fn assert_type() {
 /// let status = var("pending..".to_txt());
 ///
@@ -1102,11 +1102,11 @@ where
 /// to capture by *clone-move* just to use `data`.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zero_ui_app::handler::async_hn_once;
-/// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zng_app::handler::async_hn_once;
+/// # use zng_task as task;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(|_| {
@@ -1125,11 +1125,11 @@ where
 /// but will just be moved to the other thread, avoiding a needless clone.
 ///
 /// ```
-/// # zero_ui_app::event::event_args! { pub struct ClickArgs { pub target: zero_ui_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
-/// # use zero_ui_app::handler::async_hn_once;
-/// # use zero_ui_task as task;
-/// # let _scope = zero_ui_app::APP.minimal();
-/// # fn assert_type() -> impl zero_ui_app::handler::WidgetHandler<ClickArgs> {
+/// # zng_app::event::event_args! { pub struct ClickArgs { pub target: zng_txt::Txt, pub click_count: usize, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
+/// # use zng_app::handler::async_hn_once;
+/// # use zng_task as task;
+/// # let _scope = zng_app::APP.minimal();
+/// # fn assert_type() -> impl zng_app::handler::WidgetHandler<ClickArgs> {
 /// let data = vec![1, 2, 3];
 /// # let
 /// on_open = async_hn_once!(data, |_| {

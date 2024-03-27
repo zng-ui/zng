@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use zero_ui_app::{
+use zng_app::{
     widget::info::access::AccessEnabled,
     window::{MonitorId, WindowId, WINDOW},
 };
-use zero_ui_ext_image::Img;
-use zero_ui_layout::unit::{
+use zng_ext_image::Img;
+use zng_layout::unit::{
     Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
 };
-use zero_ui_state_map::StaticStateId;
-use zero_ui_txt::{ToTxt, Txt};
-use zero_ui_unique_id::IdSet;
-use zero_ui_var::{merge_var, var, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
-use zero_ui_view_api::{
+use zng_state_map::StaticStateId;
+use zng_txt::{ToTxt, Txt};
+use zng_unique_id::IdSet;
+use zng_var::{merge_var, var, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
+use zng_view_api::{
     config::ColorScheme,
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState},
 };
@@ -638,7 +638,7 @@ impl WindowVars {
     ///
     /// [`Next`]: FrameCaptureMode::Next
     /// [`Sporadic`]: FrameCaptureMode::Sporadic
-    /// [`WIDGET.render_update`]: zero_ui_app::widget::WIDGET::render_update
+    /// [`WIDGET.render_update`]: zng_app::widget::WIDGET::render_update
     pub fn frame_capture_mode(&self) -> ArcVar<FrameCaptureMode> {
         self.0.frame_capture_mode.clone()
     }

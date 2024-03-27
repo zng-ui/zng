@@ -1,6 +1,6 @@
 //! Angle, factor, length, time, byte and resolution units.
 
-pub use zero_ui_unit::*;
+pub use zng_unit::*;
 
 mod alignment;
 pub use alignment::*;
@@ -62,15 +62,15 @@ macro_rules! impl_length_comp_conversions {
                 }
             }
 
-            impl<$($N),+> zero_ui_var::IntoVar<$For> for ($($N),+)
+            impl<$($N),+> zng_var::IntoVar<$For> for ($($N),+)
             where
             $($N: Into<Length> + Clone,)+
             {
-                type Var = zero_ui_var::LocalVar<$For>;
+                type Var = zng_var::LocalVar<$For>;
 
                 $(#[$docs])*
                 fn into_var(self) -> Self::Var {
-                    zero_ui_var::LocalVar(self.into())
+                    zng_var::LocalVar(self.into())
                 }
             }
         )+
@@ -236,7 +236,7 @@ pub trait Layout1d {
 mod tests {
     use std::f32::consts::{PI, TAU};
 
-    use zero_ui_app_context::{AppId, LocalContext};
+    use zng_app_context::{AppId, LocalContext};
 
     use crate::context::{LayoutMetrics, LAYOUT};
 

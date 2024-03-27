@@ -16,7 +16,7 @@ To add an integration test, create a file then add it in `./Cargo.toml` as a `[[
 
 In `./foo.rs`:
 ```rust
-use zero_ui::prelude::*;
+use zng::prelude::*;
 
 #[test]
 fn foo() {

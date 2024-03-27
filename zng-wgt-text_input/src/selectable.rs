@@ -1,21 +1,21 @@
 //! Selectable text.
 
-use zero_ui_ext_clipboard::COPY_CMD;
-use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_button::Button;
-use zero_ui_wgt_input::focus::FocusableMix;
-use zero_ui_wgt_menu::{
+use zng_ext_clipboard::COPY_CMD;
+use zng_wgt::prelude::*;
+use zng_wgt_button::Button;
+use zng_wgt_input::focus::FocusableMix;
+use zng_wgt_menu::{
     self as menu,
     context::{context_menu_fn, ContextMenu},
 };
-use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
-use zero_ui_wgt_text::{self as text, *};
+use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_text::{self as text, *};
 
 /// Styleable read-only text widget that can be selected and copied to clipboard.
 ///
 /// # Shorthand
 ///
-/// The same [`Text!`](struct@zero_ui_wgt_text::Text#shorthand) shorthand can be used in this macro.
+/// The same [`Text!`](struct@zng_wgt_text::Text#shorthand) shorthand can be used in this macro.
 #[widget($crate::selectable::SelectableText {
     ($txt:literal) => {
         txt = $crate::__formatx!($txt);
@@ -27,7 +27,7 @@ use zero_ui_wgt_text::{self as text, *};
         txt = $crate::__formatx!($txt, $($format)*);
     };
 })]
-pub struct SelectableText(FocusableMix<StyleMix<zero_ui_wgt_text::Text>>);
+pub struct SelectableText(FocusableMix<StyleMix<zng_wgt_text::Text>>);
 impl SelectableText {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
@@ -45,8 +45,8 @@ impl_style_fn!(SelectableText);
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
-        use zero_ui_wgt_input::*;
-        use zero_ui_wgt_layer::*;
+        use zng_wgt_input::*;
+        use zng_wgt_layer::*;
 
         widget_set! {
             self;

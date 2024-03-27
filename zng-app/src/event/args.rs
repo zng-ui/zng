@@ -117,8 +117,8 @@ impl std::hash::Hash for EventPropagationHandle {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_app::{event::event_args, widget::info::WidgetPath};
-/// # use zero_ui_txt::*;
+/// # use zng_app::{event::event_args, widget::info::WidgetPath};
+/// # use zng_txt::*;
 /// #
 /// event_args! {
 ///     /// My event arguments.

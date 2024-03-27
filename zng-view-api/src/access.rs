@@ -5,8 +5,8 @@ use std::{num::NonZeroU32, ops};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-use zero_ui_txt::Txt;
-use zero_ui_unit::{PxRect, PxSize, PxTransform};
+use zng_txt::Txt;
+use zng_unit::{PxRect, PxSize, PxTransform};
 
 /// Accessibility role of a node in the accessibility tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -178,7 +178,7 @@ pub enum AccessRole {
     Dialog,
 }
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: AccessRole) -> Option<AccessRole>;
 }
 
@@ -201,7 +201,7 @@ pub enum CurrentKind {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: CurrentKind) -> Option<CurrentKind>;
 }
 
@@ -356,7 +356,7 @@ pub enum AccessState {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: AccessState) -> Option<AccessState>;
 }
 
@@ -375,7 +375,7 @@ pub enum LiveIndicator {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: LiveIndicator) -> Option<LiveIndicator>;
 }
 
@@ -391,7 +391,7 @@ pub enum SortDirection {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: SortDirection) -> Option<SortDirection>;
 }
 
@@ -407,7 +407,7 @@ pub enum Orientation {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: Orientation) -> Option<Orientation>;
 }
 
@@ -429,7 +429,7 @@ pub enum Popup {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: Popup) -> Option<Popup>;
 }
 
@@ -475,7 +475,7 @@ bitflags! {
 pub struct AccessNodeId(pub u64);
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: AccessNodeId) -> Option<AccessNodeId>;
 }
 
@@ -561,7 +561,7 @@ impl AccessCmd {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: AccessCmd) -> Option<AccessCmd>;
 }
 
@@ -605,7 +605,7 @@ pub enum AccessCmdName {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: AccessCmdName) -> Option<AccessCmdName>;
 }
 
@@ -634,7 +634,7 @@ pub enum ScrollCmd {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: ScrollCmd) -> Option<ScrollCmd>;
 }
 

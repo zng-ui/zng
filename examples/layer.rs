@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::{
+use zng::{
     button,
     color::{color_scheme_map, filter::opacity},
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
@@ -10,7 +10,7 @@ use zero_ui::{
     widget::{background_color, border, hit_test_mode, HitTestMode},
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -43,8 +43,8 @@ fn app_main() {
         Window! {
             title = "Layer Example";
 
-            // zero_ui::properties::inspector::show_bounds = true;
-            // zero_ui::properties::inspector::show_hit_test = true;
+            // zng::properties::inspector::show_bounds = true;
+            // zng::properties::inspector::show_hit_test = true;
 
             child_align = Align::CENTER;
             child = Stack! {

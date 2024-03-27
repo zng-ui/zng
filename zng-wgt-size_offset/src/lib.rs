@@ -5,7 +5,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 /// Widget layout offset.
 ///
@@ -339,7 +339,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`width`]: fn@width
 /// [`height`]: fn@height
 /// [`force_size`]: fn@force_size
-/// [`align`]: fn@zero_ui_wgt::align
+/// [`align`]: fn@zng_wgt::align
 #[property(SIZE)]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     let size = size.into_var();

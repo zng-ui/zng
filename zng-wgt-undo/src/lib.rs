@@ -7,8 +7,8 @@
 
 use std::time::Duration;
 
-use zero_ui_ext_undo::*;
-use zero_ui_wgt::prelude::*;
+use zng_ext_undo::*;
+use zng_wgt::prelude::*;
 
 /// Sets if the widget is an undo scope.
 ///

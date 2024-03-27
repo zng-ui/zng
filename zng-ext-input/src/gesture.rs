@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use zero_ui_app::{
+use zng_app::{
     access::{AccessClickArgs, ACCESS_CLICK_EVENT},
     event::{event, event_args, AnyEventArgs, Command, CommandScope, EventPropagationHandle, EVENTS},
     shortcut::{
@@ -24,12 +24,12 @@ use zero_ui_app::{
     window::WindowId,
     AppExtension, DInstant, HeadlessApp,
 };
-use zero_ui_app_context::app_local;
-use zero_ui_ext_window::WINDOWS;
-use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_layout::unit::DipPoint;
-use zero_ui_var::{var, ArcVar, Var};
-use zero_ui_view_api::{
+use zng_app_context::app_local;
+use zng_ext_window::WINDOWS;
+use zng_handle::{Handle, HandleOwner, WeakHandle};
+use zng_layout::unit::DipPoint;
+use zng_var::{var, ArcVar, Var};
+use zng_view_api::{
     keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
     mouse::MouseButton,
 };
@@ -612,9 +612,9 @@ impl GesturesService {
 /// [`context_click_focused`]: Self::context_click_focused
 /// [`click_shortcut`]: Self::click_shortcut
 /// [`focus_shortcut`]: Self::focus_shortcut
-/// [`on_pre_event`]: zero_ui_app::event::Event::on_pre_event
-/// [`on_event`]: zero_ui_app::event::Event::on_event
-/// [`BLOCKED`]: zero_ui_app::widget::info::Interactivity::BLOCKED
+/// [`on_pre_event`]: zng_app::event::Event::on_pre_event
+/// [`on_event`]: zng_app::event::Event::on_event
+/// [`BLOCKED`]: zng_app::widget::info::Interactivity::BLOCKED
 /// [`propagation`]: AnyEventArgs::propagation
 /// [`event_preview`]: AppExtension::event_preview
 /// [`event_ui`]: AppExtension::event_ui
@@ -1024,7 +1024,7 @@ impl ShortcutsHandle {
     /// The claim stays registered for the duration of the app or until another handle calls [`release`](Self::release).
     /// Note that shortcut claims only work if the target widget is found and is not [`BLOCKED`].
     ///
-    /// [`BLOCKED`]: zero_ui_app::widget::info::Interactivity::BLOCKED
+    /// [`BLOCKED`]: zng_app::widget::info::Interactivity::BLOCKED
     pub fn perm(self) {
         self.0.perm();
     }

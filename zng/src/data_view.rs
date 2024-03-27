@@ -7,7 +7,7 @@
 //! The example below declares a `DataView!` using the shorthand syntax:
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn countdown(n: impl IntoVar<usize>) -> impl UiNode {
 //!     DataView!(::<usize>, n, hn!(|a: &DataViewArgs<usize>| {
@@ -36,7 +36,7 @@
 //! You can also use the normal widget syntax and set the `view` property.
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # let _scope = APP.defaults(); let n = var(0usize); let _ =
 //! DataView! {
 //!     view::<usize> = {
@@ -49,6 +49,6 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_data_view`] for the full view API.
+//! See [`zng_wgt_data_view`] for the full view API.
 
-pub use zero_ui_wgt_data_view::{DataView, DataViewArgs};
+pub use zng_wgt_data_view::{DataView, DataViewArgs};

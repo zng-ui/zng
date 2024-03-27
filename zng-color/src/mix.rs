@@ -1,10 +1,10 @@
 use super::{clamp_normal, Hsla, Hsva, PreMulRgba, Rgba};
-use zero_ui_layout::unit::Factor;
+use zng_layout::unit::Factor;
 
 use paste::*;
 
 /// Webrender [`MixBlendMode`].
-pub type RenderMixBlendMode = zero_ui_view_api::MixBlendMode;
+pub type RenderMixBlendMode = zng_view_api::MixBlendMode;
 
 macro_rules! impl_mix {
     (
@@ -78,8 +78,8 @@ macro_rules! impl_mix {
             /// Add `10%` of the current lightness to the `DARK_RED` color:
             ///
             /// ```
-            /// # use zero_ui_color::*;
-            /// # use zero_ui_layout::unit::*;
+            /// # use zng_color::*;
+            /// # use zng_layout::unit::*;
             /// web_colors::DARK_RED.lighten(10.pct())
             /// # ;
             /// ```
@@ -92,8 +92,8 @@ macro_rules! impl_mix {
             /// Removes `10%` of the current lightness from the `DARK_RED` color:
             ///
             /// ```
-            /// # use zero_ui_color::*;
-            /// # use zero_ui_layout::unit::*;
+            /// # use zng_color::*;
+            /// # use zng_layout::unit::*;
             /// web_colors::DARK_RED.darken(10.pct())
             /// # ;
             fn darken<A: Into<Factor>>(self, amount: A) -> Self;
@@ -105,8 +105,8 @@ macro_rules! impl_mix {
             /// Removes `10%` of the current saturation from the `RED` color:
             ///
             /// ```
-            /// # use zero_ui_color::*;
-            /// # use zero_ui_layout::unit::*;
+            /// # use zng_color::*;
+            /// # use zng_layout::unit::*;
             /// colors::RED.desaturate(10.pct())
             /// # ;
             fn desaturate<A: Into<Factor>>(self, amount: A) -> Self;

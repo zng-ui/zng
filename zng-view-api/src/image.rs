@@ -3,10 +3,10 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 use crate::ipc::IpcBytes;
-use zero_ui_unit::{Px, PxSize};
+use zng_unit::{Px, PxSize};
 
 crate::declare_id! {
     /// Id of a decoded image in the cache.
@@ -93,7 +93,7 @@ impl From<Px> for ImageDownscale {
     }
 }
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(fit: PxSize) -> ImageDownscale;
     fn from(fit: Px) -> ImageDownscale;
     fn from(some: ImageDownscale) -> Option<ImageDownscale>;
@@ -313,7 +313,7 @@ impl From<(f32, f32)> for ImagePpi {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(xy: f32) -> ImagePpi;
     fn from(xy: (f32, f32)) -> ImagePpi;
 }

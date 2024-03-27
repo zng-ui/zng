@@ -2,10 +2,10 @@ use std::{borrow::Cow, fmt, mem, ops, sync::Arc};
 
 use fluent::types::FluentNumber;
 use once_cell::sync::Lazy;
-use zero_ui_ext_fs_watcher::WatcherReadStatus;
-use zero_ui_layout::context::LayoutDirection;
-use zero_ui_txt::Txt;
-use zero_ui_var::{context_var, impl_from_and_into_var, ArcEq, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, VarValue};
+use zng_ext_fs_watcher::WatcherReadStatus;
+use zng_layout::context::LayoutDirection;
+use zng_txt::Txt;
+use zng_var::{context_var, impl_from_and_into_var, ArcEq, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, VarValue};
 
 use crate::{lang, service::L10N_SV, L10N};
 

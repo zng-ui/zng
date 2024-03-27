@@ -18,10 +18,10 @@ use std::{
     task::Waker,
     time::Duration,
 };
-use zero_ui_app_context::app_local;
-use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_time::{DInstant, INSTANT, INSTANT_APP};
-use zero_ui_var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, WeakVar};
+use zng_app_context::app_local;
+use zng_handle::{Handle, HandleOwner, WeakHandle};
+use zng_time::{DInstant, INSTANT, INSTANT_APP};
+use zng_var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, WeakVar};
 
 use crate::{
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
@@ -355,7 +355,7 @@ impl TimersService {
 /// handlers to be called directly when the time elapses. Timers can be *one-time*, updating only once when
 /// a [`deadline`] is reached; or they can update every time on a set [`interval`].
 ///
-/// Note that you can also use the [`task::deadline`](zero_ui_task::deadline) function to `.await` deadlines, in app
+/// Note that you can also use the [`task::deadline`](zng_task::deadline) function to `.await` deadlines, in app
 /// threads this function uses the `TIMERS` service too.
 ///
 /// # Precision
@@ -376,10 +376,10 @@ impl TIMERS {
     /// Drop all clones of the variable to cancel the timer.
     ///
     /// ```
-    /// # use zero_ui_app::timer::*;
-    /// # use zero_ui_app::handler::*;
-    /// # use zero_ui_layout::unit::*;
-    /// # use zero_ui_app::var::*;
+    /// # use zng_app::timer::*;
+    /// # use zng_app::handler::*;
+    /// # use zng_layout::unit::*;
+    /// # use zng_app::var::*;
     /// # use std::time::Instant;
     /// # fn foo() {
     /// let deadline = TIMERS.deadline(20.secs());
@@ -404,11 +404,11 @@ impl TIMERS {
     /// running immediately if `paused` is `false`.
     ///
     /// ```
-    /// # use zero_ui_app::timer::*;
-    /// # use zero_ui_app::handler::*;
-    /// # use zero_ui_layout::unit::*;
-    /// # use zero_ui_app::var::*;
-    /// # use zero_ui_txt::*;
+    /// # use zng_app::timer::*;
+    /// # use zng_app::handler::*;
+    /// # use zng_layout::unit::*;
+    /// # use zng_app::var::*;
+    /// # use zng_txt::*;
     /// # use std::time::Instant;
     /// # fn foo() {
     /// let timer = TIMERS.interval(1.secs(), false);
@@ -435,9 +435,9 @@ impl TIMERS {
     /// If the `deadline` is in the past the `handler` will be called in the next app update.
     ///
     /// ```
-    /// # use zero_ui_app::timer::*;
-    /// # use zero_ui_app::handler::*;
-    /// # use zero_ui_layout::unit::*;
+    /// # use zng_app::timer::*;
+    /// # use zng_app::handler::*;
+    /// # use zng_layout::unit::*;
     /// # use std::time::Instant;
     /// # fn foo() {
     /// let handle = TIMERS.on_deadline(20.secs(), app_hn_once!(|_| {
@@ -481,7 +481,7 @@ impl TIMERS {
 impl TIMERS {
     /// Implementation of the [`task::deadline`] function when called from app threads.
     ///
-    /// [`task::deadline`]: zero_ui_task::deadline
+    /// [`task::deadline`]: zng_task::deadline
     pub fn wait_deadline(&self, deadline: impl Into<Deadline>) -> impl std::future::Future<Output = ()> + Send + Sync {
         TIMERS_SV.write().wait_deadline(deadline.into())
     }
@@ -494,10 +494,10 @@ impl TIMERS {
 /// Drop all clones of this variable to cancel the timer.
 ///
 /// ```
-/// # use zero_ui_app::timer::*;
-/// # use zero_ui_app::handler::*;
-/// # use zero_ui_layout::unit::*;
-/// # use zero_ui_app::var::*;
+/// # use zng_app::timer::*;
+/// # use zng_app::handler::*;
+/// # use zng_layout::unit::*;
+/// # use zng_app::var::*;
 /// # use std::time::Instant;
 /// # fn foo() {
 /// let deadline: DeadlineVar = TIMERS.deadline(20.secs());
@@ -822,11 +822,11 @@ impl WeakTimerHandle {
 /// with methods in the [`Timer`] value even though the variable is read-only.
 ///
 /// ```
-/// # use zero_ui_app::timer::*;
-/// # use zero_ui_app::handler::*;
-/// # use zero_ui_app::var::*;
-/// # use zero_ui_txt::*;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_app::timer::*;
+/// # use zng_app::handler::*;
+/// # use zng_app::var::*;
+/// # use zng_txt::*;
+/// # use zng_layout::unit::*;
 /// # use std::time::Instant;
 /// # fn foo() {
 /// let timer: TimerVar = TIMERS.interval(1.secs(), false);

@@ -4,15 +4,15 @@ use std::num::NonZeroU32;
 
 use parking_lot::Mutex;
 use unic_langid::LanguageIdentifier;
-use zero_ui_layout::unit::{Factor, PxSize, PxTransform};
-use zero_ui_state_map::StaticStateId;
-use zero_ui_txt::Txt;
-use zero_ui_unique_id::IdMap;
-use zero_ui_var::{BoxedVar, IntoVar, Var};
-pub use zero_ui_view_api::access::{
+use zng_layout::unit::{Factor, PxSize, PxTransform};
+use zng_state_map::StaticStateId;
+use zng_txt::Txt;
+use zng_unique_id::IdMap;
+use zng_var::{BoxedVar, IntoVar, Var};
+pub use zng_view_api::access::{
     AccessCmdName, AccessRole, AutoComplete, CurrentKind, Invalid, LiveIndicator, Orientation, Popup, SortDirection,
 };
-use zero_ui_view_api::access::{AccessNodeId, AccessState};
+use zng_view_api::access::{AccessNodeId, AccessState};
 
 use crate::widget::WidgetId;
 
@@ -427,14 +427,14 @@ impl WidgetInfoTree {
     /// If not [`access_enabled`] returns a placeholder tree with only the root node.
     ///
     /// [`access_enabled`]: Self::access_enabled
-    pub fn to_access_tree(&self) -> zero_ui_view_api::access::AccessTree {
-        let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+    pub fn to_access_tree(&self) -> zng_view_api::access::AccessTree {
+        let mut builder = zng_view_api::access::AccessTreeBuilder::default();
         if self.0.access_enabled.is_enabled() {
             // no panic cause root role is always set by the builder.
             let inverse = self.collect_inverse_state();
             self.root().access().unwrap().to_access_info(&inverse, &mut builder);
         } else {
-            builder.push(zero_ui_view_api::access::AccessNode::new(
+            builder.push(zng_view_api::access::AccessNode::new(
                 self.root().id().into(),
                 Some(AccessRole::Application),
             ));
@@ -451,14 +451,14 @@ impl WidgetInfoTree {
     /// updates will also include [`to_access_updates_bounds`].
     ///
     /// [`access_enabled`]: Self::access_enabled
-    /// [`focused`]: zero_ui_view_api::access::AccessTreeUpdate::focused
+    /// [`focused`]: zng_view_api::access::AccessTreeUpdate::focused
     /// [`to_access_updates_bounds`]: Self::to_access_updates_bounds
-    pub fn to_access_updates(&self, prev_tree: &Self) -> Option<zero_ui_view_api::access::AccessTreeUpdate> {
+    pub fn to_access_updates(&self, prev_tree: &Self) -> Option<zng_view_api::access::AccessTreeUpdate> {
         let is_enabled = self.access_enabled().is_enabled();
         let root_id = self.root().id().into();
         if is_enabled && !prev_tree.access_enabled().is_enabled() {
             // first update after access enabled
-            return Some(zero_ui_view_api::access::AccessTreeUpdate {
+            return Some(zng_view_api::access::AccessTreeUpdate {
                 updates: vec![self.to_access_tree()],
                 full_root: Some(root_id),
                 focused: root_id,
@@ -470,7 +470,7 @@ impl WidgetInfoTree {
             let mut updates = vec![];
             self.root().access().unwrap().to_access_updates(prev_tree, &inverse, &mut updates);
             if !updates.is_empty() {
-                return Some(zero_ui_view_api::access::AccessTreeUpdate {
+                return Some(zng_view_api::access::AccessTreeUpdate {
                     updates,
                     full_root: None,
                     focused: root_id,
@@ -489,9 +489,9 @@ impl WidgetInfoTree {
     /// This is usually called by window implementers after each frame that is not [`to_access_updates`].
     ///
     /// [`access_enabled`]: Self::access_enabled
-    /// [`focused`]: zero_ui_view_api::access::AccessTreeUpdate::focused
+    /// [`focused`]: zng_view_api::access::AccessTreeUpdate::focused
     /// [`to_access_updates`]: Self::to_access_updates
-    pub fn to_access_updates_bounds(&self) -> Option<zero_ui_view_api::access::AccessTreeUpdate> {
+    pub fn to_access_updates_bounds(&self) -> Option<zng_view_api::access::AccessTreeUpdate> {
         let is_enabled = self.access_enabled().is_enabled();
         let root_id = self.root().id().into();
 
@@ -503,7 +503,7 @@ impl WidgetInfoTree {
             let mut updates = vec![];
             self.root().access().unwrap().to_access_updates_bounds(&inverse, &mut updates);
             if !updates.is_empty() {
-                return Some(zero_ui_view_api::access::AccessTreeUpdate {
+                return Some(zng_view_api::access::AccessTreeUpdate {
                     updates,
                     full_root: None,
                     focused: root_id,
@@ -559,7 +559,7 @@ impl WidgetInfo {
             .map(|w| w.access().unwrap())
     }
 
-    fn access_children_ids(&self, is_prev: bool) -> Vec<zero_ui_view_api::access::AccessNodeId> {
+    fn access_children_ids(&self, is_prev: bool) -> Vec<zng_view_api::access::AccessNodeId> {
         self.access_children()
             .filter_map(|w| {
                 if w.is_local_accessible() {
@@ -928,8 +928,8 @@ impl WidgetAccessInfo {
         !self.info.meta().contains(&INACCESSIBLE_ID) && self.info.visibility().is_visible()
     }
 
-    fn to_access_node_leaf(&self, inverse: &InverseAccess) -> zero_ui_view_api::access::AccessNode {
-        let mut node = zero_ui_view_api::access::AccessNode::new(self.info.id().into(), None);
+    fn to_access_node_leaf(&self, inverse: &InverseAccess) -> zng_view_api::access::AccessNode {
+        let mut node = zng_view_api::access::AccessNode::new(self.info.id().into(), None);
         let a = self.access();
 
         let bounds_info = self.bounds_info();
@@ -1001,11 +1001,11 @@ impl WidgetAccessInfo {
         }
     }
 
-    fn to_access_info(&self, inverse: &InverseAccess, builder: &mut zero_ui_view_api::access::AccessTreeBuilder) -> bool {
+    fn to_access_info(&self, inverse: &InverseAccess, builder: &mut zng_view_api::access::AccessTreeBuilder) -> bool {
         if !self.is_local_accessible() {
             if self.info.parent().is_none() {
                 // root node is required (but can be empty)
-                builder.push(zero_ui_view_api::access::AccessNode::new(self.info.id().into(), self.access().role));
+                builder.push(zng_view_api::access::AccessNode::new(self.info.id().into(), self.access().role));
             }
             *self.access().view_bounds.lock() = None;
             return false;
@@ -1033,7 +1033,7 @@ impl WidgetAccessInfo {
         &self,
         prev_tree: &WidgetInfoTree,
         inverse: &InverseAccess,
-        updates: &mut Vec<zero_ui_view_api::access::AccessTree>,
+        updates: &mut Vec<zng_view_api::access::AccessTree>,
     ) {
         if !self.is_local_accessible() {
             // not accessible
@@ -1088,7 +1088,7 @@ impl WidgetAccessInfo {
                             .collect()
                     });
 
-                    let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+                    let mut builder = zng_view_api::access::AccessTreeBuilder::default();
                     builder.push(node);
                     updates.push(builder.build());
 
@@ -1108,14 +1108,14 @@ impl WidgetAccessInfo {
         }
 
         // insert
-        let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+        let mut builder = zng_view_api::access::AccessTreeBuilder::default();
         let insert = self.to_access_info(inverse, &mut builder);
         assert!(insert);
         updates.push(builder.build());
     }
 
     /// Returns `true` if access changed by visibility update.
-    fn to_access_updates_bounds(&self, inverse: &InverseAccess, updates: &mut Vec<zero_ui_view_api::access::AccessTree>) -> bool {
+    fn to_access_updates_bounds(&self, inverse: &InverseAccess, updates: &mut Vec<zng_view_api::access::AccessTree>) -> bool {
         if self.info.meta().contains(&INACCESSIBLE_ID) {
             // not accessible
             return false;
@@ -1142,7 +1142,7 @@ impl WidgetAccessInfo {
 
         if vis_changed {
             // branch now accessible
-            let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+            let mut builder = zng_view_api::access::AccessTreeBuilder::default();
             let insert = self.to_access_info(inverse, &mut builder);
             assert!(insert);
             updates.push(builder.build());
@@ -1162,7 +1162,7 @@ impl WidgetAccessInfo {
                     .filter_map(|a| if a.is_local_accessible() { Some(a.info.id().into()) } else { None })
                     .collect();
 
-                let mut builder = zero_ui_view_api::access::AccessTreeBuilder::default();
+                let mut builder = zng_view_api::access::AccessTreeBuilder::default();
                 builder.push(node);
                 updates.push(builder.build());
             }
@@ -1291,5 +1291,5 @@ pub struct AccessBuildArgs<'a> {
     /// Widget that is converting to view info.
     pub widget: &'a WidgetAccessInfo,
     /// Partially build view info, does not include children info.
-    pub node: &'a mut zero_ui_view_api::access::AccessNode,
+    pub node: &'a mut zng_view_api::access::AccessNode,
 }

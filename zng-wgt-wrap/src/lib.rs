@@ -8,17 +8,17 @@
 use std::sync::Arc;
 
 use crate_util::RecycleVec;
-use zero_ui_app::widget::node::PanelListRange;
-use zero_ui_ext_font::{unicode_bidi_levels, unicode_bidi_sort, BidiLevel};
-use zero_ui_layout::{
+use zng_app::widget::node::PanelListRange;
+use zng_ext_font::{unicode_bidi_levels, unicode_bidi_sort, BidiLevel};
+use zng_layout::{
     context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, TextSegmentKind},
     unit::{GridSpacing, PxGridSpacing},
 };
-use zero_ui_wgt::{
+use zng_wgt::{
     node::{with_index_len_node, with_index_node, with_rev_index_node},
     prelude::*,
 };
-use zero_ui_wgt_text::*;
+use zng_wgt_text::*;
 
 mod crate_util;
 
@@ -72,16 +72,16 @@ pub fn children(children: impl UiNodeList) {}
 /// Note that column space is limited for bidirectional inline items as it only inserts spacing between
 /// items once and bidirectional text can interleave items, consider using [`word_spacing`] for inline text.
 ///
-/// [`LINE_SPACING_VAR`]: zero_ui_wgt_text::LINE_SPACING_VAR
-/// [`line_spacing`]: fn@zero_ui_wgt_text::txt_align
-/// [`word_spacing`]: fn@zero_ui_wgt_text::word_spacing
+/// [`LINE_SPACING_VAR`]: zng_wgt_text::LINE_SPACING_VAR
+/// [`line_spacing`]: fn@zng_wgt_text::txt_align
+/// [`word_spacing`]: fn@zng_wgt_text::word_spacing
 #[property(LAYOUT, capture, widget_impl(Wrap))]
 pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 
 /// Children align.
 ///
-/// [`TEXT_ALIGN_VAR`]: zero_ui_wgt_text::TEXT_ALIGN_VAR
-/// [`txt_align`]: fn@zero_ui_wgt_text::txt_align
+/// [`TEXT_ALIGN_VAR`]: zng_wgt_text::TEXT_ALIGN_VAR
+/// [`txt_align`]: fn@zng_wgt_text::txt_align
 #[property(LAYOUT, capture, widget_impl(Wrap))]
 pub fn children_align(align: impl IntoVar<Align>) {}
 
@@ -1085,15 +1085,15 @@ pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// Extension methods for [`WidgetInfo`] that may represent a [`Wrap!`] instance.
 ///
 /// [`Wrap!`]: struct@Wrap
-/// [`WidgetInfo`]: zero_ui_app::widget::info::WidgetInfo
+/// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
 pub trait WidgetInfoWrapExt {
     /// Gets the wrap children, if this widget is a [`Wrap!`] instance.
     ///
     /// [`Wrap!`]: struct@Wrap
-    fn wrap_children(&self) -> Option<zero_ui_app::widget::info::iter::Children>;
+    fn wrap_children(&self) -> Option<zng_app::widget::info::iter::Children>;
 }
 impl WidgetInfoWrapExt for WidgetInfo {
-    fn wrap_children(&self) -> Option<zero_ui_app::widget::info::iter::Children> {
+    fn wrap_children(&self) -> Option<zng_app::widget::info::iter::Children> {
         PanelListRange::get(self, &PANEL_LIST_ID)
     }
 }

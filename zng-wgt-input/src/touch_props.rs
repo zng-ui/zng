@@ -1,6 +1,6 @@
-use zero_ui_ext_input::touch::{TouchTransformMode, TOUCH_TRANSFORM_EVENT};
-use zero_ui_view_api::touch::TouchPhase;
-use zero_ui_wgt::prelude::*;
+use zng_ext_input::touch::{TouchTransformMode, TOUCH_TRANSFORM_EVENT};
+use zng_view_api::touch::TouchPhase;
+use zng_wgt::prelude::*;
 
 /// Applies transforms from touch gestures on the widget.
 #[property(LAYOUT, default(false))]

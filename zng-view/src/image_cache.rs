@@ -2,9 +2,9 @@ use std::{fmt, sync::Arc};
 
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::window::Icon;
-use zero_ui_txt::{formatx, ToTxt, Txt};
-use zero_ui_unit::{Px, PxPoint, PxSize};
-use zero_ui_view_api::{
+use zng_txt::{formatx, ToTxt, Txt};
+use zng_unit::{Px, PxPoint, PxSize};
+use zng_view_api::{
     image::{ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
     Event,
@@ -1076,7 +1076,7 @@ mod external {
         },
         RenderApi,
     };
-    use zero_ui_view_api::image::ImageTextureId;
+    use zng_view_api::image::ImageTextureId;
 
     use super::{Image, ImageData};
 
@@ -1209,9 +1209,9 @@ mod capture {
         api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat},
         Renderer,
     };
-    use zero_ui_txt::formatx;
-    use zero_ui_unit::{Factor, PxRect};
-    use zero_ui_view_api::{
+    use zng_txt::formatx;
+    use zng_unit::{Factor, PxRect};
+    use zng_view_api::{
         image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
         ipc::IpcBytes,
         window::{FrameId, WindowId},

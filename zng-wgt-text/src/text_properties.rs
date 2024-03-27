@@ -1,12 +1,12 @@
 use std::{fmt, num::NonZeroU32, time::Duration};
 
-use zero_ui_app::render::FontSynthesis;
-use zero_ui_color::COLOR_SCHEME_VAR;
-use zero_ui_ext_font::{font_features::*, *};
-use zero_ui_ext_l10n::{Langs, LANG_VAR};
-use zero_ui_view_api::config::FontAntiAliasing;
-use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_layer::AnchorOffset;
+use zng_app::render::FontSynthesis;
+use zng_color::COLOR_SCHEME_VAR;
+use zng_ext_font::{font_features::*, *};
+use zng_ext_l10n::{Langs, LANG_VAR};
+use zng_view_api::config::FontAntiAliasing;
+use zng_wgt::prelude::*;
+use zng_wgt_layer::AnchorOffset;
 
 /// Basic text font properties.
 ///
@@ -401,7 +401,7 @@ pub enum TextOverflow {
     /// that overflows over one line-height in any direction. Text overflow is tracked even if `Ignore`
     /// is set, so custom properties may also implement some form of overflow handling.
     ///
-    /// [`clip_to_bounds`]: fn@zero_ui_wgt::clip_to_bounds
+    /// [`clip_to_bounds`]: fn@zng_wgt::clip_to_bounds
     Ignore,
     /// Truncate the text so it will fit, the associated `Txt` is a suffix appended to the truncated text.
     ///
@@ -498,7 +498,7 @@ pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiN
 ///
 /// The auto hyphenation char can be defined using [`hyphen_char`].
 ///
-/// [`HYPHENATION`]: zero_ui_ext_font::HYPHENATION
+/// [`HYPHENATION`]: zng_ext_font::HYPHENATION
 /// [`lang`]: fn@lang
 /// [`hyphen_char`]: fn@hyphen_char
 #[property(CONTEXT, default(HYPHENS_VAR), widget_impl(TextWrapMix<P>))]
@@ -965,12 +965,12 @@ pub struct LangMix<P>(P);
 /// Sets the [`LANG_VAR`] and [`DIRECTION_VAR`] context vars and the [`LayoutMetrics::direction`].
 /// Also sets the [`access::lang`] when accessibility is enabled.
 ///
-/// [`access::lang`]: fn@zero_ui_wgt_access::lang
+/// [`access::lang`]: fn@zng_wgt_access::lang
 #[property(CONTEXT, default(LANG_VAR), widget_impl(LangMix<P>))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
     let lang = lang.into_var();
     let child = direction(child, lang.map(|l| l.best().direction()));
-    let child = zero_ui_wgt_access::lang(child, lang.map(|l| l.best().clone()));
+    let child = zng_wgt_access::lang(child, lang.map(|l| l.best().clone()));
     with_context_var(child, LANG_VAR, lang)
 }
 
@@ -1397,7 +1397,7 @@ pub fn caret_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 ///
 /// Sets the [`INTERACTIVE_CARET_VISUAL_VAR`].
 ///
-/// [layered widget]: zero_ui_wgt_layer
+/// [layered widget]: zng_wgt_layer
 /// [`set_interactive_caret_spot`]: super::node::set_interactive_caret_spot
 #[property(CONTEXT, default(INTERACTIVE_CARET_VISUAL_VAR), widget_impl(TextEditMix<P>))]
 pub fn interactive_caret_visual(child: impl UiNode, visual: impl IntoVar<WidgetFn<CaretShape>>) -> impl UiNode {
@@ -1480,7 +1480,7 @@ pub fn is_parse_pending(child: impl UiNode, state: impl IntoVar<bool>) -> impl U
 ///
 /// [`change_stop_delay`]: fn@change_stop_delay
 /// [`accepts_enter`]: fn@accepts_enter
-/// [`Key::Enter`]: zero_ui_ext_input::keyboard::Key::Enter
+/// [`Key::Enter`]: zng_ext_input::keyboard::Key::Enter
 #[property(EVENT, widget_impl(TextEditMix<P>))]
 pub fn on_change_stop(child: impl UiNode, handler: impl WidgetHandler<ChangeStopArgs>) -> impl UiNode {
     super::node::on_change_stop(child, handler)
@@ -1542,12 +1542,12 @@ pub enum AutoSelection {
 
     /// Select-all on keyboard focus ([highlight]).
     ///
-    /// [highlight]: zero_ui_ext_input::focus::FocusChangedArgs::highlight
+    /// [highlight]: zng_ext_input::focus::FocusChangedArgs::highlight
     Enabled,
 
     /// Select-all on keyboard focus ([highlight]) if the text is not [`accepts_enter`].
     ///
-    /// [highlight]: zero_ui_ext_input::focus::FocusChangedArgs::highlight
+    /// [highlight]: zng_ext_input::focus::FocusChangedArgs::highlight
     /// [`accepts_enter`]: fn@accepts_enter
     #[default]
     Auto,
@@ -1582,7 +1582,7 @@ pub enum ChangeStopCause {
     DelayElapsed,
     /// The [`Key::Enter`] was pressed and [`accepts_enter`] is `false`.
     ///
-    /// [`Key::Enter`]: zero_ui_ext_input::keyboard::Key::Enter
+    /// [`Key::Enter`]: zng_ext_input::keyboard::Key::Enter
     /// [`accepts_enter`]: fn@accepts_enter
     Enter,
     /// The widget lost keyboard focus.

@@ -65,23 +65,23 @@ fn crate_core_parts() -> (String, &'static str) {
         // using the main crate.
         match ident {
             FoundCrate::Name(name) => (name, "__proc_macro_util"),
-            FoundCrate::Itself => ("zero_ui".to_owned(), "__proc_macro_util"),
+            FoundCrate::Itself => ("zng".to_owned(), "__proc_macro_util"),
         }
     } else if let Ok(ident) = crate_name("zng-wgt") {
         // using the wgt crate.
         match ident {
             FoundCrate::Name(name) => (name, "__proc_macro_util"),
-            FoundCrate::Itself => ("zero_ui_wgt".to_owned(), "__proc_macro_util"),
+            FoundCrate::Itself => ("zng_wgt".to_owned(), "__proc_macro_util"),
         }
     } else if let Ok(ident) = crate_name("zng-app") {
         // using the core crate only.
         match ident {
             FoundCrate::Name(name) => (name, ""),
-            FoundCrate::Itself => ("zero_ui_app".to_owned(), ""),
+            FoundCrate::Itself => ("zng_app".to_owned(), ""),
         }
     } else {
-        // failed, at least shows "zero_ui" in the compile error.
-        ("zero_ui".to_owned(), "__proc_macro_util")
+        // failed, at least shows "zng" in the compile error.
+        ("zng".to_owned(), "__proc_macro_util")
     }
 }
 
@@ -559,14 +559,14 @@ impl fmt::Display for LintLevel {
     }
 }
 
-/// Takes lint attributes in the `zero_ui::` namespace.
+/// Takes lint attributes in the `zng::` namespace.
 ///
 /// Pushes `errors` for unsupported `warn` and already attempt of setting
-/// level of forbidden zero_ui lints.
+/// level of forbidden zng lints.
 ///
 /// NOTE: We add an underline `_` after the lint ident because rustc validates
 /// custom tools even for lint attributes removed by proc-macros.
-pub fn take_zero_ui_lints(
+pub fn take_zng_lints(
     attrs: &mut Vec<Attribute>,
     errors: &mut Errors,
     forbidden: &std::collections::HashSet<&Ident>,
@@ -589,16 +589,16 @@ pub fn take_zero_ui_lints(
             };
             if let Ok(path) = syn::parse2::<LintPath>(attrs[i].tokens()) {
                 let path = path.path;
-                if path.segments.len() == 2 && path.segments[0].ident == "zero_ui" {
+                if path.segments.len() == 2 && path.segments[0].ident == "zng" {
                     let attr = attrs.remove(i);
                     let lint_ident = path.segments[1].ident.clone();
                     match level {
                         LintLevel::Warn => errors.push(
-                            "cannot set zero_ui lints to warn because warning diagnostics are not stable",
+                            "cannot set zng lints to warn because warning diagnostics are not stable",
                             attr.path().span(),
                         ),
                         LintLevel::Allow if forbidden.contains(&lint_ident) => errors.push(
-                            format_args!("lint `zero_ui::{lint_ident}` is `forbid` in this context"),
+                            format_args!("lint `zng::{lint_ident}` is `forbid` in this context"),
                             attr.span(),
                         ),
                         _ => {

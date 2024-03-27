@@ -1,4 +1,4 @@
-use zero_ui_color::COLOR_SCHEME_VAR;
+use zng_color::COLOR_SCHEME_VAR;
 
 use crate::prelude::*;
 

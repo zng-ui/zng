@@ -31,9 +31,9 @@ use crate::{
     widget::WidgetId,
 };
 use parking_lot::Mutex;
-use zero_ui_app_context::AppLocal;
-use zero_ui_clone_move::clmv;
-use zero_ui_unique_id::{IdEntry, IdMap, IdSet};
+use zng_app_context::AppLocal;
+use zng_clone_move::clmv;
+use zng_unique_id::{IdEntry, IdMap, IdSet};
 
 ///<span data-del-macro-root></span> Declares new [`Event<A>`] static items.
 ///
@@ -55,7 +55,7 @@ use zero_ui_unique_id::{IdEntry, IdMap, IdSet};
 /// The example defines two events with the same arguments type.
 ///
 /// ```
-/// # use zero_ui_app::event::*;
+/// # use zng_app::event::*;
 /// # event_args! { pub struct ClickArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) { } } }
 /// event! {
 ///     /// Event docs.
@@ -223,9 +223,9 @@ impl<A: EventArgs> Event<A> {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_app::event::*;
-    /// # use zero_ui_app::APP;
-    /// # use zero_ui_app::handler::app_hn;
+    /// # use zng_app::event::*;
+    /// # use zng_app::APP;
+    /// # use zng_app::handler::app_hn;
     /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = APP.minimal();
@@ -270,9 +270,9 @@ impl<A: EventArgs> Event<A> {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_app::event::*;
-    /// # use zero_ui_app::APP;
-    /// # use zero_ui_app::handler::app_hn;
+    /// # use zng_app::event::*;
+    /// # use zng_app::APP;
+    /// # use zng_app::handler::app_hn;
     /// # event_args! { pub struct FocusChangedArgs { pub new_focus: bool, .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
     /// # event! { pub static FOCUS_CHANGED_EVENT: FocusChangedArgs; }
     /// # let _scope = APP.minimal();
@@ -304,7 +304,7 @@ impl<A: EventArgs> Event<A> {
 
     fn on_event_impl(&self, handler: impl AppHandler<A>, is_preview: bool) -> EventHandle {
         let handler = Arc::new(Mutex::new(handler));
-        let (inner_handle_owner, inner_handle) = zero_ui_handle::Handle::new(());
+        let (inner_handle_owner, inner_handle) = zng_handle::Handle::new(());
         self.as_any().hook(move |update| {
             if inner_handle_owner.is_dropped() {
                 return false;

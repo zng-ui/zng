@@ -1,10 +1,10 @@
 use parking_lot::Mutex;
-use zero_ui_layout::{
+use zng_layout::{
     context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LayoutMask, LAYOUT},
     unit::{Factor, Px, PxBox, PxPoint, PxRect, PxSize, PxVector},
 };
-use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
-use zero_ui_unique_id::{IdMap, IdSet};
+use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
+use zng_unique_id::{IdMap, IdSet};
 
 use crate::{
     render::TransformStyle,
@@ -1546,7 +1546,7 @@ impl WidgetLayout {
     ///
     /// See [`WidgetInlineInfo`] for more details.
     ///
-    /// [`LayoutMetrics::inline_constraints`]: zero_ui_layout::context::LayoutMetrics::inline_constraints
+    /// [`LayoutMetrics::inline_constraints`]: zng_layout::context::LayoutMetrics::inline_constraints
     pub fn inline(&mut self) -> Option<&mut WidgetInlineInfo> {
         self.inline.as_mut()
     }

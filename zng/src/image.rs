@@ -7,7 +7,7 @@
 //! for other supported sources.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //! # macro_rules! include_bytes { ($tt:tt) => { &[0u8] } }
 //!
@@ -15,7 +15,7 @@
 //! Window! {
 //!     widget::background = Image! {
 //!         source = include_bytes!("../res/image/pattern.png");
-//!         img_fit = zero_ui::image::ImageFit::None;
+//!         img_fit = zng::image::ImageFit::None;
 //!         img_repeat = true;
 //!     }
 //! }
@@ -29,7 +29,7 @@
 //! default the mask uses the alpha channel, see [`mask`] for more details.
 //!
 //! ```
-//! use zero_ui::{prelude::*, image::mask};
+//! use zng::{prelude::*, image::mask};
 //! # let _scope = APP.defaults();
 //! # macro_rules! include_bytes { ($tt:tt) => { &[0u8] } }
 //!
@@ -51,7 +51,7 @@
 //! variable to configure these limits. See [`ImageLimits::default`] for the defaults.
 //!
 //! ```
-//! use zero_ui::{prelude::*, image};
+//! use zng::{prelude::*, image};
 //! # let _scope = APP.defaults();
 //!
 //! image::IMAGES.limits().modify(|l| {
@@ -68,17 +68,17 @@
 //!  
 //! # Full API
 //!
-//! See [`zero_ui_ext_image`] for the full image API and [`zero_ui_wgt_image`] for the full widget API.
+//! See [`zng_ext_image`] for the full image API and [`zng_wgt_image`] for the full widget API.
 
-pub use zero_ui_ext_image::{
+pub use zng_ext_image::{
     render_retain, ImageCacheMode, ImageDataFormat, ImageDownscale, ImageHash, ImageHasher, ImageLimits, ImagePpi, ImageRenderArgs,
     ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, IMAGES, IMAGE_RENDER,
 };
 
 #[cfg(http)]
-pub use zero_ui_ext_image::UriFilter;
+pub use zng_ext_image::UriFilter;
 
-pub use zero_ui_wgt_image::{
+pub use zng_wgt_image::{
     img_align, img_cache, img_crop, img_downscale, img_error_fn, img_fit, img_limits, img_loading_fn, img_offset, img_rendering,
     img_repeat, img_repeat_spacing, img_scale, img_scale_factor, img_scale_ppi, is_error, is_loaded, on_error, on_load, Image, ImageFit,
     ImageRepeat, ImgErrorArgs, ImgLoadArgs, ImgLoadingArgs,
@@ -86,10 +86,10 @@ pub use zero_ui_wgt_image::{
 
 /// Mask image properties.
 ///
-/// See [`zero_ui_wgt_image::mask`] for the full API.
+/// See [`zng_wgt_image::mask`] for the full API.
 pub mod mask {
-    pub use zero_ui_ext_image::ImageMaskMode;
-    pub use zero_ui_wgt_image::mask::{
+    pub use zng_ext_image::ImageMaskMode;
+    pub use zng_wgt_image::mask::{
         mask_align, mask_fit, mask_image, mask_image_cache, mask_image_downscale, mask_image_limits, mask_mode, mask_offset,
     };
 }

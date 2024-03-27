@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use zero_ui::{
+use zng::{
     app::AppId,
     config::*,
     keyboard::{Key, KeyState},
@@ -67,7 +67,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
     assert_ne!(std::fs::metadata(&file).unwrap().len(), 0);
 }
 
-zero_ui::app::app_local! {
+zng::app::app_local! {
     static TEST_READ: bool = false;
 }
 
@@ -166,8 +166,8 @@ fn test_view_api_types() {
     test_config!(CursorIcon::Alias);
     test_config!(WindowState::Normal);
 
-    test_config!(zero_ui_wgt_webrender_debug::RendererDebug {
-        flags: zero_ui_wgt_webrender_debug::DebugFlags::DISABLE_ALPHA_PASS | zero_ui_wgt_webrender_debug::DebugFlags::DISABLE_BATCHING,
+    test_config!(zng_wgt_webrender_debug::RendererDebug {
+        flags: zng_wgt_webrender_debug::DebugFlags::DISABLE_ALPHA_PASS | zng_wgt_webrender_debug::DebugFlags::DISABLE_BATCHING,
         profiler_ui: "default".to_owned()
     });
 }

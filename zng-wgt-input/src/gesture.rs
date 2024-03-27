@@ -3,12 +3,12 @@
 //! These events aggregate multiple lower-level events to represent a user interaction.
 //! Prefer using these events over the events directly tied to an input device.
 
-use zero_ui_app::shortcut::Shortcuts;
-use zero_ui_ext_input::gesture::{ShortcutClick, CLICK_EVENT, GESTURES};
-use zero_ui_view_api::access::AccessCmdName;
-use zero_ui_wgt::prelude::*;
+use zng_app::shortcut::Shortcuts;
+use zng_ext_input::gesture::{ShortcutClick, CLICK_EVENT, GESTURES};
+use zng_view_api::access::AccessCmdName;
+use zng_wgt::prelude::*;
 
-pub use zero_ui_ext_input::gesture::ClickArgs;
+pub use zng_ext_input::gesture::ClickArgs;
 
 event_property! {
     /// On widget click from any source and of any click count and the widget is enabled.

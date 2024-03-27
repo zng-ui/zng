@@ -1,6 +1,6 @@
-use zero_ui_app::access::*;
-use zero_ui_view_api::access::AccessCmdName;
-use zero_ui_wgt::prelude::*;
+use zng_app::access::*;
+use zng_view_api::access::AccessCmdName;
+use zng_wgt::prelude::*;
 
 event_property! {
     /// Access requested a click.

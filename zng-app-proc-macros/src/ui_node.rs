@@ -53,7 +53,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
 
     // impl scope custom lints:
     //
-    // we only have one lint, `zero_ui::missing_delegate`.
+    // we only have one lint, `zng::missing_delegate`.
     let missing_delegate_level =
         take_missing_deletate_level(&mut input.attrs, &mut errors, &HashSet::new()).unwrap_or(util::LintLevel::Deny);
     let missing_delegate_ident = ident!("missing_delegate");
@@ -172,7 +172,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
                 errors.push(
                     format_args!(
                         "auto impl delegates call to `{ident}`, but this manual impl does not\n\
-                        `#[{missing_delegate_level}(zero_ui::missing_delegate)]` is on",
+                        `#[{missing_delegate_level}(zng::missing_delegate)]` is on",
                     ),
                     {
                         match manual_impl {
@@ -633,14 +633,14 @@ impl<'ast> Visit<'ast> for AutoSubsValidator {
     }
 }
 
-/// Removes and returns the `zero_ui::missing_delegate` level.
+/// Removes and returns the `zng::missing_delegate` level.
 fn take_missing_deletate_level(
     attrs: &mut Vec<Attribute>,
     errors: &mut util::Errors,
     forbidden: &HashSet<&Ident>,
 ) -> Option<util::LintLevel> {
     let mut r = None;
-    for (lint_ident, level, _) in util::take_zero_ui_lints(attrs, errors, forbidden) {
+    for (lint_ident, level, _) in util::take_zng_lints(attrs, errors, forbidden) {
         if lint_ident == "missing_delegate" {
             r = Some(level);
         }

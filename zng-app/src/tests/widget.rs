@@ -2,8 +2,8 @@
 //!
 //! Note: Compile error tests are in the integration tests folder: `tests/build/widget` and `tests/build/widget_new`
 
-use zero_ui_app_proc_macros::{property, widget};
-use zero_ui_var::{IntoValue, Var};
+use zng_app_proc_macros::{property, widget};
+use zng_var::{IntoValue, Var};
 
 use crate::{
     widget::{builder::WidgetBuilder, node::UiNode, WidgetId, WidgetUpdateMode, WIDGET},
@@ -1082,8 +1082,8 @@ pub fn name_collision_wgt_when() {
 */
 
 mod macro_rules_generated {
-    use zero_ui_app_proc_macros::{property, widget};
-    use zero_ui_layout::unit::SideOffsets;
+    use zng_app_proc_macros::{property, widget};
+    use zng_layout::unit::SideOffsets;
 
     macro_rules! test {
         ($name:ident) => {
@@ -1124,9 +1124,9 @@ pub mod util {
         collections::{HashMap, HashSet},
     };
 
-    use zero_ui_app_proc_macros::property;
-    use zero_ui_state_map::StaticStateId;
-    use zero_ui_var::{IntoValue, IntoVar, Var};
+    use zng_app_proc_macros::property;
+    use zng_state_map::StaticStateId;
+    use zng_var::{IntoValue, IntoVar, Var};
 
     use crate::widget::{
         node::{match_node, UiNode, UiNodeOp},

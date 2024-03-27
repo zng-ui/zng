@@ -1,9 +1,9 @@
 //! Accessibility/automation events.
 
-use zero_ui_txt::Txt;
-use zero_ui_view_api::access::AccessCmd;
+use zng_txt::Txt;
+use zng_view_api::access::AccessCmd;
 
-pub use zero_ui_view_api::access::ScrollCmd;
+pub use zng_view_api::access::ScrollCmd;
 
 use crate::{
     event::{event, event_args},

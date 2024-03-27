@@ -9,7 +9,7 @@
 //! the selection toolbar (if selected by touch).
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! fn show_error(msg: impl Into<Txt>) {
 //!     LAYERS.insert(LayerIndex::TOP_MOST, Container! {
 //!         id = "error-dlg";
@@ -34,6 +34,6 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_text_input::selectable`] for the full widget API.
+//! See [`zng_wgt_text_input::selectable`] for the full widget API.
 
-pub use zero_ui_wgt_text_input::selectable::{style_fn, DefaultStyle, SelectableText};
+pub use zng_wgt_text_input::selectable::{style_fn, DefaultStyle, SelectableText};

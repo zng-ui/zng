@@ -3,7 +3,7 @@
 use core::fmt;
 use std::sync::Arc;
 
-use zero_ui::{
+use zng::{
     app::{NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD},
     button,
     clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD},
@@ -25,7 +25,7 @@ use zero_ui::{
     window::{native_dialog, WindowRoot},
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -293,7 +293,7 @@ fn defaults() -> impl UiNode {
     fn demo(title: &str, font_family: impl Into<FontNames>) -> impl UiNode {
         let font_family = font_family.into();
 
-        let font_name = zero_ui::font::FONTS
+        let font_name = zng::font::FONTS
             .list(
                 &font_family,
                 FontStyle::Normal,
@@ -448,7 +448,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
     let gt_600 = menu_width.map(|&w| Visibility::from(w > Dip::new(600)));
     let gt_500 = menu_width.map(|&w| Visibility::from(w > Dip::new(500)));
 
-    let clipboard_btn = clmv!(gt_600, |cmd: zero_ui::event::Command| {
+    let clipboard_btn = clmv!(gt_600, |cmd: zng::event::Command| {
         let cmd = cmd.focus_scoped();
         Button! {
             child = widget::node::presenter((), cmd.flat_map(|c| c.icon()));
@@ -459,7 +459,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
         }
     });
 
-    let undo_combo = clmv!(gt_700, |op: zero_ui::undo::UndoOp| {
+    let undo_combo = clmv!(gt_700, |op: zng::undo::UndoOp| {
         let cmd = op.cmd().undo_scoped();
 
         Toggle! {
@@ -478,7 +478,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             };
 
             checked_popup = wgt_fn!(|_| popup::Popup! {
-                child = zero_ui::undo::history::UndoHistory!(op);
+                child = zng::undo::history::UndoHistory!(op);
             });
         }
     });
@@ -548,8 +548,8 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             clipboard_btn(COPY_CMD),
             clipboard_btn(PASTE_CMD),
             rule_line::vr::Vr!(),
-            undo_combo(zero_ui::undo::UndoOp::Undo),
-            undo_combo(zero_ui::undo::UndoOp::Redo),
+            undo_combo(zng::undo::UndoOp::Undo),
+            undo_combo(zng::undo::UndoOp::Redo),
         ]
     }
 }
@@ -874,7 +874,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                         font_weight = FontWeight::BOLD;
                         child = Text!("Validate");
                         on_click = hn!(|_| {
-                            zero_ui::text::cmd::PARSE_CMD
+                            zng::text::cmd::PARSE_CMD
                                 .notify_descendants(&WINDOW.info().get("form").unwrap());
                         });
                     }

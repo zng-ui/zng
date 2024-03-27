@@ -1,7 +1,7 @@
 use std::{fmt, mem};
 
 use crate::ScrollMode;
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 /// Lazy loading mode of a widget.
 ///
@@ -196,7 +196,7 @@ pub fn lazy(child: impl UiNode, mode: impl IntoVar<LazyMode>) -> impl UiNode {
                     // only placeholder
 
                     let placeholder = placeholder(());
-                    let placeholder = zero_ui_app::widget::base::node::widget_inner(placeholder).boxed();
+                    let placeholder = zng_app::widget::base::node::widget_inner(placeholder).boxed();
 
                     // just placeholder, and as the `widget_inner`, first render may init
                     c.children().push(placeholder);

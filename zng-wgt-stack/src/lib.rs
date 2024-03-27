@@ -2,9 +2,9 @@
 //!
 //! Stack widgets, properties and nodes.
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 mod types;
 pub use types::*;
@@ -163,7 +163,7 @@ pub fn lazy_size(
         children_len,
         direction,
         spacing,
-        zero_ui_wgt_size_offset::size(NilUiNode, child_size),
+        zng_wgt_size_offset::size(NilUiNode, child_size),
     )
 }
 
@@ -569,7 +569,7 @@ fn stack_nodes_layout_by_impl(
     })
 }
 
-static PANEL_LIST_ID: StaticStateId<zero_ui_app::widget::node::PanelListRange> = StaticStateId::new_unique();
+static PANEL_LIST_ID: StaticStateId<zng_app::widget::node::PanelListRange> = StaticStateId::new_unique();
 
 /// Get the child index in the parent stack.
 ///
@@ -577,7 +577,7 @@ static PANEL_LIST_ID: StaticStateId<zero_ui_app::widget::node::PanelListRange> =
 #[property(CONTEXT)]
 pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
     let state = state.into_var();
-    zero_ui_wgt::node::with_index_node(child, &PANEL_LIST_ID, move |id| {
+    zng_wgt::node::with_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id.unwrap_or(0));
     })
 }
@@ -586,7 +586,7 @@ pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode 
 #[property(CONTEXT)]
 pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
     let state = state.into_var();
-    zero_ui_wgt::node::with_index_len_node(child, &PANEL_LIST_ID, move |id_len| {
+    zng_wgt::node::with_index_len_node(child, &PANEL_LIST_ID, move |id_len| {
         let _ = state.set(id_len.unwrap_or((0, 0)));
     })
 }
@@ -595,7 +595,7 @@ pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) ->
 #[property(CONTEXT)]
 pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
     let state = state.into_var();
-    zero_ui_wgt::node::with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
+    zng_wgt::node::with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id.unwrap_or(0));
     })
 }
@@ -608,7 +608,7 @@ pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiN
 #[property(CONTEXT)]
 pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
-    zero_ui_wgt::node::with_index_node(child, &PANEL_LIST_ID, move |id| {
+    zng_wgt::node::with_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id.map(|i| i % 2 == 0).unwrap_or(false));
     })
 }
@@ -621,7 +621,7 @@ pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 #[property(CONTEXT)]
 pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
-    zero_ui_wgt::node::with_index_node(child, &PANEL_LIST_ID, move |id| {
+    zng_wgt::node::with_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id.map(|i| i % 2 != 0).unwrap_or(false));
     })
 }
@@ -630,7 +630,7 @@ pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 #[property(CONTEXT)]
 pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
-    zero_ui_wgt::node::with_index_node(child, &PANEL_LIST_ID, move |id| {
+    zng_wgt::node::with_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id == Some(0));
     })
 }
@@ -639,7 +639,7 @@ pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 #[property(CONTEXT)]
 pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
-    zero_ui_wgt::node::with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
+    zng_wgt::node::with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
         let _ = state.set(id == Some(0));
     })
 }
@@ -647,15 +647,15 @@ pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// Extension methods for [`WidgetInfo`] that may represent a [`Stack!`] instance.
 ///
 /// [`Stack!`]: struct@Stack
-/// [`WidgetInfo`]: zero_ui_app::widget::info::WidgetInfo
+/// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
 pub trait WidgetInfoStackExt {
     /// Gets the stack children, if this widget is a [`Stack!`] instance.
     ///
     /// [`Stack!`]: struct@Stack
-    fn stack_children(&self) -> Option<zero_ui_app::widget::info::iter::Children>;
+    fn stack_children(&self) -> Option<zng_app::widget::info::iter::Children>;
 }
-impl WidgetInfoStackExt for zero_ui_app::widget::info::WidgetInfo {
-    fn stack_children(&self) -> Option<zero_ui_app::widget::info::iter::Children> {
-        zero_ui_app::widget::node::PanelListRange::get(self, &PANEL_LIST_ID)
+impl WidgetInfoStackExt for zng_app::widget::info::WidgetInfo {
+    fn stack_children(&self) -> Option<zng_app::widget::info::iter::Children> {
+        zng_app::widget::node::PanelListRange::get(self, &PANEL_LIST_ID)
     }
 }

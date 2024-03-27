@@ -3,17 +3,17 @@ use std::sync::atomic::Ordering::Relaxed;
 
 use atomic::Atomic;
 use parking_lot::Mutex;
-use zero_ui_app::widget::{
+use zng_app::widget::{
     info::{TreeFilter, Visibility, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
     WidgetId,
 };
-use zero_ui_layout::unit::{DistanceKey, Orientation2D, Px, PxBox, PxPoint, PxRect, PxSize};
-use zero_ui_state_map::StaticStateId;
-use zero_ui_unique_id::IdSet;
-use zero_ui_var::impl_from_and_into_var;
-use zero_ui_view_api::window::FocusIndicator;
+use zng_layout::unit::{DistanceKey, Orientation2D, Px, PxBox, PxPoint, PxRect, PxSize};
+use zng_state_map::StaticStateId;
+use zng_unique_id::IdSet;
+use zng_var::impl_from_and_into_var;
+use zng_view_api::window::FocusIndicator;
 
-use zero_ui_app::widget::info::iter as w_iter;
+use zng_app::widget::info::iter as w_iter;
 
 use super::iter::IterFocusableExt;
 
@@ -237,7 +237,7 @@ pub struct FocusRequest {
     /// a [`WINDOWS.focus`] request is always made, potentially stealing keyboard focus from another app
     /// and disrupting the user.
     ///
-    /// [`WINDOWS.focus`]: zero_ui_ext_window::WINDOWS::focus
+    /// [`WINDOWS.focus`]: zng_ext_window::WINDOWS::focus
     pub force_window_focus: bool,
 
     /// Focus indicator to set on the target window if the app does not have keyboard focus and
@@ -246,7 +246,7 @@ pub struct FocusRequest {
     /// The [`focus_indicator`] of the window is set and the request is processed after the window receives focus,
     /// or it is canceled if another focus request is made.
     ///
-    /// [`focus_indicator`]: zero_ui_ext_window::WindowVars::focus_indicator
+    /// [`focus_indicator`]: zng_ext_window::WindowVars::focus_indicator
     pub window_indicator: Option<FocusIndicator>,
 }
 
@@ -486,7 +486,7 @@ impl FocusInfoTree {
     ///
     /// See the [`FOCUS.focus_disabled_widgets`] config for more details.
     ///
-    /// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
+    /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
     /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
     pub fn focus_disabled_widgets(&self) -> bool {
         self.mode.contains(FocusMode::DISABLED)
@@ -616,7 +616,7 @@ impl WidgetFocusInfo {
     ///
     /// See the [`FOCUS.focus_disabled_widgets`] config for more details.
     ///
-    /// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
+    /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
     /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
     pub fn focus_disabled_widgets(&self) -> bool {
         self.mode.contains(FocusMode::DISABLED)
@@ -2005,7 +2005,7 @@ impl FocusInfoData {
 ///
 /// If [`directional_nav`](Self::directional_nav) is not set but the widget is a focus scope, [`DirectionalNav::Continue`] is used.
 ///
-/// [`WidgetInfoBuilder`]: zero_ui_app::widget::info::WidgetInfoBuilder
+/// [`WidgetInfoBuilder`]: zng_app::widget::info::WidgetInfoBuilder
 /// [`new`]: Self::new
 pub struct FocusInfoBuilder<'a>(&'a mut WidgetInfoBuilder);
 impl<'a> FocusInfoBuilder<'a> {
@@ -2033,7 +2033,7 @@ impl<'a> FocusInfoBuilder<'a> {
             // access info required and not registered
             self.0.access().unwrap().on_access_build(|args| {
                 if args.widget.info().clone().into_focusable(true, false).is_some() {
-                    args.node.commands.push(zero_ui_view_api::access::AccessCmdName::Focus);
+                    args.node.commands.push(zng_view_api::access::AccessCmdName::Focus);
                 }
             });
         }

@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use zero_ui_app::{
+use zng_app::{
     event::{event, event_args},
     widget::{
         node::{BoxedUiNode, UiNode},
@@ -12,17 +12,17 @@ use zero_ui_app::{
     },
     window::{WindowId, WINDOW},
 };
-use zero_ui_ext_image::{ImageSource, ImageVar, Img};
-use zero_ui_layout::unit::{DipPoint, DipSize, Point, PxPoint};
-use zero_ui_txt::Txt;
-use zero_ui_unique_id::IdSet;
-use zero_ui_var::impl_from_and_into_var;
-use zero_ui_view_api::{
+use zng_ext_image::{ImageSource, ImageVar, Img};
+use zng_layout::unit::{DipPoint, DipSize, Point, PxPoint};
+use zng_txt::Txt;
+use zng_unique_id::IdSet;
+use zng_var::impl_from_and_into_var;
+use zng_view_api::{
     image::{ImageDataFormat, ImageMaskMode},
     window::{EventCause, FrameId},
 };
 
-pub use zero_ui_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowState};
+pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowState};
 
 use crate::{HeadlessMonitor, WINDOW_Ext as _};
 
@@ -52,7 +52,7 @@ impl WindowRoot {
     ///             from accidentally exiting full-screen. Also causes subsequent open windows to be child of this window.
     /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
     /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
-    /// * `headless_monitor` - "Monitor" configuration used in [headless mode](zero_ui_app::window::WindowMode::is_headless).
+    /// * `headless_monitor` - "Monitor" configuration used in [headless mode](zng_app::window::WindowMode::is_headless).
     /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
     /// * `root` - The root widget's outermost `CONTEXT` node, the window uses this and the `root_id` to form the root widget.
     #[allow(clippy::too_many_arguments)]
@@ -106,7 +106,7 @@ impl WindowRoot {
             render_mode,
             headless_monitor,
             start_focused,
-            zero_ui_app::widget::base::node::widget_inner(child),
+            zng_app::widget::base::node::widget_inner(child),
         )
     }
 
@@ -213,7 +213,7 @@ pub enum WindowIcon {
     Default,
     /// Image is requested from [`IMAGES`].
     ///
-    /// [`IMAGES`]: zero_ui_ext_image::IMAGES
+    /// [`IMAGES`]: zng_ext_image::IMAGES
     Image(ImageSource),
 }
 impl fmt::Debug for WindowIcon {
@@ -242,13 +242,13 @@ impl WindowIcon {
     /// The icon node is deinited and dropped after the first render, you can enable [`image::render_retain`] on it
     /// to cause the icon to continue rendering on updates.
     ///
-    /// [`image::render_retain`]: fn@zero_ui_ext_image::render_retain
+    /// [`image::render_retain`]: fn@zng_ext_image::render_retain
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// # use zero_ui_ext_window::WindowIcon;
-    /// # macro_rules! Container { ($($tt:tt)*) => { zero_ui_app::widget::node::FillUiNode } }
+    /// # use zng_ext_window::WindowIcon;
+    /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::FillUiNode } }
     /// # let _ =
     /// WindowIcon::render(
     ///     || Container! {

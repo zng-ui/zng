@@ -6,7 +6,7 @@
 //!
 //! ```
 //! # fn main() { }
-//! use zero_ui::{prelude::*, prelude_wgt::*};
+//! use zng::{prelude::*, prelude_wgt::*};
 //!
 //! static STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
 //!
@@ -39,12 +39,12 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_state_map`] for the full API.
+//! See [`zng_state_map`] for the full API.
 //!
 //! [`WIDGET.with_state_mut`]: crate::widget::WIDGET::with_state_mut
 //! [`WidgetInfoBuilder::with_meta`]: crate::widget::info::WidgetInfoBuilder::with_meta
 
-pub use zero_ui_state_map::{
+pub use zng_state_map::{
     state_map::{OccupiedStateMapEntry, StateMapEntry, VacantStateMapEntry},
     OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue, StaticStateId,
 };

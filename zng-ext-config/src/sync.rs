@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use atomic::{Atomic, Ordering};
-use zero_ui_clone_move::clmv;
-use zero_ui_ext_fs_watcher::WATCHER;
-use zero_ui_var::{ReadOnlyArcVar, VarUpdateId, VARS};
+use zng_clone_move::clmv;
+use zng_ext_fs_watcher::WATCHER;
+use zng_var::{ReadOnlyArcVar, VarUpdateId, VARS};
 
 use super::*;
 

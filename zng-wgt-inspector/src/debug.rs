@@ -2,14 +2,14 @@
 
 use std::{cell::RefCell, fmt, rc::Rc};
 
-use zero_ui_ext_input::{
+use zng_ext_input::{
     focus::WidgetInfoFocusExt as _,
     mouse::{MOUSE_HOVERED_EVENT, MOUSE_MOVE_EVENT},
 };
-use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_layout::unit::Orientation2D;
-use zero_ui_view_api::display_list::FrameValue;
-use zero_ui_wgt::prelude::*;
+use zng_ext_window::WINDOW_Ext as _;
+use zng_layout::unit::Orientation2D;
+use zng_view_api::display_list::FrameValue;
+use zng_wgt::prelude::*;
 
 /// Target of inspection properties.
 #[derive(Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -50,7 +50,7 @@ impl_from_and_into_var! {
 
 /// Draws a debug dot in target widget's [center point].
 ///
-/// [center point]: zero_ui_wgt::prelude::WidgetInfo::center
+/// [center point]: zng_wgt::prelude::WidgetInfo::center
 #[property(CONTEXT, default(false))]
 pub fn show_center_points(child: impl UiNode, mode: impl IntoVar<InspectMode>) -> impl UiNode {
     show_widget_tree(

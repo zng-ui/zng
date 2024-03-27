@@ -3,8 +3,8 @@
 //! Note: Compile error tests are in the integration tests folder: `tests/build/ui_node`
 
 use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
-use zero_ui_app_proc_macros::ui_node;
-use zero_ui_layout::unit::{Px, PxConstraints2d};
+use zng_app_proc_macros::ui_node;
+use zng_layout::unit::{Px, PxConstraints2d};
 
 use crate::{
     ui_vec,
@@ -94,13 +94,13 @@ fn test_trace(node: impl UiNode) {
 pub fn allow_missing_delegate() {
     #[ui_node(struct Node1 { child: impl UiNode })]
     impl UiNode for Node1 {
-        #[allow_(zero_ui::missing_delegate)]
+        #[allow_(zng::missing_delegate)]
         fn update(&mut self, _: &WidgetUpdates) {
             // self.child.update(updates);
         }
     }
     #[ui_node(struct Node2 { child: impl UiNode })]
-    #[allow_(zero_ui::missing_delegate)]
+    #[allow_(zng::missing_delegate)]
     impl UiNode for Node2 {
         fn update(&mut self, _: &WidgetUpdates) {
             // self.child.update(updates);
@@ -202,9 +202,9 @@ pub fn default_no_child() {
 mod util {
     use parking_lot::Mutex;
     use std::sync::Arc;
-    use zero_ui_app_proc_macros::ui_node;
-    use zero_ui_layout::unit::{Px, PxSize};
-    use zero_ui_state_map::StaticStateId;
+    use zng_app_proc_macros::ui_node;
+    use zng_layout::unit::{Px, PxSize};
+    use zng_state_map::StaticStateId;
 
     pub(super) static TRACE_ID: StaticStateId<Vec<TraceRef>> = StaticStateId::new_unique();
 

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use zero_ui_var::{animation::Transitionable, impl_from_and_into_var};
+use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::{euclid, FactorUnits, Px, PxSize};
 

@@ -5,7 +5,7 @@
 //! The example below declares a stack that animates between directions.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! let direction = var(StackDirection::top_to_bottom());
@@ -43,9 +43,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_stack`] for the full widget API.
+//! See [`zng_wgt_stack`] for the full widget API.
 
-pub use zero_ui_wgt_stack::{
+pub use zng_wgt_stack::{
     get_index, get_index_len, get_rev_index, is_even, is_first, is_last, is_odd, lazy_sample, lazy_size, node, stack_nodes,
     stack_nodes_layout_by, Stack, StackDirection, WidgetInfoStackExt,
 };

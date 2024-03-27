@@ -9,20 +9,20 @@
 use core::fmt;
 use std::path::PathBuf;
 
-use zero_ui_app::{
+use zng_app::{
     event::{command, CommandInfoExt, CommandNameExt},
     shortcut::{shortcut, CommandShortcutExt, ShortcutFilter},
     view_process::{ViewClipboard, VIEW_PROCESS},
     AppExtension,
 };
-use zero_ui_app_context::app_local;
-use zero_ui_ext_image::{ImageHasher, ImageVar, Img, IMAGES};
-use zero_ui_txt::Txt;
-use zero_ui_var::{response_var, ResponderVar, ResponseVar};
-use zero_ui_view_api::ViewProcessOffline;
+use zng_app_context::app_local;
+use zng_ext_image::{ImageHasher, ImageVar, Img, IMAGES};
+use zng_txt::Txt;
+use zng_var::{response_var, ResponderVar, ResponseVar};
+use zng_view_api::ViewProcessOffline;
 
-use zero_ui_view_api::clipboard as clipboard_api;
-use zero_ui_view_api::ipc::IpcBytes;
+use zng_view_api::clipboard as clipboard_api;
+use zng_view_api::ipc::IpcBytes;
 
 /// Clipboard app extension.
 ///
@@ -225,7 +225,7 @@ impl CLIPBOARD {
             match img {
                 Ok(img) => {
                     let mut hash = ImageHasher::new();
-                    hash.update("zero_ui_ext_clipboard::CLIPBOARD");
+                    hash.update("zng_ext_clipboard::CLIPBOARD");
                     hash.update(img.id().unwrap().get().to_be_bytes());
                     match IMAGES.register(hash.finish(), img) {
                         Ok(r) => Ok(Ok(r)),

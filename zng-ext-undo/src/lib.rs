@@ -20,7 +20,7 @@ use std::{
 
 use atomic::Atomic;
 use parking_lot::Mutex;
-use zero_ui_app::{
+use zng_app::{
     event::CommandScope,
     event::{command, AnyEventArgs, Command, CommandNameExt},
     shortcut::{shortcut, CommandShortcutExt},
@@ -31,12 +31,12 @@ use zero_ui_app::{
     },
     AppExtension, DInstant, INSTANT,
 };
-use zero_ui_app_context::{app_local, context_local, RunOnDrop};
-use zero_ui_clone_move::clmv;
-use zero_ui_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
-use zero_ui_state_map::{StateMapRef, StaticStateId};
-use zero_ui_txt::Txt;
-use zero_ui_var::{context_var, var, BoxedVar, Var, VarHandle, VarValue, WeakVar};
+use zng_app_context::{app_local, context_local, RunOnDrop};
+use zng_clone_move::clmv;
+use zng_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
+use zng_state_map::{StateMapRef, StaticStateId};
+use zng_txt::Txt;
+use zng_var::{context_var, var, BoxedVar, Var, VarHandle, VarValue, WeakVar};
 
 mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
@@ -123,7 +123,7 @@ impl UNDO {
     ///
     /// [`undo`]: Self::undo
     /// [`redo`]: Self::redo
-    /// [keyboard repeat start delay + interval]: zero_ui_ext_input::keyboard::KEYBOARD::repeat_config
+    /// [keyboard repeat start delay + interval]: zng_ext_input::keyboard::KEYBOARD::repeat_config
     pub fn undo_interval(&self) -> BoxedVar<Duration> {
         UNDO_SV.read().undo_interval.clone()
     }
@@ -1356,7 +1356,7 @@ impl UndoSelect for UndoSelectLtEq {
 
 #[cfg(test)]
 mod tests {
-    use zero_ui_app::APP;
+    use zng_app::APP;
 
     use super::*;
 

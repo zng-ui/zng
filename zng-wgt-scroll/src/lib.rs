@@ -5,10 +5,10 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
-use zero_ui_app::update::UpdatesTraceUiNodeExt as _;
-use zero_ui_wgt::{clip_to_bounds, prelude::*};
+use zng_app::update::UpdatesTraceUiNodeExt as _;
+use zng_wgt::{clip_to_bounds, prelude::*};
 
 pub mod cmd;
 pub mod node;
@@ -29,9 +29,9 @@ pub use scrollbar::Scrollbar;
 #[doc(inline)]
 pub use thumb::Thumb;
 
-use zero_ui_ext_input::focus::FocusScopeOnFocus;
-use zero_ui_wgt_container::{child_align, Container};
-use zero_ui_wgt_input::focus::{focus_scope, focus_scope_behavior};
+use zng_ext_input::focus::FocusScopeOnFocus;
+use zng_wgt_container::{child_align, Container};
+use zng_wgt_input::focus::{focus_scope, focus_scope_behavior};
 
 /// A single content container that can be larger on the inside.
 ///
@@ -87,10 +87,10 @@ impl Scroll {
         /// Clip content to only be visible within the scroll bounds, including under scrollbars.
         ///
         /// Enabled by default.
-        pub zero_ui_wgt::clip_to_bounds(clip: impl IntoVar<bool>);
+        pub zng_wgt::clip_to_bounds(clip: impl IntoVar<bool>);
 
         /// Enables keyboard controls.
-        pub zero_ui_wgt_input::focus::focusable(focusable: impl IntoVar<bool>);
+        pub zng_wgt_input::focus::focusable(focusable: impl IntoVar<bool>);
     }
 }
 

@@ -4,8 +4,8 @@
 //! Before using them review the [`gesture`](super::gesture) properties, in particular
 //! the [`click_shortcut`](fn@super::gesture::click_shortcut) property.
 
-use zero_ui_ext_input::keyboard::{KeyInputArgs, KeyState, KEY_INPUT_EVENT};
-use zero_ui_wgt::prelude::*;
+use zng_ext_input::keyboard::{KeyInputArgs, KeyState, KEY_INPUT_EVENT};
+use zng_wgt::prelude::*;
 
 event_property! {
     /// Event fired when a keyboard key is pressed or released and the widget is enabled.

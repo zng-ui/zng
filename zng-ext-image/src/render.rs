@@ -1,6 +1,6 @@
 use std::{any::Any, sync::Arc};
 
-use zero_ui_app::{
+use zng_app::{
     update::{EventUpdate, UPDATES},
     widget::{
         node::{match_node, BoxedUiNode, UiNode, UiNodeOp},
@@ -8,10 +8,10 @@ use zero_ui_app::{
     },
     window::{WindowId, WINDOW},
 };
-use zero_ui_layout::unit::Factor;
-use zero_ui_state_map::StaticStateId;
-use zero_ui_var::{types::WeakArcVar, var, ArcVar, IntoVar, Var, WeakVar};
-use zero_ui_view_api::{image::ImageMaskMode, window::RenderMode};
+use zng_layout::unit::Factor;
+use zng_state_map::StaticStateId;
+use zng_var::{types::WeakArcVar, var, ArcVar, IntoVar, Var, WeakVar};
+use zng_view_api::{image::ImageMaskMode, window::RenderMode};
 
 use crate::{ImageManager, ImageRenderArgs, ImageSource, ImageVar, ImagesService, Img, IMAGES, IMAGES_SV};
 
@@ -77,8 +77,8 @@ impl ImageSource {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_ext_image::*;
-    /// # use zero_ui_color::colors;
+    /// # use zng_ext_image::*;
+    /// # use zng_color::colors;
     /// # use std::any::Any;
     /// # struct WindowRoot;
     /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
@@ -127,12 +127,12 @@ impl ImageSource {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_ext_image::*;
-    /// # use zero_ui_view_api::window::RenderMode;
+    /// # use zng_ext_image::*;
+    /// # use zng_view_api::window::RenderMode;
     /// # use std::any::Any;
     /// # struct WindowRoot;
     /// # impl ImageRenderWindowRoot for WindowRoot { fn into_any(self: Box<Self>) -> Box<dyn Any> { self } }
-    /// # macro_rules! Container { ($($tt:tt)*) => { zero_ui_app::widget::node::FillUiNode } }
+    /// # macro_rules! Container { ($($tt:tt)*) => { zng_app::widget::node::FillUiNode } }
     /// # fn main() { }
     /// # fn demo() {
     /// # let _ =

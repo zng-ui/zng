@@ -5,30 +5,30 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
 use std::ops;
 use std::{error::Error, fmt, marker::PhantomData, sync::Arc};
 
 use task::parking_lot::Mutex;
-use zero_ui_ext_font::FontNames;
-use zero_ui_ext_input::{
+use zng_ext_font::FontNames;
+use zng_ext_input::{
     gesture::CLICK_EVENT,
     mouse::{ClickMode, MOUSE_INPUT_EVENT},
     pointer_capture::CaptureMode,
 };
-use zero_ui_ext_l10n::lang;
-use zero_ui_var::{AnyVar, AnyVarValue, BoxedAnyVar, Var, VarIsReadOnlyError};
-use zero_ui_wgt::{align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*, Wgt};
-use zero_ui_wgt_access::{access_role, accessible, AccessRole};
-use zero_ui_wgt_container::{child_align, child_end, child_start, padding};
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_filter::opacity;
-use zero_ui_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
-use zero_ui_wgt_layer::popup::{PopupState, POPUP};
-use zero_ui_wgt_size_offset::{size, x, y};
-use zero_ui_wgt_style::{impl_style_fn, style_fn, Style};
-use zero_ui_wgt_transform::scale_y;
+use zng_ext_l10n::lang;
+use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar, Var, VarIsReadOnlyError};
+use zng_wgt::{align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*, Wgt};
+use zng_wgt_access::{access_role, accessible, AccessRole};
+use zng_wgt_container::{child_align, child_end, child_start, padding};
+use zng_wgt_fill::background_color;
+use zng_wgt_filter::opacity;
+use zng_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_init};
+use zng_wgt_layer::popup::{PopupState, POPUP};
+use zng_wgt_size_offset::{size, x, y};
+use zng_wgt_style::{impl_style_fn, style_fn, Style};
+use zng_wgt_transform::scale_y;
 
 pub mod cmd;
 
@@ -43,7 +43,7 @@ pub mod cmd;
 /// [`value`]: fn@value
 /// [`selector`]: fn@selector
 #[widget($crate::Toggle)]
-pub struct Toggle(zero_ui_wgt_button::Button);
+pub struct Toggle(zng_wgt_button::Button);
 impl Toggle {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
@@ -432,7 +432,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
 
             if let Some(Some(true)) = checked.get_new() {
                 if SCROLL_ON_SELECT_VAR.get() {
-                    use zero_ui_wgt_scroll::cmd::*;
+                    use zng_wgt_scroll::cmd::*;
                     scroll_to(WIDGET.id(), ScrollToMode::minimal(10));
                 }
             }
@@ -906,17 +906,17 @@ impl From<VarIsReadOnlyError> for SelectorError {
 /// [`button::DefaultStyle`]: struct@crate::widgets::button::DefaultStyle
 /// [`is_checked`]: fn@is_checked
 #[widget($crate::DefaultStyle)]
-pub struct DefaultStyle(zero_ui_wgt_button::DefaultStyle);
+pub struct DefaultStyle(zng_wgt_button::DefaultStyle);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
             replace = true;
             when *#is_checked {
-                background_color = zero_ui_wgt_button::color_scheme_pressed(zero_ui_wgt_button::BASE_COLORS_VAR);
+                background_color = zng_wgt_button::color_scheme_pressed(zng_wgt_button::BASE_COLORS_VAR);
                 border = {
                     widths: 1,
-                    sides: zero_ui_wgt_button::color_scheme_pressed(zero_ui_wgt_button::BASE_COLORS_VAR).map_into(),
+                    sides: zng_wgt_button::color_scheme_pressed(zng_wgt_button::BASE_COLORS_VAR).map_into(),
                 };
             }
         }
@@ -958,7 +958,7 @@ pub fn check_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 }
 
 fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
-    zero_ui_wgt_text::Text! {
+    zng_wgt_text::Text! {
         hit_test_mode = false;
         accessible = false;
         size = 1.2.em();
@@ -972,16 +972,16 @@ fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             txt = "━";
         }
 
-        font_color = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.transparent());
+        font_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.transparent());
         when #{IS_CHECKED_VAR}.unwrap_or(true) {
-            font_color = zero_ui_wgt_text::FONT_COLOR_VAR;
+            font_color = zng_wgt_text::FONT_COLOR_VAR;
         }
 
         #[easing(150.ms())]
-        background_color = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+        background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
         when *#{parent_hovered} {
             #[easing(0.ms())]
-            background_color = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+            background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
     }
 }
@@ -1011,13 +1011,13 @@ impl ComboStyle {
 
             click_mode = ClickMode::press();
 
-            zero_ui_wgt_button::style_fn = Style! { // button in child.
+            zng_wgt_button::style_fn = Style! { // button in child.
                 click_mode = ClickMode::default();
                 corner_radius = (4, 0, 0, 4);
             };
 
-            zero_ui_wgt_layer::popup::style_fn = Style! {
-                zero_ui_wgt_button::style_fn = Style! {
+            zng_wgt_layer::popup::style_fn = Style! {
+                zng_wgt_button::style_fn = Style! {
                     click_mode = ClickMode::release();
 
                     corner_radius = 0;
@@ -1051,8 +1051,8 @@ impl ComboStyle {
                     y = 0;
                 }
 
-                zero_ui_wgt_layer::popup::close_delay = 100.ms();
-                when *#zero_ui_wgt_layer::popup::is_close_delaying {
+                zng_wgt_layer::popup::close_delay = 100.ms();
+                when *#zng_wgt_layer::popup::is_close_delaying {
                     opacity = 0.pct();
                     y = -10;
                 }
@@ -1078,7 +1078,7 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 /// The `popup` can be any widget, that will be open using [`POPUP`], a [`Popup!`] or derived widget is recommended.
 ///
 /// [`ComboStyle!`]: struct@ComboStyle
-/// [`Popup!`]: struct@zero_ui_wgt_layer::popup::Popup
+/// [`Popup!`]: struct@zng_wgt_layer::popup::Popup
 /// [`LAYERS`]: layers::LAYERS
 #[property(CHILD, widget_impl(Toggle))]
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
@@ -1136,7 +1136,7 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
 
 #[allow(non_snake_case)]
 fn combomark_visual() -> impl UiNode {
-    zero_ui_wgt_text::Text! {
+    zng_wgt_text::Text! {
         hit_test_mode = false;
         accessible = false;
         font_family = FontNames::system_ui(&lang!(und));
@@ -1187,7 +1187,7 @@ pub fn switch_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl
 }
 
 fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
-    zero_ui_wgt_container::Container! {
+    zng_wgt_container::Container! {
         hit_test_mode = false;
         size = (2.em(), 1.em());
         align = Align::CENTER;
@@ -1196,7 +1196,7 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         child = Wgt! {
             size = 1.em() - Length::from(4);
             align = Align::LEFT;
-            background_color = zero_ui_wgt_text::FONT_COLOR_VAR;
+            background_color = zng_wgt_text::FONT_COLOR_VAR;
 
             #[easing(150.ms())]
             x = 0.em();
@@ -1206,10 +1206,10 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         };
 
         #[easing(150.ms())]
-        background_color = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+        background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
         when *#{parent_hovered} {
             #[easing(0.ms())]
-            background_color = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+            background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
     }
 }
@@ -1259,19 +1259,19 @@ fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         border_align = 100.pct();
 
         #[easing(150.ms())]
-        background_color = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+        background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
         when *#{parent_hovered} {
             #[easing(0.ms())]
-            background_color = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+            background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
 
         when *#is_checked {
             border = {
                 widths: 2,
-                sides: zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()).into()),
+                sides: zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()).into()),
             };
             #[easing(0.ms())]
-            background_color = zero_ui_wgt_text::FONT_COLOR_VAR;
+            background_color = zng_wgt_text::FONT_COLOR_VAR;
         }
     }
 }

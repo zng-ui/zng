@@ -22,9 +22,9 @@ pub use when::*;
 
 mod list;
 pub use list::*;
-use zero_ui_app_proc_macros::{ui_node, widget};
-use zero_ui_layout::unit::PxSize;
-use zero_ui_var::{ContextInitHandle, ResponseVar, Var};
+use zng_app_proc_macros::{ui_node, widget};
+use zng_layout::unit::PxSize;
+use zng_var::{ContextInitHandle, ResponseVar, Var};
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
@@ -110,7 +110,7 @@ pub trait UiNode: Any + Send {
     /// and render after updating the data. Note that for simple variables that are used directly on layout or render you can subscribe
     /// to that operation directly, skipping update.
     ///
-    /// [`Var::get_new`]: zero_ui_var::Var::get_new
+    /// [`Var::get_new`]: zng_var::Var::get_new
     /// [`WIDGET.update`]: crate::widget::WIDGET::update
     fn update(&mut self, updates: &WidgetUpdates);
 
@@ -125,8 +125,8 @@ pub trait UiNode: Any + Send {
     /// returned [`PxSize`] is the desired size given the parent constraints.
     ///
     /// [`layout`]: Self::layout
-    /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     #[must_use]
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize;
 
@@ -144,10 +144,10 @@ pub trait UiNode: Any + Send {
     /// the [`WIDGET.render`] method can be used to request render.
     ///
     /// [`measure`]: Self::measure
-    /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
-    /// [`constraints`]: zero_ui_layout::context::LayoutMetrics::constraints
+    /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
+    /// [`constraints`]: zng_layout::context::LayoutMetrics::constraints
     /// [`WIDGET.render`]: crate::widget::WIDGET::render
-    /// [`LAYOUT`]: zero_ui_layout::context::LAYOUT
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     #[must_use]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize;
 
@@ -373,7 +373,7 @@ pub trait UiNode: Any + Send {
 #[allow(non_camel_case_types)]
 #[widget($crate::widget::node::into_widget)]
 struct into_widget(crate::widget::base::WidgetBase);
-#[zero_ui_app_proc_macros::property(CHILD, capture, widget_impl(into_widget))]
+#[zng_app_proc_macros::property(CHILD, capture, widget_impl(into_widget))]
 fn child(child: impl UiNode) {}
 impl into_widget {
     fn widget_intrinsic(&mut self) {
@@ -427,7 +427,7 @@ pub trait UiNodeList: UiNodeListBoxed {
     /// This example will collect the node indexes in order:
     ///
     /// ```
-    /// # use zero_ui_app::widget::node::UiNodeList;
+    /// # use zng_app::widget::node::UiNodeList;
     /// # fn demo(mut list: impl UiNodeList) -> Vec<usize> {
     /// list.par_fold_reduce(
     ///     Vec::new,

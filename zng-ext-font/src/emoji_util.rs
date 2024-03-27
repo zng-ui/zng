@@ -6,9 +6,9 @@ use std::{fmt, mem::size_of};
 
 use byteorder::{BigEndian, ReadBytesExt};
 use icu_properties::sets;
-use zero_ui_color::{rgba, ColorScheme, Rgba};
-use zero_ui_var::impl_from_and_into_var;
-use zero_ui_view_api::font::GlyphIndex;
+use zng_color::{rgba, ColorScheme, Rgba};
+use zng_var::impl_from_and_into_var;
+use zng_view_api::font::GlyphIndex;
 
 pub(super) fn maybe_emoji(c: char) -> bool {
     sets::emoji().contains(c)

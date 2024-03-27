@@ -3,7 +3,7 @@
 //! The most common types in this module are used through the [`Text!`] widget properties related to font configuration.
 //!
 //! ```
-//! use zero_ui::{prelude::*, font::FontName};
+//! use zng::{prelude::*, font::FontName};
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -27,11 +27,11 @@
 //!
 //! ```
 //! # macro_rules! include_bytes { ($tt:tt) => { &[] } }
-//! # use zero_ui::{font::*, l10n::*};
+//! # use zng::{font::*, l10n::*};
 //! # fn main() { }
 //! /// set custom fallback font for the ⌫ symbol.
 //! async fn set_fallback_font() {
-//!     use zero_ui::font::*;
+//!     use zng::font::*;
 //!     let und = lang!(und);
 //!
 //!     if FONTS
@@ -80,7 +80,7 @@
 //! ```
 //! # fn main() { }
 //! use std::fmt::Write as _;
-//! use zero_ui::{font::*, l10n::Lang, prelude_wgt::Px, text::*, var::Var};
+//! use zng::{font::*, l10n::Lang, prelude_wgt::Px, text::*, var::Var};
 //!
 //! async fn report_segment_and_glyphs(txt: &str, lang: &Lang) -> Txt {
 //!     let mut report = formatx!("# Shape & Segment\n\n{txt}\n\n");
@@ -157,9 +157,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_ext_font`] for the full font and shaping API.
+//! See [`zng_ext_font`] for the full font and shaping API.
 
-pub use zero_ui_ext_font::{
+pub use zng_ext_font::{
     font_features, unicode_bidi_levels, unicode_bidi_sort, BidiLevel, CaretIndex, ColorGlyph, ColorGlyphs, ColorPalette, ColorPaletteType,
     ColorPalettes, CustomFont, Font, FontChange, FontChangedArgs, FontColorPalette, FontDataRef, FontFace, FontFaceList, FontFaceMetrics,
     FontList, FontMetrics, FontName, FontNames, FontSize, FontStretch, FontStyle, FontWeight, HyphenationDataDir, HyphenationDataSource,

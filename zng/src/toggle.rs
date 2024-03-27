@@ -7,7 +7,7 @@
 //! The example below makes use of the property.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let checked = var(false);
@@ -25,7 +25,7 @@
 //! `None` appearance.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let checked = var(Some(false));
@@ -47,7 +47,7 @@
 //! selection kinds, including custom implementations of [`SelectorImpl`].
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let selected_item = var(1_i32);
@@ -72,7 +72,7 @@
 //! when it is in the `Some(true)` state.
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! Toggle! {
@@ -98,7 +98,7 @@
 //! changes the toggle into an on/off switch.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -122,7 +122,7 @@
 //! declares a stack that is a selector context and sets the toggle style for all toggle buttons inside.
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //! let selected_item = var(1_i32);
 //! # let _ =
@@ -146,7 +146,7 @@
 //! an option. Note that the `ComboStyle!` also restyles `Toggle!` inside the popup to look like a menu item.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let txt = var(Txt::from_static("Combo"));
@@ -177,9 +177,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_toggle`] for the full widget API.
+//! See [`zng_wgt_toggle`] for the full widget API.
 
-pub use zero_ui_wgt_toggle::{
+pub use zng_wgt_toggle::{
     check_spacing, combo_spacing, deselect_on_deinit, deselect_on_new, is_checked, radio_spacing, scroll_on_select, select_on_init,
     select_on_new, selector, style_fn, switch_spacing, tristate, CheckStyle, ComboStyle, DefaultStyle, RadioStyle, Selector, SelectorError,
     SelectorImpl, SwitchStyle, Toggle, IS_CHECKED_VAR,
@@ -187,5 +187,5 @@ pub use zero_ui_wgt_toggle::{
 
 /// Toggle commands.
 pub mod cmd {
-    pub use zero_ui_wgt_toggle::cmd::{SelectOp, SELECT_CMD, TOGGLE_CMD};
+    pub use zng_wgt_toggle::cmd::{SelectOp, SELECT_CMD, TOGGLE_CMD};
 }

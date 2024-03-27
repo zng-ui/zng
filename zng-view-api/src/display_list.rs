@@ -15,7 +15,7 @@ use crate::{
     AlphaType, BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId,
     RepeatMode, TransformStyle,
 };
-use zero_ui_unit::*;
+use zng_unit::*;
 
 /// Represents a builder for display items that will be rendered in the view process.
 #[derive(Debug)]

@@ -12,7 +12,7 @@ use flume::unbounded as channel;
 
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 pub(crate) type IpcResult<T> = std::result::Result<T, Disconnected>;
 
@@ -297,7 +297,7 @@ mod name_map {
         sync::{Mutex, Once},
     };
 
-    use zero_ui_txt::Txt;
+    use zng_txt::Txt;
 
     use super::AppInitMsg;
 
@@ -320,7 +320,7 @@ mod name_map {
 impl AppInit {
     pub fn new() -> Self {
         use std::sync::atomic::{AtomicU32, Ordering};
-        use zero_ui_txt::formatx;
+        use zng_txt::formatx;
 
         static NAME_COUNT: AtomicU32 = AtomicU32::new(0);
 

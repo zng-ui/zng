@@ -1,4 +1,4 @@
-use zero_ui_app::widget::node::UiNodeOpMethod;
+use zng_app::widget::node::UiNodeOpMethod;
 
 use crate::prelude::*;
 
@@ -45,7 +45,7 @@ impl OnNodeOpArgs {
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`on_pre_node_op`]: fn@on_pre_node_op
-/// [`NestGroup::EVENT`]: zero_ui_app::widget::builder::NestGroup::EVENT
+/// [`NestGroup::EVENT`]: zng_app::widget::builder::NestGroup::EVENT
 #[property(EVENT)]
 pub fn on_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |_| true)
@@ -89,7 +89,7 @@ fn on_node_op_impl(
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`on_node_op`]: fn@on_node_op
-/// [`NestGroup::EVENT`]: zero_ui_app::widget::builder::NestGroup::EVENT
+/// [`NestGroup::EVENT`]: zng_app::widget::builder::NestGroup::EVENT
 #[property(EVENT)]
 pub fn on_pre_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |_| true)
@@ -135,7 +135,7 @@ fn on_pre_node_op_impl(
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`on_info_init`]: fn@on_info_init
-/// [`WidgetInfoTree`]: zero_ui_app::widget::info::WidgetInfoTree
+/// [`WidgetInfoTree`]: zng_app::widget::info::WidgetInfoTree
 #[property(EVENT)]
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
@@ -164,7 +164,7 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 /// The async handlers spawn a task that is associated with the widget, it will only update when the widget updates,
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
-/// [`WidgetInfoTree`]: zero_ui_app::widget::info::WidgetInfoTree
+/// [`WidgetInfoTree`]: zng_app::widget::info::WidgetInfoTree
 #[property(EVENT)]
 pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
@@ -251,7 +251,7 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
 ///
 /// You can use the [`on_pre_deinit`] event to receive this event before the widget content deinits.
 ///
-/// [`UPDATES.run`]: zero_ui_app::update::UPDATES::run
+/// [`UPDATES.run`]: zng_app::update::UPDATES::run
 /// [`on_pre_deinit`]: fn@on_pre_deinit
 #[property(EVENT)]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {

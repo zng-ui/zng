@@ -2,7 +2,7 @@ use std::{mem, sync::Arc};
 
 use atomic::Atomic;
 use parking_lot::RwLock;
-use zero_ui_app::{
+use zng_app::{
     event::{AnyEventArgs as _, CommandHandle, EventHandle, EventHandles},
     widget::{
         node::{match_node, UiNode, UiNodeOp},
@@ -10,24 +10,24 @@ use zero_ui_app::{
     },
     DInstant,
 };
-use zero_ui_ext_font::{font_features::FontVariations, CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextShapingArgs};
-use zero_ui_ext_input::{
+use zng_ext_font::{font_features::FontVariations, CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextShapingArgs};
+use zng_ext_input::{
     focus::FOCUS,
     keyboard::{KEYBOARD, KEY_INPUT_EVENT},
     mouse::{MOUSE, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
     touch::{TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
 };
-use zero_ui_ext_l10n::LANG_VAR;
-use zero_ui_ext_undo::UNDO;
-use zero_ui_ext_window::WidgetInfoBuilderImeArea as _;
-use zero_ui_layout::{
+use zng_ext_l10n::LANG_VAR;
+use zng_ext_undo::UNDO;
+use zng_ext_window::WidgetInfoBuilderImeArea as _;
+use zng_layout::{
     context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment, LayoutMetrics, LAYOUT},
     unit::{DipPoint, FactorUnits as _, Px, PxBox, PxConstraints2d, PxRect, PxSize, PxTransform, Rect, Size},
 };
-use zero_ui_view_api::keyboard::{Key, KeyState};
-use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_scroll::{cmd::ScrollToMode, SCROLL};
+use zng_view_api::keyboard::{Key, KeyState};
+use zng_wgt::prelude::*;
+use zng_wgt_scroll::{cmd::ScrollToMode, SCROLL};
 
 use crate::{
     cmd::{TextSelectOp, SELECT_ALL_CMD, SELECT_CMD},

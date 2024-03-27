@@ -7,7 +7,7 @@
 //! 10 to 0 and then stops the timer.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let countdown = timer::TIMERS.interval(1.secs(), false).map(move |t| {
@@ -27,9 +27,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_app::timer`] for the full time API.
+//! See [`zng_app::timer`] for the full time API.
 //!
 
-pub use zero_ui_app::timer::{
+pub use zng_app::timer::{
     DeadlineArgs, DeadlineHandle, DeadlineVar, Timer, TimerArgs, TimerHandle, TimerVar, WeakDeadlineHandle, WeakTimerHandle, TIMERS,
 };

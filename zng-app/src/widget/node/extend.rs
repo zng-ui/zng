@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use zero_ui_app_proc_macros::ui_node;
+use zng_app_proc_macros::ui_node;
 
 use crate::widget::WidgetUpdateMode;
 

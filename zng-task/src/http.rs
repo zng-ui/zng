@@ -12,7 +12,7 @@
 //! Get some text:
 //!
 //! ```
-//! # use zero_ui_task as task;
+//! # use zng_task as task;
 //! # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 //! let text = task::http::get_text("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
 //! println!("{text}!");
@@ -44,8 +44,8 @@ use futures_lite::io::{AsyncReadExt, BufReader};
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
-use zero_ui_txt::Txt;
-use zero_ui_unit::*;
+use zng_txt::Txt;
+use zng_unit::*;
 
 /// Marker trait for types that try-to-convert to [`Uri`].
 ///
@@ -152,7 +152,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_task::http;
+    /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let request = http::Request::builder().method(http::Method::PUT)?.uri("https://httpbin.org/put")?.build();
@@ -173,7 +173,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_task::http;
+    /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let get = http::Request::get("https://httpbin.org/get")?.build();
@@ -188,7 +188,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_task::http;
+    /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let put = http::Request::put("https://httpbin.org/put")?.header("accept", "application/json")?.build();
@@ -203,7 +203,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_task::http;
+    /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let post = http::Request::post("https://httpbin.org/post")?.header("accept", "application/json")?.build();
@@ -218,7 +218,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_task::http;
+    /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let delete = http::Request::delete("https://httpbin.org/delete")?.header("accept", "application/json")?.build();
@@ -233,7 +233,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_task::http;
+    /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let patch = http::Request::patch("https://httpbin.org/patch")?.header("accept", "application/json")?.build();
@@ -248,7 +248,7 @@ impl Request {
     /// # Examples
     ///
     /// ```
-    /// use zero_ui_task::http;
+    /// use zng_task::http;
     ///
     /// # fn try_example() -> Result<(), Box<dyn std::error::Error>> {
     /// let head = http::Request::head("https://httpbin.org")?.build();
@@ -1472,7 +1472,7 @@ impl From<isahc::HttpClient> for Client {
 /// # Examples
 ///
 /// ```
-/// use zero_ui_task::http::*;
+/// use zng_task::http::*;
 ///
 /// let client = Client::builder().metrics(true).build();
 /// ```

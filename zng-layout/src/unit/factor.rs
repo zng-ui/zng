@@ -1,10 +1,10 @@
-use zero_ui_unit::FactorUnits;
+use zng_unit::FactorUnits;
 
 use super::{
     DipPoint, DipRect, DipSideOffsets, DipSize, DipVector, Factor, FactorPercent, PxPoint, PxRect, PxSideOffsets, PxSize, PxVector, Size,
 };
 use std::{fmt, ops};
-use zero_ui_var::impl_from_and_into_var;
+use zng_var::impl_from_and_into_var;
 
 impl ops::Mul<Factor> for Factor2d {
     type Output = Factor2d;

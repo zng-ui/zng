@@ -3,7 +3,7 @@ use std::{fmt, ops, sync::Arc};
 use crate::prelude::*;
 
 #[doc(hidden)]
-pub use zero_ui_wgt::prelude::clmv as __clmv;
+pub use zng_wgt::prelude::clmv as __clmv;
 
 type BoxedWgtFn<D> = Box<dyn Fn(D) -> BoxedUiNode + Send + Sync>;
 
@@ -69,7 +69,7 @@ impl<D> WidgetFn<D> {
     /// Note that you can call the widget function directly where `D: 'static`:
     ///
     /// ```
-    /// # use zero_ui_wgt::WidgetFn;
+    /// # use zng_wgt::WidgetFn;
     /// fn foo(func: &WidgetFn<bool>) {
     ///     let a = func.call(true);
     ///     let b = func(true);
@@ -140,8 +140,8 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 /// Declares a basic widget function that ignores the argument and does not capture any value:
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::{prelude::*, Wgt, on_init};
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::{prelude::*, Wgt, on_init};
 /// #
 /// # fn main() {
 /// # let wgt: WidgetFn<bool> =
@@ -154,8 +154,8 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 /// The macro is clone-move, meaning you can use the same syntax as [`clmv!`] to capture clones of values:
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::{prelude::*, Wgt};
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::{prelude::*, Wgt};
 /// # fn main() {
 /// let moved_var = var('a');
 /// let cloned_var = var('b');

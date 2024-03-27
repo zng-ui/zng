@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use zero_ui_unit::DipPoint;
+use zng_unit::DipPoint;
 
 /// Identifier for a continuous touch contact.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

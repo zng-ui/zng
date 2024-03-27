@@ -1,13 +1,13 @@
 //! Mouse and touch capture properties.
 
-use zero_ui_ext_input::{
+use zng_ext_input::{
     mouse::MOUSE_INPUT_EVENT,
     pointer_capture::{PointerCaptureArgs, POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
     touch::TOUCH_INPUT_EVENT,
 };
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
-pub use zero_ui_ext_input::pointer_capture::CaptureMode;
+pub use zng_ext_input::pointer_capture::CaptureMode;
 
 event_property! {
     /// Widget acquired mouse and touch capture.

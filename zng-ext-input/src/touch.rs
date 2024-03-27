@@ -3,7 +3,7 @@
 //! The app extension [`TouchManager`] provides the events and service. It is included in the default application.
 
 use std::{collections::HashMap, mem, num::NonZeroU32, ops, time::Duration};
-use zero_ui_app::{
+use zng_app::{
     event::{event, event_args, AnyEventArgs, EventPropagationHandle},
     shortcut::ModifiersState,
     timer::{DeadlineVar, TIMERS},
@@ -21,11 +21,11 @@ use zero_ui_app::{
     AppExtension, DInstant,
 };
 
-use zero_ui_app_context::app_local;
-use zero_ui_ext_window::WINDOWS;
-use zero_ui_layout::unit::{euclid, AngleRadian, Dip, DipPoint, DipToPx, DipVector, Factor, Px, PxPoint, PxTransform, PxVector, TimeUnits};
-use zero_ui_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var};
-pub use zero_ui_view_api::{
+use zng_app_context::app_local;
+use zng_ext_window::WINDOWS;
+use zng_layout::unit::{euclid, AngleRadian, Dip, DipPoint, DipToPx, DipVector, Factor, Px, PxPoint, PxTransform, PxVector, TimeUnits};
+use zng_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var};
+pub use zng_view_api::{
     config::TouchConfig,
     touch::{TouchForce, TouchId, TouchPhase, TouchUpdate},
 };

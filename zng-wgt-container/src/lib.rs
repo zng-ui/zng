@@ -7,7 +7,7 @@
 
 use std::fmt;
 
-use zero_ui_wgt::{align, clip_to_bounds, margin, prelude::*};
+use zng_wgt::{align, clip_to_bounds, margin, prelude::*};
 
 /// Base container.
 #[widget($crate::Container {
@@ -35,7 +35,7 @@ impl Container {
 ///
 /// Can be any type that implements [`UiNode`], any widget.
 ///
-/// [`UiNode`]: zero_ui_app::widget::node::UiNode
+/// [`UiNode`]: zng_app::widget::node::UiNode
 #[property(CHILD, capture, default(FillUiNode), widget_impl(Container))]
 pub fn child(child: impl UiNode) {}
 

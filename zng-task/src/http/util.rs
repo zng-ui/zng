@@ -159,7 +159,7 @@ impl TestTempDir {
     }
     fn fallback() -> std::path::PathBuf {
         tracing::warn!("using fallback temporary directory");
-        std::env::temp_dir().join("zero_ui/unit_tests")
+        std::env::temp_dir().join("zng/unit_tests")
     }
 
     /// Dereferences the temporary directory path.

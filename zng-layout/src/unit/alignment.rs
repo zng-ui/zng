@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::context::LayoutDirection;
-use zero_ui_var::{
+use zng_var::{
     animation::{easing::EasingStep, Transitionable},
     impl_from_and_into_var,
 };

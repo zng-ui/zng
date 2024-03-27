@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use atomic::Atomic;
-use zero_ui_app::{
+use zng_app::{
     event::{event, event_args},
     widget::info::{WidgetInfo, WidgetInfoBuilder, WidgetPath},
 };
-use zero_ui_layout::unit::PxRect;
-use zero_ui_state_map::StaticStateId;
-use zero_ui_txt::Txt;
+use zng_layout::unit::PxRect;
+use zng_state_map::StaticStateId;
+use zng_txt::Txt;
 
 event_args! {
     /// Arguments for [`IME_EVENT`].

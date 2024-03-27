@@ -5,18 +5,18 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
-use zero_ui_ext_font::*;
-use zero_ui_wgt::{prelude::*, *};
-use zero_ui_wgt_fill::*;
-use zero_ui_wgt_filter::*;
-use zero_ui_wgt_scroll::{lazy, LazyMode};
-use zero_ui_wgt_stack::{Stack, StackDirection};
-use zero_ui_wgt_text::*;
+use zng_ext_font::*;
+use zng_wgt::{prelude::*, *};
+use zng_wgt_fill::*;
+use zng_wgt_filter::*;
+use zng_wgt_scroll::{lazy, LazyMode};
+use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_text::*;
 
 #[doc(hidden)]
-pub use zero_ui_wgt_text::__formatx;
+pub use zng_wgt_text::__formatx;
 
 /// Render text styled using ANSI escape sequences.
 ///
@@ -550,8 +550,8 @@ mod ansi_fn {
                 direction = StackDirection::top_to_bottom();
                 children = args.lines;
                 lazy = LazyMode::lazy_vertical(wgt_fn!(|_| {
-                    let height_sample = zero_ui_wgt_text::node::line_placeholder(50);
-                    zero_ui_wgt_stack::lazy_sample(len, StackDirection::top_to_bottom(), 0, height_sample)
+                    let height_sample = zng_wgt_text::node::line_placeholder(50);
+                    zng_wgt_stack::lazy_sample(len, StackDirection::top_to_bottom(), 0, height_sample)
                 }));
             }
             .boxed()

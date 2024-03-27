@@ -2,7 +2,7 @@
 
 use std::{fmt, ops::Range};
 
-use zero_ui_layout::{context::*, unit::*};
+use zng_layout::{context::*, unit::*};
 
 use crate::*;
 
@@ -46,7 +46,7 @@ impl From<ExtendMode> for RenderExtendMode {
 ///
 /// Note that [`ExtendMode::Reflect`] is not supported
 /// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
-pub type RenderExtendMode = zero_ui_view_api::ExtendMode;
+pub type RenderExtendMode = zng_view_api::ExtendMode;
 
 /// The radial gradient radius base length.
 ///
@@ -270,14 +270,14 @@ impl_from_and_into_var! {
     }
 }
 
-/// The [angle](AngleUnits) or [line](zero_ui_layout::unit::Line) that defines a linear gradient.
+/// The [angle](AngleUnits) or [line](zng_layout::unit::Line) that defines a linear gradient.
 ///
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::unit::*;
-/// # use zero_ui_color::colors;
-/// # use zero_ui_color::gradient::*;
+/// # use zng_layout::unit::*;
+/// # use zng_color::colors;
+/// # use zng_color::gradient::*;
 /// # fn linear_gradient(axis: impl Into<LinearGradientAxis>, stops: impl Into<GradientStops>) { }
 /// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
@@ -518,7 +518,7 @@ impl Transitionable for ColorStop {
 /// Computed [`GradientStop`].
 ///
 /// The color offset is in the 0..=1 range.
-pub type RenderGradientStop = zero_ui_view_api::GradientStop;
+pub type RenderGradientStop = zng_view_api::GradientStop;
 
 /// A stop in a gradient.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1239,9 +1239,9 @@ macro_rules! __stops {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_color::gradient::stops;
-/// # use zero_ui_color::colors;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_color::gradient::stops;
+/// # use zng_color::colors;
+/// # use zng_layout::unit::*;
 /// // green 0%, red 30%, blue 100%.
 /// let stops = stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE];
 ///
@@ -1258,9 +1258,9 @@ macro_rules! __stops {
 /// ## Examples
 ///
 /// ```
-/// # use zero_ui_color::gradient::stops;
-/// # use zero_ui_color::colors;
-/// # use zero_ui_layout::unit::*;
+/// # use zng_color::gradient::stops;
+/// # use zng_color::colors;
+/// # use zng_layout::unit::*;
 /// let zebra_stops = stops![(colors::WHITE, 0, 20), (colors::BLACK, 20, 40)];
 /// ```
 #[macro_export]
@@ -1296,7 +1296,7 @@ pub use stops;
 
 #[cfg(test)]
 mod tests {
-    use zero_ui_app_context::{AppId, LocalContext};
+    use zng_app_context::{AppId, LocalContext};
 
     use super::*;
 

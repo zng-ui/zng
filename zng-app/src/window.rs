@@ -4,11 +4,11 @@ use std::{borrow::Cow, fmt, sync::Arc};
 
 use crate::{update::UpdatesTrace, widget::info::WidgetInfoTree};
 use parking_lot::RwLock;
-use zero_ui_app_context::context_local;
-use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
-use zero_ui_txt::Txt;
+use zng_app_context::context_local;
+use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
+use zng_txt::Txt;
 
-zero_ui_unique_id::unique_id_32! {
+zng_unique_id::unique_id_32! {
     /// Unique identifier of an open window.
     ///
     /// Can be obtained from [`WINDOW.id`] inside a window.
@@ -22,10 +22,10 @@ zero_ui_unique_id::unique_id_32! {
     /// [`name`]: WindowId::name
     pub struct WindowId;
 }
-zero_ui_unique_id::impl_unique_id_name!(WindowId);
-zero_ui_unique_id::impl_unique_id_fmt!(WindowId);
+zng_unique_id::impl_unique_id_name!(WindowId);
+zng_unique_id::impl_unique_id_fmt!(WindowId);
 
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     /// Calls [`WindowId::named`].
     fn from(name: &'static str) -> WindowId {
         WindowId::named(name)
@@ -76,9 +76,9 @@ impl<'de> serde::Deserialize<'de> for WindowId {
         Ok(WindowId::named(name))
     }
 }
-impl zero_ui_var::IntoValue<WindowId> for &'static StaticWindowId {}
+impl zng_var::IntoValue<WindowId> for &'static StaticWindowId {}
 
-zero_ui_unique_id::unique_id_32! {
+zng_unique_id::unique_id_32! {
     /// Unique identifier of a monitor screen.
     pub struct MonitorId;
 }
@@ -226,13 +226,13 @@ impl WINDOW {
 /// Test only methods.
 #[cfg(any(test, doc, feature = "test_util"))]
 mod _impl {
-    use zero_ui_color::colors;
-    use zero_ui_layout::{
+    use zng_color::colors;
+    use zng_layout::{
         context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, LayoutMetrics, LAYOUT},
         unit::{FactorUnits, Length, Px, PxConstraints2d, PxSize, PxTransform},
     };
-    use zero_ui_state_map::StaticStateId;
-    use zero_ui_view_api::config::FontAntiAliasing;
+    use zng_state_map::StaticStateId;
+    use zng_view_api::config::FontAntiAliasing;
 
     use super::*;
     use crate::{
@@ -508,7 +508,7 @@ impl WindowCtx {
             widget_tree: RwLock::new(None),
 
             #[cfg(any(test, doc, feature = "test_util"))]
-            frame_id: atomic::Atomic::new(zero_ui_view_api::window::FrameId::first()),
+            frame_id: atomic::Atomic::new(zng_view_api::window::FrameId::first()),
         })))
     }
 
@@ -548,7 +548,7 @@ struct WindowCtxData {
     widget_tree: RwLock<Option<WidgetInfoTree>>,
 
     #[cfg(any(test, doc, feature = "test_util"))]
-    frame_id: atomic::Atomic<zero_ui_view_api::window::FrameId>,
+    frame_id: atomic::Atomic<zng_view_api::window::FrameId>,
 }
 impl WindowCtxData {
     #[track_caller]

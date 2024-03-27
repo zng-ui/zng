@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 crate::declare_id! {
     /// Identifies an ongoing async native dialog with the user.

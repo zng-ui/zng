@@ -29,7 +29,7 @@ pub use segmenting::*;
 
 mod shaping;
 pub use shaping::*;
-use zero_ui_clone_move::{async_clmv, clmv};
+use zng_clone_move::{async_clmv, clmv};
 
 mod hyphenation;
 pub use self::hyphenation::*;
@@ -42,7 +42,7 @@ pub use unit::*;
 
 use parking_lot::{Mutex, RwLock};
 use paste::paste;
-use zero_ui_app::{
+use zng_app::{
     event::{event, event_args},
     render::FontSynthesis,
     update::{EventUpdate, UPDATES},
@@ -52,19 +52,19 @@ use zero_ui_app::{
     },
     AppExtension,
 };
-use zero_ui_app_context::app_local;
-use zero_ui_ext_l10n::{lang, Lang, LangMap};
-use zero_ui_layout::unit::{
+use zng_app_context::app_local;
+use zng_ext_l10n::{lang, Lang, LangMap};
+use zng_layout::unit::{
     about_eq, about_eq_hash, about_eq_ord, euclid, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, EQ_EPSILON,
     EQ_EPSILON_100,
 };
-use zero_ui_task as task;
-use zero_ui_txt::Txt;
-use zero_ui_var::{
+use zng_task as task;
+use zng_txt::Txt;
+use zng_var::{
     animation::Transitionable, impl_from_and_into_var, response_done_var, response_var, var, AnyVar, ArcVar, IntoVar, LocalVar,
     ResponderVar, ResponseVar, Var,
 };
-use zero_ui_view_api::{config::FontAntiAliasing, ViewProcessOffline};
+use zng_view_api::{config::FontAntiAliasing, ViewProcessOffline};
 
 /// Font family name.
 ///
@@ -252,7 +252,7 @@ impl<'de> serde::Deserialize<'de> for FontName {
 /// This type is usually initialized using conversion:
 ///
 /// ```
-/// # use zero_ui_ext_font::*;
+/// # use zng_ext_font::*;
 /// fn foo(font_names: impl Into<FontNames>) { }
 ///
 /// foo(["Arial", "sans-serif", "monospace"]);
@@ -261,7 +261,7 @@ impl<'de> serde::Deserialize<'de> for FontName {
 /// You can also use the specialized [`push`](Self::push) that converts:
 ///
 /// ```
-/// # use zero_ui_ext_font::*;
+/// # use zng_ext_font::*;
 /// let user_preference = "Comic Sans".to_owned();
 ///
 /// let mut names = FontNames::empty();
@@ -1135,7 +1135,7 @@ impl FontFace {
         m.unregistered = true;
     }
 
-    fn render_face(&self, renderer: &ViewRenderer) -> zero_ui_view_api::font::FontFaceId {
+    fn render_face(&self, renderer: &ViewRenderer) -> zng_view_api::font::FontFaceId {
         let mut m = self.0.m.lock();
         for r in m.render_ids.iter() {
             if &r.renderer == renderer {
@@ -1147,7 +1147,7 @@ impl FontFace {
             Ok(k) => k,
             Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `add_font`, will return dummy font key");
-                return zero_ui_view_api::font::FontFaceId::INVALID;
+                return zng_view_api::font::FontFaceId::INVALID;
             }
         };
 
@@ -1376,7 +1376,7 @@ impl Font {
         }))
     }
 
-    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zero_ui_view_api::font::FontId {
+    fn render_font(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zng_view_api::font::FontId {
         let _span = tracing::trace_span!("Font::render_font").entered();
 
         let mut render_keys = self.0.render_keys.lock();
@@ -1388,7 +1388,7 @@ impl Font {
 
         let font_key = self.0.face.render_face(renderer);
 
-        let opt = zero_ui_view_api::font::FontOptions {
+        let opt = zng_view_api::font::FontOptions {
             synthetic_oblique: synthesis.contains(FontSynthesis::OBLIQUE),
             synthetic_bold: synthesis.contains(FontSynthesis::BOLD),
             ..Default::default()
@@ -1399,7 +1399,7 @@ impl Font {
             Ok(k) => k,
             Err(ViewProcessOffline) => {
                 tracing::debug!("respawned calling `add_font_instance`, will return dummy font key");
-                return zero_ui_view_api::font::FontId::INVALID;
+                return zng_view_api::font::FontId::INVALID;
             }
         };
 
@@ -1440,7 +1440,7 @@ impl Font {
     /// yielded offsets are relative to the glyph position.
     pub fn ligature_caret_offsets(
         &self,
-        lig: zero_ui_view_api::font::GlyphIndex,
+        lig: zng_view_api::font::GlyphIndex,
     ) -> impl ExactSizeIterator<Item = f32> + DoubleEndedIterator + '_ {
         let face = &self.0.face.0;
         face.lig_carets.carets(lig).iter().map(move |&o| match o {
@@ -1458,12 +1458,12 @@ impl Font {
         })
     }
 }
-impl zero_ui_app::render::Font for Font {
+impl zng_app::render::Font for Font {
     fn is_empty_fallback(&self) -> bool {
         self.face().is_empty()
     }
 
-    fn renderer_id(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zero_ui_view_api::font::FontId {
+    fn renderer_id(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zng_view_api::font::FontId {
         self.render_font(renderer, synthesis)
     }
 }
@@ -2143,10 +2143,10 @@ impl FontFaceLoader {
 
 struct RenderFontFace {
     renderer: ViewRenderer,
-    face_id: zero_ui_view_api::font::FontFaceId,
+    face_id: zng_view_api::font::FontFaceId,
 }
 impl RenderFontFace {
-    fn new(renderer: &ViewRenderer, face_id: zero_ui_view_api::font::FontFaceId) -> Self {
+    fn new(renderer: &ViewRenderer, face_id: zng_view_api::font::FontFaceId) -> Self {
         RenderFontFace {
             renderer: renderer.clone(),
             face_id,
@@ -2163,10 +2163,10 @@ impl Drop for RenderFontFace {
 struct RenderFont {
     renderer: ViewRenderer,
     synthesis: FontSynthesis,
-    font_id: zero_ui_view_api::font::FontId,
+    font_id: zng_view_api::font::FontId,
 }
 impl RenderFont {
-    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, font_id: zero_ui_view_api::font::FontId) -> RenderFont {
+    fn new(renderer: &ViewRenderer, synthesis: FontSynthesis, font_id: zng_view_api::font::FontId) -> RenderFont {
         RenderFont {
             renderer: renderer.clone(),
             synthesis,
@@ -3244,7 +3244,7 @@ impl std::error::Error for FontLoadingError {
 
 #[cfg(test)]
 mod tests {
-    use zero_ui_app::APP;
+    use zng_app::APP;
 
     use super::*;
 

@@ -37,16 +37,16 @@ mod tests;
 use view_process::VIEW_PROCESS;
 use widget::UiTaskWidget;
 #[doc(hidden)]
-pub use zero_ui_layout as layout;
+pub use zng_layout as layout;
 #[doc(hidden)]
-pub use zero_ui_var as var;
+pub use zng_var as var;
 
-pub use zero_ui_time::{DInstant, Deadline, InstantMode, INSTANT};
+pub use zng_time::{DInstant, Deadline, InstantMode, INSTANT};
 
 use update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdatesTrace, WidgetUpdates, UPDATES};
 use window::WindowMode;
-use zero_ui_app_context::{AppId, AppScope, LocalContext};
-use zero_ui_task::UiTask;
+use zng_app_context::{AppId, AppScope, LocalContext};
+use zng_task::UiTask;
 
 /// Enable widget instantiation in crates that can't depend on the `zng` crate.
 ///
@@ -54,7 +54,7 @@ use zero_ui_task::UiTask;
 ///
 /// ```
 /// // in lib.rs or main.rs
-/// # use zero_ui_app::*;
+/// # use zng_app::*;
 /// enable_widget_macros!();
 /// ```
 #[macro_export]
@@ -62,7 +62,7 @@ macro_rules! enable_widget_macros {
     () => {
         #[doc(hidden)]
         #[allow(unused_extern_crates)]
-        extern crate self as zero_ui;
+        extern crate self as zng;
 
         #[doc(hidden)]
         pub use $crate::__proc_macro_util;
@@ -71,11 +71,11 @@ macro_rules! enable_widget_macros {
 
 #[doc(hidden)]
 #[allow(unused_extern_crates)]
-extern crate self as zero_ui;
+extern crate self as zng;
 
 #[doc(hidden)]
 #[allow(unused_extern_crates)]
-extern crate self as zero_ui_app; // for doc-tests
+extern crate self as zng_app; // for doc-tests
 
 #[doc(hidden)]
 pub mod __proc_macro_util {
@@ -175,7 +175,7 @@ pub mod __proc_macro_util {
 /// App extensions setup and update core features such as services and events. App instances
 /// are fully composed of app extensions.
 ///
-/// See the `zero_ui::app` module level documentation for more details, including the call order of methods
+/// See the `zng::app` module level documentation for more details, including the call order of methods
 /// of this trait.
 pub trait AppExtension: 'static {
     /// Register info abound this extension on the info list.
@@ -765,7 +765,7 @@ impl HeadlessApp {
 /// This works like a temporary app extension that runs only for the update call.
 pub trait AppEventObserver {
     /// Called for each raw event received.
-    fn raw_event(&mut self, ev: &zero_ui_view_api::Event) {
+    fn raw_event(&mut self, ev: &zng_view_api::Event) {
         let _ = ev;
     }
 
@@ -827,7 +827,7 @@ impl AppEventObserver for () {}
 pub struct DynAppEventObserver<'a>(&'a mut dyn AppEventObserverDyn);
 
 trait AppEventObserverDyn {
-    fn raw_event_dyn(&mut self, ev: &zero_ui_view_api::Event);
+    fn raw_event_dyn(&mut self, ev: &zng_view_api::Event);
     fn event_preview_dyn(&mut self, update: &mut EventUpdate);
     fn event_ui_dyn(&mut self, update: &mut EventUpdate);
     fn event_dyn(&mut self, update: &mut EventUpdate);
@@ -839,7 +839,7 @@ trait AppEventObserverDyn {
     fn render_dyn(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates);
 }
 impl<O: AppEventObserver> AppEventObserverDyn for O {
-    fn raw_event_dyn(&mut self, ev: &zero_ui_view_api::Event) {
+    fn raw_event_dyn(&mut self, ev: &zng_view_api::Event) {
         self.raw_event(ev)
     }
 
@@ -880,7 +880,7 @@ impl<O: AppEventObserver> AppEventObserverDyn for O {
     }
 }
 impl<'a> AppEventObserver for DynAppEventObserver<'a> {
-    fn raw_event(&mut self, ev: &zero_ui_view_api::Event) {
+    fn raw_event(&mut self, ev: &zng_view_api::Event) {
         self.0.raw_event_dyn(ev)
     }
 
@@ -1090,7 +1090,7 @@ impl APP {
     ///
     /// You can use [`app_local!`] to create *static* resources that live for the app lifetime.
     ///
-    /// [`app_local!`]: zero_ui_app_context::app_local
+    /// [`app_local!`]: zng_app_context::app_local
     pub fn is_running(&self) -> bool {
         LocalContext::current_app().is_some()
     }
@@ -1101,7 +1101,7 @@ impl APP {
     /// Resources that interact with [`app_local!`] values can use this ID to ensure that they are still operating in the same
     /// app.
     ///
-    /// [`app_local!`]: zero_ui_app_context::app_local
+    /// [`app_local!`]: zng_app_context::app_local
     pub fn id(&self) -> Option<AppId> {
         LocalContext::current_app()
     }
@@ -1318,7 +1318,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Note that the `view_process_exe` must start a view server and both
     /// executables must be build using the same exact [`VERSION`].
     ///
-    /// [`VERSION`]: zero_ui_view_api::VERSION  
+    /// [`VERSION`]: zng_view_api::VERSION  
     pub fn view_process_exe(mut self, view_process_exe: impl Into<PathBuf>) -> Self {
         self.view_process_exe = Some(view_process_exe.into());
         self

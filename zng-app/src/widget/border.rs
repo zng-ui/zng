@@ -2,21 +2,21 @@
 
 use std::{fmt, mem, sync::Arc};
 
-use zero_ui_app_context::context_local;
-use zero_ui_color::{colors, Hsla, Hsva, Rgba};
-use zero_ui_layout::{
+use zng_app_context::context_local;
+use zng_color::{colors, Hsla, Hsva, Rgba};
+use zng_layout::{
     context::{LayoutMask, LAYOUT},
     unit::{
         Factor, FactorPercent, FactorSideOffsets, FactorUnits, Layout2d, Length, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize,
         Size,
     },
 };
-use zero_ui_var::{
+use zng_var::{
     animation::{easing::EasingStep, Transitionable},
     context_var, impl_from_and_into_var, Var,
 };
 
-pub use zero_ui_view_api::LineOrientation;
+pub use zng_view_api::LineOrientation;
 
 use crate::widget::VarLayout;
 
@@ -129,18 +129,18 @@ impl fmt::Debug for BorderStyle {
         }
     }
 }
-impl From<BorderStyle> for zero_ui_view_api::BorderStyle {
+impl From<BorderStyle> for zng_view_api::BorderStyle {
     fn from(s: BorderStyle) -> Self {
         match s {
-            BorderStyle::Solid => zero_ui_view_api::BorderStyle::Solid,
-            BorderStyle::Double => zero_ui_view_api::BorderStyle::Double,
-            BorderStyle::Dotted => zero_ui_view_api::BorderStyle::Dotted,
-            BorderStyle::Dashed => zero_ui_view_api::BorderStyle::Dashed,
-            BorderStyle::Hidden => zero_ui_view_api::BorderStyle::Hidden,
-            BorderStyle::Groove => zero_ui_view_api::BorderStyle::Groove,
-            BorderStyle::Ridge => zero_ui_view_api::BorderStyle::Ridge,
-            BorderStyle::Inset => zero_ui_view_api::BorderStyle::Inset,
-            BorderStyle::Outset => zero_ui_view_api::BorderStyle::Outset,
+            BorderStyle::Solid => zng_view_api::BorderStyle::Solid,
+            BorderStyle::Double => zng_view_api::BorderStyle::Double,
+            BorderStyle::Dotted => zng_view_api::BorderStyle::Dotted,
+            BorderStyle::Dashed => zng_view_api::BorderStyle::Dashed,
+            BorderStyle::Hidden => zng_view_api::BorderStyle::Hidden,
+            BorderStyle::Groove => zng_view_api::BorderStyle::Groove,
+            BorderStyle::Ridge => zng_view_api::BorderStyle::Ridge,
+            BorderStyle::Inset => zng_view_api::BorderStyle::Inset,
+            BorderStyle::Outset => zng_view_api::BorderStyle::Outset,
         }
     }
 }
@@ -232,9 +232,9 @@ impl BorderSide {
         Self::new(colors::BLACK.transparent(), BorderStyle::Hidden)
     }
 }
-impl From<BorderSide> for zero_ui_view_api::BorderSide {
+impl From<BorderSide> for zng_view_api::BorderSide {
     fn from(s: BorderSide) -> Self {
-        zero_ui_view_api::BorderSide {
+        zng_view_api::BorderSide {
             color: s.color,
             style: s.style.into(),
         }

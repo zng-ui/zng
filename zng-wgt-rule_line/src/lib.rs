@@ -5,8 +5,8 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zero_ui_wgt::{margin, prelude::*};
-use zero_ui_wgt_access::{access_role, AccessRole};
+use zng_wgt::{margin, prelude::*};
+use zng_wgt_access::{access_role, AccessRole};
 
 /// Draws a horizontal or vertical rule line.
 #[widget($crate::RuleLine)]
@@ -133,7 +133,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
 
 /// Horizontal rule line.
 pub mod hr {
-    use zero_ui_wgt::prelude::*;
+    use zng_wgt::prelude::*;
 
     /// Draws an horizontal [`RuleLine!`](struct@RuleLine).
     #[widget($crate::hr::Hr)]
@@ -154,8 +154,8 @@ pub mod hr {
     context_var! {
         /// Line color, inherits from [`FONT_COLOR_VAR`].
         ///
-        /// [`FONT_COLOR_VAR`]: zero_ui_wgt_text::FONT_COLOR_VAR
-        pub static COLOR_VAR: Rgba = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()));
+        /// [`FONT_COLOR_VAR`]: zng_wgt_text::FONT_COLOR_VAR
+        pub static COLOR_VAR: Rgba = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()));
 
         /// Line stroke thickness, default is `1.dip()`
         pub static STROKE_THICKNESS_VAR: Length = 1.dip();
@@ -196,7 +196,7 @@ pub mod hr {
 
 /// Vertical rule line.
 pub mod vr {
-    use zero_ui_wgt::prelude::*;
+    use zng_wgt::prelude::*;
 
     /// Draws a vertical [`RuleLine!`](struct@RuleLine).
     #[widget($crate::vr::Vr)]
@@ -217,8 +217,8 @@ pub mod vr {
     context_var! {
         /// Line color, inherits from [`FONT_COLOR_VAR`].
         ///
-        /// [`FONT_COLOR_VAR`]: zero_ui_wgt_text::FONT_COLOR_VAR
-        pub static COLOR_VAR: Rgba = zero_ui_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()));
+        /// [`FONT_COLOR_VAR`]: zng_wgt_text::FONT_COLOR_VAR
+        pub static COLOR_VAR: Rgba = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(30.pct()));
 
         /// Line stroke thickness, default is `1.dip()`
         pub static STROKE_THICKNESS_VAR: Length = 1.dip();

@@ -36,7 +36,7 @@ use super::*;
 /// Declare two commands:
 ///
 /// ```
-/// use zero_ui_app::event::command;
+/// use zng_app::event::command;
 ///
 /// command! {
 ///     static FOO_CMD;
@@ -49,7 +49,7 @@ use super::*;
 /// You can also initialize metadata:
 ///
 /// ```
-/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
+/// use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 ///
 /// command! {
 ///     /// Represents the **foo** action.
@@ -66,7 +66,7 @@ use super::*;
 /// Or you can use a custom closure to initialize the command:
 ///
 /// ```
-/// use zero_ui_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
+/// use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
 ///
 /// command! {
 ///     /// Represents the **foo** action.
@@ -105,14 +105,14 @@ macro_rules! command {
 }
 #[doc(inline)]
 pub use command;
-use zero_ui_app_context::AppId;
-use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
-use zero_ui_txt::Txt;
-use zero_ui_unique_id::unique_id_64;
-use zero_ui_var::{types::ArcCowVar, var, AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue};
+use zng_app_context::AppId;
+use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
+use zng_txt::Txt;
+use zng_unique_id::unique_id_64;
+use zng_var::{types::ArcCowVar, var, AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue};
 
 #[doc(hidden)]
-pub use zero_ui_app_context::app_local;
+pub use zng_app_context::app_local;
 
 #[doc(hidden)]
 pub use paste::paste;
@@ -180,7 +180,7 @@ macro_rules! __command {
 /// [metadata](#metadata) initialization.
 ///
 /// ```
-/// # use zero_ui_app::event::*;
+/// # use zng_app::event::*;
 /// # pub trait CommandFooBarExt: Sized { fn init_foo(self, foo: bool) -> Self { self } fn init_bar(self, bar: bool) -> Self { self } }
 /// # impl CommandFooBarExt for Command { }
 /// command! {
@@ -833,7 +833,7 @@ impl fmt::Debug for CommandParam {
         f.debug_tuple("CommandParam").field(&self.0.type_id()).finish()
     }
 }
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(param: CommandParam) -> Option<CommandParam>;
 }
 
@@ -886,7 +886,7 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 /// must have a `foo` and `init_foo` methods.
 ///
 /// ```
-/// use zero_ui_app::{event::*, var::*};
+/// use zng_app::{event::*, var::*};
 ///
 /// static COMMAND_FOO_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
 /// static COMMAND_BAR_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
@@ -1146,7 +1146,7 @@ impl CommandNameExt for Command {
             if shortcut.is_empty() {
                 name.clone()
             } else {
-                zero_ui_txt::formatx!("{name} ({})", shortcut[0])
+                zng_txt::formatx!("{name} ({})", shortcut[0])
             }
         })
         .boxed()

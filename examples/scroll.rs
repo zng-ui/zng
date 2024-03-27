@@ -1,12 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::{
+use zng::{
     mouse::{cursor, CursorIcon},
     prelude::*,
     scroll::cmd::ScrollToMode,
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 use rand::SeedableRng;
 
@@ -69,7 +69,7 @@ fn app_main() {
 }
 
 fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl UiNode {
-    use zero_ui::scroll::cmd::*;
+    use zng::scroll::cmd::*;
 
     let scope = WidgetId::named("scroll");
 
@@ -136,7 +136,7 @@ fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl
     }
 }
 fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
-    use zero_ui::scroll::cmd;
+    use zng::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
@@ -147,7 +147,7 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     }
 }
 fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> impl UiNode {
-    use zero_ui::scroll::cmd;
+    use zng::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
@@ -159,7 +159,7 @@ fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> impl UiN
 }
 
 fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> impl UiNode {
-    use zero_ui::scroll::cmd;
+    use zng::scroll::cmd;
 
     let scroll = WidgetId::named("scroll");
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);

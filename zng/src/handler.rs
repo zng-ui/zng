@@ -11,7 +11,7 @@
 //! provide a very easy way to *clone-move* captured variables into the handler.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let last_clicked = var(Txt::from(""));
@@ -55,9 +55,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_app::handler`] for the full handler API.
+//! See [`zng_app::handler`] for the full handler API.
 
-pub use zero_ui_app::handler::{
+pub use zng_app::handler::{
     app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once, AppHandler, AppHandlerArgs, AppWeakHandle,
     WidgetHandler,
 };

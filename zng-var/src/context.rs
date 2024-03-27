@@ -1,4 +1,4 @@
-use zero_ui_app_context::{context_local, ContextLocal, ContextLocalKeyProvider};
+use zng_app_context::{context_local, ContextLocal, ContextLocalKeyProvider};
 
 use super::*;
 
@@ -7,7 +7,7 @@ use super::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_var::context_var;
+/// # use zng_var::context_var;
 /// # #[derive(Debug, Clone, PartialEq)]
 /// # struct NotConst(u8);
 /// # fn init_val() -> NotConst { NotConst(10) }

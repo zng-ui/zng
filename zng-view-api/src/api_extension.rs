@@ -3,7 +3,7 @@
 use std::{fmt, ops};
 
 use serde::{Deserialize, Serialize};
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 /// Custom serialized data, in a format defined by the extension.
 ///

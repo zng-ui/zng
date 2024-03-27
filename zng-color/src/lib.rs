@@ -7,20 +7,20 @@
 #![recursion_limit = "256"]
 
 use std::{fmt, sync::Arc};
-use zero_ui_app_context::context_local;
+use zng_app_context::context_local;
 
-use zero_ui_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor};
-use zero_ui_var::{
+use zng_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor};
+use zng_var::{
     animation::{easing::EasingStep, Transition, Transitionable},
     context_var, impl_from_and_into_var, merge_var, IntoVar, Var, VarValue,
 };
 
-pub use zero_ui_view_api::config::ColorScheme;
+pub use zng_view_api::config::ColorScheme;
 
 #[doc(hidden)]
-pub use zero_ui_color_proc_macros::hex_color;
+pub use zng_color_proc_macros::hex_color;
 
-pub use zero_ui_layout::unit::{Rgba, RgbaComponent};
+pub use zng_layout::unit::{Rgba, RgbaComponent};
 
 pub mod colors;
 pub mod filter;
@@ -45,7 +45,7 @@ pub use mix::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_color::hex;
+/// # use zng_color::hex;
 /// let red = hex!(#FF0000);
 /// let green = hex!(#00FF00);
 /// let blue = hex!(#0000FF);
@@ -664,12 +664,12 @@ fn clamp_normal(i: f32) -> f32 {
 /// # Arguments
 ///
 /// The arguments can either be [`f32`] in the `0.0..=1.0` range or
-/// [`u8`] in the `0..=255` range or a [percentage](zero_ui_layout::unit::FactorPercent).
+/// [`u8`] in the `0..=255` range or a [percentage](zng_layout::unit::FactorPercent).
 ///
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::rgb;
+/// use zng_color::rgb;
 ///
 /// let red = rgb(1.0, 0.0, 0.0);
 /// let green = rgb(0, 255, 0);
@@ -683,14 +683,14 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Rgba {
 /// # Arguments
 ///
 /// The arguments can either be `f32` in the `0.0..=1.0` range or
-/// `u8` in the `0..=255` range or a [percentage](zero_ui_layout::unit::FactorPercent).
+/// `u8` in the `0..=255` range or a [percentage](zng_layout::unit::FactorPercent).
 ///
 /// The rgb arguments must be of the same type, the alpha argument can be of a different type.
 ///
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::rgba;
+/// use zng_color::rgba;
 ///
 /// let half_red = rgba(255, 0, 0, 0.5);
 /// let green = rgba(0.0, 1.0, 0.0, 1.0);
@@ -710,21 +710,21 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 /// # Arguments
 ///
 /// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
-/// range or a [percentage](zero_ui_layout::unit::FactorPercent).
+/// range or a [percentage](zng_layout::unit::FactorPercent).
 ///
 /// The `saturation` and `lightness` arguments must be of the same type.
 ///
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::hsl;
-/// use zero_ui_layout::unit::*;
+/// use zng_color::hsl;
+/// use zng_layout::unit::*;
 ///
 /// let red = hsl(0.deg(), 100.pct(), 50.pct());
 /// let green = hsl(115.deg(), 1.0, 0.5);
 /// ```
 ///
-/// [angle unit]: zero_ui_layout::unit::AngleUnits
+/// [angle unit]: zng_layout::unit::AngleUnits
 pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightness: N) -> Hsla {
     hsla(hue, saturation, lightness, 1.0)
 }
@@ -734,22 +734,22 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightne
 /// # Arguments
 ///
 /// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
-/// range or a [percentage](zero_ui_layout::unit::FactorPercent).
+/// range or a [percentage](zng_layout::unit::FactorPercent).
 ///
 /// The `saturation` and `lightness` arguments must be of the same type.
 ///
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::hsla;
-/// use zero_ui_layout::unit::*;
+/// use zng_color::hsla;
+/// use zng_layout::unit::*;
 ///
 /// let red = hsla(0.deg(), 100.pct(), 50.pct(), 1.0);
 /// let green = hsla(115.deg(), 1.0, 0.5, 100.pct());
 /// let transparent = hsla(0.deg(), 1.0, 0.5, 0.0);
 /// ```
 ///
-/// [angle unit]: zero_ui_layout::unit::AngleUnits
+/// [angle unit]: zng_layout::unit::AngleUnits
 pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, lightness: N, alpha: A) -> Hsla {
     Hsla {
         hue: hue.into().0,
@@ -764,21 +764,21 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
 /// # Arguments
 ///
 /// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
-/// range or a [percentage](zero_ui_layout::unit::FactorPercent).
+/// range or a [percentage](zng_layout::unit::FactorPercent).
 ///
 /// The `saturation` and `value` arguments must be of the same type.
 ///
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::hsv;
-/// use zero_ui_layout::unit::*;
+/// use zng_color::hsv;
+/// use zng_layout::unit::*;
 ///
 /// let red = hsv(0.deg(), 100.pct(), 50.pct());
 /// let green = hsv(115.deg(), 1.0, 0.5);
 /// ```
 ///
-/// [angle unit]: zero_ui_layout::unit::AngleUnits
+/// [angle unit]: zng_layout::unit::AngleUnits
 pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: N) -> Hsva {
     hsva(hue, saturation, value, 1.0)
 }
@@ -788,22 +788,22 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: 
 /// # Arguments
 ///
 /// The first argument `hue` can be any [angle unit]. The other two arguments can be [`f32`] in the `0.0..=1.0`
-/// range or a [percentage](zero_ui_layout::unit::FactorPercent).
+/// range or a [percentage](zng_layout::unit::FactorPercent).
 ///
 /// The `saturation` and `value` arguments must be of the same type.
 ///
 /// # Examples
 ///
 /// ```
-/// use zero_ui_color::hsva;
-/// use zero_ui_layout::unit::*;
+/// use zng_color::hsva;
+/// use zng_layout::unit::*;
 ///
 /// let red = hsva(0.deg(), 100.pct(), 50.pct(), 1.0);
 /// let green = hsva(115.deg(), 1.0, 0.5, 100.pct());
 /// let transparent = hsva(0.deg(), 1.0, 0.5, 0.0);
 /// ```
 ///
-/// [angle unit]: zero_ui_layout::unit::AngleUnits
+/// [angle unit]: zng_layout::unit::AngleUnits
 pub fn hsva<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
     Hsva {
         hue: hue.into().0,
@@ -949,7 +949,7 @@ pub fn with_lerp_space<R>(space: LerpSpace, f: impl FnOnce() -> R) -> R {
 ///
 /// Samplers can be set in animations using the [`Var::easing_with`] method.
 ///
-/// [`Var::easing_with`]: zero_ui_var::Var::easing_with
+/// [`Var::easing_with`]: zng_var::Var::easing_with
 pub fn rgba_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
     with_lerp_space(LerpSpace::Rgba, || t.sample(step))
 }
@@ -965,7 +965,7 @@ pub fn hsla_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T
 ///
 /// Samplers can be set in animations using the [`Var::easing_with`] method.
 ///
-/// [`Var::easing_with`]: zero_ui_var::Var::easing_with
+/// [`Var::easing_with`]: zng_var::Var::easing_with
 pub fn hsla_linear_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
     with_lerp_space(LerpSpace::HslaLinear, || t.sample(step))
 }
@@ -977,7 +977,7 @@ context_local! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zero_ui_layout::unit::{AngleUnits as _, FactorUnits as _};
+    use zng_layout::unit::{AngleUnits as _, FactorUnits as _};
 
     #[test]
     fn hsl_red() {

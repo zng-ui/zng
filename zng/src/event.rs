@@ -34,7 +34,7 @@
 //! also filter into specific aspects of an underlying event.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -74,8 +74,8 @@
 //!
 //! ```
 //! # fn main() { }
-//! use zero_ui::prelude::*;
-//! use zero_ui::prelude_wgt::*;
+//! use zng::prelude::*;
+//! use zng::prelude_wgt::*;
 //!
 //! #[property(EVENT)]
 //! pub fn print_click(child: impl UiNode, preview: impl IntoVar<bool>) -> impl UiNode {
@@ -108,7 +108,7 @@
 //! App extensions don't need to subscribe to events, they all receive all events.
 //!
 //! ```
-//! use zero_ui::{app::AppExtension, update::EventUpdate, gesture::CLICK_EVENT};
+//! use zng::{app::AppExtension, update::EventUpdate, gesture::CLICK_EVENT};
 //!
 //! #[derive(Default)]
 //! struct PrintClickManager { }
@@ -135,7 +135,7 @@
 //! propagation is not stopped.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! gesture::CLICK_EVENT.on_pre_event(app_hn!(|_, _| {
@@ -159,7 +159,7 @@
 //!
 //! ```
 //! # fn main() { }
-//! use zero_ui::prelude_wgt::*;
+//! use zng::prelude_wgt::*;
 //!
 //! event_args! {
 //!     pub struct FooArgs {
@@ -183,8 +183,8 @@
 //! }
 //!
 //! # fn usage() -> impl UiNode {
-//! zero_ui::widget::Wgt! {
-//!     zero_ui::widget::on_info_init = hn!(|_| {
+//! zng::widget::Wgt! {
+//!     zng::widget::on_info_init = hn!(|_| {
 //!         let this_wgt = WIDGET.info().path();
 //!         FOO_EVENT.notify(FooArgs::now(this_wgt));
 //!     });
@@ -214,7 +214,7 @@
 //!
 //! ```
 //! # fn main() { }
-//! use zero_ui::prelude_wgt::*;
+//! use zng::prelude_wgt::*;
 //!
 //! command! {
 //!     /// Foo docs.
@@ -232,8 +232,8 @@
 //! }
 //!
 //! # fn usage() -> impl UiNode {
-//! zero_ui::widget::Wgt! {
-//!     zero_ui::widget::on_info_init = hn!(|_| {
+//! zng::widget::Wgt! {
+//!     zng::widget::on_info_init = hn!(|_| {
 //!         FOO_CMD.scoped(WIDGET.id()).notify();
 //!     });
 //!
@@ -265,8 +265,8 @@
 //! inherits metadata from the main command (app scoped), but metadata can be set for a specific scope.
 //!
 //! ```
-//! use zero_ui::prelude::*;
-//! use zero_ui::{clipboard, event::CommandArgs};
+//! use zng::prelude::*;
+//! use zng::{clipboard, event::CommandArgs};
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -296,7 +296,7 @@
 //!         Button!(clipboard::COPY_CMD.scoped(WidgetId::named("default-copy"))),
 //!         Button! {
 //!             cmd = clipboard::COPY_CMD.focus_scoped();
-//!             zero_ui::focus::alt_focus_scope = true;
+//!             zng::focus::alt_focus_scope = true;
 //!         },
 //!     ]
 //! )
@@ -311,11 +311,11 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_app::event`] for the full event API.
+//! See [`zng_app::event`] for the full event API.
 
-pub use zero_ui_app::event::{
+pub use zng_app::event::{
     command, event, event_args, AnyEvent, AnyEventArgs, Command, CommandArgs, CommandHandle, CommandInfoExt, CommandMeta, CommandMetaVar,
     CommandMetaVarId, CommandNameExt, CommandParam, CommandScope, Event, EventArgs, EventHandle, EventHandles, EventPropagationHandle,
     EventReceiver, EVENTS,
 };
-pub use zero_ui_wgt::node::{command_property, event_property, on_command, on_event, on_pre_command, on_pre_event};
+pub use zng_wgt::node::{command_property, event_property, on_command, on_event, on_pre_command, on_pre_event};

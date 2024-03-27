@@ -4,7 +4,7 @@
 
 use std::{collections::HashMap, mem, num::NonZeroU32, time::*};
 
-use zero_ui_app::{
+use zng_app::{
     event::{event, event_args, EventPropagationHandle},
     shortcut::ModifiersState,
     timer::{DeadlineVar, TIMERS},
@@ -24,13 +24,13 @@ use zero_ui_app::{
     window::WindowId,
     AppExtension, DInstant, INSTANT,
 };
-use zero_ui_app_context::app_local;
-use zero_ui_ext_window::WINDOWS;
-use zero_ui_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint};
-use zero_ui_state_map::{state_map, StaticStateId};
-use zero_ui_var::{impl_from_and_into_var, var, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var};
-use zero_ui_view_api::touch::TouchPhase;
-pub use zero_ui_view_api::{
+use zng_app_context::app_local;
+use zng_ext_window::WINDOWS;
+use zng_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint};
+use zng_state_map::{state_map, StaticStateId};
+use zng_var::{impl_from_and_into_var, var, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var};
+use zng_view_api::touch::TouchPhase;
+pub use zng_view_api::{
     config::MultiClickConfig,
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
 };

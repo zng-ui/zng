@@ -3,7 +3,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 use crate::{
     access::AccessNodeId,
@@ -12,7 +12,7 @@ use crate::{
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
 };
-use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform, Rgba};
+use zng_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform, Rgba};
 
 crate::declare_id! {
     /// Window ID in channel.
@@ -90,7 +90,7 @@ impl RenderMode {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: RenderMode) -> Option<RenderMode>;
 }
 
@@ -667,7 +667,7 @@ pub enum CursorIcon {
 }
 
 #[cfg(feature = "var")]
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(some: CursorIcon) -> Option<CursorIcon>;
 }
 

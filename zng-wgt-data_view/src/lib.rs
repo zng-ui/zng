@@ -8,7 +8,7 @@
 use parking_lot::Mutex;
 use std::{any::TypeId, sync::Arc};
 
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 /// Arguments for the [`DataView!`] widget.
 ///
@@ -66,9 +66,9 @@ impl<D: VarValue> DataViewArgs<D> {
 /// The `DataView!` macro provides a shorthand init that sets `view` property directly.
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt_data_view::*;
-/// # use zero_ui_wgt::prelude::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt_data_view::*;
+/// # use zng_wgt::prelude::*;
 /// # fn main() { }
 /// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> impl UiNode {
 /// DataView!(::<T>, data, update)
@@ -80,9 +80,9 @@ impl<D: VarValue> DataViewArgs<D> {
 /// The shorthand is above expands to:
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt_data_view::*;
-/// # use zero_ui_wgt::prelude::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt_data_view::*;
+/// # use zng_wgt::prelude::*;
 /// # fn main() { }
 /// # fn shorthand_demo<T: VarValue>(data: impl IntoVar<T>, update: impl WidgetHandler<DataViewArgs<T>>) -> impl UiNode {
 /// DataView! {
@@ -102,13 +102,13 @@ pub struct DataView(WidgetBase);
 impl DataView {
     widget_impl! {
         /// Spacing around content, inside the border.
-        pub zero_ui_wgt_container::padding(padding: impl IntoVar<SideOffsets>);
+        pub zng_wgt_container::padding(padding: impl IntoVar<SideOffsets>);
 
         /// Content alignment.
-        pub zero_ui_wgt_container::child_align(align: impl IntoVar<Align>);
+        pub zng_wgt_container::child_align(align: impl IntoVar<Align>);
 
         /// Content overflow clipping.
-        pub zero_ui_wgt::clip_to_bounds(clip: impl IntoVar<bool>);
+        pub zng_wgt::clip_to_bounds(clip: impl IntoVar<bool>);
     }
 }
 

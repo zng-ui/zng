@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use zero_ui::view_process::prebuilt as view_process;
-use zero_ui::{
+use zng::view_process::prebuilt as view_process;
+use zng::{
     app, button,
     checkerboard::Checkerboard,
     clipboard,
@@ -20,7 +20,7 @@ use zero_ui::{
     widget::{background_color, border, BorderSides},
     window::{RenderMode, WindowState},
 };
-use zero_ui_wgt_webrender_debug as wr;
+use zng_wgt_webrender_debug as wr;
 
 fn main() {
     examples_util::print_info();
@@ -487,7 +487,7 @@ fn open_or_paste_image() -> impl UiNode {
                             },
                             Stack! {
                                 children = {
-                                    let cmd_btn = |cmd: zero_ui::event::Command| {
+                                    let cmd_btn = |cmd: zng::event::Command| {
                                         let cmd = cmd.scoped(WINDOW.id());
                                         Button! {
                                             padding = (2, 5);
@@ -574,7 +574,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
     }
 }
 
-#[zero_ui::prelude_wgt::widget($crate::ImgWindow {
+#[zng::prelude_wgt::widget($crate::ImgWindow {
     ($title:expr, $child:expr $(,)?) => {
         title = $title;
         child = $child;
@@ -583,7 +583,7 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
 pub struct ImgWindow(Window);
 impl ImgWindow {
     fn widget_intrinsic(&mut self) {
-        zero_ui::prelude_wgt::widget_set! {
+        zng::prelude_wgt::widget_set! {
             self;
             wr::renderer_debug = {
                 // wr::DebugFlags::TEXTURE_CACHE_DBG | wr::DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED

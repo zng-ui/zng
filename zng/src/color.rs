@@ -5,7 +5,7 @@
 //! The example demonstrates multiple ways of declaring or selecting a color, all blue in this case.
 //!  
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn sample(color: impl IntoVar<color::Rgba>) -> impl UiNode {
 //!     Wgt! {
@@ -32,7 +32,7 @@
 //! The [`Rgba`] type also provides methods for basic color manipulation and mixing.
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # fn sample(_: impl IntoVar<color::Rgba>) -> impl UiNode {
 //! # widget::node::NilUiNode
 //! # }
@@ -53,7 +53,7 @@
 //! familiar with from CSS.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -78,7 +78,7 @@
 //! [`widget::background_conic`]: fn@crate::widget::background_conic
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -102,23 +102,23 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_color`], [`zero_ui_wgt_filter`] and [`zero_ui_wgt_fill`] for the full API.
+//! See [`zng_color`], [`zng_wgt_filter`] and [`zng_wgt_fill`] for the full API.
 
-pub use zero_ui_color::{
+pub use zng_color::{
     color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, hex, hsl, hsla, hsla_linear_sampler, hsla_sampler, hsv, hsva,
     lerp_space, rgb, rgba, rgba_sampler, web_colors, with_lerp_space, ColorPair, ColorScheme, Hsla, Hsva, LerpSpace, MixAdjust,
     MixBlendMode, PreMulRgba, RenderMixBlendMode, Rgba, COLOR_SCHEME_VAR,
 };
 
-pub use zero_ui_wgt::color_scheme;
+pub use zng_wgt::color_scheme;
 
-pub use zero_ui_wgt_fill::node::flood;
+pub use zng_wgt_fill::node::flood;
 
 /// Color filter types and properties.
 pub mod filter {
-    pub use zero_ui_color::filter::{ColorMatrix, Filter, RenderFilter};
+    pub use zng_color::filter::{ColorMatrix, Filter, RenderFilter};
 
-    pub use zero_ui_wgt_filter::{
+    pub use zng_wgt_filter::{
         backdrop_blur, backdrop_brightness, backdrop_color_matrix, backdrop_contrast, backdrop_filter, backdrop_grayscale,
         backdrop_hue_rotate, backdrop_invert, backdrop_saturate, backdrop_sepia, blur, brightness, child_filter, child_mix_blend,
         child_opacity, color_matrix, contrast, drop_shadow, filter, grayscale, hue_rotate, invert_color, mix_blend, opacity, saturate,
@@ -128,12 +128,12 @@ pub mod filter {
 
 /// Color gradient types and nodes.
 pub mod gradient {
-    pub use zero_ui_color::gradient::{
+    pub use zng_color::gradient::{
         stops, ColorStop, ExtendMode, GradientRadius, GradientRadiusBase, GradientStop, GradientStops, LinearGradientAxis,
         RenderExtendMode, RenderGradientStop,
     };
 
-    pub use zero_ui_wgt_fill::node::{
+    pub use zng_wgt_fill::node::{
         conic_gradient, gradient, linear_gradient, radial_gradient, ConicGradient, GradientBuilder, LinearGradient, RadialGradient,
         TiledConicGradient, TiledLinearGradient, TiledRadialGradient,
     };

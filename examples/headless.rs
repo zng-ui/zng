@@ -1,6 +1,6 @@
 use std::{io::Write, path::PathBuf};
 
-use zero_ui::{
+use zng::{
     color::{
         self,
         gradient::{linear_gradient, GradientStops},
@@ -11,7 +11,7 @@ use zero_ui::{
     window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt},
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -113,7 +113,7 @@ fn images_render() {
 
     // request an image rendered from a node, the `Images` service will render the node and update the image
     // variable every time the node (re)renders.
-    let img = zero_ui::image::IMAGES.render_node(window::RenderMode::Software, 1.fct(), None, image);
+    let img = zng::image::IMAGES.render_node(window::RenderMode::Software, 1.fct(), None, image);
 
     app.run_task(async move {
         while img.with(Img::is_loading) {
@@ -138,7 +138,7 @@ fn images_render() {
     // to use, with the trade-off that you have less control over the headless window.
 }
 
-fn video(finished: zero_ui::var::ArcVar<bool>) -> impl UiNode {
+fn video(finished: zng::var::ArcVar<bool>) -> impl UiNode {
     let bkg_rotate = var(0.turn());
     let txt_fade = var(0.fct());
     let txt_size = var(32.dip());
@@ -215,7 +215,7 @@ fn headless_example_video() {
     APP.start_manual_time();
 
     const FPS: f32 = 60.0;
-    zero_ui::var::VARS.frame_duration().set((1.0 / FPS).secs());
+    zng::var::VARS.frame_duration().set((1.0 / FPS).secs());
 
     app.run_window(async {
         // will save frames as "{temp}/{frame}.png"
@@ -292,10 +292,10 @@ fn headless_example_video() {
             });
         }
     });
-    while !matches!(app.update(true), zero_ui::app::AppControlFlow::Exit) {}
+    while !matches!(app.update(true), zng::app::AppControlFlow::Exit) {}
 }
 
-fn print_status(task: &'static str, done: &zero_ui::var::ArcVar<bool>) {
+fn print_status(task: &'static str, done: &zng::var::ArcVar<bool>) {
     task::spawn(async_clmv!(done, {
         let mut dots = 0;
         while !done.get() {

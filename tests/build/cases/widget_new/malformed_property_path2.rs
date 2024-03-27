@@ -1,4 +1,4 @@
-use zero_ui::{widget::Wgt, APP};
+use zng::{widget::Wgt, APP};
 
 fn main() {
     let _scope = APP.minimal();

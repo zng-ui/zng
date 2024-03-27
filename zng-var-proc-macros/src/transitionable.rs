@@ -6,7 +6,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut errors = crate::util::Errors::default();
     let mut lerp_block = quote!();
 
-    let crate_ = quote!(::zero_ui_var);
+    let crate_ = quote!(::zng_var);
     let path = quote!(#crate_::animation::Transitionable);
 
     // params: self, to, step

@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use zero_ui_var::{animation::Transitionable, impl_from_and_into_var};
+use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::{impl_length_comp_conversions, DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector};
 
@@ -228,7 +228,7 @@ impl ops::SubAssign for Rect {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_layout::unit::*;
+/// # use zng_layout::unit::*;
 /// let rect = (800, 600).at(10, 20);
 /// assert_eq!(Rect::new(Point::new(10, 20), Size::new(800, 600)), rect);
 /// ```

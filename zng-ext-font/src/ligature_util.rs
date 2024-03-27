@@ -10,7 +10,7 @@ NULL     = 0
 use core::cmp;
 
 use byteorder::{BigEndian, ReadBytesExt};
-use zero_ui_view_api::font::GlyphIndex;
+use zng_view_api::font::GlyphIndex;
 
 const GDEF: u32 = u32::from_be_bytes(*b"GDEF");
 

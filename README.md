@@ -20,10 +20,10 @@ zng = { version = "0.1", features = ["view_prebuilt"] }
 Then create your first window:
 
 ```rust ,no_run
-use zero_ui::prelude::*;
+use zng::prelude::*;
 
 fn main() {
-    zero_ui::view_process::prebuilt::init();
+    zng::view_process::prebuilt::init();
     APP.defaults().run_window(async {
         let size = var(layout::Size::new(800, 600));
         Window! {

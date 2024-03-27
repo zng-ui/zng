@@ -1,10 +1,10 @@
-use zero_ui_ext_input::mouse::{ClickMode, WidgetInfoBuilderMouseExt as _, MOUSE_HOVERED_EVENT};
-use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_wgt::prelude::*;
+use zng_ext_input::mouse::{ClickMode, WidgetInfoBuilderMouseExt as _, MOUSE_HOVERED_EVENT};
+use zng_ext_window::WINDOW_Ext as _;
+use zng_wgt::prelude::*;
 
-pub use zero_ui_view_api::window::CursorIcon;
+pub use zng_view_api::window::CursorIcon;
 
-pub use zero_ui_ext_window::CursorImg;
+pub use zng_ext_window::CursorImg;
 
 /// Sets the [`CursorIcon`] displayed when hovering the widget.
 ///

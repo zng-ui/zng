@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use zero_ui::{
+use zng::{
     button,
     color::{ColorScheme, Rgba},
     image,
@@ -20,7 +20,7 @@ use zero_ui::{
     window::RenderMode,
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();

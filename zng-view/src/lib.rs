@@ -19,10 +19,10 @@
 //!
 //! ```
 //! # macro_rules! _demo {()=>{
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn main() {
-//!     zero_ui_view::init();
+//!     zng_view::init();
 //!
 //!     APP.defaults().run_window(|ctx| {
 //!         unimplemented!()
@@ -69,11 +69,11 @@
 //! Then in the `main.rs` file:
 //!
 //! ```no_run
-//! # mod zero_ui_view_prebuilt { pub fn init() { } }
-//! use zero_ui_view_prebuilt as zero_ui_view;
+//! # mod zng_view_prebuilt { pub fn init() { } }
+//! use zng_view_prebuilt as zng_view;
 //!
 //! fn main() {
-//!     zero_ui_view::init();
+//!     zng_view::init();
 //!     
 //!     // APP.defaults().run ..
 //! }
@@ -140,9 +140,9 @@ pub use gleam;
 
 use webrender::api::*;
 use window::Window;
-use zero_ui_txt::Txt;
-use zero_ui_unit::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
-use zero_ui_view_api::{
+use zng_txt::Txt;
+use zng_unit::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
+use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
@@ -1796,7 +1796,7 @@ impl Api for App {
 
     #[cfg(windows)]
     fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
-        use zero_ui_txt::formatx;
+        use zng_txt::formatx;
 
         match data {
             clipboard::ClipboardData::Text(t) => {
@@ -1837,7 +1837,7 @@ impl Api for App {
                 .arboard()?
                 .get_text()
                 .map_err(util::arboard_to_clip)
-                .map(|s| clipboard::ClipboardData::Text(zero_ui_txt::Txt::from(s))),
+                .map(|s| clipboard::ClipboardData::Text(zng_txt::Txt::from(s))),
             clipboard::ClipboardType::Image => {
                 let bitmap = self.arboard()?.get_image().map_err(util::arboard_to_clip)?;
                 let mut data = bitmap.bytes.into_owned();
@@ -1846,7 +1846,7 @@ impl Api for App {
                 }
                 let id = self.image_cache.add(image::ImageRequest {
                     format: image::ImageDataFormat::Bgra8 {
-                        size: zero_ui_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
+                        size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         ppi: None,
                     },
                     data: IpcBytes::from_vec(data),
@@ -1881,7 +1881,7 @@ impl Api for App {
                     });
                     Ok(())
                 } else {
-                    Err(clipboard::ClipboardError::Other(zero_ui_txt::Txt::from_static("image not found")))
+                    Err(clipboard::ClipboardError::Other(zng_txt::Txt::from_static("image not found")))
                 }
             }
             clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),

@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use zero_ui_app::widget::info;
+use zng_app::widget::info;
 
 /// Sets the widget visibility.
 ///
@@ -14,7 +14,7 @@ use zero_ui_app::widget::info;
 /// [`is_visible`]: fn@is_visible
 /// [`is_hidden`]: fn@is_hidden
 /// [`is_collapsed`]: fn@is_collapsed
-/// [`WidgetInfo::visibility`]: zero_ui_app::widget::info::WidgetInfo::visibility
+/// [`WidgetInfo::visibility`]: zng_app::widget::info::WidgetInfo::visibility
 #[property(CONTEXT, default(true))]
 pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> impl UiNode {
     let visibility = visibility.into_var();
@@ -134,7 +134,7 @@ pub fn is_collapsed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
 ///
 /// ```
 /// # macro_rules! Container { ($($tt:tt)*) => { NilUiNode }}
-/// # use zero_ui_app::widget::node::*;
+/// # use zng_app::widget::node::*;
 /// fn center_viewport(msg: impl UiNode) -> impl UiNode {
 ///     Container! {
 ///         layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l() - 1.vw() / s * h);

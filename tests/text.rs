@@ -1,6 +1,6 @@
 use std::fmt::Write as _;
 
-use zero_ui::{
+use zng::{
     font::SegmentedText,
     layout::TextSegmentKind,
     prelude_wgt::{LayoutDirection, Txt},

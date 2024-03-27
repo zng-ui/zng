@@ -1,4 +1,4 @@
-use zero_ui_app_proc_macros::widget;
+use zng_app_proc_macros::widget;
 
 #[widget($crate::tests::FooA)]
 pub struct Foo(crate::widget::base::WidgetBase);

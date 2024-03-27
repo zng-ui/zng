@@ -6,11 +6,11 @@
 use std::fmt;
 
 use bitflags::bitflags;
-use zero_ui_txt::{ToTxt, Txt};
-use zero_ui_var::{impl_from_and_into_var, BoxedVar, Var};
+use zng_txt::{ToTxt, Txt};
+use zng_var::{impl_from_and_into_var, BoxedVar, Var};
 
 #[doc(hidden)]
-pub use zero_ui_view_api::keyboard::{Key, KeyCode};
+pub use zng_view_api::keyboard::{Key, KeyCode};
 
 use crate::event::{Command, CommandMetaVar, StaticCommandMetaVarId};
 
@@ -868,7 +868,7 @@ macro_rules! __shortcut {
 /// # Examples
 ///
 /// ```
-/// use zero_ui_app::shortcut::{Shortcut, shortcut};
+/// use zng_app::shortcut::{Shortcut, shortcut};
 ///
 /// fn single_key() -> Shortcut {
 ///     shortcut!(Enter)

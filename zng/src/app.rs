@@ -27,11 +27,11 @@
 //! ```
 //!
 //! ```no_run
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn main() {
 //!     app_and_view();
-//!     zero_ui::view_process::prebuilt::init(); // init only returns if it is not called in the view-process.
+//!     zng::view_process::prebuilt::init(); // init only returns if it is not called in the view-process.
 //!     app();
 //! }
 //!
@@ -55,10 +55,10 @@
 //! will also run in a different thread, not the main.
 //!
 //! ```no_run
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn main() {
-//!     zero_ui::view_process::prebuilt::run_same_process(app);
+//!     zng::view_process::prebuilt::run_same_process(app);
 //! }
 //!
 //! fn app() {
@@ -75,7 +75,7 @@
 //! This mode is useful for running integration tests, or for rendering images.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! let mut app = APP.defaults().run_headless(/* with_renderer: */ false);
 //! app.run_window(async {
@@ -109,7 +109,7 @@
 //! that is not a requirement.
 //!
 //! ```
-//! use zero_ui::{app::{AppExtended, AppExtension}, APP};
+//! use zng::{app::{AppExtended, AppExtension}, APP};
 //!
 //! #[derive(Default)]
 //! pub struct HelloManager {}
@@ -142,7 +142,7 @@
 //! This is because services are a kind of *singleton*. The service API is implemented as methods on the service struct.
 //!
 //! ```
-//! # use zero_ui::var::*;
+//! # use zng::var::*;
 //! #[allow(non_camel_case_types)]
 //! pub struct SCREAMING_CASE;
 //! impl SCREAMING_CASE {
@@ -177,7 +177,7 @@
 //!
 //! This is even true for the [`INSTANT`] service, although this can be configured for this service using [`APP.pause_time_for_update`].
 //!
-//! [`APP.pause_time_for_update`]: zero_ui_app::APP::pause_time_for_update
+//! [`APP.pause_time_for_update`]: zng_app::APP::pause_time_for_update
 //!
 //! ### Examples
 //!
@@ -195,7 +195,7 @@
 //! The example below demonstrates an app extension implementation that provides a service.
 //!
 //! ```
-//! use zero_ui::{prelude_wgt::*, app::AppExtension};
+//! use zng::{prelude_wgt::*, app::AppExtension};
 //!
 //! /// Foo service.
 //! pub struct FOO;
@@ -394,18 +394,18 @@
 //! # Full API
 //!
 //! This module provides most of the app API needed to make and extend apps, some more advanced or experimental API
-//! may be available at the [`zero_ui_app`] and [`zero_ui_app_context`] base crates.
+//! may be available at the [`zng_app`] and [`zng_app_context`] base crates.
 
-pub use zero_ui_app::{
+pub use zng_app::{
     AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, DInstant, Deadline,
     ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
 };
-pub use zero_ui_app_context::{
+pub use zng_app_context::{
     app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,
     MappedRwLockReadGuardOwned, MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned,
     StaticAppId,
 };
-pub use zero_ui_wgt_input::cmd::{
+pub use zng_wgt_input::cmd::{
     on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as, NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD,
 };
 
@@ -413,9 +413,9 @@ pub use zero_ui_wgt_input::cmd::{
 ///
 /// # Full API
 ///
-/// See [`zero_ui_app::view_process::raw_device_events`] for the full API.
+/// See [`zng_app::view_process::raw_device_events`] for the full API.
 pub mod raw_device_events {
-    pub use zero_ui_app::view_process::raw_device_events::{
+    pub use zng_app::view_process::raw_device_events::{
         DeviceArgs, DeviceId, MotionArgs, StaticDeviceId, DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, MOTION_EVENT,
     };
 }

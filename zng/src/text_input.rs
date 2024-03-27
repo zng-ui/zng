@@ -5,12 +5,12 @@
 //! The example below defines 3 text inputs with the [`FieldStyle!`](struct@FieldStyle).
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
 //! Stack! {
-//!     zero_ui::text_input::style_fn = style_fn!(|_| zero_ui::text_input::FieldStyle!());
+//!     zng::text_input::style_fn = style_fn!(|_| zng::text_input::FieldStyle!());
 //!     children = ui_vec![
 //!         TextInput! {
 //!             txt = var(Txt::from("name"));
@@ -18,7 +18,7 @@
 //!         },
 //!         TextInput! {
 //!             txt_parse = var(0u32);
-//!             zero_ui::text_input::field_help = "help text";
+//!             zng::text_input::field_help = "help text";
 //!             // txt_parse_on_stop = true;
 //!         },
 //!         TextInput! {
@@ -39,8 +39,8 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_text_input`] for the full widget API.
+//! See [`zng_wgt_text_input`] for the full widget API.
 
-pub use zero_ui_wgt_text_input::{
+pub use zng_wgt_text_input::{
     base_colors, data_notes_adorner_fn, field_help, max_chars_count_adorner_fn, style_fn, DefaultStyle, FieldStyle, TextInput,
 };

@@ -19,10 +19,10 @@
 //! Then create your first app:
 //!
 //! ```no_run
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! fn main() {
-//!     zero_ui::view_process::prebuilt::init();
+//!     zng::view_process::prebuilt::init();
 //!     app();
 //! }
 //!
@@ -57,7 +57,7 @@
 //! The high-level building blocks of UI.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -88,7 +88,7 @@
 //! explicitly associated with the widget, but that is only a starting point.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _app = APP.minimal();
 //! # let _ =
@@ -136,7 +136,7 @@
 //! Observable values that glue most of the UI together.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _app = APP.minimal();
 //! let btn_pressed = var(false);
@@ -172,7 +172,7 @@
 //! contextual value. Variables can also depend on other variables automatically updating when input variables update.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _app = APP.minimal();
 //! fn ui(txt: impl IntoVar<Txt>) -> impl UiNode {
@@ -217,7 +217,7 @@
 //! Context or *ambient* values set on parent widgets affecting descendant widgets.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let _app = APP.minimal();
 //! # let _ =
@@ -248,7 +248,7 @@
 //! value is still contextual, but texts are usually leaf widgets so only the text is affected.
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # let _app = APP.minimal();
 //! # let _ =
 //! Text! {
@@ -269,8 +269,8 @@
 //! App or contextual value and function providers.
 //!
 //! ```
-//! use zero_ui::prelude::*;
-//! use zero_ui::clipboard::CLIPBOARD;
+//! use zng::prelude::*;
+//! use zng::clipboard::CLIPBOARD;
 //!
 //! # let _app = APP.minimal();
 //! # let _ =
@@ -337,7 +337,7 @@
 //! Targeted messages send from the system to widgets or from one widget to another.
 //!
 //! ```no_run
-//! use zero_ui::{prelude::*, clipboard::{on_paste, CLIPBOARD, PASTE_CMD}};
+//! use zng::{prelude::*, clipboard::{on_paste, CLIPBOARD, PASTE_CMD}};
 //!
 //! APP.defaults().run_window(async {
 //!     let cmd = PASTE_CMD.scoped(WINDOW.id());
@@ -406,7 +406,7 @@
 //! Contextual properties and constraints that affect how a widget is sized and placed on the screen.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _app = APP.minimal();
 //!
 //! # let _ =
@@ -443,11 +443,11 @@
 // macro-expanded `extern crate` items cannot shadow names passed with `--extern`
 #[doc(hidden)]
 #[allow(unused_extern_crates)]
-extern crate self as zero_ui;
+extern crate self as zng;
 #[doc(hidden)]
-pub use zero_ui_app::__proc_macro_util;
+pub use zng_app::__proc_macro_util;
 
-pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
+pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
 pub mod access;
 pub mod ansi_text;
@@ -505,10 +505,10 @@ pub mod wrap;
 /// Start and manage an app process.
 pub struct APP;
 impl std::ops::Deref for APP {
-    type Target = zero_ui_app::APP;
+    type Target = zng_app::APP;
 
     fn deref(&self) -> &Self::Target {
-        &zero_ui_app::APP
+        &zng_app::APP
     }
 }
 
@@ -523,17 +523,17 @@ mod __prelude {
     pub use crate::APP;
     pub use crate::{color, gesture, keyboard, layout, mouse, task, timer, touch, widget};
 
-    pub use zero_ui_task::rayon::prelude::{
+    pub use zng_task::rayon::prelude::{
         FromParallelIterator as _, IndexedParallelIterator as _, IntoParallelIterator as _, IntoParallelRefIterator as _,
         IntoParallelRefMutIterator as _, ParallelBridge as _, ParallelDrainFull as _, ParallelDrainRange as _, ParallelExtend as _,
         ParallelIterator as _, ParallelSlice as _, ParallelSliceMut as _, ParallelString as _,
     };
 
-    pub use zero_ui_task::io::{
+    pub use zng_task::io::{
         AsyncBufRead as _, AsyncRead as _, AsyncReadExt as _, AsyncSeek as _, AsyncSeekExt as _, AsyncWrite as _, AsyncWriteExt as _,
     };
 
-    pub use zero_ui_app::{
+    pub use zng_app::{
         event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, CommandParam, EventArgs as _},
         handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
         shortcut::{shortcut, CommandShortcutExt as _},
@@ -546,107 +546,107 @@ mod __prelude {
         INSTANT,
     };
 
-    pub use zero_ui_app::widget::inspector::WidgetInfoInspectorExt as _;
+    pub use zng_app::widget::inspector::WidgetInfoInspectorExt as _;
 
-    pub use zero_ui_var::{
+    pub use zng_var::{
         context_var, expr_var, getter_var, merge_var, state_var, var, var_from, when_var, AnyVar as _, AnyWeakVar as _, IntoValue, IntoVar,
         Var, VarValue, WeakVar as _,
     };
 
     pub use crate::var::animation::easing;
 
-    pub use zero_ui_layout::unit::{
+    pub use zng_layout::unit::{
         Align, AngleUnits as _, ByteUnits as _, DipToPx as _, FactorUnits as _, Layout1d as _, Layout2d as _, Length, LengthUnits as _,
         LineFromTuplesBuilder as _, PxToDip as _, RectFromTuplesBuilder as _, ResolutionUnits as _, TimeUnits as _,
     };
 
-    pub use zero_ui_txt::{formatx, ToTxt as _, Txt};
+    pub use zng_txt::{formatx, ToTxt as _, Txt};
 
-    pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
+    pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
-    pub use zero_ui_color::{colors, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors, MixAdjust as _};
+    pub use zng_color::{colors, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors, MixAdjust as _};
 
-    pub use zero_ui_ext_clipboard::CLIPBOARD;
+    pub use zng_ext_clipboard::CLIPBOARD;
 
-    pub use zero_ui_ext_config::CONFIG;
+    pub use zng_ext_config::CONFIG;
 
-    pub use zero_ui_ext_font::{FontStretch, FontStyle, FontWeight};
+    pub use zng_ext_font::{FontStretch, FontStyle, FontWeight};
 
-    pub use zero_ui_ext_image::ImageSource;
+    pub use zng_ext_image::ImageSource;
 
-    pub use zero_ui_wgt_image::Image;
+    pub use zng_wgt_image::Image;
 
-    pub use zero_ui_ext_input::{
+    pub use zng_ext_input::{
         focus::{cmd::CommandFocusExt as _, iter::IterFocusableExt as _, WidgetInfoFocusExt as _, FOCUS},
         gesture::{CommandShortcutMatchesExt as _, HeadlessAppGestureExt as _},
         keyboard::HeadlessAppKeyboardExt as _,
         mouse::WidgetInfoMouseExt as _,
     };
 
-    pub use zero_ui_ext_l10n::{l10n, lang, L10N};
+    pub use zng_ext_l10n::{l10n, lang, L10N};
 
-    pub use zero_ui_wgt_text::lang;
+    pub use zng_wgt_text::lang;
 
-    pub use zero_ui_ext_undo::{CommandUndoExt as _, REDO_CMD, UNDO, UNDO_CMD};
+    pub use zng_ext_undo::{CommandUndoExt as _, REDO_CMD, UNDO, UNDO_CMD};
 
-    pub use zero_ui_ext_window::{
+    pub use zng_ext_window::{
         AppRunWindowExt as _, HeadlessAppWindowExt as _, WINDOW_Ext as _, WidgetInfoImeArea as _, WindowCloseRequestedArgs, WindowIcon,
         WINDOWS,
     };
 
-    pub use zero_ui_wgt::Wgt;
+    pub use zng_wgt::Wgt;
 
     pub use crate::text;
-    pub use zero_ui_wgt_text::Text;
+    pub use zng_wgt_text::Text;
 
-    pub use zero_ui_wgt_text_input::{selectable::SelectableText, TextInput};
+    pub use zng_wgt_text_input::{selectable::SelectableText, TextInput};
 
     pub use crate::window;
-    pub use zero_ui_wgt_window::Window;
+    pub use zng_wgt_window::Window;
 
-    pub use zero_ui_wgt_container::Container;
+    pub use zng_wgt_container::Container;
 
-    pub use zero_ui_wgt_button::Button;
+    pub use zng_wgt_button::Button;
 
-    pub use zero_ui_wgt_data::{data, DATA};
+    pub use zng_wgt_data::{data, DATA};
 
     pub use crate::grid;
-    pub use zero_ui_wgt_grid::Grid;
+    pub use zng_wgt_grid::Grid;
 
     pub use crate::layer;
-    pub use zero_ui_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
+    pub use zng_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
 
-    pub use zero_ui_wgt_text::icon::CommandIconExt as _;
+    pub use zng_wgt_text::icon::CommandIconExt as _;
 
     pub use crate::popup;
-    pub use zero_ui_wgt_layer::popup::POPUP;
+    pub use zng_wgt_layer::popup::POPUP;
 
     pub use crate::menu;
-    pub use zero_ui_wgt_menu::{
+    pub use zng_wgt_menu::{
         context::{context_menu, context_menu_fn, ContextMenu},
         sub::SubMenu,
         Menu,
     };
 
-    pub use zero_ui_wgt_rule_line::hr::Hr;
+    pub use zng_wgt_rule_line::hr::Hr;
 
-    pub use zero_ui_wgt_scroll::{Scroll, SCROLL};
+    pub use zng_wgt_scroll::{Scroll, SCROLL};
 
     pub use crate::toggle;
-    pub use zero_ui_wgt_toggle::Toggle;
+    pub use zng_wgt_toggle::Toggle;
 
     pub use crate::tip;
-    pub use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip};
+    pub use zng_wgt_tooltip::{tooltip, tooltip_fn, Tip};
 
-    pub use zero_ui_wgt::{wgt_fn, WidgetFn};
+    pub use zng_wgt::{wgt_fn, WidgetFn};
 
-    pub use zero_ui_wgt_style::{style_fn, Style};
+    pub use zng_wgt_style::{style_fn, Style};
 
-    pub use zero_ui_wgt_stack::{Stack, StackDirection};
+    pub use zng_wgt_stack::{Stack, StackDirection};
 
-    pub use zero_ui_wgt_wrap::Wrap;
+    pub use zng_wgt_wrap::Wrap;
 
-    pub use zero_ui_wgt_data_view::{DataView, DataViewArgs};
+    pub use zng_wgt_data_view::{DataView, DataViewArgs};
 }
 
 /// Prelude for declaring new properties and widgets.
@@ -657,7 +657,7 @@ mod __prelude {
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::{prelude::*, prelude_wgt::*};
+/// use zng::{prelude::*, prelude_wgt::*};
 ///
 /// /// A button with only text child.
 /// #[widget($crate::TextButton)]
@@ -683,7 +683,7 @@ pub mod prelude_wgt {
     pub use crate::__prelude_wgt::*;
 }
 mod __prelude_wgt {
-    pub use zero_ui_app::{
+    pub use zng_app::{
         event::{
             command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam,
             Event, EventArgs as _, EventHandle, EventHandles, EventPropagationHandle,
@@ -714,13 +714,13 @@ mod __prelude_wgt {
         DInstant, Deadline, INSTANT,
     };
 
-    pub use zero_ui_var::{
+    pub use zng_var::{
         context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var,
         AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar,
         ResponseVar, Var, VarCapabilities, VarHandle, VarHandles, VarValue, WeakVar as _,
     };
 
-    pub use zero_ui_layout::{
+    pub use zng_layout::{
         context::{LayoutDirection, LayoutMetrics, DIRECTION_VAR, LAYOUT},
         unit::{
             Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Dip, DipBox, DipPoint, DipRect, DipSideOffsets,
@@ -731,56 +731,56 @@ mod __prelude_wgt {
         },
     };
 
-    pub use zero_ui_txt::{formatx, ToTxt as _, Txt};
+    pub use zng_txt::{formatx, ToTxt as _, Txt};
 
-    pub use zero_ui_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
+    pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
     pub use crate::task;
 
-    pub use zero_ui_app_context::{
+    pub use zng_app_context::{
         app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext, RunOnDrop,
     };
 
     pub use crate::state_map;
-    pub use zero_ui_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
+    pub use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
 
-    pub use zero_ui_wgt::prelude::{IdEntry, IdMap, IdSet};
+    pub use zng_wgt::prelude::{IdEntry, IdMap, IdSet};
 
-    pub use zero_ui_wgt::{wgt_fn, WidgetFn};
+    pub use zng_wgt::{wgt_fn, WidgetFn};
 
-    pub use zero_ui_color::{
+    pub use zng_color::{
         color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, web_colors,
         ColorPair, ColorScheme, Hsla, Hsva, MixAdjust as _, MixBlendMode, Rgba,
     };
 
-    pub use zero_ui_wgt::node::{
+    pub use zng_wgt::node::{
         bind_state, border_node, command_property, event_property, event_state, event_state2, event_state3, event_state4, fill_node,
         list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
         with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
 
-    pub use zero_ui_ext_window::WidgetInfoBuilderImeArea as _;
+    pub use zng_ext_window::WidgetInfoBuilderImeArea as _;
 }
 
 mod defaults {
-    use zero_ui_app::{AppExtended, AppExtension};
-    use zero_ui_ext_clipboard::ClipboardManager;
-    use zero_ui_ext_config::ConfigManager;
-    use zero_ui_ext_font::FontManager;
-    use zero_ui_ext_fs_watcher::FsWatcherManager;
-    use zero_ui_ext_image::ImageManager;
-    use zero_ui_ext_input::{
+    use zng_app::{AppExtended, AppExtension};
+    use zng_ext_clipboard::ClipboardManager;
+    use zng_ext_config::ConfigManager;
+    use zng_ext_font::FontManager;
+    use zng_ext_fs_watcher::FsWatcherManager;
+    use zng_ext_image::ImageManager;
+    use zng_ext_input::{
         focus::FocusManager, gesture::GestureManager, keyboard::KeyboardManager, mouse::MouseManager,
         pointer_capture::PointerCaptureManager, touch::TouchManager,
     };
-    use zero_ui_ext_l10n::L10nManager;
-    use zero_ui_ext_undo::UndoManager;
-    use zero_ui_ext_window::WindowManager;
+    use zng_ext_l10n::L10nManager;
+    use zng_ext_undo::UndoManager;
+    use zng_ext_window::WindowManager;
 
     #[cfg(dyn_app_extension)]
     macro_rules! DefaultsAppExtended {
         () => {
-            AppExtended<Vec<Box<dyn zero_ui_app::AppExtensionBoxed>>>
+            AppExtended<Vec<Box<dyn zng_app::AppExtensionBoxed>>>
         }
     }
     #[cfg(not(dyn_app_extension))]
@@ -813,7 +813,7 @@ mod defaults {
         /// * [`UndoManager`]
         /// * [`MaterialFonts`] if any `"material_icons*"` feature is enabled.
         ///
-        /// [`MaterialFonts`]: zero_ui_wgt_material_icons::MaterialFonts
+        /// [`MaterialFonts`]: zng_wgt_material_icons::MaterialFonts
         pub fn defaults(&self) -> DefaultsAppExtended![] {
             let r = self
                 .minimal()
@@ -838,7 +838,7 @@ mod defaults {
                 feature = "material_icons_rounded",
                 feature = "material_icons_sharp",
             ))]
-            let r = r.extend(zero_ui_wgt_material_icons::MaterialFonts);
+            let r = r.extend(zng_wgt_material_icons::MaterialFonts);
 
             r.extend(DefaultsInit {})
         }
@@ -847,33 +847,33 @@ mod defaults {
     struct DefaultsInit {}
     impl AppExtension for DefaultsInit {
         fn init(&mut self) {
-            zero_ui_ext_window::WINDOWS.register_root_extender(|a| {
+            zng_ext_window::WINDOWS.register_root_extender(|a| {
                 let child = a.root;
 
                 #[cfg(inspector)]
-                let child = zero_ui_wgt_inspector::inspector(child, zero_ui_wgt_inspector::live_inspector(true));
+                let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
 
                 // setup COLOR_SCHEME_VAR for all windows, this is not done in `Window!` because
                 // WindowRoot is used directly by some headless renderers.
-                zero_ui_wgt::node::with_context_var_init(child, zero_ui_color::COLOR_SCHEME_VAR, || {
-                    use zero_ui_ext_window::WINDOW_Ext as _;
-                    use zero_ui_var::Var as _;
+                zng_wgt::node::with_context_var_init(child, zng_color::COLOR_SCHEME_VAR, || {
+                    use zng_ext_window::WINDOW_Ext as _;
+                    use zng_var::Var as _;
 
-                    zero_ui_app::window::WINDOW.vars().actual_color_scheme().boxed()
+                    zng_app::window::WINDOW.vars().actual_color_scheme().boxed()
                 })
             });
 
             #[cfg(feature = "material_icons_outlined")]
             {
-                use zero_ui_ext_clipboard::*;
-                use zero_ui_ext_undo::*;
-                use zero_ui_ext_window::cmd::*;
-                use zero_ui_wgt::wgt_fn;
-                use zero_ui_wgt_input::cmd::*;
-                use zero_ui_wgt_material_icons::outlined as icons;
-                use zero_ui_wgt_scroll::cmd::*;
-                use zero_ui_wgt_text::icon::CommandIconExt as _;
-                use zero_ui_wgt_text::icon::Icon;
+                use zng_ext_clipboard::*;
+                use zng_ext_undo::*;
+                use zng_ext_window::cmd::*;
+                use zng_wgt::wgt_fn;
+                use zng_wgt_input::cmd::*;
+                use zng_wgt_material_icons::outlined as icons;
+                use zng_wgt_scroll::cmd::*;
+                use zng_wgt_text::icon::CommandIconExt as _;
+                use zng_wgt_text::icon::Icon;
 
                 CUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CUT)));
                 COPY_CMD.init_icon(wgt_fn!(|_| Icon!(icons::COPY)));
@@ -890,7 +890,7 @@ mod defaults {
                 CONTEXT_MENU_CMD.init_icon(wgt_fn!(|_| Icon!(icons::MENU_OPEN)));
 
                 #[cfg(feature = "inspector")]
-                zero_ui_wgt_inspector::INSPECT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::SCREEN_SEARCH_DESKTOP)));
+                zng_wgt_inspector::INSPECT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::SCREEN_SEARCH_DESKTOP)));
 
                 SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(icons::VERTICAL_ALIGN_TOP)));
                 SCROLL_TO_BOTTOM_CMD.init_icon(wgt_fn!(|_| Icon!(icons::VERTICAL_ALIGN_BOTTOM)));

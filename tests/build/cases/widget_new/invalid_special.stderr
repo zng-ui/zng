@@ -7,7 +7,7 @@ error: unknown special value, expected `unset!`
 warning: unused import: `widget::background_color`
  --> cases/widget_new/invalid_special.rs:1:31
   |
-1 | use zero_ui::{button::Button, widget::background_color, APP};
+1 | use zng::{button::Button, widget::background_color, APP};
   |                               ^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

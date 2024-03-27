@@ -1,4 +1,4 @@
-use zero_ui::{layout::margin, widget::Wgt, APP};
+use zng::{layout::margin, widget::Wgt, APP};
 
 fn main() {
     let _scope = APP.minimal();

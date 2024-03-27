@@ -9,7 +9,7 @@
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_var::*;
+/// # use zng_var::*;
 /// let var_a = var(10);
 /// let var_b = var(10);
 /// let name = "var_eq";
@@ -64,7 +64,7 @@ macro_rules! expr_var {
 }
 
 #[doc(hidden)]
-pub use zero_ui_var_proc_macros::expr_var as __expr_var;
+pub use zng_var_proc_macros::expr_var as __expr_var;
 
 use super::{IntoVar, Var, VarValue};
 

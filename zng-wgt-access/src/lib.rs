@@ -8,9 +8,9 @@
 //! must also be focusable and handle click events, an [`AccessRole::TabList`] must contain widgets
 //! marked [`AccessRole::Tab`].
 //!
-//! [`AccessRole::Button`]: zero_ui_app::widget::info::access::AccessRole::Button
-//! [`AccessRole::TabList`]: zero_ui_app::widget::info::access::AccessRole::TabList
-//! [`AccessRole::Tab`]: zero_ui_app::widget::info::access::AccessRole::Tab
+//! [`AccessRole::Button`]: zng_app::widget::info::access::AccessRole::Button
+//! [`AccessRole::TabList`]: zng_app::widget::info::access::AccessRole::TabList
+//! [`AccessRole::Tab`]: zng_app::widget::info::access::AccessRole::Tab
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]

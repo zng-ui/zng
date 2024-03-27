@@ -7,15 +7,15 @@
 //!
 //! The icons are from the [Material Design Icons] project.
 //!
-//! [`Icon!`]: struct@zero_ui_wgt_text::icon::Icon
+//! [`Icon!`]: struct@zng_wgt_text::icon::Icon
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
 use std::{fmt, mem};
-use zero_ui_ext_font::FontName;
-use zero_ui_wgt_text::icon::GlyphIcon;
+use zng_ext_font::FontName;
+use zng_wgt_text::icon::GlyphIcon;
 
 /// Material fonts.
 ///
@@ -41,13 +41,13 @@ impl MaterialFonts {
         ];
 
         for (name, bytes) in sets {
-            let font = zero_ui_ext_font::CustomFont::from_bytes(name, zero_ui_ext_font::FontDataRef::from_static(bytes), 0);
-            zero_ui_ext_font::FONTS.register(font);
+            let font = zng_ext_font::CustomFont::from_bytes(name, zng_ext_font::FontDataRef::from_static(bytes), 0);
+            zng_ext_font::FONTS.register(font);
         }
     }
 }
 #[cfg(feature = "embedded")]
-impl zero_ui_app::AppExtension for MaterialFonts {
+impl zng_app::AppExtension for MaterialFonts {
     fn init(&mut self) {
         MaterialFonts::register();
     }
@@ -69,7 +69,7 @@ impl MaterialIcon {
         format!("{self}")
     }
 }
-zero_ui_var::impl_from_and_into_var! {
+zng_var::impl_from_and_into_var! {
     fn from(icon: MaterialIcon) -> GlyphIcon {
         GlyphIcon::new(icon.font, icon.code)
     }

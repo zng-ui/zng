@@ -1,4 +1,4 @@
-use zero_ui_app::widget::border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR, CORNER_RADIUS_FIT_VAR, CORNER_RADIUS_VAR};
+use zng_app::widget::border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR, CORNER_RADIUS_FIT_VAR, CORNER_RADIUS_VAR};
 
 use crate::prelude::*;
 
@@ -6,7 +6,7 @@ use crate::prelude::*;
 ///
 /// The [`Default`] value is calculated to fit inside the parent widget corner curve, see [`corner_radius_fit`] for more details.
 ///
-/// [`Default`]: zero_ui_layout::unit::Length::Default
+/// [`Default`]: zng_layout::unit::Length::Default
 /// [`corner_radius_fit`]: fn@corner_radius_fit
 #[property(CONTEXT, default(CORNER_RADIUS_VAR))]
 pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> impl UiNode {
@@ -26,7 +26,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 /// Sets the [`CORNER_RADIUS_FIT_VAR`].
 ///
 /// [`corner_radius`]: fn@corner_radius
-/// [`BORDER`]: zero_ui_app::widget::border::BORDER
+/// [`BORDER`]: zng_app::widget::border::BORDER
 #[property(CONTEXT, default(CORNER_RADIUS_FIT_VAR))]
 pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>) -> impl UiNode {
     with_context_var(child, CORNER_RADIUS_FIT_VAR, fit)
@@ -76,10 +76,10 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// A border of width `1.dip()`, solid color `BLUE` in all border sides and corner radius `4.dip()`.
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::Wgt;
-/// # use zero_ui_wgt::{corner_radius, border};
-/// # use zero_ui_color::colors;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::Wgt;
+/// # use zng_wgt::{corner_radius, border};
+/// # use zng_color::colors;
 /// # fn main() {
 /// # let _ =
 /// Wgt! {
@@ -94,11 +94,11 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// line to a different style and color.
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::Wgt;
-/// # use zero_ui_wgt::{corner_radius, border};
-/// # use zero_ui_app::widget::border::{BorderSide, BorderSides};
-/// # use zero_ui_color::colors;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::Wgt;
+/// # use zng_wgt::{corner_radius, border};
+/// # use zng_app::widget::border::{BorderSide, BorderSides};
+/// # use zng_color::colors;
 /// # fn main() {
 /// # let _ =
 /// Wgt! {
@@ -122,7 +122,7 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// new border property by copying the signature of this one:
 ///
 /// ```
-/// # use zero_ui_wgt::prelude::*;
+/// # use zng_wgt::prelude::*;
 /// #
 /// /// Another border property.
 /// #[property(BORDER, default(0, BorderStyle::Hidden))]
@@ -131,7 +131,7 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 ///     widths: impl IntoVar<SideOffsets>,
 ///     sides: impl IntoVar<BorderSides>
 /// ) -> impl UiNode {
-///     zero_ui_wgt::border(child, widths, sides)
+///     zng_wgt::border(child, widths, sides)
 /// }
 /// #
 /// # fn main() { }
@@ -140,15 +140,15 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// Now we can set two borders in the same widget:
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::Wgt;
-/// # use zero_ui_wgt::{corner_radius, border};
-/// # use zero_ui_color::colors;
-/// # use zero_ui_wgt::prelude::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::Wgt;
+/// # use zng_wgt::{corner_radius, border};
+/// # use zng_color::colors;
+/// # use zng_wgt::prelude::*;
 /// #
 /// # #[property(BORDER, default(0, BorderStyle::Hidden))]
 /// # pub fn my_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-/// #    zero_ui_wgt::border(child, widths, sides)
+/// #    zng_wgt::border(child, widths, sides)
 /// # }
 /// #
 /// # fn main() {
@@ -167,15 +167,15 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// Note that because both borders have the same [`NestGroup::BORDER`] the position they are declared in the widget matters:
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::Wgt;
-/// # use zero_ui_wgt::{corner_radius, border};
-/// # use zero_ui_color::colors;
-/// # use zero_ui_wgt::prelude::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::Wgt;
+/// # use zng_wgt::{corner_radius, border};
+/// # use zng_color::colors;
+/// # use zng_wgt::prelude::*;
 /// #
 /// # #[property(BORDER, default(0, BorderStyle::Hidden))]
 /// # pub fn my_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-/// #    zero_ui_wgt::border(child, widths, sides)
+/// #    zng_wgt::border(child, widths, sides)
 /// # }
 /// #
 /// # fn main() {
@@ -193,25 +193,25 @@ pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode 
 /// You can adjust the nest group to cause a border to always be outside or inside:
 ///
 /// ```
-/// # use zero_ui_wgt::prelude::*;
+/// # use zng_wgt::prelude::*;
 /// #
 /// /// Border that is always around the other borders.
 /// #[property(BORDER-1, default(0, BorderStyle::Hidden))]
 /// pub fn outside_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-///     zero_ui_wgt::border(child, widths, sides)
+///     zng_wgt::border(child, widths, sides)
 /// }
 ///  
 /// /// Border that is always inside the other borders.
 /// #[property(BORDER+1, default(0, BorderStyle::Hidden))]
 /// pub fn inside_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
-///     zero_ui_wgt::border(child, widths, sides)
+///     zng_wgt::border(child, widths, sides)
 /// }
 /// #
 /// # fn main() { }
 /// ```
 ///
 /// [`corner_radius`]: fn@corner_radius
-/// [`NestGroup::BORDER`]: zero_ui_app::widget::builder::NestGroup::BORDER
+/// [`NestGroup::BORDER`]: zng_app::widget::builder::NestGroup::BORDER
 #[property(BORDER, default(0, BorderStyle::Hidden))]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, sides: impl IntoVar<BorderSides>) -> impl UiNode {
     let sides = sides.into_var();

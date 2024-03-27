@@ -6,7 +6,7 @@ use std::{
 use super::{Body, Error};
 use async_trait::async_trait;
 use serde::*;
-use zero_ui_unit::*;
+use zng_unit::*;
 
 use http_cache_semantics as hcs;
 
@@ -267,7 +267,7 @@ mod file_cache {
     };
     use async_trait::async_trait;
     use fs4::FileExt;
-    use zero_ui_unit::TimeUnits;
+    use zng_unit::TimeUnits;
 
     use super::*;
 
@@ -458,7 +458,7 @@ mod file_cache {
                 return None;
             }
 
-            let expected_version = "zero_ui::http::FileCache 1.0";
+            let expected_version = "zng::http::FileCache 1.0";
             if version != expected_version {
                 if write && version.is_empty() {
                     if let Err(e) = lock.set_len(0).and_then(|()| lock.write_all(expected_version.as_bytes())) {
@@ -648,13 +648,13 @@ mod file_cache {
 mod tests {
     use std::{path::PathBuf, time::SystemTime};
 
-    use zero_ui_clone_move::async_clmv;
+    use zng_clone_move::async_clmv;
 
     use crate::{
         self as task,
         http::{header::*, util::*, *},
     };
-    use zero_ui_unit::*;
+    use zng_unit::*;
 
     #[test]
     pub fn file_cache_miss() {

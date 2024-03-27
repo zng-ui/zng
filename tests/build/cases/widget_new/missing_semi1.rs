@@ -1,4 +1,4 @@
-use zero_ui::{
+use zng::{
     layout::margin,
     mouse::{cursor, CursorIcon},
     widget::{enabled, Wgt},

@@ -2,14 +2,14 @@
 
 use std::{mem, time::Duration};
 
-use zero_ui_app_context::context_local;
-use zero_ui_clone_move::clmv;
+use zng_app_context::context_local;
+use zng_clone_move::clmv;
 
-use zero_ui_handle::{Handle, HandleOwner, WeakHandle};
-use zero_ui_time::{DInstant, Deadline, INSTANT};
-use zero_ui_unit::TimeUnits as _;
+use zng_handle::{Handle, HandleOwner, WeakHandle};
+use zng_time::{DInstant, Deadline, INSTANT};
+use zng_unit::TimeUnits as _;
 
-pub use zero_ui_var_proc_macros::Transitionable;
+pub use zng_var_proc_macros::Transitionable;
 
 use super::*;
 

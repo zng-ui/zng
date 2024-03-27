@@ -2,10 +2,10 @@
 
 use std::{any::Any, borrow::Cow, path::PathBuf, sync::Arc, time::Duration};
 
-use zero_ui_app_context::{app_local, context_local};
-use zero_ui_time::{DInstant, Deadline};
-use zero_ui_txt::Txt;
-use zero_ui_unit::{
+use zng_app_context::{app_local, context_local};
+use zng_time::{DInstant, Deadline};
+use zng_txt::Txt;
+use zng_unit::{
     euclid, AngleDegree, AngleGradian, AngleRadian, AngleTurn, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits,
     Orientation2D, Px, Rgba,
 };

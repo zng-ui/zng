@@ -1,4 +1,4 @@
-use zero_ui::{
+use zng::{
     app::{AppExtended, AppExtension, HeadlessApp},
     data_view::{DataView, DataViewArgs},
     event::EventReceiver,

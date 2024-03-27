@@ -1,6 +1,6 @@
 use std::fmt;
 
-use zero_ui_var::{animation::Transitionable, impl_from_and_into_var};
+use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 /// Pixels-per-inch resolution.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, Transitionable)]
@@ -61,7 +61,7 @@ impl Default for Ppm {
 /// # Examples
 ///
 /// ```
-/// use zero_ui_layout::unit::*;
+/// use zng_layout::unit::*;
 ///
 /// let ppm: Ppm = 96.dpi().into();
 /// ```

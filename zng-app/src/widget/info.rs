@@ -19,19 +19,19 @@ pub use iter::TreeFilter;
 
 mod hit;
 pub(crate) use hit::{HitTestClips, ParallelSegmentOffsets};
-use zero_ui_clone_move::clmv;
-use zero_ui_layout::{
+use zng_clone_move::clmv;
+use zng_layout::{
     context::{LayoutMask, LayoutMetricsSnapshot},
     unit::{
         euclid, DistanceKey, Factor, FactorUnits, Orientation2D, Px, PxBox, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize,
         PxTransform, PxVector,
     },
 };
-use zero_ui_state_map::{OwnedStateMap, StateMapRef};
-use zero_ui_txt::{formatx, Txt};
-use zero_ui_unique_id::{IdEntry, IdMap};
-use zero_ui_var::impl_from_and_into_var;
-use zero_ui_view_api::{display_list::FrameValueUpdate, window::FrameId, ViewProcessGen};
+use zng_state_map::{OwnedStateMap, StateMapRef};
+use zng_txt::{formatx, Txt};
+use zng_unique_id::{IdEntry, IdMap};
+use zng_var::impl_from_and_into_var;
+use zng_view_api::{display_list::FrameValueUpdate, window::FrameId, ViewProcessGen};
 
 use crate::{render::TransformStyle, window::WindowId, DInstant};
 
@@ -710,7 +710,7 @@ impl WidgetBoundsInfo {
     ///
     /// Is `None` if the widget is collapsed.
     ///
-    /// [`LayoutMetrics`]: zero_ui_layout::context::LayoutMetrics
+    /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
     /// [`metrics_used`]: Self::metrics_used
     pub fn metrics(&self) -> Option<LayoutMetricsSnapshot> {
         self.0.lock().metrics.clone()

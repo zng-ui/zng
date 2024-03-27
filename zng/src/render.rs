@@ -13,7 +13,7 @@
 //! can easily achieve 60FPS rendering even without render-updates, but reusable components should try to achieve best performance.
 //!
 //! ```
-//! use zero_ui::prelude_wgt::*;
+//! use zng::prelude_wgt::*;
 //!
 //! /// Fills the available space with a centered circle of the color.
 //! ///
@@ -73,9 +73,9 @@
 //! The example above declares a simple node that draws a colored circle, the circle color is keyed for render updates.
 //!
 //! ```
-//! # use zero_ui::prelude::*;
+//! # use zng::prelude::*;
 //! # let _scope = APP.defaults();
-//! # fn color_circle(_color: impl IntoVar<zero_ui::color::Rgba>) -> impl UiNode { widget::node::FillUiNode }
+//! # fn color_circle(_color: impl IntoVar<zng::color::Rgba>) -> impl UiNode { widget::node::FillUiNode }
 //! let color = var(colors::RED);
 //! let mut i = 0u8;
 //! # let _ =
@@ -102,10 +102,10 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_app::render`] for the full API.
+//! See [`zng_app::render`] for the full API.
 
-pub use zero_ui_app::render::{
+pub use zng_app::render::{
     ClipBuilder, FontSynthesis, FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, HitTestBuilder, HitTestClipBuilder,
     ImageRendering, ReferenceFrameId, RepeatMode, ReuseRange, SpatialFrameId, StaticSpatialFrameId,
 };
-pub use zero_ui_view_api::window::FrameId;
+pub use zng_view_api::window::FrameId;

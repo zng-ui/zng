@@ -1,7 +1,7 @@
 //! Widget info tree iterators.
 use std::iter::FusedIterator;
 
-use zero_ui_var::impl_from_and_into_var;
+use zng_var::impl_from_and_into_var;
 
 use super::*;
 
@@ -433,7 +433,7 @@ where
 mod tests {
     use std::sync::Arc;
 
-    use zero_ui_layout::unit::FactorUnits;
+    use zng_layout::unit::FactorUnits;
 
     use crate::{
         widget::{

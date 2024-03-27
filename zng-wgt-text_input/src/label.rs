@@ -1,14 +1,14 @@
 //! Label text.
 
-use zero_ui_app::access::ACCESS_CLICK_EVENT;
-use zero_ui_ext_input::{
+use zng_app::access::ACCESS_CLICK_EVENT;
+use zng_ext_input::{
     focus::{FocusInfoBuilder, FOCUS},
     mouse::MOUSE_INPUT_EVENT,
     touch::TOUCH_INPUT_EVENT,
 };
-use zero_ui_wgt::prelude::*;
-use zero_ui_wgt_input::focus::FocusableMix;
-use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt::prelude::*;
+use zng_wgt_input::focus::FocusableMix;
+use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 
 /// Styleable and focusable read-only text widget.
 ///
@@ -20,12 +20,12 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 /// The widget macro supports the shorthand that sets the `txt` and `target` properties.
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::prelude::*;
-/// # use zero_ui_wgt_text_input::label::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::prelude::*;
+/// # use zng_wgt_text_input::label::*;
 /// #
 /// # fn main() {
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # let _scope = zng_app::APP.minimal();
 /// let label = Label!("txt", "target");
 /// # }
 /// ```
@@ -35,7 +35,7 @@ use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
         target = $target;
     };
 })]
-pub struct Label(FocusableMix<StyleMix<zero_ui_wgt_text::Text>>);
+pub struct Label(FocusableMix<StyleMix<zng_wgt_text::Text>>);
 impl Label {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));

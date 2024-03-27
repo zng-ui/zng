@@ -1,6 +1,6 @@
 use super::{euclid, Px};
 
-use zero_ui_var::{
+use zng_var::{
     animation::{easing::EasingStep, Transitionable},
     impl_from_and_into_var,
     types::{is_slerp_enabled, slerp_enabled},
@@ -20,7 +20,7 @@ use super::{AngleRadian, AngleUnits, Factor, FactorUnits, Layout1d, Length, PxTr
 /// Create a transform that
 ///
 /// ```
-/// # use zero_ui_layout::unit::*;
+/// # use zng_layout::unit::*;
 /// let rotate_then_move = Transform::new_rotate(10.deg()).translate(50, 30);
 /// ```
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -143,14 +143,14 @@ impl Transform {
     /// # Examples
     ///
     /// ```
-    /// # use zero_ui_layout::unit::*;
+    /// # use zng_layout::unit::*;
     /// Transform::new_rotate(10.deg()).then(Transform::new_translate(50, 30));
     /// ```
     ///
     /// Is the equivalent of:
     ///
     /// ```
-    /// # use zero_ui_layout::unit::*;
+    /// # use zng_layout::unit::*;
     /// Transform::new_rotate(10.deg()).translate(50, 30);
     /// ```
     pub fn then(mut self, other: Transform) -> Self {

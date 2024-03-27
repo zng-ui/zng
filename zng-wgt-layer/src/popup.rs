@@ -1,16 +1,16 @@
 //! Popup widget.
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
 use std::time::Duration;
 
-use zero_ui_ext_input::focus::{DirectionalNav, TabNav, FOCUS_CHANGED_EVENT};
-use zero_ui_wgt::{modal_included, prelude::*};
-use zero_ui_wgt_container::Container;
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_filter::drop_shadow;
-use zero_ui_wgt_input::focus::{alt_focus_scope, directional_nav, focus_click_behavior, tab_nav, FocusClickBehavior, FocusableMix};
-use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_ext_input::focus::{DirectionalNav, TabNav, FOCUS_CHANGED_EVENT};
+use zng_wgt::{modal_included, prelude::*};
+use zng_wgt_container::Container;
+use zng_wgt_fill::background_color;
+use zng_wgt_filter::drop_shadow;
+use zng_wgt_input::focus::{alt_focus_scope, directional_nav, focus_click_behavior, tab_nav, FocusClickBehavior, FocusableMix};
+use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 
 use crate::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
 

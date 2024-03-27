@@ -10,7 +10,7 @@
 //! ```
 //!
 //! ```
-//! use zero_ui::{prelude::*, icon};
+//! use zng::{prelude::*, icon};
 //! # let _ = APP.defaults();
 //!
 //! # let _ =
@@ -27,7 +27,7 @@
 //!
 //! ```
 //! # fn main() { }
-//! use zero_ui::{prelude::*, icon, font};
+//! use zng::{prelude::*, icon, font};
 //! # async fn demo() {
 //! # let _ = APP.defaults();
 //!
@@ -51,18 +51,18 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_text::icon`] for the full widget API.
+//! See [`zng_wgt_text::icon`] for the full widget API.
 
-pub use zero_ui_wgt_text::icon::{ico_color, ico_size, CommandIconExt, GlyphIcon, GlyphSource, Icon};
+pub use zng_wgt_text::icon::{ico_color, ico_size, CommandIconExt, GlyphIcon, GlyphSource, Icon};
 
 #[cfg(feature = "zng-wgt-material-icons")]
-pub use zero_ui_wgt_material_icons::{MaterialFonts, MaterialIcon};
+pub use zng_wgt_material_icons::{MaterialFonts, MaterialIcon};
 
 #[cfg(feature = "material_icons_filled")]
-pub use zero_ui_wgt_material_icons::filled as material_filled;
+pub use zng_wgt_material_icons::filled as material_filled;
 #[cfg(feature = "material_icons_outlined")]
-pub use zero_ui_wgt_material_icons::outlined as material_outlined;
+pub use zng_wgt_material_icons::outlined as material_outlined;
 #[cfg(feature = "material_icons_rounded")]
-pub use zero_ui_wgt_material_icons::rounded as material_rounded;
+pub use zng_wgt_material_icons::rounded as material_rounded;
 #[cfg(feature = "material_icons_sharp")]
-pub use zero_ui_wgt_material_icons::sharp as material_sharp;
+pub use zng_wgt_material_icons::sharp as material_sharp;

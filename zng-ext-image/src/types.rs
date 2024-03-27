@@ -6,23 +6,23 @@ use std::{
 
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
-use zero_ui_app::{
+use zng_app::{
     view_process::{EncodeError, ViewImage, ViewRenderer},
     window::WindowId,
 };
-use zero_ui_color::Rgba;
-use zero_ui_layout::{
+use zng_color::Rgba;
+use zng_layout::{
     context::LayoutMetrics,
     unit::{ByteLength, ByteUnits, PxRect, PxSize},
 };
-use zero_ui_task::{self as task, SignalOnce};
-use zero_ui_txt::Txt;
-use zero_ui_var::{impl_from_and_into_var, AnyVar, ReadOnlyArcVar};
-use zero_ui_view_api::{image::ImageTextureId, ViewProcessOffline};
+use zng_task::{self as task, SignalOnce};
+use zng_txt::Txt;
+use zng_var::{impl_from_and_into_var, AnyVar, ReadOnlyArcVar};
+use zng_view_api::{image::ImageTextureId, ViewProcessOffline};
 
 use crate::render::ImageRenderWindowRoot;
 
-pub use zero_ui_view_api::image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi};
+pub use zng_view_api::image::{ImageDataFormat, ImageDownscale, ImageMaskMode, ImagePpi};
 
 /// A custom proxy in [`IMAGES`].
 ///
@@ -232,7 +232,7 @@ impl Img {
     /// Reference the decoded pre-multiplied BGRA8 pixel buffer or A8 if [`is_mask`].
     ///
     /// [`is_mask`]: Self::is_mask
-    pub fn pixels(&self) -> Option<zero_ui_view_api::ipc::IpcBytes> {
+    pub fn pixels(&self) -> Option<zng_view_api::ipc::IpcBytes> {
         self.view.get().and_then(|v| v.pixels())
     }
 
@@ -267,7 +267,7 @@ impl Img {
     }
 
     /// Encode the image to the format.
-    pub async fn encode(&self, format: Txt) -> std::result::Result<zero_ui_view_api::ipc::IpcBytes, EncodeError> {
+    pub async fn encode(&self, format: Txt) -> std::result::Result<zng_view_api::ipc::IpcBytes, EncodeError> {
         self.done_signal.clone().await;
         if let Some(e) = self.error() {
             Err(EncodeError::Encode(e))
@@ -307,7 +307,7 @@ impl Img {
         task::wait(move || fs::write(path, &data[..])).await
     }
 }
-impl zero_ui_app::render::Img for Img {
+impl zng_app::render::Img for Img {
     fn renderer_id(&self, renderer: &ViewRenderer) -> ImageTextureId {
         if self.is_loaded() {
             let mut rms = self.render_ids.lock();

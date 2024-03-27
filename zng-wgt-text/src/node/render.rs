@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use zero_ui_app::{
+use zng_app::{
     render::{FontSynthesis, FrameValueKey},
     widget::{
         border::{LineOrientation, LineStyle},
@@ -8,15 +8,15 @@ use zero_ui_app::{
         WIDGET,
     },
 };
-use zero_ui_color::Rgba;
-use zero_ui_ext_font::{Font, ShapedColoredGlyphs};
-use zero_ui_ext_input::focus::FOCUS_CHANGED_EVENT;
-use zero_ui_layout::{
+use zng_color::Rgba;
+use zng_ext_font::{Font, ShapedColoredGlyphs};
+use zng_ext_input::focus::FOCUS_CHANGED_EVENT;
+use zng_layout::{
     context::LAYOUT,
     unit::{Px, PxRect, PxSize},
 };
-use zero_ui_view_api::{config::FontAntiAliasing, display_list::FrameValue, font::GlyphInstance};
-use zero_ui_wgt::prelude::*;
+use zng_view_api::{config::FontAntiAliasing, display_list::FrameValue, font::GlyphInstance};
+use zng_wgt::prelude::*;
 
 use crate::{
     TextOverflow, FONT_AA_VAR, FONT_COLOR_VAR, FONT_PALETTE_COLORS_VAR, FONT_PALETTE_VAR, IME_UNDERLINE_STYLE_VAR, OVERLINE_COLOR_VAR,

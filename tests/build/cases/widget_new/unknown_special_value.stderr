@@ -7,7 +7,7 @@ error: unknown special value, expected `unset!`
 warning: unused import: `layout::margin`
  --> cases/widget_new/unknown_special_value.rs:1:15
   |
-1 | use zero_ui::{layout::margin, widget::Wgt, APP};
+1 | use zng::{layout::margin, widget::Wgt, APP};
   |               ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

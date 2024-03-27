@@ -21,11 +21,11 @@ pub use switch::*;
 
 mod sync;
 pub use sync::*;
-use zero_ui_app_context::app_local;
-use zero_ui_clone_move::clmv;
-use zero_ui_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
-use zero_ui_txt::Txt;
-use zero_ui_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar};
+use zng_app_context::app_local;
+use zng_clone_move::clmv;
+use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
+use zng_txt::Txt;
+use zng_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar};
 
 #[cfg(feature = "toml")]
 mod toml;
@@ -49,8 +49,8 @@ use std::{
     sync::Arc,
 };
 
-use zero_ui_app::{update::EventUpdate, view_process::raw_events::LOW_MEMORY_EVENT, AppExtension};
-use zero_ui_task as task;
+use zng_app::{update::EventUpdate, view_process::raw_events::LOW_MEMORY_EVENT, AppExtension};
+use zng_task as task;
 
 /// Application extension that provides mouse events and service.
 ///

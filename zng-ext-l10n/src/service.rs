@@ -8,12 +8,12 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use zero_ui_app_context::app_local;
-use zero_ui_txt::Txt;
-use zero_ui_var::{
+use zng_app_context::app_local;
+use zng_txt::Txt;
+use zng_var::{
     merge_var, types::ArcCowVar, var, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, MergeVarBuilder, ReadOnlyArcVar, Var, WeakVar,
 };
-use zero_ui_view_api::config::LocaleConfig;
+use zng_view_api::config::LocaleConfig;
 
 use crate::{FluentParserErrors, L10nArgument, L10nSource, Lang, LangMap, LangResource, LangResourceStatus, Langs, SwapL10nSource};
 

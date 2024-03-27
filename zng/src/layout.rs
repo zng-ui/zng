@@ -28,7 +28,7 @@
 //! influences the widget position, the [`margin`](fn@margin) property potentially influences both size and position.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -51,7 +51,7 @@
 //! children using the layout size and position.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -92,7 +92,7 @@
 //! every [`LengthUnits`], [`FactorUnits`] and length expressions.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! macro_rules! width {
@@ -108,7 +108,7 @@
 //! Window! {
 //!     child_align = layout::Align::START;
 //!     child = Scroll! {
-//!         mode = zero_ui::scroll::ScrollMode::VERTICAL;
+//!         mode = zng::scroll::ScrollMode::VERTICAL;
 //!         padding = 10;
 //!         child = Stack! {
 //!             direction = StackDirection::top_to_bottom();
@@ -186,7 +186,7 @@
 //! the unit behaves like a factor.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -264,7 +264,7 @@
 //! a part of the widget, the blank space they add *around* the widget is inside the widget outer bounds.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -295,7 +295,7 @@
 //! is that the green text will be reshaped as two rectangles, one after the red text and one before the blue text.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! # let _ =
@@ -344,9 +344,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_layout`], [`zero_ui_wgt_transform`] and [`zero_ui_wgt_size_offset`] for the full API.
+//! See [`zng_layout`], [`zng_wgt_transform`] and [`zng_wgt_size_offset`] for the full API.
 
-pub use zero_ui_layout::unit::{
+pub use zng_layout::unit::{
     Align, AngleDegree, AngleGradian, AngleRadian, AngleTurn, AngleUnits, BoolVector2D, ByteLength, ByteUnits, CornerRadius2D, Dip, DipBox,
     DipCornerRadius, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, DipVector, DistanceKey, Factor, Factor2d, FactorPercent,
     FactorSideOffsets, FactorUnits, GridSpacing, Layout1d, Layout2d, LayoutAxis, Length, LengthExpr, LengthUnits, Line,
@@ -355,28 +355,28 @@ pub use zero_ui_layout::unit::{
     SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
 };
 
-pub use zero_ui_var::types::{slerp_enabled, slerp_sampler};
+pub use zng_var::types::{slerp_enabled, slerp_sampler};
 
-pub use zero_ui_layout::context::{
+pub use zng_layout::context::{
     InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LayoutDirection, LayoutMask,
     LayoutMetrics, LayoutMetricsSnapshot, LayoutPassId, TextSegmentKind, DIRECTION_VAR, LAYOUT,
 };
 
-pub use zero_ui_app::widget::info::{WidgetLayout, WidgetMeasure};
+pub use zng_app::widget::info::{WidgetLayout, WidgetMeasure};
 
-pub use zero_ui_wgt_transform::{
+pub use zng_wgt_transform::{
     backface_visibility, perspective, perspective_origin, rotate, rotate_x, rotate_y, rotate_z, scale, scale_x, scale_xy, scale_y, skew,
     skew_x, skew_y, transform, transform_origin, transform_style, translate, translate_x, translate_y, translate_z,
 };
 
-pub use zero_ui_wgt_size_offset::{
+pub use zng_wgt_size_offset::{
     actual_bounds, actual_height, actual_height_px, actual_size, actual_size_px, actual_transform, actual_width, actual_width_px, baseline,
     force_height, force_size, force_width, height, max_height, max_size, max_width, min_height, min_size, min_width, offset, size,
     sticky_height, sticky_size, sticky_width, width, x, y, WidgetLength, WIDGET_SIZE,
 };
 
-pub use zero_ui_wgt::{align, inline, is_ltr, is_rtl, margin, InlineMode};
+pub use zng_wgt::{align, inline, is_ltr, is_rtl, margin, InlineMode};
 
-pub use zero_ui_wgt_container::{child_align, padding};
+pub use zng_wgt_container::{child_align, padding};
 
-pub use zero_ui_app::render::TransformStyle;
+pub use zng_app::render::TransformStyle;

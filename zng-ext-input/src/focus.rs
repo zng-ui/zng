@@ -5,7 +5,7 @@ pub mod iter;
 mod focus_info;
 pub use focus_info::*;
 
-use zero_ui_app::{
+use zng_app::{
     access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT, ACCESS_FOCUS_NAV_ORIGIN_EVENT},
     event::{event, event_args},
     update::{EventUpdate, InfoUpdates, RenderUpdates, UPDATES},
@@ -20,12 +20,12 @@ use zero_ui_app::{
 
 pub mod cmd;
 use cmd::FocusCommands;
-use zero_ui_app_context::app_local;
-use zero_ui_ext_window::{WINDOWS, WINDOW_FOCUS, WINDOW_FOCUS_CHANGED_EVENT};
-use zero_ui_layout::unit::{Px, PxPoint, PxRect, TimeUnits};
-use zero_ui_unique_id::{IdEntry, IdMap};
-use zero_ui_var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var};
-use zero_ui_view_api::window::FrameId;
+use zng_app_context::app_local;
+use zng_ext_window::{WINDOWS, WINDOW_FOCUS, WINDOW_FOCUS_CHANGED_EVENT};
+use zng_layout::unit::{Px, PxPoint, PxRect, TimeUnits};
+use zng_unique_id::{IdEntry, IdMap};
+use zng_var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var};
+use zng_view_api::window::FrameId;
 
 use std::{mem, time::Duration};
 
@@ -547,7 +547,7 @@ impl FOCUS {
     /// Widgets should use a different *focused* visual for disabled focus, it must be clear that the widget has the keyboard focus
     /// only as a navigation waypoint and cannot provide its normal function.
     ///
-    /// [`DISABLED`]: zero_ui_app::widget::info::Interactivity::DISABLED
+    /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
     #[must_use]
     pub fn focus_disabled_widgets(&self) -> ArcVar<bool> {
         FOCUS_SV.read().focus_disabled_widgets.clone()
@@ -562,7 +562,7 @@ impl FOCUS {
     /// Note that widgets can be explicitly made not focusable, so you can disable focus and hide a widget without needing to
     /// disable this feature globally. Note also that this feature does not apply to collapsed widgets.
     ///
-    /// [`Hidden`]: zero_ui_app::widget::info::Visibility::Hidden
+    /// [`Hidden`]: zng_app::widget::info::Visibility::Hidden
     #[must_use]
     pub fn focus_hidden_widgets(&self) -> ArcVar<bool> {
         FOCUS_SV.read().focus_hidden_widgets.clone()

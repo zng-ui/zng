@@ -1,4 +1,4 @@
-use zero_ui::prelude_wgt::property;
+use zng::prelude_wgt::property;
 
 #[property(CONTEXT)]
 pub struct Foo {}

@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::{
+use zng::{
     color::filter::opacity,
     icon::{material_outlined as icons, Icon},
     layout::{align, margin},
@@ -8,9 +8,9 @@ use zero_ui::{
     widget::LineStyle,
 };
 
-use zero_ui::config::*;
+use zng::config::*;
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();

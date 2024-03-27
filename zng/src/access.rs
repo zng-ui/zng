@@ -13,7 +13,7 @@
 //! builder is only available after accessibility was requested at least once for the window.
 //!
 //! ```
-//! use zero_ui::prelude_wgt::*;
+//! use zng::prelude_wgt::*;
 //!
 //! # let _ =
 //! match_node_leaf(|op| match op {
@@ -32,7 +32,7 @@
 //! request accessibility the window still skips sending the access tree, so the performance impact is minimal.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # let mut app = APP.defaults().run_headless(false);
 //! # app.doc_test_window(async {
@@ -72,8 +72,8 @@
 //! so it can be changed, in this case it is up to the app developer to actually implement the search.
 //!
 //! ```
-//! use zero_ui::prelude::*;
-//! use zero_ui::access::{access_role, AccessRole};
+//! use zng::prelude::*;
+//! use zng::access::{access_role, AccessRole};
 //!
 //! # let _scope = APP.defaults();
 //! let search_txt = var(Txt::from(""));
@@ -101,7 +101,7 @@
 //! and [`ACCESS.hide_tooltip`].
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! let mut show_tooltip = false;
 //! # let _scope = APP.defaults(); let _ =
@@ -110,7 +110,7 @@
 //!     child = Stack!(top_to_bottom, 50, ui_vec![
 //!         Button! {
 //!             on_click = hn!(|_| {
-//!                 use zero_ui::access::ACCESS;
+//!                 use zng::access::ACCESS;
 //!
 //!                 show_tooltip = !show_tooltip;
 //!                 if show_tooltip {
@@ -136,14 +136,14 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_app::access`] and [`zero_ui_wgt_access`] for the full API.
+//! See [`zng_app::access`] and [`zng_wgt_access`] for the full API.
 
-pub use zero_ui_app::access::{
+pub use zng_app::access::{
     AccessClickArgs, AccessExpanderArgs, AccessIncrementArgs, AccessInitedArgs, AccessNumberArgs, AccessScrollArgs, AccessSelectionArgs,
     AccessTextArgs, AccessToolTipArgs, ScrollCmd, ACCESS, ACCESS_CLICK_EVENT, ACCESS_EXPANDER_EVENT, ACCESS_INCREMENT_EVENT,
     ACCESS_INITED_EVENT, ACCESS_NUMBER_EVENT, ACCESS_SCROLL_EVENT, ACCESS_SELECTION_EVENT, ACCESS_TEXT_EVENT, ACCESS_TOOLTIP_EVENT,
 };
-pub use zero_ui_wgt_access::{
+pub use zng_wgt_access::{
     access_commands, access_role, accessible, active_descendant, auto_complete, checked, col_count, col_index, col_span, controls, current,
     described_by, details, error_message, expanded, flows_to, invalid, item_count, item_index, label, labelled_by, labelled_by_child,
     level, live, modal, multi_selectable, on_access_click, on_access_expander, on_access_increment, on_access_number, on_access_scroll,

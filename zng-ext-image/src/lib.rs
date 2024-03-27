@@ -18,7 +18,7 @@ use std::{
 
 use parking_lot::Mutex;
 use task::io::AsyncReadExt;
-use zero_ui_app::{
+use zng_app::{
     update::EventUpdate,
     view_process::{
         raw_events::{LOW_MEMORY_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
@@ -27,9 +27,9 @@ use zero_ui_app::{
     widget::UiTaskWidget,
     AppExtension,
 };
-use zero_ui_app_context::app_local;
-use zero_ui_clone_move::clmv;
-use zero_ui_task as task;
+use zng_app_context::app_local;
+use zng_clone_move::clmv;
+use zng_task as task;
 
 mod types;
 pub use types::*;
@@ -37,12 +37,12 @@ pub use types::*;
 mod render;
 #[doc(inline)]
 pub use render::{render_retain, ImageRenderWindowRoot, ImageRenderWindowsService, IMAGES_WINDOW, IMAGE_RENDER};
-use zero_ui_layout::unit::{ByteLength, ByteUnits};
-use zero_ui_task::UiTask;
-use zero_ui_txt::{formatx, ToTxt, Txt};
-use zero_ui_unique_id::{IdEntry, IdMap};
-use zero_ui_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, Var, WeakVar};
-use zero_ui_view_api::{image::ImageRequest, ipc::IpcBytes, ViewProcessOffline};
+use zng_layout::unit::{ByteLength, ByteUnits};
+use zng_task::UiTask;
+use zng_txt::{formatx, ToTxt, Txt};
+use zng_unique_id::{IdEntry, IdMap};
+use zng_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, Var, WeakVar};
+use zng_view_api::{image::ImageRequest, ipc::IpcBytes, ViewProcessOffline};
 
 /// Application extension that provides an image cache.
 ///
@@ -823,7 +823,7 @@ impl IMAGES {
     /// Get an image from a PNG file embedded in the app executable using [`include_bytes!`].
     ///
     /// ```
-    /// # use zero_ui_ext_image::*;
+    /// # use zng_ext_image::*;
     /// # macro_rules! include_bytes { ($tt:tt) => { &[] } }
     /// # fn demo() {
     /// let image_var = IMAGES.from_static(include_bytes!("ico.png"), "png");

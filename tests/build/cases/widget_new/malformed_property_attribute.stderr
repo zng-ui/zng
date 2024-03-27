@@ -21,7 +21,7 @@ error: expected identifier, found `!`
 warning: unused import: `layout::margin`
  --> cases/widget_new/malformed_property_attribute.rs:1:31
   |
-1 | use zero_ui::{button::Button, layout::margin, APP};
+1 | use zng::{button::Button, layout::margin, APP};
   |                               ^^^^^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

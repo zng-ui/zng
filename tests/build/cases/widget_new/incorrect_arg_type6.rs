@@ -1,4 +1,4 @@
-use zero_ui::{
+use zng::{
     prelude_wgt::{property, IntoVar, UiNode},
     widget::Wgt,
     APP,

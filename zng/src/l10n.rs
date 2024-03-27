@@ -4,7 +4,7 @@
 //! updates to be best localized text available given the current loaded localization and the app language.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let click_count = var(0u32);
@@ -27,7 +27,7 @@
 //! sets the language to en-US and loads localization from a directory.
 //!
 //! ```no_run
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! APP.defaults().run_window(async {
 //!     // start loading localization resources
@@ -65,7 +65,7 @@
 //! declaration.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! // l10n-### This standalone comment is added to all scraped template files.
@@ -97,21 +97,21 @@
 //!
 //! # Localize Commands
 //!
-//! Currently [`command!`](zero_ui::event::command) declarations are not integrated with the localization
+//! Currently [`command!`](zng::event::command) declarations are not integrated with the localization
 //! service yet, you will need to manually bind localization to command metadata to localize it.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
-//! l10n!("COPY_CMD.name", "Copy").set_bind(&zero_ui::clipboard::COPY_CMD.name()).perm();
+//! l10n!("COPY_CMD.name", "Copy").set_bind(&zng::clipboard::COPY_CMD.name()).perm();
 //! ```
 //!
 //! # Full API
 //!
-//! See [`zero_ui_ext_l10n`] for the full localization API.
+//! See [`zng_ext_l10n`] for the full localization API.
 
-pub use zero_ui_ext_l10n::{
+pub use zng_ext_l10n::{
     l10n, lang, IntoL10nVar, L10nArgument, L10nDir, L10nMessageBuilder, L10nSource, Lang, LangMap, LangResource, LangResourceStatus,
     LangResources, Langs, NilL10nSource, SwapL10nSource, L10N, LANG_VAR,
 };

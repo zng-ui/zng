@@ -1,9 +1,9 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::task::parking_lot::Mutex;
-use zero_ui_clone_move::clmv;
-use zero_ui_unique_id::unique_id_32;
-use zero_ui_var::merge_var;
+use zng_clone_move::clmv;
+use zng_unique_id::unique_id_32;
+use zng_var::merge_var;
 
 use super::*;
 

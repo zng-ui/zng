@@ -1,14 +1,14 @@
 use std::{collections::HashSet, time::Duration};
 
-use zero_ui_app::timer::TIMERS;
-use zero_ui_ext_input::{
+use zng_app::timer::TIMERS;
+use zng_ext_input::{
     gesture::{CLICK_EVENT, GESTURES},
     mouse::{ClickMode, WidgetInfoMouseExt as _, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT},
     pointer_capture::POINTER_CAPTURE_EVENT,
     touch::TOUCHED_EVENT,
 };
-use zero_ui_view_api::{mouse::ButtonState, touch::TouchPhase};
-use zero_ui_wgt::prelude::*;
+use zng_view_api::{mouse::ButtonState, touch::TouchPhase};
+use zng_wgt::prelude::*;
 
 /// If the mouse pointer is over the widget or a descendant and the widget is disabled.
 #[property(EVENT)]

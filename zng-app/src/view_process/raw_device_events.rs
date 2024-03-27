@@ -10,8 +10,8 @@ use std::fmt;
 
 use crate::event::*;
 
-use zero_ui_layout::unit::euclid;
-use zero_ui_view_api::{
+use zng_layout::unit::euclid;
+use zng_view_api::{
     keyboard::{KeyCode, KeyState},
     mouse::{ButtonId, ButtonState, MouseScrollDelta},
     AxisId,
@@ -19,7 +19,7 @@ use zero_ui_view_api::{
 
 use once_cell::sync::Lazy;
 
-zero_ui_unique_id::unique_id_64! {
+zng_unique_id::unique_id_64! {
     /// Unique identifier of a device event source.
     pub struct DeviceId;
 }

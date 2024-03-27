@@ -1,4 +1,4 @@
-use zero_ui_ext_fs_watcher::{WatchFile, WriteFile};
+use zng_ext_fs_watcher::{WatchFile, WriteFile};
 
 use super::*;
 

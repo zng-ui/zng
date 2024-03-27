@@ -2,7 +2,7 @@
 
 use std::{fmt, path::PathBuf};
 
-use zero_ui_txt::Txt;
+use zng_txt::Txt;
 
 use crate::{image::ImageId, ipc::IpcBytes};
 

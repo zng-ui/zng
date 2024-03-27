@@ -7,11 +7,11 @@
 // suppress nag about very simple boxed closure signatures.
 #![allow(clippy::type_complexity)]
 
-use zero_ui_app::widget::builder::{Importance, PropertyId};
-use zero_ui_wgt::prelude::*;
+use zng_app::widget::builder::{Importance, PropertyId};
+use zng_wgt::prelude::*;
 
 #[doc(hidden)]
-pub use zero_ui_wgt::prelude::clmv as __clmv;
+pub use zng_wgt::prelude::clmv as __clmv;
 
 use std::sync::Arc;
 use std::{fmt, ops};
@@ -35,7 +35,7 @@ use std::{fmt, ops};
 /// as they build to [`StyleBuilder`]. This is different from the *extend/replace* mechanism as it operates on the style
 /// type, not the instances.
 #[widget($crate::Style)]
-pub struct Style(zero_ui_app::widget::base::NonWidgetBase);
+pub struct Style(zng_app::widget::base::NonWidgetBase);
 impl Style {
     /// Build the style.
     pub fn widget_build(&mut self) -> StyleBuilder {
@@ -128,12 +128,12 @@ impl<P> StyleMix<P> {
 
 #[doc(hidden)]
 pub mod __impl_style_context_util {
-    pub use zero_ui_wgt::prelude::{context_var, property, IntoVar, UiNode};
+    pub use zng_wgt::prelude::{context_var, property, IntoVar, UiNode};
 }
 
 /// Implements the contextual `STYLE_FN_VAR` and `style_fn`.
 ///
-/// This is a helper for [`StyleMix<P>`](struct@StyleMix) implementers, see the `zero_ui::style` module level
+/// This is a helper for [`StyleMix<P>`](struct@StyleMix) implementers, see the `zng::style` module level
 /// documentation for more details.
 #[macro_export]
 macro_rules! impl_style_fn {
@@ -380,7 +380,7 @@ impl StyleFn {
     /// Note that you can call the style function directly:
     ///
     /// ```
-    /// # use zero_ui_wgt_style::{StyleFn, StyleArgs};
+    /// # use zng_wgt_style::{StyleFn, StyleArgs};
     /// fn foo(func: &StyleFn) {
     ///     let a = func.call(&StyleArgs {});
     ///     let b = func(&StyleArgs {});
@@ -445,9 +445,9 @@ fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {
 /// and `moved` by move. The closure ignores the [`StyleArgs`] because it is empty.
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::prelude::*;
-/// # use zero_ui_wgt_style::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::prelude::*;
+/// # use zng_wgt_style::*;
 /// # fn main() {
 /// let cloned = var(10u32);
 /// let moved = var(20u32);

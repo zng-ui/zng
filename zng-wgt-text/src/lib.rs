@@ -7,9 +7,9 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 #[macro_use]
 extern crate bitflags;
@@ -20,7 +20,7 @@ mod text_properties;
 pub use text_properties::*;
 
 #[doc(hidden)]
-pub use zero_ui_wgt::prelude::formatx as __formatx;
+pub use zng_wgt::prelude::formatx as __formatx;
 
 pub mod icon;
 
@@ -29,8 +29,8 @@ pub mod icon;
 /// # Examples
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt_text::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt_text::*;
 /// # fn main() {
 /// let hello_txt = Text! {
 ///     font_family = "Arial";
@@ -44,8 +44,8 @@ pub mod icon;
 /// The `Text!` macro provides shorthand syntax that matches the [`formatx!`] input, but outputs a text widget:
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt_text::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt_text::*;
 /// # fn main() {
 /// let txt = Text!("Hello!");
 ///
@@ -63,10 +63,10 @@ pub mod icon;
 /// The code abode is equivalent to:
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt_text::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt_text::*;
 /// # fn main() {
-/// # use zero_ui_wgt::prelude::*;
+/// # use zng_wgt::prelude::*;
 /// let txt = Text! {
 ///     txt = formatx!("Hello!");
 /// };
@@ -86,7 +86,7 @@ pub mod icon;
 /// # }
 /// ```
 ///
-/// [`formatx!`]: zero_ui_txt::formatx!
+/// [`formatx!`]: zng_txt::formatx!
 #[widget($crate::Text {
     ($txt:literal) => {
         txt = $crate::__formatx!($txt);
@@ -153,9 +153,9 @@ pub fn txt(txt: impl IntoVar<Txt>) {}
 ///
 /// [`txt`]: fn@txt
 /// [`txt_parse_live`]: fn@txt_parse_live
-/// [`DATA.invalidate`]: zero_ui_wgt_data::DATA::invalidate
-/// [`has_data_error`]: fn@zero_ui_wgt_data::has_data_error
-/// [`get_data_error_txt`]: fn@zero_ui_wgt_data::get_data_error_txt
+/// [`DATA.invalidate`]: zng_wgt_data::DATA::invalidate
+/// [`has_data_error`]: fn@zng_wgt_data::has_data_error
+/// [`get_data_error_txt`]: fn@zng_wgt_data::get_data_error_txt
 #[property(CHILD, widget_impl(Text))]
 pub fn txt_parse<T>(child: impl UiNode, value: impl IntoVar<T>) -> impl UiNode
 where
@@ -224,7 +224,7 @@ impl Text {
 }
 
 #[doc(hidden)]
-pub use zero_ui_ext_font::{FontStyle as __FontStyle, FontWeight as __FontWeight};
+pub use zng_ext_font::{FontStyle as __FontStyle, FontWeight as __FontWeight};
 
 ///<span data-del-macro-root></span> A simple text run with **bold** font weight.
 ///

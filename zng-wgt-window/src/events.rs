@@ -4,12 +4,12 @@
 //! attach then in any widget inside a window using the property full name.
 //!
 //! There is no event property for the [`WINDOW_CLOSE_EVENT`] because that event notifies
-//! after the window is deinited. You can use [`on_deinit`](fn@zero_ui_wgt::on_deinit) in the
+//! after the window is deinited. You can use [`on_deinit`](fn@zng_wgt::on_deinit) in the
 //! [`Window!`](struct@crate::Window) widget to handle a window closing, or create an app level handler for the
-//! event using [`EVENTS`](zero_ui_app::event::EVENTS).
+//! event using [`EVENTS`](zng_app::event::EVENTS).
 
-use zero_ui_ext_window::*;
-use zero_ui_wgt::prelude::*;
+use zng_ext_window::*;
+use zng_wgt::prelude::*;
 
 event_property! {
     /// On window opened.
@@ -26,7 +26,7 @@ event_property! {
     /// This event notifies once per window, after the first layout and all [`WindowLoadingHandle`]
     /// have expired or dropped.
     ///
-    /// [`WindowLoadingHandle`]: zero_ui_app::window::WindowLoadingHandle
+    /// [`WindowLoadingHandle`]: zng_app::window::WindowLoadingHandle
     pub fn window_load {
         event: WINDOW_LOAD_EVENT,
         args: WindowOpenArgs,

@@ -1,11 +1,11 @@
 //! Scrollbar widget, properties and nodes..
 
-use zero_ui_ext_input::mouse::{ClickMode, MouseClickArgs};
-use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_wgt::{align, prelude::*};
-use zero_ui_wgt_access::{access_role, AccessRole};
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_input::{click_mode, mouse::on_mouse_click};
+use zng_ext_input::mouse::{ClickMode, MouseClickArgs};
+use zng_ext_window::WINDOW_Ext as _;
+use zng_wgt::{align, prelude::*};
+use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt_fill::background_color;
+use zng_wgt_input::{click_mode, mouse::on_mouse_click};
 
 /// Scrollbar widget.
 #[widget($crate::Scrollbar)]

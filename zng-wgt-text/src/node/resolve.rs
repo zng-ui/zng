@@ -1,7 +1,7 @@
 use std::{borrow::Cow, num::Wrapping, sync::Arc};
 
 use parking_lot::RwLock;
-use zero_ui_app::{
+use zng_app::{
     access::{ACCESS_SELECTION_EVENT, ACCESS_TEXT_EVENT},
     event::{CommandHandle, EventHandle},
     render::FontSynthesis,
@@ -13,18 +13,18 @@ use zero_ui_app::{
     },
     window::WINDOW,
 };
-use zero_ui_ext_clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
-use zero_ui_ext_font::{CaretIndex, FontFaceList, SegmentedText, FONTS, FONT_CHANGED_EVENT};
-use zero_ui_ext_input::{
+use zng_ext_clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
+use zng_ext_font::{CaretIndex, FontFaceList, SegmentedText, FONTS, FONT_CHANGED_EVENT};
+use zng_ext_input::{
     focus::{FocusInfoBuilder, WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
     keyboard::{KEYBOARD, KEY_INPUT_EVENT},
 };
-use zero_ui_ext_l10n::LANG_VAR;
-use zero_ui_ext_undo::UNDO;
-use zero_ui_ext_window::{cmd::CANCEL_IME_CMD, WINDOW_Ext as _, WindowLoadingHandle, IME_EVENT};
-use zero_ui_layout::context::{LayoutDirection, DIRECTION_VAR};
-use zero_ui_view_api::keyboard::{Key, KeyState};
-use zero_ui_wgt::prelude::*;
+use zng_ext_l10n::LANG_VAR;
+use zng_ext_undo::UNDO;
+use zng_ext_window::{cmd::CANCEL_IME_CMD, WINDOW_Ext as _, WindowLoadingHandle, IME_EVENT};
+use zng_layout::context::{LayoutDirection, DIRECTION_VAR};
+use zng_view_api::keyboard::{Key, KeyState};
+use zng_wgt::prelude::*;
 
 use crate::{
     cmd::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},

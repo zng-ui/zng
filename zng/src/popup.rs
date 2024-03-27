@@ -5,7 +5,7 @@
 //! close requests. The [`Popup!`](struct@Popup) widget is a styleable container that is a good popup root widget.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //!
@@ -17,10 +17,10 @@
 //!     child = Text!(is_closed.map(|&b| if b { "Open Popup" } else { "Close Popup" }.into()));
 //!     on_click = hn!(|_| {
 //!         if is_closed.get() {
-//!             let p = POPUP.open(zero_ui::popup::Popup! {
+//!             let p = POPUP.open(zng::popup::Popup! {
 //!                 child = Text!("Popup content!");
 //!             });
-//!             p.bind_map(&is_closed, |s| matches!(s, zero_ui::popup::PopupState::Closed)).perm();
+//!             p.bind_map(&is_closed, |s| matches!(s, zng::popup::PopupState::Closed)).perm();
 //!             popup = Some(p);
 //!         } else if let Some(p) = popup.take() {
 //!             POPUP.close(&p);
@@ -37,9 +37,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_layer::popup`] for the full widget API.
+//! See [`zng_wgt_layer::popup`] for the full widget API.
 
-pub use zero_ui_wgt_layer::popup::{
+pub use zng_wgt_layer::popup::{
     anchor_mode, close_delay, close_on_focus_leave, context_capture, is_close_delaying, on_popup_close_requested,
     on_pre_popup_close_requested, style_fn, ContextCapture, DefaultStyle, Popup, PopupCloseMode, PopupCloseRequestedArgs, PopupState,
     POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT,
@@ -48,4 +48,4 @@ pub use zero_ui_wgt_layer::popup::{
 /// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
 ///
 #[cfg(all(windows, doc))]
-pub use zero_ui_wgt_layer::popup::POPUP as POPUP_;
+pub use zng_wgt_layer::popup::POPUP as POPUP_;

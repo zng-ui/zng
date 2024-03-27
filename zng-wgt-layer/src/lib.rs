@@ -5,16 +5,16 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
 use parking_lot::Mutex;
-use zero_ui_app::widget::border::CORNER_RADIUS_VAR;
-use zero_ui_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
-use zero_ui_ext_input::mouse::MOUSE;
-use zero_ui_ext_input::touch::TOUCH;
-use zero_ui_ext_window::WINDOW_Ext as _;
-use zero_ui_var::{animation, ContextInitHandle, ReadOnlyContextVar};
-use zero_ui_wgt::prelude::*;
+use zng_app::widget::border::CORNER_RADIUS_VAR;
+use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
+use zng_ext_input::mouse::MOUSE;
+use zng_ext_input::touch::TOUCH;
+use zng_ext_window::WINDOW_Ext as _;
+use zng_var::{animation, ContextInitHandle, ReadOnlyContextVar};
+use zng_wgt::prelude::*;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -660,8 +660,8 @@ impl LAYERS {
             let items = WINDOW.with_state(|s| s.req(&WINDOW_LAYERS_ID).items.clone());
             id.hook(move |a| {
                 match a.value() {
-                    zero_ui_var::types::Response::Waiting => true,
-                    zero_ui_var::types::Response::Done(id) => {
+                    zng_var::types::Response::Waiting => true,
+                    zng_var::types::Response::Done(id) => {
                         // remove item and hook
                         items.remove(*id);
                         false
@@ -1239,7 +1239,7 @@ pub struct AnchorMode {
     pub visibility: bool,
     /// The widget [`interactivity`] is set to the same as the anchor widget.
     ///
-    /// [`interactivity`]: zero_ui_app::widget::info::WidgetInfo::interactivity
+    /// [`interactivity`]: zng_app::widget::info::WidgetInfo::interactivity
     pub interactivity: bool,
 
     /// The widget's corner radius is set for the layer.
@@ -1445,7 +1445,7 @@ impl_from_and_into_var! {
 
 /// Node that implements the layers, must be inserted in the [`NestGroup::EVENT`] group by the window implementer.
 ///
-/// [`NestGroup::EVENT`]: zero_ui_app::widget::builder::NestGroup::EVENT
+/// [`NestGroup::EVENT`]: zng_app::widget::builder::NestGroup::EVENT
 pub fn layers_node(child: impl UiNode) -> impl UiNode {
     let layers = EditableUiNodeList::new();
     let layered = layers.reference();

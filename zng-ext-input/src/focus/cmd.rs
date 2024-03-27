@@ -1,12 +1,12 @@
 //! Commands that control focus and [`Command`] extensions.
 
-use zero_ui_app::{
+use zng_app::{
     event::{command, Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, EventArgs},
     shortcut::{shortcut, CommandShortcutExt},
     update::EventUpdate,
     widget::info::WidgetInfo,
 };
-use zero_ui_var::{merge_var, BoxedVar};
+use zng_var::{merge_var, BoxedVar};
 
 use super::*;
 
@@ -184,9 +184,9 @@ pub trait CommandFocusExt {
     /// # Examples
     ///
     /// ```no_run
-    /// # zero_ui_app::command! { pub static PASTE_CMD; }
-    /// # use zero_ui_ext_input::focus::cmd::CommandFocusExt as _;
-    /// # use zero_ui_var::*;
+    /// # zng_app::command! { pub static PASTE_CMD; }
+    /// # use zng_ext_input::focus::cmd::CommandFocusExt as _;
+    /// # use zng_var::*;
     /// # fn main() {
     /// let paste_in_focused_cmd = PASTE_CMD.focus_scoped();
     /// let is_enabled = paste_in_focused_cmd.flat_map(|c| c.is_enabled());

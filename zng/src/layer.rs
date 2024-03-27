@@ -8,7 +8,7 @@
 //! an adorner positioned relative to the button that inserts and removes it.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
 //! let inserted = var(false);
@@ -40,6 +40,6 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_layer`] for the full layers API.
+//! See [`zng_wgt_layer`] for the full layers API.
 
-pub use zero_ui_wgt_layer::{adorner, adorner_fn, AnchorMode, AnchorOffset, AnchorSize, AnchorTransform, LayerIndex, LAYERS};
+pub use zng_wgt_layer::{adorner, adorner_fn, AnchorMode, AnchorOffset, AnchorSize, AnchorTransform, LayerIndex, LAYERS};

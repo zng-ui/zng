@@ -7,9 +7,9 @@
 
 use std::{any::Any, collections::HashMap, fmt, mem, num::NonZeroU8, ops, sync::Arc};
 
-use zero_ui_color::COLOR_SCHEME_VAR;
-use zero_ui_var::{types::ContextualizedVar, BoxedAnyVar};
-use zero_ui_wgt::prelude::*;
+use zng_color::COLOR_SCHEME_VAR;
+use zng_var::{types::ContextualizedVar, BoxedAnyVar};
+use zng_wgt::prelude::*;
 
 use task::parking_lot::RwLock;
 

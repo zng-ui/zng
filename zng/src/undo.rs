@@ -11,9 +11,9 @@
 //! [`history::UndoHistory!`]: struct@history::UndoHistory
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
-//! fn undo_combo(op: zero_ui::undo::UndoOp) -> impl UiNode {
+//! fn undo_combo(op: zng::undo::UndoOp) -> impl UiNode {
 //!     let cmd = op.cmd().undo_scoped();
 //!
 //!     Toggle! {
@@ -32,7 +32,7 @@
 //!         };
 //!
 //!         checked_popup = wgt_fn!(|_| popup::Popup! {
-//!             child = zero_ui::undo::history::UndoHistory!(op);
+//!             child = zng::undo::history::UndoHistory!(op);
 //!         });
 //!     }
 //! }
@@ -41,10 +41,10 @@
 //! # let _ =
 //! Wrap! {
 //!     spacing = 5;
-//!     zero_ui::focus::alt_focus_scope = true;
+//!     zng::focus::alt_focus_scope = true;
 //!     children = ui_vec![
-//!         undo_combo(zero_ui::undo::UndoOp::Undo),
-//!         undo_combo(zero_ui::undo::UndoOp::Redo),
+//!         undo_combo(zng::undo::UndoOp::Undo),
+//!         undo_combo(zng::undo::UndoOp::Redo),
 //!     ];
 //! }
 //! # ;
@@ -52,23 +52,23 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_ext_undo`] for the full undo API.
+//! See [`zng_ext_undo`] for the full undo API.
 
-pub use zero_ui_ext_undo::{
+pub use zng_ext_undo::{
     CommandUndoExt, RedoAction, UndoAction, UndoActionMergeArgs, UndoFullOp, UndoInfo, UndoOp, UndoSelect, UndoSelectInterval,
     UndoSelectLtEq, UndoSelector, UndoStackInfo, UndoTransaction, UndoVarModifyTag, WidgetInfoUndoExt, WidgetUndoScope, CLEAR_HISTORY_CMD,
     REDO_CMD, UNDO, UNDO_CMD,
 };
 
-pub use zero_ui_wgt_undo::{undo_enabled, undo_interval, undo_limit, undo_scope, UndoMix};
+pub use zng_wgt_undo::{undo_enabled, undo_interval, undo_limit, undo_scope, UndoMix};
 
 /// Undo history widget.
 ///
 /// # Full API
 ///
-/// See [`zero_ui_wgt_undo_history`] for the full undo API.
+/// See [`zng_wgt_undo_history`] for the full undo API.
 pub mod history {
-    pub use zero_ui_wgt_undo_history::{
+    pub use zng_wgt_undo_history::{
         group_by_undo_interval, is_cap_hovered_timestamp, undo_button_style_fn, UndoEntryArgs, UndoHistory, UndoPanelArgs,
         UndoRedoButtonStyle, UndoStackArgs,
     };

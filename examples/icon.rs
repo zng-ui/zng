@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::{
+use zng::{
     access::{access_role, AccessRole, ACCESS},
     clipboard,
     color::{
@@ -20,7 +20,7 @@ use zero_ui::{
     wrap,
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -50,7 +50,7 @@ fn app_main() {
                 // smooth_scrolling = false;
             };
             directional_nav = DirectionalNav::Contained;
-            // zero_ui::properties::inspector::show_hit_test = true;
+            // zng::properties::inspector::show_hit_test = true;
         }
     })
 }

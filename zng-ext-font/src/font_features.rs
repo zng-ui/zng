@@ -15,7 +15,7 @@ use num_enum::FromPrimitive;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_ext_font::font_features::*;
+/// # use zng_ext_font::font_features::*;
 /// let historical_lig: FontFeatureName = b"hlig".into();
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -177,7 +177,7 @@ pub type RFontFeatures = Vec<harfbuzz_rs::Feature>;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_ext_font::font_features::*;
+/// # use zng_ext_font::font_features::*;
 /// let features = FontFeatures::builder().kerning(false).build();
 /// ```
 #[derive(Default)]
@@ -1725,7 +1725,7 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_ext_font::font_features::*;
+/// # use zng_ext_font::font_features::*;
 /// let historical_lig: FontVariationName = b"BLDB".into();
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -1872,7 +1872,7 @@ impl fmt::Debug for FontVariations {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_ext_font::font_features::*;
+/// # use zng_ext_font::font_features::*;
 /// # fn assert_type(_: FontVariations) { }
 /// let variations = font_variations! {
 ///     b"SKLA": 1000.0,
@@ -1894,7 +1894,7 @@ macro_rules! font_variations {
 }
 #[doc(inline)]
 pub use font_variations;
-use zero_ui_var::impl_from_and_into_var;
+use zng_var::impl_from_and_into_var;
 
 /// Finalized [`FontVariations`].
 ///

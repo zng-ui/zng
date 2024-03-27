@@ -8,22 +8,22 @@
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use zero_ui_app::{
+use zng_app::{
     update::EventUpdate,
     view_process::{raw_events::RAW_LOCALE_CONFIG_CHANGED_EVENT, VIEW_PROCESS_INITED_EVENT},
     AppExtension,
 };
-use zero_ui_layout::context::LayoutDirection;
-use zero_ui_task as task;
+use zng_layout::context::LayoutDirection;
+use zng_task as task;
 
-use zero_ui_txt::Txt;
-use zero_ui_var::{types::ArcCowVar, ArcEq, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
-
-#[doc(hidden)]
-pub use zero_ui_ext_l10n_proc_macros::lang as __lang;
+use zng_txt::Txt;
+use zng_var::{types::ArcCowVar, ArcEq, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
 
 #[doc(hidden)]
-pub use zero_ui_ext_l10n_proc_macros::l10n as __l10n;
+pub use zng_ext_l10n_proc_macros::lang as __lang;
+
+#[doc(hidden)]
+pub use zng_ext_l10n_proc_macros::l10n as __l10n;
 
 #[doc(hidden)]
 pub use unic_langid;
@@ -71,9 +71,9 @@ impl AppExtension for L10nManager {
 /// The message string syntax is the [Fluent Project] syntax, interpolations in the form of `"{$var}"` are resolved to a local `$var`.
 ///
 /// ```
-/// # use zero_ui_ext_l10n::*;
-/// # use zero_ui_var::*;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # use zng_ext_l10n::*;
+/// # use zng_var::*;
+/// # let _scope = zng_app::APP.minimal();
 /// let name = var("World");
 /// let msg = l10n!("file/id.attribute", "Hello {$name}!");
 /// ```
@@ -117,9 +117,9 @@ impl AppExtension for L10nManager {
 /// can be declared using `l10n-##` and standalone notes can be added to the top of the template file from anywhere using `l10n-###`.
 ///
 /// ```
-/// # use zero_ui_ext_l10n::*;
-/// # use zero_ui_var::*;
-/// # let _scope = zero_ui_app::APP.minimal();
+/// # use zng_ext_l10n::*;
+/// # use zng_var::*;
+/// # let _scope = zng_app::APP.minimal();
 ///
 /// // l10n-### Standalone Note
 ///
@@ -427,7 +427,7 @@ impl L10N {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_ext_l10n::lang;
+/// # use zng_ext_l10n::lang;
 /// let en_us = lang!(en_US);
 /// let en = lang!(en);
 ///

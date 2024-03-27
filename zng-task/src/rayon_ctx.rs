@@ -3,7 +3,7 @@ use rayon::{
     prelude::{IndexedParallelIterator, ParallelIterator},
 };
 
-use zero_ui_app_context::LocalContext;
+use zng_app_context::LocalContext;
 
 /// Extends [`ParallelIterator`] with thread context.
 pub trait ParallelIteratorExt: ParallelIterator {
@@ -13,8 +13,8 @@ pub trait ParallelIteratorExt: ParallelIterator {
     /// Without this adapter all closures in the iterator chain that use [`context_local!`] and
     /// [`app_local!`] will probably not work correctly.
     ///
-    /// [`context_local!`]: zero_ui_app_context::context_local
-    /// [`app_local!`]: zero_ui_app_context::app_local
+    /// [`context_local!`]: zng_app_context::context_local
+    /// [`app_local!`]: zng_app_context::app_local
     fn with_ctx(self) -> ParallelIteratorWithCtx<Self> {
         ParallelIteratorWithCtx {
             base: self,
@@ -230,7 +230,7 @@ mod tests {
     use super::*;
     use rayon::prelude::*;
 
-    use zero_ui_app_context::*;
+    use zng_app_context::*;
 
     context_local! {
         static VALUE: u32 = 0u32;

@@ -5,21 +5,21 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
-use zero_ui_ext_input::gesture::ClickArgs;
-use zero_ui_ext_l10n::{l10n, L10nArgument};
-use zero_ui_ext_undo::*;
-use zero_ui_wgt::{margin, prelude::*};
-use zero_ui_wgt_button::Button;
-use zero_ui_wgt_container::{child_align, padding, Container};
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_input::{is_cap_hovered, is_pressed};
-use zero_ui_wgt_scroll::{Scroll, ScrollMode};
-use zero_ui_wgt_size_offset::max_height;
-use zero_ui_wgt_stack::{Stack, StackDirection};
-use zero_ui_wgt_style::{style_fn, Style, StyleFn};
-use zero_ui_wgt_text::Text;
+use zng_ext_input::gesture::ClickArgs;
+use zng_ext_l10n::{l10n, L10nArgument};
+use zng_ext_undo::*;
+use zng_wgt::{margin, prelude::*};
+use zng_wgt_button::Button;
+use zng_wgt_container::{child_align, padding, Container};
+use zng_wgt_fill::background_color;
+use zng_wgt_input::{is_cap_hovered, is_pressed};
+use zng_wgt_scroll::{Scroll, ScrollMode};
+use zng_wgt_size_offset::max_height;
+use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_style::{style_fn, Style, StyleFn};
+use zng_wgt_text::Text;
 
 use std::fmt;
 use std::sync::Arc;
@@ -351,15 +351,15 @@ impl UndoRedoButtonStyle {
             padding = 4;
             child_align = Align::START;
 
-            background_color = color_scheme_pair(zero_ui_wgt_button::BASE_COLORS_VAR);
+            background_color = color_scheme_pair(zng_wgt_button::BASE_COLORS_VAR);
 
             when *#is_cap_hovered_timestamp {
-                background_color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
+                background_color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
             }
 
             when *#is_pressed {
                 #[easing(0.ms())]
-                background_color = zero_ui_wgt_button::color_scheme_pressed(zero_ui_wgt_button::BASE_COLORS_VAR);
+                background_color = zng_wgt_button::color_scheme_pressed(zng_wgt_button::BASE_COLORS_VAR);
             }
         }
     }
@@ -388,7 +388,7 @@ context_var! {
 /// Extend or replace the undo/redo entry button style in a context.
 #[property(CONTEXT, default(StyleFn::nil()))]
 pub fn undo_button_style_fn(child: impl UiNode, style: impl IntoVar<StyleFn>) -> impl UiNode {
-    zero_ui_wgt_style::with_style_fn(child, UNDO_BUTTON_STYLE_FN_VAR, style)
+    zng_wgt_style::with_style_fn(child, UNDO_BUTTON_STYLE_FN_VAR, style)
 }
 
 /// Sets the undo/redo entry widget context.

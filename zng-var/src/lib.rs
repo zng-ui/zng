@@ -27,10 +27,10 @@ use std::{
     },
     time::Duration,
 };
-use zero_ui_app_context::ContextLocal;
-use zero_ui_clone_move::clmv;
-use zero_ui_txt::{formatx, ToTxt, Txt};
-use zero_ui_unit::{Factor, FactorUnits};
+use zng_app_context::ContextLocal;
+use zng_clone_move::clmv;
+use zng_txt::{formatx, ToTxt, Txt};
+use zng_unit::{Factor, FactorUnits};
 
 pub mod animation;
 mod arc;
@@ -72,7 +72,7 @@ pub mod types {
     use std::marker::PhantomData;
 
     #[doc(hidden)]
-    pub use zero_ui_app_context::context_local;
+    pub use zng_app_context::context_local;
 
     pub use impls::*;
 
@@ -780,7 +780,7 @@ pub trait IntoVar<T: VarValue> {
     /// This method exists to help the type system infer the type in this scenario:
     ///
     /// ```
-    /// # use zero_ui_var::*;
+    /// # use zng_var::*;
     /// # let bar = true;
     /// # let BAR_VAR = var(true);
     /// #
@@ -1873,9 +1873,9 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Creates a variable that outputs text every 5% of a 5 seconds animation, advanced linearly.
     ///
     /// ```
-    /// # use zero_ui_var::{*, animation::easing};
-    /// # use zero_ui_txt::*;
-    /// # use zero_ui_unit::*;
+    /// # use zng_var::{*, animation::easing};
+    /// # use zng_txt::*;
+    /// # use zng_unit::*;
     /// # fn demo(text_var: impl Var<Txt>) {
     /// let steps = (0..=100).step_by(5).map(|i| (i.pct().fct(), formatx!("{i}%"))).collect();
     /// # let _ =

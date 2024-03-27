@@ -1,16 +1,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::{
+use zng::{
     color::{filter::opacity, gradient::stops},
     layout::size,
     prelude::*,
 };
-use zero_ui_app::view_process::VIEW_PROCESS;
-use zero_ui_view::extensions::ViewExtensions;
+use zng_app::view_process::VIEW_PROCESS;
+use zng_view::extensions::ViewExtensions;
 
 fn main() {
     examples_util::print_info();
-    zero_ui_view::init_extended(test_extensions);
+    zng_view::init_extended(test_extensions);
 
     APP.defaults().run_window(async {
         Window! {

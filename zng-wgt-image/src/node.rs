@@ -2,8 +2,8 @@
 
 use std::mem;
 
-use zero_ui_ext_image::{ImageCacheMode, ImagePpi, ImageRenderArgs, IMAGES};
-use zero_ui_wgt_stack::stack_nodes_layout_by;
+use zng_ext_image::{ImageCacheMode, ImagePpi, ImageRenderArgs, IMAGES};
+use zng_wgt_stack::stack_nodes_layout_by;
 
 use super::image_properties::{
     ImageFit, ImgErrorArgs, ImgLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_FN_VAR,

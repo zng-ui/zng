@@ -1,14 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::path::PathBuf;
 
-use zero_ui::{
+use zng::{
     image::{self, ImageLimits, PathFilter, UriFilter},
     markdown::{self, Markdown},
     prelude::*,
     scroll::ScrollMode,
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();

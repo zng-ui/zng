@@ -5,18 +5,18 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
 use std::ops;
 
-use zero_ui_app::event::CommandParam;
-use zero_ui_var::ReadOnlyContextVar;
-use zero_ui_wgt::{border, corner_radius, is_disabled, prelude::*};
-use zero_ui_wgt_access::{access_role, labelled_by_child, AccessRole};
-use zero_ui_wgt_container::{child_align, padding, Container};
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_filter::{child_opacity, saturate};
-use zero_ui_wgt_input::{
+use zng_app::event::CommandParam;
+use zng_var::ReadOnlyContextVar;
+use zng_wgt::{border, corner_radius, is_disabled, prelude::*};
+use zng_wgt_access::{access_role, labelled_by_child, AccessRole};
+use zng_wgt_container::{child_align, padding, Container};
+use zng_wgt_fill::background_color;
+use zng_wgt_filter::{child_opacity, saturate};
+use zng_wgt_input::{
     cursor,
     focus::FocusableMix,
     gesture::{on_click, on_disabled_click, ClickArgs},
@@ -24,9 +24,9 @@ use zero_ui_wgt_input::{
     pointer_capture::{capture_pointer, CaptureMode},
     CursorIcon,
 };
-use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
-use zero_ui_wgt_text::{font_color, underline, Text};
-use zero_ui_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
+use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_text::{font_color, underline, Text};
+use zng_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
 
 /// A clickable container.
 ///
@@ -56,17 +56,17 @@ impl Button {
                     wgt.set_child(presenter(cmd.clone(), CMD_CHILD_FN_VAR));
                 }
 
-                let enabled = wgt.property(property_id!(zero_ui_wgt::enabled)).is_none();
-                let visibility = wgt.property(property_id!(zero_ui_wgt::visibility)).is_none();
+                let enabled = wgt.property(property_id!(zng_wgt::enabled)).is_none();
+                let visibility = wgt.property(property_id!(zng_wgt::visibility)).is_none();
                 wgt.push_intrinsic(
                     NestGroup::CONTEXT,
                     "cmd-context",
                     clmv!(cmd, |mut child| {
                         if enabled {
-                            child = zero_ui_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled())).boxed();
+                            child = zng_wgt::enabled(child, cmd.flat_map(|c| c.is_enabled())).boxed();
                         }
                         if visibility {
-                            child = zero_ui_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into()).boxed();
+                            child = zng_wgt::visibility(child, cmd.flat_map(|c| c.has_handlers()).map_into()).boxed();
                         }
 
                         with_context_var(child, CMD_VAR, cmd.map(|c| Some(*c)))
@@ -198,19 +198,19 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
     let has_shortcut = shortcut.map(|s| !s.is_empty());
     Tip! {
         child = Text! {
-            zero_ui_wgt::visibility = has_info.map_into();
+            zng_wgt::visibility = has_info.map_into();
             txt = info;
         };
         child_bottom = {
             node: Text! {
-                font_weight = zero_ui_ext_font::FontWeight::BOLD;
-                zero_ui_wgt::visibility = has_shortcut.map_into();
+                font_weight = zng_ext_font::FontWeight::BOLD;
+                zng_wgt::visibility = has_shortcut.map_into();
                 txt = shortcut;
             },
             spacing: 4,
         };
 
-        zero_ui_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into())
+        zng_wgt::visibility = expr_var!((*#{has_info} || *#{has_shortcut}).into())
     }
 }
 
@@ -228,9 +228,9 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
 ///
 /// [`child`]: struct@Button#child
 /// [`tooltip_fn`]: fn@tooltip_fn
-/// [`Command`]: zero_ui_app::event::Command
-/// [`enabled`]: fn@zero_ui_wgt::enabled
-/// [`visibility`]: fn@zero_ui_wgt::visibility
+/// [`Command`]: zng_app::event::Command
+/// [`enabled`]: fn@zng_wgt::enabled
+/// [`visibility`]: fn@zng_wgt::visibility
 /// [`on_click`]: fn@on_click
 /// [`on_disabled_click`]: fn@on_disabled_click
 #[property(CHILD, capture, widget_impl(Button))]
@@ -247,7 +247,7 @@ pub fn cmd_param(child: impl UiNode, cmd_param: impl IntoVar<Option<CommandParam
 /// Sets the widget function used to produce the button child when [`cmd`] is set and [`child`] is not.
 ///
 /// [`cmd`]: fn@cmd
-/// [`child`]: fn@zero_ui_wgt_container::child
+/// [`child`]: fn@zng_wgt_container::child
 #[property(CONTEXT, default(CMD_CHILD_FN_VAR), widget_impl(Button))]
 pub fn cmd_child_fn(child: impl UiNode, cmd_child: impl IntoVar<WidgetFn<Command>>) -> impl UiNode {
     with_context_var(child, CMD_CHILD_FN_VAR, cmd_child)

@@ -1,4 +1,4 @@
-use zero_ui::prelude_wgt::{ui_node, UiNode};
+use zng::prelude_wgt::{ui_node, UiNode};
 
 struct Node {}
 

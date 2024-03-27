@@ -2,7 +2,7 @@ use std::{fmt, sync::Arc};
 
 use atomic::{Atomic, Ordering};
 use parking_lot::Mutex;
-use zero_ui_app::{
+use zng_app::{
     event::EventHandles,
     property_id,
     render::FrameValueKey,
@@ -13,21 +13,21 @@ use zero_ui_app::{
         property, widget, WidgetId, WIDGET,
     },
 };
-use zero_ui_app_context::{context_local, LocalContext};
-use zero_ui_color::colors;
-use zero_ui_ext_input::{
+use zng_app_context::{context_local, LocalContext};
+use zng_color::colors;
+use zng_ext_input::{
     focus::FOCUS_CHANGED_EVENT,
     mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
     touch::{TOUCH_INPUT_EVENT, TOUCH_MOVE_EVENT},
 };
-use zero_ui_layout::{
+use zng_layout::{
     context::LAYOUT,
     unit::{Dip, DipToPx as _, DipVector, Px, PxCornerRadius, PxPoint, PxRect, PxSize, PxTransform, PxVector},
 };
-use zero_ui_view_api::{display_list::FrameValue, touch::TouchId};
-use zero_ui_wgt::{prelude::*, WidgetFn};
-use zero_ui_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
+use zng_view_api::{display_list::FrameValue, touch::TouchId};
+use zng_wgt::{prelude::*, WidgetFn};
+use zng_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
 
 use crate::{
     cmd::{TextSelectOp, SELECT_CMD},
@@ -492,7 +492,7 @@ impl InteractiveCaret {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-            zero_ui_wgt::hit_test_mode = zero_ui_wgt::HitTestMode::Detailed;
+            zng_wgt::hit_test_mode = zng_wgt::HitTestMode::Detailed;
         };
         self.widget_builder().push_build_action(|b| {
             let input = b

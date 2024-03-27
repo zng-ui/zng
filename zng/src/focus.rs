@@ -11,7 +11,7 @@
 //! [`on_focus_changed`](fn@on_focus_changed) and other properties on this module.
 //!
 //! ```
-//! use zero_ui::{prelude::*, focus};
+//! use zng::{prelude::*, focus};
 //!
 //! # let _scope = APP.defaults();
 //!
@@ -128,14 +128,14 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_ext_input::focus`] and [`zero_ui_wgt_input::focus`] for the full focus API.
+//! See [`zng_ext_input::focus`] and [`zng_wgt_input::focus`] for the full focus API.
 
-pub use zero_ui_ext_input::focus::{
+pub use zng_ext_input::focus::{
     cmd, iter, DirectionalNav, FocusChangedArgs, FocusChangedCause, FocusInfo, FocusInfoBuilder, FocusInfoTree, FocusNavAction,
     FocusRequest, FocusScopeOnFocus, FocusTarget, ReturnFocusChangedArgs, TabIndex, TabNav, WidgetFocusInfo, WidgetInfoFocusExt, FOCUS,
     FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT,
 };
-pub use zero_ui_wgt_input::focus::{
+pub use zng_wgt_input::focus::{
     alt_focus_scope, directional_nav, focus_click_behavior, focus_highlight, focus_on_init, focus_scope, focus_scope_behavior,
     focus_shortcut, focusable, is_focus_within, is_focus_within_hgl, is_focused, is_focused_hgl, is_return_focus, is_return_focus_within,
     on_blur, on_focus, on_focus_changed, on_focus_enter, on_focus_leave, on_pre_blur, on_pre_focus, on_pre_focus_changed,

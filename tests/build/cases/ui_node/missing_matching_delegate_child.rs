@@ -1,4 +1,4 @@
-use zero_ui::prelude_wgt::{ui_node, NilUiNode, UiNode, WidgetUpdates};
+use zng::prelude_wgt::{ui_node, NilUiNode, UiNode, WidgetUpdates};
 
 struct Node1<C> {
     child: C,

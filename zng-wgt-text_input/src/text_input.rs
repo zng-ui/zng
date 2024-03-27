@@ -1,24 +1,24 @@
-use zero_ui_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
-use zero_ui_wgt::{align, is_disabled, margin, prelude::*};
-use zero_ui_wgt_access::{access_role, AccessRole};
-use zero_ui_wgt_button::Button;
-use zero_ui_wgt_data::{DataNoteLevel, DataNotes, DATA};
-use zero_ui_wgt_fill::foreground_highlight;
-use zero_ui_wgt_filter::{child_opacity, saturate};
-use zero_ui_wgt_input::{
+use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
+use zng_wgt::{align, is_disabled, margin, prelude::*};
+use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt_button::Button;
+use zng_wgt_data::{DataNoteLevel, DataNotes, DATA};
+use zng_wgt_fill::foreground_highlight;
+use zng_wgt_filter::{child_opacity, saturate};
+use zng_wgt_input::{
     focus::{focusable, is_return_focus},
     pointer_capture::capture_pointer,
 };
-use zero_ui_wgt_layer::popup;
-use zero_ui_wgt_menu::{
+use zng_wgt_layer::popup;
+use zng_wgt_menu::{
     self as menu,
     context::{context_menu_fn, ContextMenu},
 };
-use zero_ui_wgt_rule_line::hr::Hr;
-use zero_ui_wgt_size_offset::{offset, y};
-use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
-use zero_ui_wgt_text::{self as text, *};
-use zero_ui_wgt_undo::{undo_scope, UndoMix};
+use zng_wgt_rule_line::hr::Hr;
+use zng_wgt_size_offset::{offset, y};
+use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_text::{self as text, *};
+use zng_wgt_undo::{undo_scope, UndoMix};
 
 /// Simple text editor widget.
 ///
@@ -28,7 +28,7 @@ use zero_ui_wgt_undo::{undo_scope, UndoMix};
 ///
 /// You can also use [`text::cmd`] to edit the text.
 ///
-/// [`text::cmd`]: zero_ui_wgt_text::cmd
+/// [`text::cmd`]: zng_wgt_text::cmd
 ///
 /// # Undo/Redo
 ///
@@ -40,9 +40,9 @@ use zero_ui_wgt_undo::{undo_scope, UndoMix};
 /// The `TextInput!` macro provides shorthand syntax that sets the `txt` property.
 ///
 /// ```
-/// # zero_ui_wgt::enable_widget_macros!();
-/// # use zero_ui_wgt::prelude::*;
-/// # use zero_ui_wgt_text_input::*;
+/// # zng_wgt::enable_widget_macros!();
+/// # use zng_wgt::prelude::*;
+/// # use zng_wgt_text_input::*;
 /// #
 /// # fn main() {
 /// let editable_text = TextInput!(var_from(""));
@@ -165,11 +165,11 @@ pub fn default_popup_context_capture() -> popup::ContextCapture {
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
-        use zero_ui_wgt::border;
-        use zero_ui_wgt_container::*;
-        use zero_ui_wgt_fill::*;
-        use zero_ui_wgt_input::{focus::is_focused, *};
-        use zero_ui_wgt_layer::*;
+        use zng_wgt::border;
+        use zng_wgt_container::*;
+        use zng_wgt_fill::*;
+        use zng_wgt_input::{focus::is_focused, *};
+        use zng_wgt_layer::*;
 
         widget_set! {
             self;
@@ -238,7 +238,7 @@ impl FieldStyle {
 
         widget_set! {
             self;
-            zero_ui_wgt_data::get_data_notes_top = top_notes.clone();
+            zng_wgt_data::get_data_notes_top = top_notes.clone();
             text::get_chars_count = chars_count.clone();
 
             foreground_highlight = {
@@ -303,7 +303,7 @@ impl FieldStyle {
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    zero_ui_wgt_layer::adorner_fn(child, adorner_fn)
+    zng_wgt_layer::adorner_fn(child, adorner_fn)
 }
 
 /// Adorner property used by [`FieldStyle`] to show the count/max indicator.
@@ -311,7 +311,7 @@ pub fn data_notes_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<Widget
 /// [`FieldStyle`]: struct@FieldStyle
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn max_chars_count_adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    zero_ui_wgt_layer::adorner_fn(child, adorner_fn)
+    zng_wgt_layer::adorner_fn(child, adorner_fn)
 }
 
 context_var! {

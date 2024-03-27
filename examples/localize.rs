@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use zero_ui::{
+use zng::{
     color::filter::drop_shadow,
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
     image,
@@ -19,7 +19,7 @@ use zero_ui::{
 // Run this command to scrap template:
 // cargo run -p zng-l10n-scraper -- -i"examples/localize*" -o"examples/res/localize"
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -155,7 +155,7 @@ fn locale_menu() -> impl UiNode {
                         Toggle! {
                             text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
                             child = Text!("{l}");
-                            value::<zero_ui::l10n::Lang> = l.clone();
+                            value::<zng::l10n::Lang> = l.clone();
                         }
                     }).collect::<UiNodeVec>()
                 }

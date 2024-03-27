@@ -1,22 +1,22 @@
 use std::num::NonZeroU32;
 
 pub use pulldown_cmark::HeadingLevel;
-use zero_ui_ext_font::*;
-use zero_ui_ext_image::ImageSource;
-use zero_ui_ext_input::gesture::ClickArgs;
-use zero_ui_wgt::*;
-use zero_ui_wgt_access::{self as access, access_role, AccessRole};
-use zero_ui_wgt_button::{Button, LinkStyle};
-use zero_ui_wgt_container::{child_align, padding, Container};
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_filter::opacity;
-use zero_ui_wgt_grid::{self as grid, Grid};
-use zero_ui_wgt_size_offset::{offset, size};
-use zero_ui_wgt_stack::{Stack, StackDirection};
-use zero_ui_wgt_text::{font_size, font_weight, Text, FONT_COLOR_VAR, PARAGRAPH_SPACING_VAR};
-use zero_ui_wgt_tooltip::*;
-use zero_ui_wgt_transform::scale;
-use zero_ui_wgt_wrap::Wrap;
+use zng_ext_font::*;
+use zng_ext_image::ImageSource;
+use zng_ext_input::gesture::ClickArgs;
+use zng_wgt::*;
+use zng_wgt_access::{self as access, access_role, AccessRole};
+use zng_wgt_button::{Button, LinkStyle};
+use zng_wgt_container::{child_align, padding, Container};
+use zng_wgt_fill::background_color;
+use zng_wgt_filter::opacity;
+use zng_wgt_grid::{self as grid, Grid};
+use zng_wgt_size_offset::{offset, size};
+use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_text::{font_size, font_weight, Text, FONT_COLOR_VAR, PARAGRAPH_SPACING_VAR};
+use zng_wgt_tooltip::*;
+use zng_wgt_transform::scale;
+use zng_wgt_wrap::Wrap;
 
 use super::*;
 
@@ -499,10 +499,10 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
 ///
 /// See [`CODE_BLOCK_FN_VAR`] for more details.
 ///
-/// [`AnsiText!`]: struct@zero_ui_wgt_ansi_text::AnsiText
+/// [`AnsiText!`]: struct@zng_wgt_ansi_text::AnsiText
 pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
     if args.lang == "ansi" {
-        zero_ui_wgt_ansi_text::AnsiText! {
+        zng_wgt_ansi_text::AnsiText! {
             txt = args.txt;
             padding = 6;
             corner_radius = 4;
@@ -689,7 +689,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
     let alt_txt = args.alt_txt;
     let mut alt_items = args.alt_items;
     if alt_items.is_empty() {
-        zero_ui_wgt_image::Image! {
+        zng_wgt_image::Image! {
             align = Align::TOP_LEFT;
             tooltip_fn;
             access::label = alt_txt;
@@ -699,17 +699,17 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
         let alt_items = if alt_items.len() == 1 {
             alt_items.remove(0)
         } else {
-            zero_ui_wgt_wrap::Wrap! {
+            zng_wgt_wrap::Wrap! {
                 children = alt_items;
             }
             .boxed()
         };
         let alt_items = ArcNode::new(alt_items);
-        zero_ui_wgt_image::Image! {
+        zng_wgt_image::Image! {
             align = Align::TOP_LEFT;
             source = args.source;
             tooltip_fn;
-            zero_ui_wgt_access::label = alt_txt;
+            zng_wgt_access::label = alt_txt;
             img_error_fn = wgt_fn!(|_| {
                 alt_items.take_on_init()
             });
@@ -721,7 +721,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
 ///
 /// See [`RULE_FN_VAR`] for more details.
 pub fn default_rule_fn(_: RuleFnArgs) -> impl UiNode {
-    zero_ui_wgt_rule_line::hr::Hr! {
+    zng_wgt_rule_line::hr::Hr! {
         opacity = 50.pct();
     }
 }

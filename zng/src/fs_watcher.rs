@@ -7,7 +7,7 @@
 //! Any external change made to the text file updates the UI text.
 //!
 //! ```
-//! use zero_ui::{prelude::*, fs_watcher::WATCHER};
+//! use zng::{prelude::*, fs_watcher::WATCHER};
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
@@ -19,11 +19,11 @@
 //! `TextInput!` and any change made using the `TextInput!` updates the file contents.
 //!
 //! ```
-//! use zero_ui::{prelude::*, fs_watcher::WATCHER};
+//! use zng::{prelude::*, fs_watcher::WATCHER};
 //!
 //! # let _scope = APP.defaults();
 //! # let _ =
-//! TextInput!(zero_ui::fs_watcher::WATCHER.sync(
+//! TextInput!(zng::fs_watcher::WATCHER.sync(
 //!     "dump.log",
 //!     // initial value
 //!     Txt::from(""),
@@ -52,9 +52,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_ext_fs_watcher`] for the full watcher API.
+//! See [`zng_ext_fs_watcher`] for the full watcher API.
 
-pub use zero_ui_ext_fs_watcher::{
+pub use zng_ext_fs_watcher::{
     fs_event, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WatchFile, WatcherHandle, WatcherReadStatus, WatcherSyncStatus,
     WriteFile, FS_CHANGES_EVENT, WATCHER,
 };

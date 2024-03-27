@@ -19,8 +19,8 @@ use super::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_var::*;
-/// # use zero_ui_txt::ToTxt;
+/// # use zng_var::*;
+/// # use zng_txt::ToTxt;
 /// # macro_rules! Text { ($($tt:tt)*) => { () } }
 /// let condition = var(true);
 /// let when_false = var("condition: false".to_txt());
@@ -38,8 +38,8 @@ use super::*;
 /// Every condition can be annotated with attributes, including `#[cfg(..)]`.
 ///
 /// ```
-/// # use zero_ui_var::*;
-/// # use zero_ui_txt::*;
+/// # use zng_var::*;
+/// # use zng_txt::*;
 /// # macro_rules! Text { ($($tt:tt)*) => { () } }
 /// # let condition0 = var(true);
 /// # let condition1 = var(true);
@@ -74,7 +74,7 @@ macro_rules! when_var {
 
 use parking_lot::Mutex;
 #[doc(hidden)]
-pub use zero_ui_var_proc_macros::when_var as __when_var;
+pub use zng_var_proc_macros::when_var as __when_var;
 
 #[doc(hidden)]
 pub type ContextualizedArcWhenVar<T> = types::ContextualizedVar<T>;

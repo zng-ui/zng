@@ -7,8 +7,8 @@
 
 use std::ops;
 
-use zero_ui_color::COLOR_SCHEME_VAR;
-use zero_ui_wgt::prelude::{
+use zng_color::COLOR_SCHEME_VAR;
+use zng_wgt::prelude::{
     gradient::{RenderExtendMode, RenderGradientStop},
     *,
 };

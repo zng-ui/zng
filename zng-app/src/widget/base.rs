@@ -18,7 +18,7 @@ use crate::widget::{
     node::match_node,
     property,
 };
-use zero_ui_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
+use zng_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
 
 /// Base widget.
 ///
@@ -439,8 +439,8 @@ impl WidgetExt for NonWidgetBase {
 ///
 /// [`WidgetBase`]: struct@WidgetBase
 pub mod node {
-    use zero_ui_layout::unit::{PxCornerRadius, PxRect, PxSize};
-    use zero_ui_var::Var;
+    use zng_layout::unit::{PxCornerRadius, PxRect, PxSize};
+    use zng_var::Var;
 
     use crate::{
         render::{FrameBuilder, FrameUpdate, FrameValueKey},
@@ -812,7 +812,7 @@ pub mod node {
                         // verify that inline row segments fit in row rectangle
                         #[cfg(debug_assertions)]
                         if let Some(inline) = wl.inline() {
-                            use zero_ui_layout::unit::Px;
+                            use zng_layout::unit::Px;
 
                             for (name, row, segs) in inline
                                 .rows

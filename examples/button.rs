@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::{
+use zng::{
     color::filter::opacity,
     gesture::ClickArgs,
     layout::{align, margin},
@@ -10,7 +10,7 @@ use zero_ui::{
     widget::{node::EditableUiNodeList, LineStyle},
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();

@@ -13,13 +13,13 @@ fn main() {
     let file = "";
 
     #[cfg(target_os = "windows")]
-    let file = "zero_ui_view.dll";
+    let file = "zng_view.dll";
 
     #[cfg(target_os = "linux")]
-    let file = "libzero_ui_view.so";
+    let file = "libzng_view.so";
 
     #[cfg(target_os = "macos")]
-    let file = "libzero_ui_view.dylib";
+    let file = "libzng_view.dylib";
 
     if file.is_empty() {
         panic!("unsuported OS");
@@ -28,8 +28,8 @@ fn main() {
     lib = lib.join(file);
 
     if lib.exists() {
-        println!("cargo:rustc-cfg=zero_ui_lib_embedded");
-        println!("cargo:rustc-env=ZERO_UI_VIEW_LIB={}", lib.canonicalize().unwrap().display());
+        println!("cargo:rustc-cfg=zng_lib_embedded");
+        println!("cargo:rustc-env=ZNG_VIEW_LIB={}", lib.canonicalize().unwrap().display());
 
         let lib_bytes = std::fs::read(lib).unwrap();
 
@@ -42,7 +42,7 @@ fn main() {
         hash[8..].copy_from_slice(&b.to_le_bytes());
 
         println!(
-            "cargo:rustc-env=ZERO_UI_VIEW_LIB_HASH={}",
+            "cargo:rustc-env=ZNG_VIEW_LIB_HASH={}",
             base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
         );
     } else {

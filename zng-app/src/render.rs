@@ -6,19 +6,19 @@ use crate::{
     widget::info::{ParallelSegmentOffsets, WidgetBoundsInfo},
     window::WINDOW,
 };
-use zero_ui_color::{
+use zng_color::{
     colors,
     filter::RenderFilter,
     gradient::{RenderExtendMode, RenderGradientStop},
     RenderMixBlendMode, Rgba,
 };
-use zero_ui_layout::unit::{
+use zng_layout::unit::{
     euclid, AngleRadian, Factor, FactorUnits, Px, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector,
 };
-use zero_ui_task::rayon::iter::{ParallelBridge, ParallelIterator};
-use zero_ui_unique_id::unique_id_32;
-use zero_ui_var::{impl_from_and_into_var, Var, VarCapabilities, VarValue};
-use zero_ui_view_api::{
+use zng_task::rayon::iter::{ParallelBridge, ParallelIterator};
+use zng_unique_id::unique_id_32;
+use zng_var::{impl_from_and_into_var, Var, VarCapabilities, VarValue};
+use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::FontAntiAliasing,
     display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseStart},
@@ -38,7 +38,7 @@ use crate::{
     },
 };
 
-pub use zero_ui_view_api::{
+pub use zng_view_api::{
     display_list::{FrameValue, FrameValueUpdate, ReuseRange},
     ImageRendering, RepeatMode, TransformStyle,
 };
@@ -53,7 +53,7 @@ pub trait Font {
     /// Gets the instance key in the `renderer` namespace.
     ///
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
-    fn renderer_id(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zero_ui_view_api::font::FontId;
+    fn renderer_id(&self, renderer: &ViewRenderer, synthesis: FontSynthesis) -> zng_view_api::font::FontId;
 }
 
 /// A loaded or loading image.
@@ -66,13 +66,13 @@ pub trait Img {
     ///
     /// The image must be loaded asynchronously by `self` and does not need to
     /// be loaded yet when the key is returned.
-    fn renderer_id(&self, renderer: &ViewRenderer) -> zero_ui_view_api::image::ImageTextureId;
+    fn renderer_id(&self, renderer: &ViewRenderer) -> zng_view_api::image::ImageTextureId;
 
     /// Returns a value that indicates if the image is already pre-multiplied.
     ///
     /// The faster option is pre-multiplied, that is also the default return value.
-    fn alpha_type(&self) -> zero_ui_view_api::AlphaType {
-        zero_ui_view_api::AlphaType::PremultipliedAlpha
+    fn alpha_type(&self) -> zng_view_api::AlphaType {
+        zng_view_api::AlphaType::PremultipliedAlpha
     }
 }
 
@@ -1496,7 +1496,7 @@ impl FrameBuilder {
     /// caching for the entire `clip_rect` region, this can have a big performance impact in [`RenderMode::Software`] if a large
     /// part of the screen is affected, as the entire region is redraw every full frame even if the color did not actually change.
     ///
-    /// [`RenderMode::Software`]: zero_ui_view_api::window::RenderMode::Software
+    /// [`RenderMode::Software`]: zng_view_api::window::RenderMode::Software
     pub fn push_color(&mut self, clip_rect: PxRect, color: FrameValue<Rgba>) {
         expect_inner!(self.push_color);
         warn_empty!(self.push_color(clip_rect));
@@ -1676,16 +1676,16 @@ impl FrameBuilder {
                     self.display_list.push_border(
                         clip_rect,
                         widths,
-                        zero_ui_view_api::BorderSide { color, style },
-                        zero_ui_view_api::BorderSide {
+                        zng_view_api::BorderSide { color, style },
+                        zng_view_api::BorderSide {
                             color: colors::BLACK.transparent(),
-                            style: zero_ui_view_api::BorderStyle::Hidden,
+                            style: zng_view_api::BorderStyle::Hidden,
                         },
-                        zero_ui_view_api::BorderSide {
+                        zng_view_api::BorderSide {
                             color: colors::BLACK.transparent(),
-                            style: zero_ui_view_api::BorderStyle::Hidden,
+                            style: zng_view_api::BorderStyle::Hidden,
                         },
-                        zero_ui_view_api::BorderSide { color, style },
+                        zng_view_api::BorderSide { color, style },
                         PxCornerRadius::zero(),
                     );
                 }
@@ -2102,22 +2102,22 @@ pub struct BuiltFrame {
 }
 
 enum RenderLineCommand {
-    Line(zero_ui_view_api::LineStyle),
-    Border(zero_ui_view_api::BorderStyle),
+    Line(zng_view_api::LineStyle),
+    Border(zng_view_api::BorderStyle),
 }
 impl border::LineStyle {
     fn render_command(self) -> RenderLineCommand {
         use border::LineStyle as LS;
         use RenderLineCommand::*;
         match self {
-            LS::Solid => Line(zero_ui_view_api::LineStyle::Solid),
-            LS::Double => Border(zero_ui_view_api::BorderStyle::Double),
-            LS::Dotted => Line(zero_ui_view_api::LineStyle::Dotted),
-            LS::Dashed => Line(zero_ui_view_api::LineStyle::Dashed),
-            LS::Groove => Border(zero_ui_view_api::BorderStyle::Groove),
-            LS::Ridge => Border(zero_ui_view_api::BorderStyle::Ridge),
-            LS::Wavy(thickness) => Line(zero_ui_view_api::LineStyle::Wavy(thickness)),
-            LS::Hidden => Border(zero_ui_view_api::BorderStyle::Hidden),
+            LS::Solid => Line(zng_view_api::LineStyle::Solid),
+            LS::Double => Border(zng_view_api::BorderStyle::Double),
+            LS::Dotted => Line(zng_view_api::LineStyle::Dotted),
+            LS::Dashed => Line(zng_view_api::LineStyle::Dashed),
+            LS::Groove => Border(zng_view_api::BorderStyle::Groove),
+            LS::Ridge => Border(zng_view_api::BorderStyle::Ridge),
+            LS::Wavy(thickness) => Line(zng_view_api::LineStyle::Wavy(thickness)),
+            LS::Hidden => Border(zng_view_api::BorderStyle::Hidden),
         }
     }
 }
@@ -2818,13 +2818,13 @@ impl<T> FrameValueKey<T> {
     }
 
     /// To view key.
-    pub fn to_wr(self) -> zero_ui_view_api::display_list::FrameValueId {
+    pub fn to_wr(self) -> zng_view_api::display_list::FrameValueId {
         Self::to_wr_child(self, u32::MAX)
     }
 
     /// To view key with an extra `index` modifier.
-    pub fn to_wr_child(self, child_index: u32) -> zero_ui_view_api::display_list::FrameValueId {
-        zero_ui_view_api::display_list::FrameValueId::from_raw(((self.id.get() as u64) << 32) | child_index as u64)
+    pub fn to_wr_child(self, child_index: u32) -> zng_view_api::display_list::FrameValueId {
+        zng_view_api::display_list::FrameValueId::from_raw(((self.id.get() as u64) << 32) | child_index as u64)
     }
 
     /// Create a binding with this key.

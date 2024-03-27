@@ -2,9 +2,9 @@
 
 use super::*;
 use scrollbar::ORIENTATION_VAR;
-use zero_ui_ext_input::mouse::{ClickMode, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT};
-use zero_ui_wgt_fill::background_color;
-use zero_ui_wgt_input::{click_mode, is_cap_pressed, is_hovered, pointer_capture::capture_pointer};
+use zng_ext_input::mouse::{ClickMode, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT};
+use zng_wgt_fill::background_color;
+use zng_wgt_input::{click_mode, is_cap_pressed, is_hovered, pointer_capture::capture_pointer};
 
 /// Scrollbar thumb widget.
 #[widget($crate::Thumb)]
@@ -47,7 +47,7 @@ pub fn cross_length(length: impl IntoVar<Length>) {}
 fn on_build(wgt: &mut WidgetBuilding) {
     let cross_length = wgt.capture_var_or_else::<Length, _>(property_id!(cross_length), || 16);
     wgt.push_intrinsic(NestGroup::SIZE, "orientation-size", move |child| {
-        zero_ui_wgt_size_offset::size(
+        zng_wgt_size_offset::size(
             child,
             merge_var!(ORIENTATION_VAR, THUMB_VIEWPORT_RATIO_VAR, cross_length, |o, r, l| {
                 match o {

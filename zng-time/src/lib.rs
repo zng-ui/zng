@@ -6,7 +6,7 @@ use std::{
 };
 
 use parking_lot::RwLock;
-use zero_ui_app_context::app_local;
+use zng_app_context::app_local;
 
 /// Instant service.
 pub struct INSTANT;
@@ -18,7 +18,7 @@ impl INSTANT {
     /// time on the same pass, you can use [`mode`](Self::mode) to check how `now` updates and you
     /// can use the `APP.pause_time_for_update` variable to disable pausing.
     pub fn now(&self) -> DInstant {
-        if zero_ui_app_context::LocalContext::current_app().is_some() {
+        if zng_app_context::LocalContext::current_app().is_some() {
             if let Some(now) = INSTANT_SV.read().now {
                 return now;
             }
@@ -260,7 +260,7 @@ struct InstantService {
 /// In the example below the timer function accepts `Deadline`, `DInstant` and `Duration` inputs.
 ///
 /// ```
-/// # use zero_ui_time::*;
+/// # use zng_time::*;
 /// # trait TimeUnits { fn secs(self) -> std::time::Duration where Self: Sized { std::time::Duration::ZERO } }
 /// # impl TimeUnits for i32 { }
 /// fn timer(deadline: impl Into<Deadline>) {

@@ -3,33 +3,33 @@
 use std::time::Duration;
 
 use super::ButtonStyle;
-use zero_ui_ext_font::FontNames;
-use zero_ui_ext_input::{
+use zng_ext_font::FontNames;
+use zng_ext_input::{
     focus::{WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
     gesture::CLICK_EVENT,
     keyboard::{Key, KeyState, KEY_INPUT_EVENT},
     mouse::{ClickMode, MOUSE_HOVERED_EVENT},
 };
-use zero_ui_ext_l10n::lang;
-use zero_ui_wgt::{align, is_disabled, is_rtl, prelude::*};
-use zero_ui_wgt_container::padding;
-use zero_ui_wgt_fill::{background, background_color, foreground_highlight};
-use zero_ui_wgt_filter::{opacity, saturate};
-use zero_ui_wgt_input::{
+use zng_ext_l10n::lang;
+use zng_wgt::{align, is_disabled, is_rtl, prelude::*};
+use zng_wgt_container::padding;
+use zng_wgt_fill::{background, background_color, foreground_highlight};
+use zng_wgt_filter::{opacity, saturate};
+use zng_wgt_input::{
     click_mode, cursor,
     focus::{focus_click_behavior, focusable, is_focused, FocusClickBehavior},
     is_hovered,
     pointer_capture::capture_pointer,
     CursorIcon,
 };
-use zero_ui_wgt_layer::{
+use zng_wgt_layer::{
     popup::{PopupState, POPUP, POPUP_CLOSE_CMD},
     AnchorMode, AnchorOffset, AnchorSize,
 };
-use zero_ui_wgt_size_offset::{size, width};
-use zero_ui_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_size_offset::{size, width};
+use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 #[doc(hidden)]
-pub use zero_ui_wgt_text::Text;
+pub use zng_wgt_text::Text;
 
 /// Submenu header and items.
 #[widget($crate::sub::SubMenu {
@@ -456,13 +456,13 @@ impl DefaultStyle {
             opacity = 90.pct();
             foreground_highlight = unset!;
 
-            zero_ui_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
+            zng_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
                 LayoutDirection::LTR => AnchorMode::popup(AnchorOffset { place: Point::bottom_left(), origin: Point::top_left() }),
                 LayoutDirection::RTL => AnchorMode::popup(AnchorOffset { place: Point::bottom_right(), origin: Point::top_right() }),
             });
 
             when *#is_hovered || *#is_focused || *#is_open {
-                background_color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
+                background_color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
                 opacity = 100.pct();
             }
 
@@ -485,18 +485,18 @@ impl SubMenuStyle {
         widget_set! {
             self;
 
-            zero_ui_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
+            zng_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
                 LayoutDirection::LTR => AnchorMode::popup(AnchorOffset { place: Point::top_right(), origin: Point::top_left() }),
                 LayoutDirection::RTL => AnchorMode::popup(AnchorOffset { place: Point::top_left(), origin: Point::top_right() }),
             }.with_min_size(AnchorSize::Unbounded));
 
             when *#is_open {
-                background_color = zero_ui_wgt_button::color_scheme_hovered(zero_ui_wgt_button::BASE_COLORS_VAR);
+                background_color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
                 opacity = 100.pct();
             }
 
 
-            end_column_fn = wgt_fn!(|_| zero_ui_wgt_text::Text! {
+            end_column_fn = wgt_fn!(|_| zng_wgt_text::Text! {
                 size = 1.2.em();
                 font_family = FontNames::system_ui(&lang!(und));
                 align = Align::CENTER;

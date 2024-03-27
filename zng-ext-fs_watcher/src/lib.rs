@@ -26,7 +26,7 @@ use fs4::FileExt;
 use notify::Watcher;
 use parking_lot::Mutex;
 use path_absolutize::Absolutize;
-use zero_ui_app::{
+use zng_app::{
     app_hn_once,
     event::{event, event_args, EventHandle},
     handler::{AppHandler, FilterAppHandler},
@@ -35,16 +35,16 @@ use zero_ui_app::{
     view_process::raw_events::LOW_MEMORY_EVENT,
     AppExtension, DInstant, INSTANT,
 };
-use zero_ui_app_context::{app_local, LocalContext};
-use zero_ui_clone_move::clmv;
-use zero_ui_handle::{Handle, HandleOwner};
-use zero_ui_txt::Txt;
-use zero_ui_unit::TimeUnits;
-use zero_ui_var::{
+use zng_app_context::{app_local, LocalContext};
+use zng_clone_move::clmv;
+use zng_handle::{Handle, HandleOwner};
+use zng_txt::Txt;
+use zng_unit::TimeUnits;
+use zng_var::{
     types::WeakArcVar, var, AnyVar, AnyVarHookArgs, AnyWeakVar, ArcVar, ReadOnlyArcVar, Var, VarUpdateId, VarValue, WeakVar, VARS,
 };
 
-use zero_ui_task as task;
+use zng_task as task;
 
 /// Application extension that provides file system change events and service.
 ///
@@ -305,7 +305,7 @@ impl WATCHER {
     /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
     ///
-    /// [`async_app_hn!`]: macro@zero_ui_app::handler::async_app_hn
+    /// [`async_app_hn!`]: macro@zng_app::handler::async_app_hn
     pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
         let file = file.into();
         let handle = self.watch(file.clone());
@@ -320,7 +320,7 @@ impl WATCHER {
     /// Note that the `handler` is blocking, use [`async_app_hn!`] and [`task::wait`] to run IO without
     /// blocking the app.
     ///
-    /// [`async_app_hn!`]: macro@zero_ui_app::handler::async_app_hn
+    /// [`async_app_hn!`]: macro@zng_app::handler::async_app_hn
     pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
         let dir = dir.into();
         let handle = self.watch_dir(dir.clone(), recursive);

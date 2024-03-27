@@ -2,7 +2,7 @@
 
 use std::{collections::HashSet, time::Duration};
 
-use zero_ui_app::{
+use zng_app::{
     event::{event, event_args},
     shortcut::ModifiersState,
     update::EventUpdate,
@@ -18,13 +18,13 @@ use zero_ui_app::{
     window::WindowId,
     AppExtension, DInstant, HeadlessApp,
 };
-use zero_ui_app_context::app_local;
-use zero_ui_clone_move::clmv;
-use zero_ui_layout::unit::{Factor, FactorUnits};
-use zero_ui_txt::Txt;
-use zero_ui_var::{var, var_default, ArcVar, ReadOnlyArcVar, Var};
-use zero_ui_view_api::config::AnimationsConfig;
-pub use zero_ui_view_api::{
+use zng_app_context::app_local;
+use zng_clone_move::clmv;
+use zng_layout::unit::{Factor, FactorUnits};
+use zng_txt::Txt;
+use zng_var::{var, var_default, ArcVar, ReadOnlyArcVar, Var};
+use zng_view_api::config::AnimationsConfig;
+pub use zng_view_api::{
     config::KeyRepeatConfig,
     keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
 };
@@ -204,9 +204,9 @@ event! {
 /// require anything for initialization.
 ///
 /// [extension]: AppExtension
-/// [default app]: zero_ui_app::APP::default
+/// [default app]: zng_app::APP::default
 /// [`FOCUS`]: crate::focus::FOCUS
-/// [`WINDOWS`]: zero_ui_ext_window::WINDOWS
+/// [`WINDOWS`]: zng_ext_window::WINDOWS
 #[derive(Default)]
 pub struct KeyboardManager {}
 impl AppExtension for KeyboardManager {
@@ -503,7 +503,7 @@ pub trait HeadlessAppKeyboardExt {
 }
 impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, key: Key, state: KeyState) {
-        use zero_ui_app::view_process::raw_events::*;
+        use zng_app::view_process::raw_events::*;
 
         let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), code, state, key.clone(), key, "");
         RAW_KEY_INPUT_EVENT.notify(args);

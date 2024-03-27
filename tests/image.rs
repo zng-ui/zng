@@ -3,16 +3,16 @@ use std::sync::{
     Arc,
 };
 
-use zero_ui::{image::Img, prelude::*, widget::parallel};
+use zng::{image::Img, prelude::*, widget::parallel};
 
 #[test]
 fn error_view_recursion() {
-    zero_ui_app::test_log();
+    zng_app::test_log();
 
     let img = var(Img::dummy(Some("test error".to_txt()))).read_only();
 
     let mut app = APP.defaults().run_headless(false);
-    zero_ui::image::IMAGES.load_in_headless().set(true);
+    zng::image::IMAGES.load_in_headless().set(true);
     let ok = Arc::new(AtomicBool::new(false));
     let window_id = app.open_window(async_clmv!(ok, {
         Window! {

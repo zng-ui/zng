@@ -6,10 +6,10 @@ use std::{
     sync::Arc,
 };
 
-use zero_ui_clone_move::clmv;
-use zero_ui_ext_fs_watcher::WATCHER;
-use zero_ui_txt::Txt;
-use zero_ui_var::{types::WeakArcVar, var, AnyVar, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, Var, VarHandle, WeakVar};
+use zng_clone_move::clmv;
+use zng_ext_fs_watcher::WATCHER;
+use zng_txt::Txt;
+use zng_var::{types::WeakArcVar, var, AnyVar, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, Var, VarHandle, WeakVar};
 
 use crate::{FluentParserErrors, L10nSource, Lang, LangMap, LangResourceStatus};
 

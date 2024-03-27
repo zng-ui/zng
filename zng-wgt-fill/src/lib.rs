@@ -5,8 +5,8 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zero_ui_wgt::prelude::gradient::{stops, GradientRadius, GradientStops, LinearGradientAxis};
-use zero_ui_wgt::{hit_test_mode, node::interactive_node, prelude::*, HitTestMode};
+use zng_wgt::prelude::gradient::{stops, GradientRadius, GradientStops, LinearGradientAxis};
+use zng_wgt::{hit_test_mode, node::interactive_node, prelude::*, HitTestMode};
 
 pub mod node;
 

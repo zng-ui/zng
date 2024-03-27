@@ -8,8 +8,8 @@
 //! # Examples
 //!
 //! ```no_run
-//! use zero_ui_task::{self as task, channel};
-//! # use zero_ui_unit::*;
+//! use zng_task::{self as task, channel};
+//! # use zng_unit::*;
 //!
 //! let (sender, receiver) = channel::bounded(5);
 //!
@@ -33,7 +33,7 @@ use std::{convert::TryFrom, fmt};
 
 pub use flume::{RecvError, RecvTimeoutError, SendError, SendTimeoutError};
 
-use zero_ui_time::Deadline;
+use zng_time::Deadline;
 
 /// The transmitting end of an unbounded channel.
 ///
@@ -258,8 +258,8 @@ impl<T> Receiver<T> {
 /// rapidly consumes all messages in the buffer and new messages as they are send.
 ///
 /// ```no_run
-/// use zero_ui_task::{self as task, channel};
-/// # use zero_ui_unit::*;
+/// use zng_task::{self as task, channel};
+/// # use zng_unit::*;
 ///
 /// let (sender, receiver) = channel::unbounded();
 ///
@@ -308,8 +308,8 @@ pub fn unbounded<T>() -> (UnboundSender<T>, Receiver<T>) {
 /// rapidly consumes the 2 messages in the buffer and unblocks the sender to send more messages.
 ///
 /// ```no_run
-/// use zero_ui_task::{self as task, channel};
-/// # use zero_ui_unit::*;
+/// use zng_task::{self as task, channel};
+/// # use zng_unit::*;
 ///
 /// let (sender, receiver) = channel::bounded(2);
 ///
@@ -355,10 +355,10 @@ pub fn bounded<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
 /// receiver takes 2 seconds to receive, so the sender takes 2 seconds to send.
 ///
 /// ```no_run
-/// use zero_ui_task::{self as task, channel};
-/// # use zero_ui_unit::*;
+/// use zng_task::{self as task, channel};
+/// # use zng_unit::*;
 /// # use std::time::*;
-/// # use zero_ui_time::*;
+/// # use zng_time::*;
 ///
 /// let (sender, receiver) = channel::rendezvous();
 ///

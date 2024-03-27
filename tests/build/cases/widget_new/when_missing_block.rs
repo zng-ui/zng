@@ -1,4 +1,4 @@
-use zero_ui::{gesture::is_pressed, widget::Wgt, APP};
+use zng::{gesture::is_pressed, widget::Wgt, APP};
 
 fn main() {
     let _scope = APP.minimal();

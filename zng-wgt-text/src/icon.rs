@@ -1,15 +1,15 @@
 //! Glyph icon widget, properties and nodes..
 
-use zero_ui_app::event::{CommandMetaVar, StaticCommandMetaVarId};
-use zero_ui_ext_font::{font_features::FontFeatures, FontName};
-use zero_ui_wgt::prelude::*;
+use zng_app::event::{CommandMetaVar, StaticCommandMetaVarId};
+use zng_ext_font::{font_features::FontFeatures, FontName};
+use zng_wgt::prelude::*;
 
 use std::fmt;
 
 /// Render icons defined as glyphs in an icon font.
 ///
 /// Note that no icons are embedded in this crate directly, you can manually create a [`GlyphIcon`]
-/// or use an icon set crate. See the `zero_ui::icon::material_*` modules, they provides documented constants for
+/// or use an icon set crate. See the `zng::icon::material_*` modules, they provides documented constants for
 /// each icon in the fonts.
 #[widget($crate::icon::Icon {
     ($ico:expr) => {
@@ -160,7 +160,7 @@ pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
 /// The value is an [`WidgetFn<()>`] that can generate any icon widget, the [`Icon!`] widget is recommended.
 ///
 /// [`Icon!`]: struct@Icon
-/// [`WidgetFn<()>`]: zero_ui_wgt::WidgetFn
+/// [`WidgetFn<()>`]: zng_wgt::WidgetFn
 pub trait CommandIconExt {
     /// Gets a read-write variable that is the icon for the command.
     fn icon(self) -> CommandMetaVar<WidgetFn<()>>;

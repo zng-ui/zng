@@ -5,19 +5,19 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-zero_ui_wgt::enable_widget_macros!();
+zng_wgt::enable_widget_macros!();
 
 use std::mem;
 
 pub use pulldown_cmark::HeadingLevel;
 
-use zero_ui_ext_font::WhiteSpace;
-use zero_ui_wgt::prelude::*;
+use zng_ext_font::WhiteSpace;
+use zng_wgt::prelude::*;
 
 #[doc(hidden)]
-pub use zero_ui_wgt_text::__formatx;
+pub use zng_wgt_text::__formatx;
 
-use zero_ui_wgt_text as text;
+use zng_wgt_text as text;
 
 mod resolvers;
 mod view_fn;

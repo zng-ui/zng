@@ -1,7 +1,7 @@
 //! Menu widgets, properties and other types.
 //!
 //! ```no_run
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # APP.defaults().run_window(async {
 //!
 //! fn main_menu() -> impl UiNode {
@@ -9,8 +9,8 @@
 //!         SubMenu!(
 //!             "File",
 //!             ui_vec![
-//!                 Button!(zero_ui::app::NEW_CMD.scoped(WINDOW.id())),
-//!                 Button!(zero_ui::app::OPEN_CMD.scoped(WINDOW.id())),
+//!                 Button!(zng::app::NEW_CMD.scoped(WINDOW.id())),
+//!                 Button!(zng::app::OPEN_CMD.scoped(WINDOW.id())),
 //!                 Toggle! {
 //!                     child = Text!("Auto Save");
 //!                     checked = var(true);
@@ -23,7 +23,7 @@
 //!                         .collect::<UiNodeVec>()
 //!                 ),
 //!                 Hr!(),
-//!                 Button!(zero_ui::app::EXIT_CMD),
+//!                 Button!(zng::app::EXIT_CMD),
 //!             ]
 //!         ),
 //!         SubMenu!(
@@ -38,8 +38,8 @@
 //!
 //! Window! {
 //!     child_top = main_menu(), 0;
-//!     zero_ui::app::on_new = hn!(|_| { });
-//!     zero_ui::app::on_open = hn!(|_| { });
+//!     zng::app::on_new = hn!(|_| { });
+//!     zng::app::on_open = hn!(|_| { });
 //!     // ..
 //! }
 //! # });
@@ -56,14 +56,14 @@
 //! on context click, that is, by right-clicking the window, long pressing it or pressing the context menu key.
 //!
 //! ```
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //! # fn demo() {
 //!
 //! # let _ =
 //! Window! {
 //!     context_menu = ContextMenu!(ui_vec![
-//!         Button!(zero_ui::app::NEW_CMD.scoped(WINDOW.id())),
-//!         Button!(zero_ui::app::OPEN_CMD.scoped(WINDOW.id())),
+//!         Button!(zng::app::NEW_CMD.scoped(WINDOW.id())),
+//!         Button!(zng::app::OPEN_CMD.scoped(WINDOW.id())),
 //!         Toggle! {
 //!             child = Text!("Auto Save");
 //!             checked = var(true);
@@ -74,7 +74,7 @@
 //!             on_click = hn!(|_| { });
 //!         }]),
 //!         Hr!(),
-//!         Button!(zero_ui::app::EXIT_CMD),
+//!         Button!(zng::app::EXIT_CMD),
 //!     ]);
 //! }
 //! # ; }
@@ -82,17 +82,17 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_menu`] for the full widget API.
+//! See [`zng_wgt_menu`] for the full widget API.
 
-pub use zero_ui_wgt_menu::{
+pub use zng_wgt_menu::{
     icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn, ButtonStyle, DefaultStyle, Menu, ToggleStyle, TouchButtonStyle,
 };
 
 /// Submenu widget and properties.
 ///
-/// See [`zero_ui_wgt_menu::sub`] for the full widget API.
+/// See [`zng_wgt_menu::sub`] for the full widget API.
 pub mod sub {
-    pub use zero_ui_wgt_menu::sub::{
+    pub use zng_wgt_menu::sub::{
         column_width_padding, end_column, end_column_fn, end_column_width, hover_open_delay, is_open, start_column, start_column_fn,
         start_column_width, DefaultStyle, SubMenu, SubMenuAncestors, SubMenuStyle, SubMenuWidgetInfoExt,
     };
@@ -100,9 +100,9 @@ pub mod sub {
 
 /// Context menu widget and properties.
 ///
-/// See [`zero_ui_wgt_menu::context`] for the full widget API.
+/// See [`zng_wgt_menu::context`] for the full widget API.
 pub mod context {
-    pub use zero_ui_wgt_menu::context::{
+    pub use zng_wgt_menu::context::{
         context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu, disabled_context_menu_fn, panel_fn, style_fn,
         ContextMenu, ContextMenuArgs, DefaultStyle, TouchStyle,
     };
@@ -110,7 +110,7 @@ pub mod context {
 
 /// Sub-menu popup widget and properties.
 ///
-/// See [`zero_ui_wgt_menu::popup`] for the full widget API.
+/// See [`zng_wgt_menu::popup`] for the full widget API.
 pub mod popup {
-    pub use zero_ui_wgt_menu::popup::{panel_fn, style_fn, DefaultStyle, SubMenuPopup};
+    pub use zng_wgt_menu::popup::{panel_fn, style_fn, DefaultStyle, SubMenuPopup};
 }

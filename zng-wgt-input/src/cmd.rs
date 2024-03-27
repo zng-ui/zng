@@ -1,8 +1,8 @@
 //! Common commands.
 //!
 
-use zero_ui_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
-use zero_ui_wgt::prelude::*;
+use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
+use zng_wgt::prelude::*;
 
 command! {
     /// Represents the **new** action.

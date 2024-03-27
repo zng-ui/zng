@@ -24,9 +24,9 @@ use parking_lot::Mutex;
 mod crate_util;
 
 use crate::crate_util::PanicResult;
-use zero_ui_app_context::{app_local, LocalContext};
-use zero_ui_time::Deadline;
-use zero_ui_var::{response_done_var, response_var, ResponseVar, VarValue};
+use zng_app_context::{app_local, LocalContext};
+use zng_time::Deadline;
+use zng_var::{response_done_var, response_var, ResponseVar, VarValue};
 
 #[doc(no_inline)]
 pub use rayon;
@@ -73,8 +73,8 @@ pub use ui::*;
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_task::{self as task, *, rayon::iter::*};
-/// # use zero_ui_var::*;
+/// # use zng_task::{self as task, *, rayon::iter::*};
+/// # use zng_var::*;
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # impl SomeStruct {
 /// fn on_event(&mut self) {
@@ -336,7 +336,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_task::{self as task, rayon::iter::*};
+/// # use zng_task::{self as task, rayon::iter::*};
 /// # struct SomeStruct { sum: usize }
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
@@ -467,8 +467,8 @@ where
 /// # Examples
 ///
 /// ```
-/// # use zero_ui_task::{self as task, rayon::iter::*};
-/// # use zero_ui_var::*;
+/// # use zng_task::{self as task, rayon::iter::*};
+/// # use zng_var::*;
 /// # struct SomeStruct { sum_response: ResponseVar<usize> }
 /// # async fn read_numbers() -> Vec<usize> { vec![] }
 /// # impl SomeStruct {
@@ -523,11 +523,11 @@ where
 {
     enum QuickResponse<R: VarValue> {
         Quick(Option<R>),
-        Response(zero_ui_var::ResponderVar<R>),
+        Response(zng_var::ResponderVar<R>),
     }
 
     let q = Arc::new(Mutex::new(QuickResponse::Quick(None)));
-    poll_spawn(zero_ui_clone_move::async_clmv!(q, {
+    poll_spawn(zng_clone_move::async_clmv!(q, {
         let rsp = task.await;
 
         match &mut *q.lock() {
@@ -559,7 +559,7 @@ where
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_task as task;
+/// # use zng_task as task;
 /// # async fn example() {
 /// task::wait(|| std::fs::read_to_string("file.txt")).await
 /// # ; }
@@ -665,8 +665,8 @@ where
 /// Test a [`run`] call:
 ///
 /// ```
-/// use zero_ui_task as task;
-/// # use zero_ui_unit::*;
+/// use zng_task as task;
+/// # use zng_unit::*;
 /// # async fn foo(u: u8) -> Result<u8, ()> { task::deadline(1.ms()).await; Ok(u) }
 ///
 /// #[test]
@@ -721,7 +721,7 @@ pub fn doc_test<F>(spin: bool, task: F) -> F::Output
 where
     F: Future,
 {
-    use zero_ui_unit::TimeUnits;
+    use zng_unit::TimeUnits;
 
     if spin {
         spin_on(with_deadline(task, 500.ms())).expect("async doc-test timeout")
@@ -763,8 +763,8 @@ pub async fn yield_now() {
 /// Await 5 seconds in a [`spawn`] parallel task:
 ///
 /// ```
-/// use zero_ui_task as task;
-/// use zero_ui_unit::*;
+/// use zng_task as task;
+/// use zng_unit::*;
 ///
 /// task::spawn(async {
 ///     println!("waiting 5 seconds..");
@@ -782,7 +782,7 @@ pub async fn yield_now() {
 /// [`futures_timer`]: https://docs.rs/futures-timer
 pub fn deadline(deadline: impl Into<Deadline>) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let deadline = deadline.into();
-    if zero_ui_app_context::LocalContext::current_app().is_some() {
+    if zng_app_context::LocalContext::current_app().is_some() {
         DEADLINE_SV.read().0(deadline)
     } else {
         default_deadline(deadline)
@@ -835,7 +835,7 @@ impl DEADLINE_APP {
 /// A future that is ready with a closure returns `Some(R)`.
 ///
 /// ```
-/// use zero_ui_task as task;
+/// use zng_task as task;
 /// use std::task::Poll;
 ///
 /// async fn ready_some<R>(mut closure: impl FnMut() -> Option<R>) -> R {
@@ -899,7 +899,7 @@ pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: impl Into
 /// Await for three different futures to complete:
 ///
 /// ```
-/// use zero_ui_task as task;
+/// use zng_task as task;
 ///
 /// # task::doc_test(false, async {
 /// let (a, b, c) = task::all!(
@@ -1032,8 +1032,8 @@ macro_rules! __all {
 /// Await for the first of three futures to complete:
 ///
 /// ```
-/// use zero_ui_task as task;
-/// use zero_ui_unit::*;
+/// use zng_task as task;
+/// use zng_unit::*;
 ///
 /// # task::doc_test(false, async {
 /// let r = task::any!(
@@ -1139,7 +1139,7 @@ macro_rules! __any {
 }
 
 #[doc(hidden)]
-pub use zero_ui_task_proc_macros::task_any_all as __proc_any_all;
+pub use zng_task_proc_macros::task_any_all as __proc_any_all;
 
 /// <span data-del-macro-root></span> A future that waits for the first future that is ready with an `Ok(T)` result.
 ///
@@ -1161,7 +1161,7 @@ pub use zero_ui_task_proc_macros::task_any_all as __proc_any_all;
 /// Await for the first of three futures to complete with `Ok`:
 ///
 /// ```
-/// use zero_ui_task as task;
+/// use zng_task as task;
 /// # #[derive(Debug, PartialEq)]
 /// # pub struct FooError;
 /// # task::doc_test(false, async {
@@ -1306,7 +1306,7 @@ macro_rules! __any_ok {
 /// Await for the first of three futures to complete with `Some`:
 ///
 /// ```
-/// use zero_ui_task as task;
+/// use zng_task as task;
 /// # task::doc_test(false, async {
 /// let r = task::any_some!(
 ///     task::run(async { None::<char> }),
@@ -1444,7 +1444,7 @@ macro_rules! __any_some {
 /// Await for the first of three futures to complete with `Ok(T)`:
 ///
 /// ```
-/// use zero_ui_task as task;
+/// use zng_task as task;
 /// # #[derive(Debug, PartialEq)]
 /// # struct FooError;
 /// # task::doc_test(false, async {
@@ -1461,7 +1461,7 @@ macro_rules! __any_some {
 /// And in if any completes with `Err(E)`:
 ///
 /// ```
-/// use zero_ui_task as task;
+/// use zng_task as task;
 /// # #[derive(Debug, PartialEq)]
 /// # struct FooError;
 /// # task::doc_test(false, async {
@@ -1605,7 +1605,7 @@ macro_rules! __all_ok {
 /// Await for the first of three futures to complete with `Some`:
 ///
 /// ```
-/// use zero_ui_task as task;
+/// use zng_task as task;
 /// # task::doc_test(false, async {
 /// let r = task::all_some!(
 ///     task::run(async { Some('a') }),
@@ -1620,7 +1620,7 @@ macro_rules! __all_ok {
 /// Completes with `None` if any future completes with `None`:
 ///
 /// ```
-/// # use zero_ui_task as task;
+/// # use zng_task as task;
 /// # task::doc_test(false, async {
 /// let r = task::all_some!(
 ///     task::run(async { Some('a') }),
@@ -1749,8 +1749,8 @@ macro_rules! __all_some {
 /// Spawns a parallel task that only writes to stdout after the main thread sets the signal:
 ///
 /// ```
-/// use zero_ui_task::{self as task, *};
-/// use zero_ui_clone_move::async_clmv;
+/// use zng_task::{self as task, *};
+/// use zng_clone_move::async_clmv;
 ///
 /// let signal = SignalOnce::default();
 ///
@@ -1890,7 +1890,7 @@ pub mod tests {
     use rayon::prelude::*;
 
     use super::*;
-    use zero_ui_unit::TimeUnits;
+    use zng_unit::TimeUnits;
 
     #[track_caller]
     fn async_test<F>(test: F) -> F::Output

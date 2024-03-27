@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use zero_ui::{
+use zng::{
     color::{color_scheme_map, filter::invert_color},
     image::ImageFit,
     mouse::CursorIcon,
@@ -8,7 +8,7 @@ use zero_ui::{
     prelude_wgt::NilUiNode,
 };
 
-use zero_ui::view_process::prebuilt as view_process;
+use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
@@ -136,7 +136,7 @@ pub const CURSOR_IMGS: &[(&str, (&[u8], i32, i32), CursorIcon)] =
     &[("custom", (include_bytes!("res/image/RGBA8.png"), 4, 6), CursorIcon::Default)];
 
 mod widgets {
-    use zero_ui::{prelude::*, prelude_wgt::*};
+    use zng::{prelude::*, prelude_wgt::*};
 
     #[widget($crate::widgets::DemoEntry)]
     pub struct DemoEntry(Container);

@@ -6,12 +6,12 @@
 //!
 //! ```
 //! # fn main() { }
-//! use zero_ui::prelude::*;
+//! use zng::prelude::*;
 //!
 //! # fn demo() { let _ =
 //! Scroll! {
 //!     // ZOOM includes PAN that includes VERTICAL and HORIZONTAL
-//!     mode = zero_ui::scroll::ScrollMode::ZOOM;
+//!     mode = zng::scroll::ScrollMode::ZOOM;
 //!     // mouse press and drag scrolls
 //!     mouse_pan = true;
 //!     
@@ -21,14 +21,14 @@
 //!         
 //!         // content is a large image
 //!         source = "https://upload.wikimedia.org/wikipedia/commons/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg";
-//!         img_limits = zero_ui::image::ImageLimits::none();
-//!         img_downscale = zero_ui::image::ImageDownscale::from(layout::Px(8000));
+//!         img_limits = zng::image::ImageLimits::none();
+//!         img_downscale = zng::image::ImageDownscale::from(layout::Px(8000));
 //!     }
 //! }
 //! # ; }
 //!
 //! fn center_viewport(msg: impl UiNode) -> impl UiNode {
-//!     use zero_ui::scroll::SCROLL;
+//!     use zng::scroll::SCROLL;
 //!     Container! {
 //!         // center the message on the scroll viewport:
 //!         //
@@ -56,9 +56,9 @@
 //!
 //! # Full API
 //!
-//! See [`zero_ui_wgt_scroll`] for the full widget API.
+//! See [`zng_wgt_scroll`] for the full widget API.
 
-pub use zero_ui_wgt_scroll::{
+pub use zng_wgt_scroll::{
     alt_factor, auto_hide_extra, clip_to_viewport, define_viewport_unit, h_line_unit, h_page_unit, h_scrollbar_fn, h_wheel_unit, lazy,
     line_units, max_zoom, min_zoom, mode, mouse_pan, overscroll_color, page_units, scroll_to_focused_mode, scrollbar_fn,
     scrollbar_joiner_fn, smooth_scrolling, v_line_unit, v_page_unit, v_scrollbar_fn, v_wheel_unit, wheel_units, zoom_origin,
@@ -69,26 +69,26 @@ pub use zero_ui_wgt_scroll::{
 /// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
 ///
 #[cfg(all(windows, doc))]
-pub use zero_ui_wgt_scroll::SCROLL as SCROLL_;
+pub use zng_wgt_scroll::SCROLL as SCROLL_;
 
 /// Scrollbar thumb widget.
 pub mod thumb {
-    pub use zero_ui_wgt_scroll::thumb::{cross_length, offset, viewport_ratio, Thumb};
+    pub use zng_wgt_scroll::thumb::{cross_length, offset, viewport_ratio, Thumb};
 }
 
 /// Scroll widget.
 pub mod scrollbar {
-    pub use zero_ui_wgt_scroll::scrollbar::{orientation, Orientation, Scrollbar, SCROLLBAR};
+    pub use zng_wgt_scroll::scrollbar::{orientation, Orientation, Scrollbar, SCROLLBAR};
 
     /// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
     ///
     #[cfg(all(windows, doc))]
-    pub use zero_ui_wgt_scroll::scrollbar::SCROLLBAR as SCROLLBAR_;
+    pub use zng_wgt_scroll::scrollbar::SCROLLBAR as SCROLLBAR_;
 }
 
 /// Scroll commands.
 pub mod cmd {
-    pub use zero_ui_wgt_scroll::cmd::{
+    pub use zng_wgt_scroll::cmd::{
         scroll_to, scroll_to_zoom, ScrollRequest, ScrollToMode, ScrollToRequest, ScrollToTarget, PAGE_DOWN_CMD, PAGE_LEFT_CMD,
         PAGE_RIGHT_CMD, PAGE_UP_CMD, SCROLL_DOWN_CMD, SCROLL_LEFT_CMD, SCROLL_RIGHT_CMD, SCROLL_TO_BOTTOM_CMD, SCROLL_TO_CMD,
         SCROLL_TO_LEFTMOST_CMD, SCROLL_TO_RIGHTMOST_CMD, SCROLL_TO_TOP_CMD, SCROLL_UP_CMD, ZOOM_IN_CMD, ZOOM_OUT_CMD, ZOOM_RESET_CMD,

@@ -2,9 +2,9 @@
 
 use parking_lot::Mutex;
 use std::{fmt, sync::Arc};
-use zero_ui_var::AnyVarValue;
+use zng_var::AnyVarValue;
 
-use zero_ui_wgt::prelude::*;
+use zng_wgt::prelude::*;
 
 use super::SELECTOR;
 

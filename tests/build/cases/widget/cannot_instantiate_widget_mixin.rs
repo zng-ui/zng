@@ -1,9 +1,9 @@
-use zero_ui::prelude_wgt::widget_mixin;
+use zng::prelude_wgt::widget_mixin;
 
 #[widget_mixin]
 pub struct TextMix<P>(P);
 
 fn main() {
-    let _scope = zero_ui::APP.minimal();
+    let _scope = zng::APP.minimal();
     let _ = TextMix!();
 }

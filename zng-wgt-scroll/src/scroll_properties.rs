@@ -1,11 +1,11 @@
 use super::{cmd::ScrollToMode, types::*, *};
-use zero_ui_ext_input::{
+use zng_ext_input::{
     mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::POINTER_CAPTURE,
 };
-use zero_ui_var::ReadOnlyContextVar;
-use zero_ui_wgt::visibility;
-use zero_ui_wgt_fill::node::flood;
+use zng_var::ReadOnlyContextVar;
+use zng_wgt::visibility;
+use zng_wgt_fill::node::flood;
 
 context_var! {
     /// Widget function for creating the vertical scrollbar of an scroll widget.
@@ -43,17 +43,17 @@ context_var! {
 
     /// Horizontal offset multiplied by the [`MouseScrollDelta::LineDelta`] ***x***.
     ///
-    /// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
+    /// [`MouseScrollDelta::LineDelta`]: zng_ext_input::mouse::MouseScrollDelta::LineDelta
     pub static HORIZONTAL_WHEEL_UNIT_VAR: Length = 60;
 
     /// Vertical offset multiplied by the [`MouseScrollDelta::LineDelta`] ***y***.
     ///
-    /// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
+    /// [`MouseScrollDelta::LineDelta`]: zng_ext_input::mouse::MouseScrollDelta::LineDelta
     pub static VERTICAL_WHEEL_UNIT_VAR: Length = 60;
 
     /// Scale delta added or removed from the zoom scale by [`MouseScrollDelta::LineDelta`] used in zoom operations.
     ///
-    /// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
+    /// [`MouseScrollDelta::LineDelta`]: zng_ext_input::mouse::MouseScrollDelta::LineDelta
     pub static ZOOM_WHEEL_UNIT_VAR: Factor = 10.pct();
 
     /// Horizontal offset added when the [`PAGE_RIGHT_CMD`] runs and removed when the [`PAGE_LEFT_CMD`] runs.
@@ -254,7 +254,7 @@ pub fn page_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertical
 ///
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] ***x*** value to determinate the scroll delta.
 ///
-/// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
+/// [`MouseScrollDelta::LineDelta`]: zng_ext_input::mouse::MouseScrollDelta::LineDelta
 ///
 /// This property sets the [`HORIZONTAL_WHEEL_UNIT_VAR`].
 #[property(CONTEXT, default(HORIZONTAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -266,7 +266,7 @@ pub fn h_wheel_unit(child: impl UiNode, unit: impl IntoVar<Length>) -> impl UiNo
 ///
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] ***y*** value to determinate the scroll delta.
 ///
-/// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
+/// [`MouseScrollDelta::LineDelta`]: zng_ext_input::mouse::MouseScrollDelta::LineDelta
 ///
 /// This property sets the [`VERTICAL_WHEEL_UNIT_VAR`]`.
 #[property(CONTEXT, default(VERTICAL_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
@@ -290,7 +290,7 @@ pub fn wheel_units(child: impl UiNode, horizontal: impl IntoVar<Length>, vertica
 ///
 /// The `unit` value is multiplied by the [`MouseScrollDelta::LineDelta`] value to determinate the scale delta.
 ///
-/// [`MouseScrollDelta::LineDelta`]: zero_ui_ext_input::mouse::MouseScrollDelta::LineDelta
+/// [`MouseScrollDelta::LineDelta`]: zng_ext_input::mouse::MouseScrollDelta::LineDelta
 ///
 /// This property sets the [`ZOOM_WHEEL_UNIT_VAR`].
 #[property(CONTEXT, default(ZOOM_WHEEL_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
