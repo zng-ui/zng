@@ -318,38 +318,9 @@ impl ImageCache {
     }
 
     fn image_decode(buf: &[u8], format: image::ImageFormat, downscale: Option<ImageDownscale>) -> image::ImageResult<image::DynamicImage> {
-        // we can't use `image::load_from_memory_with_format` directly because it does not allow `Limits` config.
-
-        use image::{codecs::*, DynamicImage, ImageFormat::*};
-
         let buf = std::io::Cursor::new(buf);
 
-        let mut image = match format {
-            Png => DynamicImage::from_decoder(png::PngDecoder::with_limits(buf, image::io::Limits::no_limits())?),
-            Jpeg => {
-                let mut decoder = jpeg::JpegDecoder::new(buf)?;
-                if let Some(s) = downscale {
-                    let s = match s {
-                        ImageDownscale::Fit(s) => s,
-                        ImageDownscale::Fill(s) => s,
-                    };
-                    decoder.scale(s.width.0 as u16, s.height.0 as u16)?;
-                }
-                DynamicImage::from_decoder(decoder)
-            }
-            Gif => DynamicImage::from_decoder(gif::GifDecoder::new(buf)?),
-            WebP => DynamicImage::from_decoder(webp::WebPDecoder::new(buf)?),
-            Pnm => DynamicImage::from_decoder(pnm::PnmDecoder::new(buf)?),
-            Tiff => DynamicImage::from_decoder(tiff::TiffDecoder::new(buf)?),
-            Tga => DynamicImage::from_decoder(tga::TgaDecoder::new(buf)?),
-            Dds => DynamicImage::from_decoder(dds::DdsDecoder::new(buf)?),
-            Bmp => DynamicImage::from_decoder(bmp::BmpDecoder::new(buf)?),
-            Ico => DynamicImage::from_decoder(ico::IcoDecoder::new(buf)?),
-            OpenExr => DynamicImage::from_decoder(openexr::OpenExrDecoder::new(buf)?),
-            Farbfeld => DynamicImage::from_decoder(farbfeld::FarbfeldDecoder::new(buf)?),
-            Qoi => DynamicImage::from_decoder(qoi::QoiDecoder::new(buf)?),
-            _ => image::load_from_memory_with_format(buf.into_inner(), format),
-        }?;
+        let mut image = image::load_from_memory_with_format(buf.into_inner(), format)?;
 
         if let Some(s) = downscale {
             let (img_w, img_h) = (image.width(), image.height());
@@ -995,7 +966,7 @@ impl Image {
                         unit: codecs::jpeg::PixelDensityUnit::Inches,
                     });
                 }
-                jpg.encode(&rgba, width, height, ColorType::Rgba8)?;
+                jpg.encode(&rgba, width, height, ColorType::Rgba8.into())?;
             }
             ImageFormat::Png => {
                 let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());

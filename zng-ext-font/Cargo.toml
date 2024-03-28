@@ -24,7 +24,7 @@ zng-color = { path = "../zng-color" }
 
 serde = "1"
 unicase = "2"
-font-kit = "0.12"
+font-kit = "0.13"
 harfbuzz_rs = "2"
 parking_lot = "0.12"
 byteorder = "1"
