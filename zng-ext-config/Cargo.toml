@@ -7,19 +7,19 @@ license = "Apache-2.0"
 readme = "../zng-app/README.md"
 
 [features]
-yaml = ["dep:serde_yaml", "zng-ext-fs_watcher/yaml"]
-toml = ["dep:toml", "zng-ext-fs_watcher/toml"]
-ron = ["dep:ron", "zng-ext-fs_watcher/ron"]
+yaml = ["dep:serde_yaml", "zng-ext-fs-watcher/yaml"]
+toml = ["dep:toml", "zng-ext-fs-watcher/toml"]
+ron = ["dep:ron", "zng-ext-fs-watcher/ron"]
 
 [dependencies]
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-app = { path = "../zng-app" }
 zng-var = { path = "../zng-var" }
 zng-txt = { path = "../zng-txt" }
 zng-task = { path = "../zng-task" }
-zng-clone_move = { path = "../zng-clone_move" }
-zng-unique_id = { path = "../zng-unique_id" }
-zng-ext-fs_watcher = { path = "../zng-ext-fs_watcher", features = [
+zng-clone-move = { path = "../zng-clone-move" }
+zng-unique-id = { path = "../zng-unique-id" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", features = [
     "json",
 ] }
 

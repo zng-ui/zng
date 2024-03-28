@@ -1,5 +1,5 @@
 [package]
-name = "zng-state_map"
+name = "zng-state-map"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -8,7 +8,7 @@ readme = "../zng-app/README.md"
 
 
 [dependencies]
-zng-unique_id = { path = "../zng-unique_id" }
+zng-unique-id = { path = "../zng-unique-id" }
 
 bytemuck = { version = "1" }
 pretty-type-name = "1"

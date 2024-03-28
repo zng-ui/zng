@@ -1,13 +1,11 @@
-* Review crate names, mixing -_
-
 # Documentation
 
 * Add `description`, `documentation`, `repository`, `readme`, `categories`, `keywords`.
     - Review what other large crates do.
     - Review badges.
+    - https://rust-lang.github.io/api-guidelines/necessities.html#crate-and-its-dependencies-have-a-permissive-license-c-permissive
+        - Check other projects.
 * Document name, z+nest+graphics, pronunciation zing.
-* Review https://rust-lang.github.io/api-guidelines/type-safety.html ?
-
 
 # Publish
 

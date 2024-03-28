@@ -1,5 +1,5 @@
 [package]
-name = "zng-wgt-size_offset"
+name = "zng-wgt-data-view"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -8,6 +8,11 @@ readme = "../zng-app/README.md"
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt" }
+zng-var = { path = "../zng-var" }
+zng-wgt-container = { path = "../zng-wgt-container" }
 
-euclid = "0.22"
-serde = { version = "1", features = ["derive"] }
+parking_lot = "0.12"
+tracing = "0.1"
+
+[dev-dependencies]
+zng-app = { path = "../zng-app" }

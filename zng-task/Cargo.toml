@@ -32,9 +32,9 @@ test_util = []
 
 [dependencies]
 zng-task-proc-macros = { path = "../zng-task-proc-macros" }
-zng-clone_move = { path = "../zng-clone_move" }
+zng-clone-move = { path = "../zng-clone-move" }
 zng-unit = { path = "../zng-unit" }
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-time = { path = "../zng-time" }
 zng-var = { path = "../zng-var" }
 

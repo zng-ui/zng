@@ -8,13 +8,13 @@ readme = "../zng-app/README.md"
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt" }
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-app = { path = "../zng-app" }
 zng-color = { path = "../zng-color" }
 zng-layout = { path = "../zng-layout" }
 zng-wgt-data = { path = "../zng-wgt-data" }
 zng-wgt-access = { path = "../zng-wgt-access" }
-zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
 zng-wgt-layer = { path = "../zng-wgt-layer" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll" }
 zng-ext-undo = { path = "../zng-ext-undo" }

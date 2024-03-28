@@ -1,5 +1,5 @@
 [package]
-name = "zng-wgt-text_input"
+name = "zng-wgt-text-input"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -15,11 +15,11 @@ zng-wgt-filter = { path = "../zng-wgt-filter" }
 zng-wgt-layer = { path = "../zng-wgt-layer" }
 zng-wgt-style = { path = "../zng-wgt-style" }
 zng-wgt-undo = { path = "../zng-wgt-undo" }
-zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
 zng-wgt-input = { path = "../zng-wgt-input" }
 zng-wgt-button = { path = "../zng-wgt-button" }
 zng-wgt-menu = { path = "../zng-wgt-menu" }
-zng-wgt-rule_line = { path = "../zng-wgt-rule_line" }
+zng-wgt-rule-line = { path = "../zng-wgt-rule-line" }
 zng-wgt-access = { path = "../zng-wgt-access" }
 zng-wgt-data = { path = "../zng-wgt-data" }
 zng-app = { path = "../zng-app" }

@@ -1,5 +1,5 @@
 [package]
-name = "zng-wgt-undo_history"
+name = "zng-wgt-undo-history"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -15,7 +15,7 @@ zng-wgt-scroll = { path = "../zng-wgt-scroll" }
 zng-wgt-stack = { path = "../zng-wgt-stack" }
 zng-wgt-style = { path = "../zng-wgt-style" }
 zng-wgt-fill = { path = "../zng-wgt-fill" }
-zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
 zng-wgt-input = { path = "../zng-wgt-input" }
 zng-ext-undo = { path = "../zng-ext-undo" }
 zng-ext-input = { path = "../zng-ext-input" }

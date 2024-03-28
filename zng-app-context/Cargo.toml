@@ -1,5 +1,5 @@
 [package]
-name = "zng-app_context"
+name = "zng-app-context"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -21,7 +21,7 @@ debug_default = []
 dyn_closure = []
 
 [dependencies]
-zng-unique_id = { path = "../zng-unique_id" }
+zng-unique-id = { path = "../zng-unique-id" }
 zng-txt = { path = "../zng-txt" }
 parking_lot = "0.12"
 hashbrown = { version = "0.14", features = ["rayon"] }

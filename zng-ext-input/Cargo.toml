@@ -7,16 +7,16 @@ license = "Apache-2.0"
 readme = "../zng-app/README.md"
 
 [dependencies]
-zng-app_context = { path = "../zng-app_context" }
-zng-clone_move = { path = "../zng-clone_move" }
+zng-app-context = { path = "../zng-app-context" }
+zng-clone-move = { path = "../zng-clone-move" }
 zng-view-api = { path = "../zng-view-api" }
 zng-app = { path = "../zng-app" }
 zng-txt = { path = "../zng-txt" }
 zng-var = { path = "../zng-var" }
 zng-layout = { path = "../zng-layout" }
 zng-handle = { path = "../zng-handle" }
-zng-state_map = { path = "../zng-state_map" }
-zng-unique_id = { path = "../zng-unique_id" }
+zng-state-map = { path = "../zng-state-map" }
+zng-unique-id = { path = "../zng-unique-id" }
 zng-ext-window = { path = "../zng-ext-window" }
 
 tracing = "0.1"

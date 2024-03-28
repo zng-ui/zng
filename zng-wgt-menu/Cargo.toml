@@ -24,9 +24,9 @@ zng-ext-font = { path = "../zng-ext-font" }
 zng-wgt-wrap = { path = "../zng-wgt-wrap" }
 zng-wgt-fill = { path = "../zng-wgt-fill" }
 zng-wgt-filter = { path = "../zng-wgt-filter" }
-zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
 zng-wgt-access = { path = "../zng-wgt-access" }
-zng-wgt-rule_line = { path = "../zng-wgt-rule_line" }
+zng-wgt-rule-line = { path = "../zng-wgt-rule-line" }
 zng-ext-l10n = { path = "../zng-ext-l10n" }
 zng-wgt-toggle = { path = "../zng-wgt-toggle" }
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip" }

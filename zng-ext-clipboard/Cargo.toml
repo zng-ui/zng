@@ -7,7 +7,7 @@ license = "Apache-2.0"
 readme = "../zng-app/README.md"
 
 [dependencies]
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-app = { path = "../zng-app" }
 zng-var = { path = "../zng-var" }
 zng-view-api = { path = "../zng-view-api" }

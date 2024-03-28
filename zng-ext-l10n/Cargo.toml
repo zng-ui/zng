@@ -9,15 +9,15 @@ readme = "../zng-app/README.md"
 [dependencies]
 zng-ext-l10n-proc-macros = { path = "../zng-ext-l10n-proc-macros" }
 
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-app = { path = "../zng-app" }
 zng-var = { path = "../zng-var" }
 zng-txt = { path = "../zng-txt" }
-zng-clone_move = { path = "../zng-clone_move" }
+zng-clone-move = { path = "../zng-clone-move" }
 zng-view-api = { path = "../zng-view-api" }
 zng-layout = { path = "../zng-layout" }
 zng-task = { path = "../zng-task" }
-zng-ext-fs_watcher = { path = "../zng-ext-fs_watcher" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher" }
 
 fluent = "0.16"
 fluent-syntax = "0.11"

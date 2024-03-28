@@ -1,5 +1,5 @@
 [package]
-name = "zng-wgt-rule_line"
+name = "zng-wgt-size-offset"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -8,5 +8,6 @@ readme = "../zng-app/README.md"
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt" }
-zng-wgt-access = { path = "../zng-wgt-access" }
-zng-wgt-text = { path = "../zng-wgt-text" }
+
+euclid = "0.22"
+serde = { version = "1", features = ["derive"] }

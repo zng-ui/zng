@@ -9,7 +9,7 @@ readme = "../zng-app/README.md"
 [dependencies]
 zng-wgt = { path = "../zng-wgt" }
 zng-wgt-access = { path = "../zng-wgt-access" }
-zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
 zng-wgt-container = { path = "../zng-wgt-container" }
 zng-layout = { path = "../zng-layout" }
 

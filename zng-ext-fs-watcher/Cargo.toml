@@ -1,5 +1,5 @@
 [package]
-name = "zng-ext-fs_watcher"
+name = "zng-ext-fs-watcher"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -11,9 +11,9 @@ json = ["serde_json"]
 yaml = ["serde_yaml"]
 
 [dependencies]
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-app = { path = "../zng-app" }
-zng-clone_move = { path = "../zng-clone_move" }
+zng-clone-move = { path = "../zng-clone-move" }
 zng-var = { path = "../zng-var" }
 zng-txt = { path = "../zng-txt" }
 zng-unit = { path = "../zng-unit" }

@@ -11,8 +11,8 @@ test_util = ["zng-app/test_util"]
 hyphenation_embed_all = ["hyphenation/embed_all"]
 
 [dependencies]
-zng-clone_move = { path = "../zng-clone_move" }
-zng-app_context = { path = "../zng-app_context" }
+zng-clone-move = { path = "../zng-clone-move" }
+zng-app-context = { path = "../zng-app-context" }
 zng-app = { path = "../zng-app" }
 zng-txt = { path = "../zng-txt" }
 zng-view-api = { path = "../zng-view-api" }

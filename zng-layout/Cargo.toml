@@ -9,7 +9,7 @@ readme = "../zng-app/README.md"
 [dependencies]
 zng-unit = { path = "../zng-unit" }
 zng-var = { path = "../zng-var" }
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 
 serde = { version = "1", features = ["derive"] }
 bitflags = "2"

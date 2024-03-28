@@ -9,7 +9,7 @@ readme = "../zng-app/README.md"
 [dependencies]
 zng-color-proc-macros = { path = "../zng-color-proc-macros" }
 zng-layout = { path = "../zng-layout" }
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-var = { path = "../zng-var" }
 zng-view-api = { path = "../zng-view-api" }
 

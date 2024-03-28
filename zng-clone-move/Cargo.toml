@@ -1,5 +1,5 @@
 [package]
-name = "zng-time"
+name = "zng-clone-move"
 version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
@@ -7,6 +7,3 @@ license = "Apache-2.0"
 readme = "../zng-app/README.md"
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context" }
-
-parking_lot = "0.12"

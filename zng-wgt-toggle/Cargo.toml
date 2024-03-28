@@ -17,7 +17,7 @@ zng-wgt-access = { path = "../zng-wgt-access" }
 zng-wgt-fill = { path = "../zng-wgt-fill" }
 zng-wgt-filter = { path = "../zng-wgt-filter" }
 zng-wgt-text = { path = "../zng-wgt-text" }
-zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
 zng-wgt-style = { path = "../zng-wgt-style" }
 zng-wgt-transform = { path = "../zng-wgt-transform" }
 zng-ext-input = { path = "../zng-ext-input" }

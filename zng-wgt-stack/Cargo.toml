@@ -13,7 +13,7 @@ dyn_closure = []
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt" }
-zng-wgt-size_offset = { path = "../zng-wgt-size_offset" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
 zng-app = { path = "../zng-app" }
 zng-layout = { path = "../zng-layout" }
 zng-var = { path = "../zng-var" }

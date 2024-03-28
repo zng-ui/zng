@@ -24,9 +24,9 @@ zng-var-proc-macros = { path = "../zng-var-proc-macros" }
 
 zng-txt = { path = "../zng-txt" }
 zng-unit = { path = "../zng-unit" }
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-time = { path = "../zng-time" }
-zng-clone_move = { path = "../zng-clone_move" }
+zng-clone-move = { path = "../zng-clone-move" }
 zng-handle = { path = "../zng-handle" }
 
 bitflags = { version = "2", features = ["serde"] }

@@ -10,14 +10,14 @@ readme = "../zng-app/README.md"
 test_util = []
 
 [dependencies]
-zng-clone_move = { path = "../zng-clone_move" }
-zng-unique_id = { path = "../zng-unique_id" }
-zng-app_context = { path = "../zng-app_context" }
+zng-clone-move = { path = "../zng-clone-move" }
+zng-unique-id = { path = "../zng-unique-id" }
+zng-app-context = { path = "../zng-app-context" }
 zng-app = { path = "../zng-app" }
 zng-var = { path = "../zng-var" }
 zng-txt = { path = "../zng-txt" }
 zng-layout = { path = "../zng-layout" }
-zng-state_map = { path = "../zng-state_map" }
+zng-state-map = { path = "../zng-state-map" }
 zng-view-api = { path = "../zng-view-api" }
 zng-task = { path = "../zng-task" }
 zng-ext-image = { path = "../zng-ext-image" }

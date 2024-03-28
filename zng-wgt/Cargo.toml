@@ -23,16 +23,16 @@ dyn_closure = ["zng-var/dyn_closure"]
 http = ["zng-task/http"]
 
 [dependencies]
-zng-clone_move = { path = "../zng-clone_move" }
+zng-clone-move = { path = "../zng-clone-move" }
 zng-app = { path = "../zng-app" }
 zng-color = { path = "../zng-color" }
-zng-app_context = { path = "../zng-app_context" }
+zng-app-context = { path = "../zng-app-context" }
 zng-var = { path = "../zng-var" }
-zng-state_map = { path = "../zng-state_map" }
+zng-state-map = { path = "../zng-state-map" }
 zng-layout = { path = "../zng-layout" }
 zng-task = { path = "../zng-task" }
 zng-txt = { path = "../zng-txt" }
-zng-unique_id = { path = "../zng-unique_id" }
+zng-unique-id = { path = "../zng-unique-id" }
 
 paste = "1"
 tracing = "0.1"
