@@ -4,9 +4,11 @@
 
 # zng
 
-Zng is the pure Rust UI framework with batteries included it provides all that you need to create beautiful,
-fast and responsive multi-platform apps. Ready made highly customizable widgets, automatic focus and accessibility
-management, responsive layout, data binding, easy localization and async tasks.
+Zng is a cross-platform GUI framework, it provides ready made highly customizable widgets, responsive layout, 
+live data binding, easy localization, automatic focus navigation and accessibility, async and multi-threaded tasks, robust
+multi-process architecture and more.
+
+Zng is pronounced "zing", or as an initialism: ZNG (z+nesting+graphics).
 
 ## Usage
 
