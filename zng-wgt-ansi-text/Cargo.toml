@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-ansi-text"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -12,12 +12,12 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.1.0" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.1.0" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.1.0" }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.1.0" }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.1.0" }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.1.0" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.1.0" }
+zng-wgt = { path = "../zng-wgt", version = "0.2.0" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.0" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.0" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.0" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.2.0" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.2.0" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.2.0" }
 
 serde = { version = "1", features = ["derive"] }

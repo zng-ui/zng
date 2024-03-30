@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-button"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -12,15 +12,15 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-var = { path = "../zng-var", version = "0.1.0" }
-zng-app = { path = "../zng-app", version = "0.1.0" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.1.0" }
-zng-wgt = { path = "../zng-wgt", version = "0.1.0" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.1.0" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.1.0" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.1.0" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.1.0" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.1.0" }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.1.0" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.1.0" }
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.1.0" }
+zng-var = { path = "../zng-var", version = "0.2.0" }
+zng-app = { path = "../zng-app", version = "0.2.0" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.2.0" }
+zng-wgt = { path = "../zng-wgt", version = "0.2.0" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.2.0" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.2.0" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.0" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.0" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.0" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.0" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.0" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.2.0" }

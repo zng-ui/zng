@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-access"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.1.0" }
-zng-view-api = { path = "../zng-view-api", version = "0.1.0" }
-zng-wgt = { path = "../zng-wgt", version = "0.1.0" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.1.0" }
+zng-app = { path = "../zng-app", version = "0.2.0" }
+zng-view-api = { path = "../zng-view-api", version = "0.2.0" }
+zng-wgt = { path = "../zng-wgt", version = "0.2.0" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.2.0" }

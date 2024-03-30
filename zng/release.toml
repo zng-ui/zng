@@ -1,7 +1,7 @@
 pre-release-replacements = [
-  {file="../README.md", search="zng = \\{ version = .*", replace="{{crate_name}} = { version = \"{{version}}\""},
-  {file="src/lib.rs", search="zng = \\{ version = .*", replace="{{crate_name}} = { version = \"{{version}}\""},
-  {file="src/app.rs", search="zng = \\{ version = .*", replace="{{crate_name}} = { version = \"{{version}}\""},
-  {file="src/icon.rs", search="zng = \\{ version = .*", replace="{{crate_name}} = { version = \"{{version}}\""},
+  {file="../README.md", search="zng = \\{ version = .*, ", replace="{{crate_name}} = { version = \"{{version}}\", "},
+  {file="src/lib.rs", search="zng = \\{ version = .*, ", replace="{{crate_name}} = { version = \"{{version}}\", "},
+  {file="src/app.rs", search="zng = \\{ version = .*, ", replace="{{crate_name}} = { version = \"{{version}}\", "},
+  {file="src/icon.rs", search="zng = \\{ version = .*, ", replace="{{crate_name}} = { version = \"{{version}}\", "},
   {file="../zng-view/src/lib.rs", search="zng = .*", replace="{{crate_name}} = \"{{version}}\""},
 ]

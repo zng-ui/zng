@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-window"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -15,18 +15,18 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 test_util = []
 
 [dependencies]
-zng-clone-move = { path = "../zng-clone-move", version = "0.1.0" }
-zng-unique-id = { path = "../zng-unique-id", version = "0.1.0" }
-zng-app-context = { path = "../zng-app-context", version = "0.1.0" }
-zng-app = { path = "../zng-app", version = "0.1.0" }
-zng-var = { path = "../zng-var", version = "0.1.0" }
-zng-txt = { path = "../zng-txt", version = "0.1.0" }
-zng-layout = { path = "../zng-layout", version = "0.1.0" }
-zng-state-map = { path = "../zng-state-map", version = "0.1.0" }
-zng-view-api = { path = "../zng-view-api", version = "0.1.0" }
-zng-task = { path = "../zng-task", version = "0.1.0" }
-zng-ext-image = { path = "../zng-ext-image", version = "0.1.0" }
-zng-color = { path = "../zng-color", version = "0.1.0" }
+zng-clone-move = { path = "../zng-clone-move", version = "0.2.0" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.2.0" }
+zng-app-context = { path = "../zng-app-context", version = "0.2.0" }
+zng-app = { path = "../zng-app", version = "0.2.0" }
+zng-var = { path = "../zng-var", version = "0.2.0" }
+zng-txt = { path = "../zng-txt", version = "0.2.0" }
+zng-layout = { path = "../zng-layout", version = "0.2.0" }
+zng-state-map = { path = "../zng-state-map", version = "0.2.0" }
+zng-view-api = { path = "../zng-view-api", version = "0.2.0" }
+zng-task = { path = "../zng-task", version = "0.2.0" }
+zng-ext-image = { path = "../zng-ext-image", version = "0.2.0" }
+zng-color = { path = "../zng-color", version = "0.2.0" }
 
 serde = { version = "1", features = ["derive"] }
 bitflags = "2"
