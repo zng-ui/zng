@@ -897,7 +897,7 @@ impl Image {
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
             let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
             let img = image::DynamicImage::ImageRgba8(img);
-            img.resize(255, 255, image::imageops::FilterType::Triangle);
+            img.resize(255, 255, image::imageops::FilterType::Lanczos3);
 
             use image::GenericImageView;
             let (width, height) = img.dimensions();

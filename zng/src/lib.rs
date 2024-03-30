@@ -1,9 +1,9 @@
 #![allow(clippy::needless_doctest_main)]
 
-//! Zng is a cross-platform GUI framework, it provides ready made highly customizable widgets, responsive layout, 
+//! Zng is a cross-platform GUI framework, it provides ready made highly customizable widgets, responsive layout,
 //! live data binding, easy localization, automatic focus navigation and accessibility, async and multi-threaded tasks, robust
 //! multi-process architecture and more.
-//! 
+//!
 //! Zng is pronounced "zing", or as an initialism: ZNG (z+nesting+graphics).
 //!
 //! Every component of the framework can be extended, you can create new widgets or add properties to existing ones,
