@@ -5,6 +5,11 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2021"
 license = "Apache-2.0"
 readme = "../zng-app/README.md"
+description = "Part of the zng project."
+documentation = "https://docs.rs/zng-wgt-webrender-debug"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
 zng-app = { path = "../zng-app" }
