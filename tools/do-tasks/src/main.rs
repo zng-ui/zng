@@ -21,6 +21,7 @@ fn main() {
         "asm" => asm(args),
         "rust_analyzer_run" => rust_analyzer_run(args),
         "install" => install(args),
+        "release" => release(args),
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
     }
@@ -40,6 +41,7 @@ fn install(mut args: Vec<&str>) {
         cmd("rustup", &["component", "add", "clippy"], &[]);
         cmd("cargo", &["install", "cargo-expand"], &[]);
         cmd("cargo", &["install", "cargo-asm"], &[]);
+        cmd("cargo", &["install", "cargo-release"], &[]);
     } else {
         println(f!(
             "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:",
@@ -50,6 +52,7 @@ fn install(mut args: Vec<&str>) {
         println("   rustup component add clippy");
         println("   cargo install cargo-expand");
         println("   cargo install cargo-asm");
+        println("   cargo install cargo-release");
     }
 }
 
@@ -771,6 +774,14 @@ fn ra_check(mut args: Vec<&str>) {
         let _ = std::fs::File::create(path).unwrap();
         println("rust-analyzer check is disabled");
     }
+}
+
+// do release
+//    Dry-run release.
+fn release(args: Vec<&str>) {
+    let delay = format!("{}", 10 * 60 + 1);// 10m+1s
+    let env = [("PUBLISH_GRACE_SLEEP", delay.as_str())]; 
+    cmd_env("cargo", &["release"], &args, &env);
 }
 
 // do help, --help [task]
