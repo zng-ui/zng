@@ -778,9 +778,15 @@ fn ra_check(mut args: Vec<&str>) {
 
 // do release
 //    Dry-run release.
-fn release(args: Vec<&str>) {
+fn release(mut args: Vec<&str>) {
     let delay = format!("{}", 10 * 60 + 1);// 10m+1s
     let env = [("PUBLISH_GRACE_SLEEP", delay.as_str())]; 
+
+    for exclude in &["examples", "examples-util", "integration-tests", "build-tests"] {
+        args.push("--exclude");
+        args.push(exclude);
+    }
+
     cmd_env("cargo", &["release"], &args, &env);
 }
 
