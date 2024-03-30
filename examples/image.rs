@@ -598,7 +598,7 @@ impl ImgWindow {
             state = WindowState::Maximized;
             size = (1140, 770);// restore size
 
-            icon = "examples/res/image/RGB8.png";
+            icon = "examples/res/image/zng-logo.png";
             widget::background = Checkerboard!();
 
             color_scheme = color::ColorScheme::Dark;
