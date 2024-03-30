@@ -7,6 +7,9 @@
     - https://rust-lang.github.io/api-guidelines/necessities.html#crate-and-its-dependencies-have-a-permissive-license-c-permissive
     - winit only uses apache like us, so we are good?
 
+* Review prebuild distribution.
+    - Is it going to download the binary?
+
 * Use `cargo release` to publish.
     - Need to exclude examples and tests crates.
     - Set `PUBLISH_GRACE_SLEEP=61` to avoid crates.io limits.
@@ -23,8 +26,6 @@
     - Change dependencies to use the published zng-webrender.
 * Make project public.
 * Publish project.
-
-* Review prebuild distribution.
 
 # After Publish
 

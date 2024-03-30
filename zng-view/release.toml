@@ -1,0 +1,3 @@
+pre-release-replacements = [
+  {file="src/lib.rs", search="zng-view = .*", replace="{{crate_name}} = \"{{version}}\""},
+]
