@@ -12,16 +12,16 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt" }
-zng-wgt-container = { path = "../zng-wgt-container" }
-zng-wgt-style = { path = "../zng-wgt-style" }
-zng-wgt-input = { path = "../zng-wgt-input" }
-zng-wgt-fill = { path = "../zng-wgt-fill" }
-zng-wgt-filter = { path = "../zng-wgt-filter" }
-zng-ext-window = { path = "../zng-ext-window" }
-zng-app = { path = "../zng-app" }
-zng-var = { path = "../zng-var" }
-zng-ext-input = { path = "../zng-ext-input" }
+zng-wgt = { path = "../zng-wgt", version = "0.1.0" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.1.0" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.1.0" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.1.0" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.1.0" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.1.0" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.1.0" }
+zng-app = { path = "../zng-app", version = "0.1.0" }
+zng-var = { path = "../zng-var", version = "0.1.0" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.1.0" }
 
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }

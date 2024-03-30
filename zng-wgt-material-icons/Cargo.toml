@@ -30,10 +30,10 @@ rounded = []
 sharp = []
 
 [dependencies]
-zng-app = { path = "../zng-app" }
-zng-var = { path = "../zng-var" }
-zng-ext-font = { path = "../zng-ext-font" }
-zng-wgt-text = { path = "../zng-wgt-text" }
+zng-app = { path = "../zng-app", version = "0.1.0" }
+zng-var = { path = "../zng-var", version = "0.1.0" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.1.0" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.1.0" }
 
 [package.metadata.docs.rs]
 rustdoc-args = [

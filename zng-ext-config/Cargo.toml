@@ -17,14 +17,14 @@ toml = ["dep:toml", "zng-ext-fs-watcher/toml"]
 ron = ["dep:ron", "zng-ext-fs-watcher/ron"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context" }
-zng-app = { path = "../zng-app" }
-zng-var = { path = "../zng-var" }
-zng-txt = { path = "../zng-txt" }
-zng-task = { path = "../zng-task" }
-zng-clone-move = { path = "../zng-clone-move" }
-zng-unique-id = { path = "../zng-unique-id" }
-zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", features = [
+zng-app-context = { path = "../zng-app-context", version = "0.1.0" }
+zng-app = { path = "../zng-app", version = "0.1.0" }
+zng-var = { path = "../zng-var", version = "0.1.0" }
+zng-txt = { path = "../zng-txt", version = "0.1.0" }
+zng-task = { path = "../zng-task", version = "0.1.0" }
+zng-clone-move = { path = "../zng-clone-move", version = "0.1.0" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.1.0" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.1.0", features = [
     "json",
 ] }
 

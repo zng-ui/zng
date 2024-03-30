@@ -12,6 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context" }
+zng-app-context = { path = "../zng-app-context", version = "0.1.0" }
 
 parking_lot = "0.12"

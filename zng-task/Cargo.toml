@@ -36,14 +36,14 @@ http = [
 test_util = []
 
 [dependencies]
-zng-task-proc-macros = { path = "../zng-task-proc-macros" }
-zng-clone-move = { path = "../zng-clone-move" }
-zng-unit = { path = "../zng-unit" }
-zng-app-context = { path = "../zng-app-context" }
-zng-time = { path = "../zng-time" }
-zng-var = { path = "../zng-var" }
+zng-task-proc-macros = { path = "../zng-task-proc-macros", version = "0.1.0" }
+zng-clone-move = { path = "../zng-clone-move", version = "0.1.0" }
+zng-unit = { path = "../zng-unit", version = "0.1.0" }
+zng-app-context = { path = "../zng-app-context", version = "0.1.0" }
+zng-time = { path = "../zng-time", version = "0.1.0" }
+zng-var = { path = "../zng-var", version = "0.1.0" }
 
-zng-txt = { path = "../zng-txt", optional = true }
+zng-txt = { path = "../zng-txt", version = "0.1.0", optional = true }
 
 tracing = "0.1"
 pretty-type-name = "1"

@@ -12,21 +12,21 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt" }
-zng-wgt-text = { path = "../zng-wgt-text" }
-zng-wgt-container = { path = "../zng-wgt-container" }
-zng-wgt-fill = { path = "../zng-wgt-fill" }
-zng-wgt-filter = { path = "../zng-wgt-filter" }
-zng-wgt-layer = { path = "../zng-wgt-layer" }
-zng-wgt-style = { path = "../zng-wgt-style" }
-zng-wgt-undo = { path = "../zng-wgt-undo" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
-zng-wgt-input = { path = "../zng-wgt-input" }
-zng-wgt-button = { path = "../zng-wgt-button" }
-zng-wgt-menu = { path = "../zng-wgt-menu" }
-zng-wgt-rule-line = { path = "../zng-wgt-rule-line" }
-zng-wgt-access = { path = "../zng-wgt-access" }
-zng-wgt-data = { path = "../zng-wgt-data" }
-zng-app = { path = "../zng-app" }
-zng-ext-input = { path = "../zng-ext-input" }
-zng-ext-clipboard = { path = "../zng-ext-clipboard" }
+zng-wgt = { path = "../zng-wgt", version = "0.1.0" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.1.0" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.1.0" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.1.0" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.1.0" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.1.0" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.1.0" }
+zng-wgt-undo = { path = "../zng-wgt-undo", version = "0.1.0" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.1.0" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.1.0" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.1.0" }
+zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.1.0" }
+zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.1.0" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.1.0" }
+zng-wgt-data = { path = "../zng-wgt-data", version = "0.1.0" }
+zng-app = { path = "../zng-app", version = "0.1.0" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.1.0" }
+zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.1.0" }

@@ -12,26 +12,26 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt" }
-zng-app = { path = "../zng-app" }
-zng-layout = { path = "../zng-layout" }
-zng-wgt-style = { path = "../zng-wgt-style" }
-zng-wgt-layer = { path = "../zng-wgt-layer" }
-zng-wgt-panel = { path = "../zng-wgt-panel" }
-zng-wgt-container = { path = "../zng-wgt-container" }
-zng-wgt-button = { path = "../zng-wgt-button" }
-zng-ext-input = { path = "../zng-ext-input" }
-zng-wgt-input = { path = "../zng-wgt-input" }
-zng-wgt-text = { path = "../zng-wgt-text" }
-zng-wgt-scroll = { path = "../zng-wgt-scroll" }
-zng-wgt-stack = { path = "../zng-wgt-stack" }
-zng-ext-font = { path = "../zng-ext-font" }
-zng-wgt-wrap = { path = "../zng-wgt-wrap" }
-zng-wgt-fill = { path = "../zng-wgt-fill" }
-zng-wgt-filter = { path = "../zng-wgt-filter" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
-zng-wgt-access = { path = "../zng-wgt-access" }
-zng-wgt-rule-line = { path = "../zng-wgt-rule-line" }
-zng-ext-l10n = { path = "../zng-ext-l10n" }
-zng-wgt-toggle = { path = "../zng-wgt-toggle" }
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip" }
+zng-wgt = { path = "../zng-wgt", version = "0.1.0" }
+zng-app = { path = "../zng-app", version = "0.1.0" }
+zng-layout = { path = "../zng-layout", version = "0.1.0" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.1.0" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.1.0" }
+zng-wgt-panel = { path = "../zng-wgt-panel", version = "0.1.0" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.1.0" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.1.0" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.1.0" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.1.0" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.1.0" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.1.0" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.1.0" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.1.0" }
+zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.1.0" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.1.0" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.1.0" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.1.0" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.1.0" }
+zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.1.0" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.1.0" }
+zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.1.0" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.1.0" }

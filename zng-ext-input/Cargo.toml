@@ -12,17 +12,17 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context" }
-zng-clone-move = { path = "../zng-clone-move" }
-zng-view-api = { path = "../zng-view-api" }
-zng-app = { path = "../zng-app" }
-zng-txt = { path = "../zng-txt" }
-zng-var = { path = "../zng-var" }
-zng-layout = { path = "../zng-layout" }
-zng-handle = { path = "../zng-handle" }
-zng-state-map = { path = "../zng-state-map" }
-zng-unique-id = { path = "../zng-unique-id" }
-zng-ext-window = { path = "../zng-ext-window" }
+zng-app-context = { path = "../zng-app-context", version = "0.1.0" }
+zng-clone-move = { path = "../zng-clone-move", version = "0.1.0" }
+zng-view-api = { path = "../zng-view-api", version = "0.1.0" }
+zng-app = { path = "../zng-app", version = "0.1.0" }
+zng-txt = { path = "../zng-txt", version = "0.1.0" }
+zng-var = { path = "../zng-var", version = "0.1.0" }
+zng-layout = { path = "../zng-layout", version = "0.1.0" }
+zng-handle = { path = "../zng-handle", version = "0.1.0" }
+zng-state-map = { path = "../zng-state-map", version = "0.1.0" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.1.0" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.1.0" }
 
 tracing = "0.1"
 parking_lot = "0.12"

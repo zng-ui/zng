@@ -26,8 +26,8 @@ debug_default = []
 dyn_closure = []
 
 [dependencies]
-zng-unique-id = { path = "../zng-unique-id" }
-zng-txt = { path = "../zng-txt" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.1.0" }
+zng-txt = { path = "../zng-txt", version = "0.1.0" }
 parking_lot = "0.12"
 hashbrown = { version = "0.14", features = ["rayon"] }
 tracing = "0.1"

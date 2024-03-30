@@ -12,9 +12,9 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-unit = { path = "../zng-unit" }
-zng-var = { path = "../zng-var" }
-zng-app-context = { path = "../zng-app-context" }
+zng-unit = { path = "../zng-unit", version = "0.1.0" }
+zng-var = { path = "../zng-var", version = "0.1.0" }
+zng-app-context = { path = "../zng-app-context", version = "0.1.0" }
 
 serde = { version = "1", features = ["derive"] }
 bitflags = "2"

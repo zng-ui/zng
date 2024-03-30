@@ -12,10 +12,10 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt" }
-zng-wgt-access = { path = "../zng-wgt-access" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset" }
-zng-wgt-container = { path = "../zng-wgt-container" }
-zng-layout = { path = "../zng-layout" }
+zng-wgt = { path = "../zng-wgt", version = "0.1.0" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.1.0" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.1.0" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.1.0" }
+zng-layout = { path = "../zng-layout", version = "0.1.0" }
 
 tracing = "0.1"

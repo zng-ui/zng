@@ -16,14 +16,14 @@ json = ["serde_json"]
 yaml = ["serde_yaml"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context" }
-zng-app = { path = "../zng-app" }
-zng-clone-move = { path = "../zng-clone-move" }
-zng-var = { path = "../zng-var" }
-zng-txt = { path = "../zng-txt" }
-zng-unit = { path = "../zng-unit" }
-zng-handle = { path = "../zng-handle" }
-zng-task = { path = "../zng-task" }
+zng-app-context = { path = "../zng-app-context", version = "0.1.0" }
+zng-app = { path = "../zng-app", version = "0.1.0" }
+zng-clone-move = { path = "../zng-clone-move", version = "0.1.0" }
+zng-var = { path = "../zng-var", version = "0.1.0" }
+zng-txt = { path = "../zng-txt", version = "0.1.0" }
+zng-unit = { path = "../zng-unit", version = "0.1.0" }
+zng-handle = { path = "../zng-handle", version = "0.1.0" }
+zng-task = { path = "../zng-task", version = "0.1.0" }
 
 walkdir = "2"
 serde = "1"
