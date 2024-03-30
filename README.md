@@ -101,10 +101,10 @@ on Linux:
 
 ## `cargo do`
 
-There is a built-in task runner for managing this project, run `cargo do help` or `./do help` for details.
+**Do** is a built-in task runner for managing this project, run `cargo do help` or `./do help` for details.
 
-The task runner is implemented as a Rust crate in `tools/do-tasks` and an alias in `.cargo/config.toml`,
-it builds the tool silently in the first run, after it should run without noticeable delay.
+The task runner is implemented as a Rust crate in `tools/do-tasks` and an alias in `.cargo/config.toml`.
+The builds the tool silently in the first run, after, it runs without noticeable delay.
 
 Shell script to run `do` are also provided:
  
@@ -112,10 +112,14 @@ Shell script to run `do` are also provided:
  * PowerShell: `./do.ps1 help`.
  * Bash: `/.do help`.
 
+### `cargo do run <example>`
+
+The task runner can be used to run the examples in `./examples` folder, for example: `cargo do run calculator` runs the
+`./examples/calculator.rs` example.
+
 ### `cargo do install`
 
 The task runner depends on multiple cargo commands, you can run `cargo do install` to see a list of all required commands and run `cargo do install --accept` to run the installation commands.
-
 
 ## VSCode & Rust Analyzer
 

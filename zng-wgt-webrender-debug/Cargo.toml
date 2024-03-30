@@ -11,7 +11,7 @@ zng-app = { path = "../zng-app" }
 zng-wgt = { path = "../zng-wgt" }
 zng-ext-window = { path = "../zng-ext-window" }
 zng-view-api = { path = "../zng-view-api" }
-webrender_api = { git = "https://github.com/SamRodri/webrender.git" }
+webrender-api = { git = "https://github.com/SamRodri/zng-webrender.git", package = "zng-webrender-api" }
 serde = "1"
 bitflags = "2"
 tracing = "0.1"
