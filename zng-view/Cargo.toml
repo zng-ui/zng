@@ -28,8 +28,8 @@ software = ["swgl"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-webrender = { git = "https://github.com/SamRodri/zng-webrender.git", package = "zng-webrender" }
-swgl = { git = "https://github.com/SamRodri/zng-webrender.git", package = "zng-swgl", optional = true }
+webrender = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-webrender" }
+swgl = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-swgl", optional = true }
 
 zng-view-api = { path = "../zng-view-api", default-features = false }
 zng-unit = { path = "../zng-unit" }
