@@ -1,9 +1,5 @@
 # Publish
 
-* Pick license and code of conduct.
-    - https://rust-lang.github.io/api-guidelines/necessities.html#crate-and-its-dependencies-have-a-permissive-license-c-permissive
-    - winit only uses apache like us, so we are good?
-
 * Edit authors.
 
 * Review prebuild distribution.
