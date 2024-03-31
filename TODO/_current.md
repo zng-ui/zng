@@ -2,8 +2,11 @@
 
 * Edit authors.
 
-* Review prebuild distribution.
-    - Is it going to download the binary?
+* Make the first prebuild release manually?
+    - Build Ubuntu and Mac?
+    - Mac currently broken.
+    - Can use GitHub actions to prebuild.
+        - Project needs to be public?
 
 * Use `cargo release` to publish.
     - Need to exclude examples and tests crates.

@@ -4,8 +4,7 @@ use base64::Engine;
 use hashers::jenkins::spooky_hash::SpookyHasher;
 
 fn main() {
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let mut lib = Path::new(&manifest_dir).join("lib");
+    let mut lib = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("lib");
 
     println!("cargo:rerun-if-changed={}", lib.display());
 
@@ -27,6 +26,34 @@ fn main() {
 
     lib = lib.join(file);
 
+    if !lib.exists() {
+        let version = env::var("CARGO_PKG_VERSION").unwrap();
+        lib = home::cargo_home()
+            .unwrap()
+            .join(".zng-view-prebuilt")
+            .join(format!("{file}.{version}.bin"));
+        if !lib.exists() {
+            let url = format!("https://github.com/zng-ui/zng/releases/download/{version}/{file}");
+
+            let temp_file = Path::new(&env::var("OUT_DIR").unwrap()).join(format!("{file}.{version}.tmp"));
+
+            let curl_status = std::process::Command::new("curl")
+                .arg("--location")
+                .arg("--fail")
+                // .arg("--silent")
+                .arg("--create-dirs")
+                .arg("--output")
+                .arg(&temp_file)
+                .arg(&url)
+                .status()
+                .unwrap();
+            assert!(curl_status.success());
+
+            std::fs::copy(&temp_file, &lib).unwrap();
+            let _ = std::fs::remove_file(temp_file);
+        }
+    }
+
     if lib.exists() {
         println!("cargo:rustc-cfg=zng_lib_embedded");
         println!("cargo:rustc-env=ZNG_VIEW_LIB={}", lib.canonicalize().unwrap().display());
@@ -46,6 +73,6 @@ fn main() {
             base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
         );
     } else {
-        println!("cargo:warning=missing `{file}`, run `do prebuild`");
+        println!("cargo:warning=missing `{file}`, run `do prebuild` in local builds");
     }
 }

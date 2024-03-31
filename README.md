@@ -90,14 +90,23 @@ On Windows:
 
 [Visual Studio installer]: https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170
 
+On Windows 8 or older:
+
+* To build with `"view_prebuilt"`  feature:
+    - The `curl` command is required, it is available in Windows 10+, but must be 
+      [installed](https://curl.se/windows/) in older Windows and must be added to the PATH env var.
+
 on Linux:
 
-* Packages need to build:
+* Packages needed to build:
     - `pkg-config`
     - `libfontconfig1-dev`
 
-* Packages need to build with `"http"` feature:
+* Packages needed to build with `"http"` feature:
     - `libssl-dev`
+
+* Packages needed to build with `"view_prebuilt"` feature:
+    - `curl`
 
 ## `cargo do`
 
