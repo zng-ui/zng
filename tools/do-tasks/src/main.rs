@@ -277,18 +277,20 @@ fn test(mut args: Vec<&str>) {
                 )],
             );
 
-            let mut changes = 0;
+            let mut changes = vec![];
             for m in util::git_modified() {
                 if let Some(ext) = m.extension() {
                     if ext == "stderr" && m.starts_with("tests/build/cases") {
-                        changes += 1;
                         error(format!("build test `{}` modified", m.display()));
-                        util::print_git_diff(&m);
+                        changes.push(m);
                     }
                 }
             }
-            if changes > 0 {
-                fatal(format!("{changes} build tests modified, review and commit"));
+            if !changes.is_empty() {
+                for m in &changes {
+                    util::print_git_diff(&m);
+                }
+                fatal(format!("{} build tests modified, review and commit", changes.len()));
             }
         }
     } else if take_flag(&mut args, &["--examples"]) {
