@@ -2130,7 +2130,9 @@ fn lock_timeout<F: fs4::FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Res
         match try_lock(file) {
             Ok(()) => return Ok(()),
             Err(e) => {
-                if e.raw_os_error() != locked_error.get_or_insert_with(fs4::lock_contended_error).raw_os_error() {
+                if e.kind() != std::io::ErrorKind::WouldBlock
+                    && e.raw_os_error() != locked_error.get_or_insert_with(fs4::lock_contended_error).raw_os_error()
+                {
                     return Err(e);
                 }
 

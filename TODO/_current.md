@@ -1,6 +1,3 @@
-* Fix cargo example version check.
-* Review build test cleanup, use git to check if `*.stderr` changed?
-
 # Publish
 
 * Edit authors.
