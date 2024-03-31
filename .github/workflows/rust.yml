@@ -16,7 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Prebuild
+      run: cargo do prebuild
     - name: Build
-      run: cargo do build --verbose
+      run: cargo do build
     - name: Run tests
-      run: cargo do test --verbose
+      run: cargo do test
