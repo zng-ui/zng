@@ -432,3 +432,12 @@ fn ansi_enabled() -> bool {
 pub fn settings_path() -> PathBuf {
     std::env::current_exe().unwrap().parent().unwrap().to_owned()
 }
+
+pub fn git_modified() -> Vec<PathBuf> {
+    let output = Command::new("git")
+        .args(&["ls-files", "-m"])
+        .output()
+        .expect("failed to run `git ls-files -m`");
+    let output = String::from_utf8(output.stdout).unwrap();
+    output.lines().map(PathBuf::from).collect()
+}

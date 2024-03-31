@@ -273,6 +273,19 @@ fn test(mut args: Vec<&str>) {
                 &[],
                 &[("DO_TASKS_TEST_BUILD", args[0])],
             );
+
+            let mut changes = 0;
+            for m in util::git_modified() {
+                if let Some(ext) = m.extension() {
+                    if ext == "stderr" && m.starts_with("tests/build/cases") {
+                        changes += 1;
+                        error(format!("build test `{}` modified", m.display()))
+                    }
+                }
+            }
+            if changes > 0 {
+                fatal(format!("{changes} build tests modified, review and commit"));
+            }
         }
     } else if take_flag(&mut args, &["--examples"]) {
         // all examples
