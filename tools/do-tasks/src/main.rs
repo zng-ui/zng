@@ -282,7 +282,8 @@ fn test(mut args: Vec<&str>) {
                 if let Some(ext) = m.extension() {
                     if ext == "stderr" && m.starts_with("tests/build/cases") {
                         changes += 1;
-                        error(format!("build test `{}` modified", m.display()))
+                        error(format!("build test `{}` modified", m.display()));
+                        util::print_git_diff(&m);
                     }
                 }
             }

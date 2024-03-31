@@ -441,3 +441,7 @@ pub fn git_modified() -> Vec<PathBuf> {
     let output = String::from_utf8(output.stdout).unwrap();
     output.lines().map(PathBuf::from).collect()
 }
+
+pub fn print_git_diff(file: &std::path::Path) {
+    Command::new("git").arg("diff").arg(file).status().unwrap();
+}
