@@ -209,15 +209,15 @@ fn doc(mut args: Vec<&str>) {
 // USAGE:
 //     test -u test::path::function
 //        Run tests that partially match the Rust item path.
-//     test -u *
+//     test -u --all
 //        Run all unit tests.
 //     test -t focus
 //        Run all integration tests in the named test.
-//     test -t *
+//     test -t --all
 //        Run all integration tests.
 //     test -b property/*
 //        Run build tests that match the file pattern in `tests/build/cases/`.
-//     test -b *
+//     test -b --all
 //        Run all build tests.
 //     test --doc
 //        Run doc tests.
@@ -232,7 +232,7 @@ fn test(mut args: Vec<&str>) {
 
         let t_args = vec![nightly, "test", "--package", "zng*", "--lib", "--no-fail-fast", "--all-features"];
 
-        if unit_tests.contains(&"*") {
+        if unit_tests.contains(&"--all") || unit_tests.contains(&"*") || unit_tests.contains(&"-a") {
             cmd_env("cargo", &t_args, &args, env);
         } else {
             for test_name in unit_tests {
@@ -253,7 +253,7 @@ fn test(mut args: Vec<&str>) {
             "--all-features",
         ];
 
-        if !int_tests.contains(&"*") {
+        if !int_tests.contains(&"--all") && !int_tests.contains(&"-a") && !int_tests.contains(&"*") {
             for it in int_tests {
                 t_args.push("--test");
                 t_args.push(it);
@@ -265,13 +265,16 @@ fn test(mut args: Vec<&str>) {
         // build tests:
 
         if args.len() != 1 {
-            error("expected pattern, use do test -b * to run all build tests");
+            error("expected pattern, use do test -b --all to run all build tests");
         } else {
             cmd_env(
                 "cargo",
                 &["run", "--package", "build-tests"],
                 &[],
-                &[("DO_TASKS_TEST_BUILD", args[0])],
+                &[(
+                    "DO_TASKS_TEST_BUILD",
+                    if args[0] == "--all" || args[0] == "-a" { "*" } else { args[0] },
+                )],
             );
 
             let mut changes = 0;
@@ -313,7 +316,7 @@ fn test(mut args: Vec<&str>) {
         if all {
             // if no args we run everything.
             tests::version_in_sync();
-            test(vec!["--build", "*"]);
+            test(vec!["--build", "--all"]);
         }
     }
 }
