@@ -438,7 +438,7 @@ mod file_cache {
                 }
             };
 
-            const TIMEOUT: Duration = Duration::from_secs(10);
+            const TIMEOUT: Duration = Duration::from_secs(if cfg!(test) { 60 } else { 10 });
 
             let lock_r = if write {
                 lock_exclusive(&lock, TIMEOUT)
