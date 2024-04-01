@@ -25,6 +25,8 @@ fn main() {
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
     }
+
+    util::exit_checked();
 }
 
 // do install [-a, --accept]

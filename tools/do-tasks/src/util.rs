@@ -3,6 +3,7 @@ use std::format_args as f;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{self, Command, Stdio};
+use std::sync::atomic::*;
 
 // Command line to run `do`
 pub fn do_cmd() -> String {
@@ -70,6 +71,7 @@ fn cmd_impl(mut cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&
                     fatal(msg);
                 } else {
                     error(msg);
+                    set_exit_with_error();
                 }
             }
         }
@@ -79,6 +81,7 @@ fn cmd_impl(mut cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&
                 fatal(msg)
             } else {
                 error(msg);
+                set_exit_with_error();
             }
         }
     }
@@ -444,4 +447,18 @@ pub fn git_modified() -> Vec<PathBuf> {
 
 pub fn print_git_diff(file: &std::path::Path) {
     Command::new("git").arg("diff").arg(file).status().unwrap();
+}
+
+static CMD_ERROR: AtomicBool = AtomicBool::new(false);
+
+pub fn set_exit_with_error() {
+    CMD_ERROR.store(true, Ordering::Relaxed);
+}
+
+pub fn exit_checked() {
+    if CMD_ERROR.load(Ordering::Relaxed) {
+        std::process::exit(-1);
+    } else {
+        std::process::exit(0);
+    }
 }
