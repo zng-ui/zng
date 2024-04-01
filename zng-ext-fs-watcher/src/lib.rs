@@ -2139,7 +2139,7 @@ fn lock_timeout<F: fs4::FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Res
                 const INTERVAL: Duration = Duration::from_millis(10);
                 timeout = timeout.saturating_sub(INTERVAL);
                 if timeout.is_zero() {
-                    return Err(e);
+                    return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
                 } else {
                     thread::sleep(INTERVAL.min(timeout));
                 }
