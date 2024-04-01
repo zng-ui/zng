@@ -383,7 +383,7 @@ impl WatchFile {
             return Self::try_open_non_empty(path, false);
         }
 
-        lock_shared(&file, Duration::from_secs(5))?;
+        lock_shared(&file, Duration::from_secs(10))?;
         Ok(Self(file))
     }
 
@@ -543,7 +543,7 @@ impl WriteFile {
             .write(true)
             .open(&transaction_path)?;
 
-        const TIMEOUT: Duration = Duration::from_secs(5);
+        const TIMEOUT: Duration = Duration::from_secs(10);
 
         lock_exclusive(&transaction_lock, TIMEOUT)?;
 
@@ -693,7 +693,7 @@ impl WriteFile {
                             // Reacquire a write lock and unlock, just to wait the external app.
                             match std::fs::File::options().write(true).open(&self.actual_path) {
                                 Ok(f) => {
-                                    if lock_exclusive(&f, 1.secs()).is_ok() {
+                                    if lock_exclusive(&f, 10.secs()).is_ok() {
                                         // acquired actual ok, retry
                                         let _ = unlock_ok(&f);
                                     }
