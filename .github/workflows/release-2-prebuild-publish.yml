@@ -1,4 +1,4 @@
-name: Release
+name: Tag -> Prebuild -> Publish
 
 on:
   push:
@@ -11,33 +11,25 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            file: 'zng-view-prebuilt/lib/libzng_view.so'
+            file: libzng_view.so
           - os: windows-latest
-            file: 'zng-view-prebuilt/lib/zng_view.dll'
+            file: zng_view.dll
           - os: macos-latest
-            file: 'zng-view-prebuilt/lib/libzng_view.dylib'
+            file: libzng_view.dylib
 
     name: prebuild (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
         - uses: actions/checkout@v4
-        - name: Fmt Check
-          run: cargo fmt -- --check
         - name: Prebuild
           run: |
             cargo do prebuild
             cargo clean
-        - name: Check
-          run: |
-            cargo do check
-            cargo clean
-        - name: Test
-          run: cargo do test
         - name: Upload artifacts
           uses: actions/upload-artifact@v1
           with:
             name: prebuilt-${{ matrix.os }}
-            path: ${{ matrix.file }}
+            path: zng-view-prebuilt/lib/${{ matrix.file }}
     
   publish:
     name: publish

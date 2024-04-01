@@ -19,9 +19,9 @@ pub fn cmd_env(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&s
     cmd_impl(cmd, default_args, user_args, envs, false)
 }
 // Like [`cmd`] but exists the task runner if the command fails.
-//pub fn cmd_req(cmd: &str, default_args: &[&str], user_args: &[&str]) {
-//    cmd_impl(cmd, default_args, user_args, &[], true)
-//}
+pub fn cmd_req(cmd: &str, default_args: &[&str], user_args: &[&str]) {
+    cmd_impl(cmd, default_args, user_args, &[], true)
+}
 // Like [`cmd_env`] but exists the task runner if the command fails.
 pub fn cmd_env_req(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)]) {
     cmd_impl(cmd, default_args, user_args, envs, true)
@@ -461,4 +461,21 @@ pub fn exit_checked() {
     } else {
         std::process::exit(0);
     }
+}
+
+pub fn zng_version() -> String {
+    let path = format!("{manifest_dir}/../../zng/Cargo.toml", manifest_dir = env!("CARGO_MANIFEST_DIR"));
+    let toml = std::fs::read_to_string(&path).expect(&path);
+    assert!(toml.contains(r#"name = "zng""#), "run `do` in the project root");
+    let rgx = regex::Regex::new(r#"version = "(\d+\.\d+.*)""#).unwrap();
+    rgx.captures(&toml).unwrap().get(1).unwrap().as_str().to_owned()
+}
+
+pub fn git_tag_exists(tag: &str) -> bool {
+    let output = Command::new("git")
+        .args(&["tag", "--list", tag])
+        .output()
+        .expect("failed to run `git ls-files -m`");
+    let output = String::from_utf8(output.stdout).unwrap();
+    output.lines().any(|l| l == tag)
 }

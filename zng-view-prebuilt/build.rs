@@ -33,7 +33,7 @@ fn main() {
             .join(".zng-view-prebuilt")
             .join(format!("{file}.{version}.bin"));
         if !lib.exists() {
-            let url = format!("https://github.com/zng-ui/zng/releases/download/{version}/{file}");
+            let url = format!("https://github.com/zng-ui/zng/releases/download/v{version}/{file}");
 
             let temp_file = Path::new(&env::var("OUT_DIR").unwrap()).join(format!("{file}.{version}.tmp"));
 

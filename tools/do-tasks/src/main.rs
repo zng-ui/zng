@@ -22,6 +22,7 @@ fn main() {
         "rust_analyzer_run" => rust_analyzer_run(args),
         "install" => install(args),
         "release" => release(args),
+        "publish_version_tag" => publish_version_tag(args),
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
     }
@@ -809,6 +810,21 @@ fn release(mut args: Vec<&str>) {
     }
 
     cmd_env("cargo", &["release"], &args, &env);
+}
+
+// used by `workflows/release-1-test-tag.yml`
+fn publish_version_tag(mut args: Vec<&str>) {
+    let version = util::zng_version();
+    let tag = format!("v{version}");
+
+    if git_tag_exists(&tag) {
+        fatal(f!("git tag `{tag}` already exists, bump zng version and retry"))
+    }
+
+    if take_flag(&mut args, &["--execute"]) {
+        cmd_req("git", &["tag", &tag, "-m", &format!("zng version {version}")], &[]);
+        cmd_req("git", &["push", "origin", &tag], &[])
+    }
 }
 
 // do help, --help [task]

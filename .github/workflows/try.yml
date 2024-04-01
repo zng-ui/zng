@@ -1,0 +1,26 @@
+name: Try
+
+on:
+  pull_request:
+    branches: [ "try" ]
+  push:
+    branches: [ "try" ]
+
+env:
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: '--codegen=debuginfo=0'
+
+jobs:
+  try:
+    strategy:
+        matrix:
+          include:
+            - os: ubuntu-latest
+            - os: windows-latest
+            - os: macos-latest
+
+    runs-on: ubuntu-latest # \$\{{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+    - run: cargo do help test # change this
