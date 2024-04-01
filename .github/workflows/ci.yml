@@ -3,10 +3,9 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "try" ]
 
 env:
-  CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: '--codegen=debuginfo=0'
 
@@ -16,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Fmt Check
       run: cargo fmt -- --check
     - name: Prebuild
