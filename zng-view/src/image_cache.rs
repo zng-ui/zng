@@ -320,7 +320,10 @@ impl ImageCache {
     fn image_decode(buf: &[u8], format: image::ImageFormat, downscale: Option<ImageDownscale>) -> image::ImageResult<image::DynamicImage> {
         let buf = std::io::Cursor::new(buf);
 
-        let mut image = image::load_from_memory_with_format(buf.into_inner(), format)?;
+        let mut reader = image::io::Reader::new(buf);
+        reader.set_format(format);
+        reader.no_limits();
+        let mut image = reader.decode()?;
 
         if let Some(s) = downscale {
             let (img_w, img_h) = (image.width(), image.height());
