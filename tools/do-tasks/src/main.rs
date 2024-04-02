@@ -21,7 +21,7 @@ fn main() {
         "asm" => asm(args),
         "rust_analyzer_run" => rust_analyzer_run(args),
         "install" => install(args),
-        "release" => release(args),
+        "publish" => publish(args),
         "publish_version_tag" => publish_version_tag(args),
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
@@ -44,7 +44,6 @@ fn install(mut args: Vec<&str>) {
         cmd("rustup", &["component", "add", "clippy"], &[]);
         cmd("cargo", &["install", "cargo-expand"], &[]);
         cmd("cargo", &["install", "cargo-asm"], &[]);
-        cmd("cargo", &["install", "cargo-release"], &[]);
     } else {
         println(f!(
             "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:",
@@ -55,7 +54,6 @@ fn install(mut args: Vec<&str>) {
         println("   rustup component add clippy");
         println("   cargo install cargo-expand");
         println("   cargo install cargo-asm");
-        println("   cargo install cargo-release");
     }
 }
 
@@ -798,18 +796,92 @@ fn ra_check(mut args: Vec<&str>) {
     }
 }
 
-// do release
-//    Dry-run release.
-fn release(mut args: Vec<&str>) {
-    let delay = format!("{}", 10 * 60 + 1); // 10m+1s
-    let env = [("PUBLISH_GRACE_SLEEP", delay.as_str())];
+// do publish [--list,--bump <minor|patch> <CRATE..>]
+//    Manage crate versions and publish.
+// USAGE:
+//    publish --list
+//       Print all publishable crates and dependencies.
+//    publish --bump minor "crate-name"
+//       Increment the minor version of the crates and dependents.
+//    publish --bump patch "c" --dry-run
+//       Only prints the version changes.
+fn publish(mut args: Vec<&str>) {
+    if take_flag(&mut args, &["--list"]) {
+        for member in &util::publish_members() {
+            print(f!("{member}\n"));
+        }
+    } else if let Some(values) = take_option(&mut args, &["--bump"], "minor|patch crate") {
+        let bump = match values[0] {
+            "patch" => {
+                fn bump(v: &mut (u32, u32, u32)) {
+                    v.2 += 1;
+                }
+                bump
+            }
+            "minor" => {
+                fn bump(v: &mut (u32, u32, u32)) {
+                    v.1 += 1;
+                    v.2 = 0;
+                }
+                bump
+            }
+            unknown => fatal(f!("unknown bump level {unknown:?}")),
+        };
+        let dry_run = take_flag(&mut args, &["--dry-run"]);
 
-    for exclude in &["examples", "examples-util", "integration-tests", "build-tests"] {
-        args.push("--exclude");
-        args.push(exclude);
+        let mut crates = args;
+        if crates.is_empty() {
+            fatal("missing at least one crate name");
+        }
+        if let Some(c) = crates.iter().find(|c| c.starts_with('-')) {
+            fatal(f!("expected only crate names, found {:?}", c));
+        }
+
+        let mut dependents_start = crates.len();
+        let mut search = crates.clone();
+        let members = util::publish_members();
+        loop {
+            for member in &members {
+                if member.dependencies.iter().any(|d| search.iter().any(|n| *n == &d.name)) {
+                    if !crates.iter().any(|c| c == &member.name) {
+                        crates.push(&member.name);
+                    }
+                }
+            }
+            if dependents_start == crates.len() {
+                break;
+            } else {
+                search = crates[dependents_start..].to_vec();
+                dependents_start = crates.len();
+            }
+        }
+
+        if let Some(i) = crates.iter().position(|c| *c == "zng-view-prebuilt") {
+            // "zng-view-prebuilt" version is always equal "zng" version.
+            assert!(crates.contains(&"zng"));
+            crates.remove(i);
+        }
+
+        let mut new_versions = std::collections::HashMap::new();
+
+        for crate_ in &crates {
+            let member = members.iter().find(|m| &m.name == crate_).unwrap();
+            let mut new_version = member.version;
+            bump(&mut new_version);
+            new_versions.insert(member.name.as_str(), new_version);
+        }
+
+        if crates.contains(&"zng") {
+            let mut new_version = members.iter().find(|m| m.name == "zng").unwrap().version;
+            let member = members.iter().find(|m| m.name == "zng-view-prebuilt").unwrap();
+            bump(&mut new_version);
+            new_versions.insert(member.name.as_str(), new_version);
+        }
+
+        for member in &members {
+            member.write_versions(&new_versions, dry_run);
+        }
     }
-
-    cmd_env("cargo", &["release"], &args, &env);
 }
 
 // used by `workflows/release-1-test-tag.yml`

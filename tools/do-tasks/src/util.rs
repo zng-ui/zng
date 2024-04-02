@@ -479,3 +479,263 @@ pub fn git_tag_exists(tag: &str) -> bool {
     let output = String::from_utf8(output.stdout).unwrap();
     output.lines().any(|l| l == tag)
 }
+
+pub fn workspace_members() -> Vec<String> {
+    match std::fs::read_to_string("Cargo.toml") {
+        Ok(file) => {
+            let mut members = vec![];
+
+            let mut started = false;
+            for line in file.lines() {
+                if !started {
+                    if line.starts_with("members =") {
+                        started = true;
+                    }
+                } else if line.starts_with("]") {
+                    break;
+                } else if line.contains('"') && !line.contains('#') {
+                    let line = line.trim().trim_matches(&['"', ',']);
+                    if !line.is_empty() {
+                        members.push(line.to_owned());
+                    }
+                }
+            }
+
+            members
+        }
+        Err(e) => {
+            error(e);
+            vec![]
+        }
+    }
+}
+
+pub fn publish_members() -> Vec<PublishMember> {
+    let mut members = vec![];
+    'members: for member in workspace_members() {
+        match std::fs::read_to_string(PathBuf::from(member).join("Cargo.toml")) {
+            Ok(file) => {
+                let mut member = PublishMember {
+                    name: String::new(),
+                    version: (0, 0, 0),
+                    dependencies: vec![],
+                };
+
+                enum Section {
+                    Package,
+                    Dependencies,
+                    Other,
+                }
+                let mut section = Section::Other;
+
+                for line in file.lines() {
+                    let line = line.trim();
+                    if line == "[package]" {
+                        section = Section::Package;
+                    } else if line == "[dependencies]" {
+                        section = Section::Dependencies;
+                    } else if line.starts_with('[') && line.ends_with(']') {
+                        section = Section::Other;
+                    }
+
+                    match section {
+                        Section::Package => {
+                            if let Some(name) = line.strip_prefix("name = ") {
+                                member.name = name.trim_matches('"').to_owned();
+                            } else if let Some(version) = line.strip_prefix("version = ") {
+                                member.version = parse_publish_version(version.trim_matches('"'));
+                            } else if line == "publish = false" {
+                                continue 'members;
+                            }
+                        }
+                        Section::Dependencies => {
+                            if line.contains(r#"path = "../"#) {
+                                if let Some((name, rest)) = line.split_once(" = ") {
+                                    let version_match = r#"version = ""#;
+                                    if let Some(i) = rest.find(version_match) {
+                                        let rest = &rest[i + version_match.len()..];
+                                        let i = rest.find('"').unwrap();
+
+                                        member.dependencies.push(PublishDependency {
+                                            name: name.to_owned(),
+                                            version: parse_publish_version(&rest[..i]),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        Section::Other => {}
+                    }
+                }
+
+                if !member.name.is_empty() {
+                    members.push(member);
+                }
+            }
+            Err(e) => {
+                error(e);
+                continue 'members;
+            }
+        }
+    }
+    topological_sort(&mut members);
+    members
+}
+fn parse_publish_version(version: &str) -> (u32, u32, u32) {
+    fn parse(n: Option<&str>) -> u32 {
+        if let Some(n) = n {
+            match n.parse() {
+                Ok(n) => n,
+                Err(e) => {
+                    error(f!("{e}, expected version #.#.#"));
+                    0
+                }
+            }
+        } else {
+            error("expected version #.#.#");
+            0
+        }
+    }
+
+    let mut parts = version.split('.');
+
+    (parse(parts.next()), parse(parts.next()), parse(parts.next()))
+}
+fn topological_sort(members: &mut Vec<PublishMember>) {
+    let mut sort = topological_sort::TopologicalSort::<String>::new();
+    for member in members.iter() {
+        sort.insert(member.name.clone());
+        for dep in &member.dependencies {
+            sort.add_dependency(dep.name.clone(), member.name.clone());
+        }
+    }
+    let mut sorted = Vec::with_capacity(members.len());
+    while let Some(t) = sort.pop() {
+        sorted.push(t);
+    }
+    assert!(sort.is_empty());
+    members.sort_by_key(|m| sorted.iter().position(|n| n == &m.name).unwrap());
+}
+
+#[derive(Debug)]
+pub struct PublishMember {
+    pub name: String,
+    pub version: (u32, u32, u32),
+    pub dependencies: Vec<PublishDependency>,
+}
+impl std::fmt::Display for PublishMember {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        writeln!(f, "name = \"{}\"", self.name)?;
+        writeln!(f, "version = \"{}.{}.{}\"", self.version.0, self.version.1, self.version.2)?;
+        writeln!(f, "[dependencies]")?;
+        for d in &self.dependencies {
+            writeln!(f, "{}", d)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct PublishDependency {
+    pub name: String,
+    pub version: (u32, u32, u32),
+}
+impl std::fmt::Display for PublishDependency {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "{} = {{ path = \"../{}\", version = \"{}.{}.{}\" }}",
+            self.name, self.name, self.version.0, self.version.1, self.version.2
+        )
+    }
+}
+
+impl PublishMember {
+    pub fn write_versions(&self, versions: &std::collections::HashMap<&str, (u32, u32, u32)>, dry_run: bool) {
+        if !versions.contains_key(self.name.as_str()) && !self.dependencies.iter().any(|d| versions.contains_key(d.name.as_str())) {
+            return;
+        }
+
+        use std::fmt::Write as _;
+
+        let cargo_path = PathBuf::from(&self.name).join("Cargo.toml");
+        let cargo = std::fs::read_to_string(&cargo_path).expect("failed to load Cargo.toml");
+        let mut output = String::with_capacity(cargo.len());
+
+        enum Section {
+            Package,
+            Dependencies,
+            Other,
+        }
+        let mut section = Section::Other;
+
+        'line: for line in cargo.lines() {
+            let line_edit = line.trim();
+            if line_edit == "[package]" {
+                section = Section::Package;
+            } else if line_edit == "[dependencies]" {
+                section = Section::Dependencies;
+            } else if line_edit.starts_with('[') && line_edit.ends_with(']') {
+                section = Section::Other;
+            }
+
+            match section {
+                Section::Package => {
+                    if line_edit.starts_with("version = ") {
+                        if let Some(v) = versions.get(self.name.as_str()) {
+                            write!(&mut output, "version = \"{}.{}.{}\"\n", v.0, v.1, v.2).unwrap();
+
+                            print(f!(
+                                "{} {}.{}.{} -> {}.{}.{}\n",
+                                self.name,
+                                self.version.0,
+                                self.version.1,
+                                self.version.2,
+                                v.0,
+                                v.1,
+                                v.2,
+                            ));
+
+                            continue 'line;
+                        }
+                    }
+                }
+                Section::Dependencies => {
+                    if line_edit.contains(r#"path = "../"#) {
+                        if let Some((name, _)) = line_edit.split_once(" = ") {
+                            if let Some(v) = versions.get(name) {
+                                let version_match = r#"version = ""#;
+                                if let Some(s) = line_edit.find(version_match) {
+                                    let rest = &line_edit[s + version_match.len()..];
+                                    let e = rest.find('"').unwrap();
+
+                                    write!(
+                                        &mut output,
+                                        "{}version = \"{}.{}.{}{}\n",
+                                        &line_edit[..s],
+                                        v.0,
+                                        v.1,
+                                        v.2,
+                                        &rest[e..]
+                                    )
+                                    .unwrap();
+                                    continue 'line;
+                                }
+                            }
+                        }
+                    }
+                }
+                Section::Other => {}
+            }
+
+            output.push_str(line);
+            output.push('\n');
+        }
+
+        if !dry_run {
+            if let Err(e) = std::fs::write(cargo_path, output) {
+                error(e);
+            }
+        }
+    }
+}
