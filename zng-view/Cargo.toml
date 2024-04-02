@@ -29,6 +29,11 @@ ipc = ["zng-view-api/ipc"]
 # Feature enabled by default.
 software = ["swgl"]
 
+# Enable AVIF decoder and encoder.
+#
+# Note that this enables the `dav1d` dependency that is not trivial to build.
+avif = ["image/avif", "image/avif-native"]
+
 [lib]
 crate-type = ["lib", "cdylib"]
 
@@ -51,7 +56,23 @@ winit = { version = "0.29", default-features = false, features = [
 glutin = "0.31"
 raw-window-handle = "0.5" # matches glutin
 flume = "0.11"
-image = "0.25"
+image = { version = "0.25", default-features = false, features = [
+    "rayon",
+    "bmp",
+    "dds",
+    "exr",
+    "ff",
+    "gif",
+    "hdr",
+    "ico",
+    "jpeg",
+    "png",
+    "pnm",
+    "qoi",
+    "tga",
+    "tiff",
+    "webp",
+] }
 img-parts = "0.3"
 byteorder = "1"
 rustc-hash = "1"

@@ -17,17 +17,38 @@ pub(crate) const ENCODERS: &[&str] = &[
     "png",
     "jpg",
     "jpeg",
-    "jfif",
-    "gif",
-    "ico",
-    "bmp",
-    "ff",
-    "farbfeld",
     "webp",
     #[cfg(feature = "avif")]
     "avif",
+    "gif",
+    "ico",
+    "bmp",
+    "jfif",
+    "exr",
+    "hdr",
+    "pnm",
+    "qoi",
+    "ff",
+    "farbfeld",
 ];
-pub(crate) const DECODERS: &[&str] = ENCODERS;
+pub(crate) const DECODERS: &[&str] = &[
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    #[cfg(feature = "avif")]
+    "avif",
+    "gif",
+    "ico",
+    "bmp",
+    "jfif",
+    "exr",
+    "pnm",
+    "qoi",
+    "ff",
+    "farbfeld",
+    "dds",
+];
 
 /// Decode and cache image resources.
 pub(crate) struct ImageCache {
