@@ -868,7 +868,7 @@ mod tests {
 
             let policy = CachePolicy::new(&request.req, &response.0);
 
-            let (headers, body) = async_test(async move {
+            let (headers, body) = async move {
                 let (parts, body) = response.into_parts();
 
                 let body = test.set(&key, policy, body).await.unwrap();
@@ -877,7 +877,8 @@ mod tests {
                 let body = response.text().await.unwrap();
 
                 (response.into_parts().0.headers, body)
-            });
+            }
+            .await;
 
             assert_eq!(
                 headers.get(&header::CONTENT_LENGTH),
