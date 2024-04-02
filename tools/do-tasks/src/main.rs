@@ -796,7 +796,7 @@ fn ra_check(mut args: Vec<&str>) {
     }
 }
 
-// do publish [--list,--bump <minor|patch> <CRATE..>]
+// do publish [--list,--bump <minor|patch> <CRATE..>, --check]
 //    Manage crate versions and publish.
 // USAGE:
 //    publish --list
@@ -805,6 +805,8 @@ fn ra_check(mut args: Vec<&str>) {
 //       Increment the minor version of the crates and dependents.
 //    publish --bump patch "c" --dry-run
 //       Only prints the version changes.
+//    publish --check
+//       Print all publishable crates that need to be published.
 fn publish(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--list"]) {
         for member in &util::publish_members() {
@@ -881,6 +883,20 @@ fn publish(mut args: Vec<&str>) {
         for member in &members {
             member.write_versions(&new_versions, dry_run);
         }
+    } else if take_flag(&mut args, &["--check"]) {
+        let members = util::publish_members();
+        let mut count = 0;
+        for member in &members {
+            let published_ver = util::crates_io_latest(member.name.as_str());
+            let current_ver = format!("{}.{}.{}", member.version.0, member.version.1, member.version.2);
+
+            if published_ver != current_ver {
+                print(f!("{} {} -> {}\n", member.name, published_ver, current_ver));
+                count += 1;
+            }
+        }
+
+        print(f!("{} of {} crates out of sync with crates.io", count, members.len()));
     }
 }
 

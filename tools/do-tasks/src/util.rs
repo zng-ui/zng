@@ -739,3 +739,49 @@ impl PublishMember {
         }
     }
 }
+
+pub fn crates_io_latest(crate_name: &str) -> String {
+    /*
+    Packages with 1 character names are placed in a directory named 1.
+    Packages with 2 character names are placed in a directory named 2.
+    Packages with 3 character names are placed in the directory 3/{first-character} where {first-character} is the first character of the package name.
+    All other packages are stored in directories named {first-two}/{second-two} where the top directory is the first two characters of the package name, and the next subdirectory is the third and fourth characters of the package name.
+     */
+
+    let index = match crate_name.len() {
+        1 => "1".to_owned(),
+        2 => "2".to_owned(),
+        3 => format!("3/{}", &crate_name[..1]),
+        _ => format!("{}/{}", &crate_name[..2], &crate_name[2..4]),
+    };
+
+    let url = format!("https://index.crates.io/{index}/{crate_name}");
+
+    let output = std::process::Command::new("curl")
+        .arg("--location")
+        .arg("--fail")
+        .arg("--silent")
+        .arg("--show-error")
+        .arg(&url)
+        .output()
+        .expect("failed to run `git ls-files -m`");
+
+    let err = String::from_utf8(output.stderr).unwrap();
+    if !err.is_empty() {
+        if !err.contains("error: 404") {
+            error(err);
+        }
+        String::new()
+    } else {
+        let output = String::from_utf8(output.stdout).unwrap();
+        let latest = output.lines().last().unwrap();
+
+        let vers_match = r#""vers":""#;
+        let i = latest.find(vers_match).unwrap();
+
+        let latest = &latest[i + vers_match.len()..];
+        let i = latest.find('"').unwrap();
+
+        latest[..i].to_owned()
+    }
+}
