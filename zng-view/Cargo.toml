@@ -32,7 +32,9 @@ software = ["swgl"]
 # Enable AVIF decoder and encoder.
 #
 # Note that this enables the `dav1d` dependency that is not trivial to build.
-avif = ["image/avif", "image/avif-native"]
+#
+# Removed for now because there is no way to exclude this feature from test runs that use --all-features
+# avif = ["image/avif", "image/avif-native"]
 
 [lib]
 crate-type = ["lib", "cdylib"]
