@@ -17,6 +17,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
         - uses: actions/checkout@v4
+          with:
+            ref: release
         - name: Fmt Check
           run: cargo fmt -- --check
         - name: Prebuild
@@ -29,13 +31,23 @@ jobs:
             cargo clean
         - name: Test
           run: cargo do test
-    
+  
+  test-cargo-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release
+      - name: Test Cargo Publish
+        run: cargo do publish --test
+
   tag:
     name: tag
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [test, test-cargo-publish]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: release
       - run: cargo do publish_version_tag --execute

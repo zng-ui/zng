@@ -796,7 +796,7 @@ fn ra_check(mut args: Vec<&str>) {
     }
 }
 
-// do publish [--list,--bump <minor|patch> <CRATE..>, --check]
+// do publish [--list,--bump <minor|patch> <CRATE..>, --check, --test]
 //    Manage crate versions and publish.
 // USAGE:
 //    publish --list
@@ -807,6 +807,8 @@ fn ra_check(mut args: Vec<&str>) {
 //       Only prints the version changes.
 //    publish --check
 //       Print all publishable crates that need to be published.
+//    publish --test
+//       Dry run cargo publish for all crates that need to be published.
 fn publish(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--list"]) {
         for member in &util::publish_members() {
@@ -897,6 +899,26 @@ fn publish(mut args: Vec<&str>) {
         }
 
         print(f!("{} of {} crates out of sync with crates.io", count, members.len()));
+    } else if take_flag(&mut args, &["--test"]) {
+        let members = util::publish_members();
+        for member in &members {
+            let published_ver = util::crates_io_latest(member.name.as_str());
+            let current_ver = format!("{}.{}.{}", member.version.0, member.version.1, member.version.2);
+
+            if published_ver != current_ver {
+                // don't know how to dry-run ignoring missing dependencies.
+                let mut skip = !member.dependencies.is_empty();
+                // build script file because GitHub release is not created yet.
+                skip |= member.name == "zng-view-prebuilt";
+                if !skip {
+                    cmd(
+                        "cargo",
+                        &["publish", "--dry-run", "--allow-dirty", "--package", member.name.as_str()],
+                        &[],
+                    );
+                }
+            }
+        }
     }
 }
 
