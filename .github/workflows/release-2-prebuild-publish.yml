@@ -22,16 +22,15 @@ jobs:
     steps:
         - if: matrix.os == 'windows-latest'
           run: |
-            echo "CC=clang-cl" >> $GITHUB_ENV
-            echo "CXX=clang-cl" >> $GITHUB_ENV
+            echo "CC=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
+            echo "CXX=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
 
         - uses: actions/checkout@v4
           with:
             ref: release
         - name: Prebuild
-          run: |
-            cargo do prebuild
-            cargo clean
+          run: cargo do prebuild
+        - run: cargo clean
         - name: Upload artifacts
           uses: actions/upload-artifact@v1
           with:

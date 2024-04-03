@@ -22,12 +22,10 @@ jobs:
     - name: Fmt Check
       run: cargo fmt -- --check
     - name: Prebuild
-      run: |
-        cargo do prebuild
-        cargo clean
+      run: cargo do prebuild
+    - run: cargo clean
     - name: Check
-      run: |
-        cargo do check
-        cargo clean
+      run: cargo do check
+    - run: cargo clean
     - name: Test
       run: cargo do test

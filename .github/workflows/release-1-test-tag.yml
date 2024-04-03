@@ -19,21 +19,19 @@ jobs:
     steps:
         - if: matrix.os == 'windows-latest'
           run: |
-            echo "CC=clang-cl" >> $GITHUB_ENV
-            echo "CXX=clang-cl" >> $GITHUB_ENV
+            echo "CC=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
+            echo "CXX=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
         - uses: actions/checkout@v4
           with:
             ref: release
         - name: Fmt Check
           run: cargo fmt -- --check
         - name: Prebuild
-          run: |
-            cargo do prebuild
-            cargo clean
+          run: cargo do prebuild
+        - run: cargo clean
         - name: Check
-          run: |
-            cargo do check
-            cargo clean
+          run: cargo do check
+        - run: cargo clean
         - name: Test
           run: cargo do test
   
