@@ -22,13 +22,15 @@
 //!     Text!(CONFIG.get("example.txt", Txt::default))
 //! }
 //!
+//! # fn main() { }
+//! # fn demo() {
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! Container! {
 //!     child = txt_input();
 //!     child_bottom = txt_display(), 20;
 //! }
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The example above uses a config `"example.txt"`, the text will be wiped when the app is closed, but the app
@@ -39,9 +41,12 @@
 //!
 //! ```
 //! # use zng::prelude::*;
+//! # fn main() { }
+//! # fn demo() {
 //! # let _scope = APP.defaults();
 //! let cfg = zng::config::JsonConfig::sync("target/tmp/example.config.json");
 //! CONFIG.load(cfg);
+//! # }
 //! ```
 //!
 //! ## Other Sources

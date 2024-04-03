@@ -9,10 +9,12 @@
 //! ```
 //! use zng::{prelude::*, fs_watcher::WATCHER};
 //!
+//! # fn main() { }
+//! # fn demo() {
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! Text!(WATCHER.read("dump.log", Txt::from(""), |f| f.ok()?.text().ok()))
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The next example created a read-write binding with the text file, any external change made to the text file updates the
@@ -21,6 +23,8 @@
 //! ```
 //! use zng::{prelude::*, fs_watcher::WATCHER};
 //!
+//! # fn main() { }
+//! # fn demo() {
 //! # let _scope = APP.defaults();
 //! # let _ =
 //! TextInput!(zng::fs_watcher::WATCHER.sync(
@@ -41,7 +45,7 @@
 //!         }
 //!     },
 //! ))
-//! # ;
+//! # ; }
 //! ```
 //!
 //! The [`WATCHER`] service abstracts away most of the headache of interacting with the file system. This service
