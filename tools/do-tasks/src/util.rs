@@ -457,6 +457,7 @@ pub fn set_exit_with_error() {
 
 pub fn exit_checked() {
     if CMD_ERROR.load(Ordering::Relaxed) {
+        error("some commands failed\n");
         std::process::exit(-1);
     } else {
         std::process::exit(0);
