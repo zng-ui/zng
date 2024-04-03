@@ -1,7 +1,7 @@
 [package]
 name = "zng-view"
 version = "0.2.0"
-authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0"
 readme = "../zng-app/README.md"

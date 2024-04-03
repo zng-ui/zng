@@ -809,6 +809,8 @@ fn ra_check(mut args: Vec<&str>) {
 //       Print all publishable crates that need to be published.
 //    publish --test
 //       Dry run cargo publish for all crates that need to be published.
+//    publish --execute
+//       Publish all crates that need to be published.
 fn publish(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--list"]) {
         for member in &util::publish_members() {
@@ -917,6 +919,38 @@ fn publish(mut args: Vec<&str>) {
                         &[],
                     );
                 }
+            }
+        }
+    } else if take_flag(&mut args, &["--execute"]) {
+        let members = util::publish_members();
+        let mut delay = false;
+        for member in &members {
+            let published_ver = util::crates_io_latest(member.name.as_str());
+            let current_ver = format!("{}.{}.{}", member.version.0, member.version.1, member.version.2);
+
+            if published_ver != current_ver {
+                if delay {
+                    use std::time::Duration;
+                    let mut delay = if published_ver.is_empty() {
+                        // 10 minutes for new crates
+                        Duration::from_secs(10 * 60)
+                    } else {
+                        // 1 minute for upgrades
+                        Duration::from_secs(60)
+                    } + Duration::from_secs(2);
+
+                    let interval = Duration::from_secs(1);
+
+                    while delay > Duration::ZERO {
+                        print(f!("\rwaiting rate limit {:?}, will publish {:?} next", delay, member.name));
+                        std::thread::sleep(interval.min(delay));
+                        delay = delay.saturating_sub(interval);
+                    }
+                    print("\r                                                                              \r");
+                }
+
+                cmd_req("cargo", &["publish", "--package", member.name.as_str()], &[]);
+                delay = true;
             }
         }
     }
