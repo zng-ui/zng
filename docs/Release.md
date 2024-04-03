@@ -22,7 +22,7 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
     * This is fully manual.
     * You can use `do publish --check` to get a list of crates that need to be published.
     * And you can use `do publish --execute` to publish.
-        - Note that this command will wait 10 minutes before publishing a new crate and 1 minute 
-          before upgrading an existing crate. This is done to avoid the crates.io rate limits.
-        - The command only publishes crates that need it, so you can just run it again after an
-          unexpected exit to continue.
+        - Note that this command will await the rate limit, 10 minutes per new crate and 1 minute per update.
+          For updates there is a burst of 30.
+    * Use `do publish --execute --no-burst` after a publish failure to continue.
+        - The `--no-burst` flag zeroes the burst rate counter so it will wait the full delay (after the first publish).
