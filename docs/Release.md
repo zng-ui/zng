@@ -26,3 +26,29 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
           For updates there is a burst of 30.
     * Use `do publish --execute --no-burst` after a publish failure to continue.
         - The `--no-burst` flag zeroes the burst rate counter so it will wait the full delay (after the first publish).
+
+## Webrender
+
+Webrender is not published so we maintain our own fork in <https://github.com/zng-ui/zng-webrender>. These crates mostly untouched,
+for now we just rename and remove a dependency that has a security advisory (`time`, does not impact Webrender, but shows in `cargo audit`).
+
+To update these crates:
+
+* Merge from upstream <https://github.com/servo/webrender>.
+* Manually increment the minor version of each crate that changed.
+* We depend on `zng-webrender`, `zng-swgl` and all local dependencies of these crates. As of last publish these are:
+
+```
+zng-peek-poke-derive
+zng-peek-poke
+zng-glsl-to-cxx
+zng-wr-malloc-size-of
+zng-webrender-build
+zng-swgl
+zng-webrender-api
+zng-wr-glyph-rasterizer
+zng-webrender
+```
+* Push changes to GitHub.
+* Test the `zng` project, both `do test` and a manual review using `do prebuild` and `do run -all`.
+* Manually publish each crate.
