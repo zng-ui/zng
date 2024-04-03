@@ -20,7 +20,7 @@ jobs:
           name: Install LLVM CC
           uses: KyleMayes/install-llvm-action@v2
           with:
-            version: "16"
+            version: "16.0.6"
             env: true
         - uses: actions/checkout@v4
           with:
