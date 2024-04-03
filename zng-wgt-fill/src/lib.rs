@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zng-app/README.md")]
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 //!
 //! Properties that fill the widget inner bounds and nodes that fill the available space.
 

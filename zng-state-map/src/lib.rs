@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zng-app/README.md")]
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 //!
 //! Hash-map of type erased values, useful for storing assorted dynamic state.
 

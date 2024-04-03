@@ -1,3 +1,4 @@
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 //! Configurable instant type and service.
 
 use std::{

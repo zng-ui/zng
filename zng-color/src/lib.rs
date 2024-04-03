@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zng-app/README.md")]
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 //!
 //! Color and gradient types, functions and macros, [`Rgba`], [`filter`], [`hex!`] and more.
 

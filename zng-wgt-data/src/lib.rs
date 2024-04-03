@@ -1,4 +1,4 @@
-#![doc = include_str!("../../zng-app/README.md")]
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 //!
 //! Contextual [`DATA`] and validation.
 
