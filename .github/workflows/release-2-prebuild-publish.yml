@@ -25,6 +25,7 @@ jobs:
           uses: KyleMayes/install-llvm-action@v2
           with:
             version: "16"
+            directory: ${{ runner.temp }}/llvm
             env: true
 
         - uses: actions/checkout@v4
