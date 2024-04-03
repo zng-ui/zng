@@ -74,7 +74,7 @@ members = [
     "zng-wgt-material-icons",
     "zng-wgt-webrender-debug",
 
-    # main
+    # main:
     "zng",
 
     # tools:

@@ -1,12 +1,9 @@
-# Publish
-
-* Publish zng-webrender and dependencies first.
-* Make project public.
-* Push to release.
-    - Monitor automatic release.
-
-# After Publish
+* Create GitHub release.
+* Make repo public.
+    - Review security/protected branches.
+* Test prebuilt using a git dependency from a test crate.
+* Publish Webrender crates.
+* Publish Zng crates.
 
 * Create issues for each TODO.
     - Delete `.\TODO`.
-* Announce in social media.
