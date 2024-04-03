@@ -3,6 +3,7 @@ name: Release -> Test -> Tag
 on:
   push:
     branches: [ "release" ]
+  workflow_dispatch:
 
 jobs:
   test-release:
