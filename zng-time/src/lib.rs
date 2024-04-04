@@ -27,7 +27,7 @@ impl INSTANT {
         DInstant(self.epoch().elapsed())
     }
 
-    /// Instant of first usage of the [`INSTANT`] service in the process.
+    /// Instant of first usage of the [`INSTANT`] service in the process, minus one day.
     ///
     /// # Panics
     ///
@@ -36,7 +36,7 @@ impl INSTANT {
         if let Some(t) = *EPOCH.read() {
             return t;
         }
-        *EPOCH.write().get_or_insert_with(Instant::now)
+        *EPOCH.write().get_or_insert_with(|| Instant::now() - Duration::from_secs(60 * 60 * 24))
     }
 
     /// Defines how the `now` value updates.
