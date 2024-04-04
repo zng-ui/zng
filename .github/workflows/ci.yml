@@ -10,22 +10,20 @@ on:
 
 env:
   RUST_BACKTRACE: 1
-  RUSTFLAGS: '--codegen=debuginfo=0'
+  RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
+  RUSTDOCFLAGS: '--deny=warnings'
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
-    - name: Fmt Check
-      run: cargo fmt -- --check
-    - name: Prebuild
-      run: cargo do prebuild
+    - run: cargo fmt -- --check
+    - run: cargo do prebuild
     - run: cargo clean
-    - name: Check
-      run: cargo do check
+    - run: cargo do check
     - run: cargo clean
-    - name: Test
-      run: cargo do test
+    - run: cargo do doc
+    - run: cargo clean
+    - run: cargo do test
+    - run: cargo clean

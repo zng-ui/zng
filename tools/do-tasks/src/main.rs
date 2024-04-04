@@ -142,8 +142,14 @@ fn doc(mut args: Vec<&str>) {
         }
 
         let mut env = vec![];
+        let full_doc_flags;
         if !rustdoc_flags.is_empty() {
-            env.push(("RUSTDOCFLAGS", rustdoc_flags.as_str()));
+            if let Ok(flags) = std::env::var("RUSTDOCFLAGS") {
+                full_doc_flags = format!("{flags} {rustdoc_flags}");
+                env.push(("RUSTDOCFLAGS", full_doc_flags.as_str()));
+            } else {
+                env.push(("RUSTDOCFLAGS", rustdoc_flags.as_str()));
+            }
         }
 
         cmd_env_req("cargo", &["doc", "--all-features", "--no-deps", "--package", &name], &args, &env);
@@ -268,14 +274,21 @@ fn test(mut args: Vec<&str>) {
         if args.len() != 1 {
             error("expected pattern, use do test -b --all to run all build tests");
         } else {
+            let rust_flags = std::env::var("RUSTFLAGS")
+                .unwrap_or_default()
+                .replace("--deny=warnings", "")
+                .replace("-D warnings", "");
             cmd_env(
                 "cargo",
                 &["run", "--package", "build-tests"],
                 &[],
-                &[(
-                    "DO_TASKS_TEST_BUILD",
-                    if args[0] == "--all" || args[0] == "-a" { "*" } else { args[0] },
-                )],
+                &[
+                    ("RUSTFLAGS", rust_flags.as_str()),
+                    (
+                        "DO_TASKS_TEST_BUILD",
+                        if args[0] == "--all" || args[0] == "-a" { "*" } else { args[0] },
+                    ),
+                ],
             );
 
             let mut changes = vec![];
@@ -345,8 +358,6 @@ fn run(mut args: Vec<&str>) {
 
     if take_flag(&mut args, &["*", "-a", "--all"]) {
         let release = args.contains(&"--release") || args.contains(&"--release-lto");
-        let rust_flags = release_rust_flags(release);
-        let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];
 
         let release: &[&str] = if release {
             if args.contains(&"--release-lto") {
@@ -359,22 +370,19 @@ fn run(mut args: Vec<&str>) {
         };
         let mut build_args = vec!["build", "--package", "examples", "--examples"];
         build_args.extend(release);
-        cmd_env("cargo", &build_args, &[], rust_flags);
+        cmd_env("cargo", &build_args, &[], &[trace]);
         for example in examples() {
             let mut ex_args = vec!["run", "--package", "examples", "--example", &example];
             ex_args.extend(release);
-            cmd_env("cargo", &ex_args, &[], rust_flags);
+            cmd_env("cargo", &ex_args, &[], &[trace]);
         }
     } else {
-        let rust_flags = release_rust_flags(args.contains(&"--release"));
-        let rust_flags = &[(rust_flags.0, rust_flags.1.as_str()), trace];
-
         if take_flag(&mut args, &["--release-lto"]) {
             args.push("--profile");
             args.push("release-lto");
         }
 
-        cmd_env("cargo", &["run", "--package", "examples", "--example"], &args, rust_flags);
+        cmd_env("cargo", &["run", "--package", "examples", "--example"], &args, &[trace]);
     }
 }
 
@@ -532,7 +540,7 @@ fn check(args: Vec<&str>) {
 fn build(mut args: Vec<&str>) {
     let mut nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
 
-    let mut rust_flags = release_rust_flags(args.contains(&"--release"));
+    let mut rust_flags = ("", String::new());
 
     let mut prev_z = false;
     args.retain(|f| {
@@ -540,7 +548,7 @@ fn build(mut args: Vec<&str>) {
             prev_z = true;
 
             if rust_flags.0.is_empty() {
-                rust_flags = ("RUSTFLAGS", String::new());
+                rust_flags = ("RUSTFLAGS", std::env::var("RUSTFLAGS").unwrap_or_default());
             }
             rust_flags.1.push(' ');
             rust_flags.1.push_str(f);
@@ -580,31 +588,6 @@ fn build(mut args: Vec<&str>) {
     }
 
     cmd_env("cargo", &cargo_args, &args, rust_flags);
-}
-fn release_rust_flags(is_release: bool) -> (&'static str, String) {
-    let mut rust_flags = ("", String::new());
-    if is_release {
-        // remove user name from release build, unless machine is already
-        // configured to "--remap-path-prefix"
-        let mut remap = String::new();
-        remap.push_str("--remap-path-prefix ");
-        let cargo_home = env!("CARGO_HOME");
-        let i = cargo_home.find(".cargo").unwrap();
-        remap.push_str(&cargo_home[..i - 1]);
-        remap.push_str("=~");
-        match std::env::var("RUSTFLAGS") {
-            Ok(mut flags) if !flags.contains("--remap-path-prefix") => {
-                flags.push(' ');
-                flags.push_str(&remap);
-                rust_flags = ("RUSTFLAGS", flags);
-            }
-            Err(std::env::VarError::NotPresent) => {
-                rust_flags = ("RUSTFLAGS", remap);
-            }
-            _ => {}
-        };
-    }
-    rust_flags
 }
 
 // do prebuild

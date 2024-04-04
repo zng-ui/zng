@@ -29,8 +29,7 @@ jobs:
         - uses: actions/checkout@v4
           with:
             ref: release
-        - name: Prebuild
-          run: cargo do prebuild
+        - run: cargo do prebuild
         - run: cargo clean
         - name: Upload artifacts
           uses: actions/upload-artifact@v1

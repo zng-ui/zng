@@ -5,6 +5,11 @@ on:
     branches: [ "release" ]
   workflow_dispatch:
 
+env:
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
+  RUSTDOCFLAGS: '--deny=warnings'
+
 jobs:
   test-release:
     strategy:
@@ -25,16 +30,15 @@ jobs:
         - uses: actions/checkout@v4
           with:
             ref: release
-        - name: Fmt Check
-          run: cargo fmt -- --check
-        - name: Prebuild
-          run: cargo do prebuild
+        - run: cargo fmt -- --check
+        - run: cargo do prebuild
         - run: cargo clean
-        - name: Check
-          run: cargo do check
+        - run: cargo do check
         - run: cargo clean
-        - name: Test
-          run: cargo do test
+        - run: cargo do doc
+        - run: cargo clean
+        - run: cargo do test
+        - run: cargo clean
   
   test-cargo-publish:
     runs-on: ubuntu-latest
@@ -42,8 +46,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: release
-      - name: Test Cargo Publish
-        run: cargo do publish --test
+      - run: cargo do publish --test
 
   tag:
     name: tag
