@@ -1,6 +1,6 @@
 [package]
 name = "do-tasks"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 description = "Run tasks for managing this project. Implemented in \"./tools/do-tasks\"."

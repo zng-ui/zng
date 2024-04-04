@@ -23,6 +23,7 @@ fn main() {
         "install" => install(args),
         "publish" => publish(args),
         "publish_version_tag" => publish_version_tag(args),
+        "version" => version(args),
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
     }
@@ -967,6 +968,19 @@ fn publish_version_tag(mut args: Vec<&str>) {
         cmd_req("git", &["tag", &tag, "-m", &format!("zng version {version}")], &[]);
         cmd_req("git", &["push", "origin", &tag], &[])
     }
+}
+
+// do version
+//    Prints version of Rust and components.
+// USAGE:
+//    version --verbose
+//       Prints the full versions.
+fn version(args: Vec<&str>) {
+    cmd("rustc", &["--version"], &args);
+    print("\n");
+    cmd("cargo", &["version"], &args);
+    print("\n");
+    cmd("cargo", &["clippy", "--version"], &args);
 }
 
 // do help, --help [task]
