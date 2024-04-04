@@ -7,6 +7,11 @@ on:
     paths-ignore: 
       - 'docs/**'
       - 'TODO/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 
 env:
   RUST_BACKTRACE: 1
@@ -14,17 +19,24 @@ env:
   RUSTDOCFLAGS: '--deny=warnings'
 
 jobs:
+  check:
+    runs-on: ubuntu-lastest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo do version --verbose
+      - run: cargo fmt -- --check
+      - run: cargo do check
+  doc:
+    runs-on: ubuntu-lastest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo do doc
+      - run: cargo clean
   test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - run: cargo do version --verbose 
-    - run: cargo fmt -- --check
     - run: cargo do prebuild
-    - run: cargo clean
-    - run: cargo do check
-    - run: cargo clean
-    - run: cargo do doc
     - run: cargo clean
     - run: cargo do test
     - run: cargo clean

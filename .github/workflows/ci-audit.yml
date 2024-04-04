@@ -3,6 +3,7 @@ on:
   push:
     paths: 
       - '**/Cargo.toml'
+  workflow_dispatch:
 jobs:
   security_audit:
     runs-on: ubuntu-latest

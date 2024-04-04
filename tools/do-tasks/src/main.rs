@@ -278,7 +278,8 @@ fn test(mut args: Vec<&str>) {
             let rust_flags = std::env::var("RUSTFLAGS")
                 .unwrap_or_default()
                 .replace("--deny=warnings", "")
-                .replace("-D warnings", "");
+                .replace("-D warnings", "")
+                .replace("-Dwarnings", "");
             cmd_env(
                 "cargo",
                 &["run", "--package", "build-tests"],
