@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use zng_app_proc_macros::{property, widget};
-use zng_var::{ContextInitHandle, Var};
+use zng_var::ContextInitHandle;
 
 use crate::{
     ui_vec,
