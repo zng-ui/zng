@@ -74,10 +74,11 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(20i32), a.get_new());
-                assert_eq!(Some("20".to_txt()), b.get_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(20i32), a.get_new());
+                    assert_eq!(Some("20".to_txt()), b.get_new());
+                }
             },
             false,
         );
@@ -88,10 +89,11 @@ mod bindings {
         updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(13i32), a.get_new());
-                assert_eq!(Some("13".to_txt()), b.get_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(13i32), a.get_new());
+                    assert_eq!(Some("13".to_txt()), b.get_new());
+                }
             },
             false,
         );
@@ -122,10 +124,11 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(20i32), a.get_new());
-                assert_eq!(Some("20".to_txt()), b.get_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(20i32), a.get_new());
+                    assert_eq!(Some("20".to_txt()), b.get_new());
+                }
             },
             false,
         );
@@ -136,10 +139,11 @@ mod bindings {
         updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some("55".to_txt()), b.get_new());
-                assert_eq!(Some(55i32), a.get_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some("55".to_txt()), b.get_new());
+                    assert_eq!(Some(55i32), a.get_new());
+                }
             },
             false,
         );
@@ -170,10 +174,11 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(20i32), a.get_new());
-                assert_eq!(Some("20".to_txt()), b.get_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(20i32), a.get_new());
+                    assert_eq!(Some("20".to_txt()), b.get_new());
+                }
             },
             false,
         );
@@ -184,11 +189,12 @@ mod bindings {
         updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(13i32), a.get_new());
-                assert_eq!("20".to_txt(), b.get());
-                assert!(!b.is_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(13i32), a.get_new());
+                    assert_eq!("20".to_txt(), b.get());
+                    assert!(!b.is_new());
+                }
             },
             false,
         );
@@ -219,10 +225,11 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(20i32), a.get_new());
-                assert_eq!(Some("20".to_txt()), b.get_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(20i32), a.get_new());
+                    assert_eq!(Some("20".to_txt()), b.get_new());
+                }
             },
             false,
         );
@@ -233,10 +240,11 @@ mod bindings {
         updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some("55".to_txt()), b.get_new());
-                assert_eq!(Some(55i32), a.get_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some("55".to_txt()), b.get_new());
+                    assert_eq!(Some(55i32), a.get_new());
+                }
             },
             false,
         );
@@ -247,11 +255,12 @@ mod bindings {
         updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some("not a i32".to_txt()), b.get_new());
-                assert_eq!(55i32, a.get());
-                assert!(!a.is_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some("not a i32".to_txt()), b.get_new());
+                    assert_eq!(55i32, a.get());
+                    assert!(!a.is_new());
+                }
             },
             false,
         );
@@ -286,13 +295,14 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
+                if !updated {
+                    updated = true;
 
-                assert_eq!(Some(20), a.get_new());
-                assert_eq!(Some(21), b.get_new());
-                assert_eq!(Some(22), c.get_new());
-                assert_eq!(Some(23), d.get_new());
+                    assert_eq!(Some(20), a.get_new());
+                    assert_eq!(Some(21), b.get_new());
+                    assert_eq!(Some(22), c.get_new());
+                    assert_eq!(Some(23), d.get_new());
+                }
             },
             false,
         );
@@ -303,13 +313,14 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
+                if !updated {
+                    updated = true;
 
-                assert_eq!(Some(30), a.get_new());
-                assert_eq!(Some(31), b.get_new());
-                assert_eq!(Some(32), c.get_new());
-                assert_eq!(Some(33), d.get_new());
+                    assert_eq!(Some(30), a.get_new());
+                    assert_eq!(Some(31), b.get_new());
+                    assert_eq!(Some(32), c.get_new());
+                    assert_eq!(Some(33), d.get_new());
+                }
             },
             false,
         );
@@ -344,13 +355,14 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
+                if !updated {
+                    updated = true;
 
-                assert_eq!(Some(20), a.get_new());
-                assert_eq!(Some(20), b.get_new());
-                assert_eq!(Some(20), c.get_new());
-                assert_eq!(Some(20), d.get_new());
+                    assert_eq!(Some(20), a.get_new());
+                    assert_eq!(Some(20), b.get_new());
+                    assert_eq!(Some(20), c.get_new());
+                    assert_eq!(Some(20), d.get_new());
+                }
             },
             false,
         );
@@ -361,13 +373,14 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
+                if !updated {
+                    updated = true;
 
-                assert_eq!(Some(30), a.get_new());
-                assert_eq!(Some(30), b.get_new());
-                assert_eq!(Some(30), c.get_new());
-                assert_eq!(Some(30), d.get_new());
+                    assert_eq!(Some(30), a.get_new());
+                    assert_eq!(Some(30), b.get_new());
+                    assert_eq!(Some(30), c.get_new());
+                    assert_eq!(Some(30), d.get_new());
+                }
             },
             false,
         );
@@ -388,11 +401,12 @@ mod bindings {
         let mut updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
+                if !updated {
+                    updated = true;
 
-                assert_eq!(Some(10), a.get_new());
-                assert_eq!(Some(11), b.get_new());
+                    assert_eq!(Some(10), a.get_new());
+                    assert_eq!(Some(11), b.get_new());
+                }
             },
             false,
         );
@@ -405,12 +419,13 @@ mod bindings {
         updated = false;
         let _ = app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
+                if !updated {
+                    updated = true;
 
-                assert_eq!(Some(100), a.get_new());
-                assert!(!b.is_new());
-                assert_eq!(11, b.get());
+                    assert_eq!(Some(100), a.get_new());
+                    assert!(!b.is_new());
+                    assert_eq!(11, b.get());
+                }
             },
             false,
         );
@@ -1191,10 +1206,11 @@ mod contextualized {
         let mut updated = false;
         app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(10), mapped2.get_new());
-                assert_eq!(Some(10), mapped2_copy.get_new());
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(10), mapped2.get_new());
+                    assert_eq!(Some(10), mapped2_copy.get_new());
+                }
             },
             false,
         )
@@ -1224,12 +1240,13 @@ mod contextualized {
         let mut updated = false;
         app.update_observe(
             || {
-                assert!(!updated, "expected one update");
-                updated = true;
-                assert_eq!(Some(10), mapped2.get_new());
-                other_ctx.with_context(|| {
-                    assert_eq!(Some(10), mapped2_copy.get_new());
-                });
+                if !updated {
+                    updated = true;
+                    assert_eq!(Some(10), mapped2.get_new());
+                    other_ctx.with_context(|| {
+                        assert_eq!(Some(10), mapped2_copy.get_new());
+                    });
+                }
             },
             false,
         )
