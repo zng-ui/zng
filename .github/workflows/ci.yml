@@ -20,14 +20,14 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-lastest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: cargo do version --verbose
       - run: cargo fmt -- --check
       - run: cargo do check
   doc:
-    runs-on: ubuntu-lastest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: cargo do doc
