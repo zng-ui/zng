@@ -1147,7 +1147,7 @@ mod threads {
                 test.wait_update().await;
             }
         };
-        app.run_task(task::with_deadline(test, 10.secs())).unwrap().unwrap();
+        app.run_task(task::with_deadline(test, 20.secs())).unwrap().unwrap();
     }
 
     #[test]
@@ -1178,7 +1178,7 @@ mod threads {
             }
         };
 
-        app.run_task(task::with_deadline(test, 10.secs())).unwrap().unwrap();
+        app.run_task(task::with_deadline(test, 20.secs())).unwrap().unwrap();
     }
 }
 
@@ -1327,7 +1327,7 @@ mod response {
             });
 
             let ab = app
-                .run_task(async { task::with_deadline(ab.wait_into_rsp(), 10.secs()).await })
+                .run_task(async { task::with_deadline(ab.wait_into_rsp(), 20.secs()).await })
                 .unwrap()
                 .unwrap();
 

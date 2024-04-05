@@ -608,7 +608,13 @@ fn prebuild(mut args: Vec<&str>) {
     if let Some(t) = args.iter_mut().find(|a| *a == &"-t") {
         *t = "--timings";
     }
-    cmd("cargo", &["build", "-p", "zng-view", "--profile", "prebuild"], &args);
+    let profile = if let Some(p) = take_option(&mut args, &["--profile"], "profile") {
+        p[0]
+    } else {
+        "prebuild"
+    };
+
+    cmd("cargo", &["build", "-p", "zng-view", "--profile", profile], &args);
 
     let files = cdylib_files("target/prebuild/zng_view");
 
