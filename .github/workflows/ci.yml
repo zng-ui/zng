@@ -42,7 +42,7 @@ jobs:
           path: zng-view-prebuilt/lib
       - uses: Swatinem/rust-cache@v2
       - run: cargo do version --verbose
-      - run: cargo fmt -- --check
+      - run: cargo do fmt --check
       - run: cargo do check
   doc:
     runs-on: ubuntu-latest

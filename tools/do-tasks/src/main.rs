@@ -504,24 +504,34 @@ fn expand(mut args: Vec<&str>) {
     }
 }
 
-// do fmt, f [<cargo-fmt-args>] [-- <rustfmt-args>]
+// do fmt, f [--check <cargo-fmt-args>] [-- <rustfmt-args>]
 //    Format workspace, macro test samples, test-crates and the tasks script.
-fn fmt(args: Vec<&str>) {
-    print("    fmt workspace ... ");
-    cmd("cargo", &["fmt"], &args);
-    println("done");
+fn fmt(mut args: Vec<&str>) {
+    if take_flag(&mut args, &["--check"]) {
+        cmd("cargo", &["fmt", "--", "--check"], &args);
+        let cases = all_ext("tests/macro-tests/cases", "rs");
+        let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
+        cmd("rustfmt", &["--edition", "2021", "--check"], &cases_str);
+        for tool_crate in top_cargo_toml("tools") {
+            cmd("cargo", &["fmt", "--manifest-path", &tool_crate, "--", "--check"], &args);
+        }
+    } else {
+        print("    fmt workspace ... ");
+        cmd("cargo", &["fmt"], &args);
+        println("done");
 
-    print("    fmt tests/macro-tests/cases/**/*.rs ... ");
-    let cases = all_ext("tests/macro-tests/cases", "rs");
-    let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
-    cmd("rustfmt", &["--edition", "2021"], &cases_str);
-    println("done");
+        print("    fmt tests/macro-tests/cases/**/*.rs ... ");
+        let cases = all_ext("tests/macro-tests/cases", "rs");
+        let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
+        cmd("rustfmt", &["--edition", "2021"], &cases_str);
+        println("done");
 
-    print("    fmt tools ... ");
-    for tool_crate in top_cargo_toml("tools") {
-        cmd("cargo", &["fmt", "--manifest-path", &tool_crate], &args);
+        print("    fmt tools ... ");
+        for tool_crate in top_cargo_toml("tools") {
+            cmd("cargo", &["fmt", "--manifest-path", &tool_crate], &args);
+        }
+        println("done");
     }
-    println("done");
 }
 
 // do check, c

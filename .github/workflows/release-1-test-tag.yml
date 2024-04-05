@@ -32,7 +32,7 @@ jobs:
           with:
             ref: release
         - run: cargo do version --verbose 
-        - run: cargo fmt -- --check
+        - run: cargo do fmt --check
         - run: cargo do prebuild
         - run: cargo clean
         - run: cargo do check
