@@ -21,7 +21,8 @@ fn main() {
     let file = "libzng_view.dylib";
 
     if file.is_empty() {
-        panic!("unsuported OS");
+        println!("cargo:warning=view prebuilt not embedded, unsuported os");
+        return;
     }
 
     lib = lib.join(file);
@@ -37,7 +38,7 @@ fn main() {
 
             let temp_file = Path::new(&env::var("OUT_DIR").unwrap()).join(format!("{file}.{version}.tmp"));
 
-            let curl_status = std::process::Command::new("curl")
+            let r = std::process::Command::new("curl")
                 .arg("--location")
                 .arg("--fail")
                 .arg("--silent")
@@ -46,12 +47,26 @@ fn main() {
                 .arg("--output")
                 .arg(&temp_file)
                 .arg(&url)
-                .status()
-                .unwrap();
-            assert!(curl_status.success());
-
-            std::fs::copy(&temp_file, &lib).unwrap();
-            let _ = std::fs::remove_file(temp_file);
+                .status();
+            match r {
+                Ok(s) => {
+                    if s.success() {
+                        if let Err(e) = std::fs::copy(&temp_file, &lib) {
+                            println!("cargo:warning=view prebuilt not embedded, failed copy, {e}");
+                        } else {
+                            let _ = std::fs::remove_file(temp_file);
+                        }
+                    } else {
+                        println!(
+                            "cargo:warning=view prebuilt not embedded, failed download, curl exit code: {:?}",
+                            s.code()
+                        )
+                    }
+                }
+                Err(e) => {
+                    println!("cargo:warning=view prebuilt not embedded, failed download, {e}");
+                }
+            }
         }
     }
 
@@ -75,5 +90,6 @@ fn main() {
         );
     } else {
         println!("cargo:warning=missing `{file}`, run `do prebuild` in local builds");
+        println!("cargo:warning=view prebuilt not embedded, missing '{file}', failed to download, in local builds call `do prebuild`");
     }
 }
