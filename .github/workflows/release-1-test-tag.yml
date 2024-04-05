@@ -42,7 +42,7 @@ jobs:
         - run: cargo clean
         - run: cargo do test --doc
         - run: cargo clean
-        - run: cargo do test --macro
+        - run: cargo do test --macro --all
         - run: cargo clean
   
   test-cargo-publish:

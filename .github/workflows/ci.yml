@@ -83,7 +83,7 @@ jobs:
         with:
           name: prebuilt
           path: zng-view-prebuilt/lib
-      - run: cargo do test --macro
+      - run: cargo do test --macro --all
       - run: cargo clean
   test-all:
     runs-on: ubuntu-latest

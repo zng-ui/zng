@@ -273,7 +273,7 @@ fn test(mut args: Vec<&str>) {
         // macro tests:
 
         if args.len() != 1 {
-            error("expected pattern, use do test -m --all to run all macro tests");
+            error("expected pattern, use do test --macro --all to run all macro tests");
         } else {
             let rust_flags = std::env::var("RUSTFLAGS")
                 .unwrap_or_default()

@@ -378,6 +378,7 @@ pub fn do_after(delay_secs: u64, action: impl FnOnce() + Send + 'static) {
 
 // Prints an error message, use `error(f!("{}", .."))` for formatting.
 pub fn error(msg: impl std::fmt::Display) {
+    set_exit_with_error();
     if let Some(mut dump) = TaskInfo::stderr_dump() {
         writeln!(dump, "{}error{}: {}{}", c_red(), c_wb(), c_w(), msg).ok();
     } else {
@@ -457,7 +458,6 @@ pub fn set_exit_with_error() {
 
 pub fn exit_checked() {
     if CMD_ERROR.load(Ordering::Relaxed) {
-        error("some commands failed\n");
         std::process::exit(-1);
     } else {
         std::process::exit(0);
