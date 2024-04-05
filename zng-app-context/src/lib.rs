@@ -149,9 +149,19 @@ impl LocalContext {
         });
 
         if let Some(data) = valid {
-            drop(data); // deinit
+            // SAFETY: app resources may leak, but we terminate the process
+            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                drop(data); // deinit
+            }));
+            if let Err(p) = r {
+                tracing::error!("panic on app drop. {}", panic_str(&p));
+                eprintln!("panic on app drop. {}", panic_str(&p));
+                std::process::exit(i32::from_le_bytes(*b"appa"));
+            }
         } else {
-            panic!("cannot end app from outside");
+            tracing::error!("can only drop app in one of its threads");
+            eprintln!("can only drop app in one of its threads");
+            std::process::exit(i32::from_le_bytes(*b"appa"));
         }
     }
 
@@ -1557,5 +1567,15 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
         if let Some(clean) = self.0.take() {
             clean();
         }
+    }
+}
+
+fn panic_str<'s>(payload: &'s Box<dyn std::any::Any + Send + 'static>) -> &'s str {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        s
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s
+    } else {
+        "<unknown-panic-message-type>"
     }
 }
