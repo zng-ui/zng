@@ -32,7 +32,7 @@ jobs:
         - run: cargo do prebuild
         - run: cargo clean
         - name: Upload artifacts
-          uses: actions/upload-artifact@v1
+          uses: actions/upload-artifact@v4
           with:
             name: prebuilt-${{ matrix.os }}
             path: zng-view-prebuilt/lib/${{ matrix.file }}
@@ -41,15 +41,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prebuild]
     steps:
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v4
         with:
           name: prebuilt-ubuntu-latest
           path: prebuilt
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v4
         with:
           name: prebuilt-windows-latest
           path: prebuilt
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v4
         with:
           name: prebuilt-macos-latest
           path: prebuilt
@@ -58,3 +58,12 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: "prebuilt/*"
+  cleanup:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [prebuild, publish]
+    steps:
+      - uses: geekyeggo/delete-artifact@v5
+        with:
+          name: prebuilt-*-latest
+          failOnError: false
