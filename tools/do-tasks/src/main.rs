@@ -616,10 +616,10 @@ fn prebuild(mut args: Vec<&str>) {
 
     cmd("cargo", &["build", "-p", "zng-view", "--profile", profile], &args);
 
-    let files = cdylib_files("target/prebuild/zng_view");
+    let files = cdylib_files(format!("target/{}/zng_view", if profile == "dev" { "debug" } else { profile }));
 
     if files.is_empty() {
-        error("no pre-build `cdylib` output found");
+        error("no pre-built `cdylib` output found");
         return;
     }
 
