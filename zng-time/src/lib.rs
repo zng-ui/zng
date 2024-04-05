@@ -36,9 +36,17 @@ impl INSTANT {
         if let Some(t) = *EPOCH.read() {
             return t;
         }
-        *EPOCH
-            .write()
-            .get_or_insert_with(|| Instant::now() - Duration::from_secs(60 * 60 * 24))
+        *EPOCH.write().get_or_insert_with(|| {
+            let mut now = Instant::now();
+            // some CI machines (Github Windows) fail to subtract 1 day.
+            for t in [60 * 60 * 24, 60 * 60, 60 * 30, 60 * 15, 60 * 10, 60] {
+                if let Some(t) = now.checked_sub(Duration::from_secs(t)) {
+                    now = t;
+                    break;
+                }
+            }
+            now
+        })
     }
 
     /// Defines how the `now` value updates.
