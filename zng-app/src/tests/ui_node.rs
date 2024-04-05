@@ -1,6 +1,6 @@
 //! Tests for `#[ui_node(..)]` macro.
 //!
-//! Note: Compile error tests are in the integration tests folder: `tests/build/ui_node`
+//! Note: Compile error tests are in the integration tests folder: `tests/macro-tests/ui_node`
 
 use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
 use zng_app_proc_macros::ui_node;

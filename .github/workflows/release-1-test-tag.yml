@@ -9,6 +9,7 @@ env:
   RUST_BACKTRACE: 1
   RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
   RUSTDOCFLAGS: '--deny=warnings'
+  CARGO_TERM_COLOR: always
 
 jobs:
   test-release:

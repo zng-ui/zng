@@ -511,8 +511,8 @@ fn fmt(args: Vec<&str>) {
     cmd("cargo", &["fmt"], &args);
     println("done");
 
-    print("    fmt tests/build/cases/**/*.rs ... ");
-    let cases = all_ext("tests/build/cases", "rs");
+    print("    fmt tests/macro-tests/cases/**/*.rs ... ");
+    let cases = all_ext("tests/macro-tests/cases", "rs");
     let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
     cmd("rustfmt", &["--edition", "2021"], &cases_str);
     println("done");
@@ -982,6 +982,12 @@ fn version(args: Vec<&str>) {
     cmd("cargo", &["version"], &args);
     print("\n");
     cmd("cargo", &["clippy", "--version"], &args);
+
+    if args.contains(&"--verbose") {
+        print(f!("\nRUSTFLAGS={}", std::env::var("RUSTFLAGS").unwrap_or_default()));
+        print(f!("\nRUSTDOCFLAGS={}", std::env::var("RUSTDOCFLAGS").unwrap_or_default()));
+        print(f!("\nCARGO_INCREMENTAL={}", std::env::var("CARGO_INCREMENTAL").unwrap_or_default()));
+    }
 }
 
 // do help, --help [task]

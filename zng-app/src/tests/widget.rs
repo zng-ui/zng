@@ -1,6 +1,6 @@
 //! Tests for `#[widget(..)]` macro.
 //!
-//! Note: Compile error tests are in the integration tests folder: `tests/build/widget` and `tests/build/widget_new`
+//! Note: Compile error tests are in the integration tests folder: `tests/macro-tests/widget` and `tests/macro-tests/widget_new`
 
 use zng_app_proc_macros::{property, widget};
 use zng_var::{IntoValue, Var};

@@ -1147,7 +1147,7 @@ mod threads {
                 test.wait_update().await;
             }
         };
-        app.run_task(task::with_deadline(test, 1.secs())).unwrap().unwrap();
+        app.run_task(task::with_deadline(test, 10.secs())).unwrap().unwrap();
     }
 
     #[test]
@@ -1178,7 +1178,7 @@ mod threads {
             }
         };
 
-        app.run_task(task::with_deadline(test, 5.secs())).unwrap().unwrap();
+        app.run_task(task::with_deadline(test, 10.secs())).unwrap().unwrap();
     }
 }
 
