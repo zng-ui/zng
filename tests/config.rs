@@ -245,9 +245,19 @@ fn concurrent_read_write() {
         })
         .collect();
 
+    static DONE: std::sync::Once = std::sync::Once::new();
+    std::thread::spawn(|| {
+        std::thread::sleep(240.secs());
+        if !DONE.is_completed() {
+            panic!("timeout aftet 240s");
+        }
+    });
+
     for t in threads {
         t.join().unwrap();
     }
+
+    DONE.call_once(|| {});
 }
 
 #[test]

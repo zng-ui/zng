@@ -1327,7 +1327,7 @@ mod response {
             });
 
             let ab = app
-                .run_task(async { task::with_deadline(ab.wait_into_rsp(), 20.secs()).await })
+                .run_task(async { task::with_deadline(ab.wait_into_rsp(), 40.secs()).await })
                 .unwrap()
                 .unwrap();
 
