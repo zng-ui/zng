@@ -36,7 +36,9 @@ impl INSTANT {
         if let Some(t) = *EPOCH.read() {
             return t;
         }
-        *EPOCH.write().get_or_insert_with(|| Instant::now() - Duration::from_secs(60 * 60 * 24))
+        *EPOCH
+            .write()
+            .get_or_insert_with(|| Instant::now() - Duration::from_secs(60 * 60 * 24))
     }
 
     /// Defines how the `now` value updates.

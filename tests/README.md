@@ -1,14 +1,14 @@
 # Tests
 
-Use this directory for integration, build tests or any test that is not a unit test.
+Use this directory for integration, macro tests or any test that is not a unit test.
 
 # Running
 
 Use `cargo do test -t command` to run tests in the `./command.rs` file.
 
-Use `cargo do test -b *` to run all build tests.
+Use `cargo do test -m *` to run all macro tests.
 
-Use `cargo do test -b property/*` to run build test cases that match the path relative to `./build/cases`.
+Use `cargo do test -m property/*` to run build test cases that match the path relative to `./macro-tests/cases`.
 
 # Adding an Integration Test
 

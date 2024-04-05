@@ -267,9 +267,9 @@ pub fn examples() -> Vec<String> {
     }
 }
 
-// [[bin]] names for build tests last run ("bin-name", "test_file_path").
-pub fn build_test_cases() -> Vec<(String, String)> {
-    match std::fs::read_to_string("target/tests/build-tests/Cargo.toml") {
+// [[bin]] names for macro tests last run ("bin-name", "test_file_path").
+pub fn macro_test_cases() -> Vec<(String, String)> {
+    match std::fs::read_to_string("target/tests/macro-tests/Cargo.toml") {
         Ok(file) => {
             let mut bin_names = vec![];
 

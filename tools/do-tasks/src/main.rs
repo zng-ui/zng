@@ -210,10 +210,10 @@ fn doc(mut args: Vec<&str>) {
 
 // do test, t [-u, --unit <function-path>]
 //            [-t, --test <integration-test-name>]
-//            [-b, --build <file-path-pattern>]
+//            [-m, --macro <file-path-pattern>]
 //            <cargo-test-args>
 //
-//    Run all tests in root workspace and build tests.
+//    Run all tests in root workspace and macro tests.
 // USAGE:
 //     test -u test::path::function
 //        Run tests that partially match the Rust item path.
@@ -223,14 +223,14 @@ fn doc(mut args: Vec<&str>) {
 //        Run all integration tests in the named test.
 //     test -t --all
 //        Run all integration tests.
-//     test -b property/*
-//        Run build tests that match the file pattern in `tests/build/cases/`.
-//     test -b --all
-//        Run all build tests.
+//     test -m property/*
+//        Run macro tests that match the file pattern in `tests/macro-tests/cases/`.
+//     test -m --all
+//        Run all macro tests.
 //     test --doc
 //        Run doc tests.
 //     test
-//        Run all unit, doc, integration and build tests.
+//        Run all unit, doc, integration and macro tests.
 fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
     let env = &[("RUST_BACKTRACE", "full")];
@@ -269,11 +269,11 @@ fn test(mut args: Vec<&str>) {
         }
 
         cmd_env("cargo", &t_args, &args, env);
-    } else if take_flag(&mut args, &["-b", "--build"]) {
-        // build tests:
+    } else if take_flag(&mut args, &["-m", "--macro"]) {
+        // macro tests:
 
         if args.len() != 1 {
-            error("expected pattern, use do test -b --all to run all build tests");
+            error("expected pattern, use do test -m --all to run all macro tests");
         } else {
             let rust_flags = std::env::var("RUSTFLAGS")
                 .unwrap_or_default()
@@ -282,12 +282,12 @@ fn test(mut args: Vec<&str>) {
                 .replace("-Dwarnings", "");
             cmd_env(
                 "cargo",
-                &["run", "--package", "build-tests"],
+                &["run", "--package", "macro-tests"],
                 &[],
                 &[
                     ("RUSTFLAGS", rust_flags.as_str()),
                     (
-                        "DO_TASKS_TEST_BUILD",
+                        "DO_TASKS_TEST_MACRO",
                         if args[0] == "--all" || args[0] == "-a" { "*" } else { args[0] },
                     ),
                 ],
@@ -296,8 +296,8 @@ fn test(mut args: Vec<&str>) {
             let mut changes = vec![];
             for m in util::git_modified() {
                 if let Some(ext) = m.extension() {
-                    if ext == "stderr" && m.starts_with("tests/build/cases") {
-                        error(format!("build test `{}` modified", m.display()));
+                    if ext == "stderr" && m.starts_with("tests/macro-tests/cases") {
+                        error(format!("macro test `{}` modified", m.display()));
                         changes.push(m);
                     }
                 }
@@ -306,7 +306,7 @@ fn test(mut args: Vec<&str>) {
                 for m in &changes {
                     util::print_git_diff(&m);
                 }
-                fatal(format!("{} build tests modified, review and commit", changes.len()));
+                fatal(format!("{} macro tests modified, review and commit", changes.len()));
             }
         }
     } else if take_flag(&mut args, &["--examples"]) {
@@ -335,7 +335,7 @@ fn test(mut args: Vec<&str>) {
         if all {
             // if no args we run everything.
             tests::version_in_sync();
-            test(vec!["--build", "--all"]);
+            test(vec!["--macro", "--all"]);
         }
     }
 }
@@ -389,7 +389,7 @@ fn run(mut args: Vec<&str>) {
 }
 
 // do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [-e, --example <example>]
-//           [-b, --build [-p, -pass <pass-test-name>] [-f, --fail <fail-test-name>]]
+//           [-m, --macro [-p, -pass <pass-test-name>] [-f, --fail <fail-test-name>]]
 //           [<cargo-expand-args>|<cargo-args>]
 //    Run "cargo expand" OR if raw is enabled, runs the unstable "--pretty=expanded" check.
 // FLAGS:
@@ -401,11 +401,11 @@ fn run(mut args: Vec<&str>) {
 //        Prints the example.
 //     expand --raw
 //        Prints the entire main crate, including macro_rules!.
-//     expand --build -p pass_test_name
-//        Prints the build test cases that match.
+//     expand --macro -p pass_test_name
+//        Prints the macro test cases that match.
 fn expand(mut args: Vec<&str>) {
-    if args.iter().any(|&a| a == "-b" || a == "--build") {
-        // Expand build test, we need to run the test to load the bins
+    if args.iter().any(|&a| a == "-m" || a == "--macro") {
+        // Expand macro test, we need to run the test to load the bins
         // in the trybuild test crate. We also test in nightly because
         // expand is in nightly.
 
@@ -414,7 +414,7 @@ fn expand(mut args: Vec<&str>) {
         test(test_args);
 
         TaskInfo::set_stdout_dump("dump.rs");
-        for (bin_name, path) in build_test_cases() {
+        for (bin_name, path) in macro_test_cases() {
             let i = path.find("tests").unwrap_or_default();
             println(f!("\n//\n// {}\n//\n", &path[i..]));
             cmd(
@@ -505,7 +505,7 @@ fn expand(mut args: Vec<&str>) {
 }
 
 // do fmt, f [<cargo-fmt-args>] [-- <rustfmt-args>]
-//    Format workspace, build test samples, test-crates and the tasks script.
+//    Format workspace, macro test samples, test-crates and the tasks script.
 fn fmt(args: Vec<&str>) {
     print("    fmt workspace ... ");
     cmd("cargo", &["fmt"], &args);

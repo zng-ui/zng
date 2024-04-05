@@ -73,23 +73,5 @@
 			},
 			"problemMatcher": []
 		}
-	],
-	"inputs": [
-		{
-			"id": "exampleNameID",
-			"description": "example name",
-			"type": "promptString",
-		},
-		{
-			"id": "testGroupID",
-			"description": "test group",
-			"type": "pickString",
-			"options": [
-				"--workspace",
-				"--doc",
-				"--test-crates",
-				"--build *"
-			]
-		}
 	]
 }

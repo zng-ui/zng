@@ -1,7 +1,7 @@
 use std::{fs, io};
 
 pub fn do_request() {
-    if let Some(test) = std::env::var_os("DO_TASKS_TEST_BUILD") {
+    if let Some(test) = std::env::var_os("DO_TASKS_TEST_MACRO") {
         let mut test = test.to_string_lossy();
 
         if ["*", "**"].contains(&test.as_ref()) {
@@ -18,7 +18,7 @@ pub fn do_request() {
 
         cleanup(&test);
     } else {
-        eprintln!("run with `cargo do test --build *`");
+        eprintln!("run with `cargo do test --macro --all`");
     }
 }
 

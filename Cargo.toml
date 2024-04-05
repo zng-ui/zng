@@ -86,7 +86,7 @@ members = [
 
     # tests:
     "tests",
-    "tests/build",
+    "tests/macro-tests",
 ]
 
 [profile.dev]
