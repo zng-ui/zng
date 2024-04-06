@@ -211,6 +211,7 @@ fn doc(mut args: Vec<&str>) {
 // do test, t [-u, --unit <function-path>]
 //            [-t, --test <integration-test-name>]
 //            [-m, --macro <file-path-pattern>]
+//            [--nextest]
 //            <cargo-test-args>
 //
 //    Run all tests in root workspace and macro tests.
@@ -230,7 +231,9 @@ fn doc(mut args: Vec<&str>) {
 //     test --doc
 //        Run doc tests.
 //     test
-//        Run all unit, doc, integration and macro tests.
+//        Run all unit, integration, doc, and macro tests.
+//     test --nextest
+//        Run all unit and integration using 'nextest'; doc and macro tests using 'test'.
 fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
     let env = &[("RUST_BACKTRACE", "full")];
@@ -331,6 +334,17 @@ fn test(mut args: Vec<&str>) {
         }
 
         if take_flag(&mut args, &["--nextest"]) {
+            if !args.contains(&"--config-file") {
+                let cfg_file = "target/tmp/do-nextest-config.toml";
+                std::fs::create_dir_all("target/tmp/").unwrap();
+                std::fs::write(
+                    cfg_file,
+                    b"[profile.default]\nslow-timeout = { period = \"60s\", terminate-after = 3 }",
+                )
+                .unwrap();
+                args.push("--config-file");
+                args.push(cfg_file);
+            }
             cmd_env(
                 "cargo",
                 &[nightly, "nextest", "run", "--no-fail-fast", "--all-features"],

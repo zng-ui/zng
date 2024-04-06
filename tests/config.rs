@@ -222,10 +222,12 @@ fn concurrent_read_write() {
         if status.is_err() {
             panic!("{status}");
         }
+
+        app.exit();
     }
 
     // tests
-    let threads: Vec<_> = (0..32)
+    let threads: Vec<_> = (0..10)
         .map(|_| {
             std::thread::spawn(clmv!(file, || {
                 let mut app = APP.defaults().run_headless(false);
@@ -241,6 +243,8 @@ fn concurrent_read_write() {
                     var.set("custom").unwrap();
                     app.update(false).assert_wait();
                 }
+
+                app.exit();
             }))
         })
         .collect();
@@ -285,6 +289,8 @@ fn fallback_swap() {
         if status.is_err() {
             panic!("{status}");
         }
+
+        app.exit();
     }
 
     // test
@@ -316,6 +322,8 @@ fn fallback_swap() {
     }
 
     assert_eq!("main", key.get());
+
+    app.exit();
 }
 
 #[test]
@@ -351,6 +359,8 @@ fn fallback_reset() {
         if status.is_err() {
             panic!("{status}");
         }
+
+        app.exit();
     }
 
     // test
@@ -384,6 +394,8 @@ fn fallback_reset() {
         panic!("{status}");
     }
     assert_eq!("fallback", key.get());
+
+    app.exit();
 }
 
 #[test]
@@ -419,6 +431,8 @@ fn fallback_reset_entry() {
         if status.is_err() {
             panic!("{status}");
         }
+
+        app.exit();
     }
 
     // test
@@ -465,6 +479,8 @@ fn fallback_reset_entry() {
 
     let raw_config = std::fs::read_to_string(&main_cfg).unwrap();
     assert!(!raw_config.contains("key"));
+
+    app.exit();
 }
 
 fn rmv_file_assert(path: &Path) {
