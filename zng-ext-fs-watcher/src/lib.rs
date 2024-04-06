@@ -120,6 +120,13 @@ impl WATCHER {
         WATCHER_SV.read().poll_interval.clone()
     }
 
+    /// Maximum time the service keeps the process alive to process pending IO operations when the app shuts down.
+    ///
+    /// Is 1 minute by default.
+    pub fn shutdown_timeout(&self) -> ArcVar<Duration> {
+        WATCHER_SV.read().shutdown_timeout.clone()
+    }
+
     /// Enable file change events for the `file`.
     ///
     /// Returns a handle that will stop the file watch when dropped, if there is no other active handler for the same file.
@@ -967,6 +974,7 @@ struct WatcherService {
     debounce: ArcVar<Duration>,
     sync_debounce: ArcVar<Duration>,
     poll_interval: ArcVar<Duration>,
+    shutdown_timeout: ArcVar<Duration>,
 
     watcher: Watchers,
 
@@ -985,6 +993,7 @@ impl WatcherService {
             debounce: var(100.ms()),
             sync_debounce: var(100.ms()),
             poll_interval: var(1.secs()),
+            shutdown_timeout: var(1.minutes()),
             watcher: Watchers::new(),
             debounce_oldest: INSTANT.now(),
             debounce_buffer: vec![],
@@ -1509,7 +1518,10 @@ impl SyncWithVar {
                     }
                 }
                 SyncEvent::FlushShutdown => {
-                    let _done = task_data.read_write.lock();
+                    let timeout = WATCHER_SV.read().shutdown_timeout.get();
+                    if task_data.read_write.try_lock_for(timeout).is_none() {
+                        tracing::error!("not all io operations finished on shutdown, timeout after {timeout:?}");
+                    }
                     return;
                 }
             };
