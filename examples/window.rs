@@ -267,7 +267,7 @@ fn icon_example() -> impl UiNode {
 
                 (bgra, ImageDataFormat::from(size)).into()
             }),
-            icon_btn("Render", WindowIcon::render(logo))
+            icon_btn("Render", WindowIcon::render(logo_icon))
         ],
     )
 }
@@ -741,52 +741,50 @@ fn separator() -> impl UiNode {
     }
 }
 
-fn logo() -> impl UiNode {
+fn logo_icon() -> impl UiNode {
     let logo = Container! {
-        layout::size = 200;
-        layout::perspective = 500;
+        layout::size = 50;
+        layout::perspective = 125;
 
         child = Stack! {
             layout::transform_style = layout::TransformStyle::Preserve3D;
-            text::font_size = 180;
+            text::font_size = 48;
             text::font_family = "Arial";
             text::font_weight = FontWeight::EXTRA_BOLD;
             text::txt_align = Align::CENTER;
             text::font_color = colors::WHITE;
-            layout::transform = layout::Transform::new_rotate_y((-45).deg()).rotate_x((-35).deg()).translate_z(-100);
+            layout::transform = layout::Transform::new_rotate_y((-45).deg()).rotate_x((-35).deg()).translate_z(-25);
             children = ui_vec![
                 Text! {
                     txt = "Z";
-                    layout::padding = (-40, 0, 0, 0);
-                    layout::transform = layout::Transform::new_translate_z(100);
+                    layout::padding = (-13, 0, 0, 0);
+                    layout::transform = layout::Transform::new_translate_z(25);
                     widget::background_color = colors::RED.darken(50.pct());
-                    widget::border = (0, 0, 12, 12), colors::WHITE;
+                    widget::border = (0, 0, 4, 4), colors::WHITE;
                 },
                 Text! {
                     txt = "Z";
-                    layout::padding = (-30, 0, 0, 0);
-                    layout::transform = layout::Transform::new_translate_z(100).rotate_x(90.deg());
-                    widget::background_color = colors::GREEN.darken(50.pct());
-                    widget::border = (12, 0, 0, 12), colors::WHITE;
+                    layout::padding = (-12, 0, 0, 0);
+                    layout::transform = layout::Transform::new_translate_z(25).rotate_x(90.deg());
+                    widget::background_color = colors::GREEN.darken(60.pct());
+                    widget::border = (4, 0, 0, 4), colors::WHITE;
                 },
                 Text! {
                     txt = "g";
-                    layout::padding = (-75, 0, 0, 0);
-                    layout::transform = layout::Transform::new_translate_z(100).rotate_y(90.deg());
+                    layout::padding = (-23, 0, 0, 0);
+                    layout::transform = layout::Transform::new_translate_z(25).rotate_y(90.deg());
                     widget::background_color = colors::BLUE.darken(50.pct());
-                    widget::border = (0, 12, 12, 0), colors::WHITE;
+                    widget::border = (0, 4, 4, 0), colors::WHITE;
                 },
             ];
         }
     };
 
     Container! {
-        layout::size = 270;
+        layout::size = 68;
 
         child_align = Align::CENTER;
-        padding = (-30, 0, 0, 0);
-        // widget::clip_to_bounds = true;
-        // widget::background_color = colors::BLACK;
+        padding = (-6, 0, 0, 0);
 
         child = logo;
     }
