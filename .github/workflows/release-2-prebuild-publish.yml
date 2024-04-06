@@ -14,14 +14,14 @@ jobs:
             file: libzng_view.so
           - os: windows-latest
             file: zng_view.dll
-          - os: macos-latest
+          - os: macos-13
             file: libzng_view.dylib
 
     name: prebuild (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
         - if: matrix.os == 'windows-latest'
-          name: Set Windows Env
+          name: set windows env
           run: |
             echo "CC=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
             echo "CXX=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -51,7 +51,7 @@ jobs:
           path: prebuilt
       - uses: actions/download-artifact@v4
         with:
-          name: prebuilt-macos-latest
+          name: prebuilt-macos-13
           path: prebuilt
       - run: ls --all ./prebuilt
       - name: Publish Release

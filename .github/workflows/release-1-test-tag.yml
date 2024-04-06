@@ -18,7 +18,7 @@ jobs:
         include:
           - os: ubuntu-latest
           - os: windows-latest
-          - os: macos-latest
+          - os: macos-13
 
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -32,7 +32,7 @@ jobs:
           run: |
             echo "CC=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
             echo "CXX=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
-        - if: matrix.os == 'macos-latest'
+        - if: matrix.os == 'macos-13'
           name: set macos env
           run: |
             echo "NEXTEST_RETRIES=3" >> $GITHUB_ENV
