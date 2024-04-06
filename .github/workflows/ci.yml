@@ -43,9 +43,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: []
     steps:
+    - name: install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
     - uses: actions/checkout@v4
     - uses: Swatinem/rust-cache@v2
-    - run: cargo do test --lib --bins --tests
+    - run: cargo do test --lib --bins --tests --nextest
     - run: cargo clean
   test-doc:
     runs-on: ubuntu-latest

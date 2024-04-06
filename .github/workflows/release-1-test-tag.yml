@@ -23,6 +23,10 @@ jobs:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
+        - name: install cargo-nextest
+          uses: taiki-e/install-action@v2
+          with:
+            tool: cargo-nextest
         - if: matrix.os == 'windows-latest'
           name: Set Windows Env
           run: |
@@ -39,7 +43,7 @@ jobs:
         - run: cargo clean
         - run: cargo do doc
         - run: cargo clean
-        - run: cargo do test --lib --bins --tests
+        - run: cargo do test --lib --bins --tests --nextest
         - run: cargo clean
         - run: cargo do test --doc
         - run: cargo clean

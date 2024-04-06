@@ -330,7 +330,16 @@ fn test(mut args: Vec<&str>) {
             tests::version_in_sync();
         }
 
-        cmd_env("cargo", &[nightly, "test", "--no-fail-fast", "--all-features"], &args, env);
+        if take_flag(&mut args, &["--nextest"]) {
+            cmd_env(
+                "cargo",
+                &[nightly, "nextest", "run", "--no-fail-fast", "--all-features"],
+                &args,
+                env,
+            );
+        } else {
+            cmd_env("cargo", &[nightly, "test", "--no-fail-fast", "--all-features"], &args, env);
+        }
 
         if all {
             // if no args we run everything.
