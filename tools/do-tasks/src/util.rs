@@ -786,3 +786,34 @@ pub fn crates_io_latest(crate_name: &str) -> String {
         latest[..i].to_owned()
     }
 }
+
+pub fn fix_git_config_name_email() {
+    if !git_has_config("user.name") {
+        cmd("git", &["config", "user.name"], &[get_git_log("--pretty=format:%an").as_str()]);
+    }
+    if !git_has_config("user.email") {
+        cmd("git", &["config", "user.email"], &[get_git_log("--pretty=format:%ae").as_str()]);
+    }
+}
+
+fn git_has_config(key: &str) -> bool {
+    let output = std::process::Command::new("git")
+        .arg("config")
+        .arg(key)
+        .output()
+        .expect("failed to run `git config ..`");
+
+    !String::from_utf8(output.stdout).unwrap().is_empty()
+}
+
+fn get_git_log(fmt: &str) -> String {
+    let output = std::process::Command::new("git")
+        .arg("log")
+        .arg("-n")
+        .arg("1")
+        .arg(fmt)
+        .output()
+        .expect("failed to run `git log ..`");
+
+    String::from_utf8(output.stdout).unwrap()
+}
