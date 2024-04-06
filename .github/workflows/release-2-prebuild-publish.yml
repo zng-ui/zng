@@ -40,6 +40,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: [prebuild]
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -54,7 +56,7 @@ jobs:
           name: prebuilt-macos-13
           path: prebuilt
       - run: ls --all ./prebuilt
-      - name: Publish Release
+      - name: publish release
         uses: softprops/action-gh-release@v1
         with:
           files: "prebuilt/*"
@@ -65,5 +67,5 @@ jobs:
     steps:
       - uses: geekyeggo/delete-artifact@v5
         with:
-          name: prebuilt-*-latest
+          name: prebuilt-*
           failOnError: false
