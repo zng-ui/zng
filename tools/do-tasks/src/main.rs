@@ -979,7 +979,7 @@ fn publish(mut args: Vec<&str>) {
                 if published_ver.is_empty() {
                     cmd_req(
                         "cargo",
-                        &["owner", "--add", "github:zng-ui:owners", "--package", member.name.as_str()],
+                        &["owner", "--add", "github:zng-ui:owners", member.name.as_str()],
                         &[],
                     );
                 }
