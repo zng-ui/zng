@@ -976,6 +976,14 @@ fn publish(mut args: Vec<&str>) {
                 cmd_req("cargo", &["publish", "--package", member.name.as_str()], &[]);
                 count += 1;
 
+                if published_ver.is_empty() {
+                    cmd_req(
+                        "cargo",
+                        &["owner", "--add", "github:zng-ui:owners", "--package", member.name.as_str()],
+                        &[],
+                    );
+                }
+
                 // https://github.com/rust-lang/crates.io/blob/main/src/rate_limiter.rs
                 delay = if published_ver.is_empty() {
                     // 10 minutes for new crates
