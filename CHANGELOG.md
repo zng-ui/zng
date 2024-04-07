@@ -2,6 +2,10 @@
 
 * 
 
-# 0.1
+# 0.2.1
 
-* Crate published, only changes newer then `0.1` are logged.
+* Fix build with feature `"view"`.
+
+# 0.2.0
+
+* Crates published, only newer changes are logged.
