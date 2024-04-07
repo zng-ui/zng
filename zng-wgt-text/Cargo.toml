@@ -34,6 +34,6 @@ atomic = "0.6"
 tracing = "0.1"
 serde = "1"
 parking_lot = "0.12"
-bitflags = "2"
-bytemuck = "1"
+bitflags = { version = "2", features = ["serde", "bytemuck"] }
+bytemuck = { version = "1", features = ["derive"] }
 euclid = "0.22"

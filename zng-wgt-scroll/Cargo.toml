@@ -31,8 +31,8 @@ zng-color = { path = "../zng-color", version = "0.2.0" }
 
 serde = { version = "1", features = ["derive"] }
 atomic = "0.6"
-bitflags = "2"
-bytemuck = "1"
+bitflags = { version = "2", features = ["serde", "bytemuck"] }
+bytemuck = { version = "1", features = ["derive"] }
 euclid = "0.22"
 parking_lot = "0.12"
 tracing = "0.1"

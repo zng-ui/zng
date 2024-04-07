@@ -29,7 +29,7 @@ zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.0", featur
 ] }
 
 tracing = "0.1"
-bytemuck = "1"
+bytemuck = { version = "1", features = ["derive"] }
 indexmap = { version = "2", features = ["serde"] }
 atomic = "0.6"
 serde = { version = "1", features = ["derive"] }

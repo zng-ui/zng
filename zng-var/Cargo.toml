@@ -34,7 +34,7 @@ zng-time = { path = "../zng-time", version = "0.2.0" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.0" }
 zng-handle = { path = "../zng-handle", version = "0.2.0" }
 
-bitflags = { version = "2", features = ["serde"] }
+bitflags = { version = "2", features = ["serde", "bytemuck"] }
 bytemuck = { version = "1", features = ["derive"] }
 parking_lot = "0.12"
 tracing = "0.1"

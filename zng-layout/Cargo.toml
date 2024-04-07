@@ -16,9 +16,9 @@ zng-unit = { path = "../zng-unit", version = "0.2.0" }
 zng-var = { path = "../zng-var", version = "0.2.0" }
 zng-app-context = { path = "../zng-app-context", version = "0.2.0" }
 
-serde = { version = "1", features = ["derive"] }
-bitflags = "2"
-bytemuck = "1"
+serde = { version = "1", features = ["derive", "rc"] }
+bitflags = { version = "2", features = ["serde", "bytemuck"] }
+bytemuck = { version = "1", features = ["derive"] }
 tracing = "0.1"
 atomic = "0.6"
 unicode-bidi = "0.3"
