@@ -53,3 +53,5 @@ zng-webrender
 * Push changes to GitHub.
 * Test the `zng` project, both `do test` and a manual review using `do prebuild` and `do run -all`.
 * Manually publish each crate.
+
+* If publishing new crates also set the crate owner `cargo owner --add github:zng-ui:owners [CRATE]`.

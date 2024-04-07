@@ -977,11 +977,7 @@ fn publish(mut args: Vec<&str>) {
                 count += 1;
 
                 if published_ver.is_empty() {
-                    cmd_req(
-                        "cargo",
-                        &["owner", "--add", "github:zng-ui:owners", member.name.as_str()],
-                        &[],
-                    );
+                    cmd_req("cargo", &["owner", "--add", "github:zng-ui:owners", member.name.as_str()], &[]);
                 }
 
                 // https://github.com/rust-lang/crates.io/blob/main/src/rate_limiter.rs
