@@ -36,7 +36,7 @@ fn main() {
         if !lib.exists() {
             let url = format!("https://github.com/zng-ui/zng/releases/download/v{version}/{file}");
 
-            let temp_file = Path::new(&env::var("OUT_DIR").unwrap()).join(format!("{file}.{version}.tmp"));
+            let output = Path::new(&env::var("OUT_DIR").unwrap()).join(format!("v{version}.{file}"));
 
             let r = std::process::Command::new("curl")
                 .arg("--location")
@@ -45,17 +45,13 @@ fn main() {
                 .arg("--show-error")
                 .arg("--create-dirs")
                 .arg("--output")
-                .arg(&temp_file)
+                .arg(&output)
                 .arg(&url)
                 .status();
             match r {
                 Ok(s) => {
                     if s.success() {
-                        if let Err(e) = std::fs::copy(&temp_file, &lib) {
-                            println!("cargo:warning=view prebuilt not embedded, failed copy, {e}");
-                        } else {
-                            let _ = std::fs::remove_file(temp_file);
-                        }
+                        lib = output;
                     } else {
                         println!(
                             "cargo:warning=view prebuilt not embedded, failed download, curl exit code: {:?}",
