@@ -1,9 +1,17 @@
-use std::{env, hash::Hasher, path::Path};
+use std::{
+    env,
+    hash::Hasher,
+    path::{Path, PathBuf},
+};
 
 use base64::Engine;
 use hashers::jenkins::spooky_hash::SpookyHasher;
 
 fn main() {
+    if !cfg!(feature = "embedded") {
+        return;
+    }
+
     let mut lib = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("lib");
 
     println!("cargo:rerun-if-changed={}", lib.display());
@@ -84,8 +92,9 @@ fn main() {
             "cargo:rustc-env=ZNG_VIEW_LIB_HASH={}",
             base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
         );
+    } else if PathBuf::from("../do").exists() {
+        println!("cargo:warning=view prebuilt not embedded, missing '{file}', call `do prebuild`");
     } else {
-        println!("cargo:warning=missing `{file}`, run `do prebuild` in local builds");
-        println!("cargo:warning=view prebuilt not embedded, missing '{file}', failed to download, in local builds call `do prebuild`");
+        panic!("view prebuilt not embedded, missing '{file}', failed to download");
     }
 }

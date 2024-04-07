@@ -173,7 +173,7 @@ zng-color = { path = "../zng-color", version = "0.2.0" }
 # view
 zng-view-api = { path = "../zng-view-api", version = "0.2.0", default-features = false }
 zng-view = { path = "../zng-view", version = "0.2.0", default-features = false, optional = true }
-zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.2.0", default-features = false, optional = true }
+zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.2.0", optional = true }
 
 # app
 zng-app = { path = "../zng-app", version = "0.2.0" }

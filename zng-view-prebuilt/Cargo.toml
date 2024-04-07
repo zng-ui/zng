@@ -11,6 +11,14 @@ repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
+[features]
+default = ["embedded"]
+
+# Requires embedded on build, if prebuilt is not in './lib' and download fails the build will fail.
+#
+# This is enabled by default.
+embedded = []
+
 [dependencies]
 libloading = "0.8"
 
