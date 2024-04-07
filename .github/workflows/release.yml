@@ -76,7 +76,7 @@ jobs:
     permissions:
       contents: write
     outputs:
-      tag_name: ${{ steps.publish_version_tag.outputs }}
+      tag_name: ${{ steps.publish_version_tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:

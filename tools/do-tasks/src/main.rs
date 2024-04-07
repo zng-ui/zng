@@ -1009,7 +1009,7 @@ fn publish_version_tag(mut args: Vec<&str>) {
         cmd_req("git", &["tag", &tag, "-m", &format!("zng version {version}")], &[]);
         cmd_req("git", &["push", "origin", &tag], &[]);
     }
-    print(f!("{tag}\n"));
+    print(f!("tag={tag}\n"));
 }
 
 // do version
