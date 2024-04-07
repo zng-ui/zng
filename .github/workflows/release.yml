@@ -75,12 +75,15 @@ jobs:
     needs: [test-release, test-cargo-publish]
     permissions:
       contents: write
+    outputs:
+      tag_name: ${{ steps.publish_version_tag.outputs }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: release
-      - run: cargo do publish_version_tag --execute
+      - id: publish_version_tag
+        run: cargo do publish_version_tag --execute | tail -n 1 >> "$GITHUB_OUTPUT"
   
   publish:
     runs-on: ubuntu-latest
@@ -102,9 +105,10 @@ jobs:
           path: prebuilt
       - run: ls --all ./prebuilt
       - name: publish release
-        uses: softprops/action-gh-release@v2
+        uses: ncipollo/release-action@v1
         with:
-          files: "prebuilt/*"
+          tag: ${{ needs.tag.outputs.tag_name }}
+          artifacts: "prebuilt/*"
 
   cleanup:
     runs-on: ubuntu-latest

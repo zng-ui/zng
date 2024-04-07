@@ -1007,8 +1007,9 @@ fn publish_version_tag(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--execute"]) {
         util::fix_git_config_name_email();
         cmd_req("git", &["tag", &tag, "-m", &format!("zng version {version}")], &[]);
-        cmd_req("git", &["push", "origin", &tag], &[])
+        cmd_req("git", &["push", "origin", &tag], &[]);
     }
+    print(f!("{tag}\n"));
 }
 
 // do version
