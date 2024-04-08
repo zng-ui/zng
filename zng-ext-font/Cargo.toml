@@ -47,3 +47,5 @@ unic-langid = "0.9"
 smallvec = { version = "1", features = ["const_new", "serde"] }
 hashbrown = "0.14"
 pathfinder_geometry = "0.5"
+
+cc = "=1.0.90" # pin cc to fix harfuzz_rs build.
