@@ -31,6 +31,7 @@ members = [
     "zng-ext-fs-watcher",
     "zng-ext-config",
     "zng-ext-font",
+    "zng-ext-l10n-proc-macros",
     "zng-ext-l10n",
     "zng-ext-image",
     "zng-ext-clipboard",
