@@ -2,12 +2,8 @@ name: CI - Security Audit
 on:
   pull_request:
     branches: [ "master" ]
-    paths: 
-      - '**/Cargo.toml'
   push:
     branches: [ "master" ]
-    paths: 
-      - '**/Cargo.toml'
   workflow_dispatch:
 jobs:
   security_audit:
