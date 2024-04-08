@@ -945,6 +945,7 @@ fn publish(mut args: Vec<&str>) {
                     // this at least tests if features are enabled correctly.
                     cmd("cargo", &["build", "--package", member.name.as_str()], &[]);
                 }
+                cmd("cargo", &["clean"], &[]);
             }
         }
     } else if take_flag(&mut args, &["--execute"]) {
@@ -979,6 +980,8 @@ fn publish(mut args: Vec<&str>) {
                 if published_ver.is_empty() {
                     cmd_req("cargo", &["owner", "--add", "github:zng-ui:owners", member.name.as_str()], &[]);
                 }
+
+                cmd("cargo", &["clean"], &[]);
 
                 // https://github.com/rust-lang/crates.io/blob/main/src/rate_limiter.rs
                 delay = if published_ver.is_empty() {
