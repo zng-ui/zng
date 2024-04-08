@@ -17,7 +17,7 @@ First add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-zng = { version = "0.2.2", features = ["view_prebuilt"] }
+zng = { version = "0.2.3", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
