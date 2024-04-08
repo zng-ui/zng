@@ -1,5 +1,9 @@
 # Unpublished
 
+# 0.2.4
+
+* Fix `zng` README not showing in crates.io.
+
 # 0.2.3
 
 * Change docs website.
