@@ -827,7 +827,7 @@ fn ra_check(mut args: Vec<&str>) {
 //       Print all publishable crates and dependencies.
 //    publish --bump minor "crate-name"
 //       Increment the minor version of the crates and dependents.
-//    publish --bump patch "c" --dry-run
+//    publish --bump patch "cate-name" --dry-run
 //       Only prints the version changes.
 //    publish --check
 //       Print all publishable crates that need to be published.
@@ -861,7 +861,14 @@ fn publish(mut args: Vec<&str>) {
         };
         let dry_run = take_flag(&mut args, &["--dry-run"]);
 
+        let all_crates = take_flag(&mut args, &["--all"]);
+
         let mut crates = args;
+        let members = util::publish_members();
+        if all_crates {
+            crates = members.iter().map(|m| m.name.as_str()).collect();
+        }
+
         if crates.is_empty() {
             fatal("missing at least one crate name");
         }
@@ -869,22 +876,24 @@ fn publish(mut args: Vec<&str>) {
             fatal(f!("expected only crate names, found {:?}", c));
         }
 
-        let mut dependents_start = crates.len();
-        let mut search = crates.clone();
-        let members = util::publish_members();
-        loop {
-            for member in &members {
-                if member.dependencies.iter().any(|d| search.iter().any(|n| *n == &d.name)) {
-                    if !crates.iter().any(|c| c == &member.name) {
-                        crates.push(&member.name);
+        // include dependents.
+        if !all_crates {
+            let mut dependents_start = crates.len();
+            let mut search = crates.clone();
+            loop {
+                for member in &members {
+                    if member.dependencies.iter().any(|d| search.iter().any(|n| *n == &d.name)) {
+                        if !crates.iter().any(|c| c == &member.name) {
+                            crates.push(&member.name);
+                        }
                     }
                 }
-            }
-            if dependents_start == crates.len() {
-                break;
-            } else {
-                search = crates[dependents_start..].to_vec();
-                dependents_start = crates.len();
+                if dependents_start == crates.len() {
+                    break;
+                } else {
+                    search = crates[dependents_start..].to_vec();
+                    dependents_start = crates.len();
+                }
             }
         }
 
