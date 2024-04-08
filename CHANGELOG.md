@@ -1,6 +1,8 @@
 # Unpublished
 
-* 
+# 0.2.2
+
+* Fix `"zng-ext-font"` standalone build.
 
 # 0.2.1
 
