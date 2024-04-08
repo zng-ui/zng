@@ -980,12 +980,8 @@ fn publish(mut args: Vec<&str>) {
 
             if published_ver != current_ver {
                 let interval = Duration::from_secs(1);
-                while delay > Duration::ZERO {
-                    print(f!("\rwaiting rate limit, will publish {:?} in {:?}", member.name, delay));
-                    std::thread::sleep(interval.min(delay));
-                    delay = delay.saturating_sub(interval);
-                    print("\r                                                                              \r");
-                }
+                print(f!("awaiting rate limit, will publish {:?} in {:?}\n", member.name, delay));
+                std::thread::sleep(delay);
 
                 cmd_req("cargo", &["publish", "--package", member.name.as_str()], &[]);
                 count += 1;
