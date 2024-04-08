@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-window"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -20,7 +20,7 @@ dyn_closure = ["zng-wgt/dyn_closure"]
 zng-wgt = { path = "../zng-wgt", version = "0.2.1" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.2.1" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.1" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.1" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.2" }
 zng-app = { path = "../zng-app", version = "0.2.1" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.2.1" }
 zng-ext-config = { path = "../zng-ext-config", version = "0.2.1", default-features = false }
