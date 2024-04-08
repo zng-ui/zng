@@ -1,7 +1,7 @@
 [![License-APACHE](https://img.shields.io/badge/License-Apache--2.0-informational)](./LICENSE-APACHE)
 [![License-MIT](https://img.shields.io/badge/license-MIT-informational)](./LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/v/zng)](https://crates.io/crates/zng)
-[![Documentation](https://img.shields.io/badge/github.io-docs-green)](https://zng-ui.github.io/doc/zng)
+[![Documentation](https://img.shields.io/badge/github.io-docs-success)](https://zng-ui.github.io/doc/zng)
 
 # zng
 
