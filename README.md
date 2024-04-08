@@ -1,7 +1,7 @@
 [![License-APACHE](https://img.shields.io/badge/License-Apache--2.0-informational)](./LICENSE-APACHE)
 [![License-MIT](https://img.shields.io/badge/license-MIT-informational)](./LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/v/zng)](https://crates.io/crates/zng)
-[![docs.rs](https://img.shields.io/docsrs/zng)](https://docs.rs/zng)
+[![Documentation](https://img.shields.io/badge/github.io-docs-green)](https://zng-ui.github.io/doc/zng)
 
 # zng
 
@@ -17,7 +17,7 @@ First add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-zng = { version = "0.2.1", features = ["view_prebuilt"] }
+zng = { version = "0.2.2", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:

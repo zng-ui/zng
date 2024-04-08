@@ -1,12 +1,12 @@
 [package]
 name = "zng-view-prebuilt"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 readme = "../zng-app/README.md"
 description = "Part of the zng project."
-documentation = "https://docs.rs/zng-view-prebuilt"
+documentation = "https://zng-ui.github.io/doc/zng_view_prebuilt"
 repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
