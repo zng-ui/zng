@@ -1,12 +1,12 @@
 [package]
 name = "zng-ext-font"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 readme = "../zng-app/README.md"
 description = "Part of the zng project."
-documentation = "https://docs.rs/zng-ext-font"
+documentation = "https://zng-ui.github.io/doc/zng_ext_font"
 repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
@@ -47,3 +47,5 @@ unic-langid = "0.9"
 smallvec = { version = "1", features = ["const_new", "serde"] }
 hashbrown = "0.14"
 pathfinder_geometry = "0.5"
+
+cc = "=1.0.90" # pin cc to fix harfuzz_rs build.

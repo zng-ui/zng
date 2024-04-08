@@ -1,12 +1,12 @@
 [package]
 name = "zng-wgt-text"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 readme = "../zng-app/README.md"
 description = "Part of the zng project."
-documentation = "https://docs.rs/zng-wgt-text"
+documentation = "https://zng-ui.github.io/doc/zng_wgt_text"
 repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
@@ -23,7 +23,7 @@ zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.1" }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.2.1" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.2.1" }
 zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.1" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.2.1" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.2.2" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.2.1" }
 zng-view-api = { path = "../zng-view-api", version = "0.2.1" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.1" }

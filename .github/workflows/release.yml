@@ -49,6 +49,12 @@ jobs:
         - run: cargo do check
         - run: cargo clean
         - run: cargo do doc
+        - if: matrix.os == 'ubuntu-latest'
+          name: upload doc
+          uses: actions/upload-artifact@v4
+          with:
+            name: doc
+            path: release/doc
         - run: cargo clean
         - run: cargo do test --lib --bins --tests --nextest
         - run: cargo clean
@@ -85,7 +91,7 @@ jobs:
       - id: publish_version_tag
         run: cargo do publish_version_tag --execute | tail -n 1 >> "$GITHUB_OUTPUT"
   
-  publish:
+  publish-release:
     runs-on: ubuntu-latest
     needs: [tag]
     permissions:
@@ -110,12 +116,38 @@ jobs:
           tag: ${{ needs.tag.outputs.tag_name }}
           artifacts: "prebuilt/*"
 
+  publish-doc:
+    runs-on: ubuntu-latest
+    needs: [tag]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: zng-ui/zng-ui.github.io
+          ref: main
+          token:  ${{ secrets.PAGES_DOC_PUSH_TOKEN }}
+
+      - run: rm -rf doc
+      - uses: actions/download-artifact@v4
+        name: push
+        with:
+          name: doc
+          path: doc
+      - run: |
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
+          git add -A
+          git commit -m ${{ needs.tag.outputs.tag_name }} --quiet
+          git push
   cleanup:
     runs-on: ubuntu-latest
     if: always()
-    needs: [publish]
+    needs: [publish-release, publish-doc]
     steps:
       - uses: geekyeggo/delete-artifact@v5
         with:
-          name: prebuilt-*
+          name: |
+            prebuilt-*
+            doc
           failOnError: false
