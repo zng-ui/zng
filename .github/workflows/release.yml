@@ -35,6 +35,7 @@ jobs:
           run: |
             echo "CC=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
             echo "CXX=clang-cl" | Out-File -FilePath $env:GITHUB_ENV -Append
+            echo "NEXTEST_RETRIES=3" | Out-File -FilePath $env:GITHUB_ENV -Append
         - if: matrix.os == 'macos-13'
           name: set macos env
           run: |

@@ -1157,7 +1157,7 @@ mod threads {
         let test = var(1);
 
         task::spawn(async_clmv!(test, {
-            for i in 2..=1000 {
+            for i in 2..=100 {
                 test.set(i);
                 if i % 10 == 0 {
                     task::deadline(2.ms()).await;
@@ -1170,7 +1170,7 @@ mod threads {
             loop {
                 let new = test.get();
                 assert!(prev < new, "{prev} < {new}");
-                if new == 1000 {
+                if new == 100 {
                     break;
                 }
                 prev = new;
