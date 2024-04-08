@@ -934,17 +934,18 @@ fn publish(mut args: Vec<&str>) {
             let current_ver = format!("{}.{}.{}", member.version.0, member.version.1, member.version.2);
 
             if published_ver != current_ver {
-                // don't know how to dry-run ignoring missing dependencies.
-                let mut skip = !member.dependencies.is_empty();
-                // build script file because GitHub release is not created yet.
-                skip |= member.name == "zng-view-prebuilt";
-                if !skip {
+                if member.dependencies.is_empty() {
                     cmd(
                         "cargo",
                         &["publish", "--dry-run", "--allow-dirty", "--package", member.name.as_str()],
                         &[],
                     );
+                } else {
+                    // don't know how to dry-run ignoring missing dependencies,
+                    // this at least tests if features are enabled correctly.
+                    cmd("cargo", &["build", "--package", member.name.as_str()], &[]);
                 }
+                cmd("cargo", &["clean"], &[]);
             }
         }
     } else if take_flag(&mut args, &["--execute"]) {
@@ -970,8 +971,8 @@ fn publish(mut args: Vec<&str>) {
                     print(f!("\rwaiting rate limit, will publish {:?} in {:?}", member.name, delay));
                     std::thread::sleep(interval.min(delay));
                     delay = delay.saturating_sub(interval);
+                    print("\r                                                                              \r");
                 }
-                print("\r                                                                              \r");
 
                 cmd_req("cargo", &["publish", "--package", member.name.as_str()], &[]);
                 count += 1;
@@ -979,6 +980,8 @@ fn publish(mut args: Vec<&str>) {
                 if published_ver.is_empty() {
                     cmd_req("cargo", &["owner", "--add", "github:zng-ui:owners", member.name.as_str()], &[]);
                 }
+
+                cmd("cargo", &["clean"], &[]);
 
                 // https://github.com/rust-lang/crates.io/blob/main/src/rate_limiter.rs
                 delay = if published_ver.is_empty() {
