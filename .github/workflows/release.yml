@@ -54,7 +54,7 @@ jobs:
           uses: actions/upload-artifact@v4
           with:
             name: doc
-            path: release/doc
+            path: target/doc
         - run: cargo clean
         - run: cargo do test --lib --bins --tests --nextest
         - run: cargo clean

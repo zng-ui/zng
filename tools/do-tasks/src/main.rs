@@ -952,7 +952,7 @@ fn publish(mut args: Vec<&str>) {
                 } else {
                     // don't know how to dry-run ignoring missing dependencies,
                     // this at least tests if features are enabled correctly.
-                    cmd("cargo", &["build", "--package", member.name.as_str()], &[]);
+                    cmd("cargo", &["check", "--package", member.name.as_str()], &[]);
                 }
                 cmd("cargo", &["clean"], &[]);
             }
