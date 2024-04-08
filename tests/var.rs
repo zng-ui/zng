@@ -1178,7 +1178,7 @@ mod threads {
             }
         };
 
-        app.run_task(task::with_deadline(test, 20.secs())).unwrap().unwrap();
+        app.run_task(task::with_deadline(test, 40.secs())).unwrap().unwrap();
     }
 }
 

@@ -942,7 +942,11 @@ fn publish(mut args: Vec<&str>) {
             let published_ver = util::crates_io_latest(member.name.as_str());
             let current_ver = format!("{}.{}.{}", member.version.0, member.version.1, member.version.2);
 
-            if published_ver != current_ver {
+            let exclude = [
+                // curl download probably fails because we are testing the new version, not published.
+                "zng-view-prebuilt",
+            ];
+            if published_ver != current_ver && !exclude.contains(&member.name.as_str()) {
                 if member.dependencies.is_empty() {
                     cmd(
                         "cargo",
