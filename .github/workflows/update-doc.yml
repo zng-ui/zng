@@ -1,0 +1,62 @@
+name: Update Docs
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        required: true
+
+env:
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
+  RUSTDOCFLAGS: '--deny=warnings'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo do doc
+      - run: cargo clean
+      - name: upload doc
+        uses: actions/upload-artifact@v4
+        with:
+          name: doc
+          path: target/doc
+
+  publish-doc:
+    runs-on: ubuntu-latest
+    needs: [doc]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: zng-ui/zng-ui.github.io
+          ref: main
+          token:  ${{ secrets.PAGES_DOC_PUSH_TOKEN }}
+
+      - run: rm -rf doc
+      - uses: actions/download-artifact@v4
+        name: push
+        with:
+          name: doc
+          path: doc
+      - run: |
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
+          git add -A
+          git commit -m ${{ github.event.inputs.message }} --quiet
+          git push
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [publish-doc]
+    steps:
+      - uses: geekyeggo/delete-artifact@v5
+        with:
+          name: |
+            doc
+          failOnError: false
