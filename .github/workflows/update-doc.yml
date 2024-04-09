@@ -18,12 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cargo do doc
-      - run: cargo clean
       - name: upload doc
         uses: actions/upload-artifact@v4
         with:
           name: doc
           path: target/doc
+      - run: cargo clean
 
   publish-doc:
     runs-on: ubuntu-latest
