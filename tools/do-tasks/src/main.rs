@@ -165,7 +165,7 @@ fn doc(mut args: Vec<&str>) {
 
     let server = if serve {
         Some(std::thread::spawn(|| {
-            let root = std::env::current_dir().unwrap().join("target/doc/");
+            let root = std::env::current_dir().unwrap().join("target/");
             if let Err(e) = std::process::Command::new("basic-http-server").arg(root).status() {
                 error(f!(
                     "couldn't serve docs: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
@@ -181,7 +181,7 @@ fn doc(mut args: Vec<&str>) {
         // based on https://github.com/rust-lang/cargo/blob/master/src/cargo/ops/cargo_doc.rs
         let path = if serve {
             // `basic-http-server` default.
-            "http://127.0.0.1:4000/zng/index.html".to_owned()
+            "http://127.0.0.1:4000/doc/zng/index.html".to_owned()
         } else {
             std::env::current_dir()
                 .unwrap()
