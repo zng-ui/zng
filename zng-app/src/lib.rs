@@ -1389,7 +1389,7 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
 
     #[cfg(any(test, feature = "test_util"))]
     fn on_event(&self, event: &tracing::Event<'_>, _ctx: tracing_subscriber::layer::Context<'_, S>) {
-        if event.metadata().level() == &tracing::Level::ERROR && TEST_LOG.get() {
+        if event.metadata().level() == &tracing::Level::ERROR && APP.is_running() && TEST_LOG.get() {
             struct MsgCollector<'a>(&'a mut String);
             impl<'a> tracing::field::Visit for MsgCollector<'a> {
                 fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
