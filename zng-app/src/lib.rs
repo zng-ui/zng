@@ -1157,6 +1157,8 @@ impl APP {
     /// Starts building an application with no extensions.
     #[cfg(dyn_app_extension)]
     pub fn minimal(&self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        #[cfg(debug_assertions)]
+        print_tracing(tracing::Level::INFO);
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
@@ -1172,6 +1174,8 @@ impl APP {
     /// Starts building an application with no extensions.
     #[cfg(not(dyn_app_extension))]
     pub fn minimal(&self) -> AppExtended<()> {
+        #[cfg(debug_assertions)]
+        print_tracing(tracing::Level::INFO);
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
@@ -1421,4 +1425,58 @@ pub fn test_log() {
             panic!("failed to set test log subscriber, {e:?}");
         }
     }
+}
+
+/// Print [`tracing`] events if a subscriber is not already set.
+///
+/// All non-fatal errors in the Zng project are logged using tracing.
+///
+/// In debug builds this function is called automatically with level INFO on app start.
+pub fn print_tracing(max: tracing::Level) -> bool {
+    use tracing_subscriber::prelude::*;
+
+    tracing_subscriber::registry()
+        .with(FilterLayer(max))
+        .with(tracing_subscriber::fmt::layer().without_time())
+        .try_init()
+        .is_ok()
+}
+
+struct FilterLayer(tracing::Level);
+impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
+    fn enabled(&self, metadata: &tracing::Metadata<'_>, _: tracing_subscriber::layer::Context<'_, S>) -> bool {
+        filter(&self.0, metadata)
+    }
+
+    fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
+        Some(self.0.into())
+    }
+}
+fn filter(level: &tracing::Level, metadata: &tracing::Metadata) -> bool {
+    if metadata.level() > level {
+        return false;
+    }
+
+    // suppress webrender warnings:
+    //
+    if metadata.target() == "webrender::device::gl" {
+        // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
+        // This happens when an empty frame is rendered.
+        if metadata.line() == Some(4661) {
+            return false;
+        }
+    }
+
+    // suppress font-kit warnings:
+    //
+    if metadata.target() == "font_kit::loaders::freetype" {
+        // Suppress "$fn(): found invalid platform ID $n"
+        // This does not look fully implemented and generates a lot of warns
+        // with the default Ubuntu font set all with valid platform IDs.
+        if metadata.line() == Some(735) {
+            return false;
+        }
+    }
+
+    true
 }
