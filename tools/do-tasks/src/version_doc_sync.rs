@@ -68,3 +68,19 @@ pub fn fix() {
         }
     }
 }
+
+pub fn close_changelog() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+
+    let changelog_path = format!("{manifest_dir}/../../CHANGELOG.md");
+
+    let mut changelog = read_to_string(&changelog_path).expect("CHANGELOG.md");
+    let title = format!("\n# {}\n\n", crate::util::crate_version("zng"));
+    let unpublished = "# Unpublished\n\n";
+    assert!(changelog.starts_with(unpublished));
+    if !changelog.contains(&title) {
+        changelog.insert_str(unpublished.len(), &title);
+
+        std::fs::write(changelog_path, changelog.as_bytes()).expect("CHANGELOG.md");
+    }
+}

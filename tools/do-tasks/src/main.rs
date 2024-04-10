@@ -931,6 +931,10 @@ fn publish(mut args: Vec<&str>) {
 
         if !dry_run {
             version_doc_sync::fix();
+
+            if crates.contains(&"zng") {
+                version_doc_sync::close_changelog();
+            }
         }
     } else if take_flag(&mut args, &["--check"]) {
         let members = util::publish_members();

@@ -8,9 +8,8 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
     * This includes `Cargo.toml` version changes that must be reviewed manually.
     * You can use `cargo semver-checks` to find breaking changes.
     * You can use `git diff v0.0.0 master --name-only -- "**/Cargo.toml"` to find dependency updates.
-    * You can use `do publish --bump` to set the versions.
+    * You can use `do publish --bump` to set the versions, update Cargo.toml doc examples and close the changelog.
     * Note that if setting manually the `zng-view-prebuilt` needs to have the same version as `zng`.
-    * Update changelog header.
 
 2. The release push triggers `.github/workflows/release-1-test-tag.yml`.
     * It will test in all platforms.
