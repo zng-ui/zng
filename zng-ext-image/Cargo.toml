@@ -27,8 +27,8 @@ zng-layout = { path = "../zng-layout", version = "0.2.2" }
 zng-color = { path = "../zng-color", version = "0.2.2" }
 zng-state-map = { path = "../zng-state-map", version = "0.2.1" }
 
-serde = "1"
-once_cell = "1"
+serde = "1.0"
+once_cell = "1.19"
 parking_lot = "0.12"
 tracing = "0.1"
 base64 = "0.22"

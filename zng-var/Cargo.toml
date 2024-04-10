@@ -34,9 +34,9 @@ zng-time = { path = "../zng-time", version = "0.2.1" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.1" }
 zng-handle = { path = "../zng-handle", version = "0.2.1" }
 
-bitflags = { version = "2", features = ["serde", "bytemuck"] }
-bytemuck = { version = "1", features = ["derive"] }
+bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.15", features = ["derive"] }
 parking_lot = "0.12"
 tracing = "0.1"
 take_mut = "0.2"
-pretty-type-name = "1"
+pretty-type-name = "1.0"

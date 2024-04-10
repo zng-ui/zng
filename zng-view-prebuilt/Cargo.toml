@@ -23,6 +23,6 @@ embedded = []
 libloading = "0.8"
 
 [build-dependencies]
-hashers = "1"
+hashers = "1.0"
 base64 = "0.22"
-home = "0"
+home = "0.5"

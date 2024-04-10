@@ -29,11 +29,13 @@ fn main() {
     let file = "libzng_view.dylib";
 
     if file.is_empty() {
-        println!("cargo:warning=view prebuilt not embedded, unsuported os");
+        println!("cargo:warning=view prebuilt not embedded, unsupported os");
         return;
     }
 
     lib = lib.join(file);
+
+    let is_docs_rs = env::var("DOCS_RS").is_ok();
 
     if !lib.exists() {
         let version = env::var("CARGO_PKG_VERSION").unwrap();
@@ -41,7 +43,7 @@ fn main() {
             .unwrap()
             .join(".zng-view-prebuilt")
             .join(format!("{file}.{version}.bin"));
-        if !lib.exists() {
+        if !is_docs_rs && !lib.exists() {
             let url = format!("https://github.com/zng-ui/zng/releases/download/v{version}/{file}");
 
             let output = Path::new(&env::var("OUT_DIR").unwrap()).join(format!("v{version}.{file}"));
@@ -92,7 +94,7 @@ fn main() {
             "cargo:rustc-env=ZNG_VIEW_LIB_HASH={}",
             base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
         );
-    } else if PathBuf::from("../do").exists() {
+    } else if is_docs_rs || PathBuf::from("../do").exists() {
         println!("cargo:warning=view prebuilt not embedded, missing '{file}', call `do prebuild`");
     } else {
         panic!("view prebuilt not embedded, missing '{file}', failed to download");

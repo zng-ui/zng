@@ -27,7 +27,7 @@ ipc = ["zng-view-api/ipc"]
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
 #
 # Feature enabled by default.
-software = ["swgl"]
+software = ["dep:swgl"]
 
 # Enable AVIF decoder and encoder.
 #
@@ -40,8 +40,8 @@ software = ["swgl"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-webrender = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-webrender", version = "0.62.1" }
-swgl = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-swgl", version = "0.1.1", optional = true }
+webrender = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-webrender", version = "0.62.2" }
+swgl = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-swgl", version = "0.1.2", optional = true }
 
 zng-view-api = { path = "../zng-view-api", version = "0.2.2", default-features = false }
 zng-unit = { path = "../zng-unit", version = "0.2.1" }
@@ -76,10 +76,10 @@ image = { version = "0.25", default-features = false, features = [
     "webp",
 ] }
 img-parts = "0.3"
-byteorder = "1"
-rustc-hash = "1"
-rayon = "1"
-serde = "1"
+byteorder = "1.5"
+rustc-hash = "1.1"
+rayon = "1.10"
+serde = "1.0"
 rfd = { version = "0.12", default_features = false, features = ["xdg-portal"] }
 accesskit = "0.12"
 accesskit_winit = "0.18"
@@ -108,13 +108,13 @@ features = ["Foundation_Collections", "System_UserProfile"]
 clipboard-win = { version = "5", features = ["std"] }
 
 [target.'cfg(not(windows))'.dependencies]
-arboard = "3"
+arboard = "3.3"
 sys-locale = "0.3"
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
 wayland-client = { version = "0.31", default_features = false } # matches winit
 x11-dl = "2.18.5"                                               # matches winit
-tempfile = "3"
+tempfile = "3.10"
 
 # xlib is re-exported by glutin/winit
 

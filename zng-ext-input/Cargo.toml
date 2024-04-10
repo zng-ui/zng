@@ -26,6 +26,6 @@ zng-ext-window = { path = "../zng-ext-window", version = "0.2.2" }
 
 tracing = "0.1"
 parking_lot = "0.12"
-serde = { version = "1", features = ["derive"] }
-bitflags = { version = "2", features = ["serde", "bytemuck"] }
+serde = { version = "1.0", features = ["derive"] }
+bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
 atomic = "0.6"

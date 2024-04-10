@@ -1,5 +1,5 @@
-mod tests;
 mod util;
+mod version_doc_sync;
 use std::format_args as f;
 use util::*;
 
@@ -119,7 +119,13 @@ fn doc(mut args: Vec<&str>) {
                 is_in_args = !line.contains(']');
                 let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
                 for arg in line.split(',') {
-                    rustdoc_flags.push_str(arg.trim().trim_matches('"'));
+                    let arg = arg.trim().trim_matches('"');
+                    if arg.starts_with("doc/") {
+                        // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
+                        rustdoc_flags.push_str(&format!("{name}/{arg}"));
+                    } else {
+                        rustdoc_flags.push_str(arg);
+                    }
                     rustdoc_flags.push(' ');
                 }
             } else if is_in_args {
@@ -165,7 +171,7 @@ fn doc(mut args: Vec<&str>) {
 
     let server = if serve {
         Some(std::thread::spawn(|| {
-            let root = std::env::current_dir().unwrap().join("target/doc/");
+            let root = std::env::current_dir().unwrap().join("target/");
             if let Err(e) = std::process::Command::new("basic-http-server").arg(root).status() {
                 error(f!(
                     "couldn't serve docs: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
@@ -181,7 +187,7 @@ fn doc(mut args: Vec<&str>) {
         // based on https://github.com/rust-lang/cargo/blob/master/src/cargo/ops/cargo_doc.rs
         let path = if serve {
             // `basic-http-server` default.
-            "http://127.0.0.1:4000/zng/index.html".to_owned()
+            "http://127.0.0.1:4000/doc/zng/index.html".to_owned()
         } else {
             std::env::current_dir()
                 .unwrap()
@@ -330,7 +336,7 @@ fn test(mut args: Vec<&str>) {
         let all = args.is_empty();
 
         if !all && args.contains(&"--doc") {
-            tests::version_in_sync();
+            version_doc_sync::check();
         }
 
         if take_flag(&mut args, &["--nextest"]) {
@@ -357,7 +363,7 @@ fn test(mut args: Vec<&str>) {
 
         if all {
             // if no args we run everything.
-            tests::version_in_sync();
+            version_doc_sync::check();
             test(vec!["--macro", "--all"]);
         }
     }
@@ -922,6 +928,10 @@ fn publish(mut args: Vec<&str>) {
         for member in &members {
             member.write_versions(&new_versions, dry_run);
         }
+
+        if !dry_run {
+            version_doc_sync::fix();
+        }
     } else if take_flag(&mut args, &["--check"]) {
         let members = util::publish_members();
         let mut count = 0;
@@ -1013,7 +1023,7 @@ fn publish(mut args: Vec<&str>) {
 
 // used by `workflows/release-1-test-tag.yml`
 fn publish_version_tag(mut args: Vec<&str>) {
-    let version = util::zng_version();
+    let version = util::crate_version("zng");
     let tag = format!("v{version}");
 
     if git_tag_exists(&tag) {
