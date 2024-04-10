@@ -5,8 +5,9 @@ Release is partially automated, some manual steps must be followed and the autom
 To make a release a `zng-ui` project owner needs to follow/monitor these steps:
 
 1. Merge changes into `release` on GitHub.
-    * This includes `Cargo.toml` version changes that must be done manually.
+    * This includes `Cargo.toml` version changes that must be reviewed manually.
     * You can use `cargo semver-checks` to find breaking changes.
+    * You can use `git diff v0.0.0 master --name-only -- "**/Cargo.toml"` to find dependency updates.
     * You can use `do publish --bump` to set the versions.
     * Note that if setting manually the `zng-view-prebuilt` needs to have the same version as `zng`.
 
