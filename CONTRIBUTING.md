@@ -3,7 +3,7 @@
 Thank you for your interest in contributing to Zng! There are many ways to contribute
 and we appreciate all of them.
 
-### Review our English
+### Review Our English
 
 None of the core developers are native speakers, if you see any grammar mistake, typo 
 or sentence that doesn't read right don't hesitate to create a pull request.
