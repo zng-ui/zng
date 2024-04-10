@@ -3,6 +3,9 @@
 * Fix docs.rs build for `zng-view-prebuilt`, `zng-app`, `zng-wgt`.
 * Unlock `cc` dependency version.
 * Remove crate features auto generated for optional dependencies.
+* Add `zng::app::print_tracing`.
+* In debug builds, prints info, warn and error tracing events if no tracing subscriber is set before the first call to `APP.defaults` or
+`APP.minimal`.
 
 # 0.2.4
 

@@ -1360,78 +1360,13 @@ mod private {
     pub trait Sealed {}
 }
 
-/// Sets a `tracing` subscriber that writes warnings to stderr and panics on errors.
-///
-/// Panics if another different subscriber is already set.
-#[cfg(any(test, feature = "test_util"))]
-pub fn test_log() {
-    use std::sync::atomic::*;
-
-    use tracing::*;
-
-    struct TestSubscriber;
-    impl Subscriber for TestSubscriber {
-        fn enabled(&self, metadata: &Metadata<'_>) -> bool {
-            metadata.is_event() && metadata.level() < &Level::WARN
-        }
-
-        fn new_span(&self, _span: &span::Attributes<'_>) -> span::Id {
-            unimplemented!()
-        }
-
-        fn record(&self, _span: &span::Id, _values: &span::Record<'_>) {
-            unimplemented!()
-        }
-
-        fn record_follows_from(&self, _span: &span::Id, _follows: &span::Id) {
-            unimplemented!()
-        }
-
-        fn event(&self, event: &Event<'_>) {
-            struct MsgCollector<'a>(&'a mut String);
-            impl<'a> field::Visit for MsgCollector<'a> {
-                fn record_debug(&mut self, field: &field::Field, value: &dyn fmt::Debug) {
-                    use std::fmt::Write;
-                    write!(self.0, "\n  {} = {:?}", field.name(), value).unwrap();
-                }
-            }
-
-            let meta = event.metadata();
-            let file = meta.file().unwrap_or("");
-            let line = meta.line().unwrap_or(0);
-
-            let mut msg = format!("[{file}:{line}]");
-            event.record(&mut MsgCollector(&mut msg));
-
-            if meta.level() == &Level::ERROR {
-                panic!("[LOG-ERROR]{msg}");
-            } else {
-                eprintln!("[LOG-WARN]{msg}");
-            }
-        }
-
-        fn enter(&self, _span: &span::Id) {
-            unimplemented!()
-        }
-        fn exit(&self, _span: &span::Id) {
-            unimplemented!()
-        }
-    }
-
-    static IS_SET: AtomicBool = AtomicBool::new(false);
-
-    if !IS_SET.swap(true, Ordering::Relaxed) {
-        if let Err(e) = subscriber::set_global_default(TestSubscriber) {
-            panic!("failed to set test log subscriber, {e:?}");
-        }
-    }
-}
-
 /// Print [`tracing`] events if a subscriber is not already set.
 ///
 /// All non-fatal errors in the Zng project are logged using tracing.
 ///
 /// In debug builds this function is called automatically with level INFO on app start.
+///
+/// See also [`test_log`] to enable panicking for errors.
 pub fn print_tracing(max: tracing::Level) -> bool {
     use tracing_subscriber::prelude::*;
 
@@ -1450,6 +1385,27 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
 
     fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
         Some(self.0.into())
+    }
+
+    fn on_event(&self, event: &tracing::Event<'_>, _ctx: tracing_subscriber::layer::Context<'_, S>) {
+        if event.metadata().level() == &tracing::Level::ERROR && TEST_LOG.get() {
+            struct MsgCollector<'a>(&'a mut String);
+            impl<'a> tracing::field::Visit for MsgCollector<'a> {
+                fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
+                    use std::fmt::Write;
+                    write!(self.0, "\n  {} = {:?}", field.name(), value).unwrap();
+                }
+            }
+
+            let meta = event.metadata();
+            let file = meta.file().unwrap_or("");
+            let line = meta.line().unwrap_or(0);
+
+            let mut msg = format!("[{file}:{line}]");
+            event.record(&mut MsgCollector(&mut msg));
+
+            panic!("[LOG-ERROR]{msg}")
+        }
     }
 }
 fn filter(level: &tracing::Level, metadata: &tracing::Metadata) -> bool {
@@ -1479,4 +1435,15 @@ fn filter(level: &tracing::Level, metadata: &tracing::Metadata) -> bool {
     }
 
     true
+}
+
+/// Modifies the [`print_tracing`] subscriber to panic for error logs in the current app.
+#[cfg(any(test, feature = "test_util"))]
+pub fn test_log() {
+    TEST_LOG.set(true);
+}
+
+#[cfg(any(test, feature = "test_util"))]
+zng_app_context::app_local! {
+    static TEST_LOG: bool = false;
 }
