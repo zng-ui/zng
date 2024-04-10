@@ -132,14 +132,13 @@ pub fn allow_missing_delegate() {
 
 #[test]
 pub fn default_no_child() {
+    let _app = APP.minimal().run_headless(false);
     crate::test_log();
 
     #[ui_node(struct Node { })]
     impl UiNode for Node {}
 
     let mut wgt = util::test_wgt(Node {});
-
-    let _app = APP.minimal().run_headless(false);
 
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let wu = WINDOW.test_init(&mut wgt);
