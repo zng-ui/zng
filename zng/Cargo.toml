@@ -108,7 +108,7 @@ material_icons = [
 #
 # Not enabled by default.
 material_icons_outlined = [
-    "zng-wgt-material-icons",
+    "dep:zng-wgt-material-icons",
     "zng-wgt-material-icons/embedded",
     "zng-wgt-material-icons/outlined",
 ]
@@ -117,7 +117,7 @@ material_icons_outlined = [
 #
 # Not enabled by default.
 material_icons_filled = [
-    "zng-wgt-material-icons",
+    "dep:zng-wgt-material-icons",
     "zng-wgt-material-icons/embedded",
     "zng-wgt-material-icons/filled",
 ]
@@ -126,7 +126,7 @@ material_icons_filled = [
 #
 # Not enabled by default.
 material_icons_rounded = [
-    "zng-wgt-material-icons",
+    "dep:zng-wgt-material-icons",
     "zng-wgt-material-icons/embedded",
     "zng-wgt-material-icons/rounded",
 ]
@@ -135,7 +135,7 @@ material_icons_rounded = [
 #
 # Not enabled by default.
 material_icons_sharp = [
-    "zng-wgt-material-icons",
+    "dep:zng-wgt-material-icons",
     "zng-wgt-material-icons/embedded",
     "zng-wgt-material-icons/sharp",
 ]
@@ -148,7 +148,7 @@ ron = ["zng-ext-config/ron"]
 yaml = ["zng-ext-config/yaml"]
 
 # Include the default view-process implementation.
-view = ["zng-view"]
+view = ["dep:zng-view"]
 # Enables software renderer fallback in the default view-process.
 #
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
@@ -157,7 +157,7 @@ view = ["zng-view"]
 view_software = ["zng-view?/software"]
 
 # Include the default view-process implementation as an embedded precompiled binary.
-view_prebuilt = ["zng-view-prebuilt", "ipc"]
+view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
 
 [dependencies]
 # foundation
