@@ -55,7 +55,12 @@
 
 pub use zng_wgt_text::icon::{ico_color, ico_size, CommandIconExt, GlyphIcon, GlyphSource, Icon};
 
-#[cfg(feature = "zng-wgt-material-icons")]
+#[cfg(any(
+    feature = "material_icons_filled",
+    feature = "material_icons_outlined",
+    feature = "material_icons_rounded",
+    feature = "material_icons_sharp",
+))]
 pub use zng_wgt_material_icons::{MaterialFonts, MaterialIcon};
 
 #[cfg(feature = "material_icons_filled")]
