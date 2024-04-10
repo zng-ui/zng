@@ -119,7 +119,13 @@ fn doc(mut args: Vec<&str>) {
                 is_in_args = !line.contains(']');
                 let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
                 for arg in line.split(',') {
-                    rustdoc_flags.push_str(arg.trim().trim_matches('"'));
+                    let arg = arg.trim().trim_matches('"');
+                    if arg.starts_with("doc/") {
+                        // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
+                        rustdoc_flags.push_str(&format!("{name}/{arg}"));
+                    } else {
+                        rustdoc_flags.push_str(arg);
+                    }
                     rustdoc_flags.push(' ');
                 }
             } else if is_in_args {

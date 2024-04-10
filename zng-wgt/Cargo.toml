@@ -45,4 +45,4 @@ serde = { version = "1.0", features = ["derive"] }
 pretty-type-name = "1.0"
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--html-in-header", "zng-app/doc/html-in-header.html"]
+rustdoc-args = ["--html-in-header", "doc/html-in-header.html"]
