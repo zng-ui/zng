@@ -976,7 +976,7 @@ fn publish(mut args: Vec<&str>) {
             }
         }
     } else if take_flag(&mut args, &["--execute"]) {
-        use std::time::Duration;
+        use std::time::*;
 
         let members = util::publish_members();
         let mut delay = Duration::ZERO;
@@ -993,11 +993,16 @@ fn publish(mut args: Vec<&str>) {
             let current_ver = format!("{}.{}.{}", member.version.0, member.version.1, member.version.2);
 
             if published_ver != current_ver {
-                let interval = Duration::from_secs(1);
-                print(f!("awaiting rate limit, will publish {:?} in {:?}\n", member.name, delay));
-                std::thread::sleep(delay);
+                let test_start = Instant::now();
+                cmd_req("cargo", &["publish", "--package", member.name.as_str(), "--dry-run"], &[]);
 
-                cmd_req("cargo", &["publish", "--package", member.name.as_str()], &[]);
+                delay = delay.saturating_sub(test_start.elapsed());
+                if delay > Duration::ZERO {
+                    print(f!("awaiting rate limit, will publish {:?} in {:?}\n", member.name, delay));
+                    std::thread::sleep(delay);
+                }
+
+                cmd_req("cargo", &["publish", "--package", member.name.as_str(), "--no-verify"], &[]);
                 count += 1;
 
                 if published_ver.is_empty() {
@@ -1007,16 +1012,17 @@ fn publish(mut args: Vec<&str>) {
                 cmd("cargo", &["clean"], &[]);
 
                 // https://github.com/rust-lang/crates.io/blob/main/src/rate_limiter.rs
+                let extra = Duration::from_secs(1);
                 delay = if published_ver.is_empty() {
                     // 10 minutes for new crates
                     burst = 0;
-                    Duration::from_secs(10 * 60) + interval
+                    Duration::from_secs(10 * 60) + extra
                 } else if burst > 0 {
                     burst -= 1;
                     Duration::ZERO
                 } else {
                     // 1 minute for upgrades
-                    Duration::from_secs(60) + interval
+                    Duration::from_secs(60) + extra
                 };
             }
         }
