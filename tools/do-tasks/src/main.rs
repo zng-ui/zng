@@ -1,5 +1,5 @@
-mod tests;
 mod util;
+mod version_doc_sync;
 use std::format_args as f;
 use util::*;
 
@@ -336,7 +336,7 @@ fn test(mut args: Vec<&str>) {
         let all = args.is_empty();
 
         if !all && args.contains(&"--doc") {
-            tests::version_in_sync();
+            version_doc_sync::check();
         }
 
         if take_flag(&mut args, &["--nextest"]) {
@@ -363,7 +363,7 @@ fn test(mut args: Vec<&str>) {
 
         if all {
             // if no args we run everything.
-            tests::version_in_sync();
+            version_doc_sync::check();
             test(vec!["--macro", "--all"]);
         }
     }
@@ -928,6 +928,10 @@ fn publish(mut args: Vec<&str>) {
         for member in &members {
             member.write_versions(&new_versions, dry_run);
         }
+
+        if !dry_run {
+            version_doc_sync::fix();
+        }
     } else if take_flag(&mut args, &["--check"]) {
         let members = util::publish_members();
         let mut count = 0;
@@ -1019,7 +1023,7 @@ fn publish(mut args: Vec<&str>) {
 
 // used by `workflows/release-1-test-tag.yml`
 fn publish_version_tag(mut args: Vec<&str>) {
-    let version = util::zng_version();
+    let version = util::crate_version("zng");
     let tag = format!("v{version}");
 
     if git_tag_exists(&tag) {

@@ -464,10 +464,10 @@ pub fn exit_checked() {
     }
 }
 
-pub fn zng_version() -> String {
-    let path = format!("{manifest_dir}/../../zng/Cargo.toml", manifest_dir = env!("CARGO_MANIFEST_DIR"));
+pub fn crate_version(name: &str) -> String {
+    let path = format!("{manifest_dir}/../../{name}/Cargo.toml", manifest_dir = env!("CARGO_MANIFEST_DIR"));
     let toml = std::fs::read_to_string(&path).expect(&path);
-    assert!(toml.contains(r#"name = "zng""#), "run `do` in the project root");
+    assert!(toml.contains(&format!("name = \"{name}\"")), "run `do` in the project root");
     let rgx = regex::Regex::new(r#"version = "(\d+\.\d+.*)""#).unwrap();
     rgx.captures(&toml).unwrap().get(1).unwrap().as_str().to_owned()
 }
