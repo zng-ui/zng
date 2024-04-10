@@ -1387,6 +1387,7 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
         Some(self.0.into())
     }
 
+    #[cfg(any(test, feature = "test_util"))]
     fn on_event(&self, event: &tracing::Event<'_>, _ctx: tracing_subscriber::layer::Context<'_, S>) {
         if event.metadata().level() == &tracing::Level::ERROR && TEST_LOG.get() {
             struct MsgCollector<'a>(&'a mut String);
