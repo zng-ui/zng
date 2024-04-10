@@ -1,6 +1,6 @@
 [package]
 name = "zng-unique-id"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -17,7 +17,7 @@ named = ["dep:zng-txt", "dep:parking_lot"]
 bytemuck = []
 
 [dependencies]
-zng-txt = { path = "../zng-txt", version = "0.2.1", optional = true }
+zng-txt = { path = "../zng-txt", version = "0.2.2", optional = true }
 parking_lot = { version = "0.12", optional = true }
 
 rayon = "1.10"

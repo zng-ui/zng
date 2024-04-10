@@ -1,5 +1,9 @@
 # Unpublished
 
+* 
+
+# 0.2.5
+
 * Fix docs.rs build for `zng-view-prebuilt`, `zng-app`, `zng-wgt`.
 * Unlock `cc` dependency version.
 * Remove crate features auto generated for optional dependencies.
