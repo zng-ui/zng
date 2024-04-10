@@ -46,22 +46,22 @@ zng-var = { path = "../zng-var", version = "0.2.2" }
 zng-txt = { path = "../zng-txt", version = "0.2.1", optional = true }
 
 tracing = "0.1"
-pretty-type-name = "1"
+pretty-type-name = "1.0"
 flume = { version = "0.11", default-features = false, features = ["async"] }
-rayon = "1"
-blocking = "1"
+rayon = "1.10"
+blocking = "1.5"
 parking_lot = "0.12"
-futures-timer = "3"
+futures-timer = "3.0"
 
-isahc = { version = "1", features = ["cookies", "json"], optional = true }
-futures-lite = "2"
-async-fs = "2"
-serde = { version = "1", optional = true }
-serde_json = { version = "1", optional = true }
-http-cache-semantics = { version = "1", optional = true }                  # isahc needs this version
-http-serde = { version = "1", optional = true }
-once_cell = { version = "1", optional = true }
-async-recursion = { version = "1", optional = true }
+isahc = { version = "1.7", features = ["cookies", "json"], optional = true }
+futures-lite = "2.3"
+async-fs = "2.1"
+serde = { version = "1.0", optional = true }
+serde_json = { version = "1.0", optional = true }
+http-cache-semantics = { version = "1.0", optional = true }                  # isahc needs this version
+http-serde = { version = "1.1", optional = true }
+once_cell = { version = "1.19", optional = true }
+async-recursion = { version = "1.1", optional = true }
 async-trait = { version = "0.1", optional = true }
 sha2 = { version = "0.10", optional = true }
 base64 = { version = "0.22", optional = true }

@@ -14,5 +14,5 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [dependencies]
 zng-unique-id = { path = "../zng-unique-id", version = "0.2.1" }
 
-bytemuck = { version = "1" }
-pretty-type-name = "1"
+bytemuck = { version = "1.15" }
+pretty-type-name = "1.0"

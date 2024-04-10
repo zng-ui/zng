@@ -20,4 +20,4 @@ zng-ext-window = { path = "../zng-ext-window", version = "0.2.2" }
 zng-wgt-window = { path = "../zng-wgt-window", version = "0.2.3" }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.2.2" }
 
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }

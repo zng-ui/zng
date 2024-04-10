@@ -29,10 +29,10 @@ zng-ext-input = { path = "../zng-ext-input", version = "0.2.2" }
 zng-var = { path = "../zng-var", version = "0.2.2" }
 zng-color = { path = "../zng-color", version = "0.2.2" }
 
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
 atomic = "0.6"
-bitflags = { version = "2", features = ["serde", "bytemuck"] }
-bytemuck = { version = "1", features = ["derive"] }
+bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.15", features = ["derive"] }
 euclid = "0.22"
 parking_lot = "0.12"
 tracing = "0.1"

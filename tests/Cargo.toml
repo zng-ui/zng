@@ -13,7 +13,7 @@ zng = { path = "../zng", features = ["test_util", "toml", "ron", "yaml"] }
 zng-view = { path = "../zng-view" }
 zng-wgt-webrender-debug = { path = "../zng-wgt-webrender-debug" }
 zng-app = { path = "../zng-app" }
-pretty_assertions = "1"
+pretty_assertions = "1.4"
 
 [[test]]
 name = "command"

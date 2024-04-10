@@ -18,6 +18,6 @@ zng-ext-window = { path = "../zng-ext-window", version = "0.2.2" }
 zng-view-api = { path = "../zng-view-api", version = "0.2.2" }
 
 webrender-api = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-webrender-api", version = "0.62.1" }
-serde = "1"
-bitflags = { version = "2", features = ["serde", "bytemuck"] }
+serde = "1.0"
+bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
 tracing = "0.1"

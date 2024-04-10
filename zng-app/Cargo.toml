@@ -91,17 +91,17 @@ zng-layout = { path = "../zng-layout", version = "0.2.2" }
 zng-color = { path = "../zng-color", version = "0.2.2" }
 
 tracing = "0.1"
-pretty-type-name = "1"
+pretty-type-name = "1.0"
 parking_lot = "0.12"
-serde = "1"
-bytemuck = { version = "1", features = ["derive"] }
+serde = "1.0"
+bytemuck = { version = "1.15", features = ["derive"] }
 flume = "0.11"
 atomic = "0.6"
-bitflags = { version = "2", features = ["serde", "bytemuck"] }
-paste = "1"
-once_cell = "1"
+bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
+paste = "1.0"
+once_cell = "1.19"
 unic-langid = { version = "0.9", features = ["serde"] }
-unicase = "2"
+unicase = "2.7"
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "zng-app/doc/html-in-header.html" ]

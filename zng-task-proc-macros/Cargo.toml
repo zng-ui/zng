@@ -15,6 +15,6 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1"
-quote = "1"
-syn = "2"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"

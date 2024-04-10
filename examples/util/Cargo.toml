@@ -7,6 +7,6 @@ publish = false
 [dependencies]
 tracing = "0.1"
 tracing-subscriber = "0.3"
-rustc-hash = "1"
+rustc-hash = "1.1"
 v_jsonescape = "0.7"
 parking_lot = "0.12"

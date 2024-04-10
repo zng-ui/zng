@@ -13,4 +13,4 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 
 [dependencies]
-serde = "1"
+serde = "1.0"
