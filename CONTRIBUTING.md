@@ -12,7 +12,9 @@ or sentence that doesn't read right don't hesitate to create a pull request.
 
 Create an issue, provide a minimal reproducible example (MRE) that triggers the issue, 
 if manual interaction needs to happen, provide a list of steps to follow to cause the issue. 
-The issue must happen in the latest release or newer (master branch).
+
+The issue must happen in the latest release or newer (master branch), latest Rust stable and
+after running `cargo update`.
 
 ### Close a Todo
 
