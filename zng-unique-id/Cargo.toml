@@ -13,7 +13,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
 default = ["named", "bytemuck" ]
-named = ["zng-txt", "parking_lot"]
+named = ["dep:zng-txt", "dep:parking_lot"]
 bytemuck = []
 
 [dependencies]

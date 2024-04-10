@@ -27,7 +27,7 @@ ipc = ["zng-view-api/ipc"]
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
 #
 # Feature enabled by default.
-software = ["swgl"]
+software = ["dep:swgl"]
 
 # Enable AVIF decoder and encoder.
 #

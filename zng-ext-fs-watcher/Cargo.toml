@@ -12,8 +12,10 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-json = ["serde_json"]
-yaml = ["serde_yaml"]
+json = ["dep:serde_json"]
+yaml = ["dep:serde_yaml"]
+toml = ["dep:toml"]
+ron = ["dep:ron"]
 
 [dependencies]
 zng-app-context = { path = "../zng-app-context", version = "0.2.1" }

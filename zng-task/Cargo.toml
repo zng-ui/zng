@@ -17,19 +17,19 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 
 # Enables http tasks.
 http = [
-    "serde",
-    "serde_json",
-    "isahc",
-    "http-cache-semantics",
-    "http-serde",
-    "once_cell",
-    "zng-txt",
-    "async-recursion",
-    "async-trait",
-    "sha2",
-    "base64",
-    "fs4",
-    "remove_dir_all",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:isahc",
+    "dep:http-cache-semantics",
+    "dep:http-serde",
+    "dep:once_cell",
+    "dep:zng-txt",
+    "dep:async-recursion",
+    "dep:async-trait",
+    "dep:sha2",
+    "dep:base64",
+    "dep:fs4",
+    "dep:remove_dir_all",
 ]
 
 # Enabled by doc tests.
