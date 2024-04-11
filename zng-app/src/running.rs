@@ -485,7 +485,7 @@ impl<E: AppExtension> RunningApp<E> {
     pub(crate) fn run_headed(mut self) {
         #[allow(clippy::let_unit_value)]
         let mut observer = ();
-        #[cfg(dyn_app_extension)]
+        #[cfg(feature = "dyn_app_extension")]
         let mut observer = observer.as_dyn();
 
         self.apply_updates(&mut observer);
@@ -596,9 +596,9 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     pub(crate) fn poll<O: AppEventObserver>(&mut self, wait_app_event: bool, observer: &mut O) -> AppControlFlow {
-        #[cfg(dyn_app_extension)]
+        #[cfg(feature = "dyn_app_extension")]
         let mut observer = observer.as_dyn();
-        #[cfg(dyn_app_extension)]
+        #[cfg(feature = "dyn_app_extension")]
         let observer = &mut observer;
         self.poll_impl(wait_app_event, observer)
     }

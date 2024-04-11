@@ -180,9 +180,9 @@ pub trait UiNode: Any + Send {
         Box::new(self)
     }
 
-    /// Helper for complying with the `dyn_node` feature, boxes the node or just returns it depending of the
+    /// Helper for complying with the `"dyn_node"` feature, boxes the node or just returns it depending of the
     /// compile time feature.
-    #[cfg(dyn_node)]
+    #[cfg(feature = "dyn_node")]
     fn cfg_boxed(self) -> BoxedUiNode
     where
         Self: Sized,
@@ -190,9 +190,9 @@ pub trait UiNode: Any + Send {
         self.boxed()
     }
 
-    /// Helper for complying with the `dyn_node` feature, boxes the node or just returns it depending of the
+    /// Helper for complying with the `"dyn_node"` feature, boxes the node or just returns it depending of the
     /// compile time feature.
-    #[cfg(not(dyn_node))]
+    #[cfg(not(feature = "dyn_node"))]
     fn cfg_boxed(self) -> Self
     where
         Self: Sized,
@@ -682,9 +682,9 @@ where
     F: Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync,
     S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let measure: Box<dyn Fn(usize, &mut BoxedUiNode, &mut WidgetMeasure) -> PxSize + Send + Sync> = Box::new(measure);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
 
     default_measure_each_impl(self_, wm, measure, fold_size)
@@ -729,9 +729,9 @@ where
     F: Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync,
     S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let layout: Box<dyn Fn(usize, &mut BoxedUiNode, &mut WidgetLayout) -> PxSize + Send + Sync> = Box::new(layout);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
 
     default_layout_each_impl(self_, wl, layout, fold_size)

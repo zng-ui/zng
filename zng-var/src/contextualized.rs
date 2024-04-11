@@ -7,39 +7,39 @@ use parking_lot::{RwLock, RwLockReadGuard};
 
 use super::{types::WeakContextInitHandle, *};
 
-#[cfg(dyn_closure)]
+#[cfg(feature = "dyn_closure")]
 macro_rules! ActualLock {
     ($T:ident) => {
         parking_lot::RwLock<Vec<(WeakContextInitHandle, Box<dyn Any + Send + Sync>)>>
     }
 }
-#[cfg(not(dyn_closure))]
+#[cfg(not(feature = "dyn_closure"))]
 macro_rules! ActualLock {
     ($T:ident) => {
         parking_lot::RwLock<Vec<(WeakContextInitHandle, BoxedVar<$T>)>>
     }
 }
 
-#[cfg(dyn_closure)]
+#[cfg(feature = "dyn_closure")]
 macro_rules! ActualInit {
     ($T:ident) => {
         Arc<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>
     }
 }
-#[cfg(not(dyn_closure))]
+#[cfg(not(feature = "dyn_closure"))]
 macro_rules! ActualInit {
     ($T:ident) => {
         Arc<dyn Fn() -> BoxedVar<$T> + Send + Sync>
     }
 }
 
-#[cfg(dyn_closure)]
+#[cfg(feature = "dyn_closure")]
 macro_rules! ActualReadGuard {
     ($a:tt, $T:ident) => {
         parking_lot::MappedRwLockReadGuard<$a, Box<dyn Any + Send + Sync>>
     }
 }
-#[cfg(not(dyn_closure))]
+#[cfg(not(feature = "dyn_closure"))]
 macro_rules! ActualReadGuard {
     ($a:tt, $T:ident) => {
         parking_lot::MappedRwLockReadGuard<$a, BoxedVar<$T>>
@@ -127,9 +127,9 @@ impl<T: VarValue> ContextualizedVar<T> {
         Self {
             _type: PhantomData,
 
-            #[cfg(dyn_closure)]
+            #[cfg(feature = "dyn_closure")]
             init: Arc::new(move || Box::new(init().boxed())),
-            #[cfg(not(dyn_closure))]
+            #[cfg(not(feature = "dyn_closure"))]
             init: Arc::new(move || init().boxed()),
 
             actual: RwLock::new(Vec::with_capacity(1)),
@@ -138,13 +138,13 @@ impl<T: VarValue> ContextualizedVar<T> {
 
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<BoxedVar<T>> {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         {
             parking_lot::MappedRwLockReadGuard::map(borrow_init_impl::<()>(&self.actual, &self.init, std::any::type_name::<T>()), |v| {
                 v.downcast_ref().unwrap()
             })
         }
-        #[cfg(not(dyn_closure))]
+        #[cfg(not(feature = "dyn_closure"))]
         {
             borrow_init_impl(&self.actual, &self.init)
         }
@@ -156,20 +156,20 @@ impl<T: VarValue> ContextualizedVar<T> {
         let current_ctx = ContextInitHandle::current().downgrade();
 
         if let Some(i) = act.iter().position(|(h, _)| h == &current_ctx) {
-            #[cfg(dyn_closure)]
+            #[cfg(feature = "dyn_closure")]
             {
                 *act.swap_remove(i).1.downcast().unwrap()
             }
-            #[cfg(not(dyn_closure))]
+            #[cfg(not(feature = "dyn_closure"))]
             {
                 act.swap_remove(i).1
             }
         } else {
-            #[cfg(dyn_closure)]
+            #[cfg(feature = "dyn_closure")]
             {
                 *(self.init)().downcast().unwrap()
             }
-            #[cfg(not(dyn_closure))]
+            #[cfg(not(feature = "dyn_closure"))]
             {
                 (self.init)()
             }
@@ -181,10 +181,10 @@ impl<T: VarValue> ContextualizedVar<T> {
 pub struct WeakContextualizedVar<T> {
     _type: PhantomData<T>,
 
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     init: Weak<dyn Fn() -> Box<dyn Any + Send + Sync> + Send + Sync>,
 
-    #[cfg(not(dyn_closure))]
+    #[cfg(not(feature = "dyn_closure"))]
     init: Weak<dyn Fn() -> BoxedVar<T> + Send + Sync>,
 }
 
@@ -196,12 +196,12 @@ impl<T: VarValue> Clone for ContextualizedVar<T> {
             return Self {
                 _type: PhantomData,
                 init: self.init.clone(),
-                #[cfg(dyn_closure)]
+                #[cfg(feature = "dyn_closure")]
                 actual: RwLock::new(vec![(
                     act[i].0.clone(),
                     Box::new(act[i].1.downcast_ref::<BoxedVar<T>>().unwrap().clone()),
                 )]),
-                #[cfg(not(dyn_closure))]
+                #[cfg(not(feature = "dyn_closure"))]
                 actual: RwLock::new(vec![act[i].clone()]),
             };
         }

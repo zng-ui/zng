@@ -128,7 +128,7 @@ fn vec_for_each<F>(self_: &mut [BoxedUiNode], f: F)
 where
     F: FnMut(usize, &mut BoxedUiNode),
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let f: Box<dyn FnMut(usize, &mut BoxedUiNode)> = Box::new(f);
     vec_for_each_impl(self_, f)
 }
@@ -143,7 +143,7 @@ fn vec_par_each<F>(self_: &mut Vec<BoxedUiNode>, f: F)
 where
     F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let f: Box<dyn Fn(usize, &mut BoxedUiNode) + Send + Sync> = Box::new(f);
     par_each_impl(self_, f)
 }
@@ -161,11 +161,11 @@ where
     F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
     R: Fn(T, T) -> T + Send + Sync,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let identity: Box<dyn Fn() -> T + Send + Sync> = Box::new(identity);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fold: Box<dyn Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync> = Box::new(fold);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let reduce: Box<dyn Fn(T, T) -> T + Send + Sync> = Box::new(reduce);
 
     par_fold_reduce_impl(self_, identity, fold, reduce)
@@ -367,7 +367,7 @@ fn chain_for_each<F>(self_: &mut UiNodeListChainImpl, f: F)
 where
     F: FnMut(usize, &mut BoxedUiNode),
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let f: Box<dyn FnMut(usize, &mut BoxedUiNode)> = Box::new(f);
     chain_for_each_impl(self_, f)
 }
@@ -384,7 +384,7 @@ fn chain_par_each<F>(self_: &mut UiNodeListChainImpl, f: F)
 where
     F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let f: Box<dyn Fn(usize, &mut BoxedUiNode) + Send + Sync> = Box::new(f);
     chain_par_each_impl(self_, f)
 }
@@ -403,11 +403,11 @@ where
     F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
     R: Fn(T, T) -> T + Send + Sync,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let identity: Box<dyn Fn() -> T + Send + Sync> = Box::new(identity);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fold: Box<dyn Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync> = Box::new(fold);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let reduce: Box<dyn Fn(T, T) -> T + Send + Sync> = Box::new(reduce);
 
     chain_par_fold_reduce_impl(self_, identity, fold, reduce)
@@ -1614,7 +1614,7 @@ fn vec_list_for_each<F>(self_: &mut Vec<BoxedUiNodeList>, f: F)
 where
     F: FnMut(usize, &mut BoxedUiNode),
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let f: Box<dyn FnMut(usize, &mut BoxedUiNode)> = Box::new(f);
 
     vec_list_for_each_impl(self_, f)
@@ -1634,7 +1634,7 @@ fn vec_list_par_each<F>(self_: &mut Vec<BoxedUiNodeList>, f: F)
 where
     F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let f: Box<dyn Fn(usize, &mut BoxedUiNode) + Send + Sync> = Box::new(f);
     vec_list_par_each_impl(self_, f)
 }
@@ -1662,11 +1662,11 @@ where
     F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
     R: Fn(T, T) -> T + Send + Sync,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let identity: Box<dyn Fn() -> T + Send + Sync> = Box::new(identity);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fold: Box<dyn Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync> = Box::new(fold);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let reduce: Box<dyn Fn(T, T) -> T + Send + Sync> = Box::new(reduce);
 
     vec_list_par_fold_reduce_impl(self_, identity, fold, reduce)
@@ -2058,7 +2058,7 @@ where
     where
         F: FnOnce(&mut BoxedUiNode, &mut D) -> R,
     {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let f: Box<dyn FnOnce(&mut BoxedUiNode, &mut D) -> R> = Box::new(f);
         self.with_node_impl(index, f)
     }
@@ -2075,7 +2075,7 @@ where
     where
         F: FnMut(usize, &mut BoxedUiNode, &mut D),
     {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let f: Box<dyn FnMut(usize, &mut BoxedUiNode, &mut D)> = Box::new(f);
         self.for_each_impl(f)
     }
@@ -2093,7 +2093,7 @@ where
         F: Fn(usize, &mut BoxedUiNode, &mut D) + Send + Sync,
         D: Sync,
     {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let f: Box<dyn Fn(usize, &mut BoxedUiNode, &mut D) + Send + Sync> = Box::new(f);
         self.par_each_impl(f)
     }
@@ -2122,11 +2122,11 @@ where
         F: Fn(T, usize, &mut BoxedUiNode, &mut D) -> T + Send + Sync,
         R: Fn(T, T) -> T + Send + Sync,
     {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let identity: Box<dyn Fn() -> T + Send + Sync> = Box::new(identity);
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let fold: Box<dyn Fn(T, usize, &mut BoxedUiNode, &mut D) -> T + Send + Sync> = Box::new(fold);
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let reduce: Box<dyn Fn(T, T) -> T + Send + Sync> = Box::new(reduce);
 
         self.par_fold_reduce_impl(identity, fold, reduce)
@@ -2161,9 +2161,9 @@ where
         F: Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetMeasure) -> PxSize + Send + Sync,
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let measure: Box<dyn Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetMeasure) -> PxSize + Send + Sync> = Box::new(measure);
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
 
         self.measure_each_impl(wm, measure, fold_size)
@@ -2196,9 +2196,9 @@ where
         F: Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetLayout) -> PxSize + Send + Sync,
         S: Fn(PxSize, PxSize) -> PxSize + Send + Sync,
     {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let layout: Box<dyn Fn(usize, &mut BoxedUiNode, &mut D, &mut WidgetLayout) -> PxSize + Send + Sync> = Box::new(layout);
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let fold_size: Box<dyn Fn(PxSize, PxSize) -> PxSize + Send + Sync> = Box::new(fold_size);
 
         self.layout_each_impl(wl, layout, fold_size)
@@ -2225,7 +2225,7 @@ where
 
     /// Iterate over the list in the Z order.
     pub fn for_each_z_sorted(&mut self, f: impl FnMut(usize, &mut BoxedUiNode, &mut D)) {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let f: Box<dyn FnMut(usize, &mut BoxedUiNode, &mut D)> = Box::new(f);
         self.for_each_z_sorted_impl(f)
     }

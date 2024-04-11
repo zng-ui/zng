@@ -3,7 +3,7 @@
 //! When compiled with the `"inspector"` feature all widget instances are instrumented with inspection node
 //! that shares a clone of the [`WidgetBuilder`] in the [`WidgetInfo`].
 
-#[cfg(inspector)]
+#[cfg(feature = "inspector")]
 mod inspector_only {
     use std::sync::Arc;
 
@@ -41,7 +41,7 @@ mod inspector_only {
         })
     }
 }
-#[cfg(inspector)]
+#[cfg(feature = "inspector")]
 pub(crate) use inspector_only::*;
 
 use parking_lot::RwLock;

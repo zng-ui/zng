@@ -275,7 +275,7 @@ impl WindowIcon {
         }))
     }
 }
-#[cfg(http)]
+#[cfg(feature = "http")]
 impl_from_and_into_var! {
     fn from(uri: crate::task::http::Uri) -> WindowIcon {
         ImageSource::from(uri).into()

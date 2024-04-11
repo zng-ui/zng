@@ -562,7 +562,7 @@ impl SCROLL {
     /// Set the vertical offset to a new offset derived from the last, blending into the active smooth
     /// scrolling chase animation, or starting a new one, or just setting the var if smooth scrolling is disabled.
     pub fn chase_vertical(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let modify_offset: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_offset);
         self.chase(true, SCROLL_VERTICAL_OFFSET_VAR, modify_offset);
     }
@@ -570,7 +570,7 @@ impl SCROLL {
     /// Set the horizontal offset to a new offset derived from the last set offset, blending into the active smooth
     /// scrolling chase animation, or starting a new one, or just setting the var if smooth scrolling is disabled.
     pub fn chase_horizontal(&self, modify_offset: impl FnOnce(Factor) -> Factor) {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let modify_offset: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_offset);
         self.chase(false, SCROLL_HORIZONTAL_OFFSET_VAR, modify_offset);
     }
@@ -606,7 +606,7 @@ impl SCROLL {
     /// Set the zoom scale to a new scale derived from the last set scale, blending into the active
     /// smooth scaling chase animation, or starting a new or, or just setting the var if smooth scrolling is disabled.
     pub fn chase_zoom(&self, modify_scale: impl FnOnce(Factor) -> Factor) {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let modify_scale: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_scale);
         self.chase_zoom_impl(modify_scale);
     }
@@ -649,7 +649,7 @@ impl SCROLL {
     /// Zoom in or out keeping the `origin` point in the viewport aligned with the same point
     /// in the content.
     pub fn zoom(&self, modify_scale: impl FnOnce(Factor) -> Factor, origin: PxPoint) {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let modify_scale: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_scale);
         self.zoom_impl(modify_scale, origin);
     }

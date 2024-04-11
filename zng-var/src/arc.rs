@@ -175,7 +175,7 @@ impl<T: VarValue> IntoVar<T> for ArcVar<T> {
 }
 
 impl<T: VarValue> ArcVar<T> {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     fn modify_impl(&self, modify: Box<dyn FnOnce(&mut VarModify<T>) + Send + 'static>) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
         VARS.schedule_update(
@@ -187,7 +187,7 @@ impl<T: VarValue> ArcVar<T> {
         Ok(())
     }
 
-    #[cfg(not(dyn_closure))]
+    #[cfg(not(feature = "dyn_closure"))]
     fn modify_impl(&self, modify: impl FnOnce(&mut VarModify<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
         let me = self.clone();
         VARS.schedule_update(
@@ -235,7 +235,7 @@ impl<T: VarValue> Var<T> for ArcVar<T> {
     where
         F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let modify: Box<dyn FnOnce(&mut VarModify<T>) + Send + 'static> = Box::new(modify);
         self.modify_impl(modify)
     }

@@ -4,7 +4,6 @@ fn main() {
             if !cfg!(feature = $feature) {
                 println!(concat!("cargo:rustc-cfg=feature=\"", $feature, "\""))
             }
-            println!(concat!("cargo:rustc-cfg=", $feature))
         };
     }
 
@@ -15,24 +14,6 @@ fn main() {
         enable!("inspector");
         enable!("trace_widget");
     } else if cfg!(feature = "inspector") {
-        println!("cargo:rustc-cfg=inspector");
         enable!("dyn_node");
-    } else {
-        if cfg!(feature = "dyn_node") {
-            println!("cargo:rustc-cfg=dyn_node");
-        }
-        if cfg!(feature = "dyn_closure") {
-            println!("cargo:rustc-cfg=dyn_closure");
-        }
-        if cfg!(feature = "dyn_widget") {
-            println!("cargo:rustc-cfg=dyn_widget");
-        }
-        if cfg!(feature = "dyn_property") {
-            println!("cargo:rustc-cfg=dyn_property");
-        }
-    }
-
-    if cfg!(feature = "http") {
-        println!("cargo:rustc-cfg=http");
     }
 }

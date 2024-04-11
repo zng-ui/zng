@@ -549,7 +549,7 @@ where
     F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
     on_event_impl(child.cfg_boxed(), event, filter, handler.cfg_boxed()).cfg_boxed()
 }
@@ -617,7 +617,7 @@ where
     F: FnMut(&A) -> bool + Send + 'static,
     H: WidgetHandler<A>,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let filter: Box<dyn FnMut(&A) -> bool + Send> = Box::new(filter);
     on_pre_event_impl(child.cfg_boxed(), event, filter, handler.cfg_boxed()).cfg_boxed()
 }
@@ -817,9 +817,9 @@ where
     EB: FnMut() -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
 
     on_command_impl(child.boxed(), command_builder, enabled_builder, handler.cfg_boxed()).cfg_boxed()
@@ -912,9 +912,9 @@ where
     EB: FnMut() -> E + Send + 'static,
     H: WidgetHandler<CommandArgs>,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let command_builder: Box<dyn FnMut() -> Command + Send> = Box::new(command_builder);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let enabled_builder: Box<dyn FnMut() -> E + Send> = Box::new(enabled_builder);
 
     on_pre_command_impl(child.cfg_boxed(), command_builder, enabled_builder, handler.cfg_boxed()).cfg_boxed()
@@ -1580,7 +1580,7 @@ pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
     context: &'static ContextLocal<T>,
     init_value: impl FnMut() -> T + Send + 'static,
 ) -> impl UiNode {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let init_value: Box<dyn FnMut() -> T + Send> = Box::new(init_value);
     with_context_local_init_impl(child.cfg_boxed(), context, init_value).cfg_boxed()
 }
@@ -1690,7 +1690,7 @@ where
     I: Fn() -> T + Send + 'static,
     T: StateValue + VarValue,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let default: Box<dyn Fn() -> T + Send> = Box::new(default);
     with_widget_state_impl(child.cfg_boxed(), id.into(), default, value.into_var()).cfg_boxed()
 }
@@ -1744,9 +1744,9 @@ where
     I: Fn() -> S + Send + 'static,
     M: FnMut(&mut S, &V) + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let default: Box<dyn Fn() -> S + Send> = Box::new(default);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let modify: Box<dyn FnMut(&mut S, &V) + Send> = Box::new(modify);
 
     with_widget_state_modify_impl(child.cfg_boxed(), id.into(), value.into_var(), default, modify)

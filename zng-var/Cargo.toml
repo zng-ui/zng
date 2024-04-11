@@ -14,7 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["debug_default"]
 
-# Signal the build script to enable the `dyn_*` features for debug builds.
+# Signal the build script to enable the `"dyn_*"` features for debug builds.
 #
 # Enabled by default.
 debug_default = []

@@ -1966,7 +1966,7 @@ where
     V2: Var<T2>,
     M: FnMut(&T) -> T2 + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> T2 + Send> = Box::new(map);
     var_bind_map_impl(source, other, map)
 }
@@ -1996,7 +1996,7 @@ where
     V2: Var<T2>,
     F: FnMut(&T) -> Option<T2> + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> Option<T2> + Send> = Box::new(map);
     var_bind_filter_map_impl(source, other, map)
 }
@@ -2028,9 +2028,9 @@ where
     M: FnMut(&T) -> T2 + Send + 'static,
     B: FnMut(&T2) -> T + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> T2 + Send + 'static> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map_back: Box<dyn FnMut(&T2) -> T + Send + 'static> = Box::new(map_back);
 
     var_bind_map_bidi_impl(source, other, map, map_back)
@@ -2091,9 +2091,9 @@ where
     M: FnMut(&T) -> Option<T2> + Send + 'static,
     B: FnMut(&T2) -> Option<T> + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> Option<T2> + Send + 'static> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map_back: Box<dyn FnMut(&T2) -> Option<T> + Send + 'static> = Box::new(map_back);
 
     var_bind_filter_map_bidi_impl(source, other, map, map_back)
@@ -2157,7 +2157,7 @@ fn var_hold_hook(source: &dyn AnyVar) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + S
 }
 
 fn var_map<T: VarValue, O: VarValue>(source: &impl Var<T>, map: impl FnMut(&T) -> O + Send + 'static) -> ReadOnlyArcVar<O> {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
     var_map_impl(source, map)
 }
@@ -2171,7 +2171,7 @@ fn var_map_ctx<T: VarValue, O: VarValue>(
     source: &impl Var<T>,
     map: impl FnMut(&T) -> O + Send + 'static,
 ) -> contextualized::ContextualizedVar<O> {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
     var_map_ctx_impl(source, map)
 }
@@ -2189,7 +2189,7 @@ fn var_map_ctx_impl<T: VarValue, O: VarValue>(
     })
 }
 fn var_map_mixed<T: VarValue, O: VarValue>(source: &impl Var<T>, map: impl FnMut(&T) -> O + Send + 'static) -> BoxedVar<O> {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
 
     if source.is_contextual() {
@@ -2208,9 +2208,9 @@ where
     M: FnMut(&T) -> O + Send + 'static,
     B: FnMut(&O) -> T + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map_back: Box<dyn FnMut(&O) -> T + Send> = Box::new(map_back);
 
     var_map_bidi_impl(source, map, map_back)
@@ -2234,9 +2234,9 @@ where
     M: FnMut(&T) -> O + Send + 'static,
     B: FnMut(&O) -> T + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map_back: Box<dyn FnMut(&O) -> T + Send> = Box::new(map_back);
 
     var_map_bidi_ctx_impl(source, map, map_back)
@@ -2266,9 +2266,9 @@ where
     M: FnMut(&T) -> O + Send + 'static,
     B: FnMut(&O) -> T + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> O + Send> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map_back: Box<dyn FnMut(&O) -> T + Send> = Box::new(map_back);
 
     if source.is_contextual() {
@@ -2287,7 +2287,7 @@ where
     V: Var<O>,
     M: FnMut(&T) -> V + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> V + Send + 'static> = Box::new(map);
 
     var_flat_map_impl(source, map)
@@ -2308,7 +2308,7 @@ where
     V: Var<O>,
     M: FnMut(&T) -> V + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> V + Send + 'static> = Box::new(map);
 
     var_flat_map_ctx_impl(source, map)
@@ -2334,7 +2334,7 @@ where
     V: Var<O>,
     M: FnMut(&T) -> V + Send + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> V + Send + 'static> = Box::new(map);
 
     if source.is_contextual() {
@@ -2353,9 +2353,9 @@ where
     M: FnMut(&T) -> Option<O> + Send + 'static,
     I: Fn() -> O + Send + Sync + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
 
     var_filter_map_impl(source, map, fallback)
@@ -2379,9 +2379,9 @@ where
     M: FnMut(&T) -> Option<O> + Send + 'static,
     I: Fn() -> O + Send + Sync + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
 
     var_filter_map_ctx_impl(source, map, fallback)
@@ -2409,9 +2409,9 @@ where
     M: FnMut(&T) -> Option<O> + Send + 'static,
     I: Fn() -> O + Send + Sync + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
 
     if source.is_contextual() {
@@ -2431,11 +2431,11 @@ where
     B: FnMut(&O) -> Option<T> + Send + 'static,
     I: Fn() -> O + Send + Sync + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map_back: Box<dyn FnMut(&O) -> Option<T> + Send + 'static> = Box::new(map_back);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
 
     var_filter_map_bidi_impl(source, map, map_back, fallback)
@@ -2461,11 +2461,11 @@ where
     B: FnMut(&O) -> Option<T> + Send + 'static,
     I: Fn() -> O + Send + Sync + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map_back: Box<dyn FnMut(&O) -> Option<T> + Send + 'static> = Box::new(map_back);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
 
     var_filter_map_bidi_ctx_impl(source, map, map_back, fallback)
@@ -2498,11 +2498,11 @@ where
     B: FnMut(&O) -> Option<T> + Send + 'static,
     I: Fn() -> O + Send + Sync + 'static,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map: Box<dyn FnMut(&T) -> Option<O> + Send + 'static> = Box::new(map);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let map_back: Box<dyn FnMut(&O) -> Option<T> + Send + 'static> = Box::new(map_back);
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let fallback: Box<dyn Fn() -> O + Send + Sync + 'static> = Box::new(fallback);
 
     if source.is_contextual() {
@@ -2758,7 +2758,7 @@ where
     if input.capabilities().is_always_static() || output.capabilities().is_always_read_only() {
         VarHandle::dummy()
     } else {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let update_output: Box<dyn FnMut(&I, &AnyVarHookArgs, <V::Downgrade as WeakVar<O>>::Upgrade) + Send + 'static> =
             Box::new(update_output);
 
