@@ -1,5 +1,7 @@
 # Unpublished
 
+* Fix docs.rs build for `zng` and `zng-wgt-material-icons`.
+* 
 
 # 0.3.0
 

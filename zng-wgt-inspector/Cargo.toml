@@ -50,3 +50,6 @@ zng-color = { path = "../zng-color", version = "0.2.4" }
 serde = { version = "1.0", features = ["derive"] }
 tracing = "0.1"
 parking_lot = "0.12"
+
+[package.metadata.docs.rs]
+all-features = true

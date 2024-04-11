@@ -67,3 +67,6 @@ sha2 = { version = "0.10", optional = true }
 base64 = { version = "0.22", optional = true }
 fs4 = { version = "0.8", optional = true }
 remove_dir_all = { version = "0.8", optional = true }
+
+[package.metadata.docs.rs]
+all-features = true

@@ -105,4 +105,5 @@ unic-langid = { version = "0.9", features = ["serde"] }
 unicase = "2.7"
 
 [package.metadata.docs.rs]
+all-features = true
 rustdoc-args = [ "--html-in-header", "doc/html-in-header.html" ]

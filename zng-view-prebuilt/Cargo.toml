@@ -26,3 +26,6 @@ libloading = "0.8"
 hashers = "1.0"
 base64 = "0.22"
 home = "0.5"
+
+[package.metadata.docs.rs]
+all-features = true
