@@ -153,9 +153,9 @@ impl AppExtension for L10nManager {
 /// # Commend for `other`.
 /// other = other message
 /// ```
-/// 
+///
 /// You an install the scraper tool using cargo:
-/// 
+///
 /// ```console
 /// cargo install zng-l10n-scraper
 /// ```
