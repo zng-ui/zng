@@ -2548,7 +2548,7 @@ impl WidgetBuilding {
 
                         #[cfg(feature = "trace_wgt_item")]
                         if self.trace_wgt_item {
-                        let name = args.property().name;
+                            let name = args.property().name;
                             node = node.trace(|mtd| crate::update::UpdatesTrace::property_span(name, mtd.mtd_name()));
                         }
                     }

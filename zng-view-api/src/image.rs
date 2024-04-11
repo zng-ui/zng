@@ -108,7 +108,11 @@ impl ImageDownscale {
             let w_ratio = n_width as f64 / width as f64;
             let h_ratio = n_height as f64 / height as f64;
 
-            let ratio = if fill { f64::max(w_ratio, h_ratio) } else { f64::min(w_ratio, h_ratio) };
+            let ratio = if fill {
+                f64::max(w_ratio, h_ratio)
+            } else {
+                f64::min(w_ratio, h_ratio)
+            };
 
             let nw = max((width as f64 * ratio).round() as u64, 1);
             let nh = max((height as f64 * ratio).round() as u64, 1);
