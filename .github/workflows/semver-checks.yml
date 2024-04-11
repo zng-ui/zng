@@ -1,10 +1,10 @@
-name: semver-checks
+name: Find Breaking Changes
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-semver-checks:
+  semver-checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

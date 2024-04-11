@@ -828,7 +828,7 @@ fn ra_check(mut args: Vec<&str>) {
 
 // do publish [--list]
 //            [--diff [-g glob] --all]
-//            [--bump <minor|patch> <CRATE..>]
+//            [--bump <minor|patch> <CRATE..> --dry-run]
 //            [--check]
 //            [--test]
 //    Manage crate versions and publish.
@@ -839,10 +839,10 @@ fn ra_check(mut args: Vec<&str>) {
 //       Print all publishable crates that changed since last publish.
 //    publish --diff --all
 //       Print all changed files in publishable crates.
-//    publish --bump minor "crate-name"
-//       Increment the minor version of the crates and dependents.
-//    publish --bump patch "cate-name" --dry-run
-//       Only prints the version changes.
+//    publish --bump patch "crate1" "crate2"
+//       Increment the patch version of the named crates and of dependents.
+//    publish --bump minor "crate1" "crate2"
+//       Increment the minor of the named crates only.
 //    publish --check
 //       Print all publishable crates that need to be published.
 //    publish --test
@@ -895,11 +895,13 @@ fn publish(mut args: Vec<&str>) {
             }
         }
     } else if let Some(values) = take_option(&mut args, &["--bump"], "minor|patch crate") {
+        let mut bump_deps = false;
         let bump = match values[0] {
             "patch" => {
                 fn bump(v: &mut (u32, u32, u32)) {
                     v.2 += 1;
                 }
+                bump_deps = true;
                 bump
             }
             "minor" => {
@@ -929,7 +931,7 @@ fn publish(mut args: Vec<&str>) {
         }
 
         // include dependents.
-        if !all_crates {
+        if !all_crates && bump_deps {
             let mut dependents_start = crates.len();
             let mut search = crates.clone();
             loop {
