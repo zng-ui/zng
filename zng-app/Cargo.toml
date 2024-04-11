@@ -18,7 +18,7 @@ default = ["ipc", "debug_default"]
 # 
 # Enabled by default.
 ipc = ["zng-view-api/ipc"]
-# Enable the `dyn_*`, `inspector` features for debug builds only.
+# Enable the `"dyn_*""`, `"inspector"` features for debug builds only.
 #
 # Enabled by default.
 debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]

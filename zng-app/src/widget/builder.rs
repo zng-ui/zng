@@ -2005,11 +2005,11 @@ impl WidgetBuilder {
     ///
     /// Runs all build actions, but ignores custom build.
     pub fn default_build(self) -> BoxedUiNode {
-        #[cfg(inspector)]
+        #[cfg(feature = "inspector")]
         let builder = self.clone();
 
         let mut building = WidgetBuilding {
-            #[cfg(inspector)]
+            #[cfg(feature = "inspector")]
             builder: Some(builder),
             #[cfg(feature = "trace_widget")]
             trace_widget: true,
@@ -2063,7 +2063,7 @@ impl ops::DerefMut for WidgetBuilder {
 ///
 /// [build action]: WidgetBuilder::push_build_action
 pub struct WidgetBuilding {
-    #[cfg(inspector)]
+    #[cfg(feature = "inspector")]
     builder: Option<WidgetBuilder>,
     #[cfg(feature = "trace_widget")]
     trace_widget: bool,
@@ -2095,7 +2095,7 @@ impl WidgetBuilding {
     /// Don't insert the inspector node and inspector metadata on build.
     ///
     /// The inspector metadata is inserted by default when `feature="inspector"` is active.
-    #[cfg(inspector)]
+    #[cfg(feature = "inspector")]
     pub fn disable_inspector(&mut self) {
         self.builder = None;
     }
@@ -2178,7 +2178,7 @@ impl WidgetBuilding {
     /// Flags the property as captured and returns a reference to it.
     ///
     /// Note that captured properties are not instantiated in the final build, but they also are not removed like *unset*.
-    /// A property can be "captured" more then once, and if the `inspector` feature is enabled they can be inspected.
+    /// A property can be "captured" more then once, and if the `"inspector"` feature is enabled they can be inspected.
     pub fn capture_property(&mut self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
         self.capture_property_impl(property_id)
     }
@@ -2536,7 +2536,7 @@ impl WidgetBuilding {
         // sort by group, index and insert index.
         self.items.sort_unstable_by_key(|b| b.sort_key());
 
-        #[cfg(inspector)]
+        #[cfg(feature = "inspector")]
         let mut inspector_items = Vec::with_capacity(self.p.items.len());
 
         let mut node = self.child.take().unwrap_or_else(|| FillUiNode.boxed());
@@ -2553,7 +2553,7 @@ impl WidgetBuilding {
                         }
                     }
 
-                    #[cfg(inspector)]
+                    #[cfg(feature = "inspector")]
                     {
                         if args.property().inputs.iter().any(|i| matches!(i.kind, InputKind::Var)) {
                             node = crate::widget::inspector::actualize_var_info(node, args.id()).boxed();
@@ -2570,19 +2570,19 @@ impl WidgetBuilding {
                         node = node.trace(move |mtd| crate::update::UpdatesTrace::intrinsic_span(name, mtd.mtd_name()));
                     }
 
-                    #[cfg(inspector)]
+                    #[cfg(feature = "inspector")]
                     inspector_items.push(crate::widget::inspector::InstanceItem::Intrinsic {
                         group: position.group,
                         name,
                     });
 
-                    #[cfg(not(inspector))]
+                    #[cfg(not(feature = "inspector"))]
                     let _ = position;
                 }
             }
         }
 
-        #[cfg(inspector)]
+        #[cfg(feature = "inspector")]
         if let Some(builder) = self.builder {
             node = crate::widget::inspector::insert_widget_builder_info(
                 node,

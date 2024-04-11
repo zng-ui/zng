@@ -337,14 +337,14 @@ impl fmt::Display for UiNodeOpMethod {
 /// See also [`match_node_list`] that delegates to multiple children, [`match_node_leaf`] that declares a leaf node (no child)
 /// and [`match_widget`] that can extend a widget node.
 ///
-/// Note that the child type is changed to [`BoxedUiNode`] when build with the `dyn_node` feature, if you want to access the
+/// Note that the child type is changed to [`BoxedUiNode`] when build with the `feature = "dyn_node"`, if you want to access the
 /// child directly using [`MatchNodeChild::child`] you can use [`match_node_typed`] instead.
 ///
 /// [`match_node_typed`]: fn@match_node_typed
 /// [`match_widget`]: fn@match_widget
-#[cfg(dyn_node)]
+#[cfg(feature = "dyn_node")]
 pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<BoxedUiNode>, UiNodeOp) + Send + 'static) -> impl UiNode {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let closure: Box<dyn FnMut(&mut MatchNodeChild<BoxedUiNode>, UiNodeOp) + Send> = Box::new(closure);
 
     match_node_impl(child.boxed(), closure)
@@ -404,12 +404,12 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<B
 /// See also [`match_node_list`] that delegates to multiple children, [`match_node_leaf`] that declares a leaf node (no child)
 /// and [`match_widget`] that can extend a widget node.
 ///
-/// Note that the child type is changed to [`BoxedUiNode`] when build with the `dyn_node` feature, if you want to access the
+/// Note that the child type is changed to [`BoxedUiNode`] when build with the `feature = "dyn_node"`, if you want to access the
 /// child directly using [`MatchNodeChild::child`] you can use [`match_node_typed`] instead.
 ///
 /// [`match_node_typed`]: fn@match_node_typed
 /// [`match_widget`]: fn@match_widget
-#[cfg(not(dyn_node))]
+#[cfg(not(feature = "dyn_node"))]
 pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<C>, UiNodeOp) + Send + 'static) -> impl UiNode {
     match_node_typed(child, closure)
 }
@@ -418,7 +418,7 @@ pub fn match_node<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<C
 ///
 /// [`match_node`]: fn@match_node
 pub fn match_node_typed<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<C>, UiNodeOp) + Send + 'static) -> impl UiNode {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let closure: Box<dyn FnMut(&mut MatchNodeChild<C>, UiNodeOp) + Send> = Box::new(closure);
 
     match_node_impl(child, closure)
@@ -578,7 +578,7 @@ impl<C: UiNode> MatchNodeChild<C> {
     ///
     /// Note that if you delegate using this reference you must call [`delegated`].
     ///
-    /// **Warning:** that [`match_node`] changes the child type to [`BoxedUiNode`] when build with the `dyn_node` feature.
+    /// **Warning:** that [`match_node`] changes the child type to [`BoxedUiNode`] when build with the `"dyn_node"` feature.
     /// To get a consistent child type use the [`BoxedUiNode`] directly or use [`match_node_typed`].
     ///
     /// [`delegated`]: Self::delegated

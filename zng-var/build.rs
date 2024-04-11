@@ -4,7 +4,6 @@ fn main() {
             if !cfg!(feature = $feature) {
                 println!(concat!("cargo:rustc-cfg=feature=\"", $feature, "\""))
             }
-            println!(concat!("cargo:rustc-cfg=", $feature))
         };
     }
 

@@ -117,7 +117,7 @@ pub use zng_ext_window::{
 pub mod cmd {
     pub use zng_ext_window::cmd::*;
 
-    #[cfg(inspector)]
+    #[cfg(feature = "inspector")]
     pub use zng_wgt_inspector::INSPECT_CMD;
 }
 

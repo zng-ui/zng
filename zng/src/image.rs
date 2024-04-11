@@ -75,7 +75,7 @@ pub use zng_ext_image::{
     ImageSource, ImageSourceFilter, ImageVar, Img, PathFilter, IMAGES, IMAGE_RENDER,
 };
 
-#[cfg(http)]
+#[cfg(feature = "http")]
 pub use zng_ext_image::UriFilter;
 
 pub use zng_wgt_image::{

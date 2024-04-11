@@ -82,9 +82,9 @@ pub fn bytes_channel() -> (IpcBytesSender, IpcBytesReceiver) {
 
 /// Immutable shared memory that can be send fast over IPC.
 ///
-/// # `not(ipc)`
+/// # `not(feature="ipc")`
 ///
-/// If the default `ipc` feature is disabled this is only a `Vec<u8>`.
+/// If the default `"ipc"` feature is disabled this is only a `Vec<u8>`.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IpcBytes {
     // `IpcSharedMemory` cannot have zero length, we use `None` in this case.
@@ -127,7 +127,7 @@ impl IpcBytes {
         }
     }
 
-    /// If the `ipc` feature is enabled copy the bytes to a new shared memory region, if not
+    /// If the `"ipc"` feature is enabled copy the bytes to a new shared memory region, if not
     /// just wraps the `bytes` in a shared pointer.
     pub fn from_vec(bytes: Vec<u8>) -> Self {
         #[cfg(feature = "ipc")]
@@ -143,7 +143,7 @@ impl IpcBytes {
 
     /// Copy the shared bytes to a new vec.
     ///
-    /// If the `ipc` feature is not enabled and `self` is the only reference this operation is zero-cost.
+    /// If the `"ipc"` feature is not enabled and `self` is the only reference this operation is zero-cost.
     pub fn to_vec(self) -> Vec<u8> {
         #[cfg(feature = "ipc")]
         {

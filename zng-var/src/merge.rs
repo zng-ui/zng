@@ -160,7 +160,7 @@ impl<T: VarValue> ArcMergeVar<T> {
             let new_value = (m.merge)(&m.inputs);
             {
                 let modify = |v: &mut VarModify<T>| v.set(new_value);
-                #[cfg(dyn_closure)]
+                #[cfg(feature = "dyn_closure")]
                 let modify = Box::new(modify);
                 rc_merge.value.apply_modify(modify)
             };

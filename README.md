@@ -77,7 +77,7 @@ depending on the current thread.
 
 These features are enabled by default:
 
-- **`debug_default`** — Enable the `dyn_*` and `inspector` features for debug builds only.
+- **`debug_default`** — Enable the `"dyn_*"` and `"inspector"` features for debug builds only.
 - **`ipc`** — Enables pre-build views and connecting to views running in another process.
 - **`view_software`** — Enables software renderer fallback in the default view-process (`"view"`).
 

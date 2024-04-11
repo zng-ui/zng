@@ -22,7 +22,7 @@ ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc"]
 # Enables http tasks.
 http = ["zng-task/http", "zng-wgt/http", "zng-ext-image/http"]
 
-# Enable the `dyn_*`, `inspector` features for debug builds only.
+# Enable the `"dyn_*"`, `"inspector"` features for debug builds only.
 #
 # Enabled by default.
 debug_default = [

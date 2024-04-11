@@ -1036,7 +1036,7 @@ impl WidgetInfo {
 
         let _ = write!(&mut s, "{:?}/", self.tree.window_id());
         for w in ws {
-            #[cfg(inspector)]
+            #[cfg(feature = "inspector")]
             {
                 use crate::widget::inspector::*;
                 if let Some(info) = w.inspector_info() {
@@ -1059,7 +1059,7 @@ impl WidgetInfo {
                 }
             }
 
-            #[cfg(not(inspector))]
+            #[cfg(not(feature = "inspector"))]
             {
                 let _ = write!(&mut s, "/{}", w.id());
             }
@@ -1072,7 +1072,7 @@ impl WidgetInfo {
     ///
     /// If the inspector metadata is present the widget type is included.
     pub fn trace_id(&self) -> Txt {
-        #[cfg(inspector)]
+        #[cfg(feature = "inspector")]
         {
             use crate::widget::inspector::*;
             if let Some(info) = self.inspector_info() {

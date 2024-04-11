@@ -996,7 +996,7 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 }
 
-#[cfg(dyn_app_extension)]
+#[cfg(feature = "dyn_app_extension")]
 impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
     fn init(&mut self) {
         for ext in self {
@@ -1155,7 +1155,7 @@ impl APP {
 
 impl APP {
     /// Starts building an application with no extensions.
-    #[cfg(dyn_app_extension)]
+    #[cfg(feature = "dyn_app_extension")]
     pub fn minimal(&self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         #[cfg(debug_assertions)]
         print_tracing(tracing::Level::INFO);
@@ -1172,7 +1172,7 @@ impl APP {
     }
 
     /// Starts building an application with no extensions.
-    #[cfg(not(dyn_app_extension))]
+    #[cfg(not(feature = "dyn_app_extension"))]
     pub fn minimal(&self) -> AppExtended<()> {
         #[cfg(debug_assertions)]
         print_tracing(tracing::Level::INFO);
@@ -1198,7 +1198,7 @@ pub struct AppExtended<E: AppExtension> {
     // cleanup on drop.
     _cleanup: AppScope,
 }
-#[cfg(dyn_app_extension)]
+#[cfg(feature = "dyn_app_extension")]
 impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     /// Includes an application extension.
     pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
@@ -1243,7 +1243,7 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
 }
 
 // Monomorphize dyn app. Without this the entire RunningApp code is generic that must build on the dependent crates.
-#[cfg(dyn_app_extension)]
+#[cfg(feature = "dyn_app_extension")]
 impl<E: AppExtension> AppExtended<E> {
     fn cast_app(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         let app: Box<dyn std::any::Any> = Box::new(self);
@@ -1269,7 +1269,7 @@ impl<E: AppExtension> AppExtended<E> {
     }
 }
 
-#[cfg(not(dyn_app_extension))]
+#[cfg(not(feature = "dyn_app_extension"))]
 impl<E: AppExtension> AppExtended<E> {
     /// Includes an application extension.
     pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
@@ -1337,7 +1337,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// The `start` task runs in a [`UiTask`] in the app context, note that it only needs to start the app, usually
     /// by opening a window, the app will keep running after `start` is finished.
     pub fn run(self, start: impl Future<Output = ()> + Send + 'static) {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let start = Box::pin(start);
         self.run_impl(start)
     }

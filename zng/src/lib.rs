@@ -781,13 +781,13 @@ mod defaults {
     use zng_ext_undo::UndoManager;
     use zng_ext_window::WindowManager;
 
-    #[cfg(dyn_app_extension)]
+    #[cfg(feature = "dyn_app_extension")]
     macro_rules! DefaultsAppExtended {
         () => {
             AppExtended<Vec<Box<dyn zng_app::AppExtensionBoxed>>>
         }
     }
-    #[cfg(not(dyn_app_extension))]
+    #[cfg(not(feature = "dyn_app_extension"))]
     macro_rules! DefaultsAppExtended {
         () => {
             AppExtended<impl AppExtension>
@@ -854,7 +854,7 @@ mod defaults {
             zng_ext_window::WINDOWS.register_root_extender(|a| {
                 let child = a.root;
 
-                #[cfg(inspector)]
+                #[cfg(feature = "inspector")]
                 let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
 
                 // setup COLOR_SCHEME_VAR for all windows, this is not done in `Window!` because

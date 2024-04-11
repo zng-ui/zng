@@ -306,27 +306,27 @@ impl VarMeta {
     }
 }
 
-#[cfg(dyn_closure)]
+#[cfg(feature = "dyn_closure")]
 struct VarDataInner {
     value: Box<dyn crate::AnyVarValue>,
     meta: VarMeta,
 }
 
-#[cfg(not(dyn_closure))]
+#[cfg(not(feature = "dyn_closure"))]
 struct VarDataInner<T> {
     value: T,
     meta: VarMeta,
 }
 
-#[cfg(dyn_closure)]
+#[cfg(feature = "dyn_closure")]
 pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner>, std::marker::PhantomData<T>);
 
-#[cfg(not(dyn_closure))]
+#[cfg(not(feature = "dyn_closure"))]
 pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner<T>>);
 
 impl<T: VarValue> VarData<T> {
     pub fn new(value: T) -> Self {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         let value = Box::new(value);
         let inner = RwLock::new(VarDataInner {
             value,
@@ -337,23 +337,23 @@ impl<T: VarValue> VarData<T> {
             },
         });
 
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         {
             Self(inner, std::marker::PhantomData)
         }
 
-        #[cfg(not(dyn_closure))]
+        #[cfg(not(feature = "dyn_closure"))]
         {
             Self(inner)
         }
     }
 
     pub fn into_value(self) -> T {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         {
             *self.0.into_inner().value.into_any().downcast::<T>().unwrap()
         }
-        #[cfg(not(dyn_closure))]
+        #[cfg(not(feature = "dyn_closure"))]
         {
             self.0.into_inner().value
         }
@@ -361,12 +361,12 @@ impl<T: VarValue> VarData<T> {
 
     /// Read the value.
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        #[cfg(dyn_closure)]
+        #[cfg(feature = "dyn_closure")]
         {
             f(self.0.read().value.as_any().downcast_ref::<T>().unwrap())
         }
 
-        #[cfg(not(dyn_closure))]
+        #[cfg(not(feature = "dyn_closure"))]
         {
             f(&self.0.read().value)
         }
@@ -392,7 +392,7 @@ impl<T: VarValue> VarData<T> {
         self.0.write().meta.animation.hook_animation_stop(handler)
     }
 
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     pub fn apply_modify(&self, modify: Box<dyn FnOnce(&mut VarModify<T>) + 'static>) {
         apply_modify(
             &self.0,
@@ -414,13 +414,13 @@ impl<T: VarValue> VarData<T> {
         )
     }
 
-    #[cfg(not(dyn_closure))]
+    #[cfg(not(feature = "dyn_closure"))]
     pub fn apply_modify(&self, modify: impl FnOnce(&mut VarModify<T>) + 'static) {
         apply_modify(&self.0, modify)
     }
 }
 
-#[cfg(dyn_closure)]
+#[cfg(feature = "dyn_closure")]
 fn apply_modify(
     inner: &RwLock<VarDataInner>,
     modify: Box<
@@ -478,7 +478,7 @@ fn apply_modify(
     }
 }
 
-#[cfg(not(dyn_closure))]
+#[cfg(not(feature = "dyn_closure"))]
 fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnce(&mut VarModify<T>)) {
     let mut data = inner.write();
     if data.meta.skip_modify() {
