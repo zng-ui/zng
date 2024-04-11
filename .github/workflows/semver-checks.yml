@@ -1,0 +1,13 @@
+name: semver-checks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-semver-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          shared-key: zng-semver-checks
