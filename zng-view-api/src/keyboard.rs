@@ -10,7 +10,7 @@ use zng_txt::Txt;
 /// The exact values vary from platform to platform (which is part of why this is a per-platform
 /// enum), but the values are primarily tied to the key's physical location on the keyboard.
 ///
-/// This enum is primarily used to store raw keycodes when Winit doesn't map a given native
+/// This enum is primarily used to store raw key codes when Winit doesn't map a given native
 /// physical key identifier to a meaningful [`KeyCode`] variant. In the presence of identifiers we
 /// haven't mapped for you yet, this lets you use [`KeyCode`] to:
 ///

@@ -231,7 +231,7 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
 }
 
-/// Widget deinitialized.
+/// Widget deinited.
 ///
 /// This property calls `handler` when the widget deinits, after the widget content deinits. Note that
 /// widgets can be reinitialized so the `handler` can be called more then once,
