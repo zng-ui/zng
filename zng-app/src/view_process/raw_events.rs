@@ -52,11 +52,11 @@ event_args! {
 
         /// Semantic key.
         ///
-        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERT keyboards, the modifiers are not applied.
+        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERTY keyboards, the modifiers are not applied.
         pub key: Key,
         /// Semantic key modified by the current active modifiers.
         ///
-        /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERT keyboards, the modifiers are applied.
+        /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERTY keyboards, the modifiers are applied.
         pub key_modified: Key,
 
         /// Text typed.
@@ -392,7 +392,7 @@ event_args! {
         pub device_id: DeviceId,
 
         /// Pressure level between 0 and 1.
-        pub pressue: Factor,
+        pub pressure: Factor,
 
         /// Click level.
         pub stage: i64,

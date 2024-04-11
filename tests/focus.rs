@@ -1051,7 +1051,7 @@ pub fn window_blur_focus() {
 }
 
 #[test]
-pub fn focused_removed_by_interacivity() {
+pub fn focused_removed_by_interactivity() {
     let app = TestApp::start();
     let interactive = var(true);
     focused_removed_test(

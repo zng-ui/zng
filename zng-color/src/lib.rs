@@ -895,15 +895,15 @@ impl ColorPair {
     /// Overlay white with `highlight` amount as alpha over the [`dark`] color.
     ///
     /// [`dark`]: ColorPair::dark
-    pub fn highlight_dark(self, hightlight: impl Into<Factor>) -> Rgba {
-        colors::WHITE.with_alpha(hightlight.into()).mix_normal(self.dark)
+    pub fn highlight_dark(self, highlight: impl Into<Factor>) -> Rgba {
+        colors::WHITE.with_alpha(highlight.into()).mix_normal(self.dark)
     }
 
     /// Overlay black with `highlight` amount as alpha over the [`light`] color.
     ///
     /// [`light`]: ColorPair::light
-    pub fn highlight_light(self, hightlight: impl Into<Factor>) -> Rgba {
-        colors::BLACK.with_alpha(hightlight.into()).mix_normal(self.light)
+    pub fn highlight_light(self, highlight: impl Into<Factor>) -> Rgba {
+        colors::BLACK.with_alpha(highlight.into()).mix_normal(self.light)
     }
 
     /// Gets the color for the scheme.

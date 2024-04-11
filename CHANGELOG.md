@@ -1,6 +1,7 @@
 # Unpublished
 
-* 
+* **Breaking:** Fix typos in public function names, struct members and enum variants.
+* Fix cfg features not enabling because of typos.
 
 # 0.2.5
 

@@ -902,11 +902,11 @@ where
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsynAppHn<A> = Box<dyn FnMut(A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+type BoxedAsyncAppHn<A> = Box<dyn FnMut(A, Box<dyn AppWeakHandle>) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
-pub fn async_app_hn<A, F, H>(mut handler: H) -> AsyncFnMutAppHandler<BoxedAsynAppHn<A>>
+pub fn async_app_hn<A, F, H>(mut handler: H) -> AsyncFnMutAppHandler<BoxedAsyncAppHn<A>>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
@@ -1075,11 +1075,11 @@ where
 }
 
 #[cfg(dyn_closure)]
-type BoxedAsynAppHnOnce<A> = Box<dyn FnOnce(A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
+type BoxedAsyncAppHnOnce<A> = Box<dyn FnOnce(A) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 
 #[doc(hidden)]
 #[cfg(dyn_closure)]
-pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<BoxedAsynAppHnOnce<A>>
+pub fn async_app_hn_once<A, F, H>(handler: H) -> AsyncFnOnceAppHandler<BoxedAsyncAppHnOnce<A>>
 where
     A: Clone + 'static,
     F: Future<Output = ()> + Send + 'static,
@@ -1156,12 +1156,12 @@ use crate::update::UPDATES;
 use crate::widget::{UiTaskWidget, WIDGET};
 
 /// Widget handler wrapper that filters the events, only delegating to `self` when `filter` returns `true`.
-pub struct FilteWidgetHandler<A, H, F> {
+pub struct FilterWidgetHandler<A, H, F> {
     _args: PhantomData<fn() -> A>,
     handler: H,
     filter: F,
 }
-impl<A, H, F> FilteWidgetHandler<A, H, F>
+impl<A, H, F> FilterWidgetHandler<A, H, F>
 where
     A: Clone + 'static,
     H: WidgetHandler<A>,
@@ -1176,7 +1176,7 @@ where
         }
     }
 }
-impl<A, H, F> WidgetHandler<A> for FilteWidgetHandler<A, H, F>
+impl<A, H, F> WidgetHandler<A> for FilterWidgetHandler<A, H, F>
 where
     A: Clone + 'static,
     H: WidgetHandler<A>,

@@ -1,7 +1,7 @@
 use zng::prelude_wgt::{property, IntoVar, UiNode};
 
 #[property(CONTEXT, default)]
-pub fn missing_default_parethesis(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
+pub fn missing_default_parentheses(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
     let _ = (a, b);
     child
 }

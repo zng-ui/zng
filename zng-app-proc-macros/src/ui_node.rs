@@ -55,7 +55,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
     //
     // we only have one lint, `zng::missing_delegate`.
     let missing_delegate_level =
-        take_missing_deletate_level(&mut input.attrs, &mut errors, &HashSet::new()).unwrap_or(util::LintLevel::Deny);
+        take_missing_delegate_level(&mut input.attrs, &mut errors, &HashSet::new()).unwrap_or(util::LintLevel::Deny);
     let missing_delegate_ident = ident!("missing_delegate");
     let mut forbidden_lints = HashSet::new();
     if let util::LintLevel::Forbid = missing_delegate_level {
@@ -83,7 +83,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
             }
 
             if is_node {
-                let item_level = take_missing_deletate_level(&mut m.attrs, &mut errors, &forbidden_lints).unwrap_or(missing_delegate_level);
+                let item_level = take_missing_delegate_level(&mut m.attrs, &mut errors, &forbidden_lints).unwrap_or(missing_delegate_level);
                 node_items_missing_del_level.push(item_level);
             }
         }
@@ -634,7 +634,7 @@ impl<'ast> Visit<'ast> for AutoSubsValidator {
 }
 
 /// Removes and returns the `zng::missing_delegate` level.
-fn take_missing_deletate_level(
+fn take_missing_delegate_level(
     attrs: &mut Vec<Attribute>,
     errors: &mut util::Errors,
     forbidden: &HashSet<&Ident>,

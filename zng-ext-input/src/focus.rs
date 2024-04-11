@@ -117,7 +117,7 @@ impl FocusChangedArgs {
     }
 
     /// If the focus is still in the same widget but [`highlight`](FocusChangedArgs::highlight) changed.
-    pub fn is_hightlight_changed(&self) -> bool {
+    pub fn is_highlight_changed(&self) -> bool {
         self.prev_focus == self.new_focus
     }
 

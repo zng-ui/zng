@@ -1123,7 +1123,7 @@ impl EditableUiNodeList {
         self.ctrl.clone()
     }
 
-    fn fullfill_requests(&mut self, observer: &mut dyn UiNodeListObserver) {
+    fn fulfill_requests(&mut self, observer: &mut dyn UiNodeListObserver) {
         if let Some(r) = self.ctrl.take_requests() {
             if r.clear {
                 // if reset
@@ -1343,7 +1343,7 @@ impl UiNodeList for EditableUiNodeList {
 
     fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
         self.vec.update_all(updates, &mut ());
-        self.fullfill_requests(observer);
+        self.fulfill_requests(observer);
     }
 
     fn measure_each<F, S>(&mut self, wm: &mut WidgetMeasure, measure: F, fold_size: S) -> PxSize
@@ -1464,7 +1464,7 @@ impl EditableUiNodeListRef {
 
     /// Request an update for the removal of the widget identified by `id`.
     ///
-    /// The widget will be deinitialized, dropped and the info tree will update. Nothing happens
+    /// The widget will be deinited, dropped and the info tree will update. Nothing happens
     /// if the widget is not found.
     pub fn remove(&self, id: impl Into<WidgetId>) {
         fn remove_impl(id: WidgetId) -> impl FnMut(&mut BoxedUiNode) -> bool + Send + 'static {
@@ -1475,7 +1475,7 @@ impl EditableUiNodeListRef {
 
     /// Request a filtered mass removal of nodes in the list.
     ///
-    /// Each node not retained will be deinitialized, dropped and the info tree will update if any was removed.
+    /// Each node not retained will be deinited, dropped and the info tree will update if any was removed.
     ///
     /// Note that the `predicate` may be called on the same node multiple times or called in any order.
     pub fn retain(&self, predicate: impl FnMut(&mut BoxedUiNode) -> bool + Send + 'static) {

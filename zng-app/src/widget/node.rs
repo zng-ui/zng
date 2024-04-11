@@ -698,17 +698,17 @@ where
         // fold a tuple of `(wm, size)`
         let (pwm, size) = self_.par_fold_reduce(
             || (wm.parallel_split(), PxSize::zero()),
-            |(mut awm, asize), i, n| {
-                let bsize = measure(i, n, &mut awm);
-                (awm, fold_size(asize, bsize))
+            |(mut a_wm, a_size), i, n| {
+                let b_size = measure(i, n, &mut a_wm);
+                (a_wm, fold_size(a_size, b_size))
             },
-            |(mut awm, asize), (bwm, bsize)| {
+            |(mut awm, a_size), (bwm, b_size)| {
                 (
                     {
                         awm.parallel_fold(bwm);
                         awm
                     },
-                    fold_size(asize, bsize),
+                    fold_size(a_size, b_size),
                 )
             },
         );
@@ -745,17 +745,17 @@ where
         // fold a tuple of `(wl, size)`
         let (pwl, size) = self_.par_fold_reduce(
             || (wl.parallel_split(), PxSize::zero()),
-            |(mut awl, asize), i, n| {
-                let bsize = layout(i, n, &mut awl);
-                (awl, fold_size(asize, bsize))
+            |(mut awl, a_size), i, n| {
+                let b_size = layout(i, n, &mut awl);
+                (awl, fold_size(a_size, b_size))
             },
-            |(mut awl, asize), (bwl, bsize)| {
+            |(mut awl, a_size), (bwl, b_size)| {
                 (
                     {
                         awl.parallel_fold(bwl);
                         awl
                     },
-                    fold_size(asize, bsize),
+                    fold_size(a_size, b_size),
                 )
             },
         );

@@ -825,7 +825,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     grid::cell::row = 1;
                     grid::cell::column = 1;
                     id = "field-authors";
-                    txt = var_from("Jhon Doe");
+                    txt = var_from("John Doe");
                 },
 
                 Label! {

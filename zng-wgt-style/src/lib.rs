@@ -99,7 +99,7 @@ impl<P> StyleMix<P> {
             // 2.a - There was a `style_fn` property, build a "mini widget" that is only the style property
             //       and when condition properties that affect it.
 
-            #[cfg(trace_widget)]
+            #[cfg(feature = "trace_widget")]
             wgt.push_build_action(|wgt| {
                 // avoid double trace as the style builder already inserts a widget tracer.
                 wgt.disable_trace_widget();

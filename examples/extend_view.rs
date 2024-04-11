@@ -281,7 +281,7 @@ pub mod using_display_items {
                 match args.payload.deserialize::<super::api::RenderPayload>() {
                     Ok(mut p) => {
                         if let Some(binding) = p.cursor_binding {
-                            // updateable item
+                            // updatable item
                             match self.updated.entry(binding) {
                                 std::collections::hash_map::Entry::Occupied(e) => {
                                     if args.is_reuse {
@@ -504,10 +504,10 @@ pub mod using_blob {
                         let renderer = &mut *renderer;
 
                         let param = if let Some(binding) = p.cursor_binding {
-                            // updateable item, gets own image
+                            // updatable item, gets own image
                             CustomTaskParams::Bound(binding)
                         } else {
-                            // not updateable item, shares images of same params
+                            // not updatable item, shares images of same params
                             CustomTaskParams::Params(p.size, p.cursor)
                         };
 

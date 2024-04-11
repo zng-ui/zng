@@ -540,7 +540,7 @@ impl<E: AppExtension> RunningApp<E> {
                 }) => {
                     // notify immediately.
                     if is_respawn {
-                        VIEW_PROCESS.on_respawed(generation);
+                        VIEW_PROCESS.on_respawned(generation);
                     }
 
                     VIEW_PROCESS.handle_inited(generation, extensions.clone());
@@ -1542,7 +1542,7 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
         loop {
             if let Some(d) = deadline.0.checked_duration_since(INSTANT.now()) {
                 if matches!(INSTANT.mode(), zng_time::InstantMode::Manual) {
-                    // manual time is probably desynched from `Instant`, so we use `recv_timeout` that
+                    // manual time is probably desynced from `Instant`, so we use `recv_timeout` that
                     // is slightly less precise, but an app in manual mode probably does not care.
                     match self.recv_timeout(d.checked_sub(WORST_SLEEP_ERR).unwrap_or_default()) {
                         Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin

@@ -99,13 +99,13 @@ impl ColorPalettes {
         let _num_color_records = cursor.read_u16::<BigEndian>()?;
         let color_records_array_offset = cursor.read_u32::<BigEndian>()? as u64;
 
-        let color_record_indicies = cursor.position();
+        let color_record_indices = cursor.position();
         let mut colors = Vec::with_capacity(num_palettes as usize * num_palette_entries as usize);
         for i in 0..num_palettes {
-            cursor.set_position(color_record_indicies + i as u64 * size_of::<u16>() as u64);
+            cursor.set_position(color_record_indices + i as u64 * size_of::<u16>() as u64);
 
-            let color_record_indice = cursor.read_u16::<BigEndian>()? as u64;
-            let color_record_offset = color_records_array_offset + color_record_indice * size_of::<(u8, u8, u8, u8)>() as u64;
+            let color_record_index = cursor.read_u16::<BigEndian>()? as u64;
+            let color_record_offset = color_records_array_offset + color_record_index * size_of::<(u8, u8, u8, u8)>() as u64;
 
             cursor.set_position(color_record_offset);
             for _ in 0..num_palette_entries {
@@ -121,7 +121,7 @@ impl ColorPalettes {
         let mut palette_types = vec![];
 
         if version >= 1 {
-            cursor.set_position(color_record_indicies + num_palettes as u64 * size_of::<u16>() as u64);
+            cursor.set_position(color_record_indices + num_palettes as u64 * size_of::<u16>() as u64);
 
             /*
             CPAL version 1

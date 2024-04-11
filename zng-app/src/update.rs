@@ -741,7 +741,7 @@ impl UpdatesTrace {
     }
 
     /// Opens a widget span.
-    #[cfg(trace_widget)]
+    #[cfg(feature = "trace_widget")]
     pub fn widget_span(id: WidgetId, name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         if Self::is_tracing() {
             tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "widget", %id, raw_id = id.get(), name, %node_mtd).entered()
@@ -751,7 +751,7 @@ impl UpdatesTrace {
     }
 
     /// Opens a property span.
-    #[cfg(trace_wgt_item)]
+    #[cfg(feature = "trace_wgt_item")]
     pub fn property_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         if Self::is_tracing() {
             tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "property", name, %node_mtd).entered()
@@ -761,7 +761,7 @@ impl UpdatesTrace {
     }
 
     /// Opens an intrinsic span.
-    #[cfg(trace_wgt_item)]
+    #[cfg(feature = "trace_wgt_item")]
     pub fn intrinsic_span(name: &'static str, node_mtd: &'static str) -> tracing::span::EnteredSpan {
         if Self::is_tracing() {
             tracing::trace_span!(target: UpdatesTrace::UPDATES_TARGET, "intrinsic", name, %node_mtd).entered()
