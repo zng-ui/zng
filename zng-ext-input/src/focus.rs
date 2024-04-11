@@ -1051,13 +1051,13 @@ impl FocusService {
     fn new_focus_for_alt_exit(&mut self, prev_w: WidgetFocusInfo, is_info_retry: bool, highlight: bool) -> Option<WidgetFocusInfo> {
         let (_, return_path) = self.alt_return.as_ref().unwrap();
 
-        let return_interac = return_path.interactivity();
+        let return_int = return_path.interactivity();
         let return_id = return_path.widget_id();
         let info = prev_w.focus_tree();
 
         let r = info.get_or_parent(return_path);
         if let Some(w) = &r {
-            if w.info().id() != return_id && !is_info_retry && return_interac.is_blocked() {
+            if w.info().id() != return_id && !is_info_retry && return_int.is_blocked() {
                 // blocked return may not have unblocked yet
 
                 if let Some(exists) = info.tree().get(return_id) {
@@ -1170,7 +1170,7 @@ impl FocusService {
         widget_id: WidgetId,
         navigation_origin: bool,
         highlight: bool,
-        fallback_to_childs: bool,
+        fallback_to_children: bool,
         fallback_to_parents: bool,
         request: FocusRequest,
     ) -> Option<FocusChangedArgs> {
@@ -1185,7 +1185,7 @@ impl FocusService {
             if w.is_focusable() {
                 let enable = w.enabled_nav_with_frame();
                 target = Some((FocusedInfo::new(w), enable));
-            } else if fallback_to_childs {
+            } else if fallback_to_children {
                 let enable = if navigation_origin {
                     next_origin = Some(widget_id);
                     Some(w.enabled_nav_with_frame())

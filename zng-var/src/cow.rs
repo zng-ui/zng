@@ -94,11 +94,11 @@ impl<T: VarValue, S: Var<T>> ArcCowVar<T, S> {
                         animation,
                     } => {
                         {
-                            let curr_anim = VARS.current_modify();
-                            if curr_anim.importance() < animation.importance() {
+                            let cur_anim = VARS.current_modify();
+                            if cur_anim.importance() < animation.importance() {
                                 return;
                             }
-                            *animation = curr_anim;
+                            *animation = cur_anim;
                         }
 
                         let (notify, new_value, update, tags, custom_importance) = {

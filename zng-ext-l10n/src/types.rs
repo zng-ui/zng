@@ -171,7 +171,7 @@ impl L10nMessageBuilder {
             args,
         } = self;
         LANG_VAR.flat_map(move |l| {
-            L10N_SV.write().localized_messsage(
+            L10N_SV.write().localized_message(
                 l.clone(),
                 file.clone(),
                 id.clone(),

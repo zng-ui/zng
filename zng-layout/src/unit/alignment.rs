@@ -428,7 +428,7 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for Align {
 #[serde(untagged)]
 enum AlignSerde<'s> {
     Named(&'s str),
-    Unamed { x: Factor, x_rtl_aware: bool, y: Factor },
+    Unnamed { x: Factor, x_rtl_aware: bool, y: Factor },
 }
 impl serde::Serialize for Align {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -441,7 +441,7 @@ impl serde::Serialize for Align {
             }
         }
 
-        AlignSerde::Unamed {
+        AlignSerde::Unnamed {
             x: self.x,
             x_rtl_aware: self.x_rtl_aware,
             y: self.y,
@@ -461,7 +461,7 @@ impl<'de> serde::Deserialize<'de> for Align {
                 Some(a) => Ok(a),
                 None => Err(D::Error::custom("unknown align name")),
             },
-            AlignSerde::Unamed { x, x_rtl_aware, y } => Ok(Align { x, x_rtl_aware, y }),
+            AlignSerde::Unnamed { x, x_rtl_aware, y } => Ok(Align { x, x_rtl_aware, y }),
         }
     }
 }

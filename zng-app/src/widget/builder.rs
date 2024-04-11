@@ -2567,7 +2567,7 @@ impl WidgetBuilding {
                     node = new(node);
                     #[cfg(feature = "trace_wgt_item")]
                     if self.trace_wgt_item {
-                        node = node.trace(|mtd| crate::context::UpdatesTrace::intrinsic_span(name, mtd.mtd_name()));
+                        node = node.trace(|mtd| crate::update::UpdatesTrace::intrinsic_span(name, mtd.mtd_name()));
                     }
 
                     #[cfg(inspector)]

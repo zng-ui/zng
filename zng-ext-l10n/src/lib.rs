@@ -339,8 +339,8 @@ impl L10N {
     ///
     /// The lang file resource is lazy loaded and stays in memory only when there are variables alive linked to it, each lang
     /// in the list is matched to available resources if no match is available the `fallback` message is used. The variable
-    /// may temporary contain the `fallback` as lang resources are loaded asynchrony.
-    pub fn localized_messsage(
+    /// may temporary contain the `fallback` as lang resources are loaded asynchronous.
+    pub fn localized_message(
         &self,
         lang: impl Into<Langs>,
         file: impl Into<Txt>,
@@ -351,7 +351,7 @@ impl L10N {
     ) -> BoxedVar<Txt> {
         L10N_SV
             .write()
-            .localized_messsage(lang.into(), file.into(), id.into(), attribute.into(), fallback.into(), args.into())
+            .localized_message(lang.into(), file.into(), id.into(), attribute.into(), fallback.into(), args.into())
     }
 
     /// Gets a handle to the lang file resource.

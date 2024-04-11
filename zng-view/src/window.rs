@@ -1670,7 +1670,7 @@ impl Window {
         if let Some(a) = &self.access {
             // SAFETY: we drop `access` in case of panic.
             let a = std::panic::AssertUnwindSafe(a);
-            let panic = crate::util::catch_supress(|| {
+            let panic = crate::util::catch_suppress(|| {
                 a.update_if_active(|| crate::util::access_tree_update_to_kit(update));
             });
             if let Err(p) = panic {

@@ -978,7 +978,7 @@ pub struct Metrics {
     pub total_time: Duration,
 
     /// If automatic redirect following is enabled, the total time taken for all redirection steps
-    /// including name lookup, connect, pretransfer and transfer before final transaction was started.
+    /// including name lookup, connect, pre-transfer and transfer before final transaction was started.
     pub redirect_time: Duration,
 }
 impl Metrics {

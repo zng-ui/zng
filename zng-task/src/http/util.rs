@@ -144,7 +144,7 @@ impl Drop for TestTempDir {
 }
 #[cfg(test)]
 impl TestTempDir {
-    /// Create temporary directory for the unique teste name.
+    /// Create temporary directory for the unique test name.
     pub fn new(name: &str) -> Self {
         let path = Self::try_target().unwrap_or_else(Self::fallback).join(name);
         std::fs::create_dir_all(&path).unwrap_or_else(|e| panic!("failed to create temp `{}`, {e:?}", path.display()));

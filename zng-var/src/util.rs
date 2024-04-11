@@ -297,11 +297,11 @@ impl VarMeta {
     }
 
     fn skip_modify(&mut self) -> bool {
-        let curr_anim = VARS.current_modify();
-        if curr_anim.importance() < self.animation.importance() {
+        let cur_anim = VARS.current_modify();
+        if cur_anim.importance() < self.animation.importance() {
             return true;
         }
-        self.animation = curr_anim;
+        self.animation = cur_anim;
         false
     }
 }

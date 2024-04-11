@@ -216,14 +216,14 @@ impl std::task::Wake for RayonTask {
 /// operations.
 ///
 /// See [`rayon::join`] for more details about join.
-pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
+pub fn join<A, B, RA, RB>(op_a: A, op_b: B) -> (RA, RB)
 where
     A: FnOnce() -> RA + Send,
     B: FnOnce() -> RB + Send,
     RA: Send,
     RB: Send,
 {
-    self::join_context(move |_| oper_a(), move |_| oper_b())
+    self::join_context(move |_| op_a(), move |_| op_b())
 }
 
 /// Rayon join context with local context.
@@ -232,7 +232,7 @@ where
 /// operations.
 ///
 /// See [`rayon::join_context`] for more details about join.
-pub fn join_context<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
+pub fn join_context<A, B, RA, RB>(op_a: A, op_b: B) -> (RA, RB)
 where
     A: FnOnce(rayon::FnContext) -> RA + Send,
     B: FnOnce(rayon::FnContext) -> RB + Send,
@@ -244,16 +244,16 @@ where
     rayon::join_context(
         move |a| {
             if a.migrated() {
-                ctx.clone().with_context(|| oper_a(a))
+                ctx.clone().with_context(|| op_a(a))
             } else {
-                oper_a(a)
+                op_a(a)
             }
         },
         move |b| {
             if b.migrated() {
-                ctx.clone().with_context(|| oper_b(b))
+                ctx.clone().with_context(|| op_b(b))
             } else {
-                oper_b(b)
+                op_b(b)
             }
         },
     )
@@ -1955,7 +1955,7 @@ pub mod tests {
     }
 
     #[test]
-    pub fn run_wake_imediatly() {
+    pub fn run_wake_immediately() {
         async_test(async {
             run(async {
                 yield_now().await;

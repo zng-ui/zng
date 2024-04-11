@@ -297,7 +297,7 @@ impl VarHook {
 /// This can represent a widget subscriber, a var binding, var app handler or animation, dropping the handler stops
 /// the behavior it represents.
 #[derive(Clone)]
-#[must_use = "var handle stops the behaviour it represents on drop"]
+#[must_use = "var handle stops the behavior it represents on drop"]
 pub struct VarHandle(Option<Arc<VarHandleData>>);
 impl VarHandle {
     /// New handle, the `action` depends on the behavior the handle represents.
@@ -370,7 +370,7 @@ impl Default for VarHandle {
 }
 
 /// Represents a collection of var handles.
-#[must_use = "var handles stops the behaviour they represents on drop"]
+#[must_use = "var handles stops the behavior they represents on drop"]
 #[derive(Clone, Default)]
 pub struct VarHandles(pub Vec<VarHandle>);
 impl VarHandles {

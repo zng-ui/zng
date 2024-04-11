@@ -54,7 +54,7 @@ impl GlContextManager {
 
             let window = window.clone().build(window_target).unwrap();
 
-            let r = util::catch_supress(std::panic::AssertUnwindSafe(|| match config.mode {
+            let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
                 RenderMode::Dedicated => self.create_headed_glutin(id, &window, config.hardware_acceleration),
                 RenderMode::Integrated => self.create_headed_glutin(id, &window, Some(false)),
                 RenderMode::Software => self.create_headed_swgl(id, &window),
@@ -109,7 +109,7 @@ impl GlContextManager {
                 continue;
             }
 
-            let r = util::catch_supress(std::panic::AssertUnwindSafe(|| match config.mode {
+            let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
                 RenderMode::Dedicated => self.create_headless_glutin(id, window_target, config.hardware_acceleration),
                 RenderMode::Integrated => self.create_headless_glutin(id, window_target, Some(false)),
                 RenderMode::Software => self.create_headless_swgl(id),

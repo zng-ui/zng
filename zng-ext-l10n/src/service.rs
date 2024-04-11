@@ -57,7 +57,7 @@ impl L10nService {
         self.app_lang.clone()
     }
 
-    pub fn localized_messsage(
+    pub fn localized_message(
         &mut self,
         langs: Langs,
         file: Txt,

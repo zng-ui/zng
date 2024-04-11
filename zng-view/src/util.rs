@@ -895,7 +895,7 @@ pub(crate) fn winit_physical_key_to_key_code(key: WinitPhysicalKey) -> KeyCode {
 
 thread_local! {
     static SUPPRESS: Cell<bool> = const { Cell::new(false) };
-    static SUPPRESSED_PANIC: RefCell<Option<SupressedPanic>> = const { RefCell::new(None) };
+    static SUPPRESSED_PANIC: RefCell<Option<SuppressedPanic>> = const { RefCell::new(None) };
 }
 
 /// If `true` our custom panic hook must not log anything.
@@ -903,12 +903,12 @@ pub(crate) fn suppress_panic() -> bool {
     SUPPRESS.get()
 }
 
-pub(crate) fn set_supressed_panic(panic: SupressedPanic) {
+pub(crate) fn set_suppressed_panic(panic: SuppressedPanic) {
     SUPPRESSED_PANIC.set(Some(panic));
 }
 
 #[derive(Debug)]
-pub(crate) struct SupressedPanic {
+pub(crate) struct SuppressedPanic {
     pub thread: Txt,
     pub msg: Txt,
     pub file: Txt,
@@ -916,7 +916,7 @@ pub(crate) struct SupressedPanic {
     pub column: u32,
     pub backtrace: Backtrace,
 }
-impl SupressedPanic {
+impl SuppressedPanic {
     pub fn from_hook(info: &std::panic::PanicInfo, backtrace: Backtrace) -> Self {
         let current_thread = std::thread::current();
         let thread = current_thread.name().unwrap_or("<unnamed>");
@@ -959,8 +959,8 @@ impl SupressedPanic {
         .to_txt()
     }
 }
-impl std::error::Error for SupressedPanic {}
-impl fmt::Display for SupressedPanic {
+impl std::error::Error for SuppressedPanic {}
+impl fmt::Display for SuppressedPanic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -971,13 +971,13 @@ impl fmt::Display for SupressedPanic {
 }
 
 /// Like [`std::panic::catch_unwind`], but flags [`suppress_panic`] for our custom panic hook.
-pub(crate) fn catch_supress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> Result<T, Box<SupressedPanic>> {
+pub(crate) fn catch_suppress<T>(f: impl FnOnce() -> T + std::panic::UnwindSafe) -> Result<T, Box<SuppressedPanic>> {
     SUPPRESS.set(true);
     let _cleanup = RunOnDrop::new(|| SUPPRESS.set(false));
     std::panic::catch_unwind(f).map_err(|e| {
         SUPPRESSED_PANIC.with_borrow_mut(|p| match p.take() {
             Some(p) => Box::new(p),
-            None => Box::new(SupressedPanic::from_catch(e)),
+            None => Box::new(SuppressedPanic::from_catch(e)),
         })
     })
 }

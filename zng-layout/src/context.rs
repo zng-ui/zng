@@ -737,7 +737,7 @@ pub enum TextSegmentKind {
     CommonSeparator,
     /// Any non-spacing mark.
     NonSpacingMark,
-    /// Most format characters, control codes, or noncharacters.
+    /// Most format characters, control codes, or non-characters.
     BoundaryNeutral,
 
     /// Emoji chars, components and zero-width-joiner between emoji.

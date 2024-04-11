@@ -383,7 +383,7 @@ pub trait ImageRenderWindowsService: Send + Sync + 'static {
 
     /// Enable frame capture for the window.
     ///
-    /// If `mask` is set captures only the given channel, if not set will capture the full BRGA image.
+    /// If `mask` is set captures only the given channel, if not set will capture the full BGRA image.
     ///
     /// Called inside the [`WINDOW`] context for the new window.
     fn enable_frame_capture_in_window_context(&self, mask: Option<ImageMaskMode>);

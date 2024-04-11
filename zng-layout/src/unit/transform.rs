@@ -411,7 +411,7 @@ impl_from_and_into_var! {
     }
 }
 
-// Matrix decomp. Mostly copied from Servo code.
+// Matrix decomposition. Mostly copied from Servo code.
 // https://github.com/servo/servo/blob/master/components/style/values/animated/transform.rs
 
 type Scale = (f32, f32, f32);
