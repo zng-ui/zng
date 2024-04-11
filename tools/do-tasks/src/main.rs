@@ -826,11 +826,19 @@ fn ra_check(mut args: Vec<&str>) {
     }
 }
 
-// do publish [--list,--bump <minor|patch> <CRATE..>, --check, --test]
+// do publish [--list]
+//            [--diff [-g glob] --all]
+//            [--bump <minor|patch> <CRATE..>]
+//            [--check]
+//            [--test]
 //    Manage crate versions and publish.
 // USAGE:
 //    publish --list
 //       Print all publishable crates and dependencies.
+//    publish --diff
+//       Print all publishable crates that changed since last publish.
+//    publish --diff --all
+//       Print all changed files in publishable crates.
 //    publish --bump minor "crate-name"
 //       Increment the minor version of the crates and dependents.
 //    publish --bump patch "cate-name" --dry-run
@@ -847,6 +855,44 @@ fn publish(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--list"]) {
         for member in &util::publish_members() {
             print(f!("{member}\n"));
+        }
+    } else if take_flag(&mut args, &["--diff"]) {
+        let published_tag = format!("v{}", util::crates_io_latest("zng"));
+        let members = util::publish_members();
+        let git_diff = util::get_git_diff(&published_tag, "master");
+        let mut changed = std::collections::HashMap::new();
+
+        let glob = take_option(&mut args, &["-g"], "<glob>").map(|g| glob::Pattern::new(g[0]).unwrap());
+        let all = take_flag(&mut args, &["--all"]);
+
+        for line in git_diff.lines() {
+            if let Some(g) = &glob {
+                if !g.matches(line) {
+                    continue;
+                }
+            }
+
+            let name = line.split('/').next().unwrap();
+            if members.iter().any(|m| m.name == name) {
+                let changes: &mut Vec<&str> = changed.entry(name).or_default();
+                changes.push(line);
+            }
+        }
+
+        let mut sep = "";
+        for m in members {
+            if let Some(c) = changed.get(&m.name.as_str()) {
+                if all {
+                    print(f!("{sep}"));
+                    sep = "\n";
+
+                    for line in c {
+                        print(f!("{line}\n"));
+                    }
+                } else {
+                    print(f!("{}\n", m.name));
+                }
+            }
         }
     } else if let Some(values) = take_option(&mut args, &["--bump"], "minor|patch crate") {
         let bump = match values[0] {

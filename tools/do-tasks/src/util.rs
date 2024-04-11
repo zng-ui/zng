@@ -108,7 +108,7 @@ pub fn cmd_external(cmd: &str, default_args: &[&str], user_args: &[&str]) {
     {
         // We assume that if not on Windows we are in a Unix based system.
         //
-        // We don't need a delay in Unix because it naturally permits repointing
+        // We don't need a delay in Unix because it naturally permits repainting
         // or removing a file name without affecting the current running file.
         self::cmd(cmd, default_args, user_args);
     }
@@ -812,6 +812,18 @@ fn get_git_log(fmt: &str) -> String {
         .arg("-n")
         .arg("1")
         .arg(fmt)
+        .output()
+        .expect("failed to run `git log ..`");
+
+    String::from_utf8(output.stdout).unwrap()
+}
+
+pub fn get_git_diff(from: &str, to: &str) -> String {
+    let output = std::process::Command::new("git")
+        .arg("diff")
+        .arg(from)
+        .arg(to)
+        .arg("--name-only")
         .output()
         .expect("failed to run `git log ..`");
 
