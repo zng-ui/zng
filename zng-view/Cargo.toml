@@ -1,6 +1,6 @@
 [package]
 name = "zng-view"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -43,9 +43,9 @@ crate-type = ["lib", "cdylib"]
 webrender = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-webrender", version = "0.62.2" }
 swgl = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-swgl", version = "0.1.2", optional = true }
 
-zng-view-api = { path = "../zng-view-api", version = "0.2.3", default-features = false }
-zng-unit = { path = "../zng-unit", version = "0.2.2" }
-zng-txt = { path = "../zng-txt", version = "0.2.2" }
+zng-view-api = { path = "../zng-view-api", version = "0.2.4", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.2.3" }
+zng-txt = { path = "../zng-txt", version = "0.2.3" }
 
 tracing = "0.1"
 gleam = "0.15.0" # matches webrender
@@ -105,7 +105,7 @@ version = "0.48.0"                                          # matches accesskit,
 features = ["Foundation_Collections", "System_UserProfile"]
 
 [target.'cfg(windows)'.dependencies]
-clipboard-win = { version = "5", features = ["std"] }
+clipboard-win = { version = "5.0", features = ["std"] }
 
 [target.'cfg(not(windows))'.dependencies]
 arboard = "3.3"

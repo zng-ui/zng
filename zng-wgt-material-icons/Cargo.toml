@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-material-icons"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -30,10 +30,10 @@ rounded = []
 sharp = []
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.2.3" }
-zng-var = { path = "../zng-var", version = "0.2.3" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.2.4" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.4" }
+zng-app = { path = "../zng-app", version = "0.3.0" }
+zng-var = { path = "../zng-var", version = "0.2.4" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.3.0" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.5" }
 
 [package.metadata.docs.rs]
 rustdoc-args = [
