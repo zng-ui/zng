@@ -186,7 +186,7 @@ impl TouchButtonStyle {
 
 /// Style applied to all [`Button!`] widgets inside [`Menu!`].
 ///
-/// Gives the toggle a *menu-item* look, the checkmark is placed in the icon position.
+/// Gives the toggle a *menu-item* look, the check mark is placed in the icon position.
 ///
 /// [`Button!`]: struct@zng_wgt_button::Button
 /// [`Menu!`]: struct@Menu

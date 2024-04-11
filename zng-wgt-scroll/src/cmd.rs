@@ -160,7 +160,7 @@ command! {
 
     /// Represents the **scroll to rightmost** action.
     pub static SCROLL_TO_RIGHTMOST_CMD = {
-        name: "Scroll to Righmost",
+        name: "Scroll to Rightmost",
         info: "Scroll right to the content right edge.",
         shortcut: [shortcut!(SHIFT+End), shortcut!(CTRL|SHIFT+End)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,

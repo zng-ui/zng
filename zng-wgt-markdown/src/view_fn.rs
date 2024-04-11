@@ -115,7 +115,7 @@ pub struct ListFnArgs {
     pub items: UiNodeVec,
 }
 
-/// Arguments for a markdown list item bullet, checkmark or number.
+/// Arguments for a markdown list item bullet, check mark or number.
 #[derive(Clone, Copy)]
 pub struct ListItemBulletFnArgs {
     /// Nested list depth, starting from zero for items in the outer-list.
@@ -242,7 +242,7 @@ context_var! {
     /// Widget function for a markdown list.
     pub static LIST_FN_VAR: WidgetFn<ListFnArgs> = WidgetFn::new(default_list_fn);
 
-    /// Widget function for a markdown list item bullet, checkmark or number.
+    /// Widget function for a markdown list item bullet, check mark or number.
     pub static LIST_ITEM_BULLET_FN_VAR: WidgetFn<ListItemBulletFnArgs> = WidgetFn::new(default_list_item_bullet_fn);
 
     /// Widget function for a markdown list item content.
