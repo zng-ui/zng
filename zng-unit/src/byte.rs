@@ -286,8 +286,8 @@ impl ByteLength {
     /// From giga-bytes.
     ///
     /// 1 giga-byte equals 1000³ bytes.
-    pub const fn from_giga(giba_bytes: usize) -> Self {
-        Self::new(giba_bytes, 1000usize.pow(3))
+    pub const fn from_giga(giga_bytes: usize) -> Self {
+        Self::new(giga_bytes, 1000usize.pow(3))
     }
 
     /// From tebi-bytes.
@@ -300,8 +300,8 @@ impl ByteLength {
     /// From tera-bytes.
     ///
     /// 1 tera-byte equals 1000^4 bytes.
-    pub const fn from_tera(giba_bytes: usize) -> Self {
-        Self::new(giba_bytes, 1000usize.pow(4))
+    pub const fn from_tera(tera_bytes: usize) -> Self {
+        Self::new(tera_bytes, 1000usize.pow(4))
     }
 }
 

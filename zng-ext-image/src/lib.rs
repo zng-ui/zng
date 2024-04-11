@@ -670,11 +670,11 @@ impl ImagesService {
         if self.download_accept.is_empty() {
             if VIEW_PROCESS.is_available() {
                 let mut r = String::new();
-                let mut fmts = VIEW_PROCESS.image_decoders().unwrap_or_default().into_iter();
-                if let Some(fmt) = fmts.next() {
+                let mut decoders = VIEW_PROCESS.image_decoders().unwrap_or_default().into_iter();
+                if let Some(fmt) = decoders.next() {
                     r.push_str("image/");
                     r.push_str(&fmt);
-                    for fmt in fmts {
+                    for fmt in decoders {
                         r.push_str(",image/");
                         r.push_str(&fmt);
                     }

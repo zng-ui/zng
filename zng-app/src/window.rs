@@ -62,7 +62,7 @@ impl serde::Serialize for WindowId {
         let name = self.name();
         if name.is_empty() {
             use serde::ser::Error;
-            return Err(S::Error::custom("cannot serialize unammed `WindowId`"));
+            return Err(S::Error::custom("cannot serialize unnamed `WindowId`"));
         }
         name.serialize(serializer)
     }

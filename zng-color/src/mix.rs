@@ -244,9 +244,9 @@ macro_rules! impl_mix {
             }
 
             fn desaturate<A: Into<Factor>>(self, amount: A) -> Self {
-                let mut desat = self;
-                desat.saturation = clamp_normal(desat.saturation - (desat.saturation * amount.into().0));
-                desat
+                let mut d = self;
+                d.saturation = clamp_normal(d.saturation - (d.saturation * amount.into().0));
+                d
             }
 
             fn with_lightness<L: Into<Factor>>(mut self, lightness: L) -> Self {

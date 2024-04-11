@@ -793,12 +793,12 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             let bounds = inflate_margin(bounds, scaled_margin);
 
                             // add minimal margin, at current scale to the current bounds
-                            let curr_margin = if zoom.is_some() {
+                            let cur_margin = if zoom.is_some() {
                                 LAYOUT.with_constraints(PxConstraints2d::new_fill_size(current_bounds.size), || margin.layout())
                             } else {
                                 scaled_margin
                             };
-                            let current_bounds = inflate_margin(current_bounds, curr_margin);
+                            let current_bounds = inflate_margin(current_bounds, cur_margin);
 
                             // vertical scroll
                             if bounds.size.height < viewport_size.height {

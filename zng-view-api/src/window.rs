@@ -387,7 +387,7 @@ pub struct WindowRequest {
     /// If the window is see-through in pixels that are not fully opaque.
     pub transparent: bool,
 
-    /// If all or most frames will be *screenshotted*.
+    /// If all or most frames will be *screen captured*.
     ///
     /// If `false` all resources for capturing frame images
     /// are discarded after each screenshot request.

@@ -249,11 +249,11 @@ pub enum Event {
 
         /// Semantic key.
         ///
-        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERT keyboards, the modifiers are not applied.
+        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERTY keyboards, the modifiers are not applied.
         key: Key,
         /// Semantic key modified by the current active modifiers.
         ///
-        /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERT keyboards, the modifiers are applied.
+        /// Pressing `Shift+A` key will produce `Key::Char('A')` in QWERTY keyboards, the modifiers are applied.
         key_modified: Key,
         /// Text typed.
         ///
@@ -450,7 +450,7 @@ pub enum Event {
     /* Config events */
     /// System fonts have changed.
     FontsChanged,
-    /// System text-antialiasing configuration has changed.
+    /// System text anti-aliasing configuration has changed.
     FontAaChanged(FontAntiAliasing),
     /// System double-click definition changed.
     MultiClickConfigChanged(MultiClickConfig),

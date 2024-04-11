@@ -1,1 +1,1 @@
-*This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.*
+This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.

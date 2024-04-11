@@ -366,7 +366,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
             Some(args.highlight)
         } else if args.is_blur(id) {
             Some(false)
-        } else if args.is_hightlight_changed() && args.new_focus.as_ref().map(|p| p.widget_id() == id).unwrap_or(false) {
+        } else if args.is_highlight_changed() && args.new_focus.as_ref().map(|p| p.widget_id() == id).unwrap_or(false) {
             Some(args.highlight)
         } else {
             None
@@ -390,7 +390,7 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: impl IntoVar<bool>) -> imp
             Some(args.highlight)
         } else if args.is_focus_leave(id) {
             Some(false)
-        } else if args.is_hightlight_changed() && args.new_focus.as_ref().map(|p| p.contains(id)).unwrap_or(false) {
+        } else if args.is_highlight_changed() && args.new_focus.as_ref().map(|p| p.contains(id)).unwrap_or(false) {
             Some(args.highlight)
         } else {
             None

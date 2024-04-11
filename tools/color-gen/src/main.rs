@@ -94,7 +94,7 @@ pub mod web_colors {
     }
 
     // credits to https://gist.github.com/raineorshine/10394189
-    const JSON: &str = include_str! {"webcolors.json"};
+    const JSON: &str = include_str! {"web_colors.json"};
 
     #[derive(Deserialize)]
     struct WebColor {

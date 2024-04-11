@@ -86,7 +86,7 @@ impl Controller {
         }
 
         let view_process_exe = view_process_exe.unwrap_or_else(|| {
-            std::env::current_exe().expect("failed to get the current exetuable, consider using an external view-process exe")
+            std::env::current_exe().expect("failed to get the current executable, consider using an external view-process exe")
         });
 
         let (process, request_sender, response_receiver, mut event_receiver) =

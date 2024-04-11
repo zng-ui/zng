@@ -190,12 +190,12 @@ impl InteractionPath {
         let mut path = Vec::with_capacity(iter.size_hint().0);
         let mut blocked = None;
         let mut disabled = None;
-        for (i, (w, intera)) in iter.enumerate() {
+        for (i, (w, interactivity)) in iter.enumerate() {
             path.push(w);
-            if blocked.is_none() && intera.contains(Interactivity::BLOCKED) {
+            if blocked.is_none() && interactivity.contains(Interactivity::BLOCKED) {
                 blocked = Some(i);
             }
-            if disabled.is_none() && intera.contains(Interactivity::DISABLED) {
+            if disabled.is_none() && interactivity.contains(Interactivity::DISABLED) {
                 disabled = Some(i);
             }
         }
@@ -261,14 +261,14 @@ impl InteractionPath {
 
             fn next(&mut self) -> Option<Self::Item> {
                 self.range.next().map(|i| {
-                    let mut intera = Interactivity::ENABLED;
+                    let mut interactivity = Interactivity::ENABLED;
                     if self.blocked <= i {
-                        intera |= Interactivity::BLOCKED;
+                        interactivity |= Interactivity::BLOCKED;
                     }
                     if self.disabled <= i {
-                        intera |= Interactivity::DISABLED;
+                        interactivity |= Interactivity::DISABLED;
                     }
-                    intera
+                    interactivity
                 })
             }
         }
@@ -283,28 +283,28 @@ impl InteractionPath {
     /// Search for the interactivity value associated with the widget in the path.
     pub fn interactivity_of(&self, widget_id: WidgetId) -> Option<Interactivity> {
         self.path.widgets_path().iter().position(|&w| w == widget_id).map(|i| {
-            let mut intera = Interactivity::ENABLED;
+            let mut interactivity = Interactivity::ENABLED;
             if self.blocked <= i {
-                intera |= Interactivity::BLOCKED;
+                interactivity |= Interactivity::BLOCKED;
             }
             if self.disabled <= i {
-                intera |= Interactivity::DISABLED;
+                interactivity |= Interactivity::DISABLED;
             }
-            intera
+            interactivity
         })
     }
 
     /// Interactivity of the widget.
     pub fn interactivity(&self) -> Interactivity {
-        let mut intera = Interactivity::ENABLED;
+        let mut interactivity = Interactivity::ENABLED;
         let len = self.path.path.len();
         if self.blocked < len {
-            intera |= Interactivity::BLOCKED;
+            interactivity |= Interactivity::BLOCKED;
         }
         if self.disabled < len {
-            intera |= Interactivity::DISABLED;
+            interactivity |= Interactivity::DISABLED;
         }
-        intera
+        interactivity
     }
 
     /// Zip widgets and interactivity.

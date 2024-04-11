@@ -35,7 +35,7 @@ impl serde::Serialize for AppId {
         let name = self.name();
         if name.is_empty() {
             use serde::ser::Error;
-            return Err(S::Error::custom("cannot serialize unammed `AppId`"));
+            return Err(S::Error::custom("cannot serialize unnamed `AppId`"));
         }
         name.serialize(serializer)
     }
@@ -736,7 +736,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
     /// Try to create a read lock and `map` it to a sub-value.
     #[inline]
-    pub fn try_wread_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<O>> {
+    pub fn try_read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<O>> {
         let lock = self.try_read()?;
         Some(MappedRwLockReadGuard::map(lock, map))
     }

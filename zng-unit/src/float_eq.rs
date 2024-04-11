@@ -40,8 +40,8 @@ pub fn about_eq_hash<H: std::hash::Hasher>(f: f32, epsilon: f32, state: &mut H) 
     } else if f.is_infinite() {
         (1, if f.is_sign_positive() { 1 } else { 2 })
     } else {
-        let inv_epsi = if epsilon > EQ_EPSILON_100 { 100000.0 } else { 100.0 };
-        (2, ((f as f64) * inv_epsi) as u64)
+        let inv_epsilon = if epsilon > EQ_EPSILON_100 { 100000.0 } else { 100.0 };
+        (2, ((f as f64) * inv_epsilon) as u64)
     };
 
     use std::hash::Hash;

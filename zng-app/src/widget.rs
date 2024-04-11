@@ -616,7 +616,7 @@ impl serde::Serialize for WidgetId {
         let name = self.name();
         if name.is_empty() {
             use serde::ser::Error;
-            return Err(S::Error::custom("cannot serialize unammed `WidgetId`"));
+            return Err(S::Error::custom("cannot serialize unnamed `WidgetId`"));
         }
         name.serialize(serializer)
     }

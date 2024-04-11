@@ -342,7 +342,7 @@ fn commands() -> impl UiNode {
 fn trace_focus() {
     FOCUS_CHANGED_EVENT
         .on_pre_event(app_hn!(|args: &FocusChangedArgs, _| {
-            if args.is_hightlight_changed() {
+            if args.is_highlight_changed() {
                 tracing::info!("highlight: {}", args.highlight);
             } else if args.is_widget_move() {
                 tracing::info!("focused {:?} moved", args.new_focus.as_ref().unwrap());

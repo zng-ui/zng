@@ -56,11 +56,11 @@ pub fn when_condition_expr_var(expr_var: impl Var<bool>) -> BoxedVar<bool> {
 pub struct WgtInfo;
 impl WidgetExt for WgtInfo {
     fn ext_property__(&mut self, _: Box<dyn PropertyArgs>) {
-        panic!("WgtInfo is for extrating info only")
+        panic!("WgtInfo is for extracting info only")
     }
 
     fn ext_property_unset__(&mut self, _: PropertyId) {
-        panic!("WgtInfo is for extrating info only")
+        panic!("WgtInfo is for extracting info only")
     }
 }
 
@@ -517,7 +517,7 @@ fn nest_group_spacing() {
 #[serde(untagged)]
 enum NestGroupSerde<'s> {
     Named(&'s str),
-    Unamed(u16),
+    Unnamed(u16),
 }
 impl serde::Serialize for NestGroup {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -543,7 +543,7 @@ impl<'de> serde::Deserialize<'de> for NestGroup {
                 Ok(g) => Ok(g),
                 Err(e) => Err(D::Error::custom(e)),
             },
-            NestGroupSerde::Unamed(i) => Ok(NestGroup(i)),
+            NestGroupSerde::Unnamed(i) => Ok(NestGroup(i)),
         }
     }
 }
@@ -1991,8 +1991,8 @@ impl WidgetBuilder {
     ///
     /// [`default_build`]: Self::default_build
     pub fn build(self) -> BoxedUiNode {
-        if let Some(cust) = self.custom_build.clone() {
-            match cust.try_lock() {
+        if let Some(custom) = self.custom_build.clone() {
+            match custom.try_lock() {
                 Some(mut c) => c(self),
                 None => self.default_build(),
             }
@@ -2011,9 +2011,9 @@ impl WidgetBuilder {
         let mut building = WidgetBuilding {
             #[cfg(inspector)]
             builder: Some(builder),
-            #[cfg(trace_widget)]
+            #[cfg(feature = "trace_widget")]
             trace_widget: true,
-            #[cfg(trace_wgt_item)]
+            #[cfg(feature = "trace_wgt_item")]
             trace_wgt_item: true,
 
             widget_type: self.widget_type,
@@ -2065,9 +2065,9 @@ impl ops::DerefMut for WidgetBuilder {
 pub struct WidgetBuilding {
     #[cfg(inspector)]
     builder: Option<WidgetBuilder>,
-    #[cfg(trace_widget)]
+    #[cfg(feature = "trace_widget")]
     trace_widget: bool,
-    #[cfg(trace_wgt_item)]
+    #[cfg(feature = "trace_wgt_item")]
     trace_wgt_item: bool,
 
     widget_type: WidgetType,
@@ -2103,7 +2103,7 @@ impl WidgetBuilding {
     /// Don't insert the widget trace node on build.
     ///
     /// The trace node is inserted by default when `feature="trace_widget"` is active.
-    #[cfg(trace_widget)]
+    #[cfg(feature = "trace_widget")]
     pub fn disable_trace_widget(&mut self) {
         self.trace_widget = false;
     }
@@ -2111,7 +2111,7 @@ impl WidgetBuilding {
     /// Don't insert property/intrinsic trace nodes on build.
     ///
     /// The trace nodes is inserted by default when `feature="trace_wgt_item"` is active.
-    #[cfg(trace_wgt_item)]
+    #[cfg(feature = "trace_wgt_item")]
     pub fn disable_trace_wgt_item(&mut self) {
         self.trace_wgt_item = false;
     }
@@ -2546,10 +2546,10 @@ impl WidgetBuilding {
                     if !captured {
                         node = args.instantiate(node);
 
-                        #[cfg(trace_wgt_item)]
+                        #[cfg(feature = "trace_wgt_item")]
                         if self.trace_wgt_item {
-                            let name = args.instance().name;
-                            node = node.trace(|_, mtd| crate::update::UpdatesTrace::property_span(name, mtd));
+                            let name = args.property().name;
+                            node = node.trace(move |mtd| crate::update::UpdatesTrace::property_span(name, mtd.mtd_name()));
                         }
                     }
 
@@ -2565,9 +2565,9 @@ impl WidgetBuilding {
                 #[allow(unused_variables)]
                 WidgetItem::Intrinsic { new, name } => {
                     node = new(node);
-                    #[cfg(trace_wgt_item)]
+                    #[cfg(feature = "trace_wgt_item")]
                     if self.trace_wgt_item {
-                        node = node.trace(|_, mtd| ctate::context::UpdatesTrace::intrinsic_span(name, mtd));
+                        node = node.trace(move |mtd| crate::update::UpdatesTrace::intrinsic_span(name, mtd.mtd_name()));
                     }
 
                     #[cfg(inspector)]
@@ -2595,7 +2595,7 @@ impl WidgetBuilding {
             .boxed();
         }
 
-        #[cfg(trace_widget)]
+        #[cfg(feature = "trace_widget")]
         if self.trace_widget {
             let name = self.widget_type.name();
             node = node

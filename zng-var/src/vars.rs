@@ -257,7 +257,7 @@ impl VARS {
         if let Some(trace) = &vars.modify_trace {
             trace(type_name);
         }
-        let curr_modify = match VARS_MODIFY_CTX.get_clone() {
+        let cur_modify = match VARS_MODIFY_CTX.get_clone() {
             Some(current) => current, // override set by modify and animation closures.
             None => vars.ans.current_modify.clone(),
         };
@@ -265,14 +265,14 @@ impl VARS {
         if let Some(id) = vars.updating_thread {
             if std::thread::current().id() == id {
                 // is binding request, enqueue for immediate exec.
-                vars.updates.lock().push((curr_modify, update));
+                vars.updates.lock().push((cur_modify, update));
             } else {
                 // is request from app task thread when we are already updating, enqueue for exec after current update.
-                vars.updates_after.lock().push((curr_modify, update));
+                vars.updates_after.lock().push((cur_modify, update));
             }
         } else {
             // request from any app thread,
-            vars.updates.lock().push((curr_modify, update));
+            vars.updates.lock().push((cur_modify, update));
             vars.wake_app();
         }
     }

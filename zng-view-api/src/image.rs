@@ -71,7 +71,7 @@ pub struct ImageRequest<D> {
 
 /// Defines how an image is downscaled after decoding.
 ///
-/// The image aspect ratio is preserved in both modes, the image is not upsized, if it already fits the size
+/// The image aspect ratio is preserved in both modes, the image is not upscaled, if it already fits the size
 /// constraints if will not be resized.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ImageDownscale {
@@ -102,13 +102,17 @@ impl ImageDownscale {
     /// Compute the expected final size if the downscale is applied on an image of `source_size`.
     pub fn resize_dimensions(self, source_size: PxSize) -> PxSize {
         // code from image crate
-        fn resize_dimensions(width: u32, height: u32, nwidth: u32, nheight: u32, fill: bool) -> (u32, u32) {
+        fn resize_dimensions(width: u32, height: u32, n_width: u32, n_height: u32, fill: bool) -> (u32, u32) {
             use std::cmp::max;
 
-            let wratio = nwidth as f64 / width as f64;
-            let hratio = nheight as f64 / height as f64;
+            let w_ratio = n_width as f64 / width as f64;
+            let h_ratio = n_height as f64 / height as f64;
 
-            let ratio = if fill { f64::max(wratio, hratio) } else { f64::min(wratio, hratio) };
+            let ratio = if fill {
+                f64::max(w_ratio, h_ratio)
+            } else {
+                f64::min(w_ratio, h_ratio)
+            };
 
             let nw = max((width as f64 * ratio).round() as u64, 1);
             let nh = max((height as f64 * ratio).round() as u64, 1);

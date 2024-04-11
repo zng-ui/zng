@@ -545,7 +545,7 @@ impl DataNote {
         (Self { source, level, value }, DataNoteHandle(Some(handle)))
     }
 
-    /// Widget that setted the annotation.
+    /// Widget that set the annotation.
     pub fn source(&self) -> WidgetId {
         self.source
     }

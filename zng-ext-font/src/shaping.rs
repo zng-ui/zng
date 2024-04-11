@@ -3854,18 +3854,18 @@ impl Font {
         // - Ignore curves, everything is direct line.
         // - If a line-y crosses `line_y_range` register the min-x and max-x from the two points.
         // - Same if a line is inside `line_y_range`.
-        struct InterseptsSink {
+        struct InterceptsSink {
             start: Option<euclid::Point2D<f32, Px>>,
-            curr: euclid::Point2D<f32, Px>,
+            current: euclid::Point2D<f32, Px>,
             under: (bool, bool),
 
             line_y_range: (f32, f32),
             hit: Option<(f32, f32)>,
         }
-        impl OutlineSink for InterseptsSink {
+        impl OutlineSink for InterceptsSink {
             fn move_to(&mut self, to: euclid::Point2D<f32, Px>) {
                 self.start = Some(to);
-                self.curr = to;
+                self.current = to;
                 self.under = (to.y < self.line_y_range.0, to.y < self.line_y_range.1);
             }
 
@@ -3876,10 +3876,10 @@ impl Font {
                     // crossed one or two y-range boundaries or both points are inside
                     self.under = under;
 
-                    let (x0, x1) = if self.curr.x < to.x {
-                        (self.curr.x, to.x)
+                    let (x0, x1) = if self.current.x < to.x {
+                        (self.current.x, to.x)
                     } else {
-                        (to.x, self.curr.x)
+                        (to.x, self.current.x)
                     };
                     if let Some((min, max)) = &mut self.hit {
                         *min = min.min(x0);
@@ -3889,7 +3889,7 @@ impl Font {
                     }
                 }
 
-                self.curr = to;
+                self.current = to;
                 self.under = under;
             }
 
@@ -3903,15 +3903,15 @@ impl Font {
 
             fn close(&mut self) {
                 if let Some(s) = self.start.take() {
-                    if s != self.curr {
+                    if s != self.current {
                         self.line_to(s);
                     }
                 }
             }
         }
-        let mut sink = InterseptsSink {
+        let mut sink = InterceptsSink {
             start: None,
-            curr: euclid::point2(0.0, 0.0),
+            current: euclid::point2(0.0, 0.0),
             under: (false, false),
 
             line_y_range,
@@ -3938,7 +3938,7 @@ pub enum OutlineHintingOptions {
     Vertical(f32),
 
     /// Hinting is performed only in the vertical direction, and further tweaks are applied to make
-    /// subpixel antialiasing look better. The specified point size is used for grid fitting.
+    /// subpixel anti-aliasing look better. The specified point size is used for grid fitting.
     ///
     /// This matches DirectWrite, GDI in its ClearType mode, and FreeType in its LCD hinting mode.
     VerticalSubpixel(f32),

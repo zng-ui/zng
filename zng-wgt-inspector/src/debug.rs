@@ -152,7 +152,7 @@ fn show_widget_tree(
                             render(wgt, frame);
                         })
                     } else {
-                        tracing::error!("cannot inspect from `{:?}`, non-reversable transform", WIDGET.id())
+                        tracing::error!("cannot inspect from `{:?}`, non-invertible transform", WIDGET.id())
                     }
                 }
             };

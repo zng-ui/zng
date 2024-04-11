@@ -121,7 +121,7 @@ impl_from_and_into_var! {
 #[serde(untagged)]
 enum TabIndexSerde<'s> {
     Named(&'s str),
-    Unamed(u32),
+    Unnamed(u32),
 }
 impl serde::Serialize for TabIndex {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -140,7 +140,7 @@ impl serde::Serialize for TabIndex {
                 return TabIndexSerde::Named(name).serialize(serializer);
             }
         }
-        TabIndexSerde::Unamed(self.0).serialize(serializer)
+        TabIndexSerde::Unnamed(self.0).serialize(serializer)
     }
 }
 impl<'de> serde::Deserialize<'de> for TabIndex {
@@ -156,7 +156,7 @@ impl<'de> serde::Deserialize<'de> for TabIndex {
                 "SKIP" => Ok(TabIndex::SKIP),
                 unknown => Err(D::Error::unknown_variant(unknown, &["AUTO", "SKIP"])),
             },
-            TabIndexSerde::Unamed(i) => Ok(TabIndex(i)),
+            TabIndexSerde::Unnamed(i) => Ok(TabIndex(i)),
         }
     }
 }
@@ -1286,15 +1286,15 @@ impl WidgetFocusInfo {
                 let mut is_ancestor = || *is_ancestor.get_or_insert_with(|| w.info.is_ancestor(&self.info));
 
                 let mut is_sibling = None;
-                let mut is_sibing = || *is_sibling.get_or_insert_with(|| parent_range.contains(&w.info));
+                let mut is_sibling = || *is_sibling.get_or_insert_with(|| parent_range.contains(&w.info));
 
                 if dist <= ancestor_dist && is_ancestor() {
                     ancestor_dist = dist;
                     ancestor = Some(w);
-                } else if dist <= sibling_dist && is_sibing() {
+                } else if dist <= sibling_dist && is_sibling() {
                     sibling_dist = dist;
                     sibling = Some(w);
-                } else if dist <= other_dist && !is_ancestor() && !is_sibing() {
+                } else if dist <= other_dist && !is_ancestor() && !is_sibling() {
                     other_dist = dist;
                     other = Some(w);
                 }

@@ -45,8 +45,8 @@ struct WaitDeadline {
     deadline: Deadline,
     wakers: Mutex<Vec<Waker>>,
 }
-struct WaidDeadlineFut(Arc<WaitDeadline>);
-impl Future for WaidDeadlineFut {
+struct WaitDeadlineFut(Arc<WaitDeadline>);
+impl Future for WaitDeadlineFut {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
@@ -103,7 +103,7 @@ impl TimersService {
         });
         self.wait_deadlines.push(Arc::downgrade(&deadline));
         UPDATES.send_awake();
-        WaidDeadlineFut(deadline)
+        WaitDeadlineFut(deadline)
     }
 
     fn interval(&mut self, interval: Duration, paused: bool) -> TimerVar {

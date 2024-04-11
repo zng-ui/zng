@@ -385,7 +385,7 @@
 //! The `on_click` property handles the `CLICK_EVENT` when the click was done with the primary button and targets
 //! the widget or a descendant of the widget. The [`hn!`] is a widget handler that synchronously handles the event.
 //! See the [`event`] module documentation for details about event propagation, targeting and route. And see
-//! [`handler`] module for other hander types, including [`async_hn!`] that enables async `.await` in any event property.
+//! [`handler`] module for other handler types, including [`async_hn!`] that enables async `.await` in any event property.
 //!
 //! The example above defines a button for the `PASTE_CMD` command scoped on the window. Scoped commands are different
 //! instances of [`Command`], the command scope can be a window or widget ID, the scope is the target of the command and

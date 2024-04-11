@@ -924,10 +924,10 @@ impl WINDOWS {
     }
 
     pub(super) fn on_update() {
-        Self::fullfill_requests();
+        Self::fulfill_requests();
     }
 
-    fn fullfill_requests() {
+    fn fulfill_requests() {
         if VIEW_PROCESS.is_available() && !VIEW_PROCESS.is_online() {
             // wait ViewProcessInitedEvent
             return;

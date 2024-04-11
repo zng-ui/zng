@@ -1573,7 +1573,7 @@ pub enum CnVariant {
     /// Traditional Chinese glyphs.
     ///
     /// This corresponds to OpenType `trad` feature.
-    Tradicional,
+    Traditional,
 }
 impl fmt::Debug for CnVariant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1583,7 +1583,7 @@ impl fmt::Debug for CnVariant {
         match self {
             CnVariant::Auto => write!(f, "Auto"),
             CnVariant::Simplified => write!(f, "Simplified"),
-            CnVariant::Tradicional => write!(f, "Tradicional"),
+            CnVariant::Traditional => write!(f, "Traditional"),
         }
     }
 }
@@ -1603,7 +1603,7 @@ impl FontFeatureExclusiveSetState for CnVariant {
         match self {
             CnVariant::Auto => None,
             CnVariant::Simplified => Some(1),
-            CnVariant::Tradicional => Some(2),
+            CnVariant::Traditional => Some(2),
         }
     }
 

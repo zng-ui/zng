@@ -107,7 +107,7 @@
                     propertiesSet.add(propertyName);
                     t.remove();
                     let mtdSignature = mtdAnchor.parentElement;
-                    // same sintax as `widget_impl!`
+                    // same syntax as `widget_impl!`
                     mtdSignature.innerHTML = mtdSignature.innerHTML
                         .replace('fn ', '')
                         .replace('<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self,', '')

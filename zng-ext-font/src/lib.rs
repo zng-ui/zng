@@ -595,7 +595,7 @@ pub enum FontChange {
     /// Custom request caused by call to [`FONTS.refresh`].
     ///
     /// [`FONTS.refresh`]: FONTS::refresh
-    Refesh,
+    Refresh,
 
     /// One of the [`GenericFonts`] was set for the language.
     ///
@@ -709,7 +709,7 @@ impl FONTS {
     ///
     /// See the event documentation for more information.
     pub fn refresh(&self) {
-        FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::Refesh));
+        FONT_CHANGED_EVENT.notify(FontChangedArgs::now(FontChange::Refresh));
     }
 
     /// Remove all unused fonts from cache.

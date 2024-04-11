@@ -813,7 +813,7 @@ impl ops::DivAssign<Factor> for LayerIndex {
 #[serde(untagged)]
 enum LayerIndexSerde<'s> {
     Named(&'s str),
-    Unamed(u32),
+    Unnamed(u32),
 }
 impl serde::Serialize for LayerIndex {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -825,7 +825,7 @@ impl serde::Serialize for LayerIndex {
                 return LayerIndexSerde::Named(name).serialize(serializer);
             }
         }
-        LayerIndexSerde::Unamed(self.0).serialize(serializer)
+        LayerIndexSerde::Unnamed(self.0).serialize(serializer)
     }
 }
 impl<'de> serde::Deserialize<'de> for LayerIndex {
@@ -842,7 +842,7 @@ impl<'de> serde::Deserialize<'de> for LayerIndex {
                 "ADORNER" => Ok(Self::ADORNER),
                 unknown => Err(D::Error::unknown_variant(unknown, &["DEFAULT", "TOP_MOST", "ADORNER"])),
             },
-            LayerIndexSerde::Unamed(i) => Ok(Self(i)),
+            LayerIndexSerde::Unnamed(i) => Ok(Self(i)),
         }
     }
 }

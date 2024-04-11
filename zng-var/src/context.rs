@@ -26,7 +26,7 @@ use super::*;
 ///
 /// # Default Value
 ///
-/// All context variable have a default fallback value that is used when the variable is not setted in the context.
+/// All context variable have a default fallback value that is used when the variable is not set in the context.
 ///
 /// The default value is instantiated once per app and is the value of the variable when it is not set in the context,
 /// any value [`IntoVar<T>`] is allowed, including other variables.

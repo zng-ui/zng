@@ -1589,24 +1589,24 @@ impl HeadlessWithRendererCtrl {
     }
 }
 
-fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandles {
+fn update_headless_vars(m_factor: Option<Factor>, h_vars: &WindowVars) -> VarHandles {
     let mut handles = VarHandles::dummy();
 
-    if let Some(f) = mfactor {
-        hvars.0.scale_factor.set(f);
+    if let Some(f) = m_factor {
+        h_vars.0.scale_factor.set(f);
     }
 
-    if let Some(parent_vars) = hvars.parent().get().and_then(|id| WINDOWS.vars(id).ok()) {
+    if let Some(parent_vars) = h_vars.parent().get().and_then(|id| WINDOWS.vars(id).ok()) {
         // bind parent factor
-        if mfactor.is_none() {
-            hvars.0.scale_factor.set_from(&parent_vars.0.scale_factor);
-            handles.push(parent_vars.0.scale_factor.bind(&hvars.0.scale_factor));
+        if m_factor.is_none() {
+            h_vars.0.scale_factor.set_from(&parent_vars.0.scale_factor);
+            handles.push(parent_vars.0.scale_factor.bind(&h_vars.0.scale_factor));
         }
 
         // merge bind color scheme.
-        let user = hvars.color_scheme();
+        let user = h_vars.color_scheme();
         let parent = &parent_vars.0.actual_color_scheme;
-        let actual = &hvars.0.actual_color_scheme;
+        let actual = &h_vars.0.actual_color_scheme;
 
         handles.push(user.hook(clmv!(parent, actual, |args| {
             let value = *args.value();
@@ -1627,8 +1627,8 @@ fn update_headless_vars(mfactor: Option<Factor>, hvars: &WindowVars) -> VarHandl
         }));
     } else {
         // set-bind color scheme
-        let from = hvars.color_scheme();
-        let to = &hvars.0.actual_color_scheme;
+        let from = h_vars.color_scheme();
+        let to = &h_vars.0.actual_color_scheme;
 
         to.set_from_map(&from, |&s| s.unwrap_or_default());
         handles.push(from.bind_map(to, |&s| s.unwrap_or_default()));

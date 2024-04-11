@@ -499,7 +499,7 @@ impl VIEW_PROCESS {
         }
     }
 
-    pub(super) fn on_respawed(&self, _gen: ViewProcessGen) {
+    pub(super) fn on_respawned(&self, _gen: ViewProcessGen) {
         let mut app = self.write();
         app.pending_frames = 0;
         for (_, r) in app.message_dialogs.drain(..) {

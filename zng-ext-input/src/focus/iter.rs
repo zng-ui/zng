@@ -16,14 +16,14 @@ pub trait IterFocusableExt<I: Iterator<Item = WidgetInfo>> {
     ///
     /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
     /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
-    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<I>;
+    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusable<I>;
 }
 impl<I> IterFocusableExt<I> for I
 where
     I: Iterator<Item = WidgetInfo>,
 {
-    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusuable<I> {
-        IterFocusuable {
+    fn focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> IterFocusable<I> {
+        IterFocusable {
             iter: self,
             mode: FocusMode::new(focus_disabled_widgets, focus_hidden_widgets),
         }
@@ -33,11 +33,11 @@ where
 /// Filter a widget info iterator to only focusable items.
 ///
 /// Use [`IterFocusableExt::focusable`] to create.
-pub struct IterFocusuable<I: Iterator<Item = WidgetInfo>> {
+pub struct IterFocusable<I: Iterator<Item = WidgetInfo>> {
     iter: I,
     mode: FocusMode,
 }
-impl<I> Iterator for IterFocusuable<I>
+impl<I> Iterator for IterFocusable<I>
 where
     I: Iterator<Item = WidgetInfo>,
 {
@@ -52,7 +52,7 @@ where
         None
     }
 }
-impl<I> DoubleEndedIterator for IterFocusuable<I>
+impl<I> DoubleEndedIterator for IterFocusable<I>
 where
     I: Iterator<Item = WidgetInfo> + DoubleEndedIterator,
 {

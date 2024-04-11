@@ -1109,12 +1109,12 @@ impl UndoAction for UndoRedoFullOp {
     where
         Self: Sized,
     {
-        if let Some(urfo) = args.next.as_any().downcast_mut::<Self>() {
+        if let Some(u) = args.next.as_any().downcast_mut::<Self>() {
             let mut merged = false;
             (self.op)(
                 &mut self.data,
                 UndoFullOp::Merge {
-                    next_data: &mut urfo.data,
+                    next_data: &mut u.data,
                     prev_timestamp: args.prev_timestamp,
                     within_undo_interval: args.within_undo_interval,
                     merged: &mut merged,
