@@ -302,16 +302,22 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: prebuilt-ubuntu
-          path: prebuilt
+          path: prebuilt-ubuntu
       - uses: actions/download-artifact@v4
         with:
           name: prebuilt-windows
-          path: prebuilt
+          path: prebuilt-windows
       - uses: actions/download-artifact@v4
         with:
           name: prebuilt-macos
-          path: prebuilt
+          path: prebuilt-macos
       - run: ls --all ./prebuilt
+      - name: compress
+        run: |
+          mkdir prebuilt
+          tar -czf "/prebuilt/prebuilt-ubuntu.tar.gz" -C "prebuilt-ubuntu/" *
+          tar -czf "/prebuilt/prebuilt-windows.tar.gz" -C "prebuilt-windows/" *
+          tar -czf "/prebuilt/prebuilt-macos.tar.gz" -C "prebuilt-macos/" *
       - name: publish release
         uses: ncipollo/release-action@v1
         with:

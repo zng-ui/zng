@@ -94,8 +94,8 @@ On Windows:
 On Windows 8 or older:
 
 * To build with `"view_prebuilt"`  feature:
-    - The `curl` command is required, it is available in Windows 10+, but must be 
-      [installed](https://curl.se/windows/) in older Windows and must be added to the PATH env var.
+    - The `curl` and `tar` commands are required, they are available in Windows 10+, but must be 
+      installed in older Windows and must be added to the PATH env var.
 
 on Linux:
 

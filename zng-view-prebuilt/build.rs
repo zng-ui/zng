@@ -44,9 +44,19 @@ fn main() {
             .join(".zng-view-prebuilt")
             .join(format!("{file}.{version}.bin"));
         if !is_docs_rs && !lib.exists() {
-            let url = format!("https://github.com/zng-ui/zng/releases/download/v{version}/{file}");
+            #[cfg(target_os = "windows")]
+            let download_file = "prebuilt-windows.tar.gz";
 
-            let output = Path::new(&env::var("OUT_DIR").unwrap()).join(format!("v{version}.{file}"));
+            #[cfg(target_os = "linux")]
+            let download_file = "prebuilt-ubuntu.tar.gz";
+
+            #[cfg(target_os = "macos")]
+            let download_file = "prebuilt-macos.tar.gz";
+
+            let url = format!("https://github.com/zng-ui/zng/releases/download/v{version}/{download_file}");
+
+            let out_dir = env::var("OUT_DIR").unwrap();
+            let output = Path::new(&out_dir).join(download_file);
 
             let r = std::process::Command::new("curl")
                 .arg("--location")
@@ -61,7 +71,28 @@ fn main() {
             match r {
                 Ok(s) => {
                     if s.success() {
-                        lib = output;
+                        let r = std::process::Command::new("tar")
+                            .arg("-xf")
+                            .arg(output)
+                            .arg("-C")
+                            .arg(&out_dir)
+                            .status();
+
+                        match r {
+                            Ok(s) => {
+                                if s.success() {
+                                    lib = Path::new(&out_dir).join(file);
+                                } else {
+                                    println!(
+                                        "cargo:warning=view prebuilt not embedded, failed extract, tar exit code: {:?}",
+                                        s.code()
+                                    )
+                                }
+                            }
+                            Err(e) => {
+                                println!("cargo:warning=view prebuilt not embedded, failed extract, {e}");
+                            }
+                        }
                     } else {
                         println!(
                             "cargo:warning=view prebuilt not embedded, failed download, curl exit code: {:?}",
