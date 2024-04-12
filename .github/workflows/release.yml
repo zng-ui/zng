@@ -64,44 +64,130 @@ jobs:
     runs-on: ubuntu-latest
     needs: ['check-ubuntu']
     steps:
+      - name: install dav1d dep nasm
+        uses: ilammy/setup-nasm@v1
+      - name: install dav1d python deps
+        run: |
+          pip install -U pip
+          pip install -U wheel setuptools
+          pip install -U meson ninja
+      - name: build dav1d
+        env:
+          DAV1D_DIR: dav1d_dir
+          LIB_PATH: lib/x86_64-linux-gnu
+        run: |
+          git clone --branch 1.3.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
+          cd dav1d
+          meson build -Dprefix=$HOME/$DAV1D_DIR -Denable_tools=false -Denable_examples=false -Ddefault_library=static --buildtype release
+          ninja -C build
+          ninja -C build install
+          echo "PKG_CONFIG_PATH=$HOME/$DAV1D_DIR/$LIB_PATH/pkgconfig" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$HOME/$DAV1D_DIR/$LIB_PATH" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
         with:
           ref: release
-      - run: cargo do prebuild
-      - uses: actions/upload-artifact@v4
+      - run: cargo do comment_feature -u "zng-view/Cargo.toml" avif
+      - name: cargo do prebuild --features avif
+        env:
+          SYSTEM_DEPS_LINK: static
+        run: cargo do prebuild --features avif
+      - run: cargo clean
+      - run: cargo do comment_feature "zng-view/Cargo.toml" avif
+      - name: upload prebuilt
+        uses: actions/upload-artifact@v4
         with:
           name: prebuilt-ubuntu
           path: zng-view-prebuilt/lib/libzng_view.so
-      - run: cargo clean
   prebuild-windows:
     runs-on: windows-latest
     needs: ['check-windows']
-    env:
-      CC: 'clang-cl'
-      CXX: 'clang-cl'
     steps:
+      - name: config msvc for dav1d
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: install dav1d dep nasm
+        uses: ilammy/setup-nasm@v1
+      - name: install dav1d python deps
+        run: |
+          pip install -U pip
+          pip install -U wheel setuptools
+          pip install -U meson ninja
+      - name: setup dav1d env
+        shell: bash
+        run: |
+          echo "PKG_CONFIG=c:\build\bin\pkg-config.exe" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=C:\build\lib\pkgconfig" >> $GITHUB_ENV
+          echo "C:\build\bin" >> $GITHUB_PATH
+      - name: build dav1d dep pkg-config
+        run: |
+          git clone --branch meson-glib-subproject --depth 1 https://gitlab.freedesktop.org/tpm/pkg-config.git
+          cd pkg-config
+          meson build -Dprefix=C:\build --buildtype release
+          ninja -C build
+          ninja -C build install
+      - name: build dav1d
+        run: |
+          git clone --branch 1.3.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
+          cd dav1d
+          meson build -Dprefix=C:\build -Denable_tools=false -Denable_examples=false -Ddefault_library=static --buildtype release
+          ninja -C build
+          ninja -C build install
+
       - uses: actions/checkout@v4
         with:
           ref: release
-      - run: cargo do prebuild
-      - uses: actions/upload-artifact@v4
+      - run: cargo do comment_feature -u "zng-view/Cargo.toml" avif
+      - name: cargo do prebuild --features avif
+        env:
+          CC: clang-cl
+          CXX: clang-cl
+          SYSTEM_DEPS_LINK: static
+        run: cargo do prebuild --features avif
+      - run: cargo clean
+      - run: cargo do comment_feature "zng-view/Cargo.toml" avif
+      - name: upload prebuilt
+        uses: actions/upload-artifact@v4
         with:
           name: prebuilt-windows
-          path: zng-view-prebuilt/lib/lzng_view.dll
-      - run: cargo clean
+          path: zng-view-prebuilt/lib/zng_view.dll
   prebuild-macos:
     runs-on: macos-13
     needs: ['check-macos']
     steps:
+      - name: install dav1d dep nasm
+        uses: ilammy/setup-nasm@v1
+      - name: install dav1d python deps
+        run: |
+          pip install -U pip
+          pip install -U wheel setuptools
+          pip install -U meson ninja
+      - name: build dav1d
+        env:
+          DAV1D_DIR: dav1d_dir
+          LIB_PATH: lib
+        run: |
+          git clone --branch 1.3.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
+          cd dav1d
+          meson build -Dprefix=$HOME/$DAV1D_DIR -Denable_tools=false -Denable_examples=false -Ddefault_library=static --buildtype release
+          ninja -C build
+          ninja -C build install
+          echo "PKG_CONFIG_PATH=$HOME/$DAV1D_DIR/$LIB_PATH/pkgconfig" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$HOME/$DAV1D_DIR/$LIB_PATH" >> $GITHUB_ENV
       - uses: actions/checkout@v4
         with:
           ref: release
-      - run: cargo do prebuild
-      - uses: actions/upload-artifact@v4
+      - run: cargo do comment_feature -u "zng-view/Cargo.toml" avif
+      - name: cargo do prebuild --features avif
+        env:
+          SYSTEM_DEPS_LINK: static
+        run: cargo do prebuild --features avif
+      - run: cargo clean
+      - run: cargo do comment_feature "zng-view/Cargo.toml" avif
+      - name: upload prebuilt
+        uses: actions/upload-artifact@v4
         with:
           name: prebuilt-macos
           path: zng-view-prebuilt/lib/libzng_view.dylib
-      - run: cargo clean
 
   test-ubuntu:
     runs-on: ubuntu-latest
