@@ -1,0 +1,19 @@
+# cargo about generate -c .cargo/about.toml --format json -o dump.licenses.json
+
+accepted = [
+    "Apache-2.0",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-DFS-2016",
+    "BSL-1.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "CC0-1.0",
+]
+
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+filter-noassertion = true
+private = { ignore = true }
