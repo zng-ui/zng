@@ -25,20 +25,12 @@ fn main() {
         "publish_version_tag" => publish_version_tag(args),
         "comment_feature" => comment_feature(args),
         "version" => version(args),
-        "help" | "--help" => help(args),
         "ls" => ls(args),
+        "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
     }
 
     util::exit_checked();
-}
-
-fn ls(args: Vec<&str>) {
-    println!("ls {:?}", args);
-
-    for p in util::glob(&format!("{}/**", args[0])) {
-        println!("{p}");
-    }
 }
 
 // do install [-a, --accept]
@@ -1169,6 +1161,14 @@ fn version(args: Vec<&str>) {
         print(f!("\nRUSTFLAGS={}", std::env::var("RUSTFLAGS").unwrap_or_default()));
         print(f!("\nRUSTDOCFLAGS={}", std::env::var("RUSTDOCFLAGS").unwrap_or_default()));
         print(f!("\nCARGO_INCREMENTAL={}", std::env::var("CARGO_INCREMENTAL").unwrap_or_default()));
+    }
+}
+
+fn ls(args: Vec<&str>) {
+    println!("ls {:?}", args);
+
+    for p in util::glob(&format!("{}/**", args[0])) {
+        println!("{p}");
     }
 }
 
