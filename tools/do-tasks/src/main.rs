@@ -23,6 +23,7 @@ fn main() {
         "install" => install(args),
         "publish" => publish(args),
         "publish_version_tag" => publish_version_tag(args),
+        "comment_feature" => comment_feature(args),
         "version" => version(args),
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
@@ -1079,7 +1080,7 @@ fn publish(mut args: Vec<&str>) {
     }
 }
 
-// used by `workflows/release-1-test-tag.yml`
+// used by `workflows/release.yml`
 fn publish_version_tag(mut args: Vec<&str>) {
     let version = util::crate_version("zng");
     let tag = format!("v{version}");
@@ -1094,6 +1095,53 @@ fn publish_version_tag(mut args: Vec<&str>) {
         cmd_req("git", &["push", "origin", &tag], &[]);
     }
     print(f!("tag={tag}\n"));
+}
+
+// used by `workflows/release.yml`
+fn comment_feature(mut args: Vec<&str>) {
+    use std::fmt::*;
+
+    let uncomment = take_flag(&mut args, &["-u", "--uncomment"]);
+    let cargo = args[0];
+    let feature = args[1];
+    let feature_co = format!("# {feature}");
+
+    let (find, replace) = if uncomment {
+        (feature_co.as_str(), feature)
+    } else {
+        (feature, feature_co.as_str())
+    };
+
+    match std::fs::read_to_string(cargo) {
+        Ok(file) => {
+            let mut out = String::new();
+            let mut in_features = false;
+            let mut replaced = false;
+
+            for line in file.lines() {
+                if line == "[features]" {
+                    in_features = true;
+                } else if line.starts_with('[') && line.ends_with(']') {
+                    in_features = false;
+                } else if in_features && line.starts_with(find) {
+                    write!(&mut out, "{replace}{}\n", &line[find.len()..]).unwrap();
+                    replaced = true;
+                    continue;
+                }
+
+                write!(&mut out, "{line}\n").unwrap();
+            }
+
+            if !replaced {
+                fatal(f!("did not find `{find}` in `{cargo}`\n"));
+            }
+
+            std::fs::write(cargo, out.as_bytes()).unwrap();
+        }
+        Err(e) => {
+            error(e);
+        }
+    }
 }
 
 // do version
