@@ -26,10 +26,19 @@ fn main() {
         "comment_feature" => comment_feature(args),
         "version" => version(args),
         "help" | "--help" => help(args),
+        "ls" => ls(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
     }
 
     util::exit_checked();
+}
+
+fn ls(args: Vec<&str>) {
+    println!("ls {:?}", args);
+
+    for p in util::glob(&format!("{}/**", args[0])) {
+        println!("{p}");
+    }
 }
 
 // do install [-a, --accept]

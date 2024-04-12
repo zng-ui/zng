@@ -114,8 +114,8 @@ jobs:
           ninja -C build install
           echo "PKG_CONFIG_PATH=$HOME/$DAV1D_DIR/$LIB_PATH/pkgconfig" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$HOME/$DAV1D_DIR/$LIB_PATH" >> $GITHUB_ENV
-
       - uses: actions/checkout@v4
+      - run: cargo do ls /$HOME/dav1d_dir
       - run: cargo do comment_feature -u "zng-view/Cargo.toml" avif
       - name: cargo do prebuild --features avif
         env:
