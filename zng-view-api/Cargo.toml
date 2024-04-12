@@ -50,3 +50,6 @@ parking_lot = "0.12"
 serde_variant = "0.1"
 
 unic-langid = { version = "0.9", features = ["serde"] }
+
+[package.metadata.docs.rs]
+all-features = true

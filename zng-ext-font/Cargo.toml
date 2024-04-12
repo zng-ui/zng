@@ -47,3 +47,6 @@ unic-langid = "0.9"
 smallvec = { version = "1.13", features = ["const_new", "serde"] }
 hashbrown = "0.14"
 pathfinder_geometry = "0.5"
+
+[package.metadata.docs.rs]
+all-features = true

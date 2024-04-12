@@ -36,3 +36,6 @@ bytemuck = { version = "1.15", features = ["derive"] }
 euclid = "0.22"
 parking_lot = "0.12"
 tracing = "0.1"
+
+[package.metadata.docs.rs]
+all-features = true

@@ -224,6 +224,10 @@ zng-wgt-inspector = { path = "../zng-wgt-inspector", version = "0.2.5" }
 zng-wgt-material-icons = { path = "../zng-wgt-material-icons", version = "0.2.5", default-features = false, optional = true }
 
 [package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.zng-do]
+# this file is generated on build, docs.rs does not give write access to target/doc.
 rustdoc-args = [
     "--html-in-header",
     "target/doc/zng-material-icons-extensions.html",

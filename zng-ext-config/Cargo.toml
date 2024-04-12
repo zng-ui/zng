@@ -37,3 +37,6 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 toml = { version = "0.8", optional = true, features = ["preserve_order"] }
 ron = { version = "0.8", optional = true, features = ["indexmap"] }
 serde_yaml = { version = "0.9", optional = true }
+
+[package.metadata.docs.rs]
+all-features = true

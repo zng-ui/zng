@@ -36,6 +36,10 @@ zng-ext-font = { path = "../zng-ext-font", version = "0.3.0" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.5" }
 
 [package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.zng-do]
+# this file is generated on build, docs.rs does not give write access to target/doc.
 rustdoc-args = [
     "--html-in-header",
     "target/doc/zng-material-icons-extensions.html",
