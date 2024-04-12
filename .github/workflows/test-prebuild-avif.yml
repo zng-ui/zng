@@ -33,7 +33,7 @@ jobs:
       - run: cargo do comment_feature -u "zng-view/Cargo.toml" avif
       - name: cargo do prebuild --features avif
         env:
-          SYSTEM_DEPS_dav1d: static
+          SYSTEM_DEPS_DAV1D_LINK: static
         run: cargo do prebuild --features avif
       - run: cargo clean
       - run: cargo do comment_feature "zng-view/Cargo.toml" avif
@@ -82,7 +82,7 @@ jobs:
         env:
           CC: clang-cl
           CXX: clang-cl
-          SYSTEM_DEPS_dav1d: static
+          SYSTEM_DEPS_DAV1D_LINK: static
         run: cargo do prebuild --features avif
       - run: cargo clean
       - run: cargo do comment_feature "zng-view/Cargo.toml" avif
