@@ -23,7 +23,7 @@ jobs:
         run: |
           git clone --branch 1.3.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
           cd dav1d
-          meson build -Dprefix=$HOME/$DAV1D_DIR -Denable_tools=false -Denable_examples=false --buildtype release
+          meson build -Dprefix=$HOME/$DAV1D_DIR -Denable_tools=false -Denable_examples=false -Ddefault_library=static --buildtype release
           ninja -C build
           ninja -C build install
           echo "PKG_CONFIG_PATH=$HOME/$DAV1D_DIR/$LIB_PATH/pkgconfig" >> $GITHUB_ENV
@@ -72,7 +72,7 @@ jobs:
         run: |
           git clone --branch 1.3.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
           cd dav1d
-          meson build -Dprefix=C:\build -Denable_tools=false -Denable_examples=false --buildtype release
+          meson build -Dprefix=C:\build -Denable_tools=false -Denable_examples=false -Ddefault_library=static --buildtype release
           ninja -C build
           ninja -C build install
 
