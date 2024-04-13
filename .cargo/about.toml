@@ -1,4 +1,4 @@
-# cargo about generate -c .cargo/about.toml --format json -o dump.licenses.json
+# cargo about generate -c .cargo/about.toml --format json --workspace --all-features
 
 accepted = [
     "Apache-2.0",

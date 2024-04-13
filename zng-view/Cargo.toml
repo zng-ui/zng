@@ -29,6 +29,13 @@ ipc = ["zng-view-api/ipc"]
 # Feature enabled by default.
 software = ["dep:swgl"]
 
+# Bundle third-party licenses.
+#
+# Needs `cargo-about` and Internet connection during build.
+#
+# Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
+bundle_licenses = ["zng-view-api/third_party_bundle"]
+
 # Enable AVIF decoder and encoder.
 #
 # Note that this enables the `dav1d` dependency that is not trivial to build.
@@ -119,6 +126,9 @@ tempfile = "3.10"
 # xlib is re-exported by glutin/winit
 
 # prebuild profile defined in the workspace toml
+
+[build-dependencies]
+zng-view-api = { path = "../zng-view-api", version = "0.2.4", features = ["third_party_collect"] }
 
 [package.metadata.docs.rs]
 all-features = true

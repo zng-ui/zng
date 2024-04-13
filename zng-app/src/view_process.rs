@@ -252,6 +252,14 @@ impl VIEW_PROCESS {
         }
     }
 
+    /// Licenses that may be required to be displayed in the app about screen.
+    ///
+    /// This is specially important for prebuilt view users, as the tools that scrap licenses
+    /// may not find the prebuilt dependencies.
+    pub fn third_party_licenses(&self) -> Result<Vec<zng_view_api::third_party::License>> {
+        self.write().process.third_party_licenses()
+    }
+
     /// Call an extension with custom encoded payload.
     pub fn app_extension_raw(&self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> Result<ApiExtensionPayload> {
         self.write().process.app_extension(extension_id, extension_request)

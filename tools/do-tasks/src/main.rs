@@ -645,7 +645,7 @@ fn prebuild(mut args: Vec<&str>) {
         "prebuild"
     };
 
-    cmd("cargo", &["build", "-p", "zng-view", "--profile", profile], &args);
+    cmd("cargo", &["build", "-p", "zng-view", "--profile", profile, "--features", "bundle_licenses"], &args);
 
     let files = cdylib_files(format!("target/{}/zng_view", if profile == "dev" { "debug" } else { profile }));
 

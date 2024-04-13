@@ -35,6 +35,7 @@ pub mod image;
 pub mod ipc;
 pub mod keyboard;
 pub mod mouse;
+pub mod third_party;
 pub mod touch;
 pub mod window;
 
@@ -486,6 +487,12 @@ declare_api! {
 
     /// Enable or disable IME by setting a cursor area.
     pub fn set_ime_area(&mut self, id: WindowId, area: Option<DipRect>);
+
+    /// Licenses that may be required to be displayed in the app about screen.
+    ///
+    /// This is specially important for prebuilt view users, as the tools that scrap licenses
+    /// may not find the prebuilt dependencies.
+    pub fn third_party_licenses(&mut self) -> Vec<third_party::License>;
 
     /// Call the API extension.
     ///
