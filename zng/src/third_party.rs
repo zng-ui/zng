@@ -176,58 +176,62 @@ pub(crate) fn setup_default_view() {
 }
 
 fn default_view() -> impl UiNode {
-    let licenses = LICENSES.user_licenses();
-    let selected = var(licenses.first().cloned().unwrap_or_else(|| UserLicense {
-        user: User {
-            name: "<none>".into(),
-            version: "".into(),
-            url: "".into(),
-        },
-        license: License {
-            id: "<none>".into(),
-            name: "No license data".into(),
-            text: "".into(),
-        },
-    }));
+    let mut licenses = LICENSES.user_licenses();
+    if licenses.is_empty() {
+        licenses.push(UserLicense {
+            user: User {
+                name: "<none>".into(),
+                version: "".into(),
+                url: "".into(),
+            },
+            license: License {
+                id: "<none>".into(),
+                name: "No license data".into(),
+                text: "".into(),
+            },
+        });
+    }
+    let selected = var(licenses[0].clone());
     let search = var(Txt::from(""));
 
     Container! {
-        child_start = Stack! {
-            direction = StackDirection::top_to_bottom();
-            children = ui_vec![
-                // search
-                TextInput! {
-                    txt = search.clone();
-                    widget::background = Text! {
-                        txt = "search";
-                        layout::padding = (8, 16, 8, 27); // +1 border width
-                        color::filter::opacity = 50.pct();
-                        widget::visibility = search.map(|t| t.is_empty().into());
-                    };
-                },
-                // list
-                Scroll! {
-                    mode = zng::scroll::ScrollMode::VERTICAL;
-                    child_align = Align::FILL;
-                    child = DataView! {
-                        layout::sticky_width = true;
-                        view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
-                            let search = a.data().get();
-                            let licenses = if search.is_empty() {
-                                licenses.clone()
-                            } else {
-                                licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
-                            };
+        child_start = Container! {
+            widget::background_color = color::color_scheme_pair(zng_wgt_button::BASE_COLORS_VAR);
 
-                            a.set_view(Stack! {
-                                toggle::selector = toggle::Selector::single(selected.clone());
-                                direction = StackDirection::top_to_bottom();
-                                children = licenses.into_iter().map(default_item_view).collect::<UiNodeVec>();
-                            })
-                        });
-                    };
-                }
-            ];
+            // search
+            child_top = TextInput! {
+                txt = search.clone();
+                layout::margin = 3;
+                widget::background = Text! {
+                    txt = "search";
+                    layout::padding = (8, 16, 8, 27); // +1 border width
+                    color::filter::opacity = 50.pct();
+                    widget::visibility = search.map(|t| t.is_empty().into());
+                };
+            }, 0;
+            // list
+            child = Scroll! {
+                mode = zng::scroll::ScrollMode::VERTICAL;
+                child_align = Align::FILL;
+                child = DataView! {
+                    layout::min_width = 100;
+                    layout::sticky_width = true;
+                    view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
+                        let search = a.data().get();
+                        let licenses = if search.is_empty() {
+                            licenses.clone()
+                        } else {
+                            licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
+                        };
+
+                        a.set_view(Stack! {
+                            toggle::selector = toggle::Selector::single(selected.clone());
+                            direction = StackDirection::top_to_bottom();
+                            children = licenses.into_iter().map(default_item_view).collect::<UiNodeVec>();
+                        })
+                    });
+                };
+            };
         }, 0;
         // selected
         child = Scroll! {
@@ -264,7 +268,11 @@ fn default_markdown(item: &UserLicense) -> Txt {
         writeln!(&mut t, "[{0}]({0})\n", item.user.url).unwrap();
     }
 
-    writeln!(&mut t, "## {}\n\n```\n{}\n```\n", item.license.name, item.license.text).unwrap();
+    writeln!(&mut t, "## {}\n\n", item.license.name).unwrap();
+
+    if !item.license.text.is_empty() {
+        writeln!(&mut t, "```\n{}\n```\n", item.license.text).unwrap();
+    }
 
     t.end_mut();
     t
