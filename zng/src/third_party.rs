@@ -139,3 +139,120 @@
 //! [`on_pre_event`]: crate::event::Command::on_pre_event
 
 pub use zng_app::third_party::{License, LicenseUsed, User, UserLicense, LICENSES, OPEN_LICENSES_CMD};
+
+use crate::prelude::*;
+
+pub(crate) fn setup_default_view() {
+    let mut id = None;
+    OPEN_LICENSES_CMD
+        .on_event(
+            true,
+            app_hn!(|args: &zng_app::event::AppCommandArgs, _| {
+                if args.propagation().is_stopped() {
+                    return;
+                }
+                args.propagation().stop();
+
+                let id = *id.get_or_insert_with(WindowId::new_unique);
+                WINDOWS.focus_or_open(id, async {
+                    Window! {
+                        title = "Third Party Licenses";
+                        child = default_view();
+                    }
+                });
+            }),
+        )
+        .perm();
+}
+
+fn default_view() -> impl UiNode {
+    let licenses = LICENSES.user_licenses();
+    let selected = var(licenses.first().cloned().unwrap_or_else(|| UserLicense {
+        user: User {
+            name: "<none>".into(),
+            version: "".into(),
+            url: "".into(),
+        },
+        license: License {
+            id: "<none>".into(),
+            name: "No license data".into(),
+            text: "".into(),
+        },
+    }));
+    let search = var(Txt::from(""));
+
+    Container! {
+        child_start = Stack! {
+            direction = StackDirection::top_to_bottom();
+            children = ui_vec![
+                // search
+                TextInput! {
+                    txt = search.clone();
+                    widget::background = Text! {
+                        txt = "search";
+                        layout::padding = (8, 16, 8, 27); // +1 border width
+                        color::filter::opacity = 50.pct();
+                        widget::visibility = search.map(|t| t.is_empty().into());
+                    };
+                },
+                // list
+                Scroll! {
+                    mode = zng::scroll::ScrollMode::VERTICAL;
+                    child_align = Align::FILL;
+                    child = DataView!(
+                        ::<Txt>,
+                        search,
+                        hn!(selected, |a: &DataViewArgs<Txt>| {
+                            let search = a.data().get();
+                            let licenses = if search.is_empty() {
+                                licenses.clone()
+                            } else {
+                                licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
+                            };
+
+                            a.set_view(Stack! {
+                                toggle::selector = toggle::Selector::single(selected.clone());
+                                direction = StackDirection::top_to_bottom();
+                                children = licenses.into_iter().map(default_item_view).collect::<UiNodeVec>();
+                            })
+                        }),
+                    );
+                }
+            ];
+        }, 0;
+        // selected
+        child = Scroll! {
+            mode = zng::scroll::ScrollMode::VERTICAL;
+            child_align = Align::TOP_START;
+            padding = 10;
+            child = zng::markdown::Markdown!(selected.map(default_markdown));
+        };
+    }
+}
+
+fn default_item_view(item: UserLicense) -> impl UiNode {
+    Toggle! {
+        child = Text!(item.user.name.clone());
+        value = item;
+        child_align = layout::Align::START;
+        widget::corner_radius = 0;
+        layout::padding = 4;
+        widget::border = unset!;
+    }
+}
+
+fn default_markdown(item: &UserLicense) -> Txt {
+    use std::fmt::*;
+
+    let mut t = Txt::from("");
+
+    writeln!(&mut t, "# {} {}\n", item.user.name, item.user.version).unwrap();
+    if !item.user.url.is_empty() {
+        writeln!(&mut t, "[{0}]({0})\n", item.user.url).unwrap();
+    }
+
+    writeln!(&mut t, "## {}\n\n```\n{}\n```\n", item.license.name, item.license.text).unwrap();
+
+    t.end_mut();
+    t
+}

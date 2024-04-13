@@ -868,6 +868,8 @@ mod defaults {
                 })
             });
 
+            crate::third_party::setup_default_view();
+
             #[cfg(feature = "material_icons_outlined")]
             {
                 use zng_ext_clipboard::*;

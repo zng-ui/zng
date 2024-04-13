@@ -51,7 +51,7 @@ pub fn user_licenses(licenses: &[LicenseUsed]) -> Vec<UserLicense> {
 }
 
 /// Represents a license user with license.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct UserLicense {
     /// License user.
     pub user: User,
@@ -267,7 +267,7 @@ macro_rules! include_bundle {
         $crate::include_bundle!(concat!(env!("OUT_DIR"), "/zng-tp-licenses.bin"))
     };
     ($custom_name:expr) => {{
-        Vec::<$crate::License>::new()
+        Vec::<$crate::LicenseUsed>::new()
     }};
 }
 
