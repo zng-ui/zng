@@ -50,7 +50,7 @@
 //! cargo about generate -c .cargo/about.toml --format json --workspace --all-features
 //! ```
 //!
-//! If the command prints a massive JSON dump, you are done with this step.
+//! If the command prints a JSON dump you are done with this step.
 //!
 //! ### Add `zng-tp-licenses`
 //!
@@ -127,8 +127,8 @@
 //! have required licenses that are not included. Other bundled resources such as fonts and images may also be licensed.
 //!
 //! The [`LICENSES`] service accepts multiple sources, so you can implement your own custom bundle, the [`zng_tp_licenses`]
-//! provides helpers for manually encoding (compressing) licenses. See the `zng-view` build script for an example of how
-//! to include more licenses.
+//! crate provides helpers for manually encoding (compressing) licenses. See the `zng-view` build script for an example of 
+//! how to include more licenses.
 //!
 //! # Full API
 //!
