@@ -38,22 +38,24 @@ pub struct LicenseUser {
     /// Project or package name.
     pub name: Txt,
     /// Package version.
+    #[serde(default)]
     pub version: Txt,
     /// Project or package URL.
+    #[serde(default)]
     pub url: Txt,
 }
 
 /// Merge `licenses` into `into`.
-pub fn merge_licenses(into: &mut Vec<License>, licenses: &[License]) {
+pub fn merge_licenses(into: &mut Vec<License>, licenses: Vec<License>) {
     for license in licenses {
-        if let Some(l) = into.iter_mut().find(|l| l.is_same(license)) {
-            for user in &license.used_by {
-                if !l.used_by.contains(user) {
-                    l.used_by.push(user.clone());
+        if let Some(l) = into.iter_mut().find(|l| l.is_same(&license)) {
+            for user in license.used_by {
+                if !l.used_by.contains(&user) {
+                    l.used_by.push(user);
                 }
             }
         } else {
-            into.push(license.clone());
+            into.push(license);
         }
     }
 }
@@ -109,10 +111,53 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<License> {
 pub fn parse_cargo_about(json: &str) -> Result<Vec<License>, serde_json::Error> {
     #[derive(Deserialize)]
     struct Output {
-        licenses: Vec<License>,
+        licenses: Vec<LicenseJson>,
+    }
+    #[derive(Deserialize)]
+    struct LicenseJson {
+        id: Txt,
+        name: Txt,
+        text: Txt,
+        used_by: Vec<User>,
+    }
+    impl From<LicenseJson> for License {
+        fn from(value: LicenseJson) -> Self {
+            Self {
+                id: value.id,
+                name: value.name,
+                text: value.text,
+                used_by: value.used_by.into_iter().map(Into::into).collect(),
+            }
+        }
+    }
+    #[derive(Deserialize)]
+    struct User {
+        #[serde(rename = "crate")]
+        crate_: Crate,
+    }
+    #[derive(Deserialize)]
+    struct Crate {
+        name: Txt,
+        version: Txt,
+        #[serde(default)]
+        repository: Option<Txt>,
+    }
+    impl From<User> for LicenseUser {
+        fn from(value: User) -> Self {
+            let repo = value.crate_.repository.unwrap_or_default();
+            Self {
+                version: value.crate_.version,
+                url: if repo.is_empty() {
+                    zng_txt::formatx!("https://crates.io/crates/{}", value.crate_.name)
+                } else {
+                    repo
+                },
+                name: value.crate_.name,
+            }
+        }
     }
 
-    serde_json::from_str::<Output>(json).map(|o| o.licenses)
+    serde_json::from_str::<Output>(json).map(|o| o.licenses.into_iter().map(Into::into).collect())
 }
 
 /// Bincode serialize and deflate the licenses.
