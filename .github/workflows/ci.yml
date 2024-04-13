@@ -21,6 +21,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: cargo do version --verbose
@@ -28,15 +32,24 @@ jobs:
       - run: cargo do check
   doc:
     runs-on: ubuntu-latest
+    needs: [check]
     steps:
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: cargo do doc
       - run: cargo clean
   test:
     runs-on: ubuntu-latest
-    needs: []
+    needs: [check]
     steps:
+    - name: install cargo-about
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: cargo-about
     - name: install cargo-nextest
       uses: taiki-e/install-action@v2
       with:
@@ -47,20 +60,30 @@ jobs:
     - run: cargo clean
   test-doc:
     runs-on: ubuntu-latest
+    needs: [check]
     steps:
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: cargo do test --doc
       - run: cargo clean
   test-macro:
     runs-on: ubuntu-latest
+    needs: [check]
     steps:
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: cargo do test --macro --all
       - run: cargo clean
   test-all:
     runs-on: ubuntu-latest
-    needs: [check, doc, test, test-doc, test-macro]
+    needs: [doc, test, test-doc, test-macro]
     steps:
       - run: exit 0

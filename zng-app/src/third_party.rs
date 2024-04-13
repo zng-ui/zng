@@ -1,8 +1,8 @@
 //! Third party licenses management.
 
 use zng_app_context::app_local;
+pub use zng_tp_licenses::{License, LicenseUser};
 use zng_var::{var, ArcVar, Var as _};
-pub use zng_view_api::third_party::{License, LicenseUser};
 
 use crate::view_process::VIEW_PROCESS;
 
@@ -20,12 +20,12 @@ impl LICENSES {
 
         for l in sv.sources.iter() {
             let l = l();
-            zng_view_api::third_party::merge_licenses(&mut r, l);
+            zng_tp_licenses::merge_licenses(&mut r, l);
         }
 
         if sv.include_view_process.get() {
             let l = self.view_process_licenses();
-            zng_view_api::third_party::merge_licenses(&mut r, l);
+            zng_tp_licenses::merge_licenses(&mut r, l);
         }
 
         r

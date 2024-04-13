@@ -1,4 +1,13 @@
-//! Third-party license management and collection.
+#![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo-icon.png")]
+#![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo.png")]
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
+//! Third party license management and collection.
+//!
+//! Some licenses require that they must be accessible in the final binary, usually in an "about" screen. This
+//! crate defines the data type for this about screen and optionally uses `cargo about` to find and bundle all
+//! license files.
+//!
+//!
 
 use std::fmt;
 
@@ -69,7 +78,7 @@ pub fn merge_licenses(into: &mut Vec<License>, licenses: Vec<License>) {
 /// Panics for any error, including `cargo about` errors and JSON deserialization errors.
 ///
 /// [`cargo about`]: https://github.com/EmbarkStudios/cargo-about
-#[cfg(feature = "third_party_collect")]
+#[cfg(feature = "build")]
 pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<License> {
     let mut cargo_about = std::process::Command::new("cargo");
     cargo_about
@@ -107,7 +116,7 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<License> {
 /// See also [`collect_cargo_about`] that calls the command.
 ///
 /// [`cargo about`]: https://github.com/EmbarkStudios/cargo-about
-#[cfg(feature = "third_party_collect")]
+#[cfg(feature = "build")]
 pub fn parse_cargo_about(json: &str) -> Result<Vec<License>, serde_json::Error> {
     #[derive(Deserialize)]
     struct Output {
@@ -165,7 +174,7 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<License>, serde_json::Error> 
 /// # Panics
 ///
 /// Panics in case of any error.
-#[cfg(feature = "third_party_collect")]
+#[cfg(feature = "build")]
 pub fn encode_licenses(licenses: &[License]) -> Vec<u8> {
     deflate::deflate_bytes(&bincode::serialize(licenses).expect("bincode error"))
 }
@@ -175,46 +184,43 @@ pub fn encode_licenses(licenses: &[License]) -> Vec<u8> {
 /// # Panics
 ///
 /// Panics in case of any error.
-#[cfg(feature = "third_party_collect")]
+#[cfg(feature = "build")]
 pub fn write_bundle(licenses: &[License]) {
     let bin = encode_licenses(licenses);
-    std::fs::write(format!("{}/zng-third-licenses.bin", std::env::var("OUT_DIR").unwrap()), bin).expect("error writing file");
+    std::fs::write(format!("{}/zng-tp-licenses.bin", std::env::var("OUT_DIR").unwrap()), bin).expect("error writing file");
 }
 
 /// Includes the bundle file generated using [`write_bundle`].
 ///
-/// This macro output is a `Vec<License>`. Note that if not built with `feature = "third_party_bundle"` this
+/// This macro output is a `Vec<License>`. Note that if not built with `feature = "bundle"` this
 /// macro always returns an empty vec.
 #[macro_export]
-#[cfg(feature = "third_party_bundle")]
+#[cfg(feature = "bundle")]
 macro_rules! include_bundle {
     () => {
-        $crate::include_bundle!(concat!(env!("OUT_DIR"), "/zng-third-licenses.bin"))
+        $crate::include_bundle!(concat!(env!("OUT_DIR"), "/zng-tp-licenses.bin"))
     };
     ($custom_name:expr) => {{
-        $crate::third_party::decode_licenses(include_bytes!($custom_name))
+        $crate::decode_licenses(include_bytes!($custom_name))
     }};
 }
 
 /// Includes the bundle file generated using [`write_bundle`].
 ///
-/// This macro output is a `Vec<License>`. Note that if not built with `feature = "third_party_bundle"` this
+/// This macro output is a `Vec<License>`. Note that if not built with `feature = "bundle"` this
 /// macro always returns an empty vec.
 #[macro_export]
-#[cfg(not(feature = "third_party_bundle"))]
+#[cfg(not(feature = "bundle"))]
 macro_rules! include_bundle {
     () => {
-        $crate::include_bundle!(concat!(env!("OUT_DIR"), "/zng-third-licenses.bin"))
+        $crate::include_bundle!(concat!(env!("OUT_DIR"), "/zng-tp-licenses.bin"))
     };
     ($custom_name:expr) => {{
-        Vec::<$crate::third_party::License>::new()
+        Vec::<$crate::License>::new()
     }};
 }
 
-#[doc(inline)]
-pub use crate::include_bundle;
-
-#[cfg(feature = "third_party_bundle")]
+#[cfg(feature = "bundle")]
 #[doc(hidden)]
 pub fn decode_licenses(bin: &[u8]) -> Vec<License> {
     let bin = inflate::inflate_bytes(bin).expect("invalid bundle deflate binary");

@@ -1891,8 +1891,8 @@ impl Api for App {
         }
     }
 
-    fn third_party_licenses(&mut self) -> Vec<third_party::License> {
-        zng_view_api::third_party::include_bundle!()
+    fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::License> {
+        zng_tp_licenses::include_bundle!()
     }
 
     fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {

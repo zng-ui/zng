@@ -35,7 +35,6 @@ pub mod image;
 pub mod ipc;
 pub mod keyboard;
 pub mod mouse;
-pub mod third_party;
 pub mod touch;
 pub mod window;
 
@@ -492,7 +491,7 @@ declare_api! {
     ///
     /// This is specially important for prebuilt view users, as the tools that scrap licenses
     /// may not find the prebuilt dependencies.
-    pub fn third_party_licenses(&mut self) -> Vec<third_party::License>;
+    pub fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::License>;
 
     /// Call the API extension.
     ///
