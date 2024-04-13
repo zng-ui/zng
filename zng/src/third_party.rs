@@ -67,10 +67,10 @@
 //! bundle_licenses = ["dep:zng-tp-licenses"]
 //!
 //! [dependencies]
-//! zng-tp-licenses = { version = "0.2.0", feature = ["bundle"], optional = true }
+//! zng-tp-licenses = { version = "0.2.0", features = ["bundle"], optional = true }
 //!
 //! [build-dependencies]
-//! zng-tp-licenses = { version = "0.2.0", feature = ["build"], optional = true }
+//! zng-tp-licenses = { version = "0.2.0", features = ["build"], optional = true }
 //! ```
 //!
 //! ### Implement Bundle
@@ -127,7 +127,7 @@
 //! have required licenses that are not included. Other bundled resources such as fonts and images may also be licensed.
 //!
 //! The [`LICENSES`] service accepts multiple sources, so you can implement your own custom bundle, the [`zng_tp_licenses`]
-//! crate provides helpers for manually encoding (compressing) licenses. See the `zng-view` build script for an example of 
+//! crate provides helpers for manually encoding (compressing) licenses. See the `zng-view` build script for an example of
 //! how to include more licenses.
 //!
 //! # Full API
