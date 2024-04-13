@@ -569,11 +569,7 @@ fn fmt(mut args: Vec<&str>) {
 // do check, c
 //    Runs clippy on the workspace.
 fn check(args: Vec<&str>) {
-    cmd(
-        "cargo",
-        &["clippy", "--no-deps", "--tests", "--workspace", "--examples", "--all-features"],
-        &args,
-    );
+    cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
 }
 
 // do build, b [-e, --example] [--examples] [-t, --timings] [--release-lto] [-Z*] [<cargo-build-args>]

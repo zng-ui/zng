@@ -4,6 +4,10 @@ Release is partially automated, some manual steps must be followed and the autom
 
 To make a release a `zng-ui` project owner needs to follow/monitor these steps:
 
+0. The new release commit passes all tests.
+   * All CI tests.
+   * All examples look ok, call `do run --all` and manually test each.
+
 1. Merge changes into `release` on GitHub.
     * This includes `Cargo.toml` version changes that must be reviewed manually.
     * You can use `do publish --diff` to get a list of crates and files that changed.

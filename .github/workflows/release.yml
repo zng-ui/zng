@@ -24,8 +24,10 @@ jobs:
           ref: release
       - run: cargo do version --verbose 
       - run: cargo do fmt --check
-      - run: cargo check
-      - run: cargo do clean # to print size
+      - run: cargo do check
+      - run: cargo clean # to print size
+      - run: cargo check --examples --tests --release
+      - run: cargo clean
   check-windows:
     runs-on: windows-lastest
     env:
@@ -41,8 +43,10 @@ jobs:
           ref: release
       - run: cargo do version --verbose 
       - run: cargo do fmt --check
-      - run: cargo check
+      - run: cargo do check
       - run: cargo do clean
+      - run: cargo check --examples --tests --release
+      - run: cargo clean
   check-macos:
     runs-on: macos-13
     steps:
@@ -55,8 +59,10 @@ jobs:
           ref: release
       - run: cargo do version --verbose 
       - run: cargo do fmt --check
-      - run: cargo check
+      - run: cargo do check
       - run: cargo do clean
+      - run: cargo check --examples --tests --release
+      - run: cargo clean
 
   doc-ubuntu:
     runs-on: ubuntu-latest
