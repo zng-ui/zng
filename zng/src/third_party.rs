@@ -153,11 +153,21 @@ pub(crate) fn setup_default_view() {
                 }
                 args.propagation().stop();
 
+                let parent = WINDOWS.focused_window_id();
+
                 let id = *id.get_or_insert_with(WindowId::new_unique);
-                WINDOWS.focus_or_open(id, async {
+                WINDOWS.focus_or_open(id, async move {
+                    if let Some(p) = parent {
+                        if let Ok(p) = WINDOWS.vars(p) {
+                            let v = WINDOW.vars();
+                            p.icon().set_bind(&v.icon()).perm();
+                        }
+                    }
+
                     Window! {
                         title = "Third Party Licenses";
                         child = default_view();
+                        parent;
                     }
                 });
             }),
@@ -199,10 +209,9 @@ fn default_view() -> impl UiNode {
                 Scroll! {
                     mode = zng::scroll::ScrollMode::VERTICAL;
                     child_align = Align::FILL;
-                    child = DataView!(
-                        ::<Txt>,
-                        search,
-                        hn!(selected, |a: &DataViewArgs<Txt>| {
+                    child = DataView! {
+                        layout::sticky_width = true;
+                        view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
                             let search = a.data().get();
                             let licenses = if search.is_empty() {
                                 licenses.clone()
@@ -215,8 +224,8 @@ fn default_view() -> impl UiNode {
                                 direction = StackDirection::top_to_bottom();
                                 children = licenses.into_iter().map(default_item_view).collect::<UiNodeVec>();
                             })
-                        }),
-                    );
+                        });
+                    };
                 }
             ];
         }, 0;
@@ -236,7 +245,7 @@ fn default_item_view(item: UserLicense) -> impl UiNode {
         value = item;
         child_align = layout::Align::START;
         widget::corner_radius = 0;
-        layout::padding = 4;
+        layout::padding = 2;
         widget::border = unset!;
     }
 }
@@ -246,7 +255,11 @@ fn default_markdown(item: &UserLicense) -> Txt {
 
     let mut t = Txt::from("");
 
-    writeln!(&mut t, "# {} {}\n", item.user.name, item.user.version).unwrap();
+    if item.user.version.is_empty() {
+        writeln!(&mut t, "# {}\n", item.user.name).unwrap();
+    } else {
+        writeln!(&mut t, "# {} - {}\n", item.user.name, item.user.version).unwrap();
+    }
     if !item.user.url.is_empty() {
         writeln!(&mut t, "[{0}]({0})\n", item.user.url).unwrap();
     }
