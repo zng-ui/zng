@@ -1,19 +1,22 @@
-//! Third party licenses management.
+//! Third party licenses service and types.
 
 use zng_app_context::app_local;
-pub use zng_tp_licenses::{License, LicenseUser};
+pub use zng_tp_licenses::{License, LicenseUsed, User, UserLicense};
 use zng_var::{var, ArcVar, Var as _};
 
-use crate::view_process::VIEW_PROCESS;
+use crate::{
+    event::{command, CommandNameExt as _},
+    view_process::VIEW_PROCESS,
+};
 
 /// Third party licenses.
 pub struct LICENSES;
 
 impl LICENSES {
-    /// Aggregates all registered third party licenses.
+    /// Aggregates all registered third party licenses, grouped by license, sorted by name.
     ///
-    /// Exact licenses and users deduplicated.
-    pub fn licenses(&self) -> Vec<License> {
+    /// Exact licenses and users are deduplicated.
+    pub fn licenses(&self) -> Vec<LicenseUsed> {
         let mut r = vec![];
 
         let sv = LICENSES_SV.read();
@@ -28,14 +31,32 @@ impl LICENSES {
             zng_tp_licenses::merge_licenses(&mut r, l);
         }
 
+        zng_tp_licenses::sort_licenses(&mut r);
+
         r
     }
 
-    /// Third party licenses provided by the view-process.
+    /// Third party licenses provided by the view-process, grouped by license, sorted by name.
     ///
     /// Returns an empty vec if there is no view-process running or the view-process does not provide any license.
-    pub fn view_process_licenses(&self) -> Vec<License> {
-        VIEW_PROCESS.third_party_licenses().unwrap_or_default()
+    pub fn view_process_licenses(&self) -> Vec<LicenseUsed> {
+        let mut r = VIEW_PROCESS.third_party_licenses().unwrap_or_default();
+        zng_tp_licenses::sort_licenses(&mut r);
+        r
+    }
+
+    /// Aggregates all registered third party licenses, by user, sorted by name.
+    ///
+    /// Exact licenses and users are deduplicated.
+    pub fn user_licenses(&self) -> Vec<UserLicense> {
+        zng_tp_licenses::user_licenses(&self.licenses())
+    }
+
+    /// Third party licenses provided by the view-process, by user, sorted by name.
+    ///
+    /// Returns an empty vec if there is no view-process running or the view-process does not provide any license.
+    pub fn view_process_user_licenses(&self) -> Vec<UserLicense> {
+        zng_tp_licenses::user_licenses(&self.view_process_licenses())
     }
 
     /// If view-process provided third party licenses are included in [`licenses`].
@@ -50,7 +71,7 @@ impl LICENSES {
     }
 
     /// Register a function that loads some third party licenses used by this app.
-    pub fn register_source(&self, source: fn() -> Vec<License>) {
+    pub fn register(&self, source: fn() -> Vec<LicenseUsed>) {
         LICENSES_SV.write().sources.push(source);
     }
 }
@@ -60,6 +81,18 @@ app_local! {
 }
 
 struct Licenses {
-    sources: Vec<fn() -> Vec<License>>,
+    sources: Vec<fn() -> Vec<LicenseUsed>>,
     include_view_process: ArcVar<bool>,
+}
+
+command! {
+    /// Open or focus the third party licenses screen.
+    ///
+    /// Note that the `zng` crate provides a default implementation for this command, you can override this
+    /// default by handling the command in an [`on_pre_event`] handle.
+    ///
+    /// [`on_pre_event`]: crate::event::Command::on_pre_event
+    pub static OPEN_LICENSES_CMD = {
+        name: "Third Party Licenses"
+    };
 }

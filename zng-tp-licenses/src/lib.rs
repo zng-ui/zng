@@ -16,34 +16,73 @@ use zng_txt::Txt;
 
 /// Represents a license and dependencies that use it.
 #[derive(Serialize, Deserialize, Clone)]
+pub struct LicenseUsed {
+    /// License name and text.
+    pub license: License,
+    /// Project or packages that use this license.
+    pub used_by: Vec<User>,
+}
+impl fmt::Debug for LicenseUsed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("License")
+            .field("license.id", &self.license.id)
+            .field("used_by", &self.used_by)
+            .finish_non_exhaustive()
+    }
+}
+impl LicenseUsed {
+    /// Invert data to be keyed by user.
+    pub fn user_licenses(&self) -> Vec<UserLicense> {
+        self.used_by
+            .iter()
+            .map(|u| UserLicense {
+                user: u.clone(),
+                license: self.license.clone(),
+            })
+            .collect()
+    }
+}
+
+/// Invert data to be keyed by user, also sorts by user name.
+pub fn user_licenses(licenses: &[LicenseUsed]) -> Vec<UserLicense> {
+    let mut r: Vec<_> = licenses.iter().flat_map(|l| l.user_licenses()).collect();
+    r.sort_by(|a, b| a.user.name.cmp(&b.user.name));
+    r
+}
+
+/// Represents a license user with license.
+#[derive(Clone)]
+pub struct UserLicense {
+    /// License user.
+    pub user: User,
+    /// License used.
+    pub license: License,
+}
+impl fmt::Debug for UserLicense {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("UserLicense")
+            .field("user", &self.user)
+            .field("license.id", &self.license.id)
+            .finish()
+    }
+}
+
+/// Represents a license id, name and text.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Hash)]
 pub struct License {
-    /// License SPDX id.
+    /// License [SPDX] id.
+    ///
+    /// [SPDX]: https://spdx.org/licenses/
     pub id: Txt,
     /// License name.
     pub name: Txt,
     /// License text.
     pub text: Txt,
-    /// Project or packages that use this license.
-    pub used_by: Vec<LicenseUser>,
-}
-impl License {
-    /// Compare id, name and text.
-    pub fn is_same(&self, other: &Self) -> bool {
-        self.id == other.id && self.name == other.name && self.text == other.text
-    }
-}
-impl fmt::Debug for License {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("License")
-            .field("id", &self.id)
-            .field("used_by", &self.used_by)
-            .finish_non_exhaustive()
-    }
 }
 
-/// Represents a [`License`] user.
+/// Represents a project or package that uses a license.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
-pub struct LicenseUser {
+pub struct User {
     /// Project or package name.
     pub name: Txt,
     /// Package version.
@@ -55,9 +94,11 @@ pub struct LicenseUser {
 }
 
 /// Merge `licenses` into `into`.
-pub fn merge_licenses(into: &mut Vec<License>, licenses: Vec<License>) {
+///
+/// The licenses and users are not sorted, call [`sort_licenses`] after merging all licenses.
+pub fn merge_licenses(into: &mut Vec<LicenseUsed>, licenses: Vec<LicenseUsed>) {
     for license in licenses {
-        if let Some(l) = into.iter_mut().find(|l| l.is_same(&license)) {
+        if let Some(l) = into.iter_mut().find(|l| l.license == license.license) {
             for user in license.used_by {
                 if !l.used_by.contains(&user) {
                     l.used_by.push(user);
@@ -66,6 +107,14 @@ pub fn merge_licenses(into: &mut Vec<License>, licenses: Vec<License>) {
         } else {
             into.push(license);
         }
+    }
+}
+
+/// Sort vec by license name, and users of each license by name.
+pub fn sort_licenses(l: &mut Vec<LicenseUsed>) {
+    l.sort_by(|a, b| a.license.name.cmp(&b.license.name));
+    for l in l {
+        l.used_by.sort_by(|a, b| a.name.cmp(&b.name));
     }
 }
 
@@ -79,7 +128,7 @@ pub fn merge_licenses(into: &mut Vec<License>, licenses: Vec<License>) {
 ///
 /// [`cargo about`]: https://github.com/EmbarkStudios/cargo-about
 #[cfg(feature = "build")]
-pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<License> {
+pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
     let mut cargo_about = std::process::Command::new("cargo");
     cargo_about
         .arg("about")
@@ -117,7 +166,7 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<License> {
 ///
 /// [`cargo about`]: https://github.com/EmbarkStudios/cargo-about
 #[cfg(feature = "build")]
-pub fn parse_cargo_about(json: &str) -> Result<Vec<License>, serde_json::Error> {
+pub fn parse_cargo_about(json: &str) -> Result<Vec<LicenseUsed>, serde_json::Error> {
     #[derive(Deserialize)]
     struct Output {
         licenses: Vec<LicenseJson>,
@@ -127,20 +176,22 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<License>, serde_json::Error> 
         id: Txt,
         name: Txt,
         text: Txt,
-        used_by: Vec<User>,
+        used_by: Vec<UsedBy>,
     }
-    impl From<LicenseJson> for License {
+    impl From<LicenseJson> for LicenseUsed {
         fn from(value: LicenseJson) -> Self {
             Self {
-                id: value.id,
-                name: value.name,
-                text: value.text,
+                license: License {
+                    id: value.id,
+                    name: value.name,
+                    text: value.text,
+                },
                 used_by: value.used_by.into_iter().map(Into::into).collect(),
             }
         }
     }
     #[derive(Deserialize)]
-    struct User {
+    struct UsedBy {
         #[serde(rename = "crate")]
         crate_: Crate,
     }
@@ -151,8 +202,8 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<License>, serde_json::Error> 
         #[serde(default)]
         repository: Option<Txt>,
     }
-    impl From<User> for LicenseUser {
-        fn from(value: User) -> Self {
+    impl From<UsedBy> for User {
+        fn from(value: UsedBy) -> Self {
             let repo = value.crate_.repository.unwrap_or_default();
             Self {
                 version: value.crate_.version,
@@ -175,7 +226,7 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<License>, serde_json::Error> 
 ///
 /// Panics in case of any error.
 #[cfg(feature = "build")]
-pub fn encode_licenses(licenses: &[License]) -> Vec<u8> {
+pub fn encode_licenses(licenses: &[LicenseUsed]) -> Vec<u8> {
     deflate::deflate_bytes(&bincode::serialize(licenses).expect("bincode error"))
 }
 
@@ -185,7 +236,7 @@ pub fn encode_licenses(licenses: &[License]) -> Vec<u8> {
 ///
 /// Panics in case of any error.
 #[cfg(feature = "build")]
-pub fn write_bundle(licenses: &[License]) {
+pub fn write_bundle(licenses: &[LicenseUsed]) {
     let bin = encode_licenses(licenses);
     std::fs::write(format!("{}/zng-tp-licenses.bin", std::env::var("OUT_DIR").unwrap()), bin).expect("error writing file");
 }
@@ -220,9 +271,10 @@ macro_rules! include_bundle {
     }};
 }
 
+/// Decode licenses encoded with [`encode_licenses`]. Note that the encoded format is only guaranteed to work
+/// if both encoding and decoding is made with the same `Cargo.lock` dependencies.
 #[cfg(feature = "bundle")]
-#[doc(hidden)]
-pub fn decode_licenses(bin: &[u8]) -> Vec<License> {
+pub fn decode_licenses(bin: &[u8]) -> Vec<LicenseUsed> {
     let bin = inflate::inflate_bytes(bin).expect("invalid bundle deflate binary");
     bincode::deserialize(&bin).expect("invalid bundle bincode binary")
 }

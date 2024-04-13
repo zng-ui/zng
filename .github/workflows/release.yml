@@ -75,6 +75,7 @@ jobs:
         env:
           DAV1D_DIR: dav1d_dir
           LIB_PATH: lib/x86_64-linux-gnu
+        # dav1d version must be set in zng-view/build.rs too.
         run: |
           git clone --branch 1.3.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
           cd dav1d

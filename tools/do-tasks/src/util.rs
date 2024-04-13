@@ -533,7 +533,7 @@ pub fn publish_members() -> Vec<PublishMember> {
                     let line = line.trim();
                     if line == "[package]" {
                         section = Section::Package;
-                    } else if line == "[dependencies]" {
+                    } else if line.ends_with("dependencies]") {
                         section = Section::Dependencies;
                     } else if line.starts_with('[') && line.ends_with(']') {
                         section = Section::Other;
@@ -674,7 +674,7 @@ impl PublishMember {
             let line_edit = line.trim();
             if line_edit == "[package]" {
                 section = Section::Package;
-            } else if line_edit == "[dependencies]" {
+            } else if line_edit.ends_with("dependencies]") {
                 section = Section::Dependencies;
             } else if line_edit.starts_with('[') && line_edit.ends_with(']') {
                 section = Section::Other;

@@ -16,6 +16,7 @@ const CRATE_FILES: &[(&str, &[&str])] = &[
         ],
     ),
     ("zng-view", &["zng-view/src/lib.rs"]),
+    ("zng-tp-licenses", &["zng/src/third_party.rs"]),
 ];
 
 pub fn check() {

@@ -1891,7 +1891,7 @@ impl Api for App {
         }
     }
 
-    fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::License> {
+    fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed> {
         zng_tp_licenses::include_bundle!()
     }
 

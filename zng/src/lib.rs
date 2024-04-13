@@ -494,6 +494,7 @@ pub mod style;
 pub mod task;
 pub mod text;
 pub mod text_input;
+pub mod third_party;
 pub mod timer;
 pub mod tip;
 pub mod toggle;

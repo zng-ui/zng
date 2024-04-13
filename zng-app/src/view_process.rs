@@ -256,7 +256,7 @@ impl VIEW_PROCESS {
     ///
     /// This is specially important for prebuilt view users, as the tools that scrap licenses
     /// may not find the prebuilt dependencies.
-    pub fn third_party_licenses(&self) -> Result<Vec<crate::third_party::License>> {
+    pub fn third_party_licenses(&self) -> Result<Vec<crate::third_party::LicenseUsed>> {
         self.write().process.third_party_licenses()
     }
 
