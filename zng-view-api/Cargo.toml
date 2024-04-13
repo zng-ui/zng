@@ -20,6 +20,7 @@ default = ["ipc"]
 # minor cost, something like a 1ms per 3MB frame request.
 ipc = ["ipc-channel", "duct"]
 
+# Implement `IntoVar<T>` for API types.
 var = ["zng-var"]
 
 [dependencies]
@@ -30,6 +31,7 @@ euclid = { version = "0.22.6", features = [
 
 zng-unit = { path = "../zng-unit", version = "0.2.3" }
 zng-txt = { path = "../zng-txt", version = "0.2.3" }
+zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.0" }
 zng-var = { path = "../zng-var", version = "0.2.4", optional = true }
 
 serde = { version = "1.0", features = ["derive"] }

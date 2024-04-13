@@ -487,6 +487,12 @@ declare_api! {
     /// Enable or disable IME by setting a cursor area.
     pub fn set_ime_area(&mut self, id: WindowId, area: Option<DipRect>);
 
+    /// Licenses that may be required to be displayed in the app about screen.
+    ///
+    /// This is specially important for prebuilt view users, as the tools that scrap licenses
+    /// may not find the prebuilt dependencies.
+    pub fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed>;
+
     /// Call the API extension.
     ///
     /// The `extension_id` is the index of an extension in the extensions list provided by the view-process on init.

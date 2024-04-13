@@ -19,6 +19,7 @@ members = [
     "zng-color-proc-macros",
     "zng-color",
     "zng-time",
+    "zng-tp-licenses",
 
     # view:
     "zng-view-api",

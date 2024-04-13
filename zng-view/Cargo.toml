@@ -29,6 +29,13 @@ ipc = ["zng-view-api/ipc"]
 # Feature enabled by default.
 software = ["dep:swgl"]
 
+# Bundle third party licenses.
+#
+# Needs `cargo-about` and Internet connection during build.
+#
+# Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
+bundle_licenses = ["zng-tp-licenses/bundle"]
+
 # Enable AVIF decoder and encoder.
 #
 # Note that this enables the `dav1d` dependency that is not trivial to build.
@@ -46,6 +53,7 @@ swgl = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-swg
 zng-view-api = { path = "../zng-view-api", version = "0.2.4", default-features = false }
 zng-unit = { path = "../zng-unit", version = "0.2.3" }
 zng-txt = { path = "../zng-txt", version = "0.2.3" }
+zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.0" }
 
 tracing = "0.1"
 gleam = "0.15.0" # matches webrender
@@ -119,6 +127,9 @@ tempfile = "3.10"
 # xlib is re-exported by glutin/winit
 
 # prebuild profile defined in the workspace toml
+
+[build-dependencies]
+zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.0", features = ["build"] }
 
 [package.metadata.docs.rs]
 all-features = true

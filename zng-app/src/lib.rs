@@ -28,6 +28,7 @@ pub mod event;
 pub mod handler;
 pub mod render;
 pub mod shortcut;
+pub mod third_party;
 pub mod timer;
 pub mod update;
 pub mod view_process;

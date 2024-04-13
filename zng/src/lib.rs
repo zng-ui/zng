@@ -494,6 +494,7 @@ pub mod style;
 pub mod task;
 pub mod text;
 pub mod text_input;
+pub mod third_party;
 pub mod timer;
 pub mod tip;
 pub mod toggle;
@@ -866,6 +867,8 @@ mod defaults {
                     zng_app::window::WINDOW.vars().actual_color_scheme().boxed()
                 })
             });
+
+            crate::third_party::setup_default_view();
 
             #[cfg(feature = "material_icons_outlined")]
             {

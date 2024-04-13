@@ -47,6 +47,7 @@ fn install(mut args: Vec<&str>) {
         cmd("rustup", &["component", "add", "clippy"], &[]);
         cmd("cargo", &["install", "cargo-expand"], &[]);
         cmd("cargo", &["install", "cargo-asm"], &[]);
+        cmd("cargo", &["install", "cargo-about"], &[]);
     } else {
         println(f!(
             "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:",
@@ -56,7 +57,7 @@ fn install(mut args: Vec<&str>) {
         println("   rustup component add rustfmt");
         println("   rustup component add clippy");
         println("   cargo install cargo-expand");
-        println("   cargo install cargo-asm");
+        println("   cargo install cargo-about");
     }
 }
 
@@ -568,7 +569,11 @@ fn fmt(mut args: Vec<&str>) {
 // do check, c
 //    Runs clippy on the workspace.
 fn check(args: Vec<&str>) {
-    cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
+    cmd(
+        "cargo",
+        &["clippy", "--no-deps", "--tests", "--workspace", "--examples", "--all-features"],
+        &args,
+    );
 }
 
 // do build, b [-e, --example] [--examples] [-t, --timings] [--release-lto] [-Z*] [<cargo-build-args>]
@@ -645,7 +650,11 @@ fn prebuild(mut args: Vec<&str>) {
         "prebuild"
     };
 
-    cmd("cargo", &["build", "-p", "zng-view", "--profile", profile], &args);
+    cmd(
+        "cargo",
+        &["build", "-p", "zng-view", "--profile", profile, "--features", "bundle_licenses"],
+        &args,
+    );
 
     let files = cdylib_files(format!("target/{}/zng_view", if profile == "dev" { "debug" } else { profile }));
 

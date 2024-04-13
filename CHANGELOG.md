@@ -1,7 +1,13 @@
 # Unpublished
 
 * Fix docs.rs build for `zng` and `zng-wgt-material-icons`.
-* 
+* Add AVIF support in the prebuilt.
+* Implement prebuilt compression, prebuilt now depends on `tar`.
+* Implement `PartialOrd, Ord` for `Txt`.
+* Add crate `zng-tp-licenses` for collecting and bundling licenses.
+* Add `third_party_licenses` on view API that provides prebuilt bundled licenses.
+* Add `zng::third_party` with service and types for aggregating third party license info.
+    - Includes a default impl of `OPEN_LICENSES_CMD` that shows bundled licenses.
 
 # 0.3.0
 

@@ -155,6 +155,12 @@ view = ["dep:zng-view"]
 #
 # Feature enabled by default.
 view_software = ["zng-view?/software"]
+# Collects and bundles third-party licenses used by the `zng-view` crate.
+#
+# Needs `cargo-about` and Internet connection during build.
+#
+# Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
+view_bundle_licenses = ["zng-view?/bundle_licenses"]
 
 # Include the default view-process implementation as an embedded precompiled binary.
 view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
