@@ -1,7 +1,7 @@
 # Unpublished
 
 * Fix docs.rs build for `zng` and `zng-wgt-material-icons`.
-* Add AVIF support in the prebuilt.
+* Add AVIF support in prebuilt view.
 * Implement prebuilt compression, prebuilt now depends on `tar`.
 * Implement `PartialOrd, Ord` for `Txt`.
 * Add crate `zng-tp-licenses` for collecting and bundling licenses.

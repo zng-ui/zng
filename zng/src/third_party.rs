@@ -244,8 +244,13 @@ fn default_view() -> impl UiNode {
 }
 
 fn default_item_view(item: UserLicense) -> impl UiNode {
+    let txt = if item.user.version.is_empty() {
+        item.user.name.clone()
+    } else {
+        formatx!("{} - {}", item.user.name, item.user.version)
+    };
     Toggle! {
-        child = Text!(item.user.name.clone());
+        child = Text!(txt);
         value = item;
         child_align = layout::Align::START;
         widget::corner_radius = 0;
