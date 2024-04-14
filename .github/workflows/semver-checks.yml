@@ -3,6 +3,9 @@ name: Find Breaking Changes
 on:
   workflow_dispatch:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   semver-checks:
     runs-on: ubuntu-latest
