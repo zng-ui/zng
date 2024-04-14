@@ -20,7 +20,7 @@ fn main() {
     // view_process::run_same_process(headless_example);
 
     headless_example();
-    headless_example_video();
+    // headless_example_video();
     // images_render();
 }
 
