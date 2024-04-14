@@ -22,6 +22,7 @@ fn main() {
         "rust_analyzer_run" => rust_analyzer_run(args),
         "install" => install(args),
         "publish" => publish(args),
+        "semver_check" => semver_check(args),
         "publish_version_tag" => publish_version_tag(args),
         "comment_feature" => comment_feature(args),
         "version" => version(args),
@@ -48,6 +49,7 @@ fn install(mut args: Vec<&str>) {
         cmd("cargo", &["install", "cargo-expand"], &[]);
         cmd("cargo", &["install", "cargo-asm"], &[]);
         cmd("cargo", &["install", "cargo-about"], &[]);
+        cmd("cargo", &["install", "cargo-semver-checks", "--locked"], &[])
     } else {
         println(f!(
             "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:",
@@ -58,6 +60,7 @@ fn install(mut args: Vec<&str>) {
         println("   rustup component add clippy");
         println("   cargo install cargo-expand");
         println("   cargo install cargo-about");
+        println("   cargo install cargo-semver-checks --locked");
     }
 }
 
@@ -1083,6 +1086,18 @@ fn publish(mut args: Vec<&str>) {
         }
 
         print(f!("published {} crates.\n", count));
+    }
+}
+
+// do semver_check
+//    Runs cargo semver-checks for each published crate.
+fn semver_check(args: Vec<&str>) {
+    for member in util::publish_members() {
+        let published_ver = util::crates_io_latest(member.name.as_str());
+
+        if !published_ver.is_empty() {
+            cmd("cargo", &["semver-checks", "--package", member.name.as_str()], &args);
+        }
     }
 }
 

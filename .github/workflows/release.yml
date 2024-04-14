@@ -328,10 +328,11 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
-      - uses: actions/checkout@v4
-      - uses: obi1kenobi/cargo-semver-checks-action@v2
+      - name: install cargo-semver-checks
+        uses: baptiste0928/cargo-install@v3
         with:
-          shared-key: zng-semver-checks
+          crate: cargo-semver-checks
+      - run: cargo do semver_check
 
   tag:
     runs-on: ubuntu-latest
