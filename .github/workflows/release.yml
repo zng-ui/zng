@@ -22,21 +22,27 @@ jobs:
   check-ubuntu:
     runs-on: ubuntu-latest
     steps:
-      - if: ${{ github.event.inputs.skip_checks }}
-        run: exit 0
       - name: install cargo-about
+        if: ${{ !github.event.inputs.skip_checks }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - uses: actions/checkout@v4
+        if: ${{ !github.event.inputs.skip_checks }}
         with:
           ref: release
-      - run: cargo do version --verbose 
+      - run: cargo do version --verbose
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo do fmt --check
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo do check
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo clean # to print size
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo check --examples --tests --release
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_checks }}
   check-windows:
     runs-on: windows-latest
     env:
