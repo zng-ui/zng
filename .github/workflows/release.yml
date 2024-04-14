@@ -93,6 +93,7 @@ jobs:
       - run: cargo check --examples --tests --release
         if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_checks }}
 
   prebuild-ubuntu:
     runs-on: ubuntu-latest
