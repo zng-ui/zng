@@ -4,6 +4,13 @@ on:
   push:
     branches: [ "release" ]
   workflow_dispatch:
+    inputs:
+      skip_checks:
+        type: boolean
+      skip_tests:
+        type: boolean
+      skip_tag:
+        type: boolean
     
 env:
   RUST_BACKTRACE: 1
@@ -15,6 +22,8 @@ jobs:
   check-ubuntu:
     runs-on: ubuntu-latest
     steps:
+      - if: ${{ github.event.inputs.skip_checks }}
+        run: exit 0
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
         with:
@@ -34,6 +43,8 @@ jobs:
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
+      - if: ${{ github.event.inputs.skip_checks }}
+        run: exit 0
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
         with:
@@ -50,6 +61,8 @@ jobs:
   check-macos:
     runs-on: macos-13
     steps:
+      - if: ${{ github.event.inputs.skip_checks }}
+        run: exit 0
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
         with:
@@ -228,6 +241,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prebuild-ubuntu]
     steps:
+      - if: ${{ github.event.inputs.skip_tests }}
+        run: exit 0
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
         with:
@@ -258,6 +273,8 @@ jobs:
       CXX: 'clang-cl'
       NEXTEST_RETRIES: 3
     steps:
+      - if: ${{ github.event.inputs.skip_tests }}
+        run: exit 0
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
         with:
@@ -286,6 +303,8 @@ jobs:
     env:
       NEXTEST_RETRIES: 3
     steps:
+      - if: ${{ github.event.inputs.skip_tests }}
+        run: exit 0
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
         with:
@@ -312,6 +331,8 @@ jobs:
   test-cargo-publish:
     runs-on: ubuntu-latest
     steps:
+      - if: ${{ github.event.inputs.skip_tests }}
+        run: exit 0
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
         with:
@@ -329,6 +350,8 @@ jobs:
     outputs:
       tag_name: ${{ steps.publish_version_tag.outputs.tag }}
     steps:
+      - if: ${{ github.event.inputs.skip_tag }}
+        run: exit 0
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
