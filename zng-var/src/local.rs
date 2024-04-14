@@ -93,7 +93,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
     }
 
     fn modify_importance(&self) -> usize {
-        usize::MAX
+        0
     }
 
     fn var_ptr(&self) -> VarPtr {
