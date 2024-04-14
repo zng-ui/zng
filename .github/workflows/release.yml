@@ -13,7 +13,7 @@ env:
 
 jobs:
   check-ubuntu:
-    runs-on: ubuntu-lastest
+    runs-on: ubuntu-latest
     steps:
       - name: install cargo-about
         uses: baptiste0928/cargo-install@v3
@@ -29,7 +29,7 @@ jobs:
       - run: cargo check --examples --tests --release
       - run: cargo clean
   check-windows:
-    runs-on: windows-lastest
+    runs-on: windows-latest
     env:
       CC: 'clang-cl'
       CXX: 'clang-cl'
