@@ -357,9 +357,9 @@ jobs:
       - name: compress
         run: |
           mkdir prebuilt
-          tar -czf "prebuilt/prebuilt-ubuntu.tar.gz" -C "prebuilt-ubuntu/" *
-          tar -czf "prebuilt/prebuilt-windows.tar.gz" -C "prebuilt-windows/" *
-          tar -czf "prebuilt/prebuilt-macos.tar.gz" -C "prebuilt-macos/" *
+          tar -czf "prebuilt/prebuilt-ubuntu.tar.gz" -C "prebuilt-ubuntu/" .
+          tar -czf "prebuilt/prebuilt-windows.tar.gz" -C "prebuilt-windows/" .
+          tar -czf "prebuilt/prebuilt-macos.tar.gz" -C "prebuilt-macos/" .
       - run: ls --all ./prebuilt
       - name: publish release
         uses: ncipollo/release-action@v1
