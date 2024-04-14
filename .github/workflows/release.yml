@@ -391,7 +391,7 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     needs: [test-ubuntu, test-windows, test-macos, test-cargo-publish, doc-ubuntu]
-    if: ${{ !github.event.inputs.cancel_tag }}
+    if: ${{ github.event.inputs.cancel_tag == '' || github.event.inputs.cancel_tag == 'false' }}
     permissions:
       contents: write
     outputs:
