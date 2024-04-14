@@ -49,38 +49,49 @@ jobs:
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
-      - if: ${{ github.event.inputs.skip_checks }}
-        run: exit 0
       - name: install cargo-about
+        if: ${{ !github.event.inputs.skip_checks }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - uses: actions/checkout@v4
+        if: ${{ !github.event.inputs.skip_checks }}
         with:
           ref: release
-      - run: cargo do version --verbose 
+      - run: cargo do version --verbose
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo do fmt --check
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo do check
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo do clean
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo check --examples --tests --release
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_checks }}
   check-macos:
     runs-on: macos-13
     steps:
-      - if: ${{ github.event.inputs.skip_checks }}
-        run: exit 0
       - name: install cargo-about
+        if: ${{ !github.event.inputs.skip_checks }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - uses: actions/checkout@v4
+        if: ${{ !github.event.inputs.skip_checks }}
         with:
           ref: release
-      - run: cargo do version --verbose 
+      - run: cargo do version --verbose
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo do fmt --check
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo do check
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo do clean
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo check --examples --tests --release
+        if: ${{ !github.event.inputs.skip_checks }}
       - run: cargo clean
 
   prebuild-ubuntu:
@@ -247,30 +258,38 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prebuild-ubuntu]
     steps:
-      - if: ${{ github.event.inputs.skip_tests }}
-        run: exit 0
       - name: install cargo-about
+        if: ${{ !github.event.inputs.skip_tests }}      
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - name: install cargo-nextest
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
       - uses: actions/checkout@v4
+        if: ${{ !github.event.inputs.skip_tests }}
         with:
           ref: release
       - name: install prebuilt
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: actions/download-artifact@v4
         with:
           name: prebuilt-ubuntu
           path: zng-view-prebuilt/lib
       - run: cargo do test --lib --bins --tests --nextest
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo do test --doc
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo do test --macro --all
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
   test-windows:
     runs-on: windows-latest
     needs: [prebuild-windows]
@@ -279,74 +298,91 @@ jobs:
       CXX: 'clang-cl'
       NEXTEST_RETRIES: 3
     steps:
-      - if: ${{ github.event.inputs.skip_tests }}
-        run: exit 0
       - name: install cargo-about
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - name: install cargo-nextest
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
       - uses: actions/checkout@v4
+        if: ${{ !github.event.inputs.skip_tests }}
         with:
           ref: release
       - name: install prebuilt
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: actions/download-artifact@v4
         with:
           name: prebuilt-windows
           path: zng-view-prebuilt/lib
       - run: cargo do test --lib --bins --tests --nextest
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo do test --doc
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo do test --macro --all
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
   test-macos:
     runs-on: macos-13
     needs: [prebuild-macos]
     env:
       NEXTEST_RETRIES: 3
     steps:
-      - if: ${{ github.event.inputs.skip_tests }}
-        run: exit 0
       - name: install cargo-about
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - name: install cargo-nextest
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
       - uses: actions/checkout@v4
+        if: ${{ !github.event.inputs.skip_tests }}
         with:
           ref: release
       - name: install prebuilt
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: actions/download-artifact@v4
         with:
           name: prebuilt-macos
           path: zng-view-prebuilt/lib
       - run: cargo do test --lib --bins --tests --nextest
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo do test --doc
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo do test --macro --all
+        if: ${{ !github.event.inputs.skip_tests }}
       - run: cargo clean
+        if: ${{ !github.event.inputs.skip_tests }}
 
   test-cargo-publish:
     runs-on: ubuntu-latest
     steps:
-      - if: ${{ github.event.inputs.skip_tests }}
-        run: exit 0
       - name: install cargo-about
+        if: ${{ !github.event.inputs.skip_tests }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - uses: actions/checkout@v4
+        if: ${{ !github.event.inputs.skip_tests }}
         with:
           ref: release
       - run: cargo do publish --test
+        if: ${{ !github.event.inputs.skip_tests }}
 
   tag:
     runs-on: ubuntu-latest
@@ -356,13 +392,13 @@ jobs:
     outputs:
       tag_name: ${{ steps.publish_version_tag.outputs.tag }}
     steps:
-      - if: ${{ github.event.inputs.skip_tag }}
-        run: exit 0
       - uses: actions/checkout@v4
+        if: ${{ !github.event.inputs.skip_tag }}
         with:
           fetch-depth: 0
           ref: release
       - id: publish_version_tag
+        if: ${{ !github.event.inputs.skip_tag }}
         run: cargo do publish_version_tag --execute | tail -n 1 >> "$GITHUB_OUTPUT"
   
   publish-release:
