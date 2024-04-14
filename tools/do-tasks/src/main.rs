@@ -1098,6 +1098,9 @@ fn semver_check(args: Vec<&str>) {
         if !published_ver.is_empty() && !member.name.ends_with("-proc-macros") && !member.name.ends_with("-scraper") {
             println(member.name.as_str());
             cmd("cargo", &["semver-checks", "--package", member.name.as_str()], &args);
+            for t in util::glob("target/semver-checks/*/target") {
+                let _ = std::fs::remove_dir_all(t);
+            }
         }
     }
 }
