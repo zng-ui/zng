@@ -244,7 +244,7 @@ jobs:
         with:
           name: prebuilt-ubuntu
           path: zng-view-prebuilt/lib
-      - run: cargo to test --lib --bins --tests --nextest
+      - run: cargo do test --lib --bins --tests --nextest
       - run: cargo clean
       - run: cargo do test --doc
       - run: cargo clean
@@ -274,7 +274,7 @@ jobs:
         with:
           name: prebuilt-windows
           path: zng-view-prebuilt/lib
-      - run: cargo to test --lib --bins --tests --nextest
+      - run: cargo do test --lib --bins --tests --nextest
       - run: cargo clean
       - run: cargo do test --doc
       - run: cargo clean
@@ -302,7 +302,7 @@ jobs:
         with:
           name: prebuilt-macos
           path: zng-view-prebuilt/lib
-      - run: cargo to test --lib --bins --tests --nextest
+      - run: cargo do test --lib --bins --tests --nextest
       - run: cargo clean
       - run: cargo do test --doc
       - run: cargo clean
