@@ -1,7 +1,7 @@
 # Unpublished
 
 
-# 0.3.1
+# 0.3.2
 
 * Fix docs.rs build for `zng` and `zng-wgt-material-icons`.
 * Add AVIF support in prebuilt view.
