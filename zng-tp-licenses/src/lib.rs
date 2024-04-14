@@ -243,8 +243,7 @@ pub fn write_bundle(licenses: &[LicenseUsed]) {
 
 /// Includes the bundle file generated using [`write_bundle`].
 ///
-/// This macro output is a `Vec<License>`. Note that if not built with `feature = "bundle"` this
-/// macro always returns an empty vec.
+/// This macro output is a `Vec<LicenseUsed>`.
 #[macro_export]
 #[cfg(feature = "bundle")]
 macro_rules! include_bundle {
@@ -253,21 +252,6 @@ macro_rules! include_bundle {
     };
     ($custom_name:expr) => {{
         $crate::decode_licenses(include_bytes!($custom_name))
-    }};
-}
-
-/// Includes the bundle file generated using [`write_bundle`].
-///
-/// This macro output is a `Vec<License>`. Note that if not built with `feature = "bundle"` this
-/// macro always returns an empty vec.
-#[macro_export]
-#[cfg(not(feature = "bundle"))]
-macro_rules! include_bundle {
-    () => {
-        $crate::include_bundle!(concat!(env!("OUT_DIR"), "/zng-tp-licenses.bin"))
-    };
-    ($custom_name:expr) => {{
-        Vec::<$crate::LicenseUsed>::new()
     }};
 }
 

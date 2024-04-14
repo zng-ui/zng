@@ -1892,7 +1892,14 @@ impl Api for App {
     }
 
     fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed> {
-        zng_tp_licenses::include_bundle!()
+        #[cfg(feature = "bundle_licenses")]
+        {
+            zng_tp_licenses::include_bundle!()
+        }
+        #[cfg(not(feature = "bundle_licenses"))]
+        {
+            vec![]
+        }
     }
 
     fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {
