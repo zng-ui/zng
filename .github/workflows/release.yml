@@ -64,24 +64,6 @@ jobs:
       - run: cargo check --examples --tests --release
       - run: cargo clean
 
-  doc-ubuntu:
-    runs-on: ubuntu-latest
-    needs: ['check-ubuntu']
-    steps:
-      - name: install cargo-about
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-about
-      - uses: actions/checkout@v4
-        with:
-          ref: release
-      - run: cargo do doc
-      - uses: actions/upload-artifact@v4
-        with:
-          name: doc
-          path: target/doc
-      - run: cargo clean
-
   prebuild-ubuntu:
     runs-on: ubuntu-latest
     needs: ['check-ubuntu']
@@ -224,6 +206,24 @@ jobs:
           name: prebuilt-macos
           path: zng-view-prebuilt/lib/libzng_view.dylib
 
+  doc-ubuntu:
+    runs-on: ubuntu-latest
+    needs: ['check-ubuntu']
+    steps:
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
+      - uses: actions/checkout@v4
+        with:
+          ref: release
+      - run: cargo do doc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: doc
+          path: target/doc
+      - run: cargo clean
+
   test-ubuntu:
     runs-on: ubuntu-latest
     needs: ['prebuild-ubuntu']
@@ -323,7 +323,7 @@ jobs:
 
   tag:
     runs-on: ubuntu-latest
-    needs: [test-ubuntu, test-windows, test-macos, test-cargo-publish]
+    needs: [test-ubuntu, test-windows, test-macos, test-cargo-publish, doc-ubuntu]
     permissions:
       contents: write
     outputs:
