@@ -1,5 +1,8 @@
 # Unpublished
 
+
+# 0.3.1
+
 * Fix docs.rs build for `zng` and `zng-wgt-material-icons`.
 * Add AVIF support in prebuilt view.
 * Implement prebuilt compression, prebuilt now depends on `tar`.
