@@ -1096,6 +1096,7 @@ fn semver_check(args: Vec<&str>) {
         let published_ver = util::crates_io_latest(member.name.as_str());
 
         if !published_ver.is_empty() && !member.name.ends_with("-proc-macros") {
+            println(member.name.as_str());
             cmd("cargo", &["semver-checks", "--package", member.name.as_str()], &args);
         }
     }
