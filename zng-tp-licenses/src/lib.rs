@@ -1,13 +1,11 @@
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo-icon.png")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo.png")]
-#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
+//!
 //! Third party license management and collection.
 //!
-//! Some licenses require that they must be accessible in the final binary, usually in an "about" screen. This
-//! crate defines the data type for this about screen and optionally uses `cargo about` to find and bundle all
-//! license files.
+//! # Crate
 //!
-//!
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 
 use std::fmt;
 
