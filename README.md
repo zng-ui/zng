@@ -74,6 +74,7 @@ depending on the current thread.
 - **`material_icons_filled`** Include *Material Icons Filled* icon set.
 - **`material_icons_rounded`** Include *Material Icons Rounded* icon set.
 - **`material_icons_sharp`** Include *Material Icons Sharp* icon set.
+- **`view_bundle_licenses`** Collects and bundles third-party licenses used by the `zng-view` crate.
 
 These features are enabled by default:
 
