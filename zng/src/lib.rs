@@ -439,6 +439,12 @@
 //! This crate level documentation only gives an overview required to start making apps using existing widgets and properties.
 //! All top-level modules in this crate contains in-depth documentation about their subject, of particular importance the
 //! [`app`], [`widget`], [`layout`] and [`render`] modules should give you a solid understanding of how everything works.
+//!
+//! ### Cargo Features
+//!
+//! See [Cargo Features] section in the crate README for Cargo features documentation.
+//!
+//! [Cargo Features]: https://github.com/zng-ui/zng/blob/master/README.md#cargo-features
 
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
