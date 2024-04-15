@@ -49,47 +49,127 @@ See the [`API docs`] for more details.
 
 ## Crates
 
-The `zng` crate is the only dependency you need to create Zng apps, it re-exports the primary API of the other 
+The `zng` crate is the only dependency you need to create apps, it re-exports the primary API of the other 
 crates in well organized and documented modules. 
 
 The other crates provide the full API that you might need to implement more advanced features, for example, a 
 custom property that modifies the behavior of an widget might need to reference the widget's internal state,
 this *internal* API will only be available in the widget's crate.
 
+<!--do doc --readme features-->
 ## Cargo Features
 
-Zng provides the following features which can be enabled in your `Cargo.toml` file:
+This crate provides 25 feature flags, 3 enabled by default.
 
-- **`view`** — Include the default view-process implementation.
-- **`view_prebuilt`** — Include the default view-process implementation as an embedded precompiled binary.
-- **`inspector`** — Instrument each property and widget instance with inspector nodes and extend windows to be inspected on Ctrl+Shift+I.
-- **`trace_widget`** — Instrument every widget outer-most node to trace UI methods.
-- **`trace_wgt_item`** — Instrument every property and intrinsic node to trace UI methods.
-- **`deadlock_detection`** — Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
-- **`http`** — Enables HTTP tasks, images download.
-- **`test_util`** — Test utilities.
-- **`multi_app`** — Allows multiple app instances per-process, one app per thread at a time. The `LocalContext` tracks
+#### view
+Include the default view-process implementation.
+
+#### view_prebuilt
+Include the default view-process implementation as an embedded precompiled binary.
+
+#### http
+Enables HTTP tasks and web features of widgets and services.
+
+#### debug_default
+Enable the `"dyn_*"`, `"inspector"` features in debug builds.
+
+*Enabled by default.*
+
+#### dyn_node
+Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
+
+This speeds-up compilation time at the cost of runtime.
+
+#### inspector
+Instrument each property and widget instance with "Inspector" nodes and
+extend windows to be inspected on Ctrl+Shift+I.
+
+#### dyn_app_extension
+Use dynamic dispatch at the app-extension level.
+
+This speeds-up compilation time at the cost of runtime.
+
+#### dyn_closure
+Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
+
+This speeds-up compilation time at the cost of runtime.
+
+#### test_util
+Test utilities.
+
+#### multi_app
+Allows multiple app instances per-process.
+
+This feature allows multiple apps, one app per thread at a time. The `LocalContext` tracks
 what app is currently running in each thread and `app_local!` statics switch to the value of each app
 depending on the current thread.
-- **`hyphenation_embed_all`** — Embed hyphenation dictionaries for all supported languages. If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the `Hyphenation::dictionary_source` method.
-- **`dyn_node`** — Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
-- **`dyn_app_extension`** — Use dynamic dispatch at the app-extension level.
-- **`dyn_closure`** — Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
-- **`toml`** — Enable TOML configs.
-- **`ron`** — Enable RON configs.
-- **`yaml`** — Enable YAML configs.
-- **`material_icons`** — Include all *Material Icons* icon sets, each icon set embeds some 300KB of data.
-- **`material_icons_outlined`** Include *Material Icons Outlined* icon set. If enabled some icons of this set are used for some of the commands.
-- **`material_icons_filled`** Include *Material Icons Filled* icon set.
-- **`material_icons_rounded`** Include *Material Icons Rounded* icon set.
-- **`material_icons_sharp`** Include *Material Icons Sharp* icon set.
-- **`view_bundle_licenses`** Collects and bundles third-party licenses used by the `zng-view` crate.
 
-These features are enabled by default:
+Not enabled by default, but enabled by `feature="test_util"`.
 
-- **`debug_default`** — Enable the `"dyn_*"` and `"inspector"` features for debug builds only.
-- **`ipc`** — Enables pre-build views and connecting to views running in another process.
-- **`view_software`** — Enables software renderer fallback in the default view-process (`"view"`).
+#### trace_widget
+Instrument every widget outer-most node to trace UI methods.
+
+#### trace_wgt_item
+Instrument every property and intrinsic node to trace UI methods.
+
+Note that this can cause very large trace files and bad performance.
+
+#### deadlock_detection
+Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
+
+#### hyphenation_embed_all
+Embed hyphenation dictionaries for all supported languages.
+
+If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the
+`Hyphenation::dictionary_source` method.
+
+#### material_icons
+Include all Material Icons icon sets in the default app.
+
+#### material_icons_outlined
+Material Icons Outlined icon set.
+
+If enabled some icons of this set are used for some of the commands.
+
+#### material_icons_filled
+Material Icons Filled icon set.
+
+#### material_icons_rounded
+Material Icons Rounded icon set.
+
+#### material_icons_sharp
+Material Icons Sharp icon set.
+
+#### toml
+Enable TOML configs.
+
+#### ron
+Enable RON configs.
+
+#### yaml
+Enable YAML configs.
+
+#### view_software
+Enables software renderer fallback in the default view-process.
+
+If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
+
+*Enabled by default.*
+
+#### view_bundle_licenses
+Collects and bundles third-party licenses used by the `zng-view` crate.
+
+Needs `cargo-about` and Internet connection during build.
+
+Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
+
+#### ipc
+Enables pre-build views and connecting to views running in another process.
+
+*Enabled by default.*
+
+<!--do doc --readme #SECTION-END-->
+
 
 ## Requirements
 

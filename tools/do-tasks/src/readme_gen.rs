@@ -49,7 +49,7 @@ pub fn generate(args: Vec<&str>) {
 
                     let (features, defaults) = read_features(&format!("{}/Cargo.toml", member.name));
                     if !features.is_empty() {
-                        writeln!(&mut s, "{FEATURES_HEADER}\n").unwrap();
+                        writeln!(&mut s, "{FEATURES_HEADER}").unwrap();
 
                         if features.len() == 1 {
                             if defaults.contains(&features[0].name) {
@@ -71,9 +71,9 @@ pub fn generate(args: Vec<&str>) {
                             if f.docs.is_empty() {
                                 crate::error(format_args!("missing docs for `{}` feature", f.name));
                             }
-                            writeln!(&mut s, "#### {}\n{}\n", f.name, f.docs).unwrap();
+                            writeln!(&mut s, "#### {}\n{}", f.name, f.docs).unwrap();
                             if defaults.contains(&f.name) {
-                                writeln!(&mut s, "\n **Enabled by default.**\n").unwrap();
+                                writeln!(&mut s, "*Enabled by default.*\n").unwrap();
                             }
                         }
 

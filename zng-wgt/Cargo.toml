@@ -14,7 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["debug_default"]
 
-# Signal the build script to enable the `"dyn_*"`, `"inspector"` and `"trace_widget"` features for debug builds.
+# Signal the build script to enable the `"dyn_*"`, `"inspector"` and `"trace_widget"` features in debug builds.
 debug_default = ["zng-var/debug_default"]
 
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.

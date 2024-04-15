@@ -16,7 +16,7 @@ default = ["ipc", "debug_default"]
 
 # Enables pre-build views and connecting to views running in another process.
 ipc = ["zng-view-api/ipc"]
-# Enable the `"dyn_*"` and `"inspector"` features for debug builds only.
+# Enable the `"dyn_*"` and `"inspector"` features in debug builds.
 debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]
 
 # Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
