@@ -1,3 +1,5 @@
+//! Small utility that displays the pressed key gestures.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{font::FontName, layout::align, prelude::*};

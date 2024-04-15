@@ -1,3 +1,5 @@
+//! Demonstrates the `Text!` and `TextInput!` widgets. Text rendering, text editor.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use core::fmt;

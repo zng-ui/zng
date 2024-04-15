@@ -1,3 +1,5 @@
+//! Demonstrates the view-process respawn error recovery feature.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{

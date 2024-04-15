@@ -1,3 +1,5 @@
+//! Demonstrates headless apps.
+
 use std::{io::Write, path::PathBuf};
 
 use zng::{

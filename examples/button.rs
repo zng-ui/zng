@@ -1,3 +1,5 @@
+//! Demonstrates the button widget.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{
     color::filter::opacity,

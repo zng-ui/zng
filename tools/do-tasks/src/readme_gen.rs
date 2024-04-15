@@ -238,8 +238,8 @@ pub fn generate_examples(_args: Vec<&str>) {
         }
 
         writeln!(&mut readme, "### `{example}`\n").unwrap();
-        writeln!(&mut readme, "Source: [{example}.rs](./example.rs)\n").unwrap();
-        writeln!(&mut readme, "```console\ncargo do run {example}\n```").unwrap();
+        writeln!(&mut readme, "Source: [{example}.rs](./{example}.rs)\n").unwrap();
+        writeln!(&mut readme, "```console\ncargo do run {example}\n```\n").unwrap();
 
         if docs.is_empty() {
             crate::error(format_args!("missing docs"));

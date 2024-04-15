@@ -1,3 +1,5 @@
+//! Demonstrates the `zng-view` extension API and render extensions API.
+
 use zng::{color::filter::hue_rotate, layout::size, prelude::*};
 use zng_view::extensions::ViewExtensions;
 // use zng_wgt_webrender_debug as wr;

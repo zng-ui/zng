@@ -1,3 +1,5 @@
+//! Demonstrates the CONFIG service, live updating config between processes.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{
     color::filter::opacity,
