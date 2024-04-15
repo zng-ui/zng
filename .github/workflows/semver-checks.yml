@@ -5,15 +5,12 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ZNG_TP_LICENSES: false
 
 jobs:
   semver-checks:
     runs-on: ubuntu-latest
     steps:
-      - name: install cargo-about
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-about
       - name: install cargo-semver-checks
         uses: baptiste0928/cargo-install@v3
         with:
