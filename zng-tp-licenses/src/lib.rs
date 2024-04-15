@@ -122,13 +122,20 @@ pub fn sort_licenses(l: &mut Vec<LicenseUsed>) {
 ///
 /// This method must be used in build scripts (`build.rs`).
 ///
+/// Returns an empty vec if the [`DOCS_RS`] env var is set to any value or if `ZNG_TP_LICENSES=false` is set.
+///
 /// # Panics
 ///
 /// Panics for any error, including `cargo about` errors and JSON deserialization errors.
 ///
 /// [`cargo about`]: https://github.com/EmbarkStudios/cargo-about
+/// [`"DOCS_RS"`]: https://docs.rs/about/builds#detecting-docsrs
 #[cfg(feature = "build")]
 pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
+    if std::env::var("DOCS_RS").is_ok() || std::env::var("ZNG_TP_LICENSES").unwrap_or_default() == "false" {
+        return vec![];
+    }
+
     let mut cargo_about = std::process::Command::new("cargo");
     cargo_about
         .arg("about")
