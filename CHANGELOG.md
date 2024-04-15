@@ -1,5 +1,7 @@
 # Unpublished
 
+* Fix `zng-tp-licenses` build in docs.rs.
+* You can now suppress license collection on build by setting `"NG_TP_LICENSES=false`.
 
 # 0.3.2
 

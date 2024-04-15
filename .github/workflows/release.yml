@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: install cargo-about
-        if: ${{ github.event.inputs.skip_checks }}
+        if: ${{ !github.event.inputs.skip_checks }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
