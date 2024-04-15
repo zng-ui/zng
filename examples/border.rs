@@ -1,3 +1,5 @@
+//! Demonstrates borders, corner radius, multiple borders per widget and clip-to-bounds.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{
     prelude::*,

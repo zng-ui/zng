@@ -1,3 +1,5 @@
+//! Demonstrates animation, easing functions.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::collections::HashMap;

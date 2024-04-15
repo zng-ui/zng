@@ -68,6 +68,7 @@ fn install(mut args: Vec<&str>) {
 // do doc [-o, --open] [<cargo-doc-args>]
 //        [-s, --serve]
 //        [--readme <crate>..]
+//        [--readme-examples <example>..]
 //
 //    Generate documentation for zng crates.
 //
@@ -85,9 +86,16 @@ fn install(mut args: Vec<&str>) {
 //         Tags:
 //            header: Replaces the next paragraph with the shared header.
 //            features: Replaces or insert the next section with the `## Cargo Features`.
+//     doc --readme-examples
+//         Update the examples/README.md file. Collects screenshots.
 fn doc(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--readme"]) {
         readme_gen::generate(args);
+        return;
+    }
+
+    if take_flag(&mut args, &["--readme-examples"]) {
+        readme_gen::generate_examples(args);
         return;
     }
 

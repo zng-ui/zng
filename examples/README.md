@@ -4,48 +4,30 @@ This directory contains small example apps.
 
 # Running
 
-To run an example use `cargo do run $name`.
+To run an example use `cargo do run $example` from the project root.
+To run all examples one after the other use the `cargo do run --all`.
 
-# Adding an Example
+<!--do doc --readme-examples-->
+# Options
 
-To add an example, create a file then add it in `./Cargo.toml`.
+These are the current examples provided:
 
-## Template
+### `animation`
 
-This is a good example template:
+Source: [animation.rs](./animation.rs)
 
-In `./foo.rs`: 
-```rust
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
-use zng::prelude::*;
-
-use zng::view_process::prebuilt as view_process;
-
-fn main() {
-    examples_util::print_info();
-    // view_process::run_same_process(app_main);
-
-    view_process::init();
-    app_main();
-}
-
-fn app_main() {
-    APP.defaults().run_window(async {
-        Window! {
-            title = "Foo Example";
-            child = Text!("Bar");
-        }
-    })
-}
+```console
+cargo do run animation
 ```
 
-Then add in `./Cargo.toml`:
+Demonstrates animation, easing functions.
 
-```toml
-[[example]]
-name = "foo"
-path = "foo.rs"
+### `border`
+
+Source: [border.rs](./border.rs)
+
+```console
+cargo do run border
 ```
 
-Then run from the project root using `cargo do run foo`.
+Demonstrates borders, corner radius, multiple borders per widget and clip-to-bounds.

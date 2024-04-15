@@ -177,3 +177,66 @@ const README_TEMPLATE: &str = "\
 const FEATURES_HEADER: &str = "## Cargo Features";
 
 const SECTION_END: &str = "<!--do doc --readme #SECTION-END-->";
+
+/*
+*  EXAMPLES README
+*/
+
+pub fn generate_examples(_args: Vec<&str>) {
+    // TODO <!--do doc --readme-examples-->
+
+    let cargo = std::fs::read_to_string("examples/Cargo.toml").unwrap();
+    let mut is_example = false;
+
+    let mut examples = vec![];
+
+    let mut name = String::new();
+    for line in cargo.lines() {
+        let line = line.trim();
+
+        if line == "[[example]]" {
+            is_example = true;
+        } else if line.starts_with('[') {
+            is_example = false;
+        } else if is_example {
+            if let Some(n) = line.strip_prefix("name = ") {
+                name = n.trim_matches(&['"', ' ']).to_owned();
+            } else if let Some(p) = line.strip_prefix("path = ") {
+                let p = p.trim_matches(&['"', ' ']);
+                if p != format!("{name}.rs") {
+                    crate::error(format_args!("expected example `{name}` to have the same file name, but was `{p}`"));
+                } else {
+                    examples.push(std::mem::take(&mut name));
+                }
+            }
+        }
+    }
+
+    let mut readme = String::new();
+
+    for example in examples {
+        use std::fmt::*;
+
+        let file = format!("examples/{example}.rs");
+        println(&file);
+
+        let file = std::fs::read_to_string(file).unwrap();
+
+        let mut docs = String::new();
+        for line in file.lines() {
+            let line = line.trim();
+
+            if let Some(doc) = line.strip_prefix("//!") {
+                writeln!(&mut docs, "{}", doc.trim_start()).unwrap();
+            }
+        }
+
+        if docs.is_empty() {
+            crate::error(format_args!("missing docs"));
+        }
+
+        writeln!(&mut docs, "### `{example}`\n").unwrap();
+        writeln!(&mut docs, "Source [{example}.rs](./example.rs)`\n").unwrap();
+        writeln!(&mut docs, "```console\ncargo do run {example}\n```").unwrap();
+    }
+}
