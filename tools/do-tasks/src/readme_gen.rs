@@ -183,7 +183,7 @@ const SECTION_END: &str = "<!--do doc --readme #SECTION-END-->";
 */
 
 pub fn generate_examples(_args: Vec<&str>) {
-    // TODO <!--do doc --readme-examples-->
+    use std::fmt::*;
 
     let cargo = std::fs::read_to_string("examples/Cargo.toml").unwrap();
     let mut is_example = false;
@@ -212,11 +212,17 @@ pub fn generate_examples(_args: Vec<&str>) {
         }
     }
 
-    let mut readme = String::new();
+    let mut readme = std::fs::read_to_string("").unwrap_or_default();
+
+    const TAG: &str = "<!--do doc --readme-examples-->";
+    if let Some(i) = readme.find(TAG) {
+        readme.truncate(i + TAG.len());
+        writeln!(&mut readme).unwrap();
+    } else {
+        writeln!(&mut readme, "\n{TAG}").unwrap();
+    }
 
     for example in examples {
-        use std::fmt::*;
-
         let file = format!("examples/{example}.rs");
         println(&file);
 
@@ -231,12 +237,16 @@ pub fn generate_examples(_args: Vec<&str>) {
             }
         }
 
+        writeln!(&mut readme, "### `{example}`\n").unwrap();
+        writeln!(&mut readme, "Source: [{example}.rs](./example.rs)\n").unwrap();
+        writeln!(&mut readme, "```console\ncargo do run {example}\n```").unwrap();
+
         if docs.is_empty() {
             crate::error(format_args!("missing docs"));
+        } else {
+            writeln!(&mut readme, "{docs}").unwrap();
         }
-
-        writeln!(&mut docs, "### `{example}`\n").unwrap();
-        writeln!(&mut docs, "Source [{example}.rs](./example.rs)`\n").unwrap();
-        writeln!(&mut docs, "```console\ncargo do run {example}\n```").unwrap();
     }
+
+    std::fs::write("examples/README.md", readme).unwrap();
 }
