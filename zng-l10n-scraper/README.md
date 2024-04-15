@@ -1,3 +1,4 @@
+<!--do doc --readme header-->
 This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.
 
 Command-line tool that scraps l10n text from Zng apps code. See [documentation] for more details.
@@ -30,3 +31,5 @@ Options:
 ```
 
 [documentation]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
+
+<!--do doc --readme features-->
