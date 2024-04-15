@@ -15,16 +15,12 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 default = ["ipc", "debug_default", "view_software"]
 
 # Enables pre-build views and connecting to views running in another process.
-# 
-# Enabled by default.
 ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc"]
 
 # Enables http tasks.
 http = ["zng-task/http", "zng-wgt/http", "zng-ext-image/http"]
 
 # Enable the `"dyn_*"`, `"inspector"` features for debug builds only.
-#
-# Enabled by default.
 debug_default = [
     "zng-app/debug_default",
     "zng-wgt-inspector/debug_default",

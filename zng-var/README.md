@@ -6,12 +6,10 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 ## Cargo Features
 
 
-The `zng-var` crate provides 2 feature flags, 1 enabled by default.
+This crate provides 2 feature flags, 1 enabled by default.
 
 #### debug_default
 Signal the build script to enable the `"dyn_*"` features for debug builds.
-
-Enabled by default.
 
 
 

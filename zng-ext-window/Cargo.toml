@@ -12,6 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
+# Enable test util methods, `doc_test_window`.
 test_util = []
 
 [dependencies]

@@ -14,7 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["ipc"]
 
-# Enables creation of separate or pre-build view, enabled by default.
+# Enables creation of separate or pre-build view.
 #
 # When this is enabled communication with the view is (de)serialized which can add a 
 # minor cost, something like a 1ms per 3MB frame request.

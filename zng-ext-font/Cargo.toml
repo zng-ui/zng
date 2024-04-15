@@ -12,7 +12,9 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-test_util = ["zng-app/test_util"]
+# Embed hyphenation dictionaries.
+#
+# See the `hyphenation` for more details.
 hyphenation_embed_all = ["hyphenation/embed_all"]
 
 [dependencies]

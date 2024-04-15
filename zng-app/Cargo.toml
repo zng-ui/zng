@@ -15,12 +15,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 default = ["ipc", "debug_default"]
 
 # Enables pre-build views and connecting to views running in another process.
-# 
-# Enabled by default.
 ipc = ["zng-view-api/ipc"]
-# Enable the `"dyn_*""`, `"inspector"` features for debug builds only.
-#
-# Enabled by default.
+# Enable the `"dyn_*"` and `"inspector"` features for debug builds only.
 debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]
 
 # Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.
@@ -41,7 +37,7 @@ dyn_app_extension = []
 # This speeds-up compilation time at the cost of runtime.
 dyn_closure = ["zng-var/dyn_closure", "zng-app-context/dyn_closure"]
 
-# like cfg(test) but also visible in docs and integration tests.
+# Like `cfg(test)` but also visible in docs and integration tests.
 test_util = ["multi_app", "deadlock_detection"]
 
 # Allows multiple app instances per-process.

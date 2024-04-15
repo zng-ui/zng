@@ -6,15 +6,13 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 ## Cargo Features
 
 
-The `zng-view` crate provides 3 feature flags, 2 enabled by default.
+This crate provides 3 feature flags, 2 enabled by default.
 
 #### ipc
 Enables pre-build and init as view-process.
 
 If this is enabled all communication with the view is serialized/deserialized,
 even in same-process mode.
-
-Feature enabled by default.
 
 
 
@@ -24,8 +22,6 @@ Feature enabled by default.
 Enables software renderer fallback.
 
 If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
-
-Feature enabled by default.
 
 
 

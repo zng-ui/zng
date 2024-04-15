@@ -5,21 +5,17 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 ## Cargo Features
 
 
-The `zng-app` crate provides 11 feature flags, 2 enabled by default.
+This crate provides 11 feature flags, 2 enabled by default.
 
 #### ipc
 Enables pre-build views and connecting to views running in another process.
-
-Enabled by default.
 
 
 
  **Enabled by default.**
 
 #### debug_default
-Enable the `"dyn_*""`, `"inspector"` features for debug builds only.
-
-Enabled by default.
+Enable the `"dyn_*"` and `"inspector"` features for debug builds only.
 
 
 
@@ -48,7 +44,7 @@ This speeds-up compilation time at the cost of runtime.
 
 
 #### test_util
-like cfg(test) but also visible in docs and integration tests.
+Like `cfg(test)` but also visible in docs and integration tests.
 
 
 #### multi_app

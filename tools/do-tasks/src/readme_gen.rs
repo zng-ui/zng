@@ -13,7 +13,7 @@ pub fn generate(args: Vec<&str>) {
             PathBuf::from(format!("{}/README.md", member.name))
         };
 
-        println(&readme.display());
+        println(&format!("{}/Cargo.toml", member.name));
 
         let previous = if readme.exists() {
             Cow::from(std::fs::read_to_string(&readme).unwrap())
@@ -53,25 +53,14 @@ pub fn generate(args: Vec<&str>) {
 
                         if features.len() == 1 {
                             if defaults.contains(&features[0].name) {
-                                writeln!(
-                                    &mut s,
-                                    "\n The `{}` crate provides 1 feature flag, enabled by default.",
-                                    member.name
-                                )
-                                .unwrap();
+                                writeln!(&mut s, "\n This crate provides 1 feature flag, enabled by default.",).unwrap();
                             } else {
-                                writeln!(
-                                    &mut s,
-                                    "\n The `{}` crate provides 1 feature flag, not enabled by default.",
-                                    member.name
-                                )
-                                .unwrap();
+                                writeln!(&mut s, "\n This crate provides 1 feature flag, not enabled by default.",).unwrap();
                             }
                         } else {
                             writeln!(
                                 &mut s,
-                                "\nThe `{}` crate provides {} feature flags, {} enabled by default.\n",
-                                member.name,
+                                "\nThis crate provides {} feature flags, {} enabled by default.\n",
                                 features.len(),
                                 defaults.len(),
                             )
@@ -79,6 +68,9 @@ pub fn generate(args: Vec<&str>) {
                         }
 
                         for f in features {
+                            if f.docs.is_empty() {
+                                crate::error(format_args!("missing docs for `{}` feature", f.name));
+                            }
                             writeln!(&mut s, "#### {}\n{}\n", f.name, f.docs).unwrap();
                             if defaults.contains(&f.name) {
                                 writeln!(&mut s, "\n **Enabled by default.**\n").unwrap();
@@ -155,7 +147,7 @@ fn read_features(cargo: &str) -> (Vec<Feature>, HashSet<String>) {
                         for dft in defaults.split(',') {
                             rd.insert(dft.trim_matches(&['"', ' ']).to_owned());
                         }
-                    } else if !next_docs.is_empty() {
+                    } else {
                         r.push(Feature {
                             name: name.to_owned(),
                             docs: std::mem::take(&mut next_docs),

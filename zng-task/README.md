@@ -6,7 +6,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 ## Cargo Features
 
 
-The `zng-task` crate provides 3 feature flags, 0 enabled by default.
+This crate provides 3 feature flags, 0 enabled by default.
 
 #### deadlock_detection
 Enables parking_lot deadlock detection.

@@ -6,7 +6,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 ## Cargo Features
 
 
-The `zng-wgt-material-icons` crate provides 5 feature flags, 5 enabled by default.
+This crate provides 5 feature flags, 5 enabled by default.
 
 #### embedded
 Embedded font files.

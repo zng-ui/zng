@@ -12,9 +12,13 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
+# Enable JSON helpers.
 json = ["dep:serde_json"]
+# Enable YAML helpers.
 yaml = ["dep:serde_yaml"]
+# Enable TOML helpers.
 toml = ["dep:toml"]
+# Enable RON helpers.
 ron = ["dep:ron"]
 
 [dependencies]

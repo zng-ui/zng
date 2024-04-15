@@ -6,7 +6,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 ## Cargo Features
 
 
-The `zng-tp-licenses` crate provides 2 feature flags, 0 enabled by default.
+This crate provides 2 feature flags, 0 enabled by default.
 
 #### build
 Include helpers for collecting third-party licenses.

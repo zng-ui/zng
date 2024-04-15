@@ -12,8 +12,11 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
+# Enable YAML support.
 yaml = ["dep:serde_yaml", "zng-ext-fs-watcher/yaml"]
+# Enable TOML support.
 toml = ["dep:toml", "zng-ext-fs-watcher/toml"]
+# Enable RON support.
 ron = ["dep:ron", "zng-ext-fs-watcher/ron"]
 
 [dependencies]

@@ -6,11 +6,9 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 ## Cargo Features
 
 
- The `zng-view-prebuilt` crate provides 1 feature flag, enabled by default.
+ This crate provides 1 feature flag, enabled by default.
 #### embedded
 Requires embedded on build, if prebuilt is not in './lib' and download fails the build will fail.
-
-This is enabled by default.
 
 
 

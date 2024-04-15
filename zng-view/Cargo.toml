@@ -18,15 +18,11 @@ default = ["ipc", "software"]
 #
 # If this is enabled all communication with the view is serialized/deserialized, 
 # even in same-process mode.
-#
-# Feature enabled by default.
 ipc = ["zng-view-api/ipc"]
 
 # Enables software renderer fallback.
 #
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
-#
-# Feature enabled by default.
 software = ["dep:swgl"]
 
 # Bundle third party licenses.

@@ -12,6 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
+# Enable web image source.
 http = ["zng-task/http"]
 
 [dependencies]
