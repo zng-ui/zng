@@ -1,3 +1,4 @@
+mod readme_gen;
 mod util;
 mod version_doc_sync;
 use std::format_args as f;
@@ -66,6 +67,7 @@ fn install(mut args: Vec<&str>) {
 
 // do doc [-o, --open] [<cargo-doc-args>]
 //        [-s, --serve]
+//        [--readme <crate>..]
 //
 //    Generate documentation for zng crates.
 //
@@ -78,7 +80,17 @@ fn install(mut args: Vec<&str>) {
 //
 //         Note: `basic-http-server` can be installed with cargo,
 //                it is not installed by `do install`.
+//     doc --readme
+//         Update READMEs tagged with `<!-- do doc --readme $tag -->` in all publish crates.
+//         Tags:
+//            header: Replaces the next paragraph with the shared header.
+//            features: Replaces or insert the next section with the `## Cargo Features`.
 fn doc(mut args: Vec<&str>) {
+    if take_flag(&mut args, &["--readme"]) {
+        readme_gen::generate(args);
+        return;
+    }
+
     let custom_open = if args.contains(&"--manifest-path") {
         if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
             *open = "--open";

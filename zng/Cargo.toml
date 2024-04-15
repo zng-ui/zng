@@ -14,17 +14,15 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["ipc", "debug_default", "view_software"]
 
-# Enables pre-build views and connecting to views running in another process.
-# 
-# Enabled by default.
-ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc"]
+# Include the default view-process implementation.
+view = ["dep:zng-view"]
+# Include the default view-process implementation as an embedded precompiled binary.
+view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
 
-# Enables http tasks.
+# Enables HTTP tasks and web features of widgets and services.
 http = ["zng-task/http", "zng-wgt/http", "zng-ext-image/http"]
 
-# Enable the `"dyn_*"`, `"inspector"` features for debug builds only.
-#
-# Enabled by default.
+# Enable the `"dyn_*"`, `"inspector"` features in debug builds.
 debug_default = [
     "zng-app/debug_default",
     "zng-wgt-inspector/debug_default",
@@ -56,11 +54,6 @@ dyn_closure = [
 ]
 
 # Test utilities.
-#
-# USAGE:
-#
-# Build with this feature to use the core test helper types that show
-# in the documentation.
 test_util = ["zng-app/test_util", "zng-ext-window/test_util"]
 
 # Allows multiple app instances per-process.
@@ -81,21 +74,15 @@ trace_widget = ["zng-app/trace_widget"]
 trace_wgt_item = ["zng-app/trace_wgt_item"]
 
 # Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
-#
-# Not enabled by default.
 deadlock_detection = ["zng-app/deadlock_detection"]
 
 # Embed hyphenation dictionaries for all supported languages.
 #
 # If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the 
 # `Hyphenation::dictionary_source` method.
-#
-# Not enabled by default.
 hyphenation_embed_all = ["zng-ext-font/hyphenation_embed_all"]
 
 # Include all Material Icons icon sets in the default app.
-#
-# Not enabled by default.
 material_icons = [
     "material_icons_outlined",
     "material_icons_filled",
@@ -105,8 +92,6 @@ material_icons = [
 # Material Icons Outlined icon set.
 #
 # If enabled some icons of this set are used for some of the commands.
-#
-# Not enabled by default.
 material_icons_outlined = [
     "dep:zng-wgt-material-icons",
     "zng-wgt-material-icons/embedded",
@@ -114,8 +99,6 @@ material_icons_outlined = [
 ]
 
 # Material Icons Filled icon set.
-#
-# Not enabled by default.
 material_icons_filled = [
     "dep:zng-wgt-material-icons",
     "zng-wgt-material-icons/embedded",
@@ -123,8 +106,6 @@ material_icons_filled = [
 ]
 
 # Material Icons Rounded icon set.
-#
-# Not enabled by default.
 material_icons_rounded = [
     "dep:zng-wgt-material-icons",
     "zng-wgt-material-icons/embedded",
@@ -132,8 +113,6 @@ material_icons_rounded = [
 ]
 
 # Material Icons Sharp icon set.
-#
-# Not enabled by default.
 material_icons_sharp = [
     "dep:zng-wgt-material-icons",
     "zng-wgt-material-icons/embedded",
@@ -147,13 +126,9 @@ ron = ["zng-ext-config/ron"]
 # Enable YAML configs.
 yaml = ["zng-ext-config/yaml"]
 
-# Include the default view-process implementation.
-view = ["dep:zng-view"]
 # Enables software renderer fallback in the default view-process.
 #
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
-#
-# Feature enabled by default.
 view_software = ["zng-view?/software"]
 # Collects and bundles third-party licenses used by the `zng-view` crate.
 #
@@ -162,8 +137,8 @@ view_software = ["zng-view?/software"]
 # Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 view_bundle_licenses = ["zng-view?/bundle_licenses"]
 
-# Include the default view-process implementation as an embedded precompiled binary.
-view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
+# Enables pre-build views and connecting to views running in another process.
+ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc"]
 
 [dependencies]
 # foundation

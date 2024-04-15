@@ -4,7 +4,7 @@ version = "0.2.7"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-readme = "../zng-app/README.md"
+readme = "README.md"
 description = "Part of the zng project."
 documentation = "https://zng-ui.github.io/doc/zng_ext_config"
 repository = "https://github.com/zng-ui/zng"
@@ -12,8 +12,11 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
+# Enable YAML support.
 yaml = ["dep:serde_yaml", "zng-ext-fs-watcher/yaml"]
+# Enable TOML support.
 toml = ["dep:toml", "zng-ext-fs-watcher/toml"]
+# Enable RON support.
 ron = ["dep:ron", "zng-ext-fs-watcher/ron"]
 
 [dependencies]

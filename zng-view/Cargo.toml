@@ -4,7 +4,7 @@ version = "0.2.7"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-readme = "../zng-app/README.md"
+readme = "README.md"
 description = "Part of the zng project."
 documentation = "https://zng-ui.github.io/doc/zng_view"
 repository = "https://github.com/zng-ui/zng"
@@ -18,15 +18,11 @@ default = ["ipc", "software"]
 #
 # If this is enabled all communication with the view is serialized/deserialized, 
 # even in same-process mode.
-#
-# Feature enabled by default.
 ipc = ["zng-view-api/ipc"]
 
 # Enables software renderer fallback.
 #
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
-#
-# Feature enabled by default.
 software = ["dep:swgl"]
 
 # Bundle third party licenses.

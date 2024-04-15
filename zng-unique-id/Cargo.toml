@@ -4,7 +4,7 @@ version = "0.2.4"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-readme = "../zng-app/README.md"
+readme = "README.md"
 description = "Part of the zng project."
 documentation = "https://zng-ui.github.io/doc/zng_unique_id"
 repository = "https://github.com/zng-ui/zng"
@@ -13,7 +13,9 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
 default = ["named", "bytemuck" ]
+# Enable associated names for ID types.
 named = ["dep:zng-txt", "dep:parking_lot"]
+# Derive `bytemuck` for ID types.
 bytemuck = []
 
 [dependencies]

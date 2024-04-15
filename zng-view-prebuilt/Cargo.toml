@@ -4,7 +4,7 @@ version = "0.3.3"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-readme = "../zng-app/README.md"
+readme = "README.md"
 description = "Part of the zng project."
 documentation = "https://zng-ui.github.io/doc/zng_view_prebuilt"
 repository = "https://github.com/zng-ui/zng"
@@ -15,8 +15,6 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 default = ["embedded"]
 
 # Requires embedded on build, if prebuilt is not in './lib' and download fails the build will fail.
-#
-# This is enabled by default.
 embedded = []
 
 [dependencies]

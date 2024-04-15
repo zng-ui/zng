@@ -4,7 +4,7 @@ version = "0.2.7"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-readme = "../zng-app/README.md"
+readme = "README.md"
 description = "Part of the zng project."
 documentation = "https://zng-ui.github.io/doc/zng_view_api"
 repository = "https://github.com/zng-ui/zng"
@@ -14,7 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["ipc"]
 
-# Enables creation of separate or pre-build view, enabled by default.
+# Enables creation of separate or pre-build view.
 #
 # When this is enabled communication with the view is (de)serialized which can add a 
 # minor cost, something like a 1ms per 3MB frame request.

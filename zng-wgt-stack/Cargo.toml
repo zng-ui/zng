@@ -4,7 +4,7 @@ version = "0.2.7"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-readme = "../zng-app/README.md"
+readme = "README.md"
 description = "Part of the zng project."
 documentation = "https://zng-ui.github.io/doc/zng_wgt_stack"
 repository = "https://github.com/zng-ui/zng"
@@ -13,7 +13,11 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
 default = ["debug_default"]
+# Enables the `"dyn_closure"` in debug builds.
 debug_default = []
+# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
+#
+# This speeds-up compilation time at the cost of runtime.
 dyn_closure = []
 
 [dependencies]

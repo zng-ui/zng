@@ -1,13 +1,15 @@
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo-icon.png")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo.png")]
-#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 //!
 //! App process implementation.
 //!
 //! # Widget Instantiation
 //!
 //! See [`enable_widget_macros!`] if you want to instantiate widgets without depending on the `zng` crate.
-
+//!
+//! # Crate
+//!
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 #![recursion_limit = "256"]
 // suppress nag about very simple boxed closure signatures.
 #![allow(clippy::type_complexity)]

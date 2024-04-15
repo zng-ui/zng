@@ -4,7 +4,7 @@ version = "0.2.7"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-readme = "../zng-app/README.md"
+readme = "README.md"
 description = "Part of the zng project."
 documentation = "https://zng-ui.github.io/doc/zng_ext_fs_watcher"
 repository = "https://github.com/zng-ui/zng"
@@ -12,9 +12,13 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
+# Enable JSON helpers.
 json = ["dep:serde_json"]
+# Enable YAML helpers.
 yaml = ["dep:serde_yaml"]
+# Enable TOML helpers.
 toml = ["dep:toml"]
+# Enable RON helpers.
 ron = ["dep:ron"]
 
 [dependencies]
