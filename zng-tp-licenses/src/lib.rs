@@ -129,7 +129,7 @@ pub fn sort_licenses(l: &mut Vec<LicenseUsed>) {
 /// Panics for any error, including `cargo about` errors and JSON deserialization errors.
 ///
 /// [`cargo about`]: https://github.com/EmbarkStudios/cargo-about
-/// [`"DOCS_RS"`]: https://docs.rs/about/builds#detecting-docsrs
+/// [`DOCS_RS`]: https://docs.rs/about/builds#detecting-docsrs
 #[cfg(feature = "build")]
 pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
     if std::env::var("DOCS_RS").is_ok() || std::env::var("ZNG_TP_LICENSES").unwrap_or_default() == "false" {

@@ -74,14 +74,12 @@ jobs:
   test-doc:
     runs-on: ubuntu-latest
     needs: [check]
+    env:
+      DOCS_RS: true
     steps:
-      - name: install cargo-about
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-about
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - run: cargo do test --doc
+      - run: cargo do test --doc --all-features
       - run: cargo clean
   test-macro:
     runs-on: ubuntu-latest
