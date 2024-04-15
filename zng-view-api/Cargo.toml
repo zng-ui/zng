@@ -18,10 +18,10 @@ default = ["ipc"]
 #
 # When this is enabled communication with the view is (de)serialized which can add a 
 # minor cost, something like a 1ms per 3MB frame request.
-ipc = ["ipc-channel", "duct"]
+ipc = ["dep:ipc-channel", "dep:duct"]
 
 # Implement `IntoVar<T>` for API types.
-var = ["zng-var"]
+var = ["dep:zng-var"]
 
 [dependencies]
 euclid = { version = "0.22.6", features = [
