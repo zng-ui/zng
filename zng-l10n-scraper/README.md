@@ -1,5 +1,5 @@
 <!--do doc --readme header-->
-This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.
+This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-file#crates) project.
 
 Command-line tool that scraps l10n text from Zng apps code. See [documentation] for more details.
 

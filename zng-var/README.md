@@ -1,9 +1,10 @@
 <!--do doc --readme header-->
-This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.
+This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-file#crates) project.
 
 
 <!--do doc --readme features-->
 ## Cargo Features
+
 
 The `zng-var` crate provides 2 feature flags, 1 enabled by default.
 
@@ -12,6 +13,9 @@ Signal the build script to enable the `"dyn_*"` features for debug builds.
 
 Enabled by default.
 
+
+
+ **Enabled by default.**
 
 #### dyn_closure
 Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.

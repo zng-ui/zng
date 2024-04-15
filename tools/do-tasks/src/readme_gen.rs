@@ -49,17 +49,40 @@ pub fn generate(args: Vec<&str>) {
 
                     let (features, defaults) = read_features(&format!("{}/Cargo.toml", member.name));
                     if !features.is_empty() {
-                        writeln!(
-                            &mut s,
-                            "{FEATURES_HEADER}\n\nThe `{}` crate provides {} feature flags, {} enabled by default.\n",
-                            member.name,
-                            features.len(),
-                            defaults.len(),
-                        )
-                        .unwrap();
+                        writeln!(&mut s, "{FEATURES_HEADER}\n").unwrap();
+
+                        if features.len() == 1 {
+                            if defaults.contains(&features[0].name) {
+                                writeln!(
+                                    &mut s,
+                                    "\n The `{}` crate provides 1 feature flag, enabled by default.",
+                                    member.name
+                                )
+                                .unwrap();
+                            } else {
+                                writeln!(
+                                    &mut s,
+                                    "\n The `{}` crate provides 1 feature flag, not enabled by default.",
+                                    member.name
+                                )
+                                .unwrap();
+                            }
+                        } else {
+                            writeln!(
+                                &mut s,
+                                "\nThe `{}` crate provides {} feature flags, {} enabled by default.\n",
+                                member.name,
+                                features.len(),
+                                defaults.len(),
+                            )
+                            .unwrap();
+                        }
 
                         for f in features {
                             writeln!(&mut s, "#### {}\n{}\n", f.name, f.docs).unwrap();
+                            if defaults.contains(&f.name) {
+                                writeln!(&mut s, "\n **Enabled by default.**\n").unwrap();
+                            }
                         }
 
                         writeln!(&mut s, "{SECTION_END}").unwrap();
@@ -147,7 +170,7 @@ fn read_features(cargo: &str) -> (Vec<Feature>, HashSet<String>) {
     (r, rd)
 }
 
-const HEADER: &str = "This crate is part of the [`zng`](https://github.com/zng-ui/zng#Crates) project.\n";
+const HEADER: &str = "This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-file#crates) project.\n";
 
 const README_TEMPLATE: &str = "\
 <!--do doc --readme header-->

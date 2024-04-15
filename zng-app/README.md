@@ -1,8 +1,9 @@
 <!--do doc --readme header-->
-This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.
+This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-file#crates) project.
 
 <!--do doc --readme features-->
 ## Cargo Features
+
 
 The `zng-app` crate provides 11 feature flags, 2 enabled by default.
 
@@ -12,11 +13,17 @@ Enables pre-build views and connecting to views running in another process.
 Enabled by default.
 
 
+
+ **Enabled by default.**
+
 #### debug_default
 Enable the `"dyn_*""`, `"inspector"` features for debug builds only.
 
 Enabled by default.
 
+
+
+ **Enabled by default.**
 
 #### dyn_node
 Use dynamic dispatch at the node level by placing each property node in a `BoxedUiNode` and enabling `UiNode::cfg_boxed`.

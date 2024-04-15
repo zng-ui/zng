@@ -1,9 +1,10 @@
 <!--do doc --readme header-->
-This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.
+This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-file#crates) project.
 
 
 <!--do doc --readme features-->
 ## Cargo Features
+
 
 The `zng-view` crate provides 3 feature flags, 2 enabled by default.
 
@@ -16,6 +17,9 @@ even in same-process mode.
 Feature enabled by default.
 
 
+
+ **Enabled by default.**
+
 #### software
 Enables software renderer fallback.
 
@@ -23,6 +27,9 @@ If enabled and a native OpenGL 3.2 driver is not available the `swgl` software r
 
 Feature enabled by default.
 
+
+
+ **Enabled by default.**
 
 #### bundle_licenses
 Bundle third party licenses.
