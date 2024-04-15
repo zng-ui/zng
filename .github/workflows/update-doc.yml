@@ -11,6 +11,7 @@ env:
   RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
   RUSTDOCFLAGS: '--deny=warnings'
   CARGO_TERM_COLOR: always
+  ZNG_TP_LICENSES: false
 
 jobs:
   doc:
