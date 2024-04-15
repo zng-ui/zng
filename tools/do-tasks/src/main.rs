@@ -67,7 +67,7 @@ fn install(mut args: Vec<&str>) {
 
 // do doc [-o, --open] [<cargo-doc-args>]
 //        [-s, --serve]
-//        [--readme]
+//        [--readme <crate>..]
 //
 //    Generate documentation for zng crates.
 //
@@ -81,13 +81,13 @@ fn install(mut args: Vec<&str>) {
 //         Note: `basic-http-server` can be installed with cargo,
 //                it is not installed by `do install`.
 //     doc --readme
-//         Update README.md sections tagged with `<!-- do doc --readme $section -->`
-//         Sections:
+//         Update READMEs tagged with `<!-- do doc --readme $tag -->` in all publish crates.
+//         Tags:
 //            header: Replaces the next paragraph with the shared header.
-//            features: Replaces or insert the next section with the `# Cargo Features` section.
+//            features: Replaces or insert the next section with the `## Cargo Features`.
 fn doc(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--readme"]) {
-        readme_gen::generate();
+        readme_gen::generate(args);
         return;
     }
 

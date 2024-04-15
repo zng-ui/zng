@@ -56,11 +56,6 @@ dyn_closure = [
 ]
 
 # Test utilities.
-#
-# USAGE:
-#
-# Build with this feature to use the core test helper types that show
-# in the documentation.
 test_util = ["zng-app/test_util", "zng-ext-window/test_util"]
 
 # Allows multiple app instances per-process.

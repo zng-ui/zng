@@ -42,14 +42,6 @@ dyn_app_extension = []
 dyn_closure = ["zng-var/dyn_closure", "zng-app-context/dyn_closure"]
 
 # like cfg(test) but also visible in docs and integration tests.
-#
-# USAGE:
-#
-# For zng-core maintainers, use `#[cfg(feature="test_util")]` in the helper types and places where
-# the types are used. Use `do` to run integration tests.
-#
-# For external dependents, build with this feature to use the test helper types that show
-# in the documentation.
 test_util = ["multi_app", "deadlock_detection"]
 
 # Allows multiple app instances per-process.
