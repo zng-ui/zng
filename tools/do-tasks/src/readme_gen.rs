@@ -1,5 +1,5 @@
 use crate::{println, util};
-use std::{borrow::Cow, path::PathBuf};
+use std::{borrow::Cow, collections::HashSet, path::PathBuf};
 
 pub fn generate(args: Vec<&str>) {
     for member in &util::publish_members() {
@@ -47,12 +47,19 @@ pub fn generate(args: Vec<&str>) {
                         }
                     }
 
-                    let features = read_features(&format!("{}/Cargo.toml", member.name));
+                    let (features, defaults) = read_features(&format!("{}/Cargo.toml", member.name));
                     if !features.is_empty() {
-                        writeln!(&mut s, "{FEATURES_HEADER}\n").unwrap();
+                        writeln!(
+                            &mut s,
+                            "{FEATURES_HEADER}\n\nThe `{}` crate provides {} feature flags, {} enabled by default.\n",
+                            member.name,
+                            features.len(),
+                            defaults.len(),
+                        )
+                        .unwrap();
 
                         for f in features {
-                            writeln!(&mut s, "##### {}\n{}\n", f.name, f.docs).unwrap();
+                            writeln!(&mut s, "#### {}\n{}\n", f.name, f.docs).unwrap();
                         }
 
                         writeln!(&mut s, "{SECTION_END}").unwrap();
@@ -79,16 +86,18 @@ struct Feature {
     docs: String,
 }
 
-fn read_features(cargo: &str) -> Vec<Feature> {
+fn read_features(cargo: &str) -> (Vec<Feature>, HashSet<String>) {
     let cargo = std::fs::read_to_string(cargo).unwrap();
     let mut r = vec![];
+    let mut rd = HashSet::new();
     let mut in_features = false;
 
     let mut next_docs = String::new();
 
     let rgx = regex::Regex::new(r#"(\w+)\s*=\s*\[.*"#).unwrap();
 
-    for line in cargo.lines() {
+    let mut lines = cargo.lines();
+    while let Some(line) = lines.next() {
         let line = line.trim();
         if line == "[features]" {
             in_features = true;
@@ -105,7 +114,25 @@ fn read_features(cargo: &str) -> Vec<Feature> {
             } else {
                 if let Some(caps) = rgx.captures(&line) {
                     let name = caps.get(1).unwrap().as_str();
-                    if !next_docs.is_empty() {
+                    if name == "default" {
+                        let s = line.find('[').unwrap();
+                        let mut defaults = String::new();
+                        if let Some(e) = line.find(']') {
+                            defaults.push_str(&line[s + 1..e]);
+                        } else {
+                            defaults.push_str(&line[s + 1..]);
+                            while let Some(line) = lines.next() {
+                                if let Some(e) = line.find(']') {
+                                    defaults.push_str(&line[..e]);
+                                    break;
+                                }
+                                defaults.push_str(line);
+                            }
+                        }
+                        for dft in defaults.split(',') {
+                            rd.insert(dft.trim_matches(&['"', ' ']).to_owned());
+                        }
+                    } else if !next_docs.is_empty() {
                         r.push(Feature {
                             name: name.to_owned(),
                             docs: std::mem::take(&mut next_docs),
@@ -117,10 +144,10 @@ fn read_features(cargo: &str) -> Vec<Feature> {
             }
         }
     }
-    r
+    (r, rd)
 }
 
-const HEADER: &str = "This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.\n";
+const HEADER: &str = "This crate is part of the [`zng`](https://github.com/zng-ui/zng#Crates) project.\n";
 
 const README_TEMPLATE: &str = "\
 <!--do doc --readme header-->

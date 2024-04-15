@@ -5,23 +5,25 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.
 <!--do doc --readme features-->
 ## Cargo Features
 
-##### embedded
+The `zng-wgt-material-icons` crate provides 5 feature flags, 5 enabled by default.
+
+#### embedded
 Embedded font files.
 
 
-##### outlined
+#### outlined
 Outlined icon set.
 
 
-##### filled
+#### filled
 Filled icon set.
 
 
-##### rounded
+#### rounded
 Rounded icon set.
 
 
-##### sharp
+#### sharp
 Sharp icon set.
 
 

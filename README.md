@@ -47,6 +47,15 @@ fn main() {
 
 See the [`API docs`] for more details.
 
+## Crates
+
+The `zng` crate is the only dependency you need to create Zng apps, it re-exports the primary API of the other 
+crates in well organized and documented modules. 
+
+The other crates provide the full API that you might need to implement more advanced features, for example, a 
+custom property that modifies the behavior of an widget might need to reference the widget's internal state,
+this *internal* API will only be available in the widget's crate.
+
 ## Cargo Features
 
 Zng provides the following features which can be enabled in your `Cargo.toml` file:

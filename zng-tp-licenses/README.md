@@ -5,11 +5,13 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng) project.
 <!--do doc --readme features-->
 ## Cargo Features
 
-##### build
+The `zng-tp-licenses` crate provides 2 feature flags, 0 enabled by default.
+
+#### build
 Include helpers for collecting third-party licenses.
 
 
-##### bundle
+#### bundle
 Include helpers for deserializing `build` encoded licenses.
 
 

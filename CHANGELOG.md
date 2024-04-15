@@ -1,5 +1,6 @@
 # Unpublished
 
+* Add Cargo feature documentation in each crate `README.md` and `lib.rs` docs.
 
 # 0.3.3
 
