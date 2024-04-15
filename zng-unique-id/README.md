@@ -7,12 +7,12 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 
 This crate provides 2 feature flags, 2 enabled by default.
 
-#### named
+#### `"named"`
 Enable associated names for ID types.
 
 *Enabled by default.*
 
-#### bytemuck
+#### `"bytemuck"`
 Derive `bytemuck` for ID types.
 
 *Enabled by default.*

@@ -7,7 +7,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 
 This crate provides 3 feature flags, 2 enabled by default.
 
-#### ipc
+#### `"ipc"`
 Enables pre-build and init as view-process.
 
 If this is enabled all communication with the view is serialized/deserialized,
@@ -15,14 +15,14 @@ even in same-process mode.
 
 *Enabled by default.*
 
-#### software
+#### `"software"`
 Enables software renderer fallback.
 
 If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
 
 *Enabled by default.*
 
-#### bundle_licenses
+#### `"bundle_licenses"`
 Bundle third party licenses.
 
 Needs `cargo-about` and Internet connection during build.

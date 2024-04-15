@@ -61,43 +61,43 @@ this *internal* API will only be available in the widget's crate.
 
 This crate provides 25 feature flags, 3 enabled by default.
 
-#### view
+#### `"view"`
 Include the default view-process implementation.
 
-#### view_prebuilt
+#### `"view_prebuilt"`
 Include the default view-process implementation as an embedded precompiled binary.
 
-#### http
+#### `"http"`
 Enables HTTP tasks and web features of widgets and services.
 
-#### debug_default
+#### `"debug_default"`
 Enable the `"dyn_*"`, `"inspector"` features in debug builds.
 
 *Enabled by default.*
 
-#### dyn_node
+#### `"dyn_node"`
 Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
 
 This speeds-up compilation time at the cost of runtime.
 
-#### inspector
+#### `"inspector"`
 Instrument each property and widget instance with "Inspector" nodes and
 extend windows to be inspected on Ctrl+Shift+I.
 
-#### dyn_app_extension
+#### `"dyn_app_extension"`
 Use dynamic dispatch at the app-extension level.
 
 This speeds-up compilation time at the cost of runtime.
 
-#### dyn_closure
+#### `"dyn_closure"`
 Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 
 This speeds-up compilation time at the cost of runtime.
 
-#### test_util
+#### `"test_util"`
 Test utilities.
 
-#### multi_app
+#### `"multi_app"`
 Allows multiple app instances per-process.
 
 This feature allows multiple apps, one app per thread at a time. The `LocalContext` tracks
@@ -106,64 +106,64 @@ depending on the current thread.
 
 Not enabled by default, but enabled by `feature="test_util"`.
 
-#### trace_widget
+#### `"trace_widget"`
 Instrument every widget outer-most node to trace UI methods.
 
-#### trace_wgt_item
+#### `"trace_wgt_item"`
 Instrument every property and intrinsic node to trace UI methods.
 
 Note that this can cause very large trace files and bad performance.
 
-#### deadlock_detection
+#### `"deadlock_detection"`
 Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
 
-#### hyphenation_embed_all
+#### `"hyphenation_embed_all"`
 Embed hyphenation dictionaries for all supported languages.
 
 If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the
 `Hyphenation::dictionary_source` method.
 
-#### material_icons
+#### `"material_icons"`
 Include all Material Icons icon sets in the default app.
 
-#### material_icons_outlined
+#### `"material_icons_outlined"`
 Material Icons Outlined icon set.
 
 If enabled some icons of this set are used for some of the commands.
 
-#### material_icons_filled
+#### `"material_icons_filled"`
 Material Icons Filled icon set.
 
-#### material_icons_rounded
+#### `"material_icons_rounded"`
 Material Icons Rounded icon set.
 
-#### material_icons_sharp
+#### `"material_icons_sharp"`
 Material Icons Sharp icon set.
 
-#### toml
+#### `"toml"`
 Enable TOML configs.
 
-#### ron
+#### `"ron"`
 Enable RON configs.
 
-#### yaml
+#### `"yaml"`
 Enable YAML configs.
 
-#### view_software
+#### `"view_software"`
 Enables software renderer fallback in the default view-process.
 
 If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
 
 *Enabled by default.*
 
-#### view_bundle_licenses
+#### `"view_bundle_licenses"`
 Collects and bundles third-party licenses used by the `zng-view` crate.
 
 Needs `cargo-about` and Internet connection during build.
 
 Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 
-#### ipc
+#### `"ipc"`
 Enables pre-build views and connecting to views running in another process.
 
 *Enabled by default.*

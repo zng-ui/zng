@@ -7,27 +7,27 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 
 This crate provides 5 feature flags, 5 enabled by default.
 
-#### embedded
+#### `"embedded"`
 Embedded font files.
 
 *Enabled by default.*
 
-#### outlined
+#### `"outlined"`
 Outlined icon set.
 
 *Enabled by default.*
 
-#### filled
+#### `"filled"`
 Filled icon set.
 
 *Enabled by default.*
 
-#### rounded
+#### `"rounded"`
 Rounded icon set.
 
 *Enabled by default.*
 
-#### sharp
+#### `"sharp"`
 Sharp icon set.
 
 *Enabled by default.*

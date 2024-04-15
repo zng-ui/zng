@@ -7,16 +7,16 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 
 This crate provides 4 feature flags, 0 enabled by default.
 
-#### json
+#### `"json"`
 Enable JSON helpers.
 
-#### yaml
+#### `"yaml"`
 Enable YAML helpers.
 
-#### toml
+#### `"toml"`
 Enable TOML helpers.
 
-#### ron
+#### `"ron"`
 Enable RON helpers.
 
 <!--do doc --readme #SECTION-END-->

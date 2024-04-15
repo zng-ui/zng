@@ -6,7 +6,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 ## Cargo Features
 
  This crate provides 1 feature flag, not enabled by default.
-#### hyphenation_embed_all
+#### `"hyphenation_embed_all"`
 Embed hyphenation dictionaries.
 
 See the `hyphenation` for more details.

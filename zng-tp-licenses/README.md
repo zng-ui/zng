@@ -7,10 +7,10 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 
 This crate provides 2 feature flags, 0 enabled by default.
 
-#### build
+#### `"build"`
 Include helpers for collecting third-party licenses.
 
-#### bundle
+#### `"bundle"`
 Include helpers for deserializing `build` encoded licenses.
 
 <!--do doc --readme #SECTION-END-->

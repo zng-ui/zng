@@ -7,13 +7,13 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 
 This crate provides 3 feature flags, 0 enabled by default.
 
-#### deadlock_detection
+#### `"deadlock_detection"`
 Enables parking_lot deadlock detection.
 
-#### http
+#### `"http"`
 Enables http tasks.
 
-#### test_util
+#### `"test_util"`
 Enabled by doc tests.
 
 <!--do doc --readme #SECTION-END-->

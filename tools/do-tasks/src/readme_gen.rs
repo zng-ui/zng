@@ -71,7 +71,7 @@ pub fn generate(args: Vec<&str>) {
                             if f.docs.is_empty() {
                                 crate::error(format_args!("missing docs for `{}` feature", f.name));
                             }
-                            writeln!(&mut s, "#### {}\n{}", f.name, f.docs).unwrap();
+                            writeln!(&mut s, "#### `\"{}\"`\n{}", f.name, f.docs).unwrap();
                             if defaults.contains(&f.name) {
                                 writeln!(&mut s, "*Enabled by default.*\n").unwrap();
                             }

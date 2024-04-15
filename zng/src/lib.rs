@@ -442,7 +442,7 @@
 //!
 //! ### Cargo Features
 //!
-//! See [Cargo Features] section in the crate README for Cargo features documentation.
+//! See the [Cargo Features] section in the crate README for Cargo features documentation.
 //!
 //! [Cargo Features]: https://github.com/zng-ui/zng/blob/master/README.md#cargo-features
 

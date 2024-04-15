@@ -7,13 +7,13 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 
 This crate provides 3 feature flags, 0 enabled by default.
 
-#### yaml
+#### `"yaml"`
 Enable YAML support.
 
-#### toml
+#### `"toml"`
 Enable TOML support.
 
-#### ron
+#### `"ron"`
 Enable RON support.
 
 <!--do doc --readme #SECTION-END-->
