@@ -6,7 +6,7 @@
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 //!
 //! ```toml
-//! zng = { version = "0.3.2", features = ["material_icons"] }
+//! zng = { version = "0.3.3", features = ["material_icons"] }
 //! ```
 //!
 //! ```
