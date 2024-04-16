@@ -214,8 +214,13 @@ Shell script to run `do` are also provided:
 
 ### `cargo do run <example>`
 
-The task runner can be used to run the examples in `./examples` folder, for example: `cargo do run calculator` runs the
+The task runner can be used to run the examples in [`./examples`] folder, for example: `cargo do run calculator` runs the
 `./examples/calculator.rs` example.
+
+See [`./examples/README.md`] for a list of examples with description and screenshots.
+
+[`./examples`]: https://github.com/zng-ui/zng/tree/master/examples
+[`./examples/README.md`]: https://github.com/zng-ui/zng/tree/master/examples
 
 ### `cargo do install`
 
