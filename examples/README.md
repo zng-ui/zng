@@ -142,6 +142,8 @@ Search and copy Material Icons constants.
 
 ### `image`
 
+<img alt='headless screenshot' src='./res/screenshots/image.png' width='300'>
+
 Source: [image.rs](./image.rs)
 
 ```console
