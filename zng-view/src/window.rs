@@ -1396,6 +1396,7 @@ impl Window {
                 self.redraw();
             }
             let renderer = self.renderer.as_mut().unwrap();
+            self.context.make_current();
             Some(images.frame_image_data(
                 renderer,
                 PxRect::from_size(self.window.inner_size().to_px()),
@@ -1459,6 +1460,7 @@ impl Window {
 
     pub fn frame_image(&mut self, images: &mut ImageCache, mask: Option<ImageMaskMode>) -> ImageId {
         let scale_factor = self.scale_factor();
+        self.context.make_current();
         images.frame_image(
             self.renderer.as_mut().unwrap(),
             PxRect::from_size(self.window.inner_size().to_px()),
@@ -1475,6 +1477,7 @@ impl Window {
         let rect = PxRect::from_size(self.window.inner_size().to_px())
             .intersection(&rect)
             .unwrap_or_default();
+        self.context.make_current();
         images.frame_image(
             self.renderer.as_mut().unwrap(),
             rect,

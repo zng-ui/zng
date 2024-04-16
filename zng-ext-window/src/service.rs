@@ -9,8 +9,8 @@ use zng_app::{
     view_process::{
         self,
         raw_events::{
-            RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT,
-            RAW_WINDOW_OPEN_EVENT,
+            RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_WINDOW_CLOSE_EVENT,
+            RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT,
         },
         ViewImage, ViewRenderer, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
@@ -32,7 +32,10 @@ use zng_task::{
 };
 use zng_txt::{formatx, Txt};
 use zng_unique_id::{IdMap, IdSet};
-use zng_var::{impl_from_and_into_var, response_done_var, response_var, var, ArcVar, BoxedVar, LocalVar, ResponderVar, ResponseVar, Var};
+use zng_var::{
+    impl_from_and_into_var, response_done_var, response_var, types::WeakArcVar, var, AnyWeakVar, ArcVar, BoxedVar, LocalVar, ResponderVar,
+    ResponseVar, Var, WeakVar,
+};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
@@ -70,7 +73,7 @@ pub(super) struct WindowsService {
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
 
-    frame_images: Vec<ArcVar<Img>>,
+    frame_images: Vec<WeakArcVar<Img>>,
 
     loading_deadline: Option<DeadlineHandle>,
     latest_color_scheme: ColorScheme,
@@ -166,7 +169,8 @@ impl WindowsService {
                     Ok(img) => {
                         let img = Img::new(img);
                         let img = var(img);
-                        self.frame_images.push(img.clone());
+                        self.frame_images.retain(|i| i.strong_count() > 0);
+                        self.frame_images.push(img.downgrade());
                         img.read_only()
                     }
                     Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only(),
@@ -802,6 +806,21 @@ impl WINDOWS {
 
             // we skipped request fulfillment until this event.
             UPDATES.update(None);
+        } else if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update).or_else(|| RAW_IMAGE_LOAD_ERROR_EVENT.on(update)) {
+            // update ready frame images.
+            let mut sv = WINDOWS_SV.write();
+            sv.frame_images.retain(|i| {
+                if let Some(i) = i.upgrade() {
+                    if Some(&args.image) == i.get().view() {
+                        i.update();
+                        false
+                    } else {
+                        true
+                    }
+                } else {
+                    false
+                }
+            });
         }
 
         Self::with_detached_windows(|windows, parallel| {

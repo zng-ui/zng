@@ -48,7 +48,7 @@ cargo do run <example-name>
 ```
 
 Optionally, take a screenshot and save it to `examples/res/screenshots/<example-name>.png`. You can take a screenshot using
-the inspector window, press `Ctrl+Shift+I` then press the screenshot button.
+the inspector window, press `Ctrl+Shift+I` then click the "Save Screenshot" menu.
 
 Run [`oxipng`](https://github.com/shssoichiro/oxipng) or another minifier on the screenshot before committing.
 

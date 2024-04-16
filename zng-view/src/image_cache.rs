@@ -1222,7 +1222,9 @@ mod capture {
     use super::ImageCache;
 
     impl ImageCache {
-        /// Create frame_image for a `Api::frame_image` request.
+        /// Create frame_image for an `Api::frame_image` request.
+        ///
+        /// Gl context must be current.
         #[allow(clippy::too_many_arguments)]
         pub fn frame_image(
             &mut self,
@@ -1265,6 +1267,8 @@ mod capture {
         }
 
         /// Create frame_image for a capture request in the FrameRequest.
+        ///
+        /// Gl context must be current.
         pub fn frame_image_data(
             &mut self,
             renderer: &mut Renderer,
@@ -1299,7 +1303,7 @@ mod capture {
             data
         }
 
-        pub fn frame_image_data_impl(
+        fn frame_image_data_impl(
             &mut self,
             renderer: &mut Renderer,
             rect: PxRect,

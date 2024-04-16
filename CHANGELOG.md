@@ -1,6 +1,12 @@
 # Unpublished
 
 * Add Cargo feature documentation in each crate `README.md` and `lib.rs` docs.
+* Add Screenshot function to the Inspector window.
+* Fix `formatx!` causing futures to not be Send+Sync.
+* `UiTask` now logs a warning if dropped while pending.
+* Add `UiTask::cancel` to drop a pending task without logging a warning.
+* Fix `WINDOWS.frame_image` capture with multiple windows capturing pixels from the wrong window.
+* Fix `WINDOWS.frame_image` var not updating on load or error.
 
 # 0.3.3
 

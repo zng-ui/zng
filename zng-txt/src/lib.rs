@@ -660,6 +660,9 @@ impl<T: ToString> ToTxt for T {
 #[macro_export]
 macro_rules! formatx {
     ($($tt:tt)*) => {
-        $crate::Txt::from_fmt(format_args!($($tt)*))
+        {
+            let res = $crate::Txt::from_fmt(format_args!($($tt)*));
+            res
+        }
     };
 }

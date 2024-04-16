@@ -3,6 +3,7 @@
 use std::{
     fmt,
     future::Future,
+    mem,
     pin::Pin,
     task::{Poll, Waker},
 };
@@ -15,12 +16,14 @@ enum UiTaskState<R> {
         last_update: Option<zng_var::VarUpdateId>,
     },
     Ready(R),
+    Cancelled,
 }
 impl<R: fmt::Debug> fmt::Debug for UiTaskState<R> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Pending { .. } => write!(f, "Pending"),
             Self::Ready(arg0) => f.debug_tuple("Ready").field(arg0).finish(),
+            Self::Cancelled => unreachable!(),
         }
     }
 }
@@ -106,10 +109,30 @@ impl<R> UiTask<R> {
     /// then call this method to take ownership of the result.
     ///
     /// [`update`]: Self::update
-    pub fn into_result(self) -> Result<R, Self> {
-        match self.0 {
+    pub fn into_result(mut self) -> Result<R, Self> {
+        match mem::replace(&mut self.0, UiTaskState::Cancelled) {
             UiTaskState::Ready(r) => Ok(r),
             p @ UiTaskState::Pending { .. } => Err(Self(p)),
+            UiTaskState::Cancelled => unreachable!(),
+        }
+    }
+
+    /// Drop the task without logging a warning if it is pending.
+    pub fn cancel(mut self) {
+        self.0 = UiTaskState::Cancelled;
+    }
+}
+impl<R> Drop for UiTask<R> {
+    fn drop(&mut self) {
+        if let UiTaskState::Pending { .. } = &self.0 {
+            #[cfg(debug_assertions)]
+            {
+                tracing::warn!("pending UiTask<{}> dropped", std::any::type_name::<R>());
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                tracing::warn!("pending UiTask dropped");
+            }
         }
     }
 }

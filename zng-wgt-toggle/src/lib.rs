@@ -1081,6 +1081,9 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 ///
 /// The `popup` can be any widget, that will be open using [`POPUP`], a [`Popup!`] or derived widget is recommended.
 ///
+/// Note that if the checked property is not set the toggle will never be checked, to implement a drop-down menu
+/// set `checked = var(false);`.
+///
 /// [`ComboStyle!`]: struct@ComboStyle
 /// [`Popup!`]: struct@zng_wgt_layer::popup::Popup
 /// [`LAYERS`]: layers::LAYERS
