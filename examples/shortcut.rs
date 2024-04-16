@@ -1,3 +1,5 @@
+//! Small utility that displays the pressed key gestures.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{font::FontName, layout::align, prelude::*};
@@ -61,7 +63,7 @@ fn app_main() {
             .perm();
 
         Window! {
-            title = "Shortcuts Example";
+            title = "Shortcut Example";
             auto_size = true;
             resizable = false;
             auto_size_origin = layout::Point::center();

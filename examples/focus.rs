@@ -1,3 +1,5 @@
+//! Demonstrates the focus service, logical and directional navigation.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{

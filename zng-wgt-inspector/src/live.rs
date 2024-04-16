@@ -282,6 +282,7 @@ mod inspector_window {
     use zng_var::{animation::easing, var_from};
     use zng_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
     use zng_wgt_access::{access_role, AccessRole};
+    use zng_wgt_button::Button;
     use zng_wgt_container::{child_align, padding, Container};
     use zng_wgt_fill::{background, background_color};
     use zng_wgt_filter::opacity;
@@ -470,8 +471,53 @@ mod inspector_window {
                         };
                         tooltip = Tip!(Text!("select focused widget"));
                         checked = select_focused;
+                    },
+                    zng_wgt_rule_line::vr::Vr!(),
+                    Toggle! {
+                        child = Stack! {
+                            size = (14, 10);
+                            direction = StackDirection::top_to_bottom();
+                            zng_wgt_rule_line::hr::margin = 0;
+                            zng_wgt_rule_line::hr::color = zng_wgt_text::FONT_COLOR_VAR;
+                            spacing = 3;
+                            children = ui_vec![
+                                zng_wgt_rule_line::hr::Hr!(),
+                                zng_wgt_rule_line::hr::Hr!(),
+                                zng_wgt_rule_line::hr::Hr!(),
+                            ]
+                        };
+                        checked = var(false);
+                        checked_popup = {
+                            let screenshot_idle = var(true);
+                            wgt_fn!(screenshot_idle, |_| {
+                                zng_wgt_menu::context::ContextMenu!(ui_vec![
+                                    Button! {
+                                        child = Text!("Save Screenshot");
+                                        zng_wgt::enabled = screenshot_idle.clone();
+                                        on_click = hn!(screenshot_idle, |_| {
+                                            // not async_hn here because menu is dropped on click
+                                            task::spawn(async_clmv!(screenshot_idle, {
+                                                screenshot_idle.set(false);
+                                                save_screenshot(inspected().unwrap(), WINDOW.id()).await;
+                                                screenshot_idle.set(true);
+                                            }));
+                                        });
+                                    },
+                                    Button! {
+                                        child = Text!("Copy Screenshot");
+                                        zng_wgt::enabled = screenshot_idle.clone();
+                                        on_click = hn!(screenshot_idle, |_| {
+                                            task::spawn(async_clmv!(screenshot_idle, {
+                                                screenshot_idle.set(false);
+                                                copy_screenshot(inspected().unwrap(), WINDOW.id()).await;
+                                                screenshot_idle.set(true);
+                                            }));
+                                        });
+                                    },
+                                ])
+                            })
+                        };
                     }
-
                 ]
             }, 0;
             child = TextInput! {
@@ -909,6 +955,73 @@ mod inspector_window {
         }
 
         false
+    }
+
+    async fn save_screenshot(inspected: WindowId, inspector: WindowId) {
+        let frame = WINDOWS.frame_image(inspected, None);
+
+        let mut dlg = zng_view_api::dialog::FileDialog {
+            title: "Save Screenshot".into(),
+            kind: zng_view_api::dialog::FileDialogKind::SaveFile,
+            starting_name: "screenshot.png".into(),
+            ..Default::default()
+        };
+        let encoders = zng_ext_image::IMAGES.available_encoders();
+        for enc in &encoders {
+            dlg.push_filter(&enc.to_uppercase(), &[enc]);
+        }
+        dlg.push_filter("Image Files", &encoders);
+
+        let r = WINDOWS.native_file_dialog(inspector, dlg).wait_rsp().await;
+        let path = match r {
+            zng_view_api::dialog::FileDialogResponse::Selected(mut p) => p.remove(0),
+            zng_view_api::dialog::FileDialogResponse::Cancel => return,
+            zng_view_api::dialog::FileDialogResponse::Error(e) => {
+                screenshot_error(e, inspector).await;
+                return;
+            }
+        };
+
+        frame.wait_value(|f| !f.is_loading()).await;
+        let frame = frame.get();
+
+        if let Some(e) = frame.error() {
+            screenshot_error(e, inspector).await;
+        } else {
+            let r = frame.save(path).await;
+            if let Err(e) = r {
+                screenshot_error(formatx!("Screenshot save error. {e}"), inspector).await;
+            }
+        }
+    }
+
+    async fn copy_screenshot(inspected: WindowId, inspector: WindowId) {
+        let frame = WINDOWS.frame_image(inspected, None);
+
+        frame.wait_value(|f| !f.is_loading()).await;
+        let frame = frame.get();
+
+        if let Some(e) = frame.error() {
+            screenshot_error(e, inspector).await;
+        } else {
+            let r = zng_ext_clipboard::CLIPBOARD.set_image(frame).wait_rsp().await;
+            if let Err(e) = r {
+                screenshot_error(formatx!("Clipboard error. {e}"), inspector).await;
+            }
+        }
+    }
+
+    async fn screenshot_error(e: Txt, inspector: WindowId) {
+        let r = WINDOWS.native_message_dialog(
+            inspector,
+            zng_view_api::dialog::MsgDialog {
+                title: "Screenshot Error".into(),
+                message: formatx!("Screenshot error.\n\n{e}"),
+                icon: zng_view_api::dialog::MsgDialogIcon::Error,
+                ..Default::default()
+            },
+        );
+        r.wait_done().await;
     }
 }
 

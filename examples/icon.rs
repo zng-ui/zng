@@ -1,3 +1,5 @@
+//! Search and copy Material Icons constants.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{

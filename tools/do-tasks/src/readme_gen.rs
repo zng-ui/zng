@@ -177,3 +177,82 @@ const README_TEMPLATE: &str = "\
 const FEATURES_HEADER: &str = "## Cargo Features";
 
 const SECTION_END: &str = "<!--do doc --readme #SECTION-END-->";
+
+/*
+*  EXAMPLES README
+*/
+
+pub fn generate_examples(_args: Vec<&str>) {
+    use std::fmt::*;
+
+    let cargo = std::fs::read_to_string("examples/Cargo.toml").unwrap();
+    let mut is_example = false;
+
+    let mut examples = vec![];
+
+    let mut name = String::new();
+    for line in cargo.lines() {
+        let line = line.trim();
+
+        if line == "[[example]]" {
+            is_example = true;
+        } else if line.starts_with('[') {
+            is_example = false;
+        } else if is_example {
+            if let Some(n) = line.strip_prefix("name = ") {
+                name = n.trim_matches(&['"', ' ']).to_owned();
+            } else if let Some(p) = line.strip_prefix("path = ") {
+                let p = p.trim_matches(&['"', ' ']);
+                if p != format!("{name}.rs") {
+                    crate::error(format_args!("expected example `{name}` to have the same file name, but was `{p}`"));
+                } else {
+                    examples.push(std::mem::take(&mut name));
+                }
+            }
+        }
+    }
+
+    let mut readme = std::fs::read_to_string("").unwrap_or_default();
+
+    const TAG: &str = "<!--do doc --readme-examples-->";
+    if let Some(i) = readme.find(TAG) {
+        readme.truncate(i + TAG.len());
+        writeln!(&mut readme).unwrap();
+    } else {
+        writeln!(&mut readme, "\n{TAG}").unwrap();
+    }
+
+    for example in examples {
+        let file = format!("examples/{example}.rs");
+        println(&file);
+
+        let file = std::fs::read_to_string(file).unwrap();
+
+        let mut docs = String::new();
+        for line in file.lines() {
+            let line = line.trim();
+
+            if let Some(doc) = line.strip_prefix("//!") {
+                writeln!(&mut docs, "{}", doc.trim_start()).unwrap();
+            }
+        }
+
+        writeln!(&mut readme, "### `{example}`\n").unwrap();
+
+        let screenshot = format!("./res/screenshots/{example}.png");
+        if PathBuf::from("examples").join(&screenshot).exists() {
+            writeln!(&mut readme, "<img alt='headless screenshot' src='{screenshot}' width='300'>\n",).unwrap();
+        }
+
+        writeln!(&mut readme, "Source: [{example}.rs](./{example}.rs)\n").unwrap();
+        writeln!(&mut readme, "```console\ncargo do run {example}\n```\n").unwrap();
+
+        if docs.is_empty() {
+            crate::error(format_args!("missing docs"));
+        } else {
+            writeln!(&mut readme, "{docs}").unwrap();
+        }
+    }
+
+    std::fs::write("examples/README.md", readme).unwrap();
+}

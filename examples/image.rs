@@ -1,3 +1,5 @@
+//! Demonstrates image loading, displaying, animated sprites, rendering, pasting.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::path::PathBuf;

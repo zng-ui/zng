@@ -1,3 +1,5 @@
+//! Demonstrates the window widget, service, state and commands.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{
@@ -629,7 +631,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     })
 }
 
-fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
+fn close_dialog(mut windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
     let opacity = var(0.fct());
     opacity.ease(1.fct(), 300.ms(), easing::linear).perm();
     Container! {
@@ -679,7 +681,8 @@ fn close_dialog(windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNod
                                 child = Strong!("Close");
                                 on_click = hn_once!(state, |_| {
                                     state.set(CloseState::Close);
-                                    WINDOWS.close_together(windows).unwrap();
+                                    windows.retain(|w| WINDOWS.is_open(*w));
+                                    let _ = WINDOWS.close_together(windows);
                                 })
                             },
                             Button! {

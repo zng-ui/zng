@@ -1,3 +1,5 @@
+//! Demonstrates 2D and 3D transforms, touch transforms.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{

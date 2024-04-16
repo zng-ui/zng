@@ -1,3 +1,5 @@
+//! Demonstrates the CONFIG service, live updating config between processes.
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{
     color::filter::opacity,
@@ -122,6 +124,7 @@ fn app_main() {
 
         Window! {
             title = if std::env::var("MOVE-TO").is_err() { "Config Example" } else { "Config Example - Other Process" };
+            size = (600, 500);
             widget::background = Text! {
                 txt = CONFIG.status().map_to_txt();
                 margin = 10;

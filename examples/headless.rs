@@ -1,3 +1,5 @@
+//! Demonstrates headless apps, image and video rendering.
+
 use std::{io::Write, path::PathBuf};
 
 use zng::{
