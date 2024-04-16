@@ -238,6 +238,16 @@ pub fn generate_examples(_args: Vec<&str>) {
         }
 
         writeln!(&mut readme, "### `{example}`\n").unwrap();
+
+        let screenshot = format!("./res/screenshots/{example}.png");
+        if PathBuf::from("examples").join(&screenshot).exists() {
+            writeln!(
+                &mut readme,
+                "<img alt='headless screenshot' src='{screenshot}' width='300' class='screenshot'>\n",
+            )
+            .unwrap();
+        }
+
         writeln!(&mut readme, "Source: [{example}.rs](./{example}.rs)\n").unwrap();
         writeln!(&mut readme, "```console\ncargo do run {example}\n```\n").unwrap();
 

@@ -102,13 +102,15 @@ Demonstrates gradient rendering.
 
 ### `headless`
 
+<img alt='headless screenshot' src='./res/screenshots/headless.png' width='300' class='screenshot'>
+
 Source: [headless.rs](./headless.rs)
 
 ```console
 cargo do run headless
 ```
 
-Demonstrates headless apps.
+Demonstrates headless apps, image and video rendering.
 
 ### `icon`
 
@@ -211,6 +213,8 @@ cargo do run transform
 Demonstrates 2D and 3D transforms, touch transforms.
 
 ### `window`
+
+<img alt='headless screenshot' src='./res/screenshots/window.png' width='300' class='screenshot'>
 
 Source: [window.rs](./window.rs)
 
