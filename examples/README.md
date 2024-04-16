@@ -62,8 +62,6 @@ Demonstrates the CONFIG service, live updating config between processes.
 
 ### `countdown`
 
-<img alt='headless screenshot' src='./res/screenshots/countdown.png' width='300'>
-
 Source: [countdown.rs](./countdown.rs)
 
 ```console
