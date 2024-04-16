@@ -7,13 +7,10 @@ assignees: ''
 ---
 
 <!--
-
 Please, make sure:
 
 - The issue happens in the latest crate release or newer (master branch).
-
 - The issue happens after `cargo update`.
-
 -->
 
 I tried this code:
