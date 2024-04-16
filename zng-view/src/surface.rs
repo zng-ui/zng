@@ -404,11 +404,9 @@ impl Surface {
                 FrameCapture::Mask(m) => Some(Some(m)),
             };
             if let Some(mask) = capture {
-                self.context.make_current();
                 captured_data = Some(images.frame_image_data(
-                    renderer,
+                    &**self.context.gl(),
                     PxRect::from_size(self.size.to_px(self.scale_factor)),
-                    true,
                     self.scale_factor,
                     mask,
                 ));
@@ -418,11 +416,9 @@ impl Surface {
     }
 
     pub fn frame_image(&mut self, images: &mut ImageCache, mask: Option<ImageMaskMode>) -> ImageId {
-        self.context.make_current();
         images.frame_image(
-            self.renderer.as_mut().unwrap(),
+            &**self.context.gl(),
             PxRect::from_size(self.size.to_px(self.scale_factor)),
-            true,
             self.id,
             self.rendered_frame_id,
             self.scale_factor,
@@ -432,16 +428,7 @@ impl Surface {
 
     pub fn frame_image_rect(&mut self, images: &mut ImageCache, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageId {
         let rect = PxRect::from_size(self.size.to_px(self.scale_factor)).intersection(&rect).unwrap();
-        self.context.make_current();
-        images.frame_image(
-            self.renderer.as_mut().unwrap(),
-            rect,
-            true,
-            self.id,
-            self.rendered_frame_id,
-            self.scale_factor,
-            mask,
-        )
+        images.frame_image(&**self.context.gl(), rect, self.id, self.rendered_frame_id, self.scale_factor, mask)
     }
 
     /// Calls the render extension command.

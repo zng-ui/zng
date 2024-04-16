@@ -436,9 +436,9 @@ declare_api! {
     pub fn delete_font(&mut self, id: WindowId, font_id: FontId);
 
     /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
-    /// a screenshot are kept in memory to be reused in the next screenshot capture.
+    /// a screenshot may be kept in memory to be reused in the next screenshot capture.
     ///
-    /// Headless surfaces are always capture-mode enabled.
+    /// Note that capture must still be requested in each frame request.
     pub fn set_capture_mode(&mut self, id: WindowId, enable: bool);
 
     /// Create a new image resource from the current rendered frame.

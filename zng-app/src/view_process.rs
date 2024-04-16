@@ -742,7 +742,9 @@ impl ViewWindow {
     }
 
     /// Sets if the headed window is in *capture-mode*. If `true` the resources used to capture
-    /// a screenshot are kept in memory to be reused in the next screenshot capture.
+    /// a screenshot may be kept in memory to be reused in the next screenshot capture.
+    ///
+    /// Note that capture must still be requested in each frame request.
     pub fn set_capture_mode(&self, enabled: bool) -> Result<()> {
         self.0.call(|id, p| p.set_capture_mode(id, enabled))
     }

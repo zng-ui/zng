@@ -1395,12 +1395,9 @@ impl Window {
             if ext_args.redraw || msg.composite_needed {
                 self.redraw();
             }
-            let renderer = self.renderer.as_mut().unwrap();
-            self.context.make_current();
             Some(images.frame_image_data(
-                renderer,
+                &**self.context.gl(),
                 PxRect::from_size(self.window.inner_size().to_px()),
-                true,
                 scale_factor,
                 mask,
             ))
@@ -1460,11 +1457,12 @@ impl Window {
 
     pub fn frame_image(&mut self, images: &mut ImageCache, mask: Option<ImageMaskMode>) -> ImageId {
         let scale_factor = self.scale_factor();
-        self.context.make_current();
+        if !self.context.is_software() {
+            self.redraw(); // refresh back buffer
+        }
         images.frame_image(
-            self.renderer.as_mut().unwrap(),
+            &**self.context.gl(),
             PxRect::from_size(self.window.inner_size().to_px()),
-            self.capture_mode,
             self.id,
             self.rendered_frame_id,
             scale_factor,
@@ -1477,16 +1475,10 @@ impl Window {
         let rect = PxRect::from_size(self.window.inner_size().to_px())
             .intersection(&rect)
             .unwrap_or_default();
-        self.context.make_current();
-        images.frame_image(
-            self.renderer.as_mut().unwrap(),
-            rect,
-            self.capture_mode,
-            self.id,
-            self.rendered_frame_id,
-            scale_factor,
-            mask,
-        )
+        if !self.context.is_software() {
+            self.redraw(); // refresh back buffer
+        }
+        images.frame_image(&**self.context.gl(), rect, self.id, self.rendered_frame_id, scale_factor, mask)
     }
 
     /// (global_position, monitor_position)
