@@ -104,8 +104,8 @@ name = "scroll"
 path = "scroll.rs"
 
 [[example]]
-name = "shortcuts"
-path = "shortcuts.rs"
+name = "shortcut"
+path = "shortcut.rs"
 
 [[example]]
 name = "text"

@@ -63,7 +63,7 @@ fn app_main() {
             .perm();
 
         Window! {
-            title = "Shortcuts Example";
+            title = "Shortcut Example";
             auto_size = true;
             resizable = false;
             auto_size_origin = layout::Point::center();
