@@ -220,7 +220,7 @@ The task runner can be used to run the examples in [`./examples`] folder, for ex
 See [`./examples/README.md`] for a list of examples with description and screenshots.
 
 [`./examples`]: https://github.com/zng-ui/zng/tree/master/examples
-[`./examples/README.md`]: https://github.com/zng-ui/zng/tree/master/examples
+[`./examples/README.md`]: https://github.com/zng-ui/zng/tree/master/examples#readme
 
 ### `cargo do install`
 
