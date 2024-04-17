@@ -22,7 +22,29 @@ be implemented. To claim a todo open a draft pull request that references the is
 
 If you need help getting started leave a comment under the todo issue or start a [new discussion].
 
+## Project Overview
+
+The [`examples/README.md`] doc provides an example list with descriptions.
+
+The [`crates/README.md`] doc provides an overview of the public crates.
+
+The [`tools/README.md`] doc provides an overview of the tools used to manage the project, in 
+particular the `cargo do` tool that you will need to use for testing.
+
+The [`tests/README.md`] doc provides an overview of integration and macro tests.
+
+### VSCode & Rust Analyzer
+
+Some workspace settings are included in the repository, in particular, `rust-analyzer` "checkOnSave" 
+and runnables are redirected to the `do` tool.
+
+[`API docs`]: https://docs.rs/zng
+[`cargo-expand`]: https://github.com/dtolnay/cargo-expand
+[`cargo-asm`]: https://github.com/gnzlbg/cargo-asm
+
 [todo]: https://github.com/zng-ui/zng/issues?q=is%3Aissue+is%3Aopen+label%3Atodo
 [new discussion]: https://github.com/zng-ui/zng/discussions/new?category=general
-
-## 
+[`examples/README.md`]: crates/README.md
+[`crates/README.md`]: crates/README.md
+[`tools/README.md`]: tools/README.md
+[`tests/README.md`]: tests/README.md

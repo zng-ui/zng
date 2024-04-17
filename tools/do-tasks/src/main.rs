@@ -35,15 +35,15 @@ fn main() {
     util::exit_checked();
 }
 
-// do install [-a, --accept]
+// do install [--execute]
 //    Install `do` dependencies after confirmation.
 // USAGE:
 //     install
 //       Shows what commands will run and asks for confirmation.
-//     install --accept
+//     install --execute
 //       Runs the installation commands.
 fn install(mut args: Vec<&str>) {
-    if take_flag(&mut args, &["-a", "--accept"]) {
+    if take_flag(&mut args, &["--execute"]) {
         cmd("rustup", &["toolchain", "install", "nightly"], &[]);
         cmd("rustup", &["component", "add", "rustfmt"], &[]);
         cmd("rustup", &["component", "add", "clippy"], &[]);
@@ -53,7 +53,7 @@ fn install(mut args: Vec<&str>) {
         cmd("cargo", &["install", "cargo-semver-checks", "--locked"], &[])
     } else {
         println(f!(
-            "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --accept\n\n  TO RUN:",
+            "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --execute\n\n  TO RUN:",
             do_cmd()
         ));
         println("   rustup toolchain install nightly");
@@ -513,46 +513,21 @@ fn expand(mut args: Vec<&str>) {
             error("expected crate name");
         } else if take_flag(&mut args, &["-r", "--raw"]) {
             let p = take_option(&mut args, &["-p", "--package"], "<crate-name>").unwrap();
-
-            if p[0] == "build-time" {
-                cmd(
-                    "cargo",
-                    &[
-                        "+nightly",
-                        "rustc",
-                        "--profile=check",
-                        "--manifest-path",
-                        "profile/build-time/Cargo.toml",
-                        "--",
-                        "-Zunpretty=expanded",
-                    ],
-                    &args,
-                )
-            } else {
-                cmd(
-                    "cargo",
-                    &[
-                        "+nightly",
-                        "rustc",
-                        "--profile=check",
-                        "--package",
-                        p[0],
-                        "--",
-                        "-Zunpretty=expanded",
-                    ],
-                    &args,
-                );
-            }
+            cmd(
+                "cargo",
+                &[
+                    "+nightly",
+                    "rustc",
+                    "--profile=check",
+                    "--package",
+                    p[0],
+                    "--",
+                    "-Zunpretty=expanded",
+                ],
+                &args,
+            );
         } else if let Some(p) = take_option(&mut args, &["-p", "--package"], "<crate-name>") {
-            if p[0] == "build-time" {
-                cmd(
-                    "cargo",
-                    &["expand", "--all-features", "--manifest-path", "profile/build-time/Cargo.toml"],
-                    &args,
-                );
-            } else {
-                cmd("cargo", &["expand", "--all-features", "-p", p[0]], &args);
-            }
+            cmd("cargo", &["expand", "--all-features", "-p", p[0]], &args);
         } else {
             cmd("cargo", &["expand", "--lib", "--tests", "--all-features"], &args);
         }
