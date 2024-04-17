@@ -1200,10 +1200,7 @@ pub(crate) use external::{ImageUseMap, WrImageCache};
 mod capture {
     use std::sync::Arc;
 
-    use webrender::{
-        api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat},
-        Renderer,
-    };
+    use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
     use zng_txt::formatx;
     use zng_unit::{Factor, PxRect};
     use zng_view_api::{
@@ -1215,7 +1212,6 @@ mod capture {
 
     use crate::{
         image_cache::{Image, ImageData},
-        px_wr::{PxToWr as _, WrToPx as _},
         AppEvent,
     };
 
@@ -1223,14 +1219,11 @@ mod capture {
 
     impl ImageCache {
         /// Create frame_image for an `Api::frame_image` request.
-        ///
-        /// Gl context must be current.
         #[allow(clippy::too_many_arguments)]
         pub fn frame_image(
             &mut self,
-            renderer: &mut Renderer,
+            gl: &dyn gleam::gl::Gl,
             rect: PxRect,
-            capture_mode: bool,
             window_id: WindowId,
             frame_id: FrameId,
             scale_factor: Factor,
@@ -1251,7 +1244,7 @@ mod capture {
                 return id;
             }
 
-            let data = self.frame_image_data(renderer, rect, capture_mode, scale_factor, mask);
+            let data = self.frame_image_data(gl, rect, scale_factor, mask);
 
             let id = data.id;
 
@@ -1267,17 +1260,14 @@ mod capture {
         }
 
         /// Create frame_image for a capture request in the FrameRequest.
-        ///
-        /// Gl context must be current.
         pub fn frame_image_data(
             &mut self,
-            renderer: &mut Renderer,
+            gl: &dyn gleam::gl::Gl,
             rect: PxRect,
-            capture_mode: bool,
             scale_factor: Factor,
             mask: Option<ImageMaskMode>,
         ) -> ImageLoadedData {
-            let data = self.frame_image_data_impl(renderer, rect, capture_mode, scale_factor, mask);
+            let data = self.frame_image_data_impl(gl, rect, scale_factor, mask);
 
             let flags = if data.is_opaque {
                 ImageDescriptorFlags::IS_OPAQUE
@@ -1305,70 +1295,77 @@ mod capture {
 
         fn frame_image_data_impl(
             &mut self,
-            renderer: &mut Renderer,
+            gl: &dyn gleam::gl::Gl,
             rect: PxRect,
-            capture_mode: bool,
             scale_factor: Factor,
             mask: Option<ImageMaskMode>,
         ) -> ImageLoadedData {
-            // Firefox uses this API here:
-            // https://searchfox.org/mozilla-central/source/gfx/webrender_bindings/RendererScreenshotGrabber.cpp#87
-            let (handle, s) = renderer.get_screenshot_async(rect.to_wr_device(), rect.size.to_wr_device(), ImageFormat::BGRA8);
-            let mut buf = vec![0; s.width as usize * s.height as usize * 4];
-            if renderer.map_and_recycle_screenshot(handle, &mut buf, s.width as usize * 4) {
-                if !capture_mode {
-                    renderer.release_profiler_structures();
+            let pixels_flipped = gl.read_pixels(
+                rect.origin.x.0,
+                rect.origin.y.0,
+                rect.size.width.0,
+                rect.size.height.0,
+                gleam::gl::BGRA,
+                gleam::gl::UNSIGNED_BYTE,
+            );
+            let mut buf = vec![0u8; pixels_flipped.len()];
+            assert_eq!(rect.size.width.0 as usize * rect.size.height.0 as usize * 4, buf.len());
+            let stride = 4 * rect.size.width.0 as usize;
+            for (px, buf) in pixels_flipped.chunks_exact(stride).rev().zip(buf.chunks_exact_mut(stride)) {
+                buf.copy_from_slice(px);
+            }
+
+            if let Some(mask) = mask {
+                for bgra in buf.chunks_exact_mut(4) {
+                    bgra.swap(0, 3);
                 }
+                let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(
+                    image::DynamicImage::ImageRgba8(
+                        image::ImageBuffer::from_raw(rect.size.width.0 as u32, rect.size.height.0 as u32, buf).unwrap(),
+                    ),
+                    Some(mask),
+                );
 
-                if let Some(mask) = mask {
-                    let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(
-                        image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(s.width as u32, s.height as u32, buf).unwrap()),
-                        Some(mask),
-                    );
+                let id = self.add(ImageRequest {
+                    format: ImageDataFormat::A8 { size },
+                    data: pixels.clone(),
+                    max_decoded_len: u64::MAX,
+                    downscale: None,
+                    mask: Some(mask),
+                });
 
-                    let id = self.add(ImageRequest {
-                        format: ImageDataFormat::A8 { size },
-                        data: pixels.clone(),
-                        max_decoded_len: u64::MAX,
-                        downscale: None,
-                        mask: Some(mask),
-                    });
-
-                    ImageLoadedData {
-                        id,
-                        size,
-                        ppi,
-                        is_opaque,
-                        is_mask,
-                        pixels,
-                    }
-                } else {
-                    let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
-
-                    let data = IpcBytes::from_vec(buf);
-                    let ppi = 96.0 * scale_factor.0;
-                    let ppi = Some(ImagePpi::splat(ppi));
-                    let size = s.to_px();
-
-                    let id = self.add(ImageRequest {
-                        format: ImageDataFormat::Bgra8 { size, ppi },
-                        data: data.clone(),
-                        max_decoded_len: u64::MAX,
-                        downscale: None,
-                        mask,
-                    });
-
-                    ImageLoadedData {
-                        id,
-                        size,
-                        ppi,
-                        is_opaque,
-                        pixels: data,
-                        is_mask: false,
-                    }
+                ImageLoadedData {
+                    id,
+                    size,
+                    ppi,
+                    is_opaque,
+                    is_mask,
+                    pixels,
                 }
             } else {
-                panic!("map_and_recycle_screenshot failed");
+                let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
+
+                let data = IpcBytes::from_vec(buf);
+                let ppi = 96.0 * scale_factor.0;
+                let ppi = Some(ImagePpi::splat(ppi));
+                let size = rect.size;
+
+                let id = self.add(ImageRequest {
+                    format: ImageDataFormat::Bgra8 { size, ppi },
+                    data: data.clone(),
+                    max_decoded_len: u64::MAX,
+                    downscale: None,
+                    mask,
+                });
+
+                ImageLoadedData {
+                    id,
+                    size,
+                    ppi,
+                    is_opaque,
+                    pixels: data,
+                    is_mask: false,
+                }
             }
         }
     }
