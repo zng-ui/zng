@@ -13,8 +13,8 @@ cargo-timing*
 large-image.*
 examples/examples
 TODO/_local.md
-zng-view-prebuilt/lib/zng_view.*
-zng-view-prebuilt/lib/libzng_view.*
+crates/zng-view-prebuilt/lib/zng_view.*
+crates/zng-view-prebuilt/lib/libzng_view.*
 **/*.mm_profdata
 *.mono_items.md
 examples/.do-doc-readme-*
