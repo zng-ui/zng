@@ -24,7 +24,7 @@ If you need help getting started leave a comment under the todo issue or start a
 
 ## Project Overview
 
-The [`examples/README.md`] doc provides a list of examples with descriptions and screenshots.
+The [`examples/README.md`] doc provides a list of examples with screenshots and instruction on how to contribute an example.
 
 The [`crates/README.md`] doc provides an overview of the public crates.
 
@@ -32,8 +32,6 @@ The [`tools/README.md`] doc provides an overview of the tools used to manage the
 particular the `cargo do` tool that you will need to use for testing.
 
 The [`tests/README.md`] doc provides an overview of integration and macro tests.
-
-The [`docs`] directory contains more dev docs.
 
 ### VSCode & Rust Analyzer
 
@@ -46,7 +44,7 @@ and runnables are redirected to the `do` tool.
 
 [todo]: https://github.com/zng-ui/zng/issues?q=is%3Aissue+is%3Aopen+label%3Atodo
 [new discussion]: https://github.com/zng-ui/zng/discussions/new?category=general
-[`examples/README.md`]: examples/README.md
+[`examples/README.md`]: examples/README.md#adding-an-example
 [`crates/README.md`]: crates/README.md
 [`tools/README.md`]: tools/README.md
 [`tests/README.md`]: tests/README.md

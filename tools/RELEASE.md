@@ -1,6 +1,6 @@
 # Release Process
 
-Release is partially automated, some manual steps must be followed and the automation must be monitored.
+This document covers how to bump versions and release the prebuilt binaries and crates. Release is partially automated, some manual steps must be followed and the automation must be monitored.
 
 To make a release a `zng-ui` project owner needs to follow/monitor these steps:
 

@@ -212,15 +212,8 @@ pub fn generate_examples(_args: Vec<&str>) {
         }
     }
 
-    let mut readme = std::fs::read_to_string("").unwrap_or_default();
-
     const TAG: &str = "<!--do doc --readme-examples-->";
-    if let Some(i) = readme.find(TAG) {
-        readme.truncate(i + TAG.len());
-        writeln!(&mut readme).unwrap();
-    } else {
-        writeln!(&mut readme, "\n{TAG}").unwrap();
-    }
+    let mut section = format!("{TAG}\n");
 
     for example in examples {
         let file = format!("examples/{example}.rs");
@@ -237,22 +230,30 @@ pub fn generate_examples(_args: Vec<&str>) {
             }
         }
 
-        writeln!(&mut readme, "### `{example}`\n").unwrap();
+        writeln!(&mut section, "### `{example}`\n").unwrap();
 
         let screenshot = format!("./res/screenshots/{example}.png");
         if PathBuf::from("examples").join(&screenshot).exists() {
-            writeln!(&mut readme, "<img alt='headless screenshot' src='{screenshot}' width='300'>\n",).unwrap();
+            writeln!(&mut section, "<img alt='headless screenshot' src='{screenshot}' width='300'>\n",).unwrap();
         }
 
-        writeln!(&mut readme, "Source: [{example}.rs](./{example}.rs)\n").unwrap();
-        writeln!(&mut readme, "```console\ncargo do run {example}\n```\n").unwrap();
+        writeln!(&mut section, "Source: [{example}.rs](./{example}.rs)\n").unwrap();
+        writeln!(&mut section, "```console\ncargo do run {example}\n```\n").unwrap();
 
         if docs.is_empty() {
             crate::error(format_args!("missing docs"));
         } else {
-            writeln!(&mut readme, "{docs}").unwrap();
+            writeln!(&mut section, "{docs}").unwrap();
         }
     }
+    writeln!(&mut section, "{SECTION_END}").unwrap();
+
+    let mut readme = std::fs::read_to_string("examples/README.md").unwrap();
+
+    let s = readme.find(TAG).unwrap();
+    let e = readme[s..].find(SECTION_END).unwrap();
+    let e = s + e + SECTION_END.len() + "\n".len();
+    readme.replace_range(s..e, &section);
 
     std::fs::write("examples/README.md", readme).unwrap();
 }
