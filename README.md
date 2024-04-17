@@ -201,8 +201,9 @@ on Linux:
 
 ## Examples
 
-See [`./examples/README.md`] for a list of examples with description and screenshots.  
 Call `cargo do run <example>` to run an example.
+
+See the [`./examples/README.md`] doc for a list of examples with description and screenshots.
 
 [`./examples/README.md`]: https://github.com/zng-ui/zng/tree/master/examples#readme
 

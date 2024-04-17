@@ -24,7 +24,7 @@ If you need help getting started leave a comment under the todo issue or start a
 
 ## Project Overview
 
-The [`examples/README.md`] doc provides an example list with descriptions.
+The [`examples/README.md`] doc provides a list of examples with descriptions and screenshots.
 
 The [`crates/README.md`] doc provides an overview of the public crates.
 
