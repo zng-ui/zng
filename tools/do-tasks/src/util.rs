@@ -484,40 +484,10 @@ pub fn git_tag_exists(tag: &str) -> bool {
     output.lines().any(|l| l == tag)
 }
 
-pub fn workspace_members() -> Vec<String> {
-    match std::fs::read_to_string("Cargo.toml") {
-        Ok(file) => {
-            let mut members = vec![];
-
-            let mut started = false;
-            for line in file.lines() {
-                if !started {
-                    if line.starts_with("members =") {
-                        started = true;
-                    }
-                } else if line.starts_with("]") {
-                    break;
-                } else if line.contains('"') && !line.contains('#') {
-                    let line = line.trim().trim_matches(&['"', ',']);
-                    if !line.is_empty() {
-                        members.push(line.to_owned());
-                    }
-                }
-            }
-
-            members
-        }
-        Err(e) => {
-            error(e);
-            vec![]
-        }
-    }
-}
-
 pub fn publish_members() -> Vec<PublishMember> {
     let mut members = vec![];
-    'members: for member in workspace_members() {
-        match std::fs::read_to_string(PathBuf::from(member).join("Cargo.toml")) {
+    'members: for member in top_cargo_toml("crates") {
+        match std::fs::read_to_string(member) {
             Ok(file) => {
                 let mut member = PublishMember {
                     name: String::new(),
@@ -662,7 +632,7 @@ impl PublishMember {
 
         use std::fmt::Write as _;
 
-        let cargo_path = PathBuf::from(&self.name).join("Cargo.toml");
+        let cargo_path = PathBuf::from("crates").join(&self.name).join("Cargo.toml");
         let cargo = std::fs::read_to_string(&cargo_path).expect("failed to load Cargo.toml");
         let mut output = String::with_capacity(cargo.len());
 
