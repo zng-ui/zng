@@ -658,7 +658,7 @@ fn prebuild(mut args: Vec<&str>) {
     }
 
     for file in files {
-        let target = format!("zng-view-prebuilt/lib/{}", file.file_name().unwrap().to_string_lossy());
+        let target = format!("crates/zng-view-prebuilt/lib/{}", file.file_name().unwrap().to_string_lossy());
         if let Err(e) = std::fs::copy(&file, &target) {
             error(f!("failed to copy pre-build lib `{}` to `{target}`, {e}", file.display()))
         }
