@@ -148,7 +148,7 @@ fn doc(mut args: Vec<&str>) {
                     let arg = arg.trim().trim_matches('"');
                     if arg.starts_with("doc/") {
                         // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
-                        rustdoc_flags.push_str(&format!("{name}/{arg}"));
+                        rustdoc_flags.push_str(&format!("crates/{name}/{arg}"));
                     } else {
                         rustdoc_flags.push_str(arg);
                     }
