@@ -20,42 +20,47 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
     let cursor = cursor.into_var();
     let mut hovered_binding = None;
 
-    match_node(child, move |_, op| match op {
-        UiNodeOp::Init => {
-            WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
-        }
-        UiNodeOp::Deinit => {
-            hovered_binding = None;
-        }
-        UiNodeOp::Event { update } => {
-            if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                if args.is_over() {
-                    if hovered_binding.is_none() {
-                        // we are not already set, setup binding.
+    match_node(child, move |_, op| {
+        let mut restore = false;
+        match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
+            }
+            UiNodeOp::Deinit => {
+                restore = true;
+            }
+            UiNodeOp::Event { update } => {
+                if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
+                    if args.is_over() {
+                        if hovered_binding.is_none() {
+                            // we are not already set, setup binding.
 
-                        let vars = WINDOW.vars();
+                            let vars = WINDOW.vars();
 
-                        vars.cursor_img().set(None);
+                            vars.cursor_img().set(None);
 
-                        let c = vars.cursor();
-                        c.set_from(&cursor);
-                        hovered_binding = Some(cursor.bind(&c));
-                    }
-                } else {
-                    // restore to default, if not set to other value already
-                    if hovered_binding.is_some() {
-                        hovered_binding = None;
-                        let value = cursor.get();
-                        WINDOW.vars().cursor().modify(move |c| {
-                            if c.as_ref() == &value {
-                                *c.to_mut() = Some(CursorIcon::Default);
-                            }
-                        });
+                            let c = vars.cursor();
+                            c.set_from(&cursor);
+                            hovered_binding = Some(cursor.bind(&c));
+                        }
+                    } else {
+                        restore = true;
                     }
                 }
             }
+            _ => {}
         }
-        _ => {}
+
+        // restore to default, if not set to other value already
+        if restore && hovered_binding.is_some() {
+            hovered_binding = None;
+            let value = cursor.get();
+            WINDOW.vars().cursor().modify(move |c| {
+                if c.as_ref() == &value {
+                    *c.to_mut() = Some(CursorIcon::Default);
+                }
+            });
+        }
     })
 }
 
