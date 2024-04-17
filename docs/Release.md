@@ -4,8 +4,10 @@ Release is partially automated, some manual steps must be followed and the autom
 
 To make a release a `zng-ui` project owner needs to follow/monitor these steps:
 
-0. The new release commit passes all tests.
-   * All CI tests.
+0. Select a master commit to be the next release head.
+   * All significant changes are documented in the CHANGELOG.
+   * Auto README sections are updated, call `do doc --readme` and `do doc --readme-examples` to be sure.
+   * All CI tests pass.
    * All examples look ok, call `do run --all` and manually test each.
 
 1. Merge changes into `release` on GitHub.

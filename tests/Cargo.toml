@@ -9,10 +9,10 @@ default = ["ipc"]
 ipc = ["zng/ipc"]
 
 [dev-dependencies]
-zng = { path = "../zng", features = ["test_util", "toml", "ron", "yaml"] }
-zng-view = { path = "../zng-view" }
-zng-wgt-webrender-debug = { path = "../zng-wgt-webrender-debug" }
-zng-app = { path = "../zng-app" }
+zng = { path = "../crates/zng", features = ["test_util", "toml", "ron", "yaml"] }
+zng-view = { path = "../crates/zng-view" }
+zng-wgt-webrender-debug = { path = "../crates/zng-wgt-webrender-debug" }
+zng-app = { path = "../crates/zng-app" }
 pretty_assertions = "1.4"
 
 [[test]]

@@ -113,8 +113,8 @@ fn doc(mut args: Vec<&str>) {
     let package = take_option(&mut args, &["-p", "--package"], "package");
     let mut found_package = false;
 
-    let mut pkgs = util::glob("zng*/Cargo.toml");
-    if let Some(i) = pkgs.iter().position(|p| p.ends_with("zng/Cargo.toml")) {
+    let mut pkgs = util::glob("crates/zng*/Cargo.toml");
+    if let Some(i) = pkgs.iter().position(|p| p.ends_with("crates/zng/Cargo.toml")) {
         let last = pkgs.len() - 1;
         pkgs.swap(i, last);
     }

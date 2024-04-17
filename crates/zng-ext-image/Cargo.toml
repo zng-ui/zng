@@ -1,0 +1,39 @@
+[package]
+name = "zng-ext-image"
+version = "0.2.7"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_ext_image"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[features]
+# Enable web image source.
+http = ["zng-task/http"]
+
+[dependencies]
+zng-app-context = { path = "../zng-app-context", version = "0.3.1" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.2.4" }
+zng-clone-move = { path = "../zng-clone-move", version = "0.2.3" }
+zng-app = { path = "../zng-app", version = "0.3.3" }
+zng-view-api = { path = "../zng-view-api", version = "0.2.7" }
+zng-txt = { path = "../zng-txt", version = "0.2.4" }
+zng-var = { path = "../zng-var", version = "0.2.5" }
+zng-task = { path = "../zng-task", version = "0.2.5" }
+zng-layout = { path = "../zng-layout", version = "0.2.5" }
+zng-color = { path = "../zng-color", version = "0.2.7" }
+zng-state-map = { path = "../zng-state-map", version = "0.2.4" }
+
+serde = "1.0"
+once_cell = "1.19"
+parking_lot = "0.12"
+tracing = "0.1"
+base64 = "0.22"
+sha2 = "0.10"
+
+[package.metadata.docs.rs]
+all-features = true

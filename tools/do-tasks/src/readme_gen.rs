@@ -8,12 +8,12 @@ pub fn generate(args: Vec<&str>) {
         }
 
         let readme = if member.name == "zng" {
-            PathBuf::from("zng/../README.md")
+            PathBuf::from("README.md")
         } else {
             PathBuf::from(format!("{}/README.md", member.name))
         };
 
-        println(&format!("{}/Cargo.toml", member.name));
+        println(&format!("crates/{}/Cargo.toml", member.name));
 
         let previous = if readme.exists() {
             Cow::from(std::fs::read_to_string(&readme).unwrap())
@@ -47,7 +47,7 @@ pub fn generate(args: Vec<&str>) {
                         }
                     }
 
-                    let (features, defaults) = read_features(&format!("{}/Cargo.toml", member.name));
+                    let (features, defaults) = read_features(&format!("crates/{}/Cargo.toml", member.name));
                     if !features.is_empty() {
                         writeln!(&mut s, "{FEATURES_HEADER}").unwrap();
 

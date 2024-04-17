@@ -1,0 +1,35 @@
+[package]
+name = "zng-wgt-stack"
+version = "0.2.7"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_wgt_stack"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[features]
+default = ["debug_default"]
+# Enables the `"dyn_closure"` in debug builds.
+debug_default = []
+# Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
+#
+# This speeds-up compilation time at the cost of runtime.
+dyn_closure = []
+
+[dependencies]
+zng-wgt = { path = "../zng-wgt", version = "0.2.7" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.7" }
+zng-app = { path = "../zng-app", version = "0.3.3" }
+zng-layout = { path = "../zng-layout", version = "0.2.5" }
+zng-var = { path = "../zng-var", version = "0.2.5" }
+
+euclid = "0.22"
+serde = { version = "1.0", features = ["derive"] }
+tracing = "0.1"
+
+[package.metadata.docs.rs]
+all-features = true

@@ -1,0 +1,421 @@
+//! App extensions, context, events and commands API.
+//!
+//! # Runtime
+//!
+//! A typical app instance has two processes, the initial process called the *app-process*, and a second process called the
+//! *view-process*. The app-process implements the event loop and updates, the view-process implements the platform integration and
+//! renderer, the app-process controls the view-process, most of the time app implementers don't interact directly with it, except
+//! at the start where the view-process is spawned.
+//!
+//! The reason for this dual process architecture is mostly for resilience, the unsafe interactions with the operating system and
+//! graphics driver are isolated in a different process, in case of crashes the view-process is respawned automatically and
+//! all windows are recreated. It is possible to run the app in a single process, in this case the view runs in the main thread
+//! and the app main loop in another.
+//!
+//! ## View-Process
+//!
+//! To simplify distribution the view-process is an instance of the same app executable, the view-process crate provides
+//! and `init` function that does nothing the process is not the view-process or takes over execution if it is, never returning.
+//!
+//! On the first instance of the app executable the `init` function does nothing, the app init spawns a second process marked as
+//! the view-process, on this second instance the init function never returns, for this reason the function
+//! must be called early in main, all code before the `init` call runs in both the app and view processes.
+//!
+//! ```toml
+//! [dependencies]
+//! zng = { version = "0.3.3", features = ["view_prebuilt"] }
+//! ```
+//!
+//! ```no_run
+//! use zng::prelude::*;
+//!
+//! fn main() {
+//!     app_and_view();
+//!     zng::view_process::prebuilt::init(); // init only returns if it is not called in the view-process.
+//!     app();
+//! }
+//!
+//! fn app_and_view() {
+//!     // code here runs in the app-process and view-process.
+//! }
+//!
+//! fn app() {
+//!     // code here only runs in the app-process.
+//!
+//!     APP.defaults().run(async {
+//!         // ..
+//!     })
+//! }
+//! ```
+//!
+//! ## Same Process
+//!
+//! You can also run the view in the same process, this mode of execution is slightly more efficient, but
+//! your app will not be resilient to crashes caused by the operating system or graphics driver, the app code
+//! will also run in a different thread, not the main.
+//!
+//! ```no_run
+//! use zng::prelude::*;
+//!
+//! fn main() {
+//!     zng::view_process::prebuilt::run_same_process(app);
+//! }
+//!
+//! fn app() {
+//!     // code here runs in a different thread, the main thread becomes the view.
+//!     APP.defaults().run(async {
+//!         // ..
+//!     })
+//! }
+//! ```
+//!
+//! # Headless
+//!
+//! The app can also run *headless*, where no window is actually created, optionally with real rendering.
+//! This mode is useful for running integration tests, or for rendering images.
+//!
+//! ```
+//! use zng::prelude::*;
+//!
+//! let mut app = APP.defaults().run_headless(/* with_renderer: */ false);
+//! app.run_window(async {
+//!     Window! {
+//!         child = Text!("Some text");
+//!         auto_size = true;
+//!
+//!         render_mode = window::RenderMode::Software;
+//!         frame_capture_mode = window::FrameCaptureMode::Next;
+//!
+//!         on_frame_image_ready = async_hn!(|args: window::FrameImageReadyArgs| {
+//!             if let Some(img) = args.frame_image {
+//!                 // if the app runs with `run_headless(/* with_renderer: */ true)` an image is captured
+//!                 // and saved here.
+//!                 img.save("screenshot.png").await.unwrap();
+//!             }
+//!
+//!             // close the window, causing the app to exit.
+//!             WINDOW.close();
+//!         });
+//!     }
+//! });
+//! ```
+//!
+//! You can also run multiple headless apps in the same process, one per thread, if the crate is build using the `"multi_app"` feature.
+//!
+//! # App Extension
+//!
+//! Apps can be extended to provide new services and events, in fact all default services and events are implemented as extensions
+//! loaded by [`APP.defaults()`]. The app extension API is [`AppExtension`]. Usually extensions are named with suffix `Manager`, but
+//! that is not a requirement.
+//!
+//! ```
+//! use zng::{app::{AppExtended, AppExtension}, APP};
+//!
+//! #[derive(Default)]
+//! pub struct HelloManager {}
+//! impl AppExtension for HelloManager {
+//!     fn init(&mut self) {
+//!         println!("Hello init!");
+//!     }
+//!
+//!     fn update_preview(&mut self) {
+//!         println!("Hello before UI!");
+//!     }
+//!
+//!     fn update(&mut self) {
+//!         println!("Hello after UI!");
+//!     }
+//! }
+//!
+//! pub fn app() -> AppExtended<impl AppExtension> {
+//!     APP.defaults().extend(HelloManager::default())
+//! }
+//! ```
+//!
+//! ## Services
+//!
+//! App services are defined by convention, there is no service trait or struct. Proper service implementations follow
+//! these rules:
+//!
+//! #### App services are an unit struct named like a static
+//!
+//! This is because services are a kind of *singleton*. The service API is implemented as methods on the service struct.
+//!
+//! ```
+//! # use zng::var::*;
+//! #[allow(non_camel_case_types)]
+//! pub struct SCREAMING_CASE;
+//! impl SCREAMING_CASE {
+//!     pub fn state(&self) -> impl Var<bool> {
+//! #       var(true)
+//!     }
+//! }
+//! ```
+//!
+//! Note that you need to suppress a lint if the service name has more then one word.
+//!
+//! Service state and config methods should prefer variables over direct values. The use of variables allows the service state
+//! to be plugged directly into the UI. Async operations should prefer using [`ResponseVar<R>`] over `async` methods for
+//! the same reason.
+//!
+//! #### App services lifetime is the current app lifetime
+//!
+//! Unlike a simple singleton app services must only live for the duration of the app and must support
+//! multiple parallel instances if built with the `"multi_app"` feature. You can use private
+//! [`app_local!`] static variables as backing storage to fulfill this requirement.
+//!
+//! A common pattern in the zng services is to name the app locals with a `_SV` suffix.
+//!
+//! Services do not expose the app local locking, all state output is cloned the state is only locked
+//! for the duration of the service method call.
+//!
+//! #### App services don't change public state mid update
+//!
+//! All widgets using the service during the same update see the same state. State change requests are scheduled
+//! for the next update, just like variable updates or event notifications. Services also request
+//! an [`UPDATES.update`] after scheduling to wake-up the app in case the service request was made from a [`task`] thread.
+//!
+//! This is even true for the [`INSTANT`] service, although this can be configured for this service using [`APP.pause_time_for_update`].
+//!
+//! [`APP.pause_time_for_update`]: zng_app::APP::pause_time_for_update
+//!
+//! ### Examples
+//!
+//! Fulfilling service requests is where the [`AppExtension`] comes in, it is possible to declare a simple standalone
+//! service using only variables, `Event::on_event` and `UPDATES.run_hn_once`, but an app extension is more efficient
+//! and more easy to implement.
+//!
+//! If the service request can fail or be delayed it is common for the request method to return a [`ResponseVar<R>`]
+//! that is updated once the request is finished. You can also make the method `async`, but a response var is superior
+//! because it can be plugged directly into any UI property, and it can still be awaited using the variable async methods.
+//!
+//! If the service request cannot fail and it is guaranteed to affect an observable change in the service state in the
+//! next update a response var is not needed.
+//!
+//! The example below demonstrates an app extension implementation that provides a service.
+//!
+//! ```
+//! use zng::{prelude_wgt::*, app::AppExtension};
+//!
+//! /// Foo service.
+//! pub struct FOO;
+//!
+//! impl FOO {
+//!     /// Foo read-write var.
+//!     pub fn config(&self) -> impl Var<bool> {
+//!         FOO_SV.read().config.clone()
+//!     }
+//!
+//!     /// Foo request.
+//!     pub fn request(&self, request: char) -> ResponseVar<char> {
+//!         UPDATES.update(None);
+//!
+//!         let mut foo = FOO_SV.write();
+//!         let (responder, response) = response_var();
+//!         foo.requests.push((request, responder));
+//!         response
+//!     }
+//! }
+//!
+//! struct FooService {
+//!     config: ArcVar<bool>,
+//!     requests: Vec<(char, ResponderVar<char>)>,
+//! }
+//!
+//! app_local! {
+//!     static FOO_SV: FooService = FooService { config: var(false), requests: vec![] };
+//! }
+//!
+//! /// Foo app extension.
+//! ///
+//! /// # Services
+//! ///
+//! /// Services provided by this extension.
+//! ///
+//! /// * [`FOO`]
+//! #[derive(Default)]
+//! pub struct FooManager { }
+//!
+//! impl AppExtension for FooManager {
+//!     fn update(&mut self) {
+//!         let mut foo = FOO_SV.write();
+//!
+//!         if let Some(cfg) = foo.config.get_new() {
+//!             println!("foo cfg={cfg}");
+//!         }
+//!
+//!         for (request, responder) in foo.requests.drain(..) {
+//!             println!("foo request {request:?}");
+//!             responder.respond(request);
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! Note that in the example requests are processed in the [`AppExtension::update`] update that is called
+//! after all widgets have had a chance to make requests. Requests can also be made from parallel [`task`] threads so
+//! the service also requests an [`UPDATES.update`] just in case there is no update running. If you expect to receive many
+//! requests from parallel tasks you can also process requests in the [`AppExtension::update`] instead, but there is probably
+//! little practical difference.
+//!
+//! # Init & Main Loop
+//!
+//! A headed app initializes in this sequence:
+//!
+//! 1. [`AppExtension::register`] is called.
+//! 2. [`AppExtension::enable_device_events`] is queried.
+//! 3. Spawn view-process.
+//! 4. [`AppExtension::init`] is called.
+//! 5. Schedule the app run future to run in the first preview update.
+//! 6. Does [updates loop](#updates-loop).
+//! 7. Does [update events loop](#update-events-loop).
+//! 6. Does [main loop](#main-loop).
+//!
+//! #### Main Loop
+//!
+//! The main loop coordinates view-process events, timers, app events and updates. There is no scheduler, update and event requests
+//! are captured and coalesced to various buffers that are drained in known sequential order. App extensions update one at a time
+//! in the order they are registered. Windows and widgets update in parallel by default, this is controlled by [`WINDOWS.parallel`] and [`parallel`].
+//!
+//! 1. Sleep if there are not pending events or updates.
+//!    * If the view-process is busy blocks until it sends a message, this is a mechanism to stop the app-process
+//!       from overwhelming the view-process.
+//!    * Block until a message is received, from the view-process or from other app threads.
+//!    * If there are [`TIMERS`] or [`VARS`] animations the message block has a deadline to the nearest timer or animation frame.
+//!        * Animations have a fixed frame-rate defined in [`VARS.frame_duration`], it is 60 frames-per-second by default.
+//! 2. Calls elapsed timer handlers.
+//! 3. Calls elapsed animation handlers.
+//!     * These handlers mostly just request var updates are applied in the updates loop.
+//! 4. Does a [view events loop](#view-events-loop).
+//! 4. Does an [updates loop](#updates-loop).
+//! 5. Does an [update events loop](#update-events-loop).
+//! 6. If the view-process is not busy does a [layout loop and render](#layout-loop-and-render).
+//! 7. If exit was requested and not cancelled breaks the loop.
+//!     * Exit is requested automatically when the last open window closes, this is controlled by [`WINDOWS.exit_on_last_close`].
+//!     * Exit can also be requested using [`APP.exit`].
+//!
+//! #### View Events Loop
+//!
+//! All pending events send by the view-process are coalesced and notify sequentially.
+//!
+//! 1. For each event in the received order (FIFO) that converts to a RAW event.
+//!     1. Calls [`AppExtension::event_preview`].
+//!     2. Calls [`Event::on_pre_event`] handlers.
+//!     3. Calls [`AppExtension::event_ui`].
+//!         * Raw events don't target any widget, but widgets can subscribe, subscribers receive the event in parallel by default.
+//!     4. Calls [`AppExtension::event`].
+//!     5. Calls [`Event::on_event`] handlers.
+//!     6. Does an [updates loop](#updates-loop).
+//! 2. Frame rendered raw event.
+//!     * Same notification sequence as other view-events, just delayed.
+//!
+//! #### Updates Loop
+//!
+//! The updates loop rebuilds info trees if needed , applies pending variable updates and hooks and collects event updates
+//! requested by the app.
+//!
+//! 1. Takes info rebuild request flag.
+//!     * Calls [`AppExtension::info`] if needed.
+//!     * Windows and widgets that requested info (re)build are called.
+//!     * Info rebuild happens in parallel by default.
+//! 2. Takes events and updates requests.
+//!     1. Event hooks are called for new event requests.
+//!         * Full event notification is delayed to after the updates loop.
+//!     2. [var updates loop](#var-updates-loop)
+//!     3. Calls [`AppExtension::update_preview`] if any update was requested.
+//!     4. Calls [`UPDATES.on_pre_update`] handlers if needed.
+//!     5. Calls [`AppExtension::update_ui`] if any update was requested.
+//!         * Windows and widgets that requested update receive it here.
+//!         * All the pending updates are processed in one pass, all targeted widgets are visited once, in parallel by default.
+//!     6. Calls [`AppExtension::update`] if any update was requested.
+//!     7. Calls [`UPDATES.on_update`] handlers if needed.
+//! 3. The loop repeats immediately if any info rebuild or update was requested by update callbacks.
+//!     * The loops breaks if it repeats over 1000 times.
+//!     * An error is logged with a trace the most frequent sources of update requests.
+//!
+//! #### Var Updates Loop
+//!
+//! The variable updates loop applies pending modifications, calls hooks to update variable and bindings.
+//!
+//! 1. Pending variable modifications are applied.
+//! 2. Var hooks are called.
+//!     * The mapping and binding mechanism is implemented using hooks.
+//! 3. The loop repeats until hooks have stopped modifying variables.
+//!     * The loop breaks if it repeats over 1000 times.
+//!     * An error is logged if this happens.
+//!
+//! #### Update Events Loop
+//!
+//! The update events loop notifies each event raised by the app code during previous updates.
+//!
+//! 1. For each event in the request order (FIFO).
+//!     1. Calls [`AppExtension::event_preview`].
+//!     2. Calls [`Event::on_pre_event`] handlers.
+//!     3. Calls [`AppExtension::event_ui`].
+//!         * Windows and widgets targeted by the event update receive it here.
+//!         * If the event targets multiple widgets they receive it in parallel by default.
+//!     4. Calls [`AppExtension::event`].
+//!     5. Calls [`Event::on_event`] handlers.
+//!     6. Does an [updates loop](#updates-loop).
+//!
+//! #### Layout Loop and Render
+//!
+//! Layout and render requests are coalesced, multiple layout requests for the same widget update it once, multiple
+//! render requests become one frame, and if both render and render_update are requested for a window it will fully render.
+//!
+//! 1. Take layout and render requests.
+//! 2. Layout loop.
+//!     1. Calls [`AppExtension::layout`].
+//!         * Windows and widgets that requested layout update in parallel by default.
+//!     2. Does an [updates loop](#updates-loop).
+//!     3. Take layout and render requests, the loop repeats immediately if layout was requested again.
+//!         * The loop breaks if it repeats over 1000 times.
+//!         * An error is logged with a trace the most frequent sources of update requests.
+//! 3. If render was requested, calls [`AppExtension::render`].
+//!     * Windows and widgets that requested render (or render_update) do know in parallel by default.
+//!     * The render pass updates widget transforms and hit-test, generates a display list and sends it to the view-process.
+//!
+//! [`APP.defaults()`]: crate::APP::defaults
+//! [`UPDATES.update`]: crate::update::UPDATES::update
+//! [`task`]: crate::task
+//! [`ResponseVar<R>`]: crate::var::ResponseVar
+//! [`TIMERS`]: crate::timer::TIMERS
+//! [`VARS`]: crate::var::VARS
+//! [`VARS.frame_duration`]: crate::var::VARS::frame_duration
+//! [`WINDOWS.parallel`]: crate::window::WINDOWS::parallel
+//! [`parallel`]: fn@crate::widget::parallel
+//! [`UPDATES.on_pre_update`]: crate::update::UPDATES::on_pre_update
+//! [`UPDATES.on_update`]: crate::update::UPDATES::on_update
+//! [`Event::on_pre_event`]: crate::event::Event::on_pre_event
+//! [`Event::on_event`]: crate::event::Event::on_event
+//! [`WINDOWS.exit_on_last_close`]: crate::window::WINDOWS::exit_on_last_close
+//! [`APP.exit`]: crate::APP#method.exit
+//!
+//! # Full API
+//!
+//! This module provides most of the app API needed to make and extend apps, some more advanced or experimental API
+//! may be available at the [`zng_app`] and [`zng_app_context`] base crates.
+
+pub use zng_app::{
+    print_tracing, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, DInstant, Deadline,
+    ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
+};
+pub use zng_app_context::{
+    app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,
+    MappedRwLockReadGuardOwned, MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned,
+    StaticAppId,
+};
+pub use zng_wgt_input::cmd::{
+    on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as, NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD,
+};
+
+/// Input device hardware ID and events.
+///
+/// # Full API
+///
+/// See [`zng_app::view_process::raw_device_events`] for the full API.
+pub mod raw_device_events {
+    pub use zng_app::view_process::raw_device_events::{
+        DeviceArgs, DeviceId, MotionArgs, StaticDeviceId, DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, MOTION_EVENT,
+    };
+}

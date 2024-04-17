@@ -12,7 +12,7 @@ rand = "0.8.5"
 regex = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 
-zng = { path = "../zng", features = [
+zng = { path = "../crates/zng", features = [
     "http",
     "hyphenation_embed_all",
     "inspector",
@@ -23,10 +23,10 @@ zng = { path = "../zng", features = [
     # "multi_app",
 ] }
 
-zng-app = { path = "../zng-app" }           # for respawn and extend_view examples
-zng-view-api = { path = "../zng-view-api" } # for the extend_view example
-zng-view = { path = "../zng-view" } # for the extend_view example
-zng-wgt-webrender-debug = { path = "../zng-wgt-webrender-debug" } # for the extend_view example
+zng-app = { path = "../crates/zng-app" }           # for respawn and extend_view examples
+zng-view-api = { path = "../crates/zng-view-api" } # for the extend_view example
+zng-view = { path = "../crates/zng-view" } # for the extend_view example
+zng-wgt-webrender-debug = { path = "../crates/zng-wgt-webrender-debug" } # for the extend_view example
 
 examples-util = { path = "util" }
 # backtrace-on-stack-overflow = "0.2"

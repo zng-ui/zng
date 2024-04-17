@@ -1,0 +1,18 @@
+[package]
+name = "zng-unit"
+version = "0.2.4"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_unit"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+num-traits = "0.2"
+bytemuck = { version = "1.15", features = ["derive"] }
+euclid = { version = "0.22", features = ["serde", "bytemuck"] }

@@ -1,0 +1,132 @@
+[package]
+name = "zng-view"
+version = "0.2.7"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_view"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[features]
+default = ["ipc", "software"]
+
+# Enables pre-build and init as view-process.
+#
+# If this is enabled all communication with the view is serialized/deserialized, 
+# even in same-process mode.
+ipc = ["zng-view-api/ipc"]
+
+# Enables software renderer fallback.
+#
+# If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
+software = ["dep:swgl"]
+
+# Bundle third party licenses.
+#
+# Needs `cargo-about` and Internet connection during build.
+#
+# Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
+bundle_licenses = ["zng-tp-licenses/bundle"]
+
+# Enable AVIF decoder and encoder.
+#
+# Note that this enables the `dav1d` dependency that is not trivial to build.
+#
+# Removed for now because there is no way to exclude this feature from test runs that use --all-features
+# avif = ["image/avif", "image/avif-native"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+webrender = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-webrender", version = "0.62.2" }
+swgl = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-swgl", version = "0.1.2", optional = true }
+
+zng-view-api = { path = "../zng-view-api", version = "0.2.7", default-features = false }
+zng-unit = { path = "../zng-unit", version = "0.2.4" }
+zng-txt = { path = "../zng-txt", version = "0.2.4" }
+zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.3" }
+
+tracing = "0.1"
+gleam = "0.15.0" # matches webrender
+winit = { version = "0.29", default-features = false, features = [
+    "x11",
+    "wayland",
+    "wayland-dlopen",
+    "rwh_05",
+] }
+glutin = "0.31"
+raw-window-handle = "0.5" # matches glutin
+flume = "0.11"
+image = { version = "0.25", default-features = false, features = [
+    "rayon",
+    "bmp",
+    "dds",
+    "exr",
+    "ff",
+    "gif",
+    "hdr",
+    "ico",
+    "jpeg",
+    "png",
+    "pnm",
+    "qoi",
+    "tga",
+    "tiff",
+    "webp",
+] }
+img-parts = "0.3"
+byteorder = "1.5"
+rustc-hash = "1.1"
+rayon = "1.10"
+serde = "1.0"
+rfd = { version = "0.12", default_features = false, features = ["xdg-portal"] }
+accesskit = "0.12"
+accesskit_winit = "0.18"
+
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.48.0" # matches winit, glutin, other crates
+features = [
+    "Win32_UI_Shell",
+    "Win32_System_Com",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_OpenGL",
+    "Win32_UI_Accessibility",
+    "Win32_System_LibraryLoader",
+    "Win32_Globalization",
+    "Win32_System_SystemServices",
+    "Win32_System_Power",
+]
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.48.0"                                          # matches accesskit, other crates
+features = ["Foundation_Collections", "System_UserProfile"]
+
+[target.'cfg(windows)'.dependencies]
+clipboard-win = { version = "5.0", features = ["std"] }
+
+[target.'cfg(not(windows))'.dependencies]
+arboard = "3.3"
+sys-locale = "0.3"
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+wayland-client = { version = "0.31", default_features = false } # matches winit
+x11-dl = "2.18.5"                                               # matches winit
+tempfile = "3.10"
+
+# xlib is re-exported by glutin/winit
+
+# prebuild profile defined in the workspace toml
+
+[build-dependencies]
+zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.3", features = ["build"] }
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "x86_64-apple-darwin"]
