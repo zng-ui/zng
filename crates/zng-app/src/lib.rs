@@ -743,6 +743,7 @@ impl HeadlessApp {
                 Err(t) => task = t,
             }
         }
+        task.cancel();
 
         None
     }

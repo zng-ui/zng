@@ -118,16 +118,18 @@ impl TryFrom<RawConfigValue> for serde_toml::Value {
             serde_json::Value::Null => return Err(TomlValueRawError::Null),
             serde_json::Value::Bool(b) => serde_toml::Value::Boolean(b),
             serde_json::Value::Number(n) => {
-                if let Some(f) = n.as_f64() {
-                    serde_toml::Value::Float(f)
-                } else if let Some(i) = n.as_i64() {
-                    serde_toml::Value::Integer(i)
-                } else {
-                    let i = n.as_u64().unwrap();
-                    if i > i64::MAX as u64 {
-                        return Err(TomlValueRawError::InvalidInt(i));
+                // serde_json does not implicit converts float to integer, so we try integers first here.
+                if let Some(n) = n.as_i64() {
+                    serde_toml::Value::Integer(n)
+                } else if let Some(n) = n.as_u64() {
+                    if n > i64::MAX as u64 {
+                        return Err(TomlValueRawError::InvalidInt(n));
                     }
-                    serde_toml::Value::Integer(i as i64)
+                    serde_toml::Value::Integer(n as i64)
+                } else if let Some(n) = n.as_f64() {
+                    serde_toml::Value::Float(n)
+                } else {
+                    unreachable!()
                 }
             }
             serde_json::Value::String(s) => serde_toml::Value::String(s),

@@ -72,18 +72,21 @@ impl TryFrom<serde_yaml::Value> for RawConfigValue {
         let ok = match value {
             serde_yaml::Value::Null => serde_json::Value::Null,
             serde_yaml::Value::Bool(b) => serde_json::Value::Bool(b),
-            serde_yaml::Value::Number(n) => serde_json::Value::Number(if let Some(n) = n.as_f64() {
-                match serde_json::Number::from_f64(n) {
-                    Some(n) => n,
-                    None => return Err(YamlValueRawError::InvalidFloat(n)),
-                }
-            } else if let Some(i) = n.as_i64() {
-                i.into()
-            } else if let Some(i) = n.as_u64() {
-                i.into()
-            } else {
-                unreachable!()
-            }),
+            serde_yaml::Value::Number(n) => {
+                // serde_json does not implicit converts float to integer, so we try integers first here.
+                serde_json::Value::Number(if let Some(n) = n.as_i64() {
+                    n.into()
+                } else if let Some(n) = n.as_u64() {
+                    n.into()
+                } else if let Some(n) = n.as_f64() {
+                    match serde_json::Number::from_f64(n) {
+                        Some(n) => n,
+                        None => return Err(YamlValueRawError::InvalidFloat(n)),
+                    }
+                } else {
+                    unreachable!()
+                })
+            }
             serde_yaml::Value::String(s) => serde_json::Value::String(s),
             serde_yaml::Value::Sequence(s) => serde_json::Value::Array({
                 let mut r = Vec::with_capacity(s.len());
@@ -112,15 +115,18 @@ impl TryFrom<RawConfigValue> for serde_yaml::Value {
         let ok = match value.0 {
             serde_json::Value::Null => serde_yaml::Value::Null,
             serde_json::Value::Bool(b) => serde_yaml::Value::Bool(b),
-            serde_json::Value::Number(n) => serde_yaml::Value::Number(if let Some(f) = n.as_f64() {
-                serde_yaml::Number::from(f)
-            } else if let Some(n) = n.as_i64() {
-                serde_yaml::Number::from(n)
-            } else if let Some(n) = n.as_u64() {
-                serde_yaml::Number::from(n)
-            } else {
-                unreachable!()
-            }),
+            serde_json::Value::Number(n) => {
+                // serde_json does not implicit converts float to integer, so we try integers first here.
+                serde_yaml::Value::Number(if let Some(f) = n.as_i64() {
+                    serde_yaml::Number::from(f)
+                } else if let Some(n) = n.as_u64() {
+                    serde_yaml::Number::from(n)
+                } else if let Some(n) = n.as_f64() {
+                    serde_yaml::Number::from(n)
+                } else {
+                    unreachable!()
+                })
+            }
             serde_json::Value::String(s) => serde_yaml::Value::String(s),
             serde_json::Value::Array(a) => serde_yaml::Value::Sequence({
                 let mut r = Vec::with_capacity(a.len());

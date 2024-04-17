@@ -8,6 +8,7 @@
 * Fix `WINDOWS.frame_image` capture with multiple windows capturing pixels from the wrong window.
 * Fix `WINDOWS.frame_image` var not updating on load or error.
 * Fix cursor not resetting on widget deinit.
+* Add missing `zng::app::test_log`.
 
 # 0.3.3
 
