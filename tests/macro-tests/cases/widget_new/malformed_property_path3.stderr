@@ -10,7 +10,7 @@ error[E0425]: cannot find function `layout` in module `zng::layout`
 6 |         zng::layout:margin = 0;
   |              ^^^^^^ help: a unit struct with a similar name exists: `LAYOUT`
   |
- ::: $WORKSPACE/zng-layout/src/context.rs
+ ::: $WORKSPACE/crates/zng-layout/src/context.rs
   |
   | pub struct LAYOUT;
   | ----------------- similarly named unit struct `LAYOUT` defined here

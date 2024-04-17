@@ -199,41 +199,13 @@ on Linux:
 * Packages needed to build with `"view_prebuilt"` feature:
     - `curl`
 
-## `cargo do`
+## Examples
 
-**Do** is a built-in task runner for managing this project, run `cargo do help` or `./do help` for details.
+Call `cargo do run <example>` to run an example.
 
-The task runner is implemented as a Rust crate in `tools/do-tasks` and an alias in `.cargo/config.toml`.
-The builds the tool silently in the first run, after, it runs without noticeable delay.
+See the [`./examples/README.md`] doc for a list of examples with description and screenshots.
 
-Shell script to run `do` are also provided:
- 
- * cmd.exe: `do help`.
- * PowerShell: `./do.ps1 help`.
- * Bash: `/.do help`.
-
-### `cargo do run <example>`
-
-The task runner can be used to run the examples in [`./examples`] folder, for example: `cargo do run calculator` runs the
-`./examples/calculator.rs` example.
-
-See [`./examples/README.md`] for a list of examples with description and screenshots.
-
-[`./examples`]: https://github.com/zng-ui/zng/tree/master/examples
 [`./examples/README.md`]: https://github.com/zng-ui/zng/tree/master/examples#readme
-
-### `cargo do install`
-
-The task runner depends on multiple cargo commands, you can run `cargo do install` to see a list of all required commands and run `cargo do install --accept` to run the installation commands.
-
-## VSCode & Rust Analyzer
-
-Some workspace settings are included in the repository, in particular, `rust-analyzer` "checkOnSave" 
-and runnables are redirected to the `do` tool.
-
-[`API docs`]: https://docs.rs/zng
-[`cargo-expand`]: https://github.com/dtolnay/cargo-expand
-[`cargo-asm`]: https://github.com/gnzlbg/cargo-asm
 
 ## License
 

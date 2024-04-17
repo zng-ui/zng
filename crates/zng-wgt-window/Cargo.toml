@@ -1,0 +1,42 @@
+[package]
+name = "zng-wgt-window"
+version = "0.2.8"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_wgt_window"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[features]
+default = ["debug_default"]
+# Enable the `zng-wgt` crate debug defaults.
+debug_default = ["zng-wgt/debug_default"]
+# Enable the `zng-wgt` crate dynamic closures.
+dyn_closure = ["zng-wgt/dyn_closure"]
+
+[dependencies]
+zng-wgt = { path = "../zng-wgt", version = "0.2.7" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.2.7" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.7" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.8" }
+zng-app = { path = "../zng-app", version = "0.3.3" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.2.7" }
+zng-ext-config = { path = "../zng-ext-config", version = "0.2.7", default-features = false }
+zng-ext-input = { path = "../zng-ext-input", version = "0.3.3" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.3.3" }
+zng-var = { path = "../zng-var", version = "0.2.5" }
+zng-color = { path = "../zng-color", version = "0.2.7" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.7" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.2.7" }
+
+serde = { version = "1.0", features = ["derive"] }
+paste = "1.0"
+parking_lot = "0.12"
+euclid = "0.22"
+
+[package.metadata.docs.rs]
+all-features = true

@@ -16,7 +16,7 @@ error[E0277]: the trait bound `impl zng::var::Var<SideOffsets>: zng::var::Var<bo
    = help: the following other types implement trait `zng::var::Var<T>`:
             <implementers-list>
 note: required by a bound in `when_condition_expr_var`
-  --> $WORKSPACE/zng-app/src/widget/builder.rs
+  --> $WORKSPACE/crates/zng-app/src/widget/builder.rs
    |
    | pub fn when_condition_expr_var(expr_var: impl Var<bool>) -> BoxedVar<bool> {
    |                                               ^^^^^^^^^ required by this bound in `when_condition_expr_var`

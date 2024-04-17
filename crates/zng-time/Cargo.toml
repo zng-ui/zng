@@ -1,0 +1,17 @@
+[package]
+name = "zng-time"
+version = "0.2.4"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_time"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[dependencies]
+zng-app-context = { path = "../zng-app-context", version = "0.3.1" }
+
+parking_lot = "0.12"

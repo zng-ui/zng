@@ -447,7 +447,7 @@ pub fn git_modified() -> Vec<PathBuf> {
 }
 
 pub fn print_git_diff(file: &std::path::Path) {
-    Command::new("git").arg("diff").arg(file).status().unwrap();
+    Command::new("git").arg("--no-pager").arg("diff").arg(file).status().unwrap();
 }
 
 static CMD_ERROR: AtomicBool = AtomicBool::new(false);
@@ -465,7 +465,10 @@ pub fn exit_checked() {
 }
 
 pub fn crate_version(name: &str) -> String {
-    let path = format!("{manifest_dir}/../../{name}/Cargo.toml", manifest_dir = env!("CARGO_MANIFEST_DIR"));
+    let path = format!(
+        "{manifest_dir}/../../crates/{name}/Cargo.toml",
+        manifest_dir = env!("CARGO_MANIFEST_DIR")
+    );
     let toml = std::fs::read_to_string(&path).expect(&path);
     assert!(toml.contains(&format!("name = \"{name}\"")), "run `do` in the project root");
     let rgx = regex::Regex::new(r#"version = "(\d+\.\d+.*)""#).unwrap();

@@ -14,7 +14,7 @@ error[E0061]: this method takes 2 arguments but 1 argument was supplied
    | |_____- an argument is missing
    |
 note: method defined here
-  --> $WORKSPACE/zng-wgt-fill/src/lib.rs
+  --> $WORKSPACE/crates/zng-wgt-fill/src/lib.rs
    |
    | / #[property(FILL, default(0.deg(), {
    | |     let c = colors::BLACK.transparent();
@@ -23,7 +23,7 @@ note: method defined here
    | |____^
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
-  --> $WORKSPACE/zng-wgt/src/wgt.rs
+  --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
    |
    | background_gradient(axis, /* stops */)
    |

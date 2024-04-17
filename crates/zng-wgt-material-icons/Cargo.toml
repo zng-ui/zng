@@ -1,0 +1,46 @@
+[package]
+name = "zng-wgt-material-icons"
+version = "0.2.8"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_wgt_material_icons"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[features]
+default = ["embedded", "outlined", "filled", "rounded", "sharp"]
+
+# Embedded font files.
+embedded = []
+
+# Outlined icon set.
+outlined = []
+
+# Filled icon set.
+filled = []
+
+# Rounded icon set.
+rounded = []
+
+# Sharp icon set.
+sharp = []
+
+[dependencies]
+zng-app = { path = "../zng-app", version = "0.3.3" }
+zng-var = { path = "../zng-var", version = "0.2.5" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.3.3" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.2.8" }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[package.metadata.zng-do]
+# this file is generated on build, docs.rs does not give write access to target/doc.
+rustdoc-args = [
+    "--html-in-header",
+    "target/doc/zng-material-icons-extensions.html",
+]

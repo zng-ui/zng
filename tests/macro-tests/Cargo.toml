@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 trybuild = "1.0"
 glob = "0.3"
-zng = { path = "../../zng" }
+zng = { path = "../../crates/zng" }
 
 [lib]
 name = "lib"
