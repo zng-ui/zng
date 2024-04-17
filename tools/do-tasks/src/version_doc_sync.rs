@@ -9,14 +9,14 @@ const CRATE_FILES: &[(&str, &[&str])] = &[
         "zng",
         &[
             "README.md",
-            "zng/src/lib.rs",
-            "zng/src/app.rs",
-            "zng/src/icon.rs",
-            "zng-view/src/lib.rs",
+            "crates/zng/src/lib.rs",
+            "crates/zng/src/app.rs",
+            "crates/zng/src/icon.rs",
+            "crates/zng-view/src/lib.rs",
         ],
     ),
-    ("zng-view", &["zng-view/src/lib.rs"]),
-    ("zng-tp-licenses", &["zng/src/third_party.rs"]),
+    ("zng-view", &["crates/zng-view/src/lib.rs"]),
+    ("zng-tp-licenses", &["crates/zng/src/third_party.rs"]),
 ];
 
 pub fn check() {

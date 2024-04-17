@@ -18,7 +18,7 @@ The issue must happen in the latest release or newer (master branch) and after r
 ### Close a Todo
 
 The project is under active development, the [todo] issue label tracks things that need to 
-be implemented. To claim a todo open a draft pull request that references the issue.
+be implemented. To claim a todo open a draft pull request that references the issue or leave a comment.
 
 If you need help getting started leave a comment under the todo issue or start a [new discussion].
 
@@ -33,6 +33,8 @@ particular the `cargo do` tool that you will need to use for testing.
 
 The [`tests/README.md`] doc provides an overview of integration and macro tests.
 
+The [`docs`] directory contains more dev docs.
+
 ### VSCode & Rust Analyzer
 
 Some workspace settings are included in the repository, in particular, `rust-analyzer` "checkOnSave" 
@@ -44,7 +46,8 @@ and runnables are redirected to the `do` tool.
 
 [todo]: https://github.com/zng-ui/zng/issues?q=is%3Aissue+is%3Aopen+label%3Atodo
 [new discussion]: https://github.com/zng-ui/zng/discussions/new?category=general
-[`examples/README.md`]: crates/README.md
+[`examples/README.md`]: examples/README.md
 [`crates/README.md`]: crates/README.md
 [`tools/README.md`]: tools/README.md
 [`tests/README.md`]: tests/README.md
+[`docs`]: docs
