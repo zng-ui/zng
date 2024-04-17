@@ -38,6 +38,7 @@ fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
 
     fn run<C: AnyConfig>(source: impl Fn() -> C, test_read: bool) {
         let mut app = APP.defaults().run_headless(false);
+        zng::app::test_log();
 
         CONFIG.load(source());
         app.run_task(async {
@@ -212,6 +213,7 @@ fn concurrent_read_write() {
         // setup
         rmv_file_assert(&file);
         let mut app = APP.defaults().run_headless(false);
+        zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&file));
         CONFIG.get("key", || Txt::from_static("default/custom")).set("custom").unwrap();
 
@@ -231,6 +233,7 @@ fn concurrent_read_write() {
         .map(|_| {
             std::thread::spawn(clmv!(file, || {
                 let mut app = APP.defaults().run_headless(false);
+                zng::app::test_log();
                 CONFIG.load(JsonConfig::sync(file));
 
                 app.run_task(async {
@@ -267,6 +270,7 @@ fn fallback_swap() {
         rmv_file_assert(&fallback_cfg);
 
         let mut app = APP.defaults().run_headless(false);
+        zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
         CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
 
@@ -295,6 +299,7 @@ fn fallback_swap() {
 
     // test
     let mut app = APP.defaults().run_headless(false);
+    zng::app::test_log();
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(fallback_cfg)));
     app.run_task(async {
@@ -337,6 +342,7 @@ fn fallback_reset() {
         rmv_file_assert(&fallback_cfg);
 
         let mut app = APP.defaults().run_headless(false);
+        zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
         CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
 
@@ -365,6 +371,7 @@ fn fallback_reset() {
 
     // test
     let mut app = APP.defaults().run_headless(false);
+    zng::app::test_log();
 
     CONFIG.load(FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg)));
     app.run_task(async {
@@ -409,6 +416,7 @@ fn fallback_reset_entry() {
         rmv_file_assert(&fallback_cfg);
 
         let mut app = APP.defaults().run_headless(false);
+        zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
         CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
 
@@ -437,6 +445,7 @@ fn fallback_reset_entry() {
 
     // test
     let mut app = APP.defaults().run_headless(false);
+    zng::app::test_log();
 
     let mut cfg = FallbackConfig::new(JsonConfig::sync(&main_cfg), JsonConfig::sync(&fallback_cfg));
     // wait_idle
