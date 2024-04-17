@@ -877,10 +877,12 @@ fn publish(mut args: Vec<&str>) {
                 }
             }
 
-            let name = line.split('/').next().unwrap();
-            if members.iter().any(|m| m.name == name) {
-                let changes: &mut Vec<&str> = changed.entry(name).or_default();
-                changes.push(line);
+            if let Some(name) = line.strip_prefix("crates/") {
+                let name = name.split('/').next().unwrap();
+                if members.iter().any(|m| m.name == name) {
+                    let changes: &mut Vec<&str> = changed.entry(name).or_default();
+                    changes.push(line);
+                }
             }
         }
 
