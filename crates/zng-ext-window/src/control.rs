@@ -3,7 +3,7 @@
 use std::{mem, sync::Arc};
 
 use zng_app::{
-    access::ACCESS_INITED_EVENT,
+    access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
     app_hn_once,
     event::{AnyEventArgs, CommandHandle},
     render::{FrameBuilder, FrameUpdate},
@@ -515,8 +515,7 @@ impl HeadedCtrl {
             self.vars.0.actual_color_scheme.set(scheme);
         }
 
-        if let Some(e) = self.vars.0.access_enabled.get_new() {
-            debug_assert!(e.is_enabled());
+        if self.vars.0.access_enabled.is_new() {
             UPDATES.update_info_window(WINDOW.id());
         } else if self.vars.0.access_enabled.get() == AccessEnabled::VIEW && WINDOW_FOCUS.focused().is_new() {
             self.update_access_focused();
@@ -750,8 +749,17 @@ impl HeadedCtrl {
             }
         } else if let Some(args) = ACCESS_INITED_EVENT.on(update) {
             if args.window_id == WINDOW.id() {
-                tracing::info!("accessibility info enabled for {:?}", args.window_id);
+                tracing::info!("accessibility info enabled in view for {:?}", args.window_id);
                 self.vars.0.access_enabled.set(AccessEnabled::VIEW);
+            }
+        } else if let Some(args) = ACCESS_DEINITED_EVENT.on(update) {
+            if args.window_id == WINDOW.id() {
+                tracing::info!("accessibility info disabled in view for {:?}", args.window_id);
+                self.vars.0.access_enabled.modify(|a| {
+                    if a.is_enabled() {
+                        *a.to_mut() = AccessEnabled::APP;
+                    }
+                });
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             if let Some(view) = &self.window {
@@ -1067,7 +1075,6 @@ impl HeadedCtrl {
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
-            access_root: self.content.root_ctx.id().into(),
 
             focus: self.start_focused,
             focus_indicator: self.vars.focus_indicator().get(),
@@ -1196,8 +1203,6 @@ impl HeadedCtrl {
 
             focus: WINDOWS.is_focused(WINDOW.id()).unwrap_or(false),
             focus_indicator: self.vars.focus_indicator().get(),
-
-            access_root: self.content.root_ctx.id().into(),
 
             ime_area: self.ime_info.as_ref().and_then(|a| {
                 let info = WINDOW.info();
@@ -1414,8 +1419,7 @@ impl HeadlessWithRendererCtrl {
     }
 
     pub fn update(&mut self, update_widgets: &WidgetUpdates) {
-        if let Some(e) = self.vars.0.access_enabled.get_new() {
-            debug_assert!(e.is_enabled());
+        if self.vars.0.access_enabled.is_new() {
             UPDATES.update_info_window(WINDOW.id());
         }
 
@@ -1662,8 +1666,7 @@ impl HeadlessCtrl {
     }
 
     pub fn update(&mut self, update_widgets: &WidgetUpdates) {
-        if let Some(e) = self.vars.0.access_enabled.get_new() {
-            debug_assert!(e.is_enabled());
+        if self.vars.0.access_enabled.is_new() {
             UPDATES.update_info_window(WINDOW.id());
         }
 

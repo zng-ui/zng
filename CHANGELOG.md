@@ -9,6 +9,10 @@
 * Fix `WINDOWS.frame_image` var not updating on load or error.
 * Fix cursor not resetting on widget deinit.
 * Add missing `zng::app::test_log`.
+* **Breaking:** View API accessibility updates.
+    - Added `Event::AccessDeinit`, access can now be disabled by the system.
+    - Removed `WindowRequest::access_root`, no longer needed.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 
 # 0.3.3
 

@@ -653,8 +653,10 @@ impl WindowVars {
 
     /// If an accessibility service has requested info from this window.
     ///
-    /// This variable can only update with more bit flags, you can enable it in the app-process using [`enable_access`], the
+    /// You can enable this in the app-process using [`enable_access`], the
     /// view-process can also enable it on the first request for accessibility info by an external tool.
+    ///
+    /// This variable does not update to fully disabled after first enable, but the VIEW bit can disable and re-enable.
     ///
     /// [`enable_access`]: crate::WINDOW_Ext::enable_access
     pub fn access_enabled(&self) -> ReadOnlyArcVar<AccessEnabled> {

@@ -346,17 +346,17 @@ impl Window {
 
         drop(wr_scope);
 
-        let access_root = cfg.access_root;
-        let mut first = Some((event_sender.clone(), id));
-        let access = accesskit_winit::Adapter::with_action_handler(
+        let access = accesskit_winit::Adapter::with_direct_handlers(
             &winit_window,
-            move || {
-                if let Some((first, window_id)) = first.take() {
-                    let _ = first.send(AppEvent::Notify(Event::AccessInit { window: window_id }));
-                }
-                crate::util::access_tree_init(access_root)
+            AccessActivateHandler {
+                id,
+                event_sender: event_sender.clone(),
             },
-            Box::new(AccessSender { id, event_sender }),
+            AccessActionSender {
+                id,
+                event_sender: event_sender.clone(),
+            },
+            AccessDeactivateHandler { id, event_sender },
         );
 
         let mut win = Self {
@@ -1654,18 +1654,18 @@ impl Window {
     }
 
     /// Pump the accessibility adapter.
-    pub fn pump_access(&self, event: &winit::event::WindowEvent) {
-        if let Some(a) = &self.access {
+    pub fn pump_access(&mut self, event: &winit::event::WindowEvent) {
+        if let Some(a) = &mut self.access {
             a.process_event(&self.window, event);
         }
     }
 
     /// Update the accessibility info.
     pub fn access_update(&mut self, update: zng_view_api::access::AccessTreeUpdate, event_sender: &AppEventSender) {
-        if let Some(a) = &self.access {
+        if let Some(a) = &mut self.access {
             // SAFETY: we drop `access` in case of panic.
-            let a = std::panic::AssertUnwindSafe(a);
-            let panic = crate::util::catch_suppress(|| {
+            let mut a = std::panic::AssertUnwindSafe(a);
+            let panic = crate::util::catch_suppress(move || {
                 a.update_if_active(|| crate::util::access_tree_update_to_kit(update));
             });
             if let Err(p) = panic {
@@ -1734,11 +1734,33 @@ pub(crate) struct FrameReadyResult {
     pub first_frame: bool,
 }
 
-struct AccessSender {
+struct AccessActivateHandler {
     id: WindowId,
     event_sender: AppEventSender,
 }
-impl accesskit::ActionHandler for AccessSender {
+impl accesskit::ActivationHandler for AccessActivateHandler {
+    fn request_initial_tree(&mut self) -> Option<accesskit::TreeUpdate> {
+        let _ = self.event_sender.send(AppEvent::Notify(Event::AccessInit { window: self.id }));
+        None
+    }
+}
+
+struct AccessDeactivateHandler {
+    id: WindowId,
+    event_sender: AppEventSender,
+}
+
+impl accesskit::DeactivationHandler for AccessDeactivateHandler {
+    fn deactivate_accessibility(&mut self) {
+        let _ = self.event_sender.send(AppEvent::Notify(Event::AccessDeinit { window: self.id }));
+    }
+}
+
+struct AccessActionSender {
+    id: WindowId,
+    event_sender: AppEventSender,
+}
+impl accesskit::ActionHandler for AccessActionSender {
     fn do_action(&mut self, request: accesskit::ActionRequest) {
         if let Some(ev) = crate::util::accesskit_to_event(self.id, request) {
             let _ = self.event_sender.send(AppEvent::Notify(ev));

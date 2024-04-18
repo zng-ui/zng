@@ -377,6 +377,9 @@ impl<E: AppExtension> RunningApp<E> {
                     self.notify_event(update, observer);
                 }
             }
+            Event::AccessDeinit { window: w_id } => {
+                self.notify_event(crate::access::on_access_deinit(window_id(w_id)), observer);
+            }
 
             // native dialog responses
             Event::MsgDialogResponse(id, response) => {
