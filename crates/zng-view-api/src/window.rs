@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use zng_txt::Txt;
 
 use crate::{
-    access::AccessNodeId,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::ColorScheme,
     display_list::{DisplayList, FrameValueUpdate},
@@ -407,15 +406,6 @@ pub struct WindowRequest {
     ///
     /// The `zng-view` crate implements this by calling `RendererExtension::configure` with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
-
-    /// Initial accessibility info tree root widget.
-    ///
-    /// This is used to declare a placeholder node on the first request for accessibility info, the [`Event::AccessInit`] event
-    /// is send to the window if any accessibility service requests the tree, the window must send the full info at that moment,
-    /// after the init the window should assume that accessibility info is required for the lifetime of the window and updates must be send.
-    ///
-    /// [`Event::AccessInit`]: crate::Event::AccessInit
-    pub access_root: AccessNodeId,
 
     /// IME cursor area, if IME is enabled.
     pub ime_area: Option<DipRect>,

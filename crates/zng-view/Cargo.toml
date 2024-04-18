@@ -85,8 +85,8 @@ rustc-hash = "1.1"
 rayon = "1.10"
 serde = "1.0"
 rfd = { version = "0.12", default_features = false, features = ["xdg-portal"] }
-accesskit = "0.12"
-accesskit_winit = "0.18"
+accesskit = "0.13"
+accesskit_winit = "0.19"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.48.0" # matches winit, glutin, other crates

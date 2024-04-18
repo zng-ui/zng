@@ -518,12 +518,11 @@ pub enum Event {
     /// User responded to a native file dialog.
     FileDialogResponse(DialogId, FileDialogResponse),
 
-    /// Accessibility info tree was requested for the first time on a window.
+    /// Accessibility info tree is now required for the window.
     AccessInit {
-        /// Window that received the first accessibility request.
+        /// Window that must now build access info.
         window: WindowId,
     },
-
     /// Accessibility command.
     AccessCommand {
         /// Window that had pixels copied.
@@ -532,6 +531,14 @@ pub enum Event {
         target: AccessNodeId,
         /// Command.
         command: AccessCmd,
+    },
+    /// Accessibility info tree is no longer needed for the window.
+    ///
+    /// Note that accessibility may be enabled again after this. It is not an error
+    /// to send access updates after this, but they will be ignored.
+    AccessDeinit {
+        /// Window that can release access info.
+        window: WindowId,
     },
 
     /// System low memory warning, some platforms may kill the app if it does not release memory.

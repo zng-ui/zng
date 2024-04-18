@@ -17,6 +17,11 @@ pub(super) fn on_access_init(window_id: WindowId) -> EventUpdate {
     ACCESS_INITED_EVENT.new_update(args)
 }
 
+pub(super) fn on_access_deinit(window_id: WindowId) -> EventUpdate {
+    let args = AccessDeinitedArgs::now(window_id);
+    ACCESS_DEINITED_EVENT.new_update(args)
+}
+
 pub(super) fn on_access_command(window_id: WindowId, widget_id: WidgetId, command: AccessCmd) -> Option<EventUpdate> {
     match command {
         AccessCmd::Click(primary) => {
@@ -88,6 +93,19 @@ event_args! {
             list.search_all()
         }
     }
+
+        /// Arguments for the [`ACCESS_DEINITED_EVENT`].
+        pub struct AccessDeinitedArgs {
+            /// Target window.
+            pub window_id: WindowId,
+
+            ..
+
+            /// Event is broadcast.
+            fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+                list.search_all()
+            }
+        }
 
     /// Arguments for the [`ACCESS_CLICK_EVENT`].
     pub struct AccessClickArgs {
@@ -300,8 +318,11 @@ impl AccessClickArgs {
 }
 
 event! {
-    /// Accessibility info was requested for the first time in a window.
+    /// Accessibility info is now required for the window.
     pub static ACCESS_INITED_EVENT: AccessInitedArgs;
+
+    /// Accessibility info is no longer required for the window.
+    pub static ACCESS_DEINITED_EVENT: AccessDeinitedArgs;
 
     /// Run the primary or context click action.
     pub static ACCESS_CLICK_EVENT: AccessClickArgs;

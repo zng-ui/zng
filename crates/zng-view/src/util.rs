@@ -1206,18 +1206,6 @@ pub(crate) fn accesskit_to_event(
     })
 }
 
-pub(crate) fn access_tree_init(root_id: AccessNodeId) -> accesskit::TreeUpdate {
-    let root_id = access_id_to_kit(root_id);
-    let mut classes = accesskit::NodeClassSet::new();
-    let root = accesskit::NodeBuilder::new(accesskit::Role::Application).build(&mut classes);
-
-    accesskit::TreeUpdate {
-        nodes: vec![(root_id, root)],
-        tree: Some(accesskit::Tree::new(root_id)),
-        focus: root_id,
-    }
-}
-
 pub(crate) fn access_tree_update_to_kit(update: zng_view_api::access::AccessTreeUpdate) -> accesskit::TreeUpdate {
     let mut classes = accesskit::NodeClassSet::new();
     let mut nodes = Vec::with_capacity(update.updates.iter().map(|t| t.len()).sum());
