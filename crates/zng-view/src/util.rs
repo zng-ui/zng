@@ -1245,6 +1245,9 @@ fn access_node_to_kit(
         builder.set_bounds(bounds);
     }
 
+    // action that will be performed on click.
+    let mut default_verb = None;
+
     // add actions
     for cmd in &node.commands {
         use zng_view_api::access::AccessCmdName::*;
@@ -1253,11 +1256,14 @@ fn access_node_to_kit(
             Click => {
                 builder.add_action(accesskit::Action::Default);
                 builder.add_action(accesskit::Action::ShowContextMenu);
-                builder.set_default_action_verb(accesskit::DefaultActionVerb::Click);
+                default_verb = Some(accesskit::DefaultActionVerb::Click);
             }
             Focus => {
                 builder.add_action(accesskit::Action::Focus);
                 builder.add_action(accesskit::Action::Blur);
+                if default_verb.is_none() {
+                    default_verb = Some(accesskit::DefaultActionVerb::Focus);
+                }
             }
             SetExpanded => {
                 builder.add_action(accesskit::Action::Expand);
@@ -1294,6 +1300,10 @@ fn access_node_to_kit(
             }
             _ => {}
         }
+    }
+    
+    if let Some(v) = default_verb {
+        builder.set_default_action_verb(v);
     }
 
     // add state
