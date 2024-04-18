@@ -25,8 +25,6 @@ event_property! {
     ///
     /// This event notifies once per window, after the first layout and all [`WindowLoadingHandle`]
     /// have expired or dropped.
-    ///
-    /// [`WindowLoadingHandle`]: zng_app::window::WindowLoadingHandle
     pub fn window_load {
         event: WINDOW_LOAD_EVENT,
         args: WindowOpenArgs,

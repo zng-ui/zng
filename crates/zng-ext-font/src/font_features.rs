@@ -169,7 +169,7 @@ impl fmt::Debug for FontFeatures {
 
 /// Finalized [`FontFeatures`].
 ///
-/// This is a vec of [harfbuzz features](harfbuzz_rs::Feature).
+/// This is a vec of [harfbuzz features](https://docs.rs/harfbuzz_rs/2.0.1/harfbuzz_rs/struct.Feature.html).
 pub type RFontFeatures = Vec<harfbuzz_rs::Feature>;
 
 /// A builder for [`FontFeatures`].
@@ -1898,5 +1898,5 @@ use zng_var::impl_from_and_into_var;
 
 /// Finalized [`FontVariations`].
 ///
-/// This is a vec of [harfbuzz variations](harfbuzz_rs::Variation).
+/// This is a vec of [harfbuzz variations](https://docs.rs/harfbuzz_rs/2.0.1/harfbuzz_rs/struct.Variation.html).
 pub type RFontVariations = Vec<harfbuzz_rs::Variation>;

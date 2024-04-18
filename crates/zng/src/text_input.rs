@@ -33,7 +33,7 @@
 //! ```
 //!
 //! The first input binds directly to a `Txt` read-write variable. The second field binds to an `u32` read-write variable using the
-//! [`txt_parse`](struct@TextInput#txt_parse) property. The third field obscures the text. The `FieldStyle!` adds data validation
+//! [`txt_parse`](struct@TextInput#method.txt_parse) property. The third field obscures the text. The `FieldStyle!` adds data validation
 //! adorners to the `TextInput!`, in the first field a char count is shown, in the second field the [`field_help`](fn@field_help)
 //! or parse errors are shown.
 //!

@@ -19,7 +19,7 @@
 //! # ;
 //! ```
 //!
-//! The [`checked_opt`](struct@Toggle#checked_opt) and [`tristate`](struct@Toggle#tristate) properties can be used to toggle
+//! The [`checked_opt`](struct@Toggle#method.checked_opt) and [`tristate`](struct@Toggle#method.tristate) properties can be used to toggle
 //! between `Some(true)` and `Some(false)` and accept the `None` value, or with tristate enabled to include `None` in the toggle cycle.
 //! Note that even if tristate is not enabled the variable can be set to `None` from another source and the widget will display the
 //! `None` appearance.
@@ -38,7 +38,7 @@
 //! # ;
 //! ```
 //!
-//! The [`selector`](fn@selector) and [`value`](struct@Toggle#value) properties can be used to have the toggle insert and
+//! The [`selector`](fn@selector) and [`value`](struct@Toggle#method.value) properties can be used to have the toggle insert and
 //! remove a value from a contextual selection of values. The example below declares a stack with 10 toggle buttons each
 //! representing a value, the stack is also setup as a selector context for these toggle buttons, when each toggle button
 //! is clicked it replaces the selected value.
@@ -136,7 +136,7 @@
 //!
 //! ## Combo
 //!
-//! The [`ComboStyle!`](struct@ComboStyle) together with the [`checked_popup`](struct@Toggle#checked_popup) property can be used
+//! The [`ComboStyle!`](struct@ComboStyle) together with the [`checked_popup`](struct@Toggle#method.checked_popup) property can be used
 //! to declare a combo box, that is a toggle for a drop down that contains another toggle selector context that selects a value.
 //!
 //! Note that the `checked_popup` setups the `checked` state, you cannot set one of the other checked properties in the same

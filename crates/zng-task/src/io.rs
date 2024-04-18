@@ -6,6 +6,7 @@
 
 use std::{
     fmt,
+    io::ErrorKind,
     pin::Pin,
     sync::Arc,
     task::{self, Poll},
@@ -15,8 +16,12 @@ use std::{
 use crate::McWaker;
 
 #[doc(no_inline)]
-pub use futures_lite::io::*;
+pub use futures_lite::io::{
+    copy, empty, repeat, sink, split, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
+    AsyncWriteExt, BoxedReader, BoxedWriter, BufReader, BufWriter, Cursor, ReadHalf, WriteHalf,
+};
 use parking_lot::Mutex;
+use std::io::{Error, Result};
 use zng_time::{DInstant, INSTANT};
 use zng_unit::{ByteLength, ByteUnits};
 

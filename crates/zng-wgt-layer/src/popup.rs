@@ -24,7 +24,7 @@ use crate::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
 /// sets the [`modal_included`] to [`anchor_id`] enabling the popup to be interactive when anchored to modal widgets.
 ///
 /// [`alt_focus_scope`]: fn@alt_focus_scope
-/// [`focus_on_init`]: fn@focus_on_init
+/// [`focus_on_init`]: fn@zng_wgt_input::focus::focus_on_init
 /// [`directional_nav`]: fn@directional_nav
 /// [`tab_nav`]: fn@tab_nav
 /// [`modal_included`]: fn@modal_included

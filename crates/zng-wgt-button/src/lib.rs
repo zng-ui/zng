@@ -230,7 +230,7 @@ pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
 /// * [`on_click`]: Set to a handler that notifies the command if `cmd.is_enabled()`.
 /// * [`on_disabled_click`]: Set to a handler that notifies the command if `!cmd.is_enabled()`.
 ///
-/// [`child`]: struct@Button#child
+/// [`child`]: struct@Container#method.child
 /// [`tooltip_fn`]: fn@tooltip_fn
 /// [`Command`]: zng_app::event::Command
 /// [`enabled`]: fn@zng_wgt::enabled

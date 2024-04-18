@@ -139,7 +139,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
 pub mod hr {
     use zng_wgt::prelude::*;
 
-    /// Draws an horizontal [`RuleLine!`](struct@RuleLine).
+    /// Draws an horizontal [`RuleLine!`](struct@crate::RuleLine).
     #[widget($crate::hr::Hr)]
     pub struct Hr(super::RuleLine);
     impl Hr {
@@ -202,7 +202,7 @@ pub mod hr {
 pub mod vr {
     use zng_wgt::prelude::*;
 
-    /// Draws a vertical [`RuleLine!`](struct@RuleLine).
+    /// Draws a vertical [`RuleLine!`](struct@crate::RuleLine).
     #[widget($crate::vr::Vr)]
     pub struct Vr(super::RuleLine);
     impl Vr {

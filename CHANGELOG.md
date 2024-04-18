@@ -14,6 +14,7 @@
     - Removed `WindowRequest::access_root`, no longer needed.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 
+
 # 0.3.3
 
 * Fix `zng-tp-licenses` build in docs.rs.

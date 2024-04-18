@@ -907,7 +907,7 @@ impl From<VarIsReadOnlyError> for SelectorError {
 ///
 /// Extends the [`button::DefaultStyle`] to have the *pressed* look when [`is_checked`].
 ///
-/// [`button::DefaultStyle`]: struct@crate::widgets::button::DefaultStyle
+/// [`button::DefaultStyle`]: struct@zng_wgt_button::DefaultStyle
 /// [`is_checked`]: fn@is_checked
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(zng_wgt_button::DefaultStyle);
@@ -1163,7 +1163,7 @@ fn combomark_visual() -> impl UiNode {
 ///
 /// Style a [`Toggle!`] widget to look like a *switch*.
 ///
-/// [`Toggle!`]: struct@crate::widgets::Toggle
+/// [`Toggle!`]: struct@crate::Toggle
 #[widget($crate::SwitchStyle)]
 pub struct SwitchStyle(Style);
 impl SwitchStyle {

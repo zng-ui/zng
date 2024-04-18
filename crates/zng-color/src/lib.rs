@@ -728,7 +728,7 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 /// let green = hsl(115.deg(), 1.0, 0.5);
 /// ```
 ///
-/// [angle unit]: zng_layout::unit::AngleUnits
+/// [angle unit]: trait@zng_layout::unit::AngleUnits
 pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightness: N) -> Hsla {
     hsla(hue, saturation, lightness, 1.0)
 }
@@ -753,7 +753,7 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, lightne
 /// let transparent = hsla(0.deg(), 1.0, 0.5, 0.0);
 /// ```
 ///
-/// [angle unit]: zng_layout::unit::AngleUnits
+/// [angle unit]: trait@zng_layout::unit::AngleUnits
 pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, lightness: N, alpha: A) -> Hsla {
     Hsla {
         hue: hue.into().0,
@@ -782,7 +782,7 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
 /// let green = hsv(115.deg(), 1.0, 0.5);
 /// ```
 ///
-/// [angle unit]: zng_layout::unit::AngleUnits
+/// [angle unit]: trait@zng_layout::unit::AngleUnits
 pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: N) -> Hsva {
     hsva(hue, saturation, value, 1.0)
 }
@@ -807,7 +807,7 @@ pub fn hsv<H: Into<AngleDegree>, N: Into<Factor>>(hue: H, saturation: N, value: 
 /// let transparent = hsva(0.deg(), 1.0, 0.5, 0.0);
 /// ```
 ///
-/// [angle unit]: zng_layout::unit::AngleUnits
+/// [angle unit]: trait@zng_layout::unit::AngleUnits
 pub fn hsva<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
     Hsva {
         hue: hue.into().0,
@@ -819,10 +819,6 @@ pub fn hsva<H: Into<AngleDegree>, N: Into<Factor>, A: Into<Factor>>(hue: H, satu
 
 context_var! {
     /// Defines the preferred color scheme in a context.
-    ///
-    /// Can be set using the [`color_scheme`] property.
-    ///
-    /// [`color_scheme`]: fn@color_scheme
     pub static COLOR_SCHEME_VAR: ColorScheme = ColorScheme::default();
 }
 

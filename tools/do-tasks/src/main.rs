@@ -1,3 +1,4 @@
+mod doc_fixes;
 mod readme_gen;
 mod util;
 mod version_doc_sync;
@@ -71,6 +72,7 @@ fn install(mut args: Vec<&str>) {
 //        [-s, --serve]
 //        [--readme <crate>..]
 //        [--readme-examples <example>..]
+//        [--skip-doc --skip-fixes --skip-deadlinks]
 //
 //    Generate documentation for zng crates.
 //
@@ -111,6 +113,10 @@ fn doc(mut args: Vec<&str>) {
     };
 
     let serve = take_flag(&mut args, &["-s", "--serve"]);
+
+    let skip_doc = take_flag(&mut args, &["--skip-doc"]);
+    let skip_fixes = take_flag(&mut args, &["--skip-fixes"]);
+    let skip_deadlinks = take_flag(&mut args, &["--skip-deadlinks"]);
 
     let package = take_option(&mut args, &["-p", "--package"], "package");
     let mut found_package = false;
@@ -187,7 +193,9 @@ fn doc(mut args: Vec<&str>) {
             }
         }
 
-        cmd_env_req("cargo", &["doc", "--all-features", "--no-deps", "--package", &name], &args, &env);
+        if !skip_doc {
+            cmd_env_req("cargo", &["doc", "--all-features", "--no-deps", "--package", &name], &args, &env);
+        }
     }
 
     if let Some(pkg) = &package {
@@ -197,7 +205,13 @@ fn doc(mut args: Vec<&str>) {
         }
     }
 
-    cmd("cargo", &["deadlinks", "--no-build"], &[]);
+    if !skip_fixes {
+        doc_fixes::apply();
+    }
+
+    if !skip_deadlinks {
+        cmd("cargo", &["deadlinks", "--no-build"], &[]);
+    }
 
     let server = if serve {
         Some(std::thread::spawn(|| {

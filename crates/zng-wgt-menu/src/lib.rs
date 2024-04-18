@@ -58,7 +58,7 @@ context_var! {
     /// Is a [`Wrap!`] panel by default.
     ///
     /// [`Menu!`]: struct@Menu
-    /// [`Wrap!`]: struct@crate::widgets::layouts::Wrap
+    /// [`Wrap!`]: struct@zng_wgt_wrap::Wrap
     pub static PANEL_FN_VAR: WidgetFn<zng_wgt_panel::PanelArgs> = wgt_fn!(|a: zng_wgt_panel::PanelArgs| {
         zng_wgt_wrap::Wrap! {
             children = a.children;

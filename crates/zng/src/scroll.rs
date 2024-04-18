@@ -2,7 +2,7 @@
 //!
 //! The [`Scroll!`](struct@Scroll) widget allows content to be of any size, overflow is clipped and can be brought
 //! into view by scrolling, the widget also supports content zooming and scrolling in only one dimension. The
-//! [`mode`](struct@Scroll#mode) property can be used to dynamically change the [`ScrollMode`].
+//! [`mode`](struct@Scroll#method.mode) property can be used to dynamically change the [`ScrollMode`].
 //!
 //! ```
 //! # fn main() { }

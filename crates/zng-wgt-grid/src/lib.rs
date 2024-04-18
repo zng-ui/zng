@@ -379,9 +379,9 @@ pub fn node(
     })
 }
 
-/// Arguments for [`grid::auto_grow_fn`].
+/// Arguments for [`auto_grow_fn`].
 ///
-/// [`grid::auto_grow_fn`]: fn@grid::auto_grow_fn.
+/// [`auto_grow_fn`]: fn@auto_grow_fn
 #[derive(Clone, Debug)]
 pub struct AutoGrowFnArgs {
     /// Auto-grow direction.

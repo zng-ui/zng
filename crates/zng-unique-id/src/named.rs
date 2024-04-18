@@ -177,13 +177,8 @@ macro_rules! impl_unique_id_name {
 
             /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
             ///
-            /// The [`named`] function causes a hash-map lookup, but if you are only naming a widget to find
-            /// it in the Inspector you don't need that lookup in a release build, so you can set the [`id`]
-            /// to this function call instead.
-            ///
             /// [`named`]: WidgetId::named
             /// [`new_unique`]: WidgetId::new_unique
-            /// [`id`]: fn@crate::widget_base::id
             pub fn debug_named(name: impl Into<$crate::Txt>) -> Self {
                 #[cfg(debug_assertions)]
                 return Self::named(name);
