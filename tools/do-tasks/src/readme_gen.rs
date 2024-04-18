@@ -7,11 +7,7 @@ pub fn generate(args: Vec<&str>) {
             continue;
         }
 
-        let readme = if member.name == "zng" {
-            PathBuf::from("README.md")
-        } else {
-            PathBuf::from(format!("{}/README.md", member.name))
-        };
+        let readme = PathBuf::from(format!("crates/{}/README.md", member.name));
 
         println(&format!("crates/{}/Cargo.toml", member.name));
 

@@ -1,6 +1,6 @@
-# Published Crates
+# Crates
 
-This directory contains all the crates that are published by the Zng project.
+This directory contains all the crates that are published and developed by the Zng project.
 
 The main crate is `zng`, it re-exports the main API of the other crates in well documented and organized modules.
 
@@ -115,3 +115,12 @@ or for custom properties that deeply integrate with a widget.
 Tools that can be installed by cargo for use in Zng apps.
 
 - `zng-l10n-scraper`
+
+### Webrender
+
+The Zng also publishes a fork of [`servo/webrender`] called [`zng-ui/zng-webrender`]. The fork code has minimal
+modification, the crates uses by the Zng project are renamed with the `zng-` prefix and some Mozilla specific
+dependencies are removed.
+
+[`servo/webrender`]: https://github.com/servo/webrender
+[`zng-ui/zng-webrender`]: https://github.com/zng-ui/zng-webrender
