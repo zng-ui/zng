@@ -17,6 +17,10 @@ jobs:
   doc:
     runs-on: ubuntu-latest
     steps:
+      - name: install cargo-deadlinks
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-deadlinks
       - uses: actions/checkout@v4
       - run: cargo do doc
       - name: upload doc

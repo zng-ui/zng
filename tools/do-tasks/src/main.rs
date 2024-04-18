@@ -47,6 +47,7 @@ fn install(mut args: Vec<&str>) {
         cmd("rustup", &["toolchain", "install", "nightly"], &[]);
         cmd("rustup", &["component", "add", "rustfmt"], &[]);
         cmd("rustup", &["component", "add", "clippy"], &[]);
+        cmd("cargo", &["install", "cargo-deadlinks"], &[]);
         cmd("cargo", &["install", "cargo-expand"], &[]);
         cmd("cargo", &["install", "cargo-asm"], &[]);
         cmd("cargo", &["install", "cargo-about"], &[]);
@@ -59,6 +60,7 @@ fn install(mut args: Vec<&str>) {
         println("   rustup toolchain install nightly");
         println("   rustup component add rustfmt");
         println("   rustup component add clippy");
+        println("   cargo install cargo-deadlinks");
         println("   cargo install cargo-expand");
         println("   cargo install cargo-about");
         println("   cargo install cargo-semver-checks --locked");
@@ -194,6 +196,8 @@ fn doc(mut args: Vec<&str>) {
             return;
         }
     }
+
+    cmd("cargo", &["deadlinks", "--no-build"], &[]);
 
     let server = if serve {
         Some(std::thread::spawn(|| {

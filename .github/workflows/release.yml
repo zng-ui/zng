@@ -224,6 +224,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check-ubuntu]
     steps:
+      - name: install cargo-deadlinks
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-deadlinks
       - uses: actions/checkout@v4
       - run: cargo do doc
       - uses: actions/upload-artifact@v4
