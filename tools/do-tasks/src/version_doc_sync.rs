@@ -9,6 +9,7 @@ const CRATE_FILES: &[(&str, &[&str])] = &[
         "zng",
         &[
             "README.md",
+            "crates/zng/README.md",
             "crates/zng/src/lib.rs",
             "crates/zng/src/app.rs",
             "crates/zng/src/icon.rs",
