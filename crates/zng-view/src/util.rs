@@ -1301,7 +1301,7 @@ fn access_node_to_kit(
             _ => {}
         }
     }
-    
+
     if let Some(v) = default_verb {
         builder.set_default_action_verb(v);
     }
