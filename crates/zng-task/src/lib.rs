@@ -119,6 +119,7 @@ pub use ui::*;
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
 /// [`Waker`]: std::task::Waker
+/// [`rayon`]: https://docs.rs/rayon
 pub fn spawn<F>(task: F)
 where
     F: Future<Output = ()> + Send + 'static,
@@ -372,6 +373,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 ///
 /// [`resume_unwind`]: panic::resume_unwind
 /// [`Waker`]: std::task::Waker
+/// [`rayon`]: https://docs.rs/rayon
 pub async fn run<R, T>(task: T) -> R
 where
     R: Send + 'static,

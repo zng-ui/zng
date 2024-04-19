@@ -116,6 +116,7 @@ fn doc(mut args: Vec<&str>) {
     let package = take_option(&mut args, &["-p", "--package"], "package").map(|mut p| p.remove(0));
 
     let mut rustdoc_flags = String::new();
+    let mut skip_deadlinks_globs = vec![];
 
     let mut collect_flags = |toml_path| {
         let toml = match std::fs::read_to_string(toml_path) {
@@ -126,11 +127,12 @@ fn doc(mut args: Vec<&str>) {
         };
 
         let mut is_in_args = false;
+        let mut is_in_skip = false;
         for line in toml.lines() {
             let line = line.trim();
 
             let mut clean_push = |arg: &str| {
-                let arg = arg.trim().trim_matches('"');
+                let arg = arg.trim_matches(&[' ', '"']);
                 if arg.starts_with("doc/") {
                     // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
                     let pkg = package.as_ref().unwrap();
@@ -152,6 +154,18 @@ fn doc(mut args: Vec<&str>) {
                 let line = line.trim().trim_matches(']').trim();
                 for arg in line.split(',') {
                     clean_push(arg);
+                }
+            } else if line.starts_with("skip-deadlinks = ") {
+                is_in_skip = !line.contains(']');
+                let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
+                for g in line.split(',') {
+                    skip_deadlinks_globs.push(glob::Pattern::new(g.trim_matches(&[' ', '"'])).unwrap());
+                }
+            } else if is_in_skip {
+                is_in_skip = !line.contains(']');
+                let line = line.trim().trim_matches(']').trim();
+                for g in line.split(',') {
+                    skip_deadlinks_globs.push(glob::Pattern::new(g.trim_matches(&[' ', '"'])).unwrap());
                 }
             }
         }
@@ -183,23 +197,25 @@ fn doc(mut args: Vec<&str>) {
 
     if !skip_deadlinks {
         // cargo doc does not warn about broken links to downstream types
-        let cutout = regex::Regex::new(r#"id="(?:trait|synthetic|blanket)-implementations""#).unwrap();
+        let cutout = regex::Regex::new(r#"id="(?:deref-met|trait-imp|synthetic-imp|blanket-imp).*""#).unwrap();
         let broken_link = regex::Regex::new(r"\[<code>\w+</code>\]").unwrap();
         for html_path in util::glob("target/doc/**/*.html") {
+            if skip_deadlinks_globs.iter().any(|g| g.matches(&html_path)) {
+                continue;
+            }
+
             let html = std::fs::read_to_string(&html_path).unwrap();
             let cutout = if let Some(m) = cutout.find(&html) { m.start() } else { html.len() };
             let html = &html[..cutout];
 
-            if let Some(caps) = broken_link.captures(&html) {
+            let matches: Vec<_> = broken_link.find_iter(&html).map(|m| m.as_str()).collect();
+            if !matches.is_empty() {
                 let mut msg = format!("deadlinks in `{}`:\n", &html_path["target".len()..]);
-                for cap in caps.iter() {
+                let mut sep = "";
+                for m in matches.iter() {
                     use std::fmt::*;
-                    write!(
-                        &mut msg,
-                        "    {}",
-                        cap.unwrap().as_str().replace("<code>", "`").replace("</code>", "`")
-                    )
-                    .unwrap();
+                    write!(&mut msg, "{sep}    {}", m.replace("<code>", "`").replace("</code>", "`")).unwrap();
+                    sep = "\n";
                 }
                 error(msg);
             }

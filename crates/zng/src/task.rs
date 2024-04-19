@@ -136,6 +136,8 @@
 //! [`tokio`]: https://docs.rs/tokio
 //! [`futures-lite::io`]: https://docs.rs/futures-lite/*/futures_lite/io/index.html
 //! [`async-fs`]: https://docs.rs/async-fs
+//! [`rayon`]: https://docs.rs/rayon
+//! [`parking_lot`]: https://docs.rs/parking_lot
 //!
 //! # Full API
 //!

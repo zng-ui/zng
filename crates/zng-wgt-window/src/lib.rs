@@ -74,6 +74,8 @@ impl Window {
     }
 
     /// Build a [`WindowRoot`].
+    ///
+    /// [`WindowRoot`]: zng_ext_window::WindowRoot
     pub fn widget_build(&mut self) -> WindowRoot {
         let mut wgt = self.widget_take();
         WindowRoot::new(

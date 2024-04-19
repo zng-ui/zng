@@ -5,7 +5,7 @@ use rayon::{
 
 use zng_app_context::LocalContext;
 
-/// Extends [`ParallelIterator`] with thread context.
+/// Extends rayon's `ParallelIterator` with thread context.
 pub trait ParallelIteratorExt: ParallelIterator {
     /// Captures the current [`LocalContext`] and propagates it to all rayon tasks
     /// generated running this parallel iterator.

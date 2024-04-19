@@ -30,6 +30,9 @@ event_property! {
     /// # Underlying Event
     ///
     /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
+    ///
+    /// [`KeyInputArgs`]: zng_ext_input::KeyInputArgs
+    /// [`KEY_INPUT_EVENT`]: zng_ext_input::KEY_INPUT_EVENT
     pub fn key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -58,6 +61,9 @@ event_property! {
     /// # Underlying Event
     ///
     /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
+    ///
+    /// [`KeyInputArgs`]: zng_ext_input::KeyInputArgs
+    /// [`KEY_INPUT_EVENT`]: zng_ext_input::KEY_INPUT_EVENT
     pub fn disabled_key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -86,6 +92,9 @@ event_property! {
     /// # Underlying Event
     ///
     /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
+        ///
+    /// [`KeyInputArgs`]: zng_ext_input::KeyInputArgs
+    /// [`KEY_INPUT_EVENT`]: zng_ext_input::KEY_INPUT_EVENT
     pub fn key_down {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -113,6 +122,9 @@ event_property! {
     /// # Underlying Event
     ///
     /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
+        ///
+    /// [`KeyInputArgs`]: zng_ext_input::KeyInputArgs
+    /// [`KEY_INPUT_EVENT`]: zng_ext_input::KEY_INPUT_EVENT
     pub fn key_up {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,

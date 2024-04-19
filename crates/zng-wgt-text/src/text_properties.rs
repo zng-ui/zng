@@ -966,6 +966,7 @@ pub struct LangMix<P>(P);
 /// Also sets the [`access::lang`] when accessibility is enabled.
 ///
 /// [`access::lang`]: fn@zng_wgt_access::lang
+/// [`LANG_VAR`]: zng_ext_l10n::LANG_VAR
 #[property(CONTEXT, default(LANG_VAR), widget_impl(LangMix<P>))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
     let lang = lang.into_var();

@@ -386,11 +386,15 @@ pub trait ImageRenderWindowsService: Send + Sync + 'static {
     /// If `mask` is set captures only the given channel, if not set will capture the full BGRA image.
     ///
     /// Called inside the [`WINDOW`] context for the new window.
+    ///
+    /// [`WINDOW`]: zng_app::window::WINDOW
     fn enable_frame_capture_in_window_context(&self, mask: Option<ImageMaskMode>);
 
     /// Open the window.
     ///
     /// The `new_window_root` is called inside the [`WINDOW`] context for the new window.
+    ///
+    /// [`WINDOW`]: zng_app::window::WINDOW
     fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send>);
 
     /// Returns the rendered frame image if it is ready for reading.

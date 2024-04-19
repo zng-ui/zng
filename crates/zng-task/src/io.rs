@@ -226,7 +226,7 @@ const ONLY_NON_LAZY_ERROR_MSG: &str = "no non-lazy readers left to read";
 /// Clone an instance to create a new consumer, already read bytes stay in the buffer until all clones have read it,
 /// clones continue reading from the same offset as the reader they cloned.
 ///
-/// A single instance of this reader behaves like a [`BufReader`] but uses slightly more memory.
+/// A single instance of this reader behaves like a `BufReader`.
 ///
 /// # Result
 ///
@@ -513,7 +513,7 @@ impl From<CloneableError> for Error {
     }
 }
 
-/// Represents a future that generates an error if an [`AsyncRead`] exceeds a limit.
+/// Represents a future that generates an error if an `AsyncRead` exceeds a limit.
 pub struct ReadLimited<S, L> {
     source: S,
     limit: usize,

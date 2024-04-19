@@ -47,6 +47,8 @@ impl<D> WidgetFn<D> {
     /// Function that always produces the [`NilUiNode`].
     ///
     /// No heap allocation happens to create this value.
+    ///
+    /// [`NilUiNode`]: zng_app::widget::node::NilUiNode
     pub const fn nil() -> Self {
         WidgetFn(None)
     }
@@ -104,6 +106,8 @@ impl<D> WidgetFn<D> {
     /// The `widget` is wrapped in an [`ArcNode`] and every function call returns an [`ArcNode::take_on_init`] node.
     /// Note that `take_on_init` is not always the `widget` on init as it needs to wait for it to deinit first if
     /// it is already in use, this could have an effect if the widget function caller always expects a full widget.
+    ///
+    /// [`ArcNode`]: zng_app::widget::node::ArcNode
     pub fn singleton(widget: impl UiNode) -> Self {
         let widget = ArcNode::new(widget);
         Self::new(move |_| widget.take_on_init())

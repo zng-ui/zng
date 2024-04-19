@@ -98,6 +98,8 @@ pub enum ShortcutClick {
 
 event_args! {
     /// [`CLICK_EVENT`] arguments.
+    ///
+    /// [`CLICK_EVENT`]: crate::gesture::CLICK_EVENT
     pub struct ClickArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,

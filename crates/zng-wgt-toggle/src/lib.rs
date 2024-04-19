@@ -565,7 +565,7 @@ context_var! {
     /// Use the [`deselect_on_new`] property to set. By default is `false`.
     ///
     /// [`value`]: fn@value
-    /// [`select_on_new`]: fn@select_on_new
+    /// [`deselect_on_new`]: fn@deselect_on_new
     pub static DESELECT_ON_NEW_VAR: bool = false;
 
     /// If [`value`] scrolls into view when selected.

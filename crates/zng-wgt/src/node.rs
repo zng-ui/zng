@@ -1684,6 +1684,8 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode)
 ///     WIDGET.get_state(&FOO_ID).unwrap_or_default()
 /// }
 /// ```
+///
+/// [`WIDGET`]: zng_app::widget::WIDGET
 pub fn with_widget_state<U, I, T>(child: U, id: impl Into<StateId<T>>, default: I, value: impl IntoVar<T>) -> impl UiNode
 where
     U: UiNode,

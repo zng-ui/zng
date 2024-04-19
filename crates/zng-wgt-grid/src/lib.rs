@@ -81,6 +81,7 @@ pub fn cells(cells: impl UiNodeList) {}
 ///
 /// [`Column!`]: struct@Column
 /// [`lft`]: zng_layout::unit::LengthUnits::lft
+/// [`WIDGET_SIZE`]: zng_wgt_size_offset::WIDGET_SIZE
 #[property(CHILD, capture, widget_impl(Grid))]
 pub fn columns(cells: impl UiNodeList) {}
 

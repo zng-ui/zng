@@ -140,6 +140,8 @@ context_var! {
     /// Defines the color of an icon.
     ///
     /// Inherits from [`FONT_COLOR_VAR`].
+    ///
+    /// [`FONT_COLOR_VAR`]: crate::FONT_COLOR_VAR
     pub static ICON_COLOR_VAR: Rgba = crate::FONT_COLOR_VAR;
 }
 

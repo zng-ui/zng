@@ -96,6 +96,8 @@ command_property! {
     ///
     /// Receives [`CUT_CMD`] command events scoped on the widget. You can use the `CLIPBOARD` service
     /// to send data to the clipboard.
+    ///
+    /// [`CUT_CMD`]:  zng_ext_clipboard::CUT_CMD
     pub fn cut {
         cmd: CUT_CMD.scoped(WIDGET.id()),
     }
@@ -104,6 +106,8 @@ command_property! {
     ///
     /// Receives [`COPY_CMD`] command events scoped on the widget. You can use the `CLIPBOARD` service
     /// to send data to the clipboard.
+    ///
+    /// [`COPY_CMD`]: zng_ext_clipboard::COPY_CMD
     pub fn copy {
         cmd: COPY_CMD.scoped(WIDGET.id()),
     }
@@ -112,6 +116,8 @@ command_property! {
     ///
     /// Receives [`PASTE_CMD`] command events scoped on the widget. You can use the `CLIPBOARD` service
     /// to receive data from the clipboard.
+    ///
+    /// [`PASTE_CMD`]: zng_ext_clipboard::PASTE_CMD
     pub fn paste {
         cmd: PASTE_CMD.scoped(WIDGET.id()),
     }

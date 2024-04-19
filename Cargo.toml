@@ -29,3 +29,10 @@ rustdoc-args = [
     "--html-in-header",
     "crates/zng-app/doc/html-in-header.html",
 ]
+# deadlink check does not run if any glob matches.
+skip-deadlinks = [
+    "**/struct.BidiLevel*",
+    "**/*task/fs/struct.Dir*",
+    "**/*task/io/*.Async*",
+    "**/*task/http/struct.Cookie*",
+]

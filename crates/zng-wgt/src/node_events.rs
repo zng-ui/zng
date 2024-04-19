@@ -9,6 +9,9 @@ pub struct OnNodeOpArgs {
     ///
     /// Event args must be static so access to the full [`UiNodeOp`] is not possible, you can quickly
     /// declare a new property with [`property`] and [`match_node`] if you want to affect the widget this way.
+    ///
+    /// [`UiNodeOp`]: zng_app::widget::node::UiNodeOp
+    /// [`match_node`]: zng_app::widget::node::match_node
     pub op: UiNodeOpMethod,
     /// Number of times the handler was called.
     ///

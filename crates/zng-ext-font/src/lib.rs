@@ -602,6 +602,8 @@ pub enum FontChange {
     /// One of the [`GenericFonts`] was set for the language.
     ///
     /// The font name is one of [`FontName`] generic names.
+    ///
+    /// [`GenericFonts`]: struct@GenericFonts
     GenericFont(FontName, Lang),
 
     /// A new [fallback](GenericFonts::fallback) font was set for the language.
@@ -701,10 +703,6 @@ impl FontsService {
 }
 
 /// Font loading, custom fonts and app font configuration.
-///
-/// # Provider
-///
-/// This service is provided by the [`FontManager`] extension.
 pub struct FONTS;
 impl FONTS {
     /// Clear cache and notify `Refresh` in [`FONT_CHANGED_EVENT`].
