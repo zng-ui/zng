@@ -318,6 +318,7 @@ event! {
 /// [`SHORTCUT_EVENT`]: crate::gesture::SHORTCUT_EVENT
 /// [`WINDOWS`]: zng_ext_window::WINDOWS
 /// [`WINDOW_FOCUS_CHANGED_EVENT`]: zng_ext_window::WINDOW_FOCUS_CHANGED_EVENT
+/// [`WIDGET_INFO_CHANGED_EVENT`]: zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT
 #[derive(Default)]
 pub struct FocusManager {
     commands: Option<FocusCommands>,

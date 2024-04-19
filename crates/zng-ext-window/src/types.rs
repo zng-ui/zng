@@ -157,6 +157,8 @@ impl_from_and_into_var! {
 ///
 /// The startup position affects the window once, at the moment the window
 /// is open just after the first [`UiNode::layout`] call.
+///
+///  [`UiNode::layout`]: zng_app::widget::node::UiNode::layout
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StartPosition {
     /// Resolves to [`position`](crate::WindowVars::position).
@@ -263,6 +265,8 @@ impl WindowIcon {
     /// )
     /// # ;
     /// ```
+    ///
+    /// [`UiNode`]: zng_app::widget::node::UiNode
     pub fn render<I, F>(new_icon: F) -> Self
     where
         I: UiNode,
@@ -673,6 +677,7 @@ pub enum CloseWindowResult {
 /// Error when a [`WindowId`] is not opened by the [`WINDOWS`] service.
 ///
 /// [`WINDOWS`]: crate::WINDOWS
+/// [`WindowId`]: crate::WindowId
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct WindowNotFound(pub WindowId);
 impl fmt::Display for WindowNotFound {

@@ -344,6 +344,8 @@ event! {
     /// Event happens every time a full [`Shortcut`] is completed by key press.
     ///
     /// This event is not send to any widget, use the [`GESTURES`] service to setup widget targets for shortcuts.
+    ///
+    /// [`Shortcut`]: zng_app::shortcut::Shortcut
     pub static SHORTCUT_EVENT: ShortcutArgs;
 }
 
@@ -622,6 +624,8 @@ impl GesturesService {
 /// [`event_ui`]: AppExtension::event_ui
 /// [`event`]: AppExtension::event
 /// [`propagation`]: EventArgs::propagation
+/// [`KeyChord::starter`]: zng_app::shortcut::KeyChord::starter
+/// [`CommandShortcutExt`]: zng_app::shortcut::CommandShortcutExt
 pub struct GESTURES;
 struct ShortcutTarget {
     widget_id: WidgetId,
@@ -1072,6 +1076,8 @@ impl WeakShortcutsHandle {
 }
 
 /// Extension trait that adds gesture simulation methods to [`HeadlessApp`].
+///
+/// [`HeadlessApp`]: zng_app::HeadlessApp
 pub trait HeadlessAppGestureExt {
     /// Generates key press events to mimic the shortcut and updates.
     fn press_shortcut(&mut self, window_id: WindowId, shortcut: impl Into<Shortcut>);

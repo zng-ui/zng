@@ -89,6 +89,9 @@ pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl U
 /// This property affects all texts inside the widget and the [`Length::Em`] unit.
 ///
 /// Sets the [`FONT_SIZE_VAR`] context var and the [`LayoutMetrics::font_size`].
+///
+/// [`LayoutMetrics::font_size`]: zng_wgt::prelude::LayoutMetrics::font_size
+/// [`Length::Em`]: zng_wgt::prelude::Length::Em
 #[property(CONTEXT, default(FONT_SIZE_VAR), widget_impl(FontMix<P>))]
 pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
     let child = match_node(child, |child, op| match op {
@@ -331,6 +334,7 @@ pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
 ///
 /// [`Text!`]: struct@crate::Text
 /// [`txt_overflow`]: fn@txt_overflow
+/// [`Align::TOP_START`]: zng_wgt::prelude::Align::TOP_START
 #[property(CONTEXT, default(TEXT_OVERFLOW_ALIGN_VAR), widget_impl(TextAlignMix<P>))]
 pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, TEXT_OVERFLOW_ALIGN_VAR, mode)
@@ -343,6 +347,9 @@ pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl
 /// enabled, that is set to `None`, fill alignment is the same as [`Align::START`].
 ///
 /// Sets the [`JUSTIFY_VAR`].
+///
+/// [`Align::FILL`]: zng_wgt::prelude::Align::FILL
+/// [`Align::START`]: zng_wgt::prelude::Align::START
 #[property(CONTEXT, default(JUSTIFY_VAR), widget_impl(TextAlignMix<P>))]
 pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl UiNode {
     with_context_var(child, JUSTIFY_VAR, mode)
@@ -858,6 +865,8 @@ pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) ->
 /// [`Default`]: Length::Default
 ///
 /// Sets the [`LINE_SPACING_VAR`].
+///
+/// [`LineHeight`]: zng_ext_font::LineHeight
 #[property(CONTEXT, default(LINE_SPACING_VAR), widget_impl(TextSpacingMix<P>))]
 pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> impl UiNode {
     with_context_var(child, LINE_SPACING_VAR, extra)
@@ -880,6 +889,8 @@ pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<LineSpacing>) -> imp
 /// [`Default`]: Length::Default
 ///
 /// This property sets the [`WORD_SPACING_VAR`] context var that affects all inner widgets.
+///
+/// [`WhiteSpace`]: zng_ext_font::WhiteSpace
 #[property(CONTEXT, default(WORD_SPACING_VAR), widget_impl(TextSpacingMix<P>))]
 pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
     with_context_var(child, WORD_SPACING_VAR, extra)
@@ -933,6 +944,7 @@ impl TextTransformMix<()> {
 /// Sets the [`WHITE_SPACE_VAR`].
 ///
 /// [`txt_editable`]: fn@txt_editable
+/// [`WhiteSpace::Preserve`]: zng_ext_font::WhiteSpace::Preserve
 #[property(CONTEXT, default(WHITE_SPACE_VAR), widget_impl(TextTransformMix<P>))]
 pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
     with_context_var(child, WHITE_SPACE_VAR, transform)
@@ -967,6 +979,8 @@ pub struct LangMix<P>(P);
 ///
 /// [`access::lang`]: fn@zng_wgt_access::lang
 /// [`LANG_VAR`]: zng_ext_l10n::LANG_VAR
+/// [`DIRECTION_VAR`]: zng_wgt::prelude::DIRECTION_VAR
+/// [`LayoutMetrics::direction`]: zng_wgt::prelude::LayoutMetrics::direction
 #[property(CONTEXT, default(LANG_VAR), widget_impl(LangMix<P>))]
 pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
     let lang = lang.into_var();
@@ -982,6 +996,9 @@ pub fn lang(child: impl UiNode, lang: impl IntoVar<Langs>) -> impl UiNode {
 /// Sets the [`DIRECTION_VAR`] context var and the [`LayoutMetrics::direction`].
 ///
 /// [`lang`]: fn@lang
+///
+/// [`DIRECTION_VAR`]: zng_wgt::prelude::DIRECTION_VAR
+/// [`LayoutMetrics::direction`]: zng_wgt::prelude::LayoutMetrics::direction
 #[property(CONTEXT+1, default(DIRECTION_VAR), widget_impl(LangMix<P>))]
 pub fn direction(child: impl UiNode, direction: impl IntoVar<LayoutDirection>) -> impl UiNode {
     let child = match_node(child, |child, op| match op {

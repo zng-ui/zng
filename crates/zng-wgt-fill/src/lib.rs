@@ -51,6 +51,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 ///
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`background`]: fn@background
+/// [`presenter`]: zng_wgt::prelude::presenter
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn background_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     background(child, presenter((), wgt_fn))
@@ -154,6 +155,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 ///
 /// [`WidgetFn<()>`]: WidgetFn
 /// [`foreground`]: fn@foreground
+/// [`presenter`]: zng_wgt::prelude::presenter
 #[property(FILL, default(WidgetFn::nil()))]
 pub fn foreground_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     foreground(child, presenter((), wgt_fn))

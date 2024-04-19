@@ -46,6 +46,7 @@ pub use types::*;
 ///
 /// [`direction`]: fn@direction
 /// [`z_index`]: fn@zng_wgt::z_index
+/// [`LayoutDirection`]: zng_wgt::prelude::LayoutDirection
 #[widget($crate::Stack {
     ($children:expr) => {
         children = $children;

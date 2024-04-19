@@ -317,6 +317,8 @@ impl MonitorInfo {
     }
 
     /// Bogus metadata for the [`MonitorId::fallback`].
+    ///
+    /// [`MonitorId::fallback`]: crate::monitor::MonitorId::fallback
     pub fn fallback() -> Self {
         let defaults = HeadlessMonitor::default();
         let fct = 1.fct();

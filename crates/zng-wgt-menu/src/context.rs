@@ -17,6 +17,7 @@ use zng_wgt_style::{impl_style_fn, style_fn};
 /// loses focus.
 ///
 /// [`ContextMenu!`]: struct@ContextMenu
+/// [`POPUP`]: zng_wgt_layer::popup::POPUP
 #[property(EVENT)]
 pub fn context_menu(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
     context_menu_fn(child, WidgetFn::singleton(menu))

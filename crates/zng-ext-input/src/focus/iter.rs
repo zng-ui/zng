@@ -9,6 +9,8 @@ use zng_app::widget::info::{
 use super::*;
 
 /// Filter-maps an iterator of [`WidgetInfo`] to [`WidgetFocusInfo`].
+///
+///  [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
 pub trait IterFocusableExt<I: Iterator<Item = WidgetInfo>> {
     /// Returns an iterator of only the focusable widgets.
     ///

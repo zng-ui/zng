@@ -1267,6 +1267,8 @@ pub fn overscroll_node(child: impl UiNode) -> impl UiNode {
 }
 
 /// Create a node that converts [`ACCESS_SCROLL_EVENT`] to command requests.
+///
+/// [`ACCESS_SCROLL_EVENT`]: zng_app::access::ACCESS_SCROLL_EVENT
 pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {

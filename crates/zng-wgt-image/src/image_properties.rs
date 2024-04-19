@@ -85,7 +85,7 @@ impl_from_and_into_var! {
 context_var! {
     /// The Image scaling algorithm in the renderer.
     ///
-    /// Is [`ImageRendering::Auto`] by default.
+    /// Is `ImageRendering::Auto` by default.
     pub static IMAGE_RENDERING_VAR: ImageRendering = ImageRendering::Auto;
 
     /// If the image is cached.
@@ -133,7 +133,7 @@ context_var! {
 
     /// Align of the image in relation to the image widget final size.
     ///
-    /// Is [`Align::CENTER`] by default.
+    /// Is `Align::CENTER` by default.
     pub static IMAGE_ALIGN_VAR: Align = Align::CENTER;
 
     /// Offset applied to the image after all measure and arrange.
@@ -146,12 +146,12 @@ context_var! {
 
     /// Pattern repeat applied on the final image.
     ///
-    /// Is [`ImageRepeat::None`] by default.
+    /// Is `ImageRepeat::None` by default.
     pub static IMAGE_REPEAT_VAR: ImageRepeat = ImageRepeat::None;
 
     /// Spacing between repeated image copies.
     ///
-    /// is [`Size::zero()`] by default.
+    /// is `Size::zero` by default.
     pub static IMAGE_REPEAT_SPACING_VAR: Size = Size::zero();
 }
 
@@ -217,11 +217,11 @@ pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 ///
 /// By default the alignment is [`CENTER`]. The [`BASELINE`] alignment is treaded the same as [`BOTTOM`].
 ///
-/// [`BOTTOM_RIGHT`]: Align::BOTTOM_RIGHT
-/// [`CENTER`]: Align::CENTER
-/// [`BASELINE`]: Align::BASELINE
-/// [`BOTTOM`]: Align::BOTTOM
-///
+/// [`BOTTOM_RIGHT`]: zng_wgt::prelude::Align::BOTTOM_RIGHT
+/// [`CENTER`]: zng_wgt::prelude::Align::CENTER
+/// [`BASELINE`]: zng_wgt::prelude::Align::BASELINE
+/// [`BOTTOM`]: zng_wgt::prelude::Align::BOTTOM
+/// [`Align`]: zng_wgt::prelude::Align
 /// [`img_align`]: fn@crate::img_align
 #[property(CONTEXT, default(IMAGE_ALIGN_VAR), widget_impl(Image))]
 pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
@@ -236,6 +236,7 @@ pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
 /// This property sets the [`IMAGE_OFFSET_VAR`]. By default no offset is applied.
 ///
 /// [`img_offset`]: fn@crate::img_offset
+/// [`Point`]: zng_wgt::prelude::Point
 #[property(CONTEXT, default(IMAGE_OFFSET_VAR), widget_impl(Image))]
 pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
     with_context_var(child, IMAGE_OFFSET_VAR, offset)
@@ -252,6 +253,7 @@ pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNo
 /// [`img_scale_ppi`]: #fn@img_scale_ppi
 /// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas///
 /// [`crop`]: fn@crate::crop
+/// [`Rect`]: zng_wgt::prelude::Rect
 #[property(CONTEXT, default(IMAGE_CROP_VAR), widget_impl(Image))]
 pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
     with_context_var(child, IMAGE_CROP_VAR, crop)
@@ -299,6 +301,8 @@ pub fn img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> im
 /// This is [`ImageRendering::Auto`] by default.
 ///
 /// [`rendering`]: fn@crate::rendering
+/// [`ImageRendering`]: zng_app::render::ImageRendering
+/// [`ImageRendering::Auto`]: zng_app::render::ImageRendering::Auto
 #[property(CONTEXT, default(IMAGE_RENDERING_VAR), widget_impl(Image))]
 pub fn img_rendering(child: impl UiNode, rendering: impl IntoVar<ImageRendering>) -> impl UiNode {
     with_context_var(child, IMAGE_RENDERING_VAR, rendering)
@@ -434,6 +438,12 @@ pub struct ImgErrorArgs {
 /// # Route
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
+///
+/// [`WidgetHandler`]: zng_wgt::prelude::WidgetHandler
+/// [`hn!`]: zng_wgt::prelude::hn!
+/// [`hn_once!`]: zng_wgt::prelude::hn_once!
+/// [`async_hn!`]: zng_wgt::prelude::async_hn!
+/// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 #[property(EVENT, widget_impl(Image))]
 pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
@@ -488,6 +498,12 @@ pub fn on_error(child: impl UiNode, handler: impl WidgetHandler<ImgErrorArgs>) -
 /// # Route
 ///
 /// This property is not routed, it works only inside a widget that loads images. There is also no *preview* event.
+///
+/// [`WidgetHandler`]: zng_wgt::prelude::WidgetHandler
+/// [`hn!`]: zng_wgt::prelude::hn!
+/// [`hn_once!`]: zng_wgt::prelude::hn_once!
+/// [`async_hn!`]: zng_wgt::prelude::async_hn!
+/// [`async_hn_once!`]: zng_wgt::prelude::async_hn_once!
 #[property(EVENT, widget_impl(Image))]
 pub fn on_load(child: impl UiNode, handler: impl WidgetHandler<ImgLoadArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();

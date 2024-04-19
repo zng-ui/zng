@@ -555,6 +555,8 @@ pub struct ReuseStart {
 /// Represents a display list reuse range.
 ///
 /// See [`DisplayListBuilder::push_reuse_range`] for more details.
+///
+/// [`DisplayListBuilder::push_reuse_range`]: crate::display_list::DisplayListBuilder::push_reuse_range
 #[derive(Debug, Clone)]
 pub struct ReuseRange {
     frame_id: FrameId,

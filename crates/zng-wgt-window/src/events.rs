@@ -27,6 +27,8 @@ event_property! {
     ///
     /// This event notifies once per window, after the first layout and all [`WindowLoadingHandle`]
     /// have expired or dropped.
+    ///
+    /// [`WindowLoadingHandle`]: zng_ext_window::WindowLoadingHandle
     pub fn window_load {
         event: WINDOW_LOAD_EVENT,
         args: WindowOpenArgs,
@@ -72,6 +74,8 @@ event_property! {
     /// On window state changed.
     ///
     /// This event notifies every time the user or the app changes the [`WindowVars::state`].
+    ///
+    /// [`WindowVars::state`]: zng_ext_window::WindowVars
     pub fn window_state_changed {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -79,6 +83,8 @@ event_property! {
     }
 
     /// On window state changed to [`WindowState::Maximized`].
+    ///
+    /// [`WindowState::Maximized`]: crate::WindowState::Maximized
     pub fn window_maximized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -86,6 +92,8 @@ event_property! {
     }
 
     /// On window state changed from [`WindowState::Maximized`].
+    ///
+    /// [`WindowState::Maximized`]: crate::WindowState::Maximized
     pub fn window_unmaximized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -93,6 +101,8 @@ event_property! {
     }
 
     /// On window state changed to [`WindowState::Minimized`].
+    ///
+    /// [`WindowState::Minimized`]: crate::WindowState::Minimized
     pub fn window_minimized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -100,6 +110,8 @@ event_property! {
     }
 
     /// On window state changed from [`WindowState::Minimized`].
+    ///
+    /// [`WindowState::Minimized`]: crate::WindowState::Minimized
     pub fn window_unminimized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -107,6 +119,8 @@ event_property! {
     }
 
     /// On window state changed to [`WindowState::Normal`].
+    ///
+    /// [`WindowState::Normal`]: crate::WindowState::Normal
     pub fn window_restored {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -114,6 +128,8 @@ event_property! {
     }
 
     /// On window state changed to [`WindowState::is_fullscreen`].
+    ///
+    /// [`WindowState::is_fullscreen`]: crate::WindowState::is_fullscreen
     pub fn window_fullscreen {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -121,6 +137,8 @@ event_property! {
     }
 
     /// On window state changed from [`WindowState::is_fullscreen`].
+    ///
+    /// [`WindowState::is_fullscreen`]: crate::WindowState::is_fullscreen
     pub fn window_exited_fullscreen {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,

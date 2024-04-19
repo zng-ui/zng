@@ -196,8 +196,12 @@ fn doc(mut args: Vec<&str>) {
     cmd_env_req("cargo", &["doc", "--all-features", "--no-deps"], &args, &env);
 
     if !skip_deadlinks {
-        // cargo doc does not warn about broken links to downstream types
-        let cutout = regex::Regex::new(r#"id="(?:deref-met|trait-imp|synthetic-imp|blanket-imp).*""#).unwrap();
+        // cargo doc does not warn about broken links in some cases, just prints `[<code>invalid</code>]`
+
+        // cutout links that also appear in other pages or are from downstream types
+        let cutout =
+            regex::Regex::new(r#"id="(?:deref-met|trait-imp|synthetic-imp|blanket-imp|modules|structs|enums|statics|traits|functions).*""#)
+                .unwrap();
         let broken_link = regex::Regex::new(r"\[<code>.+?</code>\]").unwrap();
         for html_path in util::glob("target/doc/**/*.html") {
             if skip_deadlinks_globs.iter().any(|g| g.matches(&html_path)) {
@@ -214,7 +218,16 @@ fn doc(mut args: Vec<&str>) {
                 let mut sep = "";
                 for m in matches.iter() {
                     use std::fmt::*;
-                    write!(&mut msg, "{sep}    {}", m.replace("<code>", "`").replace("</code>", "`")).unwrap();
+                    write!(
+                        &mut msg,
+                        "{sep}    {}",
+                        m.replace("<code>", "`")
+                            .replace("</code>", "`")
+                            .replace("&lt;", "<")
+                            .replace("&gt;", ">")
+                            .replace("&amp;", "&")
+                    )
+                    .unwrap();
                     sep = "\n";
                 }
                 error(msg);

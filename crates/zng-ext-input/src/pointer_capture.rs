@@ -358,6 +358,9 @@ impl CaptureInfo {
     /// | `Window`       | All widgets in the same window.                    |
     /// | `Subtree`      | All widgets that have the `target` in their path.  |
     /// | `Widget`       | Only the `target` widget.                          |
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    /// [`WINDOW`]: zng_app::window::WINDOW
     pub fn allows(&self) -> bool {
         match self.mode {
             CaptureMode::Window => self.target.window_id() == WINDOW.id(),

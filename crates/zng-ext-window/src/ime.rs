@@ -60,6 +60,8 @@ event! {
 }
 
 /// IME extension methods for [`WidgetInfo`].
+///
+/// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
 pub trait WidgetInfoImeArea {
     /// IME exclusion area in the window space.
     ///
@@ -74,6 +76,8 @@ pub trait WidgetInfoImeArea {
 }
 
 /// IME extension methods for [`WidgetInfoBuilder`].
+///
+/// [`WidgetInfoBuilder`]: zng_app::widget::info::WidgetInfoBuilder
 pub trait WidgetInfoBuilderImeArea {
     /// Set a custom [`ime_area`].
     ///

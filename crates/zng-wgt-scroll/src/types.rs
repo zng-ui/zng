@@ -824,11 +824,15 @@ impl SCROLL {
     }
 
     /// Scroll the [`WIDGET`] into view.
+    ///
+    /// [`WIDGET`]: zng_wgt::prelude::WIDGET
     pub fn scroll_to(&self, mode: impl Into<super::cmd::ScrollToMode>) {
         cmd::scroll_to(WIDGET.info(), mode.into())
     }
 
     /// Scroll the [`WIDGET`] into view and adjusts the zoom scale.
+    ///
+    /// [`WIDGET`]: zng_wgt::prelude::WIDGET
     pub fn scroll_to_zoom(&self, mode: impl Into<super::cmd::ScrollToMode>, zoom: impl Into<Factor>) {
         cmd::scroll_to_zoom(WIDGET.info(), mode.into(), zoom.into())
     }
@@ -845,6 +849,8 @@ impl SCROLL {
 }
 
 /// Scroll extensions for [`WidgetInfo`].
+///
+/// [`WidgetInfo`]: zng_wgt::prelude::WidgetInfo
 pub trait WidgetInfoExt {
     /// Returns `true` if the widget is a [`Scroll!`](struct@super::Scroll).
     fn is_scroll(&self) -> bool;

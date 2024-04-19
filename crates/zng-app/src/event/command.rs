@@ -841,6 +841,8 @@ unique_id_64! {
     /// Unique identifier of a command metadata state variable.
     ///
     /// This type is very similar to [`StateId`], but `T` is the value type of the metadata variable.
+    ///
+    /// [`StateId`]: zng_state_map::StateId
     pub struct CommandMetaVarId<T: (StateValue + VarValue)>: StateId;
 }
 impl<T: StateValue + VarValue> CommandMetaVarId<T> {
@@ -943,6 +945,8 @@ impl<'a> CommandMeta<'a> {
     /// Clone a meta value identified by a [`StateId`].
     ///
     /// If the key is not set in the app, insert it using `init` to produce a value.
+    ///
+    /// [`StateId`]: zng_state_map::StateId
     pub fn get_or_insert<T, F>(&mut self, id: impl Into<StateId<T>>, init: F) -> T
     where
         T: StateValue + Clone,
@@ -968,6 +972,8 @@ impl<'a> CommandMeta<'a> {
     /// Clone a meta value identified by a [`StateId`].
     ///
     /// If the key is not set, insert the default value and returns a clone of it.
+    ///
+    /// [`StateId`]: zng_state_map::StateId
     pub fn get_or_default<T>(&mut self, id: impl Into<StateId<T>>) -> T
     where
         T: StateValue + Clone + Default,
@@ -976,6 +982,8 @@ impl<'a> CommandMeta<'a> {
     }
 
     /// Clone a meta value identified by a [`StateId`] if it is set.
+    ///
+    /// [`StateId`]: zng_state_map::StateId
     pub fn get<T>(&self, id: impl Into<StateId<T>>) -> Option<T>
     where
         T: StateValue + Clone,
@@ -990,6 +998,8 @@ impl<'a> CommandMeta<'a> {
     }
 
     /// Set the meta value associated with the [`StateId`].
+    ///
+    /// [`StateId`]: zng_state_map::StateId
     pub fn set<T>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>)
     where
         T: StateValue + Clone,
@@ -1081,6 +1091,9 @@ impl<'a> CommandMeta<'a> {
 /// If you get this variable from an app scoped command it sets
 /// the value for all scopes. If you get this variable using a scoped command,
 /// it is a clone-on-write variable that overrides only the value for the scope.
+///
+/// [`ArcVar<T>`]: zng_var::ArcVar
+/// [`ArcCowVar<T, ArcVar<T>>`]: zng_var::types::ArcCowVar
 pub type CommandMetaVar<T> = BoxedVar<T>;
 
 /// Read-only command metadata variable.

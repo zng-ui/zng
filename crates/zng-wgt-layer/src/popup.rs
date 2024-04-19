@@ -29,6 +29,7 @@ use crate::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
 /// [`tab_nav`]: fn@tab_nav
 /// [`modal_included`]: fn@modal_included
 /// [`anchor_id`]: POPUP::anchor_id
+/// [`FocusClickBehavior::ExitEnabled`]: zng_wgt_input::focus::FocusClickBehavior::ExitEnabled
 #[widget($crate::popup::Popup {
     ($child:expr) => {
         child = $child;
@@ -55,7 +56,9 @@ impl Popup {
     widget_impl! {
         /// Popup focus behavior when it or a descendant receives a click.
         ///
-        /// Is [`FocusClickBehavior::ExitEnabled`] by default;
+        /// Is [`FocusClickBehavior::ExitEnabled`] by default.
+        ///
+        /// [`FocusClickBehavior::ExitEnabled`]: zng_wgt_input::focus::FocusClickBehavior::ExitEnabled
         pub focus_click_behavior(behavior: impl IntoVar<FocusClickBehavior>);
     }
 }
@@ -331,12 +334,15 @@ impl DefaultStyle {
 /// If enabled (default), the popup will build [`with_context_blend`].
 ///
 /// [`Popup!`]: struct@Popup
+/// [`with_context_blend`]: zng_wgt::prelude::with_context_blend
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ContextCapture {
     /// No context capture or blending, the popup will have
     /// the context it is inited in, like any other widget.
     NoCapture,
     /// Build/instantiation context is captured and blended with the node context during all [`UiNodeOp`].
+    ///
+    /// [`UiNodeOp`]: zng_wgt::prelude::UiNodeOp
     CaptureBlend {
         /// What context values are captured.
         filter: CaptureFilter,
@@ -391,7 +397,7 @@ event! {
     ///
     /// Requesting [`propagation().stop()`] on this event cancels the popup close.
     ///
-    /// [`propagation().stop()`]: crate::core::event::EventPropagationHandle::stop
+    /// [`propagation().stop()`]: zng_app::event::EventPropagationHandle::stop
     pub static POPUP_CLOSE_REQUESTED_EVENT: PopupCloseRequestedArgs;
 }
 event_property! {
@@ -399,7 +405,7 @@ event_property! {
     ///
     /// Requesting [`propagation().stop()`] on this event cancels the popup close.
     ///
-    /// [`propagation().stop()`]: crate::core::event::EventPropagationHandle::stop
+    /// [`propagation().stop()`]: zng_app::event::EventPropagationHandle::stop
     pub fn popup_close_requested {
         event: POPUP_CLOSE_REQUESTED_EVENT,
         args: PopupCloseRequestedArgs,

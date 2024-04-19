@@ -127,6 +127,7 @@ pub trait UiNode: Any + Send {
     /// [`layout`]: Self::layout
     /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    /// [`PxSize`]: zng_layout::unit::PxSize
     #[must_use]
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize;
 
@@ -148,6 +149,7 @@ pub trait UiNode: Any + Send {
     /// [`constraints`]: zng_layout::context::LayoutMetrics::constraints
     /// [`WIDGET.render`]: crate::widget::WIDGET::render
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    /// [`PxSize`]: zng_layout::unit::PxSize
     #[must_use]
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize;
 
@@ -1449,6 +1451,8 @@ pub struct FillUiNode;
 impl UiNode for FillUiNode {}
 
 /// Wraps `child` in a node that provides a unique [`ContextInitHandle`], refreshed every (re)init.
+///
+/// [`ContextInitHandle`]: zng_var::ContextInitHandle
 pub fn with_new_context_init_id(child: impl UiNode) -> impl UiNode {
     let mut id = None;
 

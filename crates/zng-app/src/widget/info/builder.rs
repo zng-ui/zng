@@ -1000,6 +1000,8 @@ impl WidgetMeasure {
     ///
     /// Returns the inline requirements of the child and its desired bounds size, returns `None` requirements if the child
     /// disables inline or is not a full widget.
+    ///
+    /// [`InlineConstraintsMeasure`]: zng_layout::context::InlineConstraintsMeasure
     pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &mut impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
         let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
         let metrics = LAYOUT.metrics().with_inline_constraints(Some(constraints));
@@ -1577,6 +1579,8 @@ impl WidgetLayout {
     /// the `child` context.
     ///
     /// Returns the child final size.
+    ///
+    /// [`InlineConstraintsLayout`]: zng_layout::context::InlineConstraintsLayout
     #[allow(clippy::too_many_arguments)]
     pub fn layout_inline(
         &mut self,

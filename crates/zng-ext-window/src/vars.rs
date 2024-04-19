@@ -188,6 +188,7 @@ impl WindowVars {
     /// reference clone.
     ///
     /// [`icon`]: Self::icon
+    /// [`Img`]: zng_ext_image::Img
     pub fn actual_icon(&self) -> ReadOnlyArcVar<Option<Img>> {
         self.0.actual_icon.read_only()
     }
@@ -197,6 +198,9 @@ impl WindowVars {
     /// See [`CursorIcon`] for details.
     ///
     /// The default is [`CursorIcon::Default`], if set to `None` no cursor icon is shown.
+    ///
+    /// [`CursorIcon`]: zng_view_api::window::CursorIcon
+    /// [`CursorIcon::Default`]: zng_view_api::window::CursorIcon::Default
     pub fn cursor(&self) -> ArcVar<Option<CursorIcon>> {
         self.0.cursor.clone()
     }
@@ -217,6 +221,8 @@ impl WindowVars {
     /// This is `None` if [`cursor_img`] is not set, otherwise it is an [`Img`] reference clone with computed hotspot [`PxPoint`].
     ///
     /// [`cursor_img`]: Self::cursor_img
+    /// [`Img`]: zng_ext_image::Img
+    /// [`PxPoint`]: zng_layout::unit::PxPoint
     pub fn actual_cursor_img(&self) -> ReadOnlyArcVar<Option<(Img, PxPoint)>> {
         self.0.actual_cursor_img.read_only()
     }
@@ -375,6 +381,7 @@ impl WindowVars {
     /// [`actual_position`]: WindowVars::actual_position
     /// [`monitor`]: WindowVars::monitor
     /// [`Normal`]: WindowState::Normal
+    /// [`Length::Default`]: zng_layout::unit::Length::Default
     pub fn position(&self) -> ArcVar<Point> {
         self.0.position.clone()
     }
@@ -444,6 +451,7 @@ impl WindowVars {
     /// [`auto_size`]: Self::auto_size
     /// [`monitor`]: WindowVars::monitor
     /// [`StartPosition`]: crate::StartPosition
+    /// [`Point::top_left`]: zng_layout::unit::Point::top_left
     pub fn auto_size_origin(&self) -> ArcVar<Point> {
         self.0.auto_size_origin.clone()
     }

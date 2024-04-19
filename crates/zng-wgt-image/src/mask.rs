@@ -201,7 +201,7 @@ context_var! {
 
     /// Custom mask image load and decode limits.
     ///
-    /// Set to `None` to use the [`IMAGES::limits`].
+    /// Set to `None` to use the `IMAGES::limits`.
     pub static MASK_IMAGE_LIMITS_VAR: Option<ImageLimits> = None;
 
     /// Custom resize applied during mask image decode.
@@ -214,7 +214,7 @@ context_var! {
 
     /// Align of the mask image in relation to the image widget final size.
     ///
-    /// Is [`Align::CENTER`] by default.
+    /// Is `Align::CENTER` by default.
     pub static MASK_ALIGN_VAR: Align = Align::CENTER;
 
     /// Offset applied to the mask image after all measure and arrange.

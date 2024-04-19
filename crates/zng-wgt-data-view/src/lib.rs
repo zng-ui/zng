@@ -45,7 +45,7 @@ impl<D: VarValue> DataViewArgs<D> {
         }
     }
 
-    /// If the current child is [`NilUiNode`];
+    /// If the current child is nil node.
     pub fn view_is_nil(&self) -> bool {
         self.is_nil
     }
@@ -58,6 +58,8 @@ impl<D: VarValue> DataViewArgs<D> {
     }
 
     /// Set the view to [`NilUiNode`].
+    ///
+    /// [`NilUiNode`]: zng_wgt::prelude::NilUiNode
     pub fn unset_view(&self) {
         self.set_view(NilUiNode)
     }

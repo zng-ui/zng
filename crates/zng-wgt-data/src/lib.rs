@@ -675,6 +675,8 @@ struct DataNotesProbe {
 /// The `on_changed` closure is called every time a note is inserted or removed in context. The closure
 /// can be called in any [`UiNodeOp`], it is always called after the `child` processed the operation. The
 /// notes always change to empty on deinit.
+///
+/// [`UiNodeOp`]: zng_wgt::prelude::UiNodeOp
 pub fn with_data_notes(child: impl UiNode, mut on_changed: impl FnMut(&DataNotes) + Send + 'static) -> impl UiNode {
     let mut notes = None;
     match_node(child, move |c, op| {

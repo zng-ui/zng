@@ -1,4 +1,6 @@
 //! Commands that control focus and [`Command`] extensions.
+//!
+//! [`Command`]: zng_app::event::Command
 
 use zng_app::{
     event::{command, Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, EventArgs},
@@ -203,6 +205,8 @@ pub trait CommandFocusExt {
     ///
     /// [`alt_return`]: FOCUS::alt_return
     /// [`focused`]: FOCUS::focused
+    /// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
+    /// [`CommandScope`]: zng_app::event::CommandScope
     fn focus_scoped_with(self, map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> BoxedVar<Command>;
 }
 

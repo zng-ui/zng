@@ -179,6 +179,8 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 /// });
 /// # ; }
 /// ```
+///
+/// [`clmv!`]: zng_clone_move::clmv
 #[macro_export]
 macro_rules! wgt_fn {
     ($fn:path) => {

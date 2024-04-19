@@ -248,6 +248,8 @@ impl Default for BorderSide {
 }
 
 /// Radius of each corner of a border defined from [`Size`] values.
+///
+/// [`Size`]: zng_layout::unit::Size
 #[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct CornerRadius {
     /// Top-left corner.

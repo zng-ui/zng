@@ -133,6 +133,7 @@ pub fn allow_transparency(allow: impl IntoValue<bool>) {}
 /// see [`RenderMode`] for more details about each mode and fallbacks.
 ///
 /// [`WINDOWS.default_render_mode`]: zng_ext_window::WINDOWS::default_render_mode
+/// [`RenderMode`]: crate::RenderMode
 #[property(CONTEXT, capture, widget_impl(Window))]
 pub fn render_mode(mode: impl IntoValue<Option<RenderMode>>) {}
 

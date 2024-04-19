@@ -17,6 +17,7 @@ use zng_wgt::prelude::*;
 /// for relative values.
 ///
 /// [`transform_origin`]: fn@transform_origin
+/// [`Transform`]: zng_wgt::prelude::Transform
 #[property(LAYOUT, default(Transform::identity()))]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
     let binding_key = FrameValueKey::new_unique();
@@ -251,6 +252,8 @@ pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl
 ///
 /// [`Length::Default`] is an infinite distance, the lower the value the *closest* the viewer is and therefore
 /// the 3D transforms are more noticeable. Distances less then `1.px()` are coerced to it.
+///
+/// [`Length::Default`]: zng_wgt::prelude::Length::Default
 #[property(LAYOUT-20, default(Length::Default))]
 pub fn perspective(child: impl UiNode, distance: impl IntoVar<Length>) -> impl UiNode {
     let distance = distance.into_var();
@@ -338,14 +341,14 @@ pub fn backface_visibility(child: impl UiNode, visible: impl IntoVar<bool>) -> i
 context_var! {
     /// Point relative to the widget inner bounds around which the [`transform`] is applied.
     ///
-    /// Default origin is [`Point::center()`].
+    /// Default origin is `Point::center`.
     ///
     /// [`transform`]: fn@transform
     pub static TRANSFORM_ORIGIN_VAR: Point = Point::center();
 
     /// Vanishing point used by [`transform`] when it is 3D.
     ///
-    /// Default origin is [`Point::center()`].
+    /// Default origin is `Point::center`.
     ///
     /// [`transform`]: fn@transform
     pub static PERSPECTIVE_ORIGIN_VAR: Point = Point::center();

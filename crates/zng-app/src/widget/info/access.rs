@@ -794,6 +794,8 @@ impl WidgetAccessInfo {
     /// Gets the live indicator, atomic and busy.
     ///
     /// See [`AccessState::Live`] for more details.
+    ///
+    /// [`AccessState::Live`]: zng_view_api::access::AccessState::Live
     pub fn live(&self) -> Option<(LiveIndicator, bool, bool)> {
         self.access().state.iter().find_map(|s| {
             if let AccessState::Live { indicator, atomic, busy } = s {

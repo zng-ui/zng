@@ -49,7 +49,6 @@
 //!
 //! [`WIDGET`]: crate::widget::WIDGET
 //! [`clmv!`]: crate::clmv
-//! [`clmv!`]: crate::clmv
 //! [`async_clmv_fn!`]: crate::async_clmv_fn
 //! [`async_clmv_fn_once!`]: crate::async_clmv_fn_once
 //!

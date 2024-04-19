@@ -45,6 +45,8 @@ pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiN
 /// This property disables inline layout for the widget.
 ///
 /// See [`Align`] for more details.
+///
+///  [`Align`]: zng_layout::unit::Align
 #[property(LAYOUT, default(Align::FILL))]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode {
     let alignment = alignment.into_var();
@@ -74,6 +76,8 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Align>) -> impl UiNode 
 /// If the layout direction is right-to-left.
 ///
 /// The `state` is bound to [`DIRECTION_VAR`].
+///
+/// [`DIRECTION_VAR`]: zng_layout::context::DIRECTION_VAR
 #[property(LAYOUT)]
 pub fn is_rtl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_state(child, DIRECTION_VAR.map(|s| s.is_rtl()), state)
@@ -82,6 +86,8 @@ pub fn is_rtl(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 /// If the layout direction is left-to-right.
 ///
 /// The `state` is bound to [`DIRECTION_VAR`].
+///
+/// [`DIRECTION_VAR`]: zng_layout::context::DIRECTION_VAR
 #[property(LAYOUT)]
 pub fn is_ltr(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     bind_state(child, DIRECTION_VAR.map(|s| s.is_ltr()), state)

@@ -120,6 +120,8 @@ pub use ui::*;
 /// [unwind safety validation]: std::panic::UnwindSafe
 /// [`Waker`]: std::task::Waker
 /// [`rayon`]: https://docs.rs/rayon
+/// [`LocalContext`]: zng_app_context::LocalContext
+/// [`response_var`]: zng_var::response_var
 pub fn spawn<F>(task: F)
 where
     F: Future<Output = ()> + Send + 'static,
@@ -219,6 +221,8 @@ impl std::task::Wake for RayonTask {
 /// operations.
 ///
 /// See `rayon::join` for more details about join.
+///
+/// [`LocalContext`]: zng_app_context::LocalContext
 pub fn join<A, B, RA, RB>(op_a: A, op_b: B) -> (RA, RB)
 where
     A: FnOnce() -> RA + Send,
@@ -235,6 +239,8 @@ where
 /// operations.
 ///
 /// See `rayon::join_context` for more details about join.
+///
+/// [`LocalContext`]: zng_app_context::LocalContext
 pub fn join_context<A, B, RA, RB>(op_a: A, op_b: B) -> (RA, RB)
 where
     A: FnOnce(rayon::FnContext) -> RA + Send,
@@ -268,6 +274,8 @@ where
 /// operations.
 ///
 /// See `rayon::scope` for more details about scope.
+///
+/// [`LocalContext`]: zng_app_context::LocalContext
 pub fn scope<'scope, OP, R>(op: OP) -> R
 where
     OP: FnOnce(ScopeCtx<'_, 'scope>) -> R + Send,
@@ -374,6 +382,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// [`resume_unwind`]: panic::resume_unwind
 /// [`Waker`]: std::task::Waker
 /// [`rayon`]: https://docs.rs/rayon
+/// [`LocalContext`]: zng_app_context::LocalContext
 pub async fn run<R, T>(task: T) -> R
 where
     R: Send + 'static,
@@ -464,7 +473,7 @@ where
     receiver.recv().await.unwrap()
 }
 
-/// Spawn a parallel async task that will send its result to a [`ResponseVar`].
+/// Spawn a parallel async task that will send its result to a [`ResponseVar<R>`].
 ///
 /// The [`run`] documentation explains how `task` is *parallel* and *async*. The `task` starts executing immediately.
 ///
@@ -505,6 +514,8 @@ where
 /// [`spawn`] for more information about the panic handling of this function.
 ///
 /// [`resume_unwind`]: panic::resume_unwind
+/// [`ResponseVar<R>`]: zng_var::ResponseVar
+/// [`response_var`]: zng_var::response_var
 pub fn respond<R, F>(task: F) -> ResponseVar<R>
 where
     R: VarValue,

@@ -146,6 +146,8 @@ impl FontName {
     ///
     /// Font names are case insensitive but the input casing is preserved, this casing shows during display and in
     /// the value of [`name`](Self::name).
+    ///
+    /// [`Txt`]: zng_txt::Txt
     pub fn new(name: impl Into<Txt>) -> Self {
         let text = name.into();
         FontName {
@@ -197,6 +199,8 @@ impl FontName {
     }
 
     /// Unwraps into a [`Txt`].
+    ///
+    /// [`Txt`]: zng_txt::Txt
     pub fn into_text(self) -> Txt {
         self.text
     }

@@ -61,7 +61,7 @@ pub struct TextShapingArgs {
 
     /// Maximum line width.
     ///
-    /// Is [`Px::MAX`] when text wrap is disabled.
+    /// Is `Px::MAX` when text wrap is disabled.
     pub max_width: Px,
 
     /// Line break config for Chinese, Japanese, or Korean text.

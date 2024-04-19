@@ -48,6 +48,8 @@ impl LazyMode {
     /// for more details.
     ///
     /// See [`FrameBuilder::auto_hide_rect`] for more details about render culling.
+    ///
+    /// [`FrameBuilder::auto_hide_rect`]: zng_wgt::prelude::FrameBuilder::auto_hide_rect
     pub fn lazy(placeholder: WidgetFn<()>) -> Self {
         Self::Enabled {
             placeholder,

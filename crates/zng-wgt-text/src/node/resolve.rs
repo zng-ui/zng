@@ -41,6 +41,9 @@ use super::{CaretInfo, ImePreview, PendingLayout, ResolvedText, SelectionBy, RES
 /// so all properties except [`NestGroup::CONTEXT`] have access using the [`TEXT::resolved`] method.
 ///
 /// This node also sets the accessibility label to the resolved text.
+///
+/// [`NestGroup::EVENT`]: zng_wgt::prelude::NestGroup::EVENT
+/// [`NestGroup::CONTEXT`]: zng_wgt::prelude::NestGroup::CONTEXT
 pub fn resolve_text(child: impl UiNode, text: impl IntoVar<Txt>) -> impl UiNode {
     let child = resolve_text_font(child);
     let child = resolve_text_access(child);

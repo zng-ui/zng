@@ -151,6 +151,8 @@ impl MonitorInfo {
 ///
 /// Note that actual system video mode is selected by approximation,
 /// closest `size`, then `bit_depth`, then `refresh_rate`.
+///
+/// [`MonitorInfo::video_modes`]: crate::window::MonitorInfo::video_modes
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VideoMode {
     /// Resolution of this video mode.

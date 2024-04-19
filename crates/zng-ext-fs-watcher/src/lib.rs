@@ -161,6 +161,8 @@ impl WATCHER {
     ///
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
+    ///
+    /// [`task::wait`]: zng_task::wait
     pub fn read<O: VarValue>(
         &self,
         file: impl Into<PathBuf>,
@@ -198,6 +200,8 @@ impl WATCHER {
     ///
     /// Dropping the variable drops the read watch. The `read` closure is non-blocking, it is called in a [`task::wait`]
     /// background thread.
+    ///
+    /// [`task::wait`]: zng_task::wait
     pub fn read_dir<O: VarValue>(
         &self,
         dir: impl Into<PathBuf>,
@@ -280,6 +284,7 @@ impl WATCHER {
     /// and the actual result variable, you can use [`sync_status`] to implement racing-free status tracking.
     ///
     /// [`sync_status`]: Self::sync_status
+    /// [`task::wait`]: zng_task::wait
     pub fn sync<O: VarValue>(
         &self,
         file: impl Into<PathBuf>,
@@ -317,6 +322,7 @@ impl WATCHER {
     /// blocking the app.
     ///
     /// [`async_app_hn!`]: macro@zng_app::handler::async_app_hn
+    /// [`task::wait`]: zng_task::wait
     pub fn on_file_changed(&self, file: impl Into<PathBuf>, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
         let file = file.into();
         let handle = self.watch(file.clone());
@@ -332,6 +338,7 @@ impl WATCHER {
     /// blocking the app.
     ///
     /// [`async_app_hn!`]: macro@zng_app::handler::async_app_hn
+    /// [`task::wait`]: zng_task::wait
     pub fn on_dir_changed(&self, dir: impl Into<PathBuf>, recursive: bool, handler: impl AppHandler<FsChangesArgs>) -> EventHandle {
         let dir = dir.into();
         let handle = self.watch_dir(dir.clone(), recursive);

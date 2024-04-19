@@ -17,6 +17,8 @@ pub enum AccessRole {
     /// checkable interactive widget.
     ///
     /// Must also set [`AccessState::Checked`].
+    ///
+    /// [`AccessState::Checked`]: crate::access::AccessState::Checked
     CheckBox,
     /// Identifies a cell in a grid widget.
     GridCell,
@@ -27,6 +29,8 @@ pub enum AccessRole {
     /// Widget is a checkable option in a menu.
     ///
     /// Must also set [`AccessState::Checked`].
+    ///
+    /// [`AccessState::Checked`]: crate::access::AccessState::Checked
     MenuItemCheckBox,
     /// Widget is a selectable option in a menu where only one option can be selected at a time.
     MenuItemRadio,
@@ -35,6 +39,8 @@ pub enum AccessRole {
     /// Defines a widget that displays the progress status for tasks that take a long time.
     ///
     /// The [`AccessState::Value`] and other value states define the progress.
+    ///
+    /// [`AccessState::Value`]: crate::access::AccessState::Value
     ProgressBar,
     /// Selectable items in a list where only one item may be selected at a time.
     Radio,
@@ -42,12 +48,17 @@ pub enum AccessRole {
     ///
     /// Must also set [`AccessState::Controls`] and [`AccessState::Value`] to define
     /// the scroll widget and amount scrolled. By default the value min/max is 0/100.
+    ///
+    /// [`AccessState::Controls`]: crate::access::AccessState::Controls
+    /// [`AccessState::Value`]: crate::access::AccessState::Value
     ScrollBar,
     /// Identifies a text-box that is used for searching.
     SearchBox,
     /// Defines an input where the user selects a value from within a given range.
     ///
     /// The [`AccessState::Value`] and other value states define the range and value.
+    ///
+    /// [`AccessState::Value`]: crate::access::AccessState::Value
     Slider,
     /// Defines a type of range that expects the user to select a value from among discrete choices.
     SpinButton,
@@ -109,6 +120,8 @@ pub enum AccessRole {
     /// summary or table of contents by assistive technologies.
     Group,
     /// Defines a heading to a page or section, with [`AccessState::Level`] defining structure.
+    ///
+    /// [`AccessState::Level`]: crate::access::AccessState::Level
     Heading,
     /// Identifies a widget container that should be considered as a single image.
     Image,
@@ -153,6 +166,8 @@ pub enum AccessRole {
     /// Identifies major groups of links used for navigating the app.
     Navigation,
     /// Identifies significant areas. Usually set with [`AccessState::Label`].
+    ///
+    /// [`AccessState::Label`]: crate::access::AccessState::Label
     Region,
     /// Identifies the search area or form.
     Search,
@@ -362,7 +377,9 @@ zng_var::impl_from_and_into_var! {
 
 /// Defines how a live update is communicated to the user.
 ///
-/// See [`AccessState::Sort`]
+/// See [`AccessState::Live`] for more details.
+///
+/// [`AccessState::Live`]: crate::access::AccessState::Live
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LiveIndicator {
     /// Indicates that updates to the region have the highest priority and should be presented to the user immediately.
@@ -381,7 +398,9 @@ zng_var::impl_from_and_into_var! {
 
 /// Sort direction.
 ///
-/// See [`AccessState::Sort`]
+/// See [`AccessState::Sort`] for more details.
+///
+/// [`AccessState::Sort`]: crate::access::AccessState::Sort
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SortDirection {
     /// Items are sorted in ascending order by this column.
@@ -397,7 +416,9 @@ zng_var::impl_from_and_into_var! {
 
 /// Widget orientation.
 ///
-/// See [`AccessState::Orientation`].
+/// See [`AccessState::Orientation`] for more details.
+///
+/// [`AccessState::Orientation`]: crate::access::AccessState::Orientation
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Orientation {
     /// Widget is horizontal.
@@ -414,6 +435,8 @@ zng_var::impl_from_and_into_var! {
 /// Popup type.
 ///
 /// See [`AccessState::Popup`].
+///
+/// [`AccessState::Popup`]: crate::access::AccessState::Popup
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Popup {
     /// The popup is a menu.
@@ -436,7 +459,9 @@ zng_var::impl_from_and_into_var! {
 bitflags! {
     /// Defines how inputting text could trigger display of one or more predictions of the user's intended value.
     ///
-    /// See [`AccessState::AutoComplete`].
+    /// See [`AccessState::AutoComplete`] for more details.
+    ///
+    /// [`AccessState::AutoComplete`]: crate::access::AccessState::AutoComplete
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct AutoComplete: u8 {
 
@@ -456,7 +481,9 @@ bitflags! {
 
     /// Defines the kind of invalid data error of a widget.
     ///
-    /// See [`AccessState::Invalid`].
+    /// See [`AccessState::Invalid`] for more details.
+    ///
+    /// [`AccessState::Invalid`]: crate::access::AccessState::Invalid
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct Invalid: u8 {
         /// Indicates the entered value does not conform to the format expected by the application.
@@ -568,39 +595,63 @@ zng_var::impl_from_and_into_var! {
 /// Accessibility command without associated data.
 ///
 /// See [`AccessCmd::name`] for more details.
+///
+/// [`AccessCmd::name`]: crate::access::AccessCmd::name
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum AccessCmdName {
     /// [`AccessCmd::Click`]
+    ///
+    /// [`AccessCmd::Click`]: crate::access::AccessCmd::Click
     Click,
 
     /// [`AccessCmd::Focus`]
+    ///
+    /// [`AccessCmd::Focus`]: crate::access::AccessCmd::Focus
     Focus,
     /// [`AccessCmd::FocusNavOrigin`]
+    ///
+    /// [`AccessCmd::FocusNavOrigin`]: crate::access::AccessCmd::FocusNavOrigin
     FocusNavOrigin,
 
     /// [`AccessCmd::SetExpanded`]
+    ///
+    /// [`AccessCmd::SetExpanded`]: crate::access::AccessCmd::SetExpanded
     SetExpanded,
 
     /// [`AccessCmd::Increment`]
+    ///
+    /// [`AccessCmd::Increment`]: crate::access::AccessCmd::Increment
     Increment,
 
     /// [`AccessCmd::SetToolTipVis`]
+    ///
+    /// [`AccessCmd::SetToolTipVis`]: crate::access::AccessCmd::SetToolTipVis
     SetToolTipVis,
 
     /// [`AccessCmd::Scroll`]
+    ///
+    /// [`AccessCmd::Scroll`]: crate::access::AccessCmd::Scroll
     Scroll,
 
     /// [`AccessCmd::ReplaceSelectedText`]
+    ///
+    /// [`AccessCmd::ReplaceSelectedText`]: crate::access::AccessCmd::ReplaceSelectedText
     ReplaceSelectedText,
 
     /// [`AccessCmd::SelectText`]
+    ///
+    /// [`AccessCmd::SelectText`]: crate::access::AccessCmd::SelectText
     SelectText,
 
     /// [`AccessCmd::SetString`]
+    ///
+    /// [`AccessCmd::SetString`]: crate::access::AccessCmd::SetString
     SetString,
 
     /// [`AccessCmd::SetNumber`]
+    ///
+    /// [`AccessCmd::SetNumber`]: crate::access::AccessCmd::SetNumber
     SetNumber,
 }
 
@@ -612,6 +663,8 @@ zng_var::impl_from_and_into_var! {
 /// Accessibility scroll command.
 ///
 /// The command must run in the context of the target widow and widget, see [`AccessCmd::Scroll`] for more details.
+///
+/// [`AccessCmd::Scroll`]: crate::access::AccessCmd::Scroll
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ScrollCmd {
     /// Scroll page up.

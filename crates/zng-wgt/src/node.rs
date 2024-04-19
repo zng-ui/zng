@@ -115,6 +115,7 @@ pub use zng_app;
 /// [`default`]: zng_app::widget::property#default
 /// [`merge_var!`]: zng_var::merge_var
 /// [`UiNode`]: zng_app::widget::node::UiNode
+/// [`ContextVar::with_context`]: zng_var::ContextVar::with_context
 pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar<T>, value: impl IntoVar<T>) -> impl UiNode {
     let value = value.into_var();
     let mut actual_value = None;
@@ -148,6 +149,8 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, context_var: ContextVar
 /// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
 ///
 /// Apart from the value initialization this behaves just like [`with_context_var`].
+///
+/// [`ContextVar<T>`]: zng_var::ContextVar
 pub fn with_context_var_init<T: VarValue>(
     child: impl UiNode,
     var: ContextVar<T>,
@@ -1579,6 +1582,8 @@ pub fn with_context_local<T: Any + Send + Sync + 'static>(
 /// in the widget and widget descendants. The closure can be called more than once if the returned node is reinited.
 ///
 /// Apart from the value initialization this behaves just like [`with_context_local`].
+///
+/// [`ContextLocal<T>`]: zng_app_context::ContextLocal
 pub fn with_context_local_init<T: Any + Send + Sync + 'static>(
     child: impl UiNode,
     context: &'static ContextLocal<T>,
@@ -1643,6 +1648,7 @@ fn with_context_local_init_impl<T: Any + Send + Sync + 'static>(
 /// [`NestGroup::CHILD`]: zng_app::widget::builder::NestGroup::CHILD
 /// [`UiNodeOp`]: zng_app::widget::node::UiNodeOp
 /// [`UiNode::with_context`]: zng_app::widget::node::UiNode::with_context
+/// [`LocalContext::with_context_blend`]: zng_app_context::LocalContext::with_context_blend
 pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode) -> impl UiNode {
     match_widget(child, move |c, op| {
         if let UiNodeOp::Init = op {

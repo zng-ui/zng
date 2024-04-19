@@ -299,6 +299,8 @@ impl KEYBOARD {
     ///
     /// A new animation must be started after each key press. The value is always 1 or 0, no easing is used by default,
     /// it can be added using the [`Var::easing`] method.
+    ///
+    /// [`Var::easing`]: zng_var::Var::easing
     pub fn caret_animation(&self) -> ReadOnlyArcVar<Factor> {
         KEYBOARD_SV.read().caret_animation()
     }
@@ -489,6 +491,8 @@ impl KeyboardService {
 }
 
 /// Extension trait that adds keyboard simulation methods to [`HeadlessApp`].
+///
+/// [`HeadlessApp`]: zng_app::HeadlessApp
 pub trait HeadlessAppKeyboardExt {
     /// Notifies keyboard input event.
     ///
