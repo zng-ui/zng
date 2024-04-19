@@ -147,7 +147,7 @@ pub use zng_task::{
     McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, ScopeCtx, SignalOnce, UiTask,
 };
 
-#[cfg(any(test, doc, feature = "test_util"))]
+#[cfg(any(doc, feature = "test_util"))]
 pub use zng_task::{doc_test, spin_on};
 
 #[cfg(feature = "http")]

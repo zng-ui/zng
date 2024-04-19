@@ -20,7 +20,7 @@ pub use tracing::Level;
 
 use crate::mpsc;
 
-/// Arguments for the filter closure of [`record_profile`].
+/// Arguments for the filter closure of [`record_profile`](crate::record_profile).
 pub struct FilterArgs<'a> {
     /// If entry represents a tracing span. If false it is a log event.
     pub is_span: bool,
