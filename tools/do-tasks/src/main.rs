@@ -69,6 +69,7 @@ fn install(mut args: Vec<&str>) {
 //        [-s, --serve]
 //        [--readme <crate>..]
 //        [--readme-examples <example>..]
+//        [--skip-deadlinks]
 //
 //    Generate documentation for zng crates.
 //
@@ -107,6 +108,8 @@ fn doc(mut args: Vec<&str>) {
     } else {
         take_flag(&mut args, &["-o", "--open"])
     };
+
+    let skip_deadlinks = take_flag(&mut args, &["--skip-deadlinks"]);
 
     let serve = take_flag(&mut args, &["-s", "--serve"]);
 
@@ -177,6 +180,31 @@ fn doc(mut args: Vec<&str>) {
     }
 
     cmd_env_req("cargo", &["doc", "--all-features", "--no-deps"], &args, &env);
+
+    if !skip_deadlinks {
+        // cargo doc does not warn about broken links to downstream types
+        let cutout = regex::Regex::new(r#"id="(?:trait|synthetic|blanket)-implementations""#).unwrap();
+        let broken_link = regex::Regex::new(r"\[<code>\w+</code>\]").unwrap();
+        for html_path in util::glob("target/doc/**/*.html") {
+            let html = std::fs::read_to_string(&html_path).unwrap();
+            let cutout = if let Some(m) = cutout.find(&html) { m.start() } else { html.len() };
+            let html = &html[..cutout];
+
+            if let Some(caps) = broken_link.captures(&html) {
+                let mut msg = format!("deadlinks in `{}`:\n", &html_path["target".len()..]);
+                for cap in caps.iter() {
+                    use std::fmt::*;
+                    write!(
+                        &mut msg,
+                        "    {}",
+                        cap.unwrap().as_str().replace("<code>", "`").replace("</code>", "`")
+                    )
+                    .unwrap();
+                }
+                error(msg);
+            }
+        }
+    }
 
     let server = if serve {
         Some(std::thread::spawn(|| {
