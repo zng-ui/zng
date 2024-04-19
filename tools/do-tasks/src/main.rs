@@ -110,90 +110,73 @@ fn doc(mut args: Vec<&str>) {
 
     let serve = take_flag(&mut args, &["-s", "--serve"]);
 
-    let package = take_option(&mut args, &["-p", "--package"], "package");
-    let mut found_package = false;
+    let package = take_option(&mut args, &["-p", "--package"], "package").map(|mut p| p.remove(0));
 
-    let mut pkgs = util::glob("crates/zng*/Cargo.toml");
-    if let Some(i) = pkgs.iter().position(|p| p.ends_with("crates/zng/Cargo.toml")) {
-        let last = pkgs.len() - 1;
-        pkgs.swap(i, last);
-    }
-    for pkg in pkgs {
-        let toml = match std::fs::read_to_string(&pkg) {
+    let mut rustdoc_flags = String::new();
+
+    let mut collect_flags = |toml_path| {
+        let toml = match std::fs::read_to_string(toml_path) {
             Ok(p) => p,
             Err(e) => {
-                error(e);
-                continue;
+                fatal(f!("Cannot read `{toml_path}`. {e}"));
             }
         };
 
-        let mut name = String::new();
-        let mut rustdoc_flags = String::new();
         let mut is_in_args = false;
-        let mut is_in_package = false;
         for line in toml.lines() {
             let line = line.trim();
 
-            if line.starts_with('[') {
-                is_in_package = line == "[package]";
-            }
+            let mut clean_push = |arg: &str| {
+                let arg = arg.trim().trim_matches('"');
+                if arg.starts_with("doc/") {
+                    // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
+                    let pkg = package.as_ref().unwrap();
+                    rustdoc_flags.push_str(&format!("crates/{pkg}/{arg}"));
+                } else {
+                    rustdoc_flags.push_str(arg);
+                }
+                rustdoc_flags.push(' ');
+            };
 
-            if is_in_package && line.starts_with("name = ") {
-                name = line["name = ".len()..].trim_matches('"').to_owned();
-            }
             if line.starts_with("rustdoc-args = ") {
                 is_in_args = !line.contains(']');
                 let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
                 for arg in line.split(',') {
-                    let arg = arg.trim().trim_matches('"');
-                    if arg.starts_with("doc/") {
-                        // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
-                        rustdoc_flags.push_str(&format!("crates/{name}/{arg}"));
-                    } else {
-                        rustdoc_flags.push_str(arg);
-                    }
-                    rustdoc_flags.push(' ');
+                    clean_push(arg);
                 }
             } else if is_in_args {
                 is_in_args = !line.contains(']');
                 let line = line.trim().trim_matches(']').trim();
                 for arg in line.split(',') {
-                    rustdoc_flags.push_str(arg.trim().trim_matches('"'));
-                    rustdoc_flags.push(' ');
+                    clean_push(arg);
                 }
             }
         }
-
-        if name.is_empty() {
-            error(f!("did not find package name for {pkg}"));
-            continue;
-        } else if let Some(p) = &package {
-            if p[0] != name {
-                continue;
-            }
-            found_package = true;
-        }
-
-        let mut env = vec![];
-        let full_doc_flags;
-        if !rustdoc_flags.is_empty() {
-            if let Ok(flags) = std::env::var("RUSTDOCFLAGS") {
-                full_doc_flags = format!("{flags} {rustdoc_flags}");
-                env.push(("RUSTDOCFLAGS", full_doc_flags.as_str()));
-            } else {
-                env.push(("RUSTDOCFLAGS", rustdoc_flags.as_str()));
-            }
-        }
-
-        cmd_env_req("cargo", &["doc", "--all-features", "--no-deps", "--package", &name], &args, &env);
-    }
+    };
 
     if let Some(pkg) = &package {
-        if !found_package {
-            error(f!("did not find package `{}`", &pkg[0]));
-            return;
+        collect_flags(format!("crates/{pkg}/Cargo.toml").as_str());
+    } else {
+        collect_flags("Cargo.toml");
+    }
+
+    let mut env = vec![];
+    let full_doc_flags;
+    if !rustdoc_flags.is_empty() {
+        if let Ok(flags) = std::env::var("RUSTDOCFLAGS") {
+            full_doc_flags = format!("{flags} {rustdoc_flags}");
+            env.push(("RUSTDOCFLAGS", full_doc_flags.as_str()));
+        } else {
+            env.push(("RUSTDOCFLAGS", rustdoc_flags.as_str()));
         }
     }
+
+    if let Some(p) = package {
+        args.push("--package");
+        args.push(p);
+    }
+
+    cmd_env_req("cargo", &["doc", "--all-features", "--no-deps"], &args, &env);
 
     let server = if serve {
         Some(std::thread::spawn(|| {
