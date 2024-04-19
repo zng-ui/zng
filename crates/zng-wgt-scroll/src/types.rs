@@ -939,7 +939,7 @@ pub(super) static SCROLL_INFO_ID: StaticStateId<ScrollInfo> = StaticStateId::new
 ///
 /// This config can be set by the [`smooth_scrolling`] property.
 ///
-/// [`smooth_scrolling`]: fn@smooth_scrolling.
+/// [`smooth_scrolling`]: fn@crate::smooth_scrolling
 #[derive(Clone)]
 pub struct SmoothScrolling {
     /// Chase transition duration.

@@ -9,6 +9,7 @@ members = [
     "tests",
     "tests/macro-tests",
 ]
+default-members = ["crates/*"]
 
 [profile.dev]
 debug = 1

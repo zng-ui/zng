@@ -105,6 +105,7 @@ impl InspectorActualVars {
         Some(b.map_debug())
     }
 
+    #[cfg(feature = "inspector")]
     fn insert(&self, property: PropertyId, member: usize, var: BoxedAnyVar) {
         self.0.write().insert((property, member), var);
     }

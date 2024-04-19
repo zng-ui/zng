@@ -158,7 +158,7 @@ pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> i
 /// Sets the [`FONT_SYNTHESIS_VAR`].
 ///
 /// [`font_weight`]: fn@font_weight
-/// [`font_style`]: fn@font_style_VAR`].
+/// [`font_style`]: fn@font_style
 #[property(CONTEXT, default(FONT_SYNTHESIS_VAR), widget_impl(FontMix<P>))]
 pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) -> impl UiNode {
     with_context_var(child, FONT_SYNTHESIS_VAR, enabled)

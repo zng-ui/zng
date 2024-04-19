@@ -45,7 +45,7 @@ pub use types::*;
 /// [`stack_nodes`]: fn@stack_nodes
 ///
 /// [`direction`]: fn@direction
-/// [`z_index`]: fn@crate::prelude::z_index
+/// [`z_index`]: fn@zng_wgt::z_index
 #[widget($crate::Stack {
     ($children:expr) => {
         children = $children;

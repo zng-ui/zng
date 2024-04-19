@@ -17,7 +17,7 @@ command! {
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
-    /// [`v_line_unit`]: fn@super::properties::v_line_unit
+    /// [`v_line_unit`]: fn@crate::v_line_unit
     pub static SCROLL_UP_CMD = {
         name: "Scroll Up",
         info: "Scroll Up by one scroll unit.",
@@ -32,7 +32,7 @@ command! {
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
-    /// [`v_line_unit`]: fn@super::properties::v_line_unit
+    /// [`v_line_unit`]: fn@crate::v_line_unit
     pub static SCROLL_DOWN_CMD = {
         name: "Scroll Down",
         info: "Scroll Down by one scroll unit.",
@@ -47,7 +47,7 @@ command! {
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
-    /// [`h_line_unit`]: fn@super::properties::h_line_unit
+    /// [`h_line_unit`]: fn@crate::h_line_unit
     pub static SCROLL_LEFT_CMD = {
         name: "Scroll Left",
         info: "Scroll Left by one scroll unit.",
@@ -62,7 +62,7 @@ command! {
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
-    /// [`h_line_unit`]: fn@super::properties::h_line_unit
+    /// [`h_line_unit`]: fn@crate::h_line_unit
     pub static SCROLL_RIGHT_CMD = {
         name: "Scroll Right",
         info: "Scroll Right by one scroll unit.",
@@ -81,7 +81,7 @@ command! {
     /// [`name`]: CommandNameExt
     /// [`info`]: CommandInfoExt
     /// [`shortcut`]: CommandShortcutExt
-    /// [`v_page_unit`]: fn@super::properties::v_page_unit
+    /// [`v_page_unit`]: fn@crate::v_page_unit
     pub static PAGE_UP_CMD = {
         name: "Page Up",
         info: "Scroll Up by one page unit.",
@@ -96,7 +96,7 @@ command! {
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
-    /// [`v_page_unit`]: fn@super::properties::v_page_unit
+    /// [`v_page_unit`]: fn@crate::v_page_unit
     pub static PAGE_DOWN_CMD = {
         name: "Page Down",
         info: "Scroll down by one page unit.",
@@ -111,7 +111,7 @@ command! {
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
-    /// [`h_page_unit`]: fn@super::properties::h_page_unit
+    /// [`h_page_unit`]: fn@crate::h_page_unit
     pub static PAGE_LEFT_CMD = {
         name: "Page Left",
         info: "Scroll Left by one page unit.",
@@ -126,7 +126,7 @@ command! {
     /// This command supports an optional parameter, it can be a [`bool`] that enables the alternate of the command
     /// or a [`ScrollRequest`] that contains more configurations.
     ///
-    /// [`h_page_unit`]: fn@super::properties::h_page_unit
+    /// [`h_page_unit`]: fn@crate::h_page_unit
     pub static PAGE_RIGHT_CMD = {
         name: "Page Right",
         info: "Scroll Right by one page unit.",

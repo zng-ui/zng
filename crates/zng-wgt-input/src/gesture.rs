@@ -14,7 +14,7 @@ event_property! {
     /// On widget click from any source and of any click count and the widget is enabled.
     ///
     /// This is the most general click handler, it raises for all possible sources of the [`CLICK_EVENT`] and any number
-    /// of consecutive clicks. Use [`click`](fn@click) to handle only primary button clicks or [`on_any_single_click`](fn@on_any_single_click)
+    /// of consecutive clicks. Use [`on_click`](fn@on_click) to handle only primary button clicks or [`on_any_single_click`](fn@on_any_single_click)
     /// to not include double/triple clicks.
     pub fn any_click {
         event: CLICK_EVENT,

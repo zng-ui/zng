@@ -90,7 +90,7 @@ pub mod icon;
 /// # }
 /// ```
 ///
-/// [`formatx!`]: zng_txt::formatx!
+/// [`formatx!`]: zng_wgt::prelude::formatx
 #[widget($crate::Text {
     ($txt:literal) => {
         txt = $crate::__formatx!($txt);

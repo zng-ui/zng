@@ -40,7 +40,7 @@
 //! # Command
 //!
 //! Instead of handling events directly the button widget can be set to represents a command.
-//! If the [`cmd`](struct@Button#cmd) property is set the button widget will automatically set properties
+//! If the [`cmd`](struct@Button#method.cmd) property is set the button widget will automatically set properties
 //! from command metadata, you can manually set some of these properties to override the command default.
 //!
 //! ```
@@ -60,7 +60,7 @@
 //! # ;
 //! ```
 //!
-//! The properties a command button sets are documented in the [`cmd`](struct@Button#cmd) property docs.
+//! The properties a command button sets are documented in the [`cmd`](struct@Button#method.cmd) property docs.
 //! Of particular importance is the [`widget::visibility`], it is set so that the button is only visible if
 //! the command has any handlers, enabled or disabled, this is done because commands are considered irrelevant
 //! in the current context if they don't even have a disabled handler. The example above will only be

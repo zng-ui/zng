@@ -141,6 +141,19 @@
 //!
 //! This module fully re-exports [`zng_task`].
 
-pub use zng_task::*;
+pub use zng_task::{
+    all, all_ok, all_some, any, any_ok, any_some, block_on, channel, deadline, fs, future_fn, io, join, join_context, poll_respond,
+    poll_spawn, respond, run, run_catch, scope, spawn, spawn_wait, wait, wait_catch, wait_respond, with_deadline, yield_now, DeadlineError,
+    McWaker, ParallelIteratorExt, ParallelIteratorWithCtx, ScopeCtx, SignalOnce, UiTask,
+};
+
+#[cfg(any(doc, feature = "test_util"))]
+pub use zng_task::{doc_test, spin_on};
+
+#[cfg(feature = "http")]
+pub use zng_task::http;
+
+#[doc(no_inline)]
+pub use zng_task::{parking_lot, rayon};
 
 pub use zng_app::widget::UiTaskWidget;

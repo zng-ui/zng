@@ -22,6 +22,7 @@ mod side_offsets;
 mod time;
 mod transform;
 
+#[doc(no_inline)]
 pub use euclid;
 
 pub use angle::*;

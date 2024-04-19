@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --examples --tests --release
+      - run: cargo check --workspace --examples --tests --release
       - run: cargo clean
   test:
     runs-on: ubuntu-latest

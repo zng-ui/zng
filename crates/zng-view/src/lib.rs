@@ -134,11 +134,11 @@ use surface::*;
 pub mod extensions;
 
 /// Webrender build used in the view-process.
-#[doc(inline)]
+#[doc(no_inline)]
 pub use webrender;
 
 /// OpenGL bindings used by Webrender.
-#[doc(inline)]
+#[doc(no_inline)]
 pub use gleam;
 
 use webrender::api::*;

@@ -54,7 +54,7 @@ dyn_closure = [
 ]
 
 # Test utilities.
-test_util = ["zng-app/test_util", "zng-ext-window/test_util"]
+test_util = ["zng-app/test_util", "zng-ext-window/test_util", "zng-task/test_util"]
 
 # Allows multiple app instances per-process.
 #

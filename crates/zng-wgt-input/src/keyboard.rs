@@ -22,9 +22,10 @@ event_property! {
     ///
     /// Any key press/release generates a key input event, including keys codes that don't map
     /// to any virtual key, see [`KeyInputArgs`] for more details.
-    /// For key combinations consider using [`on_shortcut`].
     ///
-    /// [`on_shortcut`]: fn@on_shortcut
+    /// For key combinations consider using a [`click_shortcut`] with a click handler.
+    ///
+    /// [`click_shortcut`]: fn@crate::gesture::click_shortcut
     ///
     /// # Underlying Event
     ///
@@ -49,9 +50,10 @@ event_property! {
     ///
     /// Any key press/release generates a key input event, including keys that don't map
     /// to any virtual key, see [`KeyInputArgs`] for more details.
-    /// For key combinations consider using [`on_shortcut`].
     ///
-    /// [`on_shortcut`]: fn@on_shortcut
+    /// For key combinations consider using a [`click_shortcut`] with a click handler.
+    ///
+    /// [`click_shortcut`]: fn@crate::gesture::click_shortcut
     ///
     /// # Underlying Event
     ///
@@ -76,9 +78,10 @@ event_property! {
     ///
     /// Any key press generates a key down event, including keys that don't map to any virtual key, see [`KeyInputArgs`]
     /// for more details.
-    /// For key combinations consider using [`on_shortcut`].
     ///
-    /// [`on_shortcut`]: fn@on_shortcut
+    /// For key combinations consider using a [`click_shortcut`] with a click handler.
+    ///
+    /// [`click_shortcut`]: fn@crate::gesture::click_shortcut
     ///
     /// # Underlying Event
     ///
@@ -103,9 +106,9 @@ event_property! {
     ///
     /// Any key release generates a key up event, including keys that don't map to any virtual key, see [`KeyInputArgs`]
     /// for more details.
-    /// For key combinations consider using [`on_shortcut`].
+    /// For key combinations consider using a [`click_shortcut`] with a click handler.
     ///
-    /// [`on_shortcut`]: fn@on_shortcut
+    /// [`click_shortcut`]: fn@crate::gesture::click_shortcut
     ///
     /// # Underlying Event
     ///

@@ -970,10 +970,6 @@ impl_from_and_into_var! {
 
 bitflags::bitflags! {
     /// Node list methods that are made parallel.
-    ///
-    /// See [`parallel`] for more details.
-    ///
-    /// [`parallel`]: fn@parallel
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     #[serde(transparent)]
     pub struct Parallel: u8 {

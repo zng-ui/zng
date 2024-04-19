@@ -36,7 +36,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo clean # to print size
         if: ${{ github.event.inputs.skip_checks != 'true' }}
-      - run: cargo check --examples --tests --release
+      - run: cargo check --workspace --examples --tests --release
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
@@ -56,7 +56,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
-      - run: cargo check --examples --tests --release
+      - run:  cargo check --workspace --examples --tests --release
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
@@ -73,7 +73,7 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
-      - run: cargo check --examples --tests --release
+      - run:  cargo check --workspace --examples --tests --release
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}

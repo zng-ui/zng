@@ -5,7 +5,7 @@
 //! `style_fn` property that sets the widget style.
 //!
 //! Styles extend the contextual style by default, only replacing the intersection of properties.
-//! The special [`replace`](struct@Style#replace) property can be set on a style to fully replace the contextual style.
+//! The special [`replace`](struct@Style#method.replace) property can be set on a style to fully replace the contextual style.
 //!
 //! The example below demonstrates multiple contexts setting style for buttons.
 //!
