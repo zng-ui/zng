@@ -33,6 +33,9 @@ rustdoc-args = [
 skip-deadlinks = [
     "**/struct.BidiLevel*",
     "**/*task/fs/struct.Dir*",
+    "**/*task/fs/struct.File*",
+    "**/*task/fs/fn.copy*",
     "**/*task/io/*.Async*",
     "**/*task/http/struct.Cookie*",
+    "**/*fs_watcher/fs_event/*",
 ]

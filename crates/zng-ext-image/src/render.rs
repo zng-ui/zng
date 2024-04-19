@@ -148,6 +148,7 @@ impl ImageSource {
     /// ```
     ///
     /// [`IMAGES.render`]: crate::IMAGES::render
+    /// [`UiNode`]: zng_app::widget::node::UiNode
     pub fn render_node<U, N>(render_mode: RenderMode, render: N) -> Self
     where
         U: UiNode,
@@ -177,6 +178,7 @@ impl IMAGES {
     /// The closure runs in the [`WINDOW`] context of the headless window.
     ///
     /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
+    /// [`WINDOW`]: zng_app::window::WINDOW
     pub fn render<N, R>(&self, mask: Option<ImageMaskMode>, render: N) -> ImageVar
     where
         N: FnOnce() -> R + Send + Sync + 'static,
@@ -191,6 +193,7 @@ impl IMAGES {
     /// a headless window is still used, the node does not have the same context as the calling widget.
     ///
     /// [`render`]: Self::render
+    /// [`UiNode`]: zng_app::widget::node::UiNode
     pub fn render_node<U, N>(
         &self,
         render_mode: RenderMode,

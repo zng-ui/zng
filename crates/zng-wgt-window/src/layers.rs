@@ -693,7 +693,7 @@ impl LayerIndex {
     /// Adorner widgets are related to another widget but not as a visual part of it, examples of adorners
     /// are resize handles in a widget visual editor, or an interactive help/guide feature.
     ///
-    /// This is the [`TOP_MOST - u16::MAX`] value.
+    /// This is the `TOP_MOST - u16::MAX` value.
     pub const ADORNER: LayerIndex = LayerIndex(Self::TOP_MOST.0 - u16::MAX as u32);
 
     /// The default layer, just above the normal window content.

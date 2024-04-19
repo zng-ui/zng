@@ -33,7 +33,10 @@ pub use self::window_properties::*;
 /// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zng_ext_window::WINDOWS) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
-/// See [`run_window`](zng_ext_window::AppRunWindowExt::run_window) for more details.
+/// See [`run_window`] for more details.
+///
+/// [`WindowRoot`]: zng_ext_window::WindowRoot
+/// [`run_window`]: zng_ext_window::AppRunWindowExt::run_window
 #[widget($crate::Window)]
 pub struct Window(zng_wgt_container::Container);
 impl Window {

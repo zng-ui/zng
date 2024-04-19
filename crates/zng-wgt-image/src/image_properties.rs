@@ -101,7 +101,9 @@ context_var! {
 
     /// Custom image load and decode limits.
     ///
-    /// Set to `None` to use the [`IMAGES::limits`].
+    /// Set to `None` to use the [`IMAGES.limits`].
+    ///
+    /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
     pub static IMAGE_LIMITS_VAR: Option<ImageLimits> = None;
 
     /// Custom resize applied during image decode.

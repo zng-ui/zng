@@ -55,7 +55,7 @@ impl HYPHENATION {
         self.hyphenate_opt_language(word, lang)
     }
 
-    /// Get the best [`hyphenation::Language`] for the `lang`.
+    /// Get the best `hyphenation::Language` for the `lang`.
     pub fn lang_to_hyphenation_language(&self, lang: &Lang) -> Option<hyphenation::Language> {
         for (l, r) in &*util::LANG_TO_LANGUAGE_MAP.read() {
             if lang.matches(l, false, true) {

@@ -7,6 +7,8 @@
 //! after the window is deinited. You can use [`on_deinit`](fn@zng_wgt::on_deinit) in the
 //! [`Window!`](struct@crate::Window) widget to handle a window closing, or create an app level handler for the
 //! event using [`EVENTS`](zng_app::event::EVENTS).
+//!
+//! [`WINDOW_CLOSE_EVENT`]: zng_ext_window::WINDOW_CLOSE_EVENT
 
 use zng_ext_window::*;
 use zng_wgt::prelude::*;

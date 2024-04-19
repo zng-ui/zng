@@ -198,7 +198,7 @@ fn doc(mut args: Vec<&str>) {
     if !skip_deadlinks {
         // cargo doc does not warn about broken links to downstream types
         let cutout = regex::Regex::new(r#"id="(?:deref-met|trait-imp|synthetic-imp|blanket-imp).*""#).unwrap();
-        let broken_link = regex::Regex::new(r"\[<code>\w+</code>\]").unwrap();
+        let broken_link = regex::Regex::new(r"\[<code>.+?</code>\]").unwrap();
         for html_path in util::glob("target/doc/**/*.html") {
             if skip_deadlinks_globs.iter().any(|g| g.matches(&html_path)) {
                 continue;

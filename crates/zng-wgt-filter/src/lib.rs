@@ -304,11 +304,10 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 
 /// Opacity/transparency of the widget's child.
 ///
-/// This property provides the same visual result as setting [`child_filter`] to [`filters::opacity(opacity)`],
+/// This property provides the same visual result as setting [`child_filter`] to [`Filter::new_opacity`],
 /// **but** updating the opacity is faster in this property.
 ///
 /// [`child_filter`]: fn@child_filter
-/// [`Filter::new_opacity(opacity)`]: Filter::new_opacity
 #[property(CHILD_CONTEXT, default(1.0))]
 pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     opacity_impl(child, alpha, true)

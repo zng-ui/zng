@@ -1434,6 +1434,7 @@ impl WidgetLayout {
     /// Note that the widget will automatically not be rendered when collapsed.
     ///
     /// [`Collapsed`]: Visibility::Collapsed
+    /// [`PxSize::zero`]: zng_layout::unit::PxSize::zero
     pub fn collapse(&mut self) {
         let tree = WINDOW.info();
         let id = WIDGET.id();

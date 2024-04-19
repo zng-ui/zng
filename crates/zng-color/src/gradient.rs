@@ -155,6 +155,8 @@ impl GradientRadius {
     }
 
     /// Compute the radius in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     pub fn layout(&self, center: PxPoint) -> PxSize {
         let size = LAYOUT.constraints().fill_size();
 
@@ -402,6 +404,7 @@ pub struct ColorStop {
     ///
     /// [`color`]: ColorStop::color
     /// [is positional]: ColorStop::is_positional
+    /// [`Length::Default`]: zng_layout::unit::Length::Default
     pub offset: Length,
 }
 impl fmt::Debug for ColorStop {
@@ -456,6 +459,8 @@ impl ColorStop {
     /// # Note
     ///
     /// Use [`ColorStop::is_layout_positional`] if you already have the layout offset.
+    ///
+    /// [`Length::Default`]: zng_layout::unit::Length::Default
     pub fn is_positional(&self) -> bool {
         self.offset.is_default()
     }
@@ -478,6 +483,7 @@ impl ColorStop {
     /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
     ///
     /// [is positional]: Self::is_positional
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     pub fn layout(&self, axis: LayoutAxis) -> RenderGradientStop {
         RenderGradientStop {
             offset: if self.offset.is_default() {
@@ -846,6 +852,8 @@ impl GradientStops {
     /// The `render_stops` content is replaced with stops with offset in the `0..=1` range.
     ///
     /// The `line` points are moved to accommodate input offsets outside the line bounds.
+    ///
+    /// [`LAYOUT`]: zng_layout::context::LAYOUT
     pub fn layout_linear(&self, axis: LayoutAxis, extend_mode: ExtendMode, line: &mut PxLine, render_stops: &mut Vec<RenderGradientStop>) {
         let (start_offset, end_offset) = self.layout(axis, extend_mode, render_stops);
 

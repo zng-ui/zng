@@ -15,20 +15,20 @@ use zng_view_api::{
 ///
 /// All conversions are 1 to 1.
 pub trait PxToWr {
-    /// `Self` equivalent in [`wr::units::LayoutPixel`] units.
+    /// `Self` equivalent in `webrender::units::LayoutPixel` units.
     type AsLayout;
-    /// `Self` equivalent in [`wr::units::DevicePixel`] units.
+    /// `Self` equivalent in `webrender::units::DevicePixel` units.
     type AsDevice;
-    /// `Self` equivalent in [`wr::units::WorldPixel`] units.
+    /// `Self` equivalent in `webrender::units::WorldPixel units.
     type AsWorld;
 
-    /// Returns `self` in [`wr::units::DevicePixel`] units.
+    /// Returns `self` in `webrender::units::DevicePixel` units.
     fn to_wr_device(self) -> Self::AsDevice;
 
-    /// Returns `self` in [`wr::units::WorldPixel`] units.
+    /// Returns `self` in `webrender::units::WorldPixel` units.
     fn to_wr_world(self) -> Self::AsWorld;
 
-    /// Returns `self` in [`wr::units::LayoutPixel`] units.
+    /// Returns `self` in `webrender::units::LayoutPixel` units.
     fn to_wr(self) -> Self::AsLayout;
 }
 

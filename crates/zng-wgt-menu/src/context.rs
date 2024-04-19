@@ -151,6 +151,7 @@ context_var! {
     /// Is [`popup::default_panel_fn`] by default.
     ///
     /// [`ContextMenu!`]: struct@ContextMenu
+    /// [`popup::default_panel_fn`]: crate::popup::default_panel_fn
     pub static PANEL_FN_VAR: WidgetFn<zng_wgt_panel::PanelArgs> = WidgetFn::new(crate::popup::default_panel_fn);
 }
 

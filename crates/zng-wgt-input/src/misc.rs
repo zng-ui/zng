@@ -114,8 +114,10 @@ pub fn cursor_img(child: impl UiNode, img: impl IntoVar<Option<CursorImg>>) -> i
 
 /// Defines how click events are generated for the widget.
 ///
-/// Setting this to `None` will cause the widget to inherit the parent mode, or [`ClickMode::default()`] if
+/// Setting this to `None` will cause the widget to inherit the parent mode, or [`ClickMode::default`] if
 /// no parent sets the click mode.
+///
+/// [`ClickMode::default`]: zng_ext_input::mouse::ClickMode::default
 #[property(CONTEXT, default(None))]
 pub fn click_mode(child: impl UiNode, mode: impl IntoVar<Option<ClickMode>>) -> impl UiNode {
     let mode = mode.into_var();

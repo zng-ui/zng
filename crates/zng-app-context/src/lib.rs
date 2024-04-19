@@ -1051,7 +1051,7 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
 
     /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
     ///
-    /// See [`RwLock::read`] for more details.
+    /// See `parking_lot::RwLock::read` for more details.
     pub fn read(&'static self) -> RwLockReadGuardOwned<T> {
         RwLockReadGuardOwned::lock(self.get())
     }
@@ -1061,7 +1061,7 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
     /// Unlike `read`, this method is guaranteed to succeed without blocking if
     /// another read lock is held at the time of the call.
     ///
-    /// See [`RwLock::read`] for more details.
+    /// See `parking_lot::RwLock::read` for more details.
     pub fn read_recursive(&'static self) -> RwLockReadGuardOwned<T> {
         RwLockReadGuardOwned::lock_recursive(self.get())
     }
@@ -1069,21 +1069,21 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
     /// Locks this `RwLock` with exclusive write access, blocking the current
     /// thread until it can be acquired.
     ///
-    /// See [`RwLock::write`] for more details.
+    /// See `parking_lot::RwLock::write` for more details.
     pub fn write(&'static self) -> RwLockWriteGuardOwned<T> {
         RwLockWriteGuardOwned::lock(self.get())
     }
 
     /// Try lock this `RwLock` with shared read access, blocking the current thread until it can be acquired.
     ///
-    /// See [`RwLock::try_read`] for more details.
+    /// See `parking_lot::RwLock::try_read` for more details.
     pub fn try_read(&'static self) -> Option<RwLockReadGuardOwned<T>> {
         RwLockReadGuardOwned::try_lock(self.get())
     }
 
     /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
     ///
-    /// See [`RwLock::try_read_recursive`] for more details.
+    /// See `parking_lot::RwLock::try_read_recursive` for more details.
     pub fn try_read_recursive(&'static self) -> Option<RwLockReadGuardOwned<T>> {
         RwLockReadGuardOwned::try_lock_recursive(self.get())
     }
@@ -1091,7 +1091,7 @@ impl<T: Send + Sync + 'static> ContextLocal<RwLock<T>> {
     /// Locks this `RwLock` with exclusive write access, blocking the current
     /// thread until it can be acquired.
     ///
-    /// See [`RwLock::try_write`] for more details.
+    /// See `parking_lot::RwLock::try_write` for more details.
     pub fn try_write(&'static self) -> Option<RwLockWriteGuardOwned<T>> {
         RwLockWriteGuardOwned::try_lock(self.get())
     }
@@ -1105,7 +1105,7 @@ pub struct RwLockReadGuardOwned<T: 'static> {
 impl<T> RwLockReadGuardOwned<T> {
     /// Lock owned.    
     ///
-    /// See [`RwLock::read`] for more details.
+    /// See `parking_lot::RwLock::read` for more details.
     pub fn lock(own: Arc<RwLock<T>>) -> Self {
         Self {
             // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
@@ -1116,7 +1116,7 @@ impl<T> RwLockReadGuardOwned<T> {
 
     /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
     ///
-    /// See [`RwLock::read_recursive`] for more details.
+    /// See `parking_lot::RwLock::read_recursive` for more details.
     pub fn lock_recursive(own: Arc<RwLock<T>>) -> Self {
         Self {
             // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
@@ -1127,7 +1127,7 @@ impl<T> RwLockReadGuardOwned<T> {
 
     /// Try lock owned.
     ///
-    /// See [`RwLock::try_read`] for more details.
+    /// See `parking_lot::RwLock::try_read` for more details.
     pub fn try_lock(own: Arc<RwLock<T>>) -> Option<Self> {
         let lock = own.try_read()?;
         Some(Self {
@@ -1139,7 +1139,7 @@ impl<T> RwLockReadGuardOwned<T> {
 
     /// Try lock owned.
     ///
-    /// See [`RwLock::try_read`] for more details.
+    /// See `parking_lot::RwLock::try_read` for more details.
     pub fn try_lock_recursive(own: Arc<RwLock<T>>) -> Option<Self> {
         let lock = own.try_read_recursive()?;
         Some(Self {
@@ -1203,7 +1203,7 @@ pub struct RwLockWriteGuardOwned<T: 'static> {
 impl<T> RwLockWriteGuardOwned<T> {
     /// Lock owned.
     ///
-    /// See [`RwLock::write`] for more details.
+    /// See `parking_lot::RwLock::write` for more details.
     pub fn lock(own: Arc<RwLock<T>>) -> Self {
         Self {
             // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
@@ -1214,7 +1214,7 @@ impl<T> RwLockWriteGuardOwned<T> {
 
     /// Lock owned.
     ///
-    /// See [`RwLock::try_write`] for more details.
+    /// See `parking_lot::RwLock::try_write` for more details.
     pub fn try_lock(own: Arc<RwLock<T>>) -> Option<Self> {
         let lock = own.try_write()?;
         Some(Self {
@@ -1295,7 +1295,7 @@ impl<T> ReadOnlyRwLock<T> {
 
     /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
     ///
-    /// See [`RwLock::read`] for more details.
+    /// See `parking_lot::RwLock::read` for more details.
     pub fn read(&self) -> parking_lot::RwLockReadGuard<T> {
         self.0.read()
     }
@@ -1305,21 +1305,21 @@ impl<T> ReadOnlyRwLock<T> {
     /// Unlike `read`, this method is guaranteed to succeed without blocking if
     /// another read lock is held at the time of the call.
     ///
-    /// See [`RwLock::read_recursive`] for more details.
+    /// See `parking_lot::RwLock::read_recursive` for more details.
     pub fn read_recursive(&self) -> parking_lot::RwLockReadGuard<T> {
         self.0.read_recursive()
     }
 
     /// Attempts to acquire this `RwLock` with shared read access.
     ///
-    /// See [`RwLock::try_read`] for more details.
+    /// See `parking_lot::RwLock::try_read` for more details.
     pub fn try_read(&self) -> Option<parking_lot::RwLockReadGuard<T>> {
         self.0.try_read()
     }
 
     /// Attempts to acquire this `RwLock` with shared read access.
     ///
-    /// See [`RwLock::try_read_recursive`] for more details.
+    /// See `parking_lot::RwLock::try_read_recursive` for more details.
     pub fn try_read_recursive(&self) -> Option<parking_lot::RwLockReadGuard<T>> {
         self.0.try_read_recursive()
     }

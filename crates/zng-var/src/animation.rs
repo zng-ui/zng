@@ -153,8 +153,10 @@ impl Animation {
 
     /// The instant the current animation update started.
     ///
-    /// Use this value instead of [`INSTANT::now`], animations update sequentially, but should behave as if
+    /// Use this value instead of [`INSTANT.now`], animations update sequentially, but should behave as if
     /// they are updating exactly in parallel, using this timestamp ensures that.
+    ///
+    /// [`INSTANT.now`]: zng_time::INSTANT::now
     pub fn now(&self) -> DInstant {
         self.0.lock().now
     }
@@ -303,6 +305,8 @@ impl Animation {
 ///
 /// This trait is auto-implemented for all [`Copy`] types that can add, subtract and multiply by [`Factor`], [`Clone`]
 /// only types must implement this trait manually.
+///
+/// [`Factor`]: zng_unit::Factor
 pub trait Transitionable: VarValue {
     /// Sample the linear interpolation from `self` -> `to` by `step`.  
     fn lerp(self, to: &Self, step: EasingStep) -> Self;

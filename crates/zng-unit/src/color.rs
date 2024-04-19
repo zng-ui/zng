@@ -7,6 +7,8 @@ use crate::{about_eq, about_eq_hash, Factor, FactorPercent};
 /// # Equality
 ///
 /// Equality is determined using [`about_eq`] with `0.00001` epsilon.
+///
+/// [`about_eq`]: crate::about_eq
 #[repr(C)]
 #[derive(Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Rgba {
@@ -195,9 +197,12 @@ fn clamp_normal(i: f32) -> f32 {
 /// Don't use this value directly, if a function takes `Into<RgbaComponent>` you can use one of the
 /// types this converts from:
 ///
-/// * [`f32`], [`f64`] and [`Factor`] for a value in the `0.0` to `1.0` range.
-/// * [`u8`] for a value in the `0` to `255` range.
+/// * `f32`, `f64` and [`Factor`] for a value in the `0.0` to `1.0` range.
+/// * `u8` for a value in the `0` to `255` range.
 /// * [`FactorPercent`] for a percentage value.
+///
+/// [`Factor`]: crate::Factor
+/// [`FactorPercent`]: crate::FactorPercent
 #[derive(Clone, Copy)]
 pub struct RgbaComponent(pub f32);
 /// Color channel value is in the [0..=1] range.
