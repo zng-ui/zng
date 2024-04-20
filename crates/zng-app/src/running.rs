@@ -1327,7 +1327,7 @@ pub(crate) enum AppEvent {
 ///
 /// A Clone of the sender is available in [`UPDATES.sender`].
 ///
-/// [`Updates.sender`]: crate::update::UPDATES.sender
+/// [`UPDATES.sender`]: crate::update::UPDATES::sender
 #[derive(Clone)]
 pub struct AppEventSender(flume::Sender<AppEvent>);
 impl AppEventSender {
@@ -1506,9 +1506,7 @@ impl std::error::Error for AppExtSenderDisconnected {}
 event_args! {
     /// Arguments for [`EXIT_REQUESTED_EVENT`].
     ///
-    /// Requesting [`propagation().stop()`] on this event cancels the exit.
-    ///
-    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
+    /// Requesting `propagation().stop()` on this event cancels the exit.
     pub struct ExitRequestedArgs {
         ..
         /// Broadcast to all.
@@ -1525,9 +1523,7 @@ event! {
     /// also request exit if some conditions are met, `WindowManager` requests it after the last window
     /// is closed for example.
     ///
-    /// Requesting [`propagation().stop()`] on this event cancels the exit.
-    ///
-    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
+    /// Requesting `propagation().stop()` on this event cancels the exit.
     pub static EXIT_REQUESTED_EVENT: ExitRequestedArgs;
 }
 

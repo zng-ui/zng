@@ -499,10 +499,8 @@ impl ShapedText {
         }
     }
 
-    /// Gets the first line that overflows the `max_height`. A line overflows when the line [`PxRect::max_y`]
+    /// Gets the first line that overflows the `max_height`. A line overflows when the line `PxRect::max_y`
     /// is greater than `max_height`.
-    ///
-    /// [`PxRect::max_y`]: zng_layout::unit::PxRect::max_y
     pub fn overflow_line(&self, max_height: Px) -> Option<ShapedLine> {
         let mut y = self.first_line.max_y();
         if y > max_height {

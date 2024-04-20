@@ -507,9 +507,7 @@ event_args! {
 
     /// [`WINDOW_CLOSE_REQUESTED_EVENT`] args.
     ///
-    /// Requesting [`propagation().stop()`] on this event cancels the window close.
-    ///
-    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
+    /// Requesting `propagation().stop()` on this event cancels the window close.
     pub struct WindowCloseRequestedArgs {
         /// Windows closing.
         ///
@@ -644,9 +642,7 @@ event! {
 
     /// Window close requested event.
     ///
-    /// Calling [`propagation().stop()`] on this event cancels the window close.
-    ///
-    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
+    /// Calling `propagation().stop()` on this event cancels the window close.
     pub static WINDOW_CLOSE_REQUESTED_EVENT: WindowCloseRequestedArgs;
 
     /// Window closed event.

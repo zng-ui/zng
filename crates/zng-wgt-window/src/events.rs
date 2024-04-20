@@ -62,9 +62,7 @@ event_property! {
 
     /// On window close requested.
     ///
-    /// Calling [`propagation().stop()`] on this event cancels the window close.
-    ///
-    /// [`propagation().stop()`]: crate::event::EventPropagationHandle::stop
+    /// Calling `propagation().stop()` on this event cancels the window close.
     pub fn window_close_requested {
         event: WINDOW_CLOSE_REQUESTED_EVENT,
         args: WindowCloseRequestedArgs,
@@ -84,7 +82,7 @@ event_property! {
 
     /// On window state changed to [`WindowState::Maximized`].
     ///
-    /// [`WindowState::Maximized`]: crate::WindowState::Maximized
+    /// [`WindowState::Maximized`]: zng_ext_window::WindowState::Maximized
     pub fn window_maximized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -93,7 +91,7 @@ event_property! {
 
     /// On window state changed from [`WindowState::Maximized`].
     ///
-    /// [`WindowState::Maximized`]: crate::WindowState::Maximized
+    /// [`WindowState::Maximized`]: zng_ext_window::WindowState::Maximized
     pub fn window_unmaximized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -102,7 +100,7 @@ event_property! {
 
     /// On window state changed to [`WindowState::Minimized`].
     ///
-    /// [`WindowState::Minimized`]: crate::WindowState::Minimized
+    /// [`WindowState::Minimized`]: zng_ext_window::WindowState::Minimized
     pub fn window_minimized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -111,7 +109,7 @@ event_property! {
 
     /// On window state changed from [`WindowState::Minimized`].
     ///
-    /// [`WindowState::Minimized`]: crate::WindowState::Minimized
+    /// [`WindowState::Minimized`]: zng_ext_window::WindowState::Minimized
     pub fn window_unminimized {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -120,7 +118,7 @@ event_property! {
 
     /// On window state changed to [`WindowState::Normal`].
     ///
-    /// [`WindowState::Normal`]: crate::WindowState::Normal
+    /// [`WindowState::Normal`]: zng_ext_window::WindowState::Normal
     pub fn window_restored {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -129,7 +127,7 @@ event_property! {
 
     /// On window state changed to [`WindowState::is_fullscreen`].
     ///
-    /// [`WindowState::is_fullscreen`]: crate::WindowState::is_fullscreen
+    /// [`WindowState::is_fullscreen`]: zng_ext_window::WindowState::is_fullscreen
     pub fn window_fullscreen {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,
@@ -138,7 +136,7 @@ event_property! {
 
     /// On window state changed from [`WindowState::is_fullscreen`].
     ///
-    /// [`WindowState::is_fullscreen`]: crate::WindowState::is_fullscreen
+    /// [`WindowState::is_fullscreen`]: zng_ext_window::WindowState::is_fullscreen
     pub fn window_exited_fullscreen {
         event: WINDOW_CHANGED_EVENT,
         args: WindowChangedArgs,

@@ -1248,7 +1248,7 @@ impl ViewImage {
     ///
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
-    /// [`image_encoders`]: View::image_encoders.
+    /// [`image_encoders`]: VIEW_PROCESS::image_encoders
     pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         self.awaiter().await;
 

@@ -70,7 +70,7 @@ pub trait ResolutionUnits {
     fn ppi(self) -> Ppi;
     /// Same as [`ppi`].
     ///
-    /// [`ppi`]: ResolutionUnits::ppi.
+    /// [`ppi`]: ResolutionUnits::ppi
     fn dpi(self) -> Ppi
     where
         Self: Sized,

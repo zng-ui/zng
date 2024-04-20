@@ -813,9 +813,7 @@ bitflags! {
     pub struct ShortcutFilter: u8 {
         /// Shortcut only applies if the scope is enabled.
         const ENABLED = 0b001;
-        /// Shortcut only applies if the scope is in the [`FOCUS.focused`] path.
-        ///
-        /// [`FOCUS.focused`]: FOCUS::focused
+        /// Shortcut only applies if the scope is in the focused path.
         const FOCUSED = 0b010;
         /// Shortcut only applies if the command is enabled.
         const CMD_ENABLED = 0b100;

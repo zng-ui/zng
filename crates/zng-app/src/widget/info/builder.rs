@@ -1429,14 +1429,13 @@ impl WidgetLayout {
 
     /// Collapse the layout of `self` and descendants, the size and offsets are set to zero.
     ///
-    /// Nodes that set the visibility to the equivalent of [`Collapsed`] must skip layout and return [`PxSize::zero`] as
+    /// Nodes that set the visibility to the equivalent of [`Collapsed`] must skip layout and return `PxSize::zero` as
     /// the size, ignoring the min-size constraints, and call this method to update all the descendant
     /// bounds information to be a zero-sized point.
     ///
     /// Note that the widget will automatically not be rendered when collapsed.
     ///
     /// [`Collapsed`]: Visibility::Collapsed
-    /// [`PxSize::zero`]: zng_layout::unit::PxSize::zero
     pub fn collapse(&mut self) {
         let tree = WINDOW.info();
         let id = WIDGET.id();

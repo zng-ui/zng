@@ -1682,7 +1682,7 @@ impl OnUpdateHandle {
 
     /// Drops the handle but does **not** unsubscribe.
     ///
-    /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe.)
+    /// The handler stays in memory for the duration of the app or until another handle calls [`unsubscribe`](Self::unsubscribe)
     pub fn perm(self) {
         self.0.perm();
     }
