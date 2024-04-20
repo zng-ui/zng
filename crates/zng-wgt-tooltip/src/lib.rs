@@ -343,6 +343,7 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
 /// This property sets the [`TOOLTIP_ANCHOR_VAR`].
 ///
 /// [`access_tooltip_anchor`]: fn@access_tooltip_anchor
+/// [`POPUP`]: zng_wgt_layer::popup::POPUP::force_close
 #[property(CONTEXT, default(TOOLTIP_ANCHOR_VAR))]
 pub fn tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>) -> impl UiNode {
     with_context_var(child, TOOLTIP_ANCHOR_VAR, mode)
@@ -455,9 +456,10 @@ app_local! {
 
     /// Id of the current open tooltip.
     ///
-    /// Custom tooltip implementers must take the ID and [`POPUP::force_close`] it to integrate with the [`tooltip`] implementation.
+    /// Custom tooltip implementers must take the ID and [`POPUP.force_close`] it to integrate with the [`tooltip`] implementation.
     ///
     /// [`tooltip`]: fn@tooltip
+    /// [`POPUP.force_close`]: zng_wgt_layer::popup::POPUP::force_close
     pub static OPEN_TOOLTIP: Option<WidgetId> = None;
 }
 
@@ -491,6 +493,8 @@ context_var! {
     /// Tooltip context capture.
     ///
     /// Is [`ContextCapture::NoCapture`] by default.
+    ///
+    ///  [`ContextCapture::NoCapture`]: zng_wgt_layer::popup::ContextCapture
     pub static TOOLTIP_CONTEXT_CAPTURE_VAR: ContextCapture = ContextCapture::NoCapture;
 }
 

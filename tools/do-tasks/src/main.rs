@@ -69,6 +69,7 @@ fn install(mut args: Vec<&str>) {
 //        [-s, --serve]
 //        [--readme <crate>..]
 //        [--readme-examples <example>..]
+//        [--skip-deadlinks]
 //
 //    Generate documentation for zng crates.
 //
@@ -108,90 +109,171 @@ fn doc(mut args: Vec<&str>) {
         take_flag(&mut args, &["-o", "--open"])
     };
 
+    let skip_deadlinks = take_flag(&mut args, &["--skip-deadlinks"]);
+
     let serve = take_flag(&mut args, &["-s", "--serve"]);
 
-    let package = take_option(&mut args, &["-p", "--package"], "package");
-    let mut found_package = false;
+    let package = take_option(&mut args, &["-p", "--package"], "package").map(|mut p| p.remove(0));
 
-    let mut pkgs = util::glob("crates/zng*/Cargo.toml");
-    if let Some(i) = pkgs.iter().position(|p| p.ends_with("crates/zng/Cargo.toml")) {
-        let last = pkgs.len() - 1;
-        pkgs.swap(i, last);
-    }
-    for pkg in pkgs {
-        let toml = match std::fs::read_to_string(&pkg) {
+    fn collect_flags(toml_path: &str, package: &str) -> (String, Vec<glob::Pattern>) {
+        let mut rustdoc_flags = String::new();
+        let mut skip_deadlinks_globs = vec![];
+
+        let toml = match std::fs::read_to_string(toml_path) {
             Ok(p) => p,
             Err(e) => {
-                error(e);
-                continue;
+                fatal(f!("Cannot read `{toml_path}`. {e}"));
             }
         };
 
-        let mut name = String::new();
-        let mut rustdoc_flags = String::new();
         let mut is_in_args = false;
-        let mut is_in_package = false;
+        let mut is_in_skip = false;
         for line in toml.lines() {
             let line = line.trim();
 
-            if line.starts_with('[') {
-                is_in_package = line == "[package]";
-            }
+            let mut clean_push = |arg: &str| {
+                let arg = arg.trim_matches(&[' ', '"']);
+                if arg.starts_with("doc/") {
+                    assert!(!package.is_empty());
+                    // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
+                    rustdoc_flags.push_str(&format!("crates/{package}/{arg}"));
+                } else {
+                    rustdoc_flags.push_str(arg);
+                }
+                rustdoc_flags.push(' ');
+            };
 
-            if is_in_package && line.starts_with("name = ") {
-                name = line["name = ".len()..].trim_matches('"').to_owned();
-            }
             if line.starts_with("rustdoc-args = ") {
                 is_in_args = !line.contains(']');
                 let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
                 for arg in line.split(',') {
-                    let arg = arg.trim().trim_matches('"');
-                    if arg.starts_with("doc/") {
-                        // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
-                        rustdoc_flags.push_str(&format!("crates/{name}/{arg}"));
-                    } else {
-                        rustdoc_flags.push_str(arg);
-                    }
-                    rustdoc_flags.push(' ');
+                    clean_push(arg);
                 }
             } else if is_in_args {
                 is_in_args = !line.contains(']');
                 let line = line.trim().trim_matches(']').trim();
                 for arg in line.split(',') {
-                    rustdoc_flags.push_str(arg.trim().trim_matches('"'));
-                    rustdoc_flags.push(' ');
+                    clean_push(arg);
+                }
+            } else if line.starts_with("skip-deadlinks = ") {
+                is_in_skip = !line.contains(']');
+                let line = line["rustdoc-args = ".len()..].trim().trim_matches('[').trim_matches(']').trim();
+                for g in line.split(',') {
+                    skip_deadlinks_globs.push(glob::Pattern::new(g.trim_matches(&[' ', '"'])).unwrap());
+                }
+            } else if is_in_skip {
+                is_in_skip = !line.contains(']');
+                let line = line.trim().trim_matches(']').trim();
+                for g in line.split(',') {
+                    skip_deadlinks_globs.push(glob::Pattern::new(g.trim_matches(&[' ', '"'])).unwrap());
                 }
             }
         }
 
-        if name.is_empty() {
-            error(f!("did not find package name for {pkg}"));
-            continue;
-        } else if let Some(p) = &package {
-            if p[0] != name {
+        (rustdoc_flags, skip_deadlinks_globs)
+    }
+
+    let (global_rustdoc_flags, skip_deadlinks_globs) = collect_flags("Cargo.toml", "");
+
+    let mut found_package = false;
+    for member in util::publish_members() {
+        if let Some(p) = &package {
+            if p != &member.name {
                 continue;
             }
             found_package = true;
+        }
+
+        let pkg = format!("crates/{}/Cargo.toml", member.name.as_str());
+        let (rustdoc_flags, skip_deadlinks_globs) = collect_flags(pkg.as_str(), member.name.as_str());
+
+        if !skip_deadlinks_globs.is_empty() {
+            error("skip-deadlinks only supported in workspace");
         }
 
         let mut env = vec![];
         let full_doc_flags;
         if !rustdoc_flags.is_empty() {
             if let Ok(flags) = std::env::var("RUSTDOCFLAGS") {
-                full_doc_flags = format!("{flags} {rustdoc_flags}");
+                full_doc_flags = format!("{flags} {global_rustdoc_flags} {rustdoc_flags}");
                 env.push(("RUSTDOCFLAGS", full_doc_flags.as_str()));
             } else {
                 env.push(("RUSTDOCFLAGS", rustdoc_flags.as_str()));
             }
         }
 
-        cmd_env_req("cargo", &["doc", "--all-features", "--no-deps", "--package", &name], &args, &env);
+        cmd_env_req(
+            "cargo",
+            &["doc", "--all-features", "--no-deps", "--package", member.name.as_str()],
+            &args,
+            &env,
+        );
     }
 
-    if let Some(pkg) = &package {
+    if let Some(p) = &package {
         if !found_package {
-            error(f!("did not find package `{}`", &pkg[0]));
-            return;
+            error(f!("package `{p}` not found"));
+        }
+    }
+
+    if !skip_deadlinks {
+        // cargo doc does not warn about broken links in some cases, just prints `[<code>invalid</code>]`
+
+        // cutout links that also appear in other pages or are from downstream types
+        let cutout =
+            regex::Regex::new(r#"id="(?:deref-met|trait-imp|synthetic-imp|blanket-imp|modules|structs|enums|statics|traits|functions).*""#)
+                .unwrap();
+        let broken_link1 = regex::Regex::new(r"\[<code>.+?</code>\]").unwrap();
+        let broken_link2 = regex::Regex::new(r#"<a href="(\w+?::\w+?.+?)"><code>(.+?)</code>"#).unwrap();
+        for html_path in util::glob("target/doc/**/*.html") {
+            if skip_deadlinks_globs.iter().any(|g| g.matches(&html_path)) {
+                continue;
+            }
+
+            let html = std::fs::read_to_string(&html_path).unwrap();
+            let cutout = if let Some(m) = cutout.find(&html) { m.start() } else { html.len() };
+            let html = &html[..cutout];
+
+            let matches1: Vec<_> = broken_link1.find_iter(&html).map(|m| m.as_str()).collect();
+            let matches2: Vec<_> = broken_link2
+                .captures_iter(&html)
+                .map(|m| (m.get(1).unwrap().as_str(), m.get(2).unwrap().as_str()))
+                .collect();
+
+            let mut msg = String::new();
+            if !matches1.is_empty() || !matches2.is_empty() {
+                msg = format!("deadlinks in `{}`:\n", &html_path["target".len()..]);
+            }
+            let mut sep = "";
+            for m in matches1.iter() {
+                use std::fmt::*;
+                write!(
+                    &mut msg,
+                    "{sep}    {}",
+                    m.replace("<code>", "`")
+                        .replace("</code>", "`")
+                        .replace("&lt;", "<")
+                        .replace("&gt;", ">")
+                        .replace("&amp;", "&")
+                )
+                .unwrap();
+                sep = "\n";
+            }
+            for (path, label) in matches2.iter() {
+                use std::fmt::*;
+                write!(
+                    &mut msg,
+                    "{sep}    [`{}`]: {}",
+                    label.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&"),
+                    path
+                )
+                .unwrap();
+                sep = "\n";
+            }
+
+            if !msg.is_empty() {
+                error(msg);
+            }
         }
     }
 

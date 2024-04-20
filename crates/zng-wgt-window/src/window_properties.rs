@@ -238,6 +238,8 @@ impl_from_and_into_var! {
 /// the app can open more than one window, otherwise the state will be associated with the sequential ID of the window.
 ///
 /// This property is enabled by default in the `Window!` widget.
+///
+/// [`CONFIG`]: zng_ext_config::CONFIG
 #[property(CONTEXT, default(SaveState::Disabled), widget_impl(Window))]
 pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
     let enabled = enabled.into();

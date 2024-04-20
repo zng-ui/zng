@@ -81,6 +81,8 @@ pub fn cells(cells: impl UiNodeList) {}
 ///
 /// [`Column!`]: struct@Column
 /// [`lft`]: zng_layout::unit::LengthUnits::lft
+/// [`WIDGET_SIZE`]: zng_wgt_size_offset::WIDGET_SIZE
+/// [`Length::Default`]: zng_layout::unit::Length::Default
 #[property(CHILD, capture, widget_impl(Grid))]
 pub fn columns(cells: impl UiNodeList) {}
 
@@ -98,6 +100,7 @@ pub fn rows(cells: impl UiNodeList) {}
 /// the function is [`WidgetFn::nil`].
 ///
 /// [`auto_grow_mode`]: fn@auto_grow_mode
+/// [`WidgetFn::nil`]: zng_wgt::prelude::WidgetFn::nil
 #[property(CONTEXT, capture, default(WidgetFn::nil()), widget_impl(Grid))]
 pub fn auto_grow_fn(auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) {}
 
@@ -820,6 +823,8 @@ pub mod cell {
         }
 
         /// Get the cell info stored in the [`WIDGET`] state.
+        ///
+        /// [`WIDGET`]: zng_wgt::prelude::WIDGET
         pub fn get() -> Self {
             WIDGET.get_state(&INFO_ID).unwrap_or_default()
         }

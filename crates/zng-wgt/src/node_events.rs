@@ -9,6 +9,9 @@ pub struct OnNodeOpArgs {
     ///
     /// Event args must be static so access to the full [`UiNodeOp`] is not possible, you can quickly
     /// declare a new property with [`property`] and [`match_node`] if you want to affect the widget this way.
+    ///
+    /// [`UiNodeOp`]: zng_app::widget::node::UiNodeOp
+    /// [`match_node`]: zng_app::widget::node::match_node
     pub op: UiNodeOpMethod,
     /// Number of times the handler was called.
     ///
@@ -46,6 +49,11 @@ impl OnNodeOpArgs {
 ///
 /// [`on_pre_node_op`]: fn@on_pre_node_op
 /// [`NestGroup::EVENT`]: zng_app::widget::builder::NestGroup::EVENT
+/// [`hn!`]: zng_app::handler::hn!
+/// [`async_hn!`]: zng_app::handler::async_hn!
+/// [`hn_once!`]: zng_app::handler::hn_once!
+/// [`async_hn_once!`]: zng_app::handler::async_hn_once!
+/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |_| true)
@@ -90,6 +98,11 @@ fn on_node_op_impl(
 ///
 /// [`on_node_op`]: fn@on_node_op
 /// [`NestGroup::EVENT`]: zng_app::widget::builder::NestGroup::EVENT
+/// [`hn!`]: zng_app::handler::hn!
+/// [`hn_once!`]: zng_app::handler::hn_once!
+/// [`async_hn!`]: zng_app::handler::async_hn!
+/// [`async_hn_once!`]: zng_app::handler::async_hn_once!
+/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_pre_node_op(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |_| true)
@@ -136,6 +149,11 @@ fn on_pre_node_op_impl(
 ///
 /// [`on_info_init`]: fn@on_info_init
 /// [`WidgetInfoTree`]: zng_app::widget::info::WidgetInfoTree
+/// [`hn!`]: zng_app::handler::hn!
+/// [`hn_once!`]: zng_app::handler::hn_once!
+/// [`async_hn!`]: zng_app::handler::async_hn!
+/// [`async_hn_once!`]: zng_app::handler::async_hn_once!
+/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Init))
@@ -165,6 +183,14 @@ pub fn on_pre_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>
 /// so the task *pauses* when the widget is deinited, and is *canceled* when the widget is dropped.
 ///
 /// [`WidgetInfoTree`]: zng_app::widget::info::WidgetInfoTree
+///
+/// [`UiNode::info`]: zng_app::widget::node::UiNode::info
+/// [`UiNode::init`]: zng_app::widget::node::UiNode::init
+/// [`hn!`]: zng_app::handler::hn!
+/// [`hn_once!`]: zng_app::handler::hn_once!
+/// [`async_hn!`]: zng_app::handler::async_hn!
+/// [`async_hn_once!`]: zng_app::handler::async_hn_once!
+/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
 #[property(EVENT)]
 pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     let mut handler = handler.cfg_boxed();
@@ -209,6 +235,9 @@ pub fn on_info_init(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs
 ///
 /// You can use one of the handler macros, [`hn!`] or [`hn_once!`], to declare a handler closure. You must avoid using the async
 /// handlers as they cause an update every time the UI task advances from an await point causing another task to spawn.
+///
+/// [`hn!`]: zng_app::handler::hn!
+/// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
 pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
@@ -226,6 +255,8 @@ pub fn on_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) 
 ///
 /// [`on_update`]: fn@on_update
 /// [`on_init`]: fn@on_init
+/// [`hn!`]: zng_app::handler::hn!
+/// [`hn_once!`]: zng_app::handler::hn_once!
 #[property(EVENT)]
 pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_pre_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Update))
@@ -253,6 +284,10 @@ pub fn on_pre_update(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArg
 ///
 /// [`UPDATES.run`]: zng_app::update::UPDATES::run
 /// [`on_pre_deinit`]: fn@on_pre_deinit
+/// [`WidgetHandler`]: zng_app::handler::WidgetHandler
+/// [`hn!`]: zng_app::handler::hn!
+/// [`hn_once!`]: zng_app::handler::hn_once!
+/// [`task::spawn`]: zng_task::spawn
 #[property(EVENT)]
 pub fn on_deinit(child: impl UiNode, handler: impl WidgetHandler<OnNodeOpArgs>) -> impl UiNode {
     on_node_op_impl(child, handler, |op| matches!(op, UiNodeOpMethod::Deinit))

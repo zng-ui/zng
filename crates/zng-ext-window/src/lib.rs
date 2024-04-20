@@ -110,6 +110,7 @@ impl AppExtension for WindowManager {
 /// Extension trait, adds [`run_window`] to [`AppExtended`].
 ///
 /// [`run_window`]: AppRunWindowExt::run_window
+/// [`AppExtended`]: zng_app::AppExtended
 pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
@@ -175,6 +176,7 @@ impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
 /// Window extension methods for [`HeadlessApp`].
 ///
 /// [`open_window`]: HeadlessAppWindowExt::open_window
+/// [`HeadlessApp`]: zng_app::HeadlessApp
 pub trait HeadlessAppWindowExt {
     /// Open a new headless window and returns the new window ID.
     ///
@@ -184,6 +186,7 @@ pub trait HeadlessAppWindowExt {
     /// or if the window already closed before the first frame.
     ///
     /// [`WINDOW`]: zng_app::window::WINDOW
+    /// [`WindowId`]: zng_app::window::WindowId
     fn open_window<F>(&mut self, new_window: F) -> WindowId
     where
         F: Future<Output = WindowRoot> + Send + 'static;

@@ -8,6 +8,8 @@ use crate::prelude::*;
 /// they will render according to the order defined by the [`ZIndex`] value.
 ///
 /// An error is logged on init if the widget is not a direct child of a Z-sorting panel.
+///
+/// [`ZIndex`]: zng_app::widget::node::ZIndex
 #[property(CONTEXT, default(ZIndex::DEFAULT))]
 pub fn z_index(child: impl UiNode, index: impl IntoVar<ZIndex>) -> impl UiNode {
     let index = index.into_var();

@@ -177,8 +177,8 @@ macro_rules! impl_unique_id_name {
 
             /// Calls [`named`] in a debug build and [`new_unique`] in a release build.
             ///
-            /// [`named`]: WidgetId::named
-            /// [`new_unique`]: WidgetId::new_unique
+            /// [`named`]: Self::named
+            /// [`new_unique`]: Self::new_unique
             pub fn debug_named(name: impl Into<$crate::Txt>) -> Self {
                 #[cfg(debug_assertions)]
                 return Self::named(name);
@@ -192,10 +192,8 @@ macro_rules! impl_unique_id_name {
 
             /// Generate a new ID with associated name.
             ///
-            /// If the `name` is already associated with an ID, returns the [`NameUsed`] error.
+            /// If the `name` is already associated with an ID, returns the `NameUsed` error.
             /// If the `name` is an empty string just returns a new ID.
-            ///
-            /// [`NameUsed`]: IdNameError::NameUsed
             pub fn named_new(name: impl Into<$crate::Txt>) -> Result<Self, $crate::IdNameError<Self>> {
                 Self::names_store().named_new(name.into(), Self::new_unique)
             }
@@ -207,12 +205,9 @@ macro_rules! impl_unique_id_name {
 
             /// Associate a `name` with the ID, if it is not named.
             ///
-            /// If the `name` is already associated with a different ID, returns the [`NameUsed`] error.
-            /// If the ID is already named, with a name different from `name`, returns the [`AlreadyNamed`] error.
+            /// If the `name` is already associated with a different ID, returns the `NameUsed` error.
+            /// If the ID is already named, with a name different from `name`, returns the `AlreadyNamed` error.
             /// If the `name` is an empty string or already is the name of the ID, does nothing.
-            ///
-            /// [`NameUsed`]: IdNameError::NameUsed
-            /// [`AlreadyNamed`]: IdNameError::AlreadyNamed
             pub fn set_name(self, name: impl Into<$crate::Txt>) -> Result<(), $crate::IdNameError<Self>> {
                 Self::names_store().set_name(name.into(), self)
             }

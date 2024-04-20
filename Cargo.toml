@@ -20,3 +20,18 @@ lto = "thin"
 
 [profile.prebuild]
 inherits = "release-lto"
+
+[workspace.metadata.zng-do]
+# args used by `do doc` for all crates in the workspace.
+rustdoc-args = []
+# deadlink check does not run if any glob matches.
+skip-deadlinks = [
+    "**/struct.BidiLevel*",
+    "**/*task/fs/struct.Dir*",
+    "**/*task/fs/struct.File*",
+    "**/*task/fs/struct.Permissions*",
+    "**/*task/fs/fn.copy*",
+    "**/*task/io/*.Async*",
+    "**/*task/http/struct.Cookie*",
+    "**/*fs_watcher/fs_event/*",
+]

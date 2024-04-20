@@ -73,6 +73,8 @@ pub fn link_scroll_mode(child: impl UiNode, mode: impl IntoVar<ScrollToMode>) ->
 #[derive(Clone)]
 pub enum ImageResolver {
     /// No extra resolution, just convert into [`ImageSource`].
+    ///
+    /// [`ImageSource`]: zng_ext_image::ImageSource
     Default,
     /// Custom resolution.
     Resolve(Arc<dyn Fn(&str) -> ImageSource + Send + Sync>),

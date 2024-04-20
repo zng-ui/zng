@@ -47,6 +47,8 @@ impl<D> WidgetFn<D> {
     /// Function that always produces the [`NilUiNode`].
     ///
     /// No heap allocation happens to create this value.
+    ///
+    /// [`NilUiNode`]: zng_app::widget::node::NilUiNode
     pub const fn nil() -> Self {
         WidgetFn(None)
     }
@@ -60,6 +62,7 @@ impl<D> WidgetFn<D> {
     ///
     /// [`nil`]: WidgetFn::nil
     /// [`call_checked`]: Self::call_checked
+    /// [`UiNode::is_nil`]: zng_app::widget::node::UiNode::is_nil
     pub fn is_nil(&self) -> bool {
         self.0.is_none()
     }
@@ -90,6 +93,7 @@ impl<D> WidgetFn<D> {
     /// Returns `None` if [`is_nil`] or [`UiNode::is_nil`].
     ///
     /// [`is_nil`]: Self::is_nil
+    /// [`UiNode::is_nil`]: zng_app::widget::node::UiNode::is_nil
     pub fn call_checked(&self, data: D) -> Option<BoxedUiNode> {
         let r = self.0.as_ref()?(data);
         if r.is_nil() {
@@ -104,6 +108,9 @@ impl<D> WidgetFn<D> {
     /// The `widget` is wrapped in an [`ArcNode`] and every function call returns an [`ArcNode::take_on_init`] node.
     /// Note that `take_on_init` is not always the `widget` on init as it needs to wait for it to deinit first if
     /// it is already in use, this could have an effect if the widget function caller always expects a full widget.
+    ///
+    /// [`ArcNode`]: zng_app::widget::node::ArcNode
+    /// [`ArcNode::take_on_init`]: zng_app::widget::node::ArcNode::take_on_init
     pub fn singleton(widget: impl UiNode) -> Self {
         let widget = ArcNode::new(widget);
         Self::new(move |_| widget.take_on_init())
@@ -172,6 +179,8 @@ fn nil_call<D>(_: D) -> BoxedUiNode {
 /// });
 /// # ; }
 /// ```
+///
+/// [`clmv!`]: zng_clone_move::clmv
 #[macro_export]
 macro_rules! wgt_fn {
     ($fn:path) => {

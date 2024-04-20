@@ -179,6 +179,9 @@ command! {
     /// [`ScrollToTarget`], or the [`WidgetId`] of a descendant of the scroll, or a [`Rect`] resolved in the scrollable space.
     ///
     /// You can use the [`scroll_to`] function to invoke this command in all parent scrolls automatically.
+    ///
+    /// [`WidgetId`]: zng_wgt::prelude::WidgetId
+    /// [`Rect`]: zng_wgt::prelude::Rect
     pub static SCROLL_TO_CMD;
 
     /// Represents the **zoom in** action.
@@ -189,7 +192,7 @@ command! {
     /// scale transform, relative values are resolved in the viewport space. The default value
     /// is *top-start*.
     ///
-    /// [`Point`]: crate::core::unit::Point
+    /// [`Point`]: zng_wgt::prelude::Point
     pub static ZOOM_IN_CMD = {
         name: "Zoom In",
         shortcut: shortcut!(CTRL+'+'),
@@ -204,7 +207,7 @@ command! {
     /// scale transform, relative values are resolved in the viewport space. The default value
     /// is *top-start*.
     ///
-    /// [`Point`]: crate::core::unit::Point
+    /// [`Point`]: zng_wgt::prelude::Point
     pub static ZOOM_OUT_CMD = {
         name: "Zoom Out",
         shortcut: shortcut!(CTRL+'-'),
@@ -260,6 +263,8 @@ impl ScrollRequest {
 
     /// Extract a clone of the request from [`CommandArgs::param`] if it is set to a compatible type and
     /// stop-propagation was not requested for the event.
+    ///
+    /// [`CommandArgs::param`]: zng_app::event::CommandArgs
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
             if args.propagation().is_stopped() {
@@ -349,6 +354,8 @@ impl ScrollToRequest {
 
     /// Extract a clone of the request from [`CommandArgs::param`] if it is set to a compatible type and
     /// stop-propagation was not requested for the event and the command was enabled when it was send.
+    ///
+    /// [`CommandArgs::param`]: zng_app::event::CommandArgs
     pub fn from_args(args: &CommandArgs) -> Option<Self> {
         if let Some(p) = &args.param {
             if !args.enabled || args.propagation().is_stopped() {

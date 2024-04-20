@@ -17,6 +17,7 @@ use zng_wgt_style::{impl_style_fn, style_fn};
 /// loses focus.
 ///
 /// [`ContextMenu!`]: struct@ContextMenu
+/// [`POPUP`]: zng_wgt_layer::popup::POPUP
 #[property(EVENT)]
 pub fn context_menu(child: impl UiNode, menu: impl UiNode) -> impl UiNode {
     context_menu_fn(child, WidgetFn::singleton(menu))
@@ -151,6 +152,7 @@ context_var! {
     /// Is [`popup::default_panel_fn`] by default.
     ///
     /// [`ContextMenu!`]: struct@ContextMenu
+    /// [`popup::default_panel_fn`]: crate::popup::default_panel_fn
     pub static PANEL_FN_VAR: WidgetFn<zng_wgt_panel::PanelArgs> = WidgetFn::new(crate::popup::default_panel_fn);
 }
 

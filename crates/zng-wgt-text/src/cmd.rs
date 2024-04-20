@@ -66,9 +66,13 @@ impl TextEditOp {
     /// if the user requests undo & redo. The text variable is always read-write when `op` is called, more than
     /// one op can be called before the text variable updates, and [`ResolvedText::pending_edit`] is always false.
     ///
-    /// [`ResolvedText::txt`]: super::node::ResolvedText::txt
-    /// [`ResolvedText::caret`]: super::node::ResolvedText::caret
-    /// [`ResolvedText::pending_edit`]: super::node::ResolvedText::pending_edit
+    /// [`ResolvedText::txt`]: crate::node::ResolvedText::txt
+    /// [`ResolvedText::caret`]: crate::node::ResolvedText::caret
+    /// [`ResolvedText::pending_edit`]: crate::node::ResolvedText::pending_edit
+    /// [`TEXT.resolved`]: crate::node::TEXT::resolved
+    /// [`TEXT.resolve_caret`]: crate::node::TEXT::resolve_caret
+    /// [`UndoFullOp`]: zng_ext_undo::UndoFullOp
+    /// [`UndoOp::Redo`]: zng_ext_undo::UndoOp::Redo
     pub fn new<D>(data: D, mut op: impl FnMut(&mut D, UndoFullOp) + Send + 'static) -> Self
     where
         D: Send + Any + 'static,
@@ -224,13 +228,17 @@ impl TextEditOp {
 
     /// Remove one *backspace range* ending at the caret index, or removes the selection.
     ///
-    /// See [`zng_ext_font::SegmentedText::backspace_range`] for more details about what is removed.
+    /// See [`SegmentedText::backspace_range`] for more details about what is removed.
+    ///
+    /// [`SegmentedText::backspace_range`]: zng_ext_font::SegmentedText::backspace_range
     pub fn backspace() -> Self {
         Self::backspace_impl(SegmentedText::backspace_range)
     }
     /// Remove one *backspace word range* ending at the caret index, or removes the selection.
     ///
-    /// See [`zng_ext_font::SegmentedText::backspace_word_range`] for more details about what is removed.
+    /// See [`SegmentedText::backspace_word_range`] for more details about what is removed.
+    ///
+    /// [`SegmentedText::backspace_word_range`]: zng_ext_font::SegmentedText::backspace_word_range
     pub fn backspace_word() -> Self {
         Self::backspace_impl(SegmentedText::backspace_word_range)
     }
@@ -352,13 +360,17 @@ impl TextEditOp {
 
     /// Remove one *delete range* starting at the caret index, or removes the selection.
     ///
-    /// See [`zng_ext_font::SegmentedText::delete_range`] for more details about what is removed.
+    /// See [`SegmentedText::delete_range`] for more details about what is removed.
+    ///
+    /// [`SegmentedText::delete_range`]: zng_ext_font::SegmentedText::delete_range
     pub fn delete() -> Self {
         Self::delete_impl(SegmentedText::delete_range)
     }
     /// Remove one *delete word range* starting at the caret index, or removes the selection.
     ///
-    /// See [`zng_ext_font::SegmentedText::delete_word_range`] for more details about what is removed.
+    /// See [`SegmentedText::delete_word_range`] for more details about what is removed.
+    ///
+    /// [`SegmentedText::delete_word_range`]: zng_ext_font::SegmentedText::delete_word_range
     pub fn delete_word() -> Self {
         Self::delete_impl(SegmentedText::delete_word_range)
     }

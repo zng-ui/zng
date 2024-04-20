@@ -86,6 +86,8 @@ impl Scroll {
         /// Note that because scrollable dimensions are unbounded [`Align::FILL`] is implemented
         /// differently, instead of setting the maximum constraint it sets the minimum, other
         /// alignments and non-scrollable dimensions are implemented like normal.
+        ///
+        /// [`Align::FILL`]: zng_wgt::prelude::Align::FILL
         pub child_align(align: impl IntoVar<Align>);
 
         /// Clip content to only be visible within the scroll bounds, including under scrollbars.

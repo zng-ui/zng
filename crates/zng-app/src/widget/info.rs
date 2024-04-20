@@ -58,7 +58,7 @@ pub struct WidgetInfoTreeStats {
 
     /// Last window frame that rendered this tree.
     ///
-    /// Before the first render this is [`FrameId::INVALID`].
+    /// Before the first render this is `FrameId::INVALID`.
     pub last_frame: FrameId,
 
     /// Last window frame that moved or resized the inner bounds of at least one widget.
@@ -176,6 +176,8 @@ impl WidgetInfoTree {
     /// View-process generation.
     ///
     /// Is [`ViewProcessGen::INVALID`] before first render and in headless apps.
+    ///
+    /// [`ViewProcessGen::INVALID`]: zng_view_api::ViewProcessGen::INVALID
     pub fn view_process_gen(&self) -> ViewProcessGen {
         self.0.frame.read().view_process_gen
     }
@@ -1797,12 +1799,13 @@ impl WidgetInfo {
     /// Spatial iterator over all widgets, self and descendants, with [`center`] in the direction defined by `orientation` and
     /// within `max_distance` of the `origin`, widgets are only visited once and the distance is clipped by the [`spatial_bounds`].
     ///
-    /// Use [`Px::MAX`] on the distance to visit all widgets in the direction.
+    /// Use `Px::MAX` on the distance to visit all widgets in the direction.
     ///
     /// The direction is defined by a 45º frustum cast from the `origin`, see [`Orientation2D::point_is`] for more details.
     ///
     /// [`spatial_bounds`]: WidgetInfoTree::spatial_bounds
     /// [`center`]: WidgetInfo::center
+    /// [`Orientation2D::point_is`]: zng_layout::unit::Orientation2D::point_is
     pub fn oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo> {
         let distance_bounded = max_distance != Px::MAX;
         let distance_key = if distance_bounded {
@@ -1831,13 +1834,14 @@ impl WidgetInfo {
     /// in relation to `origin` and with [`center`] within `max_distance` of the `origin` center. Widgets are only visited once and
     /// the distance is clipped by the [`spatial_bounds`].
     ///
-    /// Use [`Px::MAX`] on the distance to visit all widgets in the direction.
+    /// Use `Px::MAX` on the distance to visit all widgets in the direction.
     ///
     /// The direction is a collision check between inner-bounds and origin, see [`Orientation2D::box_is`] for more details.
     ///
     /// [`spatial_bounds`]: WidgetInfoTree::spatial_bounds
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     /// [`center`]: WidgetInfo::center
+    /// [`Orientation2D::box_is`]: zng_layout::unit::Orientation2D::box_is
     pub fn oriented_box(&self, origin: PxBox, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo> {
         let distance_bounded = max_distance != Px::MAX;
         let distance_key = if distance_bounded {

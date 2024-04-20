@@ -154,6 +154,7 @@ event_property! {
     /// See [`on_interactivity_changed`] for a more general interactivity event.
     ///
     /// [`on_interactivity_changed`]: fn@on_interactivity_changed
+    /// [`Interactivity`]: zng_app::widget::info::Interactivity
     /// [`is_new`]: info::InteractivityChangedArgs::is_new
     pub fn enabled_changed {
         event: info::INTERACTIVITY_CHANGED_EVENT,

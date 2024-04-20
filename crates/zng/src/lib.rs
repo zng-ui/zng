@@ -825,6 +825,9 @@ mod defaults {
         /// * [`MaterialFonts`] if any `"material_icons*"` feature is enabled.
         ///
         /// [`MaterialFonts`]: zng_wgt_material_icons::MaterialFonts
+        /// [`ConfigManager`]: zng_ext_config::ConfigManager
+        /// [`L10nManager`]: zng_ext_l10n::L10nManager
+        /// [`FontManager`]: zng_ext_font::FontManager
         pub fn defaults(&self) -> DefaultsAppExtended![] {
             let r = self
                 .minimal()

@@ -50,6 +50,8 @@ use super::{LaidoutText, PendingLayout, RenderInfo, LAIDOUT_TEXT, TEXT};
 /// to the [`TEXT::laidout`] method.
 ///
 /// [`ResolvedText`]: super::ResolvedText
+///
+/// [`NestGroup::CHILD_LAYOUT`]: zng_wgt::prelude::NestGroup::CHILD_LAYOUT
 pub fn layout_text(child: impl UiNode) -> impl UiNode {
     let child = layout_text_edit(child);
     let child = layout_text_layout(child);

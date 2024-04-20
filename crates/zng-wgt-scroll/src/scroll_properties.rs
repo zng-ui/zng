@@ -73,6 +73,8 @@ context_var! {
     /// If a scroll widget defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
     ///
     /// This is `true` by default.
+    ///
+    /// [`LayoutMetrics::viewport`]: zng_wgt::prelude::LayoutMetrics::viewport
     pub static DEFINE_VIEWPORT_UNIT_VAR: bool = true;
 
     /// Scroll to mode used by scroll widgets when scrolling to make the focused child visible.
@@ -88,6 +90,8 @@ context_var! {
     /// for optimizations from the render culling to lazy widgets.
     ///
     /// By default is `500.dip().min(100.pct())`, one full viewport extra capped at 500.
+    ///
+    /// [`FrameBuilder::auto_hide_rect`]: zng_wgt::prelude::FrameBuilder::auto_hide_rect
     pub static AUTO_HIDE_EXTRA_VAR: SideOffsets = 500.dip().min(100.pct());
 
     /// Color of the overscroll indicator.
@@ -105,6 +109,8 @@ context_var! {
     /// viewport and content stays as close as possible after the scale change.
     ///
     /// The default value ([`Length::Default`]) is the cursor position.
+    ///
+    /// [`Length::Default`]: zng_wgt::prelude::Length::Default
     pub static ZOOM_WHEEL_ORIGIN_VAR: Point = Point::default();
 
     /// Center point of zoom scaling done using the touch *pinch* gesture.
@@ -113,6 +119,8 @@ context_var! {
     /// viewport and content stays as close as possible after the scale change.
     ///
     /// The default value ([`Length::Default`]) is center point between the two touch contact points.
+    ///
+    /// [`Length::Default`]: zng_wgt::prelude::Length::Default
     pub static ZOOM_TOUCH_ORIGIN_VAR: Point = Point::default();
 }
 
@@ -301,6 +309,8 @@ pub fn zoom_wheel_unit(child: impl UiNode, unit: impl IntoVar<Factor>) -> impl U
 /// If the scroll defines its viewport size as the [`LayoutMetrics::viewport`] for the scroll content.
 ///
 /// This property sets the [`DEFINE_VIEWPORT_UNIT_VAR`].
+///
+/// [`LayoutMetrics::viewport`]: zng_wgt::prelude::LayoutMetrics::viewport
 #[property(CONTEXT, default(DEFINE_VIEWPORT_UNIT_VAR), widget_impl(super::ScrollUnitsMix<P>))]
 pub fn define_viewport_unit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, DEFINE_VIEWPORT_UNIT_VAR, enabled)
@@ -343,6 +353,8 @@ pub fn scroll_to_focused_mode(child: impl UiNode, mode: impl IntoVar<Option<Scro
 /// By default is `500.dip().min(100.pct())`, one full viewport extra capped at 500.
 ///
 /// This property sets the [`AUTO_HIDE_EXTRA_VAR`].
+///
+/// [`FrameBuilder::auto_hide_rect`]: zng_wgt::prelude::FrameBuilder::auto_hide_rect
 #[property(CONTEXT, default(AUTO_HIDE_EXTRA_VAR), widget_impl(Scroll))]
 pub fn auto_hide_extra(child: impl UiNode, extra: impl IntoVar<SideOffsets>) -> impl UiNode {
     with_context_var(child, AUTO_HIDE_EXTRA_VAR, extra)
@@ -383,6 +395,8 @@ pub fn max_zoom(child: impl UiNode, max: impl IntoVar<Factor>) -> impl UiNode {
 /// The default value ([`Length::Default`]) is the cursor position.
 ///
 /// This property sets the [`ZOOM_WHEEL_ORIGIN_VAR`]
+///
+/// [`Length::Default`]: zng_wgt::prelude::Length::Default
 #[property(CONTEXT, default(ZOOM_WHEEL_ORIGIN_VAR), widget_impl(Scroll))]
 pub fn zoom_wheel_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
     with_context_var(child, ZOOM_WHEEL_ORIGIN_VAR, origin)
@@ -396,6 +410,8 @@ pub fn zoom_wheel_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> imp
 /// The default value ([`Length::Default`]) is center point between the two touch contact points.
 ///
 /// This property sets the [`ZOOM_TOUCH_ORIGIN_VAR`].
+///
+/// [`Length::Default`]: zng_wgt::prelude::Length::Default
 #[property(CONTEXT, default(ZOOM_TOUCH_ORIGIN_VAR), widget_impl(Scroll))]
 pub fn zoom_touch_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
     with_context_var(child, ZOOM_TOUCH_ORIGIN_VAR, origin)

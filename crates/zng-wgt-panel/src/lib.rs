@@ -68,6 +68,8 @@ pub struct PanelArgs {
     /// The panel children.
     ///
     /// Note that this is probably an [`ArcNodeList`] take-on-init list so it may be empty until inited.
+    ///
+    /// [`ArcNodeList`]: zng_wgt::prelude::ArcNodeList
     pub children: BoxedUiNodeList,
 }
 

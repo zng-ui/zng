@@ -61,7 +61,7 @@ event_args! {
 
         /// Text typed.
         ///
-        /// This is only set during [`KeyState::Pressed`] of a key that generates text.
+        /// This is only set for `KeyState::Pressed` of a key that generates text.
         ///
         /// This is usually the `key_modified` char, but is also `'\r'` for `Key::Enter`. On Windows when a dead key was
         /// pressed earlier but cannot be combined with the character from this key press, the produced text
@@ -132,7 +132,7 @@ event_args! {
         /// Window that has moved, resized or has a state change.
         pub window_id: WindowId,
 
-        /// New [`WindowStateAll`] if any part of it has changed.
+        /// New state if any part of it has changed.
         pub state: Option<WindowStateAll>,
 
         /// New window position if it was moved.

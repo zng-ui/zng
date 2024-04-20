@@ -151,6 +151,8 @@ impl TOUCH {
     /// In headless apps the default is [`TouchConfig::default`] and does not change.
     ///
     /// Internally the [`RAW_TOUCH_CONFIG_CHANGED_EVENT`] is listened to update this variable.
+    ///
+    /// [`RAW_TOUCH_CONFIG_CHANGED_EVENT`]: zng_app::view_process::raw_events::RAW_TOUCH_CONFIG_CHANGED_EVENT
     pub fn touch_config(&self) -> ReadOnlyArcVar<TouchConfig> {
         TOUCH_SV.read().touch_config.read_only()
     }
@@ -555,6 +557,7 @@ impl TouchMoveArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
@@ -565,6 +568,7 @@ impl TouchInputArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
@@ -687,6 +691,7 @@ impl TouchedArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
@@ -707,31 +712,43 @@ impl TouchedArgs {
     }
 
     /// Returns `true` if the [`WIDGET`] was not touched, but now is.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_touch_enter(&self) -> bool {
         !self.was_touched() && self.is_touched()
     }
 
     /// Returns `true` if the [`WIDGET`] was touched, but now isn't.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_touch_leave(&self) -> bool {
         self.was_touched() && !self.is_touched()
     }
 
     /// Returns `true` if the [`WIDGET`] was not touched or was disabled, but now is touched and enabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_touch_enter_enabled(&self) -> bool {
         (!self.was_touched() || self.was_disabled(WIDGET.id())) && self.is_touched() && self.is_enabled(WIDGET.id())
     }
 
     /// Returns `true` if the [`WIDGET`] was touched and enabled, but now is not touched or is disabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_touch_leave_enabled(&self) -> bool {
         self.was_touched() && self.was_enabled(WIDGET.id()) && (!self.is_touched() || self.is_disabled(WIDGET.id()))
     }
 
     /// Returns `true` if the [`WIDGET`] was not touched or was enabled, but now is touched and disabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_touch_enter_disabled(&self) -> bool {
         (!self.was_touched() || self.was_enabled(WIDGET.id())) && self.is_touched() && self.is_disabled(WIDGET.id())
     }
 
     /// Returns `true` if the [`WIDGET`] was touched and disabled, but now is not touched or is enabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_touch_leave_disabled(&self) -> bool {
         self.was_touched() && self.was_disabled(WIDGET.id()) && (!self.is_touched() || self.is_enabled(WIDGET.id()))
     }
@@ -740,6 +757,7 @@ impl TouchedArgs {
     ///
     /// [`prev_target`]: Self::prev_target
     /// [`prev_capture`]: Self::prev_capture
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn was_touched(&self) -> bool {
         if let Some(cap) = &self.prev_capture {
             if !cap.allows() {
@@ -758,6 +776,7 @@ impl TouchedArgs {
     ///
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_touched(&self) -> bool {
         if let Some(cap) = &self.capture {
             if !cap.allows() {
@@ -822,6 +841,7 @@ impl TouchTransformArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
@@ -844,6 +864,7 @@ impl TouchTransformArgs {
     ///
     /// [`first_info`]: Self::first_info
     /// [`latest_info`]: Self::latest_info
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn local_info(&self) -> [TouchTransformInfo; 2] {
         let mut first = self.first_info.clone();
         let mut latest = self.latest_info.clone();

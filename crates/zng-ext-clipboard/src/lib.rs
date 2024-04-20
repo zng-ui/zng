@@ -222,6 +222,8 @@ impl CLIPBOARD {
     /// Gets an image from the clipboard.
     ///
     /// The image is loaded in parallel and cached by the [`IMAGES`] service.
+    ///
+    /// [`IMAGES`]: zng_ext_image::IMAGES
     pub fn image(&self) -> Result<Option<ImageVar>, ClipboardError> {
         CLIPBOARD_SV.write().image.get(|v| {
             let img = v.read_image()?;

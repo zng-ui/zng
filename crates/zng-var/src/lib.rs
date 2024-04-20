@@ -1557,7 +1557,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// If this variable can never update the span is immediately dropped and a dummy handle is returned. Note that
     /// the trace is set on the [`actual_var`].
     ///
-    /// [`tracing`]: https://docs.rs/tracing/
+    /// [`tracing`]: https://docs.rs/tracing
     /// [`actual_var`]: Var::actual_var
     fn trace_value<E, S>(&self, mut enter_value: E) -> VarHandle
     where

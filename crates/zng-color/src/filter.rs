@@ -47,6 +47,8 @@ impl Filter {
     /// Add a blue effect to the filter, the blue `radius` is defined by a [`Length`].
     ///
     /// Relative lengths are calculated by the width of the available space.
+    ///
+    /// [`Length`]: zng_layout::unit::Length
     pub fn blur<R: Into<Length>>(mut self, radius: R) -> Self {
         self.needs_layout = true;
         self.filters.push(FilterData::Blur(radius.into()));
@@ -182,6 +184,7 @@ impl Filter {
     /// Relative blur radius lengths are calculated using the `constraints().fill_size().width` value.
     ///
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    /// [`Length`]: zng_layout::unit::Length
     pub fn layout(&self) -> RenderFilter {
         self.filters
             .iter()

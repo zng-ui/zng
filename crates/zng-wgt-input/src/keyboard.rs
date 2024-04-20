@@ -13,7 +13,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
+    /// widget and then each parent up to the root. If propagation stop
     /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -30,6 +30,9 @@ event_property! {
     /// # Underlying Event
     ///
     /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
+    ///
+    /// [`KeyInputArgs`]: zng_ext_input::keyboard::KeyInputArgs
+    /// [`KEY_INPUT_EVENT`]: zng_ext_input::keyboard::KEY_INPUT_EVENT
     pub fn key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -41,7 +44,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
+    /// widget and then each parent up to the root. If propagation stop
     /// is requested the event is not notified further. If the widget is enabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -58,6 +61,9 @@ event_property! {
     /// # Underlying Event
     ///
     /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
+    ///
+    /// [`KeyInputArgs`]: zng_ext_input::keyboard::KeyInputArgs
+    /// [`KEY_INPUT_EVENT`]: zng_ext_input::keyboard::KEY_INPUT_EVENT
     pub fn disabled_key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -69,7 +75,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
+    /// widget and then each parent up to the root. If propagation stop
     /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -86,6 +92,9 @@ event_property! {
     /// # Underlying Event
     ///
     /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
+    ///
+    /// [`KeyInputArgs`]: zng_ext_input::keyboard::KeyInputArgs
+    /// [`KEY_INPUT_EVENT`]: zng_ext_input::keyboard::KEY_INPUT_EVENT
     pub fn key_down {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
@@ -97,7 +106,7 @@ event_property! {
     /// # Route
     ///
     /// The event is raised in the [keyboard focused](crate::properties::is_focused)
-    /// widget and then each parent up to the root. If [`propagation`](EventArgs::propagation) stop
+    /// widget and then each parent up to the root. If propagation stop
     /// is requested the event is not notified further. If the widget is disabled or blocked the event is not notified.
     ///
     /// This route is also called *bubbling*.
@@ -113,6 +122,9 @@ event_property! {
     /// # Underlying Event
     ///
     /// This event property uses the [`KEY_INPUT_EVENT`] that is included in the default app.
+    ///
+    /// [`KeyInputArgs`]: zng_ext_input::keyboard::KeyInputArgs
+    /// [`KEY_INPUT_EVENT`]: zng_ext_input::keyboard::KEY_INPUT_EVENT
     pub fn key_up {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,

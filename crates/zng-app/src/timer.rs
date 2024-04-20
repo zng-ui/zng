@@ -508,7 +508,9 @@ impl TIMERS {
 /// ```
 ///
 /// In the example above the variable is mapped to a text, there are many other things you can do with variables,
-/// including `.await` for the update in UI bound async tasks. See [`Var`] for details.
+/// including `.await` for the update in UI bound async tasks. See [`Var<T>`] for details.
+///
+/// [`Var<T>`]: zng_var::Var
 pub type DeadlineVar = ReadOnlyArcVar<Deadline>;
 
 /// Represents a [`on_deadline`](TIMERS::on_deadline) handler.
@@ -844,8 +846,10 @@ impl WeakTimerHandle {
 /// ```
 ///
 /// In the example above the variable updates every second and stops after 20 seconds have elapsed. The variable
-/// is mapped to a text and controls the timer from inside the mapping closure. See [`Var`] for other things you
+/// is mapped to a text and controls the timer from inside the mapping closure. See [`Var<T>`] for other things you
 /// can do with variables, including `.await` for updates. Also see [`Timer`] for more timer control methods.
+///
+/// [`Var<T>`]: zng_var::Var
 pub type TimerVar = ReadOnlyArcVar<Timer>;
 
 /// Represents a timer state in a [`TimerVar`] or interval handler.

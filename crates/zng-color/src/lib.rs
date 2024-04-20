@@ -167,6 +167,8 @@ impl_from_and_into_var! {
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsla::hue)
 /// and `0.00001` epsilon for the others.
+///
+/// [`about_eq`]: zng_layout::unit::about_eq
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Hsla {
     /// Hue color angle in the `[0.0..=360.0]` range.
@@ -345,6 +347,8 @@ impl Transitionable for Hsla {
 ///
 /// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsva::hue)
 /// and `0.00001` epsilon for the others.
+///
+/// [`about_eq`]: zng_layout::unit::about_eq
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Hsva {
     /// Hue color angle in the `[0.0..=360.0]` range.

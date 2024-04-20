@@ -13,7 +13,7 @@
     - Added `Event::AccessDeinit`, access can now be disabled by the system.
     - Removed `WindowRequest::access_root`, no longer needed.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
-
+* Fix many doc broken links.
 
 # 0.3.3
 

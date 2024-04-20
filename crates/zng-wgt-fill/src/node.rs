@@ -135,6 +135,8 @@ where
     /// Sets the extend mode of the linear gradient.
     ///
     /// By default is [`ExtendMode::Clamp`].
+    ///
+    /// [`ExtendMode::Clamp`]: zng_wgt::prelude::gradient::ExtendMode::Clamp
     pub fn extend_mode<E2: IntoVar<ExtendMode>>(self, mode: E2) -> LinearGradient<S, A, E2::Var> {
         LinearGradient {
             stops: self.stops,
@@ -145,11 +147,15 @@ where
     }
 
     /// Sets the extend mode to [`ExtendMode::Repeat`].
+    ///
+    /// [`ExtendMode::Repeat`]: zng_wgt::prelude::gradient::ExtendMode::Repeat
     pub fn repeat(self) -> LinearGradient<S, A, LocalVar<ExtendMode>> {
         self.extend_mode(ExtendMode::Repeat)
     }
 
     /// Sets the extend mode to [`ExtendMode::Reflect`].
+    ///
+    /// [`ExtendMode::Reflect`]: zng_wgt::prelude::gradient::ExtendMode::Reflect
     pub fn reflect(self) -> LinearGradient<S, A, LocalVar<ExtendMode>> {
         self.extend_mode(ExtendMode::Reflect)
     }
@@ -281,6 +287,8 @@ where
     /// Sets the extend mode of the radial gradient.
     ///
     /// By default is [`ExtendMode::Clamp`].
+    ///
+    /// [`ExtendMode::Clamp`]: zng_wgt::prelude::gradient::ExtendMode::Clamp
     pub fn extend_mode<E2: IntoVar<ExtendMode>>(self, mode: E2) -> RadialGradient<S, C, R, E2::Var> {
         RadialGradient {
             stops: self.stops,
@@ -292,11 +300,15 @@ where
     }
 
     /// Sets the extend mode to [`ExtendMode::Repeat`].
+    ///
+    /// [`ExtendMode::Repeat`]: zng_wgt::prelude::gradient::ExtendMode::Repeat
     pub fn repeat(self) -> RadialGradient<S, C, R, LocalVar<ExtendMode>> {
         self.extend_mode(ExtendMode::Repeat)
     }
 
     /// Sets the extend mode to [`ExtendMode::Reflect`].
+    ///
+    /// [`ExtendMode::Reflect`]: zng_wgt::prelude::gradient::ExtendMode::Reflect
     pub fn reflect(self) -> RadialGradient<S, C, R, LocalVar<ExtendMode>> {
         self.extend_mode(ExtendMode::Reflect)
     }
@@ -431,6 +443,8 @@ where
     /// Sets the extend mode of the conic gradient.
     ///
     /// By default is [`ExtendMode::Clamp`].
+    ///
+    /// [`ExtendMode::Clamp`]: zng_wgt::prelude::gradient::ExtendMode::Clamp
     pub fn extend_mode<E2: IntoVar<ExtendMode>>(self, mode: E2) -> ConicGradient<S, C, A, E2::Var> {
         ConicGradient {
             stops: self.stops,
@@ -442,11 +456,15 @@ where
     }
 
     /// Sets the extend mode to [`ExtendMode::Repeat`].
+    ///
+    /// [`ExtendMode::Repeat`]: zng_wgt::prelude::gradient::ExtendMode::Repeat
     pub fn repeat(self) -> ConicGradient<S, C, A, LocalVar<ExtendMode>> {
         self.extend_mode(ExtendMode::Repeat)
     }
 
     /// Sets the extend mode to [`ExtendMode::Reflect`].
+    ///
+    /// [`ExtendMode::Reflect`]: zng_wgt::prelude::gradient::ExtendMode::Reflect
     pub fn reflect(self) -> ConicGradient<S, C, A, LocalVar<ExtendMode>> {
         self.extend_mode(ExtendMode::Reflect)
     }

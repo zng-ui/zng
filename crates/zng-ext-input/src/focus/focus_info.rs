@@ -458,6 +458,8 @@ impl FocusMode {
 }
 
 /// A [`WidgetInfoTree`] wrapper for querying focus info out of the widget tree.
+///
+/// [`WidgetInfoTree`]: zng_app::widget::info::WidgetInfoTree
 #[derive(Clone, Debug)]
 pub struct FocusInfoTree {
     tree: WidgetInfoTree,
@@ -557,6 +559,8 @@ impl FocusInfoTree {
 }
 
 /// [`WidgetInfo`] extensions that build a [`WidgetFocusInfo`].
+///
+/// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
 pub trait WidgetInfoFocusExt {
     /// Wraps the [`WidgetInfo`] in a [`WidgetFocusInfo`] even if it is not focusable.
     ///
@@ -564,6 +568,7 @@ pub trait WidgetInfoFocusExt {
     ///
     /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
     /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
+    /// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
     fn into_focus_info(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> WidgetFocusInfo;
     /// Returns a wrapped [`WidgetFocusInfo`] if the [`WidgetInfo`] is focusable.
     ///
@@ -571,6 +576,7 @@ pub trait WidgetInfoFocusExt {
     ///
     /// [`FOCUS.focus_disabled_widgets`]: crate::focus::FOCUS::focus_disabled_widgets
     /// [`FOCUS.focus_hidden_widgets`]: crate::focus::FOCUS::focus_hidden_widgets
+    /// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
     fn into_focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Option<WidgetFocusInfo>;
 }
 impl WidgetInfoFocusExt for WidgetInfo {
@@ -588,6 +594,8 @@ impl WidgetInfoFocusExt for WidgetInfo {
 }
 
 /// [`WidgetInfo`] wrapper that adds focus information for each widget.
+///
+/// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct WidgetFocusInfo {
     info: WidgetInfo,

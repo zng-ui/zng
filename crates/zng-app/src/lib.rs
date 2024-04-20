@@ -1371,6 +1371,8 @@ mod private {
 /// In debug builds this function is called automatically with level INFO on app start.
 ///
 /// See also [`test_log`] to enable panicking for errors.
+///
+/// [`tracing`]: https://docs.rs/tracing
 pub fn print_tracing(max: tracing::Level) -> bool {
     use tracing_subscriber::prelude::*;
 

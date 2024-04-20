@@ -274,11 +274,15 @@ pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl U
 }
 
 /// Create a [`color_scheme_highlight`] of `0.08`.
+///
+/// [`color_scheme_highlight`]: zng_wgt::prelude::color_scheme_highlight
 pub fn color_scheme_hovered(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
     color_scheme_highlight(pair, 0.08)
 }
 
 /// Create a [`color_scheme_highlight`] of `0.16`.
+///
+/// [`color_scheme_highlight`]: zng_wgt::prelude::color_scheme_highlight
 pub fn color_scheme_pressed(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
     color_scheme_highlight(pair, 0.16)
 }

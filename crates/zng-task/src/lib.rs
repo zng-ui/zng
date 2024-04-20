@@ -58,7 +58,7 @@ pub use ui::*;
 ///
 /// # Parallel
 ///
-/// The task runs in the primary [`rayon`] thread-pool, every [`poll`](Future::poll) happens inside a call to [`rayon::spawn`].
+/// The task runs in the primary [`rayon`] thread-pool, every [`poll`](Future::poll) happens inside a call to `rayon::spawn`.
 ///
 /// You can use parallel iterators, `join` or any of rayon's utilities inside `task` to make it multi-threaded,
 /// otherwise it will run in a single thread at a time, still not blocking the UI.
@@ -72,7 +72,7 @@ pub use ui::*;
 /// block the thread from being used by other tasks reducing overall performance. You can use [`wait`] for IO
 /// or blocking operations and for networking you can use any of the async crates, as long as they start their own *event reactor*.
 ///
-/// The `task` lives inside the [`Waker`] when awaiting and inside [`rayon::spawn`] when running.
+/// The `task` lives inside the [`Waker`] when awaiting and inside `rayon::spawn` when running.
 ///
 /// # Examples
 ///
@@ -119,6 +119,9 @@ pub use ui::*;
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
 /// [`Waker`]: std::task::Waker
+/// [`rayon`]: https://docs.rs/rayon
+/// [`LocalContext`]: zng_app_context::LocalContext
+/// [`response_var`]: zng_var::response_var
 pub fn spawn<F>(task: F)
 where
     F: Future<Output = ()> + Send + 'static,
@@ -217,7 +220,9 @@ impl std::task::Wake for RayonTask {
 /// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
 ///
-/// See [`rayon::join`] for more details about join.
+/// See `rayon::join` for more details about join.
+///
+/// [`LocalContext`]: zng_app_context::LocalContext
 pub fn join<A, B, RA, RB>(op_a: A, op_b: B) -> (RA, RB)
 where
     A: FnOnce() -> RA + Send,
@@ -233,7 +238,9 @@ where
 /// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
 ///
-/// See [`rayon::join_context`] for more details about join.
+/// See `rayon::join_context` for more details about join.
+///
+/// [`LocalContext`]: zng_app_context::LocalContext
 pub fn join_context<A, B, RA, RB>(op_a: A, op_b: B) -> (RA, RB)
 where
     A: FnOnce(rayon::FnContext) -> RA + Send,
@@ -266,7 +273,9 @@ where
 /// This function captures the [`LocalContext`] of the calling thread and propagates it to the threads that run the
 /// operations.
 ///
-/// See [`rayon::scope`] for more details about scope.
+/// See `rayon::scope` for more details about scope.
+///
+/// [`LocalContext`]: zng_app_context::LocalContext
 pub fn scope<'scope, OP, R>(op: OP) -> R
 where
     OP: FnOnce(ScopeCtx<'_, 'scope>) -> R + Send,
@@ -306,7 +315,7 @@ pub struct ScopeCtx<'a, 'scope: 'a> {
 impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
     /// Spawns a job into the fork-join scope `self`. The job runs in the captured thread context.
     ///
-    /// See [`rayon::Scope::spawn`] for more details.
+    /// See `rayon::Scope::spawn` for more details.
     pub fn spawn<F>(self, f: F)
     where
         F: FnOnce(ScopeCtx<'_, 'scope>) + Send + 'scope,
@@ -321,7 +330,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 ///
 /// # Parallel
 ///
-/// The task runs in the primary [`rayon`] thread-pool, every [`poll`](Future::poll) happens inside a call to [`rayon::spawn`].
+/// The task runs in the primary [`rayon`] thread-pool, every [`poll`](Future::poll) happens inside a call to `rayon::spawn`.
 ///
 /// You can use parallel iterators, `join` or any of rayon's utilities inside `task` to make it multi-threaded,
 /// otherwise it will run in a single thread at a time, still not blocking the UI.
@@ -335,7 +344,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// block the thread from being used by other tasks reducing overall performance. You can use [`wait`] for IO
 /// or blocking operations and for networking you can use any of the async crates, as long as they start their own *event reactor*.
 ///
-/// The `task` lives inside the [`Waker`] when awaiting and inside [`rayon::spawn`] when running.
+/// The `task` lives inside the [`Waker`] when awaiting and inside `rayon::spawn` when running.
 ///
 /// # Examples
 ///
@@ -372,6 +381,8 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 ///
 /// [`resume_unwind`]: panic::resume_unwind
 /// [`Waker`]: std::task::Waker
+/// [`rayon`]: https://docs.rs/rayon
+/// [`LocalContext`]: zng_app_context::LocalContext
 pub async fn run<R, T>(task: T) -> R
 where
     R: Send + 'static,
@@ -462,7 +473,7 @@ where
     receiver.recv().await.unwrap()
 }
 
-/// Spawn a parallel async task that will send its result to a [`ResponseVar`].
+/// Spawn a parallel async task that will send its result to a [`ResponseVar<R>`].
 ///
 /// The [`run`] documentation explains how `task` is *parallel* and *async*. The `task` starts executing immediately.
 ///
@@ -503,6 +514,8 @@ where
 /// [`spawn`] for more information about the panic handling of this function.
 ///
 /// [`resume_unwind`]: panic::resume_unwind
+/// [`ResponseVar<R>`]: zng_var::ResponseVar
+/// [`response_var`]: zng_var::response_var
 pub fn respond<R, F>(task: F) -> ResponseVar<R>
 where
     R: VarValue,

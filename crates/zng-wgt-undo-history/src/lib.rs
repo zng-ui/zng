@@ -59,9 +59,11 @@ context_var! {
     /// [`UndoHistory!`]: struct@UndoHistory
     pub static UNDO_PANEL_FN_VAR: WidgetFn<UndoPanelArgs> = WidgetFn::new(default_undo_panel_fn);
 
-    /// If undo entries are grouped by the [`UNDO::undo_interval`].
+    /// If undo entries are grouped by the [`UNDO.undo_interval`].
     ///
     /// Enabled by default.
+    ///
+    /// [`UNDO.undo_interval`]: zng_ext_undo::UNDO::undo_interval
     pub static GROUP_BY_UNDO_INTERVAL_VAR: bool = true;
 }
 
@@ -116,6 +118,8 @@ pub fn op(op: impl IntoValue<UndoOp>) {}
 /// undo parent of the caller not of the button.
 ///
 /// [`UndoRedoButtonStyle!`]: struct@UndoRedoButtonStyle
+/// [`UNDO_CMD`]: zng_ext_undo::UNDO_CMD
+/// [`REDO_CMD`]: zng_ext_undo::REDO_CMD
 pub fn default_undo_entry_fn(args: UndoEntryArgs) -> impl UiNode {
     let ts = args.timestamp();
     let cmd = args.cmd;

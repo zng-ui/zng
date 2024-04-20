@@ -334,6 +334,8 @@ fn lerp_rgba_linear(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
 pub struct TRANSITIONABLE_APP;
 impl TRANSITIONABLE_APP {
     /// Replace the [`Rgba`] lerp implementation.
+    ///
+    /// [`Rgba`]: zng_unit::Rgba
     pub fn init_rgba_lerp(&self, lerp: fn(Rgba, Rgba, EasingStep) -> Rgba) {
         *RGBA_LERP.write() = lerp;
     }

@@ -148,6 +148,7 @@ impl ImageSource {
     /// ```
     ///
     /// [`IMAGES.render`]: crate::IMAGES::render
+    /// [`UiNode`]: zng_app::widget::node::UiNode
     pub fn render_node<U, N>(render_mode: RenderMode, render: N) -> Self
     where
         U: UiNode,
@@ -177,6 +178,7 @@ impl IMAGES {
     /// The closure runs in the [`WINDOW`] context of the headless window.
     ///
     /// [`IMAGE_RENDER.retain`]: IMAGE_RENDER::retain
+    /// [`WINDOW`]: zng_app::window::WINDOW
     pub fn render<N, R>(&self, mask: Option<ImageMaskMode>, render: N) -> ImageVar
     where
         N: FnOnce() -> R + Send + Sync + 'static,
@@ -191,6 +193,7 @@ impl IMAGES {
     /// a headless window is still used, the node does not have the same context as the calling widget.
     ///
     /// [`render`]: Self::render
+    /// [`UiNode`]: zng_app::widget::node::UiNode
     pub fn render_node<U, N>(
         &self,
         render_mode: RenderMode,
@@ -386,11 +389,15 @@ pub trait ImageRenderWindowsService: Send + Sync + 'static {
     /// If `mask` is set captures only the given channel, if not set will capture the full BGRA image.
     ///
     /// Called inside the [`WINDOW`] context for the new window.
+    ///
+    /// [`WINDOW`]: zng_app::window::WINDOW
     fn enable_frame_capture_in_window_context(&self, mask: Option<ImageMaskMode>);
 
     /// Open the window.
     ///
     /// The `new_window_root` is called inside the [`WINDOW`] context for the new window.
+    ///
+    /// [`WINDOW`]: zng_app::window::WINDOW
     fn open_headless_window(&self, new_window_root: Box<dyn FnOnce() -> Box<dyn ImageRenderWindowRoot> + Send>);
 
     /// Returns the rendered frame image if it is ready for reading.

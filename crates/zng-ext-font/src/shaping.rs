@@ -61,7 +61,7 @@ pub struct TextShapingArgs {
 
     /// Maximum line width.
     ///
-    /// Is [`Px::MAX`] when text wrap is disabled.
+    /// Is `Px::MAX` when text wrap is disabled.
     pub max_width: Px,
 
     /// Line break config for Chinese, Japanese, or Korean text.
@@ -499,7 +499,7 @@ impl ShapedText {
         }
     }
 
-    /// Gets the first line that overflows the `max_height`. A line overflows when the line [`PxRect::max_y`]
+    /// Gets the first line that overflows the `max_height`. A line overflows when the line `PxRect::max_y`
     /// is greater than `max_height`.
     pub fn overflow_line(&self, max_height: Px) -> Option<ShapedLine> {
         let mut y = self.first_line.max_y();

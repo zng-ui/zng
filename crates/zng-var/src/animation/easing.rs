@@ -41,6 +41,8 @@ impl EasingTime {
     /// New from [`Factor`].
     ///
     /// The `factor` is clamped to the [0..=1] range.
+    ///
+    /// [`Factor`]: zng_unit::Factor
     pub fn new(factor: Factor) -> Self {
         EasingTime(factor.clamp_range())
     }
@@ -73,11 +75,15 @@ impl EasingTime {
     }
 
     /// Get the time as a [`Factor`].
+    ///
+    /// [`Factor`]: zng_unit::Factor
     pub fn fct(self) -> Factor {
         self.0
     }
 
     /// Get the time as a [`FactorPercent`].
+    ///
+    /// [`FactorPercent`]: zng_unit::FactorPercent
     pub fn pct(self) -> FactorPercent {
         self.0 .0.pct()
     }

@@ -52,6 +52,7 @@ struct LayersCtx {
 ///
 ///
 /// [`insert_anchored`]: Self::insert_anchored
+/// [`WidgetBoundsInfo`]: zng_wgt::prelude::WidgetBoundsInfo
 pub struct LAYERS;
 impl LAYERS {
     /// Insert the `widget` in the layer identified by a [`LayerIndex`].
@@ -120,6 +121,7 @@ impl LAYERS {
     /// This is the equivalent of calling [`insert`] with the node wrapped in [`UiNode::init_widget`].
     ///
     /// [`insert`]: Self::insert
+    /// [`UiNode::init_widget`]: zng_wgt::prelude::UiNode::init_widget
     pub fn insert_node(&self, layer: impl IntoVar<LayerIndex>, maybe_widget: impl UiNode) -> ResponseVar<WidgetId> {
         let (widget, rsp) = maybe_widget.init_widget();
         self.insert(layer, widget);
@@ -627,6 +629,7 @@ impl LAYERS {
     /// [`insert`]: Self::insert
     ///
     /// [`insert_anchored`]: Self::insert_anchored
+    /// [`UiNode::init_widget`]: zng_wgt::prelude::UiNode::init_widget
     pub fn insert_anchored_node(
         &self,
         layer: impl IntoVar<LayerIndex>,
@@ -759,7 +762,7 @@ impl LayerIndex {
     /// Adorner widgets are related to another widget but not as a visual part of it, examples of adorners
     /// are resize handles in a widget visual editor, or an interactive help/guide feature.
     ///
-    /// This is the [`TOP_MOST - u16::MAX`] value.
+    /// This is the `TOP_MOST - u16::MAX` value.
     pub const ADORNER: LayerIndex = LayerIndex(Self::TOP_MOST.0 - u16::MAX as u32);
 
     /// The default layer, just above the normal window content.
@@ -1558,6 +1561,7 @@ pub fn adorner_fn(child: impl UiNode, adorner_fn: impl IntoVar<WidgetFn<()>>) ->
 /// This is the equivalent of setting [`adorner_fn`] to a [`WidgetFn::singleton`].
 ///
 /// [`adorner_fn`]: fn@adorner_fn
+/// [`WidgetFn::singleton`]: zng_wgt::prelude::WidgetFn::singleton
 #[property(FILL, default(NilUiNode))]
 pub fn adorner(child: impl UiNode, adorner: impl UiNode) -> impl UiNode {
     adorner_fn(child, WidgetFn::singleton(adorner))

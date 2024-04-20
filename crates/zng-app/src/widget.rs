@@ -1349,6 +1349,7 @@ pub trait AnyVarSubscribe: AnyVar {
     /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
     ///
     /// [`NEW`]: zng_var::VarCapabilities::NEW
+    /// [`VarHandle::dummy`]: zng_var::VarHandle
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle;
 }
 impl<V: AnyVar> AnyVarSubscribe for V {
@@ -1370,6 +1371,7 @@ pub trait VarSubscribe<T: VarValue>: Var<T> + AnyVarSubscribe {
     /// Variables without the [`NEW`] capability return [`VarHandle::dummy`].
     ///
     /// [`NEW`]: zng_var::VarCapabilities::NEW
+    /// [`VarHandle::dummy`]: zng_var::VarHandle
     fn subscribe_when(&self, op: UpdateOp, widget_id: WidgetId, predicate: impl Fn(&T) -> bool + Send + Sync + 'static) -> VarHandle;
 
     /// Add a preview `handler` that is called every time this variable updates,

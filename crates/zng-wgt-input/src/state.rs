@@ -96,6 +96,7 @@ pub fn is_cap_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 ///
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_cap_mouse_pressed`]: fn@is_cap_mouse_pressed
+/// [`ClickMode::repeat`]: zng_ext_input::mouse::ClickMode::repeat
 #[property(EVENT)]
 pub fn is_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_state3(

@@ -825,6 +825,8 @@ impl WidgetUndoScope {
     }
 
     /// Init the scope in the [`WIDGET`].
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn init(&mut self) {
         let mut scope = UndoScope::default();
         let id = WIDGET.id();
@@ -843,6 +845,8 @@ impl WidgetUndoScope {
     }
 
     /// Sets the [`WIDGET`] info.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn info(&mut self, info: &mut WidgetInfoBuilder) {
         info.flag_meta(&FOCUS_SCOPE_ID);
     }
@@ -850,6 +854,8 @@ impl WidgetUndoScope {
     /// Deinit the scope in the [`WIDGET`].
     ///
     /// This clears the undo/redo stack of the scope.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn deinit(&mut self) {
         self.0 = None;
     }

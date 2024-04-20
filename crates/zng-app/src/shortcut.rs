@@ -20,6 +20,10 @@ use crate::event::{Command, CommandMetaVar, StaticCommandMetaVarId};
 ///
 /// Note that not all keys work well as gesture keys, you can use `try_into` to filter [`Key`] or [`KeyCode`] values
 /// that do not work.
+///
+/// [`Key::Char`]: zng_view_api::keyboard::Key::Char
+/// [`Key`]: zng_view_api::keyboard::Key
+/// [`KeyCode`]: zng_view_api::keyboard::KeyCode
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum GestureKey {
     /// Gesture key identified by the semantic key.
@@ -809,9 +813,7 @@ bitflags! {
     pub struct ShortcutFilter: u8 {
         /// Shortcut only applies if the scope is enabled.
         const ENABLED = 0b001;
-        /// Shortcut only applies if the scope is in the [`FOCUS.focused`] path.
-        ///
-        /// [`FOCUS.focused`]: FOCUS::focused
+        /// Shortcut only applies if the scope is in the focused path.
         const FOCUSED = 0b010;
         /// Shortcut only applies if the command is enabled.
         const CMD_ENABLED = 0b100;
@@ -890,6 +892,13 @@ macro_rules! __shortcut {
 ///     shortcut!(Alt)
 /// }
 /// ```
+///
+/// [`Key`]: zng_view_api::keyboard::Key
+/// [`Key::Char`]: zng_view_api::keyboard::Key::Char
+/// [`Key::Str`]: zng_view_api::keyboard::Key::Str
+/// [`KeyCode`]: zng_view_api::keyboard::KeyCode
+/// [`Key::is_modifier`]: zng_view_api::keyboard::Key::is_modifier
+/// [`Key::is_composition`]: zng_view_api::keyboard::Key::is_composition
 #[macro_export]
 macro_rules! shortcut_macro {
     (Super) => {

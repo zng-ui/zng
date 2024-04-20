@@ -27,6 +27,7 @@ pub fn corner_radius(child: impl UiNode, radius: impl IntoVar<CornerRadius>) -> 
 ///
 /// [`corner_radius`]: fn@corner_radius
 /// [`BORDER`]: zng_app::widget::border::BORDER
+/// [`CORNER_RADIUS_FIT_VAR`]: zng_app::widget::border::CORNER_RADIUS_FIT_VAR
 #[property(CONTEXT, default(CORNER_RADIUS_FIT_VAR))]
 pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>) -> impl UiNode {
     with_context_var(child, CORNER_RADIUS_FIT_VAR, fit)
@@ -46,6 +47,7 @@ pub fn corner_radius_fit(child: impl UiNode, fit: impl IntoVar<CornerRadiusFit>)
 /// Sets the [`BORDER_ALIGN_VAR`].
 ///
 /// [`corner_radius`]: fn@corner_radius
+/// [`BORDER_ALIGN_VAR`]: zng_app::widget::border::BORDER_ALIGN_VAR
 #[property(CONTEXT, default(BORDER_ALIGN_VAR))]
 pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) -> impl UiNode {
     with_context_var(child, BORDER_ALIGN_VAR, align)
@@ -59,6 +61,7 @@ pub fn border_align(child: impl UiNode, align: impl IntoVar<FactorSideOffsets>) 
 /// Sets the [`BORDER_OVER_VAR`].
 ///
 /// [`border_align`]: fn@border_align
+/// [`BORDER_OVER_VAR`]: zng_app::widget::border::BORDER_OVER_VAR
 #[property(CONTEXT, default(BORDER_OVER_VAR))]
 pub fn border_over(child: impl UiNode, over: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, BORDER_OVER_VAR, over)

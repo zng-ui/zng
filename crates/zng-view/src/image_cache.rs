@@ -1058,7 +1058,7 @@ impl Image {
 }
 
 // Image data is provided to webrender directly from the BGRA8 shared memory.
-// The [`ExternalImageId`] is the Arc pointer to ImageData.
+// The `ExternalImageId` is the Arc pointer to ImageData.
 mod external {
     use std::{collections::hash_map::Entry, sync::Arc};
 

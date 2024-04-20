@@ -260,6 +260,8 @@ impl WINDOWS {
     /// This setting does not consider headless windows and is fully ignored in headless apps.
     ///
     /// This is also set to `true` on [`EXIT_REQUESTED_EVENT`] when there are open headed windows.
+    ///
+    /// [`EXIT_REQUESTED_EVENT`]: zng_app::EXIT_REQUESTED_EVENT
     pub fn exit_on_last_close(&self) -> ArcVar<bool> {
         WINDOWS_SV.read().exit_on_last_close.clone()
     }
@@ -294,6 +296,8 @@ impl WINDOWS {
     /// can use the context [`WINDOW`] to set variables that will be read on init with the new value.
     ///
     /// [loaded]: Self::is_loaded
+    /// [`UiTask`]: zng_task::UiTask
+    /// [`WINDOW`]: zng_app::window::WINDOW
     pub fn open(&self, new_window: impl Future<Output = WindowRoot> + Send + 'static) -> ResponseVar<WindowId> {
         WINDOWS_SV
             .write()
@@ -644,6 +648,10 @@ impl WINDOWS {
     ///
     /// The payload is dropped after it is send, this method must be called again on [`VIEW_PROCESS_INITED_EVENT`]
     /// to reinitialize the extensions after view-process respawn.
+    ///
+    /// [`UiNode::init`]: zng_app::widget::node::UiNode::init
+    /// [`UiNode::layout`]: zng_app::widget::node::UiNode::layout
+    /// [`VIEW_PROCESS_INITED_EVENT`]: zng_app::view_process::VIEW_PROCESS_INITED_EVENT
     pub fn view_extensions_init(
         &self,
         window_id: WindowId,
@@ -1538,6 +1546,8 @@ impl fmt::Debug for WindowLoadingHandle {
 }
 
 /// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
+///
+/// [`WINDOW`]: zng_app::window::WINDOW
 #[allow(non_camel_case_types)]
 pub trait WINDOW_Ext {
     /// Clone a reference to the variables that get and set window properties.

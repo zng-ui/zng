@@ -112,6 +112,7 @@ pub enum UiNodeOp<'a> {
     /// [`Layout`]: Self::Layout
     /// [`LayoutMetrics`]: zng_layout::context::LayoutMetrics
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    /// [`PxSize`]: zng_layout::unit::PxSize
     Measure {
         ///
         wm: &'a mut WidgetMeasure,
@@ -138,6 +139,7 @@ pub enum UiNodeOp<'a> {
     /// [`constraints`]: zng_layout::context::LayoutMetrics::constraints
     /// [`WIDGET.render`]: crate::widget::WIDGET::render
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
+    /// [`PxSize`]: zng_layout::unit::PxSize
     Layout {
         ///
         wl: &'a mut WidgetLayout,

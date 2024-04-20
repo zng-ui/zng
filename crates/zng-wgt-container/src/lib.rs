@@ -75,9 +75,15 @@ pub enum ChildInsert {
 
     /// Insert node to the left of child in [`LayoutDirection::LTR`] contexts and to the right of child
     /// in [`LayoutDirection::RTL`] contexts.
+    ///
+    /// [`LayoutDirection::LTR`]: zng_wgt::prelude::LayoutDirection::LTR
+    /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
     Start,
     /// Insert node to the right of child in [`LayoutDirection::LTR`] contexts and to the left of child
     /// in [`LayoutDirection::RTL`] contexts.
+    ///
+    /// [`LayoutDirection::LTR`]: zng_wgt::prelude::LayoutDirection::LTR
+    /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
     End,
 }
 impl fmt::Debug for ChildInsert {

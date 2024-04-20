@@ -180,6 +180,8 @@ where
 ///
 /// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
 /// listed in the *clone-move* section it would not be available after the handler is created. See [`clmv!`] for details.
+///
+/// [`clmv!`]: zng_clone_move::clmv
 #[macro_export]
 macro_rules! hn {
     ($($tt:tt)+) => {
@@ -270,6 +272,8 @@ where
 /// println!("{data:?}");
 /// # on_click }
 /// ```
+///
+/// [`clmv!`]: zng_clone_move::clmv
 #[macro_export]
 macro_rules! hn_once {
     ($($tt:tt)+) => {
@@ -424,6 +428,8 @@ where
 /// needs to happen because you can have more then one *handler task* running at the same type, and both want access to the captured variables.
 ///
 /// This second cloning can be avoided by using the [`async_hn_once!`] macro instead, but only if you expect a single event.
+///
+/// [`async_clmv_fn!`]: zng_clone_move::async_clmv_fn
 #[macro_export]
 macro_rules! async_hn {
     ($($tt:tt)+) => {
@@ -560,6 +566,8 @@ where
 /// println!("{data:?}");
 /// # on_open }
 /// ```
+///
+/// [`async_clmv_fn_once!`]: zng_clone_move::async_clmv_fn_once
 #[macro_export]
 macro_rules! async_hn_once {
     ($($tt:tt)+) => {
@@ -754,6 +762,8 @@ where
 ///
 /// In the example above only a clone of `foo` is moved into the handler. Note that handlers always capture by move, if `foo` was not
 /// listed in the *clone-move* section it would not be available after the handler is created. See [`clmv!`] for details.
+///
+/// [`clmv!`]: zng_clone_move::clmv
 #[macro_export]
 macro_rules! app_hn {
     ($($tt:tt)+) => {
@@ -847,6 +857,8 @@ where
 /// println!("{data:?}");
 /// # }
 /// ```
+///
+/// [`clmv!`]: zng_clone_move::clmv
 #[macro_export]
 macro_rules! app_hn_once {
     ($($tt:tt)+) => {
@@ -1014,6 +1026,8 @@ where
 /// needs to happen because you can have more then one *handler task* running at the same type, and both want access to the captured variables.
 ///
 /// This second cloning can be avoided by using the [`async_hn_once!`] macro instead, but only if you expect a single event.
+///
+/// [`async_clmv_fn!`]: zng_clone_move::async_clmv_fn
 #[macro_export]
 macro_rules! async_app_hn {
     ($($tt:tt)+) => {
@@ -1144,6 +1158,8 @@ where
 /// println!("{data:?}");
 /// # on_open }
 /// ```
+///
+/// [`async_clmv_fn_once!`]: zng_clone_move::async_clmv_fn_once
 #[macro_export]
 macro_rules! async_app_hn_once {
     ($($tt:tt)+) => {
@@ -1331,7 +1347,7 @@ impl HeadlessApp {
 
     /// Calls the `handler` once and [`block_on`] it with a 60 seconds timeout using the minimal headless app.
     ///
-    /// [`block_on`]: Self::block_on.
+    /// [`block_on`]: Self::block_on
     #[track_caller]
     #[cfg(any(test, doc, feature = "test_util"))]
     pub fn doc_test<A, H>(args: A, mut handler: H)
@@ -1345,7 +1361,7 @@ impl HeadlessApp {
 
     /// Calls the `handlers` once each and [`block_on_multi`] with a 60 seconds timeout.
     ///
-    /// [`block_on_multi`]: Self::block_on_multi.
+    /// [`block_on_multi`]: Self::block_on_multi
     #[track_caller]
     #[cfg(any(test, doc, feature = "test_util"))]
     pub fn doc_test_multi<A>(args: A, mut handlers: Vec<Box<dyn AppHandler<A>>>)

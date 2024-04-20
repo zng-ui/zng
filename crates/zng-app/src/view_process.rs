@@ -158,6 +158,10 @@ impl VIEW_PROCESS {
     ///
     /// This function returns immediately, the [`ViewImage`] will update when
     /// [`Event::ImageMetadataLoaded`], [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+    ///
+    /// [`Event::ImageMetadataLoaded`]: zng_view_api::Event::ImageMetadataLoaded
+    /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
+    /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
     pub fn add_image(&self, request: ImageRequest<IpcBytes>) -> Result<ViewImage> {
         let mut app = self.write();
         let id = app.process.add_image(request)?;
@@ -183,6 +187,11 @@ impl VIEW_PROCESS {
     /// This function returns immediately, the [`ViewImage`] will update when
     /// [`Event::ImageMetadataLoaded`], [`Event::ImagePartiallyLoaded`],
     /// [`Event::ImageLoaded`] and [`Event::ImageLoadError`] events are received.
+    ///
+    /// [`Event::ImageMetadataLoaded`]: zng_view_api::Event::ImageMetadataLoaded
+    /// [`Event::ImageLoaded`]: zng_view_api::Event::ImageLoaded
+    /// [`Event::ImageLoadError`]: zng_view_api::Event::ImageLoadError
+    /// [`Event::ImagePartiallyLoaded`]: zng_view_api::Event::ImagePartiallyLoaded
     pub fn add_image_pro(&self, request: ImageRequest<IpcBytesReceiver>) -> Result<ViewImage> {
         let mut app = self.write();
         let id = app.process.add_image_pro(request)?;
@@ -234,6 +243,8 @@ impl VIEW_PROCESS {
     }
 
     /// Reopen the view-process, causing another [`Event::Inited`].
+    ///
+    /// [`Event::Inited`]: zng_view_api::Event::Inited
     pub fn respawn(&self) {
         self.write().process.respawn()
     }
@@ -279,6 +290,8 @@ impl VIEW_PROCESS {
     /// Handle an [`Event::Disconnected`].
     ///
     /// The process will exit if the view-process was killed by the user.
+    ///
+    /// [`Event::Disconnected`]: zng_view_api::Event::Disconnected
     pub fn handle_disconnect(&self, gen: ViewProcessGen) {
         self.write().process.handle_disconnect(gen)
     }
@@ -334,6 +347,8 @@ impl VIEW_PROCESS {
     /// Handle an [`Event::Inited`].
     ///
     /// The view-process becomes online only after this call.
+    ///
+    /// [`Event::Inited`]: zng_view_api::Event::Inited
     pub(super) fn handle_inited(&self, gen: ViewProcessGen, extensions: ApiExtensions) {
         let mut me = self.write();
         me.extensions = extensions;
@@ -854,6 +869,8 @@ impl ViewHeadless {
 ///
 /// This is only a weak reference, every method returns [`ViewProcessOffline`] if the
 /// window is closed or view is disposed.
+///
+/// [`ViewProcessOffline`]: zng_view_api::ViewProcessOffline
 #[derive(Clone, Debug)]
 pub struct ViewRenderer(sync::Weak<ViewWindowData>);
 impl PartialEq for ViewRenderer {
@@ -1231,7 +1248,7 @@ impl ViewImage {
     ///
     /// The `format` must be one of the [`image_encoders`] supported by the view-process backend.
     ///
-    /// [`image_encoders`]: View::image_encoders.
+    /// [`image_encoders`]: VIEW_PROCESS::image_encoders
     pub async fn encode(&self, format: Txt) -> std::result::Result<IpcBytes, EncodeError> {
         self.awaiter().await;
 
@@ -1333,6 +1350,8 @@ type ClipboardResult<T> = std::result::Result<T, ClipboardError>;
 pub struct ViewClipboard {}
 impl ViewClipboard {
     /// Read [`ClipboardType::Text`].
+    ///
+    /// [`ClipboardType::Text`]: zng_view_api::clipboard::ClipboardType::Text
     pub fn read_text(&self) -> Result<ClipboardResult<Txt>> {
         match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::Text)? {
             Ok(ClipboardData::Text(t)) => Ok(Ok(t)),
@@ -1342,11 +1361,15 @@ impl ViewClipboard {
     }
 
     /// Write [`ClipboardType::Text`].
+    ///
+    /// [`ClipboardType::Text`]: zng_view_api::clipboard::ClipboardType::Text
     pub fn write_text(&self, txt: Txt) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::Text(txt))
     }
 
     /// Read [`ClipboardType::Image`].
+    ///
+    /// [`ClipboardType::Image`]: zng_view_api::clipboard::ClipboardType::Image
     pub fn read_image(&self) -> Result<ClipboardResult<ViewImage>> {
         let mut app = VIEW_PROCESS.try_write()?;
         match app.process.read_clipboard(ClipboardType::Image)? {
@@ -1377,6 +1400,8 @@ impl ViewClipboard {
     }
 
     /// Write [`ClipboardType::Image`].
+    ///
+    /// [`ClipboardType::Image`]: zng_view_api::clipboard::ClipboardType::Image
     pub fn write_image(&self, img: &ViewImage) -> Result<ClipboardResult<()>> {
         if img.is_loaded() {
             if let Some(id) = img.id() {
@@ -1387,6 +1412,8 @@ impl ViewClipboard {
     }
 
     /// Read [`ClipboardType::FileList`].
+    ///
+    /// [`ClipboardType::FileList`]: zng_view_api::clipboard::ClipboardType::FileList
     pub fn read_file_list(&self) -> Result<ClipboardResult<Vec<PathBuf>>> {
         match VIEW_PROCESS.try_write()?.process.read_clipboard(ClipboardType::FileList)? {
             Ok(ClipboardData::FileList(f)) => Ok(Ok(f)),
@@ -1396,11 +1423,15 @@ impl ViewClipboard {
     }
 
     /// Write [`ClipboardType::FileList`].
+    ///
+    /// [`ClipboardType::FileList`]: zng_view_api::clipboard::ClipboardType::FileList
     pub fn write_file_list(&self, list: Vec<PathBuf>) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS.try_write()?.process.write_clipboard(ClipboardData::FileList(list))
     }
 
     /// Read [`ClipboardType::Extension`].
+    ///
+    /// [`ClipboardType::Extension`]: zng_view_api::clipboard::ClipboardType::Extension
     pub fn read_extension(&self, data_type: Txt) -> Result<ClipboardResult<IpcBytes>> {
         match VIEW_PROCESS
             .try_write()?
@@ -1414,6 +1445,8 @@ impl ViewClipboard {
     }
 
     /// Write [`ClipboardType::Extension`].
+    ///
+    /// [`ClipboardType::Extension`]: zng_view_api::clipboard::ClipboardType::Extension
     pub fn write_extension(&self, data_type: Txt, data: IpcBytes) -> Result<ClipboardResult<()>> {
         VIEW_PROCESS
             .try_write()?

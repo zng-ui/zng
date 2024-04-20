@@ -283,6 +283,7 @@ impl MouseHoverArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
@@ -303,31 +304,43 @@ impl MouseHoverArgs {
     }
 
     /// Returns `true` if the [`WIDGET`] was not hovered, but now is.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_mouse_enter(&self) -> bool {
         !self.was_over() && self.is_over()
     }
 
     /// Returns `true` if the [`WIDGET`] was hovered, but now isn't.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_mouse_leave(&self) -> bool {
         self.was_over() && !self.is_over()
     }
 
     /// Returns `true` if the [`WIDGET`] was not hovered or was disabled, but now is hovered and enabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_mouse_enter_enabled(&self) -> bool {
         (!self.was_over() || self.was_disabled(WIDGET.id())) && self.is_over() && self.is_enabled(WIDGET.id())
     }
 
     /// Returns `true` if the [`WIDGET`] was hovered and enabled, but now is not hovered or is disabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_mouse_leave_enabled(&self) -> bool {
         self.was_over() && self.was_enabled(WIDGET.id()) && (!self.is_over() || self.is_disabled(WIDGET.id()))
     }
 
     /// Returns `true` if the [`WIDGET`] was not hovered or was enabled, but now is hovered and disabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_mouse_enter_disabled(&self) -> bool {
         (!self.was_over() || self.was_enabled(WIDGET.id())) && self.is_over() && self.is_disabled(WIDGET.id())
     }
 
     /// Returns `true` if the [`WIDGET`] was hovered and disabled, but now is not hovered or is enabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_mouse_leave_disabled(&self) -> bool {
         self.was_over() && self.was_disabled(WIDGET.id()) && (!self.is_over() || self.is_enabled(WIDGET.id()))
     }
@@ -336,6 +349,7 @@ impl MouseHoverArgs {
     ///
     /// [`prev_target`]: Self::prev_target
     /// [`prev_capture`]: Self::prev_capture
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn was_over(&self) -> bool {
         if let Some(cap) = &self.prev_capture {
             if !cap.allows() {
@@ -354,6 +368,7 @@ impl MouseHoverArgs {
     ///
     /// [`target`]: Self::target
     /// [`capture`]: Self::capture
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_over(&self) -> bool {
         if let Some(cap) = &self.capture {
             if !cap.allows() {
@@ -423,6 +438,7 @@ impl MouseMoveArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
@@ -438,6 +454,7 @@ impl MouseInputArgs {
     ///
     /// [`capture`]: Self::capture
     /// [`allows`]: CaptureInfo::allows
+    /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
@@ -1420,6 +1437,8 @@ impl MOUSE {
     /// In headless apps the default is [`MultiClickConfig::default`] and does not change.
     ///
     /// Internally the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`] is listened to update this variable.
+    ///
+    /// [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`]: zng_app::view_process::raw_events::RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT
     pub fn multi_click_config(&self) -> ReadOnlyArcVar<MultiClickConfig> {
         MOUSE_SV.read().multi_click_config.read_only()
     }

@@ -33,7 +33,10 @@ pub use self::window_properties::*;
 /// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zng_ext_window::WINDOWS) service
 /// to open a system window that is kept in sync with the window properties set in the widget.
 ///
-/// See [`run_window`](zng_ext_window::AppRunWindowExt::run_window) for more details.
+/// See [`run_window`] for more details.
+///
+/// [`WindowRoot`]: zng_ext_window::WindowRoot
+/// [`run_window`]: zng_ext_window::AppRunWindowExt::run_window
 #[widget($crate::Window)]
 pub struct Window(zng_wgt_container::Container);
 impl Window {
@@ -74,6 +77,8 @@ impl Window {
     }
 
     /// Build a [`WindowRoot`].
+    ///
+    /// [`WindowRoot`]: zng_ext_window::WindowRoot
     pub fn widget_build(&mut self) -> WindowRoot {
         let mut wgt = self.widget_take();
         WindowRoot::new(
@@ -128,6 +133,7 @@ pub fn allow_transparency(allow: impl IntoValue<bool>) {}
 /// see [`RenderMode`] for more details about each mode and fallbacks.
 ///
 /// [`WINDOWS.default_render_mode`]: zng_ext_window::WINDOWS::default_render_mode
+/// [`RenderMode`]: crate::RenderMode
 #[property(CONTEXT, capture, widget_impl(Window))]
 pub fn render_mode(mode: impl IntoValue<Option<RenderMode>>) {}
 

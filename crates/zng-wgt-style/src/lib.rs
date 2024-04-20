@@ -469,6 +469,8 @@ fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {
 /// });
 /// # }
 /// ```
+///
+/// [`clmv!`]: zng_wgt::prelude::clmv
 #[macro_export]
 macro_rules! style_fn {
     ($fn:path) => {

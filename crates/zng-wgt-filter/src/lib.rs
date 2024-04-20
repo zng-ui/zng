@@ -68,6 +68,7 @@ pub fn child_filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl Ui
 /// This property is a shorthand way of setting [`filter`] to [`Filter::new_invert`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
+/// [`Filter::new_invert`]: zng_color::filter::Filter::new_invert
 #[property(CONTEXT, default(false))]
 pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_invert(a)), false)
@@ -80,6 +81,7 @@ pub fn invert_color(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl Ui
 /// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_invert`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
+/// [`Filter::new_invert`]: zng_color::filter::Filter::new_invert
 #[property(CONTEXT, default(false))]
 pub fn backdrop_invert(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_invert(a)))
@@ -90,6 +92,7 @@ pub fn backdrop_invert(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl
 /// This property is a shorthand way of setting [`filter`] to [`Filter::new_blur`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
+/// [`Filter::new_blur`]: zng_color::filter::Filter::new_blur
 #[property(CONTEXT, default(0))]
 pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
     filter_layout(child, radius.into_var().map(|r| Filter::new_blur(r.clone())), false)
@@ -100,6 +103,7 @@ pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
 /// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_blur`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
+/// [`Filter::new_blur`]: zng_color::filter::Filter::new_blur
 #[property(CONTEXT, default(0))]
 pub fn backdrop_blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
     backdrop_filter_layout(child, radius.into_var().map(|r| Filter::new_blur(r.clone())))
@@ -112,6 +116,7 @@ pub fn backdrop_blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl U
 /// This property is a shorthand way of setting [`filter`] to [`Filter::new_sepia`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
+/// [`Filter::new_sepia`]: zng_color::filter::Filter::new_sepia
 #[property(CONTEXT, default(false))]
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_sepia(a)), false)
@@ -124,6 +129,7 @@ pub fn sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
 /// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_sepia`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
+/// [`Filter::new_sepia`]: zng_color::filter::Filter::new_sepia
 #[property(CONTEXT, default(false))]
 pub fn backdrop_sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_sepia(a)))
@@ -136,6 +142,7 @@ pub fn backdrop_sepia(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl 
 /// This property is a shorthand way of setting [`filter`] to [`Filter::new_grayscale`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
+/// [`Filter::new_grayscale`]: zng_color::filter::Filter::new_grayscale
 #[property(CONTEXT, default(false))]
 pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_grayscale(a)), false)
@@ -148,6 +155,7 @@ pub fn grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNod
 /// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_grayscale`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
+/// [`Filter::new_grayscale`]: zng_color::filter::Filter::new_grayscale
 #[property(CONTEXT, default(false))]
 pub fn backdrop_grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_grayscale(a)))
@@ -160,6 +168,7 @@ pub fn backdrop_grayscale(child: impl UiNode, amount: impl IntoVar<Factor>) -> i
 /// This property is a shorthand way of setting [`filter`] to [`Filter::new_drop_shadow`] using variable merging.
 ///
 /// [`filter`]: fn@filter
+/// [`Filter::new_drop_shadow`]: zng_color::filter::Filter::new_drop_shadow
 #[property(CONTEXT, default((0, 0), 0, colors::BLACK.transparent()))]
 pub fn drop_shadow(
     child: impl UiNode,
@@ -183,6 +192,7 @@ pub fn drop_shadow(
 /// This property is a shorthand way of setting [`filter`] to [`Filter::new_brightness`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
+/// [`Filter::new_brightness`]: zng_color::filter::Filter::new_brightness
 #[property(CONTEXT, default(1.0))]
 pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_brightness(a)), false)
@@ -195,6 +205,7 @@ pub fn brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNo
 /// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_brightness`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
+/// [`Filter::new_brightness`]: zng_color::filter::Filter::new_brightness
 #[property(CONTEXT, default(1.0))]
 pub fn backdrop_brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_brightness(a)))
@@ -204,9 +215,10 @@ pub fn backdrop_brightness(child: impl UiNode, amount: impl IntoVar<Factor>) -> 
 ///
 /// Zero removes all contrast, one is the original contrast.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`Filter::new_brightness`] using variable mapping.
+/// This property is a shorthand way of setting [`filter`] to [`Filter::new_contrast`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
+/// [`Filter::new_contrast`]: zng_color::filter::Filter::new_contrast
 #[property(CONTEXT, default(1.0))]
 pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_contrast(a)), false)
@@ -216,9 +228,10 @@ pub fn contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode
 ///
 /// Zero removes all contrast, one is the original contrast.
 ///
-/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_brightness`] using variable mapping.
+/// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_contrast`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
+/// [`Filter::new_contrast`]: zng_color::filter::Filter::new_contrast
 #[property(CONTEXT, default(1.0))]
 pub fn backdrop_contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_contrast(a)))
@@ -231,6 +244,7 @@ pub fn backdrop_contrast(child: impl UiNode, amount: impl IntoVar<Factor>) -> im
 /// This property is a shorthand way of setting [`filter`] to [`Filter::new_saturate`] using variable mapping.
 ///
 /// [`filter`]: fn@filter
+/// [`Filter::new_saturate`]: zng_color::filter::Filter::new_saturate
 #[property(CONTEXT, default(1.0))]
 pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     filter_render(child, amount.into_var().map(|&a| Filter::new_saturate(a)), false)
@@ -243,6 +257,7 @@ pub fn saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode
 /// This property is a shorthand way of setting [`backdrop_filter`] to [`Filter::new_saturate`] using variable mapping.
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
+/// [`Filter::new_saturate`]: zng_color::filter::Filter::new_saturate
 #[property(CONTEXT, default(1.0))]
 pub fn backdrop_saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> impl UiNode {
     backdrop_filter_render(child, amount.into_var().map(|&a| Filter::new_saturate(a)))
@@ -256,6 +271,7 @@ pub fn backdrop_saturate(child: impl UiNode, amount: impl IntoVar<Factor>) -> im
 ///
 /// [`filter`]: fn@filter
 /// [`hue`]: Hsla::hue
+/// [`Filter::new_hue_rotate`]: zng_color::filter::Filter::new_hue_rotate
 #[property(CONTEXT, default(0.deg()))]
 pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
     filter_render(child, angle.into_var().map(|&a| Filter::new_hue_rotate(a)), false)
@@ -269,6 +285,7 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
 ///
 /// [`backdrop_filter`]: fn@backdrop_filter
 /// [`hue`]: Hsla::hue
+/// [`Filter::new_hue_rotate`]: zng_color::filter::Filter::new_hue_rotate
 #[property(CONTEXT, default(0.deg()))]
 pub fn backdrop_hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
     backdrop_filter_render(child, angle.into_var().map(|&a| Filter::new_hue_rotate(a)))
@@ -292,11 +309,11 @@ pub fn backdrop_color_matrix(child: impl UiNode, matrix: impl IntoVar<ColorMatri
 
 /// Opacity/transparency of the widget.
 ///
-/// This property provides the same visual result as setting [`filter`] to [`Filter::new_opacity(opacity)`],
+/// This property provides the same visual result as setting [`filter`] to [`Filter::new_opacity`],
 /// **but** updating the opacity is faster in this property.
 ///
 /// [`filter`]: fn@filter
-/// [`Filter::new_opacity(opacity)`]: Filter::new_opacity
+/// [`Filter::new_opacity`]: zng_color::filter::Filter::new_opacity
 #[property(CONTEXT, default(1.0))]
 pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     opacity_impl(child, alpha, false)
@@ -304,11 +321,11 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
 
 /// Opacity/transparency of the widget's child.
 ///
-/// This property provides the same visual result as setting [`child_filter`] to [`filters::opacity(opacity)`],
+/// This property provides the same visual result as setting [`child_filter`] to [`Filter::new_opacity`],
 /// **but** updating the opacity is faster in this property.
 ///
 /// [`child_filter`]: fn@child_filter
-/// [`Filter::new_opacity(opacity)`]: Filter::new_opacity
+/// [`Filter::new_opacity`]: zng_color::filter::Filter::new_opacity
 #[property(CHILD_CONTEXT, default(1.0))]
 pub fn child_opacity(child: impl UiNode, alpha: impl IntoVar<Factor>) -> impl UiNode {
     opacity_impl(child, alpha, true)

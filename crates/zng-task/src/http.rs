@@ -982,7 +982,7 @@ pub struct Metrics {
     pub redirect_time: Duration,
 }
 impl Metrics {
-    /// Init from [`isahc::Metrics`].
+    /// Init from `isahc::Metrics`.
     pub fn from_isahc(m: &isahc::Metrics) -> Self {
         Self {
             upload_progress: {

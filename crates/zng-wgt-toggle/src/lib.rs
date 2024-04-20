@@ -467,6 +467,7 @@ pub fn scroll_on_select(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// access role to [`AccessRole::RadioGroup`].
 ///
 /// [`value`]: fn@value
+/// [`AccessRole::RadioGroup`]: zng_wgt_access::AccessRole::RadioGroup
 #[property(CONTEXT, default(Selector::nil()), widget_impl(Toggle))]
 pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
     let mut _select_handle = CommandHandle::dummy();
@@ -565,7 +566,7 @@ context_var! {
     /// Use the [`deselect_on_new`] property to set. By default is `false`.
     ///
     /// [`value`]: fn@value
-    /// [`select_on_new`]: fn@select_on_new
+    /// [`deselect_on_new`]: fn@deselect_on_new
     pub static DESELECT_ON_NEW_VAR: bool = false;
 
     /// If [`value`] scrolls into view when selected.
@@ -579,6 +580,8 @@ context_var! {
 /// Represents a [`Selector`] implementation.
 pub trait SelectorImpl: Send + 'static {
     /// Add the selector subscriptions in the [`WIDGET`].
+    ///
+    /// [`WIDGET`]: zng_wgt::prelude::WIDGET
     fn subscribe(&self);
 
     /// Insert the `value` in the selection, returns `Ok(())` if the value was inserted or was already selected.
@@ -821,6 +824,8 @@ impl Selector {
     }
 
     /// Add the selector subscriptions in [`WIDGET`].
+    ///
+    /// [`WIDGET`]: zng_wgt::prelude::WIDGET
     pub fn subscribe(&self) {
         self.0.lock().subscribe();
     }
@@ -1087,6 +1092,7 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 /// [`ComboStyle!`]: struct@ComboStyle
 /// [`Popup!`]: struct@zng_wgt_layer::popup::Popup
 /// [`LAYERS`]: layers::LAYERS
+/// [`POPUP`]: zng_wgt_layer::popup::POPUP
 #[property(CHILD, widget_impl(Toggle))]
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     let popup = popup.into_var();

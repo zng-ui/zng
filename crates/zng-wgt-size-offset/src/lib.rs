@@ -789,6 +789,7 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
 /// [`size`]: fn@size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
+/// [`Length::Leftover`]: zng_wgt::prelude::Length::Leftover
 #[allow(non_camel_case_types)]
 pub struct WIDGET_SIZE;
 impl WIDGET_SIZE {
@@ -1009,12 +1010,15 @@ pub fn actual_bounds(child: impl UiNode, bounds: impl IntoVar<PxRect>) -> impl U
 /// [`size`]: fn@size
 /// [`width`]: fn@width
 /// [`height`]: fn@height
+/// [`Length::Leftover`]: zng_wgt::prelude::Length::Leftover
 #[derive(Debug, Clone, Copy, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub enum WidgetLength {
     /// Evaluates to [`PxConstraints2d::fill_size`] when measured, can serve as a request for *size-to-fit*.
     ///
     /// The `Grid!` widget uses this to fit the column and row widgets to *their* cells, as they don't
     /// logically own the cells, this fit needs to be computed by the parent panel.
+    ///
+    /// [`PxConstraints2d::fill_size`]: zng_wgt::prelude::PxConstraints2d::fill_size
     #[default]
     Default,
     /// The [`Length::Leftover`] value. Evaluates to the [`LayoutMetrics::leftover`] value when measured, if
@@ -1025,10 +1029,17 @@ pub enum WidgetLength {
     /// [`LAYOUT.with_leftover`] to inject the computed value.
     ///
     /// [`LAYOUT.with_leftover`]: zng_wgt::prelude::LAYOUT::with_leftover
+    /// [`Length::Leftover`]: zng_wgt::prelude::Length::Leftover
+    /// [`Length::Factor`]: zng_wgt::prelude::Length::Factor
+    /// [`LayoutMetrics::leftover`]: zng_wgt::prelude::LayoutMetrics::leftover
     Leftover(Factor),
     /// Any of the other [`Length`] kinds. All contextual metrics needed to compute these values is already available
     /// in the [`LayoutMetrics`], panels that support [`Length::Leftover`] can layout this widget first to compute the
     /// leftover length.
+    ///
+    /// [`Length::Leftover`]: zng_wgt::prelude::Length::Leftover
+    /// [`LayoutMetrics`]: zng_wgt::prelude::LayoutMetrics
+    /// [`Length`]: zng_wgt::prelude::Length
     Exact,
 }
 

@@ -2675,8 +2675,6 @@ unique_id_32! {
 
 unique_id_32! {
     /// Unique ID of a reference frame.
-    ///
-    /// See [`SpatialFrameKey`] for more details.
     #[derive(Debug)]
     pub struct SpatialFrameId;
 }

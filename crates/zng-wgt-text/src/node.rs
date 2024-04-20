@@ -42,6 +42,8 @@ pub struct CaretInfo {
     ///
     /// This variable is replaced often, the text resolver subscribes to it for
     /// [`UpdateOp::RenderUpdate`] automatically.
+    ///
+    /// [`UpdateOp::RenderUpdate`]: zng_wgt::prelude::UpdateOp::RenderUpdate
     pub opacity: ReadOnlyArcVar<Factor>,
 
     /// Caret byte offset in the text string.

@@ -5,7 +5,7 @@ use rayon::{
 
 use zng_app_context::LocalContext;
 
-/// Extends [`ParallelIterator`] with thread context.
+/// Extends rayon's `ParallelIterator` with thread context.
 pub trait ParallelIteratorExt: ParallelIterator {
     /// Captures the current [`LocalContext`] and propagates it to all rayon tasks
     /// generated running this parallel iterator.
@@ -15,6 +15,7 @@ pub trait ParallelIteratorExt: ParallelIterator {
     ///
     /// [`context_local!`]: zng_app_context::context_local
     /// [`app_local!`]: zng_app_context::app_local
+    /// [`LocalContext`]: zng_app_context::LocalContext
     fn with_ctx(self) -> ParallelIteratorWithCtx<Self> {
         ParallelIteratorWithCtx {
             base: self,

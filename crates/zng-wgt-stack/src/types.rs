@@ -32,6 +32,8 @@ pub struct StackDirection {
     pub origin: Point,
 
     /// If `place.x` and `origin.x` are swapped in [`LayoutDirection::RTL`] contexts.
+    ///
+    /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
     pub is_rtl_aware: bool,
 }
 
@@ -104,6 +106,8 @@ impl StackDirection {
     /// In [`LayoutDirection::RTL`] contexts the `place.x` and `origin.x` values are swapped before they are computed.
     ///
     /// Alignment works on the `y` direction because it is not affected.
+    ///
+    /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
     pub fn start_to_end() -> Self {
         Self {
             place: (100.pct(), 0).into(),
@@ -117,6 +121,8 @@ impl StackDirection {
     /// In [`LayoutDirection::RTL`] contexts the `place.x` and `origin.x` values are swapped before they are computed.
     ///
     /// Alignment works on the `y` direction because it is not affected.
+    ///
+    /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
     pub fn end_to_start() -> Self {
         Self {
             place: (0, 0).into(),
@@ -163,6 +169,8 @@ impl StackDirection {
     }
 
     /// Compute offset of the next item in the current [`LAYOUT`] context.
+    ///
+    /// [`LAYOUT`]: zng_wgt::prelude::LAYOUT
     pub fn layout(&self, prev_item: PxRect, next_item: PxSize) -> PxVector {
         if self.is_rtl_aware && LAYOUT.direction().is_rtl() {
             let mut d = self.clone();
@@ -215,11 +223,14 @@ impl StackDirection {
     /// Compute a [`LayoutMask`] that flags all contextual values that affect the result of [`layout`].
     ///
     /// [`layout`]: Self::layout
+    /// [`LayoutMask`]: zng_layout::context::LayoutMask
     pub fn affect_mask(&self) -> LayoutMask {
         self.place.affect_mask() | self.origin.affect_mask()
     }
 
     /// Returns `true` if all values are [`Length::Default`].
+    ///
+    /// [`Length::Default`]: zng_wgt::prelude::Length::Default
     pub fn is_default(&self) -> bool {
         self.place.is_default() && self.origin.is_default()
     }

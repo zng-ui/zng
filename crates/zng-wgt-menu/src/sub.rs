@@ -331,6 +331,7 @@ pub fn end_column_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl
 /// See also [`start_column_fn`] for use in styles.
 ///
 /// [`start_column_fn`]: fn@start_column_fn
+/// [`Align::START`]: zng_wgt::prelude::Align::START
 #[property(FILL)]
 pub fn start_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
     let cell = width(cell, START_COLUMN_WIDTH_VAR);
@@ -347,6 +348,7 @@ pub fn start_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
 /// See also [`end_column_fn`] for use in styles.
 ///
 /// [`end_column_fn`]: fn@end_column_fn
+/// [`Align::END`]: zng_wgt::prelude::Align::END
 #[property(FILL)]
 pub fn end_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
     let cell = width(cell, END_COLUMN_WIDTH_VAR);
@@ -361,6 +363,7 @@ pub fn end_column(child: impl UiNode, cell: impl UiNode) -> impl UiNode {
 ///
 /// [`start_column`]: fn@start_column
 /// [`WidgetFn<()>`]: WidgetFn
+/// [`Align::START`]: zng_wgt::prelude::Align::START
 #[property(FILL)]
 pub fn start_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     start_column(child, presenter((), cell_fn))
@@ -373,6 +376,7 @@ pub fn start_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) 
 ///
 /// [`end_column`]: fn@end_column
 /// [`WidgetFn<()>`]: WidgetFn
+/// [`Align::END`]: zng_wgt::prelude::Align::END
 #[property(FILL)]
 pub fn end_column_fn(child: impl UiNode, cell_fn: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     end_column(child, presenter((), cell_fn))
@@ -511,6 +515,8 @@ impl SubMenuStyle {
 }
 
 /// Extension methods for [`WidgetInfo`].
+///
+///  [`WidgetInfo`]: zng_wgt::prelude::WidgetInfo
 pub trait SubMenuWidgetInfoExt {
     /// If this widget is a [`SubMenu!`] instance.
     ///

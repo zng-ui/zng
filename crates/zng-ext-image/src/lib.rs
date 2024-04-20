@@ -774,6 +774,7 @@ impl ImagesService {
 /// details.
 ///
 /// [`load_in_headless`]: IMAGES::load_in_headless
+/// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
 pub struct IMAGES;
 impl IMAGES {
     /// If should still download/read image bytes in headless/renderless mode.
@@ -785,6 +786,7 @@ impl IMAGES {
     /// [`dummy`] with error.
     ///
     /// [`dummy`]: IMAGES::dummy
+    /// [`VIEW_PROCESS`]: zng_app::view_process::VIEW_PROCESS
     pub fn load_in_headless(&self) -> ArcVar<bool> {
         IMAGES_SV.read().load_in_headless.clone()
     }
