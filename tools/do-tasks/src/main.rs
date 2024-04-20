@@ -203,7 +203,7 @@ fn doc(mut args: Vec<&str>) {
             regex::Regex::new(r#"id="(?:deref-met|trait-imp|synthetic-imp|blanket-imp|modules|structs|enums|statics|traits|functions).*""#)
                 .unwrap();
         let broken_link1 = regex::Regex::new(r"\[<code>.+?</code>\]").unwrap();
-        let broken_link2 = regex::Regex::new(r#"<a href="(\w+?::\w+?.+?)"><code>(\w+?)</code>"#).unwrap();
+        let broken_link2 = regex::Regex::new(r#"<a href="(\w+?::\w+?.+?)"><code>(.+?)</code>"#).unwrap();
         for html_path in util::glob("target/doc/**/*.html") {
             if skip_deadlinks_globs.iter().any(|g| g.matches(&html_path)) {
                 continue;

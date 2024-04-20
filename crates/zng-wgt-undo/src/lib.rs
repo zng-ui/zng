@@ -19,8 +19,8 @@ use zng_wgt::prelude::*;
 /// If `true` the widget will handle [`UNDO_CMD`] and [`REDO_CMD`] for all undo actions
 /// that happen inside it.
 ///
-/// [`UNDO_CMD`]: zng_ext_undo::UNDO_CMD
-/// [`REDO_CMD`]: zng_ext_undo::REDO_CMD
+/// [`UNDO_CMD`]: static@zng_ext_undo::UNDO_CMD
+/// [`REDO_CMD`]: static@zng_ext_undo::REDO_CMD
 #[property(CONTEXT - 10, default(false))]
 pub fn undo_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     let mut scope = WidgetUndoScope::new();
