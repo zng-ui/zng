@@ -202,7 +202,8 @@ fn doc(mut args: Vec<&str>) {
         let cutout =
             regex::Regex::new(r#"id="(?:deref-met|trait-imp|synthetic-imp|blanket-imp|modules|structs|enums|statics|traits|functions).*""#)
                 .unwrap();
-        let broken_link = regex::Regex::new(r"\[<code>.+?</code>\]").unwrap();
+        let broken_link1 = regex::Regex::new(r"\[<code>.+?</code>\]").unwrap();
+        let broken_link2 = regex::Regex::new(r#"<a href="(\w+?::\w+?.+?)"><code>(\w+?)</code>"#).unwrap();
         for html_path in util::glob("target/doc/**/*.html") {
             if skip_deadlinks_globs.iter().any(|g| g.matches(&html_path)) {
                 continue;
@@ -212,24 +213,44 @@ fn doc(mut args: Vec<&str>) {
             let cutout = if let Some(m) = cutout.find(&html) { m.start() } else { html.len() };
             let html = &html[..cutout];
 
-            let matches: Vec<_> = broken_link.find_iter(&html).map(|m| m.as_str()).collect();
-            if !matches.is_empty() {
-                let mut msg = format!("deadlinks in `{}`:\n", &html_path["target".len()..]);
-                let mut sep = "";
-                for m in matches.iter() {
-                    use std::fmt::*;
-                    write!(
-                        &mut msg,
-                        "{sep}    {}",
-                        m.replace("<code>", "`")
-                            .replace("</code>", "`")
-                            .replace("&lt;", "<")
-                            .replace("&gt;", ">")
-                            .replace("&amp;", "&")
-                    )
-                    .unwrap();
-                    sep = "\n";
-                }
+            let matches1: Vec<_> = broken_link1.find_iter(&html).map(|m| m.as_str()).collect();
+            let matches2: Vec<_> = broken_link2
+                .captures_iter(&html)
+                .map(|m| (m.get(1).unwrap().as_str(), m.get(2).unwrap().as_str()))
+                .collect();
+
+            let mut msg = String::new();
+            if !matches1.is_empty() || !matches2.is_empty() {
+                msg = format!("deadlinks in `{}`:\n", &html_path["target".len()..]);
+            }
+            let mut sep = "";
+            for m in matches1.iter() {
+                use std::fmt::*;
+                write!(
+                    &mut msg,
+                    "{sep}    {}",
+                    m.replace("<code>", "`")
+                        .replace("</code>", "`")
+                        .replace("&lt;", "<")
+                        .replace("&gt;", ">")
+                        .replace("&amp;", "&")
+                )
+                .unwrap();
+                sep = "\n";
+            }
+            for (path, label) in matches2.iter() {
+                use std::fmt::*;
+                write!(
+                    &mut msg,
+                    "{sep}    [`{}`]: {}",
+                    label.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&"),
+                    path
+                )
+                .unwrap();
+                sep = "\n";
+            }
+
+            if !msg.is_empty() {
                 error(msg);
             }
         }
