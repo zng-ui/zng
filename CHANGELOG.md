@@ -1,5 +1,8 @@
 # Unpublished
 
+
+# 0.3.4
+
 * Add Cargo feature documentation in each crate `README.md` and `lib.rs` docs.
 * Add Screenshot function to the Inspector window.
 * Fix `formatx!` causing futures to not be Send+Sync.

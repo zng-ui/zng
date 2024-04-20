@@ -11,8 +11,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = "0.3.3"
-//! zng-view = "0.2.7"
+//! zng = "0.3.4"
+//! zng-view = "0.2.8"
 //! ```
 //!
 //! Then call [`init`] before any other code in `main` to setup a view-process that uses
