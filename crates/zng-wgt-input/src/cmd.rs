@@ -62,7 +62,7 @@ command_property! {
     ///
     /// You can use [`WINDOWS.native_file_dialog`] to prompt the user for a file or folder path.
     ///
-    /// [`WINDOWS.native_file_dialog`]: WINDOWS::native_file_dialog
+    /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
     pub fn open {
         cmd: OPEN_CMD.scoped(WIDGET.id()),
     }
@@ -74,7 +74,7 @@ command_property! {
     ///
     /// You can use [`WINDOWS.native_file_dialog`] to prompt the user for a file or folder path.
     ///
-    /// [`WINDOWS.native_file_dialog`]: WINDOWS::native_file_dialog
+    /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
     /// [`on_save_as`]: fn@on_save_as
     pub fn save {
         cmd: SAVE_CMD.scoped(WIDGET.id()),
@@ -87,7 +87,7 @@ command_property! {
     ///
     /// You can use [`WINDOWS.native_file_dialog`] to prompt the user for a file or folder path.
     ///
-    /// [`WINDOWS.native_file_dialog`]: WINDOWS::native_file_dialog
+    /// [`WINDOWS.native_file_dialog`]: zng_ext_window::WINDOWS::native_file_dialog
     pub fn save_as {
         cmd: SAVE_AS_CMD.scoped(WIDGET.id()),
     }
@@ -97,7 +97,7 @@ command_property! {
     /// Receives [`CUT_CMD`] command events scoped on the widget. You can use the `CLIPBOARD` service
     /// to send data to the clipboard.
     ///
-    /// [`CUT_CMD`]:  zng_ext_clipboard::CUT_CMD
+    /// [`CUT_CMD`]: zng_ext_clipboard::CUT_CMD
     pub fn cut {
         cmd: CUT_CMD.scoped(WIDGET.id()),
     }

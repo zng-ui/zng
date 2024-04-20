@@ -115,10 +115,10 @@ fn doc(mut args: Vec<&str>) {
 
     let package = take_option(&mut args, &["-p", "--package"], "package").map(|mut p| p.remove(0));
 
-    let mut rustdoc_flags = String::new();
-    let mut skip_deadlinks_globs = vec![];
+    fn collect_flags(toml_path: &str, package: &str) -> (String, Vec<glob::Pattern>) {
+        let mut rustdoc_flags = String::new();
+        let mut skip_deadlinks_globs = vec![];
 
-    let mut collect_flags = |toml_path| {
         let toml = match std::fs::read_to_string(toml_path) {
             Ok(p) => p,
             Err(e) => {
@@ -134,9 +134,9 @@ fn doc(mut args: Vec<&str>) {
             let mut clean_push = |arg: &str| {
                 let arg = arg.trim_matches(&[' ', '"']);
                 if arg.starts_with("doc/") {
+                    assert!(!package.is_empty());
                     // quick fix, docs.rs runs in the crate dir, we run in the workspace dir.
-                    let pkg = package.as_ref().unwrap();
-                    rustdoc_flags.push_str(&format!("crates/{pkg}/{arg}"));
+                    rustdoc_flags.push_str(&format!("crates/{package}/{arg}"));
                 } else {
                     rustdoc_flags.push_str(arg);
                 }
@@ -169,31 +169,52 @@ fn doc(mut args: Vec<&str>) {
                 }
             }
         }
-    };
 
-    if let Some(pkg) = &package {
-        collect_flags(format!("crates/{pkg}/Cargo.toml").as_str());
-    } else {
-        collect_flags("Cargo.toml");
+        (rustdoc_flags, skip_deadlinks_globs)
     }
 
-    let mut env = vec![];
-    let full_doc_flags;
-    if !rustdoc_flags.is_empty() {
-        if let Ok(flags) = std::env::var("RUSTDOCFLAGS") {
-            full_doc_flags = format!("{flags} {rustdoc_flags}");
-            env.push(("RUSTDOCFLAGS", full_doc_flags.as_str()));
-        } else {
-            env.push(("RUSTDOCFLAGS", rustdoc_flags.as_str()));
+    let (global_rustdoc_flags, skip_deadlinks_globs) = collect_flags("Cargo.toml", "");
+
+    let mut found_package = false;
+    for member in util::publish_members() {
+        if let Some(p) = &package {
+            if p != &member.name {
+                continue;
+            }
+            found_package = true;
+        }
+
+        let pkg = format!("crates/{}/Cargo.toml", member.name.as_str());
+        let (rustdoc_flags, skip_deadlinks_globs) = collect_flags(pkg.as_str(), member.name.as_str());
+
+        if !skip_deadlinks_globs.is_empty() {
+            error("skip-deadlinks only supported in workspace");
+        }
+
+        let mut env = vec![];
+        let full_doc_flags;
+        if !rustdoc_flags.is_empty() {
+            if let Ok(flags) = std::env::var("RUSTDOCFLAGS") {
+                full_doc_flags = format!("{flags} {global_rustdoc_flags} {rustdoc_flags}");
+                env.push(("RUSTDOCFLAGS", full_doc_flags.as_str()));
+            } else {
+                env.push(("RUSTDOCFLAGS", rustdoc_flags.as_str()));
+            }
+        }
+
+        cmd_env_req(
+            "cargo",
+            &["doc", "--all-features", "--no-deps", "--package", member.name.as_str()],
+            &args,
+            &env,
+        );
+    }
+
+    if let Some(p) = &package {
+        if !found_package {
+            error(f!("package `{p}` not found"));
         }
     }
-
-    if let Some(p) = package {
-        args.push("--package");
-        args.push(p);
-    }
-
-    cmd_env_req("cargo", &["doc", "--all-features", "--no-deps"], &args, &env);
 
     if !skip_deadlinks {
         // cargo doc does not warn about broken links in some cases, just prints `[<code>invalid</code>]`

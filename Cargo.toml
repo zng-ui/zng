@@ -23,12 +23,7 @@ inherits = "release-lto"
 
 [workspace.metadata.zng-do]
 # args used by `do doc` for all crates in the workspace.
-rustdoc-args = [
-    "--html-in-header",
-    "target/doc/zng-material-icons-extensions.html",
-    "--html-in-header",
-    "crates/zng-app/doc/html-in-header.html",
-]
+rustdoc-args = []
 # deadlink check does not run if any glob matches.
 skip-deadlinks = [
     "**/struct.BidiLevel*",
