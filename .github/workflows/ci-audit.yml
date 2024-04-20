@@ -1,9 +1,9 @@
 name: CI - Security Audit
 on:
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   workflow_dispatch:
 jobs:
   security_audit:

@@ -946,7 +946,7 @@ fn publish(mut args: Vec<&str>) {
     } else if take_flag(&mut args, &["--diff"]) {
         let published_tag = format!("v{}", util::crates_io_latest("zng"));
         let members = util::publish_members();
-        let git_diff = util::get_git_diff(&published_tag, "master");
+        let git_diff = util::get_git_diff(&published_tag, "main");
         let mut changed = std::collections::HashMap::new();
 
         let glob = take_option(&mut args, &["-g"], "<glob>").map(|g| glob::Pattern::new(g[0]).unwrap());
