@@ -433,24 +433,22 @@ where
                     let waker = self.clone().into();
                     let mut cx = std::task::Context::from_waker(&waker);
 
-                    let r = self
-                        .ctx
-                        .clone()
-                        .with_context(|| panic::catch_unwind(panic::AssertUnwindSafe(|| t.as_mut().poll(&mut cx))));
-
-                    match r {
-                        Ok(Poll::Ready(r)) => {
-                            drop(task);
-                            let _ = sender.send(Ok(r));
+                    self.ctx.clone().with_context(|| {
+                        let r = panic::catch_unwind(panic::AssertUnwindSafe(|| t.as_mut().poll(&mut cx)));
+                        match r {
+                            Ok(Poll::Ready(r)) => {
+                                drop(task);
+                                let _ = sender.send(Ok(r));
+                            }
+                            Ok(Poll::Pending) => {
+                                *task = Some(t);
+                            }
+                            Err(p) => {
+                                drop(task);
+                                let _ = sender.send(Err(p));
+                            }
                         }
-                        Ok(Poll::Pending) => {
-                            *task = Some(t);
-                        }
-                        Err(p) => {
-                            drop(task);
-                            let _ = sender.send(Err(p));
-                        }
-                    }
+                    });
                 }
             })
         }
@@ -541,25 +539,24 @@ where
                     let waker = self.clone().into();
                     let mut cx = std::task::Context::from_waker(&waker);
 
-                    let r = self
-                        .ctx
-                        .clone()
-                        .with_context(|| panic::catch_unwind(panic::AssertUnwindSafe(|| t.as_mut().poll(&mut cx))));
+                    self.ctx.clone().with_context(|| {
+                        let r = panic::catch_unwind(panic::AssertUnwindSafe(|| t.as_mut().poll(&mut cx)));
+                        match r {
+                            Ok(Poll::Ready(r)) => {
+                                drop(task);
 
-                    match r {
-                        Ok(Poll::Ready(r)) => {
-                            drop(task);
-                            responder.respond(r);
+                                responder.respond(r);
+                            }
+                            Ok(Poll::Pending) => {
+                                *task = Some(t);
+                            }
+                            Err(p) => {
+                                tracing::error!("panic in `task::respond`: {}", crate_util::panic_str(&p));
+                                drop(task);
+                                responder.modify(move |_| panic::resume_unwind(p));
+                            }
                         }
-                        Ok(Poll::Pending) => {
-                            *task = Some(t);
-                        }
-                        Err(p) => {
-                            tracing::error!("panic in `task::respond`: {}", crate_util::panic_str(&p));
-                            drop(task);
-                            responder.modify(move |_| panic::resume_unwind(p));
-                        }
-                    }
+                    });
                 }
             })
         }
