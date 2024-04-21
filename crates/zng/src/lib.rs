@@ -434,13 +434,28 @@
 //! properties modify the layout context by setting constraints and defining units, this context is available for all
 //! properties that need it during layout, see the [`layout`] module documentation for more details.
 //!
+//! # Error Handling
+//!
+//! Recoverable errors handled internally are logged using [`tracing`], in debug builds tracing events (info, warn and error)
+//! are printed using [`app::print_tracing`] by default if no tracing subscriber is set before the app starts building.
+//!
+//! Components always attempt to recover from errors when possible, or at least attempt to contain errors and turn then into
+//! a displayable message. The general idea is to at least give the end user a chance to workaround the issue.
+//!
+//! Components do not generally attempt to recover from panics, with some notable exceptions. The view-process will attempt to respawn
+//! if it crashes, because all state is safe in the app-process all windows and frames can be recreated, this lets the app survive
+//! some catastrophic video driver errors, like a forced disconnect caused by a driver update. The [`task::spawn`] and related
+//! fire-and-forget task runners will also just log the panic as an error.
+//!
+//! [`tracing`]: https://docs.rs/tracing
+//!
 //! # In-Depth Documentation
 //!
 //! This crate level documentation only gives an overview required to start making apps using existing widgets and properties.
 //! All top-level modules in this crate contains in-depth documentation about their subject, of particular importance the
 //! [`app`], [`widget`], [`layout`] and [`render`] modules should give you a solid understanding of how everything works.
 //!
-//! ### Cargo Features
+//! ## Cargo Features
 //!
 //! See the [Cargo Features] section in the crate README for Cargo features documentation.
 //!
