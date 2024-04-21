@@ -30,7 +30,7 @@ mod crate_util;
 use crate::crate_util::PanicResult;
 use zng_app_context::{app_local, LocalContext};
 use zng_time::Deadline;
-use zng_var::{response_done_var, response_var, ResponseVar, VarValue};
+use zng_var::{response_done_var, response_var, AnyVar, ResponseVar, VarValue};
 
 #[doc(no_inline)]
 pub use rayon;
@@ -376,7 +376,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 ///
 /// # Panic Propagation
 ///
-/// If the `task` panics the panic is re-raised in the awaiting thread using [`resume_unwind`]. You
+/// If the `task` panics the panic is resumed in the awaiting thread using [`resume_unwind`]. You
 /// can use [`run_catch`] to get the panic as an error instead.
 ///
 /// [`resume_unwind`]: panic::resume_unwind
@@ -477,8 +477,6 @@ where
 ///
 /// The [`run`] documentation explains how `task` is *parallel* and *async*. The `task` starts executing immediately.
 ///
-/// This is just a helper method that creates a [`response_var`] and awaits for the `task` in a [`spawn`] runner.
-///
 /// # Examples
 ///
 /// ```
@@ -510,8 +508,7 @@ where
 ///
 /// # Panic Handling
 ///
-/// If the `task` panics the panic is logged but otherwise ignored and the variable never responds. See
-/// [`spawn`] for more information about the panic handling of this function.
+/// If the `task` panics the panic is logged as an error and resumed in the response var modify closure.
 ///
 /// [`resume_unwind`]: panic::resume_unwind
 /// [`ResponseVar<R>`]: zng_var::ResponseVar
@@ -521,12 +518,64 @@ where
     R: VarValue,
     F: Future<Output = R> + Send + 'static,
 {
+    type Fut<R> = Pin<Box<dyn Future<Output = R> + Send>>;
+
     let (responder, response) = response_var();
 
-    spawn(async move {
-        let r = task.await;
-        responder.respond(r);
-    });
+    // A future that is its own waker that polls inside the rayon primary thread-pool.
+    struct RayonRespondTask<R: VarValue> {
+        ctx: LocalContext,
+        fut: Mutex<Option<Fut<R>>>,
+        responder: zng_var::ResponderVar<R>,
+    }
+    impl<R: VarValue> RayonRespondTask<R> {
+        fn poll(self: Arc<Self>) {
+            let responder = self.responder.clone();
+            if responder.strong_count() == 2 {
+                return; // cancel.
+            }
+            rayon::spawn(move || {
+                // this `Option<Fut>` dance is used to avoid a `poll` after `Ready` or panic.
+                let mut task = self.fut.lock();
+                if let Some(mut t) = task.take() {
+                    let waker = self.clone().into();
+                    let mut cx = std::task::Context::from_waker(&waker);
+
+                    let r = self
+                        .ctx
+                        .clone()
+                        .with_context(|| panic::catch_unwind(panic::AssertUnwindSafe(|| t.as_mut().poll(&mut cx))));
+
+                    match r {
+                        Ok(Poll::Ready(r)) => {
+                            drop(task);
+                            responder.respond(r);
+                        }
+                        Ok(Poll::Pending) => {
+                            *task = Some(t);
+                        }
+                        Err(p) => {
+                            tracing::error!("panic in `task::respond`: {}", crate_util::panic_str(&p));
+                            drop(task);
+                            responder.modify(move |_| panic::resume_unwind(p));
+                        }
+                    }
+                }
+            })
+        }
+    }
+    impl<R: VarValue> std::task::Wake for RayonRespondTask<R> {
+        fn wake(self: Arc<Self>) {
+            self.poll()
+        }
+    }
+
+    Arc::new(RayonRespondTask {
+        ctx: LocalContext::capture(),
+        fut: Mutex::new(Some(Box::pin(task))),
+        responder,
+    })
+    .poll();
 
     response
 }
@@ -593,7 +642,7 @@ where
 ///
 /// # Panic Propagation
 ///
-/// If the `task` panics the panic is re-raised in the awaiting thread using [`resume_unwind`]. You
+/// If the `task` panics the panic is resumed in the awaiting thread using [`resume_unwind`]. You
 /// can use [`wait_catch`] to get the panic as an error instead.
 ///
 /// [`blocking`]: https://docs.rs/blocking
@@ -640,7 +689,7 @@ where
 /// # Unwind Safety
 ///
 /// This function disables the [unwind safety validation], meaning that in case of a panic shared
-/// data can end-up in an invalid, but still memory safe, state. If you are worried about that only use
+/// data can end-up in an invalid (still memory safe) state. If you are worried about that only use
 /// poisoning mutexes or atomics to mutate shared data or use [`wait_catch`] to detect a panic or [`wait`]
 /// to propagate a panic.
 ///
