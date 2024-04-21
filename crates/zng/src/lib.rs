@@ -6,7 +6,7 @@
 //! live data binding, easy localization, automatic focus navigation and accessibility, async and multi-threaded tasks, robust
 //! multi-process architecture and more.
 //!
-//! Zng is pronounced "zing", or as an initialism: ZNG (z+nesting+graphics).
+//! Zng is pronounced "zing", or as an initialism: ZNG (Z Nesting Graphics).
 //!
 //! Every component of the framework can be extended, you can create new widgets or add properties to existing ones,
 //! at a lower level you can introduce new events and services, seamless integrating custom hardware.
