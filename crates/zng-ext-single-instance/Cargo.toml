@@ -1,0 +1,23 @@
+[package]
+name = "zng-ext-single-instance"
+version = "0.2.0"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_ext_l10n"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[dependencies]
+zng-app = { path = "../zng-app", version = "0.3.4" }
+zng-txt = { path = "../zng-txt", version = "0.2.5" }
+zng-task = { path = "../zng-task", version = "0.2.6" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.8" }
+
+parking_lot = "0.12"
+single-instance = "0.3"
+tracing = "0.1"
+serde_json = "1.0"
