@@ -33,7 +33,7 @@
 //!     # task::doc_test(false, on_click());
 //! }
 //!
-//! // All IPC tasks for the same worker must be defined on the same type.
+//! // All tasks for the same worker-process instance must be defined on the same type.
 //! #[derive(Debug, serde::Serialize, serde::Deserialize)]
 //! enum IpcRequest {
 //!     Task1,
@@ -82,7 +82,7 @@
 //! environment variable that switches the [`run_worker`] call.
 //!
 //! ```
-//! # //! # use zng_task as task;
+//! # use zng_task as task;
 //! #
 //! fn run_workers() {
 //!     match std::env::var("MY_APP_WORKER") {
