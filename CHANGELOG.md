@@ -1,5 +1,6 @@
 # Unpublished
 
+* Panics in `task::respond` are now resumed in the response var modify closure.
 
 # 0.3.4
 
