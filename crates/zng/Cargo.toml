@@ -71,7 +71,7 @@ multi_app = ["zng-app/multi_app"]
 
 # Allow single app-process instance mode.
 #
-# Note that `zng::app::single_instance` must used to enable single instance mode.
+# Note that `zng::app::single_instance()` must be called to enable single instance mode.
 single_instance = ["dep:zng-ext-single-instance"]
 
 # Instrument every widget outer-most node to trace UI methods.
