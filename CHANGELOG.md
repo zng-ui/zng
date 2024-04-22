@@ -1,6 +1,7 @@
 # Unpublished
 
 * Panics in `task::respond` are now resumed in the response var modify closure.
+* Add `task::ipc` module, for running tasks in worker processes.
 
 # 0.3.4
 
