@@ -67,6 +67,7 @@ with prefix `zng-ext-`.
 - `zng-ext-clipboard`
 - `zng-ext-window`
 - `zng-ext-undo`
+- `zng-ext-single-instance`
 
 ### Widget
 

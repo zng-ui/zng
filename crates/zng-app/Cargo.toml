@@ -14,8 +14,9 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [features]
 default = ["ipc", "debug_default"]
 
-# Enables pre-build views and connecting to views running in another process.
-ipc = ["zng-view-api/ipc"]
+# Enables IPC tasks and pre-build views and connecting to views running in another process.
+ipc = ["zng-view-api/ipc", "zng-task/ipc"]
+
 # Enable the `"dyn_*"` and `"inspector"` features in debug builds.
 debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]
 
@@ -74,7 +75,9 @@ zng-time = { path = "../zng-time", version = "0.2.5" }
 zng-var = { path = "../zng-var", version = "0.2.6" }
 zng-txt = { path = "../zng-txt", version = "0.2.5" }
 zng-task = { path = "../zng-task", version = "0.2.6" }
-zng-view-api = { path = "../zng-view-api", version = "0.3.0", features = ["var"] }
+zng-view-api = { path = "../zng-view-api", version = "0.3.0", features = [
+    "var",
+] }
 zng-state-map = { path = "../zng-state-map", version = "0.2.5" }
 zng-layout = { path = "../zng-layout", version = "0.2.6" }
 zng-color = { path = "../zng-color", version = "0.2.8" }
@@ -95,4 +98,4 @@ unicase = "2.7"
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = [ "--html-in-header", "doc/html-in-header.html" ]
+rustdoc-args = ["--html-in-header", "doc/html-in-header.html"]

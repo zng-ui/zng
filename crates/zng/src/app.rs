@@ -423,3 +423,6 @@ pub mod raw_device_events {
         DeviceArgs, DeviceId, MotionArgs, StaticDeviceId, DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, MOTION_EVENT,
     };
 }
+
+#[cfg(feature = "single_instance")]
+pub use zng_ext_single_instance::{is_single_instance, single_instance, single_instance_named, AppInstanceArgs, APP_INSTANCE_EVENT};

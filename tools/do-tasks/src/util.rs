@@ -561,12 +561,12 @@ fn parse_publish_version(version: &str) -> (u32, u32, u32) {
             match n.parse() {
                 Ok(n) => n,
                 Err(e) => {
-                    error(f!("{e}, expected version #.#.#"));
+                    error(f!("{e}, expected version #.#.# in local dependency"));
                     0
                 }
             }
         } else {
-            error("expected version #.#.#");
+            error("expected version #.#.# in local dependency");
             0
         }
     }

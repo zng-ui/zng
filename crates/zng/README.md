@@ -45,7 +45,7 @@ See the [`documentation`] for more details.
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 25 feature flags, 3 enabled by default.
+This crate provides 26 feature flags, 3 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -91,6 +91,11 @@ what app is currently running in each thread and `app_local!` statics switch to 
 depending on the current thread.
 
 Not enabled by default, but enabled by `feature="test_util"`.
+
+#### `"single_instance"`
+Allow single app-process instance mode.
+
+Note that `zng::app::single_instance` must used to enable single instance mode.
 
 #### `"trace_widget"`
 Instrument every widget outer-most node to trace UI methods.
@@ -150,7 +155,7 @@ Needs `cargo-about` and Internet connection during build.
 Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 
 #### `"ipc"`
-Enables pre-build views and connecting to views running in another process.
+Enables IPC tasks, pre-build views and connecting to views running in another process.
 
 *Enabled by default.*
 

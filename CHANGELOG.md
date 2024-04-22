@@ -5,6 +5,10 @@
 * **Breaking:** Remove `"bytemuck"` feature from `zng-unique-id`.
     - Now must use `impl_unique_id_bytemuck!` to generate the impls.
     - Note that this is only a breaking change for direct dependents of `zng-unique-id`.
+* Add single app-process instance mode.
+    - Adds `zng-ext-single-instance` crate re-exported in `zng::app` when non-default 
+      Cargo feature `"single_instance"` is enabled.
+* Implement `AsRef<std::path::Path>` for `Txt`.
 
 # 0.3.4
 
