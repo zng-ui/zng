@@ -97,7 +97,7 @@
 //!         },
 //!     }
 //! }
-//! 
+//!
 //! async fn worker_a(args: task::ipc::RequestArgs<bool>) -> char {
 //!     if args.request {
 //!         'A'
@@ -105,18 +105,18 @@
 //!         'a'
 //!     }
 //! }
-//! 
+//!
 //! async fn worker_b(args: task::ipc::RequestArgs<char>) -> bool {
 //!     args.request == 'B' || args.request == 'b'
 //! }
-//! 
+//!
 //! fn main() {
 //!     self::run_workers();
-//! 
+//!
 //!     // normal app init..
 //!     # task::doc_test(false, on_click());
 //! }
-//! 
+//!
 //! // And in the app side:
 //! async fn on_click() {
 //!     let mut worker_a = task::ipc::Worker::start_with(&[("MY_APP_WORKER", "worker_a")], &[]).await.unwrap();
