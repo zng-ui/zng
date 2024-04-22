@@ -443,7 +443,7 @@ fn test(mut args: Vec<&str>) {
 
         let all = args.is_empty();
 
-        if !all && args.contains(&"--doc") {
+        if !all && args.contains(&"--doc") && !args.contains(&"-p") && !args.contains(&"--package") {
             version_doc_sync::check();
         }
 

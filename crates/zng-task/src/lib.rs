@@ -48,6 +48,9 @@ pub mod io;
 mod ui;
 
 pub mod http;
+
+pub mod ipc;
+
 mod rayon_ctx;
 
 pub use rayon_ctx::*;
