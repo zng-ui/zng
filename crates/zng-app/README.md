@@ -7,7 +7,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 This crate provides 11 feature flags, 2 enabled by default.
 
 #### `"ipc"`
-Enables pre-build views and connecting to views running in another process.
+Enables IPC tasks and pre-build views and connecting to views running in another process.
 
 *Enabled by default.*
 
