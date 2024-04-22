@@ -38,6 +38,7 @@ unique_id_64! {
     /// ```
     pub struct StateId<T: (StateValue)>;
 }
+zng_unique_id::impl_unique_id_bytemuck!(StateId<T: (StateValue)>);
 impl<T: StateValue> fmt::Debug for StateId<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[cfg(debug_assertions)]

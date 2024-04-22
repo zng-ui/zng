@@ -16,7 +16,7 @@ use zng_layout::unit::{
     euclid, AngleRadian, Factor, FactorUnits, Px, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector,
 };
 use zng_task::rayon::iter::{ParallelBridge, ParallelIterator};
-use zng_unique_id::unique_id_32;
+use zng_unique_id::{impl_unique_id_bytemuck, unique_id_32};
 use zng_var::{impl_from_and_into_var, Var, VarCapabilities, VarValue};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -2672,12 +2672,14 @@ unique_id_32! {
     #[derive(Debug)]
     struct FrameBindingKeyId;
 }
+impl_unique_id_bytemuck!(FrameBindingKeyId);
 
 unique_id_32! {
     /// Unique ID of a reference frame.
     #[derive(Debug)]
     pub struct SpatialFrameId;
 }
+impl_unique_id_bytemuck!(SpatialFrameId);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ReferenceFrameIdInner {

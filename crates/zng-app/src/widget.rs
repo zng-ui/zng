@@ -573,6 +573,7 @@ zng_unique_id::unique_id_64! {
 }
 zng_unique_id::impl_unique_id_name!(WidgetId);
 zng_unique_id::impl_unique_id_fmt!(WidgetId);
+zng_unique_id::impl_unique_id_bytemuck!(WidgetId);
 
 zng_var::impl_from_and_into_var! {
     /// Calls [`WidgetId::named`].

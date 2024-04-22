@@ -2,6 +2,9 @@
 
 * Panics in `task::respond` are now resumed in the response var modify closure.
 * Add `task::ipc` module, for running tasks in worker processes.
+* **Breaking:** Remove `"bytemuck"` feature from `zng-unique-id`.
+    - Now must use `impl_unique_id_bytemuck!` to generate the impls.
+    - Note that this is only a breaking change for direct dependents of `zng-unique-id`.
 
 # 0.3.4
 

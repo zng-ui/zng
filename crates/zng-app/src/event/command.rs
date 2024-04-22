@@ -845,6 +845,7 @@ unique_id_64! {
     /// [`StateId`]: zng_state_map::StateId
     pub struct CommandMetaVarId<T: (StateValue + VarValue)>: StateId;
 }
+zng_unique_id::impl_unique_id_bytemuck!(CommandMetaVarId<T: (StateValue + VarValue)>);
 impl<T: StateValue + VarValue> CommandMetaVarId<T> {
     fn app(self) -> StateId<ArcVar<T>> {
         let id = self.get();

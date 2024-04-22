@@ -22,7 +22,7 @@ const fn default_hash_map_new<K, V>() -> DefaultHashMap<K, V> {
     hashbrown::HashMap::with_hasher(ConstDefaultHashBuilder)
 }
 
-#[doc(no_inline)]
+#[doc(hidden)]
 pub use zng_txt::Txt;
 
 /// Bidirectional map between a `Txt` and a [`unique_id!`] generated id type.
