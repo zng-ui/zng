@@ -12,11 +12,9 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["named", "bytemuck" ]
+default = ["named"]
 # Enable associated names for ID types.
 named = ["dep:zng-txt", "dep:parking_lot"]
-# Derive `bytemuck` for ID types.
-bytemuck = []
 
 [dependencies]
 zng-txt = { path = "../zng-txt", version = "0.2.5", optional = true }

@@ -284,3 +284,4 @@ unique_id_32! {
     #[derive(Debug)]
     struct BindMapBidiTag;
 }
+zng_unique_id::impl_unique_id_bytemuck!(BindMapBidiTag);

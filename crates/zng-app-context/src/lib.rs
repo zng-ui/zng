@@ -27,6 +27,7 @@ unique_id_32! {
 }
 zng_unique_id::impl_unique_id_name!(AppId);
 zng_unique_id::impl_unique_id_fmt!(AppId);
+zng_unique_id::impl_unique_id_bytemuck!(AppId);
 
 impl serde::Serialize for AppId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

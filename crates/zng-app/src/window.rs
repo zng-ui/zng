@@ -24,6 +24,7 @@ zng_unique_id::unique_id_32! {
 }
 zng_unique_id::impl_unique_id_name!(WindowId);
 zng_unique_id::impl_unique_id_fmt!(WindowId);
+zng_unique_id::impl_unique_id_bytemuck!(WindowId);
 
 zng_var::impl_from_and_into_var! {
     /// Calls [`WindowId::named`].
@@ -82,6 +83,7 @@ zng_unique_id::unique_id_32! {
     /// Unique identifier of a monitor screen.
     pub struct MonitorId;
 }
+zng_unique_id::impl_unique_id_bytemuck!(MonitorId);
 impl fmt::Debug for MonitorId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {

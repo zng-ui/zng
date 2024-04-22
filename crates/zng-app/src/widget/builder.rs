@@ -1227,6 +1227,7 @@ unique_id_32! {
     /// Unique ID of a property implementation.
     pub struct PropertyId;
 }
+zng_unique_id::impl_unique_id_bytemuck!(PropertyId);
 impl fmt::Debug for PropertyId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("PropertyId").field(&self.get()).finish()
