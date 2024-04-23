@@ -55,7 +55,7 @@ The `zng` crate is the only dependency you need to create apps, it re-exports th
 crates in well organized and documented modules.
 
 The other crates provide the full API that you might need to implement more advanced features, for example, a 
-custom property that modifies the behavior of an widget might need to reference the widget's internal state,
+custom property that modifies the behavior of a widget might need to reference the widget's internal state,
 this *internal* API will only be available in the widget's crate.
 
 ## Cargo Features
