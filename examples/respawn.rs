@@ -67,10 +67,8 @@ fn app_crash_dialog(args: zng::app::CrashArgs) -> ! {
         Window! {
             title = "Respawn Example - App Crashed";
             icon = WindowIcon::render(icon);
-            width = 500;
-            auto_size = zng::window::AutoSize::CONTENT_HEIGHT;
-            resizable = false;
             start_position = zng::window::StartPosition::CenterMonitor;
+
             on_load = hn_once!(|_| {
                 // force to foreground
                 let _ = WINDOWS.focus(WINDOW.id());
@@ -78,40 +76,40 @@ fn app_crash_dialog(args: zng::app::CrashArgs) -> ! {
             on_close = hn_once!(args, |_| {
                 args.exit(0);
             });
-            child = Stack! {
-                layout::margin = 5;
+
+            padding = 5;
+            child_top = Markdown!("### App Crashed\n\nThe Respawn Example app has crashed.\n\n#### Details:\n"), 5;
+            child = Scroll! {
+                padding = 5;
+                child = zng::ansi_text::AnsiText!(args.latest().to_txt());
+                widget::background_color = colors::BLACK;
+            };
+            child_bottom = Stack! {
                 spacing = 5;
-                direction = StackDirection::top_to_bottom();
+                direction = StackDirection::start_to_end();
+                layout::align = Align::END;
                 children = ui_vec![
-                    Markdown!("### App Crashed\n\nThe Respawn Example app has crashed.\n\n#### Details:\n"),
-                    Scroll! {
-                        mode = zng::scroll::ScrollMode::VERTICAL;
-                        padding = 5;
-                        child = zng::ansi_text::AnsiText!(args.to_txt());
-                        layout::max_height = 150;
-                        widget::background_color = colors::BLACK;
+                    Button! {
+                        child = Text!("Crash Dialog");
+                        on_click = hn_once!(|_| {
+                            panic!("Test dialog-process crash!");
+                        });
                     },
-                    Stack! {
-                        spacing = 5;
-                        direction = StackDirection::start_to_end();
-                        layout::align = Align::END;
-                        children = ui_vec![
-                            Button! {
-                                child = Text!("Restart App");
-                                on_click = hn_once!(args, |_| {
-                                    args.restart();
-                                });
-                            },
-                            Button! {
-                                child = Text!("Exit App");
-                                on_click = hn_once!(args, |_| {
-                                    args.exit(0);
-                                });
-                            }
-                        ];
+                    zng::rule_line::vr::Vr!(),
+                    Button! {
+                        child = Text!("Restart App");
+                        on_click = hn_once!(args, |_| {
+                            args.restart();
+                        });
+                    },
+                    Button! {
+                        child = Text!("Exit App");
+                        on_click = hn_once!(args, |_| {
+                            args.exit(0);
+                        });
                     }
-                ]
-            }
+                ];
+            }, 5;
         }
     });
     panic!("dialog app did not respond correctly")

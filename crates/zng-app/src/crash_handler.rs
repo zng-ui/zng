@@ -2,8 +2,8 @@
 
 //! App-process crash handler.
 
-// !!: TODO, fix restart, it is just restarting the dialog process?
-// !!: TODO, setup in process handlers, better panic trace, widget trace?
+// !!: TODO, setup in process handlers, better panic trace, widget trace, mini-dump.
+// !!: TODO, add env config in `CrashConfig`, custom handler to spawn app and dialog?
 // !!: TODO, implement `zng::app::crash_handler_default`.
 
 use std::{
@@ -145,7 +145,7 @@ impl fmt::Display for CrashError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "timestamp: {}\nexit code: {:?}\nSTDOUT:\n{}\nSTDERR:\n{}\n",
+            "timestamp: {}\nexit code: {:?}\n\nSTDOUT:\n{}\nSTDERR:\n{}\n",
             self.timestamp
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap_or(Duration::ZERO)
@@ -301,6 +301,7 @@ fn crash_handler_monitor_process() -> ! {
 
                         if let Some(args_json) = response.strip_prefix("restart ") {
                             args = serde_json::from_str(args_json).expect("crash dialog-process did not respond 'restart' correctly");
+                            break;
                         } else if let Some(code) = response.strip_prefix("exit ") {
                             let code: i32 = code.parse().expect("crash dialog-process did not respond 'code' correctly");
                             std::process::exit(code);
@@ -316,6 +317,8 @@ fn crash_handler_monitor_process() -> ! {
 }
 fn run_process(command: &mut std::process::Command) -> std::io::Result<(std::process::ExitStatus, [String; 2])> {
     let mut app_process = command
+        .env("RUST_BACKTRACE", "full")
+        .env("CLICOLOR_FORCE", "1")
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
@@ -368,6 +371,8 @@ fn capture_and_print(stream: impl std::io::Read + Send + 'static, is_err: bool) 
 
 fn crash_handler_app_process() {
     tracing::info!("app-process is running");
+
+    // better_panic::install();
 
     // app-process execution happens after the `crash_handler` function returns.
 }
