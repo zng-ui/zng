@@ -10,7 +10,7 @@
 //! If you only want to recover from panics in safe code consider using [`task::run_catch`] or [`task::wait_catch`] instead.
 //!
 //! This module also re-exports some [`ipc_channel`] types and functions. You can send IPC channels in the task request messages, this
-//! can be useful for implementing progress reporting or to transfer large data.
+//! can be useful for implementing progress reporting or to transfer large byte blobs.
 //!
 //! [`task::run_catch`]: crate::run_catch
 //! [`task::wait_catch`]: crate::wait_catch
@@ -19,23 +19,21 @@
 //!
 //! # Examples
 //!
-//! The example below demonstrates a worker process setup that uses the same executable as the app process.
+//! The example below demonstrates a worker-process setup that uses the same executable as the app-process.
 //!
 //! ```
 //! # use zng_task as task;
-//!
+//! #
 //! fn main() {
 //!     // this must be called before the app start, when the process
 //!     // is a worker this function never returns.
 //!     task::ipc::run_worker(worker);
 //!
 //!     // normal app init..
-//! # task::doc_test(false,
-//!     on_click()
-//! # );
+//!     # task::doc_test(false, on_click());
 //! }
 //!
-//! // All IPC tasks for the app must be defined in the same type.
+//! // All tasks for the same worker-process instance must be defined on the same type.
 //! #[derive(Debug, serde::Serialize, serde::Deserialize)]
 //! enum IpcRequest {
 //!     Task1,
@@ -80,6 +78,52 @@
 //!
 //! ```
 //!
+//! Note that you can setup different worker types on the same executable using [`Worker::start_with`] with a custom
+//! environment variable that switches the [`run_worker`] call.
+//!
+//! ```
+//! # use zng_task as task;
+//! #
+//! fn run_workers() {
+//!     match std::env::var("MY_APP_WORKER") {
+//!         Ok(name) => match name.as_str() {
+//!             "worker_a" => task::ipc::run_worker(worker_a),
+//!             "worker_b" => task::ipc::run_worker(worker_b),
+//!             unknown => panic!("unknown worker, {unknown:?}"),
+//!         },
+//!         Err(e) => match e {
+//!             std::env::VarError::NotPresent => {} // not a worker run
+//!             e => panic!("invalid worker name, {e}"),
+//!         },
+//!     }
+//! }
+//!
+//! async fn worker_a(args: task::ipc::RequestArgs<bool>) -> char {
+//!     if args.request {
+//!         'A'
+//!     } else {
+//!         'a'
+//!     }
+//! }
+//!
+//! async fn worker_b(args: task::ipc::RequestArgs<char>) -> bool {
+//!     args.request == 'B' || args.request == 'b'
+//! }
+//!
+//! fn main() {
+//!     self::run_workers();
+//!
+//!     // normal app init..
+//!     # task::doc_test(false, on_click());
+//! }
+//!
+//! // And in the app side:
+//! async fn on_click() {
+//!     let mut worker_a = task::ipc::Worker::start_with(&[("MY_APP_WORKER", "worker_a")], &[]).await.unwrap();
+//!     let r = worker_a.run(true).await.ok();
+//!     assert_eq!(r, Some('A'));
+//! }
+//! ```
 
 use core::fmt;
 use std::{future::Future, marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
@@ -135,11 +179,22 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         Self::start_impl(duct::cmd!(std::env::current_exe()?)).await
     }
 
-    /// Start a worker process implemented in another executable.
-    ///
-    /// Note that the worker executable must call [`run_worker`] at startup to actually work.
-    pub async fn start_other(worker_exe: impl Into<PathBuf>) -> std::io::Result<Self> {
-        Self::start_impl(duct::cmd!(worker_exe.into())).await
+    /// Start a worker process implemented in the current executable with custom env vars and args.
+    pub async fn start_with(env_vars: &[(&str, &str)], args: &[&str]) -> std::io::Result<Self> {
+        let mut worker = duct::cmd(std::env::current_exe()?, args);
+        for (name, value) in env_vars {
+            worker = worker.env(name, value);
+        }
+        Self::start_impl(worker).await
+    }
+
+    /// Start a worker process implemented in another executable with custom env vars and args.
+    pub async fn start_other(worker_exe: impl Into<PathBuf>, env_vars: &[(&str, &str)], args: &[&str]) -> std::io::Result<Self> {
+        let mut worker = duct::cmd(worker_exe.into(), args);
+        for (name, value) in env_vars {
+            worker = worker.env(name, value);
+        }
+        Self::start_impl(worker).await
     }
 
     /// Start a worker process from a custom configured [`duct`] process.
