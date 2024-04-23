@@ -463,7 +463,8 @@ impl Controller {
         self.request_sender = request;
         self.response_receiver = response;
 
-        let next_id = self.generation.incr();
+        let next_id = self.generation.next();
+        self.generation = next_id;
 
         if let Err(ViewProcessOffline) = self.try_init() {
             panic!("respawn on respawn startup");

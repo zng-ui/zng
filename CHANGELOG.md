@@ -11,6 +11,7 @@
 * Implement `AsRef<std::path::Path>` for `Txt`.
 * Implement `AsRef<std::ffi::OsStr>` for `Txt`.
 * Add app-process crash handler and restart.
+* Fix view-process kill by user not working after respawn.
 
 # 0.3.4
 

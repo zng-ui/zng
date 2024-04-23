@@ -51,7 +51,7 @@ macro_rules! declare_id {
                 }
             }
 
-            /// Replace self with [`next`] and returns.
+            /// Returns self and replace self with [`next`].
             ///
             /// [`next`]: Self::next
             #[must_use]
