@@ -38,21 +38,18 @@ fn main() {
                     Markdown! {
                         txt = "The renderer and OS windows are created in separate process, the `view-process`. \
                                It automatically respawns in case of a graphics driver crash or other similar fatal error.";
-                        layout::max_width = 620;
                     },
                     view_respawn(),
                     view_crash(),
                     Markdown! {
                         txt = "When the app is instantiated the crash handler takes over the process, becoming the `monitor-process`. \
                                It spawns the `app-process` that is the normal execution. If the `app-process` crashes it spawns the \
-                               `dialog-process` that runs a different app that shows an error message";
-                        layout::max_width = 620;
+                               `dialog-process` that runs a different app that shows an error message.";
                     },
                     app_crash(),
                     Markdown! {
                         txt = "The states of these buttons is only preserved for `view-process` crashes. \
                                use `CONFIG` or some other state saving to better recover from `app-process` crashes.";
-                        layout::max_width = 620;
                     },
                     click_counter(),
                     click_counter(),
@@ -69,31 +66,45 @@ fn app_crash_dialog(args: zng::app::CrashArgs) -> ! {
     APP.defaults().run_window(async move {
         Window! {
             title = "Respawn Example - App Crashed";
-            size = (400, 300);
+            icon = WindowIcon::render(icon);
+            width = 500;
+            auto_size = zng::window::AutoSize::CONTENT_HEIGHT;
+            resizable = false;
+            start_position = zng::window::StartPosition::CenterMonitor;
+            on_load = hn_once!(|_| {
+                // force to foreground
+                let _ = WINDOWS.focus(WINDOW.id());
+            });
+            on_close = hn_once!(args, |_| {
+                args.exit(0);
+            });
             child = Stack! {
                 layout::margin = 5;
                 spacing = 5;
                 direction = StackDirection::top_to_bottom();
                 children = ui_vec![
-                    Markdown!("# App Crashed\n\nThe Respawn Example app has crashed.\n\nDetails:\n"),
+                    Markdown!("### App Crashed\n\nThe Respawn Example app has crashed.\n\n#### Details:\n"),
                     Scroll! {
                         mode = zng::scroll::ScrollMode::VERTICAL;
+                        padding = 5;
                         child = zng::ansi_text::AnsiText!(args.to_txt());
                         layout::max_height = 150;
+                        widget::background_color = colors::BLACK;
                     },
                     Stack! {
                         spacing = 5;
                         direction = StackDirection::start_to_end();
+                        layout::align = Align::END;
                         children = ui_vec![
                             Button! {
                                 child = Text!("Restart App");
-                                on_click = hn!(args, |_| {
+                                on_click = hn_once!(args, |_| {
                                     args.restart();
                                 });
                             },
                             Button! {
                                 child = Text!("Exit App");
-                                on_click = hn!(args, |_| {
+                                on_click = hn_once!(args, |_| {
                                     args.exit(0);
                                 });
                             }

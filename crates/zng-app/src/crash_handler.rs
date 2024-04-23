@@ -1,10 +1,15 @@
+#![cfg(feature = "crash_handler")]
+
 //! App-process crash handler.
+
+// !!: TODO, fix restart, it is just restarting the dialog process?
+// !!: TODO, setup in process handlers, better panic trace, widget trace?
+// !!: TODO, implement `zng::app::crash_handler_default`.
 
 use std::{
     fmt,
     io::{BufRead, BufReader},
-    path::Path,
-    time::SystemTime,
+    time::{Duration, SystemTime},
 };
 use zng_layout::unit::TimeUnits as _;
 
@@ -19,19 +24,29 @@ use zng_txt::Txt;
 ///
 /// !!: TODO
 pub fn crash_handler(config: CrashConfig) {
-    match std::env::var(DIALOG_PROCESS) {
-        Ok(args_file) => crash_handler_dialog_process(config.dialog, args_file),
-        Err(e) => match e {
-            std::env::VarError::NotPresent => {}
-            e => panic!("invalid dialog args, {e:?}"),
-        },
-    }
-
     if std::env::var(APP_PROCESS) != Err(std::env::VarError::NotPresent) {
         return crash_handler_app_process();
     }
 
+    match std::env::var(DIALOG_PROCESS) {
+        Ok(args_file) => crash_handler_dialog_process(config.dialog, args_file),
+        Err(e) => match e {
+            std::env::VarError::NotPresent => {}
+            e => panic!("invalid dialog env args, {e:?}"),
+        },
+    }
+
     crash_handler_monitor_process();
+}
+
+/// Gets the number of crash restarts in the app-process.
+///
+/// Always returns zero if called in other processes.
+pub fn restart_count() -> usize {
+    match std::env::var(APP_PROCESS) {
+        Ok(c) => c.strip_prefix("restart-").unwrap_or("0").parse().unwrap_or(0),
+        Err(_) => 0,
+    }
 }
 
 const APP_PROCESS: &str = "ZNG_CRASH_HANDLER_APP";
@@ -130,8 +145,14 @@ impl fmt::Display for CrashError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "timestamp: {:?}\ncode: {:?}\n\nSTDOUT:\n{}\n\nSTDERR:\n{}\n",
-            self.timestamp, self.code, self.stdout, self.stderr
+            "timestamp: {}\nexit code: {:?}\nSTDOUT:\n{}\nSTDERR:\n{}\n",
+            self.timestamp
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or(Duration::ZERO)
+                .as_secs(),
+            self.code,
+            self.stdout,
+            self.stderr
         )
     }
 }
@@ -151,7 +172,11 @@ fn crash_handler_monitor_process() -> ! {
         dialog_crash: None,
     };
     loop {
-        match run_app_process(&exe, &args) {
+        match run_process(
+            std::process::Command::new(&exe)
+                .env(APP_PROCESS, format!("restart-{}", dialog_args.app_crashes.len()))
+                .args(args.iter()),
+        ) {
             Ok((status, [stdout, stderr])) => {
                 if status.success() {
                     let code = status.code().unwrap_or(0);
@@ -233,7 +258,7 @@ fn crash_handler_monitor_process() -> ! {
                             retries += 1;
                         };
 
-                        let dialog_result = std::process::Command::new(&exe).env(DIALOG_PROCESS, &crash_file).output();
+                        let dialog_result = run_process(std::process::Command::new(&exe).env(DIALOG_PROCESS, &crash_file));
 
                         for _ in 0..5 {
                             if !crash_file.exists() || std::fs::remove_file(&crash_file).is_ok() {
@@ -243,10 +268,9 @@ fn crash_handler_monitor_process() -> ! {
                         }
 
                         let response = match dialog_result {
-                            Ok(s) => {
-                                if s.status.success() {
-                                    let stdout = String::from_utf8_lossy(&s.stdout);
-                                    stdout
+                            Ok((dlg_status, [dlg_stdout, dlg_stderr])) => {
+                                if dlg_status.success() {
+                                    dlg_stdout
                                         .lines()
                                         .filter_map(|l| l.trim().strip_prefix(RESPONSE_PREFIX))
                                         .last()
@@ -255,9 +279,9 @@ fn crash_handler_monitor_process() -> ! {
                                 } else {
                                     let dialog_crash = CrashError {
                                         timestamp: SystemTime::now(),
-                                        code: s.status.code(),
-                                        stdout: String::from_utf8_lossy(&s.stdout).into_owned().into(),
-                                        stderr: String::from_utf8_lossy(&s.stderr).into_owned().into(),
+                                        code: dlg_status.code(),
+                                        stdout: dlg_stdout.into(),
+                                        stderr: dlg_stderr.into(),
                                         args: Box::new([]),
                                     };
                                     tracing::error!("crash dialog-process crashed, {dialog_crash}");
@@ -290,10 +314,8 @@ fn crash_handler_monitor_process() -> ! {
         }
     }
 }
-fn run_app_process(exe: &Path, args: &[Txt]) -> std::io::Result<(std::process::ExitStatus, [String; 2])> {
-    let mut app_process = std::process::Command::new(exe)
-        .env(APP_PROCESS, "true")
-        .args(args.iter())
+fn run_process(command: &mut std::process::Command) -> std::io::Result<(std::process::ExitStatus, [String; 2])> {
+    let mut app_process = command
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
@@ -345,12 +367,14 @@ fn capture_and_print(stream: impl std::io::Read + Send + 'static, is_err: bool) 
 }
 
 fn crash_handler_app_process() {
-    // !!: TODO, setup in process handlers, better panic trace
+    tracing::info!("app-process is running");
 
     // app-process execution happens after the `crash_handler` function returns.
 }
 
 fn crash_handler_dialog_process(dialog: fn(CrashArgs) -> !, args_file: String) -> ! {
+    tracing::info!("crash dialog-process is running");
+
     let mut retries = 0;
     let args = loop {
         match std::fs::read_to_string(&args_file) {
