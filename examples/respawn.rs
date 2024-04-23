@@ -1,10 +1,11 @@
-//! Demonstrates the view-process respawn error recovery feature.
+//! Demonstrates app-process crash handler and view-process respawn.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{
     color::{filter::opacity, gradient::stops},
     layout::size,
+    markdown::Markdown,
     prelude::*,
 };
 use zng_app::view_process::VIEW_PROCESS;
@@ -12,28 +13,47 @@ use zng_view::extensions::ViewExtensions;
 
 fn main() {
     examples_util::print_info();
+
+    // init crash_handler before view to use different view for the crash dialog app.
+    zng::app::crash_handler(zng::app::CrashConfig::new(app_crash_dialog));
+
+    // this is the normal app-process:
+
+    // init view with extensions used to cause a crash in the view-process.
     zng_view::init_extended(test_extensions);
 
     APP.defaults().run_window(async {
         Window! {
-            title = "View-Process Respawn Example";
+            title = "Respawn Example";
             icon = WindowIcon::render(icon);
             start_position = window::StartPosition::CenterMonitor;
             widget::foreground = window_status();
-            child_align = Align::CENTER;
+            child_align = Align::TOP;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
+                layout::margin = 10;
                 spacing = 5;
                 children_align = Align::TOP;
                 children = ui_vec![
-                    Text! {
-                        txt = "The renderer and OS windows are created in another process, the `view-process`. \
+                    Markdown! {
+                        txt = "The renderer and OS windows are created in separate process, the `view-process`. \
                                It automatically respawns in case of a graphics driver crash or other similar fatal error.";
-                        txt_align = Align::CENTER;
                         layout::max_width = 620;
                     },
-                    respawn(),
-                    crash_respawn(),
+                    view_respawn(),
+                    view_crash(),
+                    Markdown! {
+                        txt = "When the app is instantiated the crash handler takes over the process, becoming the `monitor-process`. \
+                               It spawns the `app-process` that is the normal execution. If the `app-process` crashes it spawns the \
+                               `dialog-process` that runs a different app that shows an error message";
+                        layout::max_width = 620;
+                    },
+                    app_crash(),
+                    Markdown! {
+                        txt = "The states of these buttons is only preserved for `view-process` crashes. \
+                               use `CONFIG` or some other state saving to better recover from `app-process` crashes.";
+                        layout::max_width = 620;
+                    },
                     click_counter(),
                     click_counter(),
                     image(),
@@ -43,9 +63,52 @@ fn main() {
     });
 }
 
-fn respawn() -> impl UiNode {
+// Crash dialog app, runs in the dialog-process.
+fn app_crash_dialog(args: zng::app::CrashArgs) -> ! {
+    zng::view_process::prebuilt::init();
+    APP.defaults().run_window(async move {
+        Window! {
+            title = "Respawn Example - App Crashed";
+            size = (400, 300);
+            child = Stack! {
+                layout::margin = 5;
+                spacing = 5;
+                direction = StackDirection::top_to_bottom();
+                children = ui_vec![
+                    Markdown!("# App Crashed\n\nThe Respawn Example app has crashed.\n\nDetails:\n"),
+                    Scroll! {
+                        mode = zng::scroll::ScrollMode::VERTICAL;
+                        child = zng::ansi_text::AnsiText!(args.to_txt());
+                        layout::max_height = 150;
+                    },
+                    Stack! {
+                        spacing = 5;
+                        direction = StackDirection::start_to_end();
+                        children = ui_vec![
+                            Button! {
+                                child = Text!("Restart App");
+                                on_click = hn!(args, |_| {
+                                    args.restart();
+                                });
+                            },
+                            Button! {
+                                child = Text!("Exit App");
+                                on_click = hn!(args, |_| {
+                                    args.exit(0);
+                                });
+                            }
+                        ];
+                    }
+                ]
+            }
+        }
+    });
+    panic!("dialog app did not respond correctly")
+}
+
+fn view_respawn() -> impl UiNode {
     Button! {
-        child = Text!("Respawn (F5)");
+        child = Text!("Respawn View-Process (F5)");
         gesture::click_shortcut = shortcut!(F5);
         on_click = hn!(|_| {
             VIEW_PROCESS.respawn();
@@ -53,7 +116,7 @@ fn respawn() -> impl UiNode {
     }
 }
 
-fn crash_respawn() -> impl UiNode {
+fn view_crash() -> impl UiNode {
     Button! {
         child = Text!("Crash View-Process");
         on_click = hn!(|_| {
@@ -62,6 +125,15 @@ fn crash_respawn() -> impl UiNode {
             } else {
                 tracing::error!(r#"extension "zng-view.crash" unavailable"#)
             }
+        });
+    }
+}
+
+fn app_crash() -> impl UiNode {
+    Button! {
+        child = Text!("Crash App-Process");
+        on_click = hn!(|_| {
+            panic!("Test app-process crash!");
         });
     }
 }
@@ -104,7 +176,7 @@ fn window_status() -> impl UiNode {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
         layout::margin = 10;
-        layout::align = Align::TOP_LEFT;
+        layout::align = Align::BOTTOM_START;
         widget::background_color = color::color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         text::font_family = "monospace";
         opacity = 80.pct();
@@ -131,6 +203,6 @@ fn icon() -> impl UiNode {
 
 fn test_extensions() -> ViewExtensions {
     let mut ext = ViewExtensions::new();
-    ext.command::<(), ()>("zng.examples.respawn.crash", |_, _| panic!("CRASH"));
+    ext.command::<(), ()>("zng.examples.respawn.crash", |_, _| panic!("Test view-process crash!"));
     ext
 }

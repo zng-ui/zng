@@ -45,7 +45,7 @@ struct ErrorLogFile(Option<std::fs::File>);
 impl ErrorLogFile {
     fn open(&mut self) -> std::io::Result<&mut std::fs::File> {
         if self.0.is_none() {
-            let exe = std::env::current_exe()?;
+            let exe = std::env::current_exe()?.canonicalize()?;
             let mut i = 0;
             let mut file = exe.clone();
             file.set_extension(".error.log");

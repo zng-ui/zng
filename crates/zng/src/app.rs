@@ -394,7 +394,7 @@
 //! # Full API
 //!
 //! This module provides most of the app API needed to make and extend apps, some more advanced or experimental API
-//! may be available at the [`zng_app`] and [`zng_app_context`] base crates.
+//! may be available at the [`zng_app`], [`zng_app_context`] and [`zng_ext_single_instance`] base crates.
 
 pub use zng_app::{
     print_tracing, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, DInstant, Deadline,
@@ -426,3 +426,6 @@ pub mod raw_device_events {
 
 #[cfg(feature = "single_instance")]
 pub use zng_ext_single_instance::{is_single_instance, single_instance, single_instance_named, AppInstanceArgs, APP_INSTANCE_EVENT};
+
+#[cfg(feature = "crash_handler")]
+pub use zng_app::crash_handler::{crash_handler, CrashArgs, CrashConfig, CrashError};

@@ -434,7 +434,13 @@ fn ansi_enabled() -> bool {
 }
 
 pub fn settings_path() -> PathBuf {
-    std::env::current_exe().unwrap().parent().unwrap().to_owned()
+    std::env::current_exe()
+        .unwrap()
+        .canonicalize()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_owned()
 }
 
 pub fn git_modified() -> Vec<PathBuf> {

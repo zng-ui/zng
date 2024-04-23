@@ -152,7 +152,7 @@ fn app_main() {
                             let pos = WINDOW.vars().actual_position().get() + layout::DipVector::new(offset, offset);
                             let pos = pos.to_i32();
                             let r: Result<(), Box<dyn std::error::Error>> = (|| {
-                                let exe = std::env::current_exe()?;
+                                let exe = std::env::current_exe()?.canonicalize()?;
                                 std::process::Command::new(exe).env("MOVE-TO", format!("{},{}", pos.x, pos.y)).spawn()?;
                                 Ok(())
                             })();

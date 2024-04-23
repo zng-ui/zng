@@ -217,7 +217,7 @@ impl L10N {
             tracing::warn!("absolute path in `load_exe_dir`");
             self.load_dir(dir);
         } else {
-            match std::env::current_exe() {
+            match std::env::current_exe().and_then(|p| p.canonicalize()) {
                 Ok(p) => {
                     if let Some(p) = p.parent() {
                         self.load_dir(p.join(dir));

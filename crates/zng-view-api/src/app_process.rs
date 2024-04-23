@@ -86,7 +86,9 @@ impl Controller {
         }
 
         let view_process_exe = view_process_exe.unwrap_or_else(|| {
-            std::env::current_exe().expect("failed to get the current executable, consider using an external view-process exe")
+            std::env::current_exe()
+                .and_then(|p| p.canonicalize())
+                .expect("failed to get the current exe")
         });
 
         let (process, request_sender, response_receiver, mut event_receiver) =
@@ -368,14 +370,14 @@ impl Controller {
         let code_and_output = match process.into_output() {
             Ok(c) => Some(c),
             Err(e) => {
-                tracing::error!(target: "vp_respawn", "view-process could not be heaped, will abandon running, {e:?}");
+                tracing::error!(target: "vp_respawn", "view-process could not be killed, will abandon running, {e:?}");
                 None
             }
         };
 
         // try print stdout/err and exit code.
         if let Some(c) = code_and_output {
-            tracing::info!(target: "vp_respawn", "view-process reaped");
+            tracing::info!(target: "vp_respawn", "view-process killed");
 
             let code = c.status.code();
 
@@ -384,7 +386,7 @@ impl Controller {
 
                 #[cfg(windows)]
                 if code == Some(1) {
-                    tracing::warn!(target: "vp_respawn", "view-process exit code is `1`, probably killed by the system, \
+                    tracing::warn!(target: "vp_respawn", "view-process exit code (1), probably killed by the system, \
                                         will exit app-process with the same code");
                     std::process::exit(1);
                 }
@@ -431,7 +433,7 @@ impl Controller {
                 Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stdout: {e}"),
             }
         } else {
-            tracing::error!(target: "vp_respawn", "failed to reap view-process, will abandon it running and spawn a new one");
+            tracing::error!(target: "vp_respawn", "failed to kill view-process, will abandon it running and spawn a new one");
         }
 
         // recover event listener closure (in a box).

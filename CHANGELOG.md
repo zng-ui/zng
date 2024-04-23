@@ -9,6 +9,8 @@
     - Adds `zng-ext-single-instance` crate re-exported in `zng::app` when non-default 
       Cargo feature `"single_instance"` is enabled.
 * Implement `AsRef<std::path::Path>` for `Txt`.
+* Implement `AsRef<std::ffi::OsStr>` for `Txt`.
+* Add app-process crash handler and restart.
 
 # 0.3.4
 

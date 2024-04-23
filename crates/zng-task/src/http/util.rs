@@ -151,7 +151,7 @@ impl TestTempDir {
         TestTempDir { path: Some(path) }
     }
     fn try_target() -> Option<std::path::PathBuf> {
-        let p = std::env::current_exe().ok()?;
+        let p = std::env::current_exe().ok()?.canonicalize().ok()?;
         // target/debug/deps/../../..
         let target = p.parent()?.parent()?.parent()?;
         if target.file_name()?.to_str()? != "target" {
