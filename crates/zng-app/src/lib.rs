@@ -40,10 +40,12 @@ pub mod window;
 
 mod tests;
 
+use var::ArcVar;
 use view_process::VIEW_PROCESS;
 use widget::UiTaskWidget;
 #[doc(hidden)]
 pub use zng_layout as layout;
+use zng_txt::Txt;
 #[doc(hidden)]
 pub use zng_var as var;
 
@@ -1156,6 +1158,22 @@ impl APP {
     pub fn device_events(&self) -> bool {
         APP_PROCESS_SV.read().device_events
     }
+
+    /// App display info.
+    ///
+    /// This info can be used by auto-generated views.
+    ///
+    /// # Examples
+    ///
+    /// You can set some of the info using crate metadata:
+    ///
+    /// ```no_run
+    /// # use zng_app::*;
+    /// APP.display_info().set(app_crate_display_info!());
+    /// ```
+    pub fn display_info(&self) -> ArcVar<AppDisplayInfo> {
+        APP_PROCESS_SV.read().display_info.clone()
+    }
 }
 
 impl APP {
@@ -1454,4 +1472,35 @@ pub fn test_log() {
 #[cfg(any(test, feature = "test_util"))]
 zng_app_context::app_local! {
     static TEST_LOG: bool = false;
+}
+
+/// Display info about the current app.
+///
+/// You can use the [`app_crate_display_info!`] macro to generate info from the app crate metadata.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct AppDisplayInfo {
+    /// App name.
+    pub name: Txt,
+    /// App short description.
+    pub description: Txt,
+    /// App version.
+    pub version: Txt,
+    /// App main URL.
+    pub home_page: Txt,
+    /// App documentation URL.
+    pub help_page: Txt,
+}
+
+/// Generate an [`AppDisplayInfo`] from the building crate's metadata.
+#[macro_export]
+macro_rules! app_crate_display_info {
+    () => {
+        $crate::AppDisplayInfo {
+            name: std::env!("CARGO_PKG_NAME").into(),
+            description: std::env!("CARGO_PKG_DESCRIPTION").into(),
+            version: std::env!("CARGO_PKG_VERSION").into(),
+            home_page: std::env!("CARGO_PKG_HOMEPAGE").into(),
+            help_page: std::env!("CARGO_PKG_HOMEPAGE").into(),
+        }
+    };
 }

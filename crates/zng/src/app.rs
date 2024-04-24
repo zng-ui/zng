@@ -397,8 +397,8 @@
 //! may be available at the [`zng_app`], [`zng_app_context`] and [`zng_ext_single_instance`] base crates.
 
 pub use zng_app::{
-    print_tracing, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, DInstant, Deadline,
-    ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
+    app_crate_display_info, print_tracing, AppControlFlow, AppDisplayInfo, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed,
+    AppExtensionInfo, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
 };
 
 #[cfg(feature = "test_util")]
