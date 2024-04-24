@@ -964,8 +964,8 @@ impl fmt::Display for SuppressedPanic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "thread '{}' panicked at '{}', {}:{}:{}\n {}",
-            self.thread, self.msg, self.file, self.line, self.column, self.backtrace,
+            "thread '{}' panicked at {}:{}:{}:\n{}\n{}",
+            self.thread, self.file, self.line, self.column, self.msg, self.backtrace,
         )
     }
 }

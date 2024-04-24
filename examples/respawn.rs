@@ -78,7 +78,10 @@ fn app_crash_dialog(args: zng::app::CrashArgs) -> ! {
             });
 
             padding = 5;
-            child_top = Markdown!("### App Crashed\n\nThe Respawn Example app has crashed.\n\n#### Details:\n"), 5;
+            child_top = Markdown!(
+                "The Respawn Example app has crashed.\n\n{}\n\n**Details:**\n",
+                 args.latest().find_panic().map(|p| p.msg).unwrap_or("Internal error.".into()),
+            ), 5;
             child = Scroll! {
                 padding = 5;
                 child = zng::ansi_text::AnsiText!(args.latest().to_txt());

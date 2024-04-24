@@ -428,4 +428,4 @@ pub mod raw_device_events {
 pub use zng_ext_single_instance::{is_single_instance, single_instance, single_instance_named, AppInstanceArgs, APP_INSTANCE_EVENT};
 
 #[cfg(feature = "crash_handler")]
-pub use zng_app::crash_handler::{crash_handler, CrashArgs, CrashConfig, CrashError};
+pub use zng_app::crash_handler::{crash_handler, CrashArgs, CrashConfig, CrashError, CrashPanic};
