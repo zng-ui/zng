@@ -270,6 +270,7 @@ mod ansi_parse {
             let mut esc_codes = esc_codes.split(';');
             while let Some(code) = esc_codes.next() {
                 match code {
+                    "0" => *self = Self::default(),
                     "1" => self.weight = AnsiWeight::Bold,
                     "2" => self.weight = AnsiWeight::Faint,
                     "3" => self.italic = true,

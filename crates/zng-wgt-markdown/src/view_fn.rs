@@ -495,13 +495,13 @@ pub fn default_link_fn(args: LinkFnArgs) -> impl UiNode {
 
 /// Default code block view.
 ///
-/// Is [`AnsiText!`] for the `ansi` language, and only raw text for the rest.
+/// Is [`AnsiText!`] for the `ansi` and `console` languages, and only raw text for the rest.
 ///
 /// See [`CODE_BLOCK_FN_VAR`] for more details.
 ///
 /// [`AnsiText!`]: struct@zng_wgt_ansi_text::AnsiText
 pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
-    if args.lang == "ansi" {
+    if ["ansi", "console"].contains(&args.lang.as_str()) {
         zng_wgt_ansi_text::AnsiText! {
             txt = args.txt;
             padding = 6;
