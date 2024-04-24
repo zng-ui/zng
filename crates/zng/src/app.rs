@@ -427,11 +427,114 @@ pub mod raw_device_events {
 #[cfg(feature = "single_instance")]
 pub use zng_ext_single_instance::{is_single_instance, single_instance, single_instance_named, AppInstanceArgs, APP_INSTANCE_EVENT};
 
+/// App-process crash handler.
+///
+/// The [`zng::app::crash_handler::init`] function takes over the first process turning it into the monitor-process,
+/// it spawns another process that is the monitored app-process. If the app-process crashes the monitor-process spawns a
+/// dialog-process that calls the dialog handler to show an error message, upload crash reports, etc.
+///
+/// # Examples
+///
+/// The example below demonstrates an app setup to handle crashes in the app-process.
+///
+/// ```
+/// use zng::prelude::*;
+///
+/// fn main() {
+///     // tracing applied to all processes.
+///     zng::app::print_tracing(tracing::Level::INFO);
+///
+///     // worker-process
+///     // zng::task::ipc::run_worker(worker);
+///
+///     // view-process init for app-process and dialog-process.
+///     zng::view_process::prebuilt::init();
+///     
+///     // monitor-process or dialog-process init.
+///     //
+///     // Note that the dialog-process will use the same view-process init. Alternatively you
+///     // can call this before the view-process init and then init a custom view_process just for the dialog
+///     // or don't use Zng for the dialog.
+///     zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(crash_dialog_main));
+///
+///     // normal app-process
+///
+///     // zng::app::single_instance();
+///     app_main();
+/// }
+///
+/// fn app_main() {
+///     APP.defaults().run_window(async {
+///         Window! {
+///             child_align = Align::CENTER;
+///             child = Stack! {
+///                 direction = StackDirection::top_to_bottom();
+///                 spacing = 5;
+///                 children = ui_vec![
+///                     Button! {
+///                         child = Text!("Crash (panic)");
+///                         on_click = hn_once!(|_| {
+///                             panic!("Test panic!");
+///                         });
+///                     },
+///                     Button! {
+///                         child = Text!("Crash (access violation)");
+///                         on_click = hn_once!(|_| {
+///                             // SAFETY: deliberate access violation
+///                             #[allow(deref_nullptr)]
+///                             unsafe {
+///                                 *std::ptr::null_mut() = true;
+///                             }
+///                         });
+///                     }
+///                 ]
+///             };
+///         }
+///     });
+/// }
+///
+/// fn crash_dialog_main(args: zng::app::crash_handler::CrashArgs) -> ! {
+///     APP.defaults().run_window(async move {
+///         Window! {
+///             title = "App Crashed!";
+///             auto_size = window::AutoSize::CONTENT;
+///             min_size = (300, 100);
+///             start_position = window::StartPosition::CenterMonitor;
+///             on_load = hn_once!(|_| {
+///                 WINDOW.bring_to_top();
+///             });
+///             padding = 10;
+///             child = Text!(args.latest().message());
+///             child_bottom = Stack! {
+///                 direction = StackDirection::start_to_end();
+///                 layout::align = Align::BOTTOM_END;
+///                 spacing = 5;
+///                 children = ui_vec![
+///                     Button! {
+///                         child = Text!("Restart App");
+///                         on_click = hn_once!(args, |_| {
+///                             args.restart();
+///                         });
+///                     },
+///                     Button! {
+///                         child = Text!("Exit App");
+///                         on_click = hn_once!(|_| {
+///                             args.exit(0);
+///                         });
+///                     },
+///                 ]
+///             }, 10;
+///         }
+///     });
+///     std::process::exit(0)
+/// }
+/// ```
+///
+/// # Full API
+///
+/// See [`zng_app::crash_handler`] for the full API.
 #[cfg(feature = "crash_handler")]
-pub use zng_app::crash_handler::{crash_handler, CrashArgs, CrashConfig, CrashError, CrashPanic};
-
-/// Setup a default [`crash_handler`].
-#[cfg(feature = "crash_handler")]
-pub fn crash_handler_default() {
-    todo!("!!: TODO")
+pub mod crash_handler {
+    #[cfg(feature = "crash_handler")]
+    pub use zng_app::crash_handler::{init, restart_count, CrashArgs, CrashConfig, CrashError, CrashPanic};
 }

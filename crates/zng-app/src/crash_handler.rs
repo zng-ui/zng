@@ -1,6 +1,8 @@
 #![cfg(feature = "crash_handler")]
 
 //! App-process crash handler.
+//!
+//! See the `zng::app::crash_handler` documentation for more details.
 
 use parking_lot::Mutex;
 use std::{
@@ -15,13 +17,10 @@ use zng_txt::{ToTxt as _, Txt};
 
 /// Starts the current app-process in a monitored instance.
 ///
-/// This function does nothing if the current app-process is monitored, otherwise it takes over execution
-/// an becomes the monitor-process, never returning.
-///
-/// # Examples
-///
-/// !!: TODO
-pub fn crash_handler(config: CrashConfig) {
+/// This function takes over the first process turning it into the monitor-process, it spawns another process that
+/// is the monitored app-process. If the app-process crashes it spawns a dialog-process that calls the dialog handler
+/// to show an error message, upload crash reports, etc.
+pub fn init(config: CrashConfig) {
     if std::env::var(APP_PROCESS) != Err(std::env::VarError::NotPresent) {
         return crash_handler_app_process(config.dump_dir.as_deref());
     }

@@ -14,8 +14,8 @@ use zng_view::extensions::ViewExtensions;
 fn main() {
     examples_util::print_info();
 
-    // init crash_handler before view to use different view for the crash dialog app.
-    zng::app::crash_handler(zng::app::CrashConfig::new(app_crash_dialog));
+    // init crash-handler before view to use different view for the crash dialog app.
+    zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(app_crash_dialog));
 
     // this is the normal app-process:
 
@@ -62,7 +62,7 @@ fn main() {
 }
 
 // Crash dialog app, runs in the dialog-process.
-fn app_crash_dialog(args: zng::app::CrashArgs) -> ! {
+fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
     zng::view_process::prebuilt::init();
     APP.defaults().run_window(async move {
         Window! {
