@@ -19,6 +19,8 @@
 * Fix potential issue retrieving current_exe trough symbolic links.
 * Fix view-process panic message.
 * Add `APP.about`.
+* Fix `AnsiText!` not resetting style.
+* `Markdown!` widget now uses `AnsiText!` for ```console code block.
 
 # 0.3.4
 

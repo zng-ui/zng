@@ -72,12 +72,12 @@ Text
 * Manually formatted.
 ```
 
-ANSI escape codes with lang `ansi`:
+ANSI escape codes with lang `console` or `ansi`:
 
-```ansi
-&#x1b;[31mRED&#x1b;[47m normal text
-&#x1b;[32;1mGREEN&amp;BOLD&#x1b;[47m normal text
-&#x1b;[34mBLUE&#x1b;[47m normal text
+```console
+&#x1b;[31mRED&#x1b;[0m normal text
+&#x1b;[32;1mGREEN&amp;BOLD&#x1b;[0m normal text
+&#x1b;[34mBLUE&#x1b;[0m normal text
 ```
 
 ### Rule
