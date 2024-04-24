@@ -154,8 +154,10 @@ impl fmt::Display for CrashArgs {
 pub struct CrashError {
     /// Crash moment.
     pub timestamp: SystemTime,
-    /// App process exit code.
+    /// Process exit code.
     pub code: Option<i32>,
+    /// Unix signal that terminated the process.
+    pub signal: Option<i32>,
     /// Full capture of the app stdout.
     pub stdout: Txt,
     /// Full capture of the app stderr.
@@ -176,6 +178,10 @@ impl fmt::Display for CrashError {
         match self.code {
             Some(c) => writeln!(f, "exit code: {c:#x}"),
             None => writeln!(f, "exit code:"),
+        }?;
+        match self.signal {
+            Some(c) => writeln!(f, "exit signal: {c}"),
+            None => writeln!(f, "exit signal:"),
         }?;
         write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout, self.stderr)
     }
@@ -349,8 +355,12 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                     );
                     std::process::exit(code);
                 } else {
+                    let code = status.code();
+                    #[allow(unused_mut)]
+                    let mut signal = None::<i32>;
+
                     #[cfg(windows)]
-                    if status.code() == Some(1) {
+                    if code == Some(1) {
                         tracing::warn!(
                             "app-process exit code (1), probably killed by the system, \
                                         will exit monitor-process with the same code"
@@ -358,24 +368,33 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                         std::process::exit(1);
                     }
                     #[cfg(unix)]
-                    if status.code().is_none() {
-                        tracing::warn!(
-                            "app-process exited by signal, probably killed by the user, \
-                                        will exit app-process with code 1"
-                        );
-                        std::process::exit(1);
+                    if code.is_none() {
+                        use std::os::unix::process::ExitStatusExt as _;
+                        signal = status.signal();
+
+                        if let Some(sig) = signal {
+                            if [2, 9, 17, 19, 23].contains(&sig) {
+                                tracing::warn!(
+                                    "app-process exited by signal ({sig}), \
+                                                will exit monitor-process with code 1"
+                                );
+                                std::process::exit(1);
+                            }
+                        }
                     }
 
                     tracing::error!(
-                        "app-process crashed with exit code ({:#x}), {} crashes previously",
-                        status.code().unwrap_or(0),
+                        "app-process crashed with exit code ({:#x}), signal ({:#?}), {} crashes previously",
+                        code.unwrap_or(0),
+                        signal.unwrap_or(0),
                         dialog_args.app_crashes.len()
                     );
 
                     let timestamp = SystemTime::now();
                     dialog_args.app_crashes.push(CrashError {
                         timestamp,
-                        code: status.code(),
+                        code,
+                        signal,
                         stdout: stdout.into(),
                         stderr: stderr.into(),
                         args: args.clone(),
@@ -444,9 +463,38 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                         .expect("crash dialog-process did not respond correctly")
                                         .to_owned()
                                 } else {
+                                    let code = dlg_status.code();
+                                    #[allow(unused_mut)]
+                                    let mut signal = None::<i32>;
+
+                                    #[cfg(windows)]
+                                    if code == Some(1) {
+                                        tracing::warn!(
+                                            "dialog-process exit code (1), probably killed by the system, \
+                                                        will exit monitor-process with the same code"
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                    #[cfg(unix)]
+                                    if code.is_none() {
+                                        use std::os::unix::process::ExitStatusExt as _;
+                                        signal = status.signal();
+
+                                        if let Some(sig) = signal {
+                                            if [2, 9, 17, 19, 23].contains(&sig) {
+                                                tracing::warn!(
+                                                    "dialog-process exited by signal ({sig}), \
+                                                                will exit monitor-process with code 1"
+                                                );
+                                                std::process::exit(1);
+                                            }
+                                        }
+                                    }
+
                                     let dialog_crash = CrashError {
                                         timestamp: SystemTime::now(),
-                                        code: dlg_status.code(),
+                                        code,
+                                        signal,
                                         stdout: dlg_stdout.into(),
                                         stderr: dlg_stderr.into(),
                                         args: Box::new([]),
