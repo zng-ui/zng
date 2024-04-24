@@ -40,10 +40,12 @@ pub mod window;
 
 mod tests;
 
+use var::ArcVar;
 use view_process::VIEW_PROCESS;
 use widget::UiTaskWidget;
 #[doc(hidden)]
 pub use zng_layout as layout;
+use zng_txt::Txt;
 #[doc(hidden)]
 pub use zng_var as var;
 
@@ -1156,6 +1158,22 @@ impl APP {
     pub fn device_events(&self) -> bool {
         APP_PROCESS_SV.read().device_events
     }
+
+    /// App display info.
+    ///
+    /// This info can be used by auto-generated views.
+    ///
+    /// # Examples
+    ///
+    /// You can set some of the info using crate metadata:
+    ///
+    /// ```no_run
+    /// # use zng_app::*;
+    /// APP.about().set(about_app_from_crate!());
+    /// ```
+    pub fn about(&self) -> ArcVar<AboutApp> {
+        APP_PROCESS_SV.read().about.clone()
+    }
 }
 
 impl APP {
@@ -1454,4 +1472,72 @@ pub fn test_log() {
 #[cfg(any(test, feature = "test_util"))]
 zng_app_context::app_local! {
     static TEST_LOG: bool = false;
+}
+
+/// Display info about the current app.
+///
+/// You can use the [`about_app_from_crate!`] macro to generate info from the app crate metadata.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct AboutApp {
+    /// App name.
+    pub name: Txt,
+    /// App short description.
+    pub description: Txt,
+    /// App version.
+    pub version: Txt,
+    /// App main URL.
+    pub home_page: Txt,
+    /// App documentation URL.
+    pub help_page: Txt,
+}
+impl AboutApp {
+    /// Returns a value that displays `"{name} - ",` or `""` if the name is not set.
+    pub fn title_prefix(&self) -> impl fmt::Display + '_ {
+        struct Title<'a>(&'a AboutApp);
+        impl<'a> fmt::Display for Title<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                if !self.0.name.is_empty() {
+                    write!(f, "{} - ", self.0.name)?;
+                }
+                Ok(())
+            }
+        }
+        Title(self)
+    }
+}
+
+/// Generate an [`AboutApp`] value from the crate's metadata.
+#[macro_export]
+macro_rules! about_app_from_crate {
+    () => {
+        $crate::AboutApp {
+            name: $crate::name_from_pkg_name(std::env!("CARGO_PKG_NAME")),
+            description: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_DESCRIPTION")),
+            version: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_VERSION")),
+            home_page: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_HOMEPAGE")),
+            help_page: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_HOMEPAGE")),
+        }
+    };
+}
+
+#[doc(hidden)]
+pub fn name_from_pkg_name(name: &'static str) -> Txt {
+    let mut n = String::new();
+    let mut sep = "";
+    for part in name.split(&['-', '_']) {
+        n.push_str(sep);
+        let mut chars = part.char_indices();
+        let (_, c) = chars.next().unwrap();
+        c.to_uppercase().for_each(|c| n.push(c));
+        if let Some((i, _)) = chars.next() {
+            n.push_str(&part[i..]);
+        }
+        sep = " ";
+    }
+    n.into()
+}
+
+#[doc(hidden)]
+pub fn txt_from_pkg_meta(value: &'static str) -> Txt {
+    value.into()
 }

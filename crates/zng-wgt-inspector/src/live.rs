@@ -271,15 +271,15 @@ mod inspector_window {
     use zng_app::widget::{
         border::{BorderSide, BorderSides},
         builder::{Importance, PropertyArgs, PropertyInfo, WidgetType},
-        inspector::{InspectorActualVars, InstanceItem, WidgetInfoInspectorExt as _},
+        inspector::{InspectorActualVars, InstanceItem},
         OnVarArgs,
     };
     use zng_color::Rgba;
     use zng_ext_font::{FontStyle, FontWeight};
     use zng_ext_input::focus::FOCUS;
     use zng_ext_l10n::lang;
-    use zng_ext_window::{WindowIcon, WindowRoot, WINDOWS};
-    use zng_var::{animation::easing, var_from};
+    use zng_ext_window::{WindowRoot, WINDOWS};
+    use zng_var::animation::easing;
     use zng_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
     use zng_wgt_access::{access_role, AccessRole};
     use zng_wgt_button::Button;
@@ -313,24 +313,16 @@ mod inspector_window {
     ) -> WindowRoot {
         let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 
-        let tree = WINDOWS.widget_tree(inspected).unwrap();
-        let info = tree.root().inspector_info();
-        let title = if let (Some(info), Some(title)) = (&info, tree.root().inspect_property(property_id!(window::title))) {
-            info.actual_vars
-                .downcast::<Txt>(property_id!(window::title), 0)
-                .unwrap_or_else(|| title.downcast_var::<Txt>(0).clone())
-                .map(|t| formatx!("{t} - Inspector"))
-                .boxed()
-        } else {
-            var_from("Inspector").boxed()
-        };
-        let icon = if let (Some(info), Some(icon)) = (info, tree.root().inspect_property(property_id!(window::icon))) {
-            info.actual_vars
-                .downcast::<WindowIcon>(property_id!(window::icon), 0)
-                .unwrap_or_else(|| icon.downcast_var::<WindowIcon>(0).clone())
-        } else {
-            var(WindowIcon::Default).boxed()
-        };
+        let vars = WINDOWS.vars(inspected).unwrap();
+
+        let title = vars.title().map(|t| {
+            if !t.is_empty() {
+                formatx!("{t} - Inspector")
+            } else {
+                "Inspector".into()
+            }
+        });
+        let icon = vars.icon();
 
         let wgt_filter = var(Txt::from_static(""));
 

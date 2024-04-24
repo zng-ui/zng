@@ -165,7 +165,7 @@ pub(crate) fn setup_default_view() {
                     }
 
                     Window! {
-                        title = "Third Party Licenses";
+                        title = APP.about().map(|i| formatx!("{}Third Party Licenses", i.title_prefix()));
                         child = default_view();
                         parent;
                     }

@@ -1270,6 +1270,13 @@ app_local! {
         extensions: None,
         device_events: false,
         pause_time_for_updates: zng_var::var(true),
+        about: zng_var::var(crate::AboutApp {
+            name: "".into(),
+            description: "A ZNG app.".into(),
+            version: "".into(),
+            home_page: "".into(),
+            help_page: "".into(),
+        }),
     };
 }
 
@@ -1278,6 +1285,7 @@ pub(super) struct AppProcessService {
     extensions: Option<Arc<AppExtensionsInfo>>,
     pub(super) device_events: bool,
     pause_time_for_updates: ArcVar<bool>,
+    pub(super) about: ArcVar<crate::AboutApp>,
 }
 impl AppProcessService {
     pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
