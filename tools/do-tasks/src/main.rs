@@ -805,6 +805,8 @@ fn clean(mut args: Vec<&str>) {
         // external because it will delete self.
         let manifest_path = std::env::current_exe()
             .unwrap()
+            .canonicalize()
+            .unwrap()
             .parent()
             .unwrap()
             .join("../../Cargo.toml")

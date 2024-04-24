@@ -26,6 +26,7 @@ use std::{
 };
 
 pub mod access;
+pub mod crash_handler;
 pub mod event;
 pub mod handler;
 pub mod render;

@@ -176,12 +176,12 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
     ///
     /// Note that the current process must call [`run_worker`] at startup to actually work.
     pub async fn start() -> std::io::Result<Self> {
-        Self::start_impl(duct::cmd!(std::env::current_exe()?)).await
+        Self::start_impl(duct::cmd!(std::env::current_exe()?.canonicalize()?)).await
     }
 
     /// Start a worker process implemented in the current executable with custom env vars and args.
     pub async fn start_with(env_vars: &[(&str, &str)], args: &[&str]) -> std::io::Result<Self> {
-        let mut worker = duct::cmd(std::env::current_exe()?, args);
+        let mut worker = duct::cmd(std::env::current_exe()?.canonicalize()?, args);
         for (name, value) in env_vars {
             worker = worker.env(name, value);
         }

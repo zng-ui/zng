@@ -537,6 +537,11 @@ impl AsRef<std::path::Path> for Txt {
         self.0.as_ref()
     }
 }
+impl AsRef<std::ffi::OsStr> for Txt {
+    fn as_ref(&self) -> &std::ffi::OsStr {
+        self.0.as_ref()
+    }
+}
 impl std::borrow::Borrow<str> for Txt {
     fn borrow(&self) -> &str {
         self.as_str()

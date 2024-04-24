@@ -86,7 +86,9 @@ impl Controller {
         }
 
         let view_process_exe = view_process_exe.unwrap_or_else(|| {
-            std::env::current_exe().expect("failed to get the current executable, consider using an external view-process exe")
+            std::env::current_exe()
+                .and_then(|p| p.canonicalize())
+                .expect("failed to get the current exe")
         });
 
         let (process, request_sender, response_receiver, mut event_receiver) =
@@ -275,7 +277,7 @@ impl Controller {
     /// The old view-process exit code and std output is logged using the `vp_respawn` target.
     ///
     /// Exits the current process with code `1` if the view-process was killed by the user. In Windows this is if
-    /// the view-process exit code is `1` and in Unix if there is no exit code (killed by signal).
+    /// the view-process exit code is `1`. In Unix if it was killed by SIGKILL, SIGSTOP, SIGINT.
     ///
     /// # Panics
     ///
@@ -368,38 +370,48 @@ impl Controller {
         let code_and_output = match process.into_output() {
             Ok(c) => Some(c),
             Err(e) => {
-                tracing::error!(target: "vp_respawn", "view-process could not be heaped, will abandon running, {e:?}");
+                tracing::error!(target: "vp_respawn", "view-process could not be killed, will abandon running, {e:?}");
                 None
             }
         };
 
         // try print stdout/err and exit code.
         if let Some(c) = code_and_output {
-            tracing::info!(target: "vp_respawn", "view-process reaped");
+            tracing::info!(target: "vp_respawn", "view-process killed");
 
             let code = c.status.code();
+            #[allow(unused_mut)]
+            let mut signal = None::<i32>;
 
             if !killed_by_us {
                 // check if user killed the view-process, in this case we exit too.
 
                 #[cfg(windows)]
                 if code == Some(1) {
-                    tracing::warn!(target: "vp_respawn", "view-process exit code is `1`, probably killed by the system, \
+                    tracing::warn!(target: "vp_respawn", "view-process exit code (1), probably killed by the system, \
                                         will exit app-process with the same code");
                     std::process::exit(1);
                 }
 
                 #[cfg(unix)]
                 if code.is_none() {
-                    tracing::warn!(target: "vp_respawn", "view-process exited by signal, probably killed by the user, \
-                                        will exit app-process with code 1");
-                    std::process::exit(1);
+                    use std::os::unix::process::ExitStatusExt as _;
+                    signal = c.status.signal();
+
+                    if let Some(sig) = signal {
+                        if [2, 9, 17, 19, 23].contains(&sig) {
+                            tracing::warn!(target: "vp_respawn", "view-process exited by signal ({sig}), \
+                                            will exit app-process with code 1");
+                            std::process::exit(1);
+                        }
+                    }
                 }
             }
 
             if !killed_by_us {
-                let code = code.unwrap();
-                tracing::error!(target: "vp_respawn", "view-process exit_code: 0x{code:x}");
+                let code = code.unwrap_or(0);
+                let signal = signal.unwrap_or(0);
+                tracing::error!(target: "vp_respawn", "view-process exit code: {code:#x}, signal: {signal}");
             }
 
             let stderr = match String::from_utf8(c.stderr) {
@@ -431,7 +443,7 @@ impl Controller {
                 Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stdout: {e}"),
             }
         } else {
-            tracing::error!(target: "vp_respawn", "failed to reap view-process, will abandon it running and spawn a new one");
+            tracing::error!(target: "vp_respawn", "failed to kill view-process, will abandon it running and spawn a new one");
         }
 
         // recover event listener closure (in a box).
@@ -461,7 +473,8 @@ impl Controller {
         self.request_sender = request;
         self.response_receiver = response;
 
-        let next_id = self.generation.incr();
+        let next_id = self.generation.next();
+        self.generation = next_id;
 
         if let Err(ViewProcessOffline) = self.try_init() {
             panic!("respawn on respawn startup");

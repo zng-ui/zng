@@ -45,7 +45,7 @@ See the [`documentation`] for more details.
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 26 feature flags, 3 enabled by default.
+This crate provides 27 feature flags, 4 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -95,7 +95,14 @@ Not enabled by default, but enabled by `feature="test_util"`.
 #### `"single_instance"`
 Allow single app-process instance mode.
 
-Note that `zng::app::single_instance` must used to enable single instance mode.
+Note that `zng::app::single_instance()` must be called to enable single instance mode.
+
+#### `"crash_handler"`
+Allow app-process crash handler.
+
+Note that `zng::app::crash_handler(..)` must be called to enable.
+
+*Enabled by default.*
 
 #### `"trace_widget"`
 Instrument every widget outer-most node to trace UI methods.
