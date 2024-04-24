@@ -2,9 +2,6 @@
 
 //! App-process crash handler.
 
-// !!: TODO, add env config in `CrashConfig`, custom handler to spawn app and dialog?
-// !!: TODO, implement `zng::app::crash_handler_default`.
-
 use std::{
     fmt,
     io::{BufRead, BufReader},
@@ -35,7 +32,7 @@ pub fn crash_handler(config: CrashConfig) {
         },
     }
 
-    crash_handler_monitor_process();
+    crash_handler_monitor_process(config.cfg_app, config.cfg_dialog);
 }
 
 /// Gets the number of crash restarts in the app-process.
@@ -52,14 +49,40 @@ const APP_PROCESS: &str = "ZNG_CRASH_HANDLER_APP";
 const DIALOG_PROCESS: &str = "ZNG_CRASH_HANDLER_DIALOG";
 const RESPONSE_PREFIX: &str = "zng_crash_dialog_response: ";
 
+type ConfigProcess = Vec<Box<dyn for<'a, 'b> FnMut(&'a mut std::process::Command, &'b CrashArgs) -> &'a mut std::process::Command>>;
+
 /// Crash handler config.
 pub struct CrashConfig {
     dialog: fn(CrashArgs) -> !,
+    cfg_app: ConfigProcess,
+    cfg_dialog: ConfigProcess,
 }
 impl CrashConfig {
-    /// New with dialog function.
+    /// New with function called in the dialog-process.
     pub fn new(dialog: fn(CrashArgs) -> !) -> Self {
-        Self { dialog }
+        Self {
+            dialog,
+            cfg_app: vec![],
+            cfg_dialog: vec![],
+        }
+    }
+
+    /// Add a closure that is called just before the app-process is spawned.
+    pub fn cfg_app(
+        mut self,
+        cfg: impl for<'a, 'b> FnMut(&'a mut std::process::Command, &'b CrashArgs) -> &'a mut std::process::Command + 'static,
+    ) -> Self {
+        self.cfg_app.push(Box::new(cfg));
+        self
+    }
+
+    /// Add a closure that is called just before the dialog-process is spawned.
+    pub fn cfg_dialog(
+        mut self,
+        cfg: impl for<'a, 'b> FnMut(&'a mut std::process::Command, &'b CrashArgs) -> &'a mut std::process::Command + 'static,
+    ) -> Self {
+        self.cfg_dialog.push(Box::new(cfg));
+        self
     }
 }
 impl From<fn(CrashArgs) -> !> for CrashConfig {
@@ -142,17 +165,19 @@ pub struct CrashError {
 }
 impl fmt::Display for CrashError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "timestamp: {}\nexit code: {:?}\n\nSTDOUT:\n{}\nSTDERR:\n{}\n",
+            "timestamp: {}",
             self.timestamp
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap_or(Duration::ZERO)
-                .as_secs(),
-            self.code,
-            self.stdout,
-            self.stderr
-        )
+                .as_secs()
+        )?;
+        match self.code {
+            Some(c) => writeln!(f, "exit code: {c:#x}"),
+            None => writeln!(f, "exit code:"),
+        }?;
+        write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout, self.stderr)
     }
 }
 impl CrashError {
@@ -163,6 +188,12 @@ impl CrashError {
     pub fn find_panic(&self) -> Option<CrashPanic> {
         CrashPanic::find(&self.stderr)
     }
+
+    /// Best attempt at generating a readable error message.
+    pub fn message(&self) -> Txt {
+        let msg = self.find_panic().map(|p| p.message).unwrap_or("Internal error.".into());
+        zng_txt::formatx!("Code: {:#x}. {msg}", self.code.unwrap_or(0))
+    }
 }
 
 /// Panic parsed from a `stderr` dump.
@@ -171,7 +202,7 @@ pub struct CrashPanic {
     /// Name of thread that panicked.
     pub thread: Txt,
     /// Panic message.
-    pub msg: Txt,
+    pub message: Txt,
     /// Path to file that defines the panic.
     pub file: Txt,
     /// Line of code that defines the panic.
@@ -190,7 +221,7 @@ impl fmt::Display for CrashPanic {
             "thread '{}' panicked at {}:{}:{}:",
             self.thread, self.file, self.line, self.column
         )?;
-        for line in self.msg.lines() {
+        for line in self.message.lines() {
             writeln!(f, "   {line}")?;
         }
         writeln!(f, "widget path:\n   {}\nstack backtrace:\n{}", self.widget_path, self.backtrace)
@@ -230,17 +261,17 @@ impl CrashPanic {
         let line: u32 = location.next().unwrap_or("0").parse().unwrap_or(0);
         let column: u32 = location.next().unwrap_or("0").parse().unwrap_or(0);
 
-        let mut msg = String::new();
+        let mut message = String::new();
         let mut sep = "";
         for line in stderr[panic_at + panic_str.len() + "\n".len()..].lines() {
             if let Some(line) = line.strip_prefix("   ") {
-                msg.push_str(sep);
-                msg.push_str(line);
+                message.push_str(sep);
+                message.push_str(line);
                 sep = "\n";
             } else {
-                if msg.is_empty() && line != "widget path:" && line != "stack backtrace:" {
+                if message.is_empty() && line != "widget path:" && line != "stack backtrace:" {
                     // not formatted by us, probably by Rust
-                    msg = line.to_owned();
+                    message = line.to_owned();
                 }
                 break;
             }
@@ -275,7 +306,7 @@ impl CrashPanic {
 
         Some(Self {
             thread: thread.to_txt(),
-            msg: msg.into(),
+            message: message.into(),
             file: file.to_txt(),
             line,
             column,
@@ -285,7 +316,7 @@ impl CrashPanic {
     }
 }
 
-fn crash_handler_monitor_process() -> ! {
+fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: ConfigProcess) -> ! {
     // monitor-process:
     tracing::info!("crash monitor-process is running");
 
@@ -300,8 +331,12 @@ fn crash_handler_monitor_process() -> ! {
         dialog_crash: None,
     };
     loop {
+        let mut app_process = std::process::Command::new(&exe);
+        for cfg in &mut cfg_app {
+            cfg(&mut app_process, &dialog_args);
+        }
         match run_process(
-            std::process::Command::new(&exe)
+            app_process
                 .env(APP_PROCESS, format!("restart-{}", dialog_args.app_crashes.len()))
                 .args(args.iter()),
         ) {
@@ -332,8 +367,8 @@ fn crash_handler_monitor_process() -> ! {
                     }
 
                     tracing::error!(
-                        "app-process crashed with error code ({:?}), {} crashes previously",
-                        status,
+                        "app-process crashed with exit code ({:#x}), {} crashes previously",
+                        status.code().unwrap_or(0),
                         dialog_args.app_crashes.len()
                     );
 
@@ -386,7 +421,11 @@ fn crash_handler_monitor_process() -> ! {
                             retries += 1;
                         };
 
-                        let dialog_result = run_process(std::process::Command::new(&exe).env(DIALOG_PROCESS, &crash_file));
+                        let mut dialog_process = std::process::Command::new(&exe);
+                        for cfg in &mut cfg_dialog {
+                            cfg(&mut dialog_process, &dialog_args);
+                        }
+                        let dialog_result = run_process(dialog_process.env(DIALOG_PROCESS, &crash_file));
 
                         for _ in 0..5 {
                             if !crash_file.exists() || std::fs::remove_file(&crash_file).is_ok() {

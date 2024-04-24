@@ -429,3 +429,9 @@ pub use zng_ext_single_instance::{is_single_instance, single_instance, single_in
 
 #[cfg(feature = "crash_handler")]
 pub use zng_app::crash_handler::{crash_handler, CrashArgs, CrashConfig, CrashError, CrashPanic};
+
+/// Setup a default [`crash_handler`].
+#[cfg(feature = "crash_handler")]
+pub fn crash_handler_default() {
+    todo!("!!: TODO")
+}
