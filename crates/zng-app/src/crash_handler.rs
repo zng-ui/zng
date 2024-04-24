@@ -2,9 +2,11 @@
 
 //! App-process crash handler.
 
+use parking_lot::Mutex;
 use std::{
     fmt,
     io::{BufRead, BufReader},
+    path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
 use zng_layout::unit::TimeUnits as _;
@@ -21,11 +23,11 @@ use zng_txt::{ToTxt as _, Txt};
 /// !!: TODO
 pub fn crash_handler(config: CrashConfig) {
     if std::env::var(APP_PROCESS) != Err(std::env::VarError::NotPresent) {
-        return crash_handler_app_process();
+        return crash_handler_app_process(config.dump_dir.as_deref());
     }
 
     match std::env::var(DIALOG_PROCESS) {
-        Ok(args_file) => crash_handler_dialog_process(config.dialog, args_file),
+        Ok(args_file) => crash_handler_dialog_process(config.dump_dir.as_deref(), config.dialog, args_file),
         Err(e) => match e {
             std::env::VarError::NotPresent => {}
             e => panic!("invalid dialog env args, {e:?}"),
@@ -47,7 +49,7 @@ pub fn restart_count() -> usize {
 
 const APP_PROCESS: &str = "ZNG_CRASH_HANDLER_APP";
 const DIALOG_PROCESS: &str = "ZNG_CRASH_HANDLER_DIALOG";
-const RESPONSE_PREFIX: &str = "zng_crash_dialog_response: ";
+const RESPONSE_PREFIX: &str = "zng_crash_response: ";
 
 type ConfigProcess = Vec<Box<dyn for<'a, 'b> FnMut(&'a mut std::process::Command, &'b CrashArgs) -> &'a mut std::process::Command>>;
 
@@ -56,6 +58,7 @@ pub struct CrashConfig {
     dialog: fn(CrashArgs) -> !,
     cfg_app: ConfigProcess,
     cfg_dialog: ConfigProcess,
+    dump_dir: Option<PathBuf>,
 }
 impl CrashConfig {
     /// New with function called in the dialog-process.
@@ -64,6 +67,7 @@ impl CrashConfig {
             dialog,
             cfg_app: vec![],
             cfg_dialog: vec![],
+            dump_dir: Some(std::env::temp_dir()),
         }
     }
 
@@ -82,6 +86,20 @@ impl CrashConfig {
         cfg: impl for<'a, 'b> FnMut(&'a mut std::process::Command, &'b CrashArgs) -> &'a mut std::process::Command + 'static,
     ) -> Self {
         self.cfg_dialog.push(Box::new(cfg));
+        self
+    }
+
+    /// Change the minidump directory.
+    ///
+    /// Is the temp dir by default.
+    pub fn minidump_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.dump_dir = Some(dir.into());
+        self
+    }
+
+    /// Do not collect a minidump.
+    pub fn no_minidump(mut self) -> Self {
+        self.dump_dir = None;
         self
     }
 }
@@ -164,6 +182,8 @@ pub struct CrashError {
     pub stderr: Txt,
     /// Arguments used.
     pub args: Box<[Txt]>,
+    /// Minidump file.
+    pub minidump: Option<PathBuf>,
 }
 impl fmt::Display for CrashError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -187,6 +207,32 @@ impl fmt::Display for CrashError {
     }
 }
 impl CrashError {
+    fn new(timestamp: SystemTime, code: Option<i32>, signal: Option<i32>, stdout: Txt, stderr: Txt, args: Box<[Txt]>) -> Self {
+        let mut minidump = None;
+
+        for line in stdout.lines().rev() {
+            if let Some(response) = line.strip_prefix(RESPONSE_PREFIX) {
+                if let Some(path) = response.strip_prefix(" minidump ") {
+                    let path = PathBuf::from(path);
+                    if path.exists() {
+                        minidump = Some(path);
+                    }
+                    break;
+                }
+            }
+        }
+
+        Self {
+            timestamp,
+            code,
+            signal,
+            stdout,
+            stderr,
+            args,
+            minidump,
+        }
+    }
+
     /// Try parse `stderr` for the crash panic.
     ///
     /// Only reliably works if the panic fully printed correctly and was formatted by the panic
@@ -198,6 +244,7 @@ impl CrashError {
     /// Best attempt at generating a readable error message.
     pub fn message(&self) -> Txt {
         let msg = self.find_panic().map(|p| p.message).unwrap_or("Internal error.".into());
+        // !!: TODO, use https://docs.rs/minidump/
         zng_txt::formatx!("Code: {:#x}. {msg}", self.code.unwrap_or(0))
     }
 }
@@ -391,14 +438,10 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                     );
 
                     let timestamp = SystemTime::now();
-                    dialog_args.app_crashes.push(CrashError {
-                        timestamp,
-                        code,
-                        signal,
-                        stdout: stdout.into(),
-                        stderr: stderr.into(),
-                        args: args.clone(),
-                    });
+
+                    dialog_args
+                        .app_crashes
+                        .push(CrashError::new(timestamp, code, signal, stdout.into(), stderr.into(), args.clone()));
 
                     // show dialog, retries once if dialog crashes too.
                     for _ in 0..2 {
@@ -498,6 +541,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                         stdout: dlg_stdout.into(),
                                         stderr: dlg_stderr.into(),
                                         args: Box::new([]),
+                                        minidump: None, // !!: TODO
                                     };
                                     tracing::error!("crash dialog-process crashed, {dialog_crash}");
 
@@ -584,18 +628,24 @@ fn capture_and_print(stream: impl std::io::Read + Send + 'static, is_err: bool) 
     })
 }
 
-fn crash_handler_app_process() {
+fn crash_handler_app_process(dump_dir: Option<&Path>) {
     tracing::info!("app-process is running");
 
     std::panic::set_hook(Box::new(panic_handler));
+    if let Some(dir) = dump_dir {
+        minidump_attach(dir);
+    }
 
     // app-process execution happens after the `crash_handler` function returns.
 }
 
-fn crash_handler_dialog_process(dialog: fn(CrashArgs) -> !, args_file: String) -> ! {
+fn crash_handler_dialog_process(dump_dir: Option<&Path>, dialog: fn(CrashArgs) -> !, args_file: String) -> ! {
     tracing::info!("crash dialog-process is running");
 
     std::panic::set_hook(Box::new(panic_handler));
+    if let Some(dir) = dump_dir {
+        minidump_attach(dir);
+    }
 
     let mut retries = 0;
     let args = loop {
@@ -620,6 +670,19 @@ fn panic_handler(info: &std::panic::PanicInfo) {
     let panic = PanicInfo::from_hook(info);
     eprintln!("{panic}widget path:\n   {path}\nstack backtrace:\n{backtrace}");
 }
+
+fn minidump_attach(dump_dir: &Path) {
+    let handler = breakpad_handler::BreakpadHandler::attach(
+        dump_dir,
+        breakpad_handler::InstallOptions::BothHandlers,
+        Box::new(|minidump_path: std::path::PathBuf| {
+            println!("{RESPONSE_PREFIX}: minidump {}", minidump_path.display());
+        }),
+    )
+    .unwrap();
+    *BREAKPAD_HANDLER.lock() = Some(handler);
+}
+static BREAKPAD_HANDLER: Mutex<Option<breakpad_handler::BreakpadHandler>> = Mutex::new(None);
 
 #[derive(Debug)]
 struct PanicInfo {
