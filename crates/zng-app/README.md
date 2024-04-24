@@ -4,12 +4,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 11 feature flags, 2 enabled by default.
-
-#### `"ipc"`
-Enables IPC tasks and pre-build views and connecting to views running in another process.
-
-*Enabled by default.*
+This crate provides 12 feature flags, 3 enabled by default.
 
 #### `"debug_default"`
 Enable the `"dyn_*"` and `"inspector"` features in debug builds.
@@ -53,6 +48,18 @@ Instrument every widget outer-most node to trace UI methods.
 Instrument every property and intrinsic node to trace UI methods.
 
 Note that this can cause very large trace files and bad performance.
+
+#### `"crash_handler"`
+Allow app-process crash handler.
+
+Note that `crash_handler(..)` must be called to enable.
+
+*Enabled by default.*
+
+#### `"ipc"`
+Enables IPC tasks and pre-build views and connecting to views running in another process.
+
+*Enabled by default.*
 
 #### `"deadlock_detection"`
 Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.

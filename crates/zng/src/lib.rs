@@ -896,27 +896,32 @@ mod defaults {
                     zng_app::window::WINDOW.vars().actual_color_scheme().boxed()
                 })
             });
+            tracing::debug!("defaults init, root_extender set");
 
             crate::third_party::setup_default_view();
+            tracing::debug!("defaults init, third_party set");
 
             #[cfg(feature = "single_instance")]
-            crate::app::APP_INSTANCE_EVENT
-                .on_pre_event(crate::handler::app_hn!(|args: &crate::app::AppInstanceArgs, _| {
-                    use crate::window::*;
+            {
+                crate::app::APP_INSTANCE_EVENT
+                    .on_pre_event(crate::handler::app_hn!(|args: &crate::app::AppInstanceArgs, _| {
+                        use crate::window::*;
 
-                    // focus a window if none are focused.
-                    if !args.is_current() && WINDOWS.focused_window_id().is_none() {
-                        for w in WINDOWS.widget_trees() {
-                            if w.is_rendered()
-                                && WINDOWS.mode(w.window_id()) == Ok(WindowMode::Headed)
-                                && WINDOWS.focus(w.window_id()).is_ok()
-                            {
-                                break;
+                        // focus a window if none are focused.
+                        if !args.is_current() && WINDOWS.focused_window_id().is_none() {
+                            for w in WINDOWS.widget_trees() {
+                                if w.is_rendered()
+                                    && WINDOWS.mode(w.window_id()) == Ok(WindowMode::Headed)
+                                    && WINDOWS.focus(w.window_id()).is_ok()
+                                {
+                                    break;
+                                }
                             }
                         }
-                    }
-                }))
-                .perm();
+                    }))
+                    .perm();
+                tracing::debug!("defaults init, single_instance set");
+            }
 
             #[cfg(feature = "material_icons_outlined")]
             {
@@ -954,6 +959,8 @@ mod defaults {
                 ZOOM_OUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_OUT)));
 
                 OPEN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::FILE_OPEN)));
+
+                tracing::debug!("defaults init, command_icons set");
             }
         }
     }

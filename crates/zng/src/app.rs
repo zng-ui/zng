@@ -437,7 +437,7 @@ pub use zng_ext_single_instance::{is_single_instance, single_instance, single_in
 ///
 /// The example below demonstrates an app setup to handle crashes in the app-process.
 ///
-/// ```
+/// ```no_run
 /// use zng::prelude::*;
 ///
 /// fn main() {

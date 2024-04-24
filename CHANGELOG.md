@@ -10,8 +10,14 @@
       Cargo feature `"single_instance"` is enabled.
 * Implement `AsRef<std::path::Path>` for `Txt`.
 * Implement `AsRef<std::ffi::OsStr>` for `Txt`.
-* Add app-process crash handler and restart.
+* Add app-process crash handler.
+    - Adds `zng::app::crash_handler`.
+    - Can be used to easily implement crash reporting, stacktrace and minidump 
+      collection, app restart on crash.
 * Fix view-process kill by user not working after respawn.
+* Fix view-process assuming any signal kill was requested by the user.
+* Fix potential issue retrieving current_exe trough symbolic links.
+* Fix view-process panic message.
 
 # 0.3.4
 

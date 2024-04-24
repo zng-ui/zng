@@ -219,6 +219,8 @@ zng-wgt-inspector = { path = "../zng-wgt-inspector", version = "0.2.9" }
 zng-wgt-material-icons = { path = "../zng-wgt-material-icons", version = "0.2.9", default-features = false, optional = true }
 zng-ext-single-instance = { path = "../zng-ext-single-instance", version = "0.2.0", optional = true }
 
+tracing = "0.1"
+
 [package.metadata.docs.rs]
 all-features = true
 
