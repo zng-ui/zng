@@ -148,7 +148,7 @@ impl WindowVars {
 
             access_enabled: var(AccessEnabled::empty()),
         });
-        zng_app::APP.display_info().map_ref(|i| &i.name).set_bind(&vars.title).perm();
+        zng_app::APP.about().map_ref(|i| &i.name).set_bind(&vars.title).perm();
         Self(vars)
     }
 

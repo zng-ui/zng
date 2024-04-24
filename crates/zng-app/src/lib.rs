@@ -1169,10 +1169,10 @@ impl APP {
     ///
     /// ```no_run
     /// # use zng_app::*;
-    /// APP.display_info().set(app_crate_display_info!());
+    /// APP.about().set(about_app_from_crate!());
     /// ```
-    pub fn display_info(&self) -> ArcVar<AppDisplayInfo> {
-        APP_PROCESS_SV.read().display_info.clone()
+    pub fn about(&self) -> ArcVar<AboutApp> {
+        APP_PROCESS_SV.read().about.clone()
     }
 }
 
@@ -1476,9 +1476,9 @@ zng_app_context::app_local! {
 
 /// Display info about the current app.
 ///
-/// You can use the [`app_crate_display_info!`] macro to generate info from the app crate metadata.
+/// You can use the [`about_app_from_crate!`] macro to generate info from the app crate metadata.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct AppDisplayInfo {
+pub struct AboutApp {
     /// App name.
     pub name: Txt,
     /// App short description.
@@ -1490,10 +1490,10 @@ pub struct AppDisplayInfo {
     /// App documentation URL.
     pub help_page: Txt,
 }
-impl AppDisplayInfo {
+impl AboutApp {
     /// Returns a value that displays `"{name} - ",` or `""` if the name is not set.
     pub fn title_prefix(&self) -> impl fmt::Display + '_ {
-        struct Title<'a>(&'a AppDisplayInfo);
+        struct Title<'a>(&'a AboutApp);
         impl<'a> fmt::Display for Title<'a> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 if !self.0.name.is_empty() {
@@ -1506,16 +1506,38 @@ impl AppDisplayInfo {
     }
 }
 
-/// Generate an [`AppDisplayInfo`] from the building crate's metadata.
+/// Generate an [`AboutApp`] value from the crate's metadata.
 #[macro_export]
-macro_rules! app_crate_display_info {
+macro_rules! about_app_from_crate {
     () => {
-        $crate::AppDisplayInfo {
-            name: std::env!("CARGO_PKG_NAME").into(),
-            description: std::env!("CARGO_PKG_DESCRIPTION").into(),
-            version: std::env!("CARGO_PKG_VERSION").into(),
-            home_page: std::env!("CARGO_PKG_HOMEPAGE").into(),
-            help_page: std::env!("CARGO_PKG_HOMEPAGE").into(),
+        $crate::AboutApp {
+            name: $crate::name_from_pkg_name(std::env!("CARGO_PKG_NAME")),
+            description: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_DESCRIPTION")),
+            version: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_VERSION")),
+            home_page: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_HOMEPAGE")),
+            help_page: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_HOMEPAGE")),
         }
     };
+}
+
+#[doc(hidden)]
+pub fn name_from_pkg_name(name: &'static str) -> Txt {
+    let mut n = String::new();
+    let mut sep = "";
+    for part in name.split(&['-', '_']) {
+        n.push_str(sep);
+        let mut chars = part.char_indices();
+        let (_, c) = chars.next().unwrap();
+        c.to_uppercase().for_each(|c| n.push(c));
+        if let Some((i, _)) = chars.next() {
+            n.push_str(&part[i..]);
+        }
+        sep = " ";
+    }
+    n.into()
+}
+
+#[doc(hidden)]
+pub fn txt_from_pkg_meta(value: &'static str) -> Txt {
+    value.into()
 }

@@ -397,7 +397,7 @@
 //! may be available at the [`zng_app`], [`zng_app_context`] and [`zng_ext_single_instance`] base crates.
 
 pub use zng_app::{
-    app_crate_display_info, print_tracing, AppControlFlow, AppDisplayInfo, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed,
+    about_app_from_crate, print_tracing, AboutApp, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed,
     AppExtensionInfo, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
 };
 

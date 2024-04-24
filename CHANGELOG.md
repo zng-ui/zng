@@ -18,7 +18,7 @@
 * Fix view-process assuming any signal kill was requested by the user.
 * Fix potential issue retrieving current_exe trough symbolic links.
 * Fix view-process panic message.
-* Add `APP.display_info`.
+* Add `APP.about`.
 
 # 0.3.4
 
