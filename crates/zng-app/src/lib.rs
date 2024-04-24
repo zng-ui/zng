@@ -1490,6 +1490,21 @@ pub struct AppDisplayInfo {
     /// App documentation URL.
     pub help_page: Txt,
 }
+impl AppDisplayInfo {
+    /// Returns a value that displays `"{name} - ",` or `""` if the name is not set.
+    pub fn title_prefix(&self) -> impl fmt::Display + '_ {
+        struct Title<'a>(&'a AppDisplayInfo);
+        impl<'a> fmt::Display for Title<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                if !self.0.name.is_empty() {
+                    write!(f, "{} - ", self.0.name)?;
+                }
+                Ok(())
+            }
+        }
+        Title(self)
+    }
+}
 
 /// Generate an [`AppDisplayInfo`] from the building crate's metadata.
 #[macro_export]
