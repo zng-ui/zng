@@ -46,7 +46,8 @@ fn main() {
                                It spawns the `app-process` that is the normal execution. If the `app-process` crashes it spawns the \
                                `dialog-process` that runs a different app that shows an error message.";
                     },
-                    app_crash(),
+                    app_crash(true),
+                    app_crash(false),
                     Markdown! {
                         txt = "The states of these buttons is only preserved for `view-process` crashes. \
                                use `CONFIG` or some other state saving to better recover from `app-process` crashes.";
@@ -142,16 +143,19 @@ fn view_crash() -> impl UiNode {
     }
 }
 
-fn app_crash() -> impl UiNode {
+fn app_crash(panic: bool) -> impl UiNode {
     Button! {
-        child = Text!("Crash App-Process");
+        child = Text!("Crash App-Process ({})", if panic { "panic" } else { "access violation" });
         on_click = hn!(|_| {
-            // SAFETY: deliberate error
-            #[allow(deref_nullptr)] // !!: TODO
-            unsafe {
-                *std::ptr::null_mut() = true;
+            if panic {
+                panic!("Test app-process crash!");
+            } else {
+                // SAFETY: deliberate access violation
+                #[allow(deref_nullptr)]
+                unsafe {
+                    *std::ptr::null_mut() = true;
+                }
             }
-            panic!("Test app-process crash!");
         });
     }
 }

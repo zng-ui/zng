@@ -67,7 +67,7 @@ impl CrashConfig {
             dialog,
             cfg_app: vec![],
             cfg_dialog: vec![],
-            dump_dir: Some(std::env::temp_dir()),
+            dump_dir: Some(std::env::temp_dir().join("zng_minidump")),
         }
     }
 
@@ -195,14 +195,15 @@ impl fmt::Display for CrashError {
                 .unwrap_or(Duration::ZERO)
                 .as_secs()
         )?;
-        match self.code {
-            Some(c) => writeln!(f, "exit code: {c:#x}"),
-            None => writeln!(f, "exit code:"),
-        }?;
-        match self.signal {
-            Some(c) => writeln!(f, "exit signal: {c}"),
-            None => writeln!(f, "exit signal:"),
-        }?;
+        if let Some(c) = self.code {
+            writeln!(f, "exit code: {c:#x}")?
+        }
+        if let Some(c) = self.signal {
+            writeln!(f, "exit signal: {c}")?
+        }
+        if let Some(p) = self.minidump.as_ref() {
+            writeln!(f, "minidump: {}", p.display())?
+        }
         write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout, self.stderr)
     }
 }
@@ -212,10 +213,10 @@ impl CrashError {
 
         for line in stdout.lines().rev() {
             if let Some(response) = line.strip_prefix(RESPONSE_PREFIX) {
-                if let Some(path) = response.strip_prefix(" minidump ") {
+                if let Some(path) = response.strip_prefix("minidump ") {
                     let path = PathBuf::from(path);
-                    if path.exists() {
-                        minidump = Some(path);
+                    if let Ok(p) = path.canonicalize() {
+                        minidump = Some(p);
                     }
                     break;
                 }
@@ -238,14 +239,65 @@ impl CrashError {
     /// Only reliably works if the panic fully printed correctly and was formatted by the panic
     /// hook installed by `crash_handler` or by the display print of [`CrashPanic`].
     pub fn find_panic(&self) -> Option<CrashPanic> {
-        CrashPanic::find(&self.stderr)
+        if self.code == Some(101) {
+            CrashPanic::find(&self.stderr)
+        } else {
+            None
+        }
     }
 
     /// Best attempt at generating a readable error message.
+    ///
+    /// Is the panic message, or the minidump exception, with the exit code and signal.
     pub fn message(&self) -> Txt {
-        let msg = self.find_panic().map(|p| p.message).unwrap_or("Internal error.".into());
-        // !!: TODO, use https://docs.rs/minidump/
-        zng_txt::formatx!("Code: {:#x}. {msg}", self.code.unwrap_or(0))
+        let mut msg = if let Some(msg) = self.find_panic().map(|p| p.message) {
+            msg
+        } else if let Some(msg) = self.minidump_message() {
+            msg
+        } else {
+            "Error.".into()
+        };
+        use std::fmt::Write as _;
+
+        if let Some(c) = self.code {
+            write!(&mut msg, " Code: {c:#x}.").unwrap();
+        }
+        if let Some(c) = self.signal {
+            write!(&mut msg, " Signal: {c}.").unwrap();
+        }
+        msg.end_mut();
+        msg
+    }
+
+    fn minidump_message(&self) -> Option<Txt> {
+        use minidump::*;
+
+        let dump = match Minidump::read_path(self.minidump.as_ref()?) {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::error!("error reading minidump, {e}");
+                return None;
+            }
+        };
+
+        let system_info = match dump.get_stream::<MinidumpSystemInfo>() {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("error reading minidump system info, {e}");
+                return None;
+            }
+        };
+        let exception = match dump.get_stream::<MinidumpException>() {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("error reading minidump exception, {e}");
+                return None;
+            }
+        };
+
+        let crash_reason = exception.get_crash_reason(system_info.os, system_info.cpu);
+
+        Some(zng_txt::formatx!("{crash_reason}"))
     }
 }
 
@@ -534,15 +586,14 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                         }
                                     }
 
-                                    let dialog_crash = CrashError {
-                                        timestamp: SystemTime::now(),
+                                    let dialog_crash = CrashError::new(
+                                        SystemTime::now(),
                                         code,
                                         signal,
-                                        stdout: dlg_stdout.into(),
-                                        stderr: dlg_stderr.into(),
-                                        args: Box::new([]),
-                                        minidump: None, // !!: TODO
-                                    };
+                                        dlg_stdout.into(),
+                                        dlg_stderr.into(),
+                                        Box::new([]),
+                                    );
                                     tracing::error!("crash dialog-process crashed, {dialog_crash}");
 
                                     if dialog_args.dialog_crash.is_none() {
@@ -633,6 +684,9 @@ fn crash_handler_app_process(dump_dir: Option<&Path>) {
 
     std::panic::set_hook(Box::new(panic_handler));
     if let Some(dir) = dump_dir {
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            tracing::error!("failed to create minidump dir, minidump may not collect on crash, {e}");
+        }
         minidump_attach(dir);
     }
 
@@ -676,7 +730,7 @@ fn minidump_attach(dump_dir: &Path) {
         dump_dir,
         breakpad_handler::InstallOptions::BothHandlers,
         Box::new(|minidump_path: std::path::PathBuf| {
-            println!("{RESPONSE_PREFIX}: minidump {}", minidump_path.display());
+            println!("{RESPONSE_PREFIX}minidump {}", minidump_path.display());
         }),
     )
     .unwrap();
