@@ -608,21 +608,33 @@ mod crash_handler_dbg {
     }
 
     fn panels(error: &CrashError) -> impl UiNode {
-        let mut options = vec![
-            ErrorPanel::Stderr,
-            ErrorPanel::StderrPlain,
-            ErrorPanel::Stdout,
-            ErrorPanel::StdoutPlain,
-        ];
-        let mut active = ErrorPanel::Stderr;
+        let mut options = vec![ErrorPanel::Summary];
+        let mut active = ErrorPanel::Summary;
 
-        if let Some(p) = error.find_panic() {
+        if !error.stdout.is_empty() {
+            options.push(ErrorPanel::StdoutPlain);
+            active = ErrorPanel::StdoutPlain;
+            if !error.is_stdout_plain() {
+                options.push(ErrorPanel::Stdout);
+                active = ErrorPanel::Stdout;
+            }
+        }
+
+        if !error.stderr.is_empty() {
+            options.push(ErrorPanel::StderrPlain);
+            active = ErrorPanel::StderrPlain;
+            if !error.is_stderr_plain() {
+                options.push(ErrorPanel::Stderr);
+                active = ErrorPanel::Stderr;
+            }
+        }
+
+        if error.has_panic() {
             options.push(ErrorPanel::Panic);
             active = ErrorPanel::Panic;
-
-            if !p.widget_path.is_empty() {
-                options.push(ErrorPanel::Widget);
-            }
+        }
+        if error.has_panic_widget() {
+            options.push(ErrorPanel::Widget);
         }
         if error.minidump.is_some() {
             options.push(ErrorPanel::Minidump);
@@ -644,15 +656,13 @@ mod crash_handler_dbg {
                 };
                 spacing = 5;
             }, 5;
-            child = Scroll! {
-                child_align = Align::FILL;
-                child = presenter(active, wgt_fn!(error, |p: ErrorPanel| p.panel(&error)));
-            };
+            child = presenter(active, wgt_fn!(error, |p: ErrorPanel| p.panel(&error)));
         }
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum ErrorPanel {
+        Summary,
         Stdout,
         Stderr,
         StdoutPlain,
@@ -664,12 +674,13 @@ mod crash_handler_dbg {
     impl ErrorPanel {
         fn title(&self) -> Txt {
             match self {
+                ErrorPanel::Summary => "Summary",
                 ErrorPanel::Stdout => "Stdout",
                 ErrorPanel::Stderr => "Stderr",
                 ErrorPanel::StdoutPlain => "Stdout (plain)",
                 ErrorPanel::StderrPlain => "Stderr (plain)",
                 ErrorPanel::Panic => "Panic",
-                ErrorPanel::Widget => "Widget Path",
+                ErrorPanel::Widget => "Widget",
                 ErrorPanel::Minidump => "Minidump",
             }
             .into()
@@ -677,6 +688,7 @@ mod crash_handler_dbg {
 
         fn panel(&self, error: &CrashError) -> BoxedUiNode {
             match self {
+                ErrorPanel::Summary => summary_panel(error).boxed(),
                 ErrorPanel::Stdout => std_panel(error.stdout.clone()).boxed(),
                 ErrorPanel::Stderr => std_panel(error.stderr.clone()).boxed(),
                 ErrorPanel::StdoutPlain => std_plain_panel(error.stdout_plain()).boxed(),
@@ -687,13 +699,44 @@ mod crash_handler_dbg {
             }
         }
     }
+
+    fn summary_panel(error: &CrashError) -> impl UiNode {
+        let s = formatx!(
+            "Timestamp: {}\nExit Code: {}\nSignal: {}\nStderr: {} bytes\nStdout: {} bytes\nPanic: {}\nMinidump: {}\n\nArgs: {:?}\n",
+            error.unix_time(),
+            match error.code {
+                Some(c) => format!("{c:#x}"),
+                None => "<none>".to_owned(),
+            },
+            match error.signal {
+                Some(c) => format!("{c}"),
+                None => "<none>".to_owned(),
+            },
+            error.stderr.len(),
+            error.stdout.len(),
+            error.find_panic().is_some(),
+            match &error.minidump {
+                Some(p) => {
+                    let path = p.display().to_string();
+                    let path = path.trim_start_matches(r"\\?\");
+                    path.to_owned()
+                }
+                None => "<none>".to_owned(),
+            },
+            error.args,
+        );
+        plain_panel(s)
+    }
+
     fn std_panel(std: Txt) -> impl UiNode {
-        AnsiText! {
-            txt = std;
-            // txt_align = Align::TOP_START;
-            font_size = 0.9.em();
+        Scroll! {
+            child_align = Align::TOP_START;
             widget::background_color = colors::BLACK;
             layout::padding = 5;
+            child = AnsiText! {
+                txt = std;
+                font_size = 0.9.em();
+            }
         }
     }
     fn std_plain_panel(std: Txt) -> impl UiNode {
@@ -711,14 +754,16 @@ mod crash_handler_dbg {
         plain_panel(path.to_txt())
     }
     fn plain_panel(txt: Txt) -> impl UiNode {
-        SelectableText! {
-            txt;
-            txt_align = Align::TOP_START;
-            font_size = 0.9.em();
-            // same as AnsiText
-            font_family = ["JetBrains Mono", "Consolas", "monospace"];
+        Scroll! {
+            child_align = Align::TOP_START;
             widget::background_color = colors::BLACK;
             layout::padding = 5;
+            child = SelectableText! {
+                txt;
+                font_size = 0.9.em();
+                // same as AnsiText
+                font_family = ["JetBrains Mono", "Consolas", "monospace"];
+            }
         }
     }
 
