@@ -224,23 +224,33 @@ impl SCROLL {
 
     /// Vertical offset of the parent scroll.
     ///
-    /// The value is a percentage of `content.height - viewport.height`. This variable is usually read-write,
-    /// scrollable content can modify it to scroll the parent.
-    pub fn vertical_offset(&self) -> ReadOnlyContextVar<Factor> {
-        SCROLL_VERTICAL_OFFSET_VAR.read_only()
+    /// The value is a percentage of `content.height - viewport.height`.
+    ///
+    /// This variable is usually read-write, but you should avoid modifying it directly as
+    /// direct assign as the value is not validated and does not participate in smooths scrolling.
+    /// Prefer the scroll methods of this service to scroll.
+    pub fn vertical_offset(&self) -> ContextVar<Factor> {
+        SCROLL_VERTICAL_OFFSET_VAR
     }
 
     /// Horizontal offset of the parent scroll.
     ///
-    /// The value is a percentage of `content.width - viewport.width`. This variable is usually read-write,
-    /// scrollable content can modify it to scroll the parent.
-    pub fn horizontal_offset(&self) -> ReadOnlyContextVar<Factor> {
-        SCROLL_HORIZONTAL_OFFSET_VAR.read_only()
+    /// The value is a percentage of `content.width - viewport.width`.
+    ///
+    /// This variable is usually read-write, but you should avoid modifying it directly as
+    /// direct assign as the value is not validated and does not participate in smooths scrolling.
+    /// Prefer the scroll methods of this service to scroll.
+    pub fn horizontal_offset(&self) -> ContextVar<Factor> {
+        SCROLL_HORIZONTAL_OFFSET_VAR
     }
 
-    /// Zoom scale factor.
-    pub fn zoom_scale(&self) -> ReadOnlyContextVar<Factor> {
-        SCROLL_SCALE_VAR.read_only()
+    /// Zoom scale factor of the parent scroll.
+    ///
+    /// This variable is usually read-write, but you should avoid modifying it directly as
+    /// direct assign as the value is not validated and does not participate in smooths scrolling.
+    /// Prefer the zoom methods of this service to change scale.
+    pub fn zoom_scale(&self) -> ContextVar<Factor> {
+        SCROLL_SCALE_VAR
     }
 
     /// Latest rendered offset.

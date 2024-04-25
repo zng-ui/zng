@@ -624,7 +624,7 @@ mod crash_handler_dbg {
         if !error.stderr.is_empty() {
             options.push(ErrorPanel::StderrPlain);
             active = ErrorPanel::StderrPlain;
-            if !error.is_stderr_plain() {
+            if error.is_stderr_plain() {
                 options.push(ErrorPanel::Stderr);
                 active = ErrorPanel::Stderr;
             }
@@ -690,10 +690,10 @@ mod crash_handler_dbg {
         fn panel(&self, error: &CrashError) -> BoxedUiNode {
             match self {
                 ErrorPanel::Summary => summary_panel(error).boxed(),
-                ErrorPanel::Stdout => std_panel(error.stdout.clone()).boxed(),
-                ErrorPanel::Stderr => std_panel(error.stderr.clone()).boxed(),
-                ErrorPanel::StdoutPlain => std_plain_panel(error.stdout_plain()).boxed(),
-                ErrorPanel::StderrPlain => std_plain_panel(error.stderr_plain()).boxed(),
+                ErrorPanel::Stdout => std_panel(error.stdout.clone(), "stdout").boxed(),
+                ErrorPanel::Stderr => std_panel(error.stderr.clone(), "stderr").boxed(),
+                ErrorPanel::StdoutPlain => std_plain_panel(error.stdout_plain(), "stdout").boxed(),
+                ErrorPanel::StderrPlain => std_plain_panel(error.stderr_plain(), "stderr").boxed(),
                 ErrorPanel::Panic => panic_panel(error.find_panic().unwrap()).boxed(),
                 ErrorPanel::Widget => widget_panel(error.find_panic().unwrap().widget_path).boxed(),
                 ErrorPanel::Minidump => minidump_panel(error.minidump.clone().unwrap()).boxed(),
@@ -726,39 +726,43 @@ mod crash_handler_dbg {
             },
             error.args,
         );
-        plain_panel(s)
+        plain_panel(s, "summary")
     }
 
-    fn std_panel(std: Txt) -> impl UiNode {
+    fn std_panel(std: Txt, config_key: &'static str) -> impl UiNode {
         Scroll! {
             child_align = Align::TOP_START;
             widget::background_color = colors::BLACK;
             layout::padding = 5;
+            horizontal_offset = CONFIG.get(formatx!("{config_key}.scroll.h"), || 0.fct());
+            vertical_offset = CONFIG.get(formatx!("{config_key}.scroll.v"), || 0.fct());
             child = AnsiText! {
                 txt = std;
                 font_size = 0.9.em();
             }
         }
     }
-    fn std_plain_panel(std: Txt) -> impl UiNode {
-        plain_panel(std)
+    fn std_plain_panel(std: Txt, config_key: &'static str) -> impl UiNode {
+        plain_panel(std, config_key)
     }
     fn panic_panel(panic: CrashPanic) -> impl UiNode {
-        plain_panel(panic.to_txt())
+        plain_panel(panic.to_txt(), "panic")
     }
     fn widget_panel(widget_path: Txt) -> impl UiNode {
-        plain_panel(widget_path)
+        plain_panel(widget_path, "widget")
     }
     fn minidump_panel(path: PathBuf) -> impl UiNode {
         let path = path.display().to_string();
         let path = path.trim_start_matches(r"\\?\");
-        plain_panel(path.to_txt())
+        plain_panel(path.to_txt(), "minidump")
     }
-    fn plain_panel(txt: Txt) -> impl UiNode {
+    fn plain_panel(txt: Txt, config_key: &'static str) -> impl UiNode {
         Scroll! {
             child_align = Align::TOP_START;
             widget::background_color = colors::BLACK;
             layout::padding = 5;
+            horizontal_offset = CONFIG.get(formatx!("{config_key}.scroll.h"), || 0.fct());
+            vertical_offset = CONFIG.get(formatx!("{config_key}.scroll.v"), || 0.fct());
             child = SelectableText! {
                 txt;
                 font_size = 0.9.em();

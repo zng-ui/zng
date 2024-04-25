@@ -430,6 +430,78 @@ pub fn zoom_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNo
     zoom_touch_origin(child, origin)
 }
 
+/// Binds the [`horizontal_offset`] scroll var to the property value.
+///
+/// The binding is bidirectional and the window variable is assigned on init.
+///
+/// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
+/// the scroll commands to scroll over this property.
+///
+/// [`horizontal_offset`]: super::SCROLL::horizontal_offset
+#[property(EVENT, widget_impl(Scroll))]
+pub fn horizontal_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl UiNode {
+    let offset = offset.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let scroll_offset = super::SCROLL.horizontal_offset();
+
+            if !offset.capabilities().is_always_static() {
+                let binding = offset.bind_bidi(&scroll_offset);
+                WIDGET.push_var_handles(binding);
+            }
+            scroll_offset.set_from(&offset).unwrap();
+        }
+    })
+}
+
+/// Binds the [`vertical_offset`] scroll var to the property value.
+///
+/// The binding is bidirectional and the window variable is assigned on init.
+///
+/// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
+/// the scroll commands to scroll over this property.
+///
+/// [`vertical_offset`]: super::SCROLL::vertical_offset
+#[property(EVENT, widget_impl(Scroll))]
+pub fn vertical_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl UiNode {
+    let offset = offset.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let scroll_offset = super::SCROLL.vertical_offset();
+
+            if !offset.capabilities().is_always_static() {
+                let binding = offset.bind_bidi(&scroll_offset);
+                WIDGET.push_var_handles(binding);
+            }
+            scroll_offset.set_from(&offset).unwrap();
+        }
+    })
+}
+
+/// Binds the [`zoom_scale`] scroll var to the property value.
+///
+/// The binding is bidirectional and the window variable is assigned on init.
+///
+/// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
+/// the scroll commands to scroll over this property.
+///
+/// [`zoom_scale`]: super::SCROLL::zoom_scale
+#[property(EVENT)]
+pub fn zoom_scale(child: impl UiNode, scale: impl IntoVar<Factor>) -> impl UiNode {
+    let scale = scale.into_var();
+    match_node(child, move |_, op| {
+        if let UiNodeOp::Init = op {
+            let scroll_scale = super::SCROLL.zoom_scale();
+
+            if !scale.capabilities().is_always_static() {
+                let binding = scale.bind_bidi(&scroll_scale);
+                WIDGET.push_var_handles(binding);
+            }
+            scroll_scale.set_from(&scale).unwrap();
+        }
+    })
+}
+
 /// Arguments for scrollbar widget functions.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScrollBarArgs {

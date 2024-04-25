@@ -23,6 +23,11 @@
 * Fix `AnsiText!` not resetting style.
 * `Markdown!` widget now uses `AnsiText!` for ```console code block.
 * Fix `auto_size` not using the min/max_size constraints.
+* **Braking:** Change return type of `SCROLL.vertical_offset`, `SCROLL.horizontal_offset` and `SCROLL.zoom_scale`.
+    - Changed only from `ReadOnlyContextVar<Factor>` to `ContextVar<Factor>` so it has minimal impact.
+* Add `vertical_offset`, `horizontal_offset` and `zoom_scale` properties in `Scroll!`.
+    - Users should prefer using scroll commands over these properties, but they are useful for implementing features
+      like binding two side-by-side scrolls, saving scroll state.
 
 # 0.3.4
 
