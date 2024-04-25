@@ -411,7 +411,7 @@ impl Controller {
             if !killed_by_us {
                 let code = code.unwrap_or(0);
                 let signal = signal.unwrap_or(0);
-                tracing::error!(target: "vp_respawn", "view-process exit code: {code:#x}, signal: {signal}");
+                tracing::error!(target: "vp_respawn", "view-process exit code: {code:#X}, signal: {signal}");
             }
 
             let stderr = match String::from_utf8(c.stderr) {

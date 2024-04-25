@@ -537,4 +537,83 @@ pub use zng_ext_single_instance::{is_single_instance, single_instance, single_in
 pub mod crash_handler {
     #[cfg(feature = "crash_handler")]
     pub use zng_app::crash_handler::{init, restart_count, CrashArgs, CrashConfig, CrashError, CrashPanic};
+
+    /// Init with [`debug_config`].
+    ///
+    /// This setups a crash-handler dialog that shows detailed debug info.
+    pub fn init_debug() {
+        init(debug_config())
+    }
+
+    /// Config used by [`init_debug`]
+    pub fn debug_config() -> CrashConfig {
+        CrashConfig::new(super::crash_handler_dbg::dialog)
+    }
+}
+
+mod crash_handler_dbg {
+    use zng_wgt_markdown::Markdown;
+
+    use crate::prelude::*;
+
+    pub fn dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
+        if let Some(c) = &args.dialog_crash {
+            eprintln!("DEBUG CRASH DIALOG CRASHED");
+            eprintln!("   {}", c.message());
+            eprintln!("APP CRASH");
+            eprintln!("   {}", args.latest().message());
+            args.exit(0xBADC0DE)
+        }
+
+        // !!: TODO, only call if no view-process already called init
+        crate::view_process::prebuilt::init();
+
+        APP.defaults().run_window(async_clmv!(args, {
+            Window! {
+                title = APP.about().map(|a| formatx!("{}App Crashed", a.title_prefix()));
+                start_position = zng::window::StartPosition::CenterMonitor;
+
+                on_load = hn_once!(|_| {
+                    // force to foreground
+                    let _ = WINDOWS.focus(WINDOW.id());
+                });
+                on_close = hn_once!(args, |_| {
+                    args.exit(0);
+                });
+
+                padding = 5;
+                child_top = Markdown!(
+                    "The app has crashed.\n\n{}\n\n**Details:**\n",
+                     args.latest().message(),
+                ), 5;
+                child = Scroll! {
+                    padding = 5;
+                    child_align = Align::TOP_START;
+                    child = zng::ansi_text::AnsiText!(args.latest().to_txt());
+                    widget::background_color = colors::BLACK;
+                };
+                child_bottom = Stack! {
+                    spacing = 5;
+                    direction = StackDirection::start_to_end();
+                    layout::align = Align::END;
+                    children = ui_vec![
+                        Button! {
+                            child = Text!("Restart");
+                            on_click = hn_once!(args, |_| {
+                                args.restart();
+                            });
+                        },
+                        Button! {
+                            child = Text!("Exit");
+                            on_click = hn_once!(args, |_| {
+                                args.exit(0);
+                            });
+                        }
+                    ];
+                }, 5;
+            }
+        }));
+
+        args.exit(0);
+    }
 }

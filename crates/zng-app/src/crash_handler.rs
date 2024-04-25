@@ -195,7 +195,7 @@ impl fmt::Display for CrashError {
                 .as_secs()
         )?;
         if let Some(c) = self.code {
-            writeln!(f, "exit code: {c:#x}")?
+            writeln!(f, "exit code: {c:#X}")?
         }
         if let Some(c) = self.signal {
             writeln!(f, "exit signal: {c}")?
@@ -259,7 +259,7 @@ impl CrashError {
         use std::fmt::Write as _;
 
         if let Some(c) = self.code {
-            write!(&mut msg, " Code: {c:#x}.").unwrap();
+            write!(&mut msg, " Code: {c:#X}.").unwrap();
         }
         if let Some(c) = self.signal {
             write!(&mut msg, " Signal: {c}.").unwrap();
@@ -482,7 +482,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                     }
 
                     tracing::error!(
-                        "app-process crashed with exit code ({:#x}), signal ({:#?}), {} crashes previously",
+                        "app-process crashed with exit code ({:#X}), signal ({:#?}), {} crashes previously",
                         code.unwrap_or(0),
                         signal.unwrap_or(0),
                         dialog_args.app_crashes.len()
