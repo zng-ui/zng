@@ -9,7 +9,7 @@ use std::{
     fmt,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
-    time::{Duration, SystemTime},
+    time::SystemTime,
 };
 use zng_layout::unit::TimeUnits as _;
 
@@ -184,18 +184,12 @@ pub struct CrashError {
     /// Minidump file.
     pub minidump: Option<PathBuf>,
 }
+/// Alternate mode `{:#}` prints plain stdout and stderr (no ANSI escape sequences).
 impl fmt::Display for CrashError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "timestamp: {}",
-            self.timestamp
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or(Duration::ZERO)
-                .as_secs()
-        )?;
+        writeln!(f, "timestamp: {}", self.unix_time())?;
         if let Some(c) = self.code {
-            writeln!(f, "exit code: {c:#x}")?
+            writeln!(f, "exit code: {c:#X}")?
         }
         if let Some(c) = self.signal {
             writeln!(f, "exit signal: {c}")?
@@ -203,7 +197,11 @@ impl fmt::Display for CrashError {
         if let Some(p) = self.minidump.as_ref() {
             writeln!(f, "minidump: {}", p.display())?
         }
-        write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout, self.stderr)
+        if f.alternate() {
+            write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout_plain(), self.stderr_plain())
+        } else {
+            write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout, self.stderr)
+        }
     }
 }
 impl CrashError {
@@ -233,13 +231,56 @@ impl CrashError {
         }
     }
 
+    /// Seconds since Unix epoch.
+    pub fn unix_time(&self) -> u64 {
+        self.timestamp.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()
+    }
+
+    /// Gets if `stdout` does not contain any ANSI scape sequences.
+    pub fn is_stdout_plain(&self) -> bool {
+        !self.stdout.contains(CSI)
+    }
+
+    /// Gets if `stderr` does not contain any ANSI scape sequences.
+    pub fn is_stderr_plain(&self) -> bool {
+        !self.stderr.contains(CSI)
+    }
+
+    /// Get `stdout` without any ANSI escape sequences (CSI).
+    pub fn stdout_plain(&self) -> Txt {
+        remove_ansi_csi(&self.stdout)
+    }
+
+    /// Get `stderr` without any ANSI escape sequences (CSI).
+    pub fn stderr_plain(&self) -> Txt {
+        remove_ansi_csi(&self.stderr)
+    }
+
+    /// Gets if `stderr` contains a crash panic.
+    pub fn has_panic(&self) -> bool {
+        if self.code == Some(101) {
+            CrashPanic::contains(&self.stderr_plain())
+        } else {
+            false
+        }
+    }
+
+    /// Gets if `stderr` contains a crash panic that traced widget/window path.
+    pub fn has_panic_widget(&self) -> bool {
+        if self.code == Some(101) {
+            CrashPanic::contains_widget(&self.stderr_plain())
+        } else {
+            false
+        }
+    }
+
     /// Try parse `stderr` for the crash panic.
     ///
     /// Only reliably works if the panic fully printed correctly and was formatted by the panic
     /// hook installed by `crash_handler` or by the display print of [`CrashPanic`].
     pub fn find_panic(&self) -> Option<CrashPanic> {
         if self.code == Some(101) {
-            CrashPanic::find(&self.stderr)
+            CrashPanic::find(&self.stderr_plain())
         } else {
             None
         }
@@ -254,15 +295,17 @@ impl CrashError {
         } else if let Some(msg) = self.minidump_message() {
             msg
         } else {
-            "Error.".into()
+            "".into()
         };
         use std::fmt::Write as _;
 
         if let Some(c) = self.code {
-            write!(&mut msg, " Code: {c:#x}.").unwrap();
+            let sep = if msg.is_empty() { "" } else { "\n" };
+            write!(&mut msg, "{sep}Code: {c:#X}").unwrap();
         }
         if let Some(c) = self.signal {
-            write!(&mut msg, " Signal: {c}.").unwrap();
+            let sep = if msg.is_empty() { "" } else { "\n" };
+            write!(&mut msg, "{sep}Signal: {c}").unwrap();
         }
         msg.end_mut();
         msg
@@ -300,6 +343,29 @@ impl CrashError {
     }
 }
 
+const CSI: &str = "\x1b[";
+
+/// Remove ANSI escape sequences (CSI) from `s`.
+pub fn remove_ansi_csi(mut s: &str) -> Txt {
+    fn is_esc_end(byte: u8) -> bool {
+        (0x40..=0x7e).contains(&byte)
+    }
+
+    let mut r = String::new();
+    while let Some(i) = s.find(CSI) {
+        r.push_str(&s[..i]);
+        s = &s[i + CSI.len()..];
+        let mut esc_end = 0;
+        while esc_end < s.len() && !is_esc_end(s.as_bytes()[esc_end]) {
+            esc_end += 1;
+        }
+        esc_end += 1;
+        s = &s[esc_end..];
+    }
+    r.push_str(s);
+    r.into()
+}
+
 /// Panic parsed from a `stderr` dump.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct CrashPanic {
@@ -332,11 +398,32 @@ impl fmt::Display for CrashPanic {
     }
 }
 impl CrashPanic {
+    /// Gets if `stderr` contains a panic that can be parsed by [`find`].
+    ///
+    /// [`find`]: Self::find
+    pub fn contains(stderr: &str) -> bool {
+        Self::find_impl(stderr, false).is_some()
+    }
+
+    /// Gets if `stderr` contains a panic that can be parsed by [`find`] and traced a widget/window path.
+    ///
+    /// [`find`]: Self::find
+    pub fn contains_widget(stderr: &str) -> bool {
+        match Self::find_impl(stderr, false) {
+            Some(p) => !p.widget_path.is_empty(),
+            None => false,
+        }
+    }
+
     /// Try parse `stderr` for the crash panic.
     ///
     /// Only reliably works if the panic fully printed correctly and was formatted by the panic
     /// hook installed by `crash_handler` or by the display print of this type.
     pub fn find(stderr: &str) -> Option<Self> {
+        Self::find_impl(stderr, true)
+    }
+
+    fn find_impl(stderr: &str, parse: bool) -> Option<Self> {
         let mut panic_at = usize::MAX;
         let mut widget_path = usize::MAX;
         let mut stack_backtrace = usize::MAX;
@@ -356,6 +443,22 @@ impl CrashPanic {
 
         if panic_at == usize::MAX {
             return None;
+        }
+
+        if !parse {
+            return Some(Self {
+                thread: Txt::from(""),
+                message: Txt::from(""),
+                file: Txt::from(""),
+                line: 0,
+                column: 0,
+                widget_path: if widget_path < stderr.len() {
+                    Txt::from("true")
+                } else {
+                    Txt::from("")
+                },
+                backtrace: Txt::from(""),
+            });
         }
 
         let panic_str = stderr[panic_at..].lines().next().unwrap();
@@ -382,7 +485,7 @@ impl CrashPanic {
         }
 
         let widget_path = if widget_path < stderr.len() {
-            stderr[widget_path..].lines().nth(1).unwrap().trim()
+            stderr[widget_path..].lines().next().unwrap().trim()
         } else {
             ""
         };
@@ -482,7 +585,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                     }
 
                     tracing::error!(
-                        "app-process crashed with exit code ({:#x}), signal ({:#?}), {} crashes previously",
+                        "app-process crashed with exit code ({:#X}), signal ({:#?}), {} crashes previously",
                         code.unwrap_or(0),
                         signal.unwrap_or(0),
                         dialog_args.app_crashes.len()

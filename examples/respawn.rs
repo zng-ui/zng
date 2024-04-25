@@ -15,7 +15,8 @@ fn main() {
     examples_util::print_info();
 
     // init crash-handler before view to use different view for the crash dialog app.
-    zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(app_crash_dialog));
+    zng::app::crash_handler::init_debug();
+    // zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(app_crash_dialog));
 
     // this is the normal app-process:
 
@@ -32,29 +33,49 @@ fn main() {
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 layout::margin = 10;
-                spacing = 5;
+                spacing = 10;
                 children_align = Align::TOP;
                 children = ui_vec![
                     Markdown! {
+                        layout::margin = (20, 0, 0, 0);
                         txt = "The renderer and OS windows are created in separate process, the `view-process`. \
                                It automatically respawns in case of a graphics driver crash or other similar fatal error.";
                     },
-                    view_respawn(),
-                    view_crash(),
+                    Wrap! {
+                        spacing = 5;
+                        children = ui_vec![
+                            view_respawn(),
+                            view_crash(),
+                        ],
+                    },
                     Markdown! {
+                        layout::margin = (20, 0, 0, 0);
                         txt = "When the app is instantiated the crash handler takes over the process, becoming the `monitor-process`. \
                                It spawns the `app-process` that is the normal execution. If the `app-process` crashes it spawns the \
                                `dialog-process` that runs a different app that shows an error message.";
                     },
-                    app_crash(true),
-                    app_crash(false),
+                    Wrap! {
+                        spacing = 5;
+                        children = ui_vec![
+                            app_crash("panic"),
+                            app_crash("access violation"),
+                            app_crash("stack overflow"),
+                            app_crash("custom exit"),
+                        ],
+                    },
                     Markdown! {
+                        layout::margin = (20, 0, 0, 0);
                         txt = "The states of these buttons is only preserved for `view-process` crashes. \
                                use `CONFIG` or some other state saving to better recover from `app-process` crashes.";
                     },
-                    click_counter(),
-                    click_counter(),
-                    image(),
+                    Wrap! {
+                        spacing = 5;
+                        children = ui_vec![
+                            click_counter(),
+                            image(),
+                            click_counter(),
+                        ],
+                    },
                 ];
             };
         }
@@ -62,33 +83,28 @@ fn main() {
 }
 
 // Crash dialog app, runs in the dialog-process.
+#[allow(unused)]
 fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
     zng::view_process::prebuilt::init();
     APP.defaults().run_window(async move {
         Window! {
             title = "Respawn Example - App Crashed";
             icon = WindowIcon::render(icon);
+
             start_position = zng::window::StartPosition::CenterMonitor;
+            auto_size = window::AutoSize::CONTENT;
+            min_size = (300, 100);
 
             on_load = hn_once!(|_| {
                 // force to foreground
                 let _ = WINDOWS.focus(WINDOW.id());
             });
-            on_close = hn_once!(args, |_| {
-                args.exit(0);
-            });
 
             padding = 5;
-            child_top = Markdown!(
-                "The Respawn Example app has crashed.\n\n{}\n\n**Details:**\n",
+            child = Markdown!(
+                "The Respawn Example app has crashed.\n\n{}\n\n",
                  args.latest().message(),
-            ), 5;
-            child = Scroll! {
-                padding = 5;
-                child_align = Align::TOP_START;
-                child = zng::ansi_text::AnsiText!(args.latest().to_txt());
-                widget::background_color = colors::BLACK;
-            };
+            );
             child_bottom = Stack! {
                 spacing = 5;
                 direction = StackDirection::start_to_end();
@@ -117,7 +133,7 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
             }, 5;
         }
     });
-    panic!("dialog app did not respond correctly")
+    std::process::exit(0)
 }
 
 fn view_respawn() -> impl UiNode {
@@ -143,18 +159,32 @@ fn view_crash() -> impl UiNode {
     }
 }
 
-fn app_crash(panic: bool) -> impl UiNode {
+fn app_crash(crash_name: &'static str) -> impl UiNode {
     Button! {
-        child = Text!("Crash App-Process ({})", if panic { "panic" } else { "access violation" });
+        child = Text!("Crash ({crash_name})");
         on_click = hn!(|_| {
-            if panic {
-                panic!("Test app-process crash!");
-            } else {
-                // SAFETY: deliberate access violation
-                #[allow(deref_nullptr)]
-                unsafe {
-                    *std::ptr::null_mut() = true;
+            match crash_name {
+                "panic" => panic!("Test app-process crash!"),
+                "access violation" => {
+                    // SAFETY: deliberate access violation
+                    #[allow(deref_nullptr)]
+                    unsafe {
+                        *std::ptr::null_mut() = true;
+                    }
                 }
+                "stack overflow" => {
+                    fn overflow(c: u64) {
+                        if c < u64::MAX {
+                            overflow(c + 1)
+                        }
+                    }
+                    overflow(0)
+                }
+                "custom exit" => {
+                    eprintln!("custom error");
+                    std::process::exit(0xBAD);
+                }
+                n => panic!("Unknown crash '{n}'"),
             }
         });
     }
@@ -175,13 +205,9 @@ fn click_counter() -> impl UiNode {
 }
 
 fn image() -> impl UiNode {
-    Stack! {
-        direction = StackDirection::top_to_bottom();
-        spacing = 3;
-        children = ui_vec![
-            text::Strong!("Image:"),
-            Image! { source = include_bytes!("res/window/icon-bytes.png"); size = (32, 32); },
-        ];
+    Image! {
+        source = include_bytes!("res/window/icon-bytes.png"); size = (32, 32);
+        tooltip = Tip!(Text!("Image reloads after respawn"));
     }
 }
 
