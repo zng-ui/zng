@@ -566,6 +566,7 @@ mod crash_handler_dbg {
         }
 
         // !!: TODO, only call if no view-process already called init
+        #[cfg(feature = "view_prebuilt")]
         crate::view_process::prebuilt::init();
 
         APP.defaults().run_window(async_clmv!(args, {
@@ -589,7 +590,10 @@ mod crash_handler_dbg {
                 child = Scroll! {
                     padding = 5;
                     child_align = Align::TOP_START;
-                    child = zng::ansi_text::AnsiText!(args.latest().to_txt());
+                    child = zng::ansi_text::AnsiText! {
+                        font_size = 0.9.em();
+                        txt = formatx!("{}", args.latest());
+                    };
                     widget::background_color = colors::BLACK;
                 };
                 child_bottom = Stack! {

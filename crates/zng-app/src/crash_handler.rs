@@ -184,6 +184,7 @@ pub struct CrashError {
     /// Minidump file.
     pub minidump: Option<PathBuf>,
 }
+/// Alternate mode `{:#}` prints plain stdout and stderr (no ANSI escape sequences).
 impl fmt::Display for CrashError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
@@ -203,7 +204,11 @@ impl fmt::Display for CrashError {
         if let Some(p) = self.minidump.as_ref() {
             writeln!(f, "minidump: {}", p.display())?
         }
-        write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout, self.stderr)
+        if f.alternate() {
+            write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout_plain(), self.stderr_plain())
+        } else {
+            write!(f, "\nSTDOUT:\n{}\nSTDERR:\n{}\n", self.stdout, self.stderr)
+        }
     }
 }
 impl CrashError {
@@ -233,13 +238,23 @@ impl CrashError {
         }
     }
 
+    /// Get `stdout` without any ANSI escape sequences (CSI).
+    pub fn stdout_plain(&self) -> Txt {
+        remove_ansi_csi(&self.stdout)
+    }
+
+    /// Get `stderr` without any ANSI escape sequences (CSI).
+    pub fn stderr_plain(&self) -> Txt {
+        remove_ansi_csi(&self.stderr)
+    }
+
     /// Try parse `stderr` for the crash panic.
     ///
     /// Only reliably works if the panic fully printed correctly and was formatted by the panic
     /// hook installed by `crash_handler` or by the display print of [`CrashPanic`].
     pub fn find_panic(&self) -> Option<CrashPanic> {
         if self.code == Some(101) {
-            CrashPanic::find(&self.stderr)
+            CrashPanic::find(&self.stderr_plain())
         } else {
             None
         }
@@ -298,6 +313,29 @@ impl CrashError {
 
         Some(zng_txt::formatx!("{crash_reason}"))
     }
+}
+
+/// Remove ANSI escape sequences (CSI) from `s`.
+pub fn remove_ansi_csi(mut s: &str) -> Txt {
+    const CSI: &str = "\x1b[";
+
+    fn is_esc_end(byte: u8) -> bool {
+        (0x40..=0x7e).contains(&byte)
+    }
+
+    let mut r = String::new();
+    while let Some(i) = s.find(CSI) {
+        r.push_str(&s[..i]);
+        s = &s[i + CSI.len()..];
+        let mut esc_end = 0;
+        while esc_end < s.len() && !is_esc_end(s.as_bytes()[esc_end]) {
+            esc_end += 1;
+        }
+        esc_end += 1;
+        s = &s[esc_end..];
+    }
+    r.push_str(s);
+    r.into()
 }
 
 /// Panic parsed from a `stderr` dump.
