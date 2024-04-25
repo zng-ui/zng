@@ -552,11 +552,17 @@ pub mod crash_handler {
 }
 
 mod crash_handler_dbg {
-    use zng_wgt_markdown::Markdown;
+    use std::path::PathBuf;
 
-    use crate::prelude::*;
+    use crate::{
+        ansi_text::AnsiText,
+        app::crash_handler::*,
+        color::ColorScheme,
+        prelude::*,
+        widget::node::{presenter, BoxedUiNode},
+    };
 
-    pub fn dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
+    pub fn dialog(args: CrashArgs) -> ! {
         if let Some(c) = &args.dialog_crash {
             eprintln!("DEBUG CRASH DIALOG CRASHED");
             eprintln!("   {}", c.message());
@@ -570,9 +576,11 @@ mod crash_handler_dbg {
         crate::view_process::prebuilt::init();
 
         APP.defaults().run_window(async_clmv!(args, {
+            let error = args.latest();
             Window! {
                 title = APP.about().map(|a| formatx!("{}App Crashed", a.title_prefix()));
                 start_position = zng::window::StartPosition::CenterMonitor;
+                color_scheme = ColorScheme::Dark;
 
                 on_load = hn_once!(|_| {
                     // force to foreground
@@ -583,41 +591,156 @@ mod crash_handler_dbg {
                 });
 
                 padding = 5;
-                child_top = Markdown!(
-                    "The app has crashed.\n\n{}\n\n**Details:**\n",
-                     args.latest().message(),
-                ), 5;
-                child = Scroll! {
-                    padding = 5;
-                    child_align = Align::TOP_START;
-                    child = zng::ansi_text::AnsiText! {
-                        font_size = 0.9.em();
-                        txt = formatx!("{}", args.latest());
-                    };
-                    widget::background_color = colors::BLACK;
-                };
-                child_bottom = Stack! {
-                    spacing = 5;
-                    direction = StackDirection::start_to_end();
-                    layout::align = Align::END;
-                    children = ui_vec![
-                        Button! {
-                            child = Text!("Restart");
-                            on_click = hn_once!(args, |_| {
-                                args.restart();
-                            });
-                        },
-                        Button! {
-                            child = Text!("Exit");
-                            on_click = hn_once!(args, |_| {
-                                args.exit(0);
-                            });
-                        }
-                    ];
-                }, 5;
+                child_top = header(error), 5;
+                child = panels(error);
+                child_bottom = commands(args), 5;
             }
         }));
 
         args.exit(0);
+    }
+
+    fn header(error: &CrashError) -> impl UiNode {
+        SelectableText! {
+            txt = error.message();
+            layout::margin = 10;
+        }
+    }
+
+    fn panels(error: &CrashError) -> impl UiNode {
+        let mut options = vec![
+            ErrorPanel::Stderr,
+            ErrorPanel::StderrPlain,
+            ErrorPanel::Stdout,
+            ErrorPanel::StdoutPlain,
+        ];
+        let mut active = ErrorPanel::Stderr;
+
+        if let Some(p) = error.find_panic() {
+            options.push(ErrorPanel::Panic);
+            active = ErrorPanel::Panic;
+
+            if !p.widget_path.is_empty() {
+                options.push(ErrorPanel::Widget);
+            }
+        }
+        if error.minidump.is_some() {
+            options.push(ErrorPanel::Minidump);
+            active = ErrorPanel::Minidump;
+        }
+
+        let active = var(active);
+
+        Container! {
+            child_top = Wrap! {
+                toggle::selector = toggle::Selector::single(active.clone());
+                children = options.iter().map(|p| Toggle! {
+                    child = Text!(p.title());
+                    value = *p;
+                }).collect::<UiNodeVec>();
+                toggle::style_fn = Style! {
+                    layout::padding = (2, 4);
+                    widget::corner_radius = 2;
+                };
+                spacing = 5;
+            }, 5;
+            child = Scroll! {
+                child_align = Align::FILL;
+                child = presenter(active, wgt_fn!(error, |p: ErrorPanel| p.panel(&error)));
+            };
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum ErrorPanel {
+        Stdout,
+        Stderr,
+        StdoutPlain,
+        StderrPlain,
+        Panic,
+        Widget,
+        Minidump,
+    }
+    impl ErrorPanel {
+        fn title(&self) -> Txt {
+            match self {
+                ErrorPanel::Stdout => "Stdout",
+                ErrorPanel::Stderr => "Stderr",
+                ErrorPanel::StdoutPlain => "Stdout (plain)",
+                ErrorPanel::StderrPlain => "Stderr (plain)",
+                ErrorPanel::Panic => "Panic",
+                ErrorPanel::Widget => "Widget Path",
+                ErrorPanel::Minidump => "Minidump",
+            }
+            .into()
+        }
+
+        fn panel(&self, error: &CrashError) -> BoxedUiNode {
+            match self {
+                ErrorPanel::Stdout => std_panel(error.stdout.clone()).boxed(),
+                ErrorPanel::Stderr => std_panel(error.stderr.clone()).boxed(),
+                ErrorPanel::StdoutPlain => std_plain_panel(error.stdout_plain()).boxed(),
+                ErrorPanel::StderrPlain => std_plain_panel(error.stderr_plain()).boxed(),
+                ErrorPanel::Panic => panic_panel(error.find_panic().unwrap()).boxed(),
+                ErrorPanel::Widget => widget_panel(error.find_panic().unwrap().widget_path).boxed(),
+                ErrorPanel::Minidump => minidump_panel(error.minidump.clone().unwrap()).boxed(),
+            }
+        }
+    }
+    fn std_panel(std: Txt) -> impl UiNode {
+        AnsiText! {
+            txt = std;
+            // txt_align = Align::TOP_START;
+            font_size = 0.9.em();
+            widget::background_color = colors::BLACK;
+            layout::padding = 5;
+        }
+    }
+    fn std_plain_panel(std: Txt) -> impl UiNode {
+        plain_panel(std)
+    }
+    fn panic_panel(panic: CrashPanic) -> impl UiNode {
+        plain_panel(panic.to_txt())
+    }
+    fn widget_panel(widget_path: Txt) -> impl UiNode {
+        plain_panel(widget_path)
+    }
+    fn minidump_panel(path: PathBuf) -> impl UiNode {
+        let path = path.display().to_string();
+        let path = path.trim_start_matches(r"\\?\");
+        plain_panel(path.to_txt())
+    }
+    fn plain_panel(txt: Txt) -> impl UiNode {
+        SelectableText! {
+            txt;
+            txt_align = Align::TOP_START;
+            font_size = 0.9.em();
+            // same as AnsiText
+            font_family = ["JetBrains Mono", "Consolas", "monospace"];
+            widget::background_color = colors::BLACK;
+            layout::padding = 5;
+        }
+    }
+
+    fn commands(args: CrashArgs) -> impl UiNode {
+        Stack! {
+            spacing = 5;
+            direction = StackDirection::start_to_end();
+            layout::align = Align::END;
+            children = ui_vec![
+                Button! {
+                    child = Text!("Restart App");
+                    on_click = hn_once!(args, |_| {
+                        args.restart();
+                    });
+                },
+                Button! {
+                    child = Text!("Exit App");
+                    on_click = hn_once!(|_| {
+                        args.exit(0);
+                    });
+                }
+            ];
+        }
     }
 }

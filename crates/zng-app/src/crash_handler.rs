@@ -274,10 +274,10 @@ impl CrashError {
         use std::fmt::Write as _;
 
         if let Some(c) = self.code {
-            write!(&mut msg, " Code: {c:#X}.").unwrap();
+            write!(&mut msg, "\nCode: {c:#X}.").unwrap();
         }
         if let Some(c) = self.signal {
-            write!(&mut msg, " Signal: {c}.").unwrap();
+            write!(&mut msg, "\nSignal: {c}.").unwrap();
         }
         msg.end_mut();
         msg
@@ -420,7 +420,7 @@ impl CrashPanic {
         }
 
         let widget_path = if widget_path < stderr.len() {
-            stderr[widget_path..].lines().nth(1).unwrap().trim()
+            stderr[widget_path..].lines().next().unwrap().trim()
         } else {
             ""
         };
