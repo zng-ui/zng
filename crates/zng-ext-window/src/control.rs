@@ -30,8 +30,8 @@ use zng_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
 use zng_layout::{
     context::{LayoutMetrics, LayoutPassId, DIRECTION_VAR, LAYOUT},
     unit::{
-        Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Ppi, Px, PxPoint, PxRect, PxSize, PxToDip,
-        PxVector, TimeUnits,
+        Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Ppi, Px, PxConstraints, PxPoint, PxRect, PxSize,
+        PxToDip, PxVector, TimeUnits,
     },
 };
 use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
@@ -1979,37 +1979,27 @@ impl ContentCtrl {
 
         let auto_size = self.vars.auto_size().get();
 
-        let mut viewport_size = size;
-        if !skip_auto_size {
-            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                viewport_size.width = max_size.width;
-            }
-            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                viewport_size.height = max_size.height;
-            }
-        }
-
         self.layout_pass = self.layout_pass.next();
 
         WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
-            let metrics = LayoutMetrics::new(scale_factor, viewport_size, root_font_size)
+            let metrics = LayoutMetrics::new(scale_factor, size, root_font_size)
                 .with_screen_ppi(screen_ppi)
                 .with_direction(DIRECTION_VAR.get());
             LAYOUT.with_root_context(self.layout_pass, metrics, || {
                 let mut root_cons = LAYOUT.constraints();
                 if !skip_auto_size {
                     if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                        root_cons = root_cons.with_unbounded_x();
+                        root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);
                     }
                     if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                        root_cons = root_cons.with_unbounded_y();
+                        root_cons.y = PxConstraints::new_range(min_size.height, max_size.height);
                     }
                 }
                 let desired_size = LAYOUT.with_constraints(root_cons, || {
                     WidgetLayout::with_root_widget(layout_widgets, |wl| self.root.layout(wl))
                 });
 
-                let mut final_size = viewport_size;
+                let mut final_size = size;
                 if !skip_auto_size {
                     if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                         final_size.width = desired_size.width.max(min_size.width).min(max_size.width);

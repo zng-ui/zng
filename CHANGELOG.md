@@ -21,6 +21,7 @@
 * Add `APP.about`.
 * Fix `AnsiText!` not resetting style.
 * `Markdown!` widget now uses `AnsiText!` for ```console code block.
+* Fix `auto_size` not using the min/max_size constraints.
 
 # 0.3.4
 
