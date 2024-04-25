@@ -198,7 +198,7 @@ Source: [respawn.rs](./respawn.rs)
 cargo do run respawn
 ```
 
-Demonstrates the view-process respawn error recovery feature.
+Demonstrates app-process crash handler and view-process respawn.
 
 ### `scroll`
 
