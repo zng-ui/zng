@@ -447,6 +447,10 @@
 //! some catastrophic video driver errors, like a forced disconnect caused by a driver update. The [`task::spawn`] and related
 //! fire-and-forget task runners will also just log the panic as an error.
 //!
+//! You can also use the [`zng::app::crash_handler`] to collect panic backtraces, crash minidumps, show a crash dialog to the user
+//! and restart the app. During development you can use [`zng::app::crash_handler::init_debug`] to quickly setup a crash dialog that
+//! helps you debug the app.
+//!
 //! [`tracing`]: https://docs.rs/tracing
 //!
 //! # In-Depth Documentation
