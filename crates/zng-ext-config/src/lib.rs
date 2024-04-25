@@ -76,7 +76,7 @@ impl AppExtension for ConfigManager {
 
 /// Represents the app main config.
 ///
-/// Config sources must be loaded using [`CONFIG.load`], otherwise the config only leaves for the
+/// Config sources must be loaded using [`CONFIG.load`], otherwise the config only lives for the
 /// duration of the app instance.
 ///
 /// [`CONFIG.load`]: CONFIG::load
