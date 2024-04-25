@@ -538,9 +538,7 @@ pub mod crash_handler {
     #[cfg(feature = "crash_handler")]
     pub use zng_app::crash_handler::{init, restart_count, CrashArgs, CrashConfig, CrashError, CrashPanic};
 
-    /// Init with [`debug_config`].
-    ///
-    /// This setups a crash-handler dialog that shows detailed debug info.
+    /// Init a crash-handler with dialog that shows detailed debug info.
     pub fn init_debug() {
         init(debug_config())
     }
@@ -571,9 +569,12 @@ mod crash_handler_dbg {
             args.exit(0xBADC0DE)
         }
 
-        // !!: TODO, only call if no view-process already called init
+        // Just in case no view-process was inited before the crash_handler setup.
+        // Multiple view-process inits are ok because they either do nothing or never return.
         #[cfg(feature = "view_prebuilt")]
         crate::view_process::prebuilt::init();
+        #[cfg(feature = "view")]
+        crate::view_process::default::init();
 
         APP.defaults().run_window(async_clmv!(args, {
             let error = args.latest();

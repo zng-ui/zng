@@ -11,6 +11,7 @@ use zng_view::extensions::ViewExtensions;
 
 fn main() {
     examples_util::print_info();
+    zng::app::crash_handler::init_debug();
 
     // zng_view::init_extended(view_extensions);
     // app_main();
