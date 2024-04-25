@@ -14,6 +14,7 @@
     - Adds `zng::app::crash_handler`.
     - Can be used to easily implement crash reporting, stacktrace and minidump 
       collection, app restart on crash.
+    - Call `zng::app::crash_handler::init_debug()` to quickly setup panic and minidump collection.
 * Fix view-process kill by user not working after respawn.
 * Fix view-process assuming any signal kill was requested by the user.
 * Fix potential issue retrieving current_exe trough symbolic links.
