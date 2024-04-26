@@ -369,28 +369,12 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                             }
                         };
 
-                        let open = if cfg!(windows) {
-                            "explorer"
-                        } else if cfg!(target_vendor = "apple") {
-                            "open"
-                        } else {
-                            "xdg-open"
-                        };
-                        let ok = match std::process::Command::new(open).arg(url.as_str()).status() {
-                            Ok(c) => {
-                                let ok = c.success() || (cfg!(windows) && c.code() == Some(1));
-                                if !ok {
-                                    tracing::error!("error opening \"{url}\", code: {c}");
-                                }
-                                ok
-                            }
-                            Err(e) => {
-                                tracing::error!("error opening \"{url}\", {e}");
-                                false
-                            }
-                        };
+                        let r = task::wait(clmv!(url, || open::that(url))).await;
+                        if let Err(e) = &r {
+                            tracing::error!("error opening \"{url}\", {e}");
+                        }
 
-                        status.set(if ok { Status::Ok } else { Status::Err });
+                        status.set(if r.is_ok() { Status::Ok } else { Status::Err });
                         task::deadline(200.ms()).await;
 
                         LAYERS.remove(popup_id);
