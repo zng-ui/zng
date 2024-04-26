@@ -1,7 +1,7 @@
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo-icon.png")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo.png")]
 //!
-//! Debug properties and inspector implementation.
+//! Inspector, debug crash handler and debug properties.
 //!
 //! # Crate
 //!
@@ -13,6 +13,7 @@ zng_wgt::enable_widget_macros!();
 
 use zng_wgt::prelude::*;
 
+pub mod crash_handler;
 pub mod debug;
 
 #[cfg(feature = "live")]

@@ -100,7 +100,7 @@ Note that `zng::app::single_instance()` must be called to enable single instance
 #### `"crash_handler"`
 Allow app-process crash handler.
 
-Note that `zng::app::crash_handler(..)` must be called to enable.
+Note that `zng::app::crash_handler::init(_)` must be called to enable.
 
 *Enabled by default.*
 
