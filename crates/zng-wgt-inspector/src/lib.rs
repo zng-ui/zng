@@ -1,7 +1,7 @@
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo-icon.png")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo.png")]
 //!
-//! Debug properties, debug crash handler and inspector implementation.
+//! Inspector, debug crash handler and debug properties.
 //!
 //! # Crate
 //!

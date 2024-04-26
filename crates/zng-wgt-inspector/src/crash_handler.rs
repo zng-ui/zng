@@ -1,3 +1,5 @@
+#![cfg(feature = "crash_handler")]
+
 //! Debug crash handler.
 
 use std::path::PathBuf;
@@ -5,7 +7,7 @@ use zng_app::{crash_handler::*, APP};
 use zng_ext_config::CONFIG;
 use zng_ext_window::{StartPosition, WindowRoot, WINDOWS};
 use zng_wgt::prelude::*;
-use zng_wgt::{align, corner_radius, margin};
+use zng_wgt::{align, corner_radius, enabled, margin};
 use zng_wgt_ansi_text::AnsiText;
 use zng_wgt_button::Button;
 use zng_wgt_container::{padding, Container};
@@ -198,8 +200,7 @@ fn widget_panel(widget_path: Txt) -> impl UiNode {
     plain_panel(widget_path, "widget")
 }
 fn minidump_panel(path: PathBuf) -> impl UiNode {
-    let path = path.display().to_string();
-    let path = path.trim_start_matches(r"\\?\").to_txt();
+    let path_txt = path.display().to_string().trim_start_matches(r"\\?\").to_txt();
     Scroll! {
         child_align = Align::TOP_START;
         background_color = colors::BLACK;
@@ -211,28 +212,52 @@ fn minidump_panel(path: PathBuf) -> impl UiNode {
             spacing = 5;
             children = ui_vec![
                 SelectableText! {
-                    txt = path;
+                    txt = path_txt;
                     font_size = 0.9.em();
                     // same as AnsiText
                     font_family = ["JetBrains Mono", "Consolas", "monospace"];
                 },
                 Stack! {
-                    direction = StackDirection::start_to_end();
+                    direction = StackDirection::top_to_bottom();
                     zng_wgt_button::style_fn = style_fn!(|_| zng_wgt_button::LinkStyle!());
                     children = ui_vec![
-                        Button! {
-                            child = Text!("Open");
-                            tooltip = Tip!(Text!("Open minidump file"));
+                        {
+                            let enabled = var(true);
+                            Button! {
+                                child = Text!("Open Minidump");
+                                on_click = async_hn!(enabled, path, |_| {
+                                    open_path(enabled, path).await;
+                                });
+                                enabled;
+                            }
                         },
-                        Text!(", "),
-                        Button! {
-                            child = Text!("Open Dir");
-                            tooltip = Tip!(Text!("Open parent directory"));
+                        {
+                            let enabled = var(true);
+                            Button! {
+                                child = Text!("Open Minidump Dir");
+                                on_click = async_hn!(enabled, path, |_| {
+                                    open_path(enabled, path.parent().unwrap().to_owned()).await;
+                                });
+                            }
                         },
-                        Text!(", "),
-                        Button! {
-                            child = Text!("Save");
-                            tooltip = Tip!(Text!("Save copy"));
+                        {
+                            let enabled = var(true);
+                            Button! {
+                                child = Text!("Save Minidump");
+                                tooltip = Tip!(Text!("Save copy of the minidump"));
+                                on_click = async_hn!(enabled, path, |_| {
+                                    save_copy(enabled, path).await;
+                                });
+                            }
+                        },
+                        {
+                            let enabled = var(true);
+                            Button! {
+                                child = Text!("Delete Minidump");
+                                on_click = async_hn!(enabled, path, |_| {
+                                    remove_path(enabled, path).await;
+                                });
+                            }
                         },
                     ]
                 }
@@ -240,6 +265,71 @@ fn minidump_panel(path: PathBuf) -> impl UiNode {
         }
     }
 }
+async fn open_path(enabled: ArcVar<bool>, path: PathBuf) {
+    enabled.set(false);
+
+    if let Err(e) = task::wait(move || open::that(path)).await {
+        error_message(formatx!("Failed to open minidump.\n{e}")).await;
+    }
+
+    enabled.set(true);
+}
+async fn save_copy(enabled: ArcVar<bool>, path: PathBuf) {
+    enabled.set(false);
+
+    let mut dialog = zng_view_api::dialog::FileDialog {
+        title: "Save Copy".into(),
+        starting_dir: path.parent().unwrap().to_owned(),
+        starting_name: "minidump".into(),
+        kind: zng_view_api::dialog::FileDialogKind::SaveFile,
+        ..Default::default()
+    };
+
+    if let Some(ext) = path.extension() {
+        dialog.push_filter("Minidump", &[ext.to_string_lossy()]);
+    }
+
+    let r = WINDOWS.native_file_dialog(WINDOW.id(), dialog).wait_into_rsp().await;
+
+    match r {
+        zng_view_api::dialog::FileDialogResponse::Selected(mut paths) => {
+            let destiny = paths.remove(0);
+            if let Err(e) = task::wait(move || std::fs::copy(path, destiny)).await {
+                error_message(formatx!("Failed so save minidump copy.\n{e}")).await;
+            }
+        }
+        zng_view_api::dialog::FileDialogResponse::Cancel => {}
+        zng_view_api::dialog::FileDialogResponse::Error(e) => error_message(formatx!("Failed to save minidump.\n{e}")).await,
+    }
+
+    enabled.set(true);
+}
+async fn remove_path(enabled: ArcVar<bool>, path: PathBuf) {
+    enabled.set(false);
+
+    if let Err(e) = task::wait(move || std::fs::remove_file(path)).await {
+        if e.kind() != std::io::ErrorKind::NotFound {
+            error_message(formatx!("Failed to open minidump.\n{e}")).await;
+        }
+    }
+
+    enabled.set(true);
+}
+async fn error_message(message: Txt) {
+    WINDOWS
+        .native_message_dialog(
+            WINDOW.id(),
+            zng_view_api::dialog::MsgDialog {
+                title: "Error".into(),
+                message,
+                icon: zng_view_api::dialog::MsgDialogIcon::Error,
+                ..Default::default()
+            },
+        )
+        .wait_into_rsp()
+        .await;
+}
+
 fn plain_panel(txt: Txt, config_key: &'static str) -> impl UiNode {
     Scroll! {
         child_align = Align::TOP_START;

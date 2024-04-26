@@ -538,6 +538,8 @@ pub mod crash_handler {
     use crate::prelude::*;
     pub use zng_app::crash_handler::{init, BacktraceFrame, CrashArgs, CrashConfig, CrashError, CrashPanic};
 
+    pub use zng_wgt_inspector::crash_handler::debug_dialog;
+
     /// Init a crash-handler with dialog that shows detailed debug info.
     pub fn init_debug() {
         init(CrashConfig::new(debug_app))

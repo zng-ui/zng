@@ -17,6 +17,8 @@ default = ["debug_default"]
 debug_default = []
 # Compiles the interactive inspector.
 live = []
+# Compiles the debug crash handler.
+crash_handler = ["zng-app/crash_handler", "dep:open"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.2.8" }
@@ -55,6 +57,7 @@ zng-color = { path = "../zng-color", version = "0.2.8" }
 serde = { version = "1.0", features = ["derive"] }
 tracing = "0.1"
 parking_lot = "0.12"
+open = { version = "5.1", optional = true }
 
 [package.metadata.docs.rs]
 all-features = true

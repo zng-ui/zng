@@ -406,13 +406,11 @@ impl fmt::Display for CrashPanic {
             for frame in self.backtrace_frames().skip_while(|f| f.is_after_panic) {
                 write!(f, "{frame}")?;
                 if snippet > 0 {
-                    snippet -= 1;
                     let code = frame.code_snippet();
-                    if code.is_empty() {
-                        snippet = 0;
-                        continue;
+                    if !code.is_empty() {
+                        snippet -= 1;
+                        writeln!(f, "{}", code)?;
                     }
-                    writeln!(f, "{}", code)?;
                 }
             }
             Ok(())
