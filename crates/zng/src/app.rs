@@ -753,8 +753,46 @@ mod crash_handler_dbg {
     }
     fn minidump_panel(path: PathBuf) -> impl UiNode {
         let path = path.display().to_string();
-        let path = path.trim_start_matches(r"\\?\");
-        plain_panel(path.to_txt(), "minidump")
+        let path = path.trim_start_matches(r"\\?\").to_txt();
+        Scroll! {
+            child_align = Align::TOP_START;
+            widget::background_color = colors::BLACK;
+            layout::padding = 5;
+            horizontal_offset = CONFIG.get(formatx!("minidump.scroll.h"), || 0.fct());
+            vertical_offset = CONFIG.get(formatx!("minidump.scroll.v"), || 0.fct());
+            child = Stack! {
+                direction = StackDirection::top_to_bottom();
+                spacing = 5;
+                children = ui_vec![
+                    SelectableText! {
+                        txt = path;
+                        font_size = 0.9.em();
+                        // same as AnsiText
+                        font_family = ["JetBrains Mono", "Consolas", "monospace"];
+                    },
+                    Stack! {
+                        direction = StackDirection::start_to_end();
+                        zng::button::style_fn = style_fn!(|_| zng::button::LinkStyle!());
+                        children = ui_vec![
+                            Button! {
+                                child = Text!("Open");
+                                tooltip = Tip!(Text!("Open minidump file"));
+                            },
+                            Text!(", "),
+                            Button! {
+                                child = Text!("Open Dir");
+                                tooltip = Tip!(Text!("Open parent directory"));
+                            },
+                            Text!(", "),
+                            Button! {
+                                child = Text!("Save");
+                                tooltip = Tip!(Text!("Save copy"));
+                            },
+                        ]
+                    }
+                ]
+            }
+        }
     }
     fn plain_panel(txt: Txt, config_key: &'static str) -> impl UiNode {
         Scroll! {
