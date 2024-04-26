@@ -384,6 +384,8 @@ pub struct CrashPanic {
     /// Stack backtrace.
     pub backtrace: Txt,
 }
+
+/// Alternate mode `{:#}` prints full backtrace.
 impl fmt::Display for CrashPanic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
@@ -394,7 +396,27 @@ impl fmt::Display for CrashPanic {
         for line in self.message.lines() {
             writeln!(f, "   {line}")?;
         }
-        writeln!(f, "widget path:\n   {}\nstack backtrace:\n{}", self.widget_path, self.backtrace)
+        writeln!(f, "widget path:\n   {}", self.widget_path)?;
+
+        if f.alternate() {
+            writeln!(f, "stack backtrace:\n{}", self.backtrace)
+        } else {
+            writeln!(f, "stack backtrace:")?;
+            let mut snippet = 9;
+            for frame in self.backtrace_frames().skip_while(|f| f.is_after_panic) {
+                write!(f, "{frame}")?;
+                if snippet > 0 {
+                    snippet -= 1;
+                    let code = frame.code_snippet();
+                    if code.is_empty() {
+                        snippet = 0;
+                        continue;
+                    }
+                    writeln!(f, "{}", code)?;
+                }
+            }
+            Ok(())
+        }
     }
 }
 impl CrashPanic {
@@ -520,6 +542,141 @@ impl CrashPanic {
             widget_path: widget_path.to_txt(),
             backtrace: backtrace.to_txt(),
         })
+    }
+
+    /// Iterate over frames parsed from the `backtrace`.
+    pub fn backtrace_frames(&self) -> impl Iterator<Item = BacktraceFrame> + '_ {
+        BacktraceFrame::parse(&self.backtrace)
+    }
+}
+
+/// Represents a frame parsed from a stack backtrace.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct BacktraceFrame {
+    /// Position on the backtrace.
+    pub n: usize,
+
+    /// Function name.
+    pub name: Txt,
+    /// Source code file.
+    pub file: Txt,
+    /// Source code line.
+    pub line: u32,
+
+    /// If this frame is inside the Rust panic code.
+    pub is_after_panic: bool,
+}
+impl fmt::Display for BacktraceFrame {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{:>4}: {}", self.n, self.name)?;
+        if !self.file.is_empty() {
+            writeln!(f, "      at {}:{}", self.file, self.line)?;
+        }
+        Ok(())
+    }
+}
+impl BacktraceFrame {
+    /// Iterate over frames parsed from the `backtrace`.
+    pub fn parse(mut backtrace: &str) -> impl Iterator<Item = BacktraceFrame> + '_ {
+        let mut is_after_panic = backtrace.lines().any(|l| l.ends_with("core::panicking::panic_fmt"));
+        std::iter::from_fn(move || {
+            if backtrace.is_empty() {
+                None
+            } else {
+                let n_name = backtrace.lines().next().unwrap();
+                let (n, name) = if let Some((n, name)) = n_name.split_once(':') {
+                    let n = match n.trim_start().parse() {
+                        Ok(n) => n,
+                        Err(_) => {
+                            backtrace = "";
+                            return None;
+                        }
+                    };
+                    let name = name.trim();
+                    if name.is_empty() {
+                        backtrace = "";
+                        return None;
+                    }
+                    (n, name)
+                } else {
+                    backtrace = "";
+                    return None;
+                };
+
+                backtrace = &backtrace[n_name.len() + 1..];
+                let r = if backtrace.trim_start().starts_with("at ") {
+                    let file_line = backtrace.lines().next().unwrap();
+                    let (file, line) = if let Some((file, line)) = file_line.rsplit_once(':') {
+                        let file = file.trim_start().strip_prefix("at ").unwrap();
+                        let line = match line.trim_end().parse() {
+                            Ok(l) => l,
+                            Err(_) => {
+                                backtrace = "";
+                                return None;
+                            }
+                        };
+                        (file, line)
+                    } else {
+                        backtrace = "";
+                        return None;
+                    };
+
+                    backtrace = &backtrace[file_line.len() + 1..];
+
+                    BacktraceFrame {
+                        n,
+                        name: name.to_txt(),
+                        file: file.to_txt(),
+                        line,
+                        is_after_panic,
+                    }
+                } else {
+                    BacktraceFrame {
+                        n,
+                        name: name.to_txt(),
+                        file: Txt::from(""),
+                        line: 0,
+                        is_after_panic,
+                    }
+                };
+
+                if is_after_panic && name == "core::panicking::panic_fmt" {
+                    is_after_panic = false;
+                }
+
+                Some(r)
+            }
+        })
+    }
+
+    /// Reads the code line + four surrounding lines if the code file can be found.
+    pub fn code_snippet(&self) -> Txt {
+        if !self.file.is_empty() && self.line > 0 {
+            if let Ok(file) = std::fs::File::open(&self.file) {
+                use std::fmt::Write as _;
+                let mut r = String::new();
+
+                let reader = std::io::BufReader::new(file);
+
+                let line_s = self.line - 2.min(self.line - 1);
+                let lines = reader.lines().skip(line_s as usize - 1).take(5);
+                for (line, line_n) in lines.zip(line_s..) {
+                    let line = match line {
+                        Ok(l) => l,
+                        Err(_) => return Txt::from(""),
+                    };
+
+                    if line_n == self.line {
+                        writeln!(&mut r, "      {:>4} > {}", line_n, line).unwrap();
+                    } else {
+                        writeln!(&mut r, "      {:>4} │ {}", line_n, line).unwrap();
+                    }
+                }
+
+                return r.into();
+            }
+        }
+        Txt::from("")
     }
 }
 
