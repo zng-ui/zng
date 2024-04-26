@@ -1,5 +1,8 @@
 # Unpublished
 
+
+# 0.4.0
+
 * Panics in `task::respond` are now resumed in the response var modify closure.
 * Add `task::ipc` module, for running tasks in worker processes.
 * **Breaking:** Remove `"bytemuck"` feature from `zng-unique-id`.
