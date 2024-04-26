@@ -453,9 +453,12 @@ pub use zng_ext_single_instance::{is_single_instance, single_instance, single_in
 ///     // monitor-process or dialog-process init.
 ///     //
 ///     // Note that the dialog-process will use the same view-process init. Alternatively you
-///     // can call this before the view-process init and then init a custom view_process just for the dialog
-///     // or don't use Zng for the dialog.
-///     zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(crash_dialog_main));
+///     // can call this before the view-process init and then init a custom view_process just
+///     // for the dialog or don't use Zng for the dialog.
+///     #[cfg(debug_assertions)]
+///     zng::app::crash_handler::init_debug();
+///     #[cfg(not(debug_assertions))]
+///     zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(dialog_main));
 ///
 ///     // normal app-process
 ///
@@ -493,16 +496,15 @@ pub use zng_ext_single_instance::{is_single_instance, single_instance, single_in
 ///     });
 /// }
 ///
-/// fn crash_dialog_main(args: zng::app::crash_handler::CrashArgs) -> ! {
+/// #[cfg(not(debug_assertions))]
+/// fn dialog_main(args: zng::app::crash_handler::CrashArgs) -> ! {
 ///     APP.defaults().run_window(async move {
 ///         Window! {
 ///             title = "App Crashed!";
-///             auto_size = window::AutoSize::CONTENT;
+///             auto_size = true;
 ///             min_size = (300, 100);
 ///             start_position = window::StartPosition::CenterMonitor;
-///             on_load = hn_once!(|_| {
-///                 WINDOW.bring_to_top();
-///             });
+///             on_load = hn_once!(|_| WINDOW.bring_to_top());
 ///             padding = 10;
 ///             child = Text!(args.latest().message());
 ///             child_bottom = Stack! {
