@@ -74,12 +74,6 @@ On Windows:
 
 [Visual Studio installer]: https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170
 
-On Windows 8 or older:
-
-* To build with `"view_prebuilt"`  feature:
-    - The `curl` and `tar` commands are required, they are available in Windows 10+, but must be 
-      installed in older Windows and must be added to the PATH env var.
-
 on Linux:
 
 * Packages needed to build:
