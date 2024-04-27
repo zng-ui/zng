@@ -3,15 +3,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{image, prelude::*, widget::background_color};
 
-use zng::view_process::prebuilt as view_process;
+use zng::view_process::default as view_process;
 
 fn main() {
     examples_util::print_info();
-    view_process::init();
+    // view_process::init();
     zng::app::crash_handler::init_debug();
 
-    // view_process::run_same_process(app_main);
-    app_main();
+    view_process::run_same_process(app_main);
+    // app_main();
 }
 
 fn app_main() {
@@ -34,6 +34,7 @@ fn app_main() {
             size = (280, 120);
             start_position = window::StartPosition::CenterMonitor;
             resizable = false;
+            enabled_buttons = !window::WindowButton::MAXIMIZE;
 
             color_scheme = color::ColorScheme::Dark;
 

@@ -94,6 +94,7 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
             start_position = zng::window::StartPosition::CenterMonitor;
             auto_size = window::AutoSize::CONTENT;
             min_size = (300, 100);
+            enabled_buttons = !window::WindowButton::MAXIMIZE;
 
             on_load = hn_once!(|_| {
                 // force to foreground

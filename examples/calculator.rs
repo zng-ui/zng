@@ -31,6 +31,7 @@ fn app_main() {
             data = var(Calculator::default());
             resizable = false;
             auto_size = true;
+            enabled_buttons = !window::WindowButton::MAXIMIZE;
             padding = 5;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();

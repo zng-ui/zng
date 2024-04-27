@@ -22,7 +22,7 @@ use zng_view_api::{
     window::{EventCause, FrameId},
 };
 
-pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowState};
+pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
 
 use crate::{HeadlessMonitor, WINDOW_Ext as _};
 

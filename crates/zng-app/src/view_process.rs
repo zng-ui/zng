@@ -31,7 +31,7 @@ use zng_view_api::{
     ipc::{IpcBytes, IpcBytesReceiver},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
-        ResizeDirection, VideoMode, WindowRequest, WindowStateAll,
+        ResizeDirection, VideoMode, WindowButton, WindowRequest, WindowStateAll,
     },
     Event, ViewProcessGen, ViewProcessOffline,
 };
@@ -749,6 +749,11 @@ impl ViewWindow {
     /// Set video mode used in exclusive fullscreen.
     pub fn set_video_mode(&self, mode: VideoMode) -> Result<()> {
         self.0.call(|id, p| p.set_video_mode(id, mode))
+    }
+
+    /// Set enabled window chrome buttons.
+    pub fn set_enabled_buttons(&self, buttons: WindowButton) -> Result<()> {
+        self.0.call(|id, p| p.set_enabled_buttons(id, buttons))
     }
 
     /// Reference the window renderer.
