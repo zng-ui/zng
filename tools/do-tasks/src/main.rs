@@ -26,6 +26,7 @@ fn main() {
         "semver_check" => semver_check(args),
         "publish_version_tag" => publish_version_tag(args),
         "comment_feature" => comment_feature(args),
+        "latest_release_changes" => latest_release_changes(args),
         "version" => version(args),
         "ls" => ls(args),
         "help" | "--help" => help(args),
@@ -1247,6 +1248,37 @@ fn comment_feature(mut args: Vec<&str>) {
         Err(e) => {
             error(e);
         }
+    }
+}
+
+// used by `workflows/release.yml`
+fn latest_release_changes(args: Vec<&str>) {
+    let changelog = match std::fs::read_to_string("CHANGELOG.md") {
+        Ok(c) => c,
+        Err(e) => fatal(f!("failed to read CHANGELOG.md, {e}")),
+    };
+
+    let mut changes = String::new();
+    let mut started = false;
+    for line in changelog.lines().skip(1) {
+        if line.starts_with("# ") {
+            if started {
+                break;
+            }
+            started = true;
+        } else if started {
+            changes.push_str(line);
+            changes.push('\n');
+        }
+    }
+    let changes = changes.trim();
+
+    if let Some(out) = args.first() {
+        if let Err(e) = std::fs::write(out, changes.as_bytes()) {
+            fatal(f!("failed to write changes, {e}"));
+        }
+    } else {
+        println(changes)
     }
 }
 
