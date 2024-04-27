@@ -287,7 +287,7 @@ declare_api! {
     /// Close the window or headless surface.
     ///
     /// All documents associated with the window or surface are also closed.
-    pub fn close_window(&mut self, id: WindowId);
+    pub fn close(&mut self, id: WindowId);
 
     /// Set window title.
     pub fn set_title(&mut self, id: WindowId, title: Txt);
@@ -337,7 +337,17 @@ declare_api! {
     /// window is not visible, minimized or already focused.
     ///
     /// This request can steal focus from other apps disrupting the user, be careful with it.
-    pub fn focus_window(&mut self, id: WindowId);
+    pub fn focus(&mut self, id: WindowId);
+
+    /// Moves the window with the left mouse button until the button is released.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
+    pub fn drag_move(&mut self, id: WindowId);
+
+    /// Resizes the window with the left mouse button until the button is released.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
+    pub fn drag_resize(&mut self, id: WindowId, direction: window::ResizeDirection);
 
     /// Open the system title bar context menu.
     pub fn open_title_bar_context_menu(&mut self, id: WindowId, position: DipPoint);

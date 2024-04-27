@@ -1464,7 +1464,7 @@ impl Api for App {
     }
 
     fn open_window(&mut self, mut config: WindowRequest) {
-        let _s = tracing::debug_span!("open_window", ?config).entered();
+        let _s = tracing::debug_span!("open", ?config).entered();
 
         config.state.clamp_size();
         config.enforce_kiosk();
@@ -1537,7 +1537,7 @@ impl Api for App {
         self.notify(Event::HeadlessOpened(id, msg));
     }
 
-    fn close_window(&mut self, id: WindowId) {
+    fn close(&mut self, id: WindowId) {
         let _s = tracing::debug_span!("close_window", ?id);
 
         self.assert_started();
@@ -1614,7 +1614,7 @@ impl Api for App {
         self.with_window(id, |w| w.set_focus_request(request), || ())
     }
 
-    fn focus_window(&mut self, id: WindowId) {
+    fn focus(&mut self, id: WindowId) {
         #[cfg(windows)]
         {
             self.skip_ralt = self.with_window(id, |w| w.focus(), || false);
@@ -1624,6 +1624,14 @@ impl Api for App {
         {
             self.with_window(id, |w| w.focus(), || ());
         }
+    }
+
+    fn drag_move(&mut self, id: WindowId) {
+        self.with_window(id, |w| w.drag_move(), || ())
+    }
+
+    fn drag_resize(&mut self, id: WindowId, direction: zng_view_api::window::ResizeDirection) {
+        self.with_window(id, |w| w.drag_resize(direction), || ())
     }
 
     fn open_title_bar_context_menu(&mut self, id: WindowId, position: DipPoint) {
