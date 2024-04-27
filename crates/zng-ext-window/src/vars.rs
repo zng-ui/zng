@@ -12,7 +12,7 @@ use zng_unique_id::IdSet;
 use zng_var::{merge_var, var, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
 use zng_view_api::{
     config::ColorScheme,
-    window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowState},
+    window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},
 };
 
 use crate::{AutoSize, CursorImg, FrameCaptureMode, MonitorQuery, WindowIcon};
@@ -50,6 +50,8 @@ pub(super) struct WindowVarsData {
 
     pub(super) restore_state: ArcVar<WindowState>,
     pub(super) restore_rect: ArcVar<DipRect>,
+
+    enabled_buttons: ArcVar<WindowButton>,
 
     resizable: ArcVar<bool>,
     movable: ArcVar<bool>,
@@ -118,6 +120,8 @@ impl WindowVars {
                 DipPoint::new(Dip::new(30), Dip::new(30)),
                 DipSize::new(Dip::new(800), Dip::new(600)),
             )),
+
+            enabled_buttons: var(WindowButton::all()),
 
             min_size: var(Size::new(192, 48)),
             max_size: var(Size::new(100.pct(), 100.pct())),
@@ -512,6 +516,11 @@ impl WindowVars {
     /// The default value is `true`.
     pub fn movable(&self) -> ArcVar<bool> {
         self.0.movable.clone()
+    }
+
+    /// Defines the enabled state of the window chrome buttons.
+    pub fn enabled_buttons(&self) -> ArcVar<WindowButton> {
+        self.0.enabled_buttons.clone()
     }
 
     /// Defines if the window should always stay on top of other windows.

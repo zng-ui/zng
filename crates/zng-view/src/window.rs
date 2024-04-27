@@ -30,7 +30,7 @@ use zng_view_api::{
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, ResizeDirection, VideoMode,
-        WindowId, WindowRequest, WindowState, WindowStateAll,
+        WindowButton, WindowId, WindowRequest, WindowState, WindowStateAll,
     },
     DeviceId, Event, ViewProcessGen,
 };
@@ -50,8 +50,8 @@ use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
     util::{
-        frame_render_reasons, frame_update_render_reasons, CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _, WinitToDip,
-        WinitToPx,
+        frame_render_reasons, frame_update_render_reasons, CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _,
+        WindowButtonsToWinit as _, WinitToDip, WinitToPx,
     },
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
@@ -415,6 +415,8 @@ impl Window {
 
         win.set_cursor(cfg.cursor);
         win.set_taskbar_visible(cfg.taskbar_visible);
+
+        win.set_enabled_buttons(cfg.enabled_buttons);
 
         if win.ime_area.is_some() {
             win.window.set_ime_allowed(true);
@@ -1113,6 +1115,11 @@ impl Window {
         if let Err(e) = self.window.drag_resize_window(direction.to_winit()) {
             tracing::error!("failed to drag_resize, {e}");
         }
+    }
+
+    /// Set enabled chrome buttons.
+    pub fn set_enabled_buttons(&self, buttons: WindowButton) {
+        self.window.set_enabled_buttons(buttons.to_winit());
     }
 
     /// Open windows title bar context menu.

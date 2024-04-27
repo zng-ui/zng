@@ -107,8 +107,8 @@ pub use zng_app::window::WINDOW as WINDOW_;
 pub use zng_ext_window::{
     AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt,
     HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode,
-    WINDOW_Ext, WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon,
-    WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
+    WINDOW_Ext, WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowButton, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
+    WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
     FRAME_IMAGE_READY_EVENT, IME_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT,
     WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT,
 };

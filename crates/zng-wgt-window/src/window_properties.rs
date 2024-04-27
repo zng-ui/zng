@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use zng_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, CONFIG};
 use zng_ext_window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, WINDOW_Ext as _, WindowIcon, WindowLoadingHandle, WindowState, WindowVars, MONITORS,
-    WINDOW_LOAD_EVENT,
+    AutoSize, FrameCaptureMode, MonitorQuery, WINDOW_Ext as _, WindowButton, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
+    MONITORS, WINDOW_LOAD_EVENT,
 };
 use zng_wgt::prelude::*;
 
@@ -92,6 +92,8 @@ set_properties! {
     color_scheme: Option<ColorScheme>,
 
     frame_capture_mode: FrameCaptureMode,
+
+    enabled_buttons: WindowButton,
 }
 
 macro_rules! map_properties {

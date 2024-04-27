@@ -301,6 +301,12 @@ impl HeadedCtrl {
                 });
             }
 
+            if let Some(buttons) = self.vars.enabled_buttons().get_new() {
+                self.update_gen(move |view| {
+                    let _: Ignore = view.set_enabled_buttons(buttons);
+                })
+            }
+
             if prev_state != new_state {
                 self.update_gen(move |view| {
                     let _: Ignore = view.set_state(new_state);
@@ -1094,6 +1100,7 @@ impl HeadedCtrl {
             always_on_top: self.vars.always_on_top().get(),
             movable: self.vars.movable().get(),
             resizable: self.vars.resizable().get(),
+            enabled_buttons: self.vars.enabled_buttons().get(),
             icon: self
                 .img_res
                 .icon_var
@@ -1219,6 +1226,7 @@ impl HeadedCtrl {
             always_on_top: self.vars.always_on_top().get(),
             movable: self.vars.movable().get(),
             resizable: self.vars.resizable().get(),
+            enabled_buttons: self.vars.enabled_buttons().get(),
             icon: self
                 .img_res
                 .icon_var
