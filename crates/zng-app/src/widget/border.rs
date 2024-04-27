@@ -876,7 +876,7 @@ impl BorderOffsetsData {
             if is_wgt_start {
                 border.set_corner_radius(self.corner_radius);
             }
-            border.set_offsets(self.wgt_offsets);
+            border.set_offsets(self.wgt_inner_offsets);
         }
     }
 
