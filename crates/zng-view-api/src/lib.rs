@@ -58,7 +58,7 @@ use font::{FontFaceId, FontId, FontOptions, FontVariationName};
 use image::{ImageId, ImageMaskMode, ImageRequest, ImageTextureId};
 use ipc::{IpcBytes, IpcBytesReceiver};
 use window::WindowId;
-use zng_unit::{DipRect, DipSize, Factor, Px, PxRect};
+use zng_unit::{DipPoint, DipRect, DipSize, Factor, Px, PxRect};
 
 /// Packaged API request.
 #[derive(Debug)]
@@ -338,6 +338,9 @@ declare_api! {
     ///
     /// This request can steal focus from other apps disrupting the user, be careful with it.
     pub fn focus_window(&mut self, id: WindowId);
+
+    /// Open the system title bar context menu.
+    pub fn open_title_bar_context_menu(&mut self, id: WindowId, position: DipPoint);
 
     /// Cache an image resource.
     ///

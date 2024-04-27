@@ -1626,6 +1626,10 @@ impl Api for App {
         }
     }
 
+    fn open_title_bar_context_menu(&mut self, id: WindowId, position: DipPoint) {
+        self.with_window(id, |w| w.open_title_bar_context_menu(position), || ())
+    }
+
     fn set_cursor(&mut self, id: WindowId, icon: Option<CursorIcon>) {
         self.with_window(id, |w| w.set_cursor(icon), || ())
     }

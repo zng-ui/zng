@@ -777,6 +777,11 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_focus_indicator(id, indicator))
     }
 
+    /// Open system title bar context menu.
+    pub fn open_title_bar_context_menu(&self, position: DipPoint) -> Result<()> {
+        self.0.call(|id, p| p.open_title_bar_context_menu(id, position))
+    }
+
     /// Shows a native message dialog for the window.
     ///
     /// The window is not interactive while the dialog is visible and the dialog may be modal in the view-process.
