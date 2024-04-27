@@ -8,6 +8,8 @@
     - Rename `focus_window` to `focus`.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 * Better "custom chrome" example in `examples/window.rs`.
+* Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` to window API.
+* Fix `WIDGET.border().offsets()` not including the innermost border offset.
 
 # 0.4.0
 
