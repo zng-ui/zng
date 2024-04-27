@@ -3,6 +3,7 @@
 * **Breaking** Add `open_title_bar_context_menu` to view API.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` to window API.
+* Fix `WIDGET.border().offsets()` not including the innermost border offset.
 
 # 0.4.0
 
