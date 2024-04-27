@@ -12,7 +12,7 @@ use zng_unit::*;
 use zng_view_api::access::AccessNodeId;
 use zng_view_api::clipboard as clipboard_api;
 use zng_view_api::keyboard::NativeKeyCode;
-use zng_view_api::window::{FrameCapture, FrameRequest, FrameUpdateRequest};
+use zng_view_api::window::{FrameCapture, FrameRequest, FrameUpdateRequest, ResizeDirection};
 use zng_view_api::{
     config::ColorScheme,
     keyboard::{Key, KeyCode, KeyState},
@@ -205,6 +205,24 @@ impl WinitToPx for winit::dpi::PhysicalSize<u32> {
 
     fn to_px(self) -> Self::AsPx {
         PxSize::new(Px(self.width as i32), Px(self.height as i32))
+    }
+}
+pub trait ResizeDirectionToWinit {
+    fn to_winit(self) -> winit::window::ResizeDirection;
+}
+impl ResizeDirectionToWinit for ResizeDirection {
+    fn to_winit(self) -> winit::window::ResizeDirection {
+        use winit::window::ResizeDirection::*;
+        match self {
+            ResizeDirection::East => East,
+            ResizeDirection::North => North,
+            ResizeDirection::NorthEast => NorthEast,
+            ResizeDirection::NorthWest => NorthWest,
+            ResizeDirection::South => South,
+            ResizeDirection::SouthEast => SouthEast,
+            ResizeDirection::SouthWest => SouthWest,
+            ResizeDirection::West => West,
+        }
     }
 }
 

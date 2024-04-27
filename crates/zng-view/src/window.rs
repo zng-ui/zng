@@ -29,8 +29,8 @@ use zng_view_api::{
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     window::{
-        CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, VideoMode, WindowId,
-        WindowRequest, WindowState, WindowStateAll,
+        CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, ResizeDirection, VideoMode,
+        WindowId, WindowRequest, WindowState, WindowStateAll,
     },
     DeviceId, Event, ViewProcessGen,
 };
@@ -49,7 +49,10 @@ use crate::{
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
-    util::{frame_render_reasons, frame_update_render_reasons, CursorToWinit, DipToWinit, PxToWinit, WinitToDip, WinitToPx},
+    util::{
+        frame_render_reasons, frame_update_render_reasons, CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _, WinitToDip,
+        WinitToPx,
+    },
     AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
@@ -1099,11 +1102,16 @@ impl Window {
     }
 
     /// Moves the window with the left mouse button until the button is released.
-    ///
-    /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
     pub fn drag_move(&self) {
         if let Err(e) = self.window.drag_window() {
             tracing::error!("failed to drag_move, {e}");
+        }
+    }
+
+    /// Resizes the window with the left mouse button until the button is released.
+    pub fn drag_resize(&self, direction: ResizeDirection) {
+        if let Err(e) = self.window.drag_resize_window(direction.to_winit()) {
+            tracing::error!("failed to drag_resize, {e}");
         }
     }
 

@@ -11,6 +11,8 @@ use zng_view_api::window::WindowState;
 
 use crate::{WindowVars, WINDOWS};
 
+pub use zng_view_api::window::ResizeDirection;
+
 command! {
     /// Represents the window **close** action.
     pub static CLOSE_CMD = {
@@ -80,7 +82,8 @@ command! {
     ///
     /// # Parameter
     ///
-    /// This command supports an optional parameter, !!: TODO resize.
+    /// If this command is called without parameter the window will drag-move, if it is called with a [`ResizeDirection`] the
+    /// window will drag-resize.
     pub static DRAG_MOVE_RESIZE_CMD;
 
     /// Represents the window **open title bar context menu** action.

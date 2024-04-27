@@ -798,12 +798,14 @@ impl HeadedCtrl {
                 let _ = w.set_ime_area(None);
             }
         } else if let Some(args) = super::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).on(update) {
-            let r = args.handle_enabled(&self.drag_move_handle, |_args| {
-                // !!: TODO, resize param
-            });
-            if let Some(_r) = r {
+            let r = args.handle_enabled(&self.drag_move_handle, |args| args.param::<crate::cmd::ResizeDirection>().copied());
+            if let Some(r) = r {
                 self.view_task(Box::new(move |w| {
-                    let _ = w.unwrap().drag_move();
+                    let _ = if let Some(r) = r {
+                        w.unwrap().drag_resize(r)
+                    } else {
+                        w.unwrap().drag_move()
+                    };
                 }));
             }
         } else if let Some(args) = super::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).on(update) {

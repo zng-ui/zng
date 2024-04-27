@@ -7,6 +7,7 @@
     - Rename `close_window` to `close`.
     - Rename `focus_window` to `focus`.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
+* Better "custom chrome" example in `examples/window.rs`.
 
 # 0.4.0
 

@@ -31,7 +31,7 @@ use zng_view_api::{
     ipc::{IpcBytes, IpcBytesReceiver},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
-        VideoMode, WindowRequest, WindowStateAll,
+        ResizeDirection, VideoMode, WindowRequest, WindowStateAll,
     },
     Event, ViewProcessGen, ViewProcessOffline,
 };
@@ -782,6 +782,13 @@ impl ViewWindow {
     /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
     pub fn drag_move(&self) -> Result<()> {
         self.0.call(|id, p| p.drag_move(id))
+    }
+
+    /// Resizes the window with the left mouse button until the button is released.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
+    pub fn drag_resize(&self, direction: ResizeDirection) -> Result<()> {
+        self.0.call(|id, p| p.drag_resize(id, direction))
     }
 
     /// Open system title bar context menu.

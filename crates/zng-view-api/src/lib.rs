@@ -344,6 +344,11 @@ declare_api! {
     /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
     pub fn drag_move(&mut self, id: WindowId);
 
+    /// Resizes the window with the left mouse button until the button is released.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
+    pub fn drag_resize(&mut self, id: WindowId, direction: window::ResizeDirection);
+
     /// Open the system title bar context menu.
     pub fn open_title_bar_context_menu(&mut self, id: WindowId, position: DipPoint);
 

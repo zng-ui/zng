@@ -59,28 +59,9 @@ async fn main_window() -> window::WindowRoot {
         move |p: &DipPoint, s: &DipSize, f: &Factor| { formatx!("Window Example - position: {p:.0?}, size: {s:.0?}, factor: {f:?}") }
     );
 
+    LAYERS.insert(LayerIndex::TOP_MOST, custom_chrome(title.clone()));
+
     let background = var(colors::BLACK);
-
-    let custom_chrome = Text! {
-        visibility = expr_var!((#{window_vars.state()}.is_fullscreen() || !*#{window_vars.chrome()}).into());
-        txt = title.clone();
-        align = Align::TOP;
-        background_color = color_scheme_map(colors::BLACK, colors::WHITE);
-        padding = 4;
-        corner_radius = (0, 0, 5, 5);
-        mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
-            if args.is_primary() {
-                window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify();
-            }
-        });
-        gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
-            if let Some(p) = args.position() {
-                window::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
-            }
-        });
-    };
-    LAYERS.insert(LayerIndex::TOP_MOST, custom_chrome);
-
     Window! {
         background_color = background.easing(150.ms(), easing::linear);
         clear_color = rgba(0, 0, 0, 0);
@@ -438,6 +419,105 @@ fn visibility_example() -> impl UiNode {
     };
 
     section("Visibility", ui_vec![btn, chrome])
+}
+
+fn custom_chrome(title: impl Var<Txt>) -> impl UiNode {
+    let vars = WINDOW.vars();
+
+    let can_move = vars.state().map(|s| matches!(s, WindowState::Normal | WindowState::Maximized));
+    let title = Text! {
+        txt = title.clone();
+        align = Align::TOP;
+        background_color = color_scheme_map(colors::BLACK, colors::WHITE);
+        padding = 4;
+        corner_radius = (0, 0, 5, 5);
+
+        mouse::on_mouse_down = hn!(can_move, |args: &mouse::MouseInputArgs| {
+            if args.is_primary() && can_move.get() {
+                window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify();
+            }
+        });
+        when *#{can_move} {
+            mouse::cursor = mouse::CursorIcon::Move;
+        }
+
+        gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
+            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized) {
+                if let Some(p) = args.position() {
+                    window::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
+                }
+            }
+        });
+    };
+
+    use window::cmd::ResizeDirection as RD;
+
+    fn resize_direction(wgt_pos: PxPoint) -> Option<RD> {
+        let p = wgt_pos;
+        let s = WIDGET.bounds().inner_size();
+        let b = WIDGET.border().offsets();
+        let corner_b = b * FactorSideOffsets::from(3.fct());
+
+        if p.x <= b.left {
+            if p.y <= corner_b.top {
+                Some(RD::NorthWest)
+            } else if p.y >= s.height - corner_b.bottom {
+                Some(RD::SouthWest)
+            } else {
+                Some(RD::West)
+            }
+        } else if p.x >= s.width - b.right {
+            if p.y <= corner_b.top {
+                Some(RD::NorthEast)
+            } else if p.y >= s.height - corner_b.bottom {
+                Some(RD::SouthEast)
+            } else {
+                Some(RD::East)
+            }
+        } else if p.y <= b.top {
+            if p.x <= corner_b.left {
+                Some(RD::NorthWest)
+            } else if p.x >= s.width - corner_b.right {
+                Some(RD::NorthEast)
+            } else {
+                Some(RD::North)
+            }
+        } else if p.y >= s.height - b.bottom {
+            if p.x <= corner_b.left {
+                Some(RD::SouthWest)
+            } else if p.x >= s.width - corner_b.right {
+                Some(RD::SouthEast)
+            } else {
+                Some(RD::South)
+            }
+        } else {
+            None
+        }
+    }
+
+    let cursor = var(None::<mouse::CursorIcon>);
+
+    Container! {
+        visibility = expr_var!((#{vars.state()}.is_fullscreen() || !*#{vars.chrome()}).into());
+        widget::hit_test_mode = widget::HitTestMode::Detailed;
+
+        child = title;
+
+        when matches!(#{vars.state()}, WindowState::Normal) {
+            widget::border = 5, color_scheme_map(colors::BLACK, colors::WHITE);
+            mouse::cursor = cursor.clone();
+            mouse::on_mouse_move = hn!(|args: &mouse::MouseMoveArgs| {
+                cursor.set(args.position_wgt().and_then(resize_direction).map(mouse::CursorIcon::from));
+            });
+            mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
+                if args.is_primary() {
+                    if let Some(d) = args.position_wgt().and_then(resize_direction) {
+                        window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify_param(d);
+                    }
+                }
+            });
+        }
+    }
 }
 
 fn misc() -> impl UiNode {
