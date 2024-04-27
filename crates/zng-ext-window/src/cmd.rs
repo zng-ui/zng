@@ -80,6 +80,9 @@ command! {
     ///
     /// This command supports an optional parameter, it can be a [`DipPoint`] or [`PxPoint`] that defines
     /// the menu position.
+    ///
+    /// [`DipPoint`]: zng_layout::unit::DipPoint
+    /// [`PxPoint`]: zng_layout::unit::PxPoint
     pub static OPEN_TITLE_BAR_CONTEXT_MENU_CMD;
 }
 
