@@ -34,6 +34,7 @@ fn app_main() {
         Window! {
             title = "Cursor Example";
             resizable = false;
+            enabled_buttons = !window::WindowButton::MAXIMIZE;
             auto_size = true;
             padding = 20;
             child = Stack!(top_to_bottom, ui_vec![

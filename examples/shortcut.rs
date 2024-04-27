@@ -67,6 +67,7 @@ fn app_main() {
             title = "Shortcut Example";
             auto_size = true;
             resizable = false;
+            enabled_buttons = !window::WindowButton::MAXIMIZE;
             auto_size_origin = layout::Point::center();
             padding = 50;
             start_position = window::StartPosition::CenterMonitor;
