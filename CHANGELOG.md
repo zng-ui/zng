@@ -1,7 +1,13 @@
 # Unpublished
 
-* **Breaking** Add `open_title_bar_context_menu` to view API.
+* Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` for windows.
+* Add `DRAG_MOVE_RESIZE_CMD` for windows.
+* **Breaking** View API changes:
+    - Add `open_title_bar_context_menu`.
+    - Rename `close_window` to `close`.
+    - Rename `focus_window` to `focus`.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
+* Better "custom chrome" example in `examples/window.rs`.
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` to window API.
 * Fix `WIDGET.border().offsets()` not including the innermost border offset.
 

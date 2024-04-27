@@ -657,12 +657,10 @@ pub enum CursorIcon {
     /// magnifying glass with a "-" in the center of the glass.
     ZoomOut,
 }
-
 #[cfg(feature = "var")]
 zng_var::impl_from_and_into_var! {
     fn from(some: CursorIcon) -> Option<CursorIcon>;
 }
-
 impl CursorIcon {
     /// All cursor icons.
     pub const ALL: &'static [CursorIcon] = {
@@ -745,6 +743,66 @@ pub struct CursorImage {
     ///
     /// This value is only used if the image format does not contain a hotspot.
     pub hotspot: PxPoint,
+}
+
+/// Defines the orientation that a window resize will be performed.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum ResizeDirection {
+    /// The east border will be moved.
+    East,
+    /// The north border will be moved.
+    North,
+    /// The north-east corner will be moved.
+    NorthEast,
+    /// The north-west corner will be moved.
+    NorthWest,
+    /// The south border will be moved.
+    South,
+    /// The south-east corner will be moved.
+    SouthEast,
+    /// The south-west corner will be moved.
+    SouthWest,
+    /// The west border will be moved.
+    West,
+}
+impl From<ResizeDirection> for CursorIcon {
+    fn from(direction: ResizeDirection) -> Self {
+        use ResizeDirection::*;
+        match direction {
+            East => CursorIcon::EResize,
+            North => CursorIcon::NResize,
+            NorthEast => CursorIcon::NeResize,
+            NorthWest => CursorIcon::NwResize,
+            South => CursorIcon::SResize,
+            SouthEast => CursorIcon::SeResize,
+            SouthWest => CursorIcon::SwResize,
+            West => CursorIcon::WResize,
+        }
+    }
+}
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    fn from(some: ResizeDirection) -> Option<ResizeDirection>;
+    fn from(some: ResizeDirection) -> Option<CursorIcon> {
+        Some(some.into())
+    }
+}
+impl ResizeDirection {
+    /// All directions.
+    pub const ALL: &'static [ResizeDirection] = {
+        use ResizeDirection::*;
+        &[East, North, NorthEast, NorthWest, South, SouthEast, SouthWest, West]
+    };
+
+    /// Gets if this resize represents two directions.
+    pub const fn is_corner(self) -> bool {
+        matches!(self, Self::NorthEast | Self::NorthWest | Self::SouthEast | Self::SouthWest)
+    }
+
+    /// Gets if this resize represents a single direction.
+    pub const fn is_border(self) -> bool {
+        !self.is_corner()
+    }
 }
 
 /// Window state.
