@@ -411,6 +411,9 @@ pub struct WindowRequest {
 
     /// IME cursor area, if IME is enabled.
     pub ime_area: Option<DipRect>,
+
+    /// Enabled window chrome buttons.
+    pub enabled_buttons: WindowButton,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.
@@ -995,4 +998,17 @@ pub enum EventCause {
     System,
     /// App affected the window.
     App,
+}
+
+bitflags::bitflags! {
+    /// Window chrome buttons.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    pub struct WindowButton: u32 {
+        /// Close button.
+        const CLOSE  = 1 << 0;
+        /// Minimize button.
+        const MINIMIZE  = 1 << 1;
+        /// Maximize/restore button.
+        const MAXIMIZE  = 1 << 2;
+    }
 }

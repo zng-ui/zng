@@ -1634,6 +1634,10 @@ impl Api for App {
         self.with_window(id, |w| w.drag_resize(direction), || ())
     }
 
+    fn set_enabled_buttons(&mut self, id: WindowId, buttons: zng_view_api::window::WindowButton) {
+        self.with_window(id, |w| w.set_enabled_buttons(buttons), || ())
+    }
+
     fn open_title_bar_context_menu(&mut self, id: WindowId, position: DipPoint) {
         self.with_window(id, |w| w.open_title_bar_context_menu(position), || ())
     }
