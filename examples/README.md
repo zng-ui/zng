@@ -327,3 +327,8 @@ Done. You can run the new example using:
 ```console
 cargo do run <example-name>
 ```
+
+## Local Example
+
+You can create local examples for manual testing in `/examples/examples/<test>.rs`. These
+files are git-ignored and can be run using `cargo do run <test>` without needing to register.
