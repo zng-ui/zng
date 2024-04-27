@@ -68,6 +68,11 @@ async fn main_window() -> window::WindowRoot {
         background_color = color_scheme_map(colors::BLACK, colors::WHITE);
         padding = 4;
         corner_radius = (0, 0, 5, 5);
+        gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
+            if let Some(p) = args.position() {
+                window::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
+            }
+        });
     };
     LAYERS.insert(LayerIndex::TOP_MOST, custom_chrome);
 
