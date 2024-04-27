@@ -1098,6 +1098,11 @@ impl Window {
         true
     }
 
+    /// Open windows title bar context menu.
+    pub fn open_title_bar_context_menu(&self, pos: DipPoint) {
+        self.window.show_window_menu(pos.to_winit())
+    }
+
     fn apply_state(&mut self, new_state: WindowStateAll, force: bool) {
         if self.state.chrome_visible != new_state.chrome_visible {
             self.window.set_decorations(new_state.chrome_visible);

@@ -30,8 +30,8 @@ use zng_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
 use zng_layout::{
     context::{LayoutMetrics, LayoutPassId, DIRECTION_VAR, LAYOUT},
     unit::{
-        Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Ppi, Px, PxConstraints, PxPoint, PxRect, PxSize,
-        PxToDip, PxVector, TimeUnits,
+        Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Ppi, Px, PxConstraints, PxPoint, PxRect,
+        PxSize, PxToDip, PxVector, TimeUnits,
     },
 };
 use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
@@ -106,6 +106,7 @@ struct HeadedCtrl {
     render_access_update: Option<WidgetInfoTree>, // previous info tree
     ime_info: Option<ImeInfo>,
     cancel_ime_handle: CommandHandle,
+    open_title_menu_handle: CommandHandle,
 }
 impl HeadedCtrl {
     pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot) -> Self {
@@ -136,6 +137,7 @@ impl HeadedCtrl {
             render_access_update: None,
             ime_info: None,
             cancel_ime_handle: CommandHandle::dummy(),
+            open_title_menu_handle: CommandHandle::dummy(),
         }
     }
 
@@ -671,6 +673,7 @@ impl HeadedCtrl {
 
                 self.window = Some(args.window.clone());
                 self.cancel_ime_handle = super::cmd::CANCEL_IME_CMD.scoped(WINDOW.id()).subscribe(true);
+                self.open_title_menu_handle = super::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).subscribe(true);
 
                 self.vars.0.render_mode.set(args.data.render_mode);
                 self.vars.state().set(args.data.state.state);
@@ -768,6 +771,7 @@ impl HeadedCtrl {
 
                     self.window = None;
                     self.cancel_ime_handle = CommandHandle::dummy();
+                    self.open_title_menu_handle = CommandHandle::dummy();
                     self.waiting_view = false;
                     self.delayed_view_updates = vec![];
                     self.respawned = true;
@@ -789,7 +793,23 @@ impl HeadedCtrl {
             if let Some(w) = &self.window {
                 let _ = w.set_ime_area(None);
             }
-        }
+        } else if let Some(args) = super::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).on(update) {
+            let pos = args.handle_enabled(&self.open_title_menu_handle, |args| {
+                let pos = if let Some(p) = args.param::<DipPoint>() {
+                    *p
+                } else if let Some(p) = args.param::<PxPoint>() {
+                    p.to_dip(self.vars.scale_factor().get())
+                } else {
+                    DipPoint::splat(Dip::new(24))
+                };
+                pos
+            });
+            if let Some(pos) = pos {
+                self.view_task(Box::new(move |w| {
+                    let _ = w.unwrap().open_title_bar_context_menu(pos);
+                }));
+            }
+        };
     }
 
     pub fn ui_event(&mut self, update: &EventUpdate) {
@@ -1288,6 +1308,7 @@ impl HeadedCtrl {
     pub fn close(&mut self) {
         self.content.close();
         self.window = None;
+        self.cancel_ime_handle = CommandHandle::dummy();
         self.cancel_ime_handle = CommandHandle::dummy();
     }
 

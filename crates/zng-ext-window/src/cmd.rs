@@ -73,6 +73,17 @@ command! {
     ///
     /// If any IME preview is active close it without committing.
     pub static CANCEL_IME_CMD;
+
+    /// Represents the window **open title bar context menu** action.
+    ///
+    /// # Parameter
+    ///
+    /// This command supports an optional parameter, it can be a [`DipPoint`] or [`PxPoint`] that defines
+    /// the menu position.
+    ///
+    /// [`DipPoint`]: zng_layout::unit::DipPoint
+    /// [`PxPoint`]: zng_layout::unit::PxPoint
+    pub static OPEN_TITLE_BAR_CONTEXT_MENU_CMD;
 }
 
 pub(super) struct WindowCommands {
@@ -93,7 +104,6 @@ impl WindowCommands {
             restore_handle: RESTORE_CMD.scoped(window_id).subscribe(false),
             fullscreen_handle: FULLSCREEN_CMD.scoped(window_id).subscribe(true),
             exclusive_handle: EXCLUSIVE_FULLSCREEN_CMD.scoped(window_id).subscribe(true),
-
             close_handle: CLOSE_CMD.scoped(window_id).subscribe(true),
         }
     }

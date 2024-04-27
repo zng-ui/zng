@@ -1,5 +1,8 @@
 # Unpublished
 
+* **Breaking** Add `open_title_bar_context_menu` to view API.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api`.
+* Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` to window API.
 
 # 0.4.0
 
@@ -26,7 +29,7 @@
 * Fix `AnsiText!` not resetting style.
 * `Markdown!` widget now uses `AnsiText!` for ```console code block.
 * Fix `auto_size` not using the min/max_size constraints.
-* **Braking:** Change return type of `SCROLL.vertical_offset`, `SCROLL.horizontal_offset` and `SCROLL.zoom_scale`.
+* **Breaking:** Change return type of `SCROLL.vertical_offset`, `SCROLL.horizontal_offset` and `SCROLL.zoom_scale`.
     - Changed only from `ReadOnlyContextVar<Factor>` to `ContextVar<Factor>` so it has minimal impact.
 * Add `vertical_offset`, `horizontal_offset` and `zoom_scale` properties in `Scroll!`.
     - Users should prefer using scroll commands over these properties, but they are useful for implementing features
