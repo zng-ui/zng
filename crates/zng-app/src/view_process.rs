@@ -768,13 +768,20 @@ impl ViewWindow {
     ///
     /// This request can steal focus from other apps disrupting the user, be careful with it.
     pub fn focus(&self) -> Result<()> {
-        self.0.call(|id, p| p.focus_window(id))
+        self.0.call(|id, p| p.focus(id))
     }
 
     /// Sets the user attention request indicator, the indicator is cleared when the window is focused or
     /// if canceled by setting to `None`.
     pub fn set_focus_indicator(&self, indicator: Option<FocusIndicator>) -> Result<()> {
         self.0.call(|id, p| p.set_focus_indicator(id, indicator))
+    }
+
+    /// Moves the window with the left mouse button until the button is released.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
+    pub fn drag_move(&self) -> Result<()> {
+        self.0.call(|id, p| p.drag_move(id))
     }
 
     /// Open system title bar context menu.
@@ -839,7 +846,7 @@ impl Drop for ViewWindowData {
         if VIEW_PROCESS.is_available() {
             let mut app = VIEW_PROCESS.handle_write(self.app_id);
             if self.generation == app.process.generation() {
-                let _ = app.process.close_window(self.id);
+                let _ = app.process.close(self.id);
             }
         }
     }

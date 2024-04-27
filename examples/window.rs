@@ -68,6 +68,11 @@ async fn main_window() -> window::WindowRoot {
         background_color = color_scheme_map(colors::BLACK, colors::WHITE);
         padding = 4;
         corner_radius = (0, 0, 5, 5);
+        mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
+            if args.is_primary() {
+                window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify();
+            }
+        });
         gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
             if let Some(p) = args.position() {
                 window::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);

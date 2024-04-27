@@ -1098,6 +1098,15 @@ impl Window {
         true
     }
 
+    /// Moves the window with the left mouse button until the button is released.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
+    pub fn drag_move(&self) {
+        if let Err(e) = self.window.drag_window() {
+            tracing::error!("failed to drag_move, {e}");
+        }
+    }
+
     /// Open windows title bar context menu.
     pub fn open_title_bar_context_menu(&self, pos: DipPoint) {
         self.window.show_window_menu(pos.to_winit())

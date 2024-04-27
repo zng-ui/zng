@@ -74,6 +74,15 @@ command! {
     /// If any IME preview is active close it without committing.
     pub static CANCEL_IME_CMD;
 
+    /// Represents the window **drag-move** and **drag-resize** actions.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this command is called.
+    ///
+    /// # Parameter
+    ///
+    /// This command supports an optional parameter, !!: TODO resize.
+    pub static DRAG_MOVE_RESIZE_CMD;
+
     /// Represents the window **open title bar context menu** action.
     ///
     /// # Parameter
