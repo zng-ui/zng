@@ -18,7 +18,7 @@ use webrender::{
 
 use winit::{
     event_loop::ActiveEventLoop,
-    monitor::{MonitorHandle, VideoMode as GVideoMode},
+    monitor::{MonitorHandle, VideoModeHandle as GVideoMode},
     window::{Fullscreen, Icon, Window as GWindow, WindowAttributes},
 };
 use zng_txt::{ToTxt, Txt};
