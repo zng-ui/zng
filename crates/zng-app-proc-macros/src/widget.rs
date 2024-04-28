@@ -4,7 +4,7 @@ use syn::{ext::IdentExt, parse::Parse, spanned::Spanned, *};
 
 use crate::{
     util::{self, parse_outer_attrs, ErrorRecoverable, Errors},
-    widget_util::{self, WgtProperty, WgtWhen},
+    widget_util::{self, WgtItem, WgtProperty, WgtWhen},
 };
 
 lazy_static! {
@@ -373,14 +373,12 @@ impl Parse for Args {
 
 struct Properties {
     errors: Errors,
-    properties: Vec<WgtProperty>,
-    whens: Vec<WgtWhen>,
+    items: Vec<WgtItem>,
 }
 impl Parse for Properties {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let mut errors = Errors::default();
-        let mut properties = vec![];
-        let mut whens = vec![];
+        let mut items = vec![];
 
         while !input.is_empty() {
             let attrs = parse_outer_attrs(input, &mut errors);
@@ -388,7 +386,7 @@ impl Parse for Properties {
             if input.peek(widget_util::keyword::when) {
                 if let Some(mut when) = WgtWhen::parse(input, &mut errors) {
                     when.attrs = util::Attributes::new(attrs);
-                    whens.push(when);
+                    items.push(WgtItem::When(when));
                 }
             } else if input.peek(Token![pub])
                 || input.peek(Ident::peek_any)
@@ -413,7 +411,7 @@ impl Parse for Properties {
                                 let _ = input.parse::<TokenTree>();
                             }
                         }
-                        properties.push(p);
+                        items.push(WgtItem::Property(p));
                     }
                     Err(e) => {
                         let (recoverable, e) = e.recoverable();
@@ -432,7 +430,7 @@ impl Parse for Properties {
             }
         }
 
-        Ok(Properties { errors, properties, whens })
+        Ok(Properties { errors, items })
     }
 }
 
@@ -457,114 +455,117 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let core = util::crate_core();
 
-    let mut set_props = quote!();
-    for prop in &p.properties {
-        set_props.extend(prop_assign(prop, &mut p.errors, false));
-    }
+    let mut items = quote!();
 
-    let mut set_whens = quote!();
-    for when in &p.whens {
-        let when_expr = match syn::parse2::<widget_util::WhenExpr>(when.condition_expr.clone()) {
-            Ok(w) => w,
-            Err(e) => {
-                p.errors.push_syn(e);
-                continue;
+    for item in &p.items {
+        match item {
+            WgtItem::Property(prop) => {
+                items.extend(prop_assign(prop, &mut p.errors, false));
             }
-        };
-
-        let mut when_expr_vars = quote!();
-        let mut inputs = quote!();
-        for ((property, member), var) in when_expr.inputs {
-            let (property, generics) = widget_util::split_path_generics(property).unwrap();
-            let p_ident = &property.segments.last().unwrap().ident;
-            let p_meta = ident_spanned!(p_ident.span()=> "{p_ident}_");
-            let var_input = ident!("{var}_in__");
-            let member_ident = ident_spanned!(property.span()=> "__w_{member}__");
-
-            let member = match member {
-                widget_util::WhenInputMember::Named(ident) => {
-                    let ident_str = ident.to_string();
-                    quote! {
-                        Named(#ident_str)
+            WgtItem::When(when) => {
+                let when_expr = match syn::parse2::<widget_util::WhenExpr>(when.condition_expr.clone()) {
+                    Ok(w) => w,
+                    Err(e) => {
+                        p.errors.push_syn(e);
+                        continue;
                     }
-                }
-                widget_util::WhenInputMember::Index(i) => quote! {
-                    Index(#i)
-                },
-            };
-
-            macro_rules! quote_call {
-                (#$mtd:ident ( $($args:tt)* )) => {
-                    if property.get_ident().is_some() {
-                        quote! {
-                            wgt__.#$mtd #generics($($args)*);
-                        }
-                    } else {
-                        quote! {
-                            #property::#$mtd #generics(#core::widget::base::WidgetImpl::base(&mut *wgt__), $($args)*);
-                        }
-                    }
-                }
-            }
-
-            let get_meta = quote_call!(#p_meta());
-
-            when_expr_vars.extend(quote! {
-                let (#var_input, #var) = {
-                    let meta__ = #get_meta
-                    meta__.allowed_in_when_expr();
-                    meta__.inputs #generics().#member_ident()
                 };
-            });
 
-            inputs.extend(quote! {
-                {
-                    let meta__ = #get_meta
-                    #core::widget::builder::WhenInput {
-                        property: meta__.id(),
-                        member: #core::widget::builder::WhenInputMember::#member,
-                        var: #var_input,
-                        property_default: meta__ .default_fn #generics(),
+                let mut when_expr_vars = quote!();
+                let mut inputs = quote!();
+                for ((property, member), var) in when_expr.inputs {
+                    let (property, generics) = widget_util::split_path_generics(property).unwrap();
+                    let p_ident = &property.segments.last().unwrap().ident;
+                    let p_meta = ident_spanned!(p_ident.span()=> "{p_ident}_");
+                    let var_input = ident!("{var}_in__");
+                    let member_ident = ident_spanned!(property.span()=> "__w_{member}__");
+
+                    let member = match member {
+                        widget_util::WhenInputMember::Named(ident) => {
+                            let ident_str = ident.to_string();
+                            quote! {
+                                Named(#ident_str)
+                            }
+                        }
+                        widget_util::WhenInputMember::Index(i) => quote! {
+                            Index(#i)
+                        },
+                    };
+
+                    macro_rules! quote_call {
+                        (#$mtd:ident ( $($args:tt)* )) => {
+                            if property.get_ident().is_some() {
+                                quote! {
+                                    wgt__.#$mtd #generics($($args)*);
+                                }
+                            } else {
+                                quote! {
+                                    #property::#$mtd #generics(#core::widget::base::WidgetImpl::base(&mut *wgt__), $($args)*);
+                                }
+                            }
+                        }
                     }
-                },
-            });
-        }
 
-        let mut assigns = quote!();
-        for prop in &when.assigns {
-            assigns.extend(prop_assign(prop, &mut p.errors, true));
-        }
+                    let get_meta = quote_call!(#p_meta());
 
-        let attrs = when.attrs.cfg_and_lints();
-        let expr = when_expr.expr;
-        let expr_str = &when.condition_expr_str;
+                    when_expr_vars.extend(quote! {
+                        let (#var_input, #var) = {
+                            let meta__ = #get_meta
+                            meta__.allowed_in_when_expr();
+                            meta__.inputs #generics().#member_ident()
+                        };
+                    });
 
-        let box_expr = quote_spanned! {expr.span()=>
-            {
-                let expr_var = #core::var::expr_var!{#expr};
-                #core::widget::builder::when_condition_expr_var(expr_var)
+                    inputs.extend(quote! {
+                        {
+                            let meta__ = #get_meta
+                            #core::widget::builder::WhenInput {
+                                property: meta__.id(),
+                                member: #core::widget::builder::WhenInputMember::#member,
+                                var: #var_input,
+                                property_default: meta__ .default_fn #generics(),
+                            }
+                        },
+                    });
+                }
+
+                let mut assigns = quote!();
+                for prop in &when.assigns {
+                    assigns.extend(prop_assign(prop, &mut p.errors, true));
+                }
+
+                let attrs = when.attrs.cfg_and_lints();
+                let expr = when_expr.expr;
+                let expr_str = &when.condition_expr_str;
+
+                let box_expr = quote_spanned! {expr.span()=>
+                    {
+                        let expr_var = #core::var::expr_var!{#expr};
+                        #core::widget::builder::when_condition_expr_var(expr_var)
+                    }
+                };
+
+                let source_location = widget_util::source_location(&core, Span::call_site());
+                items.extend(quote! {
+                    #attrs {
+                        #when_expr_vars
+                        let inputs__ = std::boxed::Box::new([
+                            #inputs
+                        ]);
+                        #core::widget::base::WidgetImpl::base(&mut *wgt__).start_when_block(
+                            inputs__,
+                            #box_expr,
+                            #expr_str,
+                            #source_location,
+                        );
+
+                        #assigns
+
+                        #core::widget::base::WidgetImpl::base(&mut *wgt__).end_when_block();
+                    }
+                });
             }
-        };
-
-        let source_location = widget_util::source_location(&core, Span::call_site());
-        set_whens.extend(quote! {
-            #attrs {
-                #when_expr_vars
-                let inputs__ = std::boxed::Box::new([
-                    #inputs
-                ]);
-                #core::widget::base::WidgetImpl::base(&mut *wgt__).start_when_block(
-                    inputs__,
-                    #box_expr,
-                    #expr_str,
-                    #source_location,
-                );
-
-                #assigns
-
-                #core::widget::base::WidgetImpl::base(&mut *wgt__).end_when_block();
-            }
-        });
+        }
     }
 
     let errors = p.errors;
@@ -574,8 +575,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #errors
 
             #start
-            #set_props
-            #set_whens
+            #items
             #end
         }
     };
