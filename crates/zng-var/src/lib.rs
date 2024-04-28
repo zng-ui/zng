@@ -217,7 +217,7 @@ bitflags! {
     ///
     /// You can get the current capabilities of a var by using the [`AnyVar::capabilities`] method.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct VarCapabilities: u8 {
+    pub struct VarCapability: u8 {
         /// Var value can change.
         ///
         /// If this is set the [`AnyVar::is_new`] can be `true` in some updates, a variable can `NEW`
@@ -238,7 +238,7 @@ bitflags! {
         const CAPS_CHANGE = 0b1000_0000;
     }
 }
-impl VarCapabilities {
+impl VarCapability {
     /// Remove only the `MODIFY` flag without removing `NEW`.
     pub fn as_read_only(self) -> Self {
         Self::from_bits_truncate(self.bits() & 0b1111_1110)
@@ -262,11 +262,11 @@ impl VarCapabilities {
 
 /// Error when an attempt to modify a variable without the [`MODIFY`] capability is made.
 ///
-/// [`MODIFY`]: VarCapabilities::MODIFY
+/// [`MODIFY`]: VarCapability::MODIFY
 #[derive(Debug, Clone, Copy)]
 pub struct VarIsReadOnlyError {
     /// Variable capabilities when the request was made.
-    pub capabilities: VarCapabilities,
+    pub capabilities: VarCapability,
 }
 impl fmt::Display for VarIsReadOnlyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -522,7 +522,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     fn is_contextual(&self) -> bool;
 
     /// Flags that indicate what operations the variable is capable of in this update.
-    fn capabilities(&self) -> VarCapabilities;
+    fn capabilities(&self) -> VarCapability;
 
     /// Gets if the [`last_update`] is the current update, meaning the variable value just changed.
     ///
@@ -561,7 +561,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     ///
     /// If the variable does not have [`MODIFY`] capability the value returned is undefined.
     ///
-    /// [`MODIFY`]: VarCapabilities::MODIFY
+    /// [`MODIFY`]: VarCapability::MODIFY
     /// [`VARS.current_modify`]: VARS::current_modify
     /// [`VARS.animate`]: VARS::animate
     fn modify_importance(&self) -> usize;
@@ -2781,7 +2781,7 @@ where
     let update_output = Mutex::new(update_output);
     input.hook_any(Box::new(move |args| {
         if let Some(output) = wk_output.upgrade() {
-            if output.capabilities().contains(VarCapabilities::MODIFY) {
+            if output.capabilities().contains(VarCapability::MODIFY) {
                 if let Some(value) = args.downcast_value::<I>() {
                     update_output.lock()(value, args, output);
                 }

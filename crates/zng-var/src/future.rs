@@ -69,7 +69,7 @@ impl<'a, V: AnyVar> Future for WaitIsNotAnimatingFut<'a, V> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
-        if !self.var.capabilities().contains(VarCapabilities::NEW) {
+        if !self.var.capabilities().contains(VarCapability::NEW) {
             // var cannot have new value, ready to avoid deadlock.
             self.observed_animation_start = false;
             return Poll::Ready(());
@@ -81,7 +81,7 @@ impl<'a, V: AnyVar> Future for WaitIsNotAnimatingFut<'a, V> {
                 // still animating, but received poll so an animation was overridden and stopped.
                 // try hook with new animation.
 
-                while self.var.capabilities().contains(VarCapabilities::NEW) {
+                while self.var.capabilities().contains(VarCapability::NEW) {
                     let waker = cx.waker().clone();
                     let r = self.var.hook_animation_stop(Box::new(move || {
                         waker.wake_by_ref();
@@ -124,7 +124,7 @@ impl<'a, V: AnyVar> Future for WaitIsNotAnimatingFut<'a, V> {
                 // observed `is_animating` already, changed in other thread during the `hook` setup.
                 self.observed_animation_start = true;
 
-                while self.var.capabilities().contains(VarCapabilities::NEW) {
+                while self.var.capabilities().contains(VarCapability::NEW) {
                     // hook with animation stop.
                     let waker = cx.waker().clone();
                     let r = self.var.hook_animation_stop(Box::new(move || {

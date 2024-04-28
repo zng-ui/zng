@@ -79,7 +79,7 @@ impl AnyVar for Box<dyn AnyVar> {
         (**self).is_contextual()
     }
 
-    fn capabilities(&self) -> VarCapabilities {
+    fn capabilities(&self) -> VarCapability {
         (**self).capabilities()
     }
 
@@ -271,7 +271,7 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).is_contextual()
     }
 
-    fn capabilities(&self) -> VarCapabilities {
+    fn capabilities(&self) -> VarCapability {
         (**self).capabilities()
     }
 

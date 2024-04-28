@@ -163,8 +163,8 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         true
     }
 
-    fn capabilities(&self) -> VarCapabilities {
-        self.0.get().capabilities() | VarCapabilities::CAPS_CHANGE
+    fn capabilities(&self) -> VarCapability {
+        self.0.get().capabilities() | VarCapability::CAPS_CHANGE
     }
 
     fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
