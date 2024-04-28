@@ -12,7 +12,34 @@
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` to window API.
 * Fix `WIDGET.border().offsets()` not including the innermost border offset.
 * Add `WindowVars::enabled_buttons` to window API.
-* Fix when/property assign expansion order.
+* **Breaking** Fix when/property assign expansion order.
+    - When blocks now expand in the same declaration order, before they always expanded after all property assigns.
+```rust
+// code like this incorrectly builds in v0.4:
+fn version_0_4() -> impl UiNode {
+    let can_move = var(true);
+    Container! {
+        when *#{can_move} {
+            mouse::cursor = mouse::CursorIcon::Move;
+        }
+        mouse::on_mouse_down = hn!(can_move, |_| {
+            let _use = &can_move;
+        });
+    }
+}
+// now in v0.5 the value must be cloned before the last move:
+fn version_0_5() -> impl UiNode {
+    let can_move = var(true);
+    Container! {
+        when *#{can_move.clone()} {
+            mouse::cursor = mouse::CursorIcon::Move;
+        }
+        mouse::on_mouse_down = hn!(|_| {
+            let _use = &can_move;
+        });
+    }
+}
+```
 
 # 0.4.0
 
