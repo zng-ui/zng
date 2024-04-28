@@ -115,7 +115,7 @@ use image_cache::ImageCache;
 use util::WinitToPx;
 use winit::{
     event::{DeviceEvent, WindowEvent},
-    event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy},
     keyboard::ModifiersState,
     monitor::MonitorHandle,
     platform::modifier_supplement::KeyEventExtModifierSupplement,
@@ -289,7 +289,7 @@ pub(crate) struct App {
     exts: ViewExtensions,
 
     gl_manager: GlContextManager,
-    window_target: *const EventLoopWindowTarget<AppEvent>,
+    winit_loop: *const ActiveEventLoop,
     app_sender: AppEventSender,
     request_recv: flume::Receiver<RequestEvent>,
 
@@ -345,7 +345,7 @@ impl fmt::Debug for App {
     }
 }
 impl App {
-    fn init_device_events(&mut self, enabled: bool, t: Option<&EventLoopWindowTarget<AppEvent>>) {
+    fn init_device_events(&mut self, enabled: bool, t: Option<&ActiveEventLoop>) {
         self.device_events = enabled;
 
         if let Some(t) = t {
@@ -376,12 +376,9 @@ impl App {
         app.headless = true;
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build().unwrap();
+        let event_loop = EventLoop::<AppEvent>::with_user_event().build().unwrap();
 
         drop(winit_span);
-
-        let window_target: &EventLoopWindowTarget<AppEvent> = &event_loop;
-        app.window_target = window_target as *const _;
 
         app.start_receiving(c.request_receiver);
 
@@ -453,7 +450,8 @@ impl App {
         gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let event_loop = EventLoopBuilder::with_user_event().build().unwrap();
+        
+        let event_loop = EventLoop::with_user_event().build().unwrap();
         drop(winit_span);
         let app_sender = event_loop.create_proxy();
 
@@ -482,31 +480,34 @@ impl App {
         let mut idle = IdleTrace(None);
         idle.enter();
 
+        // event_loop.run_app(app)
+
         event_loop
-            .run(move |event, target| {
+            .run(move |event, winit_loop| {
                 idle.exit();
 
-                app.window_target = target;
-                target.set_control_flow(ControlFlow::Wait);
+                winit_loop.set_control_flow(ControlFlow::Wait);
 
                 if app.exited {
-                    target.exit();
+                    winit_loop.exit();
                 } else {
                     use winit::event::Event as WEvent;
                     match event {
                         WEvent::NewEvents(_) => {}
-                        WEvent::WindowEvent { window_id, event } => app.on_window_event(window_id, event),
+                        WEvent::WindowEvent { window_id, event } => app.on_window_event(winit_loop, window_id, event),
                         WEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
                         WEvent::UserEvent(ev) => match ev {
                             AppEvent::Request => {
                                 while let Ok(req) = app.request_recv.try_recv() {
                                     match req {
                                         RequestEvent::Request(req) => {
+                                            app.winit_loop = winit_loop;
                                             let rsp = app.respond(req);
+                                            app.winit_loop = std::ptr::null();
                                             if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
                                                 // lost connection to app-process
                                                 app.exited = true;
-                                                target.exit();
+                                                winit_loop.exit();
                                             }
                                         }
                                         RequestEvent::FrameReady(wid, msg) => app.on_frame_ready(wid, msg),
@@ -514,11 +515,13 @@ impl App {
                                 }
                             }
                             AppEvent::Notify(ev) => app.notify(ev),
-                            AppEvent::WinitFocused(window_id, focused) => app.on_window_event(window_id, WindowEvent::Focused(focused)),
-                            AppEvent::RefreshMonitors => app.refresh_monitors(),
+                            AppEvent::WinitFocused(window_id, focused) => {
+                                app.on_window_event(winit_loop, window_id, WindowEvent::Focused(focused))
+                            }
+                            AppEvent::RefreshMonitors => app.refresh_monitors(winit_loop),
                             AppEvent::ParentProcessExited => {
                                 app.exited = true;
-                                target.exit();
+                                winit_loop.exit();
                             }
                             AppEvent::ImageLoaded(data) => {
                                 app.image_cache.loaded(data);
@@ -530,7 +533,7 @@ impl App {
                                 }
                             }
                             AppEvent::InitDeviceEvents(enabled) => {
-                                app.init_device_events(enabled, Some(target));
+                                app.init_device_events(enabled, Some(winit_loop));
                             }
                         },
                         WEvent::Suspended => {}
@@ -550,8 +553,6 @@ impl App {
                         WEvent::LoopExiting => {}
                     }
                 }
-
-                app.window_target = std::ptr::null();
 
                 idle.enter();
             })
@@ -577,7 +578,7 @@ impl App {
             request_recv,
             response_sender,
             event_sender,
-            window_target: std::ptr::null(),
+            winit_loop: std::ptr::null(),
             gen: ViewProcessGen::INVALID,
             device_events: false,
             windows: vec![],
@@ -625,7 +626,7 @@ impl App {
         self.notify(Event::LowMemory);
     }
 
-    fn on_window_event(&mut self, window_id: winit::window::WindowId, event: WindowEvent) {
+    fn on_window_event(&mut self, winit_loop: &ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.window_id() == window_id) {
             i
         } else {
@@ -716,7 +717,7 @@ impl App {
                 }
 
                 if let Some(handle) = self.windows[i].monitor_change() {
-                    let m_id = self.monitor_handle_to_id(&handle);
+                    let m_id = self.monitor_handle_to_id(&handle, winit_loop);
 
                     self.notify(Event::WindowChanged(WindowChanged::monitor_changed(id, m_id, EventCause::System)));
                 }
@@ -805,7 +806,7 @@ impl App {
                 )));
 
                 if let Some(handle) = self.windows[i].monitor_change() {
-                    let m_id = self.monitor_handle_to_id(&handle);
+                    let m_id = self.monitor_handle_to_id(&handle, winit_loop);
 
                     self.notify(Event::WindowChanged(WindowChanged::monitor_changed(id, m_id, EventCause::System)));
                 }
@@ -1020,7 +1021,7 @@ impl App {
                 }
 
                 let monitor = if let Some(handle) = monitor {
-                    self.monitor_handle_to_id(&handle)
+                    self.monitor_handle_to_id(&handle, winit_loop)
                 } else {
                     MonitorId::INVALID
                 };
@@ -1068,17 +1069,18 @@ impl App {
             }
             WindowEvent::Occluded(_) => {}
             WindowEvent::ActivationTokenDone { .. } => {}
-            WindowEvent::TouchpadMagnify { .. } => {}
-            WindowEvent::TouchpadRotate { .. } => {}
-            WindowEvent::SmartMagnify { .. } => {}
+            WindowEvent::PinchGesture { .. } => {}
+            WindowEvent::RotationGesture { .. } => {}
+            WindowEvent::DoubleTapGesture { .. } => {}
+            WindowEvent::PanGesture { .. } => {}
         }
     }
 
-    fn monitor_handle_to_id(&mut self, handle: &MonitorHandle) -> MonitorId {
+    fn monitor_handle_to_id(&mut self, handle: &MonitorHandle, winit_loop: &ActiveEventLoop) -> MonitorId {
         if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
             *id
         } else {
-            self.refresh_monitors();
+            self.refresh_monitors(winit_loop);
             if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
                 *id
             } else {
@@ -1161,14 +1163,12 @@ impl App {
         }
     }
 
-    fn refresh_monitors(&mut self) {
+    fn refresh_monitors(&mut self, winit_loop: &ActiveEventLoop) {
         let mut monitors = Vec::with_capacity(self.monitors.len());
 
         let mut changed = false;
 
-        let window_target = unsafe { &*self.window_target };
-
-        for (fresh_handle, (id, handle)) in window_target.available_monitors().zip(&self.monitors) {
+        for (fresh_handle, (id, handle)) in winit_loop.available_monitors().zip(&self.monitors) {
             let id = if &fresh_handle == handle {
                 *id
             } else {
@@ -1181,7 +1181,7 @@ impl App {
         if changed {
             self.monitors = monitors;
 
-            let monitors = self.available_monitors();
+            let monitors = self.available_monitors(winit_loop);
             self.notify(Event::MonitorsChanged(monitors));
         }
     }
@@ -1362,16 +1362,13 @@ impl App {
         }
     }
 
-    fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)> {
+    fn available_monitors(&mut self, winit_loop: &ActiveEventLoop) -> Vec<(MonitorId, MonitorInfo)> {
         let _span = tracing::trace_span!("available_monitors").entered();
 
         self.assert_started();
 
-        let window_target = unsafe { &*self.window_target };
-
-        let primary = window_target.primary_monitor();
-
-        window_target
+        let primary = winit_loop.primary_monitor();
+        winit_loop
             .available_monitors()
             .map(|m| {
                 let id = self.monitor_id(&m);
@@ -1397,12 +1394,12 @@ macro_rules! with_window_or_surface {
 }
 
 impl App {
-    fn open_headless_impl(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
+    fn open_headless_impl(&mut self, config: HeadlessRequest, winit_loop: &ActiveEventLoop) -> HeadlessOpenData {
         self.assert_started();
         let surf = Surface::open(
             self.gen,
             config,
-            unsafe { &*self.window_target },
+            winit_loop,
             &mut self.gl_manager,
             self.exts.new_renderer(),
             self.app_sender.clone(),
@@ -1441,7 +1438,10 @@ impl Api for App {
 
         self.app_sender.send(AppEvent::InitDeviceEvents(device_events)).unwrap();
 
-        let available_monitors = self.available_monitors();
+        // SAFETY: winit_loop is set before all view-API calls.
+        let winit_loop = unsafe { &*self.winit_loop };
+
+        let available_monitors = self.available_monitors(winit_loop);
         self.notify(Event::Inited(Inited {
             generation: gen,
             is_respawn,
@@ -1471,13 +1471,18 @@ impl Api for App {
 
         if self.headless {
             let id = config.id;
-            let data = self.open_headless_impl(HeadlessRequest {
-                id: config.id,
-                scale_factor: Factor(1.0),
-                size: config.state.restore_rect.size,
-                render_mode: config.render_mode,
-                extensions: config.extensions,
-            });
+            // SAFETY: winit_loop is set before view-api calls.
+            let winit_loop = unsafe { &*self.winit_loop };
+            let data = self.open_headless_impl(
+                HeadlessRequest {
+                    id: config.id,
+                    scale_factor: Factor(1.0),
+                    size: config.state.restore_rect.size,
+                    render_mode: config.render_mode,
+                    extensions: config.extensions,
+                },
+                winit_loop,
+            );
             let msg = WindowOpenData {
                 render_mode: data.render_mode,
                 monitor: None,
@@ -1501,12 +1506,13 @@ impl Api for App {
             self.assert_started();
 
             let id = config.id;
-
+            // SAFETY: winit_loop is set before view-api calls.
+            let winit_loop = unsafe { &*self.winit_loop };
             let win = Window::open(
                 self.gen,
                 config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
                 config,
-                unsafe { &*self.window_target },
+                winit_loop,
                 &mut self.gl_manager,
                 self.exts.new_renderer(),
                 self.app_sender.clone(),
@@ -1532,7 +1538,9 @@ impl Api for App {
         let _s = tracing::debug_span!("open_headless", ?config).entered();
 
         let id = config.id;
-        let msg = self.open_headless_impl(config);
+        // SAFETY: winit_loop is set before view-api calls.
+        let winit_loop = unsafe { &*self.winit_loop };
+        let msg = self.open_headless_impl(config, winit_loop);
 
         self.notify(Event::HeadlessOpened(id, msg));
     }
@@ -1585,7 +1593,9 @@ impl Api for App {
                 change.size = w.resized();
                 change.position = w.moved();
                 if let Some(handle) = w.monitor_change() {
-                    let monitor = self.monitor_handle_to_id(&handle);
+                    // SAFETY: winit_loop is set before view-api calls.
+                    let winit_loop = unsafe { &*self.winit_loop };
+                    let monitor = self.monitor_handle_to_id(&handle, winit_loop);
                     change.monitor = Some(monitor);
                 }
 

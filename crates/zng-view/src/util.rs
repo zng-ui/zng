@@ -299,7 +299,7 @@ pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
     }
 }
 
-pub(crate) fn glutin_video_mode_to_video_mode(v: winit::monitor::VideoMode) -> VideoMode {
+pub(crate) fn glutin_video_mode_to_video_mode(v: winit::monitor::VideoModeHandle) -> VideoMode {
     let size = v.size();
     VideoMode {
         size: PxSize::new(Px(size.width as i32), Px(size.height as i32)),

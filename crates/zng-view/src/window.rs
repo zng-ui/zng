@@ -17,9 +17,9 @@ use webrender::{
 };
 
 use winit::{
-    event_loop::EventLoopWindowTarget,
+    event_loop::ActiveEventLoop,
     monitor::{MonitorHandle, VideoMode as GVideoMode},
-    window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
+    window::{Fullscreen, Icon, Window as GWindow, WindowAttributes},
 };
 use zng_txt::{ToTxt, Txt};
 use zng_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
@@ -132,7 +132,7 @@ impl Window {
         gen: ViewProcessGen,
         icon: Option<Icon>,
         mut cfg: WindowRequest,
-        window_target: &EventLoopWindowTarget<AppEvent>,
+        winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
@@ -142,7 +142,7 @@ impl Window {
         let window_scope = tracing::trace_span!("glutin").entered();
 
         // create window and OpenGL context
-        let mut winit = WindowBuilder::new()
+        let mut winit = WindowAttributes::default()
             .with_title(cfg.title)
             .with_resizable(cfg.resizable)
             .with_transparent(cfg.transparent)
@@ -151,9 +151,9 @@ impl Window {
         let mut s = cfg.state;
         s.clamp_size();
 
-        let mut monitor = window_target.primary_monitor();
+        let mut monitor = winit_loop.primary_monitor();
         let mut monitor_is_primary = true;
-        for m in window_target.available_monitors() {
+        for m in winit_loop.available_monitors() {
             let pos = m.position();
             let size = m.size();
             let rect = PxRect::new(pos.to_px(), size.to_px());
@@ -227,7 +227,7 @@ impl Window {
             render_mode = RenderMode::Integrated;
         }
 
-        let (winit_window, context) = gl_manager.create_headed(id, winit, window_target, render_mode, &event_sender);
+        let (winit_window, context) = gl_manager.create_headed(id, winit, winit_loop, render_mode, &event_sender);
         render_mode = context.render_mode();
 
         // * Extend the winit Windows window to not block the Alt+F4 key press.
