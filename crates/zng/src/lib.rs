@@ -118,7 +118,7 @@
 //! feature of widgets, they declare conditional property values. The easing attribute can be set in any property with transitionable
 //! values to smoothly animate between changes.
 //!
-//! The [`widget`] module documentation provides an in-depth explanation of how widgets and properties work.
+//! The [`widget`](mod@widget) module documentation provides an in-depth explanation of how widgets and properties work.
 //!
 //! [`Button!`]: struct@button::Button
 //! [`Window!`]: struct@window::Window
@@ -457,7 +457,7 @@
 //!
 //! This crate level documentation only gives an overview required to start making apps using existing widgets and properties.
 //! All top-level modules in this crate contains in-depth documentation about their subject, of particular importance the
-//! [`app`], [`widget`], [`layout`] and [`render`] modules should give you a solid understanding of how everything works.
+//! [`app`], [`widget`](mod@widget), [`layout`] and [`render`] modules should give you a solid understanding of how everything works.
 //!
 //! ## Cargo Features
 //!
