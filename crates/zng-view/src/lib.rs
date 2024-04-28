@@ -634,7 +634,7 @@ impl App {
 
         let _s = tracing::trace_span!("on_window_event", ?event).entered();
 
-        self.windows[i].pump_access(&event);
+        self.windows[i].on_window_event(&event);
 
         let id = self.windows[i].id();
         let scale_factor = self.windows[i].scale_factor();
@@ -1404,6 +1404,7 @@ impl App {
             config,
             unsafe { &*self.window_target },
             &mut self.gl_manager,
+            self.exts.new_window(),
             self.exts.new_renderer(),
             self.app_sender.clone(),
         );
@@ -1508,6 +1509,7 @@ impl Api for App {
                 config,
                 unsafe { &*self.window_target },
                 &mut self.gl_manager,
+                self.exts.new_window(),
                 self.exts.new_renderer(),
                 self.app_sender.clone(),
             );
@@ -1921,6 +1923,17 @@ impl Api for App {
 
     fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {
         self.exts.call_command(extension_id, extension_request)
+    }
+
+    fn window_extension(
+        &mut self,
+        id: WindowId,
+        extension_id: ApiExtensionId,
+        extension_request: ApiExtensionPayload,
+    ) -> ApiExtensionPayload {
+        with_window_or_surface!(self, id, |w| w.window_extension(extension_id, extension_request), || {
+            ApiExtensionPayload::invalid_request(extension_id, "window not found")
+        })
     }
 
     fn render_extension(

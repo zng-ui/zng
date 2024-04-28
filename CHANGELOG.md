@@ -41,6 +41,11 @@ fn version_0_5() -> impl UiNode {
 }
 ```
 * **Breaking** Rename `VarCapabilities` to `VarCapability`.
+* **Breaking** Add window extension API in `zng-view`.
+    - Add `ViewExtension::window`.
+    - Add `OpenGlContext` and replace the `gl` fields with `context` in multiple extension API args.
+    - Rename `is_config_only` to `is_init_only`.
+    - Note that this is only a breaking change for direct dependents of `zng-view`.
 
 # 0.4.0
 

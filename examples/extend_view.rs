@@ -276,7 +276,7 @@ pub mod using_display_items {
             }
         }
         impl RendererExtension for CustomExtension {
-            fn is_config_only(&self) -> bool {
+            fn is_init_only(&self) -> bool {
                 false // retain the extension after renderer creation.
             }
 
@@ -457,7 +457,7 @@ pub mod using_blob {
             }
         }
         impl RendererExtension for CustomExtension {
-            fn is_config_only(&self) -> bool {
+            fn is_init_only(&self) -> bool {
                 false // retain the extension after renderer creation.
             }
 
@@ -881,18 +881,18 @@ pub mod using_gl_overlay {
             }
         }
         impl RendererExtension for CustomExtension {
-            fn is_config_only(&self) -> bool {
+            fn is_init_only(&self) -> bool {
                 false // retain the extension after renderer creation.
             }
 
             fn renderer_inited(&mut self, args: &mut zng_view::extensions::RendererInitedArgs) {
                 // shaders/programs can be loaded here.
-                self.renderer = Some(CustomRenderer::load(args.gl));
+                self.renderer = Some(CustomRenderer::load(&**args.context.gl()));
             }
             fn renderer_deinited(&mut self, args: &mut zng_view::extensions::RendererDeinitedArgs) {
                 // ..and unloaded here.
                 if let Some(r) = self.renderer.take() {
-                    r.unload(args.gl);
+                    r.unload(&**args.context.gl());
                 }
             }
 
@@ -929,7 +929,7 @@ pub mod using_gl_overlay {
 
             fn redraw(&mut self, args: &mut zng_view::extensions::RedrawArgs) {
                 if let Some(r) = &mut self.renderer {
-                    r.redraw(args.size, args.gl);
+                    r.redraw(args.size, &**args.context.gl());
                 }
             }
         }
@@ -1098,7 +1098,7 @@ pub mod using_gl_texture {
             }
         }
         impl RendererExtension for CustomExtension {
-            fn is_config_only(&self) -> bool {
+            fn is_init_only(&self) -> bool {
                 false // retain the extension after renderer creation.
             }
 
@@ -1111,8 +1111,8 @@ pub mod using_gl_texture {
                 let size = DeviceIntSize::splat(100);
 
                 // OpenGL
-                let texture = args.gl.gen_textures(1)[0];
-                args.gl.bind_texture(gl::TEXTURE_2D, texture);
+                let texture = args.context.gl().gen_textures(1)[0];
+                args.context.gl().bind_texture(gl::TEXTURE_2D, texture);
                 let mut img = vec![0u8; size.width as usize * size.height as usize * 4];
                 let mut line = 0u8;
                 let mut col = 0u8;
@@ -1127,7 +1127,7 @@ pub mod using_gl_texture {
                         line = line.wrapping_add(1);
                     }
                 }
-                args.gl.tex_image_2d(
+                args.context.gl().tex_image_2d(
                     gl::TEXTURE_2D,
                     0,
                     gl::RGBA as _,
@@ -1174,7 +1174,7 @@ pub mod using_gl_texture {
             fn renderer_deinited(&mut self, args: &mut zng_view::extensions::RendererDeinitedArgs) {
                 if let Some(t) = self.texture.take() {
                     let _ = t.external_id; // already cleanup by renderer deinit.
-                    args.gl.delete_textures(&[t.texture]);
+                    args.context.gl().delete_textures(&[t.texture]);
                 }
             }
 

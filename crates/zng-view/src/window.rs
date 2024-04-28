@@ -44,7 +44,8 @@ use crate::{
     display_list::{display_list_to_webrender, DisplayListCache},
     extensions::{
         self, BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
-        RendererDeinitedArgs, RendererExtension, RendererInitedArgs,
+        RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowCommandArgs, WindowConfigArgs, WindowDeinitedArgs,
+        WindowExtension, WindowInitedArgs,
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -71,6 +72,7 @@ pub(crate) struct Window {
     context: GlContext, // context must be dropped before window.
     window: GWindow,
     renderer: Option<Renderer>,
+    window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
     renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
     external_images: extensions::ExternalImages,
     capture_mode: bool,
@@ -128,12 +130,14 @@ impl fmt::Debug for Window {
     }
 }
 impl Window {
+    #[allow(clippy::too_many_arguments)]
     pub fn open(
         gen: ViewProcessGen,
         icon: Option<Icon>,
-        mut cfg: WindowRequest,
+        cfg: WindowRequest,
         window_target: &EventLoopWindowTarget<AppEvent>,
         gl_manager: &mut GlContextManager,
+        mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
@@ -227,8 +231,23 @@ impl Window {
             render_mode = RenderMode::Integrated;
         }
 
-        let (winit_window, context) = gl_manager.create_headed(id, winit, window_target, render_mode, &event_sender);
+        for (id, ext) in &mut window_exts {
+            ext.configure(&mut WindowConfigArgs {
+                config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, p)| p),
+                window: Some(&mut winit.window_attributes().clone()), // TODO after winit update #153
+            });
+        }
+
+        let (winit_window, mut context) = gl_manager.create_headed(id, winit, window_target, render_mode, &event_sender);
         render_mode = context.render_mode();
+
+        window_exts.retain_mut(|(_, ext)| {
+            ext.window_inited(&mut WindowInitedArgs {
+                window: Some(&winit_window),
+                context: &mut context,
+            });
+            !ext.is_init_only()
+        });
 
         // * Extend the winit Windows window to not block the Alt+F4 key press.
         // * Check if the window is actually keyboard focused until first focus.
@@ -305,14 +324,8 @@ impl Window {
         };
         let mut blobs = BlobExtensionsImgHandler(vec![]);
         for (id, ext) in &mut renderer_exts {
-            let cfg = cfg
-                .extensions
-                .iter()
-                .position(|(k, _)| k == id)
-                .map(|i| cfg.extensions.swap_remove(i).1);
-
             ext.configure(&mut RendererConfigArgs {
-                config: cfg,
+                config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, p)| p),
                 options: &mut opts,
                 blobs: &mut blobs.0,
             });
@@ -342,9 +355,9 @@ impl Window {
                 api: &mut api,
                 document_id,
                 pipeline_id,
-                gl: &**context.gl(),
+                context: &mut context,
             });
-            !ext.is_config_only()
+            !ext.is_init_only()
         });
 
         drop(wr_scope);
@@ -374,6 +387,7 @@ impl Window {
             context,
             capture_mode: cfg.capture_mode,
             renderer: Some(renderer),
+            window_exts,
             renderer_exts,
             external_images,
             video_mode: cfg.video_mode,
@@ -1459,7 +1473,7 @@ impl Window {
             ext.redraw(&mut RedrawArgs {
                 scale_factor,
                 size,
-                gl: &**self.context.gl(),
+                context: &mut self.context,
             });
         }
 
@@ -1533,6 +1547,20 @@ impl Window {
     /// Window actual render mode.
     pub fn render_mode(&self) -> RenderMode {
         self.render_mode
+    }
+
+    /// Calls the window extension command.
+    pub fn window_extension(&mut self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> ApiExtensionPayload {
+        for (key, ext) in &mut self.window_exts {
+            if *key == extension_id {
+                return ext.command(&mut WindowCommandArgs {
+                    window: Some(&self.window),
+                    context: &mut self.context,
+                    request,
+                });
+            }
+        }
+        ApiExtensionPayload::unknown_extension(extension_id)
     }
 
     /// Calls the render extension command.
@@ -1682,10 +1710,17 @@ impl Window {
         });
     }
 
-    /// Pump the accessibility adapter.
-    pub fn pump_access(&mut self, event: &winit::event::WindowEvent) {
+    /// Pump the accessibility adapter and window extensions.
+    pub fn on_window_event(&mut self, event: &winit::event::WindowEvent) {
         if let Some(a) = &mut self.access {
             a.process_event(&self.window, event);
+        }
+        for (_, ext) in &mut self.window_exts {
+            ext.event(&mut extensions::WindowEventArgs {
+                window: Some(&self.window),
+                context: &mut self.context,
+                event,
+            });
         }
     }
 
@@ -1751,8 +1786,14 @@ impl Drop for Window {
             ext.renderer_deinited(&mut RendererDeinitedArgs {
                 document_id: self.document_id,
                 pipeline_id: self.pipeline_id,
-                gl: &**self.context.gl(),
+                context: &mut self.context,
             })
+        }
+        for (_, ext) in &mut self.window_exts {
+            ext.window_deinited(&mut WindowDeinitedArgs {
+                window: Some(&self.window),
+                context: &mut self.context,
+            });
         }
     }
 }
