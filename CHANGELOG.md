@@ -46,6 +46,7 @@ fn version_0_5() -> impl UiNode {
     - Add `OpenGlContext` and replace the `gl` fields with `context` in multiple extension API args.
     - Rename `is_config_only` to `is_init_only`.
     - Note that this is only a breaking change for direct dependents of `zng-view`.
+    - Rename `ViewRenderExtensionError` to `ViewExtensionError`.
 
 # 0.4.0
 

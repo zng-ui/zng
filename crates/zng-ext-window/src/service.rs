@@ -12,7 +12,7 @@ use zng_app::{
             RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_WINDOW_CLOSE_EVENT,
             RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT,
         },
-        ViewImage, ViewRenderer, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
+        ViewImage, ViewRenderer, ViewWindowOrHeadless, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
     widget::{
         info::{InteractionPath, WidgetInfo, WidgetInfoTree},
@@ -164,8 +164,8 @@ impl WindowsService {
         action: impl FnOnce(&ViewRenderer) -> std::result::Result<ViewImage, ViewProcessOffline>,
     ) -> ImageVar {
         if let Some(w) = self.windows_info.get(&window_id) {
-            if let Some(r) = &w.renderer {
-                match action(r) {
+            if let Some(r) = &w.view {
+                match action(&r.renderer()) {
                     Ok(img) => {
                         let img = Img::new(img);
                         let img = var(img);
@@ -671,6 +671,55 @@ impl WINDOWS {
         std::mem::take(&mut WINDOWS_SV.write().windows_info.get_mut(&id).unwrap().extensions)
     }
 
+    /// Call a view-process window extension with custom encoded payload.
+    ///
+    /// Note that unlike most service methods this calls happens immediately.
+    pub fn view_window_extension_raw(
+        &self,
+        id: WindowId,
+        extension_id: ApiExtensionId,
+        request: ApiExtensionPayload,
+    ) -> Result<ApiExtensionPayload, ViewExtensionError> {
+        let sv = WINDOWS_SV.read();
+        match WINDOWS_SV.read().windows_info.get(&id) {
+            Some(i) => match &i.view {
+                Some(r) => {
+                    let r = r.clone();
+                    drop(sv);
+                    r.window_extension_raw(extension_id, request)
+                        .map_err(ViewExtensionError::ViewProcessOffline)
+                }
+                None => Err(ViewExtensionError::NotOpenInViewProcess),
+            },
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
+        }
+    }
+
+    /// Call a window extension with serialized payload.
+    ///
+    /// Note that unlike most service methods this call happens immediately.
+    pub fn view_window_extension<I, O>(&self, id: WindowId, extension_id: ApiExtensionId, request: &I) -> Result<O, ViewExtensionError>
+    where
+        I: serde::Serialize,
+        O: serde::de::DeserializeOwned,
+    {
+        let sv = WINDOWS_SV.read();
+        match sv.windows_info.get(&id) {
+            Some(i) => match &i.view {
+                Some(r) => {
+                    let r = r.clone();
+                    drop(sv);
+                    let r = r
+                        .window_extension(extension_id, request)
+                        .map_err(ViewExtensionError::ViewProcessOffline)?;
+                    r.map_err(ViewExtensionError::Api)
+                }
+                None => Err(ViewExtensionError::NotOpenInViewProcess),
+            },
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
+        }
+    }
+
     /// Call a view-process render extension with custom encoded payload for the renderer associated with the window.
     ///
     /// Note that unlike most service methods this call happens immediately.
@@ -679,56 +728,51 @@ impl WINDOWS {
         id: WindowId,
         extension_id: ApiExtensionId,
         request: ApiExtensionPayload,
-    ) -> Result<ApiExtensionPayload, ViewRenderExtensionError> {
+    ) -> Result<ApiExtensionPayload, ViewExtensionError> {
         let sv = WINDOWS_SV.read();
         match WINDOWS_SV.read().windows_info.get(&id) {
-            Some(i) => match &i.renderer {
+            Some(i) => match &i.view {
                 Some(r) => {
-                    let r = r.clone();
+                    let r = r.renderer();
                     drop(sv);
                     r.render_extension_raw(extension_id, request)
-                        .map_err(ViewRenderExtensionError::ViewProcessOffline)
+                        .map_err(ViewExtensionError::ViewProcessOffline)
                 }
-                None => Err(ViewRenderExtensionError::NotOpenInViewProcess),
+                None => Err(ViewExtensionError::NotOpenInViewProcess),
             },
-            None => Err(ViewRenderExtensionError::WindowNotFound(WindowNotFound(id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
         }
     }
 
     /// Call a render extension with serialized payload for the renderer associated with the window.
     ///
     /// Note that unlike most service methods this call happens immediately.
-    pub fn view_render_extension<I, O>(
-        &self,
-        id: WindowId,
-        extension_id: ApiExtensionId,
-        request: &I,
-    ) -> Result<O, ViewRenderExtensionError>
+    pub fn view_render_extension<I, O>(&self, id: WindowId, extension_id: ApiExtensionId, request: &I) -> Result<O, ViewExtensionError>
     where
         I: serde::Serialize,
         O: serde::de::DeserializeOwned,
     {
         let sv = WINDOWS_SV.read();
         match sv.windows_info.get(&id) {
-            Some(i) => match &i.renderer {
+            Some(i) => match &i.view {
                 Some(r) => {
-                    let r = r.clone();
+                    let r = r.renderer();
                     drop(sv);
                     let r = r
                         .render_extension(extension_id, request)
-                        .map_err(ViewRenderExtensionError::ViewProcessOffline)?;
-                    r.map_err(ViewRenderExtensionError::Api)
+                        .map_err(ViewExtensionError::ViewProcessOffline)?;
+                    r.map_err(ViewExtensionError::Api)
                 }
-                None => Err(ViewRenderExtensionError::NotOpenInViewProcess),
+                None => Err(ViewExtensionError::NotOpenInViewProcess),
             },
-            None => Err(ViewRenderExtensionError::WindowNotFound(WindowNotFound(id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
         }
     }
 
-    /// Update the reference to the renderer associated with the window.
-    pub(super) fn set_renderer(&self, id: WindowId, renderer: ViewRenderer) {
+    /// Update the reference to view window the renderer associated with the window.
+    pub(super) fn set_view(&self, id: WindowId, view: ViewWindowOrHeadless) {
         if let Some(info) = WINDOWS_SV.write().windows_info.get_mut(&id) {
-            info.renderer = Some(renderer);
+            info.view = Some(view);
         }
     }
 
@@ -1266,7 +1310,7 @@ impl WINDOWS {
 struct AppWindowInfo {
     id: WindowId,
     mode: WindowMode,
-    renderer: Option<ViewRenderer>,
+    view: Option<ViewWindowOrHeadless>,
     extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
     vars: WindowVars,
 
@@ -1282,7 +1326,7 @@ impl AppWindowInfo {
         Self {
             id,
             mode,
-            renderer: None,
+            view: None,
             extensions: vec![],
             vars,
             widget_tree: WidgetInfoTree::wgt(id, root_id),
@@ -1723,9 +1767,9 @@ impl WINDOW_FOCUS {
     }
 }
 
-/// Error calling a view-process API extension associated with a window renderer.
+/// Error calling a view-process API extension associated with a window or renderer.
 #[derive(Debug)]
-pub enum ViewRenderExtensionError {
+pub enum ViewExtensionError {
     /// Window is not open in the `WINDOWS` service.
     WindowNotFound(WindowNotFound),
     /// Window is not open in the view-process.
@@ -1738,23 +1782,23 @@ pub enum ViewRenderExtensionError {
     /// Api Error.
     Api(zng_view_api::api_extension::ApiExtensionRecvError),
 }
-impl fmt::Display for ViewRenderExtensionError {
+impl fmt::Display for ViewExtensionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ViewRenderExtensionError::WindowNotFound(e) => fmt::Display::fmt(e, f),
-            ViewRenderExtensionError::NotOpenInViewProcess => write!(f, "renderer not open in the view-process"),
-            ViewRenderExtensionError::ViewProcessOffline(e) => fmt::Display::fmt(e, f),
-            ViewRenderExtensionError::Api(e) => fmt::Display::fmt(e, f),
+            ViewExtensionError::WindowNotFound(e) => fmt::Display::fmt(e, f),
+            ViewExtensionError::NotOpenInViewProcess => write!(f, "window/renderer not open in the view-process"),
+            ViewExtensionError::ViewProcessOffline(e) => fmt::Display::fmt(e, f),
+            ViewExtensionError::Api(e) => fmt::Display::fmt(e, f),
         }
     }
 }
-impl std::error::Error for ViewRenderExtensionError {
+impl std::error::Error for ViewExtensionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ViewRenderExtensionError::WindowNotFound(e) => Some(e),
-            ViewRenderExtensionError::NotOpenInViewProcess => None,
-            ViewRenderExtensionError::ViewProcessOffline(e) => Some(e),
-            ViewRenderExtensionError::Api(e) => Some(e),
+            ViewExtensionError::WindowNotFound(e) => Some(e),
+            ViewExtensionError::NotOpenInViewProcess => None,
+            ViewExtensionError::ViewProcessOffline(e) => Some(e),
+            ViewExtensionError::Api(e) => Some(e),
         }
     }
 }

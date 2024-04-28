@@ -58,10 +58,14 @@ pub trait ViewExtension: Send + Any {
 /// Represents a view extension associated with a window or headless surface instance.
 pub trait WindowExtension: Any {
     /// Edit attributes for the new window.
-    fn configure(&mut self, args: &mut WindowConfigArgs);
+    fn configure(&mut self, args: &mut WindowConfigArgs) {
+        let _ = args;
+    }
 
     /// Called just after the window is created.
-    fn window_inited(&mut self, args: &mut WindowInitedArgs);
+    fn window_inited(&mut self, args: &mut WindowInitedArgs) {
+        let _ = args;
+    }
 
     /// If this extension can be dropped after window creation.
     fn is_init_only(&self) -> bool;
@@ -73,13 +77,17 @@ pub trait WindowExtension: Any {
     }
 
     /// Called when the window receives an event.
-    fn event(&mut self, args: &mut WindowEventArgs);
+    fn event(&mut self, args: &mut WindowEventArgs) {
+        let _ = args;
+    }
 
     /// System warning low memory, release unused memory, caches.
     fn low_memory(&mut self) {}
 
     /// Called just after the window closes.
-    fn window_deinited(&mut self, args: &mut WindowDeinitedArgs);
+    fn window_deinited(&mut self, args: &mut WindowDeinitedArgs) {
+        let _ = args;
+    }
 }
 
 /// Represents a view extension associated with a renderer instance.
@@ -701,6 +709,30 @@ impl ViewExtensions {
             }
             Err(e) => ApiExtensionPayload::invalid_request(id, e),
         })
+    }
+
+    /// Register a window extension with its own ID.
+    pub fn window<E: WindowExtension>(
+        &mut self,
+        name: impl Into<ApiExtensionName>,
+        new: impl FnMut(ApiExtensionId) -> E + Send + 'static,
+    ) -> &mut Self {
+        struct WindowExt<F>(ApiExtensionName, ApiExtensionId, F);
+        impl<E, F> ViewExtension for WindowExt<F>
+        where
+            E: WindowExtension,
+            F: FnMut(ApiExtensionId) -> E + Send + 'static,
+        {
+            fn name(&self) -> &ApiExtensionName {
+                &self.0
+            }
+
+            fn window(&mut self) -> Option<Box<dyn WindowExtension>> {
+                Some(Box::new((self.2)(self.1)))
+            }
+        }
+        self.register(move |id| WindowExt(name.into(), id, new));
+        self
     }
 
     /// Register a renderer extension with its own ID.
