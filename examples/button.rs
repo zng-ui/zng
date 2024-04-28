@@ -344,7 +344,7 @@ fn dyn_button(content: char, remove: impl Fn() + Send + Sync + 'static) -> impl 
             margin = 0;
         }
 
-        when *#{removing} {
+        when *#{removing.clone()} {
             widget::interactive = false;
             opacity = 0.pct();
             margin = (0, 0, -30, 0);

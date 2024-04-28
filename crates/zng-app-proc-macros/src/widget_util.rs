@@ -15,6 +15,12 @@ use crate::{
     wgt_property_attrs::PropertyAttrData,
 };
 
+/// Represents a property assign or when block.
+pub enum WgtItem {
+    Property(WgtProperty),
+    When(WgtWhen),
+}
+
 /// Represents a property assign.
 pub struct WgtProperty {
     /// Attributes.

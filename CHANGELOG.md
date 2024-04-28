@@ -12,6 +12,7 @@
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` to window API.
 * Fix `WIDGET.border().offsets()` not including the innermost border offset.
 * Add `WindowVars::enabled_buttons` to window API.
+* Fix when/property assign expansion order.
 
 # 0.4.0
 
