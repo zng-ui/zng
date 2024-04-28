@@ -58,6 +58,7 @@ winit = { version = "0.30", default-features = false, features = [
     "wayland",
     "wayland-dlopen",
     "rwh_05",
+    "rwh_06",
 ] }
 glutin = "0.31"
 raw-window-handle = "0.5" # matches glutin
