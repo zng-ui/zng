@@ -136,7 +136,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
 
             // capacity can be n*2+1, but we only bet on conditions being `NEW`.
             let mut input_handles = Vec::with_capacity(rc_when.conditions.len());
-            if rc_when.default.capabilities().contains(VarCapabilities::NEW) {
+            if rc_when.default.capabilities().contains(VarCapability::NEW) {
                 input_handles.push(rc_when.default.hook_any(ArcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
             }
             for (i, (c, v)) in rc_when.conditions.iter().enumerate() {
@@ -144,10 +144,10 @@ impl<T: VarValue> WhenVarBuilder<T> {
                     data.active = i;
                 }
 
-                if c.capabilities().contains(VarCapabilities::NEW) {
+                if c.capabilities().contains(VarCapability::NEW) {
                     input_handles.push(c.hook_any(ArcWhenVar::handle_condition(wk_when.clone(), i)));
                 }
-                if v.capabilities().contains(VarCapabilities::NEW) {
+                if v.capabilities().contains(VarCapability::NEW) {
                     input_handles.push(v.hook_any(ArcWhenVar::handle_value(wk_when.clone(), i)));
                 }
             }
@@ -501,11 +501,11 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
         }
     }
 
-    fn capabilities(&self) -> VarCapabilities {
+    fn capabilities(&self) -> VarCapability {
         if self.0.conditions.is_empty() {
             self.0.default.capabilities()
         } else {
-            self.active().capabilities() | VarCapabilities::NEW | VarCapabilities::CAPS_CHANGE
+            self.active().capabilities() | VarCapability::NEW | VarCapability::CAPS_CHANGE
         }
     }
 

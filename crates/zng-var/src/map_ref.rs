@@ -86,7 +86,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRef<I, O, S> {
         self.source.is_contextual()
     }
 
-    fn capabilities(&self) -> VarCapabilities {
+    fn capabilities(&self) -> VarCapability {
         self.source.capabilities().as_read_only()
     }
 
@@ -416,7 +416,7 @@ impl<I: VarValue, O: VarValue, S: Var<I>> AnyVar for MapRefBidi<I, O, S> {
         self.source.is_contextual()
     }
 
-    fn capabilities(&self) -> VarCapabilities {
+    fn capabilities(&self) -> VarCapability {
         self.source.capabilities()
     }
 

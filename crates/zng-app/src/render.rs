@@ -17,7 +17,7 @@ use zng_layout::unit::{
 };
 use zng_task::rayon::iter::{ParallelBridge, ParallelIterator};
 use zng_unique_id::{impl_unique_id_bytemuck, unique_id_32};
-use zng_var::{impl_from_and_into_var, Var, VarCapabilities, VarValue};
+use zng_var::{impl_from_and_into_var, Var, VarCapability, VarValue};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::FontAntiAliasing,
@@ -2873,7 +2873,7 @@ impl<T> FrameValueKey<T> {
     ///
     /// [`bind_var`]: Self::bind_var
     pub fn bind_var_child<VT: VarValue>(self, child_index: u32, var: &impl Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
-        if var.capabilities().contains(VarCapabilities::NEW) {
+        if var.capabilities().contains(VarCapability::NEW) {
             FrameValue::Bind {
                 id: self.to_wr_child(child_index),
                 value: var.with(map),
@@ -2893,7 +2893,7 @@ impl<T> FrameValueKey<T> {
     ///
     /// [`bind_var_mapped`]: Self::bind_var_mapped
     pub fn bind_var_mapped_child<VT: VarValue>(&self, child_index: u32, var: &impl Var<VT>, value: T) -> FrameValue<T> {
-        if var.capabilities().contains(VarCapabilities::NEW) {
+        if var.capabilities().contains(VarCapability::NEW) {
             FrameValue::Bind {
                 id: self.to_wr_child(child_index),
                 value,
@@ -2918,7 +2918,7 @@ impl<T> FrameValueKey<T> {
         var: &impl Var<VT>,
         map: impl FnOnce(&VT) -> T,
     ) -> Option<FrameValueUpdate<T>> {
-        if var.capabilities().contains(VarCapabilities::NEW) {
+        if var.capabilities().contains(VarCapability::NEW) {
             Some(FrameValueUpdate {
                 id: self.to_wr_child(child_index),
                 value: var.with(map),
@@ -2938,7 +2938,7 @@ impl<T> FrameValueKey<T> {
     ///
     /// [`update_var_mapped`]: Self::update_var_mapped
     pub fn update_var_mapped_child<VT: VarValue>(self, child_index: u32, var: &impl Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
-        if var.capabilities().contains(VarCapabilities::NEW) {
+        if var.capabilities().contains(VarCapability::NEW) {
             Some(FrameValueUpdate {
                 id: self.to_wr_child(child_index),
                 value,

@@ -77,7 +77,7 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.is_contextual()
     }
 
-    fn capabilities(&self) -> VarCapabilities {
+    fn capabilities(&self) -> VarCapability {
         self.1.capabilities().as_read_only()
     }
 

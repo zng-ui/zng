@@ -60,8 +60,8 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         false
     }
 
-    fn capabilities(&self) -> VarCapabilities {
-        VarCapabilities::empty()
+    fn capabilities(&self) -> VarCapability {
+        VarCapability::empty()
     }
 
     fn hook_any(&self, _: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
