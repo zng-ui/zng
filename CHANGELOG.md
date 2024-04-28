@@ -41,6 +41,7 @@ fn version_0_5() -> impl UiNode {
 }
 ```
 * **Breaking** Rename `VarCapabilities` to `VarCapability`.
+* Fix `zng::view_process::default::run_same_process` not propagating app panics.
 
 # 0.4.0
 
