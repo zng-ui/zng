@@ -270,7 +270,7 @@ impl<T: VarValue> AnyVar for ContextualizedVar<T> {
         true
     }
 
-    fn capabilities(&self) -> VarCapabilities {
+    fn capabilities(&self) -> VarCapability {
         self.borrow_init().capabilities()
     }
 

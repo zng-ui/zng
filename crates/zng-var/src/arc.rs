@@ -91,8 +91,8 @@ impl<T: VarValue> AnyVar for ArcVar<T> {
         false
     }
 
-    fn capabilities(&self) -> VarCapabilities {
-        VarCapabilities::MODIFY
+    fn capabilities(&self) -> VarCapability {
+        VarCapability::MODIFY
     }
 
     fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {

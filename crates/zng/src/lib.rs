@@ -747,7 +747,7 @@ mod __prelude_wgt {
     pub use zng_var::{
         context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var,
         AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar,
-        ResponseVar, Var, VarCapabilities, VarHandle, VarHandles, VarValue, WeakVar as _,
+        ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, WeakVar as _,
     };
 
     pub use zng_layout::{

@@ -40,6 +40,7 @@ fn version_0_5() -> impl UiNode {
     }
 }
 ```
+* **Breaking** Rename `VarCapabilities` to `VarCapability`.
 
 # 0.4.0
 

@@ -762,7 +762,7 @@ mod context {
 
         TEST_VAR.with_context_var(ContextInitHandle::new(), backing_var.clone(), || {
             let t = TEST_VAR;
-            assert!(t.capabilities().contains(VarCapabilities::MODIFY));
+            assert!(t.capabilities().contains(VarCapability::MODIFY));
             t.set("set!").unwrap();
         });
 

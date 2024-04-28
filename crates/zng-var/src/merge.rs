@@ -115,7 +115,7 @@ impl<T: VarValue> ArcMergeVar<T> {
             .iter()
             .enumerate()
             .filter_map(|(i, var)| {
-                if var.capabilities().contains(VarCapabilities::NEW) {
+                if var.capabilities().contains(VarCapability::NEW) {
                     let wk_merge = wk_merge.clone();
                     let handle = var.hook_any(Box::new(move |args| {
                         if let Some(rc_merge) = wk_merge.upgrade() {
@@ -231,11 +231,11 @@ impl<T: VarValue> AnyVar for ArcMergeVar<T> {
         false // if inputs are contextual Self::new uses a ContextualizedVar wrapper.
     }
 
-    fn capabilities(&self) -> VarCapabilities {
+    fn capabilities(&self) -> VarCapability {
         if self.0.m.lock().inputs.is_empty() {
-            VarCapabilities::empty()
+            VarCapability::empty()
         } else {
-            VarCapabilities::NEW
+            VarCapability::NEW
         }
     }
 

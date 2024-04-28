@@ -101,7 +101,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
 
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
-                        && checked.capabilities().contains(VarCapabilities::MODIFY)
+                        && checked.capabilities().contains(VarCapability::MODIFY)
                         && !args.propagation().is_stopped()
                         && args.is_enabled(WIDGET.id())
                     {
@@ -164,7 +164,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
 
                 if let Some(args) = CLICK_EVENT.on(update) {
                     if args.is_primary()
-                        && checked.capabilities().contains(VarCapabilities::MODIFY)
+                        && checked.capabilities().contains(VarCapability::MODIFY)
                         && !args.propagation().is_stopped()
                         && args.is_enabled(WIDGET.id())
                     {
