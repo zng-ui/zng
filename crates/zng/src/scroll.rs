@@ -66,11 +66,6 @@ pub use zng_wgt_scroll::{
     ScrollUnitsMix, Scrollbar, ScrollbarFnMix, SmoothScrolling, Thumb, WidgetInfoExt, SCROLL,
 };
 
-/// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
-///
-#[cfg(all(windows, doc))]
-pub use zng_wgt_scroll::SCROLL as SCROLL_;
-
 /// Scrollbar thumb widget.
 pub mod thumb {
     pub use zng_wgt_scroll::thumb::{cross_length, offset, viewport_ratio, Thumb};
@@ -79,11 +74,6 @@ pub mod thumb {
 /// Scroll widget.
 pub mod scrollbar {
     pub use zng_wgt_scroll::scrollbar::{orientation, Orientation, Scrollbar, SCROLLBAR};
-
-    /// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
-    ///
-    #[cfg(all(windows, doc))]
-    pub use zng_wgt_scroll::scrollbar::SCROLLBAR as SCROLLBAR_;
 }
 
 /// Scroll commands.

@@ -44,8 +44,3 @@ pub use zng_wgt_layer::popup::{
     on_pre_popup_close_requested, style_fn, ContextCapture, DefaultStyle, Popup, PopupCloseMode, PopupCloseRequestedArgs, PopupState,
     POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT,
 };
-
-/// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
-///
-#[cfg(all(windows, doc))]
-pub use zng_wgt_layer::popup::POPUP as POPUP_;
