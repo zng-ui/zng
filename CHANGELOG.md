@@ -50,6 +50,7 @@ fn version_0_5() -> impl UiNode {
         - Removed `FocusChangedCause::is_prev_request`.
 * Add `FocusChangedCause::request_target` helper method.
 * Add `WidgetPath::parent_id` helper method.
+* Fix auto scroll-to-focused not working when the focused child does not subscribe to focus change events.
 
 # 0.4.0
 

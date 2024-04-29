@@ -640,6 +640,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             _handle = SCROLL_TO_CMD.scoped(WIDGET.id()).subscribe(true);
+            WIDGET.sub_event(&FOCUS_CHANGED_EVENT);
         }
         UiNodeOp::Deinit => {
             _handle = CommandHandle::dummy();
