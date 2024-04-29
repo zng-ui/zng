@@ -1368,9 +1368,9 @@ impl WidgetFocusInfo {
                 DirectionalNav::Contained => self.directional_next_from(Orientation2D::Above, origin),
                 DirectionalNav::Cycle => {
                     self.directional_next_from(Orientation2D::Above, origin).or_else(|| {
-                        // next up from the same X but from the bottom segment of scope.
+                        // next up from the same X but from the bottom segment of scope spatial bounds.
                         let mut from_pt = origin.center();
-                        from_pt.y = scope.info.inner_bounds().max().y;
+                        from_pt.y = scope.info.spatial_bounds().max.y;
                         self.directional_from(
                             &scope,
                             PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
@@ -1404,9 +1404,9 @@ impl WidgetFocusInfo {
                 }),
                 DirectionalNav::Contained => self.directional_next_from(Orientation2D::Right, origin),
                 DirectionalNav::Cycle => self.directional_next_from(Orientation2D::Right, origin).or_else(|| {
-                    // next right from the same Y but from the left segment of scope.
+                    // next right from the same Y but from the left segment of scope spatial bounds.
                     let mut from_pt = origin.center();
-                    from_pt.x = scope.info.inner_bounds().min().x;
+                    from_pt.x = scope.info.spatial_bounds().min.x;
                     self.directional_from(
                         &scope,
                         PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
@@ -1439,9 +1439,9 @@ impl WidgetFocusInfo {
                 }),
                 DirectionalNav::Contained => self.directional_next_from(Orientation2D::Below, origin),
                 DirectionalNav::Cycle => self.directional_next_from(Orientation2D::Below, origin).or_else(|| {
-                    // next down from the same X but from the top segment of scope.
+                    // next down from the same X but from the top segment of scope spatial bounds.
                     let mut from_pt = origin.center();
-                    from_pt.y = scope.info.inner_bounds().min().y;
+                    from_pt.y = scope.info.spatial_bounds().min.y;
                     self.directional_from(
                         &scope,
                         PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),
@@ -1474,9 +1474,9 @@ impl WidgetFocusInfo {
                 }),
                 DirectionalNav::Contained => self.directional_next_from(Orientation2D::Left, origin),
                 DirectionalNav::Cycle => self.directional_next_from(Orientation2D::Left, origin).or_else(|| {
-                    // next left from the same Y but from the right segment of scope.
+                    // next left from the same Y but from the right segment of scope spatial bounds.
                     let mut from_pt = origin.center();
-                    from_pt.x = scope.info.inner_bounds().max().x;
+                    from_pt.x = scope.info.spatial_bounds().max.x;
                     self.directional_from(
                         &scope,
                         PxRect::new(from_pt, PxSize::splat(Px(1))).to_box2d(),

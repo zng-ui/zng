@@ -291,8 +291,7 @@ impl WidgetInfoTree {
         let mut spatial_bounds = self.root().outer_bounds().to_box2d();
         for out in frame.out_of_bounds.iter() {
             let b = WidgetInfo::new(self.clone(), *out).inner_bounds().to_box2d();
-            spatial_bounds.min = spatial_bounds.min.min(b.min);
-            spatial_bounds.max = spatial_bounds.max.max(b.max);
+            spatial_bounds = spatial_bounds.union(&b);
         }
         frame.spatial_bounds = spatial_bounds;
 
@@ -1107,11 +1106,11 @@ impl WidgetInfo {
         let mut disabled = None;
 
         for w in self.self_and_ancestors() {
-            let intera = w.interactivity();
-            if intera.contains(Interactivity::BLOCKED) {
+            let interactivity = w.interactivity();
+            if interactivity.contains(Interactivity::BLOCKED) {
                 blocked = Some(path.len());
             }
-            if intera.contains(Interactivity::DISABLED) {
+            if interactivity.contains(Interactivity::DISABLED) {
                 disabled = Some(path.len());
             }
 
@@ -1339,6 +1338,12 @@ impl WidgetInfo {
     pub fn inner_bounds(&self) -> PxRect {
         let info = self.info();
         info.bounds_info.inner_bounds()
+    }
+
+    /// Compute the bounding box that envelops self and descendants inner bounds.
+    pub fn spatial_bounds(&self) -> PxBox {
+        self.out_of_bounds()
+            .fold(self.inner_bounds().to_box2d(), |acc, w| acc.union(&w.inner_bounds().to_box2d()))
     }
 
     /// Widget inner bounds center in the window space.
