@@ -52,6 +52,8 @@ fn version_0_5() -> impl UiNode {
 * Add `WidgetPath::parent_id` helper method.
 * Fix auto scroll-to-focused not working when the focused child does not subscribe to focus change events.
 * Fix auto scroll-to-focused scrolling when large widget is already visible.
+* Add `WidgetInfo::spatial_bounds`.
+* Fix directional navigation cycling only inside viewport now full spatial bounds of scopes.
 
 # 0.4.0
 
