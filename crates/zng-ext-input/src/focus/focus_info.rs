@@ -844,7 +844,8 @@ impl WidgetFocusInfo {
     /// # Input
     ///
     /// * `last_focused`: A function that returns the last focused widget within a focus scope identified by `WidgetId`.
-    /// * `reverse`: If the focus is *reversing* into `self`.
+    /// * `is_tab_cycle_reentry`: If the focus returned to `self` immediately after leaving because the parent scope is `TabNav::Cycle`.
+    /// * `reverse`: If the focus *reversed* into `self`.
     ///
     /// # Returns
     ///
@@ -854,6 +855,7 @@ impl WidgetFocusInfo {
     pub fn on_focus_scope_move<'f>(
         &self,
         last_focused: impl FnOnce(WidgetId) -> Option<&'f WidgetPath>,
+        is_tab_cycle_reentry: bool,
         reverse: bool,
     ) -> Option<WidgetFocusInfo> {
         match self.focus_info() {
@@ -866,23 +868,25 @@ impl WidgetFocusInfo {
                             self.first_tab_descendant()
                         }
                     }
-                    FocusScopeOnFocus::LastFocused | FocusScopeOnFocus::LastFocusedIgnoreBounds => last_focused(self.info.id())
-                        .and_then(|path| self.info.tree().get(path.widget_id()))
-                        .and_then(|w| w.into_focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets()))
-                        .and_then(|f| {
-                            if f.info.is_descendant(&self.info) {
-                                Some(f) // valid last focused
-                            } else {
-                                None
-                            }
-                        })
-                        .or_else(|| {
-                            if reverse {
-                                self.last_tab_descendant()
-                            } else {
-                                self.first_tab_descendant()
-                            }
-                        }), // fallback
+                    FocusScopeOnFocus::LastFocused | FocusScopeOnFocus::LastFocusedIgnoreBounds => {
+                        if is_tab_cycle_reentry { None } else { last_focused(self.info.id()) }
+                            .and_then(|path| self.info.tree().get(path.widget_id()))
+                            .and_then(|w| w.into_focusable(self.focus_disabled_widgets(), self.focus_hidden_widgets()))
+                            .and_then(|f| {
+                                if f.info.is_descendant(&self.info) {
+                                    Some(f) // valid last focused
+                                } else {
+                                    None
+                                }
+                            })
+                            .or_else(|| {
+                                if reverse {
+                                    self.last_tab_descendant()
+                                } else {
+                                    self.first_tab_descendant()
+                                }
+                            })
+                    } // fallback
                     FocusScopeOnFocus::Widget => None,
                 };
 
@@ -1738,6 +1742,9 @@ pub enum FocusScopeOnFocus {
     FirstDescendant,
     /// Focus the descendant that was last focused before focus moved out of the scope. If the
     /// scope cannot return focus, behaves like [`FirstDescendant`].
+    ///
+    /// If the scope is the only child of a parent that is `TabNav::Cycle` and the focus just exited and
+    /// returned in a cycle action, behaves like [`FirstDescendant`].
     ///
     /// Behaves like [`Widget`] if the first(or last) descendant inner-bounds is not fully contained
     /// by the scope inner-bounds.
