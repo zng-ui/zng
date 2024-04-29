@@ -43,6 +43,13 @@ fn version_0_5() -> impl UiNode {
 * **Breaking** Rename `VarCapabilities` to `VarCapability`.
 * Fix `zng::view_process::default::run_same_process` not propagating app panics.
 * Add `WindowCloseRequestedArgs::headed/headless`.
+* **Breaking** Fix tab navigation footgun when a focus scope with `FocusScopeOnFocus::LastFocused` is the single child of
+  another scope with `TabNav::Cycle` (#162).
+    - Breaking change has minimal impact:
+        - Added input in `WidgetFocusInfo::on_focus_scope_move`.
+        - Removed `FocusChangedCause::is_prev_request`.
+* Add `FocusChangedCause::request_target` helper method.
+* Add `WidgetPath::parent_id` helper method.
 
 # 0.4.0
 
