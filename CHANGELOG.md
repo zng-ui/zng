@@ -54,6 +54,7 @@ fn version_0_5() -> impl UiNode {
 * Fix auto scroll-to-focused scrolling when large widget is already visible.
 * Add `WidgetInfo::spatial_bounds`.
 * Fix directional navigation cycling only inside viewport now full spatial bounds of scopes.
+* Add better conversions for `CommandScope`. You can now scope on named widgets directly, `FOO_CMD.scoped("bar-wgt")`.
 * Add `ContextualizedVar::new_value`.
 * **Breaking** `SCROLL.scroll_*` methods now return contextual vars, not values.
 
