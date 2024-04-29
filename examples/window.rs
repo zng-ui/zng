@@ -713,7 +713,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                 args.propagation().stop();
                 state.set(CloseState::Asking);
 
-                let dlg = close_dialog(args.windows.iter().copied().collect(), state.clone());
+                let dlg = close_dialog(args.headed().collect(), state.clone());
                 LAYERS.insert(LayerIndex::TOP_MOST, dlg)
             }
             CloseState::Asking => args.propagation().stop(),
