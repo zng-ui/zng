@@ -640,6 +640,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             _handle = SCROLL_TO_CMD.scoped(WIDGET.id()).subscribe(true);
+            WIDGET.sub_event(&FOCUS_CHANGED_EVENT);
         }
         UiNodeOp::Deinit => {
             _handle = CommandHandle::dummy();
@@ -654,8 +655,8 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                             // scroll_to_focused enabled
 
                             if SCROLL.can_scroll_vertical() || SCROLL.can_scroll_horizontal() {
-                                // can scroll AND focus did not change by a click on the Scroll! scope restoring focus
-                                // back to a child.
+                                // auto scroll if can scroll AND focus did not change by a click on the
+                                // Scroll! scope restoring focus back to a child AND the target is not already visible.
 
                                 let tree = WINDOW.info();
                                 if let Some(mut target) = tree.get(path.widget_id()) {
@@ -695,8 +696,24 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                             }
                                         }
 
-                                        scroll_to = Some((Rect::from(target.inner_bounds()), mode, None, false));
-                                        WIDGET.layout();
+                                        // check if widget is not large and already visible.
+                                        let mut scroll = true;
+                                        let scroll_bounds = tree.get(self_id).unwrap().inner_bounds();
+                                        let target_bounds = target.inner_bounds();
+                                        if let Some(r) = scroll_bounds.intersection(&target_bounds) {
+                                            let is_large_visible_v = r.height() > Px(20)
+                                                && target_bounds.height() > scroll_bounds.height()
+                                                && SCROLL.can_scroll_vertical();
+                                            let is_large_visible_h = r.width() > Px(20)
+                                                && target_bounds.width() > scroll_bounds.width()
+                                                && SCROLL.can_scroll_horizontal();
+
+                                            scroll = !is_large_visible_v && !is_large_visible_h;
+                                        }
+                                        if scroll {
+                                            scroll_to = Some((Rect::from(target_bounds), mode, None, false));
+                                            WIDGET.layout();
+                                        }
                                     }
                                 }
                             }
