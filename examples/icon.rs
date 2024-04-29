@@ -53,14 +53,15 @@ fn app_main() {
                 // smooth_scrolling = false;
             };
             directional_nav = DirectionalNav::Contained;
-            // zng::properties::inspector::show_hit_test = true;
+            tab_nav = TabNav::Cycle;
+            // zng::window::inspector::show_hit_test = true;
         }
     })
 }
 
 fn icons() -> impl UiNode {
     let selected_font = var("outlined");
-    let search = var(Txt::from_static(""));
+    let search = var(Txt::from_static("123"));
     fn select_font(key: &'static str) -> impl UiNode {
         Toggle! {
             child = Text!(key);

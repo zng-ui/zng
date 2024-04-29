@@ -504,7 +504,7 @@ impl FocusManager {
             // reentering single child of parent scope that cycles
             let is_tab_cycle_reentry = matches!(args.cause.request_target(), Some(FocusTarget::Prev | FocusTarget::Next))
                 && match (&args.prev_focus, &args.new_focus) {
-                    (Some(p), Some(n)) => Some(n.widget_id()) == p.parent_id(),
+                    (Some(p), Some(n)) => p.contains(n.widget_id()),
                     _ => false,
                 };
 
