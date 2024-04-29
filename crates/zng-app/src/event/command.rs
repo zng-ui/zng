@@ -109,7 +109,7 @@ use zng_app_context::AppId;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_txt::Txt;
 use zng_unique_id::unique_id_64;
-use zng_var::{types::ArcCowVar, var, AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue};
+use zng_var::{impl_from_and_into_var, types::ArcCowVar, var, AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue};
 
 #[doc(hidden)]
 pub use zng_app_context::app_local;
@@ -548,14 +548,20 @@ pub enum CommandScope {
     /// Scope of a widget.
     Widget(WidgetId),
 }
-impl From<WidgetId> for CommandScope {
-    fn from(id: WidgetId) -> Self {
+impl_from_and_into_var! {
+    fn from(id: WidgetId) -> CommandScope {
         CommandScope::Widget(id)
     }
-}
-impl From<WindowId> for CommandScope {
     fn from(id: WindowId) -> CommandScope {
         CommandScope::Window(id)
+    }
+    /// Widget scope.
+    fn from(widget_name: &'static str) -> CommandScope {
+        WidgetId::named(widget_name).into()
+    }
+    /// Widget scope.
+    fn from(widget_name: Txt) -> CommandScope {
+        WidgetId::named(widget_name).into()
     }
 }
 
