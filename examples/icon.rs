@@ -50,18 +50,15 @@ fn app_main() {
                 mode = ScrollMode::VERTICAL;
                 child_align = Align::FILL;
                 child = icons();
-                // smooth_scrolling = false;
             };
             directional_nav = DirectionalNav::Contained;
-            tab_nav = TabNav::Cycle;
-            // zng::window::inspector::show_hit_test = true;
         }
     })
 }
 
 fn icons() -> impl UiNode {
     let selected_font = var("outlined");
-    let search = var(Txt::from_static("123"));
+    let search = var(Txt::from_static(""));
     fn select_font(key: &'static str) -> impl UiNode {
         Toggle! {
             child = Text!(key);
