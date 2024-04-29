@@ -67,6 +67,7 @@ fn icons() -> impl UiNode {
     }
     fn show_font(icons: Vec<MaterialIcon>, font_mod: &'static str) -> impl UiNode {
         let _scope = tracing::error_span!("show_font").entered();
+        let icons_len = icons.len();
         Wrap! {
             spacing = 5;
             icon::ico_size = 48;
@@ -94,7 +95,21 @@ fn icons() -> impl UiNode {
                 }.boxed())
                 .collect_into_vec(&mut r);
                 r
-            },
+            };
+            zng::container::child_bottom = Wrap! {
+                layout::margin = 30;
+                layout::align = Align::CENTER;
+                children = ui_vec![
+                    Text!("{icons_len} results, "),
+                    Button! {          
+                        style_fn = style_fn!(|_| zng::button::LinkStyle!());          
+                        child = Text!("back to search");
+                        on_click = hn!(|_| {
+                            FOCUS.focus_widget("search", false);
+                        });
+                    },
+                ];
+            }, 0;
         }
     }
     Stack! {
@@ -103,6 +118,7 @@ fn icons() -> impl UiNode {
         children_align = Align::TOP;
         children = ui_vec![
             TextInput! {
+                id = "search";
                 txt = search.clone();
                 margin = (15, 0, 0, 0);
                 padding = (7, 15, 7, 26);
