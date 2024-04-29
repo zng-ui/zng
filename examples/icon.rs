@@ -101,8 +101,8 @@ fn icons() -> impl UiNode {
                 layout::align = Align::CENTER;
                 children = ui_vec![
                     Text!("{icons_len} results, "),
-                    Button! {          
-                        style_fn = style_fn!(|_| zng::button::LinkStyle!());          
+                    Button! {
+                        style_fn = style_fn!(|_| zng::button::LinkStyle!());
                         child = Text!("back to search");
                         on_click = hn!(|_| {
                             FOCUS.focus_widget("search", false);
