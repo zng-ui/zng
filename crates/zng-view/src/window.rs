@@ -455,6 +455,8 @@ impl Window {
 
         win.set_enabled_buttons(cfg.enabled_buttons);
 
+        win.set_system_shutdown_warn(cfg.system_shutdown_warn);
+
         if win.ime_area.is_some() {
             win.window.set_ime_allowed(true);
         }
@@ -1811,25 +1813,17 @@ impl Window {
     }
 
     #[cfg(windows)]
-    pub(crate) fn block_system_shutdown(&mut self, reason: Txt) {
-        let hwnd = crate::util::winit_to_hwnd(&self.window);
-        let reason = windows::core::HSTRING::from(reason.as_str());
-        // SAFETY: function does not fail.
-        let enabled = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonCreate(hwnd, reason.as_ptr()) != 0 };
-        self.block_shutdown.store(enabled, std::sync::atomic::Ordering::Relaxed);
-        if !enabled {
-            tracing::error!("failed to set system shutdown block, requested block reason was: {reason}");
-        }
-    }
-
-    #[cfg(not(windows))]
-    pub(crate) fn block_system_shutdown(&mut self, reason: Txt) {
-        tracing::error!("cannot set system shutdown block, not implemented, requested block reason was: {reason}");
-    }
-
-    #[cfg(windows)]
-    pub(crate) fn unblock_system_shutdown(&mut self) {
-        if self.block_shutdown.swap(false, std::sync::atomic::Ordering::Relaxed) {
+    pub(crate) fn set_system_shutdown_warn(&mut self, reason: Txt) {
+        if !reason.is_empty() {
+            let hwnd = crate::util::winit_to_hwnd(&self.window);
+            let reason = windows::core::HSTRING::from(reason.as_str());
+            // SAFETY: function return handled.
+            let enabled = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonCreate(hwnd, reason.as_ptr()) != 0 };
+            self.block_shutdown.store(enabled, std::sync::atomic::Ordering::Relaxed);
+            if !enabled {
+                tracing::error!("failed to set system shutdown warn, requested warn reason was: {reason}");
+            }
+        } else if self.block_shutdown.swap(false, std::sync::atomic::Ordering::Relaxed) {
             let hwnd = crate::util::winit_to_hwnd(&self.window);
             // SAFETY: function does not fail.
             unsafe {
@@ -1837,12 +1831,17 @@ impl Window {
             }
         }
     }
+
     #[cfg(not(windows))]
-    pub(crate) fn unblock_system_shutdown(&mut self) {}
+    pub(crate) fn set_system_shutdown_warn(&mut self, reason: Txt) {
+        if !reason.is_empty() {
+            tracing::error!("cannot set system shutdown warn, not implemented, requested warn reason was: {reason}");
+        }
+    }
 }
 impl Drop for Window {
     fn drop(&mut self) {
-        self.unblock_system_shutdown();
+        self.set_system_shutdown_warn(Txt::from(""));
 
         self.api.stop_render_backend();
         self.api.shut_down(true);

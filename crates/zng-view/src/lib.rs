@@ -1945,12 +1945,8 @@ impl Api for App {
         }
     }
 
-    fn block_system_shutdown(&mut self, id: WindowId, reason: Txt) {
-        self.with_window(id, move |w| w.block_system_shutdown(reason), || ())
-    }
-
-    fn unblock_system_shutdown(&mut self, id: WindowId) {
-        self.with_window(id, |w| w.unblock_system_shutdown(), || ())
+    fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt) {
+        self.with_window(id, move |w| w.set_system_shutdown_warn(reason), || ())
     }
 
     fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed> {

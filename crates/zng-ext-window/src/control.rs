@@ -307,6 +307,12 @@ impl HeadedCtrl {
                 })
             }
 
+            if let Some(reason) = self.vars.system_shutdown_warn().get_new() {
+                self.update_gen(move |view| {
+                    let _: Ignore = view.set_system_shutdown_warn(reason);
+                })
+            }
+
             if prev_state != new_state {
                 self.update_gen(move |view| {
                     let _: Ignore = view.set_state(new_state);
@@ -1124,6 +1130,7 @@ impl HeadedCtrl {
                 let area = WINDOW.info().get(a.target.widget_id())?.ime_area().to_dip(scale_factor);
                 Some(area)
             }),
+            system_shutdown_warn: self.vars.system_shutdown_warn().get(),
 
             extensions: WINDOWS.take_view_extensions_init(window_id),
         };
@@ -1252,6 +1259,7 @@ impl HeadedCtrl {
                 let area = info.get(a.target.widget_id())?.ime_area().to_dip(info.scale_factor());
                 Some(area)
             }),
+            system_shutdown_warn: self.vars.system_shutdown_warn().get(),
 
             extensions: WINDOWS.take_view_extensions_init(window_id),
         };

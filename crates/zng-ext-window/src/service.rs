@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, future::Future, mem, sync::Arc};
+use std::{any::Any, future::Future, mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -45,10 +45,10 @@ use zng_view_api::{
 };
 
 use crate::{
-    cmd::WindowCommands, control::WindowCtrl, BlockSystemShutdownError, BlockSystemShutdownHandle, CloseWindowResult, FrameCaptureMode,
-    HeadlessMonitor, StartPosition, ViewExtensionError, WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs,
-    WindowLoadingHandle, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, WINDOW_CLOSE_EVENT,
-    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT, WINDOW_VARS_ID,
+    cmd::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, ViewExtensionError,
+    WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle, WindowNotFound, WindowOpenArgs, WindowRoot,
+    WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT,
+    WINDOW_LOAD_EVENT, WINDOW_VARS_ID,
 };
 
 app_local! {
@@ -641,39 +641,6 @@ impl WINDOWS {
             .root_extenders
             .get_mut()
             .push(Box::new(move |a| extender(a).boxed()))
-    }
-
-    /// Attempt to set a system wide shutdown block associated with the window.
-    ///
-    /// Operating systems that support this show the `reason` in a warning for the user, it must be a short text
-    /// that identifies the critical operation that cannot be cancelled.
-    ///
-    /// Note that this does not stop the window from closing, all active shutdown blocks associated with the window
-    /// are removed when the window closes.
-    ///
-    /// Note that there is no guarantee that the view-process or operating system will actually set a block, there
-    /// is no error result for failure to block because operating systems can silently ignore block requests at any
-    /// moment, even after an initial successful block.
-    pub fn block_system_shutdown(
-        &self,
-        window_id: impl Into<WindowId>,
-        reason: impl Into<Txt>,
-    ) -> Result<BlockSystemShutdownHandle, BlockSystemShutdownError> {
-        let window_id = window_id.into();
-        let reason = reason.into();
-        match WINDOWS_SV.write().windows_info.get_mut(&window_id) {
-            Some(w) => match w.mode {
-                WindowMode::Headed => match w.block_shutdown_handles.entry(reason) {
-                    std::collections::hash_map::Entry::Occupied(e) => Ok(e.get().clone()),
-                    std::collections::hash_map::Entry::Vacant(e) => {
-                        UPDATES.update(None);
-                        Ok(e.insert(BlockSystemShutdownHandle::new(UPDATES.sender())).clone())
-                    }
-                },
-                _ => Err(BlockSystemShutdownError::WindowNotHeaded(window_id)),
-            },
-            None => Err(BlockSystemShutdownError::WindowNotFound(WindowNotFound(window_id))),
-        }
     }
 
     /// Add a view-process extension payload to the window request for the view-process.
@@ -1375,8 +1342,6 @@ struct AppWindowInfo {
 
     loading_handle: WindowLoading,
     is_loaded: bool,
-
-    block_shutdown_handles: HashMap<Txt, BlockSystemShutdownHandle>,
 }
 impl AppWindowInfo {
     pub fn new(id: WindowId, root_id: WidgetId, mode: WindowMode, vars: WindowVars, loading_handle: WindowLoading) -> Self {
@@ -1390,7 +1355,6 @@ impl AppWindowInfo {
             is_focused: false,
             loading_handle,
             is_loaded: false,
-            block_shutdown_handles: HashMap::new(),
         }
     }
 }

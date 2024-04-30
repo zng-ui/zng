@@ -1,7 +1,7 @@
 use std::{
     fmt,
     path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc},
+    sync::Arc,
 };
 
 use zng_app::{
@@ -745,37 +745,6 @@ impl fmt::Debug for WindowLoadingHandle {
     }
 }
 
-/// Represents a handle that stops the operating system from shutting down while the handle is alive.
-#[derive(Clone)]
-#[must_use = "the shutdown is not blocked if the handle is dropped"]
-pub struct BlockSystemShutdownHandle(Arc<BlockSystemShutdownHandleData>);
-pub(crate) struct BlockSystemShutdownHandleData {
-    update: AppEventSender,
-    perm: AtomicBool,
-}
-impl BlockSystemShutdownHandle {
-    pub(crate) fn new(update: AppEventSender) -> Self {
-        Self(Arc::new(BlockSystemShutdownHandleData {
-            update,
-            perm: AtomicBool::new(true),
-        }))
-    }
-
-    /// Drop the handle without dropping the block.
-    ///
-    /// Note that the block is removed if the window closes.
-    pub fn perm(self) {
-        self.0.perm.store(true, std::sync::atomic::Ordering::Relaxed);
-    }
-}
-impl Drop for BlockSystemShutdownHandle {
-    fn drop(&mut self) {
-        if Arc::strong_count(&self.0) == 2 {
-            let _ = self.0.update.send_update(UpdateOp::Update, None);
-        }
-    }
-}
-
 /// Error calling a view-process API extension associated with a window or renderer.
 #[derive(Debug)]
 pub enum ViewExtensionError {
@@ -812,31 +781,6 @@ impl std::error::Error for ViewExtensionError {
             Self::NotOpenInViewProcess(_) => None,
             Self::ViewProcessOffline(e) => Some(e),
             Self::Api(e) => Some(e),
-        }
-    }
-}
-
-/// Error calling setting a system shutdown block.
-#[derive(Debug)]
-pub enum BlockSystemShutdownError {
-    /// Window is not open in the `WINDOWS` service.
-    WindowNotFound(WindowNotFound),
-    /// Window must be headed to call window extensions.
-    WindowNotHeaded(WindowId),
-}
-impl fmt::Display for BlockSystemShutdownError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::WindowNotFound(e) => fmt::Display::fmt(e, f),
-            Self::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
-        }
-    }
-}
-impl std::error::Error for BlockSystemShutdownError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::WindowNotFound(e) => Some(e),
-            Self::WindowNotHeaded(_) => None,
         }
     }
 }
