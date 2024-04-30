@@ -1,11 +1,13 @@
 use std::any::Any;
 use std::backtrace::Backtrace;
 use std::cell::RefCell;
-use std::fmt;
+use std::marker::PhantomData;
 use std::{cell::Cell, sync::Arc};
+use std::{fmt, ops};
 
 use rayon::ThreadPoolBuilder;
 use webrender::api as wr;
+use winit::event_loop::ActiveEventLoop;
 use winit::{event::ElementState, monitor::MonitorHandle};
 use zng_txt::{ToTxt, Txt};
 use zng_unit::*;
@@ -1582,4 +1584,45 @@ pub(crate) fn frame_update_render_reasons(update: &FrameUpdateRequest) -> wr::Re
     }
 
     reasons
+}
+
+#[must_use = "call .unset before drop"]
+pub(crate) struct WinitEventLoop(*const ActiveEventLoop);
+impl WinitEventLoop {
+    pub fn set<'l>(&mut self, winit_loop: &'l ActiveEventLoop) -> WinitEventLoopGuard<'l> {
+        self.0 = winit_loop;
+        WinitEventLoopGuard {
+            defused: false,
+            _loop_lifetime: PhantomData,
+        }
+    }
+}
+impl Default for WinitEventLoop {
+    fn default() -> Self {
+        Self(std::ptr::null())
+    }
+}
+impl ops::Deref for WinitEventLoop {
+    type Target = ActiveEventLoop;
+
+    fn deref(&self) -> &Self::Target {
+        assert!(!self.0.is_null(), "winit event loop not active");
+        // SAFETY: just checked, and can only set pointer with `set`
+        unsafe { &*self.0 }
+    }
+}
+pub(crate) struct WinitEventLoopGuard<'l> {
+    defused: bool,
+    _loop_lifetime: PhantomData<&'l ActiveEventLoop>,
+}
+impl<'l> WinitEventLoopGuard<'l> {
+    pub fn unset(&mut self, l: &mut WinitEventLoop) {
+        self.defused = true;
+        l.0 = std::ptr::null();
+    }
+}
+impl<'l> Drop for WinitEventLoopGuard<'l> {
+    fn drop(&mut self) {
+        assert!(self.defused, "unsafe pointer to winit ActiveEventLoop not cleared");
+    }
 }

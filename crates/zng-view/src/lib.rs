@@ -293,7 +293,7 @@ pub(crate) struct App {
     exts: ViewExtensions,
 
     gl_manager: GlContextManager,
-    winit_loop: *const ActiveEventLoop,
+    winit_loop: util::WinitEventLoop,
     idle: IdleTrace,
     app_sender: AppEventSender,
     request_recv: flume::Receiver<RequestEvent>,
@@ -361,6 +361,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
         let _s = tracing::trace_span!("on_window_event", ?event).entered();
 
+        let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+
         self.windows[i].pump_access(&event);
 
         let id = self.windows[i].id();
@@ -386,6 +388,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         macro_rules! linux_modal_dialog_bail {
             () => {
                 if modal_dialog_active {
+                    winit_loop_guard.unset(&mut self.winit_loop);
                     return;
                 }
             };
@@ -407,6 +410,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 let size = if let Some(size) = self.windows[i].resized() {
                     size
                 } else {
+                    winit_loop_guard.unset(&mut self.winit_loop);
                     return;
                 };
 
@@ -443,7 +447,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 }
 
                 if let Some(handle) = self.windows[i].monitor_change() {
-                    let m_id = self.monitor_handle_to_id(&handle, winit_loop);
+                    let m_id = self.monitor_handle_to_id(&handle);
 
                     self.notify(Event::WindowChanged(WindowChanged::monitor_changed(id, m_id, EventCause::System)));
                 }
@@ -487,6 +491,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             break;
                         }
                         Err(flume::RecvTimeoutError::Disconnected) => {
+                            winit_loop_guard.unset(&mut self.winit_loop);
                             unreachable!()
                         }
                     }
@@ -532,7 +537,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 )));
 
                 if let Some(handle) = self.windows[i].monitor_change() {
-                    let m_id = self.monitor_handle_to_id(&handle, winit_loop);
+                    let m_id = self.monitor_handle_to_id(&handle);
 
                     self.notify(Event::WindowChanged(WindowChanged::monitor_changed(id, m_id, EventCause::System)));
                 }
@@ -579,6 +584,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     #[cfg(windows)]
                     if self.skip_ralt {
                         if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::AltRight) = event.physical_key {
+                            winit_loop_guard.unset(&mut self.winit_loop);
                             return;
                         }
                     }
@@ -747,7 +753,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 }
 
                 let monitor = if let Some(handle) = monitor {
-                    self.monitor_handle_to_id(&handle, winit_loop)
+                    self.monitor_handle_to_id(&handle)
                 } else {
                     MonitorId::INVALID
                 };
@@ -800,6 +806,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             WindowEvent::DoubleTapGesture { .. } => {}
             WindowEvent::PanGesture { .. } => {}
         }
+
+        winit_loop_guard.unset(&mut self.winit_loop);
     }
 
     fn new_events(&mut self, _: &ActiveEventLoop, _: winit::event::StartCause) {
@@ -807,18 +815,17 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
     }
 
     fn user_event(&mut self, winit_loop: &ActiveEventLoop, ev: AppEvent) {
+        let mut winit_loop_guard = self.winit_loop.set(winit_loop);
         match ev {
             AppEvent::Request => {
                 while let Ok(req) = self.request_recv.try_recv() {
                     match req {
                         RequestEvent::Request(req) => {
-                            self.winit_loop = winit_loop;
                             let rsp = self.respond(req);
-                            self.winit_loop = std::ptr::null();
                             if rsp.must_be_send() && self.response_sender.send(rsp).is_err() {
                                 // lost connection to app-process
                                 self.exited = true;
-                                winit_loop.exit();
+                                self.winit_loop.exit();
                             }
                         }
                         RequestEvent::FrameReady(wid, msg) => self.on_frame_ready(wid, msg),
@@ -827,10 +834,10 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             }
             AppEvent::Notify(ev) => self.notify(ev),
             AppEvent::WinitFocused(window_id, focused) => self.window_event(winit_loop, window_id, WindowEvent::Focused(focused)),
-            AppEvent::RefreshMonitors => self.refresh_monitors(winit_loop),
+            AppEvent::RefreshMonitors => self.refresh_monitors(),
             AppEvent::ParentProcessExited => {
                 self.exited = true;
-                winit_loop.exit();
+                self.winit_loop.exit();
             }
             AppEvent::ImageLoaded(data) => {
                 self.image_cache.loaded(data);
@@ -845,11 +852,14 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.init_device_events(enabled, Some(winit_loop));
             }
         }
+        winit_loop_guard.unset(&mut self.winit_loop);
     }
 
-    fn device_event(&mut self, _: &ActiveEventLoop, device_id: winit::event::DeviceId, event: DeviceEvent) {
+    fn device_event(&mut self, winit_loop: &ActiveEventLoop, device_id: winit::event::DeviceId, event: DeviceEvent) {
         if self.device_events {
             let _s = tracing::trace_span!("on_device_event", ?event);
+
+            let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
             let d_id = self.device_id(device_id);
             match event {
@@ -879,10 +889,14 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     state: util::element_state_to_key_state(k.state),
                 }),
             }
+
+            winit_loop_guard.unset(&mut self.winit_loop);
         }
     }
 
-    fn about_to_wait(&mut self, _: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, winit_loop: &ActiveEventLoop) {
+        let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+
         self.finish_cursor_entered_move();
         self.update_modifiers();
         self.flush_coalesced();
@@ -891,6 +905,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             self.skip_ralt = false;
         }
         self.idle.enter();
+
+        winit_loop_guard.unset(&mut self.winit_loop);
     }
 
     fn suspended(&mut self, _: &ActiveEventLoop) {
@@ -901,7 +917,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         let _ = event_loop;
     }
 
-    fn memory_warning(&mut self, _: &ActiveEventLoop) {
+    fn memory_warning(&mut self, winit_loop: &ActiveEventLoop) {
+        let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+
         self.image_cache.on_low_memory();
         for w in &mut self.windows {
             w.on_low_memory();
@@ -911,6 +929,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         }
         self.exts.on_low_memory();
         self.notify(Event::LowMemory);
+
+        winit_loop_guard.unset(&mut self.winit_loop);
     }
 }
 struct IdleTrace(Option<tracing::span::EnteredSpan>);
@@ -954,71 +974,93 @@ impl App {
         app.headless = true;
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let _event_loop = EventLoop::<AppEvent>::with_user_event().build().unwrap();
-
+        let event_loop = EventLoop::new().unwrap();
         drop(winit_span);
 
-        app.start_receiving(c.request_receiver);
+        event_loop
+            .run_app(&mut HeadlessApp {
+                app,
+                request_receiver: Some(c.request_receiver),
+                app_receiver,
+            })
+            .unwrap();
 
-        'app_loop: while !app.exited {
-            match app_receiver.recv() {
-                Ok(app_ev) => match app_ev {
-                    AppEvent::Request => {
-                        while let Ok(request) = app.request_recv.try_recv() {
-                            match request {
-                                RequestEvent::Request(request) => {
-                                    let response = app.respond(request);
-                                    if response.must_be_send() && app.response_sender.send(response).is_err() {
-                                        app.exited = true;
-                                        break 'app_loop;
-                                    }
-                                }
-                                RequestEvent::FrameReady(id, msg) => {
-                                    let r = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
-                                        Some(s.on_frame_ready(msg, &mut app.image_cache))
-                                    } else {
-                                        None
-                                    };
-                                    if let Some((frame_id, image)) = r {
-                                        app.notify(Event::FrameRendered(EventFrameRendered {
-                                            window: id,
-                                            frame: frame_id,
-                                            frame_image: image,
-                                        }));
+        struct HeadlessApp {
+            app: App,
+            request_receiver: Option<ipc::RequestReceiver>,
+            app_receiver: flume::Receiver<AppEvent>,
+        }
+        impl winit::application::ApplicationHandler<()> for HeadlessApp {
+            fn resumed(&mut self, winit_loop: &ActiveEventLoop) {
+                let mut winit_loop_guard = self.app.winit_loop.set(winit_loop);
+
+                self.app.start_receiving(self.request_receiver.take().unwrap());
+
+                'app_loop: while !self.app.exited {
+                    match self.app_receiver.recv() {
+                        Ok(app_ev) => match app_ev {
+                            AppEvent::Request => {
+                                while let Ok(request) = self.app.request_recv.try_recv() {
+                                    match request {
+                                        RequestEvent::Request(request) => {
+                                            let response = self.app.respond(request);
+                                            if response.must_be_send() && self.app.response_sender.send(response).is_err() {
+                                                self.app.exited = true;
+                                                break 'app_loop;
+                                            }
+                                        }
+                                        RequestEvent::FrameReady(id, msg) => {
+                                            let r = if let Some(s) = self.app.surfaces.iter_mut().find(|s| s.id() == id) {
+                                                Some(s.on_frame_ready(msg, &mut self.app.image_cache))
+                                            } else {
+                                                None
+                                            };
+                                            if let Some((frame_id, image)) = r {
+                                                self.app.notify(Event::FrameRendered(EventFrameRendered {
+                                                    window: id,
+                                                    frame: frame_id,
+                                                    frame_image: image,
+                                                }));
+                                            }
+                                        }
                                     }
                                 }
                             }
+                            AppEvent::Notify(ev) => {
+                                if self.app.event_sender.send(ev).is_err() {
+                                    self.app.exited = true;
+                                    break 'app_loop;
+                                }
+                            }
+                            AppEvent::RefreshMonitors => {
+                                panic!("no monitor info in headless mode")
+                            }
+                            AppEvent::WinitFocused(_, _) => {
+                                panic!("no winit event loop in headless mode")
+                            }
+                            AppEvent::ParentProcessExited => {
+                                self.app.exited = true;
+                                break 'app_loop;
+                            }
+                            AppEvent::ImageLoaded(data) => {
+                                self.app.image_cache.loaded(data);
+                            }
+                            AppEvent::MonitorPowerChanged => {} // headless
+                            AppEvent::InitDeviceEvents(enabled) => {
+                                self.app.init_device_events(enabled, None);
+                            }
+                        },
+                        Err(_) => {
+                            self.app.exited = true;
+                            break;
                         }
                     }
-                    AppEvent::Notify(ev) => {
-                        if app.event_sender.send(ev).is_err() {
-                            app.exited = true;
-                            break 'app_loop;
-                        }
-                    }
-                    AppEvent::RefreshMonitors => {
-                        panic!("no monitor info in headless mode")
-                    }
-                    AppEvent::WinitFocused(_, _) => {
-                        panic!("no winit event loop in headless mode")
-                    }
-                    AppEvent::ParentProcessExited => {
-                        app.exited = true;
-                        break 'app_loop;
-                    }
-                    AppEvent::ImageLoaded(data) => {
-                        app.image_cache.loaded(data);
-                    }
-                    AppEvent::MonitorPowerChanged => {} // headless
-                    AppEvent::InitDeviceEvents(enabled) => {
-                        app.init_device_events(enabled, None);
-                    }
-                },
-                Err(_) => {
-                    app.exited = true;
-                    break;
                 }
+
+                winit_loop_guard.unset(&mut self.app.winit_loop);
             }
+
+            fn window_event(&mut self, _: &ActiveEventLoop, _: winit::window::WindowId, _: WindowEvent) {}
         }
     }
 
@@ -1028,7 +1070,6 @@ impl App {
         gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-
         let event_loop = EventLoop::with_user_event().build().unwrap();
         drop(winit_span);
         let app_sender = event_loop.create_proxy();
@@ -1071,7 +1112,7 @@ impl App {
             request_recv,
             response_sender,
             event_sender,
-            winit_loop: std::ptr::null(),
+            winit_loop: util::WinitEventLoop::default(),
             gen: ViewProcessGen::INVALID,
             device_events: false,
             windows: vec![],
@@ -1107,11 +1148,11 @@ impl App {
         });
     }
 
-    fn monitor_handle_to_id(&mut self, handle: &MonitorHandle, winit_loop: &ActiveEventLoop) -> MonitorId {
+    fn monitor_handle_to_id(&mut self, handle: &MonitorHandle) -> MonitorId {
         if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
             *id
         } else {
-            self.refresh_monitors(winit_loop);
+            self.refresh_monitors();
             if let Some((id, _)) = self.monitors.iter().find(|(_, h)| h == handle) {
                 *id
             } else {
@@ -1194,12 +1235,12 @@ impl App {
         }
     }
 
-    fn refresh_monitors(&mut self, winit_loop: &ActiveEventLoop) {
+    fn refresh_monitors(&mut self) {
         let mut monitors = Vec::with_capacity(self.monitors.len());
 
         let mut changed = false;
 
-        for (fresh_handle, (id, handle)) in winit_loop.available_monitors().zip(&self.monitors) {
+        for (fresh_handle, (id, handle)) in self.winit_loop.available_monitors().zip(&self.monitors) {
             let id = if &fresh_handle == handle {
                 *id
             } else {
@@ -1212,7 +1253,7 @@ impl App {
         if changed {
             self.monitors = monitors;
 
-            let monitors = self.available_monitors(winit_loop);
+            let monitors = self.available_monitors();
             self.notify(Event::MonitorsChanged(monitors));
         }
     }
@@ -1358,13 +1399,13 @@ impl App {
         }
     }
 
-    fn available_monitors(&mut self, winit_loop: &ActiveEventLoop) -> Vec<(MonitorId, MonitorInfo)> {
+    fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)> {
         let _span = tracing::trace_span!("available_monitors").entered();
 
         self.assert_started();
 
-        let primary = winit_loop.primary_monitor();
-        winit_loop
+        let primary = self.winit_loop.primary_monitor();
+        self.winit_loop
             .available_monitors()
             .map(|m| {
                 let id = self.monitor_id(&m);
@@ -1390,12 +1431,12 @@ macro_rules! with_window_or_surface {
 }
 
 impl App {
-    fn open_headless_impl(&mut self, config: HeadlessRequest, winit_loop: &ActiveEventLoop) -> HeadlessOpenData {
+    fn open_headless_impl(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
         self.assert_started();
         let surf = Surface::open(
             self.gen,
             config,
-            winit_loop,
+            &self.winit_loop,
             &mut self.gl_manager,
             self.exts.new_renderer(),
             self.app_sender.clone(),
@@ -1434,10 +1475,7 @@ impl Api for App {
 
         self.app_sender.send(AppEvent::InitDeviceEvents(device_events)).unwrap();
 
-        // SAFETY: winit_loop is set before all view-API calls.
-        let winit_loop = unsafe { &*self.winit_loop };
-
-        let available_monitors = self.available_monitors(winit_loop);
+        let available_monitors = self.available_monitors();
         self.notify(Event::Inited(Inited {
             generation: gen,
             is_respawn,
@@ -1467,18 +1505,13 @@ impl Api for App {
 
         if self.headless {
             let id = config.id;
-            // SAFETY: winit_loop is set before view-api calls.
-            let winit_loop = unsafe { &*self.winit_loop };
-            let data = self.open_headless_impl(
-                HeadlessRequest {
-                    id: config.id,
-                    scale_factor: Factor(1.0),
-                    size: config.state.restore_rect.size,
-                    render_mode: config.render_mode,
-                    extensions: config.extensions,
-                },
-                winit_loop,
-            );
+            let data = self.open_headless_impl(HeadlessRequest {
+                id: config.id,
+                scale_factor: Factor(1.0),
+                size: config.state.restore_rect.size,
+                render_mode: config.render_mode,
+                extensions: config.extensions,
+            });
             let msg = WindowOpenData {
                 render_mode: data.render_mode,
                 monitor: None,
@@ -1502,13 +1535,11 @@ impl Api for App {
             self.assert_started();
 
             let id = config.id;
-            // SAFETY: winit_loop is set before view-api calls.
-            let winit_loop = unsafe { &*self.winit_loop };
             let win = Window::open(
                 self.gen,
                 config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
                 config,
-                winit_loop,
+                &self.winit_loop,
                 &mut self.gl_manager,
                 self.exts.new_renderer(),
                 self.app_sender.clone(),
@@ -1534,9 +1565,7 @@ impl Api for App {
         let _s = tracing::debug_span!("open_headless", ?config).entered();
 
         let id = config.id;
-        // SAFETY: winit_loop is set before view-api calls.
-        let winit_loop = unsafe { &*self.winit_loop };
-        let msg = self.open_headless_impl(config, winit_loop);
+        let msg = self.open_headless_impl(config);
 
         self.notify(Event::HeadlessOpened(id, msg));
     }
@@ -1589,9 +1618,7 @@ impl Api for App {
                 change.size = w.resized();
                 change.position = w.moved();
                 if let Some(handle) = w.monitor_change() {
-                    // SAFETY: winit_loop is set before view-api calls.
-                    let winit_loop = unsafe { &*self.winit_loop };
-                    let monitor = self.monitor_handle_to_id(&handle, winit_loop);
+                    let monitor = self.monitor_handle_to_id(&handle);
                     change.monitor = Some(monitor);
                 }
 
