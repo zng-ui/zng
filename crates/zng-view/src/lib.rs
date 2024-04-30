@@ -1945,8 +1945,8 @@ impl Api for App {
         }
     }
 
-    fn block_system_shutdown(&mut self, id: WindowId, reason: Txt) -> bool {
-        self.with_window(id, move |w| w.block_system_shutdown(reason), || false)
+    fn block_system_shutdown(&mut self, id: WindowId, reason: Txt) {
+        self.with_window(id, move |w| w.block_system_shutdown(reason), || ())
     }
 
     fn unblock_system_shutdown(&mut self, id: WindowId) {

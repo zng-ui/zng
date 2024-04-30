@@ -511,9 +511,10 @@ declare_api! {
     ///
     /// Note that there is only one block reason per window, subsequent calls to this API replace the reason.
     ///
-    /// Returns `true` if succeeded in setting the block, can only succeed for headed windows in a
-    /// operating system with this feature.
-    pub fn block_system_shutdown(&mut self, id: WindowId, reason: Txt) -> bool;
+    /// Note that there is no guarantee that the view-process or operating system will actually set a block, there
+    /// is no error result because operating systems can silently ignore block requests at any moment, even after
+    /// an initial successful block.
+    pub fn block_system_shutdown(&mut self, id: WindowId, reason: Txt);
 
     /// Remove any previously set system wide shutdown block associated with the window.
     ///

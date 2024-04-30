@@ -1,11 +1,11 @@
-use std::{any::Any, fmt, future::Future, mem, sync::Arc};
+use std::{any::Any, collections::HashMap, future::Future, mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
     app_hn_once,
     event::AnyEventArgs,
     timer::{DeadlineHandle, TIMERS},
-    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdateOp, WidgetUpdates, UPDATES},
+    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
     view_process::{
         self,
         raw_events::{
@@ -45,9 +45,10 @@ use zng_view_api::{
 };
 
 use crate::{
-    cmd::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, WindowCloseArgs,
-    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT,
-    MONITORS, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT, WINDOW_VARS_ID,
+    cmd::WindowCommands, control::WindowCtrl, BlockSystemShutdownError, BlockSystemShutdownHandle, CloseWindowResult, FrameCaptureMode,
+    HeadlessMonitor, StartPosition, ViewExtensionError, WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs,
+    WindowLoadingHandle, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, WINDOW_CLOSE_EVENT,
+    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT, WINDOW_VARS_ID,
 };
 
 app_local! {
@@ -642,6 +643,39 @@ impl WINDOWS {
             .push(Box::new(move |a| extender(a).boxed()))
     }
 
+    /// Attempt to set a system wide shutdown block associated with the window.
+    ///
+    /// Operating systems that support this show the `reason` in a warning for the user, it must be a short text
+    /// that identifies the critical operation that cannot be cancelled.
+    ///
+    /// Note that this does not stop the window from closing, all active shutdown blocks associated with the window
+    /// are removed when the window closes.
+    ///
+    /// Note that there is no guarantee that the view-process or operating system will actually set a block, there
+    /// is no error result for failure to block because operating systems can silently ignore block requests at any
+    /// moment, even after an initial successful block.
+    pub fn block_system_shutdown(
+        &self,
+        window_id: impl Into<WindowId>,
+        reason: impl Into<Txt>,
+    ) -> Result<BlockSystemShutdownHandle, BlockSystemShutdownError> {
+        let window_id = window_id.into();
+        let reason = reason.into();
+        match WINDOWS_SV.write().windows_info.get_mut(&window_id) {
+            Some(w) => match w.mode {
+                WindowMode::Headed => match w.block_shutdown_handles.entry(reason) {
+                    std::collections::hash_map::Entry::Occupied(e) => Ok(e.get().clone()),
+                    std::collections::hash_map::Entry::Vacant(e) => {
+                        UPDATES.update(None);
+                        Ok(e.insert(BlockSystemShutdownHandle::new(UPDATES.sender())).clone())
+                    }
+                },
+                _ => Err(BlockSystemShutdownError::WindowNotHeaded(window_id)),
+            },
+            None => Err(BlockSystemShutdownError::WindowNotFound(WindowNotFound(window_id))),
+        }
+    }
+
     /// Add a view-process extension payload to the window request for the view-process.
     ///
     /// This will only work if called on the first [`UiNode::init`] and at most the first [`UiNode::layout`] of the window.
@@ -654,10 +688,11 @@ impl WINDOWS {
     /// [`VIEW_PROCESS_INITED_EVENT`]: zng_app::view_process::VIEW_PROCESS_INITED_EVENT
     pub fn view_extensions_init(
         &self,
-        window_id: WindowId,
+        window_id: impl Into<WindowId>,
         extension_id: ApiExtensionId,
         request: ApiExtensionPayload,
     ) -> Result<(), WindowNotFound> {
+        let window_id = window_id.into();
         match WINDOWS_SV.write().windows_info.get_mut(&window_id) {
             Some(i) => {
                 i.extensions.push((extension_id, request));
@@ -676,12 +711,13 @@ impl WINDOWS {
     /// Note that unlike most service methods this calls happens immediately.
     pub fn view_window_extension_raw(
         &self,
-        id: WindowId,
+        window_id: impl Into<WindowId>,
         extension_id: ApiExtensionId,
         request: ApiExtensionPayload,
     ) -> Result<ApiExtensionPayload, ViewExtensionError> {
+        let window_id = window_id.into();
         let sv = WINDOWS_SV.read();
-        match WINDOWS_SV.read().windows_info.get(&id) {
+        match WINDOWS_SV.read().windows_info.get(&window_id) {
             Some(i) => match &i.view {
                 Some(r) => match r {
                     ViewWindowOrHeadless::Window(r) => {
@@ -690,24 +726,30 @@ impl WINDOWS {
                         r.window_extension_raw(extension_id, request)
                             .map_err(ViewExtensionError::ViewProcessOffline)
                     }
-                    ViewWindowOrHeadless::Headless(_) => Err(ViewExtensionError::WindowNotHeaded(id)),
+                    ViewWindowOrHeadless::Headless(_) => Err(ViewExtensionError::WindowNotHeaded(window_id)),
                 },
-                None => Err(ViewExtensionError::NotOpenInViewProcess(id)),
+                None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
         }
     }
 
     /// Call a headed window extension with serialized payload.
     ///
     /// Note that unlike most service methods this call happens immediately.
-    pub fn view_window_extension<I, O>(&self, id: WindowId, extension_id: ApiExtensionId, request: &I) -> Result<O, ViewExtensionError>
+    pub fn view_window_extension<I, O>(
+        &self,
+        window_id: impl Into<WindowId>,
+        extension_id: ApiExtensionId,
+        request: &I,
+    ) -> Result<O, ViewExtensionError>
     where
         I: serde::Serialize,
         O: serde::de::DeserializeOwned,
     {
+        let window_id = window_id.into();
         let sv = WINDOWS_SV.read();
-        match sv.windows_info.get(&id) {
+        match sv.windows_info.get(&window_id) {
             Some(i) => match &i.view {
                 Some(r) => match r {
                     ViewWindowOrHeadless::Window(r) => {
@@ -718,11 +760,11 @@ impl WINDOWS {
                             .map_err(ViewExtensionError::ViewProcessOffline)?;
                         r.map_err(ViewExtensionError::Api)
                     }
-                    ViewWindowOrHeadless::Headless(_) => Err(ViewExtensionError::WindowNotHeaded(id)),
+                    ViewWindowOrHeadless::Headless(_) => Err(ViewExtensionError::WindowNotHeaded(window_id)),
                 },
-                None => Err(ViewExtensionError::NotOpenInViewProcess(id)),
+                None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
         }
     }
 
@@ -731,12 +773,13 @@ impl WINDOWS {
     /// Note that unlike most service methods this call happens immediately.
     pub fn view_render_extension_raw(
         &self,
-        id: WindowId,
+        window_id: impl Into<WindowId>,
         extension_id: ApiExtensionId,
         request: ApiExtensionPayload,
     ) -> Result<ApiExtensionPayload, ViewExtensionError> {
+        let window_id = window_id.into();
         let sv = WINDOWS_SV.read();
-        match WINDOWS_SV.read().windows_info.get(&id) {
+        match WINDOWS_SV.read().windows_info.get(&window_id) {
             Some(i) => match &i.view {
                 Some(r) => {
                     let r = r.renderer();
@@ -744,22 +787,28 @@ impl WINDOWS {
                     r.render_extension_raw(extension_id, request)
                         .map_err(ViewExtensionError::ViewProcessOffline)
                 }
-                None => Err(ViewExtensionError::NotOpenInViewProcess(id)),
+                None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
         }
     }
 
     /// Call a render extension with serialized payload for the renderer associated with the window.
     ///
     /// Note that unlike most service methods this call happens immediately.
-    pub fn view_render_extension<I, O>(&self, id: WindowId, extension_id: ApiExtensionId, request: &I) -> Result<O, ViewExtensionError>
+    pub fn view_render_extension<I, O>(
+        &self,
+        window_id: impl Into<WindowId>,
+        extension_id: ApiExtensionId,
+        request: &I,
+    ) -> Result<O, ViewExtensionError>
     where
         I: serde::Serialize,
         O: serde::de::DeserializeOwned,
     {
+        let window_id = window_id.into();
         let sv = WINDOWS_SV.read();
-        match sv.windows_info.get(&id) {
+        match sv.windows_info.get(&window_id) {
             Some(i) => match &i.view {
                 Some(r) => {
                     let r = r.renderer();
@@ -769,9 +818,9 @@ impl WINDOWS {
                         .map_err(ViewExtensionError::ViewProcessOffline)?;
                     r.map_err(ViewExtensionError::Api)
                 }
-                None => Err(ViewExtensionError::NotOpenInViewProcess(id)),
+                None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
         }
     }
 
@@ -1326,6 +1375,8 @@ struct AppWindowInfo {
 
     loading_handle: WindowLoading,
     is_loaded: bool,
+
+    block_shutdown_handles: HashMap<Txt, BlockSystemShutdownHandle>,
 }
 impl AppWindowInfo {
     pub fn new(id: WindowId, root_id: WidgetId, mode: WindowMode, vars: WindowVars, loading_handle: WindowLoading) -> Self {
@@ -1339,6 +1390,7 @@ impl AppWindowInfo {
             is_focused: false,
             loading_handle,
             is_loaded: false,
+            block_shutdown_handles: HashMap::new(),
         }
     }
 }
@@ -1498,7 +1550,7 @@ impl AppWindow {
 }
 
 struct WindowLoading {
-    handles: Vec<std::sync::Weak<WindowLoadingHandleData>>,
+    handles: Vec<std::sync::Weak<crate::WindowLoadingHandleData>>,
     timer: Option<DeadlineHandle>,
 }
 impl WindowLoading {
@@ -1548,50 +1600,9 @@ impl WindowLoading {
     }
 
     pub fn new_handle(&mut self, update: AppEventSender, deadline: Deadline) -> WindowLoadingHandle {
-        let h = Arc::new(WindowLoadingHandleData { update, deadline });
+        let h = Arc::new(crate::WindowLoadingHandleData { update, deadline });
         self.handles.push(Arc::downgrade(&h));
         WindowLoadingHandle(h)
-    }
-}
-
-/// Represents a handle that stops the window from loading while the handle is alive.
-///
-/// A handle can be retrieved using [`WINDOWS.loading_handle`] or [`WINDOW.loading_handle`], the window does not
-/// open until all handles expire or are dropped.
-///
-/// [`WINDOWS.loading_handle`]: WINDOWS::loading_handle
-/// [`WINDOW.loading_handle`]: WINDOW::loading_handle
-#[derive(Clone)]
-pub struct WindowLoadingHandle(Arc<WindowLoadingHandleData>);
-impl WindowLoadingHandle {
-    /// Handle expiration deadline.
-    pub fn deadline(&self) -> Deadline {
-        self.0.deadline
-    }
-}
-struct WindowLoadingHandleData {
-    update: AppEventSender,
-    deadline: Deadline,
-}
-impl Drop for WindowLoadingHandleData {
-    fn drop(&mut self) {
-        let _ = self.update.send_update(UpdateOp::Update, None);
-    }
-}
-impl PartialEq for WindowLoadingHandle {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-impl Eq for WindowLoadingHandle {}
-impl std::hash::Hash for WindowLoadingHandle {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (Arc::as_ptr(&self.0) as usize).hash(state);
-    }
-}
-impl fmt::Debug for WindowLoadingHandle {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "WindowLoadingHandle(_)")
     }
 }
 
@@ -1770,45 +1781,5 @@ impl WINDOW_FOCUS {
 
     pub(crate) fn focused(&self) -> BoxedVar<Option<InteractionPath>> {
         FOCUS_SV.get()
-    }
-}
-
-/// Error calling a view-process API extension associated with a window or renderer.
-#[derive(Debug)]
-pub enum ViewExtensionError {
-    /// Window is not open in the `WINDOWS` service.
-    WindowNotFound(WindowNotFound),
-    /// Window must be headed to call window extensions.
-    WindowNotHeaded(WindowId),
-    /// Window is not open in the view-process.
-    ///
-    /// If the window is headless without renderer it will never open in view-process, if the window is headed
-    /// headless with renderer the window opens in the view-process after the first layout.
-    NotOpenInViewProcess(WindowId),
-    /// View-process is not running.
-    ViewProcessOffline(ViewProcessOffline),
-    /// Api Error.
-    Api(zng_view_api::api_extension::ApiExtensionRecvError),
-}
-impl fmt::Display for ViewExtensionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ViewExtensionError::WindowNotFound(e) => fmt::Display::fmt(e, f),
-            ViewExtensionError::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
-            ViewExtensionError::NotOpenInViewProcess(id) => write!(f, "window/renderer `{id}` not open in the view-process"),
-            ViewExtensionError::ViewProcessOffline(e) => fmt::Display::fmt(e, f),
-            ViewExtensionError::Api(e) => fmt::Display::fmt(e, f),
-        }
-    }
-}
-impl std::error::Error for ViewExtensionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ViewExtensionError::WindowNotFound(e) => Some(e),
-            ViewExtensionError::WindowNotHeaded(_) => None,
-            ViewExtensionError::NotOpenInViewProcess(_) => None,
-            ViewExtensionError::ViewProcessOffline(e) => Some(e),
-            ViewExtensionError::Api(e) => Some(e),
-        }
     }
 }

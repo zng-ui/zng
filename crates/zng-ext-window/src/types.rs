@@ -1,16 +1,18 @@
 use std::{
     fmt,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{atomic::AtomicBool, Arc},
 };
 
 use zng_app::{
     event::{event, event_args},
+    update::UpdateOp,
     widget::{
         node::{BoxedUiNode, UiNode},
         WidgetId,
     },
     window::{WindowId, WINDOW},
+    AppEventSender, Deadline,
 };
 use zng_ext_image::{ImageSource, ImageVar, Img};
 use zng_layout::unit::{DipPoint, DipSize, Point, PxPoint};
@@ -20,6 +22,7 @@ use zng_var::impl_from_and_into_var;
 use zng_view_api::{
     image::{ImageDataFormat, ImageMaskMode},
     window::{EventCause, FrameId},
+    ViewProcessOffline,
 };
 
 pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
@@ -699,3 +702,141 @@ impl fmt::Display for WindowNotFound {
     }
 }
 impl std::error::Error for WindowNotFound {}
+
+/// Represents a handle that stops the window from loading while the handle is alive.
+///
+/// A handle can be retrieved using [`WINDOWS.loading_handle`] or [`WINDOW.loading_handle`], the window does not
+/// open until all handles expire or are dropped.
+///
+/// [`WINDOWS.loading_handle`]: WINDOWS::loading_handle
+/// [`WINDOW.loading_handle`]: WINDOW::loading_handle
+#[derive(Clone)]
+#[must_use = "the window does not await loading if the handle is dropped"]
+pub struct WindowLoadingHandle(pub(crate) Arc<WindowLoadingHandleData>);
+impl WindowLoadingHandle {
+    /// Handle expiration deadline.
+    pub fn deadline(&self) -> Deadline {
+        self.0.deadline
+    }
+}
+pub(crate) struct WindowLoadingHandleData {
+    pub(crate) update: AppEventSender,
+    pub(crate) deadline: Deadline,
+}
+impl Drop for WindowLoadingHandleData {
+    fn drop(&mut self) {
+        let _ = self.update.send_update(UpdateOp::Update, None);
+    }
+}
+impl PartialEq for WindowLoadingHandle {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for WindowLoadingHandle {}
+impl std::hash::Hash for WindowLoadingHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (Arc::as_ptr(&self.0) as usize).hash(state);
+    }
+}
+impl fmt::Debug for WindowLoadingHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "WindowLoadingHandle(_)")
+    }
+}
+
+/// Represents a handle that stops the operating system from shutting down while the handle is alive.
+#[derive(Clone)]
+#[must_use = "the shutdown is not blocked if the handle is dropped"]
+pub struct BlockSystemShutdownHandle(Arc<BlockSystemShutdownHandleData>);
+pub(crate) struct BlockSystemShutdownHandleData {
+    update: AppEventSender,
+    perm: AtomicBool,
+}
+impl BlockSystemShutdownHandle {
+    pub(crate) fn new(update: AppEventSender) -> Self {
+        Self(Arc::new(BlockSystemShutdownHandleData {
+            update,
+            perm: AtomicBool::new(true),
+        }))
+    }
+
+    /// Drop the handle without dropping the block.
+    ///
+    /// Note that the block is removed if the window closes.
+    pub fn perm(self) {
+        self.0.perm.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+impl Drop for BlockSystemShutdownHandle {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.0) == 2 {
+            let _ = self.0.update.send_update(UpdateOp::Update, None);
+        }
+    }
+}
+
+/// Error calling a view-process API extension associated with a window or renderer.
+#[derive(Debug)]
+pub enum ViewExtensionError {
+    /// Window is not open in the `WINDOWS` service.
+    WindowNotFound(WindowNotFound),
+    /// Window must be headed to call window extensions.
+    WindowNotHeaded(WindowId),
+    /// Window is not open in the view-process.
+    ///
+    /// If the window is headless without renderer it will never open in view-process, if the window is headed
+    /// headless with renderer the window opens in the view-process after the first layout.
+    NotOpenInViewProcess(WindowId),
+    /// View-process is not running.
+    ViewProcessOffline(ViewProcessOffline),
+    /// Api Error.
+    Api(zng_view_api::api_extension::ApiExtensionRecvError),
+}
+impl fmt::Display for ViewExtensionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WindowNotFound(e) => fmt::Display::fmt(e, f),
+            Self::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
+            Self::NotOpenInViewProcess(id) => write!(f, "window/renderer `{id}` not open in the view-process"),
+            Self::ViewProcessOffline(e) => fmt::Display::fmt(e, f),
+            Self::Api(e) => fmt::Display::fmt(e, f),
+        }
+    }
+}
+impl std::error::Error for ViewExtensionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::WindowNotFound(e) => Some(e),
+            Self::WindowNotHeaded(_) => None,
+            Self::NotOpenInViewProcess(_) => None,
+            Self::ViewProcessOffline(e) => Some(e),
+            Self::Api(e) => Some(e),
+        }
+    }
+}
+
+/// Error calling setting a system shutdown block.
+#[derive(Debug)]
+pub enum BlockSystemShutdownError {
+    /// Window is not open in the `WINDOWS` service.
+    WindowNotFound(WindowNotFound),
+    /// Window must be headed to call window extensions.
+    WindowNotHeaded(WindowId),
+}
+impl fmt::Display for BlockSystemShutdownError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WindowNotFound(e) => fmt::Display::fmt(e, f),
+            Self::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
+        }
+    }
+}
+impl std::error::Error for BlockSystemShutdownError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::WindowNotFound(e) => Some(e),
+            Self::WindowNotHeaded(_) => None,
+        }
+    }
+}

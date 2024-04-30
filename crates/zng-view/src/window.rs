@@ -1811,19 +1811,20 @@ impl Window {
     }
 
     #[cfg(windows)]
-    pub(crate) fn block_system_shutdown(&mut self, reason: Txt) -> bool {
+    pub(crate) fn block_system_shutdown(&mut self, reason: Txt) {
         let hwnd = crate::util::winit_to_hwnd(&self.window);
         let reason = windows::core::HSTRING::from(reason.as_str());
         // SAFETY: function does not fail.
         let enabled = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonCreate(hwnd, reason.as_ptr()) != 0 };
         self.block_shutdown.store(enabled, std::sync::atomic::Ordering::Relaxed);
-        enabled
+        if !enabled {
+            tracing::error!("failed to set system shutdown block, requested block reason was: {reason}");
+        }
     }
 
     #[cfg(not(windows))]
-    pub(crate) fn block_system_shutdown(&mut self, reason: Txt) -> bool {
-        tracing::error!("cannot block system shutdown, not implemented, block reason was: {reason}");
-        false
+    pub(crate) fn block_system_shutdown(&mut self, reason: Txt) {
+        tracing::error!("cannot set system shutdown block, not implemented, requested block reason was: {reason}");
     }
 
     #[cfg(windows)]
