@@ -43,6 +43,13 @@ fn version_0_5() -> impl UiNode {
 }
 ```
 * **Breaking** Rename `VarCapabilities` to `VarCapability`.
+* **Breaking** Add window extension API in `zng-view`.
+    - Add `ViewExtension::window`.
+    - Add `OpenGlContext` and replace the `gl` fields with `context` in multiple extension API args.
+    - Rename `is_config_only` to `is_init_only`.
+    - Note that this is only a breaking change for direct dependents of `zng-view`.
+    - Rename `ViewRenderExtensionError` to `ViewExtensionError`.
+* Add window reference to args for `RendererExtension` when possible.
 * Fix `zng::view_process::default::run_same_process` not propagating app panics.
 * Add `WindowCloseRequestedArgs::headed/headless`.
 * **Breaking** Fix tab nav when a focus scope with `FocusScopeOnFocus::LastFocused` is a child of
@@ -61,6 +68,7 @@ fn version_0_5() -> impl UiNode {
 * Add better conversions for `CommandScope`. You can now scope on named widgets directly, `FOO_CMD.scoped("bar-wgt")`.
 * Add `ContextualizedVar::new_value`.
 * **Breaking** `SCROLL.scroll_*` methods now return contextual vars, not values.
+* Fix panic on window move in Wayland.
 
 # 0.4.0
 

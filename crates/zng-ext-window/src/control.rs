@@ -677,7 +677,7 @@ impl HeadedCtrl {
             if args.window_id == WINDOW.id() {
                 self.waiting_view = false;
 
-                WINDOWS.set_renderer(args.window_id, args.window.renderer());
+                WINDOWS.set_view(args.window_id, args.window.clone().into());
 
                 self.window = Some(args.window.clone());
                 self.cancel_ime_handle = super::cmd::CANCEL_IME_CMD.scoped(WINDOW.id()).subscribe(true);
@@ -1498,7 +1498,7 @@ impl HeadlessWithRendererCtrl {
             if args.window_id == WINDOW.id() {
                 self.waiting_view = false;
 
-                WINDOWS.set_renderer(args.window_id, args.surface.renderer());
+                WINDOWS.set_view(args.window_id, args.surface.clone().into());
 
                 self.surface = Some(args.surface.clone());
                 self.vars.0.render_mode.set(args.data.render_mode);

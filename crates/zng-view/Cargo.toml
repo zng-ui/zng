@@ -53,14 +53,15 @@ zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.5" }
 
 tracing = "0.1"
 gleam = "0.15.0" # matches webrender
-winit = { version = "0.29", default-features = false, features = [
+winit = { version = "0.30", default-features = false, features = [
     "x11",
     "wayland",
     "wayland-dlopen",
     "rwh_05",
+    "rwh_06",
 ] }
 glutin = "0.31"
-raw-window-handle = "0.5" # matches glutin
+raw-window-handle = "0.5.2" # matches glutin
 flume = "0.11"
 image = { version = "0.25", default-features = false, features = [
     "rayon",
@@ -84,12 +85,19 @@ byteorder = "1.5"
 rustc-hash = "1.1"
 rayon = "1.10"
 serde = "1.0"
-rfd = { version = "0.12", default_features = false, features = ["xdg-portal"] }
-accesskit = "0.13"
-accesskit_winit = "0.19"
+accesskit = "0.14"
+accesskit_winit = "0.20"
+# rfd
+[target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd")))'.dependencies.rfd]
+version = "0.14"
+default-features = false
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies.rfd]
+version = "0.14"
+default-features = false
+features = ["xdg-portal", "async-std"]
 
 [target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.48.0" # matches winit, glutin, other crates
+version = "0.52.0" # matches winit, glutin, other crates
 features = [
     "Win32_UI_Shell",
     "Win32_System_Com",
@@ -106,7 +114,7 @@ features = [
     "Win32_System_Shutdown",
 ]
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.48.0"                                          # matches accesskit, other crates
+version = "0.56.0"
 features = ["Foundation_Collections", "System_UserProfile"]
 
 [target.'cfg(windows)'.dependencies]

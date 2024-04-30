@@ -1,12 +1,11 @@
 use std::{collections::VecDeque, fmt};
 
-use winit::event_loop::EventLoopWindowTarget;
-
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction,
 };
+use winit::event_loop::ActiveEventLoop;
 use zng_unit::{DipSize, DipToPx, Factor, Px, PxRect, Rgba};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -26,7 +25,7 @@ use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
     util::{frame_render_reasons, frame_update_render_reasons, PxToWinit},
-    AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
+    AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
 /// A headless "window".
@@ -64,18 +63,18 @@ impl fmt::Debug for Surface {
 impl Surface {
     pub fn open(
         gen: ViewProcessGen,
-        mut cfg: HeadlessRequest,
-        window_target: &EventLoopWindowTarget<AppEvent>,
+        cfg: HeadlessRequest,
+        winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
         let id = cfg.id;
 
-        let mut context = gl_manager.create_headless(id, window_target, cfg.render_mode, &event_sender);
+        let mut context = gl_manager.create_headless(id, winit_loop, cfg.render_mode, &event_sender);
+
         let size = cfg.size.to_px(cfg.scale_factor);
         context.resize(size.to_winit());
-        let context = context;
 
         let mut opts = webrender::WebRenderOptions {
             // text-aa config from Firefox.
@@ -99,15 +98,12 @@ impl Surface {
         };
         let mut blobs = BlobExtensionsImgHandler(vec![]);
         for (id, ext) in &mut renderer_exts {
-            let cfg = cfg
-                .extensions
-                .iter()
-                .position(|(k, _)| k == id)
-                .map(|i| cfg.extensions.swap_remove(i).1);
             ext.configure(&mut RendererConfigArgs {
-                config: cfg,
+                config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, v)| v),
                 options: &mut opts,
                 blobs: &mut blobs.0,
+                window: None,
+                context: &mut context,
             });
         }
         if !opts.enable_multithreading {
@@ -137,9 +133,10 @@ impl Surface {
                 api: &mut api,
                 document_id,
                 pipeline_id,
-                gl: &**context.gl(),
+                window: None,
+                context: &mut context,
             });
-            !ext.is_config_only()
+            !ext.is_init_only()
         });
 
         Self {
@@ -394,7 +391,7 @@ impl Surface {
                 ext.redraw(&mut RedrawArgs {
                     scale_factor: self.scale_factor,
                     size,
-                    gl: &**self.context.gl(),
+                    context: &mut self.context,
                 });
             }
 
@@ -443,7 +440,9 @@ impl Surface {
                     renderer: self.renderer.as_mut().unwrap(),
                     api: &mut self.api,
                     request,
+                    window: None,
                     redraw: &mut redraw,
+                    context: &mut self.context,
                 }));
                 break;
             }
@@ -455,7 +454,7 @@ impl Surface {
                 ext.redraw(&mut RedrawArgs {
                     scale_factor: self.scale_factor,
                     size,
-                    gl: &**self.context.gl(),
+                    context: &mut self.context,
                 });
             }
         }
@@ -479,7 +478,8 @@ impl Drop for Surface {
             ext.renderer_deinited(&mut RendererDeinitedArgs {
                 document_id: self.document_id,
                 pipeline_id: self.pipeline_id,
-                gl: &**self.context.gl(),
+                context: &mut self.context,
+                window: None,
             })
         }
     }

@@ -539,6 +539,12 @@ declare_api! {
     /// Call the API extension.
     ///
     /// This is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
+    /// with the `id` window or headless surface.
+    pub fn window_extension(&mut self, id: WindowId, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
+
+    /// Call the API extension.
+    ///
+    /// This is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
     /// with the `id` renderer.
     pub fn render_extension(&mut self, id: WindowId, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
 }
