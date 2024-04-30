@@ -22,7 +22,10 @@ fn main() {
 
     // init view with extensions used to cause a crash in the view-process.
     zng_view::init_extended(test_extensions);
+    app_main();
+}
 
+fn app_main() {
     APP.defaults().run_window(async {
         Window! {
             title = "Respawn Example";

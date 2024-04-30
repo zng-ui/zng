@@ -835,6 +835,69 @@ impl ViewWindow {
     pub fn close(self) {
         drop(self)
     }
+
+    /// Call a window extension with custom encoded payload.
+    pub fn window_extension_raw(&self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> Result<ApiExtensionPayload> {
+        self.0.call(|id, p| p.window_extension(id, extension_id, request))
+    }
+
+    /// Call a window extension with serialized payload.
+    pub fn window_extension<I, O>(&self, extension_id: ApiExtensionId, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    where
+        I: serde::Serialize,
+        O: serde::de::DeserializeOwned,
+    {
+        let r = self.window_extension_raw(extension_id, ApiExtensionPayload::serialize(&request).unwrap())?;
+        Ok(r.deserialize())
+    }
+}
+
+/// View window or headless surface.
+#[derive(Clone, Debug)]
+pub enum ViewWindowOrHeadless {
+    /// Headed window view.
+    Window(ViewWindow),
+    /// Headless surface view.
+    Headless(ViewHeadless),
+}
+impl ViewWindowOrHeadless {
+    /// Reference the window or surface renderer.
+    pub fn renderer(&self) -> ViewRenderer {
+        match self {
+            ViewWindowOrHeadless::Window(w) => w.renderer(),
+            ViewWindowOrHeadless::Headless(h) => h.renderer(),
+        }
+    }
+
+    /// Call a window extension with custom encoded payload.
+    pub fn window_extension_raw(&self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> Result<ApiExtensionPayload> {
+        match self {
+            ViewWindowOrHeadless::Window(w) => w.window_extension_raw(extension_id, request),
+            ViewWindowOrHeadless::Headless(h) => h.window_extension_raw(extension_id, request),
+        }
+    }
+
+    /// Call a window extension with serialized payload.
+    pub fn window_extension<I, O>(&self, extension_id: ApiExtensionId, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    where
+        I: serde::Serialize,
+        O: serde::de::DeserializeOwned,
+    {
+        match self {
+            ViewWindowOrHeadless::Window(w) => w.window_extension(extension_id, request),
+            ViewWindowOrHeadless::Headless(h) => h.window_extension(extension_id, request),
+        }
+    }
+}
+impl From<ViewWindow> for ViewWindowOrHeadless {
+    fn from(w: ViewWindow) -> Self {
+        ViewWindowOrHeadless::Window(w)
+    }
+}
+impl From<ViewHeadless> for ViewWindowOrHeadless {
+    fn from(w: ViewHeadless) -> Self {
+        ViewWindowOrHeadless::Headless(w)
+    }
 }
 
 #[derive(Debug)]
@@ -886,6 +949,21 @@ impl ViewHeadless {
     /// Reference the window renderer.
     pub fn renderer(&self) -> ViewRenderer {
         ViewRenderer(Arc::downgrade(&self.0))
+    }
+
+    /// Call a window extension with custom encoded payload.
+    pub fn window_extension_raw(&self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> Result<ApiExtensionPayload> {
+        self.0.call(|id, p| p.window_extension(id, extension_id, request))
+    }
+
+    /// Call a window extension with serialized payload.
+    pub fn window_extension<I, O>(&self, extension_id: ApiExtensionId, request: &I) -> Result<std::result::Result<O, ApiExtensionRecvError>>
+    where
+        I: serde::Serialize,
+        O: serde::de::DeserializeOwned,
+    {
+        let r = self.window_extension_raw(extension_id, ApiExtensionPayload::serialize(&request).unwrap())?;
+        Ok(r.deserialize())
     }
 }
 

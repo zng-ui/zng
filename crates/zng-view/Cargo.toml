@@ -61,7 +61,7 @@ winit = { version = "0.30", default-features = false, features = [
     "rwh_06",
 ] }
 glutin = "0.31"
-raw-window-handle = "0.5" # matches glutin
+raw-window-handle = "0.5.2" # matches glutin
 flume = "0.11"
 image = { version = "0.25", default-features = false, features = [
     "rayon",
