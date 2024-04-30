@@ -19,8 +19,7 @@ use crate::{
     display_list::{display_list_to_webrender, DisplayListCache},
     extensions::{
         self, BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
-        RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowCommandArgs, WindowConfigArgs, WindowDeinitedArgs,
-        WindowExtension, WindowInitedArgs,
+        RendererDeinitedArgs, RendererExtension, RendererInitedArgs,
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -40,7 +39,6 @@ pub(crate) struct Surface {
 
     context: GlContext,
     renderer: Option<Renderer>,
-    window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
     renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
     external_images: extensions::ExternalImages,
     image_use: ImageUseMap,
@@ -65,34 +63,18 @@ impl fmt::Debug for Surface {
 impl Surface {
     pub fn open(
         gen: ViewProcessGen,
-        mut cfg: HeadlessRequest,
+        cfg: HeadlessRequest,
         winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
-        mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
         let id = cfg.id;
 
-        for (id, ext) in &mut window_exts {
-            ext.configure(&mut WindowConfigArgs {
-                config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, v)| v),
-                window: None,
-            });
-        }
-
-        let mut context = gl_manager.create_headless(id, window_target, cfg.render_mode, &event_sender);
+        let mut context = gl_manager.create_headless(id, winit_loop, cfg.render_mode, &event_sender);
 
         let size = cfg.size.to_px(cfg.scale_factor);
         context.resize(size.to_winit());
-
-        window_exts.retain_mut(|(_, ext)| {
-            ext.window_inited(&mut WindowInitedArgs {
-                window: None,
-                context: &mut context,
-            });
-            !ext.is_init_only()
-        });
 
         let mut opts = webrender::WebRenderOptions {
             // text-aa config from Firefox.
@@ -120,6 +102,8 @@ impl Surface {
                 config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, v)| v),
                 options: &mut opts,
                 blobs: &mut blobs.0,
+                window: None,
+                context: &mut context,
             });
         }
         if !opts.enable_multithreading {
@@ -149,6 +133,7 @@ impl Surface {
                 api: &mut api,
                 document_id,
                 pipeline_id,
+                window: None,
                 context: &mut context,
             });
             !ext.is_init_only()
@@ -165,7 +150,6 @@ impl Surface {
 
             context,
             renderer: Some(renderer),
-            window_exts,
             renderer_exts,
             external_images,
             image_use: ImageUseMap::default(),
@@ -444,20 +428,6 @@ impl Surface {
         images.frame_image(&**self.context.gl(), rect, self.id, self.rendered_frame_id, self.scale_factor, mask)
     }
 
-    /// Calls the window extension command.
-    pub fn window_extension(&mut self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> ApiExtensionPayload {
-        for (key, ext) in &mut self.window_exts {
-            if *key == extension_id {
-                return ext.command(&mut WindowCommandArgs {
-                    window: None,
-                    context: &mut self.context,
-                    request,
-                });
-            }
-        }
-        ApiExtensionPayload::unknown_extension(extension_id)
-    }
-
     /// Calls the render extension command.
     pub fn render_extension(&mut self, extension_id: ApiExtensionId, request: ApiExtensionPayload) -> ApiExtensionPayload {
         let mut redraw = false;
@@ -470,7 +440,9 @@ impl Surface {
                     renderer: self.renderer.as_mut().unwrap(),
                     api: &mut self.api,
                     request,
+                    window: None,
                     redraw: &mut redraw,
+                    context: &mut self.context,
                 }));
                 break;
             }
@@ -507,13 +479,8 @@ impl Drop for Surface {
                 document_id: self.document_id,
                 pipeline_id: self.pipeline_id,
                 context: &mut self.context,
-            })
-        }
-        for (_, ext) in &mut self.window_exts {
-            ext.window_deinited(&mut WindowDeinitedArgs {
                 window: None,
-                context: &mut self.context,
-            });
+            })
         }
     }
 }

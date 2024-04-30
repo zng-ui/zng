@@ -134,7 +134,7 @@ impl Window {
     pub fn open(
         gen: ViewProcessGen,
         icon: Option<Icon>,
-        mut cfg: WindowRequest,
+        cfg: WindowRequest,
         winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
         mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
@@ -234,17 +234,17 @@ impl Window {
         for (id, ext) in &mut window_exts {
             ext.configure(&mut WindowConfigArgs {
                 config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, p)| p),
-                window: Some(&mut winit.window_attributes().clone()), // TODO after winit update #153
+                window: &mut winit,
             });
         }
 
-        let (winit_window, mut context) = gl_manager.create_headed(id, winit, window_target, render_mode, &event_sender);
+        let (winit_window, mut context) = gl_manager.create_headed(id, winit, winit_loop, render_mode, &event_sender);
 
         render_mode = context.render_mode();
 
         window_exts.retain_mut(|(_, ext)| {
             ext.window_inited(&mut WindowInitedArgs {
-                window: Some(&winit_window),
+                window: &winit_window,
                 context: &mut context,
             });
             !ext.is_init_only()
@@ -329,6 +329,8 @@ impl Window {
                 config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, p)| p),
                 options: &mut opts,
                 blobs: &mut blobs.0,
+                window: Some(&winit_window),
+                context: &mut context,
             });
         }
         if !opts.enable_multithreading {
@@ -356,6 +358,7 @@ impl Window {
                 api: &mut api,
                 document_id,
                 pipeline_id,
+                window: Some(&winit_window),
                 context: &mut context,
             });
             !ext.is_init_only()
@@ -1567,7 +1570,7 @@ impl Window {
         for (key, ext) in &mut self.window_exts {
             if *key == extension_id {
                 return ext.command(&mut WindowCommandArgs {
-                    window: Some(&self.window),
+                    window: &self.window,
                     context: &mut self.context,
                     request,
                 });
@@ -1585,6 +1588,8 @@ impl Window {
                     renderer: self.renderer.as_mut().unwrap(),
                     api: &mut self.api,
                     request,
+                    window: Some(&self.window),
+                    context: &mut self.context,
                     redraw: &mut redraw,
                 });
                 if redraw {
@@ -1730,7 +1735,7 @@ impl Window {
         }
         for (_, ext) in &mut self.window_exts {
             ext.event(&mut extensions::WindowEventArgs {
-                window: Some(&self.window),
+                window: &self.window,
                 context: &mut self.context,
                 event,
             });
@@ -1800,11 +1805,12 @@ impl Drop for Window {
                 document_id: self.document_id,
                 pipeline_id: self.pipeline_id,
                 context: &mut self.context,
+                window: Some(&self.window),
             })
         }
         for (_, ext) in &mut self.window_exts {
             ext.window_deinited(&mut WindowDeinitedArgs {
-                window: Some(&self.window),
+                window: &self.window,
                 context: &mut self.context,
             });
         }

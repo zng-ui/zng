@@ -55,7 +55,7 @@ pub trait ViewExtension: Send + Any {
     fn low_memory(&mut self) {}
 }
 
-/// Represents a view extension associated with a window or headless surface instance.
+/// Represents a view extension associated with a headed window instance.
 pub trait WindowExtension: Any {
     /// Edit attributes for the new window.
     fn configure(&mut self, args: &mut WindowConfigArgs) {
@@ -404,7 +404,7 @@ pub struct WindowConfigArgs<'a> {
     pub config: Option<&'a ApiExtensionPayload>,
 
     /// Window attributes that will be used to build the headed window.
-    pub window: Option<&'a mut winit::window::WindowAttributes>,
+    pub window: &'a mut winit::window::WindowAttributes,
 }
 
 /// Arguments for [`RendererExtension::configure`]
@@ -428,6 +428,12 @@ pub struct RendererConfigArgs<'a> {
     ///
     /// Use this API instead of `blob_image_handler` in options to support multiple blob handlers.
     pub blobs: &'a mut Vec<Box<dyn BlobExtension>>,
+
+    /// Winit window if the renderer is associated with a headed window.
+    pub window: Option<&'a winit::window::Window>,
+
+    /// OpenGL context that will be used by the new renderer.
+    pub context: &'a mut dyn OpenGlContext,
 }
 
 /// Arguments for [`RendererExtension::renderer_inited`].
@@ -451,6 +457,9 @@ pub struct RendererInitedArgs<'a> {
 
     /// The pipeline of the main content.
     pub pipeline_id: PipelineId,
+
+    /// Winit window if the renderer is associated with a headed window.
+    pub window: Option<&'a winit::window::Window>,
 
     /// OpenGL context used by the new renderer.
     ///
@@ -522,6 +531,9 @@ pub struct RendererDeinitedArgs<'a> {
     /// The pipeline of the main content, already deinited.
     pub pipeline_id: PipelineId,
 
+    /// Winit window if the renderer is associated with a headed window.
+    pub window: Option<&'a winit::window::Window>,
+
     /// OpenGL context.
     ///
     /// The context is current and Webrender has already deinited, the context will be dropped
@@ -531,8 +543,8 @@ pub struct RendererDeinitedArgs<'a> {
 
 /// Arguments for [`WindowExtension::window_inited`].
 pub struct WindowInitedArgs<'a> {
-    /// Underlying winit window, if the extension is for a headed window.
-    pub window: Option<&'a winit::window::Window>,
+    /// Underlying winit window.
+    pub window: &'a winit::window::Window,
 
     /// OpenGL context connected to the window or headless surface.
     pub context: &'a mut dyn OpenGlContext,
@@ -540,8 +552,8 @@ pub struct WindowInitedArgs<'a> {
 
 /// Arguments for [`WindowExtension::window_deinited`].
 pub struct WindowDeinitedArgs<'a> {
-    /// Underlying winit window, if the extension is for a headed window.
-    pub window: Option<&'a winit::window::Window>,
+    /// Underlying winit window.
+    pub window: &'a winit::window::Window,
 
     /// OpenGL context connected to the window or headless surface.
     pub context: &'a mut dyn OpenGlContext,
@@ -549,8 +561,8 @@ pub struct WindowDeinitedArgs<'a> {
 
 /// Arguments for [`WindowExtension::command`].
 pub struct WindowCommandArgs<'a> {
-    /// Underlying winit window, if the command is for a headed window.
-    pub window: Option<&'a winit::window::Window>,
+    /// Underlying winit window.
+    pub window: &'a winit::window::Window,
 
     /// OpenGL context connected to the window or headless surface.
     pub context: &'a mut dyn OpenGlContext,
@@ -561,8 +573,8 @@ pub struct WindowCommandArgs<'a> {
 
 /// Arguments for [`WindowExtension::event`].
 pub struct WindowEventArgs<'a> {
-    /// Underlying winit window, if the event is for a headed window.
-    pub window: Option<&'a winit::window::Window>,
+    /// Underlying winit window.
+    pub window: &'a winit::window::Window,
 
     /// OpenGL context connected to the window or headless surface.
     pub context: &'a mut dyn OpenGlContext,
@@ -634,6 +646,12 @@ pub struct RendererCommandArgs<'a> {
 
     /// The command request.
     pub request: ApiExtensionPayload,
+
+    /// Winit window if the renderer is associated with a headed window.
+    pub window: Option<&'a winit::window::Window>,
+
+    /// OpenGL context associated with the renderer.
+    pub context: &'a mut dyn OpenGlContext,
 
     /// Redraw flag.
     ///

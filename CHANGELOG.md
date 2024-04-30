@@ -65,6 +65,7 @@ fn version_0_5() -> impl UiNode {
 * Add better conversions for `CommandScope`. You can now scope on named widgets directly, `FOO_CMD.scoped("bar-wgt")`.
 * Add `ContextualizedVar::new_value`.
 * **Breaking** `SCROLL.scroll_*` methods now return contextual vars, not values.
+* Fix panic on window move in Wayland.
 
 # 0.4.0
 

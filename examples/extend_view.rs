@@ -186,16 +186,12 @@ pub mod get_window_handle {
             fn command(&mut self, args: &mut zng_view::extensions::WindowCommandArgs) -> ApiExtensionPayload {
                 match args.request.deserialize::<super::api::Request>() {
                     Ok(r) => {
-                        if let Some(w) = args.window {
-                            let h = raw_window_handle::HasWindowHandle::window_handle(w).unwrap();
-                            ApiExtensionPayload::serialize(&super::api::Response {
-                                // note that you should only use the window handle in the view-process side.
-                                handle_txt: if r.alternate { formatx!("{h:#?}") } else { formatx!("{h:?}") },
-                            })
-                            .unwrap()
-                        } else {
-                            ApiExtensionPayload::invalid_request(self.id, "invalid command request, headless windows have no window handle")
-                        }
+                        let h = raw_window_handle::HasWindowHandle::window_handle(args.window).unwrap();
+                        ApiExtensionPayload::serialize(&super::api::Response {
+                            // note that you should only use the window handle in the view-process side.
+                            handle_txt: if r.alternate { formatx!("{h:#?}") } else { formatx!("{h:?}") },
+                        })
+                        .unwrap()
                     }
                     Err(e) => ApiExtensionPayload::invalid_request(self.id, format_args!("invalid command request, {e}")),
                 }
