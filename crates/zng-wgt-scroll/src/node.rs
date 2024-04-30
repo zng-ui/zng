@@ -649,7 +649,12 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             let self_id = WIDGET.id();
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if let Some(path) = &args.new_focus {
-                    if (scroll_to.is_none() || !scroll_to_from_cmd) && path.contains(self_id) && path.widget_id() != self_id {
+                    if (scroll_to.is_none() || !scroll_to_from_cmd)
+                        && path.contains(self_id)
+                        && path.widget_id() != self_id
+                        && !args.is_enabled_change()
+                        && !args.is_highlight_changed()
+                    {
                         // focus move inside.
                         if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
                             // scroll_to_focused enabled
