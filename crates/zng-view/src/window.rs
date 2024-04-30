@@ -636,7 +636,13 @@ impl Window {
             return None;
         }
 
-        let new_pos = self.window.inner_position().unwrap().to_px();
+        let new_pos = match self.window.inner_position() {
+            Ok(p) => p.to_px(),
+            Err(e) => {
+                tracing::error!("cannot get inner_position, {e}");
+                PxPoint::zero()
+            }
+        };
         if self.prev_pos != new_pos {
             self.prev_pos = new_pos;
 
@@ -873,7 +879,13 @@ impl Window {
     fn probe_state(&self) -> WindowStateAll {
         let mut state = self.state.clone();
 
-        state.global_position = self.window.inner_position().unwrap().to_px();
+        state.global_position = match self.window.inner_position() {
+            Ok(p) => p.to_px(),
+            Err(e) => {
+                tracing::error!("cannot get inner_position, {e}");
+                PxPoint::zero()
+            }
+        };
 
         if self.is_minimized() {
             state.state = WindowState::Minimized;

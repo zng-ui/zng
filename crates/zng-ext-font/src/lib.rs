@@ -1104,7 +1104,7 @@ impl FontFace {
         let metrics = font.metrics();
         if metrics.units_per_em == 0 {
             // observed this in Noto Color Emoji
-            tracing::error!("font {:?} units_er_em 0", font.family_name());
+            tracing::error!("font {:?} units_per_em 0", font.family_name());
             return Err(FontLoadingError::UnknownFormat);
         }
 
