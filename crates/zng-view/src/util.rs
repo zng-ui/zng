@@ -1623,6 +1623,13 @@ impl<'l> WinitEventLoopGuard<'l> {
 }
 impl<'l> Drop for WinitEventLoopGuard<'l> {
     fn drop(&mut self) {
-        assert!(self.defused, "unsafe pointer to winit ActiveEventLoop not cleared");
+        if !self.defused {
+            let msg = "unsafe pointer to winit ActiveEventLoop not cleared";
+            if std::thread::panicking() {
+                tracing::error!("{msg}");
+            } else {
+                panic!("{msg}");
+            }
+        }
     }
 }
