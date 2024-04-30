@@ -1495,6 +1495,8 @@ impl Api for App {
         self.assert_started();
         self.started = false;
         self.exited = true;
+        // not really, but just to exit winit loop
+        let _ = self.app_sender.send(AppEvent::ParentProcessExited);
     }
 
     fn open_window(&mut self, mut config: WindowRequest) {
