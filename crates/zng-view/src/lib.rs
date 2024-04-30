@@ -522,6 +522,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 let (global_position, position) = if let Some(p) = self.windows[i].moved() {
                     p
                 } else {
+                    winit_loop_guard.unset(&mut self.winit_loop);
                     return;
                 };
 
