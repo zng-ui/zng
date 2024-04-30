@@ -47,6 +47,7 @@ fn version_0_5() -> impl UiNode {
     - Rename `is_config_only` to `is_init_only`.
     - Note that this is only a breaking change for direct dependents of `zng-view`.
     - Rename `ViewRenderExtensionError` to `ViewExtensionError`.
+* Add window reference to args for `RendererExtension` when possible.
 * Fix `zng::view_process::default::run_same_process` not propagating app panics.
 * Add `WindowCloseRequestedArgs::headed/headless`.
 * **Breaking** Fix tab nav when a focus scope with `FocusScopeOnFocus::LastFocused` is a child of

@@ -671,7 +671,7 @@ impl WINDOWS {
         std::mem::take(&mut WINDOWS_SV.write().windows_info.get_mut(&id).unwrap().extensions)
     }
 
-    /// Call a view-process window extension with custom encoded payload.
+    /// Call a view-process headed window extension with custom encoded payload.
     ///
     /// Note that unlike most service methods this calls happens immediately.
     pub fn view_window_extension_raw(
@@ -683,19 +683,22 @@ impl WINDOWS {
         let sv = WINDOWS_SV.read();
         match WINDOWS_SV.read().windows_info.get(&id) {
             Some(i) => match &i.view {
-                Some(r) => {
-                    let r = r.clone();
-                    drop(sv);
-                    r.window_extension_raw(extension_id, request)
-                        .map_err(ViewExtensionError::ViewProcessOffline)
-                }
-                None => Err(ViewExtensionError::NotOpenInViewProcess),
+                Some(r) => match r {
+                    ViewWindowOrHeadless::Window(r) => {
+                        let r = r.clone();
+                        drop(sv);
+                        r.window_extension_raw(extension_id, request)
+                            .map_err(ViewExtensionError::ViewProcessOffline)
+                    }
+                    ViewWindowOrHeadless::Headless(_) => Err(ViewExtensionError::WindowNotHeaded(id)),
+                },
+                None => Err(ViewExtensionError::NotOpenInViewProcess(id)),
             },
             None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
         }
     }
 
-    /// Call a window extension with serialized payload.
+    /// Call a headed window extension with serialized payload.
     ///
     /// Note that unlike most service methods this call happens immediately.
     pub fn view_window_extension<I, O>(&self, id: WindowId, extension_id: ApiExtensionId, request: &I) -> Result<O, ViewExtensionError>
@@ -706,15 +709,18 @@ impl WINDOWS {
         let sv = WINDOWS_SV.read();
         match sv.windows_info.get(&id) {
             Some(i) => match &i.view {
-                Some(r) => {
-                    let r = r.clone();
-                    drop(sv);
-                    let r = r
-                        .window_extension(extension_id, request)
-                        .map_err(ViewExtensionError::ViewProcessOffline)?;
-                    r.map_err(ViewExtensionError::Api)
-                }
-                None => Err(ViewExtensionError::NotOpenInViewProcess),
+                Some(r) => match r {
+                    ViewWindowOrHeadless::Window(r) => {
+                        let r = r.clone();
+                        drop(sv);
+                        let r = r
+                            .window_extension(extension_id, request)
+                            .map_err(ViewExtensionError::ViewProcessOffline)?;
+                        r.map_err(ViewExtensionError::Api)
+                    }
+                    ViewWindowOrHeadless::Headless(_) => Err(ViewExtensionError::WindowNotHeaded(id)),
+                },
+                None => Err(ViewExtensionError::NotOpenInViewProcess(id)),
             },
             None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
         }
@@ -738,7 +744,7 @@ impl WINDOWS {
                     r.render_extension_raw(extension_id, request)
                         .map_err(ViewExtensionError::ViewProcessOffline)
                 }
-                None => Err(ViewExtensionError::NotOpenInViewProcess),
+                None => Err(ViewExtensionError::NotOpenInViewProcess(id)),
             },
             None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
         }
@@ -763,7 +769,7 @@ impl WINDOWS {
                         .map_err(ViewExtensionError::ViewProcessOffline)?;
                     r.map_err(ViewExtensionError::Api)
                 }
-                None => Err(ViewExtensionError::NotOpenInViewProcess),
+                None => Err(ViewExtensionError::NotOpenInViewProcess(id)),
             },
             None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(id))),
         }
@@ -1772,11 +1778,13 @@ impl WINDOW_FOCUS {
 pub enum ViewExtensionError {
     /// Window is not open in the `WINDOWS` service.
     WindowNotFound(WindowNotFound),
+    /// Window must be headed to call window extensions.
+    WindowNotHeaded(WindowId),
     /// Window is not open in the view-process.
     ///
     /// If the window is headless without renderer it will never open in view-process, if the window is headed
     /// headless with renderer the window opens in the view-process after the first layout.
-    NotOpenInViewProcess,
+    NotOpenInViewProcess(WindowId),
     /// View-process is not running.
     ViewProcessOffline(ViewProcessOffline),
     /// Api Error.
@@ -1786,7 +1794,8 @@ impl fmt::Display for ViewExtensionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ViewExtensionError::WindowNotFound(e) => fmt::Display::fmt(e, f),
-            ViewExtensionError::NotOpenInViewProcess => write!(f, "window/renderer not open in the view-process"),
+            ViewExtensionError::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
+            ViewExtensionError::NotOpenInViewProcess(id) => write!(f, "window/renderer `{id}` not open in the view-process"),
             ViewExtensionError::ViewProcessOffline(e) => fmt::Display::fmt(e, f),
             ViewExtensionError::Api(e) => fmt::Display::fmt(e, f),
         }
@@ -1796,7 +1805,8 @@ impl std::error::Error for ViewExtensionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ViewExtensionError::WindowNotFound(e) => Some(e),
-            ViewExtensionError::NotOpenInViewProcess => None,
+            ViewExtensionError::WindowNotHeaded(_) => None,
+            ViewExtensionError::NotOpenInViewProcess(_) => None,
             ViewExtensionError::ViewProcessOffline(e) => Some(e),
             ViewExtensionError::Api(e) => Some(e),
         }
