@@ -1239,11 +1239,10 @@ pub(crate) fn accesskit_to_event(
 }
 
 pub(crate) fn access_tree_update_to_kit(update: zng_view_api::access::AccessTreeUpdate) -> accesskit::TreeUpdate {
-    let mut classes = accesskit::NodeClassSet::new();
     let mut nodes = Vec::with_capacity(update.updates.iter().map(|t| t.len()).sum());
 
     for update in update.updates {
-        access_node_to_kit(update.root(), &mut classes, &mut nodes);
+        access_node_to_kit(update.root(), &mut nodes);
     }
 
     accesskit::TreeUpdate {
@@ -1255,7 +1254,6 @@ pub(crate) fn access_tree_update_to_kit(update: zng_view_api::access::AccessTree
 
 fn access_node_to_kit(
     node: zng_view_api::access::AccessNodeRef,
-    class_set: &mut accesskit::NodeClassSet,
     output: &mut Vec<(accesskit::NodeId, accesskit::Node)>,
 ) -> accesskit::NodeId {
     let node_id = access_id_to_kit(node.id);
@@ -1352,10 +1350,10 @@ fn access_node_to_kit(
                     builder.set_auto_complete(accesskit::AutoComplete::List)
                 }
             }
-            Checked(b) => builder.set_checked(match b {
-                Some(true) => accesskit::Checked::True,
-                Some(false) => accesskit::Checked::False,
-                None => accesskit::Checked::Mixed,
+            Checked(b) => builder.set_toggled(match b {
+                Some(true) => accesskit::Toggled::True,
+                Some(false) => accesskit::Toggled::False,
+                None => accesskit::Toggled::Mixed,
             }),
             Current(kind) => match kind {
                 access::CurrentKind::Page => builder.set_aria_current(accesskit::AriaCurrent::Page),
@@ -1385,7 +1383,7 @@ fn access_node_to_kit(
                 }
             }
             Label(s) => builder.set_name(s.clone().into_owned().into_boxed_str()),
-            Level(n) => builder.set_hierarchical_level(n.get() as usize),
+            Level(n) => builder.set_level(n.get() as usize),
             Modal => builder.set_modal(),
             MultiSelectable => builder.set_multiselectable(),
             Orientation(o) => match o {
@@ -1418,9 +1416,9 @@ fn access_node_to_kit(
                 }
             }
             ActiveDescendant(id) => builder.set_active_descendant(access_id_to_kit(*id)),
-            ColCount(c) => builder.set_table_column_count(*c),
-            ColIndex(i) => builder.set_table_column_index(*i),
-            ColSpan(s) => builder.set_table_cell_column_span(*s),
+            ColCount(c) => builder.set_column_count(*c),
+            ColIndex(i) => builder.set_column_index(*i),
+            ColSpan(s) => builder.set_column_span(*s),
             Controls(ids) => builder.set_controls(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             DescribedBy(ids) => builder.set_described_by(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
             Details(ids) => builder.set_details(ids.iter().copied().map(access_id_to_kit).collect::<Vec<_>>()),
@@ -1440,9 +1438,9 @@ fn access_node_to_kit(
                 }
             }
             ItemIndex(p) => builder.set_position_in_set(*p),
-            RowCount(c) => builder.set_table_row_count(*c),
-            RowIndex(i) => builder.set_table_row_index(*i),
-            RowSpan(s) => builder.set_table_cell_row_span(*s),
+            RowCount(c) => builder.set_row_count(*c),
+            RowIndex(i) => builder.set_row_index(*i),
+            RowSpan(s) => builder.set_row_span(*s),
             ItemCount(s) => builder.set_size_of_set(*s),
             Lang(l) => builder.set_language(l.to_string()),
 
@@ -1463,7 +1461,7 @@ fn access_node_to_kit(
     // add descendants
     if node.children.is_empty() {
         for child in node.children() {
-            let child_id = access_node_to_kit(child, class_set, output);
+            let child_id = access_node_to_kit(child, output);
             builder.push_child(child_id);
         }
     } else {
@@ -1471,11 +1469,11 @@ fn access_node_to_kit(
             builder.push_child(access_id_to_kit(*id));
         }
         for child in node.children() {
-            let _ = access_node_to_kit(child, class_set, output);
+            let _ = access_node_to_kit(child, output);
         }
     }
 
-    let node = builder.build(class_set);
+    let node = builder.build();
     output.push((node_id, node));
     node_id
 }
@@ -1531,7 +1529,6 @@ fn access_role_to_kit(role: zng_view_api::access::AccessRole) -> accesskit::Role
         ListItem => Role::ListItem,
         Math => Role::Math,
         Note => Role::Note,
-        Column => Role::Column,
         Row => Role::Row,
         RowGroup => Role::RowGroup,
         RowHeader => Role::RowHeader,

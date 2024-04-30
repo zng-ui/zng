@@ -346,9 +346,7 @@ impl fmt::Debug for App {
     }
 }
 impl winit::application::ApplicationHandler<AppEvent> for App {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        todo!()
-    }
+    fn resumed(&mut self, _: &ActiveEventLoop) {}
 
     fn window_event(&mut self, winit_loop: &ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.window_id() == window_id) {
@@ -880,7 +878,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         }
     }
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, _: &ActiveEventLoop) {
         self.finish_cursor_entered_move();
         self.update_modifiers();
         self.flush_coalesced();
@@ -891,8 +889,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         self.idle.enter();
     }
 
-    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
-        let _ = event_loop;
+    fn suspended(&mut self, _: &ActiveEventLoop) {
+        unimplemented!()
     }
 
     fn exiting(&mut self, event_loop: &ActiveEventLoop) {
@@ -952,7 +950,7 @@ impl App {
         app.headless = true;
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let event_loop = EventLoop::<AppEvent>::with_user_event().build().unwrap();
+        let _event_loop = EventLoop::<AppEvent>::with_user_event().build().unwrap();
 
         drop(winit_span);
 

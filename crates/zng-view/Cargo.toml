@@ -85,9 +85,17 @@ byteorder = "1.5"
 rustc-hash = "1.1"
 rayon = "1.10"
 serde = "1.0"
-rfd = { version = "0.14", default_features = false, features = ["xdg-portal"] }
-accesskit = "0.13"
-accesskit_winit = "0.19"
+accesskit = { git = "https://github.com/AccessKit/accesskit.git", version = "0.13" }
+accesskit_winit = { git = "https://github.com/AccessKit/accesskit.git", version = "0.19" }
+
+# rfd
+[target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd")))'.dependencies.rfd]
+version = "0.14"
+default-features = false
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies.rfd]
+version = "0.14"
+default-features = false
+features = ["xdg-portal", "async-std"]
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.52.0" # matches winit, glutin, other crates

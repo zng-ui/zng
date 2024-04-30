@@ -789,7 +789,7 @@ impl Window {
     /// Set cursor icon and visibility.
     pub fn set_cursor(&mut self, icon: Option<CursorIcon>) {
         if let Some(icon) = icon {
-            self.window.set_cursor_icon(icon.to_winit());
+            self.window.set_cursor(icon.to_winit());
             self.window.set_cursor_visible(true);
         } else {
             self.window.set_cursor_visible(false);
