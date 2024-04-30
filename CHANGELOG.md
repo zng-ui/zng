@@ -50,8 +50,10 @@ fn version_0_5() -> impl UiNode {
         - Removed `FocusChangedCause::is_prev_request`.
 * Add `FocusChangedCause::request_target` helper method.
 * Add `WidgetPath::parent_id` helper method.
-* Fix auto scroll-to-focused not working when the focused child does not subscribe to focus change events.
-* Fix auto scroll-to-focused scrolling when large widget is already visible.
+* Fix auto scroll to focused issues:
+    - When the focused child does not subscribe to focus change events.
+    - Scrolling when large widget is already visible.
+    - Scrolling again to same widget when focus change event did not represent a widget change.
 * Add `WidgetInfo::spatial_bounds`.
 * Fix directional navigation cycling only inside viewport now full spatial bounds of scopes.
 * Add better conversions for `CommandScope`. You can now scope on named widgets directly, `FOO_CMD.scoped("bar-wgt")`.
