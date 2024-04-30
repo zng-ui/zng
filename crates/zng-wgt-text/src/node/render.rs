@@ -235,7 +235,7 @@ pub fn render_text() -> impl UiNode {
                 .sub_var(&FONT_PALETTE_VAR)
                 .sub_var(&FONT_PALETTE_COLORS_VAR);
 
-            if FONT_COLOR_VAR.capabilities().contains(VarCapabilities::NEW) {
+            if FONT_COLOR_VAR.capabilities().contains(VarCapability::NEW) {
                 color_key = Some(FrameValueKey::new_unique());
             }
         }

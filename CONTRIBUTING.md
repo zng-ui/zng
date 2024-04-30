@@ -29,7 +29,7 @@ The [`examples`] README provides a list of examples with screenshots and instruc
 The [`crates`] README provides an overview of the public crates.
 
 The [`tools`] README provides an overview of the tools used to manage the project, in 
-particular the `cargo do` tool that you will need to use for testing.
+particular the `cargo do` tool that must be used for testing.
 
 The [`tests`] README provides an overview of integration and macro tests.
 

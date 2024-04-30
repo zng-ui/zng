@@ -77,7 +77,7 @@ context_var! {
     /// [`LayoutMetrics::viewport`]: zng_wgt::prelude::LayoutMetrics::viewport
     pub static DEFINE_VIEWPORT_UNIT_VAR: bool = true;
 
-    /// Scroll to mode used by scroll widgets when scrolling to make the focused child visible.
+    /// Scroll to mode used when scrolling to make the focused child visible.
     ///
     /// Default is minimal 0dip on all sides.
     pub static SCROLL_TO_FOCUSED_MODE_VAR: Option<ScrollToMode> = ScrollToMode::Minimal {

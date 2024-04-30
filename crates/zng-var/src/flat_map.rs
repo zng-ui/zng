@@ -166,8 +166,8 @@ where
         self.0.read().var.is_contextual()
     }
 
-    fn capabilities(&self) -> VarCapabilities {
-        self.0.read().var.capabilities() | VarCapabilities::CAPS_CHANGE
+    fn capabilities(&self) -> VarCapability {
+        self.0.read().var.capabilities() | VarCapability::CAPS_CHANGE
     }
 
     fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {

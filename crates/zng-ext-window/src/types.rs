@@ -24,7 +24,7 @@ use zng_view_api::{
 
 pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
 
-use crate::{HeadlessMonitor, WINDOW_Ext as _};
+use crate::{HeadlessMonitor, WINDOW_Ext as _, WINDOWS};
 
 /// Window root node and values.
 ///
@@ -509,7 +509,7 @@ event_args! {
     ///
     /// Requesting `propagation().stop()` on this event cancels the window close.
     pub struct WindowCloseRequestedArgs {
-        /// Windows closing.
+        /// Windows closing, headed and headless.
         ///
         /// This is at least one window, is multiple if the close operation was requested as group, cancelling the request
         /// cancels close for all windows.
@@ -620,6 +620,23 @@ impl WindowFocusChangedArgs {
         } else {
             None
         }
+    }
+}
+impl WindowCloseRequestedArgs {
+    /// Gets only headed windows that will close.
+    pub fn headed(&self) -> impl Iterator<Item = WindowId> + '_ {
+        self.windows
+            .iter()
+            .copied()
+            .filter(|&id| WINDOWS.mode(id).map(|m| m.is_headed()).unwrap_or(false))
+    }
+
+    /// Gets only headless windows that will close.
+    pub fn headless(&self) -> impl Iterator<Item = WindowId> + '_ {
+        self.windows
+            .iter()
+            .copied()
+            .filter(|&id| WINDOWS.mode(id).map(|m| m.is_headless()).unwrap_or(false))
     }
 }
 

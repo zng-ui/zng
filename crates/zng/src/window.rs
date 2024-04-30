@@ -99,11 +99,6 @@
 
 pub use zng_app::window::{MonitorId, StaticMonitorId, StaticWindowId, WindowId, WindowMode, WINDOW};
 
-/// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
-///
-#[cfg(all(windows, doc))]
-pub use zng_app::window::WINDOW as WINDOW_;
-
 pub use zng_ext_window::{
     AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt,
     HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode,

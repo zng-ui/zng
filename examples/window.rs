@@ -432,14 +432,14 @@ fn custom_chrome(title: impl Var<Txt>) -> impl UiNode {
         padding = 4;
         corner_radius = (0, 0, 5, 5);
 
-        mouse::on_mouse_down = hn!(can_move, |args: &mouse::MouseInputArgs| {
+        when *#{can_move.clone()} {
+            mouse::cursor = mouse::CursorIcon::Move;
+        }
+        mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
             if args.is_primary() && can_move.get() {
                 window::cmd::DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify();
             }
         });
-        when *#{can_move} {
-            mouse::cursor = mouse::CursorIcon::Move;
-        }
 
         gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
             if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized) {
@@ -713,7 +713,7 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                 args.propagation().stop();
                 state.set(CloseState::Asking);
 
-                let dlg = close_dialog(args.windows.iter().copied().collect(), state.clone());
+                let dlg = close_dialog(args.headed().collect(), state.clone());
                 LAYERS.insert(LayerIndex::TOP_MOST, dlg)
             }
             CloseState::Asking => args.propagation().stop(),

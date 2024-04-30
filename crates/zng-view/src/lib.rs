@@ -237,7 +237,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
 
 /// Like [`run_same_process`] but with custom API extensions.
 pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
-    thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();
+    let r = thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();
 
     let config = ViewConfig::wait_same_process();
     config.assert_version(true);
@@ -248,6 +248,10 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
         App::run_headless(c, ext());
     } else {
         App::run_headed(c, ext());
+    }
+
+    if let Err(p) = r.join() {
+        std::panic::resume_unwind(p);
     }
 }
 

@@ -69,6 +69,11 @@ impl WidgetPath {
         self.path[self.path.len() - 1]
     }
 
+    /// The widget parent, if it is not the root widget.
+    pub fn parent_id(&self) -> Option<WidgetId> {
+        self.ancestors().iter().copied().next_back()
+    }
+
     /// [`ancestors`](WidgetPath::ancestors) and [`widget_id`](WidgetPath::widget_id), root first.
     pub fn widgets_path(&self) -> &[WidgetId] {
         &self.path[..]

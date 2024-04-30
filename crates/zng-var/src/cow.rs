@@ -200,8 +200,8 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         }
     }
 
-    fn capabilities(&self) -> VarCapabilities {
-        VarCapabilities::MODIFY
+    fn capabilities(&self) -> VarCapability {
+        VarCapability::MODIFY
     }
 
     fn hook_any(&self, pos_modify_action: Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync>) -> VarHandle {
