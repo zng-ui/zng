@@ -9,7 +9,7 @@ use glutin::{
     surface::{Surface, SurfaceAttributesBuilder, WindowSurface},
 };
 use rustc_hash::FxHashSet;
-use winit::{dpi::PhysicalSize, event_loop::EventLoopWindowTarget};
+use winit::{dpi::PhysicalSize, event_loop::ActiveEventLoop};
 use zng_txt::ToTxt as _;
 use zng_view_api::window::{RenderMode, WindowId};
 
@@ -39,8 +39,8 @@ impl GlContextManager {
     pub(crate) fn create_headed(
         &mut self,
         id: WindowId,
-        window: winit::window::WindowBuilder,
-        window_target: &EventLoopWindowTarget<AppEvent>,
+        window: winit::window::WindowAttributes,
+        winit_loop: &ActiveEventLoop,
         render_mode: RenderMode,
         sender: &AppEventSender,
     ) -> (winit::window::Window, GlContext) {
@@ -52,7 +52,7 @@ impl GlContextManager {
                 continue;
             }
 
-            let window = window.clone().build(window_target).unwrap();
+            let window = winit_loop.create_window(window.clone()).unwrap();
 
             let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
                 RenderMode::Dedicated => self.create_headed_glutin(id, &window, config.hardware_acceleration),
@@ -97,7 +97,7 @@ impl GlContextManager {
     pub(crate) fn create_headless(
         &mut self,
         id: WindowId,
-        window_target: &EventLoopWindowTarget<AppEvent>,
+        winit_loop: &ActiveEventLoop,
         render_mode: RenderMode,
         sender: &AppEventSender,
     ) -> GlContext {
@@ -110,8 +110,8 @@ impl GlContextManager {
             }
 
             let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
-                RenderMode::Dedicated => self.create_headless_glutin(id, window_target, config.hardware_acceleration),
-                RenderMode::Integrated => self.create_headless_glutin(id, window_target, Some(false)),
+                RenderMode::Dedicated => self.create_headless_glutin(id, winit_loop, config.hardware_acceleration),
+                RenderMode::Integrated => self.create_headless_glutin(id, winit_loop, Some(false)),
                 RenderMode::Software => self.create_headless_swgl(id),
             }));
 
@@ -286,17 +286,17 @@ impl GlContextManager {
     fn create_headless_glutin(
         &mut self,
         id: WindowId,
-        window_target: &EventLoopWindowTarget<AppEvent>,
+        winit_loop: &ActiveEventLoop,
         hardware: Option<bool>,
     ) -> Result<GlContext, Box<dyn Error>> {
-        let hidden_window = winit::window::WindowBuilder::new()
+        let hidden_window = winit::window::WindowAttributes::default()
             .with_transparent(true)
             .with_inner_size(PhysicalSize::new(1u32, 1u32))
             .with_visible(false)
-            .with_decorations(false)
-            .build(window_target)?;
+            .with_decorations(false);
+        let hidden_window = winit_loop.create_window(hidden_window)?;
 
-        let display_handle = window_target.raw_display_handle();
+        let display_handle = winit_loop.raw_display_handle();
         let window_handle = hidden_window.raw_window_handle();
 
         #[cfg(windows)]

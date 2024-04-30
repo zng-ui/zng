@@ -1,12 +1,11 @@
 use std::{collections::VecDeque, fmt};
 
-use winit::event_loop::EventLoopWindowTarget;
-
 use tracing::span::EnteredSpan;
 use webrender::{
     api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction,
 };
+use winit::event_loop::ActiveEventLoop;
 use zng_unit::{DipSize, DipToPx, Factor, Px, PxRect, Rgba};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -26,7 +25,7 @@ use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
     util::{frame_render_reasons, frame_update_render_reasons, PxToWinit},
-    AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
+    AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
 /// A headless "window".
@@ -65,14 +64,14 @@ impl Surface {
     pub fn open(
         gen: ViewProcessGen,
         mut cfg: HeadlessRequest,
-        window_target: &EventLoopWindowTarget<AppEvent>,
+        winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
         let id = cfg.id;
 
-        let mut context = gl_manager.create_headless(id, window_target, cfg.render_mode, &event_sender);
+        let mut context = gl_manager.create_headless(id, winit_loop, cfg.render_mode, &event_sender);
         let size = cfg.size.to_px(cfg.scale_factor);
         context.resize(size.to_winit());
         let context = context;
