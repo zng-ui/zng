@@ -117,6 +117,8 @@ pub(crate) struct Window {
     ime_area: Option<DipRect>,
     #[cfg(windows)]
     ime_open: bool,
+    #[cfg(windows)]
+    block_shutdown: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -230,8 +232,12 @@ impl Window {
         let (winit_window, context) = gl_manager.create_headed(id, winit, window_target, render_mode, &event_sender);
         render_mode = context.render_mode();
 
+        #[cfg(windows)]
+        let block_shutdown = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
         // * Extend the winit Windows window to not block the Alt+F4 key press.
         // * Check if the window is actually keyboard focused until first focus.
+        // * Block system shutdown if a block is set.
         #[cfg(windows)]
         {
             let event_sender = event_sender.clone();
@@ -240,6 +246,7 @@ impl Window {
 
             let window_id = winit_window.id();
             let hwnd = crate::util::winit_to_hwnd(&winit_window);
+            let block_shutdown = block_shutdown.clone();
             crate::util::set_raw_windows_event_handler(hwnd, u32::from_ne_bytes(*b"alf4") as _, move |_, msg, wparam, _| {
                 if !first_focus && unsafe { windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow() } == hwnd {
                     // Windows sends a `WM_SETFOCUS` when the window open, even if the user changed focus to something
@@ -252,23 +259,33 @@ impl Window {
                     let _ = event_sender.send(AppEvent::WinitFocused(window_id, true));
                 }
 
-                if msg == windows_sys::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
-                    && wparam as windows_sys::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY
-                        == windows_sys::Win32::UI::Input::KeyboardAndMouse::VK_F4
-                {
-                    // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
+                match msg {
+                    windows_sys::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN => {
+                        if wparam as windows_sys::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY
+                            == windows_sys::Win32::UI::Input::KeyboardAndMouse::VK_F4
+                        {
+                            // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
 
-                    let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
-                        window: id,
-                        device: DeviceId::INVALID, // same as winit
-                        key_code: KeyCode::F4,
-                        state: KeyState::Pressed,
-                        key: Key::F4,
-                        key_modified: Key::F4,
-                        text: Txt::from_static(""),
-                    }));
-                    return Some(0);
+                            let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
+                                window: id,
+                                device: DeviceId::INVALID, // same as winit
+                                key_code: KeyCode::F4,
+                                state: KeyState::Pressed,
+                                key: Key::F4,
+                                key_modified: Key::F4,
+                                text: Txt::from_static(""),
+                            }));
+                            return Some(0);
+                        }
+                    }
+                    windows_sys::Win32::UI::WindowsAndMessaging::WM_QUERYENDSESSION => {
+                        if block_shutdown.load(std::sync::atomic::Ordering::Relaxed) {
+                            return Some(0);
+                        }
+                    }
+                    _ => {}
                 }
+
                 None
             });
         }
@@ -403,6 +420,8 @@ impl Window {
             ime_area: cfg.ime_area,
             #[cfg(windows)]
             ime_open: false,
+            #[cfg(windows)]
+            block_shutdown,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -1737,9 +1756,40 @@ impl Window {
             self.ime_area = None;
         }
     }
+
+    #[cfg(windows)]
+    pub(crate) fn block_system_shutdown(&mut self, reason: Txt) -> bool {
+        let hwnd = crate::util::winit_to_hwnd(&self.window);
+        let reason = windows::core::HSTRING::from(reason.as_str());
+        // SAFETY: function does not fail.
+        let enabled = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonCreate(hwnd, reason.as_ptr()) != 0 };
+        self.block_shutdown.store(enabled, std::sync::atomic::Ordering::Relaxed);
+        enabled
+    }
+
+    #[cfg(not(windows))]
+    pub(crate) fn block_system_shutdown(&mut self, reason: Txt) -> bool {
+        tracing::error!("cannot block system shutdown, not implemented, block reason was: {reason}");
+        false
+    }
+
+    #[cfg(windows)]
+    pub(crate) fn unblock_system_shutdown(&mut self) {
+        if self.block_shutdown.swap(false, std::sync::atomic::Ordering::Relaxed) {
+            let hwnd = crate::util::winit_to_hwnd(&self.window);
+            // SAFETY: function does not fail.
+            unsafe {
+                windows_sys::Win32::System::Shutdown::ShutdownBlockReasonDestroy(hwnd);
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    pub(crate) fn unblock_system_shutdown(&mut self) {}
 }
 impl Drop for Window {
     fn drop(&mut self) {
+        self.unblock_system_shutdown();
+
         self.api.stop_render_backend();
         self.api.shut_down(true);
 

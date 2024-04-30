@@ -1912,6 +1912,14 @@ impl Api for App {
         }
     }
 
+    fn block_system_shutdown(&mut self, id: WindowId, reason: Txt) -> bool {
+        self.with_window(id, move |w| w.block_system_shutdown(reason), || false)
+    }
+
+    fn unblock_system_shutdown(&mut self, id: WindowId) {
+        self.with_window(id, |w| w.unblock_system_shutdown(), || ())
+    }
+
     fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed> {
         #[cfg(feature = "bundle_licenses")]
         {

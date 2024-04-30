@@ -504,6 +504,22 @@ declare_api! {
     /// Enable or disable IME by setting a cursor area.
     pub fn set_ime_area(&mut self, id: WindowId, area: Option<DipRect>);
 
+    /// Attempt to set a system wide shutdown block associated with the window.
+    ///
+    /// Operating systems that support this show the `reason` in a warning for the user, it must be a short text
+    /// that identifies the critical operation that cannot be cancelled.
+    ///
+    /// Note that there is only one block reason per window, subsequent calls to this API replace the reason.
+    ///
+    /// Returns `true` if succeeded in setting the block, can only succeed for headed windows in a
+    /// operating system with this feature.
+    pub fn block_system_shutdown(&mut self, id: WindowId, reason: Txt) -> bool;
+
+    /// Remove any previously set system wide shutdown block associated with the window.
+    ///
+    /// Note that the block is also removed if the window closes.
+    pub fn unblock_system_shutdown(&mut self, id: WindowId);
+
     /// Licenses that may be required to be displayed in the app about screen.
     ///
     /// This is specially important for prebuilt view users, as the tools that scrap licenses

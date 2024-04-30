@@ -7,6 +7,8 @@
     - Rename `close_window` to `close`.
     - Rename `focus_window` to `focus`.
     - Add `set_enabled_buttons`.
+    - Add `block_system_shutdown`.
+    - Add `unblock_system_shutdown`.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 * Better "custom chrome" example in `examples/window.rs`.
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` to window API.
