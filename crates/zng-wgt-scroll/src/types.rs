@@ -781,56 +781,60 @@ impl SCROLL {
         }
     }
 
-    /// Returns `true` if the content height is greater then the viewport height.
-    pub fn can_scroll_vertical(&self) -> bool {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
-
-        content > viewport
+    fn can_scroll(&self, predicate: impl Fn(PxSize, PxSize) -> bool + Send + Sync + 'static) -> impl Var<bool> {
+        merge_var!(SCROLL_VIEWPORT_SIZE_VAR, SCROLL_CONTENT_SIZE_VAR, move |&vp, &ct| predicate(vp, ct))
     }
 
-    /// Returns `true` if the content width is greater then the viewport with.
-    pub fn can_scroll_horizontal(&self) -> bool {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
-
-        content > viewport
+    /// Gets a var that is `true` when the content height is greater then the viewport height.
+    pub fn can_scroll_vertical(&self) -> impl Var<bool> {
+        self.can_scroll(|vp, ct| ct.height > vp.height)
     }
 
-    /// Returns `true` if the content height is greater then the viewport height and the vertical offset
+    /// Gets a var that is `true` when the content width is greater then the viewport with.
+    pub fn can_scroll_horizontal(&self) -> impl Var<bool> {
+        self.can_scroll(|vp, ct| ct.width > vp.width)
+    }
+
+    fn can_scroll_v(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> impl Var<bool> {
+        merge_var!(
+            SCROLL_VIEWPORT_SIZE_VAR,
+            SCROLL_CONTENT_SIZE_VAR,
+            SCROLL_VERTICAL_OFFSET_VAR,
+            move |&vp, &ct, &vo| predicate(vp, ct, vo)
+        )
+    }
+
+    /// Gets a var that is `true` when the content height is greater then the viewport height and the vertical offset
     /// is not at the maximum.
-    pub fn can_scroll_down(&self) -> bool {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
-
-        content > viewport && 1.fct() > SCROLL_VERTICAL_OFFSET_VAR.get()
+    pub fn can_scroll_down(&self) -> impl Var<bool> {
+        self.can_scroll_v(|vp, ct, vo| ct.height > vp.height && 1.fct() > vo)
     }
 
-    /// Returns `true` if the content height is greater then the viewport height and the vertical offset
+    /// Gets a var that is `true` when the content height is greater then the viewport height and the vertical offset
     /// is not at the minimum.
-    pub fn can_scroll_up(&self) -> bool {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().height;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().height;
-
-        content > viewport && 0.fct() < SCROLL_VERTICAL_OFFSET_VAR.get()
+    pub fn can_scroll_up(&self) -> impl Var<bool> {
+        self.can_scroll_v(|vp, ct, vo| ct.height > vp.height && 0.fct() < vo)
     }
 
-    /// Returns `true` if the content width is greater then the viewport width and the horizontal offset
+    fn can_scroll_h(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> impl Var<bool> {
+        merge_var!(
+            SCROLL_VIEWPORT_SIZE_VAR,
+            SCROLL_CONTENT_SIZE_VAR,
+            SCROLL_HORIZONTAL_OFFSET_VAR,
+            move |&vp, &ct, &ho| predicate(vp, ct, ho)
+        )
+    }
+
+    /// Gets a var that is `true` when the content width is greater then the viewport width and the horizontal offset
     /// is not at the minimum.
-    pub fn can_scroll_left(&self) -> bool {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
-
-        content > viewport && 0.fct() < SCROLL_HORIZONTAL_OFFSET_VAR.get()
+    pub fn can_scroll_left(&self) -> impl Var<bool> {
+        self.can_scroll_h(|vp, ct, ho| ct.width > vp.width && 0.fct() < ho)
     }
 
-    /// Returns `true` if the content width is greater then the viewport width and the horizontal offset
+    /// Gets a var that is `true` when the content width is greater then the viewport width and the horizontal offset
     /// is not at the maximum.
-    pub fn can_scroll_right(&self) -> bool {
-        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().width;
-        let content = SCROLL_CONTENT_SIZE_VAR.get().width;
-
-        content > viewport && 1.fct() > SCROLL_HORIZONTAL_OFFSET_VAR.get()
+    pub fn can_scroll_right(&self) -> impl Var<bool> {
+        self.can_scroll_h(|vp, ct, ho| ct.width > vp.width && 1.fct() > ho)
     }
 
     /// Scroll the [`WIDGET`] into view.

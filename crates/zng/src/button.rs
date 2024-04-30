@@ -119,8 +119,3 @@
 //! See [`zng_wgt_button`] for the full widget API.
 
 pub use zng_wgt_button::{base_colors, style_fn, Button, DefaultStyle, LinkStyle, BUTTON};
-
-/// Windows docs workaround, see ([#25879](https://github.com/rust-lang/rust/issues/25879)).
-///
-#[cfg(all(windows, doc))]
-pub use zng_wgt_button::BUTTON as BUTTON_;

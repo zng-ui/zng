@@ -316,10 +316,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
 
             let scope = WIDGET.id();
 
-            up = SCROLL_UP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up());
-            down = SCROLL_DOWN_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down());
-            left = SCROLL_LEFT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left());
-            right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right());
+            up = SCROLL_UP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up().get());
+            down = SCROLL_DOWN_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down().get());
+            left = SCROLL_LEFT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left().get());
+            right = SCROLL_RIGHT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right().get());
         }
         UiNodeOp::Deinit => {
             child.deinit();
@@ -382,10 +382,10 @@ pub fn scroll_commands_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
-            up.set_enabled(SCROLL.can_scroll_up());
-            down.set_enabled(SCROLL.can_scroll_down());
-            left.set_enabled(SCROLL.can_scroll_left());
-            right.set_enabled(SCROLL.can_scroll_right());
+            up.set_enabled(SCROLL.can_scroll_up().get());
+            down.set_enabled(SCROLL.can_scroll_down().get());
+            left.set_enabled(SCROLL.can_scroll_left().get());
+            right.set_enabled(SCROLL.can_scroll_right().get());
 
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
             LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
@@ -417,10 +417,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
 
             let scope = WIDGET.id();
 
-            up = PAGE_UP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up());
-            down = PAGE_DOWN_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down());
-            left = PAGE_LEFT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left());
-            right = PAGE_RIGHT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right());
+            up = PAGE_UP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up().get());
+            down = PAGE_DOWN_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down().get());
+            left = PAGE_LEFT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left().get());
+            right = PAGE_RIGHT_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right().get());
         }
         UiNodeOp::Deinit => {
             child.deinit();
@@ -476,10 +476,10 @@ pub fn page_commands_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = child.layout(wl);
 
-            up.set_enabled(SCROLL.can_scroll_up());
-            down.set_enabled(SCROLL.can_scroll_down());
-            left.set_enabled(SCROLL.can_scroll_left());
-            right.set_enabled(SCROLL.can_scroll_right());
+            up.set_enabled(SCROLL.can_scroll_up().get());
+            down.set_enabled(SCROLL.can_scroll_down().get());
+            left.set_enabled(SCROLL.can_scroll_left().get());
+            right.set_enabled(SCROLL.can_scroll_right().get());
 
             let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
             LAYOUT.with_constraints(PxConstraints2d::new_fill_size(viewport), || {
@@ -505,10 +505,10 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Init => {
             let scope = WIDGET.id();
 
-            top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up());
-            bottom = SCROLL_TO_BOTTOM_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down());
-            leftmost = SCROLL_TO_LEFTMOST_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left());
-            rightmost = SCROLL_TO_RIGHTMOST_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right());
+            top = SCROLL_TO_TOP_CMD.scoped(scope).subscribe(SCROLL.can_scroll_up().get());
+            bottom = SCROLL_TO_BOTTOM_CMD.scoped(scope).subscribe(SCROLL.can_scroll_down().get());
+            leftmost = SCROLL_TO_LEFTMOST_CMD.scoped(scope).subscribe(SCROLL.can_scroll_left().get());
+            rightmost = SCROLL_TO_RIGHTMOST_CMD.scoped(scope).subscribe(SCROLL.can_scroll_right().get());
         }
         UiNodeOp::Deinit => {
             child.deinit();
@@ -519,10 +519,10 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
             rightmost = CommandHandle::dummy();
         }
         UiNodeOp::Layout { .. } => {
-            top.set_enabled(SCROLL.can_scroll_up());
-            bottom.set_enabled(SCROLL.can_scroll_down());
-            leftmost.set_enabled(SCROLL.can_scroll_left());
-            rightmost.set_enabled(SCROLL.can_scroll_right());
+            top.set_enabled(SCROLL.can_scroll_up().get());
+            bottom.set_enabled(SCROLL.can_scroll_down().get());
+            leftmost.set_enabled(SCROLL.can_scroll_left().get());
+            rightmost.set_enabled(SCROLL.can_scroll_right().get());
         }
         UiNodeOp::Event { update } => {
             child.event(update);
@@ -640,6 +640,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             _handle = SCROLL_TO_CMD.scoped(WIDGET.id()).subscribe(true);
+            WIDGET.sub_event(&FOCUS_CHANGED_EVENT);
         }
         UiNodeOp::Deinit => {
             _handle = CommandHandle::dummy();
@@ -648,14 +649,21 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
             let self_id = WIDGET.id();
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if let Some(path) = &args.new_focus {
-                    if (scroll_to.is_none() || !scroll_to_from_cmd) && path.contains(self_id) && path.widget_id() != self_id {
+                    if (scroll_to.is_none() || !scroll_to_from_cmd)
+                        && path.contains(self_id)
+                        && path.widget_id() != self_id
+                        && !args.is_enabled_change()
+                        && !args.is_highlight_changed()
+                    {
                         // focus move inside.
                         if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {
                             // scroll_to_focused enabled
 
-                            if SCROLL.can_scroll_vertical() || SCROLL.can_scroll_horizontal() {
-                                // can scroll AND focus did not change by a click on the Scroll! scope restoring focus
-                                // back to a child.
+                            let can_scroll_v = SCROLL.can_scroll_vertical().get();
+                            let can_scroll_h = SCROLL.can_scroll_horizontal().get();
+                            if can_scroll_v || can_scroll_h {
+                                // auto scroll if can scroll AND focus did not change by a click on the
+                                // Scroll! scope restoring focus back to a child AND the target is not already visible.
 
                                 let tree = WINDOW.info();
                                 if let Some(mut target) = tree.get(path.widget_id()) {
@@ -695,8 +703,22 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                                             }
                                         }
 
-                                        scroll_to = Some((Rect::from(target.inner_bounds()), mode, None, false));
-                                        WIDGET.layout();
+                                        // check if widget is not large and already visible.
+                                        let mut scroll = true;
+                                        let scroll_bounds = tree.get(self_id).unwrap().inner_bounds();
+                                        let target_bounds = target.inner_bounds();
+                                        if let Some(r) = scroll_bounds.intersection(&target_bounds) {
+                                            let is_large_visible_v =
+                                                can_scroll_v && r.height() > Px(20) && target_bounds.height() > scroll_bounds.height();
+                                            let is_large_visible_h =
+                                                can_scroll_h && r.width() > Px(20) && target_bounds.width() > scroll_bounds.width();
+
+                                            scroll = !is_large_visible_v && !is_large_visible_h;
+                                        }
+                                        if scroll {
+                                            scroll_to = Some((Rect::from(target_bounds), mode, None, false));
+                                            WIDGET.layout();
+                                        }
                                     }
                                 }
                             }
@@ -1003,16 +1025,16 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                     match delta {
                         MouseScrollDelta::LineDelta(x, y) => {
                             let scroll_x = if x > 0.0 {
-                                SCROLL.can_scroll_left()
+                                SCROLL.can_scroll_left().get()
                             } else if x < 0.0 {
-                                SCROLL.can_scroll_right()
+                                SCROLL.can_scroll_right().get()
                             } else {
                                 false
                             };
                             let scroll_y = if y > 0.0 {
-                                SCROLL.can_scroll_up()
+                                SCROLL.can_scroll_up().get()
                             } else if y < 0.0 {
-                                SCROLL.can_scroll_down()
+                                SCROLL.can_scroll_down().get()
                             } else {
                                 false
                             };
@@ -1030,16 +1052,16 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                         }
                         MouseScrollDelta::PixelDelta(x, y) => {
                             let scroll_x = if x > 0.0 {
-                                SCROLL.can_scroll_left()
+                                SCROLL.can_scroll_left().get()
                             } else if x < 0.0 {
-                                SCROLL.can_scroll_right()
+                                SCROLL.can_scroll_right().get()
                             } else {
                                 false
                             };
                             let scroll_y = if y > 0.0 {
-                                SCROLL.can_scroll_up()
+                                SCROLL.can_scroll_up().get()
                             } else if y < 0.0 {
-                                SCROLL.can_scroll_down()
+                                SCROLL.can_scroll_down().get()
                             } else {
                                 false
                             };

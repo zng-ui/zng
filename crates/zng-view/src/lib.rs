@@ -115,7 +115,7 @@ use image_cache::ImageCache;
 use util::WinitToPx;
 use winit::{
     event::{DeviceEvent, WindowEvent},
-    event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     keyboard::ModifiersState,
     monitor::MonitorHandle,
     platform::modifier_supplement::KeyEventExtModifierSupplement,
@@ -237,7 +237,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
 
 /// Like [`run_same_process`] but with custom API extensions.
 pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
-    thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();
+    let r = thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();
 
     let config = ViewConfig::wait_same_process();
     config.assert_version(true);
@@ -248,6 +248,10 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
         App::run_headless(c, ext());
     } else {
         App::run_headed(c, ext());
+    }
+
+    if let Err(p) = r.join() {
+        std::panic::resume_unwind(p);
     }
 }
 
@@ -289,7 +293,8 @@ pub(crate) struct App {
     exts: ViewExtensions,
 
     gl_manager: GlContextManager,
-    window_target: *const EventLoopWindowTarget<AppEvent>,
+    winit_loop: util::WinitEventLoop,
+    idle: IdleTrace,
     app_sender: AppEventSender,
     request_recv: flume::Receiver<RequestEvent>,
 
@@ -344,288 +349,10 @@ impl fmt::Debug for App {
             .finish_non_exhaustive()
     }
 }
-impl App {
-    fn init_device_events(&mut self, enabled: bool, t: Option<&EventLoopWindowTarget<AppEvent>>) {
-        self.device_events = enabled;
+impl winit::application::ApplicationHandler<AppEvent> for App {
+    fn resumed(&mut self, _: &ActiveEventLoop) {}
 
-        if let Some(t) = t {
-            if enabled {
-                t.listen_device_events(winit::event_loop::DeviceEvents::Always);
-            } else {
-                t.listen_device_events(winit::event_loop::DeviceEvents::Never);
-            }
-        } else {
-            self.device_events = false;
-        }
-    }
-
-    pub fn run_headless(c: ipc::ViewChannels, ext: ViewExtensions) {
-        tracing::info!("running headless view-process");
-
-        gl::warmup();
-
-        let (app_sender, app_receiver) = flume::unbounded();
-        let (request_sender, request_receiver) = flume::unbounded();
-        let mut app = App::new(
-            AppEventSender::Headless(app_sender, request_sender),
-            c.response_sender,
-            c.event_sender,
-            request_receiver,
-            ext,
-        );
-        app.headless = true;
-
-        let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build().unwrap();
-
-        drop(winit_span);
-
-        let window_target: &EventLoopWindowTarget<AppEvent> = &event_loop;
-        app.window_target = window_target as *const _;
-
-        app.start_receiving(c.request_receiver);
-
-        'app_loop: while !app.exited {
-            match app_receiver.recv() {
-                Ok(app_ev) => match app_ev {
-                    AppEvent::Request => {
-                        while let Ok(request) = app.request_recv.try_recv() {
-                            match request {
-                                RequestEvent::Request(request) => {
-                                    let response = app.respond(request);
-                                    if response.must_be_send() && app.response_sender.send(response).is_err() {
-                                        app.exited = true;
-                                        break 'app_loop;
-                                    }
-                                }
-                                RequestEvent::FrameReady(id, msg) => {
-                                    let r = if let Some(s) = app.surfaces.iter_mut().find(|s| s.id() == id) {
-                                        Some(s.on_frame_ready(msg, &mut app.image_cache))
-                                    } else {
-                                        None
-                                    };
-                                    if let Some((frame_id, image)) = r {
-                                        app.notify(Event::FrameRendered(EventFrameRendered {
-                                            window: id,
-                                            frame: frame_id,
-                                            frame_image: image,
-                                        }));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    AppEvent::Notify(ev) => {
-                        if app.event_sender.send(ev).is_err() {
-                            app.exited = true;
-                            break 'app_loop;
-                        }
-                    }
-                    AppEvent::RefreshMonitors => {
-                        panic!("no monitor info in headless mode")
-                    }
-                    AppEvent::WinitFocused(_, _) => {
-                        panic!("no winit event loop in headless mode")
-                    }
-                    AppEvent::ParentProcessExited => {
-                        app.exited = true;
-                        break 'app_loop;
-                    }
-                    AppEvent::ImageLoaded(data) => {
-                        app.image_cache.loaded(data);
-                    }
-                    AppEvent::MonitorPowerChanged => {} // headless
-                    AppEvent::InitDeviceEvents(enabled) => {
-                        app.init_device_events(enabled, None);
-                    }
-                },
-                Err(_) => {
-                    app.exited = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    pub fn run_headed(c: ipc::ViewChannels, ext: ViewExtensions) {
-        tracing::info!("running headed view-process");
-
-        gl::warmup();
-
-        let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let event_loop = EventLoopBuilder::with_user_event().build().unwrap();
-        drop(winit_span);
-        let app_sender = event_loop.create_proxy();
-
-        let (request_sender, request_receiver) = flume::unbounded();
-        let mut app = App::new(
-            AppEventSender::Headed(app_sender, request_sender),
-            c.response_sender,
-            c.event_sender,
-            request_receiver,
-            ext,
-        );
-        app.start_receiving(c.request_receiver);
-
-        #[cfg(windows)]
-        config::spawn_listener(app.app_sender.clone());
-
-        struct IdleTrace(Option<tracing::span::EnteredSpan>);
-        impl IdleTrace {
-            pub fn enter(&mut self) {
-                self.0 = Some(tracing::trace_span!("<winit-idle>").entered());
-            }
-            pub fn exit(&mut self) {
-                self.0 = None;
-            }
-        }
-        let mut idle = IdleTrace(None);
-        idle.enter();
-
-        event_loop
-            .run(move |event, target| {
-                idle.exit();
-
-                app.window_target = target;
-                target.set_control_flow(ControlFlow::Wait);
-
-                if app.exited {
-                    target.exit();
-                } else {
-                    use winit::event::Event as WEvent;
-                    match event {
-                        WEvent::NewEvents(_) => {}
-                        WEvent::WindowEvent { window_id, event } => app.on_window_event(window_id, event),
-                        WEvent::DeviceEvent { device_id, event } => app.on_device_event(device_id, event),
-                        WEvent::UserEvent(ev) => match ev {
-                            AppEvent::Request => {
-                                while let Ok(req) = app.request_recv.try_recv() {
-                                    match req {
-                                        RequestEvent::Request(req) => {
-                                            let rsp = app.respond(req);
-                                            if rsp.must_be_send() && app.response_sender.send(rsp).is_err() {
-                                                // lost connection to app-process
-                                                app.exited = true;
-                                                target.exit();
-                                            }
-                                        }
-                                        RequestEvent::FrameReady(wid, msg) => app.on_frame_ready(wid, msg),
-                                    }
-                                }
-                            }
-                            AppEvent::Notify(ev) => app.notify(ev),
-                            AppEvent::WinitFocused(window_id, focused) => app.on_window_event(window_id, WindowEvent::Focused(focused)),
-                            AppEvent::RefreshMonitors => app.refresh_monitors(),
-                            AppEvent::ParentProcessExited => {
-                                app.exited = true;
-                                target.exit();
-                            }
-                            AppEvent::ImageLoaded(data) => {
-                                app.image_cache.loaded(data);
-                            }
-                            AppEvent::MonitorPowerChanged => {
-                                // if a window opens in power-off it is blank until redraw.
-                                for w in &mut app.windows {
-                                    w.redraw();
-                                }
-                            }
-                            AppEvent::InitDeviceEvents(enabled) => {
-                                app.init_device_events(enabled, Some(target));
-                            }
-                        },
-                        WEvent::Suspended => {}
-                        WEvent::Resumed => {}
-                        WEvent::AboutToWait => {
-                            app.finish_cursor_entered_move();
-                            app.update_modifiers();
-                            app.flush_coalesced();
-                            #[cfg(windows)]
-                            {
-                                app.skip_ralt = false;
-                            }
-                        }
-                        WEvent::MemoryWarning => {
-                            app.on_low_memory();
-                        }
-                        WEvent::LoopExiting => {}
-                    }
-                }
-
-                app.window_target = std::ptr::null();
-
-                idle.enter();
-            })
-            .unwrap();
-    }
-
-    fn new(
-        app_sender: AppEventSender,
-        response_sender: ipc::ResponseSender,
-        event_sender: ipc::EventSender,
-        request_recv: flume::Receiver<RequestEvent>,
-        mut ext: ViewExtensions,
-    ) -> Self {
-        ext.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
-        ext.init(&app_sender);
-        App {
-            headless: false,
-            started: false,
-            exts: ext,
-            gl_manager: GlContextManager::default(),
-            image_cache: ImageCache::new(app_sender.clone()),
-            app_sender,
-            request_recv,
-            response_sender,
-            event_sender,
-            window_target: std::ptr::null(),
-            gen: ViewProcessGen::INVALID,
-            device_events: false,
-            windows: vec![],
-            surfaces: vec![],
-            monitors: vec![],
-            monitor_id_gen: MonitorId::INVALID,
-            devices: vec![],
-            device_id_gen: DeviceId::INVALID,
-            dialog_id_gen: DialogId::INVALID,
-            resize_frame_wait_id_gen: FrameWaitId::INVALID,
-            coalescing_event: None,
-            cursor_entered_expect_move: Vec::with_capacity(1),
-            exited: false,
-            #[cfg(windows)]
-            skip_ralt: false,
-            pressed_modifiers: FxHashMap::default(),
-            pending_modifiers_update: None,
-            pending_modifiers_focus_clear: false,
-
-            #[cfg(not(windows))]
-            arboard: None,
-        }
-    }
-
-    fn start_receiving(&mut self, mut request_recv: ipc::RequestReceiver) {
-        let app_sender = self.app_sender.clone();
-        thread::spawn(move || {
-            while let Ok(r) = request_recv.recv() {
-                if let Err(ipc::Disconnected) = app_sender.request(r) {
-                    break;
-                }
-            }
-        });
-    }
-
-    fn on_low_memory(&mut self) {
-        self.image_cache.on_low_memory();
-        for w in &mut self.windows {
-            w.on_low_memory();
-        }
-        for s in &mut self.surfaces {
-            s.on_low_memory();
-        }
-        self.exts.on_low_memory();
-        self.notify(Event::LowMemory);
-    }
-
-    fn on_window_event(&mut self, window_id: winit::window::WindowId, event: WindowEvent) {
+    fn window_event(&mut self, winit_loop: &ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.window_id() == window_id) {
             i
         } else {
@@ -633,6 +360,8 @@ impl App {
         };
 
         let _s = tracing::trace_span!("on_window_event", ?event).entered();
+
+        let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
         self.windows[i].on_window_event(&event);
 
@@ -659,6 +388,7 @@ impl App {
         macro_rules! linux_modal_dialog_bail {
             () => {
                 if modal_dialog_active {
+                    winit_loop_guard.unset(&mut self.winit_loop);
                     return;
                 }
             };
@@ -680,6 +410,7 @@ impl App {
                 let size = if let Some(size) = self.windows[i].resized() {
                     size
                 } else {
+                    winit_loop_guard.unset(&mut self.winit_loop);
                     return;
                 };
 
@@ -760,6 +491,7 @@ impl App {
                             break;
                         }
                         Err(flume::RecvTimeoutError::Disconnected) => {
+                            winit_loop_guard.unset(&mut self.winit_loop);
                             unreachable!()
                         }
                     }
@@ -790,6 +522,7 @@ impl App {
                 let (global_position, position) = if let Some(p) = self.windows[i].moved() {
                     p
                 } else {
+                    winit_loop_guard.unset(&mut self.winit_loop);
                     return;
                 };
 
@@ -852,6 +585,7 @@ impl App {
                     #[cfg(windows)]
                     if self.skip_ralt {
                         if let winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::AltRight) = event.physical_key {
+                            winit_loop_guard.unset(&mut self.winit_loop);
                             return;
                         }
                     }
@@ -1068,10 +802,351 @@ impl App {
             }
             WindowEvent::Occluded(_) => {}
             WindowEvent::ActivationTokenDone { .. } => {}
-            WindowEvent::TouchpadMagnify { .. } => {}
-            WindowEvent::TouchpadRotate { .. } => {}
-            WindowEvent::SmartMagnify { .. } => {}
+            WindowEvent::PinchGesture { .. } => {}
+            WindowEvent::RotationGesture { .. } => {}
+            WindowEvent::DoubleTapGesture { .. } => {}
+            WindowEvent::PanGesture { .. } => {}
         }
+
+        winit_loop_guard.unset(&mut self.winit_loop);
+    }
+
+    fn new_events(&mut self, _: &ActiveEventLoop, _: winit::event::StartCause) {
+        self.idle.exit();
+    }
+
+    fn user_event(&mut self, winit_loop: &ActiveEventLoop, ev: AppEvent) {
+        let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+        match ev {
+            AppEvent::Request => {
+                while let Ok(req) = self.request_recv.try_recv() {
+                    match req {
+                        RequestEvent::Request(req) => {
+                            let rsp = self.respond(req);
+                            if rsp.must_be_send() && self.response_sender.send(rsp).is_err() {
+                                // lost connection to app-process
+                                self.exited = true;
+                                self.winit_loop.exit();
+                            }
+                        }
+                        RequestEvent::FrameReady(wid, msg) => self.on_frame_ready(wid, msg),
+                    }
+                }
+            }
+            AppEvent::Notify(ev) => self.notify(ev),
+            AppEvent::WinitFocused(window_id, focused) => self.window_event(winit_loop, window_id, WindowEvent::Focused(focused)),
+            AppEvent::RefreshMonitors => self.refresh_monitors(),
+            AppEvent::ParentProcessExited => {
+                self.exited = true;
+                self.winit_loop.exit();
+            }
+            AppEvent::ImageLoaded(data) => {
+                self.image_cache.loaded(data);
+            }
+            AppEvent::MonitorPowerChanged => {
+                // if a window opens in power-off it is blank until redraw.
+                for w in &mut self.windows {
+                    w.redraw();
+                }
+            }
+            AppEvent::InitDeviceEvents(enabled) => {
+                self.init_device_events(enabled, Some(winit_loop));
+            }
+        }
+        winit_loop_guard.unset(&mut self.winit_loop);
+    }
+
+    fn device_event(&mut self, winit_loop: &ActiveEventLoop, device_id: winit::event::DeviceId, event: DeviceEvent) {
+        if self.device_events {
+            let _s = tracing::trace_span!("on_device_event", ?event);
+
+            let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+
+            let d_id = self.device_id(device_id);
+            match event {
+                DeviceEvent::Added => self.notify(Event::DeviceAdded(d_id)),
+                DeviceEvent::Removed => self.notify(Event::DeviceRemoved(d_id)),
+                DeviceEvent::MouseMotion { delta } => self.notify(Event::DeviceMouseMotion {
+                    device: d_id,
+                    delta: euclid::vec2(delta.0, delta.1),
+                }),
+                DeviceEvent::MouseWheel { delta } => self.notify(Event::DeviceMouseWheel {
+                    device: d_id,
+                    delta: util::winit_mouse_wheel_delta_to_zui(delta),
+                }),
+                DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion {
+                    device: d_id,
+                    axis: AxisId(axis),
+                    value,
+                }),
+                DeviceEvent::Button { button, state } => self.notify(Event::DeviceButton {
+                    device: d_id,
+                    button: ButtonId(button),
+                    state: util::element_state_to_button_state(state),
+                }),
+                DeviceEvent::Key(k) => self.notify(Event::DeviceKey {
+                    device: d_id,
+                    key_code: util::winit_physical_key_to_key_code(k.physical_key),
+                    state: util::element_state_to_key_state(k.state),
+                }),
+            }
+
+            winit_loop_guard.unset(&mut self.winit_loop);
+        }
+    }
+
+    fn about_to_wait(&mut self, winit_loop: &ActiveEventLoop) {
+        let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+
+        self.finish_cursor_entered_move();
+        self.update_modifiers();
+        self.flush_coalesced();
+        #[cfg(windows)]
+        {
+            self.skip_ralt = false;
+        }
+        self.idle.enter();
+
+        winit_loop_guard.unset(&mut self.winit_loop);
+    }
+
+    fn suspended(&mut self, _: &ActiveEventLoop) {
+        unimplemented!()
+    }
+
+    fn exiting(&mut self, event_loop: &ActiveEventLoop) {
+        let _ = event_loop;
+    }
+
+    fn memory_warning(&mut self, winit_loop: &ActiveEventLoop) {
+        let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+
+        self.image_cache.on_low_memory();
+        for w in &mut self.windows {
+            w.on_low_memory();
+        }
+        for s in &mut self.surfaces {
+            s.on_low_memory();
+        }
+        self.exts.on_low_memory();
+        self.notify(Event::LowMemory);
+
+        winit_loop_guard.unset(&mut self.winit_loop);
+    }
+}
+struct IdleTrace(Option<tracing::span::EnteredSpan>);
+impl IdleTrace {
+    pub fn enter(&mut self) {
+        self.0 = Some(tracing::trace_span!("<winit-idle>").entered());
+    }
+    pub fn exit(&mut self) {
+        self.0 = None;
+    }
+}
+impl App {
+    fn init_device_events(&mut self, enabled: bool, t: Option<&ActiveEventLoop>) {
+        self.device_events = enabled;
+
+        if let Some(t) = t {
+            if enabled {
+                t.listen_device_events(winit::event_loop::DeviceEvents::Always);
+            } else {
+                t.listen_device_events(winit::event_loop::DeviceEvents::Never);
+            }
+        } else {
+            self.device_events = false;
+        }
+    }
+
+    pub fn run_headless(c: ipc::ViewChannels, ext: ViewExtensions) {
+        tracing::info!("running headless view-process");
+
+        gl::warmup();
+
+        let (app_sender, app_receiver) = flume::unbounded();
+        let (request_sender, request_receiver) = flume::unbounded();
+        let mut app = App::new(
+            AppEventSender::Headless(app_sender, request_sender),
+            c.response_sender,
+            c.event_sender,
+            request_receiver,
+            ext,
+        );
+        app.headless = true;
+
+        let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
+        let event_loop = EventLoop::new().unwrap();
+        drop(winit_span);
+
+        event_loop
+            .run_app(&mut HeadlessApp {
+                app,
+                request_receiver: Some(c.request_receiver),
+                app_receiver,
+            })
+            .unwrap();
+
+        struct HeadlessApp {
+            app: App,
+            request_receiver: Option<ipc::RequestReceiver>,
+            app_receiver: flume::Receiver<AppEvent>,
+        }
+        impl winit::application::ApplicationHandler<()> for HeadlessApp {
+            fn resumed(&mut self, winit_loop: &ActiveEventLoop) {
+                let mut winit_loop_guard = self.app.winit_loop.set(winit_loop);
+
+                self.app.start_receiving(self.request_receiver.take().unwrap());
+
+                'app_loop: while !self.app.exited {
+                    match self.app_receiver.recv() {
+                        Ok(app_ev) => match app_ev {
+                            AppEvent::Request => {
+                                while let Ok(request) = self.app.request_recv.try_recv() {
+                                    match request {
+                                        RequestEvent::Request(request) => {
+                                            let response = self.app.respond(request);
+                                            if response.must_be_send() && self.app.response_sender.send(response).is_err() {
+                                                self.app.exited = true;
+                                                break 'app_loop;
+                                            }
+                                        }
+                                        RequestEvent::FrameReady(id, msg) => {
+                                            let r = if let Some(s) = self.app.surfaces.iter_mut().find(|s| s.id() == id) {
+                                                Some(s.on_frame_ready(msg, &mut self.app.image_cache))
+                                            } else {
+                                                None
+                                            };
+                                            if let Some((frame_id, image)) = r {
+                                                self.app.notify(Event::FrameRendered(EventFrameRendered {
+                                                    window: id,
+                                                    frame: frame_id,
+                                                    frame_image: image,
+                                                }));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            AppEvent::Notify(ev) => {
+                                if self.app.event_sender.send(ev).is_err() {
+                                    self.app.exited = true;
+                                    break 'app_loop;
+                                }
+                            }
+                            AppEvent::RefreshMonitors => {
+                                panic!("no monitor info in headless mode")
+                            }
+                            AppEvent::WinitFocused(_, _) => {
+                                panic!("no winit event loop in headless mode")
+                            }
+                            AppEvent::ParentProcessExited => {
+                                self.app.exited = true;
+                                break 'app_loop;
+                            }
+                            AppEvent::ImageLoaded(data) => {
+                                self.app.image_cache.loaded(data);
+                            }
+                            AppEvent::MonitorPowerChanged => {} // headless
+                            AppEvent::InitDeviceEvents(enabled) => {
+                                self.app.init_device_events(enabled, None);
+                            }
+                        },
+                        Err(_) => {
+                            self.app.exited = true;
+                            break;
+                        }
+                    }
+                }
+
+                winit_loop_guard.unset(&mut self.app.winit_loop);
+            }
+
+            fn window_event(&mut self, _: &ActiveEventLoop, _: winit::window::WindowId, _: WindowEvent) {}
+        }
+    }
+
+    pub fn run_headed(c: ipc::ViewChannels, ext: ViewExtensions) {
+        tracing::info!("running headed view-process");
+
+        gl::warmup();
+
+        let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
+        let event_loop = EventLoop::with_user_event().build().unwrap();
+        drop(winit_span);
+        let app_sender = event_loop.create_proxy();
+
+        let (request_sender, request_receiver) = flume::unbounded();
+        let mut app = App::new(
+            AppEventSender::Headed(app_sender, request_sender),
+            c.response_sender,
+            c.event_sender,
+            request_receiver,
+            ext,
+        );
+        app.start_receiving(c.request_receiver);
+
+        #[cfg(windows)]
+        config::spawn_listener(app.app_sender.clone());
+
+        event_loop.run_app(&mut app).unwrap();
+    }
+
+    fn new(
+        app_sender: AppEventSender,
+        response_sender: ipc::ResponseSender,
+        event_sender: ipc::EventSender,
+        request_recv: flume::Receiver<RequestEvent>,
+        mut ext: ViewExtensions,
+    ) -> Self {
+        ext.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
+        ext.init(&app_sender);
+        let mut idle = IdleTrace(None);
+        idle.enter();
+        App {
+            headless: false,
+            started: false,
+            exts: ext,
+            idle,
+            gl_manager: GlContextManager::default(),
+            image_cache: ImageCache::new(app_sender.clone()),
+            app_sender,
+            request_recv,
+            response_sender,
+            event_sender,
+            winit_loop: util::WinitEventLoop::default(),
+            gen: ViewProcessGen::INVALID,
+            device_events: false,
+            windows: vec![],
+            surfaces: vec![],
+            monitors: vec![],
+            monitor_id_gen: MonitorId::INVALID,
+            devices: vec![],
+            device_id_gen: DeviceId::INVALID,
+            dialog_id_gen: DialogId::INVALID,
+            resize_frame_wait_id_gen: FrameWaitId::INVALID,
+            coalescing_event: None,
+            cursor_entered_expect_move: Vec::with_capacity(1),
+            exited: false,
+            #[cfg(windows)]
+            skip_ralt: false,
+            pressed_modifiers: FxHashMap::default(),
+            pending_modifiers_update: None,
+            pending_modifiers_focus_clear: false,
+
+            #[cfg(not(windows))]
+            arboard: None,
+        }
+    }
+
+    fn start_receiving(&mut self, mut request_recv: ipc::RequestReceiver) {
+        let app_sender = self.app_sender.clone();
+        thread::spawn(move || {
+            while let Ok(r) = request_recv.recv() {
+                if let Err(ipc::Disconnected) = app_sender.request(r) {
+                    break;
+                }
+            }
+        });
     }
 
     fn monitor_handle_to_id(&mut self, handle: &MonitorHandle) -> MonitorId {
@@ -1166,9 +1241,7 @@ impl App {
 
         let mut changed = false;
 
-        let window_target = unsafe { &*self.window_target };
-
-        for (fresh_handle, (id, handle)) in window_target.available_monitors().zip(&self.monitors) {
+        for (fresh_handle, (id, handle)) in self.winit_loop.available_monitors().zip(&self.monitors) {
             let id = if &fresh_handle == handle {
                 *id
             } else {
@@ -1293,41 +1366,6 @@ impl App {
         }
     }
 
-    fn on_device_event(&mut self, device_id: winit::event::DeviceId, event: DeviceEvent) {
-        if self.device_events {
-            let _s = tracing::trace_span!("on_device_event", ?event);
-
-            let d_id = self.device_id(device_id);
-            match event {
-                DeviceEvent::Added => self.notify(Event::DeviceAdded(d_id)),
-                DeviceEvent::Removed => self.notify(Event::DeviceRemoved(d_id)),
-                DeviceEvent::MouseMotion { delta } => self.notify(Event::DeviceMouseMotion {
-                    device: d_id,
-                    delta: euclid::vec2(delta.0, delta.1),
-                }),
-                DeviceEvent::MouseWheel { delta } => self.notify(Event::DeviceMouseWheel {
-                    device: d_id,
-                    delta: util::winit_mouse_wheel_delta_to_zui(delta),
-                }),
-                DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion {
-                    device: d_id,
-                    axis: AxisId(axis),
-                    value,
-                }),
-                DeviceEvent::Button { button, state } => self.notify(Event::DeviceButton {
-                    device: d_id,
-                    button: ButtonId(button),
-                    state: util::element_state_to_button_state(state),
-                }),
-                DeviceEvent::Key(k) => self.notify(Event::DeviceKey {
-                    device: d_id,
-                    key_code: util::winit_physical_key_to_key_code(k.physical_key),
-                    state: util::element_state_to_key_state(k.state),
-                }),
-            }
-        }
-    }
-
     fn assert_started(&self) {
         if !self.started {
             panic!("not started")
@@ -1367,11 +1405,8 @@ impl App {
 
         self.assert_started();
 
-        let window_target = unsafe { &*self.window_target };
-
-        let primary = window_target.primary_monitor();
-
-        window_target
+        let primary = self.winit_loop.primary_monitor();
+        self.winit_loop
             .available_monitors()
             .map(|m| {
                 let id = self.monitor_id(&m);
@@ -1402,7 +1437,7 @@ impl App {
         let surf = Surface::open(
             self.gen,
             config,
-            unsafe { &*self.window_target },
+            &self.winit_loop,
             &mut self.gl_manager,
             self.exts.new_window(),
             self.exts.new_renderer(),
@@ -1462,6 +1497,8 @@ impl Api for App {
         self.assert_started();
         self.started = false;
         self.exited = true;
+        // not really, but just to exit winit loop
+        let _ = self.app_sender.send(AppEvent::ParentProcessExited);
     }
 
     fn open_window(&mut self, mut config: WindowRequest) {
@@ -1502,12 +1539,11 @@ impl Api for App {
             self.assert_started();
 
             let id = config.id;
-
             let win = Window::open(
                 self.gen,
                 config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
                 config,
-                unsafe { &*self.window_target },
+                &self.winit_loop,
                 &mut self.gl_manager,
                 self.exts.new_window(),
                 self.exts.new_renderer(),

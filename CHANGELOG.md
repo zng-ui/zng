@@ -47,6 +47,24 @@ fn version_0_5() -> impl UiNode {
     - Rename `is_config_only` to `is_init_only`.
     - Note that this is only a breaking change for direct dependents of `zng-view`.
     - Rename `ViewRenderExtensionError` to `ViewExtensionError`.
+* Fix `zng::view_process::default::run_same_process` not propagating app panics.
+* Add `WindowCloseRequestedArgs::headed/headless`.
+* **Breaking** Fix tab nav when a focus scope with `FocusScopeOnFocus::LastFocused` is a child of
+  another scope with `TabNav::Cycle`.
+    - Breaking change has minimal impact:
+        - Added input in `WidgetFocusInfo::on_focus_scope_move`.
+        - Removed `FocusChangedCause::is_prev_request`.
+* Add `FocusChangedCause::request_target` helper method.
+* Add `WidgetPath::parent_id` helper method.
+* Fix auto scroll to focused issues:
+    - When the focused child does not subscribe to focus change events.
+    - Scrolling when large widget is already visible.
+    - Scrolling again to same widget when focus change event did not represent a widget change.
+* Add `WidgetInfo::spatial_bounds`.
+* Fix directional navigation cycling only inside viewport now full spatial bounds of scopes.
+* Add better conversions for `CommandScope`. You can now scope on named widgets directly, `FOO_CMD.scoped("bar-wgt")`.
+* Add `ContextualizedVar::new_value`.
+* **Breaking** `SCROLL.scroll_*` methods now return contextual vars, not values.
 
 # 0.4.0
 

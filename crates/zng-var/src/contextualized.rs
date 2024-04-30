@@ -136,6 +136,14 @@ impl<T: VarValue> ContextualizedVar<T> {
         }
     }
 
+    /// New with initialization function that produces a value.
+    ///
+    /// The `init` closure will be called on the first usage of the var, once after the var is cloned and any time
+    /// a parent contextualized var is initializing.
+    pub fn new_value(init: impl Fn() -> T + Send + Sync + 'static) -> Self {
+        Self::new(move || init().into_var())
+    }
+
     /// Borrow/initialize the actual var.
     pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<BoxedVar<T>> {
         #[cfg(feature = "dyn_closure")]

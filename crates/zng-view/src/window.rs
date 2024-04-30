@@ -17,9 +17,9 @@ use webrender::{
 };
 
 use winit::{
-    event_loop::EventLoopWindowTarget,
-    monitor::{MonitorHandle, VideoMode as GVideoMode},
-    window::{Fullscreen, Icon, Window as GWindow, WindowBuilder},
+    event_loop::ActiveEventLoop,
+    monitor::{MonitorHandle, VideoModeHandle as GVideoMode},
+    window::{Fullscreen, Icon, Window as GWindow, WindowAttributes},
 };
 use zng_txt::{ToTxt, Txt};
 use zng_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
@@ -134,8 +134,8 @@ impl Window {
     pub fn open(
         gen: ViewProcessGen,
         icon: Option<Icon>,
-        cfg: WindowRequest,
-        window_target: &EventLoopWindowTarget<AppEvent>,
+        mut cfg: WindowRequest,
+        winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
         mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
@@ -146,7 +146,7 @@ impl Window {
         let window_scope = tracing::trace_span!("glutin").entered();
 
         // create window and OpenGL context
-        let mut winit = WindowBuilder::new()
+        let mut winit = WindowAttributes::default()
             .with_title(cfg.title)
             .with_resizable(cfg.resizable)
             .with_transparent(cfg.transparent)
@@ -155,9 +155,9 @@ impl Window {
         let mut s = cfg.state;
         s.clamp_size();
 
-        let mut monitor = window_target.primary_monitor();
+        let mut monitor = winit_loop.primary_monitor();
         let mut monitor_is_primary = true;
-        for m in window_target.available_monitors() {
+        for m in winit_loop.available_monitors() {
             let pos = m.position();
             let size = m.size();
             let rect = PxRect::new(pos.to_px(), size.to_px());
@@ -239,6 +239,7 @@ impl Window {
         }
 
         let (winit_window, mut context) = gl_manager.create_headed(id, winit, window_target, render_mode, &event_sender);
+
         render_mode = context.render_mode();
 
         window_exts.retain_mut(|(_, ext)| {
@@ -650,7 +651,13 @@ impl Window {
             return None;
         }
 
-        let new_pos = self.window.inner_position().unwrap().to_px();
+        let new_pos = match self.window.inner_position() {
+            Ok(p) => p.to_px(),
+            Err(e) => {
+                tracing::error!("cannot get inner_position, {e}");
+                PxPoint::zero()
+            }
+        };
         if self.prev_pos != new_pos {
             self.prev_pos = new_pos;
 
@@ -803,7 +810,7 @@ impl Window {
     /// Set cursor icon and visibility.
     pub fn set_cursor(&mut self, icon: Option<CursorIcon>) {
         if let Some(icon) = icon {
-            self.window.set_cursor_icon(icon.to_winit());
+            self.window.set_cursor(icon.to_winit());
             self.window.set_cursor_visible(true);
         } else {
             self.window.set_cursor_visible(false);
@@ -887,7 +894,13 @@ impl Window {
     fn probe_state(&self) -> WindowStateAll {
         let mut state = self.state.clone();
 
-        state.global_position = self.window.inner_position().unwrap().to_px();
+        state.global_position = match self.window.inner_position() {
+            Ok(p) => p.to_px(),
+            Err(e) => {
+                tracing::error!("cannot get inner_position, {e}");
+                PxPoint::zero()
+            }
+        };
 
         if self.is_minimized() {
             state.state = WindowState::Minimized;

@@ -261,11 +261,11 @@ pub enum FocusChangedCause {
     Recovery,
 }
 impl FocusChangedCause {
-    /// If the change cause by a request to the previous widget, by tab index.
-    pub fn is_prev_request(self) -> bool {
+    /// Get focus request target.
+    pub fn request_target(self) -> Option<FocusTarget> {
         match self {
-            FocusChangedCause::Request(r) => matches!(r.target, FocusTarget::Prev),
-            _ => false,
+            Self::Request(r) => Some(r.target),
+            _ => None,
         }
     }
 }
@@ -501,12 +501,19 @@ impl FocusManager {
                 focus.is_highlighting_var.set(true);
             }
 
-            let reverse = args.cause.is_prev_request();
+            // reentering single child of parent scope that cycles
+            let is_tab_cycle_reentry = matches!(args.cause.request_target(), Some(FocusTarget::Prev | FocusTarget::Next))
+                && match (&args.prev_focus, &args.new_focus) {
+                    (Some(p), Some(n)) => p.contains(n.widget_id()),
+                    _ => false,
+                };
+
+            let reverse = matches!(args.cause.request_target(), Some(FocusTarget::Prev));
             let prev_focus = args.prev_focus.clone();
             FOCUS_CHANGED_EVENT.notify(args);
 
             // may have focused scope.
-            while let Some(after_args) = focus.move_after_focus(reverse) {
+            while let Some(after_args) = focus.move_after_focus(is_tab_cycle_reentry, reverse) {
                 FOCUS_CHANGED_EVENT.notify(after_args);
             }
 
@@ -1332,14 +1339,15 @@ impl FocusService {
     }
 
     #[must_use]
-    fn move_after_focus(&mut self, reverse: bool) -> Option<FocusChangedArgs> {
+    fn move_after_focus(&mut self, is_tab_cycle_reentry: bool, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Some(info) = WINDOWS.focused_info() {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
                     .get(focused.path.widget_id())
                 {
                     if widget.is_scope() {
-                        if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused.get(&id).map(|p| p.as_path()), reverse) {
+                        let last_focused = |id| self.return_focused.get(&id).map(|p| p.as_path());
+                        if let Some(widget) = widget.on_focus_scope_move(last_focused, is_tab_cycle_reentry, reverse) {
                             self.enabled_nav = widget.enabled_nav_with_frame();
                             return self.move_focus(
                                 Some(FocusedInfo::new(widget)),
