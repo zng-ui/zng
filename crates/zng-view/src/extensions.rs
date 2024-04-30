@@ -5,6 +5,7 @@
 //! the view-process without needing to fork it or re-implement the entire view API from scratch.
 //!
 
+use std::rc::Rc;
 use std::{any::Any, sync::Arc};
 
 use webrender::api::{
@@ -13,6 +14,7 @@ use webrender::api::{
 };
 use webrender::{DebugFlags, RenderApi};
 use zng_unit::{Factor, PxSize};
+use zng_view_api::window::RenderMode;
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensions},
     Event,
@@ -21,6 +23,7 @@ use zng_view_api::{
 use crate::display_list::{DisplayExtensionArgs, DisplayExtensionItemArgs, DisplayExtensionUpdateArgs, DisplayListExtension, SpaceAndClip};
 
 pub use crate::px_wr::{PxToWr, WrToPx};
+use crate::util::PxToWinit;
 
 /// The extension API.
 pub trait ViewExtension: Send + Any {
@@ -38,6 +41,11 @@ pub trait ViewExtension: Send + Any {
         None
     }
 
+    /// Create a [`WindowExtension`] for a new window instance.
+    fn window(&mut self) -> Option<Box<dyn WindowExtension>> {
+        None
+    }
+
     /// Create a [`RendererExtension`] for a new renderer instance.
     fn renderer(&mut self) -> Option<Box<dyn RendererExtension>> {
         None
@@ -45,6 +53,41 @@ pub trait ViewExtension: Send + Any {
 
     /// System warning low memory, release unused memory, caches.
     fn low_memory(&mut self) {}
+}
+
+/// Represents a view extension associated with a headed window instance.
+pub trait WindowExtension: Any {
+    /// Edit attributes for the new window.
+    fn configure(&mut self, args: &mut WindowConfigArgs) {
+        let _ = args;
+    }
+
+    /// Called just after the window is created.
+    fn window_inited(&mut self, args: &mut WindowInitedArgs) {
+        let _ = args;
+    }
+
+    /// If this extension can be dropped after window creation.
+    fn is_init_only(&self) -> bool;
+
+    /// Called when a command request is made for the extension and window (window ID).
+    fn command(&mut self, args: &mut WindowCommandArgs) -> ApiExtensionPayload {
+        let _ = args;
+        ApiExtensionPayload::unknown_extension(ApiExtensionId::INVALID)
+    }
+
+    /// Called when the window receives an event.
+    fn event(&mut self, args: &mut WindowEventArgs) {
+        let _ = args;
+    }
+
+    /// System warning low memory, release unused memory, caches.
+    fn low_memory(&mut self) {}
+
+    /// Called just after the window closes.
+    fn window_deinited(&mut self, args: &mut WindowDeinitedArgs) {
+        let _ = args;
+    }
 }
 
 /// Represents a view extension associated with a renderer instance.
@@ -59,17 +102,10 @@ pub trait RendererExtension: Any {
         let _ = args;
     }
 
-    /// Called just before the renderer is destroyed.
-    fn renderer_deinited(&mut self, args: &mut RendererDeinitedArgs) {
-        let _ = args;
-    }
-
     /// If this extension can be dropped after render creation.
-    fn is_config_only(&self) -> bool;
+    fn is_init_only(&self) -> bool;
 
     /// Called when a command request is made for the extension and renderer (window ID).
-    ///
-    /// The `extension_id` is the current index of the extension, it can be used in error messages.
     fn command(&mut self, args: &mut RendererCommandArgs) -> ApiExtensionPayload {
         let _ = args;
         ApiExtensionPayload::unknown_extension(ApiExtensionId::INVALID)
@@ -114,6 +150,11 @@ pub trait RendererExtension: Any {
 
     /// System warning low memory, release unused memory, caches.
     fn low_memory(&mut self) {}
+
+    /// Called just before the renderer is destroyed.
+    fn renderer_deinited(&mut self, args: &mut RendererDeinitedArgs) {
+        let _ = args;
+    }
 }
 
 /// Arguments for [`RendererExtension::render_start`] and [`RendererExtension::render_end`].
@@ -217,7 +258,7 @@ pub struct RedrawArgs<'a> {
     /// OpenGL context used by the renderer.
     ///
     /// The context is current, and Webrender has already redraw.
-    pub gl: &'a dyn gleam::gl::Gl,
+    pub context: &'a mut dyn OpenGlContext,
 }
 
 /// Represents a Webrender blob handler that can coexist with other blob handlers on the same renderer.
@@ -355,12 +396,23 @@ pub struct BlobRasterizerArgs<'a> {
     pub responses: &'a mut Vec<(BlobImageRequest, BlobImageResult)>,
 }
 
+/// Arguments for [`WindowExtension::configure`]
+pub struct WindowConfigArgs<'a> {
+    /// Config payload send with the window creation request addressed to this extension.
+    ///
+    /// Note that this extension will participate in the renderer creation even if there is no config for it.
+    pub config: Option<&'a ApiExtensionPayload>,
+
+    /// Window attributes that will be used to build the headed window.
+    pub window: &'a mut winit::window::WindowAttributes,
+}
+
 /// Arguments for [`RendererExtension::configure`]
 pub struct RendererConfigArgs<'a> {
     /// Config payload send with the renderer creation request addressed to this extension.
     ///
     /// Note that this extension will participate in the renderer creation even if there is no config for it.
-    pub config: Option<ApiExtensionPayload>,
+    pub config: Option<&'a ApiExtensionPayload>,
 
     /// Webrender options.
     ///
@@ -376,6 +428,12 @@ pub struct RendererConfigArgs<'a> {
     ///
     /// Use this API instead of `blob_image_handler` in options to support multiple blob handlers.
     pub blobs: &'a mut Vec<Box<dyn BlobExtension>>,
+
+    /// Winit window if the renderer is associated with a headed window.
+    pub window: Option<&'a winit::window::Window>,
+
+    /// OpenGL context that will be used by the new renderer.
+    pub context: &'a mut dyn OpenGlContext,
 }
 
 /// Arguments for [`RendererExtension::renderer_inited`].
@@ -400,10 +458,13 @@ pub struct RendererInitedArgs<'a> {
     /// The pipeline of the main content.
     pub pipeline_id: PipelineId,
 
+    /// Winit window if the renderer is associated with a headed window.
+    pub window: Option<&'a winit::window::Window>,
+
     /// OpenGL context used by the new renderer.
     ///
     /// The context is new and current, only Webrender and previous extensions have interacted with it.
-    pub gl: &'a dyn gleam::gl::Gl,
+    pub context: &'a mut dyn OpenGlContext,
 
     /// External images registry for the `renderer`.
     pub external_images: &'a mut ExternalImages,
@@ -470,11 +531,109 @@ pub struct RendererDeinitedArgs<'a> {
     /// The pipeline of the main content, already deinited.
     pub pipeline_id: PipelineId,
 
+    /// Winit window if the renderer is associated with a headed window.
+    pub window: Option<&'a winit::window::Window>,
+
     /// OpenGL context.
     ///
     /// The context is current and Webrender has already deinited, the context will be dropped
     /// after all extensions handle deinit.
-    pub gl: &'a dyn gleam::gl::Gl,
+    pub context: &'a mut dyn OpenGlContext,
+}
+
+/// Arguments for [`WindowExtension::window_inited`].
+pub struct WindowInitedArgs<'a> {
+    /// Underlying winit window.
+    pub window: &'a winit::window::Window,
+
+    /// OpenGL context connected to the window or headless surface.
+    pub context: &'a mut dyn OpenGlContext,
+}
+
+/// Arguments for [`WindowExtension::window_deinited`].
+pub struct WindowDeinitedArgs<'a> {
+    /// Underlying winit window.
+    pub window: &'a winit::window::Window,
+
+    /// OpenGL context connected to the window or headless surface.
+    pub context: &'a mut dyn OpenGlContext,
+}
+
+/// Arguments for [`WindowExtension::command`].
+pub struct WindowCommandArgs<'a> {
+    /// Underlying winit window.
+    pub window: &'a winit::window::Window,
+
+    /// OpenGL context connected to the window or headless surface.
+    pub context: &'a mut dyn OpenGlContext,
+
+    /// The command request.
+    pub request: ApiExtensionPayload,
+}
+
+/// Arguments for [`WindowExtension::event`].
+pub struct WindowEventArgs<'a> {
+    /// Underlying winit window.
+    pub window: &'a winit::window::Window,
+
+    /// OpenGL context connected to the window or headless surface.
+    pub context: &'a mut dyn OpenGlContext,
+
+    /// The event.
+    pub event: &'a winit::event::WindowEvent,
+}
+
+/// Represents a managed OpenGL context connected to a window or headless surface.
+pub trait OpenGlContext {
+    /// Context is current on the calling thread.
+    fn is_current(&self) -> bool;
+
+    /// Make context current on the calling thread.
+    fn make_current(&mut self);
+
+    /// The context.
+    fn gl(&self) -> &Rc<dyn gleam::gl::Gl>;
+
+    /// Actual render mode used to create the context.
+    fn render_mode(&self) -> RenderMode;
+
+    /// Resize surface.
+    fn resize(&mut self, size: PxSize);
+
+    /// If the context runs on the CPU, not a GPU.
+    fn is_software(&self) -> bool;
+
+    /// Swap buffers if the context is double-buffered.
+    fn swap_buffers(&mut self);
+}
+impl OpenGlContext for crate::gl::GlContext {
+    fn is_current(&self) -> bool {
+        self.is_current()
+    }
+
+    fn make_current(&mut self) {
+        self.make_current()
+    }
+
+    fn gl(&self) -> &Rc<dyn gleam::gl::Gl> {
+        self.gl()
+    }
+
+    fn render_mode(&self) -> RenderMode {
+        self.render_mode()
+    }
+
+    fn resize(&mut self, size: PxSize) {
+        self.resize(size.to_winit())
+    }
+
+    fn is_software(&self) -> bool {
+        self.is_software()
+    }
+
+    fn swap_buffers(&mut self) {
+        self.swap_buffers()
+    }
 }
 
 /// Arguments for [`RendererExtension::command`].
@@ -487,6 +646,12 @@ pub struct RendererCommandArgs<'a> {
 
     /// The command request.
     pub request: ApiExtensionPayload,
+
+    /// Winit window if the renderer is associated with a headed window.
+    pub window: Option<&'a winit::window::Window>,
+
+    /// OpenGL context associated with the renderer.
+    pub context: &'a mut dyn OpenGlContext,
 
     /// Redraw flag.
     ///
@@ -564,6 +729,30 @@ impl ViewExtensions {
         })
     }
 
+    /// Register a window extension with its own ID.
+    pub fn window<E: WindowExtension>(
+        &mut self,
+        name: impl Into<ApiExtensionName>,
+        new: impl FnMut(ApiExtensionId) -> E + Send + 'static,
+    ) -> &mut Self {
+        struct WindowExt<F>(ApiExtensionName, ApiExtensionId, F);
+        impl<E, F> ViewExtension for WindowExt<F>
+        where
+            E: WindowExtension,
+            F: FnMut(ApiExtensionId) -> E + Send + 'static,
+        {
+            fn name(&self) -> &ApiExtensionName {
+                &self.0
+            }
+
+            fn window(&mut self) -> Option<Box<dyn WindowExtension>> {
+                Some(Box::new((self.2)(self.1)))
+            }
+        }
+        self.register(move |id| WindowExt(name.into(), id, new));
+        self
+    }
+
     /// Register a renderer extension with its own ID.
     pub fn renderer<E: RendererExtension>(
         &mut self,
@@ -607,6 +796,14 @@ impl ViewExtensions {
         }
     }
 
+    pub(crate) fn new_window(&mut self) -> Vec<(ApiExtensionId, Box<dyn WindowExtension>)> {
+        self.exts
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(i, e)| e.window().map(|e| (ApiExtensionId::from_index(i), e)))
+            .collect()
+    }
+
     pub(crate) fn new_renderer(&mut self) -> Vec<(ApiExtensionId, Box<dyn RendererExtension>)> {
         self.exts
             .iter_mut()
@@ -647,7 +844,7 @@ impl RendererDebugExt {
     }
 }
 impl RendererExtension for RendererDebugExt {
-    fn is_config_only(&self) -> bool {
+    fn is_init_only(&self) -> bool {
         false
     }
 

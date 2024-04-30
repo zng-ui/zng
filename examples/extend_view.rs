@@ -13,10 +13,10 @@ fn main() {
     examples_util::print_info();
     zng::app::crash_handler::init_debug();
 
-    // zng_view::init_extended(view_extensions);
-    // app_main();
+    zng_view::init_extended(view_extensions);
+    app_main();
 
-    zng_view::run_same_process_extended(app_main, view_extensions);
+    // zng_view::run_same_process_extended(app_main, view_extensions);
 }
 
 fn app_main() {
@@ -28,6 +28,11 @@ fn app_main() {
 
             title = "Extend-View Example";
             width = 900;
+
+            on_frame_image_ready = hn_once!(|_| {
+                let h = get_window_handle::app_side::get_window_handle(WINDOW.id()).unwrap();
+                tracing::info!("RAW-WINDOW-HANDLE: {h}");
+            });
 
             child = Stack! {
                 children_align = Align::CENTER;
@@ -112,11 +117,107 @@ fn app_main() {
 /// Called in the view-process to init extensions.
 fn view_extensions() -> ViewExtensions {
     let mut exts = ViewExtensions::new();
+    get_window_handle::view_side::extend(&mut exts);
     using_display_items::view_side::extend(&mut exts);
     using_blob::view_side::extend(&mut exts);
     using_gl_overlay::view_side::extend(&mut exts);
     using_gl_texture::view_side::extend(&mut exts);
     exts
+}
+
+/// Demo view extension window.
+pub mod get_window_handle {
+    /// App-process stuff.
+    pub mod app_side {
+        use zng::prelude::*;
+        use zng_app::view_process::VIEW_PROCESS;
+        use zng_view_api::api_extension::ApiExtensionId;
+
+        /// Get the raw-window-handle formatted to text.
+        ///
+        /// This sends a custom command to the view-process (implemented in `super::view_side`), the view-process
+        /// uses a WindowExtension to access the raw-window-handle and format it to text as a basic example.
+        pub fn get_window_handle(win_id: WindowId) -> Option<Txt> {
+            match WINDOWS.view_window_extension::<_, super::api::Response>(
+                win_id,
+                self::extension_id(),
+                &super::api::Request { alternate: false },
+            ) {
+                Ok(r) => Some(r.handle_txt),
+                Err(e) => {
+                    tracing::error!("failed to get extension response, {e}");
+                    None
+                }
+            }
+        }
+
+        pub fn extension_id() -> ApiExtensionId {
+            VIEW_PROCESS
+                .extension_id(super::api::extension_name())
+                .ok()
+                .flatten()
+                .unwrap_or(ApiExtensionId::INVALID)
+        }
+    }
+
+    /// View-process stuff, the actual extension.
+    pub mod view_side {
+        use zng::text::formatx;
+        use zng_view::extensions::{ViewExtensions, WindowExtension};
+        use zng_view_api::api_extension::{ApiExtensionId, ApiExtensionPayload};
+
+        pub fn extend(exts: &mut ViewExtensions) {
+            exts.window(super::api::extension_name(), CustomExtension::new);
+        }
+
+        struct CustomExtension {
+            id: ApiExtensionId,
+        }
+        impl CustomExtension {
+            fn new(id: ApiExtensionId) -> Self {
+                Self { id }
+            }
+        }
+        impl WindowExtension for CustomExtension {
+            fn is_init_only(&self) -> bool {
+                false
+            }
+
+            fn command(&mut self, args: &mut zng_view::extensions::WindowCommandArgs) -> ApiExtensionPayload {
+                match args.request.deserialize::<super::api::Request>() {
+                    Ok(r) => {
+                        let h = raw_window_handle::HasWindowHandle::window_handle(args.window).unwrap();
+                        ApiExtensionPayload::serialize(&super::api::Response {
+                            // note that you should only use the window handle in the view-process side.
+                            handle_txt: if r.alternate { formatx!("{h:#?}") } else { formatx!("{h:?}") },
+                        })
+                        .unwrap()
+                    }
+                    Err(e) => ApiExtensionPayload::invalid_request(self.id, format_args!("invalid command request, {e}")),
+                }
+            }
+        }
+    }
+
+    /// Shared types.
+    pub mod api {
+        use zng::text::Txt;
+        use zng_view_api::api_extension::ApiExtensionName;
+
+        pub fn extension_name() -> ApiExtensionName {
+            ApiExtensionName::new("zng.examples.extend_renderer.get_window_handle").unwrap()
+        }
+
+        #[derive(serde::Serialize, serde::Deserialize)]
+        pub struct Request {
+            pub alternate: bool,
+        }
+
+        #[derive(serde::Serialize, serde::Deserialize)]
+        pub struct Response {
+            pub handle_txt: Txt,
+        }
+    }
 }
 
 /// Demo view extension renderer, using only Webrender display items.
@@ -276,7 +377,7 @@ pub mod using_display_items {
             }
         }
         impl RendererExtension for CustomExtension {
-            fn is_config_only(&self) -> bool {
+            fn is_init_only(&self) -> bool {
                 false // retain the extension after renderer creation.
             }
 
@@ -457,7 +558,7 @@ pub mod using_blob {
             }
         }
         impl RendererExtension for CustomExtension {
-            fn is_config_only(&self) -> bool {
+            fn is_init_only(&self) -> bool {
                 false // retain the extension after renderer creation.
             }
 
@@ -881,18 +982,18 @@ pub mod using_gl_overlay {
             }
         }
         impl RendererExtension for CustomExtension {
-            fn is_config_only(&self) -> bool {
+            fn is_init_only(&self) -> bool {
                 false // retain the extension after renderer creation.
             }
 
             fn renderer_inited(&mut self, args: &mut zng_view::extensions::RendererInitedArgs) {
                 // shaders/programs can be loaded here.
-                self.renderer = Some(CustomRenderer::load(args.gl));
+                self.renderer = Some(CustomRenderer::load(&**args.context.gl()));
             }
             fn renderer_deinited(&mut self, args: &mut zng_view::extensions::RendererDeinitedArgs) {
                 // ..and unloaded here.
                 if let Some(r) = self.renderer.take() {
-                    r.unload(args.gl);
+                    r.unload(&**args.context.gl());
                 }
             }
 
@@ -929,7 +1030,7 @@ pub mod using_gl_overlay {
 
             fn redraw(&mut self, args: &mut zng_view::extensions::RedrawArgs) {
                 if let Some(r) = &mut self.renderer {
-                    r.redraw(args.size, args.gl);
+                    r.redraw(args.size, &**args.context.gl());
                 }
             }
         }
@@ -1098,7 +1199,7 @@ pub mod using_gl_texture {
             }
         }
         impl RendererExtension for CustomExtension {
-            fn is_config_only(&self) -> bool {
+            fn is_init_only(&self) -> bool {
                 false // retain the extension after renderer creation.
             }
 
@@ -1111,8 +1212,8 @@ pub mod using_gl_texture {
                 let size = DeviceIntSize::splat(100);
 
                 // OpenGL
-                let texture = args.gl.gen_textures(1)[0];
-                args.gl.bind_texture(gl::TEXTURE_2D, texture);
+                let texture = args.context.gl().gen_textures(1)[0];
+                args.context.gl().bind_texture(gl::TEXTURE_2D, texture);
                 let mut img = vec![0u8; size.width as usize * size.height as usize * 4];
                 let mut line = 0u8;
                 let mut col = 0u8;
@@ -1127,7 +1228,7 @@ pub mod using_gl_texture {
                         line = line.wrapping_add(1);
                     }
                 }
-                args.gl.tex_image_2d(
+                args.context.gl().tex_image_2d(
                     gl::TEXTURE_2D,
                     0,
                     gl::RGBA as _,
@@ -1174,7 +1275,7 @@ pub mod using_gl_texture {
             fn renderer_deinited(&mut self, args: &mut zng_view::extensions::RendererDeinitedArgs) {
                 if let Some(t) = self.texture.take() {
                     let _ = t.external_id; // already cleanup by renderer deinit.
-                    args.gl.delete_textures(&[t.texture]);
+                    args.context.gl().delete_textures(&[t.texture]);
                 }
             }
 

@@ -117,7 +117,8 @@ pub struct HeadlessRequest {
 
     /// Initial payload for API extensions.
     ///
-    /// The `zng-view` crate implements this by calling `RendererExtension::configure` with the payload.
+    /// The `zng-view` crate implements this by calling `WindowExtension::configure` and `RendererExtension::configure`
+    /// with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 
@@ -406,7 +407,7 @@ pub struct WindowRequest {
 
     /// Initial payload for API extensions.
     ///
-    /// The `zng-view` crate implements this by calling `RendererExtension::configure` with the payload.
+    /// The `zng-view` crate implements this by calling `WindowExtension::configure` and `RendererExtension::configure` with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// IME cursor area, if IME is enabled.

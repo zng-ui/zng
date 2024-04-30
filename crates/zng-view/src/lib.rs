@@ -363,7 +363,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
         let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
-        self.windows[i].pump_access(&event);
+        self.windows[i].on_window_event(&event);
 
         let id = self.windows[i].id();
         let scale_factor = self.windows[i].scale_factor();
@@ -1544,6 +1544,7 @@ impl Api for App {
                 config,
                 &self.winit_loop,
                 &mut self.gl_manager,
+                self.exts.new_window(),
                 self.exts.new_renderer(),
                 self.app_sender.clone(),
             );
@@ -1957,6 +1958,19 @@ impl Api for App {
 
     fn app_extension(&mut self, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload {
         self.exts.call_command(extension_id, extension_request)
+    }
+
+    fn window_extension(
+        &mut self,
+        id: WindowId,
+        extension_id: ApiExtensionId,
+        extension_request: ApiExtensionPayload,
+    ) -> ApiExtensionPayload {
+        self.with_window(
+            id,
+            |w| w.window_extension(extension_id, extension_request),
+            || ApiExtensionPayload::invalid_request(extension_id, "window not found"),
+        )
     }
 
     fn render_extension(
