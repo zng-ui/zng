@@ -21,7 +21,7 @@ use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::{
     image::{ImageDataFormat, ImageMaskMode},
-    window::{EventCause, FrameId},
+    window::{CursorIcon, EventCause, FrameId},
     ViewProcessOffline,
 };
 
@@ -366,9 +366,65 @@ pub struct CursorImg {
     ///
     /// This value is ignored if the image source format already has hotspot information.
     pub hotspot: Point,
+
+    /// Icon to use if the image cannot be displayed.
+    pub fallback: CursorIcon,
 }
 impl_from_and_into_var! {
     fn from(img: CursorImg) -> Option<CursorImg>;
+}
+
+/// Window cursor source.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CursorSource {
+    /// Platform dependent named cursor icon.
+    Icon(CursorIcon),
+    /// Custom cursor image, with fallback.
+    Img(CursorImg),
+    /// Don't show cursor.
+    Hidden,
+}
+impl CursorSource {
+    /// Get the icon, image fallback or `None` if is hidden.
+    pub fn icon(&self) -> Option<CursorIcon> {
+        match self {
+            CursorSource::Icon(ico) => Some(*ico),
+            CursorSource::Img(img) => Some(img.fallback),
+            CursorSource::Hidden => None,
+        }
+    }
+
+    /// Custom icon image source.
+    pub fn img(&self) -> Option<&ImageSource> {
+        match self {
+            CursorSource::Img(img) => Some(&img.source),
+            _ => None,
+        }
+    }
+
+    /// Custom icon image click point, when the image data does not contain a hotspot.
+    pub fn hotspot(&self) -> Option<&Point> {
+        match self {
+            CursorSource::Img(img) => Some(&img.hotspot),
+            _ => None,
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(icon: CursorIcon) -> CursorSource {
+        CursorSource::Icon(icon)
+    }
+    fn from(img: CursorImg) -> CursorSource {
+        CursorSource::Img(img)
+    }
+    /// Converts `true` to `CursorIcon::Default` and `false` to `CursorSource::Hidden`.
+    fn from(default_icon_or_hidden: bool) -> CursorSource {
+        if default_icon_or_hidden {
+            CursorIcon::Default.into()
+        } else {
+            CursorSource::Hidden
+        }
+    }
 }
 
 /// Frame image capture mode in a window.

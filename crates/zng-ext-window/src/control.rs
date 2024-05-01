@@ -46,9 +46,9 @@ use zng_view_api::{
 
 use crate::{
     cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    AutoSize, CursorImg, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea,
-    WindowChangedArgs, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
-    WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
+    AutoSize, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea, WindowChangedArgs,
+    WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
+    WINDOW_FOCUS,
 };
 
 struct ImageResources {
@@ -377,24 +377,41 @@ impl HeadedCtrl {
             });
         }
 
-        // cursor_image:
-        if let Some(cur) = self.vars.cursor_img().get_new() {
-            self.img_res.cursor_var = match cur {
-                None => None,
-                Some(CursorImg { source, .. }) => match source {
-                    ImageSource::Render(cur, _) => Some(IMAGES.cache(ImageSource::Render(
-                        cur.clone(),
-                        Some(ImageRenderArgs { parent: Some(WINDOW.id()) }),
-                    ))),
-                    source => Some(IMAGES.cache(source)),
-                },
-            };
+        // cursor (image):
+        if let Some(cursor) = self.vars.cursor().get_new() {
+            match cursor {
+                crate::CursorSource::Icon(ico) => {
+                    self.img_res.cursor_var = None;
+                    self.update_gen(move |view| {
+                        let _: Ignore = view.set_cursor(Some(ico));
+                        let _: Ignore = view.set_cursor_image(None, PxPoint::zero());
+                    });
+                }
+                crate::CursorSource::Img(img) => {
+                    self.img_res.cursor_var = Some(match img.source {
+                        ImageSource::Render(cur, _) => IMAGES.cache(ImageSource::Render(
+                            cur.clone(),
+                            Some(ImageRenderArgs { parent: Some(WINDOW.id()) }),
+                        )),
+                        source => IMAGES.cache(source),
+                    });
+
+                    self.update_gen(move |view| {
+                        let _: Ignore = view.set_cursor(Some(img.fallback));
+                        let _: Ignore = view.set_cursor_image(None, PxPoint::zero());
+                    });
+                }
+                crate::CursorSource::Hidden => {
+                    self.img_res.cursor_var = None;
+                    self.update_gen(move |view| {
+                        let _: Ignore = view.set_cursor(None);
+                        let _: Ignore = view.set_cursor_image(None, PxPoint::zero());
+                    });
+                }
+            }
 
             if let Some(cur) = &self.img_res.cursor_var {
-                let hotspot = self
-                    .vars
-                    .cursor_img()
-                    .with(|i| i.as_ref().map(|s| s.hotspot.clone()).unwrap_or_default());
+                let hotspot = self.vars.cursor().with(|i| i.hotspot().cloned().unwrap_or_default());
 
                 let cursor_img_to_actual = move |img: &Img| -> Option<(Img, PxPoint)> {
                     let hotspot = if img.is_loaded() {
@@ -410,7 +427,6 @@ impl HeadedCtrl {
 
                     Some((img.clone(), hotspot))
                 };
-
                 self.vars.0.actual_cursor_img.set_from_map(cur, cursor_img_to_actual.clone());
                 self.img_res.cursor_binding = cur.bind_map(&self.vars.0.actual_cursor_img, cursor_img_to_actual);
 
@@ -462,12 +478,6 @@ impl HeadedCtrl {
         if let Some(mode) = self.vars.video_mode().get_new() {
             self.update_gen(move |view| {
                 let _: Ignore = view.set_video_mode(mode);
-            });
-        }
-
-        if let Some(cursor) = self.vars.cursor().get_new() {
-            self.update_gen(move |view| {
-                let _: Ignore = view.set_cursor(cursor);
             });
         }
 
@@ -1113,13 +1123,12 @@ impl HeadedCtrl {
                 .as_ref()
                 .and_then(|ico| ico.get().view().map(|ico| ico.id()))
                 .flatten(),
-            cursor: self.vars.cursor().get(),
+            cursor: self.vars.cursor().with(|c| c.icon()),
             cursor_image: self
-                .img_res
-                .cursor_var
-                .as_ref()
-                .and_then(|cur| cur.get().view().map(|cur| cur.id()))
-                .flatten(),
+                .vars
+                .actual_cursor_img()
+                .get()
+                .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h))),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
@@ -1240,13 +1249,12 @@ impl HeadedCtrl {
                 .as_ref()
                 .and_then(|ico| ico.get().view().map(|ico| ico.id()))
                 .flatten(),
-            cursor: self.vars.cursor().get(),
+            cursor: self.vars.cursor().with(|c| c.icon()),
             cursor_image: self
-                .img_res
-                .cursor_var
-                .as_ref()
-                .and_then(|cur| cur.get().view().map(|cur| cur.id()))
-                .flatten(),
+                .vars
+                .actual_cursor_img()
+                .get()
+                .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h))),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),

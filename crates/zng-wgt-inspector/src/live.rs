@@ -8,6 +8,7 @@ use zng_ext_input::{
 use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
 use zng_view_api::window::CursorIcon;
 use zng_wgt::prelude::*;
+use zng_wgt_input::CursorSource;
 
 use crate::INSPECT_CMD;
 
@@ -184,13 +185,14 @@ fn select_on_click(child: impl UiNode, hit_select: impl Var<HitSelect>) -> impl 
                     let cursor = WINDOW.vars().cursor();
 
                     // set cursor to Crosshair and lock it in by resetting on a hook.
-                    cursor.set(CursorIcon::Crosshair);
+                    let locked_cur = CursorSource::Icon(CursorIcon::Crosshair);
+                    cursor.set(locked_cur.clone());
                     let weak_cursor = cursor.downgrade();
                     _cursor_handle = cursor.hook(move |a| {
-                        let icon = *a.value();
-                        if icon != Some(CursorIcon::Crosshair) {
+                        let icon = a.value();
+                        if icon != &locked_cur {
                             let cursor = weak_cursor.upgrade().unwrap();
-                            cursor.set(CursorIcon::Crosshair);
+                            cursor.set(locked_cur.clone());
                         }
                         true
                     });

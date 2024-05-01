@@ -495,7 +495,7 @@ fn custom_chrome(title: impl Var<Txt>) -> impl UiNode {
         }
     }
 
-    let cursor = var(None::<mouse::CursorIcon>);
+    let cursor = var(mouse::CursorSource::Hidden);
 
     Container! {
         visibility = expr_var!((#{vars.state()}.is_fullscreen() || !*#{vars.chrome()}).into());
@@ -507,7 +507,10 @@ fn custom_chrome(title: impl Var<Txt>) -> impl UiNode {
             widget::border = 5, color_scheme_map(colors::BLACK, colors::WHITE);
             mouse::cursor = cursor.clone();
             mouse::on_mouse_move = hn!(|args: &mouse::MouseMoveArgs| {
-                cursor.set(args.position_wgt().and_then(resize_direction).map(mouse::CursorIcon::from));
+                cursor.set(match args.position_wgt().and_then(resize_direction) {
+                    Some(d) => mouse::CursorIcon::from(d).into(),
+                    None => mouse::CursorSource::Hidden,
+                });
             });
             mouse::on_mouse_down = hn!(|args: &mouse::MouseInputArgs| {
                 if args.is_primary() {
