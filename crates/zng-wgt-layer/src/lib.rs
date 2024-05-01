@@ -410,7 +410,7 @@ impl LAYERS {
                                         if let Some((img, spot)) = vars.actual_cursor_img().get() {
                                             (img.size(), spot)
                                         } else {
-                                            vars.cursor().get().map(|c| c.size_and_spot(fct)).unwrap_or_default()
+                                            vars.cursor().with(|s| s.icon()).map(|i| i.size_and_spot(fct)).unwrap_or_default()
                                         }
                                     };
                                     let cursor_rect = PxRect::new((pos - cursor_spot).to_point(), cursor_size);

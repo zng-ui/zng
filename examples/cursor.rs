@@ -10,15 +10,15 @@ use zng::{
     prelude_wgt::NilUiNode,
 };
 
-use zng::view_process::prebuilt as view_process;
+use zng::view_process::default as view_process;
 
 fn main() {
     examples_util::print_info();
-    view_process::init();
+    // view_process::init();
     zng::app::crash_handler::init_debug();
 
-    // view_process::run_same_process(app_main);
-    app_main();
+    view_process::run_same_process(app_main);
+    // app_main();
 }
 
 fn app_main() {
@@ -51,7 +51,10 @@ fn app_main() {
 
 fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
     widgets::DemoEntry! {
-        mouse::cursor = icon.map(|i| i.0);
+        mouse::cursor = match icon {
+            Some(i) => i.0.into(),
+            None => mouse::CursorSource::Hidden
+        };
 
         widget::background = match icon {
             Some((_, img)) => Image!{
@@ -78,10 +81,10 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
 
 fn cursor_img_demo(label: &'static str, img: &'static [u8], hotspot: (i32, i32), fallback: CursorIcon) -> impl UiNode {
     widgets::DemoEntry! {
-        mouse::cursor = fallback;
-        mouse::cursor_img = mouse::CursorImg {
+        mouse::cursor = mouse::CursorImg {
             source: img.into(),
             hotspot: hotspot.into(),
+            fallback,
         };
 
         widget::background = Image! {

@@ -19,7 +19,7 @@ use webrender::{
 use winit::{
     event_loop::ActiveEventLoop,
     monitor::{MonitorHandle, VideoModeHandle as GVideoMode},
-    window::{Fullscreen, Icon, Window as GWindow, WindowAttributes},
+    window::{CustomCursor, Fullscreen, Icon, Window as GWindow, WindowAttributes},
 };
 use zng_txt::{ToTxt, Txt};
 use zng_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
@@ -119,6 +119,9 @@ pub(crate) struct Window {
     ime_area: Option<DipRect>,
     #[cfg(windows)]
     ime_open: bool,
+
+    cursor: Option<CursorIcon>,
+    cursor_img: Option<CustomCursor>,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -447,6 +450,8 @@ impl Window {
             ime_area: cfg.ime_area,
             #[cfg(windows)]
             ime_open: false,
+            cursor: None,
+            cursor_img: None,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -840,13 +845,32 @@ impl Window {
         self.window.set_window_icon(icon);
     }
 
-    /// Set cursor icon and visibility.
+    /// Set named cursor.
     pub fn set_cursor(&mut self, icon: Option<CursorIcon>) {
-        if let Some(icon) = icon {
-            self.window.set_cursor(icon.to_winit());
-            self.window.set_cursor_visible(true);
-        } else {
-            self.window.set_cursor_visible(false);
+        self.cursor = icon;
+        self.update_cursor();
+    }
+
+    /// Set custom cursor.
+    pub fn set_cursor_image(&mut self, img: Option<CustomCursor>) {
+        self.cursor_img = img;
+        self.update_cursor();
+    }
+
+    fn update_cursor(&self) {
+        match (&self.cursor_img, self.cursor) {
+            (Some(i), _) => {
+                self.window.set_cursor(i.clone());
+                self.window.set_cursor_visible(true);
+            }
+            (None, Some(i)) => {
+                self.window.set_cursor(i.to_winit());
+                self.window.set_cursor_visible(true);
+            }
+            (None, None) => {
+                self.window.set_cursor_visible(false);
+                self.window.set_cursor(CursorIcon::Default.to_winit());
+            }
         }
     }
 

@@ -54,7 +54,7 @@ pub use zng_wgt_input::mouse::{
     on_pre_mouse_wheel, on_pre_mouse_zoom,
 };
 
-pub use zng_wgt_input::{click_mode, cursor, cursor_img, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon, CursorImg};
+pub use zng_wgt_input::{click_mode, cursor, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon, CursorImg, CursorSource};
 
 /// Raw mouse hardware events, received independent of what window is under the pointer.
 ///

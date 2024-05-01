@@ -533,7 +533,7 @@ impl WindowStateAll {
     }
 }
 
-/// Describes the appearance of the mouse cursor.
+/// Named system dependent cursor icon.
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CursorIcon {

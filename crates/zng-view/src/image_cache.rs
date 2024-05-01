@@ -1,7 +1,10 @@
 use std::{fmt, sync::Arc};
 
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
-use winit::window::Icon;
+use winit::{
+    event_loop::ActiveEventLoop,
+    window::{CustomCursor, Icon},
+};
 use zng_txt::{formatx, ToTxt, Txt};
 use zng_unit::{Px, PxPoint, PxSize};
 use zng_view_api::{
@@ -914,31 +917,62 @@ impl Image {
         let height = size.height.0 as u32;
         if width == 0 || height == 0 || self.0.is_mask() {
             None
-        } else if width > 255 || height > 255 {
-            // resize to max 255
-            let mut buf = pixels.as_ref().to_vec();
-            // BGRA to RGBA
-            buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
-            let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
-            let img = image::DynamicImage::ImageRgba8(img);
-            img.resize(255, 255, image::imageops::FilterType::Lanczos3);
-
-            use image::GenericImageView;
-            let (width, height) = img.dimensions();
-            let buf = img.into_rgba8().into_raw();
-            winit::window::Icon::from_rgba(buf, width, height).ok()
         } else {
-            let mut buf = pixels.as_ref().to_vec();
-            // BGRA to RGBA
-            buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
-            winit::window::Icon::from_rgba(buf, width, height).ok()
+            let r = if width > 255 || height > 255 {
+                // resize to max 255
+                let mut buf = pixels.as_ref().to_vec();
+                // BGRA to RGBA
+                buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+                let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
+                let img = image::DynamicImage::ImageRgba8(img);
+                img.resize(255, 255, image::imageops::FilterType::Lanczos3);
+
+                use image::GenericImageView;
+                let (width, height) = img.dimensions();
+                let buf = img.into_rgba8().into_raw();
+                winit::window::Icon::from_rgba(buf, width, height)
+            } else {
+                let mut buf = pixels.as_ref().to_vec();
+                // BGRA to RGBA
+                buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+                winit::window::Icon::from_rgba(buf, width, height)
+            };
+            match r {
+                Ok(i) => Some(i),
+                Err(e) => {
+                    tracing::error!("failed to convert image to custom icon, {e}");
+                    None
+                }
+            }
         }
     }
 
     /// Generate a cursor from the image.
-    pub fn cursor(&self, hotspot: PxPoint) -> Option<()> {
-        let _hotspot = hotspot;
-        None // TODO after https://github.com/rust-windowing/winit/issues/3306
+    pub fn cursor(&self, hotspot: PxPoint, event_loop: &ActiveEventLoop) -> Option<CustomCursor> {
+        let (size, pixels) = match &*self.0 {
+            ImageData::RawData { size, pixels, .. } => (size, pixels),
+            ImageData::NativeTexture { .. } => unreachable!(),
+        };
+
+        let width = size.width.0 as u16;
+        let height = size.height.0 as u16;
+        let hotspot_x = hotspot.x.0 as u16;
+        let hotspot_y = hotspot.y.0 as u16;
+
+        if width == 0 || height == 0 || hotspot_x > width || hotspot_y > height || self.0.is_mask() {
+            None
+        } else {
+            let mut buf = pixels.as_ref().to_vec();
+            // BGRA to RGBA
+            buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
+            match CustomCursor::from_rgba(buf, width, height, hotspot_x, hotspot_y) {
+                Ok(c) => Some(event_loop.create_custom_cursor(c)),
+                Err(e) => {
+                    tracing::error!("failed to convert image to custom cursor, {e}");
+                    None
+                }
+            }
+        }
     }
 
     pub fn encode(&self, format: image::ImageFormat, buffer: &mut Vec<u8>) -> image::ImageResult<()> {
