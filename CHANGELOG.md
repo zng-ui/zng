@@ -69,6 +69,8 @@ fn version_0_5() -> impl UiNode {
 * Add `ContextualizedVar::new_value`.
 * **Breaking** `SCROLL.scroll_*` methods now return contextual vars, not values.
 * Fix panic on window move in Wayland.
+* Fix minimize command removing maximized state from restore.
+* Fix issue when parent widget's cursor can override child's cursor when the parent cursor var updates.
 
 # 0.4.0
 
