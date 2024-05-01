@@ -293,19 +293,22 @@ impl Window {
                         }
                     }
                     windows_sys::Win32::UI::WindowsAndMessaging::WM_QUERYENDSESSION => {
-                        let mut reason = vec![0u16; 255];
-                        if unsafe {
-                            windows_sys::Win32::System::Shutdown::ShutdownBlockReasonQuery(hwnd, reason[..].as_mut_ptr(), &mut 0u32)
-                        } != 0
-                        {
+                        let mut reason = [0u16; 256];
+                        let mut reason_size = reason.len() as u32;
+                        let ok = unsafe {
+                            windows_sys::Win32::System::Shutdown::ShutdownBlockReasonQuery(hwnd, reason.as_mut_ptr(), &mut reason_size)
+                        };
+                        if ok != 0 {
                             match windows::core::HSTRING::from_wide(&reason) {
                                 Ok(s) => {
                                     tracing::warn!("blocked system shutdown, reason: {}", s);
                                 }
                                 Err(e) => {
-                                    tracing::error!("blocked system shutdown, error retrieving reason: {}", e);
+                                    tracing::error!("blocked system shutdown, error retrieving reason: {e}");
                                 }
                             }
+                            // send a close requested to hopefully cause the normal close/cancel dialog to appear.
+                            let _ = event_sender.send(AppEvent::Notify(Event::WindowCloseRequested(id)));
                             return Some(0);
                         }
                     }
