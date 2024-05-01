@@ -954,10 +954,10 @@ impl Image {
             ImageData::NativeTexture { .. } => unreachable!(),
         };
 
-        let width = size.width.0 as u16;
-        let height = size.height.0 as u16;
-        let hotspot_x = hotspot.x.0 as u16;
-        let hotspot_y = hotspot.y.0 as u16;
+        let width: u16 = size.width.0.try_into().ok()?;
+        let height: u16 = size.height.0.try_into().ok()?;
+        let hotspot_x: u16 = hotspot.x.0.try_into().ok()?;
+        let hotspot_y: u16 = hotspot.y.0.try_into().ok()?;
 
         if width == 0 || height == 0 || hotspot_x > width || hotspot_y > height || self.0.is_mask() {
             None

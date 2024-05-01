@@ -1541,6 +1541,9 @@ impl Api for App {
             let win = Window::open(
                 self.gen,
                 config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
+                config
+                    .cursor_image
+                    .and_then(|(i, h)| self.image_cache.get(i).and_then(|i| i.cursor(h, &self.winit_loop))),
                 config,
                 &self.winit_loop,
                 &mut self.gl_manager,

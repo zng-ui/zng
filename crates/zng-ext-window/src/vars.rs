@@ -215,7 +215,7 @@ impl WindowVars {
     /// This is `None` if [`cursor`] is not set to a custom image, otherwise it is an [`Img`]
     /// reference clone with computed hotspot [`PxPoint`].
     ///
-    /// [`cursor_img`]: Self::cursor_img
+    /// [`cursor`]: Self::cursor
     /// [`Img`]: zng_ext_image::Img
     /// [`PxPoint`]: zng_layout::unit::PxPoint
     pub fn actual_cursor_img(&self) -> ReadOnlyArcVar<Option<(Img, PxPoint)>> {

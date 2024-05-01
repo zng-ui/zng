@@ -1125,11 +1125,10 @@ impl HeadedCtrl {
                 .flatten(),
             cursor: self.vars.cursor().with(|c| c.icon()),
             cursor_image: self
-                .img_res
-                .cursor_var
-                .as_ref()
-                .and_then(|cur| cur.get().view().map(|cur| cur.id()))
-                .flatten(),
+                .vars
+                .actual_cursor_img()
+                .get()
+                .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h))),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
@@ -1252,11 +1251,10 @@ impl HeadedCtrl {
                 .flatten(),
             cursor: self.vars.cursor().with(|c| c.icon()),
             cursor_image: self
-                .img_res
-                .cursor_var
-                .as_ref()
-                .and_then(|cur| cur.get().view().map(|cur| cur.id()))
-                .flatten(),
+                .vars
+                .actual_cursor_img()
+                .get()
+                .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h))),
             transparent: self.transparent,
             capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
             render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),

@@ -384,8 +384,8 @@ pub struct WindowRequest {
     pub icon: Option<ImageId>,
     /// Window cursor icon and visibility.
     pub cursor: Option<CursorIcon>,
-    /// Window custom cursor.
-    pub cursor_image: Option<ImageId>,
+    /// Window custom cursor with hotspot.
+    pub cursor_image: Option<(ImageId, PxPoint)>,
     /// If the window is see-through in pixels that are not fully opaque.
     pub transparent: bool,
 

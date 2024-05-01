@@ -136,7 +136,8 @@ impl Window {
     #[allow(clippy::too_many_arguments)]
     pub fn open(
         gen: ViewProcessGen,
-        icon: Option<Icon>,
+        cfg_icon: Option<Icon>,
+        cfg_cursor_image: Option<CustomCursor>,
         cfg: WindowRequest,
         winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
@@ -153,7 +154,7 @@ impl Window {
             .with_title(cfg.title)
             .with_resizable(cfg.resizable)
             .with_transparent(cfg.transparent)
-            .with_window_icon(icon);
+            .with_window_icon(cfg_icon);
 
         let mut s = cfg.state;
         s.clamp_size();
@@ -462,7 +463,10 @@ impl Window {
             win.set_always_on_top(true);
         }
 
-        win.set_cursor(cfg.cursor);
+        win.cursor = cfg.cursor;
+        win.cursor_img = cfg_cursor_image;
+        win.update_cursor();
+
         win.set_taskbar_visible(cfg.taskbar_visible);
 
         win.set_enabled_buttons(cfg.enabled_buttons);
