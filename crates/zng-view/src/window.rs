@@ -1196,7 +1196,7 @@ impl Window {
                 WindowState::Normal => {}
                 WindowState::Minimized => self.window.set_minimized(false),
                 WindowState::Maximized => {
-                    if !new_state.state.is_fullscreen() {
+                    if !new_state.state.is_fullscreen() && new_state.state != WindowState::Minimized {
                         self.window.set_maximized(false);
                     }
                 }
