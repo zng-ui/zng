@@ -831,6 +831,20 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_ime_area(id, area))
     }
 
+    /// Attempt to set a system wide shutdown warning associated with the window.
+    ///
+    /// Operating systems that support this show the `reason` in a warning for the user, it must be a short text
+    /// that identifies the critical operation that cannot be cancelled.
+    ///
+    /// Note that there is no guarantee that the view-process or operating system will actually set a block, there
+    /// is no error result because operating systems can silently ignore block requests at any moment, even after
+    /// an initial successful block.
+    ///
+    /// Set to an empty text to remove the warning.
+    pub fn set_system_shutdown_warn(&self, reason: Txt) -> Result<()> {
+        self.0.call(move |id, p| p.set_system_shutdown_warn(id, reason))
+    }
+
     /// Drop `self`.
     pub fn close(self) {
         drop(self)

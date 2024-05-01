@@ -111,6 +111,7 @@ features = [
     "Win32_Globalization",
     "Win32_System_SystemServices",
     "Win32_System_Power",
+    "Win32_System_Shutdown",
 ]
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.56.0"

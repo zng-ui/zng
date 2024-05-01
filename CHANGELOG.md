@@ -7,11 +7,13 @@
     - Rename `close_window` to `close`.
     - Rename `focus_window` to `focus`.
     - Add `set_enabled_buttons`.
+    - Add `set_system_shutdown_warn`.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 * Better "custom chrome" example in `examples/window.rs`.
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` to window API.
 * Fix `WIDGET.border().offsets()` not including the innermost border offset.
 * Add `WindowVars::enabled_buttons` to window API.
+* Add `WindowVars::system_shutdown_warn` to window API.
 * **Breaking** Fix when/property assign expansion order.
     - When blocks now expand in the same declaration order, before they always expanded after all property assigns.
 ```rust
