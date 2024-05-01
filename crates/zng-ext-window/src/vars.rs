@@ -9,20 +9,19 @@ use zng_layout::unit::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorU
 use zng_state_map::StaticStateId;
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::IdSet;
-use zng_var::{merge_var, var, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
+use zng_var::{merge_var, var, var_from, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
 use zng_view_api::{
     config::ColorScheme,
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},
 };
 
-use crate::{AutoSize, CursorImg, FrameCaptureMode, MonitorQuery, WindowIcon};
+use crate::{AutoSize, CursorSource, FrameCaptureMode, MonitorQuery, WindowIcon};
 
 pub(super) struct WindowVarsData {
     chrome: ArcVar<bool>,
     icon: ArcVar<WindowIcon>,
     pub(super) actual_icon: ArcVar<Option<Img>>,
-    cursor: ArcVar<Option<CursorIcon>>,
-    cursor_img: ArcVar<Option<CursorImg>>,
+    cursor: ArcVar<CursorSource>,
     pub(super) actual_cursor_img: ArcVar<Option<(Img, PxPoint)>>,
     title: ArcVar<Txt>,
 
@@ -94,8 +93,7 @@ impl WindowVars {
             chrome: var(true),
             icon: var(WindowIcon::Default),
             actual_icon: var(None),
-            cursor: var(Some(CursorIcon::Default)),
-            cursor_img: var(None),
+            cursor: var_from(CursorIcon::Default),
             actual_cursor_img: var(None),
             title: var("".to_txt()),
 
@@ -202,32 +200,22 @@ impl WindowVars {
 
     /// Window cursor icon and visibility.
     ///
-    /// See [`CursorIcon`] for details.
+    /// See [`CursorSource`] for details.
     ///
-    /// The default is [`CursorIcon::Default`], if set to `None` no cursor icon is shown.
+    /// The default is [`CursorIcon::Default`].
     ///
     /// [`CursorIcon`]: zng_view_api::window::CursorIcon
     /// [`CursorIcon::Default`]: zng_view_api::window::CursorIcon::Default
-    pub fn cursor(&self) -> ArcVar<Option<CursorIcon>> {
+    pub fn cursor(&self) -> ArcVar<CursorSource> {
         self.0.cursor.clone()
-    }
-
-    /// Window custom cursor.
-    ///
-    /// When this is set to a loaded image it is used as a cursor, falls back to [`cursor`].
-    ///
-    /// See [`CursorImg`] for details.
-    ///
-    /// [`cursor`]: Self::cursor
-    pub fn cursor_img(&self) -> ArcVar<Option<CursorImg>> {
-        self.0.cursor_img.clone()
     }
 
     /// Window custom cursor image.
     ///
-    /// This is `None` if [`cursor_img`] is not set, otherwise it is an [`Img`] reference clone with computed hotspot [`PxPoint`].
+    /// This is `None` if [`cursor`] is not set to a custom image, otherwise it is an [`Img`]
+    /// reference clone with computed hotspot [`PxPoint`].
     ///
-    /// [`cursor_img`]: Self::cursor_img
+    /// [`cursor`]: Self::cursor
     /// [`Img`]: zng_ext_image::Img
     /// [`PxPoint`]: zng_layout::unit::PxPoint
     pub fn actual_cursor_img(&self) -> ReadOnlyArcVar<Option<(Img, PxPoint)>> {

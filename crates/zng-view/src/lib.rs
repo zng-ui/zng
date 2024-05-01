@@ -1541,6 +1541,9 @@ impl Api for App {
             let win = Window::open(
                 self.gen,
                 config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
+                config
+                    .cursor_image
+                    .and_then(|(i, h)| self.image_cache.get(i).and_then(|i| i.cursor(h, &self.winit_loop))),
                 config,
                 &self.winit_loop,
                 &mut self.gl_manager,
@@ -1684,14 +1687,8 @@ impl Api for App {
     }
 
     fn set_cursor_image(&mut self, id: WindowId, icon: Option<CursorImage>) {
-        let icon = icon.and_then(|img| self.image_cache.get(img.img).and_then(|i| i.cursor(img.hotspot)));
-        self.with_window(
-            id,
-            |w| {
-                let _ = (w, icon); // TODO after https://github.com/rust-windowing/winit/issues/3306
-            },
-            || (),
-        );
+        let icon = icon.and_then(|img| self.image_cache.get(img.img).and_then(|i| i.cursor(img.hotspot, &self.winit_loop)));
+        self.with_window(id, |w| w.set_cursor_image(icon), || ());
     }
 
     fn set_ime_area(&mut self, id: WindowId, area: Option<DipRect>) {
