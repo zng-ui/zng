@@ -462,7 +462,9 @@ impl Window {
 
         win.set_enabled_buttons(cfg.enabled_buttons);
 
-        win.set_system_shutdown_warn(cfg.system_shutdown_warn);
+        if !cfg.system_shutdown_warn.is_empty() {
+            win.set_system_shutdown_warn(cfg.system_shutdown_warn);
+        }
 
         if win.ime_area.is_some() {
             win.window.set_ime_allowed(true);

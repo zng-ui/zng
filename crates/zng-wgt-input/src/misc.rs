@@ -1,3 +1,8 @@
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use zng_ext_input::mouse::{ClickMode, WidgetInfoBuilderMouseExt as _, MOUSE_HOVERED_EVENT};
 use zng_ext_window::WINDOW_Ext as _;
 use zng_wgt::prelude::*;
@@ -5,6 +10,10 @@ use zng_wgt::prelude::*;
 pub use zng_view_api::window::CursorIcon;
 
 pub use zng_ext_window::CursorImg;
+
+context_local! {
+    static CHILD_SETS: AtomicBool = AtomicBool::new(false);
+}
 
 /// Sets the [`CursorIcon`] displayed when hovering the widget.
 ///
@@ -19,19 +28,39 @@ pub use zng_ext_window::CursorImg;
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> impl UiNode {
     let cursor = cursor.into_var();
     let mut hovered_binding = None;
+    let mut child_sets_ctx = None::<Arc<AtomicBool>>;
 
-    match_node(child, move |_, op| {
-        let mut restore = false;
+    match_node(child, move |c, op| {
+        let mut unbind_restore = false;
         match op {
             UiNodeOp::Init => {
                 WIDGET.sub_event(&MOUSE_HOVERED_EVENT);
             }
             UiNodeOp::Deinit => {
-                restore = true;
+                unbind_restore = true;
+                child_sets_ctx = None;
             }
             UiNodeOp::Event { update } => {
                 if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
+                    let mut bind = false;
                     if args.is_over() {
+                        if child_sets_ctx.is_none() {
+                            child_sets_ctx = Some(Arc::new(AtomicBool::new(false)));
+                        }
+
+                        // if a child also sets cursor, it will flag our context.
+                        CHILD_SETS.with_context(&mut child_sets_ctx, || c.event(update));
+
+                        if !child_sets_ctx.as_ref().unwrap().swap(false, Ordering::Relaxed) {
+                            // no descendant sets cursor, it is ours.
+                            bind = true;
+                        }
+
+                        // flag parent context.
+                        CHILD_SETS.get().store(true, Ordering::Relaxed);
+                    }
+
+                    if bind {
                         if hovered_binding.is_none() {
                             // we are not already set, setup binding.
 
@@ -44,7 +73,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
                             hovered_binding = Some(cursor.bind(&c));
                         }
                     } else {
-                        restore = true;
+                        unbind_restore = true;
                     }
                 }
             }
@@ -52,7 +81,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<Option<CursorIcon>>) -> i
         }
 
         // restore to default, if not set to other value already
-        if restore && hovered_binding.is_some() {
+        if unbind_restore && hovered_binding.is_some() {
             hovered_binding = None;
             let value = cursor.get();
             WINDOW.vars().cursor().modify(move |c| {
