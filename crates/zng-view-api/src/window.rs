@@ -415,6 +415,9 @@ pub struct WindowRequest {
 
     /// Enabled window chrome buttons.
     pub enabled_buttons: WindowButton,
+
+    /// System shutdown warning associated with the window.
+    pub system_shutdown_warn: Txt,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.

@@ -252,6 +252,7 @@ impl Window {
 
         // * Extend the winit Windows window to not block the Alt+F4 key press.
         // * Check if the window is actually keyboard focused until first focus.
+        // * Block system shutdown if a block is set.
         #[cfg(windows)]
         {
             let event_sender = event_sender.clone();
@@ -272,23 +273,48 @@ impl Window {
                     let _ = event_sender.send(AppEvent::WinitFocused(window_id, true));
                 }
 
-                if msg == windows_sys::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN
-                    && wparam as windows_sys::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY
-                        == windows_sys::Win32::UI::Input::KeyboardAndMouse::VK_F4
-                {
-                    // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
+                match msg {
+                    windows_sys::Win32::UI::WindowsAndMessaging::WM_SYSKEYDOWN => {
+                        if wparam as windows_sys::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY
+                            == windows_sys::Win32::UI::Input::KeyboardAndMouse::VK_F4
+                        {
+                            // winit always blocks ALT+F4 we want to allow it so that the shortcut is handled in the same way as other commands.
 
-                    let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
-                        window: id,
-                        device: DeviceId::INVALID, // same as winit
-                        key_code: KeyCode::F4,
-                        state: KeyState::Pressed,
-                        key: Key::F4,
-                        key_modified: Key::F4,
-                        text: Txt::from_static(""),
-                    }));
-                    return Some(0);
+                            let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
+                                window: id,
+                                device: DeviceId::INVALID, // same as winit
+                                key_code: KeyCode::F4,
+                                state: KeyState::Pressed,
+                                key: Key::F4,
+                                key_modified: Key::F4,
+                                text: Txt::from_static(""),
+                            }));
+                            return Some(0);
+                        }
+                    }
+                    windows_sys::Win32::UI::WindowsAndMessaging::WM_QUERYENDSESSION => {
+                        let mut reason = [0u16; 256];
+                        let mut reason_size = reason.len() as u32;
+                        let ok = unsafe {
+                            windows_sys::Win32::System::Shutdown::ShutdownBlockReasonQuery(hwnd, reason.as_mut_ptr(), &mut reason_size)
+                        };
+                        if ok != 0 {
+                            match windows::core::HSTRING::from_wide(&reason) {
+                                Ok(s) => {
+                                    tracing::warn!("blocked system shutdown, reason: {}", s);
+                                }
+                                Err(e) => {
+                                    tracing::error!("blocked system shutdown, error retrieving reason: {e}");
+                                }
+                            }
+                            // send a close requested to hopefully cause the normal close/cancel dialog to appear.
+                            let _ = event_sender.send(AppEvent::Notify(Event::WindowCloseRequested(id)));
+                            return Some(0);
+                        }
+                    }
+                    _ => {}
                 }
+
                 None
             });
         }
@@ -435,6 +461,8 @@ impl Window {
         win.set_taskbar_visible(cfg.taskbar_visible);
 
         win.set_enabled_buttons(cfg.enabled_buttons);
+
+        win.set_system_shutdown_warn(cfg.system_shutdown_warn);
 
         if win.ime_area.is_some() {
             win.window.set_ime_allowed(true);
@@ -1790,9 +1818,40 @@ impl Window {
             self.ime_area = None;
         }
     }
+
+    #[cfg(windows)]
+    pub(crate) fn set_system_shutdown_warn(&mut self, reason: Txt) {
+        if !reason.is_empty() {
+            let hwnd = crate::util::winit_to_hwnd(&self.window);
+            let reason = windows::core::HSTRING::from(reason.as_str());
+            // SAFETY: function return handled.
+            let created = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonCreate(hwnd, reason.as_ptr()) } != 0;
+            if !created {
+                let error = unsafe { windows_sys::Win32::Foundation::GetLastError() };
+                tracing::error!("failed to set system shutdown warn ({error:#X}), requested warn reason was: {reason}");
+            }
+        } else {
+            let hwnd = crate::util::winit_to_hwnd(&self.window);
+            // SAFETY: function return handled.
+            let destroyed = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonDestroy(hwnd) } != 0;
+            if !destroyed {
+                let error = unsafe { windows_sys::Win32::Foundation::GetLastError() };
+                tracing::error!("failed to unset system shutdown warn ({error:#X})");
+            }
+        }
+    }
+
+    #[cfg(not(windows))]
+    pub(crate) fn set_system_shutdown_warn(&mut self, reason: Txt) {
+        if !reason.is_empty() {
+            tracing::error!("cannot set system shutdown warn, not implemented, requested warn reason was: {reason}");
+        }
+    }
 }
 impl Drop for Window {
     fn drop(&mut self) {
+        self.set_system_shutdown_warn(Txt::from(""));
+
         self.api.stop_render_backend();
         self.api.shut_down(true);
 

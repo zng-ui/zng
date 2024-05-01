@@ -1945,6 +1945,10 @@ impl Api for App {
         }
     }
 
+    fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt) {
+        self.with_window(id, move |w| w.set_system_shutdown_warn(reason), || ())
+    }
+
     fn third_party_licenses(&mut self) -> Vec<zng_tp_licenses::LicenseUsed> {
         #[cfg(feature = "bundle_licenses")]
         {

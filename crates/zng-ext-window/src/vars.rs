@@ -75,6 +75,7 @@ pub(super) struct WindowVarsData {
     pub(super) render_mode: ArcVar<RenderMode>,
 
     pub(super) access_enabled: ArcVar<AccessEnabled>,
+    system_shutdown_warn: ArcVar<Txt>,
 }
 
 /// Variables that configure the opening or open window.
@@ -151,6 +152,7 @@ impl WindowVars {
             render_mode: var(default_render_mode),
 
             access_enabled: var(AccessEnabled::empty()),
+            system_shutdown_warn: var(Txt::from("")),
         });
         zng_app::APP.about().map_ref(|i| &i.name).set_bind(&vars.title).perm();
         Self(vars)
@@ -679,6 +681,33 @@ impl WindowVars {
     /// [`enable_access`]: crate::WINDOW_Ext::enable_access
     pub fn access_enabled(&self) -> ReadOnlyArcVar<AccessEnabled> {
         self.0.access_enabled.read_only()
+    }
+
+    /// Attempt to set a system wide shutdown warning associated with the window.
+    ///
+    /// Operating systems that support this show the text in a warning for the user, it must be a short text
+    /// that identifies the critical operation that cannot be cancelled.
+    ///
+    /// Set to an empty text to remove the warning.
+    ///
+    /// Note that this does not stop the window from closing or the app from exiting normally, you must
+    /// handle window close requests and show some feedback to the user, the view-process will send a window close
+    /// request when a system shutdown attempt is detected.
+    ///
+    /// Note that there is no guarantee that the view-process or operating system will actually set a block, there
+    /// is no error result because operating systems can silently ignore block requests at any moment, even after
+    /// an initial successful block.
+    ///
+    /// ## Current Limitations
+    ///
+    /// The current `zng::view_process` or `zng-view` only implements this feature on Windows and it will only work properly
+    /// under these conditions:
+    ///
+    /// * It must be running in `run_same_process` mode. Windows kills all other processes, so in a run with `init` the the app-process
+    /// will be lost. Note that this also mean that the crash handler and worker processes are also killed.
+    /// * Must be built with `#![windows_subsystem = "windows"]` and must be running from the Windows Explorer (desktop).
+    pub fn system_shutdown_warn(&self) -> ArcVar<Txt> {
+        self.0.system_shutdown_warn.clone()
     }
 }
 impl PartialEq for WindowVars {
