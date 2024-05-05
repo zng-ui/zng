@@ -74,7 +74,7 @@ On Windows:
 
 [Visual Studio installer]: https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170
 
-on Linux:
+On Linux:
 
 * Packages needed to build:
     - `pkg-config`
