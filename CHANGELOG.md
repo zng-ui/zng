@@ -1,6 +1,9 @@
 # Unpublished
 
 
+# 0.5.0
+
+
 # 0.4.1
 
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` for windows.

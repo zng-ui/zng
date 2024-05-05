@@ -15,8 +15,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 zng-color-proc-macros = { path = "../zng-color-proc-macros", version = "0.2.5" }
 zng-layout = { path = "../zng-layout", version = "0.2.8" }
 zng-app-context = { path = "../zng-app-context", version = "0.3.3" }
-zng-var = { path = "../zng-var", version = "0.2.8" }
-zng-view-api = { path = "../zng-view-api", version = "0.3.2" }
+zng-var = { path = "../zng-var", version = "0.3.0" }
+zng-view-api = { path = "../zng-view-api", version = "0.4.0" }
 
 paste = "1.0"
 serde = "1.0"

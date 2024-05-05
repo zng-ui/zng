@@ -19,10 +19,10 @@ http = ["zng-task/http"]
 zng-app-context = { path = "../zng-app-context", version = "0.3.3" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.3.0" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.4" }
-zng-app = { path = "../zng-app", version = "0.3.6" }
-zng-view-api = { path = "../zng-view-api", version = "0.3.2" }
+zng-app = { path = "../zng-app", version = "0.4.0" }
+zng-view-api = { path = "../zng-view-api", version = "0.4.0" }
 zng-txt = { path = "../zng-txt", version = "0.2.6" }
-zng-var = { path = "../zng-var", version = "0.2.8" }
+zng-var = { path = "../zng-var", version = "0.3.0" }
 zng-task = { path = "../zng-task", version = "0.2.8" }
 zng-layout = { path = "../zng-layout", version = "0.2.8" }
 zng-color = { path = "../zng-color", version = "0.2.10" }
