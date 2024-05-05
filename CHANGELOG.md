@@ -1,5 +1,8 @@
 # Unpublished
 
+
+# 0.4.1
+
 * Add `OPEN_TITLE_BAR_CONTEXT_MENU_CMD` for windows.
 * Add `DRAG_MOVE_RESIZE_CMD` for windows.
 * **Breaking** View API changes:
