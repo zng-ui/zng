@@ -31,6 +31,8 @@ jobs:
       - if: ${{ github.event.inputs.commit != '' }}
         name: commit all changes
         run: |
-          git add .
+          git config user.name "$(git log -n 1 --pretty=format:%an)"
+          git config user.email "$(git log -n 1 --pretty=format:%ae)"
+          git add -A
           git commit -m "${{ github.event.inputs.commit }}"
           git push
