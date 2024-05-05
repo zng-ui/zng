@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
       - run: cargo do ${{ github.event.inputs.cmd }}
-      - if: ${{ github.event.inputs.commit }} != ''
+      - if: ${{ github.event.inputs.commit != '' }}
         run: |
           git add .
           git commit -m "${{ github.event.inputs.commit }"
