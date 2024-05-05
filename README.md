@@ -17,7 +17,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.4.0", features = ["view_prebuilt"] }
+zng = { version = "0.5.0", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -74,7 +74,7 @@ On Windows:
 
 [Visual Studio installer]: https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170
 
-on Linux:
+On Linux:
 
 * Packages needed to build:
     - `pkg-config`

@@ -322,11 +322,7 @@ Update the auto generated README:
 cargo do doc --readme-examples
 ```
 
-Done. You can run the new example using:
-
-```console
-cargo do run <example-name>
-```
+Done.
 
 ## Local Example
 
