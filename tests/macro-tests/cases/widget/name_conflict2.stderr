@@ -44,6 +44,22 @@ error[E0119]: conflicting implementations of trait `Deref` for type `TestWidget`
   |
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+error[E0282]: type annotations needed
+ --> cases/widget/name_conflict2.rs:3:1
+  |
+3 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+  |
+note: the requirement `_ <: _` appears on the `impl`'s method `deref` but not on the corresponding trait's method
+ --> $RUST/core/src/ops/deref.rs
+  |
+  | pub trait Deref {
+  |           ----- in this trait
+...
+  |     fn deref(&self) -> &Self::Target;
+  |        ^^^^^ this trait's method doesn't have the requirement `_ <: _`
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0119]: conflicting implementations of trait `DerefMut` for type `TestWidget`
  --> cases/widget/name_conflict2.rs:6:1
   |
@@ -66,6 +82,22 @@ error[E0119]: conflicting implementations of trait `WidgetImpl` for type `TestWi
   |
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+error[E0282]: type annotations needed
+ --> cases/widget/name_conflict2.rs:6:1
+  |
+6 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+  |
+note: the requirement `_ <: _` appears on the `impl`'s method `deref` but not on the corresponding trait's method
+ --> $RUST/core/src/ops/deref.rs
+  |
+  | pub trait Deref {
+  |           ----- in this trait
+...
+  |     fn deref(&self) -> &Self::Target;
+  |        ^^^^^ this trait's method doesn't have the requirement `_ <: _`
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0592]: duplicate definitions with name `widget_new`
  --> cases/widget/name_conflict2.rs:3:1
   |
@@ -86,4 +118,94 @@ error[E0592]: duplicate definitions with name `widget_type`
 6 | #[widget($crate::TestWidget)]
   | ----------------------------- other definition for `widget_type`
   |
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+ --> cases/widget/name_conflict2.rs:3:1
+  |
+3 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `widget_type` found
+  |
+note: candidate #1 is defined in an impl for the type `TestWidget`
+ --> cases/widget/name_conflict2.rs:3:1
+  |
+3 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `TestWidget`
+ --> cases/widget/name_conflict2.rs:6:1
+  |
+6 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0282]: type annotations needed
+ --> cases/widget/name_conflict2.rs:3:1
+  |
+3 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+  |
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `widget_intrinsic` found for struct `TestWidget` in the current scope
+ --> cases/widget/name_conflict2.rs:3:1
+  |
+3 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | |
+  | method not found in `TestWidget`
+  | method `widget_intrinsic` not found for this struct
+  |
+ ::: $WORKSPACE/crates/zng-app/src/widget/base.rs
+  |
+  |     fn widget_intrinsic(&mut self) {}
+  |        ---------------- the method is available for `TestWidget` here
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following trait defines an item `widget_intrinsic`, perhaps you need to implement it:
+          candidate #1: `WidgetImpl`
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0034]: multiple applicable items in scope
+ --> cases/widget/name_conflict2.rs:6:1
+  |
+6 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `widget_type` found
+  |
+note: candidate #1 is defined in an impl for the type `TestWidget`
+ --> cases/widget/name_conflict2.rs:3:1
+  |
+3 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl for the type `TestWidget`
+ --> cases/widget/name_conflict2.rs:6:1
+  |
+6 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0282]: type annotations needed
+ --> cases/widget/name_conflict2.rs:6:1
+  |
+6 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+  |
+  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `widget_intrinsic` found for struct `TestWidget` in the current scope
+ --> cases/widget/name_conflict2.rs:6:1
+  |
+3 | #[widget($crate::TestWidget)]
+  | ----------------------------- method `widget_intrinsic` not found for this struct
+...
+6 | #[widget($crate::TestWidget)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `TestWidget`
+  |
+ ::: $WORKSPACE/crates/zng-app/src/widget/base.rs
+  |
+  |     fn widget_intrinsic(&mut self) {}
+  |        ---------------- the method is available for `TestWidget` here
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following trait defines an item `widget_intrinsic`, perhaps you need to implement it:
+          candidate #1: `WidgetImpl`
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
