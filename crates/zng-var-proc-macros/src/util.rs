@@ -69,62 +69,6 @@ impl ToTokens for Errors {
     }
 }
 
-const RECOVERABLE_TAG: &str = "<recoverable>";
-fn recoverable_tag() -> syn::Error {
-    syn::Error::new(Span::call_site(), RECOVERABLE_TAG)
-}
-
-/// Extension to [`syn::Error`] that lets you mark an error as recoverable,
-/// meaning that a sequence of the parse stream is not correct but the parser
-/// manage to skip to the end of what was expected to be parsed.
-pub trait ErrorRecoverable {
-    /// Returns a new error that contains all the errors in `self` but is also marked recoverable.
-    fn set_recoverable(self) -> Self;
-    /// Returns if `self` is recoverable and all the errors in `self`.
-    ///
-    /// Note: An error is considered recoverable only if all inner errors are marked recoverable.
-    fn recoverable(self) -> (bool, Self);
-}
-impl ErrorRecoverable for syn::Error {
-    fn set_recoverable(self) -> Self {
-        let mut errors = self.into_iter();
-        let mut e = errors.next().unwrap();
-
-        debug_assert!(e.to_string() != RECOVERABLE_TAG);
-
-        e.combine(recoverable_tag());
-
-        for error in errors {
-            if e.to_string() != RECOVERABLE_TAG {
-                e.combine(error);
-                e.combine(recoverable_tag());
-            }
-        }
-
-        e
-    }
-    fn recoverable(self) -> (bool, Self) {
-        let mut errors = self.into_iter();
-        let mut e = errors.next().unwrap();
-
-        debug_assert!(e.to_string() != RECOVERABLE_TAG);
-
-        let mut errors_count = 1;
-        let mut tags_count = 0;
-
-        for error in errors {
-            if error.to_string() == RECOVERABLE_TAG {
-                tags_count += 1;
-            } else {
-                errors_count += 1;
-                e.combine(error);
-            }
-        }
-
-        (errors_count == tags_count, e)
-    }
-}
-
 /// Generates a return of a compile_error message in the given span.
 macro_rules! abort {
     ($span:expr, $($tt:tt)*) => {{

@@ -498,7 +498,7 @@ impl CrashPanic {
             } else {
                 if message.is_empty() && line != "widget path:" && line != "stack backtrace:" {
                     // not formatted by us, probably by Rust
-                    message = line.to_owned();
+                    line.clone_into(&mut message);
                 }
                 break;
             }

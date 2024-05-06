@@ -56,7 +56,7 @@ pub enum UiNodeOp<'a> {
     /// [`WIDGET.update_info`]: crate::widget::WIDGET::update_info
     /// [`WIDGET.info`]: crate::widget::WIDGET::info
     Info {
-        ///
+        #[allow(missing_docs)]
         info: &'a mut WidgetInfoBuilder,
     },
     /// The [`UiNode::event`].
@@ -76,7 +76,7 @@ pub enum UiNodeOp<'a> {
     /// [`Init`]: Self::Init
     /// [`Event::on`]: crate::event::Event::on
     Event {
-        ///
+        #[allow(missing_docs)]
         update: &'a EventUpdate,
     },
     /// The [`UiNode::update`].
@@ -94,7 +94,7 @@ pub enum UiNodeOp<'a> {
     /// [`Init`]: Self::Init
     /// [`Var::get_new`]: zng_var::Var::get_new
     Update {
-        ///
+        #[allow(missing_docs)]
         updates: &'a WidgetUpdates,
     },
     /// The [`UiNode::measure`].
@@ -114,9 +114,9 @@ pub enum UiNodeOp<'a> {
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
     /// [`PxSize`]: zng_layout::unit::PxSize
     Measure {
-        ///
+        #[allow(missing_docs)]
         wm: &'a mut WidgetMeasure,
-        ///
+        #[allow(missing_docs)]
         desired_size: &'a mut PxSize,
     },
     /// The [`UiNode::layout`].
@@ -141,9 +141,9 @@ pub enum UiNodeOp<'a> {
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
     /// [`PxSize`]: zng_layout::unit::PxSize
     Layout {
-        ///
+        #[allow(missing_docs)]
         wl: &'a mut WidgetLayout,
-        ///
+        #[allow(missing_docs)]
         final_size: &'a mut PxSize,
     },
     /// The [`UiNode::render`].
@@ -156,7 +156,7 @@ pub enum UiNodeOp<'a> {
     /// Only widgets and ancestors that requested render receive this call, other widgets reuse the display items and transforms
     /// from the last frame.
     Render {
-        ///
+        #[allow(missing_docs)]
         frame: &'a mut FrameBuilder,
     },
     /// The [`UiNode::render_update`].
@@ -171,7 +171,7 @@ pub enum UiNodeOp<'a> {
     ///
     /// [`FrameValue<T>`]: crate::render::FrameValue
     RenderUpdate {
-        ///
+        #[allow(missing_docs)]
         update: &'a mut FrameUpdate,
     },
 }

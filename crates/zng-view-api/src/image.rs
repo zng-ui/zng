@@ -279,7 +279,7 @@ pub struct ImagePpi {
     pub y: f32,
 }
 impl ImagePpi {
-    ///
+    #[allow(missing_docs)]
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }

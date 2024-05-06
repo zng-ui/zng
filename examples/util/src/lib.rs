@@ -51,7 +51,7 @@ impl ErrorLogFile {
             file.set_extension(".error.log");
             while file.exists() {
                 i += 1;
-                file = exe.clone();
+                file.clone_from(&exe);
                 file.set_extension(format!(".error.{i}.log"));
             }
             let file = std::fs::File::options().create(true).truncate(true).write(true).open(file)?;

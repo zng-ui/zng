@@ -41,9 +41,9 @@ pub type FontVariationName = [u8; 4];
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub struct GlyphInstance {
-    ///
+    #[allow(missing_docs)]
     pub index: GlyphIndex,
-    ///
+    #[allow(missing_docs)]
     pub point: euclid::Point2D<f32, Px>,
 }
 

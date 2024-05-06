@@ -572,7 +572,7 @@ pub mod using_blob {
                 //
                 // This option is always already set by the window. Note that this thread pool
                 // is also used by Webrender's glyph rasterizer, so be careful not to clog it.
-                self.renderer.lock().workers = args.options.workers.clone();
+                self.renderer.lock().workers.clone_from(&args.options.workers);
             }
 
             fn render_start(&mut self, _: &mut zng_view::extensions::RenderArgs) {

@@ -40,7 +40,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     };
     let mut attrs = Attributes::new(mem::take(&mut item.attrs));
     let mut mtd_attrs = Attributes::new(vec![]);
-    mtd_attrs.docs = attrs.docs.clone();
+    mtd_attrs.docs.clone_from(&attrs.docs);
     let mut extra_docs = quote!();
 
     // note that the tags "c" and "P" are used by the `widget.js` to find properties.

@@ -384,17 +384,17 @@ pub enum KeyCode {
     ///
     /// This also the "back" button (triangle) on Android.
     BrowserBack,
-    ///
+    /// Browser Favorites key.
     BrowserFavorites,
     /// Some laptops place this key to the right of the <kbd>↑</kbd> key.
     BrowserForward,
     /// The "home" button on Android.
     BrowserHome,
-    ///
+    /// Browser Refresh key.
     BrowserRefresh,
-    ///
+    /// Browser Search key.
     BrowserSearch,
-    ///
+    /// Browser Search key.
     BrowserStop,
     /// <kbd>Eject</kbd> or <kbd>⏏</kbd>. This key is placed in the function section on some Apple
     /// keyboards.
@@ -407,7 +407,7 @@ pub enum KeyCode {
     LaunchMail,
     /// <kbd>⏯</kbd>
     MediaPlayPause,
-    ///
+    /// Select Media key.
     MediaSelect,
     /// <kbd>⏹</kbd>
     MediaStop,
@@ -418,27 +418,27 @@ pub enum KeyCode {
     /// This key is placed in the function section on some Apple keyboards, replacing the
     /// <kbd>Eject</kbd> key.
     Power,
-    ///
+    /// Computer Sleep key.
     Sleep,
-    ///
+    /// Volume Down key.
     AudioVolumeDown,
-    ///
+    /// Volume Mute key.
     AudioVolumeMute,
-    ///
+    /// Volume Up key.
     AudioVolumeUp,
-    ///
+    /// Wakes up the device if it is not already awake.
     WakeUp,
     /// Legacy modifier key. Also called "Super" in certain places.
     Meta,
     /// Legacy modifier key.
     Hyper,
-    ///
+    /// Legacy under-clock key.
     Turbo,
-    ///
+    /// Legacy abort key.
     Abort,
-    ///
+    /// Legacy resume key.
     Resume,
-    ///
+    /// Legacy suspend key.
     Suspend,
     /// Found on Sun’s USB keyboard.
     Again,
@@ -829,7 +829,7 @@ pub enum Key {
     Shift,
     /// The Symbol modifier key (used on some virtual keyboards).
     Symbol,
-    ///
+    /// Toggle between normal keyboard and symbols keyboard.
     SymbolLock,
     /// Legacy modifier key. Also called "Super" in certain places.
     Meta,
@@ -901,7 +901,7 @@ pub enum Key {
     Again,
     /// The Attention (Attn) key.
     Attn,
-    ///
+    /// Cancel key.
     Cancel,
     /// Show the application’s context menu.
     /// This key is commonly found between the right `Super` key and the right `Ctrl` key.
@@ -910,7 +910,7 @@ pub enum Key {
     /// now more generally used to exit or "escape" the current context, such as closing a dialog
     /// or exiting full screen mode.
     Escape,
-    ///
+    /// Execute key.
     Execute,
     /// Open the Find dialog. (`APPCOMMAND_FIND`)
     Find,
@@ -929,7 +929,7 @@ pub enum Key {
     Play,
     /// The properties (Props) key.
     Props,
-    ///
+    /// Select key.
     Select,
     /// The ZoomIn key. (`KEYCODE_ZOOM_IN`)
     ZoomIn,
@@ -942,7 +942,7 @@ pub enum Key {
     BrightnessUp,
     /// Toggle removable media to eject (open) and insert (close) state. (`KEYCODE_MEDIA_EJECT`)
     Eject,
-    ///
+    /// Log-off key.
     LogOff,
     /// Toggle power state. (`KEYCODE_POWER`)
     /// Note: Note: Some devices might not expose this key to the operating environment.
@@ -962,7 +962,7 @@ pub enum Key {
     WakeUp,
     /// Initiate the multi-candidate mode.
     AllCandidates,
-    ///
+    /// Alphanumeric mode.
     Alphanumeric,
     /// Initiate the Code Input mode to allow characters to be entered by
     /// their code points.
@@ -985,22 +985,22 @@ pub enum Key {
     GroupPrevious,
     /// Toggle between or cycle through input modes of IMEs.
     ModeChange,
-    ///
+    /// Next IME candidate.
     NextCandidate,
     /// Accept current input method sequence without
     /// conversion in IMEs.
     NonConvert,
-    ///
+    /// Previous IME candidate.
     PreviousCandidate,
-    ///
+    /// IME key.
     Process,
-    ///
+    /// IME key.
     SingleCandidate,
     /// Toggle between Hangul and English modes.
     HangulMode,
-    ///
+    /// Toggle between Hanja and English modes.
     HanjaMode,
-    ///
+    /// Toggle between Junja and English modes.
     JunjaMode,
     /// The Eisu key. This key may close the IME, but its purpose is defined by the current IME.
     /// (`KEYCODE_EISU`)
@@ -1152,19 +1152,19 @@ pub enum Key {
     LaunchMail,
     /// The "Media Player" key. (`APPCOMMAND_LAUNCH_MEDIA_SELECT`)
     LaunchMediaPlayer,
-    ///
+    /// The "Music Player" key.
     LaunchMusicPlayer,
-    ///
+    /// The "Phone" key.
     LaunchPhone,
-    ///
+    /// The "Screen Saver" key.
     LaunchScreenSaver,
-    ///
+    /// The "Excel" key.
     LaunchSpreadsheet,
-    ///
+    /// The "Web Browser" key.
     LaunchWebBrowser,
-    ///
+    /// The "Webcam" key.
     LaunchWebCam,
-    ///
+    /// The "Word" key.
     LaunchWordProcessor,
     /// Navigate to previous content or page in current history. (`APPCOMMAND_BROWSER_BACKWARD`)
     BrowserBack,
@@ -1197,13 +1197,13 @@ pub enum Key {
     GoHome,
     /// The Headset Hook key. (`KEYCODE_HEADSETHOOK`)
     HeadsetHook,
-    ///
+    /// "Last Number Redial" key
     LastNumberRedial,
     /// The Notification key. (`KEYCODE_NOTIFICATION`)
     Notification,
     /// Toggle between manner mode state: silent, vibrate, ring, ... (`KEYCODE_MANNER_MODE`)
     MannerMode,
-    ///
+    /// "Voice Dial" key.
     VoiceDial,
     /// Switch to viewing TV. (`KEYCODE_TV`)
     TV,

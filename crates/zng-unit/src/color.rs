@@ -38,7 +38,7 @@ impl std::hash::Hash for Rgba {
     }
 }
 impl Rgba {
-    ///
+    /// New from RGB of a the same type and A that can be of a different type.
     pub fn new<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, blue: C, alpha: A) -> Rgba {
         Rgba {
             red: red.into().0,
