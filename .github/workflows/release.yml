@@ -28,6 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_checks != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do version --verbose
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do fmt --check
@@ -48,6 +50,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_checks != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do version --verbose
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do fmt --check
@@ -64,6 +68,8 @@ jobs:
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do version --verbose
         if: ${{ github.event.inputs.skip_checks != 'true' }}
@@ -110,6 +116,7 @@ jobs:
           echo "LD_LIBRARY_PATH=$HOME/$DAV1D_DIR/$LIB_PATH" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
       - name: cargo do prebuild --features avif
         env:
@@ -164,6 +171,7 @@ jobs:
           ninja -C build install
 
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
       - name: cargo do prebuild --features avif
         env:
@@ -208,6 +216,7 @@ jobs:
           echo "PKG_CONFIG_PATH=$HOME/$DAV1D_DIR/$LIB_PATH/pkgconfig" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$HOME/$DAV1D_DIR/$LIB_PATH" >> $GITHUB_ENV
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
       - name: cargo do prebuild --features avif
         env:
@@ -226,6 +235,7 @@ jobs:
     needs: [check-ubuntu]
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo do latest_release_changes release-changes.md
       - uses: actions/upload-artifact@v4
         with:
@@ -248,6 +258,8 @@ jobs:
         with:
           tool: cargo-nextest
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -282,6 +294,8 @@ jobs:
           tool: cargo-nextest
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
@@ -313,6 +327,8 @@ jobs:
           tool: cargo-nextest
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
@@ -336,6 +352,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do publish --test
         if: ${{ github.event.inputs.skip_tests != 'true' }}
