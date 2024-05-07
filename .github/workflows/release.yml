@@ -261,6 +261,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+        with:
+          components: rust-src
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
@@ -296,6 +298,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+        with:
+          components: rust-src
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
@@ -329,6 +333,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+        with:
+          components: rust-src
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
