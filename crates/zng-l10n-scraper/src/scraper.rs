@@ -251,11 +251,11 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
             Expect::StrLiteralMessage => match token.kind {
                 rustc_lexer::TokenKind::Literal { kind, .. } => match kind {
                     rustc_lexer::LiteralKind::Str { .. } | rustc_lexer::LiteralKind::RawStr { .. } => {
-                        entry.message = s[..token.len]
+                        s[..token.len]
                             .trim_start_matches('r')
                             .trim_matches('#')
                             .trim_matches('"')
-                            .to_owned();
+                            .clone_into(&mut entry.message);
 
                         output.push(mem::replace(
                             &mut entry,

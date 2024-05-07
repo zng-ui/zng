@@ -216,8 +216,8 @@ impl PointerCaptureManager {
         }
         if new != self.capture {
             let prev = self.capture.take();
-            self.capture = new.clone();
-            cap.capture_value = new.clone();
+            self.capture.clone_from(&new);
+            cap.capture_value.clone_from(&new);
             cap.capture.set(new.clone());
             POINTER_CAPTURE_EVENT.notify(PointerCaptureArgs::now(prev, new));
         }

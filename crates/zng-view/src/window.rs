@@ -766,7 +766,7 @@ impl Window {
     pub fn monitor_change(&mut self) -> Option<MonitorHandle> {
         let handle = self.window.current_monitor();
         if self.prev_monitor != handle {
-            self.prev_monitor = handle.clone();
+            self.prev_monitor.clone_from(&handle);
             handle
         } else {
             None

@@ -1,14 +1,5 @@
-error[E0425]: cannot find value `invalid` in this scope
+error[E0425]: cannot find value `INVALID_PRI` in this scope
  --> cases/property/invalid_priority.rs:3:12
   |
-3 | #[property(invalid)]
-  |            ^^^^^^^ not found in this scope
-  |
-help: consider importing one of these items
-  |
-1 + use core::ptr::invalid;
-  |
-1 + use std::ptr::invalid;
-  |
-1 + use zng::access::invalid;
-  |
+3 | #[property(INVALID_PRI)]
+  |            ^^^^^^^^^^^ not found in this scope

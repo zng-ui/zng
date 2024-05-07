@@ -149,6 +149,14 @@ where
         self.0.write().set(name.into(), id)
     }
 }
+impl<I> Default for UniqueIdNameStore<I>
+where
+    I: Copy + PartialEq + Eq + Hash + fmt::Debug,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Extend an unique ID type to have an optional attached name string, also implements.
 #[macro_export]

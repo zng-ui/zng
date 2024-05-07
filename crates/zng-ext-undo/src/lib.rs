@@ -877,6 +877,11 @@ impl WidgetUndoScope {
         !self.0.as_ref().unwrap().redo.lock().is_empty()
     }
 }
+impl Default for WidgetUndoScope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 struct UndoScope {
     id: Atomic<Option<WidgetId>>,

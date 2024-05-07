@@ -946,7 +946,7 @@ fn visit_str(record: impl FnOnce(&mut dyn tracing::field::Visit), name: &str) ->
         }
         fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
             if field.name() == self.name {
-                self.result = value.to_owned();
+                value.clone_into(&mut self.result);
             }
         }
     }

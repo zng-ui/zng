@@ -343,8 +343,8 @@ pub trait AsyncBlobRasterizer: Send + Any {
 
 /// Arguments for [`BlobExtension::prepare_resources`].
 pub struct BlobPrepareArgs<'a> {
-    ///
-    pub services: &'a dyn webrender::api::BlobImageResources,
+    #[allow(missing_docs)]
+    pub resources: &'a dyn webrender::api::BlobImageResources,
     /// Requests targeting any of the blob extensions. Each extension must
     /// inspect the requests to find the ones targeting it.
     pub requests: &'a [BlobImageParams],
@@ -359,9 +359,9 @@ pub struct BlobAddArgs {
     /// Encoded data.
     pub data: std::sync::Arc<webrender::api::BlobImageData>,
 
-    ///
+    #[allow(missing_docs)]
     pub visible_rect: webrender::api::units::DeviceIntRect,
-    ///
+    #[allow(missing_docs)]
     pub tile_size: webrender::api::TileSize,
 }
 
@@ -373,9 +373,9 @@ pub struct BlobUpdateArgs {
     pub key: webrender::api::BlobImageKey,
     /// Encoded data.
     pub data: std::sync::Arc<webrender::api::BlobImageData>,
-    ///
+    #[allow(missing_docs)]
     pub visible_rect: webrender::api::units::DeviceIntRect,
-    ///
+    #[allow(missing_docs)]
     pub dirty_rect: webrender::api::units::BlobDirtyRect,
 }
 
@@ -992,7 +992,10 @@ impl BlobImageHandler for BlobExtensionsImgHandler {
 
     fn prepare_resources(&mut self, services: &dyn webrender::api::BlobImageResources, requests: &[BlobImageParams]) {
         for ext in self.0.iter_mut() {
-            ext.prepare_resources(&mut BlobPrepareArgs { services, requests })
+            ext.prepare_resources(&mut BlobPrepareArgs {
+                resources: services,
+                requests,
+            })
         }
     }
 

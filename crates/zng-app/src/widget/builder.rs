@@ -2419,7 +2419,7 @@ impl WidgetBuilding {
                                 }
                                 e.0.push(Some(action.data.clone()));
                                 if action.default_action.is_some() && e.1.is_none() {
-                                    e.1 = action.default_action.clone();
+                                    e.1.clone_from(&action.default_action);
                                 }
                             }
                             hash_map::Entry::Vacant(e) => {

@@ -8,4 +8,11 @@ error[E0599]: no method named `unknown__` found for mutable reference `&mut Wgt`
  --> cases/widget_new/unknown_property2.rs:6:9
   |
 6 |         unknown = {
-  |         ^^^^^^^ method not found in `&mut Wgt`
+  |         ^^^^^^^
+  |
+help: there is a method `owns_` with a similar name, but with different arguments
+ --> $WORKSPACE/crates/zng-wgt-access/src/meta.rs
+  |
+  | #[property(CONTEXT)]
+  | ^^^^^^^^^^^^^^^^^^^^
+  = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)

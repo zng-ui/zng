@@ -694,14 +694,14 @@ impl ConfigStatus {
                 ConfigStatus::Saving => saving = true,
                 ConfigStatus::LoadErrors(e) => {
                     if load_errors.is_empty() {
-                        load_errors = e.clone();
+                        load_errors = e;
                     } else {
                         load_errors.extend(e);
                     }
                 }
                 ConfigStatus::SaveErrors(e) => {
                     if save_errors.is_empty() {
-                        save_errors = e.clone();
+                        save_errors = e;
                     } else {
                         save_errors.extend(e);
                     }

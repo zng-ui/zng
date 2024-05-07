@@ -1081,6 +1081,7 @@ pub fn name_collision_wgt_when() {
 * macro_rules! generated widget
 */
 
+#[allow(dead_code)] // weird interaction with macro_rules!.
 mod macro_rules_generated {
     use zng_app_proc_macros::{property, widget};
     use zng_layout::unit::SideOffsets;

@@ -424,6 +424,7 @@ fn test(mut args: Vec<&str>) {
                 for m in &changes {
                     util::print_git_diff(&m);
                 }
+                std::thread::sleep(std::time::Duration::from_millis(100)); // help GitHub log sync prints.
                 fatal(format!("{} macro tests modified, review and commit", changes.len()));
             }
         }

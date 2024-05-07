@@ -940,7 +940,7 @@ impl WidgetAccessInfo {
         *a.view_bounds.lock() = Some(bounds_info);
 
         node.role = a.role;
-        node.state = a.state.clone();
+        node.state.clone_from(&a.state);
         node.state.extend(a.state_source.iter().map(From::from));
 
         if let Some(lb) = inverse.labelled_by.get(&self.info.id()) {
@@ -970,7 +970,7 @@ impl WidgetAccessInfo {
             }
         }
 
-        node.commands = a.commands.clone();
+        node.commands.clone_from(&a.commands);
 
         for handler in &a.build_handlers {
             handler(AccessBuildArgs {

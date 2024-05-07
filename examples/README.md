@@ -34,7 +34,7 @@ Source: [button.rs](./button.rs)
 cargo do run button
 ```
 
-Demonstrates the button widget.
+Demonstrates the button and toggle widgets.
 
 ### `calculator`
 
@@ -277,9 +277,9 @@ use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
-    // view_process::run_same_process(app_main);
 
     view_process::init();
+    zng::app::crash_handler::init_debug();
     app_main();
 }
 
