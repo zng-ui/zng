@@ -9,7 +9,7 @@ on:
       do:
         description: do command
       commit:
-        description: set to a message to commit after command
+        description: set to commit
 
 run-name: on ${{ github.event.inputs.on }} do ${{ github.event.inputs.do }}
 
