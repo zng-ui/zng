@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo do version --verbose
       - run: cargo do fmt --check
@@ -33,6 +34,7 @@ jobs:
     needs: [check]
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           cache-targets: false # do doc needs a clean target/doc
@@ -43,6 +45,7 @@ jobs:
     needs: [check]
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --examples --tests --release
       - run: cargo clean
@@ -52,6 +55,7 @@ jobs:
     env:
       ZNG_TP_LICENSES: true
     steps:
+    - uses: dtolnay/rust-toolchain@stable
     - name: install cargo-about
       uses: baptiste0928/cargo-install@v3
       with:
@@ -69,6 +73,7 @@ jobs:
     needs: [check]
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo do test --doc
       - run: cargo clean
@@ -77,6 +82,7 @@ jobs:
     needs: [check]
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo do test --macro --all
       - run: cargo clean

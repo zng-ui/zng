@@ -3,12 +3,15 @@ name: do
 on:
   workflow_dispatch:
     inputs:
-      runs-on: 
+      on: 
         default: 'ubuntu-latest'
-      cmd:
+        description: action runner
+      do:
+        description: do command
       commit:
+        description: set to a message to commit after command
 
-run-name: on ${{ github.event.inputs.runs-on }} do ${{ github.event.inputs.cmd }}
+run-name: on ${{ github.event.inputs.on }} do ${{ github.event.inputs.do }}
 
 env:
   RUST_BACKTRACE: 1
@@ -19,7 +22,7 @@ env:
 
 jobs:
   do:
-    runs-on: ${{ github.event.inputs.runs-on }}
+    runs-on: ${{ github.event.inputs.on }}
     permissions:
       contents: write
     steps:
@@ -27,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-      - run: cargo do ${{ github.event.inputs.cmd }}
+      - run: cargo do ${{ github.event.inputs.do }}
       - if: ${{ github.event.inputs.commit != '' }}
         name: commit all changes
         run: |
