@@ -1,4 +1,4 @@
-//! Demonstrates the button widget.
+//! Demonstrates the button and toggle widgets.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{
