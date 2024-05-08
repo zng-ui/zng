@@ -122,6 +122,9 @@ context_var! {
     ///
     /// [`Length::Default`]: zng_wgt::prelude::Length::Default
     pub static ZOOM_TOUCH_ORIGIN_VAR: Point = Point::default();
+
+    /// If auto-scrolling on middle click is enabled.
+    pub static AUTO_SCROLL_VAR: AutoScroll = AutoScroll::default();
 }
 
 fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {

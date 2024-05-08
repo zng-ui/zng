@@ -1,6 +1,7 @@
 # Unpublished
 
 * Add `diagnostic::on_unimplemented` notes for multiple traits.
+* Add `auto_scroll` in the `Scroll!` widget, enabled by default.
 
 # 0.5.0
 

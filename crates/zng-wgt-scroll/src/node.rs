@@ -5,7 +5,9 @@ use zng_app::access::ACCESS_SCROLL_EVENT;
 use zng_color::Rgba;
 use zng_ext_input::focus::FOCUS;
 use zng_ext_input::focus::FOCUS_CHANGED_EVENT;
+use zng_ext_input::mouse::MouseButton;
 use zng_ext_input::mouse::MouseScrollDelta;
+use zng_ext_input::mouse::MOUSE_INPUT_EVENT;
 use zng_ext_input::mouse::MOUSE_WHEEL_EVENT;
 use zng_ext_input::touch::TouchPhase;
 use zng_ext_input::touch::TOUCH_TRANSFORM_EVENT;
@@ -1329,4 +1331,54 @@ pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
         }
         _ => {}
     })
+}
+
+/// Create a note that implements
+pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
+    let mut middle_handle = EventHandle::dummy();
+    match_node(child, move |c, op| {
+        let mut check_enabled = false;
+        match op {
+            UiNodeOp::Init => {
+                WIDGET.sub_var(&AUTO_SCROLL_VAR);
+                check_enabled = true;
+            }
+            UiNodeOp::Deinit => {
+                middle_handle = EventHandle::dummy();
+            }
+            UiNodeOp::Update { .. } => {
+                check_enabled = AUTO_SCROLL_VAR.is_new();
+            }
+            UiNodeOp::Event { update } => {
+                c.event(update);
+                if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+                    if args.is_mouse_down() && matches!(args.button, MouseButton::Middle) {
+                        args.propagation().stop();
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        if check_enabled {
+            if AUTO_SCROLL_VAR.with(|a| matches!(a, AutoScroll::Enabled(_))) {
+                if middle_handle.is_dummy() {
+                    middle_handle = MOUSE_INPUT_EVENT.subscribe(WIDGET.id());
+                }
+            } else {
+                middle_handle = EventHandle::dummy();
+            };
+        }
+    })
+}
+impl AutoScroll {
+    /// Enabled with default icon.
+    pub fn enabled() -> Self {
+        AutoScroll::Enabled(wgt_fn!(|_| { NilUiNode }))
+    }
+}
+impl Default for AutoScroll {
+    fn default() -> Self {
+        Self::enabled()
+    }
 }

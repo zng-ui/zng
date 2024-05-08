@@ -137,6 +137,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let child = node::scroll_to_edge_commands_node(child);
         let child = node::scroll_touch_node(child);
         let child = node::zoom_commands_node(child);
+        let child = node::auto_scroll_node(child);
         node::scroll_wheel_node(child)
     });
 

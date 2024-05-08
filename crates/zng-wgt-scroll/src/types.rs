@@ -1037,3 +1037,23 @@ impl_from_and_into_var! {
         SmoothScrolling::new(duration, easing.ease_fn())
     }
 }
+
+/// Auto scroll config.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AutoScroll {
+    /// Auto scroll on middle click.
+    ///
+    /// The widget function is used to generate the auto scroll icon.
+    Enabled(WidgetFn<AutoScrollArgs>),
+    /// Does not auto scroll on middle click.
+    Disabled,
+}
+
+/// Arguments for the [`AutoScroll::Enabled`] closure.
+///
+/// Empty struct, there are no args in the current release, this struct is declared so that if
+/// args may be introduced in the future with minimal breaking changes.
+///
+/// Note that the [`SCROLL`] context is available in context during the icon closure call.
+#[derive(Debug, Default)]
+pub struct AutoScrollArgs {}
