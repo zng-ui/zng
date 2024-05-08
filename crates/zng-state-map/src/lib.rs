@@ -19,8 +19,9 @@ use zng_unique_id::unique_id_64;
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
-pub trait StateValue: Any + Send + Sync + 'static {}
-impl<T: Any + Send + Sync + 'static> StateValue for T {}
+#[diagnostic::on_unimplemented(note = "`StateValue` is implemented for all `T: Any + Send + Sync`")]
+pub trait StateValue: Any + Send + Sync {}
+impl<T: Any + Send + Sync> StateValue for T {}
 
 unique_id_64! {
     /// Unique identifier of a value in a state map.

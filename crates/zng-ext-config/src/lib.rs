@@ -152,6 +152,7 @@ pub type ConfigKey = Txt;
 /// Marker trait for types that can stored in a [`Config`].
 ///
 /// This trait is already implemented for types it applies.
+#[diagnostic::on_unimplemented(note = "`ConfigValue` is implemented for all `T: VarValue + Serialize + DeserializeOwned`")]
 pub trait ConfigValue: VarValue + serde::Serialize + serde::de::DeserializeOwned {}
 impl<T: VarValue + serde::Serialize + serde::de::DeserializeOwned> ConfigValue for T {}
 

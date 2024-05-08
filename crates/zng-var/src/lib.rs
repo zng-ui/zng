@@ -156,8 +156,9 @@ mod private {
 /// you may need to declare a *newtype* wrapper, if the external type is `Debug + Send + Sync + Any` at
 /// least you can use the [`ArcEq<T>`] wrapper to quickly implement `Clone + PartialEq`, this is particularly
 /// useful for error types in [`ResponseVar<Result<_, E>>`].
+#[diagnostic::on_unimplemented(note = "`VarValue` is implemented for all `T: Debug + Clone + PartialEq + Any + Send + Sync`")]
 pub trait VarValue: fmt::Debug + Clone + PartialEq + Any + Send + Sync {}
-impl<T: fmt::Debug + Clone + Any + PartialEq + Send + Sync> VarValue for T {}
+impl<T: fmt::Debug + Clone + PartialEq + Any + Send + Sync> VarValue for T {}
 
 /// Trait implemented for all [`VarValue`] types.
 pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
@@ -209,6 +210,10 @@ impl<T: VarValue> AnyVarValue for T {
 /// [inspected]: crate::inspector
 /// [`Debug`]: std::fmt::Debug
 /// [`impl_from_and_into_var`]: impl_from_and_into_var
+#[diagnostic::on_unimplemented(
+    note = "`IntoValue<T>` is implemented for all `T: VarValue",
+    note = "you can use `impl_from_and_into_var!` to implement conversions"
+)]
 pub trait IntoValue<T: VarValue>: Into<T> {}
 impl<T: VarValue> IntoValue<T> for T {}
 
@@ -770,6 +775,10 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`LocalVar`]
 /// too. They can implement the trait multiple times to support different shorthand syntaxes or different types in the shorthand
 /// value.
+#[diagnostic::on_unimplemented(
+    note = "`IntoVar<T>` is implemented for all `T: VarValue",
+    note = "`IntoVar<T>` is implemented for all `V: Var<T>`"
+)]
 pub trait IntoVar<T: VarValue> {
     /// Variable type that will wrap the `T` value.
     ///

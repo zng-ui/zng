@@ -25,6 +25,7 @@ pub trait easing_property: Send + Sync + Clone + Copy {
 
 #[doc(hidden)]
 #[allow(non_camel_case_types)]
+#[diagnostic::on_unimplemented(note = "property type must be `Transitionable` to support `#[easing]`")]
 pub trait easing_property_input_Transitionable: Any + Send {
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self;
 }

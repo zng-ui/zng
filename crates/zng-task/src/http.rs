@@ -50,6 +50,7 @@ use zng_unit::*;
 /// Marker trait for types that try-to-convert to [`Uri`].
 ///
 /// All types `T` that match `Uri: TryFrom<T>, <Uri as TryFrom<T>>::Error: Into<isahc::http::Error>` implement this trait.
+#[diagnostic::on_unimplemented(note = "`TryUri` is implemented for all `T` where `Uri: TryFrom<T, Error: Into<isahc::http::Error>>`")]
 pub trait TryUri {
     /// Tries to convert `self` into [`Uri`].
     fn try_uri(self) -> Result<Uri, Error>;
@@ -67,6 +68,7 @@ where
 /// Marker trait for types that try-to-convert to [`Method`].
 ///
 /// All types `T` that match `Method: TryFrom<T>, <Method as TryFrom<T>>::Error: Into<isahc::http::Error>` implement this trait.
+#[diagnostic::on_unimplemented(note = "`TryMethod` is implemented for all `T` where `Method: TryFrom<T, Error: Into<isahc::http::Error>>`")]
 pub trait TryMethod {
     /// Tries to convert `self` into [`Method`].
     fn try_method(self) -> Result<Method, Error>;
@@ -85,6 +87,7 @@ where
 ///
 /// All types `T` that match `isahc::AsyncBody: TryFrom<T>, <isahc::AsyncBody as TryFrom<T>>::Error: Into<isahc::http::Error>`
 /// implement this trait.
+#[diagnostic::on_unimplemented(note = "`TryBody` is implemented for all `T` where `Body: TryFrom<T, Error: Into<isahc::http::Error>>`")]
 pub trait TryBody {
     /// Tries to convert `self` into [`Body`].
     fn try_body(self) -> Result<Body, Error>;
@@ -106,6 +109,9 @@ where
 ///
 /// All types `T` that match `header::HeaderName: TryFrom<T>, <header::HeaderName as TryFrom<T>>::Error: Into<isahc::http::Error>`
 /// implement this trait.
+#[diagnostic::on_unimplemented(
+    note = "`TryHeaderName` is implemented for all `T` where `HeaderName: TryFrom<T, Error: Into<isahc::http::Error>>`"
+)]
 pub trait TryHeaderName {
     /// Tries to convert `self` into [`Body`].
     fn try_header_name(self) -> Result<header::HeaderName, Error>;
@@ -124,6 +130,9 @@ where
 ///
 /// All types `T` that match `header::HeaderValue: TryFrom<T>, <header::HeaderValue as TryFrom<T>>::Error: Into<isahc::http::Error>`
 /// implement this trait.
+#[diagnostic::on_unimplemented(
+    note = "`TryHeaderValue` is implemented for all `T` where `HeaderValue: TryFrom<T, Error: Into<isahc::http::Error>>`"
+)]
 pub trait TryHeaderValue {
     /// Tries to convert `self` into [`Body`].
     fn try_header_value(self) -> Result<header::HeaderValue, Error>;

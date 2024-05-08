@@ -591,6 +591,7 @@ impl DataNoteHandle {
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
+#[diagnostic::on_unimplemented(note = "`DataNoteValue` is implemented for all `T: Debug + Display + Send + Sync + Any")]
 pub trait DataNoteValue: fmt::Debug + fmt::Display + Send + Sync + Any {
     /// /// Access to `dyn Any` methods.
     fn as_any(&self) -> &dyn Any;

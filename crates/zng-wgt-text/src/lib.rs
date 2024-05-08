@@ -174,6 +174,7 @@ where
 /// `VarValue + FromStr + Display where FromStr::Err: Display`.
 ///
 /// [`txt_parse`]: fn@txt_parse
+#[diagnostic::on_unimplemented(note = "`TxtParseValue` is implemented for all `T: VarValue + Display + FromStr<Error: Display>")]
 pub trait TxtParseValue: VarValue {
     /// Try parse `Self` from `txt`, formats the error for display.
     ///

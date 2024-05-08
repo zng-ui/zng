@@ -43,6 +43,10 @@ use super::{
 /// using the match helpers. For more advanced nodes you can use the [`ui_node`] proc-macro attribute.
 ///
 /// [`match_node`]:fn@match_node
+#[diagnostic::on_unimplemented(
+    note = "you can use `match_node` to declare a node from a closure",
+    note = "you can use `#[ui_node]` to implement `UiNode` for `{Self}`"
+)]
 pub trait UiNode: Any + Send {
     /// Initializes the node in a new UI context.
     ///

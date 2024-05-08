@@ -18,6 +18,10 @@ use crate::INSTANT;
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`hn!`], [`hn_once!`] or [`async_hn!`], [`async_hn_once!`] to start.
+#[diagnostic::on_unimplemented(
+    note = "use `hn!(|args: &{A}| {{ }})` to declare a widget handler from a `FnMut` closure",
+    note = "use `hn_once!`, `async_hn!` or `async_hn_once!` for other closure types"
+)]
 pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     /// Called every time the handler's event happens in the widget context.
     ///
@@ -611,6 +615,10 @@ pub struct AppHandlerArgs<'a> {
 ///
 /// There are different flavors of handlers, you can use macros to declare then.
 /// See [`app_hn!`], [`app_hn_once!`] or [`async_app_hn!`], [`async_app_hn_once!`] to start.
+#[diagnostic::on_unimplemented(
+    note = "use `app_hn!(|args: &{A}, _| {{ }})` to declare an app handler closure",
+    note = "use `app_hn_once!`, `async_app_hn!` or `async_app_hn_once!` for other closure types"
+)]
 pub trait AppHandler<A: Clone + 'static>: Any + Send {
     /// Called every time the event happens.
     ///
