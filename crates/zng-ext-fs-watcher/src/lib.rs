@@ -792,6 +792,7 @@ impl<E: std::error::Error + 'static> std::error::Error for WatchFileParseError<E
 /// Represents a [`FsChange`] note.
 ///
 /// This trait is already implemented for types it applies.
+#[diagnostic::on_unimplemented(note = "`FsChangeNote` is implemented for all `T: Debug + Any + Send + Sync`")]
 pub trait FsChangeNote: fmt::Debug + std::any::Any + Send + Sync {
     /// Access any.
     fn as_any(&self) -> &dyn std::any::Any;

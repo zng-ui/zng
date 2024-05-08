@@ -195,6 +195,7 @@ impl WidgetBase {
 ///
 /// This trait is used in widget mix-in implementations to constraint `P`, it is also used by the
 /// the generated widget code. You do not need to implement it directly.
+#[diagnostic::on_unimplemented(note = "`{Self}` is not an `#[widget]`")]
 pub trait WidgetImpl {
     /// The inherit function.
     fn inherit(widget: WidgetType) -> Self;

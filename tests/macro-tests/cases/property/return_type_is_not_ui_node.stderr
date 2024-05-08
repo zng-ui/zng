@@ -6,5 +6,7 @@ error[E0277]: the trait bound `NotUiNode: zng::prelude::UiNode` is not satisfied
 6 | pub fn invalid_output(_child: impl UiNode, _input: impl IntoVar<bool>) -> NotUiNode {
   |                                                                           ^^^^^^^^^ the trait `zng::prelude::UiNode` is not implemented for `NotUiNode`
   |
+  = note: you can use `match_node` to declare a node from a closure
+  = note: you can use `#[ui_node]` to implement `UiNode` for `NotUiNode`
   = help: the following other types implement trait `zng::prelude::UiNode`:
             <implementers-list>
