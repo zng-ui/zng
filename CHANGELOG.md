@@ -1,5 +1,6 @@
 # Unpublished
 
+* Add `diagnostic::on_unimplemented` notes for multiple traits.
 
 # 0.5.0
 
