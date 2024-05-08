@@ -7,5 +7,7 @@ error[E0277]: the trait bound `NotANode: zng::prelude::UiNode` is not satisfied
   | |                    the trait `zng::prelude::UiNode` is not implemented for `NotANode`
   | required by a bound introduced by this call
   |
+  = note: you can use `match_node` to declare a node from a closure
+  = note: you can use `#[ui_node]` to implement `UiNode` for `NotANode`
   = help: the following other types implement trait `zng::prelude::UiNode`:
             <implementers-list>

@@ -211,7 +211,7 @@ impl<T: VarValue> AnyVarValue for T {
 /// [`Debug`]: std::fmt::Debug
 /// [`impl_from_and_into_var`]: impl_from_and_into_var
 #[diagnostic::on_unimplemented(
-    note = "`IntoValue<T>` is implemented for all `T: VarValue",
+    note = "`IntoValue<T>` is implemented for all `T: VarValue`",
     note = "you can use `impl_from_and_into_var!` to implement conversions"
 )]
 pub trait IntoValue<T: VarValue>: Into<T> {}
@@ -776,7 +776,7 @@ pub trait WeakVar<T: VarValue>: AnyWeakVar + Clone {
 /// too. They can implement the trait multiple times to support different shorthand syntaxes or different types in the shorthand
 /// value.
 #[diagnostic::on_unimplemented(
-    note = "`IntoVar<T>` is implemented for all `T: VarValue",
+    note = "`IntoVar<T>` is implemented for all `T: VarValue`",
     note = "`IntoVar<T>` is implemented for all `V: Var<T>`"
 )]
 pub trait IntoVar<T: VarValue> {
