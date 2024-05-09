@@ -131,7 +131,7 @@ context_var! {
     /// Auto scroll icon/indicator node. The node is child of the auto scroll indicator widget, the full
     /// [`SCROLL`] context can be used in the indicator.
     ///
-    /// Is [`node::auto_scroll_indicator`] by default.
+    /// Is [`node::default_auto_scroll_indicator`] by default.
     ///
     /// [`node::default_auto_scroll_indicator`]: crate::node::default_auto_scroll_indicator
     pub static AUTO_SCROLL_INDICATOR_VAR: WidgetFn<AutoScrollArgs> = wgt_fn!(|_| {
