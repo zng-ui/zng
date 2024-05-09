@@ -9,7 +9,7 @@ use zng_color::Rgba;
 use zng_ext_input::{
     focus::{FOCUS, FOCUS_CHANGED_EVENT},
     keyboard::{Key, KeyState, KEY_INPUT_EVENT},
-    mouse::{ButtonState, MouseButton, MouseScrollDelta, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT},
+    mouse::{ButtonState, MouseButton, MouseScrollDelta, MOUSE_INPUT_EVENT, MOUSE_WHEEL_EVENT},
     touch::{TouchPhase, TOUCH_TRANSFORM_EVENT},
 };
 use zng_wgt::prelude::{
@@ -1365,50 +1365,38 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
                 }
             }
             UiNodeOp::Event { update } => {
-                if auto_scrolling.is_some() {
-                    if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                        args.propagation().stop();
-                    }
-                }
-
                 c.event(update);
 
                 if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-                    if args.is_mouse_down() && matches!(args.button, MouseButton::Middle) {
-                        AUTO_SCROLL_VAR.with(|m| match m {
-                            AutoScroll::Enabled(icon) => {
-                                args.propagation().stop();
-                                let icon = icon(AutoScrollArgs {});
-                                let (wgt, wgt_id) = auto_scroller_wgt(icon);
+                    if args.is_mouse_down() && matches!(args.button, MouseButton::Middle) && AUTO_SCROLL_VAR.get() {
+                        args.propagation().stop();
+                        let (wgt, wgt_id) = auto_scroller_wgt();
 
-                                let anchor = AnchorMode {
-                                    transform: zng_wgt_layer::AnchorTransform::CursorOnce {
-                                        offset: zng_wgt_layer::AnchorOffset {
-                                            place: Point::top_left(),
-                                            origin: Point::center(),
-                                        },
-                                        include_touch: true,
-                                        bounds: None,
-                                    },
-                                    min_size: zng_wgt_layer::AnchorSize::Unbounded,
-                                    max_size: zng_wgt_layer::AnchorSize::Window,
-                                    viewport_bound: true,
-                                    corner_radius: false,
-                                    visibility: true,
-                                    interactivity: false,
-                                };
-                                LAYERS.insert_anchored(LayerIndex::ADORNER, WIDGET.id(), anchor, wgt);
-                                auto_scrolling = Some(wgt_id);
-                            }
-                            AutoScroll::Disabled => {}
-                        });
+                        let anchor = AnchorMode {
+                            transform: zng_wgt_layer::AnchorTransform::CursorOnce {
+                                offset: zng_wgt_layer::AnchorOffset {
+                                    place: Point::top_left(),
+                                    origin: Point::center(),
+                                },
+                                include_touch: true,
+                                bounds: None,
+                            },
+                            min_size: zng_wgt_layer::AnchorSize::Unbounded,
+                            max_size: zng_wgt_layer::AnchorSize::Window,
+                            viewport_bound: true,
+                            corner_radius: false,
+                            visibility: true,
+                            interactivity: false,
+                        };
+                        LAYERS.insert_anchored(LayerIndex::ADORNER, WIDGET.id(), anchor, wgt);
+                        auto_scrolling = Some(wgt_id);
                     }
                 } else if let Some(args) = AUTO_SCROLL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if cmd_handle.is_enabled() {
                         args.propagation().stop();
 
                         let acc = args.param::<DipVector>().copied().unwrap_or_else(DipVector::zero);
-                        println!("!!: TODO: {acc:?}");
+                        SCROLL.auto_scroll(acc)
                     }
                 }
             }
@@ -1422,7 +1410,7 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
         while let Some(t) = task.take() {
             match t {
                 Task::CheckEnable => {
-                    if AUTO_SCROLL_VAR.with(|a| matches!(a, AutoScroll::Enabled(_))) {
+                    if AUTO_SCROLL_VAR.get() {
                         if middle_handle.is_dummy() {
                             middle_handle = MOUSE_INPUT_EVENT.subscribe(WIDGET.id());
                         }
@@ -1440,19 +1428,8 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
         }
     })
 }
-impl AutoScroll {
-    /// Enabled with default icon.
-    pub fn enabled() -> Self {
-        AutoScroll::Enabled(wgt_fn!(|_| auto_scroll_icon()))
-    }
-}
-impl Default for AutoScroll {
-    fn default() -> Self {
-        Self::enabled()
-    }
-}
 
-fn auto_scroller_wgt(icon: impl UiNode) -> (impl UiNode, WidgetId) {
+fn auto_scroller_wgt() -> (impl UiNode, WidgetId) {
     let id = WidgetId::new_unique();
     let mut wgt = Container::widget_new();
     widget_set! {
@@ -1460,7 +1437,7 @@ fn auto_scroller_wgt(icon: impl UiNode) -> (impl UiNode, WidgetId) {
         id;
         zng_wgt_input::focus::focusable = true;
         zng_wgt_input::focus::focus_on_init = true;
-        zng_wgt_container::child = icon;
+        zng_wgt_container::child = presenter(AutoScrollArgs {}, AUTO_SCROLL_INDICATOR_VAR);
     }
     wgt.widget_builder().push_build_action(move |w| {
         w.push_intrinsic(NestGroup::EVENT, "auto_scroller_node", auto_scroller_node);
@@ -1476,7 +1453,7 @@ fn auto_scroller_wgt(icon: impl UiNode) -> (impl UiNode, WidgetId) {
     (wgt.widget_build(), id)
 }
 fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
-    let mut requested_acc = DipVector::zero();
+    let mut requested_vel = DipVector::zero();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             // widget is focusable and focus_on_init.
@@ -1487,7 +1464,10 @@ fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
                 .sub_event(&RAW_MOUSE_INPUT_EVENT)
                 .sub_event(&FOCUS_CHANGED_EVENT);
 
-            requested_acc = DipVector::zero();
+            requested_vel = DipVector::zero();
+        }
+        UiNodeOp::Deinit => {
+            SCROLL.auto_scroll(DipVector::zero());
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = RAW_MOUSE_MOVED_EVENT.on(update) {
@@ -1495,43 +1475,46 @@ fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
                     let info = WIDGET.info();
                     let pos = args.position;
                     let bounds = info.inner_bounds().to_box2d().to_dip(info.tree().scale_factor());
-                    let mut acc = DipVector::zero();
+                    let mut vel = DipVector::zero();
 
-                    let limit = Dip::new(100);
+                    let limit = Dip::new(400);
                     if pos.x < bounds.min.x {
                         if SCROLL.can_scroll_left().get() {
-                            acc.x = (pos.x - bounds.min.x).max(-limit);
+                            vel.x = (pos.x - bounds.min.x).max(-limit);
                         }
                     } else if pos.x > bounds.max.x && SCROLL.can_scroll_right().get() {
-                        acc.x = (pos.x - bounds.max.x).min(limit);
+                        vel.x = (pos.x - bounds.max.x).min(limit);
                     }
                     if pos.y < bounds.min.y {
                         if SCROLL.can_scroll_up().get() {
-                            acc.y = (pos.y - bounds.min.y).max(-limit);
+                            vel.y = (pos.y - bounds.min.y).max(-limit);
                         }
                     } else if pos.y > bounds.max.y && SCROLL.can_scroll_down().get() {
-                        acc.y = (pos.y - bounds.max.y).min(limit);
+                        vel.y = (pos.y - bounds.max.y).min(limit);
                     }
-                    acc *= 0.3.fct();
+                    vel *= 6.fct();
 
-                    if acc != requested_acc {
-                        SCROLL.auto_scroll(acc);
-                        requested_acc = acc;
+                    if vel != requested_vel {
+                        SCROLL.auto_scroll(vel);
+                        requested_vel = vel;
                     }
                 }
             } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
                 if matches!((args.state, args.button), (ButtonState::Pressed, MouseButton::Middle)) {
                     args.propagation().stop();
                     LAYERS.remove(WIDGET.id());
+                    SCROLL.auto_scroll(DipVector::zero());
                 }
             } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
                 if matches!((args.state, &args.key), (KeyState::Pressed, Key::Escape)) {
                     args.propagation().stop();
                     LAYERS.remove(WIDGET.id());
+                    SCROLL.auto_scroll(DipVector::zero());
                 }
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 if args.is_blur(WIDGET.id()) {
                     LAYERS.remove(WIDGET.id());
+                    SCROLL.auto_scroll(DipVector::zero());
                 }
             }
         }
@@ -1539,7 +1522,12 @@ fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
     })
 }
 
-fn auto_scroll_icon() -> impl UiNode {
+/// Renders a white circle with arrows that indicate what directions can be scrolled.
+///
+/// This is the default [`auto_scroll_indicator`].
+///
+/// [`auto_scroll_indicator`]: crate::auto_scroll_indicator
+pub fn default_auto_scroll_indicator() -> impl UiNode {
     match_node_leaf(|op| {
         match op {
             UiNodeOp::Init => {

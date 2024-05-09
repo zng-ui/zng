@@ -8,7 +8,6 @@
 use super::*;
 use zng_app::event::{CommandArgs, CommandParam};
 use zng_ext_window::WINDOWS;
-use zng_var::VARS;
 
 command! {
     /// Represents the **scroll up** by one [`v_line_unit`] action.
@@ -226,7 +225,7 @@ command! {
     ///
     /// # Parameter
     ///
-    /// The parameter can be a [`DipVector`] that starts auto scrolling at the direction and speed (dip/s). If
+    /// The parameter can be a [`DipVector`] that starts auto scrolling at the direction and velocity (dip/s). If
     /// no parameter is provided the default speed is zero, which stops auto scrolling.
     ///
     /// [`DipVector`]: zng_wgt::prelude::DipVector
@@ -481,18 +480,14 @@ fn scroll_to_impl(target: Option<WidgetInfo>, mode: ScrollToMode, zoom: Option<F
     }
 }
 
-/// Scroll at the direction and acceleration (dip/sec) until the end or another auto scroll request.
+/// Scroll at the direction and velocity (dip/sec) until the end or another auto scroll request.
 ///
 /// Zero stops auto scrolling.
-pub fn auto_scroll(scroll_id: impl Into<WidgetId>, acc: DipVector) {
-    auto_scroll_impl(scroll_id.into(), acc)
+pub fn auto_scroll(scroll_id: impl Into<WidgetId>, velocity: DipVector) {
+    auto_scroll_impl(scroll_id.into(), velocity)
 }
-fn auto_scroll_impl(scroll_id: WidgetId, acc: DipVector) {
-    if !VARS.animations_enabled().get() {
-        // TODO, do it by lines with a timer
-        return;
-    }
-    AUTO_SCROLL_CMD.scoped(scroll_id).notify_param(acc);
+fn auto_scroll_impl(scroll_id: WidgetId, vel: DipVector) {
+    AUTO_SCROLL_CMD.scoped(scroll_id).notify_param(vel);
 }
 
 /// Provides a target for scroll-to command methods.
