@@ -1081,11 +1081,13 @@ impl_from_and_into_var! {
     }
 }
 
-/// Arguments for the [`AutoScroll::Enabled`] closure.
+/// Arguments for the [`auto_scroll_indicator`] closure.
 ///
 /// Empty struct, there are no args in the current release, this struct is declared so that if
 /// args may be introduced in the future with minimal breaking changes.
 ///
 /// Note that the [`SCROLL`] context is available during the icon closure call.
+///
+/// [`auto_scroll_indicator`]: fn@crate::auto_scroll_indicator
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct AutoScrollArgs {}

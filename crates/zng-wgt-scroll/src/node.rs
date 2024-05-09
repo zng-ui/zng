@@ -1,6 +1,9 @@
 //! UI nodes used for building the scroll widget.
 //!
 
+use std::sync::Arc;
+
+use parking_lot::Mutex;
 use zng_app::{
     access::ACCESS_SCROLL_EVENT,
     view_process::raw_events::{RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_MOVED_EVENT},
@@ -1341,7 +1344,7 @@ pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
 pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
     let mut middle_handle = EventHandle::dummy();
     let mut cmd_handle = CommandHandle::dummy();
-    let mut auto_scrolling = None;
+    let mut auto_scrolling = None::<(WidgetId, Arc<Mutex<DInstant>>)>;
     match_node(child, move |c, op| {
         enum Task {
             CheckEnable,
@@ -1370,26 +1373,39 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
                 if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
                     if args.is_mouse_down() && matches!(args.button, MouseButton::Middle) && AUTO_SCROLL_VAR.get() {
                         args.propagation().stop();
-                        let (wgt, wgt_id) = auto_scroller_wgt();
 
-                        let anchor = AnchorMode {
-                            transform: zng_wgt_layer::AnchorTransform::CursorOnce {
-                                offset: zng_wgt_layer::AnchorOffset {
-                                    place: Point::top_left(),
-                                    origin: Point::center(),
+                        let mut open = true;
+                        if let Some((id, closed)) = auto_scrolling.take() {
+                            let closed = *closed.lock();
+                            if closed == DInstant::MAX {
+                                LAYERS.remove(id);
+                                open = false;
+                            } else {
+                                open = closed.elapsed() > 50.ms();
+                            }
+                        }
+                        if open {
+                            let (wgt, wgt_id, closed) = auto_scroller_wgt();
+
+                            let anchor = AnchorMode {
+                                transform: zng_wgt_layer::AnchorTransform::CursorOnce {
+                                    offset: zng_wgt_layer::AnchorOffset {
+                                        place: Point::top_left(),
+                                        origin: Point::center(),
+                                    },
+                                    include_touch: true,
+                                    bounds: None,
                                 },
-                                include_touch: true,
-                                bounds: None,
-                            },
-                            min_size: zng_wgt_layer::AnchorSize::Unbounded,
-                            max_size: zng_wgt_layer::AnchorSize::Window,
-                            viewport_bound: true,
-                            corner_radius: false,
-                            visibility: true,
-                            interactivity: false,
-                        };
-                        LAYERS.insert_anchored(LayerIndex::ADORNER, WIDGET.id(), anchor, wgt);
-                        auto_scrolling = Some(wgt_id);
+                                min_size: zng_wgt_layer::AnchorSize::Unbounded,
+                                max_size: zng_wgt_layer::AnchorSize::Window,
+                                viewport_bound: true,
+                                corner_radius: false,
+                                visibility: true,
+                                interactivity: false,
+                            };
+                            LAYERS.insert_anchored(LayerIndex::ADORNER, WIDGET.id(), anchor, wgt);
+                            auto_scrolling = Some((wgt_id, closed));
+                        }
                     }
                 } else if let Some(args) = AUTO_SCROLL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
                     if cmd_handle.is_enabled() {
@@ -1420,8 +1436,10 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
                 }
                 Task::Disable => {
                     middle_handle = EventHandle::dummy();
-                    if let Some(wgt_id) = auto_scrolling.take() {
-                        LAYERS.remove(wgt_id);
+                    if let Some((wgt_id, closed)) = auto_scrolling.take() {
+                        if *closed.lock() == DInstant::MAX {
+                            LAYERS.remove(wgt_id);
+                        }
                     }
                 }
             }
@@ -1429,9 +1447,10 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
     })
 }
 
-fn auto_scroller_wgt() -> (impl UiNode, WidgetId) {
+fn auto_scroller_wgt() -> (impl UiNode, WidgetId, Arc<Mutex<DInstant>>) {
     let id = WidgetId::new_unique();
     let mut wgt = Container::widget_new();
+    let closed = Arc::new(Mutex::new(DInstant::MAX));
     widget_set! {
         wgt;
         id;
@@ -1439,8 +1458,12 @@ fn auto_scroller_wgt() -> (impl UiNode, WidgetId) {
         zng_wgt_input::focus::focus_on_init = true;
         zng_wgt_container::child = presenter(AutoScrollArgs {}, AUTO_SCROLL_INDICATOR_VAR);
     }
-    wgt.widget_builder().push_build_action(move |w| {
-        w.push_intrinsic(NestGroup::EVENT, "auto_scroller_node", auto_scroller_node);
+    wgt.widget_builder().push_build_action(clmv!(closed, |w| {
+        w.push_intrinsic(
+            NestGroup::EVENT,
+            "auto_scroller_node",
+            clmv!(closed, |c| auto_scroller_node(c, closed)),
+        );
 
         let mut ctx = LocalContext::capture_filtered(CaptureFilter::context_vars());
         let mut set = ContextValueSet::new();
@@ -1448,11 +1471,11 @@ fn auto_scroller_wgt() -> (impl UiNode, WidgetId) {
         ctx.extend(LocalContext::capture_filtered(CaptureFilter::Include(set)));
 
         w.push_intrinsic(NestGroup::CONTEXT, "scroll-ctx", |c| with_context_blend(ctx, true, c));
-    });
+    }));
 
-    (wgt.widget_build(), id)
+    (wgt.widget_build(), id, closed)
 }
-fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
+fn auto_scroller_node(child: impl UiNode, closed: Arc<Mutex<DInstant>>) -> impl UiNode {
     let mut requested_vel = DipVector::zero();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
@@ -1468,6 +1491,7 @@ fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Deinit => {
             SCROLL.auto_scroll(DipVector::zero());
+            *closed.lock() = INSTANT.now();
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = RAW_MOUSE_MOVED_EVENT.on(update) {
