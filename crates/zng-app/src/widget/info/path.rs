@@ -255,26 +255,40 @@ impl InteractionPath {
     }
 
     /// Interactivity for each widget, root first.
-    pub fn interaction_path(&self) -> impl Iterator<Item = Interactivity> {
+    pub fn interaction_path(&self) -> impl DoubleEndedIterator<Item = Interactivity> + ExactSizeIterator {
         struct InteractivityIter {
             range: ops::Range<usize>,
             blocked: usize,
             disabled: usize,
         }
+
+        impl InteractivityIter {
+            fn interactivity(&self, i: usize) -> Interactivity {
+                let mut interactivity = Interactivity::ENABLED;
+                if self.blocked <= i {
+                    interactivity |= Interactivity::BLOCKED;
+                }
+                if self.disabled <= i {
+                    interactivity |= Interactivity::DISABLED;
+                }
+                interactivity
+            }
+        }
         impl Iterator for InteractivityIter {
             type Item = Interactivity;
 
             fn next(&mut self) -> Option<Self::Item> {
-                self.range.next().map(|i| {
-                    let mut interactivity = Interactivity::ENABLED;
-                    if self.blocked <= i {
-                        interactivity |= Interactivity::BLOCKED;
-                    }
-                    if self.disabled <= i {
-                        interactivity |= Interactivity::DISABLED;
-                    }
-                    interactivity
-                })
+                self.range.next().map(|i| self.interactivity(i))
+            }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (self.range.len(), Some(self.range.len()))
+            }
+        }
+        impl ExactSizeIterator for InteractivityIter {}
+        impl DoubleEndedIterator for InteractivityIter {
+            fn next_back(&mut self) -> Option<Self::Item> {
+                self.range.next_back().map(|i| self.interactivity(i))
             }
         }
 
@@ -313,7 +327,7 @@ impl InteractionPath {
     }
 
     /// Zip widgets and interactivity.
-    pub fn zip(&self) -> impl Iterator<Item = (WidgetId, Interactivity)> + '_ {
+    pub fn zip(&self) -> impl DoubleEndedIterator<Item = (WidgetId, Interactivity)> + ExactSizeIterator + '_ {
         self.path.widgets_path().iter().copied().zip(self.interaction_path())
     }
 

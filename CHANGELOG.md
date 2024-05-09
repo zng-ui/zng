@@ -1,6 +1,7 @@
 # Unpublished
 
 * Add `diagnostic::on_unimplemented` notes for multiple traits.
+* Fix `WidgetInfo::new_interaction_path` always detecting change.
 
 # 0.5.0
 
