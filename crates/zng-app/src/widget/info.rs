@@ -1166,7 +1166,7 @@ impl WidgetInfo {
         if self.interactivity() != old_path.interactivity()
             || self
                 .ancestors()
-                .zip(old_path.zip())
+                .zip(old_path.zip().rev().skip(1))
                 .any(|(anc, (id, int))| anc.id() != id || anc.interactivity() != int)
         {
             Some(self.interaction_path())
