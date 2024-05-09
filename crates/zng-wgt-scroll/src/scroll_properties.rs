@@ -433,9 +433,17 @@ pub fn zoom_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNo
     zoom_touch_origin(child, origin)
 }
 
+/// Defines if auto scroll starts on mouse middle click and the auto scroll icon.
+///
+/// This property sets the [`AUTO_SCROLL_VAR`].
+#[property(CONTEXT, default(AUTO_SCROLL_VAR), widget_impl(Scroll))]
+pub fn auto_scroll(child: impl UiNode, mode: impl IntoVar<AutoScroll>) -> impl UiNode {
+    with_context_var(child, AUTO_SCROLL_VAR, mode)
+}
+
 /// Binds the [`horizontal_offset`] scroll var to the property value.
 ///
-/// The binding is bidirectional and the window variable is assigned on init.
+/// The binding is bidirectional and the scroll variable is assigned on init.
 ///
 /// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
 /// the scroll commands to scroll over this property.
@@ -459,7 +467,7 @@ pub fn horizontal_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> im
 
 /// Binds the [`vertical_offset`] scroll var to the property value.
 ///
-/// The binding is bidirectional and the window variable is assigned on init.
+/// The binding is bidirectional and the scroll variable is assigned on init.
 ///
 /// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
 /// the scroll commands to scroll over this property.
@@ -483,13 +491,13 @@ pub fn vertical_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl
 
 /// Binds the [`zoom_scale`] scroll var to the property value.
 ///
-/// The binding is bidirectional and the window variable is assigned on init.
+/// The binding is bidirectional and the scroll variable is assigned on init.
 ///
 /// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
 /// the scroll commands to scroll over this property.
 ///
 /// [`zoom_scale`]: super::SCROLL::zoom_scale
-#[property(EVENT)]
+#[property(EVENT, widget_impl(Scroll))]
 pub fn zoom_scale(child: impl UiNode, scale: impl IntoVar<Factor>) -> impl UiNode {
     let scale = scale.into_var();
     match_node(child, move |_, op| {

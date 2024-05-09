@@ -334,6 +334,11 @@ impl LocalContext {
         }
     }
 
+    /// Blend `ctx` over `self`.
+    pub fn extend(&mut self, ctx: Self) {
+        self.data.extend(ctx.data);
+    }
+
     fn contains(key: TypeId) -> bool {
         LOCAL.with_borrow_dyn(|c| c.contains_key(&key))
     }

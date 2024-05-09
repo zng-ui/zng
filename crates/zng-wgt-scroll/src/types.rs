@@ -860,6 +860,20 @@ impl SCROLL {
     pub fn can_zoom_out(&self) -> bool {
         SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) && SCROLL_SCALE_VAR.get() > super::MIN_ZOOM_VAR.get()
     }
+
+    /// Animate scroll at the direction and acceleration (in DIPs per second).
+    pub fn auto_scroll(&self, acc: DipVector) {
+        cmd::auto_scroll(self.id(), acc);
+    }
+}
+
+impl SCROLL {
+    /// Insert the context values used by `SCROLL` in the `set`.
+    ///
+    /// Capturing this set plus all context vars enables using all `SCROLL` methods outside the scroll.
+    pub fn context_values_set(&self, set: &mut ContextValueSet) {
+        set.insert(&SCROLL_CONFIG);
+    }
 }
 
 /// Scroll extensions for [`WidgetInfo`].

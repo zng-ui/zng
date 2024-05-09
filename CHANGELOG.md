@@ -3,6 +3,8 @@
 * Add `diagnostic::on_unimplemented` notes for multiple traits.
 * Add `auto_scroll` in the `Scroll!` widget, enabled by default.
 * Add `CaptureFilter` helper constructors.
+* Add `LocalContext::extend`.
+* Add `SCROLL.context_values_set`.
 
 # 0.5.0
 

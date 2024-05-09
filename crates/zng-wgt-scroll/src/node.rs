@@ -1337,9 +1337,10 @@ pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// Create a note that implements
+/// Create a note that spawns the auto scroller on middle click and fulfill `AUTO_SCROLL_CMD` requests.
 pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
     let mut middle_handle = EventHandle::dummy();
+    let mut cmd_handle = CommandHandle::dummy();
     let mut auto_scrolling = None;
     match_node(child, move |c, op| {
         enum Task {
@@ -1349,6 +1350,9 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
         let mut task = None;
         match op {
             UiNodeOp::Init => {
+                cmd_handle = AUTO_SCROLL_CMD
+                    .scoped(WIDGET.id())
+                    .subscribe(SCROLL.can_scroll_horizontal().get() || SCROLL.can_scroll_vertical().get());
                 WIDGET.sub_var(&AUTO_SCROLL_VAR);
                 task = Some(Task::CheckEnable);
             }
@@ -1399,7 +1403,18 @@ pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
                             AutoScroll::Disabled => {}
                         });
                     }
+                } else if let Some(args) = AUTO_SCROLL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                    if cmd_handle.is_enabled() {
+                        args.propagation().stop();
+
+                        let acc = args.param::<DipVector>().copied().unwrap_or_else(DipVector::zero);
+                        println!("!!: TODO: {acc:?}");
+                    }
                 }
+            }
+            UiNodeOp::Layout { wl, final_size } => {
+                *final_size = c.layout(wl);
+                cmd_handle.set_enabled(SCROLL.can_scroll_horizontal().get() || SCROLL.can_scroll_vertical().get());
             }
             _ => {}
         }
@@ -1450,13 +1465,18 @@ fn auto_scroller_wgt(icon: impl UiNode) -> (impl UiNode, WidgetId) {
     wgt.widget_builder().push_build_action(move |w| {
         w.push_intrinsic(NestGroup::EVENT, "auto_scroller_node", auto_scroller_node);
 
-        let ctx = LocalContext::capture_filtered(CaptureFilter::context_vars());
+        let mut ctx = LocalContext::capture_filtered(CaptureFilter::context_vars());
+        let mut set = ContextValueSet::new();
+        SCROLL.context_values_set(&mut set);
+        ctx.extend(LocalContext::capture_filtered(CaptureFilter::Include(set)));
+
         w.push_intrinsic(NestGroup::CONTEXT, "scroll-ctx", |c| with_context_blend(ctx, true, c));
     });
 
     (wgt.widget_build(), id)
 }
 fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
+    let mut requested_acc = DipVector::zero();
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             // widget is focusable and focus_on_init.
@@ -1466,13 +1486,38 @@ fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
                 .sub_event(&RAW_MOUSE_MOVED_EVENT)
                 .sub_event(&RAW_MOUSE_INPUT_EVENT)
                 .sub_event(&FOCUS_CHANGED_EVENT);
+
+            requested_acc = DipVector::zero();
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = RAW_MOUSE_MOVED_EVENT.on(update) {
                 if args.window_id == WINDOW.id() {
                     let info = WIDGET.info();
-                    let vector = args.position.to_px(info.tree().scale_factor()) - WIDGET.bounds().inner_bounds().center();
-                    // !!: TODO
+                    let pos = args.position;
+                    let bounds = info.inner_bounds().to_box2d().to_dip(info.tree().scale_factor());
+                    let mut acc = DipVector::zero();
+
+                    let limit = Dip::new(100);
+                    if pos.x < bounds.min.x {
+                        if SCROLL.can_scroll_left().get() {
+                            acc.x = (pos.x - bounds.min.x).max(-limit);
+                        }
+                    } else if pos.x > bounds.max.x && SCROLL.can_scroll_right().get() {
+                        acc.x = (pos.x - bounds.max.x).min(limit);
+                    }
+                    if pos.y < bounds.min.y {
+                        if SCROLL.can_scroll_up().get() {
+                            acc.y = (pos.y - bounds.min.y).max(-limit);
+                        }
+                    } else if pos.y > bounds.max.y && SCROLL.can_scroll_down().get() {
+                        acc.y = (pos.y - bounds.max.y).min(limit);
+                    }
+                    acc *= 0.3.fct();
+
+                    if acc != requested_acc {
+                        SCROLL.auto_scroll(acc);
+                        requested_acc = acc;
+                    }
                 }
             } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
                 if matches!((args.state, args.button), (ButtonState::Pressed, MouseButton::Middle)) {
