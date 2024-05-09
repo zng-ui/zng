@@ -5,6 +5,8 @@
 * Add `CaptureFilter` helper constructors.
 * Add `LocalContext::extend`.
 * Add `SCROLL.context_values_set`.
+* Fix `WidgetInfo::new_interaction_path` always detecting change.
+* Improve iterators in `InteractionPath`, `interaction_path` and `zip` are now double ended and exact sized.
 
 # 0.5.0
 
