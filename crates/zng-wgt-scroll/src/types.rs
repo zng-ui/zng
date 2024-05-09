@@ -9,7 +9,7 @@ use zng_var::{
         easing::{self, EasingStep, EasingTime},
         AnimationHandle, ChaseAnimation, Transition,
     },
-    ReadOnlyContextVar,
+    ReadOnlyContextVar, VARS,
 };
 use zng_wgt::prelude::*;
 
@@ -135,6 +135,7 @@ struct ScrollConfig {
 
     overscroll: [Mutex<AnimationHandle>; 2],
     inertia: [Mutex<AnimationHandle>; 2],
+    auto: [Mutex<AnimationHandle>; 2],
 }
 impl Default for ScrollConfig {
     fn default() -> Self {
@@ -149,6 +150,7 @@ impl Default for ScrollConfig {
             }),
             overscroll: Default::default(),
             inertia: Default::default(),
+            auto: Default::default(),
         }
     }
 }
@@ -372,6 +374,38 @@ impl SCROLL {
                 SCROLL.chase(vertical, scroll_offset_var, |_| (f.0 + amount).clamp(min, max).fct());
             }
         }
+    }
+
+    /// Animate scroll at the direction and velocity (in DIPs per second).
+    pub fn auto_scroll(&self, velocity: DipVector) {
+        let viewport = SCROLL_VIEWPORT_SIZE_VAR.get();
+        let content = SCROLL_CONTENT_SIZE_VAR.get();
+        let max_scroll = content - viewport;
+
+        let velocity = velocity.to_px(WINDOW.info().scale_factor());
+
+        fn scroll(dimension: usize, velocity: Px, max_scroll: Px, offset_var: &ContextVar<Factor>) {
+            if velocity == Px(0) {
+                SCROLL_CONFIG.get().auto[dimension].lock().clone().stop();
+            } else {
+                let mut travel = max_scroll * offset_var.get();
+                let mut target = 0.0;
+                if velocity > Px(0) {
+                    travel = max_scroll - travel;
+                    target = 1.0;
+                }
+                let time = (travel.0 as f32 / velocity.0.abs() as f32).secs();
+
+                if !VARS.animations_enabled().get() {
+                    // !!: TODO, scroll by line with timer
+                } else {
+                    let handle = offset_var.ease(target, time, easing::linear);
+                    mem::replace(&mut *SCROLL_CONFIG.get().auto[dimension].lock(), handle).stop();
+                }
+            }
+        }
+        scroll(0, velocity.x, max_scroll.width, &SCROLL_HORIZONTAL_OFFSET_VAR);
+        scroll(1, velocity.y, max_scroll.height, &SCROLL_VERTICAL_OFFSET_VAR);
     }
 
     /// Applies the `delta` to the vertical offset without smooth scrolling and
@@ -862,6 +896,15 @@ impl SCROLL {
     }
 }
 
+impl SCROLL {
+    /// Insert the context values used by `SCROLL` in the `set`.
+    ///
+    /// Capturing this set plus all context vars enables using all `SCROLL` methods outside the scroll.
+    pub fn context_values_set(&self, set: &mut ContextValueSet) {
+        set.insert(&SCROLL_CONFIG);
+    }
+}
+
 /// Scroll extensions for [`WidgetInfo`].
 ///
 /// [`WidgetInfo`]: zng_wgt::prelude::WidgetInfo
@@ -1037,3 +1080,14 @@ impl_from_and_into_var! {
         SmoothScrolling::new(duration, easing.ease_fn())
     }
 }
+
+/// Arguments for the [`auto_scroll_indicator`] closure.
+///
+/// Empty struct, there are no args in the current release, this struct is declared so that if
+/// args may be introduced in the future with minimal breaking changes.
+///
+/// Note that the [`SCROLL`] context is available during the icon closure call.
+///
+/// [`auto_scroll_indicator`]: fn@crate::auto_scroll_indicator
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct AutoScrollArgs {}

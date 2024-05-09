@@ -27,6 +27,7 @@ zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.10" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.10" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.2.10" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.10" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.0" }
 zng-app = { path = "../zng-app", version = "0.4.0" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.0" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.4.0" }

@@ -334,6 +334,11 @@ impl LocalContext {
         }
     }
 
+    /// Blend `ctx` over `self`.
+    pub fn extend(&mut self, ctx: Self) {
+        self.data.extend(ctx.data);
+    }
+
     fn contains(key: TypeId) -> bool {
         LOCAL.with_borrow_dyn(|c| c.contains_key(&key))
     }
@@ -1464,7 +1469,7 @@ pub enum CaptureFilter {
 
     /// Capture all [`context_local!`] values and [`TracingDispatcherContext`].
     All,
-    /// Capture all variables not excluded, and no [`context_local!`].
+    /// Capture all variables not excluded, no [`context_local!`] nor [`TracingDispatcherContext`].
     ContextVars {
         /// Vars to not include.
         exclude: ContextValueSet,
@@ -1480,6 +1485,21 @@ pub enum CaptureFilter {
 
     /// Capture all except this set.
     Exclude(ContextValueSet),
+}
+impl CaptureFilter {
+    /// Capture all variables, no [`context_local!`] nor [`TracingDispatcherContext`].
+    pub const fn context_vars() -> Self {
+        Self::ContextVars {
+            exclude: ContextValueSet::new(),
+        }
+    }
+
+    /// Capture all [`context_local!`] and [`TracingDispatcherContext`], no context variables.
+    pub const fn context_locals() -> Self {
+        Self::ContextLocals {
+            exclude: ContextValueSet::new(),
+        }
+    }
 }
 
 /// Provides an identifying key for a context local value.

@@ -220,6 +220,16 @@ command! {
         shortcut: shortcut!(CTRL+'0'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
+
+    /// Represents the **auto scroll** toggle.
+    ///
+    /// # Parameter
+    ///
+    /// The parameter can be a [`DipVector`] that starts auto scrolling at the direction and velocity (dip/s). If
+    /// no parameter is provided the default speed is zero, which stops auto scrolling.
+    ///
+    /// [`DipVector`]: zng_wgt::prelude::DipVector
+    pub static AUTO_SCROLL_CMD;
 }
 
 /// Parameters for the scroll and page commands.
@@ -468,6 +478,16 @@ fn scroll_to_impl(target: Option<WidgetInfo>, mode: ScrollToMode, zoom: Option<F
             }
         }
     }
+}
+
+/// Scroll at the direction and velocity (dip/sec) until the end or another auto scroll request.
+///
+/// Zero stops auto scrolling.
+pub fn auto_scroll(scroll_id: impl Into<WidgetId>, velocity: DipVector) {
+    auto_scroll_impl(scroll_id.into(), velocity)
+}
+fn auto_scroll_impl(scroll_id: WidgetId, vel: DipVector) {
+    AUTO_SCROLL_CMD.scoped(scroll_id).notify_param(vel);
 }
 
 /// Provides a target for scroll-to command methods.

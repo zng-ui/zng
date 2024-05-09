@@ -122,6 +122,21 @@ context_var! {
     ///
     /// [`Length::Default`]: zng_wgt::prelude::Length::Default
     pub static ZOOM_TOUCH_ORIGIN_VAR: Point = Point::default();
+
+    /// If auto-scrolling on middle click is enabled.
+    ///
+    /// Is `true` by default.
+    pub static AUTO_SCROLL_VAR: bool = true;
+
+    /// Auto scroll icon/indicator node. The node is child of the auto scroll indicator widget, the full
+    /// [`SCROLL`] context can be used in the indicator.
+    ///
+    /// Is [`node::default_auto_scroll_indicator`] by default.
+    ///
+    /// [`node::default_auto_scroll_indicator`]: crate::node::default_auto_scroll_indicator
+    pub static AUTO_SCROLL_INDICATOR_VAR: WidgetFn<AutoScrollArgs> = wgt_fn!(|_| {
+        crate::node::default_auto_scroll_indicator()
+    });
 }
 
 fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {
@@ -430,9 +445,36 @@ pub fn zoom_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNo
     zoom_touch_origin(child, origin)
 }
 
+/// Enables or disables auto scroll on mouse middle click.
+///
+/// This is enabled by default, when enabled on middle click the [`auto_scroll_indicator`] is generated and
+/// the content auto scrolls depending on the direction the mouse pointer moves away from the indicator.
+///
+/// This property sets the [`AUTO_SCROLL_VAR`].
+///
+/// [`auto_scroll_indicator`]: fn@auto_scroll_indicator
+#[property(CONTEXT, default(AUTO_SCROLL_VAR), widget_impl(Scroll))]
+pub fn auto_scroll(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, AUTO_SCROLL_VAR, enabled)
+}
+
+/// Auto scroll icon/indicator node.
+///
+/// The `indicator` is instantiated on middle click if [`auto_scroll`] is enabled, the node is layered as an adorner of the
+/// scroll. All context vars and the full [`SCROLL`] context are captured and can be used in the indicator.
+///
+/// Is [`node::default_auto_scroll_indicator`] by default.
+///
+/// [`node::default_auto_scroll_indicator`]: crate::node::default_auto_scroll_indicator
+/// [`auto_scroll`]: fn@auto_scroll
+#[property(CONTEXT, default(AUTO_SCROLL_INDICATOR_VAR), widget_impl(Scroll))]
+pub fn auto_scroll_indicator(child: impl UiNode, indicator: impl IntoVar<WidgetFn<AutoScrollArgs>>) -> impl UiNode {
+    with_context_var(child, AUTO_SCROLL_INDICATOR_VAR, indicator)
+}
+
 /// Binds the [`horizontal_offset`] scroll var to the property value.
 ///
-/// The binding is bidirectional and the window variable is assigned on init.
+/// The binding is bidirectional and the scroll variable is assigned on init.
 ///
 /// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
 /// the scroll commands to scroll over this property.
@@ -456,7 +498,7 @@ pub fn horizontal_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> im
 
 /// Binds the [`vertical_offset`] scroll var to the property value.
 ///
-/// The binding is bidirectional and the window variable is assigned on init.
+/// The binding is bidirectional and the scroll variable is assigned on init.
 ///
 /// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
 /// the scroll commands to scroll over this property.
@@ -480,13 +522,13 @@ pub fn vertical_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl
 
 /// Binds the [`zoom_scale`] scroll var to the property value.
 ///
-/// The binding is bidirectional and the window variable is assigned on init.
+/// The binding is bidirectional and the scroll variable is assigned on init.
 ///
 /// Note that settings the offset directly overrides effects like smooth scrolling, prefer using
 /// the scroll commands to scroll over this property.
 ///
 /// [`zoom_scale`]: super::SCROLL::zoom_scale
-#[property(EVENT)]
+#[property(EVENT, widget_impl(Scroll))]
 pub fn zoom_scale(child: impl UiNode, scale: impl IntoVar<Factor>) -> impl UiNode {
     let scale = scale.into_var();
     match_node(child, move |_, op| {

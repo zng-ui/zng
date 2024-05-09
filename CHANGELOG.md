@@ -1,6 +1,10 @@
 # Unpublished
 
 * Add `diagnostic::on_unimplemented` notes for multiple traits.
+* Add `auto_scroll` in the `Scroll!` widget, enabled by default.
+* Add `CaptureFilter` helper constructors.
+* Add `LocalContext::extend`.
+* Add `SCROLL.context_values_set`.
 * Fix `WidgetInfo::new_interaction_path` always detecting change.
 * Improve iterators in `InteractionPath`, `interaction_path` and `zip` are now double ended and exact sized.
 

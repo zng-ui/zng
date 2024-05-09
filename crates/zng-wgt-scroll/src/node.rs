@@ -1,17 +1,26 @@
 //! UI nodes used for building the scroll widget.
 //!
 
-use zng_app::access::ACCESS_SCROLL_EVENT;
+use std::sync::Arc;
+
+use parking_lot::Mutex;
+use zng_app::{
+    access::ACCESS_SCROLL_EVENT,
+    view_process::raw_events::{RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_MOVED_EVENT},
+};
 use zng_color::Rgba;
-use zng_ext_input::focus::FOCUS;
-use zng_ext_input::focus::FOCUS_CHANGED_EVENT;
-use zng_ext_input::mouse::MouseScrollDelta;
-use zng_ext_input::mouse::MOUSE_WHEEL_EVENT;
-use zng_ext_input::touch::TouchPhase;
-use zng_ext_input::touch::TOUCH_TRANSFORM_EVENT;
-use zng_wgt::prelude::gradient::ExtendMode;
-use zng_wgt::prelude::gradient::RenderGradientStop;
-use zng_wgt::prelude::*;
+use zng_ext_input::{
+    focus::{FOCUS, FOCUS_CHANGED_EVENT},
+    keyboard::{Key, KeyState, KEY_INPUT_EVENT},
+    mouse::{ButtonState, MouseButton, MouseScrollDelta, MOUSE_INPUT_EVENT, MOUSE_WHEEL_EVENT},
+    touch::{TouchPhase, TOUCH_TRANSFORM_EVENT},
+};
+use zng_wgt::prelude::{
+    gradient::{ExtendMode, RenderGradientStop},
+    *,
+};
+use zng_wgt_container::Container;
+use zng_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
 
 use super::cmd::*;
 use super::scroll_properties::*;
@@ -1328,5 +1337,311 @@ pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
             }
         }
         _ => {}
+    })
+}
+
+/// Create a note that spawns the auto scroller on middle click and fulfill `AUTO_SCROLL_CMD` requests.
+pub fn auto_scroll_node(child: impl UiNode) -> impl UiNode {
+    let mut middle_handle = EventHandle::dummy();
+    let mut cmd_handle = CommandHandle::dummy();
+    let mut auto_scrolling = None::<(WidgetId, Arc<Mutex<DInstant>>)>;
+    match_node(child, move |c, op| {
+        enum Task {
+            CheckEnable,
+            Disable,
+        }
+        let mut task = None;
+        match op {
+            UiNodeOp::Init => {
+                cmd_handle = AUTO_SCROLL_CMD
+                    .scoped(WIDGET.id())
+                    .subscribe(SCROLL.can_scroll_horizontal().get() || SCROLL.can_scroll_vertical().get());
+                WIDGET.sub_var(&AUTO_SCROLL_VAR);
+                task = Some(Task::CheckEnable);
+            }
+            UiNodeOp::Deinit => {
+                task = Some(Task::Disable);
+            }
+            UiNodeOp::Update { .. } => {
+                if AUTO_SCROLL_VAR.is_new() {
+                    task = Some(Task::CheckEnable);
+                }
+            }
+            UiNodeOp::Event { update } => {
+                c.event(update);
+
+                if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+                    if args.is_mouse_down() && matches!(args.button, MouseButton::Middle) && AUTO_SCROLL_VAR.get() {
+                        args.propagation().stop();
+
+                        let mut open = true;
+                        if let Some((id, closed)) = auto_scrolling.take() {
+                            let closed = *closed.lock();
+                            if closed == DInstant::MAX {
+                                LAYERS.remove(id);
+                                open = false;
+                            } else {
+                                open = closed.elapsed() > 50.ms();
+                            }
+                        }
+                        if open {
+                            let (wgt, wgt_id, closed) = auto_scroller_wgt();
+
+                            let anchor = AnchorMode {
+                                transform: zng_wgt_layer::AnchorTransform::CursorOnce {
+                                    offset: zng_wgt_layer::AnchorOffset {
+                                        place: Point::top_left(),
+                                        origin: Point::center(),
+                                    },
+                                    include_touch: true,
+                                    bounds: None,
+                                },
+                                min_size: zng_wgt_layer::AnchorSize::Unbounded,
+                                max_size: zng_wgt_layer::AnchorSize::Window,
+                                viewport_bound: true,
+                                corner_radius: false,
+                                visibility: true,
+                                interactivity: false,
+                            };
+                            LAYERS.insert_anchored(LayerIndex::ADORNER, WIDGET.id(), anchor, wgt);
+                            auto_scrolling = Some((wgt_id, closed));
+                        }
+                    }
+                } else if let Some(args) = AUTO_SCROLL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                    if cmd_handle.is_enabled() {
+                        args.propagation().stop();
+
+                        let acc = args.param::<DipVector>().copied().unwrap_or_else(DipVector::zero);
+                        SCROLL.auto_scroll(acc)
+                    }
+                }
+            }
+            UiNodeOp::Layout { wl, final_size } => {
+                *final_size = c.layout(wl);
+                cmd_handle.set_enabled(SCROLL.can_scroll_horizontal().get() || SCROLL.can_scroll_vertical().get());
+            }
+            _ => {}
+        }
+
+        while let Some(t) = task.take() {
+            match t {
+                Task::CheckEnable => {
+                    if AUTO_SCROLL_VAR.get() {
+                        if middle_handle.is_dummy() {
+                            middle_handle = MOUSE_INPUT_EVENT.subscribe(WIDGET.id());
+                        }
+                    } else {
+                        task = Some(Task::Disable);
+                    }
+                }
+                Task::Disable => {
+                    middle_handle = EventHandle::dummy();
+                    if let Some((wgt_id, closed)) = auto_scrolling.take() {
+                        if *closed.lock() == DInstant::MAX {
+                            LAYERS.remove(wgt_id);
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn auto_scroller_wgt() -> (impl UiNode, WidgetId, Arc<Mutex<DInstant>>) {
+    let id = WidgetId::new_unique();
+    let mut wgt = Container::widget_new();
+    let closed = Arc::new(Mutex::new(DInstant::MAX));
+    widget_set! {
+        wgt;
+        id;
+        zng_wgt_input::focus::focusable = true;
+        zng_wgt_input::focus::focus_on_init = true;
+        zng_wgt_container::child = presenter(AutoScrollArgs {}, AUTO_SCROLL_INDICATOR_VAR);
+    }
+    wgt.widget_builder().push_build_action(clmv!(closed, |w| {
+        w.push_intrinsic(
+            NestGroup::EVENT,
+            "auto_scroller_node",
+            clmv!(closed, |c| auto_scroller_node(c, closed)),
+        );
+
+        let mut ctx = LocalContext::capture_filtered(CaptureFilter::context_vars());
+        let mut set = ContextValueSet::new();
+        SCROLL.context_values_set(&mut set);
+        ctx.extend(LocalContext::capture_filtered(CaptureFilter::Include(set)));
+
+        w.push_intrinsic(NestGroup::CONTEXT, "scroll-ctx", |c| with_context_blend(ctx, true, c));
+    }));
+
+    (wgt.widget_build(), id, closed)
+}
+fn auto_scroller_node(child: impl UiNode, closed: Arc<Mutex<DInstant>>) -> impl UiNode {
+    let mut requested_vel = DipVector::zero();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            // widget is focusable and focus_on_init.
+
+            // RAW events to receive move outside widget without capturing pointer.
+            WIDGET
+                .sub_event(&RAW_MOUSE_MOVED_EVENT)
+                .sub_event(&RAW_MOUSE_INPUT_EVENT)
+                .sub_event(&FOCUS_CHANGED_EVENT);
+
+            requested_vel = DipVector::zero();
+        }
+        UiNodeOp::Deinit => {
+            SCROLL.auto_scroll(DipVector::zero());
+            *closed.lock() = INSTANT.now();
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = RAW_MOUSE_MOVED_EVENT.on(update) {
+                if args.window_id == WINDOW.id() {
+                    let info = WIDGET.info();
+                    let pos = args.position;
+                    let bounds = info.inner_bounds().to_box2d().to_dip(info.tree().scale_factor());
+                    let mut vel = DipVector::zero();
+
+                    let limit = Dip::new(400);
+                    if pos.x < bounds.min.x {
+                        if SCROLL.can_scroll_left().get() {
+                            vel.x = (pos.x - bounds.min.x).max(-limit);
+                        }
+                    } else if pos.x > bounds.max.x && SCROLL.can_scroll_right().get() {
+                        vel.x = (pos.x - bounds.max.x).min(limit);
+                    }
+                    if pos.y < bounds.min.y {
+                        if SCROLL.can_scroll_up().get() {
+                            vel.y = (pos.y - bounds.min.y).max(-limit);
+                        }
+                    } else if pos.y > bounds.max.y && SCROLL.can_scroll_down().get() {
+                        vel.y = (pos.y - bounds.max.y).min(limit);
+                    }
+                    vel *= 6.fct();
+
+                    if vel != requested_vel {
+                        SCROLL.auto_scroll(vel);
+                        requested_vel = vel;
+                    }
+                }
+            } else if let Some(args) = RAW_MOUSE_INPUT_EVENT.on(update) {
+                if matches!((args.state, args.button), (ButtonState::Pressed, MouseButton::Middle)) {
+                    args.propagation().stop();
+                    LAYERS.remove(WIDGET.id());
+                    SCROLL.auto_scroll(DipVector::zero());
+                }
+            } else if let Some(args) = KEY_INPUT_EVENT.on(update) {
+                if matches!((args.state, &args.key), (KeyState::Pressed, Key::Escape)) {
+                    args.propagation().stop();
+                    LAYERS.remove(WIDGET.id());
+                    SCROLL.auto_scroll(DipVector::zero());
+                }
+            } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                if args.is_blur(WIDGET.id()) {
+                    LAYERS.remove(WIDGET.id());
+                    SCROLL.auto_scroll(DipVector::zero());
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Renders a white circle with arrows that indicate what directions can be scrolled.
+///
+/// This is the default [`auto_scroll_indicator`].
+///
+/// [`auto_scroll_indicator`]: fn@crate::auto_scroll_indicator
+pub fn default_auto_scroll_indicator() -> impl UiNode {
+    match_node_leaf(|op| {
+        match op {
+            UiNodeOp::Init => {
+                // vars used by SCROLL.can_scroll_*.
+                WIDGET
+                    .sub_var_render(&SCROLL_VIEWPORT_SIZE_VAR)
+                    .sub_var_render(&SCROLL_CONTENT_SIZE_VAR)
+                    .sub_var_render(&SCROLL_VERTICAL_OFFSET_VAR)
+                    .sub_var_render(&SCROLL_HORIZONTAL_OFFSET_VAR);
+            }
+            UiNodeOp::Measure { desired_size, .. } => {
+                *desired_size = PxSize::splat(Dip::new(40).to_px(LAYOUT.scale_factor()));
+            }
+            UiNodeOp::Layout { final_size, .. } => {
+                *final_size = PxSize::splat(Dip::new(40).to_px(LAYOUT.scale_factor()));
+            }
+            UiNodeOp::Render { frame } => {
+                let size = PxSize::splat(Dip::new(40).to_px(frame.scale_factor()));
+                let corners = PxCornerRadius::new_all(size);
+                // white circle
+                frame.push_clip_rounded_rect(PxRect::from_size(size), corners, false, false, |frame| {
+                    frame.push_color(PxRect::from_size(size), colors::WHITE.with_alpha(90.pct()).into());
+                });
+                // black border
+                let widths = Dip::new(1).to_px(frame.scale_factor());
+                frame.push_border(
+                    PxRect::from_size(size),
+                    PxSideOffsets::new_all_same(widths),
+                    colors::BLACK.with_alpha(80.pct()).into(),
+                    corners,
+                );
+                // black point middle
+                let pt_size = PxSize::splat(Dip::new(4).to_px(frame.scale_factor()));
+                frame.push_clip_rounded_rect(
+                    PxRect::new((size / Px(2) - pt_size / Px(2)).to_vector().to_point(), pt_size),
+                    PxCornerRadius::new_all(pt_size),
+                    false,
+                    false,
+                    |frame| {
+                        frame.push_color(PxRect::from_size(size), colors::BLACK.into());
+                    },
+                );
+
+                // arrow
+                let ar_size = PxSize::splat(Dip::new(20).to_px(frame.scale_factor()));
+                let ar_center = ar_size / Px(2);
+
+                // center circle
+                let offset = (size / Px(2) - ar_center).to_vector();
+
+                // 45º with origin center
+                let transform = Transform::new_translate(-ar_center.width, -ar_center.height)
+                    .rotate(45.deg())
+                    .translate(ar_center.width + offset.x, ar_center.height + offset.y)
+                    .layout()
+                    .into();
+
+                let widths = Dip::new(2).to_px(frame.scale_factor());
+                let arrow_length = Dip::new(7).to_px(frame.scale_factor());
+                let arrow_size = PxSize::splat(arrow_length);
+
+                let mut arrow = |clip| {
+                    frame.push_reference_frame(SpatialFrameId::new_unique().into(), transform, false, false, |frame| {
+                        frame.push_clip_rect(clip, false, false, |frame| {
+                            frame.push_border(
+                                PxRect::from_size(ar_size),
+                                PxSideOffsets::new_all_same(widths),
+                                colors::BLACK.with_alpha(80.pct()).into(),
+                                PxCornerRadius::zero(),
+                            );
+                        });
+                    });
+                };
+                if SCROLL.can_scroll_up().get() {
+                    arrow(PxRect::from_size(arrow_size));
+                }
+                if SCROLL.can_scroll_right().get() {
+                    arrow(PxRect::new(PxPoint::new(ar_size.width - arrow_length, Px(0)), arrow_size));
+                }
+                if SCROLL.can_scroll_down().get() {
+                    arrow(PxRect::new(
+                        PxPoint::new(ar_size.width - arrow_length, ar_size.height - arrow_length),
+                        arrow_size,
+                    ));
+                }
+                if SCROLL.can_scroll_left().get() {
+                    arrow(PxRect::new(PxPoint::new(Px(0), ar_size.height - arrow_length), arrow_size));
+                }
+            }
+            _ => (),
+        }
     })
 }
