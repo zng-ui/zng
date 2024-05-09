@@ -992,10 +992,7 @@ impl BlobImageHandler for BlobExtensionsImgHandler {
 
     fn prepare_resources(&mut self, services: &dyn webrender::api::BlobImageResources, requests: &[BlobImageParams]) {
         for ext in self.0.iter_mut() {
-            ext.prepare_resources(&mut BlobPrepareArgs {
-                services,
-                requests,
-            })
+            ext.prepare_resources(&mut BlobPrepareArgs { services, requests })
         }
     }
 
