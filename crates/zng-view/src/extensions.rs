@@ -344,7 +344,7 @@ pub trait AsyncBlobRasterizer: Send + Any {
 /// Arguments for [`BlobExtension::prepare_resources`].
 pub struct BlobPrepareArgs<'a> {
     #[allow(missing_docs)]
-    pub resources: &'a dyn webrender::api::BlobImageResources,
+    pub services: &'a dyn webrender::api::BlobImageResources,
     /// Requests targeting any of the blob extensions. Each extension must
     /// inspect the requests to find the ones targeting it.
     pub requests: &'a [BlobImageParams],
@@ -993,7 +993,7 @@ impl BlobImageHandler for BlobExtensionsImgHandler {
     fn prepare_resources(&mut self, services: &dyn webrender::api::BlobImageResources, requests: &[BlobImageParams]) {
         for ext in self.0.iter_mut() {
             ext.prepare_resources(&mut BlobPrepareArgs {
-                resources: services,
+                services,
                 requests,
             })
         }
