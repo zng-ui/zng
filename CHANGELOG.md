@@ -2,6 +2,7 @@
 
 * Add `diagnostic::on_unimplemented` notes for multiple traits.
 * Fix `WidgetInfo::new_interaction_path` always detecting change.
+* Improve iterators in `InteractionPath`, `interaction_path` and `zip` are now double ended and exact sized.
 
 # 0.5.0
 
