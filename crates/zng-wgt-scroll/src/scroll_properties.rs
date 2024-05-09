@@ -463,9 +463,10 @@ pub fn auto_scroll(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
 /// The `indicator` is instantiated on middle click if [`auto_scroll`] is enabled, the node is layered as an adorner of the
 /// scroll. All context vars and the full [`SCROLL`] context are captured and can be used in the indicator.
 ///
-/// Is [`node::auto_scroll_indicator`] by default.
+/// Is [`node::default_auto_scroll_indicator`] by default.
 ///
-/// [`node::auto_scroll_indicator`]: fn@node::auto_scroll_indicator
+/// [`node::default_auto_scroll_indicator`]: crate::node::default_auto_scroll_indicator
+/// [`auto_scroll`]: fn@auto_scroll
 #[property(CONTEXT, default(AUTO_SCROLL_INDICATOR_VAR), widget_impl(Scroll))]
 pub fn auto_scroll_indicator(child: impl UiNode, indicator: impl IntoVar<WidgetFn<AutoScrollArgs>>) -> impl UiNode {
     with_context_var(child, AUTO_SCROLL_INDICATOR_VAR, indicator)

@@ -1526,7 +1526,7 @@ fn auto_scroller_node(child: impl UiNode) -> impl UiNode {
 ///
 /// This is the default [`auto_scroll_indicator`].
 ///
-/// [`auto_scroll_indicator`]: crate::auto_scroll_indicator
+/// [`auto_scroll_indicator`]: fn@crate::auto_scroll_indicator
 pub fn default_auto_scroll_indicator() -> impl UiNode {
     match_node_leaf(|op| {
         match op {
