@@ -1043,10 +1043,23 @@ impl_from_and_into_var! {
 pub enum AutoScroll {
     /// Auto scroll on middle click.
     ///
-    /// The widget function is used to generate the auto scroll icon.
+    /// The widget function is used to generate the auto scroll icon widget. The icon is layered as an adorner
+    /// centered in the middle click position, the icon widget captures the pointer and has access to the `SCROLL` context.
     Enabled(WidgetFn<AutoScrollArgs>),
     /// Does not auto scroll on middle click.
     Disabled,
+}
+impl_from_and_into_var! {
+    fn from(enabled: bool) -> AutoScroll {
+        if enabled {
+            AutoScroll::enabled()
+        } else {
+            AutoScroll::Disabled
+        }
+    }
+    fn from(enabled: WidgetFn<AutoScrollArgs>) -> AutoScroll {
+        AutoScroll::Enabled(enabled)
+    }
 }
 
 /// Arguments for the [`AutoScroll::Enabled`] closure.
@@ -1054,6 +1067,6 @@ pub enum AutoScroll {
 /// Empty struct, there are no args in the current release, this struct is declared so that if
 /// args may be introduced in the future with minimal breaking changes.
 ///
-/// Note that the [`SCROLL`] context is available in context during the icon closure call.
+/// Note that the [`SCROLL`] context is available during the icon closure call.
 #[derive(Debug, Default)]
 pub struct AutoScrollArgs {}

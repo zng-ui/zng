@@ -357,9 +357,7 @@ impl Default for ContextCapture {
     /// Captures all context-vars by default, and blend then over the node context.
     fn default() -> Self {
         Self::CaptureBlend {
-            filter: CaptureFilter::ContextVars {
-                exclude: ContextValueSet::new(),
-            },
+            filter: CaptureFilter::context_vars(),
             over: true,
         }
     }
