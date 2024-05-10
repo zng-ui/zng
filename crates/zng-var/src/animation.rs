@@ -122,6 +122,7 @@ struct AnimationData {
     stop: bool,
     sleep: Option<Deadline>,
     animations_enabled: bool,
+    force_enabled: bool,
     now: DInstant,
     time_scale: Factor,
 }
@@ -142,6 +143,7 @@ impl Animation {
             now,
             sleep: None,
             animations_enabled,
+            force_enabled: false,
             time_scale,
         })))
     }
@@ -168,7 +170,9 @@ impl Animation {
 
     pub(crate) fn reset_state(&self, enabled: bool, now: DInstant, time_scale: Factor) {
         let mut m = self.0.lock();
-        m.animations_enabled = enabled;
+        if !m.force_enabled {
+            m.animations_enabled = enabled;
+        }
         m.now = now;
         m.time_scale = time_scale;
         m.sleep = None;
@@ -198,6 +202,17 @@ impl Animation {
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
     pub fn animations_enabled(&self) -> bool {
         self.0.lock().animations_enabled
+    }
+
+    /// Set [`animations_enabled`] to `true`.
+    ///
+    /// This should only be used for animations that are component of an app feature, cosmetic animations must not force enable.
+    ///
+    /// [`animations_enabled`]: VARS::animations_enabled
+    pub fn force_enable(&self) {
+        let mut me = self.0.lock();
+        me.force_enabled = true;
+        me.animations_enabled = true;
     }
 
     /// Compute the time elapsed from [`start_time`] to [`now`].
@@ -971,12 +986,24 @@ pub trait AnimationController: Send + Sync + Any {
 }
 
 /// An [`AnimationController`] that does nothing.
+#[deprecated(since = "0.3.1", note = "please use `()` instead")]
 pub struct NilAnimationObserver;
+#[allow(deprecated)] // really
 impl AnimationController for NilAnimationObserver {}
+
+impl AnimationController for () {}
+
+/// An [`AnimationController`] that forces animations to run even if animations are not enabled.
+pub struct ForceAnimationController;
+impl AnimationController for ForceAnimationController {
+    fn on_start(&self, animation: &Animation) {
+        animation.force_enable();
+    }
+}
 
 context_local! {
     pub(crate) static VARS_ANIMATION_CTRL_CTX: Box<dyn AnimationController> = {
-        let r: Box<dyn AnimationController> = Box::new(NilAnimationObserver);
+        let r: Box<dyn AnimationController> = Box::new(());
         r
     };
 }

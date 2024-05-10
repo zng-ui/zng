@@ -396,12 +396,10 @@ impl SCROLL {
                 }
                 let time = (travel.0 as f32 / velocity.0.abs() as f32).secs();
 
-                if !VARS.animations_enabled().get() {
-                    // !!: TODO, scroll by line with timer
-                } else {
+                VARS.with_animation_controller(zng_var::animation::ForceAnimationController, || {
                     let handle = offset_var.ease(target, time, easing::linear);
                     mem::replace(&mut *SCROLL_CONFIG.get().auto[dimension].lock(), handle).stop();
-                }
+                });
             }
         }
         scroll(0, velocity.x, max_scroll.width, &SCROLL_HORIZONTAL_OFFSET_VAR);
