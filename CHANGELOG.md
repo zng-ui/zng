@@ -1,5 +1,7 @@
 # Unpublished
 
+* **Breaking** Remove `VARS.set_animations_enabled` and change `VARS.animations_enabled` output type to a read-write var.
+
 * Add `diagnostic::on_unimplemented` notes for multiple traits.
 * Add `auto_scroll` in the `Scroll!` widget, enabled by default.
 * Add `CaptureFilter` helper constructors.
