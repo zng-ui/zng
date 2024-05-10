@@ -934,12 +934,24 @@ impl WidgetInfoExt for WidgetInfo {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct ScrollData {
     viewport_transform: PxTransform,
     viewport_size: PxSize,
     joiner_size: PxSize,
     content: PxRect,
+    zoom_scale: Factor,
+}
+impl Default for ScrollData {
+    fn default() -> Self {
+        Self {
+            viewport_transform: Default::default(),
+            viewport_size: Default::default(),
+            joiner_size: Default::default(),
+            content: Default::default(),
+            zoom_scale: 1.fct(),
+        }
+    }
 }
 
 /// Shared reference to the viewport bounds of a scroll.
@@ -979,6 +991,11 @@ impl ScrollInfo {
         self.0.lock().content
     }
 
+    /// Latest zoom scale.
+    pub fn zoom_scale(&self) -> Factor {
+        self.0.lock().zoom_scale
+    }
+
     pub(super) fn set_viewport_size(&self, size: PxSize) {
         self.0.lock().viewport_size = size;
     }
@@ -991,8 +1008,10 @@ impl ScrollInfo {
         self.0.lock().joiner_size = size;
     }
 
-    pub(super) fn set_content(&self, content: PxRect) {
-        self.0.lock().content = content;
+    pub(super) fn set_content(&self, content: PxRect, scale: Factor) {
+        let mut m = self.0.lock();
+        m.content = content;
+        m.zoom_scale = scale;
     }
 }
 

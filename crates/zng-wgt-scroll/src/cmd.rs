@@ -214,10 +214,20 @@ command! {
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
+    /// Represents the **zoom to fit** action.
+    ///
+    /// The content is scaled to fit the viewport, the equivalent to `ImageFit::Contain`.
+    pub static ZOOM_TO_FIT_CMD = {
+        name: "Zoom to Fit",
+        shortcut: shortcut!(CTRL+'0'),
+        shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+    };
+
     /// Represents the **reset zoom** action.
+    ///
+    /// The content is scaled back to 100%, without adjusting the scroll.
     pub static ZOOM_RESET_CMD = {
         name: "Reset Zoom",
-        shortcut: shortcut!(CTRL+'0'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
 
