@@ -37,7 +37,7 @@ use zng_ext_input::focus::FocusScopeOnFocus;
 use zng_wgt_container::{child_align, Container};
 use zng_wgt_input::focus::{focus_scope, focus_scope_behavior};
 
-/// A single content container that can be larger on the inside.
+/// A container that can pan and zoom a child of any size.
 ///
 /// # Shorthand
 ///
