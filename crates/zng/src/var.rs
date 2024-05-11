@@ -328,9 +328,13 @@ pub use zng_app::widget::{AnyVarSubscribe, VarLayout, VarSubscribe};
 /// Var animation types and functions.
 pub mod animation {
     pub use zng_var::animation::{
-        Animation, AnimationController, AnimationHandle, ChaseAnimation, ModifyInfo, NilAnimationObserver, Transition, TransitionKeyed,
+        Animation, AnimationController, AnimationHandle, ChaseAnimation, ForceAnimationController, ModifyInfo, Transition, TransitionKeyed,
         Transitionable, WeakAnimationHandle,
     };
+
+    #[deprecated(since = "0.5.1", note = "please use `()` instead")]
+    #[allow(deprecated)] // really
+    pub use zng_var::animation::NilAnimationObserver;
 
     /// Common easing functions.
     pub mod easing {

@@ -1,7 +1,7 @@
 //! Scroll widgets, commands and properties.
 //!
-//! The [`Scroll!`](struct@Scroll) widget allows content to be of any size, overflow is clipped and can be brought
-//! into view by scrolling, the widget also supports content zooming and scrolling in only one dimension. The
+//! The [`Scroll!`](struct@Scroll) widget accepts a single child of any size, overflow is clipped and can be brought
+//! into view by scrolling, the widget also supports content zooming and panning. The
 //! [`mode`](struct@Scroll#method.mode) property can be used to dynamically change the [`ScrollMode`].
 //!
 //! ```
@@ -82,5 +82,6 @@ pub mod cmd {
         scroll_to, scroll_to_zoom, ScrollRequest, ScrollToMode, ScrollToRequest, ScrollToTarget, PAGE_DOWN_CMD, PAGE_LEFT_CMD,
         PAGE_RIGHT_CMD, PAGE_UP_CMD, SCROLL_DOWN_CMD, SCROLL_LEFT_CMD, SCROLL_RIGHT_CMD, SCROLL_TO_BOTTOM_CMD, SCROLL_TO_CMD,
         SCROLL_TO_LEFTMOST_CMD, SCROLL_TO_RIGHTMOST_CMD, SCROLL_TO_TOP_CMD, SCROLL_UP_CMD, ZOOM_IN_CMD, ZOOM_OUT_CMD, ZOOM_RESET_CMD,
+        ZOOM_TO_FIT_CMD,
     };
 }

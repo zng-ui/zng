@@ -242,7 +242,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
 
             *final_size = viewport_size;
 
-            scroll_info().set_content(PxRect::new(content_offset.to_point(), content_size));
+            scroll_info().set_content(PxRect::new(content_offset.to_point(), content_size), content_scale);
         }
         UiNodeOp::Render { frame } => {
             scroll_info().set_viewport_transform(*frame.transform());
@@ -560,15 +560,23 @@ pub fn scroll_to_edge_commands_node(child: impl UiNode) -> impl UiNode {
     })
 }
 
-/// Create a node that implements [`ZOOM_IN_CMD`], [`ZOOM_OUT_CMD`],
+/// Create a node that implements [`ZOOM_IN_CMD`], [`ZOOM_OUT_CMD`], [`ZOOM_TO_FIT_CMD`],
 /// and [`ZOOM_RESET_CMD`] scoped on the widget.
 pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
     let mut zoom_in = CommandHandle::dummy();
     let mut zoom_out = CommandHandle::dummy();
+    let mut zoom_to_fit = CommandHandle::dummy();
     let mut zoom_reset = CommandHandle::dummy();
 
     let mut scale_delta = 0.fct();
     let mut origin = Point::default();
+
+    fn fit_scale() -> Factor {
+        let scroll = WIDGET.info().scroll_info().unwrap();
+        let viewport = (scroll.viewport_size() + scroll.joiner_size()).to_f32(); // viewport without scrollbars
+        let content = scroll.content().size.to_f32() / scroll.zoom_scale();
+        (viewport.width / content.width).min(viewport.height / content.height).fct()
+    }
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
@@ -576,13 +584,15 @@ pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
 
             zoom_in = ZOOM_IN_CMD.scoped(scope).subscribe(SCROLL.can_zoom_in());
             zoom_out = ZOOM_OUT_CMD.scoped(scope).subscribe(SCROLL.can_zoom_out());
-            zoom_reset = ZOOM_RESET_CMD.scoped(scope).subscribe(SCROLL.zoom_scale().get() != 1.fct());
+            zoom_to_fit = ZOOM_TO_FIT_CMD.scoped(scope).subscribe(true);
+            zoom_reset = ZOOM_RESET_CMD.scoped(scope).subscribe(true);
         }
         UiNodeOp::Deinit => {
             child.deinit();
 
             zoom_in = CommandHandle::dummy();
             zoom_out = CommandHandle::dummy();
+            zoom_to_fit = CommandHandle::dummy();
             zoom_reset = CommandHandle::dummy();
         }
         UiNodeOp::Event { update } => {
@@ -604,6 +614,11 @@ pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
 
                     WIDGET.layout();
                 });
+            } else if let Some(args) = ZOOM_TO_FIT_CMD.scoped(scope).on(update) {
+                args.handle_enabled(&zoom_to_fit, |_| {
+                    let scale = fit_scale();
+                    SCROLL.chase_zoom(|_| scale);
+                });
             } else if let Some(args) = ZOOM_RESET_CMD.scoped(scope).on(update) {
                 args.handle_enabled(&zoom_reset, |_| {
                     SCROLL.chase_zoom(|_| 1.fct());
@@ -616,7 +631,9 @@ pub fn zoom_commands_node(child: impl UiNode) -> impl UiNode {
 
             zoom_in.set_enabled(SCROLL.can_zoom_in());
             zoom_out.set_enabled(SCROLL.can_zoom_out());
-            zoom_reset.set_enabled(SCROLL.zoom_scale().get() != 1.fct());
+            let scale = SCROLL.zoom_scale().get();
+            zoom_to_fit.set_enabled(scale != fit_scale());
+            zoom_reset.set_enabled(scale != 1.fct());
 
             if scale_delta != 0.fct() {
                 let scroll_info = WIDGET.info().scroll_info().unwrap();

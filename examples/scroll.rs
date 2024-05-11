@@ -116,6 +116,7 @@ fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl
                 ui_vec![
                     Button!(ZOOM_IN_CMD.scoped(scope)),
                     Button!(ZOOM_OUT_CMD.scoped(scope)),
+                    Button!(ZOOM_TO_FIT_CMD.scoped(scope)),
                     Button!(ZOOM_RESET_CMD.scoped(scope)),
                     Hr!(),
                     scroll_to_zoom_btn(WidgetId::named("Lorem 2"), 200.pct()),

@@ -7,6 +7,11 @@
 * Add `SCROLL.context_values_set`.
 * Fix `WidgetInfo::new_interaction_path` always detecting change.
 * Improve iterators in `InteractionPath`, `interaction_path` and `zip` are now double ended and exact sized.
+* Add `ZOOM_TO_FIT_CMD`.
+    - The `CTRL+'0'` shortcut is now used for this command, not `ZOOM_RESET_CMD`.
+* Deprecate `NilAnimationObserver`, use `()` now.
+* Add `ForceAnimationController` to force important animations to run when animations are disabled on the system.
+* Fix crash handler passing app name twice as command line arguments.
 
 # 0.5.0
 
