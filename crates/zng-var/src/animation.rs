@@ -985,14 +985,6 @@ pub trait AnimationController: Send + Sync + Any {
     }
 }
 
-/// An [`AnimationController`] that forces animations to run even if animations are not enabled.
-pub struct ForceAnimationController;
-impl AnimationController for ForceAnimationController {
-    fn on_start(&self, animation: &Animation) {
-        animation.force_enable();
-    }
-}
-
 impl AnimationController for () {}
 
 /// An [`AnimationController`] that forces animations to run even if animations are not enabled.
