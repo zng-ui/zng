@@ -11,6 +11,7 @@
     - The `CTRL+'0'` shortcut is now used for this command, not `ZOOM_RESET_CMD`.
 * Deprecate `NilAnimationObserver`, use `()` now.
 * Add `ForceAnimationController` to force important animations to run when animations are disabled on the system.
+* Fix crash handler passing app name twice as command line arguments.
 
 # 0.5.0
 
