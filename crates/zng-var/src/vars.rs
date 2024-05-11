@@ -243,10 +243,9 @@ impl VARS {
     /// [`Animation`] API, for example, there is no guarantee that a restart requested by the controller will repeat the same animation.
     ///
     /// The controller can start new animations, these animations will have the same controller if not overridden, you can
-    /// use this method and the [`NilAnimationObserver`] to avoid this behavior.
+    /// use this method and the `()` controller to avoid this behavior.
     ///
     /// [`Animation`]: animation::Animation
-    /// [`NilAnimationObserver`]: animation::NilAnimationObserver
     /// [`VARS.animate`]: VARS::animate
     pub fn with_animation_controller<R>(&self, controller: impl animation::AnimationController, animate: impl FnOnce() -> R) -> R {
         let controller: Box<dyn animation::AnimationController> = Box::new(controller);
