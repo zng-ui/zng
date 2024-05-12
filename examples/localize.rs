@@ -169,4 +169,4 @@ fn locale_menu() -> impl UiNode {
     }
 }
 
-// l10n-### Another standalone comment, also added to the top of all template files.
+// l10n--### Another standalone comment, also added to the top of the template file.
