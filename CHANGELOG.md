@@ -12,6 +12,11 @@
 * Deprecate `NilAnimationObserver`, use `()` now.
 * Add `ForceAnimationController` to force important animations to run when animations are disabled on the system.
 * Fix crash handler passing app name twice as command line arguments.
+* **Breaking** Implemented new syntax for the localization scrapper to separate standalone notes per file:
+    - `// l10n-file-### {note}` only adds the note to the `template/file.ftl`.
+    - `// l10n-*-### {note}` adds the note to all files that match the glob pattern (`template/*.ftl`).
+    - The old syntax `// l10n-### {note}` is still supported, but now it is equivalent to `// l10n--###` that
+      matches the default `template.ftl` file only.
 
 # 0.5.0
 

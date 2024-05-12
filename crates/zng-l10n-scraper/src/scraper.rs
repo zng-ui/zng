@@ -37,7 +37,7 @@ fn scrape_files(buf: &mut Vec<PathBuf>, custom_macro_names: &[&str]) -> io::Resu
     buf.par_drain(..).map(|f| scrape_file(f, custom_macro_names)).reduce(
         || {
             Ok(FluentTemplate {
-                notes: String::new(),
+                notes: vec![],
                 entries: vec![],
             })
         },
@@ -62,8 +62,7 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
         s = &s[i..];
     }
 
-    let mut l10n_notes = String::new();
-    let mut last_note_line = 0;
+    let mut l10n_notes = vec![];
     let mut l10n_section = Arc::new(String::new());
 
     let mut output: Vec<FluentEntry> = vec![];
@@ -97,36 +96,39 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
             Expect::CommentOrMacroName => match token.kind {
                 rustc_lexer::TokenKind::LineComment => {
                     let c = s[..token.len].trim().trim_start_matches('/').trim_start();
-                    if let Some(c) = c.strip_prefix("l10n-###") {
-                        if !l10n_notes.is_empty() && (line - last_note_line) > 1 {
-                            l10n_notes.push('\n');
-                        }
-                        l10n_notes.push_str(c.trim());
-                        l10n_notes.push('\n');
 
-                        last_note_line = line;
-                    } else if let Some(c) = c.strip_prefix("l10n-##") {
-                        l10n_section = Arc::new(c.trim().to_owned())
-                    } else if let Some(c) = c.strip_prefix("l10n-#") {
-                        let c = c.trim_start();
+                    if let Some(c) = c.strip_prefix("l10n-") {
+                        if let Some(i) = c.find("###") {
+                            let file_name = c[..i].trim_end_matches('-');
+                            let c = &c[i + "###".len()..];
 
-                        // comment still on the last already inserted entry lines
-                        if last_entry_line == line && !output.is_empty() {
-                            let last = output.len() - 1;
-                            if !output[last].comments.is_empty() {
-                                output[last].comments.push('\n');
-                            }
-                            output[last].comments.push_str(c);
-                        } else {
-                            if !entry.comments.is_empty() {
-                                if (line - last_comment_line) > 1 {
-                                    entry.comments.clear();
-                                } else {
-                                    entry.comments.push('\n');
+                            l10n_notes.push(FluentNote {
+                                file: file_name.to_owned(),
+                                note: c.trim().to_owned(),
+                            });
+                        } else if let Some(c) = c.strip_prefix("##") {
+                            l10n_section = Arc::new(c.trim().to_owned())
+                        } else if let Some(c) = c.strip_prefix('#') {
+                            let c = c.trim_start();
+
+                            // comment still on the last already inserted entry lines
+                            if last_entry_line == line && !output.is_empty() {
+                                let last = output.len() - 1;
+                                if !output[last].comments.is_empty() {
+                                    output[last].comments.push('\n');
                                 }
+                                output[last].comments.push_str(c);
+                            } else {
+                                if !entry.comments.is_empty() {
+                                    if (line - last_comment_line) > 1 {
+                                        entry.comments.clear();
+                                    } else {
+                                        entry.comments.push('\n');
+                                    }
+                                }
+                                entry.comments.push_str(c);
+                                last_comment_line = line;
                             }
-                            entry.comments.push_str(c);
-                            last_comment_line = line;
                         }
                     }
                 }
@@ -185,24 +187,26 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
                     // comment inside macro
 
                     let c = s[..token.len].trim().trim_start_matches('/').trim_start();
-                    if let Some(c) = c.strip_prefix("l10n-###") {
-                        if !l10n_notes.is_empty() && (line - last_note_line) > 1 {
-                            l10n_notes.push('\n');
-                        }
-                        l10n_notes.push_str(c.trim());
-                        l10n_notes.push('\n');
+                    if let Some(c) = c.strip_prefix("l10n-") {
+                        if let Some(i) = c.find("###") {
+                            let file_name = c[..i].trim_end_matches('-');
+                            let c = &c[i + "###".len()..];
 
-                        last_note_line = line;
-                    } else if let Some(c) = c.strip_prefix("l10n-##") {
-                        l10n_section = Arc::new(c.trim().to_owned())
-                    } else if let Some(c) = c.strip_prefix("l10n-#") {
-                        let c = c.trim_start();
+                            l10n_notes.push(FluentNote {
+                                file: file_name.to_owned(),
+                                note: c.trim().to_owned(),
+                            });
+                        } else if let Some(c) = c.strip_prefix("##") {
+                            l10n_section = Arc::new(c.trim().to_owned())
+                        } else if let Some(c) = c.strip_prefix('#') {
+                            let c = c.trim_start();
 
-                        if !entry.comments.is_empty() {
-                            entry.comments.push('\n');
+                            if !entry.comments.is_empty() {
+                                entry.comments.push('\n');
+                            }
+                            entry.comments.push_str(c);
+                            last_comment_line = line;
                         }
-                        entry.comments.push_str(c);
-                        last_comment_line = line;
                     }
                 }
                 rustc_lexer::TokenKind::Whitespace => {}
@@ -219,24 +223,26 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
                     // comment inside macro
 
                     let c = s[..token.len].trim().trim_start_matches('/').trim_start();
-                    if let Some(c) = c.strip_prefix("l10n-###") {
-                        if !l10n_notes.is_empty() && (line - last_note_line) > 1 {
-                            l10n_notes.push('\n');
-                        }
-                        l10n_notes.push_str(c.trim());
-                        l10n_notes.push('\n');
+                    if let Some(c) = c.strip_prefix("l10n-") {
+                        if let Some(i) = c.find("###") {
+                            let file_name = c[..i].trim_end_matches('-');
+                            let c = &c[i + "###".len()..];
 
-                        last_note_line = line;
-                    } else if let Some(c) = c.strip_prefix("l10n-##") {
-                        l10n_section = Arc::new(c.trim().to_owned())
-                    } else if let Some(c) = c.strip_prefix("l10n-#") {
-                        let c = c.trim_start();
+                            l10n_notes.push(FluentNote {
+                                file: file_name.to_owned(),
+                                note: c.trim().to_owned(),
+                            });
+                        } else if let Some(c) = c.strip_prefix("##") {
+                            l10n_section = Arc::new(c.trim().to_owned())
+                        } else if let Some(c) = c.strip_prefix('#') {
+                            let c = c.trim_start();
 
-                        if !entry.comments.is_empty() {
-                            entry.comments.push('\n');
+                            if !entry.comments.is_empty() {
+                                entry.comments.push('\n');
+                            }
+                            entry.comments.push_str(c);
+                            last_comment_line = line;
                         }
-                        entry.comments.push_str(c);
-                        last_comment_line = line;
                     }
                 }
                 rustc_lexer::TokenKind::Whitespace => {}
@@ -284,24 +290,26 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
                     // comment inside macro
 
                     let c = s[..token.len].trim().trim_start_matches('/').trim_start();
-                    if let Some(c) = c.strip_prefix("l10n-###") {
-                        if !l10n_notes.is_empty() && (line - last_note_line) > 1 {
-                            l10n_notes.push('\n');
-                        }
-                        l10n_notes.push_str(c.trim());
-                        l10n_notes.push('\n');
+                    if let Some(c) = c.strip_prefix("l10n-") {
+                        if let Some(i) = c.find("###") {
+                            let file_name = c[..i].trim_end_matches('-');
+                            let c = &c[i + "###".len()..];
 
-                        last_note_line = line;
-                    } else if let Some(c) = c.strip_prefix("l10n-##") {
-                        l10n_section = Arc::new(c.trim().to_owned())
-                    } else if let Some(c) = c.strip_prefix("l10n-#") {
-                        let c = c.trim_start();
+                            l10n_notes.push(FluentNote {
+                                file: file_name.to_owned(),
+                                note: c.trim().to_owned(),
+                            });
+                        } else if let Some(c) = c.strip_prefix("##") {
+                            l10n_section = Arc::new(c.trim().to_owned())
+                        } else if let Some(c) = c.strip_prefix('#') {
+                            let c = c.trim_start();
 
-                        if !entry.comments.is_empty() {
-                            entry.comments.push('\n');
+                            if !entry.comments.is_empty() {
+                                entry.comments.push('\n');
+                            }
+                            entry.comments.push_str(c);
+                            last_comment_line = line;
                         }
-                        entry.comments.push_str(c);
-                        last_comment_line = line;
                     }
                 }
                 rustc_lexer::TokenKind::Whitespace => {}
@@ -321,6 +329,16 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
         notes: l10n_notes,
         entries: output,
     })
+}
+
+/// Represents a standalone note, declared using `// l10n-{file}-### {note}` or `l10n-### {note}`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FluentNote {
+    /// Localization file name pattern where the note must be added.
+    pub file: String,
+
+    /// The note.
+    pub note: String,
 }
 
 /// Represents one call to `l10n!` or similar macro in a Rust code file.
@@ -350,8 +368,8 @@ pub struct FluentEntry {
 /// Use [`scrape_fluent_text`] to collect entries.
 #[derive(Default)]
 pub struct FluentTemplate {
-    /// Scraped note comments `// l10n-### `.
-    pub notes: String,
+    /// Scraped standalone note comments.
+    pub notes: Vec<FluentNote>,
 
     /// Scraped entries.
     ///
@@ -361,12 +379,7 @@ pub struct FluentTemplate {
 impl FluentTemplate {
     /// Append `other` to `self`.
     pub fn extend(&mut self, other: Self) {
-        if self.notes.is_empty() {
-            self.notes = other.notes;
-        } else if !other.notes.is_empty() {
-            self.notes.push('\n');
-            self.notes.push_str(&other.notes);
-        }
+        self.notes.extend(other.notes);
         self.entries.extend(other.entries);
     }
 
@@ -489,8 +502,19 @@ impl FluentTemplate {
                 let mut out = select_l10n_file(&entry.file)?;
 
                 if !self.notes.is_empty() {
-                    for line in self.notes.lines() {
-                        out.write_fmt(format_args!("### {line}\n"))?;
+                    for n in &self.notes {
+                        let matches_file = if n.file.contains('*') {
+                            match glob::Pattern::new(&n.file) {
+                                Ok(b) => b.matches(&entry.file),
+                                Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidInput, e)),
+                            }
+                        } else {
+                            n.file == entry.file
+                        };
+
+                        if matches_file {
+                            out.write_fmt(format_args!("### {}\n", n.note))?;
+                        }
                     }
                     out.write_all("\n".as_bytes())?;
                 }

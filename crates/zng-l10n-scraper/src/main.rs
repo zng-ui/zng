@@ -21,7 +21,7 @@ struct Args {
     #[arg(short, long)]
     output: PathBuf,
 
-    /// Custom macro names, comma separated
+    /// Custom l10n macro names, comma separated
     #[arg(short, long, default_value = "")]
     macros: String,
 

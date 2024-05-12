@@ -68,7 +68,7 @@
 //! use zng::prelude::*;
 //! # let _scope = APP.defaults();
 //!
-//! // l10n-### This standalone comment is added to all scraped template files.
+//! // l10n-### This standalone comment is added to the scraped template file.
 //!
 //! let click_count = var(0u32);
 //! # let _ =
