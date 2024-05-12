@@ -1,6 +1,5 @@
 ### Localize Example
 ### This standalone comment is added to all scraped template files.
-### 
-### Another standalone comment, also added to the top of all template files.
+### This standalone comment is only added to the `msg` file.
 
 click-count = Ƈŀiƈķeeḓ {$n} ŧiḿeeş

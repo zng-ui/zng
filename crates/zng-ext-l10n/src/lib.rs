@@ -115,9 +115,11 @@ impl AppExtension for L10nManager {
 /// matches this macro name and the two first input literals, avoid renaming this macro to support scrapping, otherwise you will
 /// have to declare the template file manually.
 ///
-/// The scrapper also has some support for comments, if the previous code line from a [`l10n!`] call is a comment starting with
+/// The scrapper can also scrap comments, if the previous code line from a [`l10n!`] call is a comment starting with
 /// prefix `l10n-# ` the text the follows is collected, same for a comment in the same line of the [`l10n!`] call. Sections
-/// can be declared using `l10n-##` and standalone notes can be added to the top of the template file from anywhere using `l10n-###`.
+/// can be declared using `l10n-##` and standalone notes can be added to the top of the template file from anywhere using
+/// `l10n-{file_pattern}-###`, file pattern can be omitted, `l10n-###` is equivalent to `l10n--###` that matches the localization
+/// template used when no file is specified.
 ///
 /// ```
 /// # use zng_ext_l10n::*;

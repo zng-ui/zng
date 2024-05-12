@@ -15,8 +15,10 @@ use zng::{
     widget::node::presenter,
 };
 
-// l10n-### Localize Example
-// l10n-### This standalone comment is added to all scraped template files.
+// l10n-*-### Localize Example
+// l10n-*-### This standalone comment is added to all scraped template files.
+// l10n-### This standalone comment is only added to the default file.
+// l10n-msg-### This standalone comment is only added to the `msg` file.
 
 // Run this command to scrap template:
 // cargo run -p zng-l10n-scraper -- -i"examples/localize*" -o"examples/res/localize"
@@ -167,4 +169,4 @@ fn locale_menu() -> impl UiNode {
     }
 }
 
-// l10n-### Another standalone comment, also added to the top of all template files.
+// l10n--### Another standalone comment, also added to the top of the template file.
