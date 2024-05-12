@@ -1215,7 +1215,7 @@ impl<T> RwLockWriteGuardOwned<T> {
     pub fn lock(own: Arc<RwLock<T>>) -> Self {
         Self {
             // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
-            lock: unsafe { mem::transmute(own.write()) },
+            lock: unsafe { mem::transmute::<parking_lot::RwLockWriteGuard<'_, T>, parking_lot::RwLockWriteGuard<'static, T>>(own.write()) },
             _owned: own,
         }
     }
