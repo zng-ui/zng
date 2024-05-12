@@ -1114,8 +1114,8 @@ impl<T> RwLockReadGuardOwned<T> {
     /// See `parking_lot::RwLock::read` for more details.
     pub fn lock(own: Arc<RwLock<T>>) -> Self {
         Self {
-            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
-            lock: unsafe { mem::transmute(own.read()) },
+            // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
+            lock: unsafe { mem::transmute::<parking_lot::RwLockReadGuard<'_, T>, parking_lot::RwLockReadGuard<'static, T>>(own.read()) },
             _owned: own,
         }
     }
@@ -1125,8 +1125,10 @@ impl<T> RwLockReadGuardOwned<T> {
     /// See `parking_lot::RwLock::read_recursive` for more details.
     pub fn lock_recursive(own: Arc<RwLock<T>>) -> Self {
         Self {
-            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
-            lock: unsafe { mem::transmute(own.read_recursive()) },
+            // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
+            lock: unsafe {
+                mem::transmute::<parking_lot::RwLockReadGuard<'_, T>, parking_lot::RwLockReadGuard<'static, T>>(own.read_recursive())
+            },
             _owned: own,
         }
     }
@@ -1137,8 +1139,8 @@ impl<T> RwLockReadGuardOwned<T> {
     pub fn try_lock(own: Arc<RwLock<T>>) -> Option<Self> {
         let lock = own.try_read()?;
         Some(Self {
-            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
-            lock: unsafe { mem::transmute(lock) },
+            // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
+            lock: unsafe { mem::transmute::<parking_lot::RwLockReadGuard<'_, T>, parking_lot::RwLockReadGuard<'static, T>>(lock) },
             _owned: own,
         })
     }
@@ -1149,8 +1151,8 @@ impl<T> RwLockReadGuardOwned<T> {
     pub fn try_lock_recursive(own: Arc<RwLock<T>>) -> Option<Self> {
         let lock = own.try_read_recursive()?;
         Some(Self {
-            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
-            lock: unsafe { mem::transmute(lock) },
+            // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
+            lock: unsafe { mem::transmute::<parking_lot::RwLockReadGuard<'_, T>, parking_lot::RwLockReadGuard<'static, T>>(lock) },
             _owned: own,
         })
     }
@@ -1212,7 +1214,7 @@ impl<T> RwLockWriteGuardOwned<T> {
     /// See `parking_lot::RwLock::write` for more details.
     pub fn lock(own: Arc<RwLock<T>>) -> Self {
         Self {
-            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
+            // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
             lock: unsafe { mem::transmute(own.write()) },
             _owned: own,
         }
@@ -1224,8 +1226,8 @@ impl<T> RwLockWriteGuardOwned<T> {
     pub fn try_lock(own: Arc<RwLock<T>>) -> Option<Self> {
         let lock = own.try_write()?;
         Some(Self {
-            // SAFETY: we cast to 'static only for storage, `lock`` is dropped before `_owned`.
-            lock: unsafe { mem::transmute(lock) },
+            // SAFETY: we cast to 'static only for storage, `lock` is dropped before `_owned`.
+            lock: unsafe { mem::transmute::<parking_lot::RwLockWriteGuard<'_, T>, parking_lot::RwLockWriteGuard<'static, T>>(lock) },
             _owned: own,
         })
     }
