@@ -86,6 +86,11 @@ On Linux:
 * Packages needed to build with `"view_prebuilt"` feature:
     - `curl`
 
+On macOS:
+
+* To build with `"crash_handler"` feature, enabled by default:
+    - XCode 14 or newer.
+
 ## Examples
 
 Clone this repository and call `cargo do run <example>` to run an example.
