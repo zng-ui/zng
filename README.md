@@ -17,7 +17,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.5.0", features = ["view_prebuilt"] }
+zng = { version = "0.5.1", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -85,6 +85,11 @@ On Linux:
 
 * Packages needed to build with `"view_prebuilt"` feature:
     - `curl`
+
+On macOS:
+
+* To build with `"crash_handler"` feature, enabled by default:
+    - XCode 14 or newer.
 
 ## Examples
 

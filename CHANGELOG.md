@@ -3,6 +3,8 @@
 * **Breaking** Remove `VARS.set_animations_enabled` and change `VARS.animations_enabled` output type to a read-write var.
 * **Breaking** Remove deprecated `NilAnimationObserver`.
 
+# 0.5.1
+
 * Add `diagnostic::on_unimplemented` notes for multiple traits.
 * Add `auto_scroll` in the `Scroll!` widget, enabled by default.
 * Add `CaptureFilter` helper constructors.
@@ -14,6 +16,15 @@
     - The `CTRL+'0'` shortcut is now used for this command, not `ZOOM_RESET_CMD`.
 * Deprecate `NilAnimationObserver`, use `()` now.
 * Add `ForceAnimationController` to force important animations to run when animations are disabled on the system.
+* Fix crash handler passing app name twice as command line arguments.
+* **Breaking** Implemented new syntax for the localization scrapper to separate standalone notes per file:
+    - `// l10n-file-### {note}` only adds the note to the `template/file.ftl`.
+    - `// l10n-*-### {note}` adds the note to all files that match the glob pattern (`template/*.ftl`).
+    - The old syntax `// l10n-### {note}` is still supported, but now it is equivalent to `// l10n--###` that
+      matches the default `template.ftl` file only.
+    - Note that this is only a breaking change for dependents of `zng-l10n-scraper`. Normal users (cargo install)
+      must update the tool to scrap using the new syntax, comments with the new file pattern matcher are ignored
+      by older scrappers.
 
 # 0.5.0
 

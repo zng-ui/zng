@@ -686,7 +686,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
         .and_then(|p| p.canonicalize())
         .expect("failed to get the current executable");
 
-    let mut args: Box<[_]> = std::env::args().map(Txt::from).collect();
+    let mut args: Box<[_]> = std::env::args().skip(1).map(Txt::from).collect();
 
     let mut dialog_args = CrashArgs {
         app_crashes: vec![],

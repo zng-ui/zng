@@ -1,7 +1,7 @@
 ### Localize Example
 ### This standalone comment is added to all scraped template files.
-### 
-### Another standalone comment, also added to the top of all template files.
+### This standalone comment is only added to the default file.
+### Another standalone comment, also added to the top of the template file.
 
 # icon:
 #     first syllable of "Localize"
