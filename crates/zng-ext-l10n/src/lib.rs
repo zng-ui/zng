@@ -123,7 +123,7 @@ impl AppExtension for L10nManager {
 /// # use zng_ext_l10n::*;
 /// # use zng_var::*;
 /// # let _scope = zng_app::APP.minimal();
-///
+/// #
 /// // l10n-### Standalone Note
 ///
 /// // l10n-# Comment for `id`.
@@ -155,7 +155,7 @@ impl AppExtension for L10nManager {
 /// other = other message
 /// ```
 ///
-/// You an install the scraper tool using cargo:
+/// You can install the scraper tool using cargo:
 ///
 /// ```console
 /// cargo install zng-l10n-scraper
