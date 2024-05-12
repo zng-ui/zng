@@ -1,0 +1,78 @@
+{
+	// Place your zng workspace snippets here. Each snippet is defined under a snippet name and has a scope, prefix, body and 
+	// description. Add comma separated ids of the languages where the snippet is applicable in the scope field. If scope 
+	// is left empty or omitted, the snippet gets applied to all languages. The prefix is what is 
+	// used to trigger the snippet and the body will be expanded and inserted. Possible variables are: 
+	// $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders. 
+	// Placeholders with the same ids are connected.
+	// Example:
+	// "Print to console": {
+	// 	"scope": "javascript,typescript",
+	// 	"prefix": "log",
+	// 	"body": [
+	// 		"console.log('$1');",
+	// 		"$2"
+	// 	],
+	// 	"description": "Log output to console"
+	// }
+
+	"Standalone Property": {
+		"scope": "rust",
+		"prefix": "#property",
+		"body": [
+			"/// ",
+			"#[property(${1:CONTEXT})]",
+			"pub fn ${2:name}(child: impl UiNode, ${3:input}: ${4:impl IntoVar<bool>}) -> impl UiNode {",
+			"    let $3 = ${5:$3.into_var()};",
+			"    match_node(child, |_c, op| match op {",
+			"        UiNodeOp::Init => {$6}",
+			"        _ => {}",
+			"    })",
+			"}",
+		]
+	},
+
+	"Widget Property": {
+		"scope": "rust",
+		"prefix": "#property-wgt",
+		"body": [
+			"/// ",
+			"#[property(${1:CONTEXT}, widget_impl(${2:WgtName}))]",
+			"pub fn ${3:name}(child: impl UiNode, ${4:input}: ${5:impl IntoVar<bool>}) -> impl UiNode {",
+			"    let $4 = ${6:$4.into_var()};",
+			"    match_node(child, |_c, op| match op {",
+			"        UiNodeOp::Init => {$7}",
+			"        _ => {}",
+			"    })",
+			"}",
+		]
+	},
+
+	"Standalone ContextVar Property": {
+		"scope": "rust",
+		"prefix": "#property-ctx",
+		"body": [
+			"/// ",
+			"/// ",
+			"/// This property sets the [`${1:FOO_VAR}`].",
+			"#[property(CONTEXT, default($1))]",
+			"fn ${1/(.*)_VAR/${1:/downcase}/}(child: impl UiNode, ${1/(.*)_VAR/${1:/downcase}/}: impl IntoVar<${2:bool}>) -> impl UiNode {",
+			"    with_context_var(child, $1, ${1/(.*)_VAR/${1:/downcase}/})",
+			"}"
+		]
+	},
+
+	"Widget ContextVar Property": {
+		"scope": "rust",
+		"prefix": "#property-wgt-ctx",
+		"body": [
+			"/// ",
+			"/// ",
+			"/// This property sets the [`${1:FOO_VAR}`].",
+			"#[property(CONTEXT, default($1), widget_impl(${2:WgtName}))]",
+			"fn ${1/(.*)_VAR/${1:/downcase}/}(child: impl UiNode, ${1/(.*)_VAR/${1:/downcase}/}: impl IntoVar<${3:bool}>) -> impl UiNode {",
+			"    with_context_var(child, $1, ${1/(.*)_VAR/${1:/downcase}/})",
+			"}"
+		]
+	}
+}
