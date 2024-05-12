@@ -919,7 +919,7 @@ fn ra_check(mut args: Vec<&str>) {
 
 // do publish [--list]
 //            [--diff [-g glob] --all]
-//            [--bump <minor|patch> <CRATE..> --dry-run]
+//            [--bump <minor|patch> <CRATE..> --diff --all --dry-run]
 //            [--check]
 //            [--test]
 //    Manage crate versions and publish.
@@ -934,6 +934,8 @@ fn ra_check(mut args: Vec<&str>) {
 //       Increment the patch version of the named crates and of dependents.
 //    publish --bump minor "crate1" "crate2"
 //       Increment the minor of the named crates only.
+//    publish --bump patch --diff
+//       Increment the patch version of the --diff crates and of dependents.
 //    publish --check
 //       Print all publishable crates that need to be published.
 //    publish --test
@@ -946,46 +948,6 @@ fn publish(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--list"]) {
         for member in &util::publish_members() {
             print(f!("{member}\n"));
-        }
-    } else if take_flag(&mut args, &["--diff"]) {
-        let published_tag = format!("v{}", util::crates_io_latest("zng"));
-        let members = util::publish_members();
-        let git_diff = util::get_git_diff(&published_tag, "main");
-        let mut changed = std::collections::HashMap::new();
-
-        let glob = take_option(&mut args, &["-g"], "<glob>").map(|g| glob::Pattern::new(g[0]).unwrap());
-        let all = take_flag(&mut args, &["--all"]);
-
-        for line in git_diff.lines() {
-            if let Some(g) = &glob {
-                if !g.matches(line) {
-                    continue;
-                }
-            }
-
-            if let Some(name) = line.strip_prefix("crates/") {
-                let name = name.split('/').next().unwrap();
-                if members.iter().any(|m| m.name == name) {
-                    let changes: &mut Vec<&str> = changed.entry(name).or_default();
-                    changes.push(line);
-                }
-            }
-        }
-
-        let mut sep = "";
-        for m in members {
-            if let Some(c) = changed.get(&m.name.as_str()) {
-                if all {
-                    print(f!("{sep}"));
-                    sep = "\n";
-
-                    for line in c {
-                        print(f!("{line}\n"));
-                    }
-                } else {
-                    print(f!("{}\n", m.name));
-                }
-            }
         }
     } else if let Some(values) = take_option(&mut args, &["--bump"], "minor|patch crate") {
         let mut bump_deps = false;
@@ -1009,11 +971,26 @@ fn publish(mut args: Vec<&str>) {
         let dry_run = take_flag(&mut args, &["--dry-run"]);
 
         let all_crates = take_flag(&mut args, &["--all"]);
+        let diff_crates = take_flag(&mut args, &["--diff"]);
 
         let mut crates = args;
         let members = util::publish_members();
+        let git_diff;
         if all_crates {
             crates = members.iter().map(|m| m.name.as_str()).collect();
+        } else if diff_crates {
+            let published_tag = format!("v{}", util::crates_io_latest("zng"));
+            let members = util::publish_members();
+            git_diff = util::get_git_diff(&published_tag, "main");
+
+            for line in git_diff.lines() {
+                if let Some(name) = line.strip_prefix("crates/") {
+                    let name = name.split('/').next().unwrap();
+                    if members.iter().any(|m| m.name == name) {
+                        crates.push(name);
+                    }
+                }
+            }
         }
 
         if crates.is_empty() {
@@ -1075,6 +1052,46 @@ fn publish(mut args: Vec<&str>) {
 
             if crates.contains(&"zng") {
                 version_doc_sync::close_changelog();
+            }
+        }
+    } else if take_flag(&mut args, &["--diff"]) {
+        let published_tag = format!("v{}", util::crates_io_latest("zng"));
+        let members = util::publish_members();
+        let git_diff = util::get_git_diff(&published_tag, "main");
+        let mut changed = std::collections::HashMap::new();
+
+        let glob = take_option(&mut args, &["-g"], "<glob>").map(|g| glob::Pattern::new(g[0]).unwrap());
+        let all = take_flag(&mut args, &["--all"]);
+
+        for line in git_diff.lines() {
+            if let Some(g) = &glob {
+                if !g.matches(line) {
+                    continue;
+                }
+            }
+
+            if let Some(name) = line.strip_prefix("crates/") {
+                let name = name.split('/').next().unwrap();
+                if members.iter().any(|m| m.name == name) {
+                    let changes: &mut Vec<&str> = changed.entry(name).or_default();
+                    changes.push(line);
+                }
+            }
+        }
+
+        let mut sep = "";
+        for m in members {
+            if let Some(c) = changed.get(&m.name.as_str()) {
+                if all {
+                    print(f!("{sep}"));
+                    sep = "\n";
+
+                    for line in c {
+                        print(f!("{line}\n"));
+                    }
+                } else {
+                    print(f!("{}\n", m.name));
+                }
             }
         }
     } else if take_flag(&mut args, &["--check"]) {
