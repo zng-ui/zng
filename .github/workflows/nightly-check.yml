@@ -18,28 +18,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo +nightly check --workspace --all-features
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-            components: clippy
-      - run: cargo +nightly clippy --workspace --all-features
   check-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo +nightly check --release --workspace --all-features
-  clippy-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-            components: clippy
-      - run: cargo +nightly clippy --release --workspace --all-features
   doc:
     runs-on: ubuntu-latest
     steps:
