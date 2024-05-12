@@ -20,7 +20,7 @@ view = ["dep:zng-view"]
 view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
 
 # Enables HTTP tasks and web features of widgets and services.
-http = ["zng-task/http", "zng-wgt/http", "zng-ext-image/http"]
+http = ["zng-task/http", "zng-wgt/http", "zng-ext-image/http", "zng-ext-window/http"]
 
 # Enable the `"dyn_*"`, `"inspector"` features in debug builds.
 debug_default = [

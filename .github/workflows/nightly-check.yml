@@ -45,4 +45,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo +nightly doc
+      - run: cargo +nightly doc --all-features --no-deps
