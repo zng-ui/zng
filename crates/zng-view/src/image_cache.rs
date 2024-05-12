@@ -21,6 +21,7 @@ pub(crate) const ENCODERS: &[&str] = &[
     "jpg",
     "jpeg",
     "webp",
+    #[allow(unexpected_cfgs)]
     #[cfg(feature = "avif")]
     "avif",
     "gif",
@@ -39,6 +40,7 @@ pub(crate) const DECODERS: &[&str] = &[
     "jpg",
     "jpeg",
     "webp",
+    #[allow(unexpected_cfgs)]
     #[cfg(feature = "avif")]
     "avif",
     "gif",

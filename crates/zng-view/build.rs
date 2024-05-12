@@ -7,11 +7,12 @@ fn main() {
 fn tp_licenses() {
     #[allow(unused_mut)]
     let mut licenses = zng_tp_licenses::collect_cargo_about("../../.cargo/about.toml");
+    #[allow(unexpected_cfgs)]
     #[cfg(feature = "avif")]
     avif_licenses(&mut licenses);
     zng_tp_licenses::write_bundle(&licenses);
 }
-
+#[allow(unexpected_cfgs)]
 #[cfg(feature = "avif")]
 fn avif_licenses(l: &mut Vec<zng_tp_licenses::LicenseUsed>) {
     use zng_tp_licenses::*;
@@ -29,6 +30,7 @@ fn avif_licenses(l: &mut Vec<zng_tp_licenses::LicenseUsed>) {
         }],
     });
 }
+#[allow(unexpected_cfgs)]
 #[cfg(feature = "avif")]
 const DAV1D_COPYING: &str = r##"
 Copyright © 2018-2019, VideoLAN and dav1d authors
