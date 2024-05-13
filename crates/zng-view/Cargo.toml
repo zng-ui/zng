@@ -125,7 +125,7 @@ arboard = "3.3"
 sys-locale = "0.3"
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
-wayland-client = { version = "0.31", default_features = false } # matches winit
+wayland-client = { version = "0.31", default-features = false } # matches winit
 x11-dl = "2.18.5"                                               # matches winit
 tempfile = "3.10"
 
