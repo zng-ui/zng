@@ -12,37 +12,64 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
+  check-ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: ['--all-features', '']
+        profile: ['--release', '']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo +nightly check --workspace --all-features
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
         with:
-            components: clippy
-      - run: cargo +nightly clippy --workspace --all-features
-  check-release:
-    runs-on: ubuntu-latest
+          crate: cargo-about
+      - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
+  check-windows:
+    needs: [check-ubuntu]
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: ['--all-features', '']
+        profile: ['--release', '']
+    runs-on: windows-latest
+    env:
+      CC: 'clang-cl'
+      CXX: 'clang-cl'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo +nightly check --release --workspace --all-features
-  clippy-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
         with:
-            components: clippy
-      - run: cargo +nightly clippy --release --workspace --all-features
+          crate: cargo-about
+      - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }}
+  check-macos:
+    needs: [check-ubuntu]
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: ['--all-features', '']
+        profile: ['--release', '']
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
+      - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
   doc:
     runs-on: ubuntu-latest
+    needs: [check-ubuntu]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo +nightly doc
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
+      - run: cargo +nightly doc --all-features --no-deps

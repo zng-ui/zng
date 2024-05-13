@@ -403,7 +403,7 @@ impl FontNames {
             Self::windows_ui(lang)
         } else if cfg!(target_os = "linux") {
             Self::linux_ui(lang)
-        } else if cfg!(target_os = "mac") {
+        } else if cfg!(target_os = "macos") {
             Self::mac_ui(lang)
         } else {
             [FontName::sans_serif()].into()

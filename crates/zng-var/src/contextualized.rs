@@ -148,9 +148,15 @@ impl<T: VarValue> ContextualizedVar<T> {
     pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<BoxedVar<T>> {
         #[cfg(feature = "dyn_closure")]
         {
-            parking_lot::MappedRwLockReadGuard::map(borrow_init_impl::<()>(&self.actual, &self.init, std::any::type_name::<T>()), |v| {
-                v.downcast_ref().unwrap()
-            })
+            parking_lot::MappedRwLockReadGuard::map(
+                borrow_init_impl::<()>(
+                    &self.actual,
+                    &self.init,
+                    #[cfg(debug_assertions)]
+                    std::any::type_name::<T>(),
+                ),
+                |v| v.downcast_ref().unwrap(),
+            )
         }
         #[cfg(not(feature = "dyn_closure"))]
         {
