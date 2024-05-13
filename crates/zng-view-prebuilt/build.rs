@@ -8,6 +8,8 @@ use base64::Engine;
 use hashers::jenkins::spooky_hash::SpookyHasher;
 
 fn main() {
+    println!("cargo::rustc-check-cfg=cfg(zng_lib_embedded)");
+
     if !cfg!(feature = "embedded") {
         return;
     }
