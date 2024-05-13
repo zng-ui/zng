@@ -16,6 +16,7 @@
 	// 	"description": "Log output to console"
 	// }
 	"Standalone Property": {
+		"description": "Declare a standalone property function",
 		"scope": "rust",
 		"prefix": "#[property]",
 		"body": [
@@ -31,6 +32,7 @@
 		]
 	},
 	"Widget Property": {
+		"description": "Declare a property function that is implemented for an widget",
 		"scope": "rust",
 		"prefix": "#[property]-wgt",
 		"body": [
@@ -46,6 +48,7 @@
 		]
 	},
 	"Standalone Context Var Property": {
+		"description": "Declare a standalone property function that sets a context variable",
 		"scope": "rust",
 		"prefix": "#[property]-var",
 		"body": [
@@ -59,6 +62,7 @@
 		]
 	},
 	"Widget Context Var Property": {
+		"description": "Declare a property function that is implemented for an widget and sets a context variable",
 		"scope": "rust",
 		"prefix": "#[property]-wgt-var",
 		"body": [
@@ -72,6 +76,7 @@
 		]
 	},
 	"Context Var": {
+		"description": "Declare a context variable",
 		"scope": "rust",
 		"prefix": "context_var!",
 		"body": [
@@ -82,6 +87,7 @@
 		]
 	},
 	"Event": {
+		"description": "Declare an event",
 		"scope": "rust",
 		"prefix": "event!",
 		"body": [
@@ -92,6 +98,7 @@
 		]
 	},
 	"Event Args": {
+		"description": "Declare an event args struct",
 		"scope": "rust",
 		"prefix": "event_args!",
 		"body": [
@@ -110,6 +117,7 @@
 		]
 	},
 	"Validating Event Args": {
+		"description": "Declare an event args struct with validation",
 		"scope": "rust",
 		"prefix": "event_args!-validate",
 		"body": [
@@ -132,6 +140,7 @@
 		]
 	},
 	"Command": {
+		"description": "Declare a command without metadata",
 		"scope": "rust",
 		"prefix": "command!",
 		"body": [
@@ -142,6 +151,7 @@
 		]
 	},
 	"Command With Metadata": {
+		"description": "Declare a command with metadata",
 		"scope": "rust",
 		"prefix": "command!-meta",
 		"body": [
@@ -155,6 +165,7 @@
 		]
 	},
 	"Clone Move": {
+		"description": "Declare a clone-move closure",
 		"scope": "rust",
 		"prefix": "clmv!",
 		"body": [
@@ -164,6 +175,7 @@
 		]
 	},
 	"Async Clone Move": {
+		"description": "Declare a clone-move async block",
 		"scope": "rust",
 		"prefix": "async_clmv!",
 		"body": [
@@ -173,6 +185,7 @@
 		]
 	},
 	"Async Clone Move Fn": {
+		"description": "Declare a clone-move async closure",
 		"scope": "rust",
 		"prefix": "async_clmv_fn!",
 		"body": [
@@ -182,6 +195,7 @@
 		]
 	},
 	"Async Clone Move Fn Once": {
+		"description": "Declare a clone-move async once closure",
 		"scope": "rust",
 		"prefix": "async_clmv_fn_once!",
 		"body": [
@@ -191,6 +205,7 @@
 		]
 	},
 	"Event Handler": {
+		"description": "Declare a widget event handler",
 		"scope": "rust",
 		"prefix": "hn!",
 		"body": [
@@ -200,6 +215,7 @@
 		]
 	},
 	"Once Event Handler": {
+		"description": "Declare an once widget event handler",
 		"scope": "rust",
 		"prefix": "hn_once!",
 		"body": [
@@ -209,6 +225,7 @@
 		]
 	},
 	"Async Event Handler": {
+		"description": "Declare an async widget event handler",
 		"scope": "rust",
 		"prefix": "async_hn!",
 		"body": [
@@ -218,6 +235,7 @@
 		]
 	},
 	"Async Once Event Handler": {
+		"description": "Declare an async once widget event handler",
 		"scope": "rust",
 		"prefix": "async_hn_once!",
 		"body": [
@@ -227,6 +245,7 @@
 		]
 	},
 	"App Event Handler": {
+		"description": "Declare an app event handler",
 		"scope": "rust",
 		"prefix": "app_hn!",
 		"body": [
@@ -236,6 +255,7 @@
 		]
 	},
 	"Once App Event Handler": {
+		"description": "Declare an once app event handler",
 		"scope": "rust",
 		"prefix": "app_hn_once!",
 		"body": [
@@ -245,6 +265,7 @@
 		]
 	},
 	"Async App Event Handler": {
+		"description": "Declare an async app event handler",
 		"scope": "rust",
 		"prefix": "async_app_hn!",
 		"body": [
@@ -254,6 +275,7 @@
 		]
 	},
 	"Async Once App Event Handler": {
+		"description": "Declare an async once app event handler",
 		"scope": "rust",
 		"prefix": "async_app_hn_once!",
 		"body": [
@@ -263,6 +285,7 @@
 		]
 	},
 	"Widget Set": {
+		"description": "Set properties and 'when' blocks in a widget builder",
 		"scope": "rust",
 		"prefix": "widget_set!",
 		"body": [
@@ -273,9 +296,9 @@
 		]
 	},
 	"Widget Impl": {
+		"description": "Implement an existing property for the widget",
 		"scope": "rust",
 		"prefix": "widget_impl!",
-		"description": "Implement existing property for widget.",
 		"body": [
 			"widget_impl! {",
 			"    /// $4",
@@ -284,6 +307,7 @@
 		]
 	},
 	"App Local": {
+		"description": "Declare an app-local value",
 		"scope": "rust",
 		"prefix": "app_local!",
 		"body": [
@@ -294,6 +318,7 @@
 		],
 	},
 	"Context Local": {
+		"description": "Declare a context-local value",
 		"scope": "rust",
 		"prefix": "context_local!",
 		"body": [
@@ -304,11 +329,13 @@
 		],
 	},
 	"L10n": {
+		"description": "Declare and use a localized message",
 		"scope": "rust",
 		"prefix": "l10n!",
 		"body": "l10n!(${1:file/key.attr}, ${2:msg})"
 	},
 	"Widget Fn": {
+		"description": "Declare a widget function",
 		"scope": "rust",
 		"prefix": "wgt_fn!",
 		"body": [
@@ -318,6 +345,7 @@
 		]
 	},
 	"Style Fn": {
+		"description": "Declare a style function",
 		"scope": "rust",
 		"prefix": "wgt_fn!",
 		"body": [
@@ -327,6 +355,7 @@
 		]
 	},
 	"Impl From and IntoVar": {
+		"description": "Implement type conversions compatible with properties",
 		"scope": "rust",
 		"prefix": "impl_from_and_into_var!",
 		"body": [
@@ -338,6 +367,7 @@
 		]
 	},
 	"Event Property": {
+		"description": "Declare an event property",
 		"scope": "rust",
 		"prefix": "event_property!",
 		"body": [
@@ -352,6 +382,7 @@
 		]
 	},
 	"Command Property": {
+		"description": "Declare a command property",
 		"scope": "rust",
 		"prefix": "command_property!",
 		"body": [

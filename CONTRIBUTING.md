@@ -38,6 +38,8 @@ The [`tests`] README provides an overview of integration and macro tests.
 Some workspace settings are included in the repository, in particular, `rust-analyzer` "checkOnSave" 
 and runnables are redirected to the `do` tool.
 
+Snippets for most Zng macros are also provided, see [`zng.code-snippets`].
+
 [`API docs`]: https://zng-ui.github.io/doc/zng/
 [`cargo-expand`]: https://github.com/dtolnay/cargo-expand
 [`cargo-asm`]: https://github.com/gnzlbg/cargo-asm
@@ -48,3 +50,5 @@ and runnables are redirected to the `do` tool.
 [`crates`]: crates#readme
 [`tools`]: tools#readme
 [`tests`]: tests#readme
+
+[`zng.code-snippets`]: .vscode/zng.code-snippets
