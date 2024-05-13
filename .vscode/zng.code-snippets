@@ -18,7 +18,7 @@
 
 	"Standalone Property": {
 		"scope": "rust",
-		"prefix": "#property",
+		"prefix": "#[property]",
 		"body": [
 			"/// ",
 			"#[property(${1:CONTEXT})]",
@@ -34,7 +34,7 @@
 
 	"Widget Property": {
 		"scope": "rust",
-		"prefix": "#property-wgt",
+		"prefix": "#[property]-wgt",
 		"body": [
 			"/// ",
 			"#[property(${1:CONTEXT}, widget_impl(${2:WgtName}))]",
@@ -48,31 +48,268 @@
 		]
 	},
 
-	"Standalone ContextVar Property": {
+	"Standalone Context Var Property": {
 		"scope": "rust",
-		"prefix": "#property-ctx",
+		"prefix": "#[property]-var",
 		"body": [
 			"/// ",
 			"/// ",
-			"/// This property sets the [`${1:FOO_VAR}`].",
-			"#[property(CONTEXT, default($1))]",
-			"fn ${1/(.*)_VAR/${1:/downcase}/}(child: impl UiNode, ${1/(.*)_VAR/${1:/downcase}/}: impl IntoVar<${2:bool}>) -> impl UiNode {",
-			"    with_context_var(child, $1, ${1/(.*)_VAR/${1:/downcase}/})",
+			"/// This property sets the [`${1:FOO}_VAR`].",
+			"#[property(CONTEXT, default($1_VAR))]",
+			"fn ${1/(.*)/${1:/downcase}/}(child: impl UiNode, ${1/(.*)/${1:/downcase}/}: impl IntoVar<${2:bool}>) -> impl UiNode {",
+			"    with_context_var(child, $1_VAR, ${1/(.*)/${1:/downcase}/})",
 			"}"
 		]
 	},
 
-	"Widget ContextVar Property": {
+	"Widget Context Var Property": {
 		"scope": "rust",
-		"prefix": "#property-wgt-ctx",
+		"prefix": "#[property]-wgt-var",
 		"body": [
 			"/// ",
 			"/// ",
-			"/// This property sets the [`${1:FOO_VAR}`].",
-			"#[property(CONTEXT, default($1), widget_impl(${2:WgtName}))]",
-			"fn ${1/(.*)_VAR/${1:/downcase}/}(child: impl UiNode, ${1/(.*)_VAR/${1:/downcase}/}: impl IntoVar<${3:bool}>) -> impl UiNode {",
-			"    with_context_var(child, $1, ${1/(.*)_VAR/${1:/downcase}/})",
+			"/// This property sets the [`${1:FOO}_VAR`].",
+			"#[property(CONTEXT, default($1_VAR), widget_impl(${2:WgtName}))]",
+			"fn ${1/(.*)/${1:/downcase}/}(child: impl UiNode, ${1/(.*)/${1:/downcase}/}: impl IntoVar<${3:bool}>) -> impl UiNode {",
+			"    with_context_var(child, $1_VAR, ${1/(.*)_VAR/${1:/downcase}/})",
 			"}"
 		]
-	}
+	},
+
+	"Context Var": {
+		"scope": "rust",
+		"prefix": "context_var!",
+		"body": [
+			"context_var! {",
+			"    /// $4",
+			"    pub static ${1:FOO}_VAR: ${2:bool} = ${3:true};",
+			"}",
+		]
+	},
+
+	"Event": {
+		"scope": "rust",
+		"prefix": "event!",
+		"body": [
+			"event! {",
+			"    /// $3",
+			"    pub static ${1:FOO}_EVENT: ${2:Foo}Args;",
+			"}"
+		]
+	},
+	"Event Args": {
+		"scope": "rust",
+		"prefix": "event_args!",
+		"body": [
+			"event_args! {",
+			"    /// $4",
+			"    pub struct ${1:Foo}Args {",
+			"        $2",
+			"",
+			"        ..",
+			"",
+			"        fn delivery_list(&self, list: &mut UpdateDeliveryList) {",
+			"            ${3:list.search_widgets();}",
+			"        }",
+			"    }",
+			"}"
+		]
+	},
+	"Validating Event Args": {
+		"scope": "rust",
+		"prefix": "event_args!-validate",
+		"body": [
+			"event_args! {",
+			"    /// $5",
+			"    pub struct ${1:Foo}Args {",
+			"        $2",
+			"",
+			"        ..",
+			"",
+			"        fn delivery_list(&self, list: &mut UpdateDeliveryList) {",
+			"            ${3:list.search_widgets();}",
+			"        }",
+			"",
+			"        fn validate(&self) -> Result<(), Txt> {",
+			"            ${4:Ok(())}",
+			"        }",
+			"    }",
+			"}"
+		]
+	},
+
+	"Command": {
+		"scope": "rust",
+		"prefix": "command!",
+		"body": [
+			"command! {",
+			"    /// $2",
+			"    pub static ${1:FOO}_CMD;",
+			"}",	
+		]
+	},
+	
+	"Command With Metadata": {
+		"scope": "rust",
+		"prefix": "command!-meta",
+		"body": [
+			"command! {",
+			"    /// $4",
+			"    pub static ${1:FOO}_CMD = {",
+			"        name: \"${2:foo}\",",
+			"        $3",
+			"    };",
+			"}",	
+		]
+	},
+
+	
+	"Clone Move": {
+		"scope": "rust",
+		"prefix": "clmv!",
+		"body": [
+			"clmv!($1, |$2| {",
+			"    $3",
+			"})",
+		]
+	},
+	"Async Clone Move": {
+		"scope": "rust",
+		"prefix": "async_clmv!",
+		"body": [
+			"async_clmv!($1, {",
+			"    $2",
+			"})",
+		]
+	},
+
+	"Event Handler": {
+		"scope": "rust",
+		"prefix": "hn!",
+		"body": [
+			"hn!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"Once Event Handler": {
+		"scope": "rust",
+		"prefix": "hn_once!",
+		"body": [
+			"hn_once!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"Async Event Handler": {
+		"scope": "rust",
+		"prefix": "async_hn!",
+		"body": [
+			"async_hn!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"Async Once Event Handler": {
+		"scope": "rust",
+		"prefix": "async_hn_once!",
+		"body": [
+			"async_hn_once!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+
+	"App Event Handler": {
+		"scope": "rust",
+		"prefix": "app_hn!",
+		"body": [
+			"app_hn!($1|${2:_}, ${3:_}| {",
+			"    $4",
+			"})"
+		]
+	},
+
+	"Once App Event Handler": {
+		"scope": "rust",
+		"prefix": "app_hn_once!",
+		"body": [
+			"app_hn_once!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+
+	"Async App Event Handler": {
+		"scope": "rust",
+		"prefix": "async_app_hn!",
+		"body": [
+			"async_app_hn!($1|${2:_}, ${3:_}| {",
+			"    $4",
+			"})"
+		]
+	},
+
+	"Async Once App Event Handler": {
+		"scope": "rust",
+		"prefix": "async_app_hn_once!",
+		"body": [
+			"async_hn_once!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+
+	"Widget Set": {
+		"scope": "rust",
+		"prefix": "widget_set!",
+		"body": [
+			"widget_set! {",
+			"    ${1:self};",
+			"    $2",
+			"}",
+		]
+	},
+
+	"Widget Impl": {
+		"scope": "rust",
+		"prefix": "widget_impl!",
+		"description": "Implement existing property for widget.",
+		"body": [
+			"widget_impl! {",
+			"    /// $4",
+			"    pub ${1:foo}(${2:input}: ${3:impl IntoVar<bool>});",
+			"}",
+		]
+	},
+
+	"App Local": {
+		"scope": "rust",
+		"prefix": "app_local!",
+		"body": [
+			"app_local! {",
+			"    /// $4",
+			"    pub static ${1:FOO}: ${2:bool} = ${3:true};",
+			"}",
+		],
+	},
+	"Context Local": {
+		"scope": "rust",
+		"prefix": "context_local!",
+		"body": [
+			"context_local! {",
+			"    /// $4",
+			"    pub static ${1:FOO}: ${2:bool} = ${3:true};",
+			"}",
+		],
+	},
+
+	// TODO, async_clmv_fn! and others
+	//       l10n!
+	//       unique_id!
+	//       merge_var!
+	//       impl_from_and_into_var!
+	//       wgt_fn! and style_fn!
+	//       event_property! and command_property!
+	//       
 }
