@@ -151,7 +151,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
         let child = with_context_var(child, SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR, var(false));
         let child = with_context_var(child, SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR, var(false));
 
-        let child = SCROLL.config_node(child);
+        let child = SCROLL.config_node(child).boxed();
 
         let child = with_context_var(child, SCROLL_VERTICAL_OFFSET_VAR, var(0.fct()));
         let child = with_context_var(child, SCROLL_HORIZONTAL_OFFSET_VAR, var(0.fct()));
