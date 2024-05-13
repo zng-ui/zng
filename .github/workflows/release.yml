@@ -14,6 +14,19 @@ on:
       cancel_tag:
         type: boolean
         default: false
+      skip_tag:
+        type: boolean
+        default: false
+      skip_release:
+        type: boolean
+        default: false
+      skip_doc:
+        type: boolean
+        default: false
+      skip_crates:
+        type: boolean
+        default: false        
+      
     
 env:
   RUST_BACKTRACE: 1
@@ -91,17 +104,21 @@ jobs:
       ZNG_TP_LICENSES: true
     steps:
       - name: install cargo-about
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - name: install dav1d dep nasm
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: ilammy/setup-nasm@v1
       - name: install dav1d python deps
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         run: |
           pip install -U pip
           pip install -U wheel setuptools
           pip install -U meson ninja
       - name: build dav1d
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         env:
           DAV1D_DIR: dav1d_dir
           LIB_PATH: lib/x86_64-linux-gnu
@@ -116,15 +133,22 @@ jobs:
           echo "LD_LIBRARY_PATH=$HOME/$DAV1D_DIR/$LIB_PATH" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - name: cargo do prebuild --features avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         env:
           SYSTEM_DEPS_LINK: static
         run: cargo do prebuild --features avif
       - run: cargo clean
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - run: cargo do comment_feature "crates/zng-view/Cargo.toml" avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: prebuilt-ubuntu
@@ -137,25 +161,31 @@ jobs:
       ZNG_TP_LICENSES: true
     steps:
       - name: install cargo-about
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - name: config msvc for dav1d
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: ilammy/msvc-dev-cmd@v1
       - name: install dav1d dep nasm
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: ilammy/setup-nasm@v1
       - name: install dav1d python deps
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         run: |
           pip install -U pip
           pip install -U wheel setuptools
           pip install -U meson ninja
       - name: setup dav1d env
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         shell: bash
         run: |
           echo "PKG_CONFIG=c:\build\bin\pkg-config.exe" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=C:\build\lib\pkgconfig" >> $GITHUB_ENV
           echo "C:\build\bin" >> $GITHUB_PATH
       - name: build dav1d dep pkg-config
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         run: |
           git clone --branch meson-glib-subproject --depth 1 https://gitlab.freedesktop.org/tpm/pkg-config.git
           cd pkg-config
@@ -163,6 +193,7 @@ jobs:
           ninja -C build
           ninja -C build install
       - name: build dav1d
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         run: |
           git clone --branch 1.3.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
           cd dav1d
@@ -171,17 +202,24 @@ jobs:
           ninja -C build install
 
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - name: cargo do prebuild --features avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         env:
           CC: clang-cl
           CXX: clang-cl
           SYSTEM_DEPS_LINK: static
         run: cargo do prebuild --features avif
       - run: cargo clean
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - run: cargo do comment_feature "crates/zng-view/Cargo.toml" avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: prebuilt-windows
@@ -193,17 +231,21 @@ jobs:
       ZNG_TP_LICENSES: true
     steps:
       - name: install cargo-about
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
       - name: install dav1d dep nasm
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: ilammy/setup-nasm@v1
       - name: install dav1d python deps
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         run: |
           pip install -U pip
           pip install -U wheel setuptools
           pip install -U meson ninja
       - name: build dav1d
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         env:
           DAV1D_DIR: dav1d_dir
           LIB_PATH: lib
@@ -216,15 +258,22 @@ jobs:
           echo "PKG_CONFIG_PATH=$HOME/$DAV1D_DIR/$LIB_PATH/pkgconfig" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$HOME/$DAV1D_DIR/$LIB_PATH" >> $GITHUB_ENV
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - name: cargo do prebuild --features avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         env:
           SYSTEM_DEPS_LINK: static
         run: cargo do prebuild --features avif
       - run: cargo clean
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - run: cargo do comment_feature "crates/zng-view/Cargo.toml" avif
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
+        if: ${{ github.event.inputs.skip_tests != 'true' && github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: prebuilt-macos
@@ -235,18 +284,25 @@ jobs:
     needs: [check-ubuntu]
     steps:
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
       - run: cargo do latest_release_changes release-changes.md
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: actions/upload-artifact@v4
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
         with:
           name: release-changes.md
           path: release-changes.md
       - run: cargo do doc
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: actions/upload-artifact@v4
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
         with:
           name: doc
           path: target/doc
       - run: cargo clean
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
 
   test-ubuntu:
     runs-on: ubuntu-latest
@@ -374,9 +430,11 @@ jobs:
       tag_name: ${{ steps.publish_version_tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_tag != 'true' }}
         with:
           fetch-depth: 0
       - id: publish_version_tag
+        if: ${{ github.event.inputs.skip_tag != 'true' }}
         run: cargo do publish_version_tag --execute | tail -n 1 >> "$GITHUB_OUTPUT"
   
   publish-release:
@@ -385,29 +443,36 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4      
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
           name: release-changes.md
       - uses: actions/download-artifact@v4
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
           name: prebuilt-ubuntu
           path: prebuilt-ubuntu
       - uses: actions/download-artifact@v4
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
           name: prebuilt-windows
           path: prebuilt-windows
       - uses: actions/download-artifact@v4
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
           name: prebuilt-macos
           path: prebuilt-macos
       - name: compress
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         run: |
           mkdir prebuilt
           tar -czf "prebuilt/prebuilt-ubuntu.tar.gz" -C "prebuilt-ubuntu/" .
           tar -czf "prebuilt/prebuilt-windows.tar.gz" -C "prebuilt-windows/" .
           tar -czf "prebuilt/prebuilt-macos.tar.gz" -C "prebuilt-macos/" .
       - run: ls --all ./prebuilt
+        if: ${{ github.event.inputs.skip_release != 'true' }}
       - name: publish release
+        if: ${{ github.event.inputs.skip_release != 'true' }}
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ needs.tag.outputs.tag_name }}
@@ -420,14 +485,17 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4      
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
         with:
           repository: zng-ui/zng-ui.github.io
           ref: main
           token:  ${{ secrets.PAGES_DOC_PUSH_TOKEN }}
 
       - run: rm -rf doc
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: actions/download-artifact@v4
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
         name: push
         with:
           name: doc
@@ -438,6 +506,7 @@ jobs:
           git add -A
           git commit -m ${{ needs.tag.outputs.tag_name }} --quiet
           git push
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
 
   publish-crates:
     runs-on: ubuntu-latest
@@ -445,8 +514,12 @@ jobs:
     env:
       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
     steps:
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_crates != 'true' }}
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_crates != 'true' }}
       - run: cargo do publish --execute ${{ github.run_attempt > 1 && '--no-burst' || '' }}
+        if: ${{ github.event.inputs.skip_crates != 'true' }}
 
   cleanup:
     runs-on: ubuntu-latest

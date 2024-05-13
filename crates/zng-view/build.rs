@@ -1,36 +1,44 @@
+// #![allow(unexpected_cfgs)]
+
 fn main() {
-    #[cfg(feature = "bundle_licenses")]
     tp_licenses();
 }
 
-#[cfg(feature = "bundle_licenses")]
 fn tp_licenses() {
-    #[allow(unused_mut)]
-    let mut licenses = zng_tp_licenses::collect_cargo_about("../../.cargo/about.toml");
-    #[cfg(feature = "avif")]
-    avif_licenses(&mut licenses);
-    zng_tp_licenses::write_bundle(&licenses);
+    #[cfg(feature = "bundle_licenses")]
+    {
+        #[allow(unused_mut)]
+        let mut licenses = zng_tp_licenses::collect_cargo_about("../../.cargo/about.toml");
+
+        avif_licenses(&mut licenses);
+
+        zng_tp_licenses::write_bundle(&licenses);
+    }
 }
 
-#[cfg(feature = "avif")]
+#[allow(unexpected_cfgs)]
+#[cfg(feature = "bundle_licenses")]
 fn avif_licenses(l: &mut Vec<zng_tp_licenses::LicenseUsed>) {
-    use zng_tp_licenses::*;
+    #[cfg(not(feature = "avif"))]
+    let _ = l;
+    #[cfg(feature = "avif")]
+    {
+        use zng_tp_licenses::*;
 
-    l.push(LicenseUsed {
-        license: License {
-            id: "BSD-2-Clause".into(),
-            name: r#"BSD 2-Clause "Simplified" License"#.into(),
-            text: DAV1D_COPYING.into(),
-        },
-        used_by: vec![User {
-            name: "dav1d".into(),
-            version: "1.3.0".into(), // from .github/workflows/release.yml
-            url: "https://code.videolan.org/videolan/dav1d".into(),
-        }],
-    });
-}
-#[cfg(feature = "avif")]
-const DAV1D_COPYING: &str = r##"
+        l.push(LicenseUsed {
+            license: License {
+                id: "BSD-2-Clause".into(),
+                name: r#"BSD 2-Clause "Simplified" License"#.into(),
+                text: DAV1D_COPYING.into(),
+            },
+            used_by: vec![User {
+                name: "dav1d".into(),
+                version: "1.3.0".into(), // from .github/workflows/release.yml
+                url: "https://code.videolan.org/videolan/dav1d".into(),
+            }],
+        });
+
+        const DAV1D_COPYING: &str = r##"
 Copyright © 2018-2019, VideoLAN and dav1d authors
 All rights reserved.
 
@@ -56,3 +64,5 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 "##;
+    }
+}

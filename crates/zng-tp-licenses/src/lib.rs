@@ -183,15 +183,15 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<LicenseUsed>, serde_json::Err
         text: Txt,
         used_by: Vec<UsedBy>,
     }
-    impl From<LicenseJson> for LicenseUsed {
-        fn from(value: LicenseJson) -> Self {
-            Self {
+    impl LicenseJson {
+        fn into(self) -> LicenseUsed {
+            LicenseUsed {
                 license: License {
-                    id: value.id,
-                    name: value.name,
-                    text: value.text,
+                    id: self.id,
+                    name: self.name,
+                    text: self.text,
                 },
-                used_by: value.used_by.into_iter().map(Into::into).collect(),
+                used_by: self.used_by.into_iter().map(UsedBy::into).collect(),
             }
         }
     }
@@ -207,22 +207,22 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<LicenseUsed>, serde_json::Err
         #[serde(default)]
         repository: Option<Txt>,
     }
-    impl From<UsedBy> for User {
-        fn from(value: UsedBy) -> Self {
-            let repo = value.crate_.repository.unwrap_or_default();
-            Self {
-                version: value.crate_.version,
+    impl UsedBy {
+        fn into(self) -> User {
+            let repo = self.crate_.repository.unwrap_or_default();
+            User {
+                version: self.crate_.version,
                 url: if repo.is_empty() {
-                    zng_txt::formatx!("https://crates.io/crates/{}", value.crate_.name)
+                    zng_txt::formatx!("https://crates.io/crates/{}", self.crate_.name)
                 } else {
                     repo
                 },
-                name: value.crate_.name,
+                name: self.crate_.name,
             }
         }
     }
 
-    serde_json::from_str::<Output>(json).map(|o| o.licenses.into_iter().map(Into::into).collect())
+    serde_json::from_str::<Output>(json).map(|o| o.licenses.into_iter().map(LicenseJson::into).collect())
 }
 
 /// Bincode serialize and deflate the licenses.

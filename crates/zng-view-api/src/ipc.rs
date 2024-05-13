@@ -496,9 +496,11 @@ fn handle_io_error(e: std::io::Error) -> Disconnected {
     }
 }
 
-#[cfg(all(test, ipc))]
+#[cfg(all(test, feature = "ipc"))]
 mod tests {
     use std::thread;
+
+    use zng_txt::ToTxt;
 
     use super::*;
     use crate::RequestData;
@@ -507,7 +509,7 @@ mod tests {
     fn disconnect_recv() {
         let app = AppInit::new();
 
-        let name = app.name().to_owned();
+        let name = app.name().to_txt();
 
         let view = thread::spawn(move || {
             let _channels = connect_view_process(name);
@@ -524,7 +526,7 @@ mod tests {
     fn disconnect_send() {
         let app = AppInit::new();
 
-        let name = app.name().to_owned();
+        let name = app.name().to_txt();
 
         let view = thread::spawn(move || {
             let _channels = connect_view_process(name);
@@ -534,6 +536,10 @@ mod tests {
 
         view.join().unwrap();
 
-        let _ = request_sender.send(Request(RequestData::api_version {})).unwrap_err();
+        let _ = request_sender
+            .send(Request(RequestData::close {
+                id: crate::window::WindowId::INVALID,
+            }))
+            .unwrap_err();
     }
 }
