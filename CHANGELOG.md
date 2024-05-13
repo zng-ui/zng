@@ -1,5 +1,6 @@
 # Unpublished
 
+* Fix release build of `zng-wgt-scroll` running out of memory. (#203)
 
 # 0.5.1
 
