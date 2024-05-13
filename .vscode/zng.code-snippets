@@ -15,7 +15,6 @@
 	// 	],
 	// 	"description": "Log output to console"
 	// }
-
 	"Standalone Property": {
 		"scope": "rust",
 		"prefix": "#[property]",
@@ -31,7 +30,6 @@
 			"}",
 		]
 	},
-
 	"Widget Property": {
 		"scope": "rust",
 		"prefix": "#[property]-wgt",
@@ -47,7 +45,6 @@
 			"}",
 		]
 	},
-
 	"Standalone Context Var Property": {
 		"scope": "rust",
 		"prefix": "#[property]-var",
@@ -61,7 +58,6 @@
 			"}"
 		]
 	},
-
 	"Widget Context Var Property": {
 		"scope": "rust",
 		"prefix": "#[property]-wgt-var",
@@ -75,7 +71,6 @@
 			"}"
 		]
 	},
-
 	"Context Var": {
 		"scope": "rust",
 		"prefix": "context_var!",
@@ -86,7 +81,6 @@
 			"}",
 		]
 	},
-
 	"Event": {
 		"scope": "rust",
 		"prefix": "event!",
@@ -137,7 +131,6 @@
 			"}"
 		]
 	},
-
 	"Command": {
 		"scope": "rust",
 		"prefix": "command!",
@@ -145,10 +138,9 @@
 			"command! {",
 			"    /// $2",
 			"    pub static ${1:FOO}_CMD;",
-			"}",	
+			"}",
 		]
 	},
-	
 	"Command With Metadata": {
 		"scope": "rust",
 		"prefix": "command!-meta",
@@ -159,11 +151,9 @@
 			"        name: \"${2:foo}\",",
 			"        $3",
 			"    };",
-			"}",	
+			"}",
 		]
 	},
-
-	
 	"Clone Move": {
 		"scope": "rust",
 		"prefix": "clmv!",
@@ -182,7 +172,24 @@
 			"})",
 		]
 	},
-
+	"Async Clone Move Fn": {
+		"scope": "rust",
+		"prefix": "async_clmv_fn!",
+		"body": [
+			"async_clmv_fn!($1, |$2|{",
+			"    $3",
+			"})",
+		]
+	},
+	"Async Clone Move Fn Once": {
+		"scope": "rust",
+		"prefix": "async_clmv_fn_once!",
+		"body": [
+			"async_clmv_fn_once!($1, |$2|{",
+			"    $3",
+			"})",
+		]
+	},
 	"Event Handler": {
 		"scope": "rust",
 		"prefix": "hn!",
@@ -219,7 +226,6 @@
 			"})"
 		]
 	},
-
 	"App Event Handler": {
 		"scope": "rust",
 		"prefix": "app_hn!",
@@ -229,7 +235,6 @@
 			"})"
 		]
 	},
-
 	"Once App Event Handler": {
 		"scope": "rust",
 		"prefix": "app_hn_once!",
@@ -239,7 +244,6 @@
 			"})"
 		]
 	},
-
 	"Async App Event Handler": {
 		"scope": "rust",
 		"prefix": "async_app_hn!",
@@ -249,7 +253,6 @@
 			"})"
 		]
 	},
-
 	"Async Once App Event Handler": {
 		"scope": "rust",
 		"prefix": "async_app_hn_once!",
@@ -259,7 +262,6 @@
 			"})"
 		]
 	},
-
 	"Widget Set": {
 		"scope": "rust",
 		"prefix": "widget_set!",
@@ -270,7 +272,6 @@
 			"}",
 		]
 	},
-
 	"Widget Impl": {
 		"scope": "rust",
 		"prefix": "widget_impl!",
@@ -282,7 +283,6 @@
 			"}",
 		]
 	},
-
 	"App Local": {
 		"scope": "rust",
 		"prefix": "app_local!",
@@ -303,13 +303,64 @@
 			"}",
 		],
 	},
-
-	// TODO, async_clmv_fn! and others
-	//       l10n!
-	//       unique_id!
-	//       merge_var!
-	//       impl_from_and_into_var!
-	//       wgt_fn! and style_fn!
-	//       event_property! and command_property!
-	//       
+	"L10n": {
+		"scope": "rust",
+		"prefix": "l10n!",
+		"body": "l10n!(${1:file/key.attr}, ${2:msg})"
+	},
+	"Widget Fn": {
+		"scope": "rust",
+		"prefix": "wgt_fn!",
+		"body": [
+			"wgt_fn!($1|${2:_}| {",
+			"    $3",
+			"})",
+		]
+	},
+	"Style Fn": {
+		"scope": "rust",
+		"prefix": "wgt_fn!",
+		"body": [
+			"style_fn!($1|${2:_}| {",
+			"    $3",
+			"})",
+		]
+	},
+	"Impl From and IntoVar": {
+		"scope": "rust",
+		"prefix": "impl_from_and_into_var!",
+		"body": [
+			"impl_from_and_into_var! {",
+			"    fn from(${1:value}: ${2:InType}) -> ${3:OutType} {",
+			"        ${4:todo!()}",
+			"    }$5",
+			"}",
+		]
+	},
+	"Event Property": {
+		"scope": "rust",
+		"prefix": "event_property!",
+		"body": [
+			"event_property! {",
+			"    /// $5",
+			"    pub fn ${1:name} {",
+			"        event: ${2:FOO}_EVENT,",
+			"        args: ${3:Foo}Args,",
+			"        ${4:filter: |args| true,}",
+			"    }",
+			"}",
+		]
+	},
+	"Command Property": {
+		"scope": "rust",
+		"prefix": "command_property!",
+		"body": [
+			"command_property! {",
+			"    /// $4",
+			"    pub fn ${1:name} {",
+			"        cmd: ${2:FOO}_CMD${3:.scoped(WIDGET.id())},",
+			"    }",
+			"}",
+		]
+	},
 }
