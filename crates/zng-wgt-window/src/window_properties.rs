@@ -16,7 +16,7 @@ where
     T: VarValue + PartialEq,
     V: Var<T>,
 {
-    #[cfg(dyn_closure)]
+    #[cfg(feature = "dyn_closure")]
     let select: Box<dyn Fn(&WindowVars) -> V + Send> = Box::new(select);
     bind_window_var_impl(child.cfg_boxed(), user_var.into_var(), select).cfg_boxed()
 }

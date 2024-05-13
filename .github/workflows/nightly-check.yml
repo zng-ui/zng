@@ -1,0 +1,75 @@
+name: Nightly Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *" # daily
+
+env:
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
+  RUSTDOCFLAGS: '--deny=warnings'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: ['--all-features', '']
+        profile: ['--release', '']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
+      - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
+  check-windows:
+    needs: [check-ubuntu]
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: ['--all-features', '']
+        profile: ['--release', '']
+    runs-on: windows-latest
+    env:
+      CC: 'clang-cl'
+      CXX: 'clang-cl'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
+      - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }}
+  check-macos:
+    needs: [check-ubuntu]
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: ['--all-features', '']
+        profile: ['--release', '']
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
+      - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
+  doc:
+    runs-on: ubuntu-latest
+    needs: [check-ubuntu]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: install cargo-about
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
+      - run: cargo +nightly doc --all-features --no-deps
