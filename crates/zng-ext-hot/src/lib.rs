@@ -14,6 +14,8 @@ use node::*;
 mod service;
 use service::*;
 
+pub use zng_ext_hot_proc_macros::hot_node;
+
 /// Declare hot reload entry.
 ///
 /// Must be called at the root of the crate.
@@ -33,7 +35,7 @@ macro_rules! zng_hot_entry {
 
 #[doc(hidden)]
 pub mod zng_hot_entry {
-    pub use crate::node::{HotNode, HotNodeHost, HotNodeArgs};
+    pub use crate::node::{HotNode, HotNodeArgs, HotNodeHost};
     pub use linkme::distributed_slice;
     use zng_app_context::LocalContext;
 
@@ -72,14 +74,11 @@ macro_rules! __api_design {
         #[allow(unexpected_cfgs)]
         #[cfg(zng_hot_build)]
         #[crate::zng_hot_entry::distributed_slice(crate::zng_hot_entry::HOT_NODES)]
-        static __HOT_my_node__: crate::zng_hot_entry::HotNodeEntry = (
-            "unique-name",
-            __hot_my_node__,
-        );
+        static __HOT_my_node__: crate::zng_hot_entry::HotNodeEntry = ("unique-name", __hot_my_node__);
         #[allow(unexpected_cfgs)]
         #[cfg(zng_hot_build)]
         fn __hot_my_node__(args: crate::zng_hot_entry::HotNodeArgs) -> crate::zng_hot_entry::HotNode {
-           my_node(args.arg_ui_node(0), args.arg_var(1), args.arg_clone(2))
+            my_node(args.arg_ui_node(0), args.arg_var(1), args.arg_clone(2))
         }
 
         #[allow(unexpected_cfgs)]
@@ -108,6 +107,5 @@ macro_rules! __api_design {
 
             crate::zng_hot_entry::HotNodeHost::new("unique-name", args__)
         }
-
     };
 }
