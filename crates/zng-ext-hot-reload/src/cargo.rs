@@ -9,9 +9,8 @@ pub fn build(manifest_dir: &str) {
         .arg("build")
         .arg("--manifest-path")
         .arg(&manifest_path)
-        .env("RUSTFLAGS", "--cfg zng_hot_build") // !!: TODO wont this make it build twice?
         .output();
-    
+
     todo!()
 }
 

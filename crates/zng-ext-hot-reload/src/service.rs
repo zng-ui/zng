@@ -1,46 +1,27 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use libloading::Library;
-use zng_app::AppExtension;
 use zng_app_context::{app_local, LocalContext};
-use zng_ext_fs_watcher::WATCHER;
 
 use crate::{HotNode, HotNodeArgs};
-
-/// Hot reload app extension.
-#[derive(Default)]
-pub struct HotReloadManager {
-    libs: HashMap<&'static str, ()>,
-}
-impl AppExtension for HotReloadManager {
-    fn init(&mut self) {
-        for (manifest_dir, _, _) in crate::zng_hot_entry::HOT_NODES.iter() {
-            if let std::collections::hash_map::Entry::Vacant(e) = self.libs.entry(manifest_dir) {
-                e.insert(());
-                tracing::info!("watching `{manifest_dir}`");
-                WATCHER.watch_dir(manifest_dir, true).perm();
-            }
-        }
-    }
-}
 
 #[allow(non_camel_case_types)]
 pub(crate) struct HOT_LIB;
 
 impl HOT_LIB {
-    pub(crate) fn instantiate(&self, manifest_dir: &str, hot_node_name: &str, args: HotNodeArgs) -> HotNode {
+    pub(crate) fn instantiate(&self, manifest_dir: &str, hot_node_name: &str, args: HotNodeArgs) -> Option<HotNode> {
         let sv = HOT_LIB_SV.read();
         match &sv.lib {
             Some(lib) => match lib.hot_entry(manifest_dir, hot_node_name, LocalContext::capture(), args) {
-                Some(n) => n,
+                Some(n) => Some(n),
                 None => {
                     tracing::error!("cannot instantiate `{hot_node_name:?}`, not found in dyn library");
-                    HotNode::nil()
+                    None
                 }
             },
             None => {
                 tracing::debug!("cannot instantiate `{hot_node_name:?}` yet, dyn library not loaded");
-                HotNode::nil()
+                None
             }
         }
     }

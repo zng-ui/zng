@@ -55,7 +55,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let ident = &item.sig.ident;
     let slice_ident = ident!("__ZNG_HOT_{}", ident);
-    let builder_ident = ident!("__zng_hot_{}", ident);
+    let builder_ident = ident!("__zng_hot_builder_{}", ident);
+    let actual_ident = ident!("__zng_hot_actual_{}", ident);
 
     let mut name = args.name;
     if name.value().is_empty() {
@@ -90,32 +91,31 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     }
 
     let hot_side = quote! {
-        #[allow(unexpected_cfgs)]
-        #[cfg(zng_hot_build)]
-        #[doc(hidden)]
-        #[crate::zng_hot_entry::distributed_slice(crate::zng_hot_entry::HOT_NODES)]
-        static #slice_ident: crate::zng_hot_entry::HotNodeEntry = (env!("CARGO_MANIFEST_DIR"), #name, #builder_ident);
-
-        #[allow(unexpected_cfgs)]
-        #[cfg(zng_hot_build)]
-        #[doc(hidden)]
-        fn #builder_ident(__args__: crate::zng_hot_entry::HotNodeArgs) -> crate::zng_hot_entry::HotNode {
-            #ident(
-                #unpack_args
-            )
+        // don't use `linkme::distributed_slice` because it requires direct dependency to `linkme`.
+        crate::zng_hot_entry::HOT_NODES! {
+            #[doc(hidden)]
+            static #slice_ident: crate::zng_hot_entry::HotNodeEntry = {
+                crate::zng_hot_entry::HotNodeEntry {
+                    manifest_dir: env!("CARGO_MANIFEST_DIR"),
+                    hot_node_name: #name,
+                    hot_node_fn: #builder_ident,
+                }
+            };
         }
 
-        #[allow(unexpected_cfgs)]
-        #[cfg(zng_hot_build)]
-        #item
+        #[doc(hidden)]
+        fn #builder_ident(__args__: crate::zng_hot_entry::HotNodeArgs) -> crate::zng_hot_entry::HotNode {
+            crate::zng_hot_entry::HotNode::new(#actual_ident(
+                #unpack_args
+            ))
+        }
     };
 
     let mut item = item;
     let mut proxy_item = item.clone();
 
-    let proxy_ident = builder_ident.clone();
     item.vis = Visibility::Inherited;
-    item.sig.ident = proxy_ident;
+    item.sig.ident = actual_ident;
     let input_len = inputs.len();
 
     let mut pack_args = quote!();
@@ -161,17 +161,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             let mut __args__ = crate::zng_hot_entry::HotNodeArgs::with_capacity(#input_len);
             #pack_args
 
-            crate::zng_hot_entry::HotNodeHost::new(env!("CARGO_MANIFEST_DIR"), #name, __args__)
+            crate::zng_hot_entry::HotNodeHost::new(env!("CARGO_MANIFEST_DIR"), #name, __args__, #builder_ident)
         }
     };
 
     let host_side = quote! {
-        #[allow(unexpected_cfgs)]
-        #[cfg(not(zng_hot_build))]
         #item
-
-        #[allow(unexpected_cfgs)]
-        #[cfg(not(zng_hot_build))]
         #proxy_item
     };
 

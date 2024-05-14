@@ -143,21 +143,26 @@ pub struct HotNodeHost {
     manifest_dir: &'static str,
     name: &'static str,
     args: HotNodeArgs,
+    fallback: fn(HotNodeArgs) -> HotNode,
     instance: HotNode,
 }
 impl HotNodeHost {
-    pub fn new(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs) -> Self {
+    pub fn new(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs, fallback: fn(HotNodeArgs) -> HotNode) -> Self {
         Self {
             manifest_dir,
             name,
             args,
-            instance: HotNode::nil(),
+            fallback,
+            instance: HotNode::new(NilUiNode),
         }
     }
 }
 impl UiNode for HotNodeHost {
     fn init(&mut self) {
-        self.instance = HOT_LIB.instantiate(self.manifest_dir, self.name, self.args.clone());
+        self.instance = match HOT_LIB.instantiate(self.manifest_dir, self.name, self.args.clone()) {
+            Some(n) => n,
+            None => (self.fallback)(self.args.clone()),
+        };
         let mut ctx = LocalContext::capture();
         self.instance.init(&mut ctx);
     }
@@ -237,9 +242,9 @@ pub struct HotNode {
     pub(crate) _lib: Option<Arc<libloading::Library>>,
 }
 impl HotNode {
-    pub(crate) fn nil() -> Self {
+    pub fn new(node: impl UiNode) -> Self {
         Self {
-            child: Box::new(NilUiNode),
+            child: node.boxed(),
             _lib: None,
         }
     }
