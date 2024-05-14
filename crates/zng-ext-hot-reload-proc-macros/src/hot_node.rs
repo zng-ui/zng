@@ -94,7 +94,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         #[cfg(zng_hot_build)]
         #[doc(hidden)]
         #[crate::zng_hot_entry::distributed_slice(crate::zng_hot_entry::HOT_NODES)]
-        static #slice_ident: crate::zng_hot_entry::HotNodeEntry = (#name, #builder_ident);
+        static #slice_ident: crate::zng_hot_entry::HotNodeEntry = (env!("CARGO_MANIFEST_DIR"), #name, #builder_ident);
 
         #[allow(unexpected_cfgs)]
         #[cfg(zng_hot_build)]
@@ -160,6 +160,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         {
             let mut __args__ = crate::zng_hot_entry::HotNodeArgs::with_capacity(#input_len);
             #pack_args
+
+            crate::zng_hot_entry::HotNodeHost::new(env!("CARGO_MANIFEST_DIR"), #name, args__)
         }
     };
 

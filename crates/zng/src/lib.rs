@@ -843,6 +843,7 @@ mod defaults {
         /// * [`ClipboardManager`]
         /// * [`UndoManager`]
         /// * [`SingleInstanceManager`] if the `"single_instance"` feature is enabled.
+        /// * [`HotReloadManager`] if the `"hot_reload"` feature is enabled.
         /// * [`MaterialFonts`] if any `"material_icons*"` feature is enabled.
         ///
         /// [`MaterialFonts`]: zng_wgt_material_icons::MaterialFonts
@@ -870,6 +871,9 @@ mod defaults {
 
             #[cfg(feature = "single_instance")]
             let r = r.extend(zng_ext_single_instance::SingleInstanceManager::default());
+
+            #[cfg(feature = "hot_reload")]
+            let r = r.extend(zng_ext_hot_reload::HotReloadManager::default());
 
             #[cfg(any(
                 feature = "material_icons_outlined",

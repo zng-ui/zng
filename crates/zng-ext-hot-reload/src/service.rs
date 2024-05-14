@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use libloading::Library;
 use zng_app::AppExtension;
@@ -9,14 +9,18 @@ use crate::{HotNode, HotNodeArgs};
 
 /// Hot reload app extension.
 #[derive(Default)]
-pub struct HotReloadManager {}
+pub struct HotReloadManager {
+    libs: HashMap<&'static str, ()>,
+}
 impl AppExtension for HotReloadManager {
     fn init(&mut self) {
-        // !!: TODO, load blocking here? need to cargo build
-        // !!: TODO, watch all files in crate.
-        // !!: TODO, watch all files in crate.
-
-        WATCHER.watch_dir("dir", true).perm();
+        for (manifest_dir, _, _) in crate::zng_hot_entry::HOT_NODES.iter() {
+            if let std::collections::hash_map::Entry::Vacant(e) = self.libs.entry(manifest_dir) {
+                e.insert(());
+                tracing::info!("watching `{manifest_dir}`");
+                WATCHER.watch_dir(manifest_dir, true).perm();
+            }
+        }
     }
 }
 
@@ -24,18 +28,18 @@ impl AppExtension for HotReloadManager {
 pub(crate) struct HOT_LIB;
 
 impl HOT_LIB {
-    pub(crate) fn instantiate(&self, name: &str, args: HotNodeArgs) -> HotNode {
+    pub(crate) fn instantiate(&self, manifest_dir: &str, hot_node_name: &str, args: HotNodeArgs) -> HotNode {
         let sv = HOT_LIB_SV.read();
         match &sv.lib {
-            Some(lib) => match lib.hot_entry(name, LocalContext::capture(), args) {
+            Some(lib) => match lib.hot_entry(manifest_dir, hot_node_name, LocalContext::capture(), args) {
                 Some(n) => n,
                 None => {
-                    tracing::error!("cannot instantiate `{name:?}`, not found in dyn library");
+                    tracing::error!("cannot instantiate `{hot_node_name:?}`, not found in dyn library");
                     HotNode::nil()
                 }
             },
             None => {
-                tracing::debug!("cannot instantiate `{name:?}` yet, dyn library not loaded");
+                tracing::debug!("cannot instantiate `{hot_node_name:?}` yet, dyn library not loaded");
                 HotNode::nil()
             }
         }
@@ -55,22 +59,22 @@ struct HotLibService {
 /// Dynamically loaded library.
 struct HotLib {
     lib: Arc<Library>,
-    hot_entry: unsafe fn(&str, LocalContext, HotNodeArgs) -> Option<HotNode>,
+    hot_entry: unsafe fn(&str, &str, LocalContext, HotNodeArgs) -> Option<HotNode>,
 }
 impl HotLib {
     pub fn new(lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
         unsafe {
             let lib = Library::new(lib)?;
             Ok(Self {
-                hot_entry: *lib.get(b"hot_entry")?,
+                hot_entry: *lib.get(b"zng_hot_entry")?,
                 lib: Arc::new(lib),
             })
         }
     }
 
-    pub fn hot_entry(&self, name: &str, ctx: LocalContext, args: HotNodeArgs) -> Option<HotNode> {
+    pub fn hot_entry(&self, manifest_dir: &str, hot_node_name: &str, ctx: LocalContext, args: HotNodeArgs) -> Option<HotNode> {
         // SAFETY: lib is still loaded and will remain until all HotNodes are dropped.
-        let mut r = unsafe { (self.hot_entry)(name, ctx, args) };
+        let mut r = unsafe { (self.hot_entry)(manifest_dir, hot_node_name, ctx, args) };
         if let Some(n) = &mut r {
             n._lib = Some(self.lib.clone());
         }

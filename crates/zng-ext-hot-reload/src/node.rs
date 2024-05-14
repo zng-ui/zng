@@ -140,13 +140,15 @@ impl Clone for HotNodeArgs {
 /// in the dynamically loaded library.
 #[doc(hidden)]
 pub struct HotNodeHost {
+    manifest_dir: &'static str,
     name: &'static str,
     args: HotNodeArgs,
     instance: HotNode,
 }
 impl HotNodeHost {
-    pub fn new(name: &'static str, args: HotNodeArgs) -> Self {
+    pub fn new(manifest_dir: &'static str, name: &'static str, args: HotNodeArgs) -> Self {
         Self {
+            manifest_dir,
             name,
             args,
             instance: HotNode::nil(),
@@ -155,7 +157,7 @@ impl HotNodeHost {
 }
 impl UiNode for HotNodeHost {
     fn init(&mut self) {
-        self.instance = HOT_LIB.instantiate(self.name, self.args.clone());
+        self.instance = HOT_LIB.instantiate(self.manifest_dir, self.name, self.args.clone());
         let mut ctx = LocalContext::capture();
         self.instance.init(&mut ctx);
     }
