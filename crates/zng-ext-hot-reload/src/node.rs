@@ -5,24 +5,131 @@ use zng_app::{
     update::{EventUpdate, WidgetUpdates},
     widget::{
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-        node::{BoxedUiNode, NilUiNode, UiNode},
+        node::{ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList},
     },
 };
 use zng_app_context::LocalContext;
 use zng_unit::PxSize;
+use zng_var::{BoxedVar, IntoValue, IntoVar, Var, VarValue};
 
 use crate::HOT_LIB;
 
+trait Arg: Any + Send {
+    fn clone_boxed(&self) -> Box<dyn Arg>;
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
+impl<T: VarValue> Arg for BoxedVar<T> {
+    fn clone_boxed(&self) -> Box<dyn Arg> {
+        Box::new(self.clone())
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+#[derive(Clone)]
+struct ValueArg<T>(T);
+impl<T: Clone + Send + Any> Arg for ValueArg<T> {
+    fn clone_boxed(&self) -> Box<dyn Arg> {
+        Box::new(self.clone())
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+impl Arg for ArcNode<BoxedUiNode> {
+    fn clone_boxed(&self) -> Box<dyn Arg> {
+        Box::new(self.clone())
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+impl Arg for ArcNodeList<BoxedUiNodeList> {
+    fn clone_boxed(&self) -> Box<dyn Arg> {
+        Box::new(self.clone())
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+
 /// Arguments for hot node.
 #[doc(hidden)]
-#[derive(Clone)]
 pub struct HotNodeArgs {
-    args: Arc<Vec<Box<dyn Any + Send + Sync>>>,
+    args: Vec<Box<dyn Arg>>,
 }
 impl HotNodeArgs {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            args: Arc::new(Vec::with_capacity(capacity)),
+            args: Vec::with_capacity(capacity),
+        }
+    }
+
+    pub fn push_var<T: VarValue>(&mut self, arg: impl IntoVar<T>) {
+        let arg = arg.into_var().boxed();
+        self.args.push(Box::new(arg));
+    }
+
+    pub fn push_value<T: VarValue>(&mut self, arg: impl IntoValue<T>) {
+        let arg = ValueArg(arg.into());
+        self.args.push(Box::new(arg))
+    }
+
+    pub fn push_ui_node(&mut self, arg: impl UiNode) {
+        let arg = ArcNode::new(arg.boxed());
+        self.args.push(Box::new(arg))
+    }
+
+    pub fn push_ui_node_list(&mut self, arg: impl UiNodeList) {
+        let arg = ArcNodeList::new(arg.boxed());
+        self.args.push(Box::new(arg))
+    }
+
+    pub fn push_clone<T: Clone + Send + Any>(&mut self, arg: T) {
+        let arg = ValueArg(arg);
+        self.args.push(Box::new(arg));
+    }
+
+    fn pop_downcast<T: Any>(&mut self) -> T {
+        *self.args.pop().unwrap().into_any().downcast().unwrap()
+    }
+
+    pub fn pop_var<T: VarValue>(&mut self) -> BoxedVar<T> {
+        self.pop_downcast()
+    }
+
+    pub fn pop_value<T: VarValue>(&mut self) -> T {
+        self.pop_downcast::<ValueArg<T>>().0
+    }
+
+    pub fn pop_ui_node(&mut self) -> BoxedUiNode {
+        self.pop_downcast::<ArcNode<BoxedUiNode>>().take_on_init().boxed()
+    }
+
+    pub fn pop_ui_node_list(&mut self) -> BoxedUiNodeList {
+        self.pop_downcast::<ArcNodeList<BoxedUiNodeList>>().take_on_init().boxed()
+    }
+
+    pub fn pop_clone<T: Clone + Send + Any>(&mut self) -> T {
+        self.pop_downcast::<ValueArg<T>>().0
+    }
+}
+impl Clone for HotNodeArgs {
+    fn clone(&self) -> Self {
+        let mut r = Self { args: vec![] };
+        r.clone_from(self);
+        r
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        self.args.clear();
+        self.args.reserve(source.args.len());
+        for a in &source.args {
+            self.args.push(a.clone_boxed());
         }
     }
 }

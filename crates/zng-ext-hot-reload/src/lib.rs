@@ -1,7 +1,7 @@
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo-icon.png")]
 #![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo.png")]
 //!
-//! Hot reloading service.
+//! Hot reload service.
 //!
 //! # Crate
 //!
@@ -14,7 +14,7 @@ use node::*;
 mod service;
 use service::*;
 
-pub use zng_ext_hot_proc_macros::hot_node;
+pub use zng_ext_hot_reload_proc_macros::hot_node;
 
 /// Declare hot reload entry.
 ///

@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc", "debug_default", "view_software", "crash_handler"]
+default = ["ipc", "debug_default", "view_software", "crash_handler", "hot_reload"] # !!: TODO remove hot_reload
 
 # Include the default view-process implementation.
 view = ["dep:zng-view"]
@@ -38,6 +38,11 @@ dyn_node = ["zng-app/dyn_node"]
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.
 inspector = ["zng-app/inspector", "zng-wgt-inspector/live"]
+
+# Enable hot reload builds.
+#
+# Note that you must configure the target library to hot reload, see `zng::hot_reload` for details.
+hot_reload = ["dep:zng-ext-hot-reload"]
 
 # Use dynamic dispatch at the app-extension level.
 #
@@ -181,6 +186,7 @@ zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.11" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.1" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.4.1" }
 zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.11" }
+zng-ext-hot-reload = { path = "../zng-ext-hot-reload", version = "0.1.0", optional = true }
 
 # widgets
 zng-wgt = { path = "../zng-wgt", version = "0.3.1" }

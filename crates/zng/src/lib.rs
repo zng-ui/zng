@@ -496,6 +496,7 @@ pub mod fs_watcher;
 pub mod gesture;
 pub mod grid;
 pub mod handler;
+pub mod hot_reload;
 pub mod icon;
 pub mod image;
 pub mod keyboard;

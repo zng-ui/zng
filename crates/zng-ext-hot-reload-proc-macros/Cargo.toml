@@ -1,5 +1,5 @@
 [package]
-name = "zng-ext-hot-proc-macros"
+name = "zng-ext-hot-reload-proc-macros"
 version = "0.1.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"

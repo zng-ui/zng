@@ -1,5 +1,5 @@
 [package]
-name = "zng-ext-hot"
+name = "zng-ext-hot-reload"
 version = "0.1.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"
@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-ext-hot-proc-macros = { path = "../zng-ext-hot-proc-macros", version = "0.1.0" }
+zng-ext-hot-reload-proc-macros = { path = "../zng-ext-hot-reload-proc-macros", version = "0.1.0" }
 
 zng-app-context = { path = "../zng-app-context", version = "0.3.4" }
 zng-app = { path = "../zng-app", version = "0.4.1" }
