@@ -1,6 +1,10 @@
 # Unpublished
 
 * Fix release build of `zng-wgt-scroll` running out of memory. (#203)
+* Implement hot reloading UI nodes.
+    - Add `zng-ext-hot-reload`.
+    - Add `zng::hot_reload`.
+    - Add `feature="hot_reload"` in `zng`.
 
 # 0.5.1
 

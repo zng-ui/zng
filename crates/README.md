@@ -63,6 +63,7 @@ with prefix `zng-ext-`.
 - `zng-ext-config`
 - `zng-ext-l10n`
     - `zng-ext-l10n-proc-macros`
+- `zng-ext-hot-reload`
 - `zng-ext-image`
 - `zng-ext-clipboard`
 - `zng-ext-window`
