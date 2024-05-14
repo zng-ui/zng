@@ -1,0 +1,11 @@
+[package]
+name = "examples-hot-reload"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Hot reload library example for `hot_reload` example"
+
+
+
+[dependencies]
+zng = { path = "../../crates/zng" }

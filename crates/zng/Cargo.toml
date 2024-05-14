@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc", "debug_default", "view_software", "crash_handler", "hot_reload"] # !!: TODO remove hot_reload
+default = ["ipc", "debug_default", "view_software", "crash_handler"]
 
 # Include the default view-process implementation.
 view = ["dep:zng-view"]

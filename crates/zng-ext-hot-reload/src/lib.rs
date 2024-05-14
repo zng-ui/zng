@@ -28,7 +28,7 @@ macro_rules! zng_hot_entry {
 
         #[no_mangle]
         #[doc(hidden)] // used by lib loader
-        pub fn zng_hot_entry(request: $crate::zng_hot_entry::HotRequest) -> Option<$crate::zng_hot_entry::HotNodeInstance> {
+        pub fn zng_hot_entry(request: $crate::zng_hot_entry::HotRequest) -> Option<$crate::zng_hot_entry::HotNode> {
             $crate::zng_hot_entry::entry(request)
         }
     };

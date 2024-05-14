@@ -161,7 +161,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             let mut __args__ = crate::zng_hot_entry::HotNodeArgs::with_capacity(#input_len);
             #pack_args
 
-            crate::zng_hot_entry::HotNodeHost::new(env!("CARGO_MANIFEST_DIR"), #name, args__)
+            crate::zng_hot_entry::HotNodeHost::new(env!("CARGO_MANIFEST_DIR"), #name, __args__)
         }
     };
 

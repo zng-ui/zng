@@ -791,6 +791,9 @@ mod __prelude_wgt {
     };
 
     pub use zng_ext_window::WidgetInfoBuilderImeArea as _;
+
+    #[cfg(feature = "hot_reload")]
+    pub use crate::hot_reload::hot_node;
 }
 
 mod defaults {
