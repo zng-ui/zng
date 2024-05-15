@@ -705,7 +705,7 @@ where
     });
 }
 
-/// Like [`wait`] but sets a response var.
+/// Like [`spawn_wait`], but the task that will send its result to a [`ResponseVar<R>`].
 pub fn wait_respond<R, F>(task: F) -> ResponseVar<R>
 where
     R: VarValue,

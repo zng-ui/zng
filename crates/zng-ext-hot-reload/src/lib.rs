@@ -14,12 +14,14 @@ mod node;
 mod service;
 use std::collections::HashMap;
 
+use cargo::BuildError;
 use node::*;
 use service::*;
 
-use zng_app::AppExtension;
+use zng_app::{AppExtension, DInstant, INSTANT};
 use zng_ext_fs_watcher::WATCHER;
 pub use zng_ext_hot_reload_proc_macros::hot_node;
+use zng_var::ResponseVar;
 
 /// Declare hot reload entry.
 ///
@@ -72,16 +74,58 @@ pub mod zng_hot_entry {
 /// Hot reload app extension.
 #[derive(Default)]
 pub struct HotReloadManager {
-    libs: HashMap<&'static str, ()>,
+    libs: HashMap<&'static str, WatchedLib>,
 }
 impl AppExtension for HotReloadManager {
     fn init(&mut self) {
         for entry in crate::zng_hot_entry::HOT_NODES.iter() {
             if let std::collections::hash_map::Entry::Vacant(e) = self.libs.entry(entry.manifest_dir) {
-                e.insert(());
-                tracing::info!("watching `{}`", entry.manifest_dir);
+                e.insert(WatchedLib::default());
                 WATCHER.watch_dir(entry.manifest_dir, true).perm();
             }
         }
     }
+
+    fn event_preview(&mut self, update: &mut zng_app::update::EventUpdate) {
+        if let Some(args) = zng_ext_fs_watcher::FS_CHANGES_EVENT.on(update) {
+            for (manifest_dir, watched) in self.libs.iter_mut() {
+                if args.changes_for_path(manifest_dir.as_ref()).next().is_some() {
+                    if watched.building.is_none() {
+                        tracing::info!("rebuilding `{manifest_dir}`");
+
+                        watched.building = Some(BuildingLib {
+                            start_time: INSTANT.now(),
+                            process: cargo::build(manifest_dir),
+                        });
+                    } else {
+                        // !!: TODO, cancel?
+                    }
+                }
+            }
+        }
+    }
+
+    fn update_preview(&mut self) {
+        for (manifest_dir, watched) in self.libs.iter_mut() {
+            if let Some(b) = &watched.building {
+                if let Some(r) = b.process.rsp() {
+                    match r {
+                        Ok(()) => tracing::info!("successfully rebuilt `{manifest_dir}`"),
+                        Err(e) => tracing::error!("failed rebuild `{manifest_dir}`, {e}"),
+                    }
+                    watched.building = None;
+                }
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct WatchedLib {
+    building: Option<BuildingLib>,
+}
+
+struct BuildingLib {
+    start_time: DInstant,
+    process: ResponseVar<Result<(), BuildError>>,
 }

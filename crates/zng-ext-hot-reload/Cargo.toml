@@ -19,6 +19,8 @@ zng-app = { path = "../zng-app", version = "0.4.1" }
 zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.11" }
 zng-unit = { path = "../zng-unit", version = "0.2.6" }
 zng-var = { path = "../zng-var", version = "0.3.1" }
+zng-task = { path = "../zng-task", version = "0.2.9" }
+zng-txt = { path = "../zng-txt", version = "0.2.6" }
 
 libloading = "0.8"
 linkme = "0.3"

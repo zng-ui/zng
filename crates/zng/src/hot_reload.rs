@@ -87,6 +87,10 @@
 //! but if your library crate grows large you might want to create a separate *design library* where you place
 //! only the nodes under current interactive development.
 //!
+//! The rebuild uses the same target directory used by `cargo check/clippy`, this means that if your IDE (Rust Analyzer) runs
+//! these checks it will race the hot reload rebuild process to acquire the exclusive lock to the target dir. If you are seeing
+//! this interference try pausing your IDE analyzer before running.
+//!
 //! Any change on the crate triggers a rebuild and all hot nodes reinit because of it. You can set `#[hot_node]` on multiple functions
 //! at a time, but could cause UI slowdowns as large parts of the screen reloads. It is recommenced that you only set it on functions
 //! under iterative development.
