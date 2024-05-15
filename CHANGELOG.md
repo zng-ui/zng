@@ -5,6 +5,9 @@
     - Add `zng-ext-hot` and `zng-ext-hot-proc-macros`.
     - Add `zng::hot_reload`.
     - Add `feature="hot_reload"` in `zng`.
+* Implemented VsCode snippets for common Zng macros, see [`zng.code-snippets`].
+
+[`zng.code-snippets`]: .vscode/zng.code-snippets
 
 # 0.5.1
 
