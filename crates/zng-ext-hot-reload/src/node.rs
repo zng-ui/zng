@@ -6,13 +6,14 @@ use zng_app::{
     widget::{
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
         node::{ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList},
+        WIDGET,
     },
 };
 use zng_app_context::LocalContext;
 use zng_unit::PxSize;
 use zng_var::{BoxedVar, IntoValue, IntoVar, Var, VarValue};
 
-use crate::HOT_LIB;
+use crate::{HOT, HOT_RELOAD_EVENT};
 
 trait Arg: Any + Send {
     fn clone_boxed(&self) -> Box<dyn Arg>;
@@ -159,18 +160,34 @@ impl HotNodeHost {
 }
 impl UiNode for HotNodeHost {
     fn init(&mut self) {
-        self.instance = match HOT_LIB.instantiate(self.manifest_dir, self.name, self.args.clone()) {
-            Some(n) => n,
-            None => (self.fallback)(self.args.clone()),
-        };
+        WIDGET.sub_event(&HOT_RELOAD_EVENT);
+
         let mut ctx = LocalContext::capture();
+
+        self.instance = match HOT.lib(self.manifest_dir) {
+            Some(lib) => match lib.instantiate(self.name, ctx.clone(), self.args.clone()) {
+                Some(ok) => {
+                    tracing::info!("loaded hot `{}` in `{}`", self.name, WIDGET.trace_id());
+                    ok
+                }
+                None => {
+                    tracing::error!("hot node `{}` not found in `{}` library", self.name, self.manifest_dir);
+                    (self.fallback)(self.args.clone())
+                }
+            },
+            None => {
+                tracing::debug!("hot lib `{}` not loaded yet", self.manifest_dir);
+                (self.fallback)(self.args.clone())
+            }
+        };
+
         self.instance.init(&mut ctx);
     }
 
     fn deinit(&mut self) {
         let mut ctx = LocalContext::capture();
         self.instance.deinit(&mut ctx);
-        self.instance.child = NilUiNode.boxed();
+        self.instance = HotNode::new(NilUiNode);
     }
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
@@ -181,11 +198,26 @@ impl UiNode for HotNodeHost {
     fn event(&mut self, update: &EventUpdate) {
         let mut ctx = LocalContext::capture();
         self.instance.event(&mut ctx, update);
+
+        if let Some(args) = HOT_RELOAD_EVENT.on(update) {
+            if args.lib.manifest_dir() == self.manifest_dir {
+                match args.lib.instantiate(self.name, ctx.clone(), self.args.clone()) {
+                    Some(n) => {
+                        self.instance.deinit(&mut ctx);
+                        self.instance = n;
+                        // TODO, check if `instance` is not an widget.
+                        WIDGET.reinit();
+                        tracing::info!("reloaded `{}` in `{}`", self.name, WIDGET.trace_id());
+                    }
+                    None => {
+                        tracing::error!("hot node `{}` not found in `{}` library", self.name, self.manifest_dir)
+                    }
+                }
+            }
+        }
     }
 
     fn update(&mut self, updates: &WidgetUpdates) {
-        // !!: TODO, on library reload WIDGET.reinit();
-
         let mut ctx = LocalContext::capture();
         self.instance.update(&mut ctx, updates);
     }

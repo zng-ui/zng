@@ -11,16 +11,19 @@
 
 mod cargo;
 mod node;
-mod service;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use cargo::BuildError;
 use node::*;
-use service::*;
 
-use zng_app::{AppExtension, DInstant, INSTANT};
+use zng_app::{
+    event::{event, event_args},
+    AppExtension, DInstant, INSTANT,
+};
+use zng_app_context::{app_local, LocalContext};
 use zng_ext_fs_watcher::WATCHER;
 pub use zng_ext_hot_reload_proc_macros::hot_node;
+use zng_hot_entry::HotRequest;
 use zng_var::ResponseVar;
 
 /// Declare hot reload entry.
@@ -34,7 +37,7 @@ macro_rules! zng_hot_entry {
 
         #[no_mangle]
         #[doc(hidden)] // used by lib loader
-        pub fn zng_hot_entry(request: $crate::zng_hot_entry::HotRequest) -> Option<$crate::zng_hot_entry::HotNode> {
+        pub extern "C" fn zng_hot_entry(request: $crate::zng_hot_entry::HotRequest) -> Option<$crate::zng_hot_entry::HotNode> {
             $crate::zng_hot_entry::entry(request)
         }
     };
@@ -57,8 +60,8 @@ pub mod zng_hot_entry {
     pub struct HotRequest {
         pub manifest_dir: &'static str,
         pub hot_node_name: &'static str,
-        ctx: LocalContext,
-        args: HotNodeArgs,
+        pub ctx: LocalContext,
+        pub args: HotNodeArgs,
     }
 
     pub fn entry(mut request: HotRequest) -> Option<crate::HotNode> {
@@ -82,6 +85,17 @@ impl AppExtension for HotReloadManager {
             if let std::collections::hash_map::Entry::Vacant(e) = self.libs.entry(entry.manifest_dir) {
                 e.insert(WatchedLib::default());
                 WATCHER.watch_dir(entry.manifest_dir, true).perm();
+            }
+        }
+
+        // !!: TODO, test
+        for (manifest_dir, _) in self.libs.iter() {
+            match HotLib::new(manifest_dir, "C:/code/zng/target/debug/deps/examples_hot_reload.dll") {
+                Ok(lib) => {
+                    HOT.set(lib.clone());
+                    HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
+                }
+                Err(e) => tracing::error!("failed to load rebuilt dyn library, {e}"),
             }
         }
     }
@@ -110,7 +124,7 @@ impl AppExtension for HotReloadManager {
             if let Some(b) = &watched.building {
                 if let Some(r) = b.process.rsp() {
                     match r {
-                        Ok(()) => tracing::info!("successfully rebuilt `{manifest_dir}`"),
+                        Ok(()) => tracing::info!("rebuilt `{manifest_dir}` in {:?}", b.start_time.elapsed()),
                         Err(e) => tracing::error!("failed rebuild `{manifest_dir}`, {e}"),
                     }
                     watched.building = None;
@@ -118,6 +132,48 @@ impl AppExtension for HotReloadManager {
             }
         }
     }
+}
+
+#[allow(clippy::upper_case_acronyms)]
+pub(crate) struct HOT;
+impl HOT {
+    pub fn lib(&self, manifest_dir: &'static str) -> Option<HotLib> {
+        HOT_SV.read().libs.iter().find(|l| l.manifest_dir() == manifest_dir).cloned()
+    }
+
+    fn set(&self, lib: HotLib) {
+        let mut sv = HOT_SV.write();
+        if let Some(i) = sv.libs.iter().position(|l| l.manifest_dir() == lib.manifest_dir()) {
+            sv.libs[i] = lib;
+        } else {
+            sv.libs.push(lib);
+        }
+    }
+}
+app_local! {
+    static HOT_SV: HotService = const {HotService { libs: vec![] }};
+}
+struct HotService {
+    libs: Vec<HotLib>,
+}
+
+event_args! {
+    /// Args for [`HOT_RELOAD_EVENT`].
+    pub(crate) struct HotReloadArgs {
+        /// Reloaded library.
+        pub lib: HotLib,
+
+        ..
+
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_widgets();
+        }
+    }
+}
+
+event! {
+    /// Event notifies when a new version of a hot reload dynamic library has finished build and is loaded.
+    pub static HOT_RELOAD_EVENT: HotReloadArgs;
 }
 
 #[derive(Default)]
@@ -128,4 +184,51 @@ struct WatchedLib {
 struct BuildingLib {
     start_time: DInstant,
     process: ResponseVar<Result<(), BuildError>>,
+}
+
+/// Dynamically loaded library.
+#[derive(Clone)]
+pub(crate) struct HotLib {
+    manifest_dir: &'static str,
+    lib: Arc<libloading::Library>,
+    hot_entry: unsafe fn(HotRequest) -> Option<HotNode>,
+}
+impl fmt::Debug for HotLib {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HotLib")
+            .field("manifest_dir", &self.manifest_dir)
+            .finish_non_exhaustive()
+    }
+}
+impl HotLib {
+    pub fn new(manifest_dir: &'static str, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
+        unsafe {
+            let lib = libloading::Library::new(lib)?;
+            Ok(Self {
+                manifest_dir,
+                hot_entry: *lib.get(b"zng_hot_entry")?,
+                lib: Arc::new(lib),
+            })
+        }
+    }
+
+    /// Lib identifier.
+    pub fn manifest_dir(&self) -> &'static str {
+        self.manifest_dir
+    }
+
+    pub fn instantiate(&self, hot_node_name: &'static str, ctx: LocalContext, args: HotNodeArgs) -> Option<HotNode> {
+        let request = HotRequest {
+            manifest_dir: self.manifest_dir,
+            hot_node_name,
+            ctx,
+            args,
+        };
+        // SAFETY: lib is still loaded and will remain until all HotNodes are dropped.
+        let mut r = unsafe { (self.hot_entry)(request) };
+        if let Some(n) = &mut r {
+            n._lib = Some(self.lib.clone());
+        }
+        r
+    }
 }
