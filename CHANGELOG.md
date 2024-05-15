@@ -6,6 +6,7 @@
     - Add `zng::hot_reload`.
     - Add `feature="hot_reload"` in `zng`.
 * Implemented VsCode snippets for common Zng macros, see [`zng.code-snippets`].
+* Fix view-process cleanup when app-process panics on init.
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 

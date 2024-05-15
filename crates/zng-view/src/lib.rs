@@ -237,7 +237,25 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
 
 /// Like [`run_same_process`] but with custom API extensions.
 pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
-    let r = thread::Builder::new().name("app".to_owned()).spawn(run_app).unwrap();
+    let r = thread::Builder::new()
+        .name("app".to_owned())
+        .spawn(move || {
+            // SAFETY: we exit the process in case of panic.
+            if let Err(e) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(run_app)) {
+                thread::spawn(|| {
+                    // Sometimes the channel does not disconnect on panic,
+                    // observed this issue on a panic in `AppExtension::init`.
+                    //
+                    // This workaround ensures that don't become a zombie process.
+                    thread::sleep(std::time::Duration::from_secs(5));
+                    eprintln!("run_same_process did not exit after 5s of a fatal panic, exiting now");
+                    std::process::exit(101);
+                });
+                // Propagate panic in case the normal disconnect/shutdown handler works.
+                std::panic::resume_unwind(e);
+            }
+        })
+        .unwrap();
 
     let config = ViewConfig::wait_same_process();
     config.assert_version(true);
@@ -958,7 +976,7 @@ impl App {
         }
     }
 
-    pub fn run_headless(c: ipc::ViewChannels, ext: ViewExtensions) {
+    pub fn run_headless(ipc: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headless view-process");
 
         gl::warmup();
@@ -967,8 +985,8 @@ impl App {
         let (request_sender, request_receiver) = flume::unbounded();
         let mut app = App::new(
             AppEventSender::Headless(app_sender, request_sender),
-            c.response_sender,
-            c.event_sender,
+            ipc.response_sender,
+            ipc.event_sender,
             request_receiver,
             ext,
         );
@@ -981,7 +999,7 @@ impl App {
         event_loop
             .run_app(&mut HeadlessApp {
                 app,
-                request_receiver: Some(c.request_receiver),
+                request_receiver: Some(ipc.request_receiver),
                 app_receiver,
             })
             .unwrap();
@@ -1065,7 +1083,7 @@ impl App {
         }
     }
 
-    pub fn run_headed(c: ipc::ViewChannels, ext: ViewExtensions) {
+    pub fn run_headed(ipc: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headed view-process");
 
         gl::warmup();
@@ -1078,12 +1096,12 @@ impl App {
         let (request_sender, request_receiver) = flume::unbounded();
         let mut app = App::new(
             AppEventSender::Headed(app_sender, request_sender),
-            c.response_sender,
-            c.event_sender,
+            ipc.response_sender,
+            ipc.event_sender,
             request_receiver,
             ext,
         );
-        app.start_receiving(c.request_receiver);
+        app.start_receiving(ipc.request_receiver);
 
         #[cfg(windows)]
         config::spawn_listener(app.app_sender.clone());
@@ -1146,6 +1164,7 @@ impl App {
                     break;
                 }
             }
+            let _ = app_sender.send(AppEvent::ParentProcessExited);
         });
     }
 
