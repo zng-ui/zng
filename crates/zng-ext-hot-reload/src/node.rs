@@ -6,7 +6,7 @@ use zng_app::{
     widget::{
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
         node::{ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList},
-        WIDGET,
+        WidgetUpdateMode, WIDGET,
     },
 };
 use zng_app_context::LocalContext;
@@ -252,7 +252,7 @@ impl UiNode for HotNodeHost {
         self.instance.is_nil(&mut ctx)
     }
 
-    fn with_context<R, F>(&mut self, update_mode: zng_app::widget::WidgetUpdateMode, f: F) -> Option<R>
+    fn with_context<R, F>(&mut self, update_mode: WidgetUpdateMode, f: F) -> Option<R>
     where
         F: FnOnce() -> R,
     {
@@ -270,6 +270,7 @@ impl UiNode for HotNodeHost {
 #[doc(hidden)]
 pub struct HotNode {
     child: BoxedUiNode,
+    api: HotNodeApi,
     // keep alive because `child` is code from it.
     pub(crate) _lib: Option<Arc<libloading::Library>>,
 }
@@ -277,57 +278,140 @@ impl HotNode {
     pub fn new(node: impl UiNode) -> Self {
         Self {
             child: node.boxed(),
+            api: HotNodeApi::capture(),
             _lib: None,
         }
     }
 
     fn init(&mut self, ctx: &mut LocalContext) {
-        ctx.with_context(|| self.child.init())
+        (self.api.init)(&mut self.child, ctx)
     }
 
     fn deinit(&mut self, ctx: &mut LocalContext) {
-        ctx.with_context(|| self.child.deinit())
+        (self.api.deinit)(&mut self.child, ctx)
     }
 
     fn info(&mut self, ctx: &mut LocalContext, info: &mut WidgetInfoBuilder) {
-        ctx.with_context(|| self.child.info(info))
+        (self.api.info)(&mut self.child, ctx, info)
     }
 
     fn event(&mut self, ctx: &mut LocalContext, update: &EventUpdate) {
-        ctx.with_context(|| self.child.event(update))
+        (self.api.event)(&mut self.child, ctx, update)
     }
 
     fn update(&mut self, ctx: &mut LocalContext, updates: &WidgetUpdates) {
-        ctx.with_context(|| self.child.update(updates))
+        (self.api.update)(&mut self.child, ctx, updates)
     }
 
     fn measure(&mut self, ctx: &mut LocalContext, wm: &mut WidgetMeasure) -> PxSize {
-        ctx.with_context(|| self.child.measure(wm))
+        (self.api.measure)(&mut self.child, ctx, wm)
     }
 
     fn layout(&mut self, ctx: &mut LocalContext, wl: &mut WidgetLayout) -> PxSize {
-        ctx.with_context(|| self.child.layout(wl))
+        (self.api.layout)(&mut self.child, ctx, wl)
     }
 
     fn render(&mut self, ctx: &mut LocalContext, frame: &mut FrameBuilder) {
-        ctx.with_context(|| self.child.render(frame))
+        (self.api.render)(&mut self.child, ctx, frame)
     }
 
     fn render_update(&mut self, ctx: &mut LocalContext, update: &mut FrameUpdate) {
-        ctx.with_context(|| self.child.render_update(update))
+        (self.api.render_update)(&mut self.child, ctx, update)
     }
 
     fn is_widget(&self, ctx: &mut LocalContext) -> bool {
-        ctx.with_context(|| self.child.is_widget())
+        (self.api.is_widget)(&self.child, ctx)
     }
 
     fn is_nil(&self, ctx: &mut LocalContext) -> bool {
-        ctx.with_context(|| self.child.is_nil())
+        (self.api.is_nil)(&self.child, ctx)
     }
 
-    fn with_context(&mut self, ctx: &mut LocalContext, update_mode: zng_app::widget::WidgetUpdateMode, f: &mut dyn FnMut()) {
+    fn with_context(&mut self, ctx: &mut LocalContext, update_mode: WidgetUpdateMode, f: &mut dyn FnMut()) {
+        (self.api.with_context)(&mut self.child, ctx, update_mode, f)
+    }
+}
+
+// HotNode "methods" references from the dynamic loaded code to be called from the static code.
+struct HotNodeApi {
+    init: fn(&mut BoxedUiNode, &mut LocalContext),
+    deinit: fn(&mut BoxedUiNode, &mut LocalContext),
+    info: fn(&mut BoxedUiNode, &mut LocalContext, &mut WidgetInfoBuilder),
+    event: fn(&mut BoxedUiNode, &mut LocalContext, &EventUpdate),
+    update: fn(&mut BoxedUiNode, &mut LocalContext, &WidgetUpdates),
+    measure: fn(&mut BoxedUiNode, &mut LocalContext, &mut WidgetMeasure) -> PxSize,
+    layout: fn(&mut BoxedUiNode, &mut LocalContext, &mut WidgetLayout) -> PxSize,
+    render: fn(&mut BoxedUiNode, &mut LocalContext, &mut FrameBuilder),
+    render_update: fn(&mut BoxedUiNode, &mut LocalContext, &mut FrameUpdate),
+    is_widget: fn(&BoxedUiNode, &mut LocalContext) -> bool,
+    is_nil: fn(&BoxedUiNode, &mut LocalContext) -> bool,
+    with_context: fn(&mut BoxedUiNode, &mut LocalContext, WidgetUpdateMode, &mut dyn FnMut()),
+}
+impl HotNodeApi {
+    fn init(child: &mut BoxedUiNode, ctx: &mut LocalContext) {
+        ctx.with_context(|| child.init())
+    }
+
+    fn deinit(child: &mut BoxedUiNode, ctx: &mut LocalContext) {
+        ctx.with_context(|| child.deinit())
+    }
+
+    fn info(child: &mut BoxedUiNode, ctx: &mut LocalContext, info: &mut WidgetInfoBuilder) {
+        ctx.with_context(|| child.info(info))
+    }
+
+    fn event(child: &mut BoxedUiNode, ctx: &mut LocalContext, update: &EventUpdate) {
+        ctx.with_context(|| child.event(update))
+    }
+
+    fn update(child: &mut BoxedUiNode, ctx: &mut LocalContext, updates: &WidgetUpdates) {
+        ctx.with_context(|| child.update(updates))
+    }
+
+    fn measure(child: &mut BoxedUiNode, ctx: &mut LocalContext, wm: &mut WidgetMeasure) -> PxSize {
+        ctx.with_context(|| child.measure(wm))
+    }
+
+    fn layout(child: &mut BoxedUiNode, ctx: &mut LocalContext, wl: &mut WidgetLayout) -> PxSize {
+        ctx.with_context(|| child.layout(wl))
+    }
+
+    fn render(child: &mut BoxedUiNode, ctx: &mut LocalContext, frame: &mut FrameBuilder) {
+        ctx.with_context(|| child.render(frame))
+    }
+
+    fn render_update(child: &mut BoxedUiNode, ctx: &mut LocalContext, update: &mut FrameUpdate) {
+        ctx.with_context(|| child.render_update(update))
+    }
+
+    fn is_widget(child: &BoxedUiNode, ctx: &mut LocalContext) -> bool {
+        ctx.with_context(|| child.is_widget())
+    }
+
+    fn is_nil(child: &BoxedUiNode, ctx: &mut LocalContext) -> bool {
+        ctx.with_context(|| child.is_nil())
+    }
+
+    fn with_context(child: &mut BoxedUiNode, ctx: &mut LocalContext, update_mode: WidgetUpdateMode, f: &mut dyn FnMut()) {
         ctx.with_context(|| {
-            self.child.with_context(update_mode, f);
+            child.with_context(update_mode, f);
         })
+    }
+
+    fn capture() -> Self {
+        Self {
+            init: Self::init,
+            deinit: Self::deinit,
+            info: Self::info,
+            event: Self::event,
+            update: Self::update,
+            measure: Self::measure,
+            layout: Self::layout,
+            render: Self::render,
+            render_update: Self::render_update,
+            is_widget: Self::is_widget,
+            is_nil: Self::is_nil,
+            with_context: Self::with_context,
+        }
     }
 }
