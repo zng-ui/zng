@@ -2,6 +2,7 @@
 
 * Fix release build of `zng-wgt-scroll` running out of memory. (#203)
 * Implemented VsCode snippets for common Zng macros, see [`zng.code-snippets`].
+* Fix view-process cleanup when app-process panics on init.
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 
