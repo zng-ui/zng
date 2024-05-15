@@ -26,10 +26,10 @@ pub fn build(manifest_dir: &str) -> ResponseVar<Result<(), BuildError>> {
 }
 
 /// Get compiled dyn lib name from manifest dir.
-pub fn lib_name(manifest_dir: &str) -> Option<PathBuf> {
+pub fn _lib_name(manifest_dir: &str) -> Option<PathBuf> {
     let manifest_path = format!("{manifest_dir}/Cargo.toml");
 
-    let output = std::process::Command::new("cargo")
+    let _output = std::process::Command::new("cargo")
         .arg("metadata")
         .arg("--format-version")
         .arg("1")

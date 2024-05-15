@@ -13,6 +13,7 @@ fn main() {
     app_main();
 }
 
+
 fn app_main() {
     // examples/Cargo.toml enables the `"hot_reload"` feature for `zng`,
     // so the hot reload extension is available in `APP.defaults()`.

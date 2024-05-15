@@ -11,6 +11,7 @@
 
 mod cargo;
 mod node;
+mod util;
 use std::{collections::HashMap, fmt, sync::Arc};
 
 use cargo::BuildError;
@@ -39,6 +40,12 @@ macro_rules! zng_hot_entry {
         #[doc(hidden)] // used by lib loader
         pub extern "C" fn zng_hot_entry(request: $crate::zng_hot_entry::HotRequest) -> Option<$crate::zng_hot_entry::HotNode> {
             $crate::zng_hot_entry::entry(request)
+        }
+
+        #[no_mangle]
+        #[doc(hidden)]
+        pub extern "C" fn zng_hot_entry_init() {
+            $crate::zng_hot_entry::init()
         }
     };
 }
@@ -71,6 +78,14 @@ pub mod zng_hot_entry {
             }
         }
         None
+    }
+
+    pub fn init() {
+        std::panic::set_hook(Box::new(|args| {
+            eprintln!("PANIC IN HOT LOADED LIBRARY, ABORTING");
+            crate::util::crash_handler(args);
+            std::process::exit(101);
+        }));
     }
 }
 
@@ -203,7 +218,17 @@ impl fmt::Debug for HotLib {
 impl HotLib {
     pub fn new(manifest_dir: &'static str, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
         unsafe {
+            // SAFETY: assuming the the hot lib was setup as the documented, this works,
+            // even the `linkme` stuff does not require any special care.
+            //
+            // If the hot lib developer add some "ctor/dtor" stuff and that fails they will probably
+            // know why, hot reloading should only run in dev machines.
             let lib = libloading::Library::new(lib)?;
+
+            // SAFETY: thats the signature and init only does safe things.
+            let init: unsafe fn() = *lib.get(b"zng_hot_entry_init")?;
+            init();
+
             Ok(Self {
                 manifest_dir,
                 hot_entry: *lib.get(b"zng_hot_entry")?,
