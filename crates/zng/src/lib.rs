@@ -773,7 +773,7 @@ mod __prelude_wgt {
     };
 
     pub use crate::state_map;
-    pub use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
+    pub use zng_state_map::{static_id, OwnedStateMap, StateId, StateMapMut, StateMapRef};
 
     pub use zng_wgt::prelude::{IdEntry, IdMap, IdSet};
 

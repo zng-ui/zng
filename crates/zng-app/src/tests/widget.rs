@@ -1126,7 +1126,8 @@ pub mod util {
     };
 
     use zng_app_proc_macros::property;
-    use zng_state_map::StaticStateId;
+    use zng_state_map::StateId;
+    use zng_unique_id::static_id;
     use zng_var::{IntoValue, IntoVar, Var};
 
     use crate::widget::{
@@ -1142,7 +1143,7 @@ pub mod util {
             if let UiNodeOp::Init = op {
                 child.init();
                 WIDGET.with_state_mut(|mut s| {
-                    s.entry(&TRACE_ID).or_default().insert(trace);
+                    s.entry(*TRACE_ID).or_default().insert(trace);
                 });
             }
         })
@@ -1151,12 +1152,14 @@ pub mod util {
     /// Probe for a [`trace`] in the widget state.
     pub fn traced(wgt: &mut impl UiNode, trace: &'static str) -> bool {
         wgt.with_context(WidgetUpdateMode::Ignore, || {
-            WIDGET.with_state(|s| s.get(&TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default())
+            WIDGET.with_state(|s| s.get(*TRACE_ID).map(|t| t.contains(trace)).unwrap_or_default())
         })
         .expect("expected widget")
     }
 
-    static TRACE_ID: StaticStateId<HashSet<&'static str>> = StaticStateId::new_unique();
+    static_id! {
+        static ref TRACE_ID: StateId<HashSet<&'static str>>;
+    }
 
     /// Insert `count` in the widget state. Can get using [`Count::get`].
     #[property(CONTEXT)]
@@ -1279,7 +1282,7 @@ pub mod util {
     pub fn sorted_value_init(wgt: &mut impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
         wgt.with_context(WidgetUpdateMode::Ignore, || {
-            if let Some(m) = WIDGET.get_state(&VALUE_POSITION_ID) {
+            if let Some(m) = WIDGET.get_state(*VALUE_POSITION_ID) {
                 for (key, value) in m {
                     vec.push((key, value));
                 }
@@ -1293,7 +1296,7 @@ pub mod util {
     pub fn sorted_node_init(wgt: &mut impl UiNode) -> Vec<&'static str> {
         let mut vec = vec![];
         wgt.with_context(WidgetUpdateMode::Ignore, || {
-            if let Some(m) = WIDGET.get_state(&NODE_POSITION_ID) {
+            if let Some(m) = WIDGET.get_state(*NODE_POSITION_ID) {
                 for (key, value) in m {
                     vec.push((key, value));
                 }
@@ -1303,17 +1306,19 @@ pub mod util {
         vec.into_iter().map(|(t, _)| t).collect()
     }
 
-    static VALUE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
-    static NODE_POSITION_ID: StaticStateId<HashMap<&'static str, u32>> = StaticStateId::new_unique();
+    static_id! {
+        static ref VALUE_POSITION_ID: StateId<HashMap<&'static str, u32>>;
+        static ref NODE_POSITION_ID: StateId<HashMap<&'static str, u32>>;
+    }
 
     fn count_node(child: impl UiNode, count: impl IntoValue<Position>) -> impl UiNode {
         let value_pos = count.into();
         match_node(child, move |_, op| {
             if let UiNodeOp::Init = op {
                 WIDGET.with_state_mut(|mut s| {
-                    s.entry(&VALUE_POSITION_ID).or_default().insert(value_pos.tag, value_pos.pos);
+                    s.entry(*VALUE_POSITION_ID).or_default().insert(value_pos.tag, value_pos.pos);
 
-                    s.entry(&NODE_POSITION_ID).or_default().insert(value_pos.tag, Position::next_init());
+                    s.entry(*NODE_POSITION_ID).or_default().insert(value_pos.tag, Position::next_init());
                 });
             }
         })
@@ -1336,7 +1341,7 @@ pub mod util {
                 _ => false,
             };
             if update {
-                let wgt_state = WIDGET.get_state(&IS_STATE_ID).unwrap_or_default();
+                let wgt_state = WIDGET.get_state(*IS_STATE_ID).unwrap_or_default();
                 if wgt_state != state.get() {
                     let _ = state.set(wgt_state);
                 }
@@ -1349,14 +1354,16 @@ pub mod util {
     pub fn set_state(wgt: &mut impl UiNode, state: bool) {
         wgt.with_context(WidgetUpdateMode::Ignore, || {
             WIDGET.with_state_mut(|mut s| {
-                *s.entry(&IS_STATE_ID).or_default() = state;
+                *s.entry(*IS_STATE_ID).or_default() = state;
             });
             WIDGET.update();
         })
         .expect("expected widget");
     }
 
-    static IS_STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
+    static_id! {
+        static ref IS_STATE_ID: StateId<bool>;
+    }
 
     /// A [trace] that can update.
     #[property(CONTEXT)]
@@ -1367,14 +1374,14 @@ pub mod util {
                 child.init();
                 WIDGET.sub_var(&trace);
                 WIDGET.with_state_mut(|mut s| {
-                    s.entry(&TRACE_ID).or_default().insert(trace.get());
+                    s.entry(*TRACE_ID).or_default().insert(trace.get());
                 });
             }
             UiNodeOp::Update { updates } => {
                 child.update(updates);
                 if let Some(trace) = trace.get_new() {
                     WIDGET.with_state_mut(|mut s| {
-                        s.entry(&TRACE_ID).or_default().insert(trace);
+                        s.entry(*TRACE_ID).or_default().insert(trace);
                     })
                 }
             }

@@ -97,7 +97,7 @@
 //!
 //! See [`zng_ext_window`], [`zng_app::window`] and [`zng_wgt_window`] for the full window API.
 
-pub use zng_app::window::{MonitorId, StaticMonitorId, StaticWindowId, WindowId, WindowMode, WINDOW};
+pub use zng_app::window::{MonitorId, WindowId, WindowMode, WINDOW};
 
 pub use zng_ext_window::{
     AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt,

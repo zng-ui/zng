@@ -46,5 +46,5 @@
 
 pub use zng_state_map::{
     state_map::{OccupiedStateMapEntry, StateMapEntry, VacantStateMapEntry},
-    OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue, StaticStateId,
+    OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue,
 };

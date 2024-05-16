@@ -50,11 +50,6 @@ zng_var::impl_from_and_into_var! {
 
     fn from(some: WindowId) -> Option<WindowId>;
 }
-impl fmt::Debug for StaticWindowId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.get(), f)
-    }
-}
 impl serde::Serialize for WindowId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -77,7 +72,6 @@ impl<'de> serde::Deserialize<'de> for WindowId {
         Ok(WindowId::named(name))
     }
 }
-impl zng_var::IntoValue<WindowId> for &'static StaticWindowId {}
 
 zng_unique_id::unique_id_32! {
     /// Unique identifier of a monitor screen.
@@ -233,7 +227,7 @@ mod _impl {
         context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, LayoutMetrics, LAYOUT},
         unit::{FactorUnits, Length, Px, PxConstraints2d, PxSize, PxTransform},
     };
-    use zng_state_map::StaticStateId;
+    use zng_state_map::{static_id, StateId};
     use zng_view_api::config::FontAntiAliasing;
 
     use super::*;
@@ -248,7 +242,9 @@ mod _impl {
     };
     use atomic::Ordering::Relaxed;
 
-    static TEST_WINDOW_CFG: StaticStateId<TestWindowCfg> = StaticStateId::new_unique();
+    static_id! {
+        static ref TEST_WINDOW_CFG: StateId<TestWindowCfg>;
+    }
 
     struct TestWindowCfg {
         size: PxSize,
@@ -270,7 +266,7 @@ mod _impl {
             ctx.set_widget_tree(WidgetInfoTree::wgt(window_id, root_id));
             WINDOW.with_context(&mut ctx, || {
                 WINDOW.set_state(
-                    &TEST_WINDOW_CFG,
+                    *TEST_WINDOW_CFG,
                     TestWindowCfg {
                         size: PxSize::new(Px(1132), Px(956)),
                     },
@@ -285,13 +281,13 @@ mod _impl {
         ///
         /// This size is used by the `test_*` methods that need a window size.
         pub fn test_window_size(&self) -> PxSize {
-            WINDOW.with_state_mut(|mut s| s.get_mut(&TEST_WINDOW_CFG).expect("not in test window").size)
+            WINDOW.with_state_mut(|mut s| s.get_mut(*TEST_WINDOW_CFG).expect("not in test window").size)
         }
 
         /// Set test window `size`.
         pub fn set_test_window_size(&self, size: PxSize) {
             WINDOW.with_state_mut(|mut s| {
-                s.get_mut(&TEST_WINDOW_CFG).expect("not in test window").size = size;
+                s.get_mut(*TEST_WINDOW_CFG).expect("not in test window").size = size;
             })
         }
 
@@ -486,8 +482,10 @@ mod _impl {
         }
 
         fn test_root_translation_key(&self) -> FrameValueKey<PxTransform> {
-            static ID: StaticStateId<FrameValueKey<PxTransform>> = StaticStateId::new_unique();
-            WINDOW.with_state_mut(|mut s| *s.entry(&ID).or_insert_with(FrameValueKey::new_unique))
+            static_id! {
+                static ref ID: StateId<FrameValueKey<PxTransform>>;
+            }
+            WINDOW.with_state_mut(|mut s| *s.entry(*ID).or_insert_with(FrameValueKey::new_unique))
         }
     }
 }

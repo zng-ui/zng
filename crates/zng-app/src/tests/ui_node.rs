@@ -203,9 +203,11 @@ mod util {
     use std::sync::Arc;
     use zng_app_proc_macros::ui_node;
     use zng_layout::unit::{Px, PxSize};
-    use zng_state_map::StaticStateId;
+    use zng_state_map::{static_id, StateId};
 
-    pub(super) static TRACE_ID: StaticStateId<Vec<TraceRef>> = StaticStateId::new_unique();
+    static_id! {
+        pub(super) static ref TRACE_ID: StateId<Vec<TraceRef>>;
+    }
 
     type TraceRef = Arc<Mutex<Vec<&'static str>>>;
 
@@ -216,7 +218,7 @@ mod util {
             let method = $method;
             $wgt.with_context(WidgetUpdateMode::Bubble, || {
                 WIDGET.with_state(|s| {
-                    if let Some(db) = s.get(&util::TRACE_ID) {
+                    if let Some(db) = s.get(*util::TRACE_ID) {
                         for (i, trace_ref) in db.iter().enumerate() {
                             let mut any = false;
                             for trace_entry in trace_ref.lock().drain(..) {
@@ -241,7 +243,7 @@ mod util {
         ($wgt:ident) => {{
             $wgt.with_context(WidgetUpdateMode::Bubble, || {
                 WIDGET.with_state(|s| {
-                    if let Some(db) = s.get(&util::TRACE_ID) {
+                    if let Some(db) = s.get(*util::TRACE_ID) {
                         for (i, trace_ref) in db.iter().enumerate() {
                             let mut any = false;
                             for trace_entry in trace_ref.lock().iter() {
@@ -289,7 +291,7 @@ mod util {
     impl UiNode for TestTraceNode {
         fn init(&mut self) {
             WIDGET.with_state_mut(|mut s| {
-                let db = s.entry(&TRACE_ID).or_default();
+                let db = s.entry(*TRACE_ID).or_default();
                 assert!(db.iter().all(|t| !Arc::ptr_eq(t, &self.trace)), "TraceNode::init called twice");
                 db.push(Arc::clone(&self.trace));
             });

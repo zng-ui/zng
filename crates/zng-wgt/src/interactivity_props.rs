@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use task::parking_lot::Mutex;
-use zng_app::widget::info;
+use zng_app::{static_id, widget::info};
 
 use crate::prelude::*;
 
@@ -324,7 +324,9 @@ event_property! {
 /// [`modal_includes`]: fn@modal_includes
 #[property(CONTEXT, default(false))]
 pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    static MODAL_WIDGETS: StaticStateId<Arc<Mutex<ModalWidgetsData>>> = StaticStateId::new_unique();
+    static_id! {
+        static ref MODAL_WIDGETS: StateId<Arc<Mutex<ModalWidgetsData>>>;
+    }
     #[derive(Default)]
     struct ModalWidgetsData {
         widgets: IdSet<WidgetId>,
@@ -337,10 +339,10 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_info(&enabled);
-            WINDOW.init_state_default(&MODAL_WIDGETS); // insert window state
+            WINDOW.init_state_default(*MODAL_WIDGETS); // insert window state
         }
         UiNodeOp::Deinit => {
-            let mws = WINDOW.req_state(&MODAL_WIDGETS);
+            let mws = WINDOW.req_state(*MODAL_WIDGETS);
 
             // maybe unregister.
             let mut mws = mws.lock();
@@ -362,7 +364,7 @@ pub fn modal(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
             }
         }
         UiNodeOp::Info { info } => {
-            let mws = WINDOW.req_state(&MODAL_WIDGETS);
+            let mws = WINDOW.req_state(*MODAL_WIDGETS);
 
             if enabled.get() {
                 if let Some(mut a) = info.access() {
@@ -514,11 +516,11 @@ pub trait WidgetInfoBuilderModalExt {
 }
 impl WidgetInfoBuilderModalExt for WidgetInfoBuilder {
     fn insert_modal_include(&mut self, include: WidgetId) {
-        self.with_meta(|mut m| m.entry(&MODAL_INCLUDES).or_default().insert(include));
+        self.with_meta(|mut m| m.entry(*MODAL_INCLUDES).or_default().insert(include));
     }
 
     fn set_modal_included(&mut self, modal: WidgetId) {
-        self.set_meta(&MODAL_INCLUDED, modal);
+        self.set_meta(*MODAL_INCLUDED, modal);
     }
 }
 
@@ -528,11 +530,11 @@ trait WidgetInfoModalExt {
 }
 impl WidgetInfoModalExt for WidgetInfo {
     fn modal_includes(&self, id: WidgetId) -> bool {
-        self.id() == id || self.meta().get(&MODAL_INCLUDES).map(|i| i.contains(&id)).unwrap_or(false)
+        self.id() == id || self.meta().get(*MODAL_INCLUDES).map(|i| i.contains(&id)).unwrap_or(false)
     }
 
     fn modal_included(&self, modal: WidgetId) -> bool {
-        if let Some(id) = self.meta().get_clone(&MODAL_INCLUDED) {
+        if let Some(id) = self.meta().get_clone(*MODAL_INCLUDED) {
             if id == modal {
                 return true;
             }
@@ -544,5 +546,7 @@ impl WidgetInfoModalExt for WidgetInfo {
     }
 }
 
-static MODAL_INCLUDES: StaticStateId<IdSet<WidgetId>> = StaticStateId::new_unique();
-static MODAL_INCLUDED: StaticStateId<WidgetId> = StaticStateId::new_unique();
+static_id! {
+    static ref MODAL_INCLUDES: StateId<IdSet<WidgetId>>;
+    static ref MODAL_INCLUDED: StateId<WidgetId>;
+}

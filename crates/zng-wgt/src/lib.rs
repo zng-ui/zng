@@ -86,7 +86,7 @@ mod __prelude {
         app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext, RunOnDrop,
     };
 
-    pub use zng_state_map::{state_map, OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
+    pub use zng_state_map::{state_map, static_id, OwnedStateMap, StateId, StateMapMut, StateMapRef};
 
     pub use zng_unique_id::{IdEntry, IdMap, IdSet};
 

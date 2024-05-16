@@ -5,7 +5,7 @@ use std::num::NonZeroU32;
 use parking_lot::Mutex;
 use unic_langid::LanguageIdentifier;
 use zng_layout::unit::{Factor, PxSize, PxTransform};
-use zng_state_map::StaticStateId;
+use zng_state_map::{static_id, StateId};
 use zng_txt::Txt;
 use zng_unique_id::IdMap;
 use zng_var::{BoxedVar, IntoVar, Var};
@@ -37,7 +37,7 @@ pub struct WidgetAccessInfoBuilder<'a> {
 }
 impl<'a> WidgetAccessInfoBuilder<'a> {
     fn with_access(&mut self, f: impl FnOnce(&mut AccessInfo)) {
-        self.builder.with_meta(move |mut m| f(m.entry(&ACCESS_INFO_ID).or_default()))
+        self.builder.with_meta(move |mut m| f(m.entry(*ACCESS_INFO_ID).or_default()))
     }
 
     /// Set the accessibility role of the widget.
@@ -403,7 +403,7 @@ impl<'a> WidgetAccessInfoBuilder<'a> {
     /// Note that the accessibility info for the widget and descendants is still collected and
     /// available in the app-process.
     pub fn flag_inaccessible(&mut self) {
-        self.builder.flag_meta(&INACCESSIBLE_ID);
+        self.builder.flag_meta(*INACCESSIBLE_ID);
     }
 
     /// Register a `handler` that is called every time view-process access info is build from the current widget,
@@ -537,7 +537,7 @@ impl WidgetInfo {
     ///
     /// [`access_enabled`]: crate::widget::info::WidgetInfoTree::access_enabled
     pub fn access(&self) -> Option<WidgetAccessInfo> {
-        if self.tree.access_enabled().is_enabled() && self.meta().contains(&ACCESS_INFO_ID) {
+        if self.tree.access_enabled().is_enabled() && self.meta().contains(*ACCESS_INFO_ID) {
             Some(WidgetAccessInfo { info: self.clone() })
         } else {
             None
@@ -636,7 +636,7 @@ impl WidgetAccessInfo {
     }
 
     fn access(&self) -> &AccessInfo {
-        self.info.meta().req(&ACCESS_INFO_ID)
+        self.info.meta().req(*ACCESS_INFO_ID)
     }
 
     /// Accessibility role of the widget.
@@ -919,7 +919,7 @@ impl WidgetAccessInfo {
     /// available in the app-process.
     pub fn is_accessible(&self) -> bool {
         for wgt in self.info.self_and_ancestors() {
-            if wgt.meta().contains(&INACCESSIBLE_ID) || !self.info.visibility().is_visible() {
+            if wgt.meta().contains(*INACCESSIBLE_ID) || !self.info.visibility().is_visible() {
                 return false;
             }
         }
@@ -927,7 +927,7 @@ impl WidgetAccessInfo {
     }
 
     fn is_local_accessible(&self) -> bool {
-        !self.info.meta().contains(&INACCESSIBLE_ID) && self.info.visibility().is_visible()
+        !self.info.meta().contains(*INACCESSIBLE_ID) && self.info.visibility().is_visible()
     }
 
     fn to_access_node_leaf(&self, inverse: &InverseAccess) -> zng_view_api::access::AccessNode {
@@ -1113,7 +1113,7 @@ impl WidgetAccessInfo {
 
     /// Returns `true` if access changed by visibility update.
     fn to_access_updates_bounds(&self, inverse: &InverseAccess, updates: &mut Vec<zng_view_api::access::AccessTree>) -> bool {
-        if self.info.meta().contains(&INACCESSIBLE_ID) {
+        if self.info.meta().contains(*INACCESSIBLE_ID) {
             // not accessible
             return false;
         }
@@ -1255,8 +1255,10 @@ struct InverseAccess {
     described_by: IdMap<WidgetId, Vec<WidgetId>>,
 }
 
-static ACCESS_INFO_ID: StaticStateId<AccessInfo> = StaticStateId::new_unique();
-static INACCESSIBLE_ID: StaticStateId<()> = StaticStateId::new_unique();
+static_id! {
+    static ref ACCESS_INFO_ID: StateId<AccessInfo>;
+    static ref INACCESSIBLE_ID: StateId<()>;
+}
 
 bitflags::bitflags! {
     /// Defines how accessibility info is enabled.

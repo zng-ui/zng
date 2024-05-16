@@ -8,7 +8,7 @@ use zng_app::widget::{
     WidgetId,
 };
 use zng_layout::unit::{DistanceKey, Orientation2D, Px, PxBox, PxPoint, PxRect, PxSize};
-use zng_state_map::StaticStateId;
+use zng_state_map::{static_id, StateId};
 use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::FocusIndicator;
@@ -718,7 +718,7 @@ impl WidgetFocusInfo {
     /// Widget focus metadata.
     pub fn focus_info(&self) -> FocusInfo {
         if self.mode_allows_focus() {
-            if let Some(builder) = self.info.meta().get(&FOCUS_INFO_ID) {
+            if let Some(builder) = self.info.meta().get(*FOCUS_INFO_ID) {
                 return builder.build();
             }
         }
@@ -728,7 +728,7 @@ impl WidgetFocusInfo {
     /// Widget focus metadata, all things equal except the widget interactivity is blocked.
     pub fn focus_info_ignore_blocked(&self) -> FocusInfo {
         if self.mode_allows_focus_ignore_blocked() {
-            if let Some(builder) = self.info.meta().get(&FOCUS_INFO_ID) {
+            if let Some(builder) = self.info.meta().get(*FOCUS_INFO_ID) {
                 return builder.build();
             }
         }
@@ -814,7 +814,7 @@ impl WidgetFocusInfo {
         }
     }
     fn inner_alt_scope(&self) -> Option<WidgetFocusInfo> {
-        let inner_alt = self.info.meta().get(&FOCUS_INFO_ID).unwrap().inner_alt.load(Relaxed);
+        let inner_alt = self.info.meta().get(*FOCUS_INFO_ID).unwrap().inner_alt.load(Relaxed);
         if let Some(id) = inner_alt {
             if let Some(wgt) = self.info.tree().get(id) {
                 let wgt = wgt.into_focus_info(self.focus_disabled_widgets(), self.focus_hidden_widgets());
@@ -1883,8 +1883,10 @@ impl FocusInfo {
     }
 }
 
-static FOCUS_INFO_ID: StaticStateId<FocusInfoData> = StaticStateId::new_unique();
-static FOCUS_TREE_ID: StaticStateId<FocusTreeData> = StaticStateId::new_unique();
+static_id! {
+    static ref FOCUS_INFO_ID: StateId<FocusInfoData>;
+    static ref FOCUS_TREE_ID: StateId<FocusTreeData>;
+}
 
 #[derive(Default)]
 pub(super) struct FocusTreeData {
@@ -1896,21 +1898,21 @@ impl FocusTreeData {
 
         let prev = prev_tree
             .build_meta()
-            .get(&FOCUS_TREE_ID)
+            .get(*FOCUS_TREE_ID)
             .map(|d| d.alt_scopes.lock().clone())
             .unwrap_or_default();
 
         let mut alt_scopes = prev;
-        if let Some(data) = new_tree.build_meta().get(&FOCUS_TREE_ID) {
+        if let Some(data) = new_tree.build_meta().get(*FOCUS_TREE_ID) {
             alt_scopes.extend(data.alt_scopes.lock().iter());
         }
 
         alt_scopes.retain(|id| {
             if let Some(wgt) = new_tree.get(*id) {
-                if let Some(info) = wgt.meta().get(&FOCUS_INFO_ID) {
+                if let Some(info) = wgt.meta().get(*FOCUS_INFO_ID) {
                     if info.build().is_alt_scope() {
                         for parent in wgt.ancestors() {
-                            if let Some(info) = parent.meta().get(&FOCUS_INFO_ID) {
+                            if let Some(info) = parent.meta().get(*FOCUS_INFO_ID) {
                                 if info.build().is_scope() {
                                     info.inner_alt.store(Some(*id), Relaxed);
                                     break;
@@ -1925,7 +1927,7 @@ impl FocusTreeData {
             false
         });
 
-        if let Some(data) = new_tree.build_meta().get(&FOCUS_TREE_ID) {
+        if let Some(data) = new_tree.build_meta().get(*FOCUS_TREE_ID) {
             *data.alt_scopes.lock() = alt_scopes;
         }
     }
@@ -2035,7 +2037,7 @@ impl<'a> FocusInfoBuilder<'a> {
         let mut access = self.0.access().is_some();
 
         let r = self.0.with_meta(|m| {
-            let data = m.into_entry(&FOCUS_INFO_ID).or_default();
+            let data = m.into_entry(*FOCUS_INFO_ID).or_default();
 
             if access {
                 access = !std::mem::replace(&mut data.access_handler_registered, true);
@@ -2057,7 +2059,7 @@ impl<'a> FocusInfoBuilder<'a> {
     }
 
     fn with_tree_data<R>(&mut self, visitor: impl FnOnce(&mut FocusTreeData) -> R) -> R {
-        self.0.with_build_meta(|m| visitor(m.into_entry(&FOCUS_TREE_ID).or_default()))
+        self.0.with_build_meta(|m| visitor(m.into_entry(*FOCUS_TREE_ID).or_default()))
     }
 
     /// If the widget is definitely focusable or not.

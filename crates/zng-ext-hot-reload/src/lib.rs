@@ -29,7 +29,7 @@ use zng_unique_id::hot_reload::HOT_STATICS;
 use zng_var::ResponseVar;
 
 #[doc(inline)]
-pub use zng_unique_id::{hot_static, hot_static_ref};
+pub use zng_unique_id::{hot_static, hot_static_ref, lazy_static};
 
 /// Declare hot reload entry.
 ///

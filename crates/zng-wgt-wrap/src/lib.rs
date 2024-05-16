@@ -94,7 +94,7 @@ pub fn children_align(align: impl IntoVar<Align>) {}
 /// Can be used directly to inline widgets without declaring a wrap widget info. This node is the child
 /// of the `Wrap!` widget.
 pub fn node(children: impl UiNodeList, spacing: impl IntoVar<GridSpacing>, children_align: impl IntoVar<Align>) -> impl UiNode {
-    let children = PanelList::new(children).track_info_range(&PANEL_LIST_ID);
+    let children = PanelList::new(children).track_info_range(*PANEL_LIST_ID);
     let spacing = spacing.into_var();
     let children_align = children_align.into_var();
     let mut layout = InlineLayout::default();
@@ -1011,7 +1011,9 @@ impl InlineLayout {
     }
 }
 
-static PANEL_LIST_ID: StaticStateId<PanelListRange> = StaticStateId::new_unique();
+static_id! {
+    static ref PANEL_LIST_ID: StateId<PanelListRange>;
+}
 
 /// Get the child index in the parent wrap.
 ///
@@ -1019,7 +1021,7 @@ static PANEL_LIST_ID: StaticStateId<PanelListRange> = StaticStateId::new_unique(
 #[property(CONTEXT)]
 pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
     let state = state.into_var();
-    with_index_node(child, &PANEL_LIST_ID, move |id| {
+    with_index_node(child, *PANEL_LIST_ID, move |id| {
         let _ = state.set(id.unwrap_or(0));
     })
 }
@@ -1028,7 +1030,7 @@ pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode 
 #[property(CONTEXT)]
 pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
     let state = state.into_var();
-    with_index_len_node(child, &PANEL_LIST_ID, move |id_len| {
+    with_index_len_node(child, *PANEL_LIST_ID, move |id_len| {
         let _ = state.set(id_len.unwrap_or((0, 0)));
     })
 }
@@ -1037,7 +1039,7 @@ pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) ->
 #[property(CONTEXT)]
 pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
     let state = state.into_var();
-    with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
+    with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
         let _ = state.set(id.unwrap_or(0));
     })
 }
@@ -1050,7 +1052,7 @@ pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiN
 #[property(CONTEXT)]
 pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
-    with_index_node(child, &PANEL_LIST_ID, move |id| {
+    with_index_node(child, *PANEL_LIST_ID, move |id| {
         let _ = state.set(id.map(|i| i % 2 == 0).unwrap_or(false));
     })
 }
@@ -1063,7 +1065,7 @@ pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 #[property(CONTEXT)]
 pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
-    with_index_node(child, &PANEL_LIST_ID, move |id| {
+    with_index_node(child, *PANEL_LIST_ID, move |id| {
         let _ = state.set(id.map(|i| i % 2 != 0).unwrap_or(false));
     })
 }
@@ -1072,7 +1074,7 @@ pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 #[property(CONTEXT)]
 pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
-    with_index_node(child, &PANEL_LIST_ID, move |id| {
+    with_index_node(child, *PANEL_LIST_ID, move |id| {
         let _ = state.set(id == Some(0));
     })
 }
@@ -1081,7 +1083,7 @@ pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 #[property(CONTEXT)]
 pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
-    with_rev_index_node(child, &PANEL_LIST_ID, move |id| {
+    with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
         let _ = state.set(id == Some(0));
     })
 }
@@ -1098,6 +1100,6 @@ pub trait WidgetInfoWrapExt {
 }
 impl WidgetInfoWrapExt for WidgetInfo {
     fn wrap_children(&self) -> Option<zng_app::widget::info::iter::Children> {
-        PanelListRange::get(self, &PANEL_LIST_ID)
+        PanelListRange::get(self, *PANEL_LIST_ID)
     }
 }

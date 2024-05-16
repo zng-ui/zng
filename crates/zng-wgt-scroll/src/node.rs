@@ -41,7 +41,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
     let mut scroll_info = None;
     let mut scroll_info = move || {
         scroll_info
-            .get_or_insert_with(|| WIDGET.info().meta().get_clone(&SCROLL_INFO_ID).unwrap())
+            .get_or_insert_with(|| WIDGET.info().meta().get_clone(*SCROLL_INFO_ID).unwrap())
             .clone()
     };
 

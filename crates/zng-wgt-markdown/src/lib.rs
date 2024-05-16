@@ -104,7 +104,7 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
             *c.child() = NilUiNode.boxed();
         }
         UiNodeOp::Info { info } => {
-            info.flag_meta(&MARKDOWN_INFO_ID);
+            info.flag_meta(*MARKDOWN_INFO_ID);
         }
         UiNodeOp::Update { .. } => {
             use resolvers::*;

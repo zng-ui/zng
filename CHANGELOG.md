@@ -4,9 +4,12 @@
 * Implement hot reloading UI nodes.
     - Add `zng-ext-hot` and `zng-ext-hot-proc-macros`.
     - Add `zng::hot_reload`.
-    - Add `feature="hot_reload"` in `zng`.
+    - Add `feature="hot_reload"` in `zng` and `zng-unique-id`.
 * Implemented VsCode snippets for common Zng macros, see [`zng.code-snippets`].
 * Fix view-process cleanup when app-process panics on init.
+* **Breaking** Remove all `StaticT` unique ID statics.
+    - Use `static_id!` to declare static IDs, the new way is compatible with hot reloading.
+    - Removed `StaticWindowId`, `StaticMonitorId`, `StaticPropertyId`, `StaticAppId`, `StaticWidgetId`, `StaticDeviceId`, `StaticStateId`,  `StaticCommandMetaVarId`, `StaticSpatialFrameId`.
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 

@@ -407,7 +407,6 @@ pub use zng_app::test_log;
 pub use zng_app_context::{
     app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,
     MappedRwLockReadGuardOwned, MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned,
-    StaticAppId,
 };
 pub use zng_wgt_input::cmd::{
     on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as, NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD,
@@ -420,7 +419,7 @@ pub use zng_wgt_input::cmd::{
 /// See [`zng_app::view_process::raw_device_events`] for the full API.
 pub mod raw_device_events {
     pub use zng_app::view_process::raw_device_events::{
-        DeviceArgs, DeviceId, MotionArgs, StaticDeviceId, DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, MOTION_EVENT,
+        DeviceArgs, DeviceId, MotionArgs, DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, MOTION_EVENT,
     };
 }
 

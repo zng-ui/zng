@@ -797,7 +797,7 @@ impl WIDGET_SIZE {
     pub fn set_width(&self, width: &Length) {
         WIDGET.with_state_mut(|mut state| {
             let width = width.into();
-            match state.entry(&WIDGET_SIZE_ID) {
+            match state.entry(*WIDGET_SIZE_ID) {
                 state_map::StateMapEntry::Occupied(mut e) => e.get_mut().width = width,
                 state_map::StateMapEntry::Vacant(e) => {
                     e.insert(euclid::size2(width, WidgetLength::Default));
@@ -810,7 +810,7 @@ impl WIDGET_SIZE {
     pub fn set_height(&self, height: &Length) {
         WIDGET.with_state_mut(|mut state| {
             let height = height.into();
-            match state.entry(&WIDGET_SIZE_ID) {
+            match state.entry(*WIDGET_SIZE_ID) {
                 state_map::StateMapEntry::Occupied(mut e) => e.get_mut().height = height,
                 state_map::StateMapEntry::Vacant(e) => {
                     e.insert(euclid::size2(WidgetLength::Default, height));
@@ -821,12 +821,12 @@ impl WIDGET_SIZE {
 
     /// Set the size state.
     pub fn set(&self, size: &Size) {
-        WIDGET.set_state(&WIDGET_SIZE_ID, euclid::size2((&size.width).into(), (&size.height).into()));
+        WIDGET.set_state(*WIDGET_SIZE_ID, euclid::size2((&size.width).into(), (&size.height).into()));
     }
 
     /// Get the size set in the state.
     pub fn get(&self) -> euclid::Size2D<WidgetLength, ()> {
-        WIDGET.get_state(&WIDGET_SIZE_ID).unwrap_or_default()
+        WIDGET.get_state(*WIDGET_SIZE_ID).unwrap_or_default()
     }
 
     /// Get the size set in the widget state.
@@ -835,7 +835,9 @@ impl WIDGET_SIZE {
     }
 }
 
-static WIDGET_SIZE_ID: StaticStateId<euclid::Size2D<WidgetLength, ()>> = StaticStateId::new_unique();
+static_id! {
+    static ref WIDGET_SIZE_ID: StateId<euclid::Size2D<WidgetLength, ()>>;
+}
 
 /// Getter property, gets the latest rendered widget inner size.
 #[property(LAYOUT)]

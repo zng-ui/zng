@@ -56,6 +56,8 @@ use window::WindowMode;
 use zng_app_context::{AppId, AppScope, LocalContext};
 use zng_task::UiTask;
 
+pub use zng_unique_id::static_id;
+
 /// Enable widget instantiation in crates that can't depend on the `zng` crate.
 ///
 /// This must be called at the top of the crate:
@@ -91,6 +93,9 @@ pub mod __proc_macro_util {
     // * don't use macro_rules! macros that use $crate , they will fail with "unresolved import" when used from the re-exports.
 
     #[doc(hidden)]
+    pub use zng_unique_id::static_id;
+
+    #[doc(hidden)]
     pub mod widget {
         #[doc(hidden)]
         pub mod builder {
@@ -100,7 +105,7 @@ pub mod __proc_macro_util {
                 new_dyn_widget_handler, panic_input, state_var, ui_node_list_to_args, ui_node_to_args, value_to_args, var_to_args,
                 when_condition_expr_var, widget_handler_to_args, AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind,
                 PropertyArgs, PropertyId, PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation,
-                StaticPropertyId, UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput, WhenInputMember, WhenInputVar,
+                UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput, WhenInputMember, WhenInputVar,
                 WidgetHandlerInWhenExprError, WidgetType,
             };
         }
@@ -125,6 +130,7 @@ pub mod __proc_macro_util {
         #[doc(hidden)]
         pub use crate::widget::{easing_property, widget_new};
 
+        #[doc(hidden)]
         pub use crate::widget::WIDGET;
     }
 

@@ -81,14 +81,14 @@ impl LAYERS {
 
                 // widget may only become a full widget after init (ArcNode)
                 widget.with_context(WidgetUpdateMode::Bubble, || {
-                    WIDGET.set_state(&LAYER_INDEX_ID, layer.get());
+                    WIDGET.set_state(*LAYER_INDEX_ID, layer.get());
                     WIDGET.sub_var(&layer);
                 });
             }
             UiNodeOp::Update { .. } => {
                 if let Some(index) = layer.get_new() {
                     widget.with_context(WidgetUpdateMode::Bubble, || {
-                        WIDGET.set_state(&LAYER_INDEX_ID, index);
+                        WIDGET.set_state(*LAYER_INDEX_ID, index);
                         SORTING_LIST.invalidate_sort();
                     });
                 }
@@ -97,7 +97,7 @@ impl LAYERS {
         })
         .boxed();
 
-        let r = WINDOW.with_state(|s| match s.get(&WINDOW_LAYERS_ID) {
+        let r = WINDOW.with_state(|s| match s.get(*WINDOW_LAYERS_ID) {
             Some(open) => {
                 // window already open
                 open.items.push(widget);
@@ -108,7 +108,7 @@ impl LAYERS {
         if let Err(widget) = r {
             WINDOW.with_state_mut(|mut s| {
                 // window not open yet, `widget` will be inited with the window
-                s.entry(&WINDOW_PRE_INIT_LAYERS_ID).or_default().push(Mutex::new(widget));
+                s.entry(*WINDOW_PRE_INIT_LAYERS_ID).or_default().push(Mutex::new(widget));
             });
         }
     }
@@ -652,7 +652,7 @@ impl LAYERS {
     /// [`remove_node`]: Self::remove_node
     pub fn remove(&self, id: impl Into<WidgetId>) {
         WINDOW.with_state(|s| {
-            s.req(&WINDOW_LAYERS_ID).items.remove(id);
+            s.req(*WINDOW_LAYERS_ID).items.remove(id);
         });
     }
 
@@ -664,7 +664,7 @@ impl LAYERS {
         if let Some(id) = id.rsp() {
             self.remove(id);
         } else {
-            let items = WINDOW.with_state(|s| s.req(&WINDOW_LAYERS_ID).items.clone());
+            let items = WINDOW.with_state(|s| s.req(*WINDOW_LAYERS_ID).items.clone());
             id.hook(move |a| {
                 match a.value() {
                     zng_var::types::Response::Waiting => true,
@@ -686,7 +686,7 @@ impl LAYERS {
 
     fn cleanup(&self) {
         WINDOW.with_state(|s| {
-            s.req(&WINDOW_LAYERS_ID).items.retain(|n| n.is_widget());
+            s.req(*WINDOW_LAYERS_ID).items.retain(|n| n.is_widget());
         });
     }
 }
@@ -739,9 +739,11 @@ context_var! {
     static ANCHOR_ID_VAR: Option<WidgetId> = None;
 }
 
-static WINDOW_PRE_INIT_LAYERS_ID: StaticStateId<Vec<Mutex<BoxedUiNode>>> = StaticStateId::new_unique();
-static WINDOW_LAYERS_ID: StaticStateId<LayersCtx> = StaticStateId::new_unique();
-static LAYER_INDEX_ID: StaticStateId<LayerIndex> = StaticStateId::new_unique();
+static_id! {
+    static ref WINDOW_PRE_INIT_LAYERS_ID: StateId<Vec<Mutex<BoxedUiNode>>>;
+    static ref WINDOW_LAYERS_ID: StateId<LayersCtx>;
+    static ref LAYER_INDEX_ID: StateId<LayerIndex>;
+}
 
 /// Represents a layer in a window.
 ///
@@ -1459,10 +1461,10 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
 
     fn sort(a: &mut BoxedUiNode, b: &mut BoxedUiNode) -> std::cmp::Ordering {
         let a = a
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(&LAYER_INDEX_ID))
+            .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(*LAYER_INDEX_ID))
             .unwrap_or(LayerIndex::DEFAULT);
         let b = b
-            .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(&LAYER_INDEX_ID))
+            .with_context(WidgetUpdateMode::Ignore, || WIDGET.req_state(*LAYER_INDEX_ID))
             .unwrap_or(LayerIndex::DEFAULT);
 
         a.cmp(&b)
@@ -1473,9 +1475,9 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
     match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
             WINDOW.with_state_mut(|mut s| {
-                s.set(&WINDOW_LAYERS_ID, LayersCtx { items: layered.clone() });
+                s.set(*WINDOW_LAYERS_ID, LayersCtx { items: layered.clone() });
 
-                if let Some(widgets) = s.get_mut(&WINDOW_PRE_INIT_LAYERS_ID) {
+                if let Some(widgets) = s.get_mut(*WINDOW_PRE_INIT_LAYERS_ID) {
                     for wgt in widgets.drain(..) {
                         layered.push(wgt.into_inner());
                     }

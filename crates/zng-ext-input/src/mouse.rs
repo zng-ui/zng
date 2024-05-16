@@ -27,7 +27,7 @@ use zng_app::{
 use zng_app_context::app_local;
 use zng_ext_window::WINDOWS;
 use zng_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint};
-use zng_state_map::{state_map, StaticStateId};
+use zng_state_map::{state_map, static_id, StateId};
 use zng_var::{impl_from_and_into_var, var, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var};
 use zng_view_api::touch::TouchPhase;
 pub use zng_view_api::{
@@ -1357,7 +1357,7 @@ pub trait WidgetInfoMouseExt {
 impl WidgetInfoMouseExt for WidgetInfo {
     fn click_mode(&self) -> ClickMode {
         for w in self.self_and_ancestors() {
-            if let Some(m) = w.meta().get_clone(&CLICK_MODE_ID).flatten() {
+            if let Some(m) = w.meta().get_clone(*CLICK_MODE_ID).flatten() {
                 return m;
             }
         }
@@ -1374,7 +1374,7 @@ pub trait WidgetInfoBuilderMouseExt {
 }
 impl WidgetInfoBuilderMouseExt for WidgetInfoBuilder {
     fn set_click_mode(&mut self, mode: Option<ClickMode>) {
-        self.with_meta(|mut m| match m.entry(&CLICK_MODE_ID) {
+        self.with_meta(|mut m| match m.entry(*CLICK_MODE_ID) {
             state_map::StateMapEntry::Occupied(mut e) => *e.get_mut() = mode,
             state_map::StateMapEntry::Vacant(e) => {
                 if mode.is_some() {
@@ -1385,7 +1385,9 @@ impl WidgetInfoBuilderMouseExt for WidgetInfoBuilder {
     }
 }
 
-static CLICK_MODE_ID: StaticStateId<Option<ClickMode>> = StaticStateId::new_unique();
+static_id! {
+    static ref CLICK_MODE_ID: StateId<Option<ClickMode>>;
+}
 
 /// Settings that define the mouse button pressed repeat.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

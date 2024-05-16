@@ -108,7 +108,7 @@ pub use command;
 use zng_app_context::AppId;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_txt::Txt;
-use zng_unique_id::unique_id_64;
+use zng_unique_id::{static_id, unique_id_64};
 use zng_var::{impl_from_and_into_var, types::ArcCowVar, var, AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue};
 
 #[doc(hidden)]
@@ -895,10 +895,12 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 /// must have a `foo` and `init_foo` methods.
 ///
 /// ```
-/// use zng_app::{event::*, var::*};
+/// use zng_app::{event::*, var::*, static_id};
 ///
-/// static COMMAND_FOO_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
-/// static COMMAND_BAR_ID: StaticCommandMetaVarId<bool> = StaticCommandMetaVarId::new_unique();
+/// static_id! {
+///     static ref COMMAND_FOO_ID: CommandMetaVarId<bool>;
+///     static ref COMMAND_BAR_ID: CommandMetaVarId<bool>;
+/// }
 ///
 /// /// FooBar command values.
 /// pub trait CommandFooBarExt {
@@ -1124,11 +1126,13 @@ pub trait CommandNameExt {
     where
         Self: crate::shortcut::CommandShortcutExt;
 }
-static COMMAND_NAME_ID: StaticCommandMetaVarId<Txt> = StaticCommandMetaVarId::new_unique();
+static_id! {
+    static ref COMMAND_NAME_ID: CommandMetaVarId<Txt>;
+}
 impl CommandNameExt for Command {
     fn name(self) -> CommandMetaVar<Txt> {
         self.with_meta(|m| {
-            m.get_var_or_insert(&COMMAND_NAME_ID, || {
+            m.get_var_or_insert(*COMMAND_NAME_ID, || {
                 let name = self.event.name();
                 let name = name.strip_suffix("_CMD").unwrap_or(name);
                 let mut title = String::with_capacity(name.len());
@@ -1154,7 +1158,7 @@ impl CommandNameExt for Command {
     }
 
     fn init_name(self, name: impl Into<Txt>) -> Self {
-        self.with_meta(|m| m.init_var(&COMMAND_NAME_ID, name.into()));
+        self.with_meta(|m| m.init_var(*COMMAND_NAME_ID, name.into()));
         self
     }
 
@@ -1181,14 +1185,16 @@ pub trait CommandInfoExt {
     /// Sets the initial info if it is not set.
     fn init_info(self, info: impl Into<Txt>) -> Self;
 }
-static COMMAND_INFO_ID: StaticCommandMetaVarId<Txt> = StaticCommandMetaVarId::new_unique();
+static_id! {
+    static ref COMMAND_INFO_ID: CommandMetaVarId<Txt>;
+}
 impl CommandInfoExt for Command {
     fn info(self) -> CommandMetaVar<Txt> {
-        self.with_meta(|m| m.get_var_or_insert(&COMMAND_INFO_ID, Txt::default))
+        self.with_meta(|m| m.get_var_or_insert(*COMMAND_INFO_ID, Txt::default))
     }
 
     fn init_info(self, info: impl Into<Txt>) -> Self {
-        self.with_meta(|m| m.init_var(&COMMAND_INFO_ID, info.into()));
+        self.with_meta(|m| m.init_var(*COMMAND_INFO_ID, info.into()));
         self
     }
 }

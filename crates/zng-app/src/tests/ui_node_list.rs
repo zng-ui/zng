@@ -121,7 +121,8 @@ mod util {
 
     use zng_app_context::{context_local, ContextLocal};
     use zng_app_proc_macros::property;
-    use zng_state_map::StaticStateId;
+    use zng_state_map::StateId;
+    use zng_unique_id::static_id;
     use zng_var::IntoValue;
 
     use crate::widget::{
@@ -138,7 +139,7 @@ mod util {
             if let UiNodeOp::Init = op {
                 child.init();
                 if enabled {
-                    WIDGET.set_state(&INIT_THREAD_ID, thread::current().id());
+                    WIDGET.set_state(*INIT_THREAD_ID, thread::current().id());
                 }
             }
         })
@@ -146,12 +147,14 @@ mod util {
 
     pub fn get_init_thread(wgt: &mut impl UiNode) -> ThreadId {
         wgt.with_context(WidgetUpdateMode::Ignore, || {
-            WIDGET.get_state(&INIT_THREAD_ID).expect("did not log init thread")
+            WIDGET.get_state(*INIT_THREAD_ID).expect("did not log init thread")
         })
         .expect("node is not a widget")
     }
 
-    static INIT_THREAD_ID: StaticStateId<ThreadId> = StaticStateId::new_unique();
+    static_id! {
+        static ref INIT_THREAD_ID: StateId<ThreadId>;
+    }
 
     context_local! {
         static CTX_VAL: bool = false;

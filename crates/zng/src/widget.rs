@@ -39,7 +39,7 @@
 
 pub use zng_app::widget::base::{HitTestMode, NonWidgetBase, Parallel, WidgetBase, WidgetExt, WidgetImpl, PARALLEL_VAR};
 
-pub use zng_app::widget::{widget_impl, widget_set, StaticWidgetId, WidgetId, WidgetUpdateMode, WIDGET};
+pub use zng_app::widget::{widget_impl, widget_set, WidgetId, WidgetUpdateMode, WIDGET};
 
 pub use zng_app::widget::border::{
     BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER,

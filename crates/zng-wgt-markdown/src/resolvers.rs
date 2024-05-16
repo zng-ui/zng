@@ -397,9 +397,10 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
     true
 }
 
-static ANCHOR_ID: StaticStateId<Txt> = StaticStateId::new_unique();
-
-pub(super) static MARKDOWN_INFO_ID: StaticStateId<()> = StaticStateId::new_unique();
+static_id! {
+    static ref ANCHOR_ID: StateId<Txt>;
+    pub(super) static ref MARKDOWN_INFO_ID: StateId<()>;
+}
 
 /// Set a label that identifies the widget in the context of the parent markdown.
 ///
@@ -413,7 +414,7 @@ pub fn anchor(child: impl UiNode, anchor: impl IntoVar<Txt>) -> impl UiNode {
             WIDGET.sub_var_info(&anchor);
         }
         UiNodeOp::Info { info } => {
-            info.set_meta(&ANCHOR_ID, anchor.get());
+            info.set_meta(*ANCHOR_ID, anchor.get());
         }
         _ => {}
     })
@@ -436,11 +437,11 @@ pub trait WidgetInfoExt {
 }
 impl WidgetInfoExt for WidgetInfo {
     fn anchor(&self) -> Option<&Txt> {
-        self.meta().get(&ANCHOR_ID)
+        self.meta().get(*ANCHOR_ID)
     }
 
     fn is_markdown(&self) -> bool {
-        self.meta().contains(&MARKDOWN_INFO_ID)
+        self.meta().contains(*MARKDOWN_INFO_ID)
     }
 
     fn find_anchor(&self, anchor: &str) -> Option<WidgetInfo> {

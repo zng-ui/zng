@@ -510,8 +510,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[allow(dead_code)]
             impl #ident_meta {
                 pub fn id(&self) -> #core::widget::builder::PropertyId {
-                    static ID: #core::widget::builder::StaticPropertyId = #core::widget::builder::StaticPropertyId::new_unique();
-                    ID.get()
+                    #core::static_id! {
+                        static ref ID: #core::widget::builder::PropertyId;
+                    }
+                    *ID
                 }
 
                 #allowed_in_when_expr

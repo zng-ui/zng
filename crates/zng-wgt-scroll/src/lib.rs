@@ -198,7 +198,7 @@ fn scroll_node(
 
     match_node_list(children, move |children, op| match op {
         UiNodeOp::Info { info } => {
-            info.set_meta(&SCROLL_INFO_ID, scroll_info.clone());
+            info.set_meta(*SCROLL_INFO_ID, scroll_info.clone());
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let constraints = LAYOUT.constraints();

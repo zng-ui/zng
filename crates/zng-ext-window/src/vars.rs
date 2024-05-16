@@ -6,7 +6,7 @@ use zng_app::{
 };
 use zng_ext_image::Img;
 use zng_layout::unit::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size};
-use zng_state_map::StaticStateId;
+use zng_state_map::{static_id, StateId};
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::IdSet;
 use zng_var::{merge_var, var, var_from, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
@@ -162,7 +162,7 @@ impl WindowVars {
     ///
     /// Panics if called in a custom window context that did not setup the variables.
     pub(super) fn req() -> Self {
-        WINDOW.req_state(&WINDOW_VARS_ID)
+        WINDOW.req_state(*WINDOW_VARS_ID)
     }
 
     /// Defines if the window chrome is visible.
@@ -705,4 +705,6 @@ impl PartialEq for WindowVars {
 }
 impl Eq for WindowVars {}
 
-pub(super) static WINDOW_VARS_ID: StaticStateId<WindowVars> = StaticStateId::new_unique();
+static_id! {
+    pub(super) static ref WINDOW_VARS_ID: StateId<WindowVars>;
+}

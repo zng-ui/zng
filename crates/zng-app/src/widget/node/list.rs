@@ -11,8 +11,9 @@ use parking_lot::Mutex;
 use task::ParallelIteratorExt;
 use zng_app_context::context_local;
 use zng_layout::unit::{Factor, PxSize, PxTransform, PxVector};
-use zng_state_map::{StateId, StaticStateId};
+use zng_state_map::StateId;
 use zng_task::{self as task, rayon::prelude::*};
+use zng_unique_id::static_id;
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::*;
@@ -807,7 +808,7 @@ impl Z_INDEX {
     ///
     /// Returns `DEFAULT` if the node is not a widget.
     pub fn get(&self) -> ZIndex {
-        WIDGET.get_state(&Z_INDEX_ID).unwrap_or_default()
+        WIDGET.get_state(*Z_INDEX_ID).unwrap_or_default()
     }
 
     /// Gets the index set on the `widget`.
@@ -829,13 +830,15 @@ impl Z_INDEX {
         let valid = z_ctx.panel_id == WIDGET.parent_id() && z_ctx.panel_id.is_some();
         if valid {
             z_ctx.resort.store(true, Relaxed);
-            WIDGET.set_state(&Z_INDEX_ID, index);
+            WIDGET.set_state(*Z_INDEX_ID, index);
         }
         valid
     }
 }
 
-static Z_INDEX_ID: StaticStateId<ZIndex> = StaticStateId::new_unique();
+static_id! {
+    static ref Z_INDEX_ID: StateId<ZIndex>;
+}
 
 /// Position of a widget inside an [`UiNodeList`] render operation.
 ///

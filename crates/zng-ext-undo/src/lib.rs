@@ -38,7 +38,7 @@ use zng_app::{
 use zng_app_context::{app_local, context_local, RunOnDrop};
 use zng_clone_move::clmv;
 use zng_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
-use zng_state_map::{StateMapRef, StaticStateId};
+use zng_state_map::{static_id, StateId, StateMapRef};
 use zng_txt::Txt;
 use zng_var::{context_var, var, BoxedVar, Var, VarHandle, VarValue, WeakVar};
 
@@ -838,8 +838,8 @@ impl WidgetUndoScope {
 
         UNDO_CMD
             .scoped(id)
-            .with_meta(|m| m.set(&WEAK_UNDO_SCOPE_ID, (wk_scope.clone(), interval.clone())));
-        REDO_CMD.scoped(id).with_meta(|m| m.set(&WEAK_UNDO_SCOPE_ID, (wk_scope, interval)));
+            .with_meta(|m| m.set(*WEAK_UNDO_SCOPE_ID, (wk_scope.clone(), interval.clone())));
+        REDO_CMD.scoped(id).with_meta(|m| m.set(*WEAK_UNDO_SCOPE_ID, (wk_scope, interval)));
 
         self.0 = Some(scope);
     }
@@ -848,7 +848,7 @@ impl WidgetUndoScope {
     ///
     /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        info.flag_meta(&FOCUS_SCOPE_ID);
+        info.flag_meta(*FOCUS_SCOPE_ID);
     }
 
     /// Deinit the scope in the [`WIDGET`].
@@ -1191,7 +1191,7 @@ pub trait WidgetInfoUndoExt {
 }
 impl WidgetInfoUndoExt for WidgetInfo {
     fn is_undo_scope(&self) -> bool {
-        self.meta().flagged(&FOCUS_SCOPE_ID)
+        self.meta().flagged(*FOCUS_SCOPE_ID)
     }
 
     fn undo_scope(&self) -> Option<WidgetInfo> {
@@ -1199,7 +1199,9 @@ impl WidgetInfoUndoExt for WidgetInfo {
     }
 }
 
-static FOCUS_SCOPE_ID: StaticStateId<()> = StaticStateId::new_unique();
+static_id! {
+    static ref FOCUS_SCOPE_ID: StateId<()>;
+}
 
 /// Undo extension methods for commands.
 pub trait CommandUndoExt {
@@ -1229,7 +1231,7 @@ impl CommandUndoExt for Command {
     }
 
     fn undo_stack(self) -> UndoStackInfo {
-        let scope = self.with_meta(|m| m.get(&WEAK_UNDO_SCOPE_ID));
+        let scope = self.with_meta(|m| m.get(*WEAK_UNDO_SCOPE_ID));
         if let Some(scope) = scope {
             if let Some(s) = scope.0.upgrade() {
                 return UndoStackInfo::undo(&s, scope.1.get());
@@ -1249,7 +1251,7 @@ impl CommandUndoExt for Command {
     }
 
     fn redo_stack(self) -> UndoStackInfo {
-        let scope = self.with_meta(|m| m.get(&WEAK_UNDO_SCOPE_ID));
+        let scope = self.with_meta(|m| m.get(*WEAK_UNDO_SCOPE_ID));
         if let Some(scope) = scope {
             if let Some(s) = scope.0.upgrade() {
                 return UndoStackInfo::redo(&s, scope.1.get());
@@ -1269,7 +1271,9 @@ impl CommandUndoExt for Command {
     }
 }
 
-static WEAK_UNDO_SCOPE_ID: StaticStateId<(std::sync::Weak<UndoScope>, BoxedVar<Duration>)> = StaticStateId::new_unique();
+static_id! {
+    static ref WEAK_UNDO_SCOPE_ID: StateId<(std::sync::Weak<UndoScope>, BoxedVar<Duration>)>;
+}
 
 /// Represents a type that can select actions for undo or redo once.
 ///
