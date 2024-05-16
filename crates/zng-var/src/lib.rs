@@ -31,7 +31,7 @@ use std::{
     },
     time::Duration,
 };
-use zng_app_context::ContextLocal;
+use zng_app_context::{AppLocalId, ContextLocal};
 use zng_clone_move::clmv;
 use zng_txt::{formatx, ToTxt, Txt};
 use zng_unit::{Factor, FactorUnits};
@@ -641,7 +641,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
 
 #[derive(Debug)]
 enum VarPtrData {
-    Static(*const ()),
+    Static(AppLocalId),
     Arc(*const ()),
     NeverEq,
 }
@@ -674,7 +674,7 @@ impl<'a> VarPtr<'a> {
     pub fn raw_pointer(&self) -> *const () {
         match self.eq {
             VarPtrData::Arc(p) => p,
-            VarPtrData::Static(p) => p,
+            VarPtrData::Static(p) => p.get() as *const (),
             VarPtrData::NeverEq => std::ptr::null(),
         }
     }
@@ -689,7 +689,7 @@ impl<'a> VarPtr<'a> {
     fn new_ctx_local<T: Send + Sync>(tl: &'static ContextLocal<T>) -> Self {
         Self {
             _lt: std::marker::PhantomData,
-            eq: VarPtrData::Static((tl as *const ContextLocal<T>) as _),
+            eq: VarPtrData::Static(tl.id()),
         }
     }
 

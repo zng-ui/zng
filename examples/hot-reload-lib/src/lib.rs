@@ -21,11 +21,6 @@ pub fn hot_node() -> impl UiNode {
 /*
 !!: ISSUES:
 
-* `Static#UniqueId` is not possible.
-    - We use `StaticStateId` extensively.
-    - **Breaking**, replace with a macro, `static_id!(static MY_ID: StateId<T>|WidgetId;)`.
-    - After hot reload is mostly working.
-
 * Tracing context did not bridge.
 
 * Hot Libraries can never unload because hot nodes can "leak" static references, in a `Txt(&static str)` for example.

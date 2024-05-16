@@ -1,4 +1,4 @@
-use zng_app_context::{context_local, ContextLocal, ContextLocalKeyProvider};
+use zng_app_context::{context_local, AppLocalId, ContextLocal, ContextLocalKeyProvider};
 
 use super::*;
 
@@ -67,7 +67,7 @@ pub fn context_var_init<T: VarValue>(init: impl IntoVar<T>) -> BoxedVar<T> {
 }
 
 impl<T: VarValue> ContextLocalKeyProvider for ContextVar<T> {
-    fn context_local_key(&'static self) -> TypeId {
+    fn context_local_key(&'static self) -> AppLocalId {
         self.0.context_local_key()
     }
 }
