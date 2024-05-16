@@ -49,12 +49,12 @@ macro_rules! hot_static_patchable {
     (
         $vis:vis static $IDENT:ident: $Ty:ty = $init:expr;
     ) => {
-        const __KEY: $crate::hot_reload::PatchKey = $crate::hot_reload::PatchKey {
-            file: std::file!(),
-            line: std::line!(),
-            column: std::column!(),
-            item_name: stringify!($IDENT),
-        };
+        struct _K;
+        impl $crate::hot_reload::PatchKey for _K {
+            fn id(&'static self) -> &'static str {
+                std::any::type_name::<_K>()
+            }
+        }
         $crate::paste! {
             static [<$IDENT _COLD>] : $Ty = $init;
             static mut $IDENT: &$Ty = &[<$IDENT _COLD>];
@@ -63,8 +63,8 @@ macro_rules! hot_static_patchable {
             }
 
             $crate::hot_reload::HOT_STATICS! {
-                static [<$IDENT _REGISTER>]: ($crate::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()) = (
-                    __KEY,
+                static [<$IDENT _REGISTER>]: (&'static dyn $crate::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()) = (
+                    &_K,
                     [<$IDENT _INIT>]
                 );
             }
@@ -81,6 +81,8 @@ pub unsafe fn init_static<T>(s: &mut &'static T, static_ptr: *const ()) -> *cons
         std::ptr::null()
     }
 }
+
+use std::{any::Any, fmt};
 
 #[doc(hidden)]
 #[cfg(not(feature = "hot_reload"))]
@@ -118,19 +120,25 @@ pub use crate::hot_static_ref_patchable as hot_static_ref_impl;
 #[doc(hidden)]
 #[cfg(feature = "hot_reload")]
 #[linkme::distributed_slice]
-pub static HOT_STATICS: [(PatchKey, unsafe fn(*const ()) -> *const ())];
+pub static HOT_STATICS: [(&'static dyn PatchKey, unsafe fn(*const ()) -> *const ())];
 
 #[doc(hidden)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct PatchKey {
-    pub file: &'static str,
-    pub line: u32,
-    pub column: u32,
-    pub item_name: &'static str,
+pub trait PatchKey: Send + Sync + Any {
+    fn id(&'static self) -> &'static str;
 }
-
-impl std::fmt::Debug for PatchKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:{}#{}", self.file, self.line, self.column, self.item_name)
+impl PartialEq for &'static dyn PatchKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.id() == other.id()
+    }
+}
+impl Eq for &'static dyn PatchKey {}
+impl std::hash::Hash for &'static dyn PatchKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(self.id(), state)
+    }
+}
+impl fmt::Debug for &'static dyn PatchKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.id(), f)
     }
 }

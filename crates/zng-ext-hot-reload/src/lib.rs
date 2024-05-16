@@ -100,7 +100,7 @@ pub mod zng_hot_entry {
 #[doc(hidden)]
 #[derive(Default, Clone)]
 pub struct StaticPatch {
-    entries: HashMap<zng_unique_id::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()>,
+    entries: HashMap<&'static dyn zng_unique_id::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()>,
 }
 impl StaticPatch {
     /// Called on the static code (host).
@@ -123,9 +123,10 @@ impl StaticPatch {
     unsafe fn apply(&self) {
         for (key, patch) in HOT_STATICS.iter() {
             if let Some(val) = self.entries.get(key) {
+                // println!("patched `{key:?}`");
                 patch(val(std::ptr::null()));
             } else {
-                eprintln!("did not find `{key:?}` to patch, static reference may fail");
+                eprintln!("did not find `{key:?}` to patch, static references may fail");
             }
         }
     }

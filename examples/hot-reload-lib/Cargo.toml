@@ -10,3 +10,4 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 zng = { path = "../../crates/zng" }
+tracing = "0.1"
