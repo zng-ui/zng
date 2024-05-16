@@ -14,6 +14,10 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [dependencies]
 zng-ext-hot-reload-proc-macros = { path = "../zng-ext-hot-reload-proc-macros", version = "0.1.0" }
 
+# the `static` dyn patching `linkme` register is implemented on this crate
+# so it is available across the entire workspace.
+zng-unique-id = { path = "../zng-unique-id", version = "0.3.1", features = ["hot_reload"] }
+
 zng-app-context = { path = "../zng-app-context", version = "0.3.4" }
 zng-app = { path = "../zng-app", version = "0.4.1" }
 zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.11" }

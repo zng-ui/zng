@@ -21,6 +21,9 @@ use rayon::iter::{FromParallelIterator, IntoParallelIterator, IntoParallelRefIte
 #[cfg(feature = "named")]
 mod named;
 
+#[doc(hidden)]
+pub mod hot_reload;
+
 #[cfg(feature = "named")]
 pub use named::*;
 
@@ -338,8 +341,12 @@ macro_rules! unique_id {
         /// Generates a new unique ID.
         pub fn new_unique() -> Self {
             use $atomic as __atomic;
-            static NEXT: __atomic = __atomic::new(1);
-            Self($next_id(&NEXT) $(, std::marker::PhantomData::<$T>)?)
+
+            $crate::hot_static! {
+                static NEXT: __atomic = __atomic::new(1);
+            }
+            let __ref = $crate::hot_static_ref!(NEXT);
+            Self($next_id(__ref) $(, std::marker::PhantomData::<$T>)?)
         }
     };
 }

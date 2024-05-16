@@ -11,12 +11,18 @@ pub fn hot_node() -> impl UiNode {
 }
 
 /*
-ISSUES:
+!!: ISSUES:
 
-* Unique ID statics are not the same in dynamic lib, need to propagate that too.
-    - Use `linkme` in `zng-unique-id` to identifies all IDs, make the static a pointer?
-    - Add an API to the future `HOT_LOADER` service that can register "propagation handlers" for the user
-      to propagate their custom statics on init?
-    -
+* `PatchKey` is not strong enough.
+    - Breaks to easy, if the user adds a line break for hot reload before the static declaration it will break.
+    - If the user changes the static type it will not break, attempt to patch to a different type and explode.
+    - Try using `TypeId` keys, they should be the same because we are rebuilding in the same env?
+
+* `Static#UniqueId` is not possible.
+    - We use `StaticStateId` extensively.
+    - **Breaking**, replace with a macro, `static_id!(static MY_ID: StateId<T>|WidgetId;)`.
+    - After hot reload is mostly working.
+
+* Hot Libraries can never unload because hot nodes can "leak" static references, in a `Txt(&static str)` for example.
 
 */

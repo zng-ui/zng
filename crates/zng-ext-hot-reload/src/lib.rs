@@ -25,7 +25,11 @@ use zng_app_context::{app_local, LocalContext};
 use zng_ext_fs_watcher::WATCHER;
 pub use zng_ext_hot_reload_proc_macros::hot_node;
 use zng_hot_entry::HotRequest;
+use zng_unique_id::hot_reload::HOT_STATICS;
 use zng_var::ResponseVar;
+
+#[doc(inline)]
+pub use zng_unique_id::{hot_static, hot_static_ref};
 
 /// Declare hot reload entry.
 ///
@@ -44,8 +48,8 @@ macro_rules! zng_hot_entry {
 
         #[no_mangle]
         #[doc(hidden)]
-        pub extern "C" fn zng_hot_entry_init() {
-            $crate::zng_hot_entry::init()
+        pub extern "C" fn zng_hot_entry_init(patch: &$crate::StaticPatch) {
+            $crate::zng_hot_entry::init(patch)
         }
     };
 }
@@ -53,6 +57,7 @@ macro_rules! zng_hot_entry {
 #[doc(hidden)]
 pub mod zng_hot_entry {
     pub use crate::node::{HotNode, HotNodeArgs, HotNodeHost};
+    use crate::StaticPatch;
     use zng_app_context::LocalContext;
 
     pub struct HotNodeEntry {
@@ -80,12 +85,49 @@ pub mod zng_hot_entry {
         None
     }
 
-    pub fn init() {
+    pub fn init(patch: &StaticPatch) {
         std::panic::set_hook(Box::new(|args| {
             eprintln!("PANIC IN HOT LOADED LIBRARY, ABORTING");
             crate::util::crash_handler(args);
             std::process::exit(101);
         }));
+
+        // SAFETY: hot reload rebuilds in the same environment, so this is safe if the keys are strong enough.
+        unsafe { patch.apply() }
+    }
+}
+
+#[doc(hidden)]
+#[derive(Default, Clone)]
+pub struct StaticPatch {
+    entries: HashMap<zng_unique_id::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()>,
+}
+impl StaticPatch {
+    /// Called on the static code (host).
+    fn capture() -> Self {
+        let mut entries = HashMap::with_capacity(HOT_STATICS.len());
+        for (key, val) in HOT_STATICS.iter() {
+            match entries.entry(*key) {
+                std::collections::hash_map::Entry::Vacant(e) => {
+                    e.insert(*val);
+                }
+                std::collections::hash_map::Entry::Occupied(_) => {
+                    panic!("repeated hot static key `{key:?}`");
+                }
+            }
+        }
+        Self { entries }
+    }
+
+    /// Called on the dynamic code (dylib).
+    unsafe fn apply(&self) {
+        for (key, patch) in HOT_STATICS.iter() {
+            if let Some(val) = self.entries.get(key) {
+                patch(val(std::ptr::null()));
+            } else {
+                eprintln!("did not find `{key:?}` to patch, static reference may fail");
+            }
+        }
     }
 }
 
@@ -93,6 +135,7 @@ pub mod zng_hot_entry {
 #[derive(Default)]
 pub struct HotReloadManager {
     libs: HashMap<&'static str, WatchedLib>,
+    static_patch: StaticPatch,
 }
 impl AppExtension for HotReloadManager {
     fn init(&mut self) {
@@ -104,8 +147,13 @@ impl AppExtension for HotReloadManager {
         }
 
         // !!: TODO, test
+        self.static_patch = StaticPatch::capture();
         for (manifest_dir, _) in self.libs.iter() {
-            match HotLib::new(manifest_dir, "C:/code/zng/target/debug/deps/examples_hot_reload.dll") {
+            match HotLib::new(
+                &self.static_patch,
+                manifest_dir,
+                "C:/code/zng/target/debug/deps/examples_hot_reload.dll",
+            ) {
                 Ok(lib) => {
                     HOT.set(lib.clone());
                     HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
@@ -216,7 +264,11 @@ impl fmt::Debug for HotLib {
     }
 }
 impl HotLib {
-    pub fn new(manifest_dir: &'static str, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
+    pub fn new(
+        static_patch: &StaticPatch,
+        manifest_dir: &'static str,
+        lib: impl AsRef<std::ffi::OsStr>,
+    ) -> Result<Self, libloading::Error> {
         unsafe {
             // SAFETY: assuming the the hot lib was setup as the documented, this works,
             // even the `linkme` stuff does not require any special care.
@@ -225,9 +277,9 @@ impl HotLib {
             // know why, hot reloading should only run in dev machines.
             let lib = libloading::Library::new(lib)?;
 
-            // SAFETY: thats the signature and init only does safe things.
-            let init: unsafe fn() = *lib.get(b"zng_hot_entry_init")?;
-            init();
+            // SAFETY: thats the signature.
+            let init: unsafe fn(&StaticPatch) = *lib.get(b"zng_hot_entry_init")?;
+            init(static_patch);
 
             Ok(Self {
                 manifest_dir,

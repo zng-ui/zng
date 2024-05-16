@@ -21,6 +21,9 @@ use parking_lot::*;
 use zng_txt::Txt;
 use zng_unique_id::{unique_id_32, IdMap, IdSet};
 
+#[doc(hidden)]
+pub use zng_unique_id::{hot_static, hot_static_ref};
+
 unique_id_32! {
     /// Identifies an app instance.
     pub struct AppId;
@@ -835,8 +838,10 @@ macro_rules! app_local_impl_single {
     ) => {
         $(#[$meta])*
         $vis static $IDENT: $crate::AppLocal<$T> = {
-            static IMPL: $crate::AppLocalConst<$T> = $crate::AppLocalConst::new($init);
-            $crate::AppLocal::new(&IMPL)
+            $crate::hot_static! {
+                static IMPL: $crate::AppLocalConst<$T> = $crate::AppLocalConst::new($init);
+            }
+            $crate::AppLocal::new($crate::hot_static_ref!(IMPL))
         };
     };
     (
@@ -848,8 +853,10 @@ macro_rules! app_local_impl_single {
             fn init() -> $T {
                 std::convert::Into::into($init)
             }
-            static IMPL: $crate::AppLocalOption<$T> = $crate::AppLocalOption::new(init);
-            $crate::AppLocal::new(&IMPL)
+            $crate::hot_static! {
+                static IMPL: $crate::AppLocalOption<$T> = $crate::AppLocalOption::new(init);
+            }
+            $crate::AppLocal::new($crate::hot_static_ref!(IMPL))
         };
     };
     (
@@ -872,8 +879,10 @@ macro_rules! app_local_impl_multi {
             const fn init() -> $T {
                 $init
             }
-            static IMPL: $crate::AppLocalVec<$T> = $crate::AppLocalVec::new(init);
-            $crate::AppLocal::new(&IMPL)
+            $crate::hot_static! {
+                static IMPL: $crate::AppLocalVec<$T> = $crate::AppLocalVec::new(init);
+            }
+            $crate::AppLocal::new($crate::hot_static_ref!(IMPL))
         };
     };
     (
@@ -885,8 +894,10 @@ macro_rules! app_local_impl_multi {
             fn init() -> $T {
                 std::convert::Into::into($init)
             }
-            static IMPL: $crate::AppLocalVec<$T> = $crate::AppLocalVec::new(init);
-            $crate::AppLocal::new(&IMPL)
+            $crate::hot_static! {
+                static IMPL: $crate::AppLocalVec<$T> = $crate::AppLocalVec::new(init);
+            }
+            $crate::AppLocal::new($crate::hot_static_ref!(IMPL))
         };
     };
     (
