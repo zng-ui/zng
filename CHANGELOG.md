@@ -2,12 +2,12 @@
 
 * Fix release build of `zng-wgt-scroll` running out of memory. (#203)
 * Implement hot reloading UI nodes.
-    - Add `zng-ext-hot` and `zng-ext-hot-proc-macros`.
+    - Add `zng-ext-hot-reload` and `zng-ext-hot-reload-proc-macros`.
     - Add `zng::hot_reload`.
     - Add `feature="hot_reload"` in `zng` and `zng-unique-id`.
 * Implemented VsCode snippets for common Zng macros, see [`zng.code-snippets`].
 * Fix view-process cleanup when app-process panics on init.
-* **Breaking** Remove all `StaticT` unique ID statics.
+* **Breaking** Remove all `Static{Id}` unique ID static types.
     - Use `static_id!` to declare static IDs, the new way is compatible with hot reloading.
     - Removed `StaticWindowId`, `StaticMonitorId`, `StaticPropertyId`, `StaticAppId`, `StaticWidgetId`, `StaticDeviceId`, `StaticStateId`,  `StaticCommandMetaVarId`, `StaticSpatialFrameId`.
 
