@@ -85,7 +85,9 @@ pub mod zng_hot_entry {
         None
     }
 
-    pub fn init(patch: &StaticPatch) {
+    pub fn init(statics: &StaticPatch) {
+        tracing::dispatcher::set_global_default(statics.tracing.clone()).unwrap();
+
         std::panic::set_hook(Box::new(|args| {
             eprintln!("PANIC IN HOT LOADED LIBRARY, ABORTING");
             crate::util::crash_handler(args);
@@ -93,7 +95,7 @@ pub mod zng_hot_entry {
         }));
 
         // SAFETY: hot reload rebuilds in the same environment, so this is safe if the keys are strong enough.
-        unsafe { patch.apply() }
+        unsafe { statics.apply() }
     }
 }
 
@@ -101,13 +103,18 @@ pub mod zng_hot_entry {
 #[derive(Default, Clone)]
 pub struct StaticPatch {
     entries: HashMap<&'static dyn zng_unique_id::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()>,
+    tracing: tracing::dispatcher::Dispatch,
 }
 impl StaticPatch {
     /// Called on the static code (host).
-    fn capture() -> Self {
-        let mut entries = HashMap::with_capacity(HOT_STATICS.len());
+    fn capture_statics(&mut self) {
+        if !self.entries.is_empty() {
+            return;
+        }
+        self.entries.reserve(HOT_STATICS.len());
+
         for (key, val) in HOT_STATICS.iter() {
-            match entries.entry(*key) {
+            match self.entries.entry(*key) {
                 std::collections::hash_map::Entry::Vacant(e) => {
                     e.insert(*val);
                 }
@@ -116,7 +123,6 @@ impl StaticPatch {
                 }
             }
         }
-        Self { entries }
     }
 
     /// Called on the dynamic code (dylib).
@@ -140,6 +146,9 @@ pub struct HotReloadManager {
 }
 impl AppExtension for HotReloadManager {
     fn init(&mut self) {
+        // capture global tracing dispatcher early.
+        self.static_patch.tracing = tracing::dispatcher::get_default(|d| d.clone());
+
         for entry in crate::zng_hot_entry::HOT_NODES.iter() {
             if let std::collections::hash_map::Entry::Vacant(e) = self.libs.entry(entry.manifest_dir) {
                 e.insert(WatchedLib::default());
@@ -148,7 +157,7 @@ impl AppExtension for HotReloadManager {
         }
 
         // !!: TODO, test
-        self.static_patch = StaticPatch::capture();
+        self.static_patch.capture_statics();
         for (manifest_dir, _) in self.libs.iter() {
             match HotLib::new(
                 &self.static_patch,
@@ -265,11 +274,7 @@ impl fmt::Debug for HotLib {
     }
 }
 impl HotLib {
-    pub fn new(
-        static_patch: &StaticPatch,
-        manifest_dir: &'static str,
-        lib: impl AsRef<std::ffi::OsStr>,
-    ) -> Result<Self, libloading::Error> {
+    pub fn new(patch: &StaticPatch, manifest_dir: &'static str, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
         unsafe {
             // SAFETY: assuming the the hot lib was setup as the documented, this works,
             // even the `linkme` stuff does not require any special care.
@@ -280,7 +285,7 @@ impl HotLib {
 
             // SAFETY: thats the signature.
             let init: unsafe fn(&StaticPatch) = *lib.get(b"zng_hot_entry_init")?;
-            init(static_patch);
+            init(patch);
 
             Ok(Self {
                 manifest_dir,
