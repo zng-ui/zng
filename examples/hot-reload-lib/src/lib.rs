@@ -25,6 +25,10 @@ pub fn hot_node() -> impl UiNode {
 - Right now we unload when the last node drops.
 - Observed access violation.
 
+* Implement cancel rebuild.
+    - VsCode touches the file multiple times when saving.
+    - Add `HOT_RELOAD.cancel_rebuild_after` minimal time.
+
 # Issues after merge
 
 * Tracing context did not bridge.
