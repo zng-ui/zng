@@ -618,7 +618,7 @@ pub trait UniqueId: Clone + Copy + PartialEq + Eq + Hash {
 /// # use zng_unique_id::*;
 /// #
 /// # unique_id_32! {
-/// #     static StateId<T: (std::any::Any)>;
+/// #     pub struct StateId<T: (std::any::Any)>;
 /// # }
 /// #
 /// static_id! {

@@ -31,15 +31,16 @@
 //!
 //! ```
 //! use zng::{prelude::*, prelude_wgt::*};
+//! # zng::hot_reload::zng_hot_entry!();
 //!
-//! #[zng::hot_reload::hot_node]
+//! #[hot_node]
 //! pub fn hello_text(input: impl IntoVar<bool>) -> impl UiNode {
 //!     let input = input.into_var();
 //!     Text! {
 //!         txt = greeting_text();
 //!         widget::background_color = rgb(0, 100, 0);
-//!         when #{input} {
-//!             font_weight = text::FontWeight::BOLD;
+//!         when *#{input} {
+//!             font_weight = FontWeight::BOLD;
 //!         }
 //!     }
 //! }
@@ -54,6 +55,7 @@
 //!         text::font_size = 2.em();
 //!     }
 //! }
+//! # fn main() { }
 //! ```
 //!
 //! In the example above the `hello_text` function is marked for hot reload, any change in the library crate

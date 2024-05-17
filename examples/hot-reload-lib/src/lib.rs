@@ -21,7 +21,6 @@ pub fn hot_node() -> impl UiNode {
 /*
 !!: ISSUES:
 
-* Add proc-macro tests for `hot_node`.
 * Add mode demonstrators in example.
 
 * Implement cancel rebuild.

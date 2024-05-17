@@ -65,6 +65,29 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let inputs: Vec<_> = item.sig.inputs.iter().map(|arg| Input::from_arg(arg, &mut errors)).collect();
 
+    match &item.sig.output {
+        ReturnType::Default => errors.push("hot node functions must output `impl UiNode`", item.sig.fn_token.span()),
+        ReturnType::Type(_, t) => match &**t {
+            Type::ImplTrait(t) => match t.bounds.last().unwrap() {
+                TypeParamBound::Trait(t)
+                    if t.lifetimes.is_none() && t.paren_token.is_none() && t.path.segments.last().unwrap().ident == "UiNode" =>
+                {
+                    // ok
+                }
+                _ => errors.push("hot node functions must output `impl UiNode`", t.span()),
+            },
+            _ => errors.push("hot node functions must output `impl UiNode`", t.span()),
+        },
+    }
+
+    if !errors.is_empty() {
+        return quote! {
+            #item
+            #errors
+        }
+        .into();
+    }
+
     let mut unpack_args = quote!();
     for input in &inputs {
         let t = &input.gen_ty;
@@ -91,6 +114,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     }
 
     let hot_side = quote! {
+        // to get a better error message
+        use crate::zng_hot_entry as _;
+
         // don't use `linkme::distributed_slice` because it requires direct dependency to `linkme`.
         crate::zng_hot_entry::HOT_NODES! {
             #[doc(hidden)]
@@ -104,7 +130,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
 
         #[doc(hidden)]
-        fn #builder_ident(__args__: crate::zng_hot_entry::HotNodeArgs) -> crate::zng_hot_entry::HotNode {
+        fn #builder_ident(mut __args__: crate::zng_hot_entry::HotNodeArgs) -> crate::zng_hot_entry::HotNode {
             crate::zng_hot_entry::HotNode::new(#actual_ident(
                 #unpack_args
             ))

@@ -36,6 +36,10 @@ impl Errors {
             self.push(error, span);
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
 }
 impl ToTokens for Errors {
     fn to_tokens(&self, tokens: &mut TokenStream) {
