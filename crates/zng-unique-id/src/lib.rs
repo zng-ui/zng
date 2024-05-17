@@ -614,6 +614,7 @@ pub trait UniqueId: Clone + Copy + PartialEq + Eq + Hash {
 /// # Examples
 ///
 /// ```
+/// # fn main() { }
 /// # use zng_unique_id::*;
 /// #
 /// # unique_id_32! {

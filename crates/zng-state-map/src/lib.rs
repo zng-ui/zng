@@ -38,7 +38,7 @@ unique_id_64! {
     ///
     /// # fn demo() {
     /// let mut owned_state = OwnedStateMap::<()>::default();
-    /// let foo = owned_state.borrow_mut().set(&FOO_ID, true);
+    /// let foo = owned_state.borrow_mut().set(*FOO_ID, true);
     /// # ; }
     /// ```
     pub struct StateId<T: (StateValue)>;

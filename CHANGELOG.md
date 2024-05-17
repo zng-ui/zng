@@ -5,6 +5,7 @@
     - Add `zng-ext-hot-reload` and `zng-ext-hot-reload-proc-macros`.
     - Add `zng::hot_reload`.
     - Add `feature="hot_reload"` in `zng` and `zng-unique-id`.
+    - Add `hot_reload` example.
 * Implemented VsCode snippets for common Zng macros, see [`zng.code-snippets`].
 * Fix view-process cleanup when app-process panics on init.
 * **Breaking** Remove all `Static{Id}` unique ID static types.

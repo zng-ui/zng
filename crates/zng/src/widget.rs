@@ -141,7 +141,9 @@ pub mod builder {
 /// mod custom {
 ///     use zng::prelude_wgt::*;
 ///
-///     static STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
+///     static_id! {
+///         static ref STATE_ID: StateId<bool>;
+///     }
 ///
 ///     #[property(CONTEXT)]
 ///     pub fn flag_state(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
@@ -151,7 +153,7 @@ pub mod builder {
 ///                 WIDGET.sub_var_info(&state);
 ///             }
 ///             UiNodeOp::Info { info } => {
-///                 info.set_meta(&STATE_ID, state.get());
+///                 info.set_meta(*STATE_ID, state.get());
 ///             }
 ///             _ => {}
 ///         })
@@ -162,7 +164,7 @@ pub mod builder {
 ///     }
 ///     impl StateExt for WidgetInfo {
 ///         fn state(&self) -> Option<bool> {
-///             self.meta().get_clone(&STATE_ID)
+///             self.meta().get_clone(*STATE_ID)
 ///         }
 ///     }
 /// }

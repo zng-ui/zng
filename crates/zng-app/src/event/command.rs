@@ -922,11 +922,11 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///
 /// impl CommandFooBarExt for Command {
 ///     fn foo(self) -> CommandMetaVar<bool> {
-///         self.with_meta(|m| m.get_var_or_default(&COMMAND_FOO_ID))
+///         self.with_meta(|m| m.get_var_or_default(*COMMAND_FOO_ID))
 ///     }
 ///
 ///     fn bar(self) -> ReadOnlyCommandMetaVar<bool> {
-///         self.with_meta(|m| m.get_var_or_insert(&COMMAND_BAR_ID, ||true)).read_only()
+///         self.with_meta(|m| m.get_var_or_insert(*COMMAND_BAR_ID, ||true)).read_only()
 ///     }
 ///
 ///     fn foo_and_bar(self) -> BoxedVar<bool> {
@@ -934,12 +934,12 @@ impl<T: StateValue + VarValue> fmt::Debug for CommandMetaVarId<T> {
 ///     }
 ///
 ///     fn init_foo(self, foo: bool) -> Self {
-///         self.with_meta(|m| m.init_var(&COMMAND_FOO_ID, foo));
+///         self.with_meta(|m| m.init_var(*COMMAND_FOO_ID, foo));
 ///         self
 ///     }
 ///
 ///     fn init_bar(self, bar: bool) -> Self {
-///         self.with_meta(|m| m.init_var(&COMMAND_BAR_ID, bar));
+///         self.with_meta(|m| m.init_var(*COMMAND_BAR_ID, bar));
 ///         self
 ///     }
 /// }

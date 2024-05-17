@@ -15,6 +15,8 @@
 ///
 /// See `zng::hot_reload` for more details and links to the full API. This macro is declared on the `zng-unique-id` crate
 /// only to avoid circular dependencies in the Zng workspace.
+/// 
+/// [`hot_static_ref!`]: crate::hot_static_ref!
 #[macro_export]
 macro_rules! hot_static {
     (
@@ -27,6 +29,8 @@ macro_rules! hot_static {
 }
 
 /// Static reference to a [`hot_static!`].
+/// 
+/// [`hot_static!`]: crate::hot_static!
 #[macro_export]
 macro_rules! hot_static_ref {
     ($PATH:path) => {
