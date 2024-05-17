@@ -20,8 +20,10 @@ fn app_main() {
         Window! {
             title = "Hot Reload Example";
 
-            // hot reloading node, edit the code in `examples/hot-reload-lib` to see updates.
-            child = examples_hot_reload::hot_node();
+            child = Container! {
+                // hot reloading node, edit the code in `examples/hot-reload-lib` to see updates.
+                child = examples_hot_reload::hot_node();
+            };
 
              // layout affects the hot node correctly.
             child_align = Align::CENTER;

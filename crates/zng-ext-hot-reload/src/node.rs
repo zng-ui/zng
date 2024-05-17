@@ -167,7 +167,7 @@ impl UiNode for HotNodeHost {
         self.instance = match HOT.lib(self.manifest_dir) {
             Some(lib) => match lib.instantiate(self.name, ctx.clone(), self.args.clone()) {
                 Some(ok) => {
-                    tracing::info!("loaded hot `{}` in `{}`", self.name, WIDGET.trace_id());
+                    tracing::debug!("loaded hot `{}` in `{}`", self.name, WIDGET.trace_id());
                     ok
                 }
                 None => {
@@ -201,18 +201,8 @@ impl UiNode for HotNodeHost {
 
         if let Some(args) = HOT_RELOAD_EVENT.on(update) {
             if args.lib.manifest_dir() == self.manifest_dir {
-                match args.lib.instantiate(self.name, ctx.clone(), self.args.clone()) {
-                    Some(n) => {
-                        self.instance.deinit(&mut ctx);
-                        self.instance = n;
-                        // TODO, check if `instance` is not an widget.
-                        WIDGET.reinit();
-                        tracing::info!("reloaded `{}` in `{}`", self.name, WIDGET.trace_id());
-                    }
-                    None => {
-                        tracing::error!("hot node `{}` not found in `{}` library", self.name, self.manifest_dir)
-                    }
-                }
+                WIDGET.reinit();
+                tracing::debug!("reinit `{}` to hot reload `{}`", WIDGET.trace_id(), self.name);
             }
         }
     }

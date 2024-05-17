@@ -149,7 +149,7 @@ impl AppExtension for HotReloadManager {
         // capture global tracing dispatcher early.
         self.static_patch.tracing = tracing::dispatcher::get_default(|d| d.clone());
 
-        // watch all hot libraries. TODO
+        // watch all hot libraries. 
         for entry in crate::zng_hot_entry::HOT_NODES.iter() {
             if let std::collections::hash_map::Entry::Vacant(e) = self.libs.entry(entry.manifest_dir) {
                 e.insert(WatchedLib::default());
@@ -164,6 +164,8 @@ impl AppExtension for HotReloadManager {
                 if args.changes_for_path(manifest_dir.as_ref()).next().is_some() {
                     if watched.building.is_none() {
                         tracing::info!("rebuilding `{manifest_dir}`");
+
+                        // !!: TODO, status in service.
 
                         watched.building = Some(BuildingLib {
                             start_time: INSTANT.now(),
@@ -187,7 +189,7 @@ impl AppExtension for HotReloadManager {
 
                             self.static_patch.capture_statics();
 
-                            // TODO, async and copy `path` to avoid blocking the next rebuild.
+                            // !!: TODO, async and copy `path` to avoid blocking the next rebuild.
 
                             tracing::info!("hot loading `{}`", path.display());
 

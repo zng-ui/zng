@@ -76,7 +76,7 @@ pub fn build(manifest_dir: &str) -> ResponseVar<Result<PathBuf, BuildError>> {
             Err(BuildError::ManifestPathDidNotBuild { path: manifest_path })
         } else {
             let mut err = String::new();
-            build.stdout.take().unwrap().read_to_string(&mut err)?;
+            build.stderr.take().unwrap().read_to_string(&mut err)?;
             Err(BuildError::Cargo {
                 status,
                 stderr: err.to_txt(),
