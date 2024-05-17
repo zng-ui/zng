@@ -13,8 +13,8 @@ pub fn hot_node() -> impl UiNode {
         widget::on_deinit = hn!(|_|{
             tracing::info!("hot node on_deinit");
         });
-        widget::background_color = colors::RED;
-        txt = "Hello, this node is hot!";
+        widget::background_color = rgb(255, 0, 0);
+        txt = "Hello, this node is hot!!";
     }
 }
 
@@ -22,7 +22,9 @@ pub fn hot_node() -> impl UiNode {
 !!: ISSUES:
 
 * Tracing context did not bridge.
-
 * Hot Libraries can never unload because hot nodes can "leak" static references, in a `Txt(&static str)` for example.
+    - Right now we unload when the last node drops.
+    - Check what happens, access violation:
+* Document that statics can't be modified in hot code too.
 
 */

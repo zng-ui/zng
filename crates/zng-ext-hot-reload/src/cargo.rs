@@ -1,54 +1,96 @@
-use std::{fmt, io, path::PathBuf, sync::Arc};
+use std::{
+    fmt,
+    io::{self, BufRead as _, Read},
+    path::PathBuf,
+    process::{Command, Stdio},
+    sync::Arc,
+};
 
 use zng_txt::{ToTxt, Txt};
 use zng_var::ResponseVar;
 
-pub fn build(manifest_dir: &str) -> ResponseVar<Result<(), BuildError>> {
-    let manifest_path = format!("{manifest_dir}/Cargo.toml");
+/// Build and return the dylib path.
+pub fn build(manifest_dir: &str) -> ResponseVar<Result<PathBuf, BuildError>> {
+    let manifest_path = PathBuf::from(manifest_dir).join("Cargo.toml");
 
-    zng_task::wait_respond(move || -> Result<(), BuildError> {
-        let output = std::process::Command::new("cargo")
+    zng_task::wait_respond(move || -> Result<PathBuf, BuildError> {
+        let mut build = Command::new("cargo")
             .arg("build")
-            .arg("--manifest-path")
-            .arg(&manifest_path)
-            .output()?;
+            .arg("--message-format")
+            .arg("json")
+            .arg("-p") // !!: TODO, get this from the service.
+            .arg("examples")
+            .arg("--example")
+            .arg("hot_reload")
+            .stdin(Stdio::null())
+            .stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()?;
 
-        if output.status.success() {
-            Ok(())
+        for line in io::BufReader::new(build.stdout.take().unwrap()).lines() {
+            let line = line?;
+
+            const COMP_ARTIFACT: &str = r#"{"reason":"compiler-artifact","#;
+            const MANIFEST_FIELD: &str = r#""manifest_path":""#;
+            const FILENAMES_FIELD: &str = r#""filenames":["#;
+
+            if line.starts_with(COMP_ARTIFACT) {
+                let i = match line.find(MANIFEST_FIELD) {
+                    Some(i) => i,
+                    None => return Err(BuildError::UnknownMessageFormat { field: MANIFEST_FIELD }),
+                };
+                let line = &line[i + MANIFEST_FIELD.len()..];
+                let i = match line.find('"') {
+                    Some(i) => i,
+                    None => return Err(BuildError::UnknownMessageFormat { field: MANIFEST_FIELD }),
+                };
+                let line_manifest = PathBuf::from(&line[..i]);
+
+                if line_manifest != manifest_path {
+                    continue;
+                }
+
+                let line = &line[i..];
+                let i = match line.find(FILENAMES_FIELD) {
+                    Some(i) => i,
+                    None => return Err(BuildError::UnknownMessageFormat { field: FILENAMES_FIELD }),
+                };
+                let line = &line[i + FILENAMES_FIELD.len()..];
+                let i = match line.find(']') {
+                    Some(i) => i,
+                    None => return Err(BuildError::UnknownMessageFormat { field: FILENAMES_FIELD }),
+                };
+
+                for file in line[..i].split(',') {
+                    let file = PathBuf::from(file.trim().trim_matches('"'));
+                    if file.extension().map(|e| e != "rlib").unwrap_or(true) {
+                        build.kill()?;
+                        return Ok(file);
+                    }
+                }
+            }
+        }
+
+        let status = build.wait()?;
+        if status.success() {
+            Err(BuildError::ManifestPathDidNotBuild { path: manifest_path })
         } else {
+            let mut err = String::new();
+            build.stdout.take().unwrap().read_to_string(&mut err)?;
             Err(BuildError::Cargo {
-                status: output.status,
-                stdout: String::from_utf8_lossy(&output.stdout).to_txt(),
-                stderr: String::from_utf8_lossy(&output.stderr).to_txt(),
+                status,
+                stderr: err.to_txt(),
             })
         }
     })
 }
 
-/// Get compiled dyn lib name from manifest dir.
-pub fn _lib_name(manifest_dir: &str) -> Option<PathBuf> {
-    let manifest_path = format!("{manifest_dir}/Cargo.toml");
-
-    let _output = std::process::Command::new("cargo")
-        .arg("metadata")
-        .arg("--format-version")
-        .arg("1")
-        .arg("--no-deps")
-        .arg("--manifest-path")
-        .arg(&manifest_path)
-        .output();
-
-    todo!()
-}
-
 #[derive(Debug, Clone)]
 pub enum BuildError {
     Io(Arc<io::Error>),
-    Cargo {
-        status: std::process::ExitStatus,
-        stdout: Txt,
-        stderr: Txt,
-    },
+    Cargo { status: std::process::ExitStatus, stderr: Txt },
+    ManifestPathDidNotBuild { path: PathBuf },
+    UnknownMessageFormat { field: &'static str },
 }
 impl PartialEq for BuildError {
     fn eq(&self, other: &Self) -> bool {
@@ -57,15 +99,13 @@ impl PartialEq for BuildError {
             (
                 Self::Cargo {
                     status: l_exit_status,
-                    stdout: l_stdout,
                     stderr: l_stderr,
                 },
                 Self::Cargo {
                     status: r_exit_status,
-                    stdout: r_stdout,
                     stderr: r_stderr,
                 },
-            ) => l_exit_status == r_exit_status && l_stdout == r_stdout && l_stderr == r_stderr,
+            ) => l_exit_status == r_exit_status && l_stderr == r_stderr,
             _ => false,
         }
     }
@@ -82,6 +122,8 @@ impl fmt::Display for BuildError {
             BuildError::Cargo { .. } => {
                 write!(f, "cargo build failed")
             }
+            BuildError::ManifestPathDidNotBuild { path } => write!(f, "build command did not build `{}`", path.display()),
+            BuildError::UnknownMessageFormat { field } => write!(f, "could not find expected `{field}` in cargo JSON message"),
         }
     }
 }
@@ -89,7 +131,7 @@ impl std::error::Error for BuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             BuildError::Io(e) => Some(&**e),
-            BuildError::Cargo { .. } => None,
+            _ => None,
         }
     }
 }

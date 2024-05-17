@@ -12,7 +12,7 @@
 mod cargo;
 mod node;
 mod util;
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{collections::HashMap, fmt, path::PathBuf, sync::Arc};
 
 use cargo::BuildError;
 use node::*;
@@ -149,26 +149,11 @@ impl AppExtension for HotReloadManager {
         // capture global tracing dispatcher early.
         self.static_patch.tracing = tracing::dispatcher::get_default(|d| d.clone());
 
+        // watch all hot libraries. TODO
         for entry in crate::zng_hot_entry::HOT_NODES.iter() {
             if let std::collections::hash_map::Entry::Vacant(e) = self.libs.entry(entry.manifest_dir) {
                 e.insert(WatchedLib::default());
                 WATCHER.watch_dir(entry.manifest_dir, true).perm();
-            }
-        }
-
-        // !!: TODO, test
-        self.static_patch.capture_statics();
-        for (manifest_dir, _) in self.libs.iter() {
-            match HotLib::new(
-                &self.static_patch,
-                manifest_dir,
-                "C:/code/zng/target/debug/deps/examples_hot_reload.dll",
-            ) {
-                Ok(lib) => {
-                    HOT.set(lib.clone());
-                    HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
-                }
-                Err(e) => tracing::error!("failed to load rebuilt dyn library, {e}"),
             }
         }
     }
@@ -197,7 +182,23 @@ impl AppExtension for HotReloadManager {
             if let Some(b) = &watched.building {
                 if let Some(r) = b.process.rsp() {
                     match r {
-                        Ok(()) => tracing::info!("rebuilt `{manifest_dir}` in {:?}", b.start_time.elapsed()),
+                        Ok(path) => {
+                            tracing::info!("rebuilt `{manifest_dir}` in {:?}", b.start_time.elapsed());
+
+                            self.static_patch.capture_statics();
+
+                            // TODO, async and copy `path` to avoid blocking the next rebuild.
+
+                            tracing::info!("hot loading `{}`", path.display());
+
+                            match HotLib::new(&self.static_patch, manifest_dir, path) {
+                                Ok(lib) => {
+                                    HOT.set(lib.clone());
+                                    HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
+                                }
+                                Err(e) => tracing::error!("failed to load rebuilt dyn library, {e}"),
+                            }
+                        }
                         Err(e) => tracing::error!("failed rebuild `{manifest_dir}`, {e}"),
                     }
                     watched.building = None;
@@ -256,7 +257,7 @@ struct WatchedLib {
 
 struct BuildingLib {
     start_time: DInstant,
-    process: ResponseVar<Result<(), BuildError>>,
+    process: ResponseVar<Result<PathBuf, BuildError>>,
 }
 
 /// Dynamically loaded library.
