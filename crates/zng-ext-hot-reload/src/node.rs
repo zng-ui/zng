@@ -13,7 +13,7 @@ use zng_app_context::LocalContext;
 use zng_unit::PxSize;
 use zng_var::{BoxedVar, IntoValue, IntoVar, Var, VarValue};
 
-use crate::{HOT, HOT_RELOAD_EVENT};
+use crate::{HOT_RELOAD, HOT_RELOAD_EVENT};
 
 trait Arg: Any + Send {
     fn clone_boxed(&self) -> Box<dyn Arg>;
@@ -164,7 +164,7 @@ impl UiNode for HotNodeHost {
 
         let mut ctx = LocalContext::capture();
 
-        self.instance = match HOT.lib(self.manifest_dir) {
+        self.instance = match HOT_RELOAD.lib(self.manifest_dir) {
             Some(lib) => match lib.instantiate(self.name, ctx.clone(), self.args.clone()) {
                 Some(ok) => {
                     tracing::debug!("loaded hot `{}` in `{}`", self.name, WIDGET.trace_id());

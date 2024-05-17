@@ -132,3 +132,5 @@ pub use zng_ext_hot_reload::hot_node;
 ///
 /// [module]: crate::hot_reload
 pub use zng_ext_hot_reload::zng_hot_entry;
+
+pub use zng_ext_hot_reload::{BuildArgs, BuildError, HOT_RELOAD};

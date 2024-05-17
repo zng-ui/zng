@@ -21,10 +21,16 @@ pub fn hot_node() -> impl UiNode {
 /*
 !!: ISSUES:
 
-* Tracing context did not bridge.
+* Copy file (only Windows?) to allow override after open.
+
 * Hot Libraries can never unload because hot nodes can "leak" static references, in a `Txt(&static str)` for example.
-    - Right now we unload when the last node drops.
-    - Check what happens, access violation:
+- Right now we unload when the last node drops.
+- Check what happens, access violation:
 * Document that statics can't be modified in hot code too.
+
+# Issues after merge
+
+* Tracing context did not bridge.
+* Implement panel to show status.
 
 */
