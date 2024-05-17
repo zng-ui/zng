@@ -274,9 +274,9 @@ type RebuildLoadVar = ResponseVar<Result<HotLib, BuildError>>;
 
 /// Arguments for custom rebuild runners.
 ///
-/// See [`HOT_RELOAD.push_rebuild_runner`] for more details.
+/// See [`HOT_RELOAD.rebuilder`] for more details.
 ///
-/// [`HOT_RELOAD.push_rebuild_runner`]: HOT_RELOAD::push_rebuild_runner
+/// [`HOT_RELOAD.rebuilder`]: HOT_RELOAD::rebuilder
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuildArgs {
     /// Crate that changed.
@@ -333,16 +333,13 @@ impl HOT_RELOAD {
     }
 
     pub(crate) fn lib(&self, manifest_dir: &'static str) -> Option<HotLib> {
-        HOT_RELOAD_SV.read().libs.iter().find(|l| l.manifest_dir() == manifest_dir).cloned()
+        HOT_RELOAD_SV.read().libs.iter().rev().find(|l| l.manifest_dir() == manifest_dir).cloned()
     }
 
     fn set(&self, lib: HotLib) {
-        let mut sv = HOT_RELOAD_SV.write();
-        if let Some(i) = sv.libs.iter().position(|l| l.manifest_dir() == lib.manifest_dir()) {
-            sv.libs[i] = lib;
-        } else {
-            sv.libs.push(lib);
-        }
+        // we never unload HotLib because hot nodes can pass &'static references (usually inside `Txt`) to the
+        // program that will remain being used after.
+        HOT_RELOAD_SV.write().libs.push(lib);
     }
 }
 app_local! {

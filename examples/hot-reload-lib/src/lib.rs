@@ -21,9 +21,7 @@ pub fn hot_node() -> impl UiNode {
 /*
 !!: ISSUES:
 
-* Hot Libraries can never unload because hot nodes can "leak" static references, in a `Txt(&static str)` for example.
-- Right now we unload when the last node drops.
-- Observed access violation.
+* Document that hot-libs never unload.
 
 * Implement cancel rebuild.
     - VsCode touches the file multiple times when saving.
