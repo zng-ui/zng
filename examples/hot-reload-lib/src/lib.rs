@@ -21,7 +21,8 @@ pub fn hot_node() -> impl UiNode {
 /*
 !!: ISSUES:
 
-* Document that hot-libs never unload.
+* Add proc-macro tests for `hot_node`.
+* Add mode demonstrators in example.
 
 * Implement cancel rebuild.
     - VsCode touches the file multiple times when saving.

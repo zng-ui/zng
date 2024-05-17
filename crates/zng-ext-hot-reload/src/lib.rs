@@ -333,7 +333,13 @@ impl HOT_RELOAD {
     }
 
     pub(crate) fn lib(&self, manifest_dir: &'static str) -> Option<HotLib> {
-        HOT_RELOAD_SV.read().libs.iter().rev().find(|l| l.manifest_dir() == manifest_dir).cloned()
+        HOT_RELOAD_SV
+            .read()
+            .libs
+            .iter()
+            .rev()
+            .find(|l| l.manifest_dir() == manifest_dir)
+            .cloned()
     }
 
     fn set(&self, lib: HotLib) {
