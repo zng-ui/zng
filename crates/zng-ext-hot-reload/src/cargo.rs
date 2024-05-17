@@ -160,8 +160,11 @@ impl fmt::Display for BuildError {
                     sep = ", ";
                 }
                 #[cfg(unix)]
-                if let Some(s) = status.signal() {
-                    write!(f, "{sep}signal: {s}")?;
+                {
+                    use std::os::unix::process::ExitStatusExt;
+                    if let Some(s) = status.signal() {
+                        write!(f, "{sep}signal: {s}")?;
+                    }
                 }
                 write!(f, "\n{err}")?;
 
