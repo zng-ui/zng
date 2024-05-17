@@ -1,0 +1,397 @@
+{
+	// Place your zng workspace snippets here. Each snippet is defined under a snippet name and has a scope, prefix, body and 
+	// description. Add comma separated ids of the languages where the snippet is applicable in the scope field. If scope 
+	// is left empty or omitted, the snippet gets applied to all languages. The prefix is what is 
+	// used to trigger the snippet and the body will be expanded and inserted. Possible variables are: 
+	// $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders. 
+	// Placeholders with the same ids are connected.
+	// Example:
+	// "Print to console": {
+	// 	"scope": "javascript,typescript",
+	// 	"prefix": "log",
+	// 	"body": [
+	// 		"console.log('$1');",
+	// 		"$2"
+	// 	],
+	// 	"description": "Log output to console"
+	// }
+	"Standalone Property": {
+		"description": "Declare a standalone property function",
+		"scope": "rust",
+		"prefix": "#[property]",
+		"body": [
+			"/// ",
+			"#[property(${1:CONTEXT})]",
+			"pub fn ${2:name}(child: impl UiNode, ${3:input}: ${4:impl IntoVar<bool>}) -> impl UiNode {",
+			"    let $3 = ${5:$3.into_var()};",
+			"    match_node(child, |_c, op| match op {",
+			"        UiNodeOp::Init => {$6}",
+			"        _ => {}",
+			"    })",
+			"}",
+		]
+	},
+	"Widget Property": {
+		"description": "Declare a property function that is implemented for an widget",
+		"scope": "rust",
+		"prefix": "#[property]-wgt",
+		"body": [
+			"/// ",
+			"#[property(${1:CONTEXT}, widget_impl(${2:WgtName}))]",
+			"pub fn ${3:name}(child: impl UiNode, ${4:input}: ${5:impl IntoVar<bool>}) -> impl UiNode {",
+			"    let $4 = ${6:$4.into_var()};",
+			"    match_node(child, |_c, op| match op {",
+			"        UiNodeOp::Init => {$7}",
+			"        _ => {}",
+			"    })",
+			"}",
+		]
+	},
+	"Standalone Context Var Property": {
+		"description": "Declare a standalone property function that sets a context variable",
+		"scope": "rust",
+		"prefix": "#[property]-var",
+		"body": [
+			"/// ",
+			"/// ",
+			"/// This property sets the [`${1:FOO}_VAR`].",
+			"#[property(CONTEXT, default($1_VAR))]",
+			"fn ${1/(.*)/${1:/downcase}/}(child: impl UiNode, ${1/(.*)/${1:/downcase}/}: impl IntoVar<${2:bool}>) -> impl UiNode {",
+			"    with_context_var(child, $1_VAR, ${1/(.*)/${1:/downcase}/})",
+			"}"
+		]
+	},
+	"Widget Context Var Property": {
+		"description": "Declare a property function that is implemented for an widget and sets a context variable",
+		"scope": "rust",
+		"prefix": "#[property]-wgt-var",
+		"body": [
+			"/// ",
+			"/// ",
+			"/// This property sets the [`${1:FOO}_VAR`].",
+			"#[property(CONTEXT, default($1_VAR), widget_impl(${2:WgtName}))]",
+			"fn ${1/(.*)/${1:/downcase}/}(child: impl UiNode, ${1/(.*)/${1:/downcase}/}: impl IntoVar<${3:bool}>) -> impl UiNode {",
+			"    with_context_var(child, $1_VAR, ${1/(.*)_VAR/${1:/downcase}/})",
+			"}"
+		]
+	},
+	"Context Var": {
+		"description": "Declare a context variable",
+		"scope": "rust",
+		"prefix": "context_var!",
+		"body": [
+			"context_var! {",
+			"    /// $4",
+			"    pub static ${1:FOO}_VAR: ${2:bool} = ${3:true};",
+			"}",
+		]
+	},
+	"Event": {
+		"description": "Declare an event",
+		"scope": "rust",
+		"prefix": "event!",
+		"body": [
+			"event! {",
+			"    /// $3",
+			"    pub static ${1:FOO}_EVENT: ${2:Foo}Args;",
+			"}"
+		]
+	},
+	"Event Args": {
+		"description": "Declare an event args struct",
+		"scope": "rust",
+		"prefix": "event_args!",
+		"body": [
+			"event_args! {",
+			"    /// $4",
+			"    pub struct ${1:Foo}Args {",
+			"        $2",
+			"",
+			"        ..",
+			"",
+			"        fn delivery_list(&self, list: &mut UpdateDeliveryList) {",
+			"            ${3:list.search_widgets();}",
+			"        }",
+			"    }",
+			"}"
+		]
+	},
+	"Validating Event Args": {
+		"description": "Declare an event args struct with validation",
+		"scope": "rust",
+		"prefix": "event_args!-validate",
+		"body": [
+			"event_args! {",
+			"    /// $5",
+			"    pub struct ${1:Foo}Args {",
+			"        $2",
+			"",
+			"        ..",
+			"",
+			"        fn delivery_list(&self, list: &mut UpdateDeliveryList) {",
+			"            ${3:list.search_widgets();}",
+			"        }",
+			"",
+			"        fn validate(&self) -> Result<(), Txt> {",
+			"            ${4:Ok(())}",
+			"        }",
+			"    }",
+			"}"
+		]
+	},
+	"Command": {
+		"description": "Declare a command without metadata",
+		"scope": "rust",
+		"prefix": "command!",
+		"body": [
+			"command! {",
+			"    /// $2",
+			"    pub static ${1:FOO}_CMD;",
+			"}",
+		]
+	},
+	"Command With Metadata": {
+		"description": "Declare a command with metadata",
+		"scope": "rust",
+		"prefix": "command!-meta",
+		"body": [
+			"command! {",
+			"    /// $4",
+			"    pub static ${1:FOO}_CMD = {",
+			"        name: \"${2:foo}\",",
+			"        $3",
+			"    };",
+			"}",
+		]
+	},
+	"Clone Move": {
+		"description": "Declare a clone-move closure",
+		"scope": "rust",
+		"prefix": "clmv!",
+		"body": [
+			"clmv!($1, |$2| {",
+			"    $3",
+			"})",
+		]
+	},
+	"Async Clone Move": {
+		"description": "Declare a clone-move async block",
+		"scope": "rust",
+		"prefix": "async_clmv!",
+		"body": [
+			"async_clmv!($1, {",
+			"    $2",
+			"})",
+		]
+	},
+	"Async Clone Move Fn": {
+		"description": "Declare a clone-move async closure",
+		"scope": "rust",
+		"prefix": "async_clmv_fn!",
+		"body": [
+			"async_clmv_fn!($1, |$2|{",
+			"    $3",
+			"})",
+		]
+	},
+	"Async Clone Move Fn Once": {
+		"description": "Declare a clone-move async once closure",
+		"scope": "rust",
+		"prefix": "async_clmv_fn_once!",
+		"body": [
+			"async_clmv_fn_once!($1, |$2|{",
+			"    $3",
+			"})",
+		]
+	},
+	"Event Handler": {
+		"description": "Declare a widget event handler",
+		"scope": "rust",
+		"prefix": "hn!",
+		"body": [
+			"hn!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"Once Event Handler": {
+		"description": "Declare an once widget event handler",
+		"scope": "rust",
+		"prefix": "hn_once!",
+		"body": [
+			"hn_once!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"Async Event Handler": {
+		"description": "Declare an async widget event handler",
+		"scope": "rust",
+		"prefix": "async_hn!",
+		"body": [
+			"async_hn!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"Async Once Event Handler": {
+		"description": "Declare an async once widget event handler",
+		"scope": "rust",
+		"prefix": "async_hn_once!",
+		"body": [
+			"async_hn_once!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"App Event Handler": {
+		"description": "Declare an app event handler",
+		"scope": "rust",
+		"prefix": "app_hn!",
+		"body": [
+			"app_hn!($1|${2:_}, ${3:_}| {",
+			"    $4",
+			"})"
+		]
+	},
+	"Once App Event Handler": {
+		"description": "Declare an once app event handler",
+		"scope": "rust",
+		"prefix": "app_hn_once!",
+		"body": [
+			"app_hn_once!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"Async App Event Handler": {
+		"description": "Declare an async app event handler",
+		"scope": "rust",
+		"prefix": "async_app_hn!",
+		"body": [
+			"async_app_hn!($1|${2:_}, ${3:_}| {",
+			"    $4",
+			"})"
+		]
+	},
+	"Async Once App Event Handler": {
+		"description": "Declare an async once app event handler",
+		"scope": "rust",
+		"prefix": "async_app_hn_once!",
+		"body": [
+			"async_hn_once!($1|${2:_}| {",
+			"    $3",
+			"})"
+		]
+	},
+	"Widget Set": {
+		"description": "Set properties and 'when' blocks in a widget builder",
+		"scope": "rust",
+		"prefix": "widget_set!",
+		"body": [
+			"widget_set! {",
+			"    ${1:self};",
+			"    $2",
+			"}",
+		]
+	},
+	"Widget Impl": {
+		"description": "Implement an existing property for the widget",
+		"scope": "rust",
+		"prefix": "widget_impl!",
+		"body": [
+			"widget_impl! {",
+			"    /// $4",
+			"    pub ${1:foo}(${2:input}: ${3:impl IntoVar<bool>});",
+			"}",
+		]
+	},
+	"App Local": {
+		"description": "Declare an app-local value",
+		"scope": "rust",
+		"prefix": "app_local!",
+		"body": [
+			"app_local! {",
+			"    /// $4",
+			"    pub static ${1:FOO}: ${2:bool} = ${3:true};",
+			"}",
+		],
+	},
+	"Context Local": {
+		"description": "Declare a context-local value",
+		"scope": "rust",
+		"prefix": "context_local!",
+		"body": [
+			"context_local! {",
+			"    /// $4",
+			"    pub static ${1:FOO}: ${2:bool} = ${3:true};",
+			"}",
+		],
+	},
+	"L10n": {
+		"description": "Declare and use a localized message",
+		"scope": "rust",
+		"prefix": "l10n!",
+		"body": "l10n!(${1:file/key.attr}, ${2:msg})"
+	},
+	"Widget Fn": {
+		"description": "Declare a widget function",
+		"scope": "rust",
+		"prefix": "wgt_fn!",
+		"body": [
+			"wgt_fn!($1|${2:_}| {",
+			"    $3",
+			"})",
+		]
+	},
+	"Style Fn": {
+		"description": "Declare a style function",
+		"scope": "rust",
+		"prefix": "wgt_fn!",
+		"body": [
+			"style_fn!($1|${2:_}| {",
+			"    $3",
+			"})",
+		]
+	},
+	"Impl From and IntoVar": {
+		"description": "Implement type conversions compatible with properties",
+		"scope": "rust",
+		"prefix": "impl_from_and_into_var!",
+		"body": [
+			"impl_from_and_into_var! {",
+			"    fn from(${1:value}: ${2:InType}) -> ${3:OutType} {",
+			"        ${4:todo!()}",
+			"    }$5",
+			"}",
+		]
+	},
+	"Event Property": {
+		"description": "Declare an event property",
+		"scope": "rust",
+		"prefix": "event_property!",
+		"body": [
+			"event_property! {",
+			"    /// $5",
+			"    pub fn ${1:name} {",
+			"        event: ${2:FOO}_EVENT,",
+			"        args: ${3:Foo}Args,",
+			"        ${4:filter: |args| true,}",
+			"    }",
+			"}",
+		]
+	},
+	"Command Property": {
+		"description": "Declare a command property",
+		"scope": "rust",
+		"prefix": "command_property!",
+		"body": [
+			"command_property! {",
+			"    /// $4",
+			"    pub fn ${1:name} {",
+			"        cmd: ${2:FOO}_CMD${3:.scoped(WIDGET.id())},",
+			"    }",
+			"}",
+		]
+	},
+}
