@@ -851,6 +851,7 @@ mod defaults {
         ///
         /// [`MaterialFonts`]: zng_wgt_material_icons::MaterialFonts
         /// [`SingleInstanceManager`]: zng_ext_single_instance::SingleInstanceManager
+        /// [`HotReloadManager`]: zng_ext_hot_reload::HotReloadManager
         /// [`ConfigManager`]: zng_ext_config::ConfigManager
         /// [`L10nManager`]: zng_ext_l10n::L10nManager
         /// [`FontManager`]: zng_ext_font::FontManager

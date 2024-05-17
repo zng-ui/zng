@@ -317,7 +317,7 @@ impl HOT_RELOAD {
     /// an example program needs a custom runner.
     ///
     /// If `rebuilder` wants to handle the rebuild it must return a response var that updates when the rebuild is finished with
-    /// the path to the rebuilt dylib. The [`RebuildArgs`] also provides helper methods to rebuild common workspace setups.
+    /// the path to the rebuilt dylib. The [`BuildArgs`] also provides helper methods to rebuild common workspace setups.
     ///
     /// Note that unlike most services the `rebuilder` is registered immediately, not after an update cycle.
     pub fn rebuilder(&self, rebuilder: impl FnMut(BuildArgs) -> Option<RebuildVar> + Send + 'static) {

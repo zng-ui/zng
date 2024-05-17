@@ -86,7 +86,7 @@ pub unsafe fn init_static<T>(s: &mut &'static T, static_ptr: *const ()) -> *cons
     }
 }
 
-use std::{any::Any, fmt};
+use std::{any::Any, fmt, ops};
 
 #[doc(hidden)]
 #[cfg(not(feature = "hot_reload"))]
@@ -148,74 +148,111 @@ impl fmt::Debug for &'static dyn PatchKey {
 }
 
 #[doc(hidden)]
-pub use lazy_static::{__Deref, lazy, LazyStatic};
+pub use once_cell::sync::Lazy as OnceCellLazy;
 
-#[macro_export]
 #[doc(hidden)]
-macro_rules! __lazy_static_create {
-    ($NAME:ident, $T:ty) => {
-        $crate::hot_static! {
-            static $NAME: $crate::hot_reload::lazy::Lazy<$T> = $crate::hot_reload::lazy::Lazy::INIT;
-        }
-    };
+pub struct Lazy<T: 'static> {
+    #[cfg(feature = "hot_reload")]
+    inner: fn() -> &'static T,
+    #[cfg(not(feature = "hot_reload"))]
+    inner: OnceCellLazy<T, fn() -> T>,
 }
 
-#[macro_export]
-#[doc(hidden)]
-macro_rules! __lazy_static_internal {
-    // optional visibility restrictions are wrapped in `()` to allow for
-    // explicitly passing otherwise implicit information about private items
-    ($(#[$attr:meta])* ($($vis:tt)*) static ref $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
-        $crate::__lazy_static_internal!(@MAKE TY, $(#[$attr])*, ($($vis)*), $N);
-        $crate::__lazy_static_internal!(@TAIL, $N : $T = $e);
-        $crate::lazy_static!($($t)*);
-    };
-    (@TAIL, $N:ident : $T:ty = $e:expr) => {
-        impl $crate::hot_reload::__Deref for $N {
-            type Target = $T;
-            fn deref(&self) -> &$T {
-                #[inline(always)]
-                fn __static_ref_initialize() -> $T { $e }
+impl<T: 'static> Lazy<T> {
+    #[doc(hidden)]
+    #[cfg(feature = "hot_reload")]
+    pub const fn new(inner: fn() -> &'static T) -> Self {
+        Self { inner }
+    }
 
-                #[inline(always)]
-                fn __stability() -> &'static $T {
-                    $crate::__lazy_static_create!(LAZY, $T);
-                    $crate::hot_static_ref!(LAZY).get(__static_ref_initialize)
-                }
-                __stability()
-            }
+    #[doc(hidden)]
+    #[cfg(not(feature = "hot_reload"))]
+    pub const fn new(init: fn() -> T) -> Self {
+        Self {
+            inner: OnceCellLazy::new(init),
         }
-        impl $crate::hot_reload::LazyStatic for $N {
-            fn initialize(lazy: &Self) {
-                let _ = &**lazy;
-            }
-        }
-    };
-    // `vis` is wrapped in `()` to prevent parsing ambiguity
-    (@MAKE TY, $(#[$attr:meta])*, ($($vis:tt)*), $N:ident) => {
-        #[allow(missing_copy_implementations)]
-        #[allow(non_camel_case_types)]
-        #[allow(dead_code)]
-        $(#[$attr])*
-        $($vis)* struct $N {__private_field: ()}
-        #[doc(hidden)]
-        $($vis)* static $N: $N = $N {__private_field: ()};
-    };
-    () => ()
+    }
+}
+impl<T: 'static> ops::Deref for Lazy<T> {
+    type Target = T;
+
+    #[cfg(feature = "hot_reload")]
+    fn deref(&self) -> &Self::Target {
+        (self.inner)()
+    }
+
+    #[cfg(not(feature = "hot_reload"))]
+    fn deref(&self) -> &Self::Target {
+        self.inner.deref()
+    }
 }
 
 /// Implementation of `lazy_static!` that supports hot reloading.
 ///
-/// The syntax is identical as the [`lazy_static`](https://docs.rs/lazy_static) crate,
-/// the `lazy_static::LazyStatic` trait is also implemented.
-#[macro_export(local_inner_macros)]
+/// The syntax is similar to the [`lazy_static`](https://docs.rs/lazy_static) crate,
+/// but is uses the [`once_cell::sync::Lazy`](https://docs.rs/once_cell/once_cell/sync/struct.Lazy.html)
+/// type.
+#[macro_export]
 macro_rules! lazy_static {
-    ($(#[$attr:meta])* static ref $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
-        // use `()` to explicitly forward the information about private items
-        $crate::__lazy_static_internal!($(#[$attr])* () static ref $N : $T = $e; $($t)*);
+    ($(
+        $(#[$attr:meta])*
+        $vis:vis static ref $N:ident : $T:ty = $e:expr;
+    )+) => {
+        $(
+           $crate::hot_reload::lazy_static_impl! {
+                $(#[$attr])*
+                $vis static ref $N : $T = $e;
+           }
+        )+
     };
-    ($(#[$attr:meta])* $vis:vis static ref $N:ident : $T:ty = $e:expr; $($t:tt)*) => {
-        $crate::__lazy_static_internal!($(#[$attr])* ($vis) static ref $N : $T = $e; $($t)*);
-    };
-    () => ()
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! lazy_static_patchable {
+    (
+        $(#[$attr:meta])*
+        $vis:vis static ref $N:ident : $T:ty = $e:expr;
+    ) => {
+        $crate::paste! {
+            fn [<_ $N:lower _hot>]() -> &'static $T {
+                fn __init() -> $T {
+                    $e
+                }
+                $crate::hot_static! {
+                    static IMPL: $crate::hot_reload::OnceCellLazy<$T> = $crate::hot_reload::OnceCellLazy::new(__init);
+                }
+                $crate::hot_static_ref!(IMPL)
+            }
+
+            $(#[$attr])*
+            $vis static $N: $crate::hot_reload::Lazy<$T> = $crate::hot_reload::Lazy::new([<_ $N:lower _hot>]);
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! lazy_static_not_patchable {
+    (
+        $(#[$attr:meta])*
+        $vis:vis static ref $N:ident : $T:ty = $e:expr;
+    ) => {
+        $crate::paste! {
+            fn [<_ $N:lower _init>]() -> $T {
+                $e
+            }
+
+            $(#[$attr])*
+            $vis static $N: $crate::hot_reload::Lazy<$T> = $crate::hot_reload::Lazy::new([<_ $N:lower _init>]);
+        }
+    };
+}
+
+#[doc(hidden)]
+#[cfg(not(feature = "hot_reload"))]
+pub use crate::lazy_static_not_patchable as lazy_static_impl;
+
+#[doc(hidden)]
+#[cfg(feature = "hot_reload")]
+pub use crate::lazy_static_patchable as lazy_static_impl;
