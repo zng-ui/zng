@@ -110,7 +110,7 @@
 			"        ..",
 			"",
 			"        fn delivery_list(&self, list: &mut UpdateDeliveryList) {",
-			"            ${3:list.search_widgets();}",
+			"            ${3:list.search_all();}",
 			"        }",
 			"    }",
 			"}"
@@ -129,7 +129,7 @@
 			"        ..",
 			"",
 			"        fn delivery_list(&self, list: &mut UpdateDeliveryList) {",
-			"            ${3:list.search_widgets();}",
+			"            ${3:list.search_all();}",
 			"        }",
 			"",
 			"        fn validate(&self) -> Result<(), Txt> {",

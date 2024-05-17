@@ -240,7 +240,7 @@ event_args! {
         ..
 
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_widgets();
+            list.search_all();
         }
     }
 }

@@ -198,11 +198,13 @@ impl UpdateDeliveryList {
     }
 
     /// Widgets still pending search or not found.
+    #[must_use = "use `search_all` to request search"]
     pub fn search_widgets(&mut self) -> &IdSet<WidgetId> {
         &self.search
     }
 
     /// If search for window a root is pending.
+    #[must_use = "use `search_widget` to request search"]
     pub fn search_root(&mut self) -> bool {
         self.search_root
     }

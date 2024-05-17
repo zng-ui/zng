@@ -14,7 +14,7 @@ pub fn hot_node() -> impl UiNode {
             tracing::info!("hot node on_deinit");
         });
         widget::background_color = rgb(255, 0, 0);
-        txt = "Hello, this node is hot!!";
+        txt = "Hello, this node is hot!";
     }
 }
 
