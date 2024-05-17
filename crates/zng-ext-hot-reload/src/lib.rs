@@ -12,7 +12,13 @@
 mod cargo;
 mod node;
 mod util;
-use std::{collections::HashMap, fmt, mem, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    path::PathBuf,
+    sync::Arc,
+    time::Duration,
+};
 
 pub use cargo::BuildError;
 use node::*;
@@ -73,7 +79,7 @@ pub mod zng_hot_entry {
     pub static HOT_NODES: [HotNodeEntry];
 
     pub struct HotRequest {
-        pub manifest_dir: &'static str,
+        pub manifest_dir: String,
         pub hot_node_name: &'static str,
         pub ctx: LocalContext,
         pub args: HotNodeArgs,
@@ -206,7 +212,9 @@ impl AppExtension for HotReloadManager {
         if let Some(args) = zng_ext_fs_watcher::FS_CHANGES_EVENT.on(update) {
             for (manifest_dir, watched) in self.libs.iter_mut() {
                 if args.changes_for_path(manifest_dir.as_ref()).next().is_some() {
-                    watched.rebuild((*manifest_dir).into());
+                    self.static_patch.capture_statics();
+
+                    watched.rebuild((*manifest_dir).into(), &self.static_patch);
                 }
             }
         }
@@ -217,35 +225,30 @@ impl AppExtension for HotReloadManager {
             if let Some(b) = &watched.building {
                 if let Some(r) = b.process.rsp() {
                     let build_time = b.start_time.elapsed();
-
-                    match &r {
-                        Ok(path) => {
-                            tracing::info!("rebuilt `{manifest_dir}` in {build_time:?}");
-
-                            self.static_patch.capture_statics();
-
-                            tracing::debug!("hot loading `{}`", path.display());
-                            match HotLib::new(&self.static_patch, manifest_dir, path) {
-                                Ok(lib) => {
-                                    HOT_RELOAD.set(lib.clone());
-                                    HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
-                                }
-                                Err(e) => tracing::error!("failed to load rebuilt dyn library, {e}"),
-                            }
+                    let mut lib = None;
+                    let status_r = match r {
+                        Ok(l) => {
+                            lib = Some(l);
+                            Ok(build_time)
                         }
                         Err(e) => {
                             tracing::error!("failed rebuild `{manifest_dir}`, {e}");
+                            Err(e)
                         }
+                    };
+                    if let Some(lib) = lib {
+                        tracing::info!("rebuilt and reloaded `{manifest_dir}` in {build_time:?}");
+                        HOT_RELOAD.set(lib.clone());
+                        HOT_RELOAD_EVENT.notify(HotReloadArgs::now(lib));
                     }
 
                     watched.building = None;
 
                     let manifest_dir = *manifest_dir;
-                    let r = r.map(|_| build_time);
                     HOT_RELOAD_SV.read().status.modify(move |s| {
                         let s = s.to_mut().iter_mut().find(|s| s.manifest_dir == manifest_dir).unwrap();
                         s.building = None;
-                        s.last_build = r;
+                        s.last_build = status_r;
                         s.rebuild_count += 1;
                     });
                 }
@@ -253,10 +256,11 @@ impl AppExtension for HotReloadManager {
         }
 
         let mut sv = HOT_RELOAD_SV.write();
-        let requests = mem::take(&mut sv.rebuild_requests);
+        let requests: HashSet<Txt> = sv.rebuild_requests.drain(..).collect();
         for r in requests {
             if let Some(watched) = self.libs.get_mut(r.as_str()) {
-                watched.rebuild(r);
+                self.static_patch.capture_statics();
+                watched.rebuild(r, &self.static_patch);
             } else {
                 tracing::error!("cannot rebuild `{r}`, unknown");
             }
@@ -265,6 +269,8 @@ impl AppExtension for HotReloadManager {
 }
 
 type RebuildVar = ResponseVar<Result<PathBuf, BuildError>>;
+
+type RebuildLoadVar = ResponseVar<Result<HotLib, BuildError>>;
 
 /// Arguments for custom rebuild runners.
 ///
@@ -359,6 +365,34 @@ struct HotReloadService {
     rebuild_requests: Vec<Txt>,
 }
 impl HotReloadService {
+    fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: StaticPatch) -> RebuildLoadVar {
+        let rebuild = self.rebuild(manifest_dir.clone());
+        zng_task::respond(async move {
+            let mut path = rebuild.wait_into_rsp().await?;
+
+            // copy dylib to not block the next rebuild
+            let file_name = match path.file_name() {
+                Some(f) => f.to_string_lossy(),
+                None => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "dylib path does not have a file name").into()),
+            };
+            for i in 0..1000 {
+                let mut unblocked_path = path.clone();
+                unblocked_path.set_file_name(format!("zng-hot-{i}-{file_name}"));
+                if unblocked_path.exists() {
+                    // try free for next use
+                    let _ = std::fs::remove_file(unblocked_path);
+                } else {
+                    std::fs::copy(&path, &unblocked_path)?;
+                    path = unblocked_path;
+                    break;
+                }
+            }
+
+            let dylib = HotLib::new(&static_patch, manifest_dir, path)?;
+            Ok(dylib)
+        })
+    }
+
     fn rebuild(&mut self, manifest_dir: Txt) -> RebuildVar {
         let args = BuildArgs { manifest_dir };
         for r in self.rebuilders.get_mut() {
@@ -385,8 +419,8 @@ event_args! {
 }
 impl HotReloadArgs {
     /// Crate directory that changed and caused the rebuild.
-    pub fn manifest_dir(&self) -> Txt {
-        self.lib.manifest_dir().into()
+    pub fn manifest_dir(&self) -> &Txt {
+        self.lib.manifest_dir()
     }
 }
 
@@ -402,7 +436,7 @@ struct WatchedLib {
     building: Option<BuildingLib>,
 }
 impl WatchedLib {
-    fn rebuild(&mut self, manifest_dir: Txt) {
+    fn rebuild(&mut self, manifest_dir: Txt, static_path: &StaticPatch) {
         if self.building.is_none() {
             let start_time = INSTANT.now();
             tracing::info!("rebuilding `{manifest_dir}`");
@@ -411,7 +445,7 @@ impl WatchedLib {
 
             self.building = Some(BuildingLib {
                 start_time,
-                process: sv.rebuild(manifest_dir.clone()),
+                process: sv.rebuild_reload(manifest_dir.clone(), static_path.clone()),
             });
 
             sv.status.modify(move |s| {
@@ -425,15 +459,20 @@ impl WatchedLib {
 
 struct BuildingLib {
     start_time: DInstant,
-    process: RebuildVar,
+    process: RebuildLoadVar,
 }
 
 /// Dynamically loaded library.
 #[derive(Clone)]
 pub(crate) struct HotLib {
-    manifest_dir: &'static str,
+    manifest_dir: Txt,
     lib: Arc<libloading::Library>,
     hot_entry: unsafe fn(HotRequest) -> Option<HotNode>,
+}
+impl PartialEq for HotLib {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.lib, &other.lib)
+    }
 }
 impl fmt::Debug for HotLib {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -443,7 +482,7 @@ impl fmt::Debug for HotLib {
     }
 }
 impl HotLib {
-    pub fn new(patch: &StaticPatch, manifest_dir: &'static str, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
+    pub fn new(patch: &StaticPatch, manifest_dir: Txt, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
         unsafe {
             // SAFETY: assuming the the hot lib was setup as the documented, this works,
             // even the `linkme` stuff does not require any special care.
@@ -465,13 +504,13 @@ impl HotLib {
     }
 
     /// Lib identifier.
-    pub fn manifest_dir(&self) -> &'static str {
-        self.manifest_dir
+    pub fn manifest_dir(&self) -> &Txt {
+        &self.manifest_dir
     }
 
     pub fn instantiate(&self, hot_node_name: &'static str, ctx: LocalContext, args: HotNodeArgs) -> Option<HotNode> {
         let request = HotRequest {
-            manifest_dir: self.manifest_dir,
+            manifest_dir: self.manifest_dir.to_string(),
             hot_node_name,
             ctx,
             args,

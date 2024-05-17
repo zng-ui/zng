@@ -147,6 +147,11 @@ impl From<io::Error> for BuildError {
         Self::Io(Arc::new(err))
     }
 }
+impl From<libloading::Error> for BuildError {
+    fn from(err: libloading::Error) -> Self {
+        Self::Load(Arc::new(err))
+    }
+}
 impl fmt::Display for BuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
