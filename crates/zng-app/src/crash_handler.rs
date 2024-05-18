@@ -183,6 +183,10 @@ pub struct CrashError {
     pub args: Box<[Txt]>,
     /// Minidump file.
     pub minidump: Option<PathBuf>,
+    /// Operating system.
+    ///
+    /// See [`std::env::consts::OS`] for details.
+    pub os: Txt,
 }
 /// Alternate mode `{:#}` prints plain stdout and stderr (no ANSI escape sequences).
 impl fmt::Display for CrashError {
@@ -228,6 +232,7 @@ impl CrashError {
             stderr,
             args,
             minidump,
+            os: std::env::consts::OS.into(),
         }
     }
 
