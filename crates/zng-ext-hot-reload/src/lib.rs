@@ -14,7 +14,7 @@ mod node;
 mod util;
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
+    fmt, mem,
     path::PathBuf,
     sync::Arc,
     time::Duration,
@@ -35,6 +35,7 @@ use zng_hot_entry::HotRequest;
 use zng_task::parking_lot::Mutex;
 use zng_txt::Txt;
 use zng_unique_id::hot_reload::HOT_STATICS;
+use zng_unit::TimeUnits as _;
 use zng_var::{ArcVar, ReadOnlyArcVar, ResponseVar, Var as _};
 
 #[doc(inline)]
@@ -267,6 +268,10 @@ impl AppExtension for HotReloadManager {
                         s.last_build = status_r;
                         s.rebuild_count += 1;
                     });
+
+                    if mem::take(&mut watched.rebuild_again) {
+                        HOT_RELOAD_SV.write().rebuild_requests.push(manifest_dir.into());
+                    }
                 }
             }
         }
@@ -503,11 +508,21 @@ event! {
 #[derive(Default)]
 struct WatchedLib {
     building: Option<BuildingLib>,
+    rebuild_again: bool,
 }
 impl WatchedLib {
     fn rebuild(&mut self, manifest_dir: Txt, static_path: &StaticPatch) {
-        if let Some(_b) = &self.building {
-            // !!: TODO, cancel?
+        if let Some(b) = &self.building {
+            if b.start_time.elapsed() > WATCHER.debounce().get() + 34.ms() {
+                // WATCHER debounce notifies immediately, then debounces. Some
+                // IDEs (VsCode) touch the saving file multiple times within
+                // the debounce interval, this causes two rebuild requests.
+                //
+                // So we only cancel rebuild if the second event (current) is not
+                // within debounce + a generous 34ms for the notification delay.
+                b.cancel_build.stop();
+                self.rebuild_again = true;
+            }
         } else {
             let start_time = INSTANT.now();
             tracing::info!("rebuilding `{manifest_dir}`");

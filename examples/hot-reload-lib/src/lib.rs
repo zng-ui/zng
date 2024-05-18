@@ -23,10 +23,6 @@ pub fn hot_node() -> impl UiNode {
 
 * Add mode demonstrators in example.
 
-* Implement cancel rebuild.
-    - VsCode touches the file multiple times when saving.
-    - Add `HOT_RELOAD.cancel_rebuild_after` minimal time.
-
 # Issues after merge
 
 * Tracing context did not bridge.
