@@ -2,11 +2,12 @@ use std::{
     fmt,
     io::{self, BufRead as _, Read},
     path::PathBuf,
-    process::{Command, Stdio},
+    process::{ChildStdout, Command, Stdio},
     sync::Arc,
 };
 
-use zng_app::event::EventPropagationHandle;
+use zng_app::handler::clmv;
+use zng_task::SignalOnce;
 use zng_txt::{ToTxt, Txt};
 use zng_var::ResponseVar;
 
@@ -16,7 +17,7 @@ pub fn build(
     package: &str,
     bin_option: &str,
     bin: &str,
-    cancel: EventPropagationHandle,
+    cancel: SignalOnce,
 ) -> ResponseVar<Result<PathBuf, BuildError>> {
     let manifest_path = PathBuf::from(manifest_dir).join("Cargo.toml");
 
@@ -29,85 +30,127 @@ pub fn build(
         build.arg(bin_option).arg(bin);
     }
 
-    zng_task::wait_respond(move || -> Result<PathBuf, BuildError> {
-        let mut build = build.stdin(Stdio::null()).stderr(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
+    zng_task::respond(async move {
+        let mut child = zng_task::wait(move || build.stdin(Stdio::null()).stderr(Stdio::piped()).stdout(Stdio::piped()).spawn()).await?;
 
-        for line in io::BufReader::new(build.stdout.take().unwrap()).lines() {
-            let line = line?;
+        let stdout = child.stdout.take().unwrap();
+        let stderr = child.stderr.take().unwrap();
+        let run = zng_task::wait(clmv!(manifest_path, || run_build(manifest_path, stdout)));
 
-            const COMP_ARTIFACT: &str = r#"{"reason":"compiler-artifact","#;
-            const MANIFEST_FIELD: &str = r#""manifest_path":""#;
-            const FILENAMES_FIELD: &str = r#""filenames":["#;
+        let cancel = async move {
+            cancel.await;
+            Err(BuildError::Cancelled)
+        };
 
-            if line.starts_with(COMP_ARTIFACT) {
-                let i = match line.find(MANIFEST_FIELD) {
-                    Some(i) => i,
-                    None => {
-                        return Err(BuildError::UnknownMessageFormat {
-                            pat: MANIFEST_FIELD.into(),
-                        })
+        match zng_task::any!(run, cancel).await {
+            Ok(p) => {
+                zng_task::spawn_wait(move || {
+                    if let Err(e) = child.kill() {
+                        tracing::error!("failed to kill build after hot dylib successfully built, {e}");
                     }
-                };
-                let line = &line[i + MANIFEST_FIELD.len()..];
-                let i = match line.find('"') {
-                    Some(i) => i,
-                    None => {
-                        return Err(BuildError::UnknownMessageFormat {
-                            pat: MANIFEST_FIELD.into(),
-                        })
-                    }
-                };
-                let line_manifest = PathBuf::from(&line[..i]);
+                });
+                Ok(p)
+            }
+            Err(e) => {
+                if matches!(e, BuildError::Cancelled) {
+                    zng_task::spawn_wait(move || {
+                        if let Err(e) = child.kill() {
+                            tracing::error!("failed to kill build after cancel, {e}");
+                        }
+                    });
 
-                if line_manifest != manifest_path {
-                    continue;
-                }
-
-                let line = &line[i..];
-                let i = match line.find(FILENAMES_FIELD) {
-                    Some(i) => i,
-                    None => {
-                        return Err(BuildError::UnknownMessageFormat {
-                            pat: FILENAMES_FIELD.into(),
-                        })
+                    Err(e)
+                } else if matches!(&e, BuildError::Io(e) if e.kind() == io::ErrorKind::UnexpectedEof) {
+                    // run_build read to EOF without finding manifest_path
+                    let status = zng_task::wait(move || {
+                        child.kill()?;
+                        child.wait()
+                    });
+                    match status.await {
+                        Ok(status) => {
+                            if status.success() {
+                                Err(BuildError::ManifestPathDidNotBuild { path: manifest_path })
+                            } else {
+                                let mut err = String::new();
+                                let mut stderr = stderr;
+                                stderr.read_to_string(&mut err)?;
+                                Err(BuildError::Command {
+                                    status,
+                                    err: err.lines().next_back().unwrap_or("").to_txt(),
+                                })
+                            }
+                        }
+                        Err(wait_e) => Err(wait_e.into()),
                     }
-                };
-                let line = &line[i + FILENAMES_FIELD.len()..];
-                let i = match line.find(']') {
-                    Some(i) => i,
-                    None => {
-                        return Err(BuildError::UnknownMessageFormat {
-                            pat: FILENAMES_FIELD.into(),
-                        })
-                    }
-                };
-
-                for file in line[..i].split(',') {
-                    let file = PathBuf::from(file.trim().trim_matches('"'));
-                    if file.extension().map(|e| e != "rlib").unwrap_or(true) {
-                        build.kill()?;
-                        return Ok(file);
-                    }
+                } else {
+                    Err(e)
                 }
             }
-
-            if cancel.is_stopped() {
-                return Err(BuildError::Cancelled);
-            }
-        }
-
-        let status = build.wait()?;
-        if status.success() {
-            Err(BuildError::ManifestPathDidNotBuild { path: manifest_path })
-        } else {
-            let mut err = String::new();
-            build.stderr.take().unwrap().read_to_string(&mut err)?;
-            Err(BuildError::Command {
-                status,
-                err: err.lines().next_back().unwrap_or("").to_txt(),
-            })
         }
     })
+}
+
+fn run_build(manifest_path: PathBuf, stdout: ChildStdout) -> Result<PathBuf, BuildError> {
+    for line in io::BufReader::new(stdout).lines() {
+        let line = line?;
+
+        const COMP_ARTIFACT: &str = r#"{"reason":"compiler-artifact","#;
+        const MANIFEST_FIELD: &str = r#""manifest_path":""#;
+        const FILENAMES_FIELD: &str = r#""filenames":["#;
+
+        if line.starts_with(COMP_ARTIFACT) {
+            let i = match line.find(MANIFEST_FIELD) {
+                Some(i) => i,
+                None => {
+                    return Err(BuildError::UnknownMessageFormat {
+                        pat: MANIFEST_FIELD.into(),
+                    })
+                }
+            };
+            let line = &line[i + MANIFEST_FIELD.len()..];
+            let i = match line.find('"') {
+                Some(i) => i,
+                None => {
+                    return Err(BuildError::UnknownMessageFormat {
+                        pat: MANIFEST_FIELD.into(),
+                    })
+                }
+            };
+            let line_manifest = PathBuf::from(&line[..i]);
+
+            if line_manifest != manifest_path {
+                continue;
+            }
+
+            let line = &line[i..];
+            let i = match line.find(FILENAMES_FIELD) {
+                Some(i) => i,
+                None => {
+                    return Err(BuildError::UnknownMessageFormat {
+                        pat: FILENAMES_FIELD.into(),
+                    })
+                }
+            };
+            let line = &line[i + FILENAMES_FIELD.len()..];
+            let i = match line.find(']') {
+                Some(i) => i,
+                None => {
+                    return Err(BuildError::UnknownMessageFormat {
+                        pat: FILENAMES_FIELD.into(),
+                    })
+                }
+            };
+
+            for file in line[..i].split(',') {
+                let file = PathBuf::from(file.trim().trim_matches('"'));
+                if file.extension().map(|e| e != "rlib").unwrap_or(true) {
+                    return Ok(file);
+                }
+            }
+        }
+    }
+
+    Err(BuildError::Io(Arc::new(io::Error::new(io::ErrorKind::UnexpectedEof, ""))))
 }
 
 /// Rebuild error.

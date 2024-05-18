@@ -13,6 +13,7 @@
 * **Breaking** Remove all `Static{Id}` unique ID static types.
     - Use `static_id!` to declare static IDs, the new way is compatible with hot reloading.
     - Removed `StaticWindowId`, `StaticMonitorId`, `StaticPropertyId`, `StaticAppId`, `StaticWidgetId`, `StaticDeviceId`, `StaticStateId`,  `StaticCommandMetaVarId`, `StaticSpatialFrameId`.
+* Implemented equality/hash for `zng::task::SignalOnce`.
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 

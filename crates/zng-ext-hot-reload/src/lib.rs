@@ -24,7 +24,7 @@ pub use cargo::BuildError;
 use node::*;
 
 use zng_app::{
-    event::{event, event_args, EventPropagationHandle},
+    event::{event, event_args},
     update::UPDATES,
     AppExtension, DInstant, INSTANT,
 };
@@ -32,7 +32,7 @@ use zng_app_context::{app_local, LocalContext};
 use zng_ext_fs_watcher::WATCHER;
 pub use zng_ext_hot_reload_proc_macros::hot_node;
 use zng_hot_entry::HotRequest;
-use zng_task::parking_lot::Mutex;
+use zng_task::{parking_lot::Mutex, SignalOnce};
 use zng_txt::Txt;
 use zng_unique_id::hot_reload::HOT_STATICS;
 use zng_unit::TimeUnits as _;
@@ -249,7 +249,11 @@ impl AppExtension for HotReloadManager {
                             Ok(build_time)
                         }
                         Err(e) => {
-                            tracing::error!("failed rebuild `{manifest_dir}`, {e}");
+                            if matches!(&e, BuildError::Cancelled) {
+                                tracing::error!("cancelled rebuild `{manifest_dir}`");
+                            } else {
+                                tracing::error!("failed rebuild `{manifest_dir}`, {e}");
+                            }
                             Err(e)
                         }
                     };
@@ -281,7 +285,7 @@ impl AppExtension for HotReloadManager {
         for r in requests {
             if let Some(watched) = self.libs.get_mut(r.as_str()) {
                 if let Some(b) = &watched.building {
-                    b.cancel_build.stop();
+                    b.cancel_build.set();
                 }
             }
         }
@@ -312,11 +316,11 @@ type RebuildLoadVar = ResponseVar<Result<HotLib, BuildError>>;
 pub struct BuildArgs {
     /// Crate that changed.
     pub manifest_dir: Txt,
-    /// Handle that is flagged when the build must be cancelled.
+    /// Cancel signal.
     ///
     /// If the build cannot be cancelled or has already finished this handle must be ignored and
     /// the normal result returned.
-    pub cancel_build: EventPropagationHandle,
+    pub cancel_build: SignalOnce,
 }
 impl BuildArgs {
     /// Calls `cargo build [--package {package}] --message-format json` and cancels it as soon as the dylib is rebuilt.
@@ -430,7 +434,7 @@ struct HotReloadService {
     cancel_requests: Vec<Txt>,
 }
 impl HotReloadService {
-    fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: StaticPatch) -> (RebuildLoadVar, EventPropagationHandle) {
+    fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: StaticPatch) -> (RebuildLoadVar, SignalOnce) {
         let (rebuild, cancel) = self.rebuild(manifest_dir.clone());
         let rebuild_load = zng_task::respond(async move {
             let mut path = rebuild.wait_into_rsp().await?;
@@ -459,9 +463,9 @@ impl HotReloadService {
         (rebuild_load, cancel)
     }
 
-    fn rebuild(&mut self, manifest_dir: Txt) -> (RebuildVar, EventPropagationHandle) {
+    fn rebuild(&mut self, manifest_dir: Txt) -> (RebuildVar, SignalOnce) {
         for r in self.rebuilders.get_mut() {
-            let cancel = EventPropagationHandle::new();
+            let cancel = SignalOnce::new();
             let args = BuildArgs {
                 manifest_dir: manifest_dir.clone(),
                 cancel_build: cancel.clone(),
@@ -470,7 +474,7 @@ impl HotReloadService {
                 return (r, cancel);
             }
         }
-        let cancel = EventPropagationHandle::new();
+        let cancel = SignalOnce::new();
         let args = BuildArgs {
             manifest_dir: manifest_dir.clone(),
             cancel_build: cancel.clone(),
@@ -521,7 +525,7 @@ impl WatchedLib {
                 //
                 // So we only cancel rebuild if the second event (current) is not
                 // within debounce + a generous 34ms for the notification delay.
-                b.cancel_build.stop();
+                b.cancel_build.set();
                 self.rebuild_again = true;
             }
         } else {
@@ -547,7 +551,7 @@ impl WatchedLib {
 struct BuildingLib {
     start_time: DInstant,
     rebuild_load: RebuildLoadVar,
-    cancel_build: EventPropagationHandle,
+    cancel_build: SignalOnce,
 }
 
 /// Dynamically loaded library.
