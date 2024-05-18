@@ -14,6 +14,7 @@
     - Use `static_id!` to declare static IDs, the new way is compatible with hot reloading.
     - Removed `StaticWindowId`, `StaticMonitorId`, `StaticPropertyId`, `StaticAppId`, `StaticWidgetId`, `StaticDeviceId`, `StaticStateId`,  `StaticCommandMetaVarId`, `StaticSpatialFrameId`.
 * Implemented equality/hash for `zng::task::SignalOnce`.
+* Add `std::env::consts::OS` to crash error.
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 

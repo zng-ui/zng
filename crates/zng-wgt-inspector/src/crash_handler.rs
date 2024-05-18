@@ -151,7 +151,7 @@ impl ErrorPanel {
 
 fn summary_panel(error: &CrashError) -> impl UiNode {
     let s = formatx!(
-        "Timestamp: {}\nExit Code: {}\nSignal: {}\nStderr: {} bytes\nStdout: {} bytes\nPanic: {}\nMinidump: {}\n\nArgs: {:?}\n",
+        "Timestamp: {}\nExit Code: {}\nSignal: {}\nStderr: {} bytes\nStdout: {} bytes\nPanic: {}\nMinidump: {}\n\nArgs: {:?}\nOS: {}",
         error.unix_time(),
         match error.code {
             Some(c) => format!("{c:#x}"),
@@ -173,6 +173,7 @@ fn summary_panel(error: &CrashError) -> impl UiNode {
             None => "<none>".to_owned(),
         },
         error.args,
+        error.os,
     );
     plain_panel(s, "summary")
 }
