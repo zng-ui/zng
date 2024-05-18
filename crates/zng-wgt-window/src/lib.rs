@@ -182,7 +182,7 @@ pub fn on_close_requested(child: impl UiNode, handler: impl WidgetHandler<Window
 ///
 /// This property is the same as [`on_pre_window_close`].
 ///
-/// [`on_deinit`]: fn@zng_wgt::on_deinit
+/// [`on_pre_window_close`]: fn@events::on_pre_window_close
 #[property(EVENT, widget_impl(Window))]
 pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<WindowCloseArgs>) -> impl UiNode {
     events::on_pre_window_close(child, handler)
