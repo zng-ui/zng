@@ -477,8 +477,22 @@ fn handle_recv_error(e: flume::RecvError) -> Disconnected {
 #[allow(clippy::boxed_local)]
 fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
     match *e {
-        ipc_channel::ErrorKind::Io(e) if e.kind() == std::io::ErrorKind::BrokenPipe => Disconnected,
-        ipc_channel::ErrorKind::Io(e) => panic!("unexpected IO error: {e:?}"),
+        ipc_channel::ErrorKind::Io(e) => {
+            if e.kind() == std::io::ErrorKind::BrokenPipe {
+                return Disconnected;
+            }
+            #[cfg(windows)]
+            if e.raw_os_error() == Some(-2147024664) {
+                // 0x800700E8 - "The pipe is being closed."
+                return Disconnected;
+            }
+            #[cfg(target_os = "macos")]
+            if e.kind() == std::io::ErrorKind::NotFound && format!("{e:?}") == "Custom { kind: NotFound, error: SendInvalidDest }" {
+                // this error happens in the same test that on Windows is 0x800700E8 and on Ubuntu is BrokenPipe
+                return Disconnected;
+            }
+            panic!("unexpected IO error: {e:?}")
+        }
         e => panic!("serialization error: {e:?}"),
     }
 }
