@@ -722,6 +722,8 @@ event! {
     pub static WINDOW_CLOSE_REQUESTED_EVENT: WindowCloseRequestedArgs;
 
     /// Window closed event.
+    ///
+    /// The closed windows deinit after this event notifies, so the window content can subscribe to it.
     pub static WINDOW_CLOSE_EVENT: WindowCloseArgs;
 
     /// A window frame has finished rendering.
