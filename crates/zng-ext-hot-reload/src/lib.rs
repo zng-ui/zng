@@ -24,7 +24,7 @@ pub use cargo::BuildError;
 use node::*;
 
 use zng_app::{
-    event::{event, event_args},
+    event::{event, event_args, EventPropagationHandle},
     update::UPDATES,
     AppExtension, DInstant, INSTANT,
 };
@@ -166,6 +166,22 @@ pub struct HotStatus {
     /// Number of times the dynamically library was rebuild (successfully and with error).
     pub rebuild_count: usize,
 }
+impl HotStatus {
+    /// Gets the build time if the last build succeeded.
+    pub fn ok(&self) -> Option<Duration> {
+        self.last_build.as_ref().ok().copied()
+    }
+
+    /// If the last build was cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        matches!(&self.last_build, Err(BuildError::Cancelled))
+    }
+
+    /// Gets the last build if it was not cancelled.
+    pub fn err(&self) -> Option<&BuildError> {
+        self.last_build.as_ref().err().filter(|e| !matches!(e, BuildError::Cancelled))
+    }
+}
 
 /// Hot reload app extension.
 ///
@@ -223,7 +239,7 @@ impl AppExtension for HotReloadManager {
     fn update_preview(&mut self) {
         for (manifest_dir, watched) in self.libs.iter_mut() {
             if let Some(b) = &watched.building {
-                if let Some(r) = b.process.rsp() {
+                if let Some(r) = b.rebuild_load.rsp() {
                     let build_time = b.start_time.elapsed();
                     let mut lib = None;
                     let status_r = match r {
@@ -256,6 +272,15 @@ impl AppExtension for HotReloadManager {
         }
 
         let mut sv = HOT_RELOAD_SV.write();
+        let requests: HashSet<Txt> = sv.cancel_requests.drain(..).collect();
+        for r in requests {
+            if let Some(watched) = self.libs.get_mut(r.as_str()) {
+                if let Some(b) = &watched.building {
+                    b.cancel_build.stop();
+                }
+            }
+        }
+
         let requests: HashSet<Txt> = sv.rebuild_requests.drain(..).collect();
         for r in requests {
             if let Some(watched) = self.libs.get_mut(r.as_str()) {
@@ -281,23 +306,46 @@ type RebuildLoadVar = ResponseVar<Result<HotLib, BuildError>>;
 pub struct BuildArgs {
     /// Crate that changed.
     pub manifest_dir: Txt,
+    /// Handle that is flagged when the build must be cancelled.
+    ///
+    /// If the build cannot be cancelled or has already finished this handle must be ignored and
+    /// the normal result returned.
+    pub cancel_build: EventPropagationHandle,
 }
 impl BuildArgs {
     /// Calls `cargo build [--package {package}] --message-format json` and cancels it as soon as the dylib is rebuilt.
     pub fn build(&self, package: Option<&str>) -> Option<RebuildVar> {
-        Some(cargo::build(&self.manifest_dir, package.unwrap_or(""), "", ""))
+        Some(cargo::build(
+            &self.manifest_dir,
+            package.unwrap_or(""),
+            "",
+            "",
+            self.cancel_build.clone(),
+        ))
     }
 
     /// Calls `cargo build [--package {package}] --example {example} --message-format json` and cancels
     /// it as soon as the dylib is rebuilt.
     pub fn build_example(&self, package: Option<&str>, example: &str) -> Option<RebuildVar> {
-        Some(cargo::build(&self.manifest_dir, package.unwrap_or(""), "--example", example))
+        Some(cargo::build(
+            &self.manifest_dir,
+            package.unwrap_or(""),
+            "--example",
+            example,
+            self.cancel_build.clone(),
+        ))
     }
 
     /// Calls `cargo build [--package {package}] --bin {bin}  --message-format json` and cancels it as
     /// soon as the dylib is rebuilt.
     pub fn build_bin(&self, package: Option<&str>, bin: &str) -> Option<RebuildVar> {
-        Some(cargo::build(&self.manifest_dir, package.unwrap_or(""), "--bin", bin))
+        Some(cargo::build(
+            &self.manifest_dir,
+            package.unwrap_or(""),
+            "--bin",
+            bin,
+            self.cancel_build.clone(),
+        ))
     }
 }
 
@@ -332,6 +380,12 @@ impl HOT_RELOAD {
         UPDATES.update(None);
     }
 
+    /// Request a rebuild cancel for the current building `manifest_dir`.
+    pub fn cancel(&self, manifest_dir: impl Into<Txt>) {
+        HOT_RELOAD_SV.write().cancel_requests.push(manifest_dir.into());
+        UPDATES.update(None);
+    }
+
     pub(crate) fn lib(&self, manifest_dir: &'static str) -> Option<HotLib> {
         HOT_RELOAD_SV
             .read()
@@ -355,6 +409,7 @@ app_local! {
             rebuilders: Mutex::new(vec![]),
             status: zng_var::var(vec![]),
             rebuild_requests: vec![] ,
+            cancel_requests: vec![] ,
         }
     };
 }
@@ -366,11 +421,12 @@ struct HotReloadService {
 
     status: ArcVar<Vec<HotStatus>>,
     rebuild_requests: Vec<Txt>,
+    cancel_requests: Vec<Txt>,
 }
 impl HotReloadService {
-    fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: StaticPatch) -> RebuildLoadVar {
-        let rebuild = self.rebuild(manifest_dir.clone());
-        zng_task::respond(async move {
+    fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: StaticPatch) -> (RebuildLoadVar, EventPropagationHandle) {
+        let (rebuild, cancel) = self.rebuild(manifest_dir.clone());
+        let rebuild_load = zng_task::respond(async move {
             let mut path = rebuild.wait_into_rsp().await?;
 
             // copy dylib to not block the next rebuild
@@ -393,17 +449,27 @@ impl HotReloadService {
 
             let dylib = HotLib::new(&static_patch, manifest_dir, path)?;
             Ok(dylib)
-        })
+        });
+        (rebuild_load, cancel)
     }
 
-    fn rebuild(&mut self, manifest_dir: Txt) -> RebuildVar {
-        let args = BuildArgs { manifest_dir };
+    fn rebuild(&mut self, manifest_dir: Txt) -> (RebuildVar, EventPropagationHandle) {
         for r in self.rebuilders.get_mut() {
+            let cancel = EventPropagationHandle::new();
+            let args = BuildArgs {
+                manifest_dir: manifest_dir.clone(),
+                cancel_build: cancel.clone(),
+            };
             if let Some(r) = r(args.clone()) {
-                return r;
+                return (r, cancel);
             }
         }
-        args.build(None).unwrap()
+        let cancel = EventPropagationHandle::new();
+        let args = BuildArgs {
+            manifest_dir: manifest_dir.clone(),
+            cancel_build: cancel.clone(),
+        };
+        (args.build(None).unwrap(), cancel)
     }
 }
 
@@ -440,29 +506,32 @@ struct WatchedLib {
 }
 impl WatchedLib {
     fn rebuild(&mut self, manifest_dir: Txt, static_path: &StaticPatch) {
-        if self.building.is_none() {
+        if let Some(_b) = &self.building {
+            // !!: TODO, cancel?
+        } else {
             let start_time = INSTANT.now();
             tracing::info!("rebuilding `{manifest_dir}`");
 
             let mut sv = HOT_RELOAD_SV.write();
 
+            let (rebuild_load, cancel_build) = sv.rebuild_reload(manifest_dir.clone(), static_path.clone());
             self.building = Some(BuildingLib {
                 start_time,
-                process: sv.rebuild_reload(manifest_dir.clone(), static_path.clone()),
+                rebuild_load,
+                cancel_build,
             });
 
             sv.status.modify(move |s| {
                 s.to_mut().iter_mut().find(|s| s.manifest_dir == manifest_dir).unwrap().building = Some(start_time);
             });
-        } else {
-            // !!: TODO, cancel?
         }
     }
 }
 
 struct BuildingLib {
     start_time: DInstant,
-    process: RebuildLoadVar,
+    rebuild_load: RebuildLoadVar,
+    cancel_build: EventPropagationHandle,
 }
 
 /// Dynamically loaded library.

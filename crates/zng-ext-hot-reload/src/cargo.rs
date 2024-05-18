@@ -6,11 +6,18 @@ use std::{
     sync::Arc,
 };
 
+use zng_app::event::EventPropagationHandle;
 use zng_txt::{ToTxt, Txt};
 use zng_var::ResponseVar;
 
 /// Build and return the dylib path.
-pub fn build(manifest_dir: &str, package: &str, bin_option: &str, bin: &str) -> ResponseVar<Result<PathBuf, BuildError>> {
+pub fn build(
+    manifest_dir: &str,
+    package: &str,
+    bin_option: &str,
+    bin: &str,
+    cancel: EventPropagationHandle,
+) -> ResponseVar<Result<PathBuf, BuildError>> {
     let manifest_path = PathBuf::from(manifest_dir).join("Cargo.toml");
 
     let mut build = Command::new("cargo");
@@ -83,6 +90,10 @@ pub fn build(manifest_dir: &str, package: &str, bin_option: &str, bin: &str) -> 
                     }
                 }
             }
+
+            if cancel.is_stopped() {
+                return Err(BuildError::Cancelled);
+            }
         }
 
         let status = build.wait()?;
@@ -123,6 +134,8 @@ pub enum BuildError {
     },
     /// Error loading built library.
     Load(Arc<libloading::Error>),
+    /// Build cancelled.
+    Cancelled,
 }
 impl PartialEq for BuildError {
     fn eq(&self, other: &Self) -> bool {
@@ -178,6 +191,7 @@ impl fmt::Display for BuildError {
             BuildError::ManifestPathDidNotBuild { path } => write!(f, "build command did not build `{}`", path.display()),
             BuildError::UnknownMessageFormat { pat: field } => write!(f, "could not find expected `{field}` in cargo JSON message"),
             BuildError::Load(e) => fmt::Display::fmt(e, f),
+            BuildError::Cancelled => write!(f, "build cancelled"),
         }
     }
 }

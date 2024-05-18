@@ -79,19 +79,19 @@
 //!
 //! There are some limitations to the current implementation:
 //!
-//! #### Only Node Functions
+//! ##### Only Node Functions
 //!
 //! Currently this is only implemented for node functions, this covers all property nodes, intrinsic nodes and functions like
 //! in the example above that instantiate widgets, but the widget type must implement `UiNode`, widgets that build different types
 //! can not be hot reloaded, because of this the `Window!` widget cannot be hot reloaded.
 //!
-//! #### Limited Function Signature
+//! ##### Limited Function Signature
 //!
 //! Some input types are not supported for the hot node function. Only the `impl` generics supported by [`property`] and
 //! types that are `Clone + Any + Send` are supported. A compile time error is generated if you attempt to use an invalid function
 //! signature. Only the output type `impl UiNode` is supported. Generic properties (named generic params) are also not supported.
 //!
-//! #### Rebuild Speed
+//! ##### Rebuild Speed
 //!
 //! The rebuild speed is only as fast as Rust incremental compilation, it should be pretty fast for small changes,
 //! but if your library crate grows large you might want to create a separate *design library* where you place
@@ -103,13 +103,13 @@
 //!
 //! [`HOT_RELOAD.rebuilder`]: HOT_RELOAD::rebuilder
 //!
-//! #### Rebuild Races IDE for Target Lock
+//! ##### Rebuild Races IDE for Target Lock
 //!  
 //! The rebuild uses the same target directory used by `cargo check/clippy`, this means that if your IDE (Rust Analyzer) runs
 //! these checks it will race the hot reload rebuild process to acquire the exclusive lock to the target dir. If you are seeing
 //! this interference try pausing your IDE analyzer before running.
 //!
-//! #### Any Change Reloads All Hot Nodes
+//! ##### Any Change Reloads All Hot Nodes
 //!
 //! Any change on the crate triggers a rebuild and all hot nodes reinit because of it. You can set `#[hot_node]` on multiple functions
 //! at a time, but could cause UI slowdowns as large parts of the screen reloads. It is recommenced that you only set it on functions
@@ -118,7 +118,7 @@
 //! Hot node reinit reloads the entire tree branch, so descendants of hot nodes are reinited too. This may cause some state to be lost,
 //! in particular all state inited inside the hot node will be reinited.
 //!
-//! #### Hot Libraries Don't Unload
+//! ##### Hot Libraries Don't Unload
 //!
 //! Every hot reload represents a new version of the library reloading and the previous one cannot be unloaded because static references
 //! to it might persist in the program, usually `&'static str` texts captured during info rebuild. Currently you should be able to hot
