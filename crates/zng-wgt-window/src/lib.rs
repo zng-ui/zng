@@ -11,8 +11,8 @@
 
 use zng_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zng_ext_window::{
-    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WindowChangedArgs, WindowCloseRequestedArgs, WindowOpenArgs,
-    WindowRoot,
+    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
+    WindowOpenArgs, WindowRoot,
 };
 use zng_wgt::prelude::*;
 use zng_wgt_fill::background_color;
@@ -176,16 +176,16 @@ pub fn on_close_requested(child: impl UiNode, handler: impl WidgetHandler<Window
     events::on_window_close_requested(child, handler)
 }
 
-/// On window deinit.
+/// On window close.
 ///
-/// This event notifies once on deinit.
+/// The window will deinit after this event.
 ///
-/// This property is the same as [`on_deinit`].
+/// This property is the same as [`on_pre_window_close`].
 ///
-/// [`on_deinit`]: fn@zng_wgt::on_deinit
+/// [`on_pre_window_close`]: fn@events::on_pre_window_close
 #[property(EVENT, widget_impl(Window))]
-pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<zng_wgt::OnNodeOpArgs>) -> impl UiNode {
-    zng_wgt::on_deinit(child, handler)
+pub fn on_close(child: impl UiNode, handler: impl WidgetHandler<WindowCloseArgs>) -> impl UiNode {
+    events::on_pre_window_close(child, handler)
 }
 
 /// On window position changed.
