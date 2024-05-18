@@ -159,12 +159,12 @@ pub struct HotStatus {
     /// Build start time if is rebuilding.
     pub building: Option<DInstant>,
 
-    /// Last rebuild result.
+    /// Last rebuild and reload result.
     ///
     /// is `Ok(build_duration)` or `Err(build_error)`.
     pub last_build: Result<Duration, BuildError>,
 
-    /// Number of times the dynamically library was rebuild (successfully and with error).
+    /// Number of times the dynamically library was rebuilt (successfully or with error).
     pub rebuild_count: usize,
 }
 impl HotStatus {
@@ -178,7 +178,7 @@ impl HotStatus {
         matches!(&self.last_build, Err(BuildError::Cancelled))
     }
 
-    /// Gets the last build if it was not cancelled.
+    /// Gets the last build error if it failed and was not cancelled.
     pub fn err(&self) -> Option<&BuildError> {
         self.last_build.as_ref().err().filter(|e| !matches!(e, BuildError::Cancelled))
     }
@@ -318,7 +318,7 @@ pub struct BuildArgs {
     pub manifest_dir: Txt,
     /// Cancel signal.
     ///
-    /// If the build cannot be cancelled or has already finished this handle must be ignored and
+    /// If the build cannot be cancelled or has already finished this signal must be ignored and
     /// the normal result returned.
     pub cancel_build: SignalOnce,
 }
