@@ -985,12 +985,6 @@ pub trait AnimationController: Send + Sync + Any {
     }
 }
 
-/// An [`AnimationController`] that does nothing.
-#[deprecated(since = "0.3.1", note = "please use `()` instead")]
-pub struct NilAnimationObserver;
-#[allow(deprecated)] // really
-impl AnimationController for NilAnimationObserver {}
-
 impl AnimationController for () {}
 
 /// An [`AnimationController`] that forces animations to run even if animations are not enabled.

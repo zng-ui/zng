@@ -1,5 +1,7 @@
 # Unpublished
 
+* **Breaking** Remove `VARS.set_animations_enabled` and change `VARS.animations_enabled` output type to a read-write var.
+* **Breaking** Remove deprecated `NilAnimationObserver`.
 * Fix release build of `zng-wgt-scroll` running out of memory. (#203)
 * Implement hot reloading UI nodes.
     - Add `zng-ext-hot-reload` and `zng-ext-hot-reload-proc-macros`.

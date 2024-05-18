@@ -86,11 +86,13 @@ impl VARS {
         VARS_SV.read().update_id
     }
 
-    /// Returns a read-only variable that tracks if animations are enabled in the operating system.
+    /// Variable that tracks if animations are enabled.
+    ///
+    /// This is `true` by default, it can be changed set by operating system config changes.
     ///
     /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
-    pub fn animations_enabled(&self) -> ReadOnlyArcVar<bool> {
-        VARS_SV.read().ans.animations_enabled.read_only()
+    pub fn animations_enabled(&self) -> ArcVar<bool> {
+        VARS_SV.read().ans.animations_enabled.clone()
     }
 
     /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
@@ -241,10 +243,9 @@ impl VARS {
     /// [`Animation`] API, for example, there is no guarantee that a restart requested by the controller will repeat the same animation.
     ///
     /// The controller can start new animations, these animations will have the same controller if not overridden, you can
-    /// use this method and the [`NilAnimationObserver`] to avoid this behavior.
+    /// use this method and the `()` controller to avoid this behavior.
     ///
     /// [`Animation`]: animation::Animation
-    /// [`NilAnimationObserver`]: animation::NilAnimationObserver
     /// [`VARS.animate`]: VARS::animate
     pub fn with_animation_controller<R>(&self, controller: impl animation::AnimationController, animate: impl FnOnce() -> R) -> R {
         let controller: Box<dyn animation::AnimationController> = Box::new(controller);
@@ -279,11 +280,6 @@ impl VARS {
 
     pub(crate) fn wake_app(&self) {
         VARS_SV.read().wake_app();
-    }
-
-    /// Enable or disable animations.
-    pub fn set_animations_enabled(&self, enabled: bool) {
-        VARS_SV.read().ans.animations_enabled.set(enabled);
     }
 }
 
