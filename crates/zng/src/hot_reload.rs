@@ -1,6 +1,6 @@
 #![cfg(feature = "hot_reload")]
 
-//! Hot reloading instrumentation macros.
+//! Hot reloading instrumentation macros and service.
 //!
 //! Hot reloading rebuilds an instrumented library and automatically re-inits widgets that
 //! are using marked nodes, properties, all without needing to restart the application.
@@ -18,7 +18,7 @@
 //!
 //! ```toml
 //! [lib]
-//! crate-type = ["lib", "dylib"]
+//! crate-type = ["lib", "cdylib"]
 //! ```
 //!
 //! Then in the library crate `src/lib.rs` root add a call to the [`zng_hot_entry!`] item macro:
@@ -67,7 +67,7 @@
 //!
 //! Changes in other *cold nodes* that only contextually affect the hot node will trigger a hot reload,
 //! **but will not affect** the hot node, in the example the `font_size` set in `other_ui` affects the
-//! hot node even after reload, but the value is fixed at `2.em()`, if you  change it the changes are ignored.
+//! hot node even after reload, but the value is fixed at `2.em()`, if you change it the changes are ignored.
 //!
 //! # How It Works
 //!
@@ -83,7 +83,7 @@
 //!
 //! Currently this is only implemented for node functions, this covers all property nodes, intrinsic nodes and functions like
 //! in the example above that instantiate widgets, but the widget type must implement `UiNode`, widgets that build different types
-//! can not be hot reloaded, because of this the `Window!` widget cannot be hot reloaded.
+//! cannot be hot reloaded, because of this the `Window!` widget cannot be hot reloaded.
 //!
 //! ##### Limited Function Signature
 //!
@@ -112,7 +112,7 @@
 //! ##### Any Change Reloads All Hot Nodes
 //!
 //! Any change on the crate triggers a rebuild and all hot nodes reinit because of it. You can set `#[hot_node]` on multiple functions
-//! at a time, but could cause UI slowdowns as large parts of the screen reloads. It is recommenced that you only set it on functions
+//! at a time, but this will cause large parts of the screen to reload. It is recommenced that you only set it on functions
 //! under iterative development.
 //!
 //! Hot node reinit reloads the entire tree branch, so descendants of hot nodes are reinited too. This may cause some state to be lost,

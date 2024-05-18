@@ -190,8 +190,8 @@ impl<T: 'static> ops::Deref for Lazy<T> {
 /// Implementation of `lazy_static!` that supports hot reloading.
 ///
 /// The syntax is similar to the [`lazy_static`](https://docs.rs/lazy_static) crate,
-/// but is uses the [`once_cell::sync::Lazy`](https://docs.rs/once_cell/once_cell/sync/struct.Lazy.html)
-/// type.
+/// but the generated code uses the [`once_cell::sync::Lazy`](https://docs.rs/once_cell/once_cell/sync/struct.Lazy.html)
+/// type internally.
 #[macro_export]
 macro_rules! lazy_static {
     ($(
