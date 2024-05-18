@@ -707,15 +707,26 @@ where
 }
 
 /// Like [`spawn_wait`], but the task will send its result to a [`ResponseVar<R>`].
+///
+/// # Cancellation
+///
+/// Dropping the [`ResponseVar<R>`] does not cancel the `task`, it will still run to completion.
+///
+/// # Panic Handling
+///
+/// If the `task` panics the panic is logged as an error and resumed in the response var modify closure.
 pub fn wait_respond<R, F>(task: F) -> ResponseVar<R>
 where
     R: VarValue,
     F: FnOnce() -> R + Send + 'static,
 {
     let (responder, response) = response_var();
-    spawn_wait(move || {
-        let r = task();
-        responder.respond(r);
+    spawn_wait(move || match panic::catch_unwind(panic::AssertUnwindSafe(task)) {
+        Ok(r) => responder.respond(r),
+        Err(p) => {
+            tracing::error!("panic in `task::wait_respond`: {}", crate_util::panic_str(&p));
+            responder.modify(move |_| panic::resume_unwind(p))
+        }
     });
     response
 }
