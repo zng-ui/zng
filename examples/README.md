@@ -2,7 +2,7 @@
 <!--do doc --readme-examples-->
 ### `animation`
 
-<img alt='headless screenshot' src='./res/screenshots/animation.png' width='300'>
+<img alt='animation screenshot' src='./res/screenshots/animation.png' width='300'>
 
 Source: [animation.rs](./animation.rs)
 
@@ -14,7 +14,7 @@ Demonstrates animation, easing functions.
 
 ### `border`
 
-<img alt='headless screenshot' src='./res/screenshots/border.png' width='300'>
+<img alt='border screenshot' src='./res/screenshots/border.png' width='300'>
 
 Source: [border.rs](./border.rs)
 
@@ -26,7 +26,7 @@ Demonstrates borders, corner radius, multiple borders per widget and clip-to-bou
 
 ### `button`
 
-<img alt='headless screenshot' src='./res/screenshots/button.png' width='300'>
+<img alt='button screenshot' src='./res/screenshots/button.png' width='300'>
 
 Source: [button.rs](./button.rs)
 
@@ -38,7 +38,7 @@ Demonstrates the button and toggle widgets.
 
 ### `calculator`
 
-<img alt='headless screenshot' src='./res/screenshots/calculator.png' width='300'>
+<img alt='calculator screenshot' src='./res/screenshots/calculator.png' width='300'>
 
 Source: [calculator.rs](./calculator.rs)
 
@@ -50,7 +50,7 @@ Simple calculator, demonstrates Grid layout, data context.
 
 ### `config`
 
-<img alt='headless screenshot' src='./res/screenshots/config.png' width='300'>
+<img alt='config screenshot' src='./res/screenshots/config.png' width='300'>
 
 Source: [config.rs](./config.rs)
 
@@ -72,7 +72,7 @@ Demonstrates the TIMERS service, variable mapping.
 
 ### `cursor`
 
-<img alt='headless screenshot' src='./res/screenshots/cursor.png' width='300'>
+<img alt='cursor screenshot' src='./res/screenshots/cursor.png' width='300'>
 
 Source: [cursor.rs](./cursor.rs)
 
@@ -94,7 +94,7 @@ Demonstrates the `zng-view` extension API and render extensions API.
 
 ### `focus`
 
-<img alt='headless screenshot' src='./res/screenshots/focus.png' width='300'>
+<img alt='focus screenshot' src='./res/screenshots/focus.png' width='300'>
 
 Source: [focus.rs](./focus.rs)
 
@@ -106,7 +106,7 @@ Demonstrates the focus service, logical and directional navigation.
 
 ### `gradient`
 
-<img alt='headless screenshot' src='./res/screenshots/gradient.png' width='300'>
+<img alt='gradient screenshot' src='./res/screenshots/gradient.png' width='300'>
 
 Source: [gradient.rs](./gradient.rs)
 
@@ -130,7 +130,7 @@ Demonstrates headless apps, image and video rendering.
 
 ### `hot_reload`
 
-<img alt='headless screenshot' src='./res/screenshots/hot_reload.png' width='300'>
+<img alt='hot_reload screenshot' src='./res/screenshots/hot_reload.png' width='300'>
 
 Source: [hot_reload.rs](./hot_reload.rs)
 
@@ -142,7 +142,7 @@ Demonstrates the `"hot_reload"` feature.
 
 ### `icon`
 
-<img alt='headless screenshot' src='./res/screenshots/icon.png' width='300'>
+<img alt='icon screenshot' src='./res/screenshots/icon.png' width='300'>
 
 Source: [icon.rs](./icon.rs)
 
@@ -154,7 +154,7 @@ Search and copy Material Icons constants.
 
 ### `image`
 
-<img alt='headless screenshot' src='./res/screenshots/image.png' width='300'>
+<img alt='image screenshot' src='./res/screenshots/image.png' width='300'>
 
 Source: [image.rs](./image.rs)
 
@@ -166,7 +166,7 @@ Demonstrates image loading, displaying, animated sprites, rendering, pasting.
 
 ### `layer`
 
-<img alt='headless screenshot' src='./res/screenshots/layer.png' width='300'>
+<img alt='layer screenshot' src='./res/screenshots/layer.png' width='300'>
 
 Source: [layer.rs](./layer.rs)
 
@@ -178,7 +178,7 @@ Demonstrates the LAYERS service.
 
 ### `localize`
 
-<img alt='headless screenshot' src='./res/screenshots/localize.png' width='300'>
+<img alt='localize screenshot' src='./res/screenshots/localize.png' width='300'>
 
 Source: [localize.rs](./localize.rs)
 
@@ -190,7 +190,7 @@ Demonstrates localization.
 
 ### `markdown`
 
-<img alt='headless screenshot' src='./res/screenshots/markdown.png' width='300'>
+<img alt='markdown screenshot' src='./res/screenshots/markdown.png' width='300'>
 
 Source: [markdown.rs](./markdown.rs)
 
@@ -202,7 +202,7 @@ Demonstrates the `Markdown!` widget.
 
 ### `respawn`
 
-<img alt='headless screenshot' src='./res/screenshots/respawn.png' width='300'>
+<img alt='respawn screenshot' src='./res/screenshots/respawn.png' width='300'>
 
 Source: [respawn.rs](./respawn.rs)
 
@@ -214,7 +214,7 @@ Demonstrates app-process crash handler and view-process respawn.
 
 ### `scroll`
 
-<img alt='headless screenshot' src='./res/screenshots/scroll.png' width='300'>
+<img alt='scroll screenshot' src='./res/screenshots/scroll.png' width='300'>
 
 Source: [scroll.rs](./scroll.rs)
 
@@ -226,7 +226,7 @@ Demonstrates the `Scroll!` widget and scroll commands.
 
 ### `shortcut`
 
-<img alt='headless screenshot' src='./res/screenshots/shortcut.png' width='300'>
+<img alt='shortcut screenshot' src='./res/screenshots/shortcut.png' width='300'>
 
 Source: [shortcut.rs](./shortcut.rs)
 
@@ -238,7 +238,7 @@ Small utility that displays the pressed key gestures.
 
 ### `text`
 
-<img alt='headless screenshot' src='./res/screenshots/text.png' width='300'>
+<img alt='text screenshot' src='./res/screenshots/text.png' width='300'>
 
 Source: [text.rs](./text.rs)
 
@@ -250,7 +250,7 @@ Demonstrates the `Text!` and `TextInput!` widgets. Text rendering, text editor.
 
 ### `transform`
 
-<img alt='headless screenshot' src='./res/screenshots/transform.png' width='300'>
+<img alt='transform screenshot' src='./res/screenshots/transform.png' width='300'>
 
 Source: [transform.rs](./transform.rs)
 
@@ -262,7 +262,7 @@ Demonstrates 2D and 3D transforms, touch transforms.
 
 ### `window`
 
-<img alt='headless screenshot' src='./res/screenshots/window.png' width='300'>
+<img alt='window screenshot' src='./res/screenshots/window.png' width='300'>
 
 Source: [window.rs](./window.rs)
 

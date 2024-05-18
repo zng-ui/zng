@@ -230,7 +230,7 @@ pub fn generate_examples(_args: Vec<&str>) {
 
         let screenshot = format!("./res/screenshots/{example}.png");
         if PathBuf::from("examples").join(&screenshot).exists() {
-            writeln!(&mut section, "<img alt='headless screenshot' src='{screenshot}' width='300'>\n",).unwrap();
+            writeln!(&mut section, "<img alt='{example} screenshot' src='{screenshot}' width='300'>\n",).unwrap();
         }
 
         writeln!(&mut section, "Source: [{example}.rs](./{example}.rs)\n").unwrap();
