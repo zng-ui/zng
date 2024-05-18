@@ -332,10 +332,6 @@ pub mod animation {
         Transitionable, WeakAnimationHandle,
     };
 
-    #[deprecated(since = "0.5.1", note = "please use `()` instead")]
-    #[allow(deprecated)] // really
-    pub use zng_var::animation::NilAnimationObserver;
-
     /// Common easing functions.
     pub mod easing {
         pub use zng_var::animation::easing::{

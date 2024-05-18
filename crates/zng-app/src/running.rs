@@ -409,7 +409,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
             Event::AnimationsConfigChanged(cfg) => {
-                VARS.set_animations_enabled(cfg.enabled);
+                VARS.animations_enabled().set(cfg.enabled);
                 let args = RawAnimationsConfigChangedArgs::now(cfg);
                 self.notify_event(RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
@@ -553,7 +553,7 @@ impl<E: AppExtension> RunningApp<E> {
                         .map(|(id, info)| (VIEW_PROCESS.monitor_id(id), info))
                         .collect();
 
-                    VARS.set_animations_enabled(animations_config.enabled);
+                    VARS.animations_enabled().set(animations_config.enabled);
 
                     let args = crate::view_process::ViewProcessInitedArgs::now(
                         generation,
