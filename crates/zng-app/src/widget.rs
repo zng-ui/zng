@@ -1111,7 +1111,7 @@ impl WIDGET {
                     // is at root, register `UPDATES`
                     UPDATES.update_flags_root(wgt_flags, window_id, ctx.id);
                     // some builders don't clear the root widget flags like they do for other widgets.
-                    ctx.flags.store(UpdateFlags::empty(), Relaxed);
+                    ctx.flags.store(wgt_flags & UpdateFlags::REINIT, Relaxed);
                 } else {
                     // used outside window
                     UPDATES.update_flags(wgt_flags, ctx.id);

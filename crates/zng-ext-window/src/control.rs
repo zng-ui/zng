@@ -1919,11 +1919,29 @@ impl ContentCtrl {
                 self.commands.update(&self.vars);
 
                 update_widgets.with_window(|| {
-                    WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
-                        update_widgets.with_widget(|| {
-                            self.root.update(update_widgets);
+                    if self.root_ctx.take_reinit() {
+                        // like WidgetBase, pending reinit cancels update
+                        WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
+                            self.root.deinit();
+                            self.root.init();
                         });
-                    });
+                        let _ = self.root_ctx.take_reinit(); // ignore after init
+                    } else {
+                        // no pending reinit, can update
+                        WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
+                            update_widgets.with_widget(|| {
+                                self.root.update(update_widgets);
+                            });
+                        });
+
+                        // update requested reinit
+                        if self.root_ctx.take_reinit() {
+                            WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
+                                self.root.deinit();
+                                self.root.init();
+                            });
+                        }
+                    }
                 });
             }
 
@@ -1941,6 +1959,7 @@ impl ContentCtrl {
                     super::WINDOW_OPEN_EVENT.notify(super::WindowOpenArgs::now(WINDOW.id()));
                 });
                 self.init_state = InitState::Inited;
+                self.root_ctx.take_reinit(); // ignore reinit request (same as WidgetBase).
             }
         }
     }
@@ -1966,6 +1985,10 @@ impl ContentCtrl {
             let info = info.finalize(Some(WINDOW.info()), true);
 
             WINDOWS.set_widget_tree(info.clone());
+
+            if self.root_ctx.is_pending_reinit() {
+                WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
+            }
 
             Some(info)
         } else {
@@ -1993,11 +2016,26 @@ impl ContentCtrl {
                 return;
             }
 
+            if self.root_ctx.take_reinit() {
+                WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
+                    self.root.deinit();
+                    self.root.init();
+                });
+                let _ = self.root_ctx.take_reinit(); // ignore after init
+            }
+
             WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
                 update.with_widget(|| {
                     self.root.event(update);
                 })
             });
+
+            if self.root_ctx.take_reinit() {
+                WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
+                    self.root.deinit();
+                    self.root.init();
+                });
+            }
         });
     }
 
@@ -2041,7 +2079,7 @@ impl ContentCtrl {
 
         self.layout_pass = self.layout_pass.next();
 
-        WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
+        let final_size = WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || {
             let metrics = LayoutMetrics::new(scale_factor, size, root_font_size)
                 .with_screen_ppi(screen_ppi)
                 .with_direction(DIRECTION_VAR.get());
@@ -2071,7 +2109,13 @@ impl ContentCtrl {
 
                 final_size
             })
-        })
+        });
+
+        if self.root_ctx.is_pending_reinit() {
+            WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
+        }
+
+        final_size
     }
 
     pub fn render(
@@ -2109,6 +2153,10 @@ impl ContentCtrl {
                 self.root.render(&mut frame);
                 frame.finalize(&WINDOW.info())
             });
+
+            if self.root_ctx.is_pending_reinit() {
+                WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
+            }
 
             self.clear_color = frame.clear_color;
 
@@ -2148,6 +2196,10 @@ impl ContentCtrl {
 
             if let Some(c) = update.clear_color {
                 self.clear_color = c;
+            }
+
+            if self.root_ctx.is_pending_reinit() {
+                WIDGET.with_context(&mut self.root_ctx, WidgetUpdateMode::Bubble, || WIDGET.update());
             }
 
             let capture = self.take_frame_capture();
