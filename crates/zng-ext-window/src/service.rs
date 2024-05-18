@@ -70,6 +70,7 @@ pub(super) struct WindowsService {
 
     close_requests: Vec<CloseWindowRequest>,
     close_responders: IdMap<WindowId, Vec<ResponderVar<CloseWindowResult>>>,
+    exit_on_close: bool,
 
     focus_request: Option<WindowId>,
     bring_to_top_requests: Vec<WindowId>,
@@ -93,6 +94,7 @@ impl WindowsService {
             open_loading: IdMap::new(),
             open_tasks: vec![],
             open_requests: Vec::with_capacity(1),
+            exit_on_close: false,
             close_responders: IdMap::default(),
             close_requests: vec![],
             focus_request: None,
@@ -260,9 +262,9 @@ impl WINDOWS {
     ///
     /// This setting does not consider headless windows and is fully ignored in headless apps.
     ///
-    /// This is also set to `true` on [`EXIT_REQUESTED_EVENT`] when there are open headed windows.
-    ///
-    /// [`EXIT_REQUESTED_EVENT`]: zng_app::EXIT_REQUESTED_EVENT
+    /// Note that if [`APP.exit`](APP::exit) is requested directly the windows service will cancel it, request
+    /// close for all headed and headless windows, and if all windows close request app exit again, independent
+    /// of this setting.
     pub fn exit_on_last_close(&self) -> ArcVar<bool> {
         WINDOWS_SV.read().exit_on_last_close.clone()
     }
@@ -932,7 +934,8 @@ impl WINDOWS {
     pub(super) fn on_event(update: &mut EventUpdate) {
         if let Some(args) = WINDOW_CLOSE_REQUESTED_EVENT.on(update) {
             let key = args.windows.iter().next().unwrap();
-            if let Some(rsp) = WINDOWS_SV.write().close_responders.remove(key) {
+            let mut sv = WINDOWS_SV.write();
+            if let Some(rsp) = sv.close_responders.remove(key) {
                 if !args.propagation().is_stopped() {
                     // close requested by us and not canceled.
                     WINDOW_CLOSE_EVENT.notify(WindowCloseArgs::now(args.windows.clone()));
@@ -943,6 +946,8 @@ impl WINDOWS {
                     for r in rsp {
                         r.respond(CloseWindowResult::Cancel);
                     }
+                    // already cancelled exit request
+                    sv.exit_on_close = false;
                 }
             }
         } else if let Some(args) = WINDOW_CLOSE_EVENT.on(update) {
@@ -967,28 +972,31 @@ impl WINDOWS {
             }
 
             let is_headless_app = zng_app::APP.window_mode().is_headless();
-            let wns = WINDOWS_SV.read();
+            let mut wns = WINDOWS_SV.write();
 
+            // if windows closed because of app exit request
+            // OR
             // if set to exit on last headed window close in a headed app,
             // AND there is no more open headed window OR request for opening a headed window.
-            if wns.exit_on_last_close.get()
-                && !is_headless_app
-                && !wns.windows.values().any(|w| matches!(w.ctx.mode(), WindowMode::Headed))
-                && !wns
-                    .open_requests
-                    .iter()
-                    .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
-                && !wns.open_tasks.iter().any(|t| matches!(t.mode, WindowMode::Headed))
+            if mem::take(&mut wns.exit_on_close)
+                || (wns.exit_on_last_close.get()
+                    && !is_headless_app
+                    && !wns.windows.values().any(|w| matches!(w.ctx.mode(), WindowMode::Headed))
+                    && !wns
+                        .open_requests
+                        .iter()
+                        .any(|w| matches!(w.force_headless, None | Some(WindowMode::Headed)))
+                    && !wns.open_tasks.iter().any(|t| matches!(t.mode, WindowMode::Headed)))
             {
-                // fulfill `exit_on_last_close`
+                // fulfill `exit_on_close` or `exit_on_last_close`
                 APP.exit();
             }
         } else if let Some(args) = EXIT_REQUESTED_EVENT.on(update) {
             if !args.propagation().is_stopped() {
-                let windows = WINDOWS_SV.read();
-                if windows.windows_info.values().any(|w| w.mode == WindowMode::Headed) {
+                let mut windows = WINDOWS_SV.write();
+                if !windows.windows_info.is_empty() {
                     args.propagation().stop();
-                    windows.exit_on_last_close.set(true);
+                    windows.exit_on_close = true;
                     drop(windows);
                     WINDOWS.close_all();
                 }

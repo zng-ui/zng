@@ -69,6 +69,15 @@ event_property! {
         filter: |args| args.windows.contains(&WINDOW.id()),
     }
 
+    /// On window closed.
+    ///
+    /// See [`WINDOW_CLOSE_EVENT`] for more details of when this event notifies.
+    pub fn window_close {
+        event: WINDOW_CLOSE_EVENT,
+        args: WindowCloseArgs,
+        filter: |args| args.windows.contains(&WINDOW.id()),
+    }
+
     /// On window state changed.
     ///
     /// This event notifies every time the user or the app changes the [`WindowVars::state`].
