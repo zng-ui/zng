@@ -128,6 +128,18 @@ cargo do run headless
 
 Demonstrates headless apps, image and video rendering.
 
+### `hot_reload`
+
+<img alt='headless screenshot' src='./res/screenshots/hot_reload.png' width='300'>
+
+Source: [hot_reload.rs](./hot_reload.rs)
+
+```console
+cargo do run hot_reload
+```
+
+Demonstrates the `"hot_reload"` feature.
+
 ### `icon`
 
 <img alt='headless screenshot' src='./res/screenshots/icon.png' width='300'>
