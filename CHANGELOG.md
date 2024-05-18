@@ -17,6 +17,7 @@
 * Breaking `Window::on_close` now has args type `WindowCloseArgs`.
     - Add `on_pre_window_close` and `on_window_close`.
 * Fix headless windows not receiving close events on app exit request.
+* Add `std::env::consts::OS` to crash error.
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 
