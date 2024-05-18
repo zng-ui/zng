@@ -106,6 +106,6 @@
 
 pub use zng_app::render::{
     ClipBuilder, FontSynthesis, FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, HitTestBuilder, HitTestClipBuilder,
-    ImageRendering, ReferenceFrameId, RepeatMode, ReuseRange, SpatialFrameId, StaticSpatialFrameId,
+    ImageRendering, ReferenceFrameId, RepeatMode, ReuseRange, SpatialFrameId,
 };
 pub use zng_view_api::window::FrameId;

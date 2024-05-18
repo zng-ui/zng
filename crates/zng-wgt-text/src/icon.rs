@@ -1,6 +1,9 @@
 //! Glyph icon widget, properties and nodes..
 
-use zng_app::event::{CommandMetaVar, StaticCommandMetaVarId};
+use zng_app::{
+    event::{CommandMetaVar, CommandMetaVarId},
+    static_id,
+};
 use zng_ext_font::{font_features::FontFeatures, FontName};
 use zng_wgt::prelude::*;
 
@@ -157,7 +160,7 @@ pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ICON_COLOR_VAR, color)
 }
 
-/// Adds the [`icon`](CommandIconExt::icon) metadata.
+/// Adds the [`icon`](CommandIconExt::icon) command metadata.
 ///
 /// The value is an [`WidgetFn<()>`] that can generate any icon widget, the [`Icon!`] widget is recommended.
 ///
@@ -170,14 +173,16 @@ pub trait CommandIconExt {
     /// Sets the initial icon if it is not set.
     fn init_icon(self, icon: WidgetFn<()>) -> Self;
 }
-static COMMAND_ICON_ID: StaticCommandMetaVarId<WidgetFn<()>> = StaticCommandMetaVarId::new_unique();
+static_id! {
+    static ref COMMAND_ICON_ID: CommandMetaVarId<WidgetFn<()>>;
+}
 impl CommandIconExt for Command {
     fn icon(self) -> CommandMetaVar<WidgetFn<()>> {
-        self.with_meta(|m| m.get_var_or_default(&COMMAND_ICON_ID))
+        self.with_meta(|m| m.get_var_or_default(*COMMAND_ICON_ID))
     }
 
     fn init_icon(self, icon: WidgetFn<()>) -> Self {
-        self.with_meta(|m| m.init_var(&COMMAND_ICON_ID, icon));
+        self.with_meta(|m| m.init_var(*COMMAND_ICON_ID, icon));
         self
     }
 }

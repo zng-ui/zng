@@ -99,6 +99,8 @@ impl WATCHER {
     /// a watched path is constantly changing an event will be emitted every elapse of this interval,
     /// the event args will contain a list of all the changes observed during the interval.
     ///
+    /// Note that the first event notifies immediately, only subsequent events within this interval are debounced.
+    ///
     /// Is `100.ms()` by default.
     pub fn debounce(&self) -> ArcVar<Duration> {
         WATCHER_SV.read().debounce.clone()

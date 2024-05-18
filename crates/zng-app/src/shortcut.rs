@@ -7,12 +7,13 @@ use std::fmt;
 
 use bitflags::bitflags;
 use zng_txt::{ToTxt, Txt};
+use zng_unique_id::static_id;
 use zng_var::{impl_from_and_into_var, BoxedVar, Var};
 
 #[doc(hidden)]
 pub use zng_view_api::keyboard::{Key, KeyCode};
 
-use crate::event::{Command, CommandMetaVar, StaticCommandMetaVarId};
+use crate::event::{Command, CommandMetaVar, CommandMetaVarId};
 
 /// A keyboard key used in a gesture.
 ///
@@ -788,20 +789,20 @@ pub trait CommandShortcutExt {
 }
 impl CommandShortcutExt for Command {
     fn shortcut(self) -> CommandMetaVar<Shortcuts> {
-        self.with_meta(|m| m.get_var_or_default(&COMMAND_SHORTCUT_ID))
+        self.with_meta(|m| m.get_var_or_default(*COMMAND_SHORTCUT_ID))
     }
 
     fn shortcut_filter(self) -> CommandMetaVar<ShortcutFilter> {
-        self.with_meta(|m| m.get_var_or_default(&COMMAND_SHORTCUT_FILTER_ID))
+        self.with_meta(|m| m.get_var_or_default(*COMMAND_SHORTCUT_FILTER_ID))
     }
 
     fn init_shortcut(self, shortcut: impl Into<Shortcuts>) -> Self {
-        self.with_meta(|m| m.init_var(&COMMAND_SHORTCUT_ID, shortcut.into()));
+        self.with_meta(|m| m.init_var(*COMMAND_SHORTCUT_ID, shortcut.into()));
         self
     }
 
     fn init_shortcut_filter(self, filter: impl Into<ShortcutFilter>) -> Self {
-        self.with_meta(|m| m.init_var(&COMMAND_SHORTCUT_FILTER_ID, filter.into()));
+        self.with_meta(|m| m.init_var(*COMMAND_SHORTCUT_FILTER_ID, filter.into()));
         self
     }
 }
@@ -820,8 +821,10 @@ bitflags! {
     }
 }
 
-static COMMAND_SHORTCUT_ID: StaticCommandMetaVarId<Shortcuts> = StaticCommandMetaVarId::new_unique();
-static COMMAND_SHORTCUT_FILTER_ID: StaticCommandMetaVarId<ShortcutFilter> = StaticCommandMetaVarId::new_unique();
+static_id! {
+    static ref COMMAND_SHORTCUT_ID: CommandMetaVarId<Shortcuts>;
+    static ref COMMAND_SHORTCUT_FILTER_ID: CommandMetaVarId<ShortcutFilter>;
+}
 
 #[doc(hidden)]
 #[macro_export]

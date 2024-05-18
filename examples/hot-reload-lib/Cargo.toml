@@ -1,0 +1,13 @@
+[package]
+name = "examples-hot-reload"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Hot reload library example for `hot_reload` example"
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+zng = { path = "../../crates/zng" }
+tracing = "0.1"

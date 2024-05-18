@@ -8,7 +8,9 @@
 //! # fn main() { }
 //! use zng::{prelude::*, prelude_wgt::*};
 //!
-//! static STATE_ID: StaticStateId<bool> = StaticStateId::new_unique();
+//! static_id! {
+//!     static ref STATE_ID: StateId<bool>;
+//! }
 //!
 //! /// Extends [`WidgetInfo`] with state.
 //! pub trait StateWidgetInfoExt {
@@ -17,7 +19,7 @@
 //! }
 //! impl StateWidgetInfoExt for WidgetInfo {
 //!     fn state(&self) -> Option<bool> {
-//!         self.meta().get_clone(&STATE_ID)
+//!         self.meta().get_clone(*STATE_ID)
 //!     }
 //! }
 //!
@@ -30,7 +32,7 @@
 //!             WIDGET.sub_var_info(&state);
 //!         }
 //!         UiNodeOp::Info { info } => {
-//!             info.set_meta(&STATE_ID, state.get());
+//!             info.set_meta(*STATE_ID, state.get());
 //!         }
 //!         _ => {}
 //!     })
@@ -46,5 +48,5 @@
 
 pub use zng_state_map::{
     state_map::{OccupiedStateMapEntry, StateMapEntry, VacantStateMapEntry},
-    OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue, StaticStateId,
+    OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue,
 };

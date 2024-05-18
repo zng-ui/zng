@@ -6,7 +6,7 @@ use zng_app::{
     widget::info::{WidgetInfo, WidgetInfoBuilder, WidgetPath},
 };
 use zng_layout::unit::PxRect;
-use zng_state_map::StaticStateId;
+use zng_state_map::{static_id, StateId};
 use zng_txt::Txt;
 
 event_args! {
@@ -87,12 +87,14 @@ pub trait WidgetInfoBuilderImeArea {
     fn set_ime_area(&mut self, area: Arc<Atomic<PxRect>>);
 }
 
-static IME_AREA: StaticStateId<Arc<Atomic<PxRect>>> = StaticStateId::new_unique();
+static_id! {
+    static ref IME_AREA: StateId<Arc<Atomic<PxRect>>>;
+}
 
 impl WidgetInfoImeArea for WidgetInfo {
     fn ime_area(&self) -> PxRect {
         self.meta()
-            .get(&IME_AREA)
+            .get(*IME_AREA)
             .map(|r| r.load(atomic::Ordering::Relaxed))
             .unwrap_or_else(|| self.inner_bounds())
     }
@@ -100,6 +102,6 @@ impl WidgetInfoImeArea for WidgetInfo {
 
 impl WidgetInfoBuilderImeArea for WidgetInfoBuilder {
     fn set_ime_area(&mut self, area: Arc<Atomic<PxRect>>) {
-        self.set_meta(&IME_AREA, area);
+        self.set_meta(*IME_AREA, area);
     }
 }

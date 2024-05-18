@@ -107,7 +107,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
             }
             UiNodeOp::Info { info } => {
                 info.set_meta(
-                    &SUB_MENU_INFO_ID,
+                    *SUB_MENU_INFO_ID,
                     SubMenuInfo {
                         parent: SUB_MENU_PARENT_CTX.get_clone(),
                         is_open: is_open.clone(),
@@ -550,23 +550,23 @@ pub trait SubMenuWidgetInfoExt {
 }
 impl SubMenuWidgetInfoExt for WidgetInfo {
     fn is_submenu(&self) -> bool {
-        self.meta().contains(&SUB_MENU_INFO_ID)
+        self.meta().contains(*SUB_MENU_INFO_ID)
     }
 
     fn is_submenu_open(&self) -> Option<ReadOnlyArcVar<bool>> {
-        self.meta().get(&SUB_MENU_INFO_ID).map(|s| s.is_open.read_only())
+        self.meta().get(*SUB_MENU_INFO_ID).map(|s| s.is_open.read_only())
     }
 
     fn submenu_parent(&self) -> Option<WidgetInfo> {
-        if let Some(p) = self.meta().get(&SUB_MENU_INFO_ID) {
+        if let Some(p) = self.meta().get(*SUB_MENU_INFO_ID) {
             self.tree().get(p.parent?)
         } else if let Some(p) = self.ancestors().find(|a| a.is_submenu()) {
             Some(p)
-        } else if let Some(pop) = self.meta().get(&SUB_MENU_POPUP_ID) {
+        } else if let Some(pop) = self.meta().get(*SUB_MENU_POPUP_ID) {
             self.tree().get(pop.parent?)
         } else {
             for anc in self.ancestors() {
-                if let Some(pop) = anc.meta().get(&SUB_MENU_POPUP_ID) {
+                if let Some(pop) = anc.meta().get(*SUB_MENU_POPUP_ID) {
                     if let Some(p) = pop.parent {
                         return self.tree().get(p);
                     } else {
@@ -647,5 +647,7 @@ context_local! {
     pub(super) static SUB_MENU_PARENT_CTX: Option<WidgetId> = None;
 }
 
-pub(super) static SUB_MENU_INFO_ID: StaticStateId<SubMenuInfo> = StaticStateId::new_unique();
-pub(super) static SUB_MENU_POPUP_ID: StaticStateId<SubMenuPopupInfo> = StaticStateId::new_unique();
+static_id! {
+    pub(super) static ref SUB_MENU_INFO_ID: StateId<SubMenuInfo>;
+    pub(super) static ref SUB_MENU_POPUP_ID: StateId<SubMenuPopupInfo>;
+}

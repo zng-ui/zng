@@ -496,6 +496,7 @@ pub mod fs_watcher;
 pub mod gesture;
 pub mod grid;
 pub mod handler;
+pub mod hot_reload;
 pub mod icon;
 pub mod image;
 pub mod keyboard;
@@ -772,7 +773,7 @@ mod __prelude_wgt {
     };
 
     pub use crate::state_map;
-    pub use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StaticStateId};
+    pub use zng_state_map::{static_id, OwnedStateMap, StateId, StateMapMut, StateMapRef};
 
     pub use zng_wgt::prelude::{IdEntry, IdMap, IdSet};
 
@@ -790,6 +791,9 @@ mod __prelude_wgt {
     };
 
     pub use zng_ext_window::WidgetInfoBuilderImeArea as _;
+
+    #[cfg(feature = "hot_reload")]
+    pub use crate::hot_reload::hot_node;
 }
 
 mod defaults {
@@ -842,10 +846,12 @@ mod defaults {
         /// * [`ClipboardManager`]
         /// * [`UndoManager`]
         /// * [`SingleInstanceManager`] if the `"single_instance"` feature is enabled.
+        /// * [`HotReloadManager`] if the `"hot_reload"` feature is enabled.
         /// * [`MaterialFonts`] if any `"material_icons*"` feature is enabled.
         ///
         /// [`MaterialFonts`]: zng_wgt_material_icons::MaterialFonts
         /// [`SingleInstanceManager`]: zng_ext_single_instance::SingleInstanceManager
+        /// [`HotReloadManager`]: zng_ext_hot_reload::HotReloadManager
         /// [`ConfigManager`]: zng_ext_config::ConfigManager
         /// [`L10nManager`]: zng_ext_l10n::L10nManager
         /// [`FontManager`]: zng_ext_font::FontManager
@@ -869,6 +875,9 @@ mod defaults {
 
             #[cfg(feature = "single_instance")]
             let r = r.extend(zng_ext_single_instance::SingleInstanceManager::default());
+
+            #[cfg(feature = "hot_reload")]
+            let r = r.extend(zng_ext_hot_reload::HotReloadManager::default());
 
             #[cfg(any(
                 feature = "material_icons_outlined",

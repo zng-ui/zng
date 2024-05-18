@@ -143,7 +143,7 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
             // sub-menus set the popup as parent in context menu.
             let parent_ctx = Some(parent.unwrap_or_else(|| WIDGET.id()));
             super::sub::SUB_MENU_PARENT_CTX.with_context(&mut Some(Arc::new(parent_ctx)), || c.info(info));
-            info.set_meta(&super::sub::SUB_MENU_POPUP_ID, super::sub::SubMenuPopupInfo { parent });
+            info.set_meta(*super::sub::SUB_MENU_POPUP_ID, super::sub::SubMenuPopupInfo { parent });
         }
         UiNodeOp::Event { update } => {
             c.event(update);

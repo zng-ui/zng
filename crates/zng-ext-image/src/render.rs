@@ -9,7 +9,7 @@ use zng_app::{
     window::{WindowId, WINDOW},
 };
 use zng_layout::unit::Factor;
-use zng_state_map::StaticStateId;
+use zng_state_map::{static_id, StateId};
 use zng_var::{types::WeakArcVar, var, ArcVar, IntoVar, Var, WeakVar};
 use zng_view_api::{image::ImageMaskMode, window::RenderMode};
 
@@ -254,7 +254,7 @@ impl ImageManager {
                     windows.open_headless_window(Box::new(move || {
                         let ctx = ImageRenderCtx::new();
                         let retain = ctx.retain.clone();
-                        WINDOW.set_state(&IMAGE_RENDER_ID, ctx);
+                        WINDOW.set_state(*IMAGE_RENDER_ID, ctx);
 
                         let w = (req.render)();
 
@@ -324,7 +324,9 @@ impl ImageRenderCtx {
     }
 }
 
-static IMAGE_RENDER_ID: StaticStateId<ImageRenderCtx> = StaticStateId::new_unique();
+static_id! {
+    static ref IMAGE_RENDER_ID: StateId<ImageRenderCtx>;
+}
 
 /// Controls properties of the render window used by [`IMAGES.render`].
 ///
@@ -336,14 +338,14 @@ impl IMAGE_RENDER {
     ///
     /// [`IMAGES.render`]: IMAGES::render
     pub fn is_in_render(&self) -> bool {
-        WINDOW.contains_state(&IMAGE_RENDER_ID)
+        WINDOW.contains_state(*IMAGE_RENDER_ID)
     }
 
     /// If the render task is kept alive after a frame is produced, this is `false` by default
     /// meaning the image only renders once, if set to `true` the image will automatically update
     /// when the render widget requests a new frame.
     pub fn retain(&self) -> ArcVar<bool> {
-        WINDOW.req_state(&IMAGE_RENDER_ID).retain
+        WINDOW.req_state(*IMAGE_RENDER_ID).retain
     }
 }
 

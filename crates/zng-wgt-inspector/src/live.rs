@@ -390,17 +390,19 @@ mod inspector_window {
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
                 assert!(WIDGET.parent_id().is_none());
-                info.set_meta(&INSPECTED_ID, inspected);
+                info.set_meta(*INSPECTED_ID, inspected);
             }
         })
     }
 
     /// Gets the window that is inspected by the current inspector window.
     pub fn inspected() -> Option<WindowId> {
-        WINDOW.info().root().meta().get(&INSPECTED_ID).copied()
+        WINDOW.info().root().meta().get(*INSPECTED_ID).copied()
     }
 
-    pub(super) static INSPECTED_ID: StaticStateId<WindowId> = StaticStateId::new_unique();
+    static_id! {
+        pub(super) static ref INSPECTED_ID: StateId<WindowId>;
+    }
 
     context_var! {
         static TREE_ITEM_BKG_HOVERED_VAR: Rgba = rgb(0.21, 0.21, 0.21);

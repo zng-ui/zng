@@ -1675,25 +1675,27 @@ pub fn with_context_blend(mut ctx: LocalContext, over: bool, child: impl UiNode)
 /// # use zng_app::{widget::{property, node::UiNode, WIDGET, WidgetUpdateMode}};
 /// # use zng_var::IntoVar;
 /// # use zng_wgt::node::with_widget_state;
-/// # use zng_state_map::{StaticStateId, StateId};
+/// # use zng_state_map::{StateId, static_id};
 /// #
-/// pub static FOO_ID: StaticStateId<u32> = StateId::new_static();
+/// static_id! {
+///     pub static ref FOO_ID: StateId<u32>;
+/// }
 ///
 /// #[property(CONTEXT)]
 /// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
-///     with_widget_state(child, &FOO_ID, || 0, value)
+///     with_widget_state(child, *FOO_ID, || 0, value)
 /// }
 ///
 /// // after the property is used and the widget initializes:
 ///
 /// /// Get the value from outside the widget.
 /// fn get_foo_outer(widget: &mut impl UiNode) -> u32 {
-///     widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(&FOO_ID)).flatten().unwrap_or_default()
+///     widget.with_context(WidgetUpdateMode::Ignore, || WIDGET.get_state(*FOO_ID)).flatten().unwrap_or_default()
 /// }
 ///
 /// /// Get the value from inside the widget.
 /// fn get_foo_inner() -> u32 {
-///     WIDGET.get_state(&FOO_ID).unwrap_or_default()
+///     WIDGET.get_state(*FOO_ID).unwrap_or_default()
 /// }
 /// ```
 ///

@@ -12,6 +12,7 @@
 use std::{
     fmt,
     future::Future,
+    hash::Hash,
     mem, panic,
     pin::Pin,
     sync::{
@@ -705,7 +706,7 @@ where
     });
 }
 
-/// Like [`wait`] but sets a response var.
+/// Like [`spawn_wait`], but the task will send its result to a [`ResponseVar<R>`].
 ///
 /// # Cancellation
 ///
@@ -1845,6 +1846,17 @@ pub struct SignalOnce(Arc<SignalInner>);
 impl fmt::Debug for SignalOnce {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "SignalOnce({})", self.is_set())
+    }
+}
+impl PartialEq for SignalOnce {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for SignalOnce {}
+impl Hash for SignalOnce {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.0).hash(state)
     }
 }
 impl SignalOnce {

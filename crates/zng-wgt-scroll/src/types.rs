@@ -920,15 +920,15 @@ pub trait WidgetInfoExt {
 }
 impl WidgetInfoExt for WidgetInfo {
     fn is_scroll(&self) -> bool {
-        self.meta().get(&SCROLL_INFO_ID).is_some()
+        self.meta().get(*SCROLL_INFO_ID).is_some()
     }
 
     fn scroll_info(&self) -> Option<ScrollInfo> {
-        self.meta().get(&SCROLL_INFO_ID).cloned()
+        self.meta().get(*SCROLL_INFO_ID).cloned()
     }
 
     fn viewport(&self) -> Option<PxRect> {
-        self.meta().get(&SCROLL_INFO_ID).map(|r| r.viewport())
+        self.meta().get(*SCROLL_INFO_ID).map(|r| r.viewport())
     }
 }
 
@@ -1013,7 +1013,9 @@ impl ScrollInfo {
     }
 }
 
-pub(super) static SCROLL_INFO_ID: StaticStateId<ScrollInfo> = StaticStateId::new_unique();
+static_id! {
+    pub(super) static ref SCROLL_INFO_ID: StateId<ScrollInfo>;
+}
 
 /// Smooth scrolling config.
 ///

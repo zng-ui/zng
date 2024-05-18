@@ -21,6 +21,9 @@ use rayon::iter::{FromParallelIterator, IntoParallelIterator, IntoParallelRefIte
 #[cfg(feature = "named")]
 mod named;
 
+#[doc(hidden)]
+pub mod hot_reload;
+
 #[cfg(feature = "named")]
 pub use named::*;
 
@@ -53,10 +56,8 @@ macro_rules! unique_id_32 {
                 ///
                 /// # Static
                 ///
-                /// The unique ID cannot be generated at compile time, but you can use the [`new_static`] constructor to
-                /// create a lightweight lazy ID factory that will generate the ID on the first get.
-                ///
-                /// [`new_static`]: Self::new_static
+                /// The unique ID cannot be generated at compile time, but you can use the `static_id!` macro to declare
+                /// a lazy static that instantiates the ID.
                 $vis struct $Type $(< $T $(:($($bounds)+))? >)? $(: $ParentId)? ;
             }
             non_zero {
@@ -106,10 +107,8 @@ macro_rules! unique_id_64 {
                 ///
                 /// # Static
                 ///
-                /// The unique ID cannot be generated at compile time, but you can use the [`new_static`] constructor to
-                /// create a lightweight lazy ID factory that will generate the ID on the first get.
-                ///
-                /// [`new_static`]: Self::new_static
+                /// The unique ID cannot be generated at compile time, but you can use the `static_id!` macro to declare
+                /// a lazy static that instantiates the ID.
                 $vis struct $Type $(< $T $(:($($bounds)+))? >)? $(: $ParentId)? ;
             }
             non_zero {
@@ -200,6 +199,11 @@ macro_rules! unique_id {
                 std::hash::Hash::hash(&self.0, state)
             }
         }
+        impl$(<$T $(: $($bounds)+)?>)? $crate::UniqueId for $Type $(<$T>)? {
+            fn new_unique() -> Self {
+                Self::new_unique()
+            }
+        }
 
         #[allow(dead_code)]
         impl$(<$T $(: $($bounds)+)?>)? $Type $(<$T>)? {
@@ -212,13 +216,6 @@ macro_rules! unique_id {
                 }
                 next_id {
                     $next_id
-                }
-            }
-
-            $crate::paste! {
-                /// New static ID that will be generated on the first get.
-                pub const fn new_static() -> [<Static $Type>] $(<$T>)? {
-                    [<Static $Type>] $(::<$T>)? ::new_unique()
                 }
             }
 
@@ -260,49 +257,6 @@ macro_rules! unique_id {
                 Self(__non_zero::new($to_hash(num)).unwrap() $(, std::marker::PhantomData::<$T>)?)
             }
         }
-
-        $crate::paste! {
-            #[doc = "Lazy inited [`" $Type "`]."]
-            #[allow(dead_code)]
-            $vis struct [<Static $Type>] $(<$T $(: $($bounds)+)?>)? ($atomic $(, std::marker::PhantomData<fn() -> $T>)?);
-
-            #[allow(dead_code)]
-            impl $(<$T $(: $($bounds)+)?>)? [<Static $Type>] $(<$T>)? {
-                #[doc = "New static [`" $Type "`], an unique ID will be generated on the first get."]
-                pub const fn new_unique() -> Self {
-                    use $atomic as __atomic;
-
-                    Self(__atomic::new(0) $(, std::marker::PhantomData::<fn() -> $T>)?)
-                }
-
-                /// Gets or generates the unique ID.
-                pub fn get(&self) -> $Type $(<$T>)? {
-                    use std::sync::atomic::Ordering;
-
-                    use $non_zero as __non_zero;
-
-                    let id = self.0.load(Ordering::Relaxed);
-                    if let Some(id) = __non_zero::new(id) {
-                        $Type(id $(, std::marker::PhantomData::<$T>)?)
-                    } else {
-                        let id = $Type $(::<$T>)? ::new_unique().get();
-                        let id = match self.0.compare_exchange(0, id, Ordering::AcqRel, Ordering::Relaxed) {
-                            Ok(_) => id,
-                            Err(id) => id,
-                        };
-
-                        // SAFETY: already replaced zero.
-                        $Type(__non_zero::new(id).unwrap() $(, std::marker::PhantomData::<$T>)?)
-                    }
-                }
-            }
-
-            impl $(<$T $(: $($bounds)+)?>)? From<&'static [<Static $Type>] $(<$T>)?> for $Type $(<$T>)? {
-                fn from(st: &'static [<Static $Type>] $(<$T>)?) -> $Type $(<$T>)? {
-                    st.get()
-                }
-            }
-        }
     };
 
     (
@@ -338,8 +292,12 @@ macro_rules! unique_id {
         /// Generates a new unique ID.
         pub fn new_unique() -> Self {
             use $atomic as __atomic;
-            static NEXT: __atomic = __atomic::new(1);
-            Self($next_id(&NEXT) $(, std::marker::PhantomData::<$T>)?)
+
+            $crate::hot_static! {
+                static NEXT: __atomic = __atomic::new(1);
+            }
+            let __ref = $crate::hot_static_ref!(NEXT);
+            Self($next_id(__ref) $(, std::marker::PhantomData::<$T>)?)
         }
     };
 }
@@ -641,4 +599,44 @@ impl Hasher for IdHasher {
     fn finish(&self) -> u64 {
         self.0
     }
+}
+
+/// Trait implemented for all generated unique ID types.
+pub trait UniqueId: Clone + Copy + PartialEq + Eq + Hash {
+    /// New unique ID.
+    fn new_unique() -> Self;
+}
+
+/// Declares a static unique ID that is lazy inited.
+///
+/// Dereferencing this static generates the ID and caches it.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() { }
+/// # use zng_unique_id::*;
+/// #
+/// # unique_id_32! {
+/// #     pub struct StateId<T: (std::any::Any)>;
+/// # }
+/// #
+/// static_id! {
+///     /// Metadata foo ID.
+///     pub static ref FOO_ID: StateId<bool>;
+/// }
+/// ```
+#[macro_export]
+macro_rules! static_id {
+    ($(
+        $(#[$attr:meta])*
+        $vis:vis static ref $IDENT:ident: $IdTy:ty;
+    )+) => {
+        $(
+            $crate::lazy_static! {
+                $(#[$attr])*
+                $vis static ref $IDENT: $IdTy = <$IdTy as $crate::UniqueId>::new_unique();
+            }
+        )+
+    };
 }

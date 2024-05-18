@@ -14,7 +14,6 @@ use atomic::Atomic;
 use parking_lot::{Mutex, RwLock};
 use std::{
     borrow::Cow,
-    fmt,
     sync::{atomic::Ordering::Relaxed, Arc},
 };
 use zng_app_context::context_local;
@@ -602,13 +601,6 @@ zng_var::impl_from_and_into_var! {
 
     fn from(some: WidgetId) -> Option<WidgetId>;
 }
-
-impl fmt::Debug for StaticWidgetId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.get(), f)
-    }
-}
-impl zng_var::IntoValue<WidgetId> for &'static StaticWidgetId {}
 impl serde::Serialize for WidgetId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

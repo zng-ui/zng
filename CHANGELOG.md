@@ -3,8 +3,17 @@
 * **Breaking** Remove `VARS.set_animations_enabled` and change `VARS.animations_enabled` output type to a read-write var.
 * **Breaking** Remove deprecated `NilAnimationObserver`.
 * Fix release build of `zng-wgt-scroll` running out of memory. (#203)
+* Implement hot reloading UI nodes.
+    - Add `zng-ext-hot-reload` and `zng-ext-hot-reload-proc-macros`.
+    - Add `zng::hot_reload`.
+    - Add `feature="hot_reload"` in `zng` and `zng-unique-id`.
+    - Add `hot_reload` example.
 * Implemented VsCode snippets for common Zng macros, see [`zng.code-snippets`].
 * Fix view-process cleanup when app-process panics on init.
+* **Breaking** Remove all `Static{Id}` unique ID static types.
+    - Use `static_id!` to declare static IDs, the new way is compatible with hot reloading.
+    - Removed `StaticWindowId`, `StaticMonitorId`, `StaticPropertyId`, `StaticAppId`, `StaticWidgetId`, `StaticDeviceId`, `StaticStateId`,  `StaticCommandMetaVarId`, `StaticSpatialFrameId`.
+* Implemented equality/hash for `zng::task::SignalOnce`.
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 

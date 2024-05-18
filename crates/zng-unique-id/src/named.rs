@@ -163,14 +163,17 @@ where
 macro_rules! impl_unique_id_name {
     ($UniqueId:ident) => {
         $crate::paste! {
-            #[allow(non_upper_case_globals)]
-            static [<$UniqueId _ID_NAMES>]: $crate::UniqueIdNameStore<$UniqueId> = $crate::UniqueIdNameStore::new();
+            $crate::hot_static! {
+                static [<$UniqueId:upper _ID_NAMES>]: $crate::UniqueIdNameStore<$UniqueId> = $crate::UniqueIdNameStore::new();
+            }
         }
 
         impl $UniqueId {
             fn names_store() -> &'static $crate::UniqueIdNameStore<Self> {
                 $crate::paste! {
-                    &[<$UniqueId _ID_NAMES>]
+                    $crate::hot_static_ref! {
+                        [<$UniqueId:upper _ID_NAMES>]
+                    }
                 }
             }
 

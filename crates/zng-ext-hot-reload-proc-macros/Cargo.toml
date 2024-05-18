@@ -1,0 +1,20 @@
+[package]
+name = "zng-ext-hot-reload-proc-macros"
+version = "0.1.0"
+authors = ["The Zng Project Developers"]
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+description = "Part of the zng project."
+documentation = "https://zng-ui.github.io/doc/zng_ext_hot_reload_proc_macros"
+repository = "https://github.com/zng-ui/zng"
+categories = ["gui"]
+keywords = ["gui", "ui", "user-interface", "zng"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+syn = { version = "2.0", features = ["full"] }
+quote = "1.0"

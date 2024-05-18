@@ -486,8 +486,10 @@ pub mod column {
         }
     }
 
-    /// Column index, total in the parent widget set by the parent.
-    pub(super) static INDEX_ID: StaticStateId<(usize, usize)> = StaticStateId::new_unique();
+    static_id! {
+        /// Column index, total in the parent widget set by the parent.
+        pub(super) static ref INDEX_ID: StateId<(usize, usize)>;
+    }
 
     /// If the column index is even.
     ///
@@ -496,7 +498,7 @@ pub mod column {
     /// [`is_odd`]: fn@is_odd
     #[property(CONTEXT, widget_impl(Column))]
     pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
+        widget_state_is_state(child, |w| w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
     }
 
     /// If the column index is odd.
@@ -506,7 +508,7 @@ pub mod column {
     /// [`is_even`]: fn@is_even
     #[property(CONTEXT, widget_impl(Column))]
     pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
+        widget_state_is_state(child, |w| w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
     }
 
     /// If the column is the first.
@@ -515,7 +517,7 @@ pub mod column {
         widget_state_is_state(
             child,
             |w| {
-                let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let (i, l) = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 i == 0 && l > 0
             },
             |_| false,
@@ -529,7 +531,7 @@ pub mod column {
         widget_state_is_state(
             child,
             |w| {
-                let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let (i, l) = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 i < l && i == l - 1
             },
             |_| false,
@@ -545,7 +547,7 @@ pub mod column {
         widget_state_get_state(
             child,
             |w, &i| {
-                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0;
+                let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0;
                 if a != i {
                     Some(a)
                 } else {
@@ -563,7 +565,7 @@ pub mod column {
         widget_state_get_state(
             child,
             |w, &i| {
-                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 if a != i {
                     Some(a)
                 } else {
@@ -581,7 +583,7 @@ pub mod column {
         widget_state_get_state(
             child,
             |w, &i| {
-                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 let a = a.1 - a.0;
                 if a != i {
                     Some(a)
@@ -639,8 +641,10 @@ pub mod row {
         }
     }
 
-    /// Row index, total in the parent widget set by the parent.
-    pub(super) static INDEX_ID: StaticStateId<(usize, usize)> = StaticStateId::new_unique();
+    static_id! {
+        /// Row index, total in the parent widget set by the parent.
+        pub(super) static ref INDEX_ID: StateId<(usize, usize)>;
+    }
 
     /// If the row index is even.
     ///
@@ -649,7 +653,7 @@ pub mod row {
     /// [`is_odd`]: fn@is_odd
     #[property(CONTEXT, widget_impl(Row))]
     pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
+        widget_state_is_state(child, |w| w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 == 0, |_| false, state)
     }
 
     /// If the row index is odd.
@@ -659,7 +663,7 @@ pub mod row {
     /// [`is_even`]: fn@is_even
     #[property(CONTEXT, widget_impl(Row))]
     pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-        widget_state_is_state(child, |w| w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
+        widget_state_is_state(child, |w| w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0 % 2 != 0, |_| false, state)
     }
 
     /// If the row is the first.
@@ -668,7 +672,7 @@ pub mod row {
         widget_state_is_state(
             child,
             |w| {
-                let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let (i, l) = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 i == 0 && l > 0
             },
             |_| false,
@@ -682,7 +686,7 @@ pub mod row {
         widget_state_is_state(
             child,
             |w| {
-                let (i, l) = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let (i, l) = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 i < l && i == l - 1
             },
             |_| false,
@@ -698,7 +702,7 @@ pub mod row {
         widget_state_get_state(
             child,
             |w, &i| {
-                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0)).0;
+                let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0;
                 if a != i {
                     Some(a)
                 } else {
@@ -716,7 +720,7 @@ pub mod row {
         widget_state_get_state(
             child,
             |w, &i| {
-                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 if a != i {
                     Some(a)
                 } else {
@@ -734,7 +738,7 @@ pub mod row {
         widget_state_get_state(
             child,
             |w, &i| {
-                let a = w.get(&INDEX_ID).copied().unwrap_or((0, 0));
+                let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 let a = a.1 - a.0;
                 if a != i {
                     Some(a)
@@ -826,7 +830,7 @@ pub mod cell {
         ///
         /// [`WIDGET`]: zng_wgt::prelude::WIDGET
         pub fn get() -> Self {
-            WIDGET.get_state(&INFO_ID).unwrap_or_default()
+            WIDGET.get_state(*INFO_ID).unwrap_or_default()
         }
 
         /// Get the cell info stored in the `wgt` state.
@@ -835,10 +839,12 @@ pub mod cell {
         }
     }
 
-    /// Id for widget state set by cell properties.
-    ///
-    /// The parent grid uses this info to position and size the cell widget.
-    pub static INFO_ID: StaticStateId<CellInfo> = StaticStateId::new_unique();
+    static_id! {
+        /// Id for widget state set by cell properties.
+        ///
+        /// The parent grid uses this info to position and size the cell widget.
+        pub static ref INFO_ID: StateId<CellInfo>;
+    }
 
     /// Cell column index.
     ///
@@ -853,7 +859,7 @@ pub mod cell {
     /// [`at`]: fn@at
     #[property(CONTEXT, default(0), widget_impl(Cell))]
     pub fn column(child: impl UiNode, col: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, col, CellInfo::default, |i, &c| {
+        with_widget_state_modify(child, *INFO_ID, col, CellInfo::default, |i, &c| {
             if i.column != c {
                 i.column = c;
                 WIDGET.layout();
@@ -874,7 +880,7 @@ pub mod cell {
     /// [`at`]: fn@at
     #[property(CONTEXT, default(0), widget_impl(Cell))]
     pub fn row(child: impl UiNode, row: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, row, CellInfo::default, |i, &r| {
+        with_widget_state_modify(child, *INFO_ID, row, CellInfo::default, |i, &r| {
             if i.row != r {
                 i.row = r;
                 WIDGET.layout();
@@ -896,7 +902,7 @@ pub mod cell {
     /// [`row`]: fn@row
     #[property(CONTEXT, default((0, 0)), widget_impl(Cell))]
     pub fn at(child: impl UiNode, column_row: impl IntoVar<(usize, usize)>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, column_row, CellInfo::default, |i, &(col, row)| {
+        with_widget_state_modify(child, *INFO_ID, column_row, CellInfo::default, |i, &(col, row)| {
             if i.column != col || i.row != row {
                 i.column = col;
                 i.row = row;
@@ -921,7 +927,7 @@ pub mod cell {
     /// [`span`]: fn@span
     #[property(CONTEXT, default(1), widget_impl(Cell))]
     pub fn column_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &s| {
+        with_widget_state_modify(child, *INFO_ID, span, CellInfo::default, |i, &s| {
             if i.column_span != s {
                 i.column_span = s;
                 WIDGET.layout();
@@ -945,7 +951,7 @@ pub mod cell {
     /// [`span`]: fn@span
     #[property(CONTEXT, default(1), widget_impl(Cell))]
     pub fn row_span(child: impl UiNode, span: impl IntoVar<usize>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &s| {
+        with_widget_state_modify(child, *INFO_ID, span, CellInfo::default, |i, &s| {
             if i.row_span != s {
                 i.row_span = s;
                 WIDGET.layout();
@@ -965,7 +971,7 @@ pub mod cell {
     /// [`row_span`]: fn@row_span
     #[property(CONTEXT, default((1, 1)), widget_impl(Cell))]
     pub fn span(child: impl UiNode, span: impl IntoVar<(usize, usize)>) -> impl UiNode {
-        with_widget_state_modify(child, &INFO_ID, span, CellInfo::default, |i, &(cs, rs)| {
+        with_widget_state_modify(child, *INFO_ID, span, CellInfo::default, |i, &(cs, rs)| {
             if i.column_span != rs || i.row_span != rs {
                 i.column_span = cs;
                 i.row_span = rs;
@@ -1191,7 +1197,7 @@ impl GridLayout {
         let columns_len = children[0].len() + imaginary_cols;
         children[0].for_each(|i, c| {
             c.with_context(WidgetUpdateMode::Bubble, || {
-                let prev = WIDGET.set_state(&column::INDEX_ID, (i, columns_len));
+                let prev = WIDGET.set_state(*column::INDEX_ID, (i, columns_len));
                 if prev != Some((i, columns_len)) {
                     WIDGET.update();
                 }
@@ -1200,7 +1206,7 @@ impl GridLayout {
         let rows_len = children[1].len() + imaginary_rows;
         children[1].for_each(|i, r| {
             r.with_context(WidgetUpdateMode::Bubble, || {
-                let prev = WIDGET.set_state(&row::INDEX_ID, (i, rows_len));
+                let prev = WIDGET.set_state(*row::INDEX_ID, (i, rows_len));
                 if prev != Some((i, rows_len)) {
                     WIDGET.update();
                 }

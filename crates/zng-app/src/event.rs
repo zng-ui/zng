@@ -374,7 +374,7 @@ impl<A: EventArgs> Clone for Event<A> {
 impl<A: EventArgs> Copy for Event<A> {}
 impl<A: EventArgs> PartialEq for Event<A> {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.local, other.local)
+        self.local == other.local
     }
 }
 impl<A: EventArgs> Eq for Event<A> {}
@@ -470,18 +470,18 @@ impl AnyEvent {
 }
 impl PartialEq for AnyEvent {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.local, other.local)
+        self.local == other.local
     }
 }
 impl Eq for AnyEvent {}
 impl<A: EventArgs> PartialEq<AnyEvent> for Event<A> {
     fn eq(&self, other: &AnyEvent) -> bool {
-        std::ptr::eq(self.local, other.local)
+        self.local == other.local
     }
 }
 impl<A: EventArgs> PartialEq<Event<A>> for AnyEvent {
     fn eq(&self, other: &Event<A>) -> bool {
-        std::ptr::eq(self.local, other.local)
+        self.local == other.local
     }
 }
 

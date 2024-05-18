@@ -16,7 +16,7 @@ mod inspector_only {
         let insp_info = Arc::new(info);
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
-                info.set_meta(&super::INSPECTOR_INFO_ID, insp_info.clone());
+                info.set_meta(*super::INSPECTOR_INFO_ID, insp_info.clone());
             }
         })
     }
@@ -25,7 +25,7 @@ mod inspector_only {
         match_node(child, move |_, op| {
             if let UiNodeOp::Info { info } = op {
                 info.with_meta(|mut m| {
-                    let info = m.get_mut(&super::INSPECTOR_INFO_ID).unwrap();
+                    let info = m.get_mut(*super::INSPECTOR_INFO_ID).unwrap();
                     let prop = info.properties().find(|p| p.0.id() == property).unwrap().0;
                     for (i, input) in prop.property().inputs.iter().enumerate() {
                         if matches!(input.kind, InputKind::Var) {
@@ -45,8 +45,9 @@ mod inspector_only {
 pub(crate) use inspector_only::*;
 
 use parking_lot::RwLock;
-use zng_state_map::StaticStateId;
+use zng_state_map::StateId;
 use zng_txt::Txt;
+use zng_unique_id::static_id;
 use zng_var::{BoxedAnyVar, BoxedVar, VarValue};
 
 use std::{any::TypeId, collections::HashMap, sync::Arc};
@@ -57,7 +58,9 @@ use super::{
     WidgetUpdateMode, WIDGET,
 };
 
-pub(super) static INSPECTOR_INFO_ID: StaticStateId<Arc<InspectorInfo>> = StaticStateId::new_unique();
+static_id! {
+    pub(super) static ref INSPECTOR_INFO_ID: StateId<Arc<InspectorInfo>>;
+}
 
 /// Widget instance item.
 ///
@@ -208,29 +211,29 @@ pub trait WidgetInfoInspectorExt {
 }
 impl WidgetInfoInspectorExt for WidgetInfo {
     fn inspector_info(&self) -> Option<Arc<InspectorInfo>> {
-        self.meta().get_clone(&INSPECTOR_INFO_ID)
+        self.meta().get_clone(*INSPECTOR_INFO_ID)
     }
 
     fn can_inspect(&self) -> bool {
-        self.meta().contains(&INSPECTOR_INFO_ID)
+        self.meta().contains(*INSPECTOR_INFO_ID)
     }
 
     fn inspect_child<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo> {
-        self.children().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
+        self.children().find(|c| match c.meta().get(*INSPECTOR_INFO_ID) {
             Some(wgt) => pattern.matches(wgt),
             None => false,
         })
     }
 
     fn inspect_descendant<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo> {
-        self.descendants().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
+        self.descendants().find(|c| match c.meta().get(*INSPECTOR_INFO_ID) {
             Some(info) => pattern.matches(info),
             None => false,
         })
     }
 
     fn inspect_ancestor<P: InspectWidgetPattern>(&self, pattern: P) -> Option<WidgetInfo> {
-        self.ancestors().find(|c| match c.meta().get(&INSPECTOR_INFO_ID) {
+        self.ancestors().find(|c| match c.meta().get(*INSPECTOR_INFO_ID) {
             Some(info) => pattern.matches(info),
             None => false,
         })
@@ -238,13 +241,13 @@ impl WidgetInfoInspectorExt for WidgetInfo {
 
     fn inspect_property<P: InspectPropertyPattern>(&self, pattern: P) -> Option<&dyn PropertyArgs> {
         self.meta()
-            .get(&INSPECTOR_INFO_ID)?
+            .get(*INSPECTOR_INFO_ID)?
             .properties()
             .find_map(|(args, cap)| if pattern.matches(args, cap) { Some(args) } else { None })
     }
 
     fn parent_property(&self) -> Option<(PropertyId, usize)> {
-        self.parent()?.meta().get(&INSPECTOR_INFO_ID)?.properties().find_map(|(args, _)| {
+        self.parent()?.meta().get(*INSPECTOR_INFO_ID)?.properties().find_map(|(args, _)| {
             let id = self.id();
             let info = args.property();
             for (i, input) in info.inputs.iter().enumerate() {

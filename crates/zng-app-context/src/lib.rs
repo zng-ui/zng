@@ -8,18 +8,14 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{
-    any::{Any, TypeId},
-    cell::RefCell,
-    fmt, mem, ops,
-    sync::Arc,
-    thread::LocalKey,
-    time::Duration,
-};
+use std::{any::Any, cell::RefCell, fmt, mem, ops, sync::Arc, thread::LocalKey, time::Duration};
 
 use parking_lot::*;
 use zng_txt::Txt;
-use zng_unique_id::{unique_id_32, IdMap, IdSet};
+use zng_unique_id::unique_id_32;
+
+#[doc(hidden)]
+pub use zng_unique_id::{hot_static, hot_static_ref};
 
 unique_id_32! {
     /// Identifies an app instance.
@@ -72,7 +68,25 @@ impl LocalValueKind {
 
 /// `(value, is_context_var)`
 type LocalValue = (Arc<dyn Any + Send + Sync>, LocalValueKind);
-type LocalData = IdMap<TypeId, LocalValue>;
+// equivalent to rustc_hash::FxHashMap, but can be constructed in `const`.
+type LocalData = hashbrown::HashMap<AppLocalId, LocalValue, BuildFxHasher>;
+#[derive(Clone, Default)]
+struct BuildFxHasher;
+impl std::hash::BuildHasher for BuildFxHasher {
+    type Hasher = rustc_hash::FxHasher;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        rustc_hash::FxHasher::default()
+    }
+}
+const fn new_local_data() -> LocalData {
+    hashbrown::HashMap::with_hasher(BuildFxHasher)
+}
+
+type LocalSet = hashbrown::HashSet<AppLocalId, BuildFxHasher>;
+const fn new_local_set() -> LocalSet {
+    hashbrown::HashSet::with_hasher(BuildFxHasher)
+}
 
 /// Represents an app lifetime, ends the app on drop.
 ///
@@ -88,6 +102,21 @@ impl Drop for AppScope {
     }
 }
 
+impl AppId {
+    fn local_id() -> AppLocalId {
+        hot_static! {
+            static ID: u8 = 0;
+        }
+        AppLocalId(hot_static_ref!(ID) as *const u8 as *const () as _)
+    }
+}
+fn cleanup_list_id() -> AppLocalId {
+    hot_static! {
+        static ID: u8 = 0;
+    }
+    AppLocalId(hot_static_ref!(ID) as *const u8 as *const () as _)
+}
+
 /// Tracks the current execution context.
 ///
 /// The context tracks the current app, all or some [`context_local!`] and [`TracingDispatcherContext`].
@@ -100,7 +129,7 @@ impl fmt::Debug for LocalContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let app = self
             .data
-            .get(&TypeId::of::<AppId>())
+            .get(&AppId::local_id())
             .map(|(v, _)| v.downcast_ref::<AppId>().unwrap())
             .copied();
 
@@ -119,14 +148,14 @@ impl LocalContext {
     /// New empty context.
     pub const fn new() -> Self {
         Self {
-            data: LocalData::new(),
+            data: new_local_data(),
             tracing: None,
         }
     }
 
     /// Start an app scope in the current thread.
     pub fn start_app(id: AppId) -> AppScope {
-        let valid = LOCAL.with_borrow_mut_dyn(|c| match c.entry(TypeId::of::<AppId>()) {
+        let valid = LOCAL.with_borrow_mut_dyn(|c| match c.entry(AppId::local_id()) {
             hashbrown::hash_map::Entry::Occupied(_) => false,
             hashbrown::hash_map::Entry::Vacant(e) => {
                 e.insert((Arc::new(id), LocalValueKind::App));
@@ -142,7 +171,7 @@ impl LocalContext {
     }
     fn end_app(id: AppId) {
         let valid = LOCAL.with_borrow_mut_dyn(|c| {
-            if c.get(&TypeId::of::<AppId>())
+            if c.get(&AppId::local_id())
                 .map(|(v, _)| v.downcast_ref::<AppId>() == Some(&id))
                 .unwrap_or(false)
             {
@@ -171,11 +200,7 @@ impl LocalContext {
 
     /// Get the ID of the app that owns the current context.
     pub fn current_app() -> Option<AppId> {
-        LOCAL.with_borrow_dyn(|c| {
-            c.get(&TypeId::of::<AppId>())
-                .map(|(v, _)| v.downcast_ref::<AppId>().unwrap())
-                .copied()
-        })
+        LOCAL.with_borrow_dyn(|c| c.get(&AppId::local_id()).map(|(v, _)| v.downcast_ref::<AppId>().unwrap()).copied())
     }
 
     /// Register to run when the app deinits and all clones of the app context are dropped.
@@ -189,7 +214,7 @@ impl LocalContext {
         type CleanupList = Vec<RunOnDrop<Box<dyn FnOnce() + Send>>>;
         LOCAL.with_borrow_mut_dyn(|c| {
             let c = c
-                .entry(TypeId::of::<CleanupList>())
+                .entry(cleanup_list_id())
                 .or_insert_with(|| (Arc::new(Mutex::new(CleanupList::new())), LocalValueKind::App));
             c.0.downcast_ref::<Mutex<CleanupList>>().unwrap().lock().push(cleanup);
         });
@@ -214,7 +239,7 @@ impl LocalContext {
             CaptureFilter::None => Self::new(),
             CaptureFilter::All => Self::capture(),
             CaptureFilter::ContextVars { exclude } => {
-                let mut data = LocalData::new();
+                let mut data = new_local_data();
                 LOCAL.with_borrow_dyn(|c| {
                     for (k, (v, kind)) in c.iter() {
                         if kind.include_var() && !exclude.0.contains(k) {
@@ -225,7 +250,7 @@ impl LocalContext {
                 Self { data, tracing: None }
             }
             CaptureFilter::ContextLocals { exclude } => {
-                let mut data = LocalData::new();
+                let mut data = new_local_data();
                 LOCAL.with_borrow_dyn(|c| {
                     for (k, (v, kind)) in c.iter() {
                         if kind.include_local() && !exclude.0.contains(k) {
@@ -239,7 +264,7 @@ impl LocalContext {
                 }
             }
             CaptureFilter::Include(set) => {
-                let mut data = LocalData::new();
+                let mut data = new_local_data();
                 LOCAL.with_borrow_dyn(|c| {
                     for (k, v) in c.iter() {
                         if set.0.contains(k) {
@@ -257,7 +282,7 @@ impl LocalContext {
                 }
             }
             CaptureFilter::Exclude(set) => {
-                let mut data = LocalData::new();
+                let mut data = new_local_data();
                 LOCAL.with_borrow_dyn(|c| {
                     for (k, v) in c.iter() {
                         if !set.0.contains(k) {
@@ -339,18 +364,18 @@ impl LocalContext {
         self.data.extend(ctx.data);
     }
 
-    fn contains(key: TypeId) -> bool {
+    fn contains(key: AppLocalId) -> bool {
         LOCAL.with_borrow_dyn(|c| c.contains_key(&key))
     }
 
-    fn get(key: TypeId) -> Option<LocalValue> {
+    fn get(key: AppLocalId) -> Option<LocalValue> {
         LOCAL.with_borrow_dyn(|c| c.get(&key).cloned())
     }
 
-    fn set(key: TypeId, value: LocalValue) -> Option<LocalValue> {
+    fn set(key: AppLocalId, value: LocalValue) -> Option<LocalValue> {
         LOCAL.with_borrow_mut_dyn(|c| c.insert(key, value))
     }
-    fn remove(key: TypeId) -> Option<LocalValue> {
+    fn remove(key: AppLocalId) -> Option<LocalValue> {
         LOCAL.with_borrow_mut_dyn(|c| c.remove(&key))
     }
 
@@ -360,7 +385,7 @@ impl LocalContext {
         value: &mut Option<Arc<T>>,
         f: impl FnOnce(),
     ) {
-        let key = key.key();
+        let key = key.id();
         let prev = Self::set(key, (value.take().expect("no `value` to set"), kind));
         let _restore = RunOnDrop::new(move || {
             let back = if let Some(prev) = prev {
@@ -376,7 +401,7 @@ impl LocalContext {
     }
 
     fn with_default_ctx<T: Send + Sync + 'static>(key: &'static ContextLocal<T>, f: impl FnOnce()) {
-        let key = key.key();
+        let key = key.id();
         let prev = Self::remove(key);
         let _restore = RunOnDrop::new(move || {
             if let Some(prev) = prev {
@@ -389,7 +414,7 @@ impl LocalContext {
 }
 thread_local! {
     static LOCAL: RefCell<LocalData> = const {
-        RefCell::new(LocalData::new())
+        RefCell::new(new_local_data())
     };
 }
 
@@ -636,11 +661,11 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalConst<T> {
 /// Note that in `"multi_app"` builds the app local can only be used if an app is running in the thread,
 /// if no app is running read and write **will panic**.
 pub struct AppLocal<T: Send + Sync + 'static> {
-    inner: &'static dyn AppLocalImpl<T>,
+    inner: fn() -> &'static dyn AppLocalImpl<T>,
 }
 impl<T: Send + Sync + 'static> AppLocal<T> {
     #[doc(hidden)]
-    pub const fn new(inner: &'static dyn AppLocalImpl<T>) -> Self {
+    pub const fn new(inner: fn() -> &'static dyn AppLocalImpl<T>) -> Self {
         AppLocal { inner }
     }
 
@@ -653,7 +678,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
     pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
-        self.inner.read()
+        (self.inner)().read()
     }
 
     /// Try read lock the value associated with the current app.
@@ -667,7 +692,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
     pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
-        self.inner.try_read()
+        (self.inner)().try_read()
     }
 
     /// Write lock the value associated with the current app.
@@ -679,7 +704,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
     pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
-        self.inner.write()
+        (self.inner)().write()
     }
 
     /// Try to write lock the value associated with the current app.
@@ -692,7 +717,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// Panics if no app is running in `"multi_app"` builds.
     pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
-        self.inner.try_write()
+        (self.inner)().try_write()
     }
 
     /// Get a clone of the value.
@@ -759,6 +784,42 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRwLockWriteGuard<O>> {
         let lock = self.try_write()?;
         Some(MappedRwLockWriteGuard::map(lock, map))
+    }
+
+    /// Gets an ID for this local instance that is valid for the lifetime of the process.
+    ///
+    /// Note that comparing two `&'static LOCAL` pointers is incorrect, because in `"hot_reload"` builds the statics
+    /// can be different and still represent the same app local. This ID identifies the actual inner pointer.
+    pub fn id(&'static self) -> AppLocalId {
+        AppLocalId((self.inner)() as *const dyn AppLocalImpl<T> as *const () as _)
+    }
+}
+impl<T: Send + Sync + 'static> PartialEq for AppLocal<T> {
+    fn eq(&self, other: &Self) -> bool {
+        let a = AppLocalId((self.inner)() as *const dyn AppLocalImpl<T> as *const () as _);
+        let b = AppLocalId((other.inner)() as *const dyn AppLocalImpl<T> as *const () as _);
+        a == b
+    }
+}
+impl<T: Send + Sync + 'static> Eq for AppLocal<T> {}
+
+/// Identifies an [`AppLocal<T>`] instance.
+///
+/// Note that comparing two `&'static LOCAL` pointers is incorrect, because in `"hot_reload"` builds the statics
+/// can be different and still represent the same app local. This ID identifies the actual inner pointer, it is
+/// valid for the lifetime of the process.
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub struct AppLocalId(usize);
+impl AppLocalId {
+    /// Get the underlying value.
+    pub fn get(self) -> usize {
+        // VarPtr depends on this being an actual pointer (must be unique against an `Arc<T>` raw pointer).
+        self.0 as _
+    }
+}
+impl fmt::Debug for AppLocalId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AppLocalId({:#x})", self.0)
     }
 }
 
@@ -835,8 +896,13 @@ macro_rules! app_local_impl_single {
     ) => {
         $(#[$meta])*
         $vis static $IDENT: $crate::AppLocal<$T> = {
-            static IMPL: $crate::AppLocalConst<$T> = $crate::AppLocalConst::new($init);
-            $crate::AppLocal::new(&IMPL)
+            fn s() -> &'static dyn $crate::AppLocalImpl<$T> {
+                $crate::hot_static! {
+                    static IMPL: $crate::AppLocalConst<$T> = $crate::AppLocalConst::new($init);
+                }
+                $crate::hot_static_ref!(IMPL)
+            }
+            $crate::AppLocal::new(s)
         };
     };
     (
@@ -845,11 +911,16 @@ macro_rules! app_local_impl_single {
     ) => {
         $(#[$meta])*
         $vis static $IDENT: $crate::AppLocal<$T> = {
-            fn init() -> $T {
-                std::convert::Into::into($init)
+            fn s() -> &'static dyn $crate::AppLocalImpl<$T> {
+                fn init() -> $T {
+                    std::convert::Into::into($init)
+                }
+                $crate::hot_static! {
+                    static IMPL: $crate::AppLocalOption<$T> = $crate::AppLocalOption::new(init);
+                }
+                $crate::hot_static_ref!(IMPL)
             }
-            static IMPL: $crate::AppLocalOption<$T> = $crate::AppLocalOption::new(init);
-            $crate::AppLocal::new(&IMPL)
+            $crate::AppLocal::new(s)
         };
     };
     (
@@ -869,11 +940,16 @@ macro_rules! app_local_impl_multi {
     ) => {
         $(#[$meta])*
         $vis static $IDENT: $crate::AppLocal<$T> = {
-            const fn init() -> $T {
-                $init
+            fn s() -> &'static dyn $crate::AppLocalImpl<$T> {
+                const fn init() -> $T {
+                    $init
+                }
+                $crate::hot_static! {
+                    static IMPL: $crate::AppLocalVec<$T> = $crate::AppLocalVec::new(init);
+                }
+                $crate::hot_static_ref!(IMPL)
             }
-            static IMPL: $crate::AppLocalVec<$T> = $crate::AppLocalVec::new(init);
-            $crate::AppLocal::new(&IMPL)
+            $crate::AppLocal::new(s)
         };
     };
     (
@@ -882,11 +958,16 @@ macro_rules! app_local_impl_multi {
     ) => {
         $(#[$meta])*
         $vis static $IDENT: $crate::AppLocal<$T> = {
-            fn init() -> $T {
-                std::convert::Into::into($init)
+            fn s() -> &'static dyn $crate::AppLocalImpl<$T> {
+                fn init() -> $T {
+                    std::convert::Into::into($init)
+                }
+                $crate::hot_static! {
+                    static IMPL: $crate::AppLocalVec<$T> = $crate::AppLocalVec::new(init);
+                }
+                $crate::hot_static_ref!(IMPL)
             }
-            static IMPL: $crate::AppLocalVec<$T> = $crate::AppLocalVec::new(init);
-            $crate::AppLocal::new(&IMPL)
+            $crate::AppLocal::new(s)
         };
     };
     (
@@ -910,15 +991,13 @@ pub use app_local_impl_single as app_local_impl;
 
 #[doc(hidden)]
 pub struct ContextLocalData<T: Send + Sync + 'static> {
-    key: fn() -> TypeId,
     default_init: fn() -> T,
     default_value: Option<Arc<T>>,
 }
 impl<T: Send + Sync + 'static> ContextLocalData<T> {
     #[doc(hidden)]
-    pub const fn new(key: fn() -> TypeId, default_init: fn() -> T) -> Self {
+    pub const fn new(default_init: fn() -> T) -> Self {
         Self {
-            key,
             default_init,
             default_value: None,
         }
@@ -935,14 +1014,18 @@ pub struct ContextLocal<T: Send + Sync + 'static> {
 }
 impl<T: Send + Sync + 'static> ContextLocal<T> {
     #[doc(hidden)]
-    pub const fn new(storage: &'static dyn AppLocalImpl<ContextLocalData<T>>) -> Self {
+    pub const fn new(storage: fn() -> &'static dyn AppLocalImpl<ContextLocalData<T>>) -> Self {
         Self {
             data: AppLocal::new(storage),
         }
     }
 
-    fn key(&'static self) -> TypeId {
-        (self.data.read().key)()
+    /// Gets an ID for this context local instance that is valid for the lifetime of the process.
+    ///
+    /// Note that comparing two `&'static CTX_LOCAL` pointers is incorrect, because in `"hot_reload"` builds the statics
+    /// can be different and still represent the same app local. This ID identifies the actual inner pointer.
+    pub fn id(&'static self) -> AppLocalId {
+        self.data.id()
     }
 
     /// Calls `f` with the `value` loaded in context.
@@ -994,14 +1077,13 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
 
     /// Gets if no value is set in the context.
     pub fn is_default(&'static self) -> bool {
-        let cl = self.data.read();
-        !LocalContext::contains((cl.key)())
+        !LocalContext::contains(self.id())
     }
 
     /// Clone a reference to the current value in the context or the default value.
     pub fn get(&'static self) -> Arc<T> {
         let cl = self.data.read();
-        match LocalContext::get((cl.key)()) {
+        match LocalContext::get(self.id()) {
             Some(c) => Arc::downcast(c.0).unwrap(),
             None => match &cl.default_value {
                 Some(d) => d.clone(),
@@ -1027,7 +1109,7 @@ impl<T: Send + Sync + 'static> ContextLocal<T> {
         T: Clone,
     {
         let cl = self.data.read();
-        match LocalContext::get((cl.key)()) {
+        match LocalContext::get(self.id()) {
             Some(c) => c.0.downcast_ref::<T>().unwrap().clone(),
             None => match &cl.default_value {
                 Some(d) => d.as_ref().clone(),
@@ -1414,18 +1496,19 @@ macro_rules! context_local_impl_single {
     )+) => {$(
         $(#[$meta])*
         $vis static $IDENT: $crate::ContextLocal<$T> = {
-            fn init() -> $T {
-                std::convert::Into::into($init)
+            fn s() -> &'static dyn $crate::AppLocalImpl<$crate::ContextLocalData<$T>> {
+                fn init() -> $T {
+                    std::convert::Into::into($init)
+                }
+                $crate::hot_static! {
+                    static IMPL: $crate::AppLocalConst<$crate::ContextLocalData<$T>> =
+                    $crate::AppLocalConst::new(
+                        $crate::ContextLocalData::new(init)
+                    );
+                }
+                $crate::hot_static_ref!(IMPL)
             }
-            fn key() -> std::any::TypeId {
-                struct Key { }
-                std::any::TypeId::of::<Key>()
-            }
-            static IMPL: $crate::AppLocalConst<$crate::ContextLocalData<$T>> =
-                $crate::AppLocalConst::new(
-                    $crate::ContextLocalData::new(key, init)
-                );
-            $crate::ContextLocal::new(&IMPL)
+            $crate::ContextLocal::new(s)
         };
     )+};
 }
@@ -1439,18 +1522,19 @@ macro_rules! context_local_impl_multi {
     )+) => {$(
         $(#[$meta])*
         $vis static $IDENT: $crate::ContextLocal<$T> = {
-            fn init() -> $T {
-                std::convert::Into::into($init)
+            fn s() -> &'static dyn $crate::AppLocalImpl<$crate::ContextLocalData<$T>> {
+                fn init() -> $T {
+                    std::convert::Into::into($init)
+                }
+                $crate::hot_static! {
+                    static IMPL: $crate::AppLocalVec<$crate::ContextLocalData<$T>> =
+                    $crate::AppLocalVec::new(
+                        || $crate::ContextLocalData::new(init)
+                    );
+                }
+                $crate::hot_static_ref!(IMPL)
             }
-            fn key() -> std::any::TypeId {
-                struct Key { }
-                std::any::TypeId::of::<Key>()
-            }
-            static IMPL: $crate::AppLocalVec<$crate::ContextLocalData<$T>> =
-            $crate::AppLocalVec::new(
-                || $crate::ContextLocalData::new(key, init)
-            );
-            $crate::ContextLocal::new(&IMPL)
+            $crate::ContextLocal::new(s)
         };
     )+};
 }
@@ -1509,32 +1593,33 @@ impl CaptureFilter {
 /// Implemented by all [`ContextLocal<T>`] already, only implement this for context local thin wrappers.
 pub trait ContextLocalKeyProvider {
     /// Gets the key.
-    fn context_local_key(&'static self) -> TypeId;
+    fn context_local_key(&'static self) -> AppLocalId;
 }
 impl<T: Send + Sync + 'static> ContextLocalKeyProvider for ContextLocal<T> {
-    fn context_local_key(&'static self) -> TypeId {
-        self.key()
+    fn context_local_key(&'static self) -> AppLocalId {
+        self.id()
     }
 }
 
 /// Represents the [`tracing::dispatcher::get_default`] dispatcher in a context value set.
 ///
-/// [`tracing::dispatcher::get_default`]: https://docs.rs/tracing/latest/tracing/dispatcher/fn.set_global_default.html
+/// [`tracing::dispatcher::get_default`]: https://docs.rs/tracing/latest/tracing/dispatcher/fn.get_global_default.html
 pub struct TracingDispatcherContext;
 
 impl ContextLocalKeyProvider for TracingDispatcherContext {
-    fn context_local_key(&'static self) -> TypeId {
-        TypeId::of::<tracing::dispatcher::Dispatch>()
+    fn context_local_key(&'static self) -> AppLocalId {
+        static ID: bool = true;
+        AppLocalId(&ID as *const bool as *const () as usize)
     }
 }
 
 /// Identifies a selection of [`LocalContext`] values.
 #[derive(Default, Clone, PartialEq, Eq)]
-pub struct ContextValueSet(IdSet<TypeId>);
+pub struct ContextValueSet(LocalSet);
 impl ContextValueSet {
     /// New empty.
     pub const fn new() -> Self {
-        Self(crate::IdSet::new())
+        Self(new_local_set())
     }
 
     /// Insert a context local.

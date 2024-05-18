@@ -13,6 +13,8 @@ use std::{any::Any, fmt, marker::PhantomData};
 
 use zng_unique_id::unique_id_64;
 
+pub use zng_unique_id::static_id;
+
 /// Represents a type that can be a [`StateId`] value.
 ///
 /// # Trait Alias
@@ -30,11 +32,13 @@ unique_id_64! {
     ///
     /// ```
     /// # use zng_state_map::*;
-    /// static FOO_ID: StaticStateId<bool> = StateId::new_static();
+    /// static_id! {
+    ///     static ref FOO_ID: StateId<bool>;
+    /// }
     ///
     /// # fn demo() {
     /// let mut owned_state = OwnedStateMap::<()>::default();
-    /// let foo = owned_state.borrow_mut().set(&FOO_ID, true);
+    /// let foo = owned_state.borrow_mut().set(*FOO_ID, true);
     /// # ; }
     /// ```
     pub struct StateId<T: (StateValue)>;
