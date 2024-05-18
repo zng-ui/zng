@@ -287,6 +287,7 @@ impl AppExtension for HotReloadManager {
         }
 
         let requests: HashSet<Txt> = sv.rebuild_requests.drain(..).collect();
+        drop(sv);
         for r in requests {
             if let Some(watched) = self.libs.get_mut(r.as_str()) {
                 self.static_patch.capture_statics();
