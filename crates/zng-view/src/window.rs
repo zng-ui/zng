@@ -119,6 +119,8 @@ pub(crate) struct Window {
     ime_area: Option<DipRect>,
     #[cfg(windows)]
     ime_open: bool,
+    #[cfg(windows)]
+    has_shutdown_warn: bool,
 
     cursor: Option<CursorIcon>,
     cursor_img: Option<CustomCursor>,
@@ -451,6 +453,8 @@ impl Window {
             ime_area: cfg.ime_area,
             #[cfg(windows)]
             ime_open: false,
+            #[cfg(windows)]
+            has_shutdown_warn: false,
             cursor: None,
             cursor_img: None,
         };
@@ -1852,6 +1856,7 @@ impl Window {
     #[cfg(windows)]
     pub(crate) fn set_system_shutdown_warn(&mut self, reason: Txt) {
         if !reason.is_empty() {
+            self.has_shutdown_warn = true;
             let hwnd = crate::util::winit_to_hwnd(&self.window);
             let reason = windows::core::HSTRING::from(reason.as_str());
             // SAFETY: function return handled.
@@ -1860,7 +1865,7 @@ impl Window {
                 let error = unsafe { windows_sys::Win32::Foundation::GetLastError() };
                 tracing::error!("failed to set system shutdown warn ({error:#X}), requested warn reason was: {reason}");
             }
-        } else {
+        } else if mem::take(&mut self.has_shutdown_warn) {
             let hwnd = crate::util::winit_to_hwnd(&self.window);
             // SAFETY: function return handled.
             let destroyed = unsafe { windows_sys::Win32::System::Shutdown::ShutdownBlockReasonDestroy(hwnd) } != 0;
