@@ -22,7 +22,7 @@ use zng_app_context::app_local;
 use zng_clone_move::clmv;
 use zng_layout::unit::{Factor, FactorUnits};
 use zng_txt::Txt;
-use zng_var::{var, var_default, ArcVar, ReadOnlyArcVar, Var};
+use zng_var::{types::ArcCowVar, var, var_default, ArcVar, ReadOnlyArcVar, Var};
 use zng_view_api::config::AnimationsConfig;
 pub use zng_view_api::{
     config::KeyRepeatConfig,
@@ -272,27 +272,47 @@ impl KEYBOARD {
         KEYBOARD_SV.read().keys.read_only()
     }
 
-    /// Returns a read-only variable that tracks the operating system key press repeat start delay and repeat speed.
+    /// Returns a variable that defines key press repeat start delay and repeat speed on the app.
     ///
     /// This delay is roughly the time the user must hold a key pressed to start repeating. When a second key press
     /// happens without any other keyboard event and within twice this value it increments the [`repeat_count`] by the [`KeyboardManager`].
     ///
+    /// The value is the same as [`sys_repeat_config`], if set the variable disconnects from system config.
+    ///
+    /// [`sys_repeat_config`]: KEYBOARD::sys_repeat_config
     /// [`repeat_count`]: KeyInputArgs::repeat_count
     /// [`repeat_speed`]: Self::repeat_speed
-    pub fn repeat_config(&self) -> ReadOnlyArcVar<KeyRepeatConfig> {
-        KEYBOARD_SV.read().repeat_config.read_only()
+    pub fn repeat_config(&self) -> ArcCowVar<KeyRepeatConfig, ArcVar<KeyRepeatConfig>> {
+        KEYBOARD_SV.read().repeat_config.clone()
     }
 
-    /// Returns a read-only variable that defines the system config for the caret blink speed and timeout.
+    /// Returns a read-only variable that tracks the operating system key press repeat start delay and repeat speed.
+    ///
+    /// The variable updates every time the system config changes and on view-process (re)init.
+    pub fn sys_repeat_config(&self) -> ReadOnlyArcVar<KeyRepeatConfig> {
+        KEYBOARD_SV.read().sys_repeat_config.read_only()
+    }
+
+    /// Returns a variable that defines the system config for the caret blink speed and timeout for the app.
     ///
     /// The first value defines the blink speed interval, the caret is visible for the duration, then not visible for the duration. The
     /// second value defines the animation total duration, the caret stops animating and sticks to visible after this timeout is reached.
     ///
     /// You can use the [`caret_animation`] method to generate a new animation.
     ///
+    /// The value is the same as [`sys_repeat_config`], if set the variable disconnects from system config.
+    ///
     /// [`caret_animation`]: Self::caret_animation
-    pub fn caret_animation_config(&self) -> ReadOnlyArcVar<(Duration, Duration)> {
-        KEYBOARD_SV.read().caret_animation_config.read_only()
+    /// [`sys_repeat_config`]: Self::sys_repeat_config
+    pub fn caret_animation_config(&self) -> ArcCowVar<(Duration, Duration), ArcVar<(Duration, Duration)>> {
+        KEYBOARD_SV.read().caret_animation_config.clone()
+    }
+
+    /// Returns a read-only variable that tracks the operating system caret blink speed and timeout.
+    ///
+    /// The variable updates every time the system config changes and on view-process (re)init.
+    pub fn sys_caret_animation_config(&self) -> ReadOnlyArcVar<(Duration, Duration)> {
+        KEYBOARD_SV.read().sys_caret_animation_config.read_only()
     }
 
     /// Returns a new read-only variable that animates the caret opacity.
@@ -307,17 +327,21 @@ impl KEYBOARD {
 }
 
 app_local! {
-    static KEYBOARD_SV: KeyboardService = KeyboardService {
-        current_modifiers: HashSet::default(),
-        modifiers: var(ModifiersState::empty()),
-        codes: var(vec![]),
-        keys: var(vec![]),
-        repeat_config: var_default(),
-        caret_animation_config: {
-            let cfg = AnimationsConfig::default();
-            var((cfg.caret_blink_interval, cfg.caret_blink_timeout))
-        },
-        last_key_down: None,
+    static KEYBOARD_SV: KeyboardService = {
+        let sys_repeat_config = var_default();
+        let cfg = AnimationsConfig::default();
+        let sys_caret_animation_config = var((cfg.caret_blink_interval, cfg.caret_blink_timeout));
+        KeyboardService {
+            current_modifiers: HashSet::default(),
+            modifiers: var(ModifiersState::empty()),
+            codes: var(vec![]),
+            keys: var(vec![]),
+            repeat_config: sys_repeat_config.cow(),
+            sys_repeat_config,
+            caret_animation_config: sys_caret_animation_config.cow(),
+            sys_caret_animation_config,
+            last_key_down: None,
+        }
     };
 }
 
@@ -327,8 +351,10 @@ struct KeyboardService {
     modifiers: ArcVar<ModifiersState>,
     codes: ArcVar<Vec<KeyCode>>,
     keys: ArcVar<Vec<Key>>,
-    repeat_config: ArcVar<KeyRepeatConfig>,
-    caret_animation_config: ArcVar<(Duration, Duration)>,
+    repeat_config: ArcCowVar<KeyRepeatConfig, ArcVar<KeyRepeatConfig>>,
+    sys_repeat_config: ArcVar<KeyRepeatConfig>,
+    caret_animation_config: ArcCowVar<(Duration, Duration), ArcVar<(Duration, Duration)>>,
+    sys_caret_animation_config: ArcVar<(Duration, Duration)>,
 
     last_key_down: Option<(DeviceId, KeyCode, DInstant, u32)>,
 }

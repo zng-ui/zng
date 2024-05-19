@@ -269,11 +269,11 @@ impl L10N {
         }
     }
 
-    /// Gets a read-write variable that sets the preferred languages for the app scope.
+    /// Gets a read-write variable that sets the preferred languages for the app.
     /// Lang not available are ignored until they become available, the first language in the
     /// vec is the most preferred.
     ///
-    /// The value is the same as [`sys_lang`], the variable disconnects from system lang if it is assigned directly.
+    /// The value is the same as [`sys_lang`], if set the variable disconnects from system lang.
     ///
     /// Note that the [`LANG_VAR`] is used in message requests, the default value of that
     /// context variable is this one.
