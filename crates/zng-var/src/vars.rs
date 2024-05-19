@@ -5,6 +5,8 @@ use zng_time::INSTANT_APP;
 
 use crate::animation::AnimationTimer;
 
+use self::types::ArcCowVar;
+
 use super::{
     animation::{Animations, ModifyInfo},
     *,
@@ -86,13 +88,20 @@ impl VARS {
         VARS_SV.read().update_id
     }
 
-    /// Variable that tracks if animations are enabled.
+    /// Read-write that defines if animations are enabled on the app.
     ///
-    /// This is `true` by default, it can be changed set by operating system config changes.
+    /// The value is the same as [`sys_animations_enabled`], if set the variable disconnects from system config.
     ///
-    /// If `false` all animations must be skipped to the end, users with photo-sensitive epilepsy disable animations system wide.
-    pub fn animations_enabled(&self) -> ArcVar<bool> {
+    /// [`sys_animations_enabled`]: Self::sys_animations_enabled
+    pub fn animations_enabled(&self) -> ArcCowVar<bool, ArcVar<bool>> {
         VARS_SV.read().ans.animations_enabled.clone()
+    }
+
+    /// Read-only that tracks if animations are enabled in the operating system.
+    ///
+    /// This is `true` by default, it updates when the operating system config changes.
+    pub fn sys_animations_enabled(&self) -> ReadOnlyArcVar<bool> {
+        VARS_SV.read().ans.sys_animations_enabled.read_only()
     }
 
     /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
@@ -317,6 +326,11 @@ impl VARS_APP {
     /// [`apply_updates`]: Self::apply_updates
     pub fn has_pending_updates(&self) -> bool {
         !VARS_SV.write().updates.get_mut().is_empty()
+    }
+
+    /// Sets the `sys_animations_enabled` read-only variable.
+    pub fn set_sys_animations_enabled(&self, enabled: bool) {
+        VARS_SV.read().ans.sys_animations_enabled.set(enabled);
     }
 
     /// Apply all pending updates, call hooks and update bindings.

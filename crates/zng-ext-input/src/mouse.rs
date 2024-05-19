@@ -28,7 +28,7 @@ use zng_app_context::app_local;
 use zng_ext_window::WINDOWS;
 use zng_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint};
 use zng_state_map::{state_map, static_id, StateId};
-use zng_var::{impl_from_and_into_var, var, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var};
+use zng_var::{impl_from_and_into_var, types::ArcCowVar, var, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var};
 use zng_view_api::touch::TouchPhase;
 pub use zng_view_api::{
     config::MultiClickConfig,
@@ -1427,22 +1427,27 @@ impl MOUSE {
         MOUSE_SV.read().buttons.read_only()
     }
 
-    /// Read-only variable that tracks the system click-count increment time and area, a.k.a. the double-click config.
+    /// Variable that defines the click-count increment time and area, a.k.a. the double-click config.
     ///
     /// Repeated clicks with an interval less then this time and within the distance of the first click increment the click count.
+    ///
+    /// The value is the same as [`sys_multi_click_config`], if set the variable disconnects from system config.
+    ///
+    /// [`sys_multi_click_config`]: Self::sys_multi_click_config
+    pub fn multi_click_config(&self) -> ArcCowVar<MultiClickConfig, ArcVar<MultiClickConfig>> {
+        MOUSE_SV.read().multi_click_config.clone()
+    }
+
+    /// Variable that tracks the system click-count increment time and area, a.k.a. the double-click config.
     ///
     /// # Value Source
     ///
     /// The value comes from the operating system settings, the variable
-    /// updates with a new value if the system setting is changed.
+    /// updates with a new value if the system setting is changed and on view-process (re)init.
     ///
     /// In headless apps the default is [`MultiClickConfig::default`] and does not change.
-    ///
-    /// Internally the [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`] is listened to update this variable.
-    ///
-    /// [`RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT`]: zng_app::view_process::raw_events::RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT
-    pub fn multi_click_config(&self) -> ReadOnlyArcVar<MultiClickConfig> {
-        MOUSE_SV.read().multi_click_config.read_only()
+    pub fn sys_multi_click_config(&self) -> ReadOnlyArcVar<MultiClickConfig> {
+        MOUSE_SV.read().sys_multi_click_config.read_only()
     }
 
     /// Variable that gets and sets the config for [`ClickMode::repeat`] clicks.
@@ -1482,16 +1487,21 @@ pub struct MousePosition {
 }
 
 app_local! {
-    static MOUSE_SV: MouseService = MouseService {
-        multi_click_config: var(MultiClickConfig::default()),
-        repeat_config: KEYBOARD.repeat_config().map(|c| ButtonRepeatConfig { start_delay: c.start_delay, interval: c.interval }).cow().boxed(),
-        buttons: var(vec![]),
-        hovered: var(None),
-        position: var(None),
+    static MOUSE_SV: MouseService = {
+        let sys_multi_click_config = var(MultiClickConfig::default());
+        MouseService {
+            multi_click_config: sys_multi_click_config.cow(),
+            sys_multi_click_config,
+            repeat_config: KEYBOARD.repeat_config().map(|c| ButtonRepeatConfig { start_delay: c.start_delay, interval: c.interval }).cow().boxed(),
+            buttons: var(vec![]),
+            hovered: var(None),
+            position: var(None),
+        }
     };
 }
 struct MouseService {
-    multi_click_config: ArcVar<MultiClickConfig>,
+    multi_click_config: ArcCowVar<MultiClickConfig, ArcVar<MultiClickConfig>>,
+    sys_multi_click_config: ArcVar<MultiClickConfig>,
     repeat_config: BoxedVar<ButtonRepeatConfig>,
     buttons: ArcVar<Vec<MouseButton>>,
     hovered: ArcVar<Option<InteractionPath>>,

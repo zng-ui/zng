@@ -1,6 +1,5 @@
 # Unpublished
 
-* **Breaking** Remove `VARS.set_animations_enabled` and change `VARS.animations_enabled` output type to a read-write var.
 * **Breaking** Remove deprecated `NilAnimationObserver`.
 * Fix release build of `zng-wgt-scroll` running out of memory. (#203)
 * Implement hot reloading UI nodes.
@@ -18,6 +17,12 @@
     - Add `on_pre_window_close` and `on_window_close`.
 * Fix headless windows not receiving close events on app exit request.
 * Add `std::env::consts::OS` to crash error.
+* **Breaking** Refactored multiple system config variables to allow app override.
+  - `VARS.animations_enabled` now is read-write. Added `VARS.sys_animations_enabled` read-only variable that tracks the system config.
+  - `KEYBOARD.repeat_config` now is read-write. Added `KEYBOARD.sys_repeat_config`.
+  - `KEYBOARD.caret_animation_config` now is read-write. Added `KEYBOARD.sys_caret_animation_config`.
+  - `MOUSE.multi_click_config` now is read-write. Added `MOUSE.sys_multi_click_config`.
+  - `TOUCH.touch_config` now is read-write. Added `TOUCH.sys_touch_config`.
 
 [`zng.code-snippets`]: .vscode/zng.code-snippets
 

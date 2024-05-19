@@ -409,7 +409,7 @@ impl<E: AppExtension> RunningApp<E> {
                 self.notify_event(RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
             Event::AnimationsConfigChanged(cfg) => {
-                VARS.animations_enabled().set(cfg.enabled);
+                VARS_APP.set_sys_animations_enabled(cfg.enabled);
                 let args = RawAnimationsConfigChangedArgs::now(cfg);
                 self.notify_event(RAW_ANIMATIONS_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }

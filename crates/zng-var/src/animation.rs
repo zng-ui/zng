@@ -11,6 +11,8 @@ use zng_unit::TimeUnits as _;
 
 pub use zng_var_proc_macros::Transitionable;
 
+use self::types::ArcCowVar;
+
 use super::*;
 
 pub mod easing;
@@ -415,12 +417,14 @@ pub(super) struct Animations {
     pub(super) current_modify: ModifyInfo,
     pub(super) animation_start_time: Option<DInstant>,
     next_frame: Option<Deadline>,
-    pub(super) animations_enabled: ArcVar<bool>,
+    pub(super) animations_enabled: ArcCowVar<bool, ArcVar<bool>>,
+    pub(super) sys_animations_enabled: ArcVar<bool>,
     pub(super) frame_duration: ArcVar<Duration>,
     pub(super) animation_time_scale: ArcVar<Factor>,
 }
 impl Animations {
     pub(crate) fn new() -> Self {
+        let sys_animations_enabled = var(true);
         Self {
             animations: Mutex::default(),
             animation_imp: 1,
@@ -430,7 +434,8 @@ impl Animations {
             },
             animation_start_time: None,
             next_frame: None,
-            animations_enabled: var(true),
+            animations_enabled: sys_animations_enabled.cow(),
+            sys_animations_enabled,
             frame_duration: var((1.0 / 60.0).secs()),
             animation_time_scale: var(1.fct()),
         }

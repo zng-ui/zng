@@ -24,7 +24,7 @@ use zng_app::{
 use zng_app_context::app_local;
 use zng_ext_window::WINDOWS;
 use zng_layout::unit::{euclid, AngleRadian, Dip, DipPoint, DipToPx, DipVector, Factor, Px, PxPoint, PxTransform, PxVector, TimeUnits};
-use zng_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var};
+use zng_var::{impl_from_and_into_var, types::ArcCowVar, var, ArcVar, ReadOnlyArcVar, Var};
 pub use zng_view_api::{
     config::TouchConfig,
     touch::{TouchForce, TouchId, TouchPhase, TouchUpdate},
@@ -138,6 +138,15 @@ impl PressedInfo {
 pub struct TOUCH;
 
 impl TOUCH {
+    /// Variable that defines the touch config for the app.
+    ///
+    /// The value is the same as [`sys_touch_config`], if set the variable disconnects from system config.
+    ///
+    /// [`sys_touch_config`]: Self::sys_touch_config
+    pub fn touch_config(&self) -> ArcCowVar<TouchConfig, ArcVar<TouchConfig>> {
+        TOUCH_SV.read().touch_config.clone()
+    }
+
     /// Read-only variable that tracks the system touch config.
     ///
     /// Note that some of these configs are not always used, a tap event for example can happen even if the
@@ -146,15 +155,11 @@ impl TOUCH {
     /// # Value Source
     ///
     /// The value comes from the operating system settings, the variable
-    /// updates with a new value if the system setting is changed.
+    /// updates with a new value if the system setting is changed and on view-process (re)init.
     ///
     /// In headless apps the default is [`TouchConfig::default`] and does not change.
-    ///
-    /// Internally the [`RAW_TOUCH_CONFIG_CHANGED_EVENT`] is listened to update this variable.
-    ///
-    /// [`RAW_TOUCH_CONFIG_CHANGED_EVENT`]: zng_app::view_process::raw_events::RAW_TOUCH_CONFIG_CHANGED_EVENT
-    pub fn touch_config(&self) -> ReadOnlyArcVar<TouchConfig> {
-        TOUCH_SV.read().touch_config.read_only()
+    pub fn sys_touch_config(&self) -> ReadOnlyArcVar<TouchConfig> {
+        TOUCH_SV.read().sys_touch_config.read_only()
     }
 
     /// Variable that tracks all current active touches.
@@ -191,14 +196,19 @@ pub struct TouchPosition {
 }
 
 app_local! {
-    static TOUCH_SV: TouchService = TouchService {
-        touch_config: var(TouchConfig::default()),
-        positions: var(vec![]),
-        touch_from_mouse_events: var(false),
+    static TOUCH_SV: TouchService = {
+        let sys_touch_config = var(TouchConfig::default());
+        TouchService {
+            touch_config: sys_touch_config.cow(),
+            sys_touch_config,
+            positions: var(vec![]),
+            touch_from_mouse_events: var(false),
+        }
     };
 }
 struct TouchService {
-    touch_config: ArcVar<TouchConfig>,
+    touch_config: ArcCowVar<TouchConfig, ArcVar<TouchConfig>>,
+    sys_touch_config: ArcVar<TouchConfig>,
     positions: ArcVar<Vec<TouchPosition>>,
     touch_from_mouse_events: ArcVar<bool>,
 }
