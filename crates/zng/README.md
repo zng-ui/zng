@@ -124,7 +124,7 @@ Spawns a thread on app creation that checks and prints `parking_lot` deadlocks.
 Embed hyphenation dictionaries for all supported languages.
 
 If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the
-`Hyphenation::dictionary_source` method.
+`HYPHENATION::init_data_source` method.
 
 #### `"material_icons"`
 Include all Material Icons icon sets in the default app.
