@@ -91,6 +91,8 @@ impl VARS {
     /// Read-write that defines if animations are enabled on the app.
     ///
     /// The value is the same as [`sys_animations_enabled`], if set the variable disconnects from system config.
+    /// 
+    /// [`sys_animations_enabled`]: Self::sys_animations_enabled
     pub fn animations_enabled(&self) -> ArcCowVar<bool, ArcVar<bool>> {
         VARS_SV.read().ans.animations_enabled.clone()
     }
