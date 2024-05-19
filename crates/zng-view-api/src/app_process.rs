@@ -249,6 +249,17 @@ impl Controller {
                         tracing::error!(
                             "failed to kill new view-process after failing to connect to it\n connection error: {e:?}\n kill error: {ke:?}",
                         );
+                    } else if let Ok(output) = p.wait() {
+                        let code = output.status.code();
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        if ViewConfig::is_version_err(code, Some(&stderr)) {
+                            let code = code.unwrap_or(1);
+                            tracing::error!(
+                                "view-process API version mismatch, the view-process build must use the same exact version as the app-process, \
+                                        will exit app-process with code 0x{code:x}"
+                            );
+                            std::process::exit(code);
+                        }
                     }
                 }
                 return Err(e);
@@ -429,7 +440,7 @@ impl Controller {
 
             if ViewConfig::is_version_err(code, stderr.as_deref()) {
                 let code = code.unwrap_or(1);
-                tracing::error!(target: "vp_respawn", "view-process API version don't match, \
+                tracing::error!(target: "vp_respawn", "view-process API version mismatch, the view-process build must use the same exact version as the app-process, \
                                         will exit app-process with code 0x{code:x}");
                 std::process::exit(code);
             }
