@@ -98,7 +98,7 @@ deadlock_detection = ["zng-app/deadlock_detection"]
 # Embed hyphenation dictionaries for all supported languages.
 #
 # If enabled some 2.8MB of data is embedded, you can provide an alternative dictionary source using the 
-# `Hyphenation::dictionary_source` method.
+# `HYPHENATION::init_data_source` method.
 hyphenation_embed_all = ["zng-ext-font/hyphenation_embed_all"]
 
 # Include all Material Icons icon sets in the default app.
