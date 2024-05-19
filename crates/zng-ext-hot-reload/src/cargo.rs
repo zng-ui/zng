@@ -19,8 +19,6 @@ pub fn build(
     bin: &str,
     cancel: SignalOnce,
 ) -> ResponseVar<Result<PathBuf, BuildError>> {
-    let manifest_path = PathBuf::from(manifest_dir).join("Cargo.toml");
-
     let mut build = Command::new("cargo");
     build.arg("build").arg("--message-format").arg("json");
     if !package.is_empty() {
@@ -29,6 +27,13 @@ pub fn build(
     if !bin.is_empty() {
         build.arg(bin_option).arg(bin);
     }
+
+    build_custom(manifest_dir, build, cancel)
+}
+
+/// Build and return the dylib path.
+pub fn build_custom(manifest_dir: &str, mut build: Command, cancel: SignalOnce) -> ResponseVar<Result<PathBuf, BuildError>> {
+    let manifest_path = PathBuf::from(manifest_dir).join("Cargo.toml");
 
     zng_task::respond(async move {
         let mut child = zng_task::wait(move || build.stdin(Stdio::null()).stderr(Stdio::piped()).stdout(Stdio::piped()).spawn()).await?;

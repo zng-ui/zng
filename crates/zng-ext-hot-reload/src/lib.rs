@@ -324,6 +324,8 @@ pub struct BuildArgs {
 }
 impl BuildArgs {
     /// Calls `cargo build [--package {package}] --message-format json` and cancels it as soon as the dylib is rebuilt.
+    ///
+    /// Always returns `Some(_)`.
     pub fn build(&self, package: Option<&str>) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
@@ -336,6 +338,8 @@ impl BuildArgs {
 
     /// Calls `cargo build [--package {package}] --example {example} --message-format json` and cancels
     /// it as soon as the dylib is rebuilt.
+    ///
+    /// Always returns `Some(_)`.
     pub fn build_example(&self, package: Option<&str>, example: &str) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
@@ -348,6 +352,8 @@ impl BuildArgs {
 
     /// Calls `cargo build [--package {package}] --bin {bin}  --message-format json` and cancels it as
     /// soon as the dylib is rebuilt.
+    ///
+    /// Always returns `Some(_)`.
     pub fn build_bin(&self, package: Option<&str>, bin: &str) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
@@ -356,6 +362,53 @@ impl BuildArgs {
             bin,
             self.cancel_build.clone(),
         ))
+    }
+
+    /// Calls a custom command that must write to stdout the same way `cargo build --message-format json` does.
+    ///
+    /// The command will run until it writes the `"compiler-artifact"` for the `manifest_dir/Cargo.toml` to stdout, it will
+    /// then be killed.
+    ///
+    /// Always returns `Some(_)`.
+    pub fn custom(&self, cmd: std::process::Command) -> Option<RebuildVar> {
+        Some(cargo::build_custom(&self.manifest_dir, cmd, self.cancel_build.clone()))
+    }
+
+    /// Call a custom command defined in an environment var.
+    ///
+    /// The variable value must be arguments for `cargo`, that is `cargo $VAR`.
+    ///
+    /// See [`custom`] for other requirements of the command.
+    ///
+    /// If `var_key` is empty the default key `"ZNG_HOT_RELOAD_REBUILDER"` is used.
+    ///
+    /// Returns `None` if the var is not found or is set empty.
+    ///
+    /// [`custom`]: Self::custom
+    pub fn custom_env(&self, mut var_key: &str) -> Option<RebuildVar> {
+        if var_key.is_empty() {
+            var_key = "ZNG_HOT_RELOAD_REBUILDER";
+        }
+
+        let custom = std::env::var(var_key).ok()?;
+        let mut custom = custom.split(' ');
+
+        let subcommand = custom.next()?;
+
+        let mut cmd = std::process::Command::new("cargo");
+        cmd.arg(subcommand);
+        cmd.args(custom);
+
+        self.custom(cmd)
+    }
+
+    /// The default action.
+    ///
+    /// Tries `custom_env`, if env is not set, does `build(None)`.
+    ///
+    /// Always returns `Some(_)`.
+    pub fn default_build(&self) -> Option<RebuildVar> {
+        self.custom_env("").or_else(|| self.build(None))
     }
 }
 
@@ -479,7 +532,7 @@ impl HotReloadService {
             manifest_dir: manifest_dir.clone(),
             cancel_build: cancel.clone(),
         };
-        (args.build(None).unwrap(), cancel)
+        (args.default_build().unwrap(), cancel)
     }
 }
 
