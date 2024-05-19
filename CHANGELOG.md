@@ -1,5 +1,8 @@
 # Unpublished
 
+
+# 0.5.2
+
 * **Breaking** Remove deprecated `NilAnimationObserver`.
 * Fix release build of `zng-wgt-scroll` running out of memory. (#203)
 * Implement hot reloading UI nodes.

@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-single-instance"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,10 +12,10 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.4.1" }
+zng-app = { path = "../zng-app", version = "0.4.2" }
 zng-txt = { path = "../zng-txt", version = "0.2.6" }
-zng-task = { path = "../zng-task", version = "0.2.9" }
-zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.11" }
+zng-task = { path = "../zng-task", version = "0.2.10" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.12" }
 
 parking_lot = "0.12"
 single-instance = "0.3"
