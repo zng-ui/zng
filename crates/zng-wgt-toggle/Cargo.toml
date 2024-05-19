@@ -25,10 +25,10 @@ zng-wgt-text = { path = "../zng-wgt-text", version = "0.3.2" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.12" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.2" }
 zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.12" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.4.2" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.0" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.3.8" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.3.8" }
-zng-var = { path = "../zng-var", version = "0.3.2" }
+zng-var = { path = "../zng-var", version = "0.4.0" }
 
 parking_lot = "0.12"
 tracing = "0.1"

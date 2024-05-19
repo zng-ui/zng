@@ -13,7 +13,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.3.2" }
-zng-var = { path = "../zng-var", version = "0.3.2" }
+zng-var = { path = "../zng-var", version = "0.4.0" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.2.12" }
 
 parking_lot = "0.12"

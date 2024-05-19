@@ -30,8 +30,8 @@ rounded = []
 sharp = []
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.4.2" }
-zng-var = { path = "../zng-var", version = "0.3.2" }
+zng-app = { path = "../zng-app", version = "0.5.0" }
+zng-var = { path = "../zng-var", version = "0.4.0" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.3.8" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.3.2" }
 

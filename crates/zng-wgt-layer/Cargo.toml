@@ -19,9 +19,9 @@ zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.12" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.12" }
 zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.12" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.2" }
-zng-app = { path = "../zng-app", version = "0.4.2" }
-zng-var = { path = "../zng-var", version = "0.3.2" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.4.2" }
+zng-app = { path = "../zng-app", version = "0.5.0" }
+zng-var = { path = "../zng-var", version = "0.4.0" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.0" }
 
 parking_lot = "0.12"
 serde = { version = "1.0", features = ["derive"] }
