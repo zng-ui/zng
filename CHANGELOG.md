@@ -1,5 +1,7 @@
 # Unpublished
 
+* Add more hot reload `BuildArgs` helpers.
+* Change default hot reload rebuilder to first try env var `"ZNG_HOT_RELOAD_REBUILDER"`.
 
 # 0.6.0
 
