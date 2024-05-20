@@ -144,7 +144,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
     };
 
     if validate_manual_delegate {
-        let validate = vec![
+        let validate = [
             ident!("init"),
             ident!("deinit"),
             ident!("info"),

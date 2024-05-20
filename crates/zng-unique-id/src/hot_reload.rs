@@ -61,7 +61,9 @@ macro_rules! hot_static_patchable {
         }
         $crate::paste! {
             static [<$IDENT _COLD>] : $Ty = $init;
+            #[allow(non_camel_case_types)]
             static mut $IDENT: &$Ty = &[<$IDENT _COLD>];
+            #[allow(non_snake_case)]
             unsafe fn [<$IDENT _INIT>](static_ptr: *const ()) -> *const () {
                 $crate::hot_reload::init_static(&mut $IDENT, static_ptr)
             }
