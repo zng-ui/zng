@@ -29,3 +29,4 @@ zng-txt = { path = "../zng-txt", version = "0.2.6" }
 libloading = "0.8"
 linkme = "0.3"
 tracing = "0.1"
+tracing-shared = "0.1.1"
