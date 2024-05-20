@@ -1,7 +1,11 @@
 # Unpublished
 
+
+# 0.6.1
+
 * Add more hot reload `BuildArgs` helpers.
 * Change default hot reload rebuilder to first try env var `"ZNG_HOT_RELOAD_REBUILDER"`.
+    - This feature is used in the `zng-template`, releasing soon.
 * Fix `tracing` in hot reloaded dylib.
 
 # 0.6.0
