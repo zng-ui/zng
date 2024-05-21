@@ -25,6 +25,7 @@ use node::*;
 
 use zng_app::{
     event::{event, event_args},
+    handler::async_clmv,
     update::UPDATES,
     AppExtension, DInstant, INSTANT,
 };
@@ -107,31 +108,20 @@ pub mod zng_hot_entry {
     }
 }
 
-type StaticPatchCaptures = HashMap<&'static dyn zng_unique_id::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()>;
+type StaticPatchersMap = HashMap<&'static dyn zng_unique_id::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()>;
 
 #[doc(hidden)]
+#[derive(Clone)]
 pub struct StaticPatch {
-    entries: StaticPatchCaptures,
+    entries: Arc<StaticPatchersMap>,
     tracing: tracing_shared::SharedLogger,
 }
 impl StaticPatch {
     /// Called on the static code (host).
-    pub fn capture(cached_statics: &mut StaticPatchCaptures) -> Self {
-        Self::capture_statics(cached_statics);
-        Self {
-            entries: cached_statics.clone(),
-            tracing: tracing_shared::build_shared_logger(),
-        }
-    }
-    fn capture_statics(cache: &mut StaticPatchCaptures) {
-        if !cache.is_empty() {
-            return;
-        }
-
-        cache.reserve(HOT_STATICS.len());
-
+    pub fn capture() -> Self {
+        let mut entries = StaticPatchersMap::with_capacity(HOT_STATICS.len());
         for (key, val) in HOT_STATICS.iter() {
-            match cache.entry(*key) {
+            match entries.entry(*key) {
                 std::collections::hash_map::Entry::Vacant(e) => {
                     e.insert(*val);
                 }
@@ -140,11 +130,16 @@ impl StaticPatch {
                 }
             }
         }
+
+        Self {
+            entries: Arc::new(entries),
+            tracing: tracing_shared::SharedLogger::new(),
+        }
     }
 
     /// Called on the dynamic code (dylib).
-    unsafe fn apply(self) {
-        tracing_shared::setup_shared_logger(self.tracing);
+    unsafe fn apply(&self) {
+        self.tracing.install();
 
         for (key, patch) in HOT_STATICS.iter() {
             if let Some(val) = self.entries.get(key) {
@@ -209,7 +204,7 @@ impl HotStatus {
 #[derive(Default)]
 pub struct HotReloadManager {
     libs: HashMap<&'static str, WatchedLib>,
-    statics_cache: StaticPatchCaptures,
+    static_patch: Option<StaticPatch>,
 }
 impl AppExtension for HotReloadManager {
     fn init(&mut self) {
@@ -235,7 +230,7 @@ impl AppExtension for HotReloadManager {
         if let Some(args) = zng_ext_fs_watcher::FS_CHANGES_EVENT.on(update) {
             for (manifest_dir, watched) in self.libs.iter_mut() {
                 if args.changes_for_path(manifest_dir.as_ref()).next().is_some() {
-                    watched.rebuild((*manifest_dir).into(), StaticPatch::capture(&mut self.statics_cache));
+                    watched.rebuild((*manifest_dir).into(), self.static_patch.get_or_insert_with(StaticPatch::capture));
                 }
             }
         }
@@ -298,7 +293,7 @@ impl AppExtension for HotReloadManager {
         drop(sv);
         for r in requests {
             if let Some(watched) = self.libs.get_mut(r.as_str()) {
-                watched.rebuild(r, StaticPatch::capture(&mut self.statics_cache));
+                watched.rebuild(r, self.static_patch.get_or_insert_with(StaticPatch::capture));
             } else {
                 tracing::error!("cannot rebuild `{r}`, unknown");
             }
@@ -490,9 +485,9 @@ struct HotReloadService {
     cancel_requests: Vec<Txt>,
 }
 impl HotReloadService {
-    fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: StaticPatch) -> (RebuildLoadVar, SignalOnce) {
+    fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: &StaticPatch) -> (RebuildLoadVar, SignalOnce) {
         let (rebuild, cancel) = self.rebuild(manifest_dir.clone());
-        let rebuild_load = zng_task::respond(async move {
+        let rebuild_load = zng_task::respond(async_clmv!(static_patch, {
             let mut path = rebuild.wait_into_rsp().await?;
 
             // copy dylib to not block the next rebuild
@@ -513,9 +508,9 @@ impl HotReloadService {
                 }
             }
 
-            let dylib = HotLib::new(static_patch, manifest_dir, path)?;
+            let dylib = HotLib::new(&static_patch, manifest_dir, path)?;
             Ok(dylib)
-        });
+        }));
         (rebuild_load, cancel)
     }
 
@@ -572,7 +567,7 @@ struct WatchedLib {
     rebuild_again: bool,
 }
 impl WatchedLib {
-    fn rebuild(&mut self, manifest_dir: Txt, static_path: StaticPatch) {
+    fn rebuild(&mut self, manifest_dir: Txt, static_path: &StaticPatch) {
         if let Some(b) = &self.building {
             if b.start_time.elapsed() > WATCHER.debounce().get() + 34.ms() {
                 // WATCHER debounce notifies immediately, then debounces. Some
@@ -630,7 +625,7 @@ impl fmt::Debug for HotLib {
     }
 }
 impl HotLib {
-    pub fn new(patch: StaticPatch, manifest_dir: Txt, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
+    pub fn new(patch: &StaticPatch, manifest_dir: Txt, lib: impl AsRef<std::ffi::OsStr>) -> Result<Self, libloading::Error> {
         unsafe {
             // SAFETY: assuming the the hot lib was setup as the documented, this works,
             // even the `linkme` stuff does not require any special care.
@@ -640,7 +635,7 @@ impl HotLib {
             let lib = libloading::Library::new(lib)?;
 
             // SAFETY: thats the signature.
-            let init: unsafe fn(StaticPatch) = *lib.get(b"zng_hot_entry_init")?;
+            let init: unsafe extern "C" fn(&StaticPatch) = *lib.get(b"zng_hot_entry_init")?;
             init(patch);
 
             Ok(Self {

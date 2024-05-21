@@ -1,5 +1,6 @@
 # Unpublished
 
+* Add `log` support in hot reloaded dylib.
 
 # 0.6.1
 
