@@ -119,8 +119,7 @@ pub struct StaticPatch {
 impl StaticPatch {
     /// Called on the static code (host).
     pub fn capture() -> Self {
-        let mut entries = StaticPatchersMap::new();
-        entries.reserve(HOT_STATICS.len());
+        let mut entries = StaticPatchersMap::with_capacity(HOT_STATICS.len());
         for (key, val) in HOT_STATICS.iter() {
             match entries.entry(*key) {
                 std::collections::hash_map::Entry::Vacant(e) => {
