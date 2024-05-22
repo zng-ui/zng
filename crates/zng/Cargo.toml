@@ -169,7 +169,7 @@ zng-layout = { path = "../zng-layout", version = "0.2.10" }
 zng-var = { path = "../zng-var", version = "0.4.0" }
 zng-task = { path = "../zng-task", version = "0.2.10" }
 zng-color = { path = "../zng-color", version = "0.2.13" }
-zng-env = { path = "../zng-env", version = "0.1" }
+zng-env = { path = "../zng-env", version = "0.1.0" }
 
 # view
 zng-view-api = { path = "../zng-view-api", version = "0.4.3", default-features = false }
