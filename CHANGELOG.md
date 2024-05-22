@@ -1,6 +1,9 @@
 # Unpublished
 
 * Add `log` support in hot reloaded dylib.
+* Add `cargo-zng`, a Cargo extension for managing Zng projects.
+    - This replaces `zng-l10n-scraper` that is now deprecated and deleted.
+    - See `cargo zng l10n --help` for its new place.
 
 # 0.6.1
 
