@@ -94,6 +94,8 @@
 //!
 //! See the [`l10n!`] documentation for a full explanation of how the Scraper converts comments and the
 //! `l10n!` calls into Fluent files.
+//! 
+//! [`l10n!`]: crate::l10n::l10n
 //!
 //! # Localize Commands
 //!
