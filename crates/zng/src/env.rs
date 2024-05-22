@@ -12,7 +12,7 @@
 //!    let my_config = zng::env::config("my-config.txt");
 //!
 //!    // read a config file, or create it
-//!    if let Ok(c) = zng::fs::read_to_string(&my_config) {
+//!    if let Ok(c) = std::fs::read_to_string(&my_config) {
 //!       println!("{c}");
 //!    } else {
 //!       std::fs::write(zng::env::config("my-config.txt"), b"Hello!").unwrap();
