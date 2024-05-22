@@ -489,6 +489,7 @@ pub mod config;
 pub mod container;
 pub mod data_context;
 pub mod data_view;
+pub mod env;
 pub mod event;
 pub mod focus;
 pub mod font;

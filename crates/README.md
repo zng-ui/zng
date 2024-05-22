@@ -20,6 +20,7 @@ Foundation crates define primitive types and utilities, they are used by all oth
 - `zng-unit`
 - `zng-state-map`
 - `zng-app-context`
+- `zng-env`
 - `zng-layout`
 - `zng-var`
     - `zng-var-proc-macros`

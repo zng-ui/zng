@@ -1,6 +1,7 @@
 # Unpublished
 
 * Add `log` support in hot reloaded dylib.
+* Add `zng-env` and `zng::env` as an API to get external directories and files associated with the installed process.
 
 # 0.6.1
 
