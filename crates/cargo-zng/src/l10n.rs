@@ -17,7 +17,7 @@ pub struct L10nArgs {
     /// Rust files glob
     input: String,
 
-    /// Lang dir
+    /// Lang resources dir
     output: PathBuf,
 
     /// Custom l10n macro names, comma separated

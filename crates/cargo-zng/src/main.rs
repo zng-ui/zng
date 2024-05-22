@@ -13,21 +13,22 @@ pub mod l10n;
 
 use clap::*;
 
-/// Cli
+/// ClI
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Cli {
+    /// Command.
     #[command(subcommand)]
     pub command: Commands,
 }
 
-/// Commands.
+/// CLI Commands.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Localization text scraper
     ///
-    /// See the docs for `zng::l10n`
+    /// See the docs for `l10n!` for more details about the expected format.
     L10n(l10n::L10nArgs),
 }
 
