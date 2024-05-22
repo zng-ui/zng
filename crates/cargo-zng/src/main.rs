@@ -9,7 +9,9 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-pub mod l10n;
+mod l10n;
+mod new;
+mod util;
 
 use clap::*;
 
@@ -17,15 +19,17 @@ use clap::*;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
-pub struct Cli {
+struct Cli {
     /// Command.
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Command,
 }
 
 /// CLI Commands.
 #[derive(Subcommand, Debug)]
-pub enum Commands {
+enum Command {
+    /// Initialize a new repository from a Zng template repository.
+    New(new::NewArgs),
     /// Localization text scraper
     ///
     /// See the docs for `l10n!` for more details about the expected format.
@@ -36,6 +40,9 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::L10n(args) => l10n::run(args),
+        Command::New(args) => new::run(args),
+        Command::L10n(args) => l10n::run(args),
     }
+
+    crate::util::exit();
 }

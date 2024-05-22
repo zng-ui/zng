@@ -11,7 +11,6 @@ use clap::*;
 mod pseudo;
 mod scraper;
 
-/// Localization text scraper
 #[derive(Args, Debug)]
 pub struct L10nArgs {
     /// Rust files glob
@@ -35,7 +34,6 @@ pub struct L10nArgs {
     pseudo_w: String,
 }
 
-/// Run the l10n subcommand.
 pub fn run(args: L10nArgs) {
     println!(r#"searching {:?}.."#, args.input);
 

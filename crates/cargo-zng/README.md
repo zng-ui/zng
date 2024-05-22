@@ -35,6 +35,7 @@ Options:
 
 ```console
 # cargo zng l10n --help
+
 Localization text scraper
 
 See the docs for `l10n!` for more details about the expected format.
@@ -79,3 +80,63 @@ Options:
 Also see [`zng::l10n::l10n!`] docs for more details about the expected format.
 
 [`zng::l10n::l10n!`]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
+
+## `new`
+
+```console
+# cargo zng new --help
+
+Initialize a new repository from a Zng template repository
+
+Usage: cargo-zng.exe new [OPTIONS] <NAME>
+
+Arguments:
+  <NAME>
+          Project Name
+
+          Can be a simple "name" or a "qualifier/org/project-name".
+
+          EXAMPLES
+
+          "br.com/My Org/My App" generates a `./my-app` project and sets metadata
+
+          "my_app" generates a `./my_app` project
+
+          "My App" generates a `./my-app` project
+
+Options:
+  -t, --template <TEMPLATE>
+          Zng template
+
+          Can be `.git` URL or an `owner/repo` for a GitHub repository.
+
+          [default: zng-ui/zng-template]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+```
+
+Zng templates are very simple, it does not use any template engine, just Rust's string replace in UTF-8 text files only.
+The replacement keys are designed to be compilable, so template designers can build/check their template like a normal Rust project.
+
+These are current supported keys, for an example name `"rs.qualifier/My Org/My App"`:
+
+##### In file/folder names and text
+
+* `t-app-t` — my-app
+* `t_app_t` — my_app
+* `T_APP_T` — MY_APP
+* `T-APP-T` — MY-APP
+
+##### Only in text
+
+* `t.App.t` — My App
+* `t-App-t` — My-App
+* `t.Org.t` — My Org
+* `t-Org-t` — My-Org
+* `t.qualifier.t` — rs.qualifier
+
+See [https://github.com/zng-ui/zng-template] for an example of templates.
