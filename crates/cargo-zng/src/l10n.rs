@@ -2,7 +2,7 @@
 //!
 //! See the [`l10n!`] documentation for more details.
 //!
-//! [l10n!]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
+//! [`l10n!`]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
 
 use std::{borrow::Cow, io::Write, path::PathBuf};
 
