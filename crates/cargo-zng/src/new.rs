@@ -27,6 +27,8 @@ pub struct NewArgs {
     /// Zng template
     ///
     /// Can be `.git` URL or an `owner/repo` for a GitHub repository.
+    ///
+    /// Can also be an absolute path or `./path` to a local template directory.
     #[arg(short, long, default_value = "zng-ui/zng-template")]
     template: String,
 }
@@ -46,7 +48,9 @@ pub fn run(args: NewArgs) {
 
     println!("cloning template to temp dir");
     let template_temp = format!("{package_name}.zng_template.tmp");
-    util::cmd("git clone", &[template.as_str(), template_temp.as_str()], &[]);
+    if let Err(e) = template.git_clone(&template_temp) {
+        fatal!("failed to clone template, {e}");
+    }
 
     let cx = Fmt::new(&name);
     if let Err(e) = apply_template(&cx, &template_temp, &package_name) {
@@ -73,6 +77,108 @@ impl Name {
         self.package_name().replace('-', "_")
     }
 }
+
+fn parse_name(arg: String) -> Name {
+    let arg: Box<[_]> = arg.splitn(3, '/').map(|s| s.trim()).collect();
+    let qualifier;
+    let org;
+    let app;
+    if arg.len() == 3 {
+        qualifier = arg[0];
+        org = arg[1];
+        app = arg[2];
+    } else {
+        qualifier = "";
+        org = "";
+        app = arg[0];
+    }
+
+    if arg.len() == 2 || app.contains('/') {
+        fatal!(r#"NAME must be a "name" or a "qualifier/organization/application""#);
+    }
+
+    Name {
+        qualifier: qualifier.to_owned(),
+        org: org.to_owned(),
+        app: app.to_owned(),
+    }
+}
+
+fn parse_template(arg: String) -> Template {
+    if arg.ends_with(".git") {
+        return Template::Git(arg);
+    }
+
+    if arg.starts_with("./") {
+        return Template::Local(PathBuf::from(arg));
+    }
+
+    if let Some((owner, repo)) = arg.split_once('/') {
+        if !owner.is_empty() && !repo.is_empty() && !repo.contains('/') {
+            return Template::Git(format!("https://github.com/{owner}/{repo}.git"));
+        }
+    }
+
+    fatal!("--template must be a `.git` URL, `owner/repo`, `./local` or `/absolute/local`");
+}
+
+enum Template {
+    Git(String),
+    Local(PathBuf),
+}
+impl Template {
+    fn git_clone(self, to: &str) -> io::Result<()> {
+        let from = match self {
+            Template::Git(url) => url,
+            Template::Local(path) => format!("{}", path.canonicalize()?.display()),
+        };
+        util::cmd("git clone", &[from.as_str(), to], &[]);
+        Ok(())
+    }
+}
+
+fn cleanup_cargo_new(path: &str) -> io::Result<()> {
+    for entry in fs::read_dir(path)? {
+        let path = entry?.path();
+        if path.components().any(|c| c.as_os_str() == ".git") {
+            continue;
+        }
+        if path.is_dir() {
+            fs::remove_dir_all(path)?;
+        } else if path.is_file() {
+            fs::remove_file(path)?;
+        }
+    }
+    Ok(())
+}
+
+fn apply_template(cx: &Fmt, template_temp: &str, package_name: &str) -> io::Result<()> {
+    let template_temp = PathBuf::from(template_temp);
+    // remove template .git
+    fs::remove_dir_all(template_temp.join(".git"))?;
+    // rename/rewrite template and move it to new package dir
+    apply(cx, &template_temp, &PathBuf::from(package_name))?;
+    // remove (empty) template temp
+    fs::remove_dir_all(&template_temp)
+}
+
+fn apply(cx: &Fmt, from: &Path, to: &Path) -> io::Result<()> {
+    for entry in fs::read_dir(from)? {
+        let from = entry?.path();
+        if from.is_dir() {
+            let from = cx.rename(&from)?;
+            let to = to.join(from.file_name().unwrap());
+            apply(cx, &from, &to)?;
+        } else if from.is_file() {
+            let from = cx.rename(&from)?;
+            cx.rewrite(&from)?;
+            let to = to.join(from.file_name().unwrap());
+            fs::rename(from, to)?;
+        }
+    }
+    Ok(())
+}
+
 struct Fmt {
     rename: Vec<(&'static str, String)>,
     rewrite: Vec<(&'static str, String)>,
@@ -130,88 +236,4 @@ impl Fmt {
             }
         }
     }
-}
-
-fn parse_name(arg: String) -> Name {
-    let arg: Box<[_]> = arg.splitn(3, '/').map(|s| s.trim()).collect();
-    let qualifier;
-    let org;
-    let app;
-    if arg.len() == 3 {
-        qualifier = arg[0];
-        org = arg[1];
-        app = arg[2];
-    } else {
-        qualifier = "";
-        org = "";
-        app = arg[0];
-    }
-
-    if arg.len() == 2 || app.contains('/') {
-        fatal!(r#"NAME must be a "name" or a "qualifier/organization/application""#);
-    }
-
-    Name {
-        qualifier: qualifier.to_owned(),
-        org: org.to_owned(),
-        app: app.to_owned(),
-    }
-}
-
-fn parse_template(arg: String) -> String {
-    let mut template = arg;
-    if !template.ends_with(".git") {
-        let invalid;
-        if let Some((owner, repo)) = template.split_once('/') {
-            invalid = repo.contains('/');
-            template = format!("https://github.com/{owner}/{repo}.git");
-        } else {
-            invalid = true;
-        }
-        if invalid {
-            fatal!("--template must be a `.git` URL or `owner/repo`");
-        }
-    }
-    template
-}
-
-fn cleanup_cargo_new(path: &str) -> io::Result<()> {
-    for entry in fs::read_dir(path)? {
-        let path = entry?.path();
-        if path.components().any(|c| c.as_os_str() == ".git") {
-            continue;
-        }
-        if path.is_dir() {
-            fs::remove_dir_all(path)?;
-        } else if path.is_file() {
-            fs::remove_file(path)?;
-        }
-    }
-    Ok(())
-}
-
-fn apply_template(cx: &Fmt, template_temp: &str, package_name: &str) -> io::Result<()> {
-    let template_temp = PathBuf::from(template_temp);
-    // remove template .git
-    fs::remove_dir_all(template_temp.join(".git"))?;
-    // rename/rewrite template and move it to new package dir
-    apply(cx, &template_temp, &PathBuf::from(package_name))?;
-    // remove (empty) template temp
-    fs::remove_dir_all(&template_temp)
-}
-
-fn apply(cx: &Fmt, from: &Path, to: &Path) -> io::Result<()> {
-    for entry in fs::read_dir(from)? {
-        let from = entry?.path();
-        if from.is_dir() {
-            let from = cx.rename(&from)?;
-            let to = to.join(from.file_name().unwrap());
-            apply(cx, &from, &to)?;
-        } else if from.is_file() {
-            let from = cx.rename(&from)?;
-            let to = to.join(from.file_name().unwrap());
-            cx.rewrite(&to)?;
-        }
-    }
-    Ok(())
 }
