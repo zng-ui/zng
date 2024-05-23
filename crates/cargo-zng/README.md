@@ -88,21 +88,19 @@ Also see [`zng::l10n::l10n!`] docs for more details about the expected format.
 
 Initialize a new repository from a Zng template repository
 
-Usage: cargo-zng.exe new [OPTIONS] <NAME>
+Usage: cargo zng new [OPTIONS] [VALUE]...
 
 Arguments:
-  <NAME>
-          Project Name
+  [VALUE]...
+          Set template values by position
 
-          Can be a simple "name" or a "qualifier/org/project-name".
+          The first value for all templates is the app name.
 
-          EXAMPLES
+          EXAMPLE
 
-          "br.com/My Org/My App" generates a `./my-app` project and sets metadata
+          cargo zng new "My App!" | creates a "my-app" project.
 
-          "my_app" generates a `./my_app` project
-
-          "My App" generates a `./my-app` project
+          cargo zng new "my_app"  | creates a "my_app" project.
 
 Options:
   -t, --template <TEMPLATE>
@@ -110,7 +108,17 @@ Options:
 
           Can be `.git` URL or an `owner/repo` for a GitHub repository.
 
+          Can also be an absolute path or `./path` to a local template directory.
+
           [default: zng-ui/zng-template]
+
+  -s, --set [<SET>...]
+          Set a template value
+
+          Templates have a `.zng-template` file that defines the possible options.
+
+  -k, --keys
+          Show all possible values that can be set on the template
 
   -h, --help
           Print help (see a summary with '-h')
@@ -119,25 +127,59 @@ Options:
           Print version
 ```
 
-Zng templates are very simple, it does not use any template engine, just Rust's string replace in UTF-8 text files only.
-The replacement keys are designed to be compilable, so template designers can build/check their template like a normal Rust project.
+Zng project generator is very simple, it does not use any template engine, just Rust's string replace in UTF-8 text files only.
+The replacement keys are compilable, so template designers can build/check their template like a normal Rust project.
 
-These are current supported keys, for an example name `"rs.qualifier/My Org/My App"`:
+Template keys encode the format they provide, these are the current supported key cases:
 
-##### In file/folder names and text
+* t-key-t — kebab-case
+* T-KEY-T — UPPER-KEBAB-CASE
+* t_key_t — snake_case
+* T_KEY_T — UPPER_SNAKE_CASE
+* T-Key-T — Train-Case
+* t.key.t — lower case
+* T.KEY.T — UPPER CASE
+* T.Key.T — Title Case
+* ttKeyTt — camelCase
+* TtKeyTt — PascalCase
+* {{key}} — Unchanged.
 
-* `t-app-t` — my-app
-* `t_app_t` — my_app
-* `T_APP_T` — MY_APP
-* `T-APP-T` — MY-APP
+The values for each format (except {{key}}) are cleaned of chars that do not match this pattern
+`[ascii_alphabetic][ascii_alphanumeric|'-'|'_'|' '|]*`. The case and separator conversions are applied to this
+cleaned value.
 
-##### Only in text
+The actual keys are declared by the template in a `.zng-template` file in the root of the template repository, they
+are ascii alphabetic with >=3 lowercase chars.
 
-* `t.App.t` — My App
-* `t-App-t` — My-App
-* `t.Org.t` — My Org
-* `t-Org-t` — My-Org
-* `t.qualifier.t` — rs.qualifier
+Call `cargo zng new --keys` to show help for the template keys.
+
+The default template has 3 keys:
+
+* `app` — The app name, the Cargo package and crate names are derived from it. Every template first key must be this one.
+* `org` — Used in `zng::env::init` as the 'organization' value.
+* `qualifier` — Used in `zng::env::init` as the 'qualifier' value.
+
+For an example input `cargo zng new "My App!" "My Org"` the template code:
+
+```rust
+// file: src/t_app_t_init.rs
+
+pub fn init_t_app_t() {
+    println!("init t-app-t");
+    zng::env::init("{{qualifier}}", "{{org}}", "{{app}}");
+}
+```
+
+Generates:
+
+```rust
+// file: src/my_app_init.rs
+
+pub fn init_my_app() {
+    println!("init my-app");
+    zng::env::init("", "My Org", "My App!");
+}
+```
 
 See [zng-ui/zng-template] for an example of templates.
 
