@@ -9,10 +9,10 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+m#[macro_use]
+mod util;
 mod l10n;
 mod new;
-#[macro_use]
-mod util;
 
 use clap::*;
 
