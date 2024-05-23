@@ -11,6 +11,7 @@
 
 mod l10n;
 mod new;
+#[macro_use]
 mod util;
 
 use clap::*;
