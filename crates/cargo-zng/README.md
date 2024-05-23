@@ -139,4 +139,6 @@ These are current supported keys, for an example name `"rs.qualifier/My Org/My A
 * `t-Org-t` — My-Org
 * `t.qualifier.t` — rs.qualifier
 
-See [https://github.com/zng-ui/zng-template] for an example of templates.
+See [zng-ui/zng-template] for an example of templates.
+
+[zng-ui/zng-template]: https://github.com/zng-ui/zng-template

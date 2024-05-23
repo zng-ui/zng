@@ -6,6 +6,7 @@ use std::{
 };
 
 use clap::*;
+use color_print::cstr;
 
 use crate::util;
 
@@ -39,28 +40,30 @@ pub fn run(args: NewArgs) {
     let package_name = name.package_name();
     // let crate_name = name.crate_name();
 
-    println!("using cargo new to validate and init repo");
-    util::cmd("cargo new --bin", &[package_name.as_str()], &[]);
-    // remove cargo new template, leave behind git stuff
+    println!(cstr!("<bold>validate name and init repo<bold>"));
+    if let Err(e) = util::cmd("cargo new --quiet --bin", &[package_name.as_str()], &[]) {
+        let _ = cleanup_cargo_new(&package_name);
+        fatal!("{e}");
+    }
+
     if let Err(e) = cleanup_cargo_new(&package_name) {
         fatal!("failed to cleanup `cargo new` template, {e}");
     }
 
-    println!("cloning template to temp dir");
+    println!(cstr!("<bold>clone template to temp dir<bold>"));
     let template_temp = format!("{package_name}.zng_template.tmp");
     if let Err(e) = template.git_clone(&template_temp) {
         fatal!("failed to clone template, {e}");
     }
 
+    println!(cstr!("<bold>generate template<bold>"));
     let cx = Fmt::new(&name);
     if let Err(e) = apply_template(&cx, &template_temp, &package_name) {
-        error!("failed to copy template, {e}");
+        error!("{e}");
         let _ = fs::remove_dir_all(&template_temp);
         let _ = fs::remove_dir_all(&package_name);
         util::exit();
     }
-
-    todo!()
 }
 
 struct Name {
@@ -150,8 +153,7 @@ impl Template {
                 }
             }
         };
-        util::cmd("git clone", &[from.as_str(), to], &[]);
-        Ok(())
+        util::cmd("git clone --depth 1", &[from.as_str(), to], &[])
     }
 }
 
@@ -186,12 +188,15 @@ fn apply(cx: &Fmt, from: &Path, to: &Path) -> io::Result<()> {
         if from.is_dir() {
             let from = cx.rename(&from)?;
             let to = to.join(from.file_name().unwrap());
+            println!("{}", to.display());
+            fs::create_dir(&to)?;
             apply(cx, &from, &to)?;
         } else if from.is_file() {
             let from = cx.rename(&from)?;
-            cx.rewrite(&from)?;
             let to = to.join(from.file_name().unwrap());
-            fs::rename(from, to)?;
+            cx.rewrite(&from)?;
+            println!("{}", to.display());
+            fs::rename(from, to).unwrap();
         }
     }
     Ok(())

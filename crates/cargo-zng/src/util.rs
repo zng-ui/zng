@@ -1,4 +1,4 @@
-use std::{process::Command, sync::atomic::AtomicBool};
+use std::{io, process::Command, sync::atomic::AtomicBool};
 
 /// Print error message and flags the current process as failed.
 ///
@@ -6,7 +6,7 @@ use std::{process::Command, sync::atomic::AtomicBool};
 macro_rules! error {
     ($($format_args:tt)*) => {
         $crate::util::set_failed_run(true);
-        eprintln!("{}{}", $crate::util::ERROR_PREFIX, format_args!($($format_args)*));
+        eprintln!("{} {}", $crate::util::ERROR_PREFIX, format_args!($($format_args)*));
     };
 }
 
@@ -16,7 +16,7 @@ pub static ERROR_PREFIX: &str = color_print::cstr!("<bold><red>error</red>:</bol
 macro_rules! fatal {
     ($($format_args:tt)*) => {
         {
-            $crate::error!($($format_args)*);
+            error!($($format_args)*);
             $crate::util::exit();
         }
     };
@@ -44,7 +44,7 @@ pub fn exit() -> ! {
 }
 
 /// Run the command with args.
-pub fn cmd(line: &str, args: &[&str], env: &[(&str, &str)]) {
+pub fn cmd(line: &str, args: &[&str], env: &[(&str, &str)]) -> io::Result<()> {
     let mut line_parts = line.split(' ');
     let program = line_parts.next().expect("expected program to run");
     let mut cmd = Command::new(program);
@@ -64,15 +64,16 @@ pub fn cmd(line: &str, args: &[&str], env: &[(&str, &str)]) {
     for (key, val) in env.iter() {
         cmd.env(key, val);
     }
-    match cmd.status() {
-        Ok(s) => {
-            if !s.success() {
-                fatal!(
-                    "command exited with error\n   cmd:  `{line}`\n   error: {:#x}",
-                    s.code().unwrap_or(0)
-                );
-            }
+
+    let status = cmd.status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        let mut cmd = format!("cmd failed: {line}");
+        for arg in args {
+            cmd.push(' ');
+            cmd.push_str(arg);
         }
-        Err(e) => fatal!("failed to execute command\n   cmd:  `{line}`\n   error: {e}"),
+        Err(io::Error::new(io::ErrorKind::Other, cmd))
     }
 }
