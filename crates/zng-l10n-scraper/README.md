@@ -7,3 +7,5 @@ cargo uninstall zng-l10n-scraper
 cargo install cargo-zng
 cargo zng l10n --help
 ```
+
+[`cargo-zng`]: https://crates.io/crates/zng

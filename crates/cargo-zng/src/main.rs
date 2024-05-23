@@ -15,7 +15,6 @@ mod util;
 
 use clap::*;
 
-/// ClI
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
@@ -25,7 +24,6 @@ struct Cli {
     pub command: Command,
 }
 
-/// CLI Commands.
 #[derive(Subcommand, Debug)]
 enum Command {
     /// Initialize a new repository from a Zng template repository.
