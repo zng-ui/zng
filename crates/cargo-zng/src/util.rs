@@ -2,8 +2,7 @@ use std::{process::Command, sync::atomic::AtomicBool};
 
 /// Print error message and flags the current process as failed.
 ///
-/// Note that this does not exit the process, use [`fatal!`] to exit.
-#[macro_export]
+/// Note that this does not exit the process, use `fatal!` to exit.
 macro_rules! error {
     ($($format_args:tt)*) => {
         $crate::util::set_failed_run(true);
@@ -14,7 +13,6 @@ macro_rules! error {
 pub static ERROR_PREFIX: &str = color_print::cstr!("<bold><red>error</red>:</bold>");
 
 /// Print error message and exit the current process with error code.
-#[macro_export]
 macro_rules! fatal {
     ($($format_args:tt)*) => {
         {
