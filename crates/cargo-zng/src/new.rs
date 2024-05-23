@@ -119,6 +119,11 @@ fn parse_template(arg: String) -> Template {
         }
     }
 
+    let path = PathBuf::from(arg);
+    if path.is_absolute() {
+        return Template::Local(path);
+    }
+
     fatal!("--template must be a `.git` URL, `owner/repo`, `./local` or `/absolute/local`");
 }
 
@@ -130,7 +135,20 @@ impl Template {
     fn git_clone(self, to: &str) -> io::Result<()> {
         let from = match self {
             Template::Git(url) => url,
-            Template::Local(path) => format!("{}", path.canonicalize()?.display()),
+            Template::Local(path) => {
+                let path = path.canonicalize()?;
+                let path = path.display().to_string();
+                // Windows inserts this "\\?", git does not like it
+                #[cfg(windows)]
+                {
+                    path.trim_start_matches(r#"\\?"#).replace('\\', "/")
+                }
+
+                #[cfg(not(windows))]
+                {
+                    path
+                }
+            }
         };
         util::cmd("git clone", &[from.as_str(), to], &[]);
         Ok(())
