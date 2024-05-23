@@ -118,7 +118,7 @@ or for custom properties that deeply integrate with a widget.
 
 Tools that can be installed by cargo for use in Zng apps.
 
-- `zng-l10n-scraper`
+- `cargo-zng`
 
 ### Webrender
 

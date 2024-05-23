@@ -60,7 +60,7 @@
 //!
 //! # Scraper
 //!
-//! The `zng-l10n-scraper` tool can be used to generate a Fluent file from source code, the Fluent file can be
+//! The `cargo-zng` tool can be used to generate a Fluent file from source code, the Fluent file can be
 //! used as a template for translators, it will include the fallback text and comments written close the key
 //! declaration.
 //!
@@ -94,6 +94,8 @@
 //!
 //! See the [`l10n!`] documentation for a full explanation of how the Scraper converts comments and the
 //! `l10n!` calls into Fluent files.
+//!
+//! [`l10n!`]: crate::l10n::l10n
 //!
 //! # Localize Commands
 //!
