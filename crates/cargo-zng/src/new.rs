@@ -7,7 +7,7 @@ use std::{
 
 use clap::*;
 
-use crate::{error, fatal, util};
+use crate::util;
 
 #[derive(Args, Debug)]
 pub struct NewArgs {
