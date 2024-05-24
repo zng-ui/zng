@@ -1,9 +1,9 @@
 [package]
-name = "do-tasks"
+name = "cargo-do"
 version = "0.0.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"
-description = "Run tasks for managing this project. Implemented in \"./tools/do-tasks\"."
+description = "Run tasks for managing this project. Implemented in \"./tools/cargo-do\"."
 
 [dependencies]
 ansi_term = "0.12"

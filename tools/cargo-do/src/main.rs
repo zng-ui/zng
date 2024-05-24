@@ -798,7 +798,7 @@ fn clean(mut args: Vec<&str>) {
 
     if all || tools {
         for tool_ in top_cargo_toml("test-crates") {
-            if tool_.contains("/do-tasks/") {
+            if tool_.contains("/cargo-do/") {
                 continue;
             }
             cmd("cargo", &["clean", "--manifest-path", &tool_], &args);
