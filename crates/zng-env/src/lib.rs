@@ -15,9 +15,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use parking_lot::RwLock;
 use zng_txt::Txt;
-use zng_unique_id::{hot_static, hot_static_ref, lazy_static};
+use zng_unique_id::{lazy_static, lazy_static_init};
 
 /// Init [`app_unique_name`], the unique name is required by multiple others functions in this module.
 ///
@@ -27,35 +26,21 @@ use zng_unique_id::{hot_static, hot_static_ref, lazy_static};
 ///
 /// [`directories::ProjectDirs::from`]: https://docs.rs/directories/5.0/directories/struct.ProjectDirs.html#method.from
 pub fn init(qualifier: impl Into<Txt>, organization: impl Into<Txt>, application: impl Into<Txt>) {
-    let app = application.into();
-    *hot_static_ref!(APP_UNIQUE_NAME).write() = (
-        qualifier.into(),
-        organization.into(),
-        if app.is_empty() { fallback_name() } else { app },
-    );
+    if lazy_static_init(&APP_UNIQUE_NAME, (qualifier.into(), organization.into(), application.into())).is_err() {
+        panic!("env already inited, env::init must be the first call in the process")
+    }
+}
+lazy_static! {
+    static ref APP_UNIQUE_NAME: (Txt, Txt, Txt) = ("".into(), "".into(), fallback_name());
 }
 
 /// Gets the `qualifier, organization, application` name of the application.
 ///
 /// The app must call [`init`] before this, otherwise the name will fallback to `("io.crates", "zng-app", "{current_exe_name_without_extension}"`.
 pub fn app_unique_name() -> (Txt, Txt, Txt) {
-    let unique_name = hot_static_ref!(APP_UNIQUE_NAME).read().clone();
-    if unique_name.2.is_empty() {
-        let mut unique_name = hot_static_ref!(APP_UNIQUE_NAME).write();
-        if unique_name.2.is_empty() {
-            *unique_name = ("io.crates".into(), "zng-app".into(), fallback_name());
-        }
-    }
-    assert!(!unique_name.2.is_empty(), "call `zng_env::init` to set app unique name");
-    unique_name
+    APP_UNIQUE_NAME.clone()
 }
-hot_static! {
-    static APP_UNIQUE_NAME: RwLock<(Txt, Txt, Txt)> = RwLock::new((
-        Txt::from_static(""),
-        Txt::from_static(""),
-        Txt::from_static(""),
-    ));
-}
+
 fn fallback_name() -> Txt {
     let exe = current_exe();
     let exe_name = exe.file_name().unwrap().to_string_lossy();
@@ -79,6 +64,7 @@ lazy_static! {
 
 /// Gets a path relative to the package resources.
 ///
+/// * The res dir can be set by [`init_res`] before any env dir is used.
 /// * In all platforms if a file `bin/current_exe_name.zng_res_dir` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the res path.
 /// * In `cfg!(debug_assertions)` builds returns `pack/dev/`, see `cargo-zng` for more details.
@@ -90,6 +76,18 @@ lazy_static! {
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
     RES.join(relative_path)
 }
+
+/// Sets a custom [`res`] path.
+///
+/// # Panics
+///
+/// Panics if not called at the beginning of the process.
+pub fn init_res(path: impl Into<PathBuf>) {
+    if lazy_static_init(&RES, path.into()).is_err() {
+        panic!("cannot `init_res`, `res` has already inited")
+    }
+}
+
 lazy_static! {
     static ref RES: PathBuf = find_res();
 }
@@ -122,6 +120,7 @@ fn find_res() -> PathBuf {
 
 /// Gets a path relative to the user config directory for the app.
 ///
+/// * The config dir can be set by [`init_config`] before any env dir is used.
 /// * In all platforms if a file in `res("zng_config_dir")` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the config path.
 /// * In `cfg!(debug_assertions)` builds returns `target/tmp/dev_config/`.
@@ -129,12 +128,27 @@ fn find_res() -> PathBuf {
 /// * If the config dir selected by the previous method contains a `"zng_config_dir"` file it will be
 ///   used to redirect to another config dir, you can use this to implement config migration. Redirection only happens once.
 ///
-/// The config directory is created if it is missing.
+/// The config directory is created if it is missing, checks once on init or first use.
 ///
 /// [`directories::ProjectDirs::config_dir`]: https://docs.rs/directories/5.0/directories/struct.ProjectDirs.html#method.config_dir
 pub fn config(relative_path: impl AsRef<Path>) -> PathBuf {
     CONFIG.join(relative_path)
 }
+
+/// Sets a custom [`config`] path.
+///
+/// # Panics
+///
+/// Panics if not called at the beginning of the process.
+pub fn init_config(path: impl Into<PathBuf>) {
+    match lazy_static_init(&CONFIG, path.into()) {
+        Ok(p) => {
+            create_dir(p.to_owned());
+        }
+        Err(_) => panic!("cannot `init_config`, `config` has already inited"),
+    }
+}
+
 lazy_static! {
     static ref CONFIG: PathBuf = create_dir(redirect_config(find_config()));
 }
@@ -164,6 +178,7 @@ fn redirect_config(cfg: PathBuf) -> PathBuf {
 
 fn create_dir(dir: PathBuf) -> PathBuf {
     if let Err(e) = std::fs::create_dir_all(&dir) {
+        eprintln!("error creating `{}`, {e}", dir.display());
         tracing::error!("error creating `{}`, {e}", dir.display());
     }
     dir
@@ -171,17 +186,33 @@ fn create_dir(dir: PathBuf) -> PathBuf {
 
 /// Gets a path relative to the cache directory for the app.
 ///
+/// * The cache dir can be set by [`init_cache`] before any env dir is used.
 /// * In all platforms if a file `config("zng_cache_dir")` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the cache path.
 /// * In `cfg!(debug_assertions)` builds returns `target/tmp/dev_cache/`.
 /// * In all platforms attempts [`directories::ProjectDirs::cache_dir`] and panic if it fails.
 ///
-/// The cache dir is created if it is missing.
+/// The cache dir is created if it is missing, checks once on init or first use.
 ///
 /// [`directories::ProjectDirs::cache_dir`]: https://docs.rs/directories/5.0/directories/struct.ProjectDirs.html#method.cache_dir
 pub fn cache(relative_path: impl AsRef<Path>) -> PathBuf {
     CACHE.join(relative_path)
 }
+
+/// Sets a custom [`cache`] path.
+///
+/// # Panics
+///
+/// Panics if not called at the beginning of the process.
+pub fn init_cache(path: impl Into<PathBuf>) {
+    match lazy_static_init(&CONFIG, path.into()) {
+        Ok(p) => {
+            create_dir(p.to_owned());
+        }
+        Err(_) => panic!("cannot `init_cache`, `cache` has already inited"),
+    }
+}
+
 lazy_static! {
     static ref CACHE: PathBuf = create_dir(find_cache());
 }
