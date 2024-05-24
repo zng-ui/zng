@@ -64,6 +64,7 @@ lazy_static! {
 
 /// Gets a path relative to the package resources.
 ///
+/// * The res dir can be set by [`init_res`] before any env dir is used.
 /// * In all platforms if a file `bin/current_exe_name.zng_res_dir` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the res path.
 /// * In `cfg!(debug_assertions)` builds returns `pack/dev/`, see `cargo-zng` for more details.
@@ -72,8 +73,6 @@ lazy_static! {
 /// * In Android returns `bin("../res")`, assumes the package is deployed as a `.apk` file.
 /// * In all other Unix systems returns `bin("../etc")`, assumes the package is deployed using a `.deb` like structure.
 /// * In Windows returns `bin("../res")`. Note that there is no Windows standard, make sure to install the project using this structure.
-///
-/// You can also init with a custom path using [`init_res`] called at the beginning of the process.
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
     RES.join(relative_path)
 }
@@ -121,6 +120,7 @@ fn find_res() -> PathBuf {
 
 /// Gets a path relative to the user config directory for the app.
 ///
+/// * The config dir can be set by [`init_config`] before any env dir is used.
 /// * In all platforms if a file in `res("zng_config_dir")` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the config path.
 /// * In `cfg!(debug_assertions)` builds returns `target/tmp/dev_config/`.
@@ -131,8 +131,6 @@ fn find_res() -> PathBuf {
 /// The config directory is created if it is missing, checks once on init or first use.
 ///
 /// [`directories::ProjectDirs::config_dir`]: https://docs.rs/directories/5.0/directories/struct.ProjectDirs.html#method.config_dir
-///
-/// You can also init with a custom path using [`init_res`] called at the beginning of the process.
 pub fn config(relative_path: impl AsRef<Path>) -> PathBuf {
     CONFIG.join(relative_path)
 }
@@ -188,6 +186,7 @@ fn create_dir(dir: PathBuf) -> PathBuf {
 
 /// Gets a path relative to the cache directory for the app.
 ///
+/// * The cache dir can be set by [`init_cache`] before any env dir is used.
 /// * In all platforms if a file `config("zng_cache_dir")` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the cache path.
 /// * In `cfg!(debug_assertions)` builds returns `target/tmp/dev_cache/`.
@@ -196,8 +195,6 @@ fn create_dir(dir: PathBuf) -> PathBuf {
 /// The cache dir is created if it is missing, checks once on init or first use.
 ///
 /// [`directories::ProjectDirs::cache_dir`]: https://docs.rs/directories/5.0/directories/struct.ProjectDirs.html#method.cache_dir
-///
-/// You can also init with a custom path using [`init_res`] called at the beginning of the process.
 pub fn cache(relative_path: impl AsRef<Path>) -> PathBuf {
     CACHE.join(relative_path)
 }
