@@ -5,6 +5,7 @@
     - This replaces `zng-l10n-scraper` that is now deprecated and deleted.
     - See `cargo zng l10n --help` for its replacement.
 * Add `zng-env` and `zng::env` as an API to get external directories and files associated with the installed process.
+* Add `zng::hot_reload::{lazy_static, lazy_static_init}`. Very useful for implementing "zng-env" like functions.
 
 # 0.6.1
 
