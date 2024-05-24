@@ -6,7 +6,7 @@ This directory contains crates used to generate content or manage the project.
 
 **Do** is a built-in task runner for managing this project, run `cargo do help` or `./do help` for details.
 
-The task runner is implemented as a Rust crate in `do-tasks` and an alias in `/.cargo/config.toml`.
+The task runner is implemented as a Rust crate in `cargo-do` and an alias in `/.cargo/config.toml`.
 The alias builds the tool silently in the first run, after, it runs without noticeable delay.
 
 Shell script to run `do` are also provided:
