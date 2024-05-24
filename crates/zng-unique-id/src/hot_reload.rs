@@ -171,7 +171,7 @@ impl<T: 'static> Lazy<T> {
     #[cfg(not(feature = "hot_reload"))]
     pub const fn new(init: fn() -> T) -> Self {
         Self {
-            inner: (OnceCellLazy::new(init), init),
+            inner: (OnceCellLazy::new(), init),
         }
     }
 }
@@ -185,11 +185,13 @@ impl<T: 'static> ops::Deref for Lazy<T> {
 
     #[cfg(not(feature = "hot_reload"))]
     fn deref(&self) -> &Self::Target {
-        self.inner.get_or_init(|| (self.init)())
+        self.inner.0.get_or_init(|| (self.inner.1)())
     }
 }
 
 /// Initializes a [`lazy_static!`] with a custom value if it is not yet inited.
+/// 
+/// [`lazy_static!`]: crate::lazy_static
 pub fn lazy_static_init<T>(lazy_static: &'static Lazy<T>, value: T) -> Result<&'static T, T> {
     let mut value = Some(value);
 
@@ -198,7 +200,7 @@ pub fn lazy_static_init<T>(lazy_static: &'static Lazy<T>, value: T) -> Result<&'
     #[cfg(not(feature = "hot_reload"))]
     let r = {
         let (lazy, _) = &lazy_static.inner;
-        lazy.get_or_init(|| value.take())
+        lazy.get_or_init(|| value.take().unwrap())
     };
 
     match value {
