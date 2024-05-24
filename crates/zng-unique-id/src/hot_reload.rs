@@ -150,20 +150,20 @@ impl fmt::Debug for &'static dyn PatchKey {
 }
 
 #[doc(hidden)]
-pub use once_cell::sync::Lazy as OnceCellLazy;
+pub use once_cell::sync::OnceCell as OnceCellLazy;
 
 #[doc(hidden)]
 pub struct Lazy<T: 'static> {
     #[cfg(feature = "hot_reload")]
-    inner: fn() -> &'static T,
+    inner: fn(&mut Option<T>) -> &'static T,
     #[cfg(not(feature = "hot_reload"))]
-    inner: OnceCellLazy<T, fn() -> T>,
+    inner: (OnceCellLazy<T>, fn() -> T),
 }
 
 impl<T: 'static> Lazy<T> {
     #[doc(hidden)]
     #[cfg(feature = "hot_reload")]
-    pub const fn new(inner: fn() -> &'static T) -> Self {
+    pub const fn new(inner: fn(&mut Option<T>) -> &'static T) -> Self {
         Self { inner }
     }
 
@@ -171,7 +171,7 @@ impl<T: 'static> Lazy<T> {
     #[cfg(not(feature = "hot_reload"))]
     pub const fn new(init: fn() -> T) -> Self {
         Self {
-            inner: OnceCellLazy::new(init),
+            inner: (OnceCellLazy::new(init), init),
         }
     }
 }
@@ -180,13 +180,40 @@ impl<T: 'static> ops::Deref for Lazy<T> {
 
     #[cfg(feature = "hot_reload")]
     fn deref(&self) -> &Self::Target {
-        (self.inner)()
+        (self.inner)(&mut None)
     }
 
     #[cfg(not(feature = "hot_reload"))]
     fn deref(&self) -> &Self::Target {
-        self.inner.deref()
+        self.inner.get_or_init(|| (self.init)())
     }
+}
+
+/// Initializes a [`lazy_static!`] with a custom value if it is not yet inited.
+pub fn lazy_static_init<T>(lazy_static: &'static Lazy<T>, value: T) -> Result<&'static T, T> {
+    let mut value = Some(value);
+
+    #[cfg(feature = "hot_reload")]
+    let r = (lazy_static.inner)(&mut value);
+    #[cfg(not(feature = "hot_reload"))]
+    let r = {
+        let (lazy, _) = &lazy_static.inner;
+        lazy.get_or_init(|| value.take())
+    };
+
+    match value {
+        Some(v) => Err(v),
+        None => Ok(r),
+    }
+}
+
+#[doc(hidden)]
+#[cfg(feature = "hot_reload")]
+pub fn lazy_static_ref<T>(lazy_static: &'static OnceCellLazy<T>, init: fn() -> T, override_init: &mut Option<T>) -> &'static T {
+    lazy_static.get_or_init(|| match override_init.take() {
+        Some(o) => o,
+        None => init(),
+    })
 }
 
 /// Implementation of `lazy_static!` that supports hot reloading.
@@ -217,14 +244,14 @@ macro_rules! lazy_static_patchable {
         $vis:vis static ref $N:ident : $T:ty = $e:expr;
     ) => {
         $crate::paste! {
-            fn [<_ $N:lower _hot>]() -> &'static $T {
+            fn [<_ $N:lower _hot>](__override: &mut Option<$T>) -> &'static $T {
                 fn __init() -> $T {
                     $e
                 }
                 $crate::hot_static! {
-                    static IMPL: $crate::hot_reload::OnceCellLazy<$T> = $crate::hot_reload::OnceCellLazy::new(__init);
+                    static IMPL: $crate::hot_reload::OnceCellLazy<$T> = $crate::hot_reload::OnceCellLazy::new();
                 }
-                $crate::hot_static_ref!(IMPL)
+                $crate::hot_reload::lazy_static_ref($crate::hot_static_ref!(IMPL), __init, __override)
             }
 
             $(#[$attr])*

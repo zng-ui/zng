@@ -162,8 +162,4 @@ pub use zng_ext_hot_reload::zng_hot_entry;
 #[cfg(feature = "hot_reload")]
 pub use zng_ext_hot_reload::{BuildArgs, BuildError, HOT_RELOAD};
 
-#[cfg(feature = "hot_reload")]
-pub use zng_ext_hot_reload::{hot_static, hot_static_ref, lazy_static};
-
-#[cfg(not(feature = "hot_reload"))]
 pub use zng_unique_id::{hot_static, hot_static_ref, lazy_static};
