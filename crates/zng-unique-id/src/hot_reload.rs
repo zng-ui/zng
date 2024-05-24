@@ -190,7 +190,7 @@ impl<T: 'static> ops::Deref for Lazy<T> {
 }
 
 /// Initializes a [`lazy_static!`] with a custom value if it is not yet inited.
-/// 
+///
 /// [`lazy_static!`]: crate::lazy_static
 pub fn lazy_static_init<T>(lazy_static: &'static Lazy<T>, value: T) -> Result<&'static T, T> {
     let mut value = Some(value);
