@@ -1,5 +1,3 @@
-#![cfg(feature = "hot_reload")]
-
 //! Hot reloading instrumentation macros and service.
 //!
 //! Hot reloading rebuilds an instrumented library and automatically re-inits widgets that
@@ -149,6 +147,7 @@
 /// The function output type must be `impl UiNode`, the attribute will change the internal node type.
 ///
 /// [`property`]: crate::widget::property#input-types
+#[cfg(feature = "hot_reload")]
 pub use zng_ext_hot_reload::hot_node;
 
 /// Declare the dynamic library hot reload entry.
@@ -157,6 +156,10 @@ pub use zng_ext_hot_reload::hot_node;
 /// documentation for more details.
 ///
 /// [module]: crate::hot_reload
+#[cfg(feature = "hot_reload")]
 pub use zng_ext_hot_reload::zng_hot_entry;
 
+#[cfg(feature = "hot_reload")]
 pub use zng_ext_hot_reload::{BuildArgs, BuildError, HOT_RELOAD};
+
+pub use zng_ext_hot_reload::{hot_static, hot_static_ref, lazy_static};
