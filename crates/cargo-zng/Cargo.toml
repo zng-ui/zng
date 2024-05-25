@@ -25,5 +25,9 @@ fluent-pseudo = "0.3"
 # new
 convert_case = "0.6"
 
+# res
+sha2 = "0.10"
+parking_lot = "0.12"
+
 [package.metadata.docs.rs]
 all-features = true

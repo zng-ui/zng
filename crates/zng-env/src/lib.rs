@@ -67,13 +67,34 @@ lazy_static! {
 /// * The res dir can be set by [`init_res`] before any env dir is used.
 /// * In all platforms if a file `bin/current_exe_name.zng_res_dir` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the res path.
-/// * In `cfg!(debug_assertions)` builds returns `assets`.
+/// * In `cfg(debug_assertions)` builds returns `assets`.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
 /// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
 /// * In Android returns `bin("../res")`, assumes the package is deployed as a `.apk` file.
 /// * In all other Unix systems returns `bin("../etc")`, assumes the package is deployed using a `.deb` like structure.
 /// * In Windows returns `bin("../res")`. Note that there is no Windows standard, make sure to install the project using this structure.
+///
+/// # Built Resources
+///
+/// In `cfg(any(debug_assertions, feature="built_res"))` builds if the `target/assets/{relative_path}` path exists it
+/// is returned instead. This is useful during development when the app depends on assets that are generated locally and not
+/// included in version control.
+///
+/// Note that the built resources must be packaged with the other assets at the same relative location, so that release builds can find then.
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
+    res_impl(relative_path.as_ref())
+}
+#[cfg(any(debug_assertions, feature = "built_res"))]
+fn res_impl(relative_path: &Path) -> PathBuf {
+    let built = BUILT_RES.join(relative_path);
+    if built.exists() {
+        return built;
+    }
+
+    RES.join(relative_path)
+}
+#[cfg(not(any(debug_assertions, feature = "built_res")))]
+fn res_impl(relative_path: &Path) -> PathBuf {
     RES.join(relative_path)
 }
 
@@ -88,8 +109,23 @@ pub fn init_res(path: impl Into<PathBuf>) {
     }
 }
 
+/// Sets a custom path for the "built resources" override checked by [`res`] in debug builds.
+///
+/// # Panics
+///
+/// Panics if not called at the beginning of the process.
+#[cfg(any(debug_assertions, feature = "built_res"))]
+pub fn init_built_res(path: impl Into<PathBuf>) {
+    if lazy_static_init(&BUILT_RES, path.into()).is_err() {
+        panic!("cannot `init_built_res`, `res` has already inited")
+    }
+}
+
 lazy_static! {
     static ref RES: PathBuf = find_res();
+
+    #[cfg(any(debug_assertions, feature="built_res"))]
+    static ref BUILT_RES: PathBuf = PathBuf::from("target/assets");
 }
 fn find_res() -> PathBuf {
     if let Ok(mut p) = std::env::current_exe() {
@@ -123,7 +159,7 @@ fn find_res() -> PathBuf {
 /// * The config dir can be set by [`init_config`] before any env dir is used.
 /// * In all platforms if a file in `res("zng_config_dir")` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the config path.
-/// * In `cfg!(debug_assertions)` builds returns `target/tmp/dev_config/`.
+/// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_config/`.
 /// * In all platforms attempts [`directories::ProjectDirs::config_dir`] and panic if it fails.
 /// * If the config dir selected by the previous method contains a `"zng_config_dir"` file it will be
 ///   used to redirect to another config dir, you can use this to implement config migration. Redirection only happens once.
@@ -290,7 +326,7 @@ fn create_dir_opt(dir: PathBuf) -> PathBuf {
 /// * The cache dir can be set by [`init_cache`] before any env dir is used.
 /// * In all platforms if a file `config("zng_cache_dir")` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the cache path.
-/// * In `cfg!(debug_assertions)` builds returns `target/tmp/dev_cache/`.
+/// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_cache/`.
 /// * In all platforms attempts [`directories::ProjectDirs::cache_dir`] and panic if it fails.
 ///
 /// The cache dir is created if it is missing, checks once on init or first use.

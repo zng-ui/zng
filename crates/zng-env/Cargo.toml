@@ -11,6 +11,12 @@ repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
+[features]
+# Check if `res` path is available in `built_res` first.
+#
+# This is alredy enabled in debug builds.
+built_res = []
+
 [dependencies]
 directories = "5.0"
 parking_lot = "0.12"

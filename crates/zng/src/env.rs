@@ -24,5 +24,6 @@
 //! uses [`config`] to write and read a file.
 
 pub use zng_env::{
-    app_unique_name, bin, cache, clear_cache, config, init, init_cache, init_config, init_res, migrate_cache, migrate_config, res,
+    app_unique_name, bin, cache, clear_cache, config, init, init_built_res, init_cache, init_config, init_res, migrate_cache,
+    migrate_config, res,
 };

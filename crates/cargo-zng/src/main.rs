@@ -13,6 +13,7 @@
 mod util;
 mod l10n;
 mod new;
+mod res;
 
 use clap::*;
 
@@ -33,14 +34,23 @@ enum Command {
     ///
     /// See the docs for `l10n!` for more details about the expected format.
     L10n(l10n::L10nArgs),
+
+    /// Build resources
+    ///
+    /// Walks [SOURCE] and delegates `.zr-{tool}` files to `cargo-zng-res-{tool}`
+    /// executables and crates.
+    Res(res::ResArgs),
 }
 
 fn main() {
+    res::built_in::run();
+
     let cli = Cli::parse();
 
     match cli.command {
         Command::New(args) => new::run(args),
         Command::L10n(args) => l10n::run(args),
+        Command::Res(args) => res::run(args),
     }
 
     crate::util::exit();

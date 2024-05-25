@@ -5,8 +5,10 @@ use std::{io, process::Command, sync::atomic::AtomicBool};
 /// Note that this does not exit the process, use `fatal!` to exit.
 macro_rules! error {
     ($($format_args:tt)*) => {
-        $crate::util::set_failed_run(true);
-        eprintln!("{} {}", $crate::util::ERROR_PREFIX, format_args!($($format_args)*));
+        {
+            $crate::util::set_failed_run(true);
+            eprintln!("{} {}", $crate::util::ERROR_PREFIX, format_args!($($format_args)*));
+        }
     };
 }
 
