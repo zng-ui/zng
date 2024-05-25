@@ -67,7 +67,7 @@ lazy_static! {
 /// * The res dir can be set by [`init_res`] before any env dir is used.
 /// * In all platforms if a file `bin/current_exe_name.zng_res_dir` is found the file first line not starting with
 ///  `"\s#"` and non empty is used as the res path.
-/// * In `cfg!(debug_assertions)` builds returns `pack/dev/`, see `cargo-zng` for more details.
+/// * In `cfg!(debug_assertions)` builds returns `assets`.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
 /// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
 /// * In Android returns `bin("../res")`, assumes the package is deployed as a `.apk` file.
@@ -99,7 +99,7 @@ fn find_res() -> PathBuf {
         }
     }
     if cfg!(debug_assertions) {
-        PathBuf::from("pack/dev")
+        PathBuf::from("assets")
     } else if cfg!(windows) {
         bin("../res")
     } else if cfg!(target_os = "macos") {
@@ -135,28 +135,113 @@ pub fn config(relative_path: impl AsRef<Path>) -> PathBuf {
     CONFIG.join(relative_path)
 }
 
-/// Sets a custom [`config`] path.
+/// Sets a custom [`original_config`] path.
 ///
 /// # Panics
 ///
 /// Panics if not called at the beginning of the process.
 pub fn init_config(path: impl Into<PathBuf>) {
-    match lazy_static_init(&CONFIG, path.into()) {
-        Ok(p) => {
-            create_dir(p.to_owned());
-        }
-        Err(_) => panic!("cannot `init_config`, `config` has already inited"),
+    if lazy_static_init(&ORIGINAL_CONFIG, path.into()).is_err() {
+        panic!("cannot `init_config`, `original_config` has already inited")
     }
 }
 
+/// Config path before migration.
+///
+/// If this is equal to [`config`] the config has not migrated.
+pub fn original_config() -> PathBuf {
+    ORIGINAL_CONFIG.clone()
+}
 lazy_static! {
-    static ref CONFIG: PathBuf = create_dir(redirect_config(find_config()));
+    static ref ORIGINAL_CONFIG: PathBuf = find_config();
+}
+
+/// Copied all config to `new_path` and saves it as the config path.
+///
+/// If copying and saving path succeeds make a best effort to wipe the previous config dir. If copy and save fails
+/// makes a best effort to undo already made copies.
+///
+/// The `new_path` must not exist or be empty.
+pub fn migrate_config(new_path: impl AsRef<Path>) -> io::Result<()> {
+    migrate_config_impl(new_path.as_ref())
+}
+fn migrate_config_impl(new_path: &Path) -> io::Result<()> {
+    let prev_path = CONFIG.as_path();
+
+    if prev_path == new_path {
+        return Ok(());
+    }
+
+    let original_path = ORIGINAL_CONFIG.as_path();
+    let is_return = new_path == original_path;
+
+    if !is_return && dir_exists_not_empty(new_path) {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "can only migrate to new dir or empty dir",
+        ));
+    }
+    let created = !new_path.exists();
+    if created {
+        fs::create_dir_all(new_path)?;
+    }
+
+    let migrate = |from: &Path, to: &Path| {
+        copy_dir_all(from, to)?;
+        if fs::remove_dir_all(from).is_ok() {
+            fs::create_dir(from)?;
+        }
+
+        let redirect = ORIGINAL_CONFIG.join("zng_config_dir");
+        if is_return {
+            fs::remove_file(redirect)
+        } else {
+            fs::write(redirect, to.display().to_string().as_bytes())
+        }
+    };
+
+    if let Err(e) = migrate(prev_path, new_path) {
+        eprintln!("migration failed, {e}");
+        if fs::remove_dir_all(new_path).is_ok() && !created {
+            let _ = fs::create_dir(new_path);
+        }
+    }
+
+    tracing::info!("changed config dir to `{}`", new_path.display());
+
+    Ok(())
+}
+
+fn copy_dir_all(from: &Path, to: &Path) -> io::Result<()> {
+    for entry in fs::read_dir(from)? {
+        let from = entry?.path();
+        if from.is_dir() {
+            let to = to.join(from.file_name().unwrap());
+            fs::create_dir(&to)?;
+            copy_dir_all(&from, &to)?;
+        } else if from.is_file() {
+            let to = to.join(from.file_name().unwrap());
+            fs::copy(&from, &to)?;
+        } else {
+            continue;
+        }
+    }
+    Ok(())
+}
+
+lazy_static! {
+    static ref CONFIG: PathBuf = redirect_config(original_config());
 }
 fn find_config() -> PathBuf {
     let cfg_dir = res("zng_config_dir");
     if let Ok(dir) = read_line(&cfg_dir) {
         return PathBuf::from(dir);
     }
+
+    if cfg!(debug_assertions) {
+        return PathBuf::from("target/tmp/dev_config/");
+    }
+
     let (org, comp, app) = app_unique_name();
     if let Some(dirs) = directories::ProjectDirs::from(org.as_str(), comp.as_str(), app.as_str()) {
         dirs.config_dir().to_owned()
@@ -170,13 +255,29 @@ fn find_config() -> PathBuf {
 }
 fn redirect_config(cfg: PathBuf) -> PathBuf {
     if let Ok(dir) = read_line(&cfg.join("zng_config_dir")) {
-        PathBuf::from(dir)
+        let dir = PathBuf::from(dir);
+        if dir.exists() {
+            let test_path = dir.join(".zng-config-test");
+            if let Err(e) = fs::create_dir_all(&dir)
+                .and_then(|_| fs::write(&test_path, "# check write access"))
+                .and_then(|_| fs::remove_file(&test_path))
+            {
+                eprintln!("error writing to migrated `{}`, {e}", dir.display());
+                tracing::error!("error writing to migrated `{}`, {e}", dir.display());
+                return cfg;
+            }
+        } else if let Err(e) = fs::create_dir_all(&dir) {
+            eprintln!("error creating migrated `{}`, {e}", dir.display());
+            tracing::error!("error creating migrated `{}`, {e}", dir.display());
+            return cfg;
+        }
+        dir
     } else {
-        cfg
+        create_dir_opt(cfg)
     }
 }
 
-fn create_dir(dir: PathBuf) -> PathBuf {
+fn create_dir_opt(dir: PathBuf) -> PathBuf {
     if let Err(e) = std::fs::create_dir_all(&dir) {
         eprintln!("error creating `{}`, {e}", dir.display());
         tracing::error!("error creating `{}`, {e}", dir.display());
@@ -207,20 +308,179 @@ pub fn cache(relative_path: impl AsRef<Path>) -> PathBuf {
 pub fn init_cache(path: impl Into<PathBuf>) {
     match lazy_static_init(&CONFIG, path.into()) {
         Ok(p) => {
-            create_dir(p.to_owned());
+            create_dir_opt(p.to_owned());
         }
         Err(_) => panic!("cannot `init_cache`, `cache` has already inited"),
     }
 }
 
+/// Removes all cache files possible.
+///
+/// Continues removing after the first fail, returns the last error.
+pub fn clear_cache() -> io::Result<()> {
+    best_effort_clear(CACHE.as_path())
+}
+fn best_effort_clear(path: &Path) -> io::Result<()> {
+    let mut error = None;
+
+    match fs::read_dir(path) {
+        Ok(cache) => {
+            for entry in cache {
+                match entry {
+                    Ok(e) => {
+                        let path = e.path();
+                        if path.is_dir() {
+                            if fs::remove_dir_all(&path).is_err() {
+                                match best_effort_clear(&path) {
+                                    Ok(()) => {
+                                        if let Err(e) = fs::remove_dir(&path) {
+                                            error = Some(e)
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error = Some(e);
+                                    }
+                                }
+                            }
+                        } else if path.is_file() {
+                            if let Err(e) = fs::remove_file(&path) {
+                                error = Some(e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error = Some(e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            error = Some(e);
+        }
+    }
+
+    match error {
+        Some(e) => Err(e),
+        None => Ok(()),
+    }
+}
+
+/// Save `new_path` as the new cache path and make a best effort to move existing cache files.
+///
+/// Note that the move failure is not considered an error (it is only logged), the app is expected to
+/// rebuild missing cache entries.
+///
+/// Note that [`cache`] will still point to the previous path on success, the app must be restarted to use the new cache.
+///
+/// The `new_path` must not exist or be empty.
+pub fn migrate_cache(new_path: impl AsRef<Path>) -> io::Result<()> {
+    migrate_cache_impl(new_path.as_ref())
+}
+fn migrate_cache_impl(new_path: &Path) -> io::Result<()> {
+    if dir_exists_not_empty(new_path) {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "can only migrate to new dir or empty dir",
+        ));
+    }
+    fs::create_dir_all(new_path)?;
+    let write_test = new_path.join(".zng-cache");
+    fs::write(&write_test, "# zng cache dir".as_bytes())?;
+    fs::remove_file(&write_test)?;
+
+    fs::write(config("zng_cache_dir"), new_path.display().to_string().as_bytes())?;
+
+    tracing::info!("changed cache dir to `{}`", new_path.display());
+
+    let prev_path = CACHE.as_path();
+    if prev_path == new_path {
+        return Ok(());
+    }
+    if let Err(e) = best_effort_move(prev_path, new_path) {
+        eprintln!("failed to migrate all cache files, {e}");
+        tracing::error!("failed to migrate all cache files, {e}");
+    }
+
+    Ok(())
+}
+
+fn dir_exists_not_empty(dir: &Path) -> bool {
+    match fs::read_dir(dir) {
+        Ok(dir) => {
+            for entry in dir {
+                match entry {
+                    Ok(_) => return true,
+                    Err(e) => {
+                        if e.kind() != io::ErrorKind::NotFound {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        }
+        Err(e) => e.kind() != io::ErrorKind::NotFound,
+    }
+}
+
+fn best_effort_move(from: &Path, to: &Path) -> io::Result<()> {
+    let mut error = None;
+
+    match fs::read_dir(from) {
+        Ok(cache) => {
+            for entry in cache {
+                match entry {
+                    Ok(e) => {
+                        let from = e.path();
+                        if from.is_dir() {
+                            let to = to.join(from.file_name().unwrap());
+                            if let Err(e) = fs::rename(&from, &to).or_else(|_| {
+                                fs::create_dir(&to)?;
+                                best_effort_move(&from, &to)?;
+                                fs::remove_dir(&from)
+                            }) {
+                                error = Some(e)
+                            }
+                        } else if from.is_file() {
+                            let to = to.join(from.file_name().unwrap());
+                            if let Err(e) = fs::rename(&from, &to).or_else(|_| {
+                                fs::copy(&from, &to)?;
+                                fs::remove_file(&from)
+                            }) {
+                                error = Some(e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error = Some(e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            error = Some(e);
+        }
+    }
+
+    match error {
+        Some(e) => Err(e),
+        None => Ok(()),
+    }
+}
+
 lazy_static! {
-    static ref CACHE: PathBuf = create_dir(find_cache());
+    static ref CACHE: PathBuf = create_dir_opt(find_cache());
 }
 fn find_cache() -> PathBuf {
     let cache_dir = config("zng_cache_dir");
     if let Ok(dir) = read_line(&cache_dir) {
         return PathBuf::from(dir);
     }
+
+    if cfg!(debug_assertions) {
+        return PathBuf::from("target/tmp/dev_cache/");
+    }
+
     let (org, comp, app) = app_unique_name();
     if let Some(dirs) = directories::ProjectDirs::from(org.as_str(), comp.as_str(), app.as_str()) {
         dirs.cache_dir().to_owned()
