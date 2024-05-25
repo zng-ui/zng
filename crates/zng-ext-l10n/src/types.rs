@@ -384,6 +384,17 @@ impl fmt::Display for Langs {
         Ok(())
     }
 }
+impl std::str::FromStr for Langs {
+    type Err = unic_langid::LanguageIdentifierError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut r = Self(vec![]);
+        for lang in s.split(',') {
+            r.0.push(lang.trim().parse()?)
+        }
+        Ok(r)
+    }
+}
 
 /// Represents a map of [`Lang`] keys that can be partially matched.
 #[derive(Debug, Clone)]

@@ -6,6 +6,7 @@
     - See `cargo zng l10n --help` for its replacement.
 * Add `zng-env` and `zng::env` as an API to get external directories and files associated with the installed process.
 * Add `zng::hot_reload::{lazy_static, lazy_static_init}`. Very useful for implementing "zng-env" like functions.
+* Implement `FromStr` for `zng::l10n::Langs`.
 
 # 0.6.1
 
