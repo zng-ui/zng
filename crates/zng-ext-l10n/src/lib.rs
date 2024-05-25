@@ -198,7 +198,7 @@ impl L10N {
         L10N_SV.write().load(source);
     }
 
-    /// Start watching the `dir` for `"dir/{locale}.ftl"` files.
+    /// Start watching the `dir` for `"dir/{lang}.ftl"` and "dir/{lang}/*.ftl" files.
     ///
     /// The [`available_langs`] variable maintains an up-to-date list of locale files found, the files
     /// are only loaded when needed, and also are watched to update automatically.
@@ -234,7 +234,7 @@ impl L10N {
 
     /// Available localization files.
     ///
-    /// The value maps lang to one or more files, the files can be `{dir}/{lang}.flt` or `{dir}/{lang}/file.flt`.
+    /// The value maps lang to one or more files, the files can be `{dir}/{lang}.flt` or `{dir}/{lang}/*.flt`.
     ///
     /// Note that this map will include any file in the source dir that has a name that is a valid [`lang!`],
     /// that includes the `template.flt` file and test pseudo-locales such as `qps-ploc.flt`.
