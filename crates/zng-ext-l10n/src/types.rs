@@ -325,6 +325,10 @@ impl std::str::FromStr for Lang {
     type Err = unic_langid::LanguageIdentifierError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.trim();
+        if s.is_empty() {
+            return Ok(lang!(und));
+        }
         unic_langid::LanguageIdentifier::from_str(s).map(Lang)
     }
 }
@@ -388,6 +392,9 @@ impl std::str::FromStr for Langs {
     type Err = unic_langid::LanguageIdentifierError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.trim().is_empty() {
+            return Ok(Langs(vec![]));
+        }
         let mut r = Self(vec![]);
         for lang in s.split(',') {
             r.0.push(lang.trim().parse()?)
