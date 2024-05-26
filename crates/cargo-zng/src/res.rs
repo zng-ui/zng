@@ -5,6 +5,8 @@ use std::{
     time::Instant,
 };
 
+use anyhow::{bail, Context as _};
+
 use clap::*;
 use color_print::cstr;
 
@@ -58,7 +60,9 @@ pub(crate) fn run(args: ResArgs) {
         fatal!("cannot create cache dir, {e}");
     }
     if let Err(e) = fs::remove_dir_all(&args.target) {
-        fatal!("cannot remove target dir, {e}");
+        if e.kind() != io::ErrorKind::NotFound {
+            fatal!("cannot remove target dir, {e}");
+        }
     }
     if let Err(e) = fs::create_dir_all(&args.target) {
         fatal!("cannot create target dir, {e}");
@@ -72,7 +76,7 @@ pub(crate) fn run(args: ResArgs) {
     println!("         {}", args.target.display());
 }
 
-fn build(args: &ResArgs) -> io::Result<()> {
+fn build(args: &ResArgs) -> anyhow::Result<()> {
     let tools = Tools::capture(&args.tools, args.tool_cache.clone())?;
     source_to_target_pass(args, &tools, &args.source, &args.target)?;
 
@@ -80,24 +84,21 @@ fn build(args: &ResArgs) -> io::Result<()> {
     while target_to_target_pass(args, &tools, &args.target)? {
         passes += 1;
         if passes >= args.recursion_limit {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("reached --recursion-limit of {}", args.recursion_limit),
-            ));
+            bail!("reached --recursion-limit of {}", args.recursion_limit)
         }
     }
 
     tools.run_final()
 }
 
-fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> io::Result<()> {
-    for entry in fs::read_dir(source)? {
-        let source = entry?.path();
+fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> anyhow::Result<()> {
+    for entry in fs::read_dir(source).with_context(|| format!("cannot read_dir {}", source.display()))? {
+        let source = entry.with_context(|| format!("cannot read_dir entry {}", source.display()))?.path();
         if source.is_dir() {
             // mirror dir in target
             println!("{}", source.display());
             let target = target.join(source.file_name().unwrap());
-            fs::create_dir(&target)?;
+            fs::create_dir(&target).with_context(|| format!("cannot create_dir {}", target.display()))?;
             println!("   {}", target.display());
             // recursive walk
             source_to_target_pass(args, tools, &source, &target)?;
@@ -119,7 +120,7 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
             if args.pack {
                 println!("{}", source.display());
                 let target = target.join(source.file_name().unwrap());
-                fs::copy(source, &target)?;
+                fs::copy(&source, &target).with_context(|| format!("cannot copy {} to {}", source.display(), target.display()))?;
                 println!("   {}", target.display());
             }
         }
@@ -127,10 +128,10 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
     Ok(())
 }
 
-fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> io::Result<bool> {
+fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::Result<bool> {
     let mut any = false;
-    for entry in fs::read_dir(dir)? {
-        let path = entry?.path();
+    for entry in fs::read_dir(dir).with_context(|| format!("cannot read_dir {}", dir.display()))? {
+        let path = entry.with_context(|| format!("cannot read_dir entry {}", dir.display()))?.path();
         if path.is_dir() {
             any |= target_to_target_pass(args, tools, &path)?;
         } else if path.is_file() {

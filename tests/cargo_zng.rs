@@ -5,7 +5,7 @@ use std::{
 };
 
 #[test]
-fn cargo_res_statics() {
+fn cargo_res_statics_no_pack() {
     cargo_res("statics", false);
 }
 
@@ -15,13 +15,14 @@ fn cargo_res_statics_pack() {
 }
 
 fn cargo_res(test: &str, pack: bool) {
-    let source = PathBuf::from(file!()).with_file_name(test).join("source");
-    let target = PathBuf::from("target/tmp/tests/cargo_zng");
+    let source = PathBuf::from("cargo-zng-res-tests").join(test).join("source");
+    assert!(source.exists());
+    let target = PathBuf::from("../target/tmp/tests/cargo_zng");
     if target.exists() {
-        fs::remove_dir_all(&target).unwrap();
+        let _ = fs::remove_dir_all(&target);
     }
 
-    let output = cargo_zng_res(&[&source, &target], pack).unwrap();
+    let output = cargo_zng_res(&[&source, &target], pack).unwrap_or_else(|e| panic!("{e}"));
 
     fs::write(source.join("run.stdout"), output.as_bytes()).unwrap();
     assert_dir_eq(&source.with_file_name("expected_target"), &target);

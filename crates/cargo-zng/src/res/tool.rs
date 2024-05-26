@@ -4,11 +4,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::{bail, Context};
 use color_print::cstr;
 use parking_lot::Mutex;
 
 /// Visit in the `ToolKind` order.
-pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> io::Result<ControlFlow<()>>) -> io::Result<()> {
+pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<ControlFlow<()>>) -> anyhow::Result<()> {
     macro_rules! tool {
         ($($args:tt)+) => {
             let flow = tool($($args)+)?;
@@ -19,27 +20,32 @@ pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> io::Result<Contro
     }
 
     let mut local_bin_crate = None;
-    for entry in fs::read_dir(local)? {
-        let path = entry?.path();
-        if path.is_dir() {
-            let name = path.file_name().unwrap().to_string_lossy();
-            if let Some(name) = name.strip_prefix("cargo-zng-res-") {
-                if path.join("Cargo.toml").exists() {
-                    tool!(Tool {
-                        name: name.to_owned(),
-                        kind: ToolKind::LocalCrate,
-                        path,
-                    });
+    if local.exists() {
+        for entry in fs::read_dir(local).with_context(|| format!("cannot read_dir {}", local.display()))? {
+            let path = entry.with_context(|| format!("cannot read_dir entry {}", local.display()))?.path();
+            if path.is_dir() {
+                let name = path.file_name().unwrap().to_string_lossy();
+                if let Some(name) = name.strip_prefix("cargo-zng-res-") {
+                    if path.join("Cargo.toml").exists() {
+                        tool!(Tool {
+                            name: name.to_owned(),
+                            kind: ToolKind::LocalCrate,
+                            path,
+                        });
+                    }
+                } else if name == "cargo-zng-res" && path.join("Cargo.toml").exists() {
+                    local_bin_crate = Some(path);
                 }
-            } else if name == "cargo-zng-res" && path.join("Cargo.toml").exists() {
-                local_bin_crate = Some(path);
             }
         }
     }
 
     if let Some(path) = local_bin_crate {
-        for entry in fs::read_dir(path.join("src/bin"))? {
-            let path = entry?.path();
+        let bin_dir = path.join("src/bin");
+        for entry in fs::read_dir(&bin_dir).with_context(|| format!("cannot read_dir {}", bin_dir.display()))? {
+            let path = entry
+                .with_context(|| format!("cannot read_dir entry {}", bin_dir.display()))?
+                .path();
             if path.is_file() {
                 let name = path.file_name().unwrap().to_string_lossy();
                 if let Some(name) = name.strip_suffix(".rs") {
@@ -67,8 +73,10 @@ pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> io::Result<Contro
         .parent()
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no cargo install dir"))?;
 
-    for entry in fs::read_dir(install_dir)? {
-        let path = entry?.path();
+    for entry in fs::read_dir(install_dir).with_context(|| format!("cannot read_dir {}", install_dir.display()))? {
+        let path = entry
+            .with_context(|| format!("cannot read_dir entry {}", install_dir.display()))?
+            .path();
         if path.is_file() {
             let name = path.file_name().unwrap().to_string_lossy();
             if let Some(name) = name.strip_prefix("cargo-zng-res-") {
@@ -91,11 +99,11 @@ pub struct Tool {
     pub path: PathBuf,
 }
 impl Tool {
-    pub fn help(&self) -> io::Result<String> {
+    pub fn help(&self) -> anyhow::Result<String> {
         self.run_cmd(self.cmd().arg("--help")).map(|o| o.output)
     }
 
-    fn run(&self, cache: &Path, source: &Path, target: &Path, request: &Path) -> io::Result<ToolOutput> {
+    fn run(&self, cache: &Path, source: &Path, target: &Path, request: &Path) -> anyhow::Result<ToolOutput> {
         use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
 
@@ -103,7 +111,7 @@ impl Tool {
         hasher.update(target.as_os_str().as_encoded_bytes());
         hasher.update(request.as_os_str().as_encoded_bytes());
 
-        let mut hash_request = || -> io::Result<()> {
+        let mut hash_request = || -> anyhow::Result<()> {
             let mut file = fs::File::open(request)?;
             io::copy(&mut file, &mut hasher)?;
             Ok(())
@@ -117,7 +125,7 @@ impl Tool {
         self.run_cmd(self.cmd().env(crate::res::built_in::CACHE_DIR, cache.join(cache_dir)))
     }
 
-    fn run_final(&self, args: String) -> io::Result<String> {
+    fn run_final(&self, args: String) -> anyhow::Result<String> {
         let mut cmd = self.cmd();
         for arg in args.split(' ') {
             let arg = arg.trim();
@@ -162,13 +170,13 @@ impl Tool {
         }
     }
 
-    fn run_cmd(&self, cmd: &mut std::process::Command) -> io::Result<ToolOutput> {
+    fn run_cmd(&self, cmd: &mut std::process::Command) -> anyhow::Result<ToolOutput> {
         let output = cmd.output()?;
         if output.status.success() {
             Ok(ToolOutput::from(String::from_utf8_lossy(&output.stdout).into_owned()))
         } else {
             let err = String::from_utf8_lossy(&output.stderr);
-            Err(io::Error::new(io::ErrorKind::Other, err))
+            bail!("{err}")
         }
     }
 }
@@ -179,7 +187,7 @@ pub struct Tools {
     on_final: Mutex<Vec<(usize, String)>>,
 }
 impl Tools {
-    pub fn capture(local: &Path, cache: PathBuf) -> io::Result<Self> {
+    pub fn capture(local: &Path, cache: PathBuf) -> anyhow::Result<Self> {
         let mut tools = vec![];
         visit_tools(local, |t| {
             tools.push(t);
@@ -192,7 +200,7 @@ impl Tools {
         })
     }
 
-    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> io::Result<String> {
+    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<String> {
         for (i, tool) in self.tools.iter().enumerate() {
             if tool.name == tool_name {
                 let output = tool.run(&self.cache, source, target, request)?;
@@ -207,13 +215,10 @@ impl Tools {
                 }
             }
         }
-        Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("no tool `{tool_name}` to handle request"),
-        ))
+        bail!("no tool `{tool_name}` to handle request")
     }
 
-    pub fn run_final(self) -> io::Result<()> {
+    pub fn run_final(self) -> anyhow::Result<()> {
         for (i, args) in self.on_final.into_inner() {
             println!(cstr!("<bold>{}</bold> {}"), self.tools[i].name, args);
             self.tools[i].run_final(args)?;
