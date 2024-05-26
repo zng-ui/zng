@@ -8,6 +8,7 @@
 * Add `zng::hot_reload::{lazy_static, lazy_static_init}`. Very useful for implementing "zng-env" like functions.
 * Implement `FromStr` for `zng::l10n::Langs`.
 * `Lang` now parses empty strings as `und`.
+* Fix `AutoGrowMode::rows` actually enabling Columns auto grow.
 
 # 0.6.1
 
