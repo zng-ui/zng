@@ -9,12 +9,6 @@ This directory contains crates used to generate content or manage the project.
 The task runner is implemented as a Rust crate in `cargo-do` and an alias in `/.cargo/config.toml`.
 The alias builds the tool silently in the first run, after, it runs without noticeable delay.
 
-Shell script to run `do` are also provided:
- 
- * cmd.exe: `do help`.
- * PowerShell: `./do.ps1 help`.
- * Bash: `/.do help`.
-
 ### `cargo do install`
 
 The task runner depends on multiple cargo commands, you can run `cargo do install` to see a list of all required 

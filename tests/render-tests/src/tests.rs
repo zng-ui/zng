@@ -53,8 +53,9 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
 
         assert_eq!(copied_rect, rect);
         for cc in p.chunks_exact(4) {
-            let copied_color = rgba(cc[0], cc[1], cc[2], cc[3]);
-            assert_eq!(copied_color, color, "expected all {} in {:?}, found {}", color, rect, copied_color);
+            // BGRA
+            let copied_color = rgba(cc[2], cc[1], cc[0], cc[3]);
+            assert_eq!(color, copied_color, "expected all {} in {:?}, found {}", color, rect, copied_color);
         }
         rect.origin.x += rect.size.width;
     }

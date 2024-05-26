@@ -99,7 +99,7 @@ fn run_tests(args: Args, view_process: ViewProcess, mut app: HeadlessApp) {
                             println!(cstr!("<bold><red>FAILED</></>"));
                             FAILED.store(true, Relaxed);
                         } else {
-                            println!(cstr!("<bold><red>PASSED</> in {:?}</>"), start.elapsed());
+                            println!(cstr!("<bold><green>PASSED</></> in {:?}"), start.elapsed());
                         }
                     }
                     Err(_) => {
