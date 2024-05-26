@@ -5,5 +5,9 @@ edition = "2021"
 publish = false
 
 [dependencies]
-zng = { path = "../../crates/zng", features = ["view", "view_prebuilt", "multi_app"] }
+zng = { path = "../../crates/zng", features = [
+    "view",
+    "view_prebuilt",
+    "multi_app",
+] }
 color-print = "0.3"

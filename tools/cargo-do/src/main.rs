@@ -327,7 +327,7 @@ fn doc(mut args: Vec<&str>) {
 //            [-t, --test <integration-test-name>]
 //            [-m, --macro <file-path-pattern>]
 //            [--nextest]
-//            [--render]
+//            [--render [--save] [FILTER]]
 //            <cargo-test-args>
 //
 //    Run all tests in root workspace and macro tests.
@@ -434,7 +434,7 @@ fn test(mut args: Vec<&str>) {
     } else if take_flag(&mut args, &["--render"]) {
         // render tests:
 
-        cmd("cargo", &["run", "--package", "render-tests"], &args);
+        cmd("cargo", &["run", "--package", "render-tests", "--"], &args);
     } else if take_flag(&mut args, &["--examples"]) {
         // all examples
 
