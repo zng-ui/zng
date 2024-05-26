@@ -11,6 +11,7 @@
 * Fix `IMAGES.from_data` never loading in headless apps.
 * Fix `Img::copy_pixels`.
 * Fix `view_process::default::run_same_process` exit in headless runs.
+* Fix `AutoGrowMode::rows` actually enabling Columns auto grow.
 
 # 0.6.1
 
