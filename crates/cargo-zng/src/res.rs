@@ -74,12 +74,23 @@ pub(crate) fn run(args: ResArgs) {
 
 fn build(args: &ResArgs) -> io::Result<()> {
     let tools = Tools::capture(&args.tools, args.tool_cache.clone())?;
-    initial_pass(args, &tools, &args.source, &args.target)?;
-    // !!: TODO
+    source_to_target_pass(args, &tools, &args.source, &args.target)?;
+
+    let mut passes = 0;
+    while target_to_target_pass(args, &tools, &args.target)? {
+        passes += 1;
+        if passes >= args.recursion_limit {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("reached --recursion-limit of {}", args.recursion_limit),
+            ));
+        }
+    }
+
     tools.run_final()
 }
 
-fn initial_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> io::Result<()> {
+fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> io::Result<()> {
     for entry in fs::read_dir(source)? {
         let source = entry?.path();
         if source.is_dir() {
@@ -89,12 +100,13 @@ fn initial_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> 
             fs::create_dir(&target)?;
             println!("   {}", target.display());
             // recursive walk
-            initial_pass(args, tools, &source, &target)?;
+            source_to_target_pass(args, tools, &source, &target)?;
         } else if source.is_file() {
             // run tool
             if let Some(ext) = source.extension() {
                 let ext = ext.to_string_lossy();
                 if let Some(tool) = ext.strip_prefix("zr-") {
+                    println!("{}", source.display());
                     let output = tools.run(tool, &args.source, &args.target, &source)?;
                     for line in output.lines() {
                         println!("   {line}");
@@ -113,6 +125,30 @@ fn initial_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> 
         }
     }
     Ok(())
+}
+
+fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> io::Result<bool> {
+    let mut any = false;
+    for entry in fs::read_dir(dir)? {
+        let path = entry?.path();
+        if path.is_dir() {
+            any |= target_to_target_pass(args, tools, &path)?;
+        } else if path.is_file() {
+            // run tool
+            if let Some(ext) = path.extension() {
+                let ext = ext.to_string_lossy();
+                if let Some(tool) = ext.strip_prefix("zr-") {
+                    any = true;
+                    println!("{}", path.display());
+                    let output = tools.run(tool, &args.source, &args.target, &path)?;
+                    for line in output.lines() {
+                        println!("   {line}");
+                    }
+                }
+            }
+        }
+    }
+    Ok(any)
 }
 
 fn list(tools: &Path) {

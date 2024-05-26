@@ -199,7 +199,7 @@ Build resources
 
 Build resources
 
-Walks [SOURCE] and delegates `.zr-{tool}` files to `cargo-zng-res-{tool}` executables and crates.   
+Walks SOURCE and delegates `.zr-{tool}` files to `cargo-zng-res-{tool}` executables and crates.   
 
 Usage: cargo zng res [OPTIONS] [SOURCE] [TARGET]
 

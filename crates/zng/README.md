@@ -45,7 +45,7 @@ See the [`documentation`] for more details.
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 28 feature flags, 4 enabled by default.
+This crate provides 29 feature flags, 4 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -170,6 +170,11 @@ Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 Enables IPC tasks, pre-build views and connecting to views running in another process.
 
 *Enabled by default.*
+
+#### `"built_res"`
+Check if `zng::env::res` path is available in `init_built_res` first.
+
+Enabled by default in debug builds.
 
 <!--do doc --readme #SECTION-END-->
 

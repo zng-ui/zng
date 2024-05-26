@@ -12,9 +12,9 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-# Check if `res` path is available in `built_res` first.
+# Check if `res` path is available in `init_built_res` first.
 #
-# This is alredy enabled in debug builds.
+# Enabled by default in debug builds.
 built_res = []
 
 [dependencies]

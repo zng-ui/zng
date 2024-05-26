@@ -37,7 +37,7 @@ enum Command {
 
     /// Build resources
     ///
-    /// Walks [SOURCE] and delegates `.zr-{tool}` files to `cargo-zng-res-{tool}`
+    /// Walks SOURCE and delegates `.zr-{tool}` files to `cargo-zng-res-{tool}`
     /// executables and crates.
     Res(res::ResArgs),
 }
