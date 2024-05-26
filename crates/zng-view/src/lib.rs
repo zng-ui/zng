@@ -237,7 +237,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
 
 /// Like [`run_same_process`] but with custom API extensions.
 pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
-    let r = thread::Builder::new()
+    let app_thread = thread::Builder::new()
         .name("app".to_owned())
         .spawn(move || {
             // SAFETY: we exit the process in case of panic.
@@ -268,7 +268,7 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
         App::run_headed(c, ext());
     }
 
-    if let Err(p) = r.join() {
+    if let Err(p) = app_thread.join() {
         std::panic::resume_unwind(p);
     }
 }
@@ -1071,10 +1071,12 @@ impl App {
                         },
                         Err(_) => {
                             self.app.exited = true;
-                            break;
+                            break 'app_loop;
                         }
                     }
                 }
+
+                self.app.winit_loop.exit();
 
                 winit_loop_guard.unset(&mut self.app.winit_loop);
             }

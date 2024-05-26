@@ -10,6 +10,7 @@
 * `Lang` now parses empty strings as `und`.
 * Fix `IMAGES.from_data` never loading in headless apps.
 * Fix `Img::copy_pixels`.
+* Fix `view_process::default::run_same_process` exit in headless runs.
 
 # 0.6.1
 
