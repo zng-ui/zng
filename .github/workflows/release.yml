@@ -337,6 +337,10 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - run: cargo do test --render
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - run: cargo clean
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
   test-windows:
     runs-on: windows-latest
     needs: [prebuild-windows]
@@ -374,6 +378,10 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - run: cargo do test --render
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - run: cargo clean
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
   test-macos:
     runs-on: macos-13
     needs: [prebuild-macos]
@@ -406,6 +414,10 @@ jobs:
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do test --macro --all
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - run: cargo clean
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - run: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}

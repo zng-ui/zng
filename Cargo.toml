@@ -8,6 +8,7 @@ members = [
     "examples/util",
     "tests",
     "tests/macro-tests",
+    "tests/render-tests",
 ]
 default-members = ["crates/*"]
 
