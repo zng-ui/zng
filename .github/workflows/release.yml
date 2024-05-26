@@ -337,10 +337,15 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-      - run: cargo do test --render
+      - run: |
+             sudo apt-get update
+             sudo apt-get install xserver-xorg xserver-xorg-core x11-apps x11-xserver-utils
+             cargo do test --render
+        name: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+  
   test-windows:
     runs-on: windows-latest
     needs: [prebuild-windows]
