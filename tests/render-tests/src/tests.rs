@@ -69,7 +69,6 @@ async fn save_rect(rect: PxRect, p: &[u8]) {
                 ppi: None,
             },
         );
-
         while img.with(Img::is_loading) {
             img.wait_update().await;
         }

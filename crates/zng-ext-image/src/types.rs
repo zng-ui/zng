@@ -255,11 +255,12 @@ impl Img {
                 let height = area.size.height.0 as usize;
                 let pixel = if self.is_mask() { 1 } else { 4 };
                 let mut bytes = Vec::with_capacity(width * height * pixel);
+                let row_stride = self.size().width.0 as usize * pixel;
                 for l in y..y + height {
-                    let line_start = (l + x) * pixel;
-                    let line_end = (l + x + width) * pixel;
+                    let line_start = l * row_stride + x * pixel;
+                    let line_end = line_start + width * pixel;
                     let line = &pixels[line_start..line_end];
-                    bytes.extend(line);
+                    bytes.extend_from_slice(line);
                 }
                 (area, bytes)
             }

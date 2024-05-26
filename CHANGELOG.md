@@ -8,6 +8,8 @@
 * Add `zng::hot_reload::{lazy_static, lazy_static_init}`. Very useful for implementing "zng-env" like functions.
 * Implement `FromStr` for `zng::l10n::Langs`.
 * `Lang` now parses empty strings as `und`.
+* Fix `IMAGES.from_data` never loading in headless apps.
+* Fix `Img::copy_pixels`.
 
 # 0.6.1
 
