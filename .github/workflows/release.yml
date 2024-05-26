@@ -339,7 +339,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: |
              sudo apt-get update
-             sudo apt-get install xserver-xorg xserver-xorg-core x11-apps x11-xserver-utils
+             sudo apt-get install xorg
              cargo do test --render
         name: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
