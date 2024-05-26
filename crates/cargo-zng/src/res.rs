@@ -32,7 +32,7 @@ pub struct ResArgs {
     #[arg(long, default_value = "tools")]
     tools: PathBuf,
     /// Prints help for all tools available
-    #[arg(long, default_value = "tools")]
+    #[arg(long, action)]
     list: bool,
 
     /// Tool cache dir

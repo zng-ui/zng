@@ -146,7 +146,9 @@ fn copy_dir_all(from: &Path, to: &Path, trace: bool) -> io::Result<()> {
         } else if from.is_file() {
             let to = to.join(from.file_name().unwrap());
             fs::copy(&from, &to)?;
-            println!("{}", to.display());
+            if trace {
+                println!("{}", to.display());
+            }
         } else {
             continue;
         }
