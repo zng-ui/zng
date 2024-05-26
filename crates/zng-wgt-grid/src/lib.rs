@@ -27,7 +27,7 @@ impl Grid {
                 w.capture_ui_node_list_or_empty(property_id!(Self::columns)),
                 w.capture_ui_node_list_or_empty(property_id!(Self::rows)),
                 w.capture_var_or_else(property_id!(Self::auto_grow_fn), WidgetFn::nil),
-                w.capture_var_or_else(property_id!(Self::auto_grow_mode), || AutoGrowMode::Rows(u32::MAX)),
+                w.capture_var_or_else(property_id!(Self::auto_grow_mode), AutoGrowMode::rows),
                 w.capture_var_or_default(property_id!(Self::spacing)),
             );
             w.set_child(child);
@@ -108,8 +108,8 @@ pub fn auto_grow_fn(auto_grow: impl IntoVar<WidgetFn<AutoGrowFnArgs>>) {}
 /// If a cell is outside this index and is not covered by predefined columns or rows a new one is auto generated for it, but if the
 /// cell is also outside this max it is *collapsed*.
 ///
-/// Is `AutoGrowMode::Rows(u32::MAX)` by default.
-#[property(CONTEXT, capture, default(AutoGrowMode::Rows(u32::MAX)), widget_impl(Grid))]
+/// Is `AutoGrowMode::rows() by default.
+#[property(CONTEXT, capture, default(AutoGrowMode::rows()), widget_impl(Grid))]
 pub fn auto_grow_mode(mode: impl IntoVar<AutoGrowMode>) {}
 
 /// Space in-between cells.
@@ -405,18 +405,18 @@ pub enum AutoGrowMode {
 }
 impl AutoGrowMode {
     /// Value that does not generate any new row or column.
-    pub fn disabled() -> Self {
+    pub const fn disabled() -> Self {
         Self::Rows(0)
     }
 
     /// Columns, not specific maximum limit.
-    pub fn columns() -> Self {
+    pub const fn columns() -> Self {
         Self::Columns(u32::MAX)
     }
 
     /// Rows, not specific maximum limit.
-    pub fn rows() -> Self {
-        Self::Columns(u32::MAX)
+    pub const fn rows() -> Self {
+        Self::Rows(u32::MAX)
     }
 
     /// Set the maximum columns or rows allowed.
