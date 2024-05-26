@@ -61,6 +61,7 @@ impl L10nDir {
                                 if let Some(name_and_ext) = f.file_name().to_str() {
                                     if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
                                         if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
+                                            tracing::debug!("found {name}.{ext}");
                                             // found .flt file.
                                             match Lang::from_str(name) {
                                                 Ok(lang) => {
@@ -77,8 +78,8 @@ impl L10nDir {
                                 }
                             } else if f.depth() == 1 && ty.is_dir() {
                                 // match dir/lang/file.flt files
-                                if let Some(name) = f.file_name().to_str() {
-                                    match Lang::from_str(name) {
+                                if let Some(dir_name) = f.file_name().to_str() {
+                                    match Lang::from_str(dir_name) {
                                         Ok(lang) => {
                                             let inner = set.get_exact_or_insert(lang, Default::default);
                                             for entry in std::fs::read_dir(f.path()).into_iter().flatten() {
@@ -88,6 +89,7 @@ impl L10nDir {
                                                             if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
                                                                 if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
                                                                     // found .flt file.
+                                                                    tracing::debug!("found {dir_name}/{name}.{ext}");
                                                                     inner.insert(Txt::from_str(name), f.path());
                                                                 }
                                                             }
@@ -100,7 +102,9 @@ impl L10nDir {
                                                 set.pop();
                                             }
                                         }
-                                        Err(e) => errors.push(Arc::new(e)),
+                                        Err(e) => {
+                                            tracing::trace!("dir {dir_name}/ is not l10n, {e}");
+                                        }
                                     }
                                 }
                             }
@@ -113,7 +117,7 @@ impl L10nDir {
                     // Loaded set by `dir_watch` to avoid race condition in wait.
                 } else {
                     let s = LangResourceStatus::Errors(errors);
-                    tracing::error!("loading available {s}");
+                    tracing::error!("'loading available' {s}");
                     status.set(s)
                 }
 
