@@ -12,6 +12,7 @@ rand = "0.8.5"
 regex = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 raw-window-handle = "0.6"
+dunce = "1.0"
 
 zng = { path = "../crates/zng", features = [
     "http",

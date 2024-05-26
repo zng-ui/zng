@@ -133,7 +133,7 @@ fn write_html_in_header() {
     fs::write(file, html).unwrap();
 }
 fn doc_dir() -> PathBuf {
-    let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap()).canonicalize().unwrap();
+    let out_dir = dunce::canonicalize(PathBuf::from(std::env::var("OUT_DIR").unwrap())).unwrap();
 
     let mut dir = out_dir.parent().unwrap();
     while dir.file_name().unwrap() != "target" {

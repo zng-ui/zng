@@ -105,6 +105,8 @@ serde_json = { version = "1.0", optional = true }
 breakpad-handler = { version = "0.2", optional = true }
 minidump = { version = "0.21", optional = true }
 
+dunce = "1.0"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--html-in-header", "doc/html-in-header.html"]

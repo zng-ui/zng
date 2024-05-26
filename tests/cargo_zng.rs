@@ -15,9 +15,10 @@ fn cargo_res_statics_pack() {
 }
 
 fn cargo_res(test: &str, pack: bool) {
-    let source = PathBuf::from("cargo-zng-res-tests").join(test).join("source");
+    let test_dir = PathBuf::from("cargo-zng-res-tests").join(test);
+    let source = test_dir.join("source");
     assert!(source.exists());
-    let target = PathBuf::from("../target/tmp/tests/cargo_zng");
+    let target = PathBuf::from("../target/tmp/tests/cargo_zng").join(test);
     if target.exists() {
         let _ = fs::remove_dir_all(&target);
     }

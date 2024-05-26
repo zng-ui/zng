@@ -45,7 +45,7 @@ struct ErrorLogFile(Option<std::fs::File>);
 impl ErrorLogFile {
     fn open(&mut self) -> std::io::Result<&mut std::fs::File> {
         if self.0.is_none() {
-            let exe = std::env::current_exe()?.canonicalize()?;
+            let exe = dunce::canonicalize(std::env::current_exe()?)?;
             let mut i = 0;
             let mut file = exe.clone();
             file.set_extension(".error.log");
@@ -92,7 +92,7 @@ pub fn temp_dir(example: &str) -> PathBuf {
         .join("../../target/tmp/examples")
         .join(example);
     fs::create_dir_all(&path).unwrap();
-    path.canonicalize().unwrap()
+    dunce::canonicalize(path).unwrap()
 }
 
 /// Sets a panic hook that writes the panic backtrace to a log file, the panic is also written to std-err.

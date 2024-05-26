@@ -80,8 +80,8 @@ The request file:
 Copies `path/bar.txt` to:
   target/foo.txt
 
-Path is relative to the workspace root (where cargo res is called), 
-unless it starts with `./`, them it is relative to the `.zr-copy` file.
+Path is relative to the Cargo workspace root, unless it starts with `./`,
+them it is relative to the `.zr-copy` file.
 "#;
 fn copy(cli: ToolCli) {
     if cli.help {

@@ -87,7 +87,7 @@ impl Controller {
 
         let view_process_exe = view_process_exe.unwrap_or_else(|| {
             std::env::current_exe()
-                .and_then(|p| p.canonicalize())
+                .and_then(dunce::canonicalize)
                 .expect("failed to get the current exe")
         });
 

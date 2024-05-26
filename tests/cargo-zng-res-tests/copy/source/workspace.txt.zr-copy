@@ -1,0 +1,3 @@
+# relative to workspace root (cargo locate-project --workspace)
+
+tests/copy/refs/file-b.txt

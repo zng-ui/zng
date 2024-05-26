@@ -33,6 +33,7 @@ once_cell = "1.19"
 parking_lot = "0.12"
 tracing = "0.1"
 base64 = "0.22"
+dunce = "1.0"
 sha2 = "0.10"
 
 [package.metadata.docs.rs]

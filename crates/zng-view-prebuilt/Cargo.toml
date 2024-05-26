@@ -19,11 +19,13 @@ embedded = []
 
 [dependencies]
 libloading = "0.8"
+dunce = "1.0"
 
 [build-dependencies]
 hashers = "1.0"
 base64 = "0.22"
 home = "0.5"
+dunce = "1.0"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -805,17 +805,12 @@ fn clean(mut args: Vec<&str>) {
         }
 
         // external because it will delete self.
-        let manifest_path = std::env::current_exe()
-            .unwrap()
-            .canonicalize()
+        let manifest_path = dunce::canonicalize(std::env::current_exe().unwrap())
             .unwrap()
             .parent()
             .unwrap()
-            .join("../../Cargo.toml")
-            .canonicalize()
-            .unwrap()
-            .display()
-            .to_string();
+            .join("../../Cargo.toml");
+        let manifest_path = dunce::canonicalize(manifest_path).unwrap().display().to_string();
         cmd_external("cargo", &["clean", "--manifest-path", &manifest_path], &args);
     }
 }

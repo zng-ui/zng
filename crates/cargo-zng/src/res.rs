@@ -45,14 +45,18 @@ pub struct ResArgs {
     #[arg(long, default_value = "32")]
     recursion_limit: u32,
 }
+impl ResArgs {
+    fn canonicalize(&mut self) -> io::Result<()> {
+        self.source = dunce::canonicalize(&self.source)?;
+        self.target = dunce::canonicalize(&self.target)?;
+        self.tools = dunce::canonicalize(&self.tools)?;
+        self.tool_cache = dunce::canonicalize(&self.tool_cache)?;
 
-pub(crate) fn run(args: ResArgs) {
-    if args.list {
-        return list(&args.tools);
+        Ok(())
     }
+}
 
-    let start = Instant::now();
-
+pub(crate) fn run(mut args: ResArgs) {
     if !args.source.exists() {
         fatal!("source dir does not exist");
     }
@@ -68,6 +72,13 @@ pub(crate) fn run(args: ResArgs) {
         fatal!("cannot create target dir, {e}");
     }
 
+    args.canonicalize().unwrap();
+
+    if args.list {
+        return list(&args.tools);
+    }
+
+    let start = Instant::now();
     if let Err(e) = build(&args) {
         fatal!("build failed, {e}")
     }

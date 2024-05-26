@@ -359,7 +359,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                         let url = match link {
                             Link::Url(u) => u.to_string(),
                             Link::Path(p) => {
-                                match p.canonicalize() {
+                                match dunce::canonicalize(&p) {
                                     Ok(p) => p.display().to_string(),
                                     Err(e) => {
                                         tracing::error!("error canonicalizing \"{}\", {e}", p.display());

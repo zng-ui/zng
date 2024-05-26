@@ -308,3 +308,6 @@ A rebuild starts by removing the target dir and runs all tools again. If a tool 
 slow is should cache results. The `ZNG_RES_CACHE` environment variable is set with a path to a directory 
 where the tool can store intermediary files specific for this request. The cache dir is keyed to the 
 `<SOURCE><TARGET><REQUEST>` and the request file content.
+
+The tool working directory (`current_dir`) is always set to the Cargo workspace root. if the `<SOURCE>`
+is not inside any Cargo project a warning is printed and the `<SOURCE>` is used as working directory.
