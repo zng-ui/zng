@@ -190,7 +190,7 @@ fn list(tools: &Path) {
         println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, tool.path.display());
         match tool.help() {
             Ok(h) => {
-                for line in h.lines() {
+                for line in h.trim().lines() {
                     println!("  {line}");
                 }
                 if !h.is_empty() {

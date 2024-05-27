@@ -118,7 +118,7 @@ pub fn display_path(path: &Path) -> String {
     r
 }
 
-const COPY_HELP: &str = "\
+const COPY_HELP: &str = "
 Copy the file or dir
 
 The request file:
@@ -154,6 +154,61 @@ fn copy(cli: ToolCli) {
         fs::copy(source, &target).unwrap_or_else(|e| fatal!("{e}"));
         println!("{}", display_path(&target));
     }
+}
+
+const PRINT_HELP: &str = "
+Print a message
+";
+fn print(cli: ToolCli) {
+    let args = match cli {
+        ToolCli::Request(r) => r,
+        ToolCli::Help => return println!("{PRINT_HELP}"),
+        ToolCli::OnFinal(_) => fatal!("did not request"),
+    };
+
+    let message = fs::read_to_string(args.request).unwrap_or_else(|e| fatal!("{e}"));
+    println!("{message}");
+}
+
+const WARN_HELP: &str = "
+Print a warning message
+";
+fn warn(cli: ToolCli) {
+    let args = match cli {
+        ToolCli::Request(r) => r,
+        ToolCli::Help => return println!("{WARN_HELP}"),
+        ToolCli::OnFinal(_) => fatal!("did not request"),
+    };
+
+    let message = fs::read_to_string(args.request).unwrap_or_else(|e| fatal!("{e}"));
+    warn!("{message}");
+}
+
+const FAIL_HELP: &str = "
+Print an error message and fail the build
+";
+fn fail(cli: ToolCli) {
+    let args = match cli {
+        ToolCli::Request(r) => r,
+        ToolCli::Help => return println!("{FAIL_HELP}"),
+        ToolCli::OnFinal(_) => fatal!("did not request"),
+    };
+
+    let message = fs::read_to_string(args.request).unwrap_or_else(|e| fatal!("{e}"));
+    fatal!("{message}");
+}
+
+const SH_HELP: &str = r#"
+Run a "bash" script
+
+The script is executed using the 'xshell' crate
+"#;
+fn sh(cli: ToolCli) {
+    let args = match cli {
+        ToolCli::Request(r) => r,
+        ToolCli::Help => return println!("{FAIL_HELP}"),
+        ToolCli::OnFinal(_) => todo!(),
+    };
 }
 
 fn read_line(path: &Path, expected: &str) -> io::Result<String> {
@@ -219,6 +274,10 @@ macro_rules! built_in {
 }
 built_in! {
     copy,
+    print,
+    warn,
+    fail,
+    sh,
 }
 
 pub fn run() {
