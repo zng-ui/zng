@@ -29,8 +29,16 @@ fn cargo_res(test: &str, pack: bool) {
     }
 
     let output = cargo_zng_res(&[&source, &target], pack).unwrap_or_else(|e| panic!("{e}"));
+    let mut clean_output = String::new();
+    for line in output.lines() {
+        if line.contains("Finished") && line.contains("res build in") {
+            break;
+        }
+        clean_output.push_str(line);
+        clean_output.push('\n');
+    }
 
-    fs::write(test_dir.join("test.stdout"), output.as_bytes()).unwrap();
+    fs::write(test_dir.join("test.stdout"), clean_output.as_bytes()).unwrap();
     assert_dir_eq(&source.with_file_name("expected_target"), &target);
 }
 

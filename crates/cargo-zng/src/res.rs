@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{bail, Context as _};
 
+use built_in::display_path;
 use clap::*;
 use color_print::cstr;
 
@@ -120,25 +121,28 @@ fn build(args: &ResArgs) -> anyhow::Result<()> {
 }
 
 fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> anyhow::Result<()> {
-    for entry in fs::read_dir(source).with_context(|| format!("cannot read_dir {}", source.display()))? {
-        let source = entry.with_context(|| format!("cannot read_dir entry {}", source.display()))?.path();
-        if source.is_dir() {
+    for entry in walkdir::WalkDir::new(source).min_depth(1).max_depth(1).sort_by_file_name() {
+        let entry = entry.with_context(|| format!("cannot read dir entry {}", source.display()))?;
+        if entry.file_type().is_dir() {
+            let source = entry.path();
             // mirror dir in target
-            println!("{}", source.display());
+            println!("{}", display_path(source));
             let target = target.join(source.file_name().unwrap());
             fs::create_dir(&target).with_context(|| format!("cannot create_dir {}", target.display()))?;
-            println!("   {}", target.display());
-            // recursive walk
-            source_to_target_pass(args, tools, &source, &target)?;
-        } else if source.is_file() {
+            println!("  {}", display_path(&target));
+
+            source_to_target_pass(args, tools, source, &target)?;
+        } else if entry.file_type().is_file() {
+            let source = entry.path();
+
             // run tool
             if let Some(ext) = source.extension() {
                 let ext = ext.to_string_lossy();
                 if let Some(tool) = ext.strip_prefix("zr-") {
-                    println!("{}", source.display());
-                    let output = tools.run(tool, &args.source, &args.target, &source)?;
+                    println!("{}", display_path(source));
+                    let output = tools.run(tool, &args.source, &args.target, source)?;
                     for line in output.lines() {
-                        println!("   {line}");
+                        println!("  {line}");
                     }
                     continue;
                 }
@@ -146,11 +150,13 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
 
             // or pack
             if args.pack {
-                println!("{}", source.display());
+                println!("{}", display_path(source));
                 let target = target.join(source.file_name().unwrap());
-                fs::copy(&source, &target).with_context(|| format!("cannot copy {} to {}", source.display(), target.display()))?;
-                println!("   {}", target.display());
+                fs::copy(source, &target).with_context(|| format!("cannot copy {} to {}", source.display(), target.display()))?;
+                println!("  {}", display_path(&target));
             }
+        } else if entry.file_type().is_symlink() {
+            warn!("symlink ignored in `{}`, use zr-tools to 'link'", entry.path().display());
         }
     }
     Ok(())
@@ -158,20 +164,19 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
 
 fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::Result<bool> {
     let mut any = false;
-    for entry in fs::read_dir(dir).with_context(|| format!("cannot read_dir {}", dir.display()))? {
-        let path = entry.with_context(|| format!("cannot read_dir entry {}", dir.display()))?.path();
-        if path.is_dir() {
-            any |= target_to_target_pass(args, tools, &path)?;
-        } else if path.is_file() {
+    for entry in walkdir::WalkDir::new(dir).min_depth(1).sort_by_file_name() {
+        let entry = entry.with_context(|| format!("cannot read dir entry {}", dir.display()))?;
+        if entry.file_type().is_file() {
+            let path = entry.path();
             // run tool
             if let Some(ext) = path.extension() {
                 let ext = ext.to_string_lossy();
                 if let Some(tool) = ext.strip_prefix("zr-") {
                     any = true;
-                    println!("{}", path.display());
-                    let output = tools.run(tool, &args.source, &args.target, &path)?;
+                    println!("{}", display_path(path));
+                    let output = tools.run(tool, &args.source, &args.target, path)?;
                     for line in output.lines() {
-                        println!("   {line}");
+                        println!("  {line}");
                     }
                 }
             }

@@ -10,6 +10,47 @@ use std::{
 /// from a hash of source, target, request and request content
 pub const CACHE_DIR: &str = "ZNG_RES_CACHE";
 
+/// CLI arguments for a `cargo-zng-res-{tool}`.
+///
+/// Copy this type to your own custom tool to use.
+pub enum ToolCli {
+    /// Print help (for cargo zng res --list)
+    Help,
+
+    /// Run tool
+    Request(ToolRequest),
+
+    /// If tool requested 'zng-res::on-final={args}' now is the time to run it
+    OnFinal(String),
+}
+impl ToolCli {
+    /// Parse args.
+    pub fn parse() -> Self {
+        let mut args: Vec<_> = std::env::args().skip(1).take(4).collect();
+        match args.len() {
+            1 if args[0] == "--help" => Self::Help,
+            2 if args[0] == "--on-final" => Self::OnFinal(args.remove(1)),
+            3 if args.iter().all(|a| !a.starts_with('-')) => {
+                let r = ToolRequest {
+                    request: args.remove(2).into(),
+                    target: args.remove(1).into(),
+                    source: args.remove(0).into(),
+                };
+                assert!(r.source.is_absolute(), "source not absolute, use cargo-zng to call this tool");
+                assert!(r.target.is_absolute(), "target not absolute, use cargo-zng to call this tool");
+                assert!(r.request.is_absolute(), "request not absolute, use cargo-zng to call this tool");
+                assert!(
+                    r.is_source_to_target() || r.is_target_to_target(),
+                    "request not inside source nor target, use cargo-zng to call this tool"
+                );
+
+                Self::Request(r)
+            }
+            _ => panic!("unknown args, use cargo-zng to call this tool"),
+        }
+    }
+}
+
 /// See [`ToolCli::Request`].
 pub struct ToolRequest {
     /// Resources source dir
@@ -45,6 +86,36 @@ impl ToolRequest {
             .map(PathBuf::from)
             .unwrap_or_else(|_| std::env::temp_dir().join(self.request.file_name().unwrap()))
     }
+
+    /// Checks if `request` is inside `source`.
+    ///
+    /// If it is not it is inside `target`.
+    pub fn is_source_to_target(&self) -> bool {
+        self.request.strip_prefix(&self.source).is_ok()
+    }
+
+    /// Checks if `request` is inside `target`.
+    ///
+    /// If it is not it is inside `source`.
+    pub fn is_target_to_target(&self) -> bool {
+        self.request.strip_prefix(&self.source).is_ok()
+    }
+}
+
+/// Format the path in the standard way used by cargo-zng.
+pub fn display_path(path: &Path) -> String {
+    let base = std::env::current_dir().unwrap();
+    let r = if let Ok(local) = path.strip_prefix(base) {
+        local.display().to_string()
+    } else {
+        path.display().to_string()
+    };
+
+    #[cfg(windows)]
+    return r.replace('\\', "/");
+
+    #[cfg(not(windows))]
+    r
 }
 
 const COPY_HELP: &str = "\
@@ -81,40 +152,7 @@ fn copy(cli: ToolCli) {
         copy_dir_all(&source, &target, true).unwrap_or_else(|e| fatal!("{e}"));
     } else {
         fs::copy(source, &target).unwrap_or_else(|e| fatal!("{e}"));
-        println!("{}", target.display());
-    }
-}
-
-/// CLI arguments for a `cargo-zng-res-{tool}`.
-///
-/// Copy this type to your own custom tool to use.
-pub enum ToolCli {
-    /// Print help (for cargo zng res --list)
-    Help,
-
-    /// Run tool
-    Request(ToolRequest),
-
-    /// If tool requested 'zng-res::on-final={args}' now is the time to run it
-    OnFinal(String),
-}
-impl ToolCli {
-    /// Parse args.
-    pub fn parse() -> Self {
-        Self::try_parse().expect("use cargo-zng to call this tool")
-    }
-    fn try_parse() -> Option<Self> {
-        let mut args: Vec<_> = std::env::args().skip(1).take(4).collect();
-        match args.len() {
-            1 if args[0] == "--help" => Some(Self::Help),
-            2 if args[0] == "--on-final" => Some(Self::OnFinal(args.remove(1))),
-            3 if args.iter().all(|a| !a.starts_with('-')) => Some(Self::Request(ToolRequest {
-                request: args.remove(2).into(),
-                target: args.remove(1).into(),
-                source: args.remove(0).into(),
-            })),
-            _ => None,
-        }
+        println!("{}", display_path(&target));
     }
 }
 

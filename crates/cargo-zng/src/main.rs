@@ -19,7 +19,7 @@ mod res;
 ///
 /// Note don't depend on `cargo-zng`, just copy the source code of the utilities you need.
 pub mod res_tool_util {
-    pub use crate::res::built_in::{ToolCli, ToolRequest, CACHE_DIR};
+    pub use crate::res::built_in::{display_path, ToolCli, ToolRequest, CACHE_DIR};
 }
 
 use clap::*;

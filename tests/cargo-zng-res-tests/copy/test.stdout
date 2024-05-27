@@ -1,12 +1,10 @@
-C:\code\zng\tests\cargo-zng-res-tests\copy\source\a
-   C:\code\zng\target\tmp\tests\cargo_zng\copy\a
-C:\code\zng\tests\cargo-zng-res-tests\copy\source\a\relative.txt.zr-copy
-   C:\code\zng\target\tmp\tests\cargo_zng\copy\a\relative.txt
-C:\code\zng\tests\cargo-zng-res-tests\copy\source\a\workspace.txt.zr-copy
-   C:\code\zng\target\tmp\tests\cargo_zng\copy\a\workspace.txt
-C:\code\zng\tests\cargo-zng-res-tests\copy\source\relative.txt.zr-copy
-   C:\code\zng\target\tmp\tests\cargo_zng\copy\relative.txt
-C:\code\zng\tests\cargo-zng-res-tests\copy\source\workspace.txt.zr-copy
-   C:\code\zng\target\tmp\tests\cargo_zng\copy\workspace.txt
-[32m[1mFinished[39m[22m res build in 67.7751ms
-         C:\code\zng\target\tmp\tests\cargo_zng\copy
+tests/cargo-zng-res-tests/copy/source/a
+  target/tmp/tests/cargo_zng/copy/a
+tests/cargo-zng-res-tests/copy/source/a/relative.txt.zr-copy
+  target/tmp/tests/cargo_zng/copy/a/relative.txt
+tests/cargo-zng-res-tests/copy/source/a/workspace.txt.zr-copy
+  target/tmp/tests/cargo_zng/copy/a/workspace.txt
+tests/cargo-zng-res-tests/copy/source/relative.txt.zr-copy
+  target/tmp/tests/cargo_zng/copy/relative.txt
+tests/cargo-zng-res-tests/copy/source/workspace.txt.zr-copy
+  target/tmp/tests/cargo_zng/copy/workspace.txt
