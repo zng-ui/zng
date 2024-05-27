@@ -95,12 +95,13 @@ pub enum ToolCli {
     /// Run tool
     Request(ToolRequest),
 
-    /// If tool requested 'zng-res::on-final={args}'
+    /// If tool requested 'zng-res::on-final={args}' now is the time to run it
     OnFinal(String),
 }
 impl ToolCli {
+    /// Parse args.
     pub fn parse() -> Self {
-        Self::try_parse().unwrap_or_else(|| fatal!("use cargo-zng to call this tool"))
+        Self::try_parse().expect("use cargo-zng to call this tool")
     }
     fn try_parse() -> Option<Self> {
         let mut args: Vec<_> = std::env::args().skip(1).take(4).collect();
@@ -133,13 +134,13 @@ fn read_line(path: &Path, expected: &str) -> io::Result<String> {
     ))
 }
 
-fn read_path(path: &Path) -> io::Result<PathBuf> {
-    let path = PathBuf::from(read_line(path, "path")?);
-    if let Ok(p) = path.strip_prefix(".") {
+fn read_path(request_file: &Path) -> io::Result<PathBuf> {
+    let request_content = PathBuf::from(read_line(request_file, "path")?);
+    if let Ok(p) = request_content.strip_prefix(".") {
         // './' is relative to the request
-        Ok(path.parent().unwrap().join(p))
+        Ok(request_file.parent().unwrap().join(p))
     } else {
-        Ok(path)
+        Ok(request_content)
     }
 }
 

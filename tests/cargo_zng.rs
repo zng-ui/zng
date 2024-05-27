@@ -16,7 +16,7 @@ fn cargo_res_statics_pack() {
 
 #[test]
 fn cargo_res_copy() {
-    cargo_res("copy", true);
+    cargo_res("copy", false);
 }
 
 fn cargo_res(test: &str, pack: bool) {
@@ -49,6 +49,10 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
         assert!(actual.exists(), "expected `{}`", actual.display());
         if expected.is_dir() {
             assert_dir_eq(&expected, &actual);
+        } else {
+            let expected = fs::read_to_string(expected).unwrap();
+            let actual = fs::read_to_string(actual).unwrap();
+            assert_eq!(expected, actual, "expected file contents to match");
         }
     }
 }

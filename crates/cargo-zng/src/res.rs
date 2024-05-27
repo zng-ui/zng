@@ -93,7 +93,11 @@ pub(crate) fn run(mut args: ResArgs) {
 
     let start = Instant::now();
     if let Err(e) = build(&args) {
-        fatal!("build failed, {e}")
+        let e = e.to_string();
+        for line in e.lines() {
+            eprintln!("   {line}");
+        }
+        fatal!("res build failed");
     }
 
     println!(cstr!("<bold><green>Finished</green></bold> res build in {:?}"), start.elapsed());
