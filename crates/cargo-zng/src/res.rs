@@ -10,6 +10,8 @@ use anyhow::{bail, Context as _};
 use clap::*;
 use color_print::cstr;
 
+use crate::util;
+
 use self::tool::Tools;
 
 pub mod built_in;
@@ -45,18 +47,19 @@ pub struct ResArgs {
     #[arg(long, default_value = "32")]
     recursion_limit: u32,
 }
-impl ResArgs {
-    fn canonicalize(&mut self) -> io::Result<()> {
-        self.source = dunce::canonicalize(&self.source)?;
-        self.target = dunce::canonicalize(&self.target)?;
-        self.tools = dunce::canonicalize(&self.tools)?;
-        self.tool_cache = dunce::canonicalize(&self.tool_cache)?;
 
-        Ok(())
-    }
+fn canonicalize(path: &Path) -> PathBuf {
+    dunce::canonicalize(path).unwrap_or_else(|e| fatal!("cannot resolve path, {e}"))
 }
 
 pub(crate) fn run(mut args: ResArgs) {
+    if args.tools.exists() {
+        args.tools = canonicalize(&args.tools);
+    }
+    if args.list {
+        return list(&args.tools);
+    }
+
     if !args.source.exists() {
         fatal!("source dir does not exist");
     }
@@ -72,10 +75,20 @@ pub(crate) fn run(mut args: ResArgs) {
         fatal!("cannot create target dir, {e}");
     }
 
-    args.canonicalize().unwrap();
+    args.source = canonicalize(&args.source);
+    args.target = canonicalize(&args.target);
+    args.tool_cache = canonicalize(&args.tool_cache);
 
-    if args.list {
-        return list(&args.tools);
+    // tool request paths are relative to the workspace root
+    if let Some(p) = util::workspace_dir() {
+        if let Err(e) = std::env::set_current_dir(p) {
+            fatal!("cannot change dir, {e}");
+        }
+    } else {
+        warn!("source is not in a Cargo workspace, tools will run using source as root");
+        if let Err(e) = std::env::set_current_dir(&args.source) {
+            fatal!("cannot change dir, {e}");
+        }
     }
 
     let start = Instant::now();

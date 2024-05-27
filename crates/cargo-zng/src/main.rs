@@ -15,6 +15,13 @@ mod l10n;
 mod new;
 mod res;
 
+/// Utilities for implementing `cargo-zng-res-{tool}` executables.
+///
+/// Note don't depend on `cargo-zng`, just copy the source code of the utilities you need.
+pub mod res_tool_util {
+    pub use crate::res::built_in::{ToolCli, ToolRequest, CACHE_DIR};
+}
+
 use clap::*;
 
 #[derive(Parser, Debug)]

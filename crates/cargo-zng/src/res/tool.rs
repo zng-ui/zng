@@ -122,7 +122,13 @@ impl Tool {
 
         let cache_dir = format!("{:x}", hasher.finalize());
 
-        self.run_cmd(self.cmd().env(crate::res::built_in::CACHE_DIR, cache.join(cache_dir)))
+        self.run_cmd(
+            self.cmd()
+                .env(crate::res::built_in::CACHE_DIR, cache.join(cache_dir))
+                .arg(source)
+                .arg(target)
+                .arg(request),
+        )
     }
 
     fn run_final(&self, args: String) -> anyhow::Result<String> {
@@ -205,7 +211,7 @@ impl Tools {
             if tool.name == tool_name {
                 let output = tool.run(&self.cache, source, target, request)?;
                 for warn in output.warnings {
-                    println!(cstr!("<bold><yellow>warning</yellow>:</bold> {}"), warn);
+                    warn!("{warn}")
                 }
                 for args in output.on_final {
                     self.on_final.lock().push((i, args));

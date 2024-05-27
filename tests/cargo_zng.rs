@@ -14,6 +14,11 @@ fn cargo_res_statics_pack() {
     cargo_res("statics-pack", true);
 }
 
+#[test]
+fn cargo_res_copy() {
+    cargo_res("copy", true);
+}
+
 fn cargo_res(test: &str, pack: bool) {
     let test_dir = PathBuf::from("cargo-zng-res-tests").join(test);
     let source = test_dir.join("source");
@@ -25,7 +30,7 @@ fn cargo_res(test: &str, pack: bool) {
 
     let output = cargo_zng_res(&[&source, &target], pack).unwrap_or_else(|e| panic!("{e}"));
 
-    fs::write(source.join("run.stdout"), output.as_bytes()).unwrap();
+    fs::write(test_dir.join("test.stdout"), output.as_bytes()).unwrap();
     assert_dir_eq(&source.with_file_name("expected_target"), &target);
 }
 

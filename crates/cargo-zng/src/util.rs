@@ -1,4 +1,19 @@
-use std::{io, process::Command, sync::atomic::AtomicBool};
+use std::{
+    io,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::atomic::AtomicBool,
+};
+
+/// Print warning message.
+macro_rules! warn {
+    ($($format_args:tt)*) => {
+        {
+            $crate::util::set_failed_run(true);
+            eprintln!("{} {}", $crate::util::WARN_PREFIX, format_args!($($format_args)*));
+        }
+    };
+}
 
 /// Print error message and flags the current process as failed.
 ///
@@ -12,6 +27,7 @@ macro_rules! error {
     };
 }
 
+pub static WARN_PREFIX: &str = color_print::cstr!("<bold><yellow>warning</yellow>:</bold>");
 pub static ERROR_PREFIX: &str = color_print::cstr!("<bold><red>error</red>:</bold>");
 
 /// Print error message and exit the current process with error code.
@@ -77,5 +93,21 @@ pub fn cmd(line: &str, args: &[&str], env: &[(&str, &str)]) -> io::Result<()> {
             cmd.push_str(arg);
         }
         Err(io::Error::new(io::ErrorKind::Other, cmd))
+    }
+}
+
+pub fn workspace_dir() -> Option<PathBuf> {
+    let output = std::process::Command::new("cargo")
+        .arg("locate-project")
+        .arg("--workspace")
+        .arg("--message-format=plain")
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        let cargo_path = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim());
+        Some(cargo_path.parent().unwrap().to_owned())
+    } else {
+        None
     }
 }
