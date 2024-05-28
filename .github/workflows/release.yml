@@ -344,7 +344,7 @@ jobs:
              sudo apt install libxkbcommon-x11-0
       - name: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-        uses: coactions/setup-xvfb@v1
+        uses: coactions/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
         with:
           run: cargo do test --render
       - run: cargo clean
