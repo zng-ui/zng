@@ -96,6 +96,67 @@ fn copy() {
     }
 }
 
+const GLOB_HELP: &str = "
+Copy all matches in place
+
+The request file:
+  source/l10n/fluent-files.zr-glob
+   | # localization dir
+   | l10n
+   | # only Fluent files
+   | **/*.ftl
+   | # except test locales
+   | *[!pseudo]*
+
+Copies all '.ftl' not in a *pseudo* path to:
+  target/l10n/
+
+Paths are relative to the Cargo workspace root. The matches files 
+and dirs are all copied to the glob file equivalent position in target.
+
+The first path pattern is required and defines the dir structure(s) that
+will be copied, an initial pattern with '**' flattens the matches.
+
+The subsequent patterns are optional and filter the previous match.
+";
+fn glob() {
+    help(GLOB_HELP);
+
+    // target derived from the request place
+    let target = path(ZR_TARGET);
+    let target = target.parent().unwrap();
+
+    let mut lines = read_lines(&path(ZR_REQUEST));
+    let (ln, selection) = lines
+        .next()
+        .unwrap_or_else(|| fatal!("expected at least one path pattern"))
+        .unwrap_or_else(|e| fatal!("{e}"));
+
+    let selection = glob::glob(&selection).unwrap_or_else(|e| fatal!("at line {ln}, {e}"));
+    let mut filters = vec![];
+    for r in lines {
+        let (ln, filter) = r.unwrap_or_else(|e| fatal!("{e}"));
+        filters.push(glob::Pattern::new(&filter).unwrap_or_else(|e| fatal!("at line {ln}, {e}")));
+    }
+
+    'entry: for entry in selection {
+        let source = entry.unwrap_or_else(|e| fatal!("{e}"));
+        for filter in &filters {
+            if !filter.matches_path(&source) {
+                continue 'entry;
+            }
+        }
+        // copy
+        if source.is_dir() {
+            fs::create_dir(target).unwrap_or_else(|e| fatal!("{e}"));
+            copy_dir_all(&source, target, true).unwrap_or_else(|e| fatal!("{e}"));
+        } else {
+            fs::copy(source, target).unwrap_or_else(|e| fatal!("{e}"));
+            println!("{}", display_path(target));
+        }
+    }
+}
+
 const WARN_HELP: &str = "
 Print a warning message
 ";
@@ -195,19 +256,53 @@ fn sh_windows() -> Option<PathBuf> {
 }
 
 fn read_line(path: &Path, expected: &str) -> io::Result<String> {
-    let file = fs::File::open(path)?;
-    for line in io::BufReader::new(file).lines() {
-        let line = line?;
-        let line = line.trim();
-        if !line.is_empty() && !line.starts_with('#') {
-            return Ok(line.to_owned());
-        }
+    match read_lines(path).next() {
+        Some(r) => r.map(|(_, l)| l),
+        None => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("expected {expected} in tool file content"),
+        )),
     }
+}
 
-    Err(io::Error::new(
-        io::ErrorKind::InvalidInput,
-        format!("expected {expected} in tool file content"),
-    ))
+fn read_lines(path: &Path) -> impl Iterator<Item = io::Result<(usize, String)>> {
+    enum State {
+        Open(io::Result<fs::File>),
+        Lines(usize, io::Lines<io::BufReader<fs::File>>),
+        End,
+    }
+    // start -> open
+    let mut state = State::Open(fs::File::open(path));
+    std::iter::from_fn(move || loop {
+        match std::mem::replace(&mut state, State::End) {
+            State::Lines(count, mut lines) => {
+                if let Some(l) = lines.next() {
+                    match l {
+                        // lines -> lines
+                        Ok(l) => {
+                            state = State::Lines(count + 1, lines);
+                            let test = l.trim();
+                            if !test.is_empty() && !test.starts_with('#') {
+                                return Some(Ok((count, l)));
+                            }
+                        }
+                        // lines -> end
+                        Err(e) => {
+                            return Some(Err(e));
+                        }
+                    }
+                }
+            }
+            State::Open(r) => match r {
+                // open -> lines
+                Ok(f) => state = State::Lines(1, io::BufReader::new(f).lines()),
+                // open -> end
+                Err(e) => return Some(Err(e)),
+            },
+            // end -> end
+            State::End => {}
+        }
+    })
 }
 
 fn read_path(request_file: &Path) -> io::Result<PathBuf> {
@@ -251,6 +346,7 @@ macro_rules! built_in {
 }
 built_in! {
     copy,
+    glob,
     warn,
     fail,
     sh,

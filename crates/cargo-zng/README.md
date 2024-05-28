@@ -32,58 +32,6 @@ Options:
   -V, --version  Print version
 ```
 
-## `l10n`
-
-Localization text scraper.
-
-```console
-# cargo zng l10n --help
-
-Localization text scraper
-
-See the docs for `l10n!` for more details about the expected format.
-
-Usage: cargo zng l10n [OPTIONS] <INPUT> <OUTPUT>
-
-Arguments:
-  <INPUT>
-          Rust files glob
-
-  <OUTPUT>
-          Lang resources dir
-
-Options:
-  -m, --macros <MACROS>
-          Custom l10n macro names, comma separated
-
-          [default: ]
-
-      --pseudo <PSEUDO>
-          Pseudo Base name, empty to disable
-
-          [default: pseudo]
-
-      --pseudo-m <PSEUDO_M>
-          Pseudo Mirrored name, empty to disable
-
-          [default: pseudo-mirr]
-
-      --pseudo-w <PSEUDO_W>
-          Pseudo Wide name, empty to disable
-
-          [default: pseudo-wide]
-
-  -h, --help
-          Print help (see a summary with '-h')
-
-  -V, --version
-          Print version
-```
-
-Also see [`zng::l10n::l10n!`] docs for more details about the expected format.
-
-[`zng::l10n::l10n!`]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
-
 ## `new`
 
 Initialize a new repository from a Zng template repository.
@@ -190,6 +138,58 @@ See [zng-ui/zng-template] for an example of templates.
 
 [zng-ui/zng-template]: https://github.com/zng-ui/zng-template
 
+## `l10n`
+
+Localization text scraper.
+
+```console
+# cargo zng l10n --help
+
+Localization text scraper
+
+See the docs for `l10n!` for more details about the expected format.
+
+Usage: cargo zng l10n [OPTIONS] <INPUT> <OUTPUT>
+
+Arguments:
+  <INPUT>
+          Rust files glob
+
+  <OUTPUT>
+          Lang resources dir
+
+Options:
+  -m, --macros <MACROS>
+          Custom l10n macro names, comma separated
+
+          [default: ]
+
+      --pseudo <PSEUDO>
+          Pseudo Base name, empty to disable
+
+          [default: pseudo]
+
+      --pseudo-m <PSEUDO_M>
+          Pseudo Mirrored name, empty to disable
+
+          [default: pseudo-mirr]
+
+      --pseudo-w <PSEUDO_W>
+          Pseudo Wide name, empty to disable
+
+          [default: pseudo-wide]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+```
+
+Also see [`zng::l10n::l10n!`] docs for more details about the expected format.
+
+[`zng::l10n::l10n!`]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
+
 # `res`
 
 Build resources
@@ -199,7 +199,8 @@ Build resources
 
 Build resources
 
-Walks SOURCE and delegates `.zr-{tool}` files to `cargo-zng-res-{tool}` executables and crates.   
+Builds resources SOURCE to TARGET, delegates `.zr-{tool}` files to `cargo-zng-res-{tool}`
+executables and crates.
 
 Usage: cargo zng res [OPTIONS] [SOURCE] [TARGET]
 
@@ -265,7 +266,7 @@ You can call `cargo zng res --list` to see help for all tools available. Tools a
 
 * If a crate exists in `tools/cargo-zng-res-{tool}` executes it (with `--quiet` build).
 * If a crate exists in `tools/cargo-zng-res` and it has a `src/bin/{tool}.rs` file executes it with `--bin {tool}`.
-* If the tool is built in, executes it.
+* If the tool is builtin, executes it.
 * If a `cargo-zng-res-{tool}[.exe]` is installed in the same directory as the running `cargo-zng[.exe]`, executes it.
 
 ### Authoring Tools
@@ -297,3 +298,75 @@ where the tool can store intermediary files specific for this request. The cache
 
 The tool working directory (`current_dir`) is always set to the Cargo workspace root. if the `<SOURCE>`
 is not inside any Cargo project a warning is printed and the `<SOURCE>` is used as working directory.
+
+### Builtin Tools
+
+There are builtin tools provided:
+
+```console
+# cargo zng res --list
+
+.zr-copy @ cargo-zng
+  Copy the file or dir
+
+  The request file:
+    source/foo.txt.zr-copy
+     | # comment
+     | path/bar.txt
+
+  Copies `path/bar.txt` to:
+    target/foo.txt
+
+  Paths are relative to the Cargo workspace root.
+
+.zr-glob @ cargo-zng
+  Copy all matches in place
+
+  The request file:
+    source/l10n/fluent-files.zr-glob
+     | # localization dir
+     | l10n
+     | # only Fluent files
+     | **/*.ftl
+     | # except test locales
+     | *[!pseudo]*
+
+  Copies all '.ftl' not in a *pseudo* path to:
+    target/l10n/
+
+  Paths are relative to the Cargo workspace root. The matches files
+  and dirs are all copied to the glob file equivalent position in target.
+
+  The first path pattern is required and defines the dir structure(s) that
+  will be copied, an initial pattern with '**' flattens the matches.
+
+  The subsequent patterns are optional and filter the previous match.
+
+.zr-warn @ cargo-zng
+  Print a warning message
+
+.zr-fail @ cargo-zng
+  Print an error message and fail the build
+
+.zr-sh @ cargo-zng
+  Run a bash script
+
+  Script is configured using environment variables (like other tools):
+
+  ZR_SOURCE_DIR — Resources directory that is being build.
+  ZR_TARGET_DIR — Target directory where resources are bing built to.
+  ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
+  ZR_WORKSPACE_DIR — Cargo workspace, parent to the source dir. Also the working dir.       
+  ZR_REQUEST — Request file that called the tool (.zr-sh).
+  ZR_TARGET — Target file implied by the request file name.
+
+  ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
+
+  Script can make requests to the resource builder by printing to stdout.
+  Current supported requests:
+
+
+  If the script fails the entire stderr is printed and the resource build fails.
+
+  Runs on $ZR_SH, $PROGRAMFILES/Git/bin/sh.exe or sh.
+```
