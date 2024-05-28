@@ -34,6 +34,11 @@ fn cargo_res_custom() {
     cargo_res("custom", false);
 }
 
+#[test]
+fn cargo_res_glob() {
+    cargo_res("glob", false);
+}
+
 fn cargo_res(test: &str, pack: bool) {
     let test_dir = PathBuf::from("cargo-zng-res-tests").join(test);
     let source = test_dir.join("source");
@@ -59,24 +64,40 @@ fn cargo_res(test: &str, pack: bool) {
 }
 
 fn assert_dir_eq(expected: &Path, actual: &Path) {
-    for entry in fs::read_dir(expected).unwrap() {
-        let expected = entry.unwrap().path();
-        if expected.file_name().unwrap().to_string_lossy() == ".empty" {
-            assert!(
-                fs::read_dir(actual).unwrap().next().is_none(),
-                "expected empty `{}`",
-                actual.display()
-            );
-            continue;
+    check_actual_has(expected, actual);
+    check_expected_has(actual, expected);
+
+    fn check_actual_has(expected: &Path, actual: &Path) {
+        for entry in fs::read_dir(expected).unwrap() {
+            let expected = entry.unwrap().path();
+            if expected.file_name().unwrap().to_string_lossy() == ".empty" {
+                assert!(
+                    fs::read_dir(actual).unwrap().next().is_none(),
+                    "expected empty `{}`",
+                    actual.display()
+                );
+                continue;
+            }
+            let actual = actual.join(expected.file_name().unwrap());
+            assert!(actual.exists(), "expected `{}`", actual.display());
+            if expected.is_dir() {
+                check_actual_has(&expected, &actual);
+            } else {
+                let expected = fs::read_to_string(expected).unwrap();
+                let actual = fs::read_to_string(actual).unwrap();
+                assert_eq!(expected, actual, "expected file contents to match");
+            }
         }
-        let actual = actual.join(expected.file_name().unwrap());
-        assert!(actual.exists(), "expected `{}`", actual.display());
-        if expected.is_dir() {
-            assert_dir_eq(&expected, &actual);
-        } else {
-            let expected = fs::read_to_string(expected).unwrap();
-            let actual = fs::read_to_string(actual).unwrap();
-            assert_eq!(expected, actual, "expected file contents to match");
+    }
+
+    fn check_expected_has(actual: &Path, expected: &Path) {
+        for entry in fs::read_dir(actual).unwrap() {
+            let actual = entry.unwrap().path();
+            let expected = expected.join(actual.file_name().unwrap());
+            assert!(expected.exists(), "did not expect `{}`", actual.display());
+            if actual.is_dir() {
+                check_expected_has(&actual, &expected);
+            }
         }
     }
 }

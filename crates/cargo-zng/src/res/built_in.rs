@@ -7,6 +7,8 @@ use std::{
     process::Command,
 };
 
+use anyhow::Context;
+
 /// Env var set by cargo-zng to the Cargo workspace directory that is parent to the res source.
 ///
 /// Note that the tool also runs with this dir as working directory (`current_dir`).
@@ -106,18 +108,33 @@ The request file:
    | # only Fluent files
    | **/*.ftl
    | # except test locales
-   | *[!pseudo]*
+   | !:*pseudo*
 
 Copies all '.ftl' not in a *pseudo* path to:
   target/l10n/
 
-Paths are relative to the Cargo workspace root. The matches files 
-and dirs are all copied to the glob file equivalent position in target.
-
-The first path pattern is required and defines the dir structure(s) that
+The first path pattern is required and defines the entries that
 will be copied, an initial pattern with '**' flattens the matches.
+The path is relative to the Cargo workspace root.
 
-The subsequent patterns are optional and filter the previous match.
+The subsequent patterns are optional and filter each file or dir selected by
+the first pattern. The paths are relative to each match, if it is a file 
+the filters apply to the file name only, if it is a dir the filters apply to
+the dir and descendants.
+
+The glob pattern syntax is:
+
+    ? — matches any single character.
+    * — matches any (possibly empty) sequence of characters.
+   ** — matches the current directory and arbitrary subdirectories.
+  [c] — matches any character inside the brackets.
+[a-z] — matches any characters in the Unicode sequence.
+ [!b] — negates the brackets match.
+
+And in filter patterns only:
+
+!:pattern — negates the entire pattern.
+
 ";
 fn glob() {
     help(GLOB_HELP);
@@ -136,23 +153,55 @@ fn glob() {
     let mut filters = vec![];
     for r in lines {
         let (ln, filter) = r.unwrap_or_else(|e| fatal!("{e}"));
-        filters.push(glob::Pattern::new(&filter).unwrap_or_else(|e| fatal!("at line {ln}, {e}")));
+        let (filter, matches_if) = if let Some(f) = filter.strip_prefix("!:") {
+            (f, false)
+        } else {
+            (filter.as_str(), true)
+        };
+        let pat = glob::Pattern::new(filter).unwrap_or_else(|e| fatal!("at line {ln}, {e}"));
+        filters.push((pat, matches_if));
     }
 
-    'entry: for entry in selection {
+    'selection: for entry in selection {
         let source = entry.unwrap_or_else(|e| fatal!("{e}"));
-        for filter in &filters {
-            if !filter.matches_path(&source) {
-                continue 'entry;
-            }
-        }
-        // copy
+
+        // copy not filtered
         if source.is_dir() {
-            fs::create_dir(target).unwrap_or_else(|e| fatal!("{e}"));
-            copy_dir_all(&source, target, true).unwrap_or_else(|e| fatal!("{e}"));
-        } else {
-            fs::copy(source, target).unwrap_or_else(|e| fatal!("{e}"));
-            println!("{}", display_path(target));
+            let strip = source.parent().map(Path::to_owned).unwrap_or_default();
+            'walk: for entry in walkdir::WalkDir::new(&source) {
+                let source = entry.unwrap_or_else(|e| fatal!("cannot walkdir entry `{}`, {e}", source.display()));
+                let source = source.path();
+                // filters match 'entry/**'
+                let match_source = source.strip_prefix(&strip).unwrap();
+                for (filter, matches_if) in &filters {
+                    if filter.matches_path(match_source) != *matches_if {
+                        continue 'walk;
+                    }
+                }
+                let target = target.join(match_source);
+
+                if source.is_dir() {
+                    fs::create_dir_all(&target).unwrap_or_else(|e| fatal!("cannot create dir `{}`, {e}", source.display()));
+                } else {
+                    if let Some(p) = &target.parent() {
+                        fs::create_dir_all(p).unwrap_or_else(|e| fatal!("cannot create dir `{}`, {e}", p.display()));
+                    }
+                    fs::copy(source, &target)
+                        .unwrap_or_else(|e| fatal!("cannot copy `{}` to `{}`, {e}", source.display(), target.display()));
+                }
+            }
+        } else if source.is_file() {
+            // filters match 'entry'
+            let source_name = source.file_name().unwrap().to_string_lossy();
+            for (filter, matches_if) in &filters {
+                if filter.matches(&source_name) != *matches_if {
+                    continue 'selection;
+                }
+            }
+            let target = target.join(source_name.as_ref());
+
+            fs::copy(&source, &target).unwrap_or_else(|e| fatal!("cannot copy `{}` to `{}`, {e}", source.display(), target.display()));
+            println!("{}", display_path(&target));
         }
     }
 }
@@ -300,7 +349,7 @@ fn read_lines(path: &Path) -> impl Iterator<Item = io::Result<(usize, String)>> 
                 Err(e) => return Some(Err(e)),
             },
             // end -> end
-            State::End => {}
+            State::End => return None,
         }
     })
 }
@@ -309,19 +358,19 @@ fn read_path(request_file: &Path) -> io::Result<PathBuf> {
     read_line(request_file, "path").map(PathBuf::from)
 }
 
-fn copy_dir_all(from: &Path, to: &Path, trace: bool) -> io::Result<()> {
-    for entry in fs::read_dir(from)? {
-        let from = entry?.path();
+fn copy_dir_all(from: &Path, to: &Path, trace: bool) -> anyhow::Result<()> {
+    for entry in fs::read_dir(from).with_context(|| format!("cannot read_dir `{}`", from.display()))? {
+        let from = entry.with_context(|| format!("cannot read_dir entry `{}`", from.display()))?.path();
         if from.is_dir() {
             let to = to.join(from.file_name().unwrap());
-            fs::create_dir(&to)?;
+            fs::create_dir(&to).with_context(|| format!("cannot create_dir `{}`", to.display()))?;
             if trace {
                 println!("{}", display_path(&to));
             }
             copy_dir_all(&from, &to, trace)?;
         } else if from.is_file() {
             let to = to.join(from.file_name().unwrap());
-            fs::copy(&from, &to)?;
+            fs::copy(&from, &to).with_context(|| format!("cannot copy `{}` to `{}`", from.display(), to.display()))?;
             if trace {
                 println!("{}", display_path(&to));
             }

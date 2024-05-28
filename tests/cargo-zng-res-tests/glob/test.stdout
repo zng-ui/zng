@@ -1,0 +1,10 @@
+tests/cargo-zng-res-tests/glob/source/filter.zr-glob
+tests/cargo-zng-res-tests/glob/source/flatten
+  target/tmp/tests/cargo_zng/glob/flatten
+tests/cargo-zng-res-tests/glob/source/flatten/refs-glob.zr-glob
+  target/tmp/tests/cargo_zng/glob/flatten/aa
+  target/tmp/tests/cargo_zng/glob/flatten/ab
+  target/tmp/tests/cargo_zng/glob/flatten/ac
+  target/tmp/tests/cargo_zng/glob/flatten/aai
+  target/tmp/tests/cargo_zng/glob/flatten/abi
+  target/tmp/tests/cargo_zng/glob/flatten/aci
