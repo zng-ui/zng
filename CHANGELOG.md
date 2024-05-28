@@ -12,6 +12,7 @@
 * Fix `Img::copy_pixels`.
 * Fix `view_process::default::run_same_process` exit in headless runs.
 * Fix `AutoGrowMode::rows` actually enabling Columns auto grow.
+* Fix "unsafe precondition(s) violated" issue ([#242](https://github.com/zng-ui/zng/issues/242)).
 
 # 0.6.1
 
