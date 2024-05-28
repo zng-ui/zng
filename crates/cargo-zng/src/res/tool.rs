@@ -8,6 +8,8 @@ use anyhow::{bail, Context};
 use color_print::cstr;
 use parking_lot::Mutex;
 
+use crate::res_tool_util::*;
+
 /// Visit in the `ToolKind` order.
 pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<ControlFlow<()>>) -> anyhow::Result<()> {
     macro_rules! tool {
@@ -100,15 +102,22 @@ pub struct Tool {
 }
 impl Tool {
     pub fn help(&self) -> anyhow::Result<String> {
-        self.run_cmd(self.cmd().arg("--help")).map(|o| o.output)
+        self.run_cmd(self.cmd().env(ZR_HELP, "")).map(|o| o.output)
     }
 
-    fn run(&self, cache: &Path, source: &Path, target: &Path, request: &Path) -> anyhow::Result<ToolOutput> {
+    fn run(
+        &self,
+        cache: &Path,
+        source_dir: &Path,
+        target_dir: &Path,
+        request: &Path,
+        final_args: Option<String>,
+    ) -> anyhow::Result<ToolOutput> {
         use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
 
-        hasher.update(source.as_os_str().as_encoded_bytes());
-        hasher.update(target.as_os_str().as_encoded_bytes());
+        hasher.update(source_dir.as_os_str().as_encoded_bytes());
+        hasher.update(target_dir.as_os_str().as_encoded_bytes());
         hasher.update(request.as_os_str().as_encoded_bytes());
 
         let mut hash_request = || -> anyhow::Result<()> {
@@ -122,24 +131,26 @@ impl Tool {
 
         let cache_dir = format!("{:x}", hasher.finalize());
 
-        self.run_cmd(
-            self.cmd()
-                .env(crate::res::built_in::CACHE_DIR, cache.join(cache_dir))
-                .arg(source)
-                .arg(target)
-                .arg(request),
-        )
-    }
-
-    fn run_final(&self, args: String) -> anyhow::Result<String> {
         let mut cmd = self.cmd();
-        for arg in args.split(' ') {
-            let arg = arg.trim();
-            if !arg.is_empty() {
-                cmd.arg(arg);
-            }
+        if let Some(args) = final_args {
+            cmd.env(ZR_FINAL, args);
         }
-        self.run_cmd(&mut cmd).map(|o| o.output)
+
+        // if the request is already in `target` (recursion)
+        let mut target = request.with_extension("");
+        // if the request is in `source`
+        if let Ok(p) = target.strip_prefix(source_dir) {
+            target = target_dir.join(p);
+        }
+
+        self.run_cmd(
+            cmd.env(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap())
+                .env(ZR_SOURCE_DIR, source_dir)
+                .env(ZR_TARGET_DIR, target_dir)
+                .env(ZR_REQUEST, request)
+                .env(ZR_TARGET, target)
+                .env(ZR_CACHE_DIR, cache.join(cache_dir)),
+        )
     }
 
     fn cmd(&self) -> std::process::Command {
@@ -190,7 +201,7 @@ impl Tool {
 pub struct Tools {
     tools: Vec<Tool>,
     cache: PathBuf,
-    on_final: Mutex<Vec<(usize, String)>>,
+    on_final: Mutex<Vec<(usize, PathBuf, String)>>,
 }
 impl Tools {
     pub fn capture(local: &Path, cache: PathBuf) -> anyhow::Result<Self> {
@@ -209,12 +220,12 @@ impl Tools {
     pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<String> {
         for (i, tool) in self.tools.iter().enumerate() {
             if tool.name == tool_name {
-                let output = tool.run(&self.cache, source, target, request)?;
+                let output = tool.run(&self.cache, source, target, request, None)?;
                 for warn in output.warnings {
                     warn!("{warn}")
                 }
                 for args in output.on_final {
-                    self.on_final.lock().push((i, args));
+                    self.on_final.lock().push((i, request.to_owned(), args));
                 }
                 if !output.delegate {
                     return Ok(output.output);
@@ -224,10 +235,13 @@ impl Tools {
         bail!("no tool `{tool_name}` to handle request")
     }
 
-    pub fn run_final(self) -> anyhow::Result<()> {
-        for (i, args) in self.on_final.into_inner() {
+    pub fn run_final(self, source: &Path, target: &Path) -> anyhow::Result<()> {
+        for (i, request, args) in self.on_final.into_inner() {
             println!(cstr!("<bold>{}</bold> {}"), self.tools[i].name, args);
-            self.tools[i].run_final(args)?;
+            let output = self.tools[i].run(&self.cache, source, target, &request, Some(args))?;
+            for warn in output.warnings {
+                warn!("{warn}")
+            }
         }
         Ok(())
     }

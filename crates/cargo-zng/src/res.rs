@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{bail, Context as _};
 
-use built_in::display_path;
+use built_in::{display_path, ZR_WORKSPACE_DIR};
 use clap::*;
 use color_print::cstr;
 
@@ -91,6 +91,8 @@ pub(crate) fn run(mut args: ResArgs) {
             fatal!("cannot change dir, {e}");
         }
     }
+    // to use `display_path` in the tool runner (current process)
+    std::env::set_var(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap());
 
     let start = Instant::now();
     if let Err(e) = build(&args) {
@@ -117,7 +119,7 @@ fn build(args: &ResArgs) -> anyhow::Result<()> {
         }
     }
 
-    tools.run_final()
+    tools.run_final(&args.source, &args.target)
 }
 
 fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &Path) -> anyhow::Result<()> {

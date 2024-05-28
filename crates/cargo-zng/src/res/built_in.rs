@@ -6,109 +6,52 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Environment variable set by cargo-zng to dir named
-/// from a hash of source, target, request and request content
-pub const CACHE_DIR: &str = "ZNG_RES_CACHE";
-
-/// CLI arguments for a `cargo-zng-res-{tool}`.
+/// Env var set by cargo-zng to the Cargo workspace directory that is parent to the res source.
 ///
-/// Copy this type to your own custom tool to use.
-pub enum ToolCli {
-    /// Print help (for cargo zng res --list)
-    Help,
+/// Note that the tool also runs with this dir as working directory (`current_dir`).
+pub const ZR_WORKSPACE_DIR: &str = "ZR_WORKSPACE_DIR";
+/// Env var set by cargo-zng to the resources source directory.
+pub const ZR_SOURCE_DIR: &str = "ZR_SOURCE_DIR";
+/// Env var set by cargo-zng to the resources build target directory.
+pub const ZR_TARGET_DIR: &str = "ZR_TARGET_DIR";
+/// Env var set by cargo-zng to dir that the tool can use to store intermediary data for the specific request.
+///
+/// The cache key (dir name) is a hash of source, target, request and request content only.
+pub const ZR_CACHE_DIR: &str = "ZR_CACHE_DIR";
 
-    /// Run tool
-    Request(ToolRequest),
+/// Env var set by cargo-zng to the request file that called the tool.
+pub const ZR_REQUEST: &str = "ZR_REQUEST";
+/// Env var set by cargo-zng to the target file implied by the request file name.
+///
+/// That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
+pub const ZR_TARGET: &str = "ZR_TARGET";
 
-    /// If tool requested 'zng-res::on-final={args}' now is the time to run it
-    OnFinal(String),
-}
-impl ToolCli {
-    /// Parse args.
-    pub fn parse() -> Self {
-        let mut args: Vec<_> = std::env::args().skip(1).take(4).collect();
-        match args.len() {
-            1 if args[0] == "--help" => Self::Help,
-            2 if args[0] == "--on-final" => Self::OnFinal(args.remove(1)),
-            3 if args.iter().all(|a| !a.starts_with('-')) => {
-                let r = ToolRequest {
-                    request: args.remove(2).into(),
-                    target: args.remove(1).into(),
-                    source: args.remove(0).into(),
-                };
-                assert!(r.source.is_absolute(), "source not absolute, use cargo-zng to call this tool");
-                assert!(r.target.is_absolute(), "target not absolute, use cargo-zng to call this tool");
-                assert!(r.request.is_absolute(), "request not absolute, use cargo-zng to call this tool");
-                assert!(
-                    r.is_source_to_target() || r.is_target_to_target(),
-                    "request not inside source nor target, use cargo-zng to call this tool"
-                );
+/// Env var set by cargo-zng when it is running a tool that requested `zng-res::on-final=` again.
+pub const ZR_FINAL: &str = "ZR_FINAL";
 
-                Self::Request(r)
-            }
-            _ => panic!("unknown args, use cargo-zng to call this tool"),
-        }
-    }
+/// Env var set by cargo-zng when it needs the tool print the help text shown in `cargo zng res --list`.
+pub const ZR_HELP: &str = "ZR_HELP";
+
+/// Print the help and exit if is help request.
+pub fn help(help: &str) {
+    if env::var(ZR_HELP).is_ok() {
+        println!("{help}");
+        std::process::exit(0);
+    };
 }
 
-/// See [`ToolCli::Request`].
-pub struct ToolRequest {
-    /// Resources source dir
-    source: PathBuf,
-    /// Resources target dir
-    target: PathBuf,
-    /// The .zr-{tool} file
-    request: PathBuf,
-}
-impl ToolRequest {
-    /// Derive target file path from request path.
-    ///
-    /// Gets `request` without `.zr-*` and in the equivalent `target` dir.
-    pub fn target_file(&self) -> PathBuf {
-        // if the request is already in `target` (recursion)
-        let mut target = self.request.with_extension("");
-        // if the request is in `source`
-        if let Ok(p) = target.strip_prefix(&self.source) {
-            target = self.target.join(p);
-        }
-        target
-    }
-
-    /// Cargo workspace is the `std::env::current_dir`. Unless `source` is not inside
-    /// a Cargo project, them it is the workspace.
-    pub fn workspace(&self) -> PathBuf {
-        std::env::current_dir().unwrap()
-    }
-
-    /// Cache dir named from a hash of source, target, request and request content
-    pub fn cache(&self) -> PathBuf {
-        std::env::var(CACHE_DIR)
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| std::env::temp_dir().join(self.request.file_name().unwrap()))
-    }
-
-    /// Checks if `request` is inside `source`.
-    ///
-    /// If it is not it is inside `target`.
-    pub fn is_source_to_target(&self) -> bool {
-        self.request.strip_prefix(&self.source).is_ok()
-    }
-
-    /// Checks if `request` is inside `target`.
-    ///
-    /// If it is not it is inside `source`.
-    pub fn is_target_to_target(&self) -> bool {
-        self.request.strip_prefix(&self.source).is_ok()
-    }
+/// Get a `ZR_` path var.
+pub fn path(var: &str) -> PathBuf {
+    env::var(var).unwrap_or_else(|_| panic!("missing {var}")).into()
 }
 
 /// Format the path in the standard way used by cargo-zng.
-pub fn display_path(path: &Path) -> String {
-    let base = std::env::current_dir().unwrap();
-    let r = if let Ok(local) = path.strip_prefix(base) {
+pub fn display_path(p: &Path) -> String {
+    let base = path(ZR_WORKSPACE_DIR);
+    let r = if let Ok(local) = p.strip_prefix(base) {
         local.display().to_string()
     } else {
-        path.display().to_string()
+        p.display().to_string()
     };
 
     #[cfg(windows)]
@@ -132,17 +75,13 @@ Copies `path/bar.txt` to:
 Path is relative to the Cargo workspace root, unless it starts with `./`,
 them it is relative to the `.zr-copy` file.
 ";
-fn copy(cli: ToolCli) {
-    let args = match cli {
-        ToolCli::Request(r) => r,
-        ToolCli::Help => return println!("{COPY_HELP}"),
-        ToolCli::OnFinal(_) => fatal!("did not request"),
-    };
+fn copy() {
+    help(COPY_HELP);
 
     // read source
-    let source = read_path(&args.request).unwrap_or_else(|e| fatal!("{e}"));
+    let source = read_path(&path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
     // target derived from the request file name
-    let mut target = args.target_file();
+    let mut target = path(ZR_TARGET);
     // request without name "./.zr-copy", take name from source (this is deliberate not documented)
     if target.ends_with(".zr-copy") {
         target = target.with_file_name(source.file_name().unwrap());
@@ -159,42 +98,27 @@ fn copy(cli: ToolCli) {
 const PRINT_HELP: &str = "
 Print a message
 ";
-fn print(cli: ToolCli) {
-    let args = match cli {
-        ToolCli::Request(r) => r,
-        ToolCli::Help => return println!("{PRINT_HELP}"),
-        ToolCli::OnFinal(_) => fatal!("did not request"),
-    };
-
-    let message = fs::read_to_string(args.request).unwrap_or_else(|e| fatal!("{e}"));
+fn print() {
+    help(PRINT_HELP);
+    let message = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
     println!("{message}");
 }
 
 const WARN_HELP: &str = "
 Print a warning message
 ";
-fn warn(cli: ToolCli) {
-    let args = match cli {
-        ToolCli::Request(r) => r,
-        ToolCli::Help => return println!("{WARN_HELP}"),
-        ToolCli::OnFinal(_) => fatal!("did not request"),
-    };
-
-    let message = fs::read_to_string(args.request).unwrap_or_else(|e| fatal!("{e}"));
+fn warn() {
+    help(WARN_HELP);
+    let message = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
     warn!("{message}");
 }
 
 const FAIL_HELP: &str = "
 Print an error message and fail the build
 ";
-fn fail(cli: ToolCli) {
-    let args = match cli {
-        ToolCli::Request(r) => r,
-        ToolCli::Help => return println!("{FAIL_HELP}"),
-        ToolCli::OnFinal(_) => fatal!("did not request"),
-    };
-
-    let message = fs::read_to_string(args.request).unwrap_or_else(|e| fatal!("{e}"));
+fn fail() {
+    help(FAIL_HELP);
+    let message = fs::read_to_string(ZR_REQUEST).unwrap_or_else(|e| fatal!("{e}"));
     fatal!("{message}");
 }
 
@@ -203,12 +127,9 @@ Run a "bash" script
 
 The script is executed using the 'xshell' crate
 "#;
-fn sh(cli: ToolCli) {
-    let args = match cli {
-        ToolCli::Request(r) => r,
-        ToolCli::Help => return println!("{FAIL_HELP}"),
-        ToolCli::OnFinal(_) => todo!(),
-    };
+fn sh() {
+    help(SH_HELP);
+    let _sh = xshell::Shell::new();
 }
 
 fn read_line(path: &Path, expected: &str) -> io::Result<String> {
@@ -267,7 +188,7 @@ macro_rules! built_in {
         pub static BUILT_INS: &[&str] = &[
             $(stringify!($tool),)+
         ];
-        static BUILT_IN_FNS: &[fn(ToolCli)] = &[
+        static BUILT_IN_FNS: &[fn()] = &[
             $($tool,)+
         ];
     };
@@ -283,8 +204,7 @@ built_in! {
 pub fn run() {
     if let Ok(tool) = env::var(ENV_TOOL) {
         if let Some(i) = BUILT_INS.iter().position(|n| *n == tool.as_str()) {
-            let cli = ToolCli::parse();
-            (BUILT_IN_FNS[i])(cli);
+            (BUILT_IN_FNS[i])();
             std::process::exit(0);
         } else {
             fatal!("`tool` is not a built-in tool");
