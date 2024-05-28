@@ -1094,7 +1094,14 @@ impl FontFace {
         } else {
             ColorGlyphs::load(&font)?
         };
-        let has_ligatures = face.table_with_tag(b"GSUB").is_some();
+
+        // !!: TODO, debug code to get the
+        let has_ligatures = match std::panic::catch_unwind(|| face.table_with_tag(b"GSUB").is_some()) {
+            Ok(b) => b,
+            Err(p) => {
+                panic!("panic reading GSUB for {}", font.full_name());
+            },
+        };
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
         } else {
