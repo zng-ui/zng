@@ -2,12 +2,11 @@ use std::{env, fs, path::PathBuf};
 
 fn main() {
     if env::var("ZR_HELP").is_ok() {
-        println!(".zr-tool-crate help!");
+        println!(".zr-tool2 help!");
         std::process::exit(0);
     }
-
-    let message = fs::read_to_string(path("ZR_REQUEST")).unwrap_or_else(|e| panic!("{e}"));
-    println!("{message}");
+    println!("tool2 print!");
+    fs::copy(path("ZR_REQUEST"), path("ZR_TARGET")).unwrap();
 }
 
 fn path(var: &str) -> PathBuf {

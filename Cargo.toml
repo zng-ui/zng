@@ -9,7 +9,7 @@ members = [
     "tests",
     "tests/macro-tests",
     "tests/render-tests",
-    "tests/cargo-zng-res-tests/custom-tools/*",
+    "tests/cargo-zng-res-tests/custom/tools/*",
 ]
 default-members = ["crates/*"]
 

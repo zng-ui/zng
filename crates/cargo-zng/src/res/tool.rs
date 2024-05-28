@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{bail, Context};
 use color_print::cstr;
+use is_executable::IsExecutable as _;
 use parking_lot::Mutex;
 
 use crate::res_tool_util::*;
@@ -82,11 +83,13 @@ pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<Co
         if path.is_file() {
             let name = path.file_name().unwrap().to_string_lossy();
             if let Some(name) = name.strip_prefix("cargo-zng-res-") {
-                tool!(Tool {
-                    name: name.split('.').next().unwrap().to_owned(),
-                    kind: ToolKind::Installed,
-                    path,
-                });
+                if path.is_executable() {
+                    tool!(Tool {
+                        name: name.split('.').next().unwrap().to_owned(),
+                        kind: ToolKind::Installed,
+                        path,
+                    });
+                }
             }
         }
     }

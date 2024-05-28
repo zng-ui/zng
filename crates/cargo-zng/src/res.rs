@@ -191,7 +191,7 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
 
 fn list(tools: &Path) {
     let r = tool::visit_tools(tools, |tool| {
-        println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, tool.path.display());
+        println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
         match tool.help() {
             Ok(h) => {
                 for line in h.trim().lines() {
@@ -209,4 +209,19 @@ fn list(tools: &Path) {
     if let Err(e) = r {
         fatal!("{e}")
     }
+}
+
+fn display_tool_path(p: &Path) -> String {
+    let base = util::workspace_dir().unwrap_or_else(|| std::env::current_dir().unwrap());
+    let r = if let Ok(local) = p.strip_prefix(base) {
+        local.display().to_string()
+    } else {
+        p.file_name().unwrap().to_string_lossy().into_owned()
+    };
+
+    #[cfg(windows)]
+    return r.replace('\\', "/");
+
+    #[cfg(not(windows))]
+    r
 }

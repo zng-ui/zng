@@ -5,9 +5,8 @@ fn main() {
         println!(".zr-tool1 help!");
         std::process::exit(0);
     }
-
-    let message = fs::read_to_string(path("ZR_REQUEST")).unwrap_or_else(|e| panic!("{e}"));
-    println!("{message} (by tool1)");
+    println!("tool1 print!");
+    fs::copy(path("ZR_REQUEST"), path("ZR_TARGET")).unwrap();
 }
 
 fn path(var: &str) -> PathBuf {

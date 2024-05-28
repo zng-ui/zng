@@ -29,6 +29,11 @@ fn cargo_res_bash() {
     cargo_res("bash", false);
 }
 
+#[test]
+fn cargo_res_custom() {
+    cargo_res("custom", false);
+}
+
 fn cargo_res(test: &str, pack: bool) {
     let test_dir = PathBuf::from("cargo-zng-res-tests").join(test);
     let source = test_dir.join("source");
@@ -37,8 +42,9 @@ fn cargo_res(test: &str, pack: bool) {
     if target.exists() {
         let _ = fs::remove_dir_all(&target);
     }
+    let tools = test_dir.join("tools");
 
-    let output = cargo_zng_res(&[&source, &target], pack).unwrap_or_else(|e| panic!("{e}"));
+    let output = cargo_zng_res(&[&source, &target], &tools, pack).unwrap_or_else(|e| panic!("{e}"));
     let mut clean_output = String::new();
     for line in output.lines() {
         if line.contains("Finished") && line.contains("res build in") {
@@ -75,12 +81,13 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
     }
 }
 
-fn cargo_zng_res<S: AsRef<OsStr>>(args: &[S], pack: bool) -> io::Result<String> {
+fn cargo_zng_res<S: AsRef<OsStr>>(args: &[S], tools: &Path, pack: bool) -> io::Result<String> {
     let mut cmd = std::process::Command::new("cargo");
     cmd.arg("run").arg("-p").arg("cargo-zng").arg("--").arg("res");
     if pack {
         cmd.arg("--pack");
     }
+    cmd.arg("--tools").arg(tools);
     let output = cmd.args(args).output()?;
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
