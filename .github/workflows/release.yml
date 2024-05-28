@@ -337,23 +337,13 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-      - name: start xvfb
+      - name: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-        run: |
-            xvfb :99 -screen 0 1024x768x24
-            echo "Xvfb started"
-            sleep 3
-        env:
-          DISPLAY: ":99"
-      - run: cargo do test --render
-        if: ${{ github.event.inputs.skip_tests != 'true' }}
-        env:
-          DISPLAY: ":99"
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: cargo do test --render
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-      - name: cleanup xvfb
-        if: ${{ github.event.inputs.skip_tests != 'true' }}
-        uses: bcomnes/cleanup-xvfb@v1
   
   test-windows:
     runs-on: windows-latest
