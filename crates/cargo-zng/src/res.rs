@@ -176,7 +176,9 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
                 if let Some(tool) = ext.strip_prefix("zr-") {
                     any = true;
                     println!("{}", display_path(path));
-                    let output = tools.run(tool, &args.source, &args.target, path)?;
+                    let tool_r = tools.run(tool, &args.source, &args.target, path);
+                    fs::remove_file(path)?;
+                    let output = tool_r?;
                     for line in output.lines() {
                         println!("  {line}");
                     }

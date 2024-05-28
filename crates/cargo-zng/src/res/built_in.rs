@@ -87,6 +87,7 @@ fn copy() {
     }
 
     if source.is_dir() {
+        fs::create_dir(&target).unwrap_or_else(|e| fatal!("{e}"));
         copy_dir_all(&source, &target, true).unwrap_or_else(|e| fatal!("{e}"));
     } else {
         fs::copy(source, &target).unwrap_or_else(|e| fatal!("{e}"));
