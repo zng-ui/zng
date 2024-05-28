@@ -27,6 +27,7 @@ fn main() {
         "publish_version_tag" => publish_version_tag(args),
         "comment_feature" => comment_feature(args),
         "latest_release_changes" => latest_release_changes(args),
+        "just" => just(args),
         "version" => version(args),
         "ls" => ls(args),
         "help" | "--help" => help(args),
@@ -1305,6 +1306,27 @@ fn latest_release_changes(args: Vec<&str>) {
         }
     } else {
         println(changes)
+    }
+}
+
+// do just
+//    Install a shell script at the workspace root so that you only need to call `do`
+fn just(_: Vec<&str>) {
+    #[cfg(windows)]
+    std::fs::write("do.bat", include_bytes!("do-script.bat")).unwrap_or_else(|e| util::fatal(e));
+
+    #[cfg(not(windows))]
+    {
+        std::fs::write("do", include_bytes!("do-script.sh")).unwrap_or_else(|e| util::fatal(e));
+        println!("$ chmod u+x do");
+        let chmod = std::process::Command::new("chmod")
+            .arg("u+x")
+            .arg("do")
+            .status()
+            .unwrap_or_else(|e| util::fatal(e));
+        if !chmod.success() {
+            util::set_exit_with_error();
+        }
     }
 }
 
