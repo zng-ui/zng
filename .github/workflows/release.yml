@@ -78,7 +78,7 @@ jobs:
       - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
   check-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_checks != 'true' }}
@@ -225,7 +225,7 @@ jobs:
           name: prebuilt-windows
           path: crates/zng-view-prebuilt/lib/zng_view.dll
   prebuild-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     needs: [check-macos]
     env:
       ZNG_TP_LICENSES: true
@@ -392,7 +392,7 @@ jobs:
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
   test-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     needs: [prebuild-macos]
     env:
       NEXTEST_RETRIES: 3
