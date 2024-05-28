@@ -325,7 +325,7 @@ jobs:
         with:
           name: prebuilt-ubuntu
           path: crates/zng-view-prebuilt/lib
-      - run: cargo do test --lib --bins --tests --nextest
+      - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -375,7 +375,7 @@ jobs:
         with:
           name: prebuilt-windows
           path: crates/zng-view-prebuilt/lib
-      - run: cargo do test --lib --bins --tests --nextest
+      - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -414,7 +414,7 @@ jobs:
         with:
           name: prebuilt-macos
           path: crates/zng-view-prebuilt/lib
-      - run: cargo do test --lib --bins --tests --nextest
+      - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
