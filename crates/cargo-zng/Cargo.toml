@@ -29,7 +29,6 @@ convert_case = "0.6"
 sha2 = "0.10"
 parking_lot = "0.12"
 walkdir = "2.5"
-xshell = "0.2"
 
 anyhow = "1.0"
 dunce = "1.0"

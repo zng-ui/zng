@@ -1,0 +1,1 @@
+if [ -z ${ZR_FINAL+x} ]; then echo "zng-res::on-final=final args"; else echo "on final: '$ZR_FINAL'"; fi

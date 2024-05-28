@@ -24,6 +24,11 @@ fn cargo_res_recursive() {
     cargo_res("recursive", false);
 }
 
+#[test]
+fn cargo_res_bash() {
+    cargo_res("bash", false);
+}
+
 fn cargo_res(test: &str, pack: bool) {
     let test_dir = PathBuf::from("cargo-zng-res-tests").join(test);
     let source = test_dir.join("source");

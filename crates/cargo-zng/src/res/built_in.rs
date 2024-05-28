@@ -4,6 +4,7 @@ use std::{
     env, fs,
     io::{self, BufRead},
     path::{Path, PathBuf},
+    process::Command,
 };
 
 /// Env var set by cargo-zng to the Cargo workspace directory that is parent to the res source.
@@ -95,15 +96,6 @@ fn copy() {
     }
 }
 
-const PRINT_HELP: &str = "
-Print a message
-";
-fn print() {
-    help(PRINT_HELP);
-    let message = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
-    println!("{message}");
-}
-
 const WARN_HELP: &str = "
 Print a warning message
 ";
@@ -123,12 +115,9 @@ fn fail() {
 }
 
 const SH_HELP: &str = r#"
-Run a "bash" script
+Run a bash script
 
-The script is executed using the 'xshell' crate and will work across 
-platforms if it does not use any system specific executables.
-
-Script are configured using environment variables (like other tools):
+Script is configured using environment variables (like other tools):
 
 ZR_SOURCE_DIR — Resources directory that is being build.
 ZR_TARGET_DIR — Target directory where resources are bing built to.
@@ -139,19 +128,70 @@ ZR_TARGET — Target file implied by the request file name.
 
 ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
 
-Scripts can make requests to the resource builder by printing to stdout.
+Script can make requests to the resource builder by printing to stdout.
 Current supported requests:
 
 zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
 zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
 
 If the script fails the entire stderr is printed and the resource build fails.
+
+Runs on $ZR_SH, $PROGRAMFILES/Git/bin/sh.exe or sh.
 "#;
 fn sh() {
     help(SH_HELP);
-    let sh = xshell::Shell::new().unwrap_or_else(|e| fatal!("{e}"));
+    if let Ok(sh) = env::var("ZR_SH") {
+        if !sh.is_empty() {
+            let sh = PathBuf::from(sh);
+            if sh.exists() {
+                return sh_run(sh);
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    sh_run(sh_windows().unwrap_or_else(|| fatal!("bash not found, set %ZR_SH% or install Git bash")));
+
+    #[cfg(not(windows))]
+    sh_run("sh");
+}
+fn sh_run(sh: impl AsRef<std::ffi::OsStr>) {
     let script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
-    xshell::cmd!(sh, "{script}").run().unwrap_or_else(|e| fatal!("{e}"));
+    match Command::new(sh).arg("-c").arg(script).status() {
+        Ok(s) => {
+            if !s.success() {
+                match s.code() {
+                    Some(c) => fatal!("script failed, exit code {c}"),
+                    None => fatal!("script failed"),
+                }
+            }
+        }
+        Err(e) => {
+            if e.kind() == io::ErrorKind::NotFound {
+                fatal!("bash not found, set $ZR_SH")
+            } else {
+                fatal!("{e}")
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+fn sh_windows() -> Option<PathBuf> {
+    if let Ok(pf) = env::var("PROGRAMFILES") {
+        let sh = PathBuf::from(pf).join("Git/bin/sh.exe");
+        if sh.exists() {
+            return Some(sh);
+        }
+    }
+    if let Ok(c) = env::var("SYSTEMDRIVE") {
+        let sh = PathBuf::from(c).join("Program Files (x86)/Git/bin/sh.exe");
+        if sh.exists() {
+            return Some(sh);
+        }
+    }
+
+    None
 }
 
 fn read_line(path: &Path, expected: &str) -> io::Result<String> {
@@ -181,14 +221,14 @@ fn copy_dir_all(from: &Path, to: &Path, trace: bool) -> io::Result<()> {
             let to = to.join(from.file_name().unwrap());
             fs::create_dir(&to)?;
             if trace {
-                println!("{}", to.display());
+                println!("{}", display_path(&to));
             }
             copy_dir_all(&from, &to, trace)?;
         } else if from.is_file() {
             let to = to.join(from.file_name().unwrap());
             fs::copy(&from, &to)?;
             if trace {
-                println!("{}", to.display());
+                println!("{}", display_path(&to));
             }
         } else {
             continue;
@@ -211,7 +251,6 @@ macro_rules! built_in {
 }
 built_in! {
     copy,
-    print,
     warn,
     fail,
     sh,
