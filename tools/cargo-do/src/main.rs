@@ -471,12 +471,12 @@ fn test(mut args: Vec<&str>) {
             }
             cmd_env(
                 "cargo",
-                &[nightly, "nextest", "run", "--no-fail-fast", "--all-features"],
+                &[nightly, "nextest", "run", "--no-fail-fast", "--all-features", "--workspace"],
                 &args,
                 env,
             );
         } else {
-            cmd_env("cargo", &[nightly, "test", "--no-fail-fast", "--all-features"], &args, env);
+            cmd_env("cargo", &[nightly, "test", "--no-fail-fast", "--all-features", "--workspace"], &args, env);
         }
 
         if all {
