@@ -12,6 +12,7 @@ use core::cmp;
 use byteorder::{BigEndian, ReadBytesExt};
 use zng_view_api::font::GlyphIndex;
 
+pub const GSUB: u32 = u32::from_be_bytes(*b"GSUB");
 const GDEF: u32 = u32::from_be_bytes(*b"GDEF");
 
 #[derive(Clone)]

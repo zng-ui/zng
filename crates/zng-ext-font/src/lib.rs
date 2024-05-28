@@ -1019,7 +1019,7 @@ impl FontFace {
         } else {
             ColorGlyphs::load(&font)?
         };
-        let has_ligatures = face.table_with_tag(b"GSUB").is_some();
+        let has_ligatures = font.load_font_table(GSUB).is_some();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
         } else {
@@ -1095,8 +1095,7 @@ impl FontFace {
             ColorGlyphs::load(&font)?
         };
 
-        eprintln!("!!: table_with_tag(bGSUB) for {:?}", font.full_name());
-        let has_ligatures = face.table_with_tag(b"GSUB").is_some();
+        let has_ligatures = font.load_font_table(GSUB).is_some();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
         } else {
