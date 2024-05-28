@@ -996,13 +996,23 @@ impl App {
         let event_loop = EventLoop::new().unwrap();
         drop(winit_span);
 
-        event_loop
-            .run_app(&mut HeadlessApp {
-                app,
-                request_receiver: Some(ipc.request_receiver),
-                app_receiver,
-            })
-            .unwrap();
+        let mut app = HeadlessApp {
+            app,
+            request_receiver: Some(ipc.request_receiver),
+            app_receiver,
+        };
+        if let Err(e) = event_loop.run_app(&mut app) {
+            if app.app.exited {
+                // Ubuntu CI runs can get an error here:
+                //
+                //  "GLXBadWindow", error_code: 170, request_code: 150, minor_code: 32
+                //
+                // The app run exit ok, so we just log and ignore.
+                tracing::error!("winit event loop error after app exit, {e}");
+            } else {
+                panic!("winit event loop error, {e}");
+            }
+        }
 
         struct HeadlessApp {
             app: App,
@@ -1108,7 +1118,13 @@ impl App {
         #[cfg(windows)]
         config::spawn_listener(app.app_sender.clone());
 
-        event_loop.run_app(&mut app).unwrap();
+        if let Err(e) = event_loop.run_app(&mut app) {
+            if app.exited {
+                tracing::error!("winit event loop error after app exit, {e}");
+            } else {
+                panic!("winit event loop error, {e}");
+            }
+        }
     }
 
     fn new(
