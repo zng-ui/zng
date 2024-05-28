@@ -337,6 +337,11 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - name: install winit deps
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        run: |
+             sudo apt-get update
+             sudo apt install libxkbcommon-x11-0
       - name: cargo do test --render
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: coactions/setup-xvfb@v1
