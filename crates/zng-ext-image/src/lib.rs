@@ -763,6 +763,7 @@ impl ImagesService {
             downscale,
             mask,
         });
+        zng_app::update::UPDATES.update(None);
 
         r
     }
