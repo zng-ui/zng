@@ -72,8 +72,7 @@ The request file:
 Copies `path/bar.txt` to:
   target/foo.txt
 
-Path is relative to the Cargo workspace root, unless it starts with `./`,
-them it is relative to the `.zr-copy` file.
+Paths are relative to the Cargo workspace root.
 ";
 fn copy() {
     help(COPY_HELP);
@@ -126,24 +125,24 @@ const SH_HELP: &str = r#"
 Run a "bash" script
 
 The script is executed using the 'xshell' crate and will work across 
-platforms if it does not depend on any system specific executable.
+platforms if it does not use any system specific executables.
 
 Script are configured using environment variables (like other tools):
 
-* `ZR_SOURCE_DIR` — Resources directory that is being build.
-* `ZR_TARGET_DIR` — Target directory where resources are bing built to.
-* `ZR_CACHE_DIR` — Dir to use for intermediary data for the specific request.
-* `ZR_WORKSPACE_DIR` — Cargo workspace, parent to the source dir. Also the working dir.
-* `ZR_REQUEST` — Request file that called the tool (.zr-sh).
-* `ZR_TARGET` — Target file implied by the request file name.
+ZR_SOURCE_DIR — Resources directory that is being build.
+ZR_TARGET_DIR — Target directory where resources are bing built to.
+ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
+ZR_WORKSPACE_DIR — Cargo workspace, parent to the source dir. Also the working dir.
+ZR_REQUEST — Request file that called the tool (.zr-sh).
+ZR_TARGET — Target file implied by the request file name.
 
-* `ZR_FINAL` — Set if the script previously printed `zng-res::on-final={args}`.
+ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
 
 Scripts can make requests to the resource builder by printing to stdout.
 Current supported requests:
 
-* `zng-res::warning={msg}` — Prints the `{msg}` as a warning after the script exits.
-* `zng-res::on-final={args}` — Schedule second run with `ZR_FINAL={args}`, on final pass.
+zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
+zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
 
 If the script fails the entire stderr is printed and the resource build fails.
 "#;
@@ -171,13 +170,7 @@ fn read_line(path: &Path, expected: &str) -> io::Result<String> {
 }
 
 fn read_path(request_file: &Path) -> io::Result<PathBuf> {
-    let request_content = PathBuf::from(read_line(request_file, "path")?);
-    if let Ok(p) = request_content.strip_prefix(".") {
-        // './' is relative to the request
-        Ok(request_file.parent().unwrap().join(p))
-    } else {
-        Ok(request_content)
-    }
+    read_line(request_file, "path").map(PathBuf::from)
 }
 
 fn copy_dir_all(from: &Path, to: &Path, trace: bool) -> io::Result<()> {
