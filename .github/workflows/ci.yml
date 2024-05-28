@@ -49,11 +49,53 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --examples --tests --release
       - run: cargo clean
-  test:
+  test-ubuntu:
     runs-on: ubuntu-latest
     needs: [check]
     env:
       ZNG_TP_LICENSES: true
+    steps:
+    - uses: dtolnay/rust-toolchain@stable
+    - name: install cargo-about
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: cargo-about
+    - name: install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
+    - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo do test --nextest
+    - run: cargo clean
+  test-windows:
+    runs-on: windows-latest
+    needs: [check]
+    env:
+      ZNG_TP_LICENSES: true
+      NEXTEST_RETRIES: 3
+      CC: 'clang-cl'
+      CXX: 'clang-cl'
+    steps:
+    - uses: dtolnay/rust-toolchain@stable
+    - name: install cargo-about
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: cargo-about
+    - name: install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
+    - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo do test --nextest
+    - run: cargo clean
+  test-macos:
+    runs-on: macos-latest
+    needs: [check]
+    env:
+      ZNG_TP_LICENSES: true
+      NEXTEST_RETRIES: 3
     steps:
     - uses: dtolnay/rust-toolchain@stable
     - name: install cargo-about
@@ -90,6 +132,6 @@ jobs:
       - run: cargo clean
   test-all:
     runs-on: ubuntu-latest
-    needs: [check-release, doc, test, test-doc, test-macro]
+    needs: [check-release, doc, test-ubuntu, test-windows, test-macos, test-doc, test-macro]
     steps:
       - run: exit 0
