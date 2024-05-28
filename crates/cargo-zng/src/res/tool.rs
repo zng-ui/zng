@@ -156,26 +156,25 @@ impl Tool {
     fn cmd(&self) -> std::process::Command {
         use std::process::Command;
 
-        macro_rules! cargo_cmd {
-            () => {{
+        match self.kind {
+            ToolKind::LocalCrate => {
                 let mut cmd = Command::new("cargo");
                 cmd.arg("run")
                     .arg("--quiet")
                     .arg("--manifest-path")
-                    .arg(self.path.join("Cargo.toml"));
-                cmd
-            }};
-        }
-
-        match self.kind {
-            ToolKind::LocalCrate => {
-                let mut cmd = cargo_cmd!();
-                cmd.arg("--");
+                    .arg(self.path.join("Cargo.toml"))
+                    .arg("--");
                 cmd
             }
             ToolKind::LocalBin => {
-                let mut cmd = cargo_cmd!();
-                cmd.arg("--bin").arg(&self.name).arg("--");
+                let mut cmd = Command::new("cargo");
+                cmd.arg("run")
+                    .arg("--quiet")
+                    .arg("--manifest-path")
+                    .arg(&self.path.parent().unwrap().parent().unwrap().parent().unwrap().join("Cargo.toml"))
+                    .arg("--bin")
+                    .arg(&self.name)
+                    .arg("--");
                 cmd
             }
             ToolKind::BuiltIn => {
