@@ -165,7 +165,7 @@ pub(crate) fn setup_default_view() {
                     }
 
                     Window! {
-                        title = APP.about().map(|i| formatx!("{}Third Party Licenses", i.title_prefix()));
+                        title = formatx!("{} - Third Party Licenses", zng::env::about().app);
                         child = default_view();
                         parent;
                     }

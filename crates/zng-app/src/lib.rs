@@ -1165,18 +1165,8 @@ impl APP {
         APP_PROCESS_SV.read().device_events
     }
 
-    /// App display info.
-    ///
-    /// This info can be used by auto-generated views.
-    ///
-    /// # Examples
-    ///
-    /// You can set some of the info using crate metadata:
-    ///
-    /// ```no_run
-    /// # use zng_app::*;
-    /// APP.about().set(about_app_from_crate!());
-    /// ```
+    /// Deprecated.
+    #[deprecated = "use zng::env::about"]
     pub fn about(&self) -> ArcVar<AboutApp> {
         APP_PROCESS_SV.read().about.clone()
     }
@@ -1480,9 +1470,7 @@ zng_app_context::app_local! {
     static TEST_LOG: bool = false;
 }
 
-/// Display info about the current app.
-///
-/// You can use the [`about_app_from_crate!`] macro to generate info from the app crate metadata.
+/// Deprecated.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct AboutApp {
     /// App name.
@@ -1512,7 +1500,8 @@ impl AboutApp {
     }
 }
 
-/// Generate an [`AboutApp`] value from the crate's metadata.
+/// Deprecated.
+#[deprecated = "use zng::env::init"]
 #[macro_export]
 macro_rules! about_app_from_crate {
     () => {

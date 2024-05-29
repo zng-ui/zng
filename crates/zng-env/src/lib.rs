@@ -15,30 +15,149 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use semver::Version;
 use zng_txt::Txt;
 use zng_unique_id::{lazy_static, lazy_static_init};
 
-/// Init [`app_unique_name`], the unique name is required by multiple others functions in this module.
+lazy_static! {
+    static ref ABOUT: About = About::fallback_name();
+}
+
+/// Init [`about`] from cargo manifest that is required by other function in this module.
 ///
-/// If `application` it will fallback to `"{current_exe_name_without_extension}"`.
+/// See [`About`] docs for what Cargo.toml values are read.
 ///
-/// See the [`directories::ProjectDirs::from`] documentation for more details.
+/// Note that the current implementation of this macro includes the entire Cargo.toml file, if
+/// that is not acceptable you can use [`init()`] to manually init about.
+#[macro_export]
+macro_rules! init {
+    () => {
+        $crate::init_from_manifest(include_str!(concat!(std::env!("CARGO_MANIFEST_DIR"), "/Cargo.toml")))
+    };
+}
+
+/// Initialize [`about`] manually.
 ///
-/// [`directories::ProjectDirs::from`]: https://docs.rs/directories/5.0/directories/struct.ProjectDirs.html#method.from
-pub fn init(qualifier: impl Into<Txt>, organization: impl Into<Txt>, application: impl Into<Txt>) {
-    if lazy_static_init(&APP_UNIQUE_NAME, (qualifier.into(), organization.into(), application.into())).is_err() {
+/// Prefer calling [`init!`] instead of this, or at least also set the Cargo.toml metadata as it is used by `cargo-zng`.
+pub fn init(about: About) {
+    if lazy_static_init(&ABOUT, about).is_err() {
         panic!("env already inited, env::init must be the first call in the process")
     }
 }
-lazy_static! {
-    static ref APP_UNIQUE_NAME: (Txt, Txt, Txt) = ("".into(), "".into(), fallback_name());
+
+#[doc(hidden)]
+pub fn init_from_manifest(manifest: &'static str) {
+    init(About::parse_manifest(manifest).expect("cannot parse Cargo.toml manifest"))
 }
 
-/// Gets the `qualifier, organization, application` name of the application.
+/// Metadata about the app and main crate.
 ///
-/// The app must call [`init`] before this, otherwise the name will fallback to `("io.crates", "zng-app", "{current_exe_name_without_extension}"`.
-pub fn app_unique_name() -> (Txt, Txt, Txt) {
-    APP_UNIQUE_NAME.clone()
+/// See [`about`] for more details.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct About {
+    /// package.name
+    pub cargo_pkg_name: Txt,
+    /// package.authors
+    pub cargo_pkg_authors: Vec<Txt>,
+    /// package.name in snake_case
+    pub crate_name: Txt,
+    /// package.version
+    pub version: Version,
+    /// package.metadata.zng.about.app or `cargo_pkg_name`
+    pub app: Txt,
+    /// package.metadata.zng.about.org or the first `cargo_pkg_authors`
+    pub org: Txt,
+    /// package.metadata.zng.about.qualifier
+    ///
+    /// Reverse domain name notation, excluding the name of the application.
+    pub qualifier: Txt,
+    /// package.description
+    pub description: Txt,
+    /// package.homepage
+    pub homepage: Txt,
+}
+impl About {
+    fn fallback_name() -> Self {
+        Self {
+            cargo_pkg_name: Txt::from_static(""),
+            cargo_pkg_authors: vec![],
+            crate_name: Txt::from_static(""),
+            version: Version::new(0, 0, 0),
+            app: fallback_name(),
+            org: Txt::from_static(""),
+            qualifier: Txt::from_static(""),
+            description: Txt::from_static(""),
+            homepage: Txt::from_static(""),
+        }
+    }
+
+    /// Parse a Cargo.toml string.
+    pub fn parse_manifest(cargo_toml: &str) -> Result<Self, toml::de::Error> {
+        let m: Manifest = toml::from_str(cargo_toml)?;
+        let mut about = About {
+            crate_name: m.package.name.replace('-', "_").into(),
+            cargo_pkg_name: m.package.name,
+            cargo_pkg_authors: m.package.authors,
+            version: m.package.version,
+            description: m.package.description.unwrap_or_default(),
+            homepage: m.package.homepage.unwrap_or_default(),
+            app: Txt::from_static(""),
+            org: Txt::from_static(""),
+            qualifier: Txt::from_static(""),
+        };
+        if let Some(m) = m.package.metadata.and_then(|m| m.zng).and_then(|z| z.about) {
+            about.app = m.app.unwrap_or_default();
+            about.org = m.org.unwrap_or_default();
+            about.qualifier = m.qualifier.unwrap_or_default();
+        }
+        if about.app.is_empty() {
+            about.app = about.cargo_pkg_name.clone();
+        }
+        if about.org.is_empty() {
+            about.org = about.cargo_pkg_authors.first().cloned().unwrap_or_default();
+        }
+        Ok(about)
+    }
+}
+#[derive(serde::Deserialize)]
+struct Manifest {
+    package: Package,
+}
+#[derive(serde::Deserialize)]
+struct Package {
+    name: Txt,
+    version: Version,
+    description: Option<Txt>,
+    homepage: Option<Txt>,
+    authors: Vec<Txt>,
+    metadata: Option<Metadata>,
+}
+#[derive(serde::Deserialize)]
+struct Metadata {
+    zng: Option<Zng>,
+}
+#[derive(serde::Deserialize)]
+struct Zng {
+    about: Option<MetadataAbout>,
+}
+#[derive(serde::Deserialize)]
+struct MetadataAbout {
+    app: Option<Txt>,
+    org: Option<Txt>,
+    qualifier: Option<Txt>,
+}
+
+/// Gets metadata about the application.
+///
+/// The app must call [`init!`] at the beginning of the process, otherwise the metadata will fallback
+/// to just a name extracted from the current executable file path.
+///
+/// See the [`directories::ProjectDirs::from`] documentation for more details on how this metadata is
+/// used to create/find the app data directories.
+///
+/// [`directories::ProjectDirs::from`]: https://docs.rs/directories/5.0/directories/struct.ProjectDirs.html#method.from
+pub fn about() -> &'static About {
+    &ABOUT
 }
 
 fn fallback_name() -> Txt {
@@ -278,8 +397,8 @@ fn find_config() -> PathBuf {
         return PathBuf::from("target/tmp/dev_config/");
     }
 
-    let (org, comp, app) = app_unique_name();
-    if let Some(dirs) = directories::ProjectDirs::from(org.as_str(), comp.as_str(), app.as_str()) {
+    let a = about();
+    if let Some(dirs) = directories::ProjectDirs::from(&a.qualifier, &a.org, &a.app) {
         dirs.config_dir().to_owned()
     } else {
         panic!(
@@ -517,8 +636,8 @@ fn find_cache() -> PathBuf {
         return PathBuf::from("target/tmp/dev_cache/");
     }
 
-    let (org, comp, app) = app_unique_name();
-    if let Some(dirs) = directories::ProjectDirs::from(org.as_str(), comp.as_str(), app.as_str()) {
+    let a = about();
+    if let Some(dirs) = directories::ProjectDirs::from(&a.qualifier, &a.org, &a.app) {
         dirs.cache_dir().to_owned()
     } else {
         panic!(
@@ -544,4 +663,18 @@ fn read_line(path: &Path) -> io::Result<String> {
         return Ok(line.into());
     }
     Err(io::Error::new(io::ErrorKind::UnexpectedEof, "no uncommented line"))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn parse_manifest() {
+        let a = About::parse_manifest(include_str!(concat!(std::env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"))).unwrap();
+        assert_eq!(a.cargo_pkg_name, "zng-env");
+        assert_eq!(a.app, "Zng Env");
+        assert_eq!(a.cargo_pkg_authors, vec![Txt::from("The Zng Project Developers")]);
+        assert_eq!(a.org, "The Zng Project Developers");
+    }
 }
