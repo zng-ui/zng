@@ -3,7 +3,7 @@
 //! Debug crash handler.
 
 use std::path::PathBuf;
-use zng_app::{crash_handler::*, APP};
+use zng_app::crash_handler::*;
 use zng_ext_config::CONFIG;
 use zng_ext_window::{StartPosition, WindowRoot, WINDOWS};
 use zng_wgt::prelude::*;
@@ -30,7 +30,7 @@ use zng_wgt_wrap::Wrap;
 pub fn debug_dialog(args: CrashArgs) -> WindowRoot {
     let error = args.latest();
     Window! {
-        title = APP.about().map(|a| formatx!("{}App Crashed", a.title_prefix()));
+        title = formatx!("{} - App Crashed", zng_env::about().app);
         start_position = StartPosition::CenterMonitor;
         color_scheme = ColorScheme::Dark;
 

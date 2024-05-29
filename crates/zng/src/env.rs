@@ -6,7 +6,7 @@
 //! ```
 //! fn main() {
 //!    // optional, but recommended package metadata init.
-//!    zng::env::init("io.github.zng-ui", "Zng Developers", "Zng");
+//!    zng::env::init!();
 //!
 //!    // get a path in the app config dir, the config dir is created if needed.    
 //!    let my_config = zng::env::config("my-config.txt");
@@ -20,9 +20,9 @@
 //! }
 //! ```
 //!
-//! The example above uses [`init`] to initialize the metadata used to find a good place for each directory, it then
+//! The example above uses [`init!`] to initialize the metadata used to find a good place for each directory, it then
 //! uses [`config`] to write and read a file.
 
 pub use zng_env::{
-    app_unique_name, bin, cache, clear_cache, config, init, init_cache, init_config, init_res, migrate_cache, migrate_config, res,
+    about, bin, cache, clear_cache, config, init, init_cache, init_config, init_res, migrate_cache, migrate_config, res, About,
 };

@@ -7,7 +7,7 @@ use zng_app::{
 use zng_ext_image::Img;
 use zng_layout::unit::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size};
 use zng_state_map::{static_id, StateId};
-use zng_txt::{ToTxt, Txt};
+use zng_txt::Txt;
 use zng_unique_id::IdSet;
 use zng_var::{merge_var, var, var_from, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
 use zng_view_api::{
@@ -95,7 +95,7 @@ impl WindowVars {
             actual_icon: var(None),
             cursor: var_from(CursorIcon::Default),
             actual_cursor_img: var(None),
-            title: var("".to_txt()),
+            title: var(zng_env::about().app.clone()),
 
             state: var(WindowState::Normal),
             focus_indicator: var(None),
@@ -152,7 +152,6 @@ impl WindowVars {
             access_enabled: var(AccessEnabled::empty()),
             system_shutdown_warn: var(Txt::from("")),
         });
-        zng_app::APP.about().map_ref(|i| &i.name).set_bind(&vars.title).perm();
         Self(vars)
     }
 
