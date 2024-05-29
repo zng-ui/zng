@@ -276,11 +276,25 @@ Tools are configured using environment variables:
 * `ZR_SOURCE_DIR` — Resources directory that is being build.
 * `ZR_TARGET_DIR` — Target directory where resources are bing built to.
 * `ZR_CACHE_DIR` — Dir to use for intermediary data for the specific request. Keyed on the source dir, target dir, request file and request file content.
-* `ZR_WORKSPACE_DIR` — Cargo workspace that is parent to the source dir. This is also the working dir (`current_dir`) set for the tool.
+* `ZR_WORKSPACE_DIR` — Cargo workspace that contains the source dir. This is also the working dir (`current_dir`) set for the tool.
 * `ZR_REQUEST` — Request file that called the tool.
 * `ZR_TARGET` — Target file implied by the request file name. That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
 * `ZR_FINAL` — Set to the args if the tool requested `zng-res::on-final={args}`.
 * `ZR_HELP` — Print help text for `cargo zng res --list`. If this is set the other vars will not be set.
+
+In a Cargo workspace the [`zng::env::about`] metadata is also extracted from the primary binary crate:
+
+* `ZR_APP` — package.metadata.zng.about.app or package.name
+* `ZR_ORG` — package.metadata.zng.about.org or the first package.authors
+* `ZR_VERSION` — package.version
+* `ZR_DESCRIPTION` — package.description
+* `ZR_HOMEPAGE` — package.homepage
+* `ZR_PKG_NAME` — package.name
+* `ZR_PKG_AUTHORS` — package.authors
+* `ZR_CRATE_NAME` — package.name in snake_case
+* `ZR_QUALIFIER` — package.metadata.zng.about.qualifier
+
+[`zng::env::about`]: https://zng-ui.github.io/doc/zng_env/struct.About.html
 
 Tools can make requests to the resource builder by printing to stdout with prefix `zng-res::`.
 Current supported requests:

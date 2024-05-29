@@ -56,9 +56,9 @@ pub fn init_from_manifest(manifest: &'static str) {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct About {
     /// package.name
-    pub cargo_pkg_name: Txt,
+    pub pkg_name: Txt,
     /// package.authors
-    pub cargo_pkg_authors: Vec<Txt>,
+    pub pkg_authors: Vec<Txt>,
     /// package.name in snake_case
     pub crate_name: Txt,
     /// package.version
@@ -79,8 +79,8 @@ pub struct About {
 impl About {
     fn fallback_name() -> Self {
         Self {
-            cargo_pkg_name: Txt::from_static(""),
-            cargo_pkg_authors: vec![],
+            pkg_name: Txt::from_static(""),
+            pkg_authors: vec![],
             crate_name: Txt::from_static(""),
             version: Version::new(0, 0, 0),
             app: fallback_name(),
@@ -96,8 +96,8 @@ impl About {
         let m: Manifest = toml::from_str(cargo_toml)?;
         let mut about = About {
             crate_name: m.package.name.replace('-', "_").into(),
-            cargo_pkg_name: m.package.name,
-            cargo_pkg_authors: m.package.authors,
+            pkg_name: m.package.name,
+            pkg_authors: m.package.authors,
             version: m.package.version,
             description: m.package.description.unwrap_or_default(),
             homepage: m.package.homepage.unwrap_or_default(),
@@ -111,10 +111,10 @@ impl About {
             about.qualifier = m.qualifier.unwrap_or_default();
         }
         if about.app.is_empty() {
-            about.app = about.cargo_pkg_name.clone();
+            about.app = about.pkg_name.clone();
         }
         if about.org.is_empty() {
-            about.org = about.cargo_pkg_authors.first().cloned().unwrap_or_default();
+            about.org = about.pkg_authors.first().cloned().unwrap_or_default();
         }
         Ok(about)
     }
@@ -672,9 +672,9 @@ mod tests {
     #[test]
     fn parse_manifest() {
         let a = About::parse_manifest(include_str!(concat!(std::env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"))).unwrap();
-        assert_eq!(a.cargo_pkg_name, "zng-env");
+        assert_eq!(a.pkg_name, "zng-env");
         assert_eq!(a.app, "Zng Env");
-        assert_eq!(a.cargo_pkg_authors, vec![Txt::from("The Zng Project Developers")]);
+        assert_eq!(a.pkg_authors, vec![Txt::from("The Zng Project Developers")]);
         assert_eq!(a.org, "The Zng Project Developers");
     }
 }

@@ -2,12 +2,13 @@
 
 use std::{
     env, fs,
-    io::{self, BufRead},
+    io::{self, BufRead, Write},
     path::{Path, PathBuf},
     process::Command,
 };
 
 use anyhow::Context;
+use convert_case::{Case, Casing};
 
 /// Env var set by cargo-zng to the Cargo workspace directory that is parent to the res source.
 ///
@@ -215,6 +216,163 @@ fn glob() {
     }
 }
 
+const RP_HELP: &str = "
+Replace ${VAR} occurrences in the content
+
+The request file:
+  source/greetings.txt.zr-rp
+   | Thanks for using ${ZR_APP}!
+
+Writes the text content with ZR_APP replaced:
+  target/greetings.txt
+  | Thanks for using Foo App!
+
+The parameters syntax is ${VAR[:[case]][?else]}:
+
+${VAR}          — Replaces with the ENV var value, or fails if it is not set.
+${VAR:<case>}   — Replaces with the ENV var value case converted.
+${VAR:?<else>}  — If ENV is not set or is set empty uses 'else' instead.
+$${VAR}         — Escapes $, replaces with '${VAR}'. 
+
+The :<case> functions are:
+
+:k — kebab-case
+:K — UPPER-KEBAB-CASE
+:s — snake_case
+:S — UPPER_SNAKE_CASE
+:l — lower case
+:U — UPPER CASE
+:T — Title Case
+:c — camelCase
+:P — PascalCase
+:Tr — Train-Case
+: — Unchanged
+
+The fallback(else) can have nested ${VAR} patterns.
+
+Variables:
+
+All env variables are available, metadata from the binary crate is also available:
+
+ZR_APP — package.metadata.zng.about.app or package.name
+ZR_ORG — package.metadata.zng.about.org or the first package.authors
+ZR_VERSION — package.version
+ZR_DESCRIPTION — package.description
+ZR_HOMEPAGE — package.homepage
+ZR_PKG_NAME — package.name
+ZR_PKG_AUTHORS — package.authors
+ZR_CRATE_NAME — package.name in snake_case
+ZR_QUALIFIER — package.metadata.zng.about.qualifier
+
+See `zng::env::about` for more details.
+
+";
+fn rp() {
+    help(RP_HELP);
+
+    // target derived from the request place
+    let content = fs::File::open(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("cannot read, {e}"));
+    let target = path(ZR_TARGET);
+    let target = fs::File::create(target).unwrap_or_else(|e| fatal!("cannot write, {e}"));
+    let mut target = io::BufWriter::new(target);
+
+    for (ln, line) in io::BufReader::new(content).lines().enumerate() {
+        let line = line.unwrap_or_else(|e| fatal!("cannot read, {e}"));
+        let ln = ln + 1;
+        let line = replace(&line, 0).unwrap_or_else(|e| fatal!("line {ln}, {e}"));
+        target.write_all(line.as_bytes()).unwrap_or_else(|e| fatal!("cannot write, {e}"));
+        target.write_all(b"\n").unwrap_or_else(|e| fatal!("cannot write, {e}"));
+    }
+    target.flush().unwrap_or_else(|e| fatal!("cannot write, {e}"));
+}
+
+const MAX_RECURSION: usize = 32;
+fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
+    let mut n2 = '\0';
+    let mut n1 = '\0';
+    let mut out = String::with_capacity(line.len());
+
+    let mut iterator = line.char_indices();
+    'main: while let Some((ci, c)) = iterator.next() {
+        if n1 == '$' && c == '{' {
+            out.pop();
+            if n2 == '$' {
+                out.push('{');
+                n1 = '{';
+                continue 'main;
+            }
+
+            let start = ci + 1;
+            let mut depth = 0;
+            let mut end = usize::MAX;
+            'seek_end: for (i, c) in iterator.by_ref() {
+                if c == '{' {
+                    depth += 1;
+                } else if c == '}' {
+                    if depth == 0 {
+                        end = i;
+                        break 'seek_end;
+                    }
+                    depth -= 1;
+                }
+            }
+            if end == usize::MAX {
+                let end = (start + 10).min(line.len());
+                return Err(format!("replace not closed at: ${{{}", &line[start..end]));
+            } else {
+                let mut var = &line[start..end];
+                let mut case = "";
+                let mut fallback = None;
+                if let Some(i) = var.find('?') {
+                    fallback = Some(&var[i + 1..]);
+                    var = &var[..i];
+                }
+                if let Some(i) = var.find(':') {
+                    case = &var[i + 1..];
+                    var = &var[..i];
+                }
+
+                if let Ok(value) = env::var(var) {
+                    let value = match case {
+                        "k" => value.to_case(Case::Kebab),
+                        "K" => value.to_case(Case::UpperKebab),
+                        "s" => value.to_case(Case::Snake),
+                        "S" => value.to_case(Case::UpperSnake),
+                        "l" => value.to_case(Case::Lower),
+                        "U" => value.to_case(Case::Upper),
+                        "T" => value.to_case(Case::Title),
+                        "c" => value.to_case(Case::Camel),
+                        "P" => value.to_case(Case::Pascal),
+                        "Tr" => value.to_case(Case::Train),
+                        "" => value,
+                        unknown => return Err(format!("unknown case '{unknown}'")),
+                    };
+                    out.push_str(&value);
+                } else if let Some(fallback) = fallback {
+                    if let Some(error) = fallback.strip_prefix('!') {
+                        if error.contains('$') && recursion_depth < MAX_RECURSION {
+                            return Err(replace(error, recursion_depth + 1).unwrap_or_else(|_| error.to_owned()));
+                        } else {
+                            return Err(error.to_owned());
+                        }
+                    } else if fallback.contains('$') && recursion_depth < MAX_RECURSION {
+                        out.push_str(&replace(fallback, recursion_depth + 1)?);
+                    } else {
+                        out.push_str(fallback);
+                    }
+                } else {
+                    return Err(format!("env var ${{{var}}} is not set"));
+                }
+            }
+        } else {
+            out.push(c);
+        }
+        n2 = n1;
+        n1 = c;
+    }
+    Ok(out)
+}
+
 const WARN_HELP: &str = "
 Print a warning message
 ";
@@ -241,11 +399,23 @@ Script is configured using environment variables (like other tools):
 ZR_SOURCE_DIR — Resources directory that is being build.
 ZR_TARGET_DIR — Target directory where resources are bing built to.
 ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
-ZR_WORKSPACE_DIR — Cargo workspace, parent to the source dir. Also the working dir.
+ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. Also the working dir.
 ZR_REQUEST — Request file that called the tool (.zr-sh).
 ZR_TARGET — Target file implied by the request file name.
 
 ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
+
+In a Cargo workspace the `zng::env::about` metadata is also set:
+
+ZR_APP — package.metadata.zng.about.app or package.name
+ZR_ORG — package.metadata.zng.about.org or the first package.authors
+ZR_VERSION — package.version
+ZR_DESCRIPTION — package.description
+ZR_HOMEPAGE — package.homepage
+ZR_PKG_NAME — package.name
+ZR_PKG_AUTHORS — package.authors
+ZR_CRATE_NAME — package.name in snake_case
+ZR_QUALIFIER — package.metadata.zng.about.qualifier
 
 Script can make requests to the resource builder by printing to stdout.
 Current supported requests:
@@ -405,6 +575,7 @@ macro_rules! built_in {
 built_in! {
     copy,
     glob,
+    rp,
     warn,
     fail,
     sh,
@@ -418,5 +589,48 @@ pub fn run() {
         } else {
             fatal!("`tool` is not a built-in tool");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn replace_tests() {
+        std::env::set_var("ZR_RP_TEST", "test value");
+
+        assert_eq!("", replace("", 0).unwrap());
+        assert_eq!("normal text", replace("normal text", 0).unwrap());
+        assert_eq!("escaped ${NOT}", replace("escaped $${NOT}", 0).unwrap());
+        assert_eq!("replace 'test value'", replace("replace '${ZR_RP_TEST}'", 0).unwrap());
+        assert_eq!("env var ${} is not set", replace("empty '${}'", 0).unwrap_err()); // hmm
+        assert_eq!(
+            "env var ${ZR_RP_TEST_NOT_SET} is not set",
+            replace("not set '${ZR_RP_TEST_NOT_SET}'", 0).unwrap_err()
+        );
+        assert_eq!(
+            "not set 'fallback!'",
+            replace("not set '${ZR_RP_TEST_NOT_SET?fallback!}'", 0).unwrap()
+        );
+        assert_eq!(
+            "not set 'nested 'test value'.'",
+            replace("not set '${ZR_RP_TEST_NOT_SET?nested '${ZR_RP_TEST}'.}'", 0).unwrap()
+        );
+        assert_eq!("test value", replace("${ZR_RP_TEST_NOT_SET?${ZR_RP_TEST}}", 0).unwrap());
+        assert_eq!(
+            "curly test value",
+            replace("curly ${ZR_RP_TEST?{not {what} {is} {going {on {here {?}}}}}}", 0).unwrap()
+        );
+
+        assert_eq!("replace not closed at: ${MISSING", replace("${MISSING", 0).unwrap_err());
+        assert_eq!("replace not closed at: ${MIS", replace("${MIS", 0).unwrap_err());
+        assert_eq!("replace not closed at: ${MIS?{", replace("${MIS?{", 0).unwrap_err());
+        assert_eq!("replace not closed at: ${MIS?{}", replace("${MIS?{}", 0).unwrap_err());
+
+        assert_eq!("TEST VALUE", replace("${ZR_RP_TEST:U}", 0).unwrap());
+        assert_eq!("TEST-VALUE", replace("${ZR_RP_TEST:K}", 0).unwrap());
+        assert_eq!("TEST_VALUE", replace("${ZR_RP_TEST:S}", 0).unwrap());
+        assert_eq!("testValue", replace("${ZR_RP_TEST:c}", 0).unwrap());
     }
 }
