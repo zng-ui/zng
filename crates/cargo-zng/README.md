@@ -306,7 +306,6 @@ There are builtin tools provided:
 ```console
 # cargo zng res --list
 
-.zr-copy @ cargo-zng
   Copy the file or dir
 
   The request file:
@@ -319,7 +318,7 @@ There are builtin tools provided:
 
   Paths are relative to the Cargo workspace root.
 
-.zr-glob @ cargo-zng
+.zr-glob @ target/debug/cargo-zng.exe
   Copy all matches in place
 
   The request file:
@@ -329,26 +328,40 @@ There are builtin tools provided:
      | # only Fluent files
      | **/*.ftl
      | # except test locales
-     | *[!pseudo]*
+     | !:**/pseudo*
 
   Copies all '.ftl' not in a *pseudo* path to:
     target/l10n/
 
-  Paths are relative to the Cargo workspace root. The matches files
-  and dirs are all copied to the glob file equivalent position in target.
-
-  The first path pattern is required and defines the dir structure(s) that
+  The first path pattern is required and defines the entries that
   will be copied, an initial pattern with '**' flattens the matches.
+  The path is relative to the Cargo workspace root.
 
-  The subsequent patterns are optional and filter the previous match.
+  The subsequent patterns are optional and filter each file or dir selected by
+  the first pattern. The paths are relative to each match, if it is a file
+  the filters apply to the file name only, if it is a dir the filters apply to
+  the dir and descendants.
 
-.zr-warn @ cargo-zng
+  The glob pattern syntax is:
+
+      ? — matches any single character.
+      * — matches any (possibly empty) sequence of characters.
+     ** — matches the current directory and arbitrary subdirectories.
+    [c] — matches any character inside the brackets.
+  [a-z] — matches any characters in the Unicode sequence.
+   [!b] — negates the brackets match.
+
+  And in filter patterns only:
+
+  !:pattern — negates the entire pattern.
+
+.zr-warn @ target/debug/cargo-zng.exe
   Print a warning message
 
-.zr-fail @ cargo-zng
+.zr-fail @ target/debug/cargo-zng.exe
   Print an error message and fail the build
 
-.zr-sh @ cargo-zng
+.zr-sh @ target/debug/cargo-zng.exe
   Run a bash script
 
   Script is configured using environment variables (like other tools):
@@ -356,7 +369,7 @@ There are builtin tools provided:
   ZR_SOURCE_DIR — Resources directory that is being build.
   ZR_TARGET_DIR — Target directory where resources are bing built to.
   ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
-  ZR_WORKSPACE_DIR — Cargo workspace, parent to the source dir. Also the working dir.       
+  ZR_WORKSPACE_DIR — Cargo workspace, parent to the source dir. Also the working dir.
   ZR_REQUEST — Request file that called the tool (.zr-sh).
   ZR_TARGET — Target file implied by the request file name.
 

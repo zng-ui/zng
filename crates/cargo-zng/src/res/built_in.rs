@@ -108,7 +108,7 @@ The request file:
    | # only Fluent files
    | **/*.ftl
    | # except test locales
-   | !:*pseudo*
+   | !:**/pseudo*
 
 Copies all '.ftl' not in a *pseudo* path to:
   target/l10n/
@@ -149,7 +149,9 @@ fn glob() {
         .unwrap_or_else(|| fatal!("expected at least one path pattern"))
         .unwrap_or_else(|e| fatal!("{e}"));
 
+    // parse first pattern
     let selection = glob::glob(&selection).unwrap_or_else(|e| fatal!("at line {ln}, {e}"));
+    // parse filter patterns
     let mut filters = vec![];
     for r in lines {
         let (ln, filter) = r.unwrap_or_else(|e| fatal!("{e}"));
@@ -161,21 +163,28 @@ fn glob() {
         let pat = glob::Pattern::new(filter).unwrap_or_else(|e| fatal!("at line {ln}, {e}"));
         filters.push((pat, matches_if));
     }
+    // collect first matches
+    let selection = {
+        let mut s = vec![];
+        for entry in selection {
+            s.push(entry.unwrap_or_else(|e| fatal!("{e}")));
+        }
+        // sorted for deterministic results in case flattened files override previous
+        s.sort();
+        s
+    };
 
-    'selection: for entry in selection {
-        let source = entry.unwrap_or_else(|e| fatal!("{e}"));
-
-        // copy not filtered
+    'apply: for source in selection {
         if source.is_dir() {
-            let strip = source.parent().map(Path::to_owned).unwrap_or_default();
-            'walk: for entry in walkdir::WalkDir::new(&source) {
+            let filters_root = source.parent().map(Path::to_owned).unwrap_or_default();
+            'copy_dir: for entry in walkdir::WalkDir::new(&source).sort_by_file_name() {
                 let source = entry.unwrap_or_else(|e| fatal!("cannot walkdir entry `{}`, {e}", source.display()));
                 let source = source.path();
                 // filters match 'entry/**'
-                let match_source = source.strip_prefix(&strip).unwrap();
+                let match_source = source.strip_prefix(&filters_root).unwrap();
                 for (filter, matches_if) in &filters {
                     if filter.matches_path(match_source) != *matches_if {
-                        continue 'walk;
+                        continue 'copy_dir;
                     }
                 }
                 let target = target.join(match_source);
@@ -195,7 +204,7 @@ fn glob() {
             let source_name = source.file_name().unwrap().to_string_lossy();
             for (filter, matches_if) in &filters {
                 if filter.matches(&source_name) != *matches_if {
-                    continue 'selection;
+                    continue 'apply;
                 }
             }
             let target = target.join(source_name.as_ref());
