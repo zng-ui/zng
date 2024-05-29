@@ -396,9 +396,12 @@
 //! This module provides most of the app API needed to make and extend apps, some more advanced or experimental API
 //! may be available at the [`zng_app`], [`zng_app_context`] and [`zng_ext_single_instance`] base crates.
 
+#[deprecated = "use zng::env::init"]
+#[allow(deprecated)]
+pub use zng_app::about_app_from_crate;
 pub use zng_app::{
-    about_app_from_crate, print_tracing, AboutApp, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed,
-    AppExtensionInfo, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
+    print_tracing, AboutApp, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, DInstant,
+    Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT, INSTANT,
 };
 
 #[cfg(feature = "test_util")]
