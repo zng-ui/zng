@@ -375,6 +375,14 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
 
 const WARN_HELP: &str = "
 Print a warning message
+
+You can combine this with '.zr-rp' tool
+
+The request file:
+  source/warn.zr-warn.zr-rp
+   | ${ZR_APP}!
+
+Prints a warning with the value of ZR_APP
 ";
 fn warn() {
     help(WARN_HELP);
@@ -384,6 +392,12 @@ fn warn() {
 
 const FAIL_HELP: &str = "
 Print an error message and fail the build
+
+The request file:
+  some/dir/disallow.zr-fail.zr-rp
+   | Don't copy ${ZR_REQUEST_DD} with a glob!
+
+Prints an error message and fails the build if copied
 ";
 fn fail() {
     help(FAIL_HELP);
@@ -397,7 +411,7 @@ Run a bash script
 Script is configured using environment variables (like other tools):
 
 ZR_SOURCE_DIR — Resources directory that is being build.
-ZR_TARGET_DIR — Target directory where resources are bing built to.
+ZR_TARGET_DIR — Target directory where resources are being built to.
 ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
 ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. Also the working dir.
 ZR_REQUEST — Request file that called the tool (.zr-sh).
@@ -576,9 +590,9 @@ built_in! {
     copy,
     glob,
     rp,
+    sh,
     warn,
     fail,
-    sh,
 }
 
 pub fn run() {

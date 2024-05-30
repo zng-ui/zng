@@ -221,16 +221,19 @@ Options:
       --pack
           Copy all static files to the target dir
 
-      --tools <TOOLS>
+      --tool-dir <DIR>
           Search for `zng-res-{tool}` in this directory first
 
           [default: tools]
 
-      --list
+      --tools
           Prints help for all tools available
 
+      --tool <TOOL>
+          Prints the full help for a tool
+
       --tool-cache <TOOL_CACHE>
-          Tool cache dir
+          Tools cache dir
 
           [default: target/assets.cache]
 
@@ -274,7 +277,7 @@ You can call `cargo zng res --list` to see help for all tools available. Tools a
 Tools are configured using environment variables:
 
 * `ZR_SOURCE_DIR` — Resources directory that is being build.
-* `ZR_TARGET_DIR` — Target directory where resources are bing built to.
+* `ZR_TARGET_DIR` — Target directory where resources are being built to.
 * `ZR_CACHE_DIR` — Dir to use for intermediary data for the specific request. Keyed on the source dir, target dir, request file and request file content.
 * `ZR_WORKSPACE_DIR` — Cargo workspace that contains the source dir. This is also the working dir (`current_dir`) set for the tool.
 * `ZR_REQUEST` — Request file that called the tool.
@@ -315,10 +318,38 @@ is not inside any Cargo project a warning is printed and the `<SOURCE>` is used 
 
 ### Builtin Tools
 
-There are builtin tools provided:
+These are the builtin tools provided:
 
 ```console
-# cargo zng res --list
+# cargo zng res --tools
+
+.zr-copy @ cargo-zng
+  Copy the file or dir
+
+.zr-glob @ cargo-zng
+  Copy all matches in place
+
+.zr-rp @ cargo-zng
+  Replace ${VAR} occurrences in the content
+
+.zr-sh @ cargo-zng
+  Run a bash script
+
+.zr-warn @ cargo-zng
+  Print a warning message
+
+.zr-fail @ cargo-zng
+  Print an error message and fail the build
+
+call 'cargo zng res --help tool' to read full help from a tool
+```
+
+The expanded help for each:
+
+#### `.zr-copy`
+
+```console
+# cargo run -p cargo-zng -- res --tool copy
 
   Copy the file or dir
 
@@ -331,8 +362,14 @@ There are builtin tools provided:
     target/foo.txt
 
   Paths are relative to the Cargo workspace root.
+```
 
-.zr-glob @ target/debug/cargo-zng.exe
+#### `.zr-glob`
+
+```console
+# cargo run -p cargo-zng -- res --tool glob
+
+.zr-glob @ cargo-zng
   Copy all matches in place
 
   The request file:
@@ -368,26 +405,94 @@ There are builtin tools provided:
   And in filter patterns only:
 
   !:pattern — negates the entire pattern.
+```
 
-.zr-warn @ target/debug/cargo-zng.exe
-  Print a warning message
+#### `.zr-rp`
 
-.zr-fail @ target/debug/cargo-zng.exe
-  Print an error message and fail the build
+```console
+# cargo run -p cargo-zng -- res --tool rp
 
-.zr-sh @ target/debug/cargo-zng.exe
+.zr-rp @ cargo-zng
+  Replace ${VAR} occurrences in the content
+
+  The request file:
+    source/greetings.txt.zr-rp
+     | Thanks for using ${ZR_APP}!
+
+  Writes the text content with ZR_APP replaced:
+    target/greetings.txt
+    | Thanks for using Foo App!
+
+  The parameters syntax is ${VAR[:[case]][?else]}:
+
+  ${VAR}          — Replaces with the ENV var value, or fails if it is not set.
+  ${VAR:<case>}   — Replaces with the ENV var value case converted.
+  ${VAR:?<else>}  — If ENV is not set or is set empty uses 'else' instead.
+  $${VAR}         — Escapes $, replaces with '${VAR}'.
+
+  The :<case> functions are:
+
+  :k — kebab-case
+  :K — UPPER-KEBAB-CASE
+  :s — snake_case
+  :S — UPPER_SNAKE_CASE
+  :l — lower case
+  :U — UPPER CASE
+  :T — Title Case
+  :c — camelCase
+  :P — PascalCase
+  :Tr — Train-Case
+  : — Unchanged
+
+  The fallback(else) can have nested ${VAR} patterns.
+
+  Variables:
+
+  All env variables are available, metadata from the binary crate is also available:
+
+  ZR_APP — package.metadata.zng.about.app or package.name
+  ZR_ORG — package.metadata.zng.about.org or the first package.authors
+  ZR_VERSION — package.version
+  ZR_DESCRIPTION — package.description
+  ZR_HOMEPAGE — package.homepage
+  ZR_PKG_NAME — package.name
+  ZR_PKG_AUTHORS — package.authors
+  ZR_CRATE_NAME — package.name in snake_case
+  ZR_QUALIFIER — package.metadata.zng.about.qualifier
+
+  See `zng::env::about` for more details.
+```
+
+#### `.zr-sh`
+
+```console
+# cargo run -p cargo-zng -- res --tool sh
+
+.zr-sh @ cargo-zng
   Run a bash script
 
   Script is configured using environment variables (like other tools):
 
   ZR_SOURCE_DIR — Resources directory that is being build.
-  ZR_TARGET_DIR — Target directory where resources are bing built to.
+  ZR_TARGET_DIR — Target directory where resources are being built to.
   ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
-  ZR_WORKSPACE_DIR — Cargo workspace, parent to the source dir. Also the working dir.
+  ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. Also the working dir.
   ZR_REQUEST — Request file that called the tool (.zr-sh).
   ZR_TARGET — Target file implied by the request file name.
 
   ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
+
+  In a Cargo workspace the `zng::env::about` metadata is also set:
+
+  ZR_APP — package.metadata.zng.about.app or package.name
+  ZR_ORG — package.metadata.zng.about.org or the first package.authors
+  ZR_VERSION — package.version
+  ZR_DESCRIPTION — package.description
+  ZR_HOMEPAGE — package.homepage
+  ZR_PKG_NAME — package.name
+  ZR_PKG_AUTHORS — package.authors
+  ZR_CRATE_NAME — package.name in snake_case
+  ZR_QUALIFIER — package.metadata.zng.about.qualifier
 
   Script can make requests to the resource builder by printing to stdout.
   Current supported requests:
@@ -396,4 +501,36 @@ There are builtin tools provided:
   If the script fails the entire stderr is printed and the resource build fails.
 
   Runs on $ZR_SH, $PROGRAMFILES/Git/bin/sh.exe or sh.
+```
+
+### `.zr-warn`
+
+```console
+# cargo run -p cargo-zng -- res --tool warn
+
+.zr-warn @ cargo-zng
+  Print a warning message
+
+  You can combine this with '.zr-rp' tool
+
+  The request file:
+    source/warn.zr-warn.zr-rp
+     | ${ZR_APP}!
+
+  Prints a warning with the value of ZR_APP
+```
+
+### `.zr-fail`
+
+```console
+# cargo run -p cargo-zng -- res --tool fail
+
+.zr-fail @ cargo-zng
+  Print an error message and fail the build
+
+  The request file:
+    some/dir/disallow.zr-fail.zr-rp
+     | Don't copy ${ZR_REQUEST_DD} with a glob!
+
+  Prints an error message and fails the build if copied
 ```

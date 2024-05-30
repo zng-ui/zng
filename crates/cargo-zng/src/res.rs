@@ -34,13 +34,16 @@ pub struct ResArgs {
     pack: bool,
 
     /// Search for `zng-res-{tool}` in this directory first
-    #[arg(long, default_value = "tools")]
-    tools: PathBuf,
+    #[arg(long, default_value = "tools", value_name = "DIR")]
+    tool_dir: PathBuf,
     /// Prints help for all tools available
     #[arg(long, action)]
-    list: bool,
+    tools: bool,
+    /// Prints the full help for a tool
+    #[arg(long)]
+    tool: Option<String>,
 
-    /// Tool cache dir
+    /// Tools cache dir
     #[arg(long, default_value = "target/assets.cache")]
     tool_cache: PathBuf,
 
@@ -54,11 +57,14 @@ fn canonicalize(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn run(mut args: ResArgs) {
-    if args.tools.exists() {
-        args.tools = canonicalize(&args.tools);
+    if args.tool_dir.exists() {
+        args.tool_dir = canonicalize(&args.tool_dir);
     }
-    if args.list {
-        return list(&args.tools);
+    if args.tools {
+        return tools_help(&args.tool_dir);
+    }
+    if let Some(t) = args.tool {
+        return tool_help(&args.tool_dir, &t);
     }
 
     if !args.source.exists() {
@@ -108,7 +114,7 @@ pub(crate) fn run(mut args: ResArgs) {
 }
 
 fn build(args: &ResArgs) -> anyhow::Result<()> {
-    let tools = Tools::capture(&args.tools, args.tool_cache.clone())?;
+    let tools = Tools::capture(&args.tool_dir, args.tool_cache.clone())?;
     source_to_target_pass(args, &tools, &args.source, &args.target)?;
 
     let mut passes = 0;
@@ -189,15 +195,13 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
     Ok(any)
 }
 
-fn list(tools: &Path) {
+fn tools_help(tools: &Path) {
     let r = tool::visit_tools(tools, |tool| {
         println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
         match tool.help() {
             Ok(h) => {
-                for line in h.trim().lines() {
+                if let Some(line) = h.trim().lines().next() {
                     println!("  {line}");
-                }
-                if !h.is_empty() {
                     println!();
                 }
             }
@@ -208,6 +212,38 @@ fn list(tools: &Path) {
     });
     if let Err(e) = r {
         fatal!("{e}")
+    }
+    println!("call 'cargo zng res --help tool' to read full help from a tool");
+}
+
+fn tool_help(tools: &Path, name: &str) {
+    let name = name.strip_prefix(".zr-").unwrap_or(name);
+    let mut found = false;
+    let r = tool::visit_tools(tools, |tool| {
+        if tool.name == name {
+            println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+            match tool.help() {
+                Ok(h) => {
+                    for line in h.trim().lines() {
+                        println!("  {line}");
+                    }
+                    if !h.is_empty() {
+                        println!();
+                    }
+                }
+                Err(e) => error!("{e}"),
+            }
+            found = true;
+            Ok(ControlFlow::Break(()))
+        } else {
+            Ok(ControlFlow::Continue(()))
+        }
+    });
+    if let Err(e) = r {
+        fatal!("{e}")
+    }
+    if !found {
+        fatal!("did not find tool `{name}`")
     }
 }
 
