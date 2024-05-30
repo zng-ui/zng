@@ -303,12 +303,14 @@ fn rp() {
     let target = fs::File::create(target).unwrap_or_else(|e| fatal!("cannot write, {e}"));
     let mut target = io::BufWriter::new(target);
 
-    for (ln, line) in io::BufReader::new(content).lines().enumerate() {
-        let line = line.unwrap_or_else(|e| fatal!("cannot read, {e}"));
-        let ln = ln + 1;
-        let line = replace(&line, 0).unwrap_or_else(|e| fatal!("line {ln}, {e}"));
-        target.write_all(line.as_bytes()).unwrap_or_else(|e| fatal!("cannot write, {e}"));
-        target.write_all(b"\n").unwrap_or_else(|e| fatal!("cannot write, {e}"));
+    let mut content = io::BufReader::new(content);
+    let mut line = String::new();
+    let mut ln = 1;
+    while content.read_line(&mut line).unwrap_or_else(|e| fatal!("cannot read, {e}")) > 0 {
+        let line_r = replace(&line, 0).unwrap_or_else(|e| fatal!("line {ln}, {e}"));
+        target.write_all(line_r.as_bytes()).unwrap_or_else(|e| fatal!("cannot write, {e}"));
+        ln += 1;
+        line.clear();
     }
     target.flush().unwrap_or_else(|e| fatal!("cannot write, {e}"));
 }

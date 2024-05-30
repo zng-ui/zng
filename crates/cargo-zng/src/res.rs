@@ -68,8 +68,6 @@ fn canonicalize(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn run(mut args: ResArgs) {
-    let about = about::find_about(args.metadata.as_deref());
-
     if args.tool_dir.exists() {
         args.tool_dir = canonicalize(&args.tool_dir);
     }
@@ -99,6 +97,8 @@ pub(crate) fn run(mut args: ResArgs) {
     args.target = canonicalize(&args.target);
     args.tool_cache = canonicalize(&args.tool_cache);
 
+    let about = about::find_about(args.metadata.as_deref());
+
     // tool request paths are relative to the workspace root
     if let Some(p) = util::workspace_dir() {
         if let Err(e) = std::env::set_current_dir(p) {
@@ -110,6 +110,7 @@ pub(crate) fn run(mut args: ResArgs) {
             fatal!("cannot change dir, {e}");
         }
     }
+
     // to use `display_path` in the tool runner (current process)
     std::env::set_var(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap());
 

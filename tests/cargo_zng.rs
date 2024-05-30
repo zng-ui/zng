@@ -39,8 +39,14 @@ fn cargo_res_glob() {
     cargo_res("glob", false);
 }
 
+#[test]
+fn cargo_res_replace() {
+    cargo_res("replace", false);
+}
+
 fn cargo_res(test: &str, pack: bool) {
-    let test_dir = PathBuf::from("cargo-zng-res-tests").join(test);
+    let tests_dir = PathBuf::from("cargo-zng-res-tests");
+    let test_dir = tests_dir.join(test);
     let source = test_dir.join("source");
     assert!(source.exists());
     let target = PathBuf::from("../target/tmp/tests/cargo_zng").join(test);
@@ -48,19 +54,30 @@ fn cargo_res(test: &str, pack: bool) {
         let _ = fs::remove_dir_all(&target);
     }
     let tool_dir = test_dir.join("tools");
-    let metadata = test_dir.join("metadata.toml");
+    let metadata = tests_dir.join("metadata.toml");
 
-    let output = cargo_zng_res(&[&source, &target], &tool_dir, &metadata, pack).unwrap_or_else(|e| panic!("{e}"));
-    let mut clean_output = String::new();
-    for line in output.lines() {
+    let (stdout, stderr) = cargo_zng_res(&[&source, &target], &tool_dir, &metadata, pack).unwrap_or_else(|e| panic!("{e}"));
+    let mut clean_stdout = String::new();
+    for line in stdout.lines() {
         if line.contains("Finished") && line.contains("res build in") {
             break;
         }
-        clean_output.push_str(line);
-        clean_output.push('\n');
+        clean_stdout.push_str(line);
+        clean_stdout.push('\n');
+    }
+    let mut clean_stderr = String::new();
+    let mut copy = false;
+    for line in stderr.lines() {
+        if copy {
+            clean_stderr.push_str(line);
+            clean_stderr.push('\n');
+        } else if line.trim_start().starts_with("Running") {
+            copy = true;
+        }
     }
 
-    fs::write(test_dir.join("test.stdout"), clean_output.as_bytes()).unwrap();
+    fs::write(test_dir.join("test.stdout"), clean_stdout.as_bytes()).unwrap();
+    fs::write(test_dir.join("test.stderr"), clean_stderr.as_bytes()).unwrap();
     assert_dir_eq(&source.with_file_name("expected_target"), &target);
 }
 
@@ -103,7 +120,7 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
     }
 }
 
-fn cargo_zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, pack: bool) -> io::Result<String> {
+fn cargo_zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, pack: bool) -> io::Result<(String, String)> {
     let mut cmd = std::process::Command::new("cargo");
     cmd.arg("run").arg("-p").arg("cargo-zng").arg("--").arg("res");
     if pack {
@@ -113,7 +130,10 @@ fn cargo_zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, 
     cmd.arg("--metadata").arg(metadata);
     let output = cmd.args(args).output()?;
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+        Ok((
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+        ))
     } else {
         let err = String::from_utf8_lossy(&output.stderr);
         Err(io::Error::new(io::ErrorKind::Other, err))

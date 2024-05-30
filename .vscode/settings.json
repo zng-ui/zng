@@ -20,7 +20,8 @@
     "files.associations": {
         "*.zr-sh": "shellscript",
         "*.zr-copy": "ini",
-        "*.zr-glob": "ini"
+        "*.zr-glob": "ini",
+        "*.md.zr-glob": "md"
     },
     "cSpell.words": [
         "accesskit",

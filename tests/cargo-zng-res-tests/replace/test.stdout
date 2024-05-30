@@ -1,0 +1,3 @@
+tests/cargo-zng-res-tests/replace/source/recursive.zr-warn.zr-rp
+tests/cargo-zng-res-tests/replace/source/replace.md.zr-rp
+target/tmp/tests/cargo_zng/replace/recursive.zr-warn

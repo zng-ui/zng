@@ -10,8 +10,6 @@ documentation = "https://zng-ui.github.io/doc/zng_env"
 repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
-[package.metadata.zng.about]
-app = "Zng Env" # test
 
 [features]
 # Check if `res` path is available in `init_built_res` first.
