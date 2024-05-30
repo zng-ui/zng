@@ -84,8 +84,8 @@ fn cargo_res(test: &str, pack: bool) {
     fs::write(&stdout, clean_stdout.as_bytes()).unwrap();
     fs::write(&stderr, clean_stderr.as_bytes()).unwrap();
 
-    assert!(existing_stdout == clean_stdout, "{} changed", stdout.display());
-    assert!(existing_stderr == clean_stderr, "{} changed", stderr.display());
+    pretty_assertions::assert_eq!(existing_stdout, clean_stdout, "{} changed", stdout.display());
+    pretty_assertions::assert_eq!(existing_stderr, clean_stderr, "{} changed", stderr.display());
 
     assert_dir_eq(&source.with_file_name("expected_target"), &target);
 }
