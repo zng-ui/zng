@@ -162,7 +162,7 @@ impl ViewLib {
 
         if lib.exists() {
             // this disables Windows DLL search feature.
-            lib = lib.canonicalize()?;
+            lib = dunce::canonicalize(lib)?;
         }
 
         if !lib.exists() {

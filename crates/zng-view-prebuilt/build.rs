@@ -111,7 +111,7 @@ fn main() {
 
     if lib.exists() {
         println!("cargo:rustc-cfg=zng_lib_embedded");
-        println!("cargo:rustc-env=ZNG_VIEW_LIB={}", lib.canonicalize().unwrap().display());
+        println!("cargo:rustc-env=ZNG_VIEW_LIB={}", dunce::canonicalize(&lib).unwrap().display());
 
         let lib_bytes = std::fs::read(lib).unwrap();
 

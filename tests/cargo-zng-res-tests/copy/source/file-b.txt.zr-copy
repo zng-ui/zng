@@ -1,0 +1,2 @@
+# always relative to Cargo workspace
+tests/cargo-zng-res-tests/copy/refs/file-b.txt

@@ -1,0 +1,18 @@
+tests/cargo-zng-res-tests/recursive/source/a
+  target/tmp/tests/cargo_zng/recursive/a
+tests/cargo-zng-res-tests/recursive/source/a/copy.zr-copy
+  target/tmp/tests/cargo_zng/recursive/a/copy/a
+  target/tmp/tests/cargo_zng/recursive/a/copy/a/file-a.txt.zr-copy
+  target/tmp/tests/cargo_zng/recursive/a/copy/file-b.txt.zr-copy
+tests/cargo-zng-res-tests/recursive/source/copy.zr-copy
+  target/tmp/tests/cargo_zng/recursive/copy/a
+  target/tmp/tests/cargo_zng/recursive/copy/a/file-a.txt.zr-copy
+  target/tmp/tests/cargo_zng/recursive/copy/file-b.txt.zr-copy
+target/tmp/tests/cargo_zng/recursive/a/copy/a/file-a.txt.zr-copy
+  target/tmp/tests/cargo_zng/recursive/a/copy/a/file-a.txt
+target/tmp/tests/cargo_zng/recursive/a/copy/file-b.txt.zr-copy
+  target/tmp/tests/cargo_zng/recursive/a/copy/file-b.txt
+target/tmp/tests/cargo_zng/recursive/copy/a/file-a.txt.zr-copy
+  target/tmp/tests/cargo_zng/recursive/copy/a/file-a.txt
+target/tmp/tests/cargo_zng/recursive/copy/file-b.txt.zr-copy
+  target/tmp/tests/cargo_zng/recursive/copy/file-b.txt

@@ -216,7 +216,7 @@ impl CrashError {
             if let Some(response) = line.strip_prefix(RESPONSE_PREFIX) {
                 if let Some(path) = response.strip_prefix("minidump ") {
                     let path = PathBuf::from(path);
-                    if let Ok(p) = path.canonicalize() {
+                    if let Ok(p) = dunce::canonicalize(path) {
                         minidump = Some(p);
                     }
                     break;
@@ -688,7 +688,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
     tracing::info!("crash monitor-process is running");
 
     let exe = std::env::current_exe()
-        .and_then(|p| p.canonicalize())
+        .and_then(dunce::canonicalize)
         .expect("failed to get the current executable");
 
     let mut args: Box<[_]> = std::env::args().skip(1).map(Txt::from).collect();

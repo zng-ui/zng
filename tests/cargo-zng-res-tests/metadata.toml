@@ -1,0 +1,11 @@
+# test TOML, does not define a crate
+[package]
+name = "cargo-zng-res-tests"
+version = "0.1.0"
+authors = ["The Zng Project Developers"]
+description = "Part of the zng project."
+homepage = "https://zng-ui.github.io/"
+[package.metadata.zng.about]
+app = "Res Tests"
+org = "Zng Project"
+qualifier = "rs"

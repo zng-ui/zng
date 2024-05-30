@@ -1,0 +1,8 @@
+# exact match (copy 'refs' preserving dir structure)
+tests/cargo-zng-res-tests/glob/refs
+
+# only files that start with 'a' (inside 'refs')
+**/a*
+
+# except ab prefix
+!:**/ab*

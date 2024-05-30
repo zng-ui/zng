@@ -226,18 +226,8 @@ impl Template {
         let from = match self {
             Template::Git(url) => url,
             Template::Local(path) => {
-                let path = path.canonicalize()?;
-                let path = path.display().to_string();
-                // Windows inserts this "\\?", git does not like it
-                #[cfg(windows)]
-                {
-                    path.trim_start_matches(r#"\\?"#).replace('\\', "/")
-                }
-
-                #[cfg(not(windows))]
-                {
-                    path
-                }
+                let path = dunce::canonicalize(path)?;
+                path.display().to_string()
             }
         };
         util::cmd("git clone --depth 1", &[from.as_str(), &to.display().to_string()], &[])?;
@@ -278,13 +268,14 @@ fn apply_template(cx: &Fmt, template_temp: &Path, package_name: &str) -> io::Res
     fs::remove_file(template_temp.join(".zng-template"))?;
 
     // remove .zng-template-ignore
-    let can_temp = template_temp.canonicalize()?;
+    let template_temp = dunce::canonicalize(template_temp)?;
     match fs::read_to_string(template_temp.join(".zng-template-ignore")) {
         Ok(ignore) => {
             for glob in ignore.lines().map(|l| l.trim()).filter(|l| !l.is_empty() && !l.starts_with('#')) {
                 for path in glob::glob(glob).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))? {
-                    let path = path.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?.canonicalize()?;
-                    if path.starts_with(&can_temp) {
+                    let path = path.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                    let path = dunce::canonicalize(&path)?;
+                    if path.starts_with(&template_temp) {
                         if path.is_dir() {
                             fs::remove_dir_all(path)?;
                         } else if path.is_file() {
@@ -303,7 +294,7 @@ fn apply_template(cx: &Fmt, template_temp: &Path, package_name: &str) -> io::Res
     fs::remove_file(template_temp.join(".zng-template-ignore"))?;
 
     // rename/rewrite template and move it to new package dir
-    apply(cx, template_temp, &PathBuf::from(package_name))?;
+    apply(cx, &template_temp, &PathBuf::from(package_name))?;
     // remove (empty) template temp
     fs::remove_dir_all(template_temp)
 }

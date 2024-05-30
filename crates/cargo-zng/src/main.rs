@@ -13,6 +13,18 @@
 mod util;
 mod l10n;
 mod new;
+mod res;
+
+/// Utilities for implementing `cargo-zng-res-{tool}` executables.
+///
+/// Note don't depend on `cargo-zng`, just copy the source code of the utilities you need.
+pub mod res_tool_util {
+    pub use crate::res::built_in::{
+        display_path, path, ZR_APP, ZR_CACHE_DIR, ZR_CRATE_NAME, ZR_DESCRIPTION, ZR_FINAL, ZR_HELP, ZR_HOMEPAGE, ZR_ORG, ZR_PKG_AUTHORS,
+        ZR_PKG_NAME, ZR_QUALIFIER, ZR_REQUEST, ZR_REQUEST_DD, ZR_SOURCE_DIR, ZR_TARGET, ZR_TARGET_DD, ZR_TARGET_DIR, ZR_VERSION,
+        ZR_WORKSPACE_DIR,
+    };
+}
 
 use clap::*;
 
@@ -33,14 +45,23 @@ enum Command {
     ///
     /// See the docs for `l10n!` for more details about the expected format.
     L10n(l10n::L10nArgs),
+
+    /// Build resources
+    ///
+    /// Builds resources SOURCE to TARGET, delegates `.zr-{tool}` files to `cargo-zng-res-{tool}`
+    /// executables and crates.
+    Res(res::ResArgs),
 }
 
 fn main() {
+    res::built_in::run();
+
     let cli = Cli::parse();
 
     match cli.command {
         Command::New(args) => new::run(args),
         Command::L10n(args) => l10n::run(args),
+        Command::Res(args) => res::run(args),
     }
 
     crate::util::exit();

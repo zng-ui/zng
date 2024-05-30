@@ -190,7 +190,7 @@ event! {
 pub fn single_instance() {
     single_instance_named(
         std::env::current_exe()
-            .and_then(|p| p.canonicalize())
+            .and_then(dunce::canonicalize)
             .expect("current exe is required")
             .display()
             .to_txt(),

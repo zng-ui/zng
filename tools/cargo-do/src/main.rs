@@ -819,17 +819,12 @@ fn clean(mut args: Vec<&str>) {
         }
 
         // external because it will delete self.
-        let manifest_path = std::env::current_exe()
-            .unwrap()
-            .canonicalize()
+        let manifest_path = dunce::canonicalize(std::env::current_exe().unwrap())
             .unwrap()
             .parent()
             .unwrap()
-            .join("../../Cargo.toml")
-            .canonicalize()
-            .unwrap()
-            .display()
-            .to_string();
+            .join("../../Cargo.toml");
+        let manifest_path = dunce::canonicalize(manifest_path).unwrap().display().to_string();
         cmd_external("cargo", &["clean", "--manifest-path", &manifest_path], &args);
     }
 }
@@ -1320,9 +1315,10 @@ fn just(_: Vec<&str>) {
     #[cfg(windows)]
     std::fs::write("do.bat", include_bytes!("do-script.bat")).unwrap_or_else(|e| util::fatal(e));
 
+    std::fs::write("do", include_bytes!("do-script.sh")).unwrap_or_else(|e| util::fatal(e));
+
     #[cfg(not(windows))]
     {
-        std::fs::write("do", include_bytes!("do-script.sh")).unwrap_or_else(|e| util::fatal(e));
         println!("$ chmod u+x do");
         let chmod = std::process::Command::new("chmod")
             .arg("u+x")

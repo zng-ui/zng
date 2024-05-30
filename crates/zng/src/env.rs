@@ -26,3 +26,6 @@
 pub use zng_env::{
     about, bin, cache, clear_cache, config, init, init_cache, init_config, init_res, migrate_cache, migrate_config, res, About,
 };
+
+#[cfg(any(debug_assertions, feature = "built_res"))]
+pub use zng_env::init_built_res;

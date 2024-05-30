@@ -16,6 +16,10 @@ zng-app = { path = "../crates/zng-app" }
 pretty_assertions = "1.4"
 
 [[test]]
+name = "cargo_zng"
+path = "cargo_zng.rs"
+
+[[test]]
 name = "command"
 path = "command.rs"
 

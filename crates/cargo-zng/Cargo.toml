@@ -6,7 +6,7 @@ edition = "2021"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 description = "Zng project manager."
-documentation = "https://zng-ui.github.io/doc/zng_unique_id"
+documentation = "https://zng-ui.github.io/doc/cargo_zng"
 repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
@@ -24,6 +24,15 @@ fluent-pseudo = "0.3"
 
 # new
 convert_case = "0.6"
+
+# res
+sha2 = "0.10"
+parking_lot = "0.12"
+walkdir = "2.5"
+is_executable = "1.0"
+anyhow = "1.0"
+dunce = "1.0"
+zng-env = { path = "../zng-env", version = "0.1.0" }
 
 [package.metadata.docs.rs]
 all-features = true

@@ -434,9 +434,7 @@ fn ansi_enabled() -> bool {
 }
 
 pub fn settings_path() -> PathBuf {
-    std::env::current_exe()
-        .unwrap()
-        .canonicalize()
+    dunce::canonicalize(std::env::current_exe().unwrap())
         .unwrap()
         .parent()
         .unwrap()

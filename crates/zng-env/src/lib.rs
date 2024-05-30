@@ -24,7 +24,7 @@ lazy_static! {
     static ref ABOUT: About = About::fallback_name();
 }
 
-/// Init [`about`] from cargo manifest that is required by other function in this module.
+/// Init [`about`] from cargo manifest.
 ///
 /// See [`About`] docs for what Cargo.toml values are read.
 #[macro_export]
@@ -38,7 +38,8 @@ pub use zng_env_proc_macros::init_parse;
 
 /// Initialize [`about`] manually.
 ///
-/// Prefer calling [`init!`] instead of this, or at least also set the Cargo.toml metadata as it is used by `cargo-zng`.
+/// Prefer calling [`init!`] instead of this, or at least also set duplicate values in `[package.metadata.zng.about]`
+/// on the Cargo.toml manifest. Cargo tools like `cargo zng res` parse these metadata when packaging resources.
 pub fn init(about: About) {
     if lazy_static_init(&ABOUT, about).is_err() {
         panic!("env already inited, env::init must be the first call in the process")
@@ -51,16 +52,16 @@ pub fn init(about: About) {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct About {
     /// package.name
-    pub cargo_pkg_name: Txt,
+    pub pkg_name: Txt,
     /// package.authors
-    pub cargo_pkg_authors: Box<[Txt]>,
+    pub pkg_authors: Box<[Txt]>,
     /// package.name in snake_case
     pub crate_name: Txt,
     /// package.version
     pub version: Version,
-    /// package.metadata.zng.about.app or `cargo_pkg_name`
+    /// package.metadata.zng.about.app or `pkg_name`
     pub app: Txt,
-    /// package.metadata.zng.about.org or the first `cargo_pkg_authors`
+    /// package.metadata.zng.about.org or the first `pkg_authors`
     pub org: Txt,
     /// package.metadata.zng.about.qualifier
     ///
@@ -70,19 +71,25 @@ pub struct About {
     pub description: Txt,
     /// package.homepage
     pub homepage: Txt,
+    /// If package.metadata.zng.about is set on the Cargo.toml manifest.
+    ///
+    /// The presence of this section is used by `cargo zng res` to find the main
+    /// crate if the workspace has multiple bin crates.
+    pub has_about: bool,
 }
 impl About {
     fn fallback_name() -> Self {
         Self {
-            cargo_pkg_name: Txt::from_static(""),
-            cargo_pkg_authors: Box::new([]),
-            crate_name: Txt::from_static(""),
+            pkg_name: Txt::from_static(""),
+            pkg_authors: Box::new([]),
             version: Version::new(0, 0, 0),
             app: fallback_name(),
+            crate_name: Txt::from_static(""),
             org: Txt::from_static(""),
             qualifier: Txt::from_static(""),
             description: Txt::from_static(""),
             homepage: Txt::from_static(""),
+            has_about: false,
         }
     }
 
@@ -91,25 +98,27 @@ impl About {
         let m: Manifest = toml::from_str(cargo_toml)?;
         let mut about = About {
             crate_name: m.package.name.replace('-', "_").into(),
-            cargo_pkg_name: m.package.name,
-            cargo_pkg_authors: m.package.authors,
+            pkg_name: m.package.name,
+            pkg_authors: m.package.authors,
             version: m.package.version,
             description: m.package.description.unwrap_or_default(),
             homepage: m.package.homepage.unwrap_or_default(),
             app: Txt::from_static(""),
             org: Txt::from_static(""),
             qualifier: Txt::from_static(""),
+            has_about: false,
         };
         if let Some(m) = m.package.metadata.and_then(|m| m.zng).and_then(|z| z.about) {
+            about.has_about = true;
             about.app = m.app.unwrap_or_default();
             about.org = m.org.unwrap_or_default();
             about.qualifier = m.qualifier.unwrap_or_default();
         }
         if about.app.is_empty() {
-            about.app = about.cargo_pkg_name.clone();
+            about.app = about.pkg_name.clone();
         }
         if about.org.is_empty() {
-            about.org = about.cargo_pkg_authors.first().cloned().unwrap_or_default();
+            about.org = about.pkg_authors.first().cloned().unwrap_or_default();
         }
         Ok(about)
     }
@@ -117,8 +126,8 @@ impl About {
     #[doc(hidden)]
     #[allow(clippy::too_many_arguments)]
     pub fn macro_new(
-        cargo_pkg_name: &'static str,
-        cargo_pkg_authors: &[&'static str],
+        pkg_name: &'static str,
+        pkg_authors: &[&'static str],
         crate_name: &'static str,
         (major, minor, patch, pre, build): (u64, u64, u64, &'static str, &'static str),
         app: &'static str,
@@ -126,10 +135,11 @@ impl About {
         qualifier: &'static str,
         description: &'static str,
         homepage: &'static str,
+        has_about: bool,
     ) -> Self {
         Self {
-            cargo_pkg_name: Txt::from_static(cargo_pkg_name),
-            cargo_pkg_authors: cargo_pkg_authors.iter().copied().map(Txt::from_static).collect(),
+            pkg_name: Txt::from_static(pkg_name),
+            pkg_authors: pkg_authors.iter().copied().map(Txt::from_static).collect(),
             crate_name: Txt::from_static(crate_name),
             version: {
                 let mut v = Version::new(major, minor, patch);
@@ -142,6 +152,7 @@ impl About {
             qualifier: Txt::from_static(qualifier),
             description: Txt::from_static(description),
             homepage: Txt::from_static(homepage),
+            has_about,
         }
     }
 }
@@ -699,9 +710,9 @@ mod tests {
     fn parse_manifest() {
         init!();
         let a = about();
-        assert_eq!(a.cargo_pkg_name, "zng-env");
-        assert_eq!(a.app, "Zng Env");
-        assert_eq!(&a.cargo_pkg_authors[..], &[Txt::from("The Zng Project Developers")]);
+        assert_eq!(a.pkg_name, "zng-env");
+        assert_eq!(a.app, "zng-env");
+        assert_eq!(&a.pkg_authors[..], &[Txt::from("The Zng Project Developers")]);
         assert_eq!(a.org, "The Zng Project Developers");
     }
 }

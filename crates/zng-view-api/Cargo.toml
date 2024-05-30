@@ -53,5 +53,7 @@ serde_variant = "0.1"
 
 unic-langid = { version = "0.9", features = ["serde"] }
 
+dunce = "1.0"
+
 [package.metadata.docs.rs]
 all-features = true

@@ -935,7 +935,7 @@ impl PathFilter {
 
     /// Allow any file inside the current executable directory or sub-directories.
     pub fn allow_exe_dir() -> Self {
-        if let Ok(mut p) = env::current_exe().and_then(|p| p.canonicalize()) {
+        if let Ok(mut p) = env::current_exe().and_then(dunce::canonicalize) {
             if p.pop() {
                 return Self::allow_dir(p);
             }

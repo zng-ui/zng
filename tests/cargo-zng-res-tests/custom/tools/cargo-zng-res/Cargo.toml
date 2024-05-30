@@ -1,0 +1,10 @@
+[package]
+name = "cargo-zng-res"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+
+[[bin]]
+name = "tool1"

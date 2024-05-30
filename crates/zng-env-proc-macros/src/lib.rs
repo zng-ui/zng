@@ -57,6 +57,7 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
     let mut app = "";
     let mut org = "";
     let mut qualifier = "";
+    let mut has_about = false;
 
     if let Some(m) = m
         .package
@@ -65,6 +66,7 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
         .and_then(|m| m.zng.as_ref())
         .and_then(|z| z.about.as_ref())
     {
+        has_about = true;
         app = m.app.as_deref().unwrap_or_default();
         org = m.org.as_deref().unwrap_or_default();
         qualifier = m.qualifier.as_deref().unwrap_or_default();
@@ -78,6 +80,8 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
 
     /*
     pub fn macro_new(
+        pkg_name: &'static str,
+        pkg_authors: &[&'static str],
         cargo_pkg_name: &'static str,
         cargo_pkg_authors: &[&'static str],
         crate_name: &'static str,
@@ -100,6 +104,7 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
             #qualifier,
             #desc,
             #home,
+            #has_about,
         ))
     }
     .into()

@@ -8,17 +8,6 @@
         "rust_analyzer_check"
     ],
     "files.eol": "\n",
-    "spellright.language": [
-        "en"
-    ],
-    "spellright.documentTypes": [
-        "markdown",
-        "latex",
-        "plaintext",
-        "toml",
-        "json",
-        "rust"
-    ],
     "explorer.fileNesting.patterns": {
         "*.rs": "${capture}.stderr",
         "*.otf": "${capture}.codepoints",
@@ -28,6 +17,12 @@
     "rust-analyzer.diagnostics.disabled": [
         "non_snake_case" // false positive in when expr with generated #[allow(non_snake_case)]
     ],
+    "files.associations": {
+        "*.zr-sh": "shellscript",
+        "*.zr-copy": "ini",
+        "*.zr-glob": "ini",
+        "*.md.zr-glob": "md"
+    },
     "cSpell.words": [
         "accesskit",
         "afrc",
@@ -198,6 +193,7 @@
         "wp",
         "wr",
         "wtypesbase",
+        "xshell",
         "Zalgo",
         "zdenek",
         "zng"
