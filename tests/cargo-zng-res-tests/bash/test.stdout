@@ -4,4 +4,5 @@ tests/cargo-zng-res-tests/bash/source/recursion.txt.zr-copy.zr-sh
 tests/cargo-zng-res-tests/bash/source/warning.zr-warn
 target/tmp/tests/cargo_zng/bash/recursion.txt.zr-copy
   target/tmp/tests/cargo_zng/bash/recursion.txt
-[1msh[22m final args
+--final--
+tests/cargo-zng-res-tests/bash/source/on-final.zr-sh

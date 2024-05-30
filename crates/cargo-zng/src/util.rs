@@ -9,7 +9,6 @@ use std::{
 macro_rules! warn {
     ($($format_args:tt)*) => {
         {
-            $crate::util::set_failed_run(true);
             eprintln!("{} {}", $crate::util::WARN_PREFIX, format_args!($($format_args)*));
         }
     };

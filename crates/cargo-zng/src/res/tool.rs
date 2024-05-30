@@ -5,7 +5,6 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use color_print::cstr;
 use is_executable::IsExecutable as _;
 use parking_lot::Mutex;
 use zng_env::About;
@@ -235,6 +234,7 @@ impl Tools {
     }
 
     pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<String> {
+        println!("{}", display_path(request));
         for (i, tool) in self.tools.iter().enumerate() {
             if tool.name == tool_name {
                 let output = tool.run(&self.cache, source, target, request, &self.about, None)?;
@@ -253,11 +253,15 @@ impl Tools {
     }
 
     pub fn run_final(self, source: &Path, target: &Path) -> anyhow::Result<()> {
-        for (i, request, args) in self.on_final.into_inner() {
-            println!(cstr!("<bold>{}</bold> {}"), self.tools[i].name, args);
-            let output = self.tools[i].run(&self.cache, source, target, &request, &self.about, Some(args))?;
-            for warn in output.warnings {
-                warn!("{warn}")
+        let on_final = self.on_final.into_inner();
+        if !on_final.is_empty() {
+            println!("--final--");
+            for (i, request, args) in on_final {
+                println!("{}", display_path(&request));
+                let output = self.tools[i].run(&self.cache, source, target, &request, &self.about, Some(args))?;
+                for warn in output.warnings {
+                    warn!("{warn}")
+                }
             }
         }
         Ok(())

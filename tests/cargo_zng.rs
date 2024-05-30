@@ -76,8 +76,17 @@ fn cargo_res(test: &str, pack: bool) {
         }
     }
 
-    fs::write(test_dir.join("test.stdout"), clean_stdout.as_bytes()).unwrap();
-    fs::write(test_dir.join("test.stderr"), clean_stderr.as_bytes()).unwrap();
+    let stdout = test_dir.join("test.stdout");
+    let stderr = test_dir.join("test.stderr");
+    let existing_stdout = fs::read_to_string(&stdout).unwrap_or_default();
+    let existing_stderr = fs::read_to_string(&stderr).unwrap_or_default();
+
+    fs::write(&stdout, clean_stdout.as_bytes()).unwrap();
+    fs::write(&stderr, clean_stderr.as_bytes()).unwrap();
+
+    assert!(existing_stdout == clean_stdout, "{} changed", stdout.display());
+    assert!(existing_stderr == clean_stderr, "{} changed", stderr.display());
+
     assert_dir_eq(&source.with_file_name("expected_target"), &target);
 }
 

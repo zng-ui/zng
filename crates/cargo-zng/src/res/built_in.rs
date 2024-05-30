@@ -416,7 +416,7 @@ Prints a warning with the value of ZR_APP
 fn warn() {
     help(WARN_HELP);
     let message = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
-    warn!("{message}");
+    println!("zng-res::warning={message}");
 }
 
 const FAIL_HELP: &str = "
