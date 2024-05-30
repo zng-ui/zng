@@ -7,7 +7,6 @@ use std::{
     process::Command,
 };
 
-use anyhow::Context;
 use convert_case::{Case, Casing};
 
 /// Env var set by cargo-zng to the Cargo workspace directory that is parent to the res source.
@@ -118,10 +117,12 @@ fn copy() {
 
     if source.is_dir() {
         fs::create_dir(&target).unwrap_or_else(|e| fatal!("{e}"));
-        copy_dir_all(&source, &target, true).unwrap_or_else(|e| fatal!("{e}"));
-    } else {
+        copy_dir_all(&source, &target, true);
+    } else if source.is_file() {
         fs::copy(source, &target).unwrap_or_else(|e| fatal!("{e}"));
         println!("{}", display_path(&target));
+    } else if source.is_symlink() {
+        symlink_warn(&source);
     }
 }
 
@@ -238,6 +239,8 @@ fn glob() {
 
             fs::copy(&source, &target).unwrap_or_else(|e| fatal!("cannot copy `{}` to `{}`, {e}", source.display(), target.display()));
             println!("{}", display_path(&target));
+        } else if source.is_symlink() {
+            symlink_warn(&source);
         }
     }
 }
@@ -582,27 +585,30 @@ fn read_path(request_file: &Path) -> io::Result<PathBuf> {
     read_line(request_file, "path").map(PathBuf::from)
 }
 
-fn copy_dir_all(from: &Path, to: &Path, trace: bool) -> anyhow::Result<()> {
-    for entry in fs::read_dir(from).with_context(|| format!("cannot read_dir `{}`", from.display()))? {
-        let from = entry.with_context(|| format!("cannot read_dir entry `{}`", from.display()))?.path();
-        if from.is_dir() {
-            let to = to.join(from.file_name().unwrap());
-            fs::create_dir(&to).with_context(|| format!("cannot create_dir `{}`", to.display()))?;
+fn copy_dir_all(from: &Path, to: &Path, trace: bool) {
+    for entry in walkdir::WalkDir::new(from).min_depth(1).max_depth(1).sort_by_file_name() {
+        let entry = entry.unwrap_or_else(|e| fatal!("cannot walkdir entry `{}`, {e}", from.display()));
+        let from = entry.path();
+        let to = to.join(entry.file_name());
+        if entry.file_type().is_dir() {
+            fs::create_dir(&to).unwrap_or_else(|e| fatal!("cannot create_dir `{}`, {e}", to.display()));
             if trace {
                 println!("{}", display_path(&to));
             }
-            copy_dir_all(&from, &to, trace)?;
-        } else if from.is_file() {
-            let to = to.join(from.file_name().unwrap());
-            fs::copy(&from, &to).with_context(|| format!("cannot copy `{}` to `{}`", from.display(), to.display()))?;
+            copy_dir_all(from, &to, trace);
+        } else if entry.file_type().is_file() {
+            fs::copy(from, &to).unwrap_or_else(|e| fatal!("cannot copy `{}` to `{}`, {e}", from.display(), to.display()));
             if trace {
                 println!("{}", display_path(&to));
             }
-        } else {
-            continue;
+        } else if entry.file_type().is_symlink() {
+            symlink_warn(entry.path())
         }
     }
-    Ok(())
+}
+
+pub(crate) fn symlink_warn(path: &Path) {
+    warn!("symlink ignored in `{}`, use zr-tools to 'link'", path.display());
 }
 
 pub const ENV_TOOL: &str = "ZNG_RES_TOOL";

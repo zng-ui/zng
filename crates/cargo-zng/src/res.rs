@@ -178,7 +178,7 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
                 println!("  {}", display_path(&target));
             }
         } else if entry.file_type().is_symlink() {
-            warn!("symlink ignored in `{}`, use zr-tools to 'link'", entry.path().display());
+            built_in::symlink_warn(entry.path());
         }
     }
     Ok(())
