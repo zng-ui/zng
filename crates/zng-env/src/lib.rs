@@ -13,6 +13,7 @@ use std::{
     fs,
     io::{self, BufRead},
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use semver::Version;
@@ -26,15 +27,14 @@ lazy_static! {
 /// Init [`about`] from cargo manifest that is required by other function in this module.
 ///
 /// See [`About`] docs for what Cargo.toml values are read.
-///
-/// Note that the current implementation of this macro includes the entire Cargo.toml file, if
-/// that is not acceptable you can use [`init()`] to manually init about.
 #[macro_export]
 macro_rules! init {
     () => {
-        $crate::init_from_manifest(include_str!(concat!(std::env!("CARGO_MANIFEST_DIR"), "/Cargo.toml")))
+        $crate::init_parse!($crate)
     };
 }
+#[doc(hidden)]
+pub use zng_env_proc_macros::init_parse;
 
 /// Initialize [`about`] manually.
 ///
@@ -45,11 +45,6 @@ pub fn init(about: About) {
     }
 }
 
-#[doc(hidden)]
-pub fn init_from_manifest(manifest: &'static str) {
-    init(About::parse_manifest(manifest).expect("cannot parse Cargo.toml manifest"))
-}
-
 /// Metadata about the app and main crate.
 ///
 /// See [`about`] for more details.
@@ -58,7 +53,7 @@ pub struct About {
     /// package.name
     pub cargo_pkg_name: Txt,
     /// package.authors
-    pub cargo_pkg_authors: Vec<Txt>,
+    pub cargo_pkg_authors: Box<[Txt]>,
     /// package.name in snake_case
     pub crate_name: Txt,
     /// package.version
@@ -80,7 +75,7 @@ impl About {
     fn fallback_name() -> Self {
         Self {
             cargo_pkg_name: Txt::from_static(""),
-            cargo_pkg_authors: vec![],
+            cargo_pkg_authors: Box::new([]),
             crate_name: Txt::from_static(""),
             version: Version::new(0, 0, 0),
             app: fallback_name(),
@@ -118,6 +113,37 @@ impl About {
         }
         Ok(about)
     }
+
+    #[doc(hidden)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn macro_new(
+        cargo_pkg_name: &'static str,
+        cargo_pkg_authors: &[&'static str],
+        crate_name: &'static str,
+        (major, minor, patch, pre, build): (u64, u64, u64, &'static str, &'static str),
+        app: &'static str,
+        org: &'static str,
+        qualifier: &'static str,
+        description: &'static str,
+        homepage: &'static str,
+    ) -> Self {
+        Self {
+            cargo_pkg_name: Txt::from_static(cargo_pkg_name),
+            cargo_pkg_authors: cargo_pkg_authors.iter().copied().map(Txt::from_static).collect(),
+            crate_name: Txt::from_static(crate_name),
+            version: {
+                let mut v = Version::new(major, minor, patch);
+                v.pre = semver::Prerelease::from_str(pre).unwrap();
+                v.build = semver::BuildMetadata::from_str(build).unwrap();
+                v
+            },
+            app: Txt::from_static(app),
+            org: Txt::from_static(org),
+            qualifier: Txt::from_static(qualifier),
+            description: Txt::from_static(description),
+            homepage: Txt::from_static(homepage),
+        }
+    }
 }
 #[derive(serde::Deserialize)]
 struct Manifest {
@@ -129,7 +155,7 @@ struct Package {
     version: Version,
     description: Option<Txt>,
     homepage: Option<Txt>,
-    authors: Vec<Txt>,
+    authors: Box<[Txt]>,
     metadata: Option<Metadata>,
 }
 #[derive(serde::Deserialize)]
@@ -671,10 +697,11 @@ mod tests {
 
     #[test]
     fn parse_manifest() {
-        let a = About::parse_manifest(include_str!(concat!(std::env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"))).unwrap();
+        init!();
+        let a = about();
         assert_eq!(a.cargo_pkg_name, "zng-env");
         assert_eq!(a.app, "Zng Env");
-        assert_eq!(a.cargo_pkg_authors, vec![Txt::from("The Zng Project Developers")]);
+        assert_eq!(&a.cargo_pkg_authors[..], &[Txt::from("The Zng Project Developers")]);
         assert_eq!(a.org, "The Zng Project Developers");
     }
 }
