@@ -67,6 +67,9 @@ fn cargo_res(test: &str, pack: bool) {
     }
     let mut clean_stderr = String::new();
     let mut copy = false;
+    if cfg!(target_os = "linux") {
+        println!("!!: '{stderr}'");
+    }
     for line in stderr.lines() {
         if copy {
             clean_stderr.push_str(line);
