@@ -14,6 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 app = "Zng Env" # test
 
 [dependencies]
+zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.1.0" }
 directories = "5.0"
 parking_lot = "0.12"
 tracing = "0.1"
