@@ -82,6 +82,8 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
     pub fn macro_new(
         pkg_name: &'static str,
         pkg_authors: &[&'static str],
+        cargo_pkg_name: &'static str,
+        cargo_pkg_authors: &[&'static str],
         crate_name: &'static str,
         (major, minor, patch, pre, build): (u64, u64, u64, &'static str, &'static str),
         app: &'static str,
