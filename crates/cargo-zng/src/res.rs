@@ -10,11 +10,13 @@ use anyhow::{bail, Context as _};
 use built_in::{display_path, ZR_WORKSPACE_DIR};
 use clap::*;
 use color_print::cstr;
+use zng_env::About;
 
 use crate::util;
 
 use self::tool::Tools;
 
+mod about;
 pub mod built_in;
 mod tool;
 
@@ -50,6 +52,15 @@ pub struct ResArgs {
     /// Number of build passes allowed before final
     #[arg(long, default_value = "32")]
     recursion_limit: u32,
+
+    /// TOML file that that defines metadata uses by tools (ZR_APP, ZR_ORG, ..)
+    ///
+    /// This is only needed if the workspace has multiple bin crates
+    /// and none or many set '[package.metadata.zng.about]'.
+    ///
+    /// See `zng::env::About` for more details.
+    #[arg(long, value_name = "TOML")]
+    metadata: Option<PathBuf>,
 }
 
 fn canonicalize(path: &Path) -> PathBuf {
@@ -57,6 +68,8 @@ fn canonicalize(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn run(mut args: ResArgs) {
+    let about = about::find_about(args.metadata.as_deref());
+
     if args.tool_dir.exists() {
         args.tool_dir = canonicalize(&args.tool_dir);
     }
@@ -101,7 +114,7 @@ pub(crate) fn run(mut args: ResArgs) {
     std::env::set_var(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap());
 
     let start = Instant::now();
-    if let Err(e) = build(&args) {
+    if let Err(e) = build(&args, about) {
         let e = e.to_string();
         for line in e.lines() {
             eprintln!("   {line}");
@@ -113,8 +126,8 @@ pub(crate) fn run(mut args: ResArgs) {
     println!("         {}", args.target.display());
 }
 
-fn build(args: &ResArgs) -> anyhow::Result<()> {
-    let tools = Tools::capture(&args.tool_dir, args.tool_cache.clone())?;
+fn build(args: &ResArgs, about: About) -> anyhow::Result<()> {
+    let tools = Tools::capture(&args.tool_dir, args.tool_cache.clone(), about)?;
     source_to_target_pass(args, &tools, &args.source, &args.target)?;
 
     let mut passes = 0;

@@ -8,6 +8,7 @@ use anyhow::{bail, Context};
 use color_print::cstr;
 use is_executable::IsExecutable as _;
 use parking_lot::Mutex;
+use zng_env::About;
 
 use crate::res_tool_util::*;
 
@@ -114,6 +115,7 @@ impl Tool {
         source_dir: &Path,
         target_dir: &Path,
         request: &Path,
+        about: &About,
         final_args: Option<String>,
     ) -> anyhow::Result<ToolOutput> {
         use sha2::Digest;
@@ -150,9 +152,20 @@ impl Tool {
             cmd.env(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap())
                 .env(ZR_SOURCE_DIR, source_dir)
                 .env(ZR_TARGET_DIR, target_dir)
+                .env(ZR_REQUEST_DD, request.parent().unwrap())
                 .env(ZR_REQUEST, request)
+                .env(ZR_TARGET_DD, target.parent().unwrap())
                 .env(ZR_TARGET, target)
-                .env(ZR_CACHE_DIR, cache.join(cache_dir)),
+                .env(ZR_CACHE_DIR, cache.join(cache_dir))
+                .env(ZR_APP, &about.app)
+                .env(ZR_CRATE_NAME, &about.crate_name)
+                .env(ZR_DESCRIPTION, &about.description)
+                .env(ZR_HOMEPAGE, &about.homepage)
+                .env(ZR_ORG, &about.org)
+                .env(ZR_PKG_AUTHORS, about.pkg_authors.clone().join(","))
+                .env(ZR_PKG_NAME, &about.pkg_name)
+                .env(ZR_QUALIFIER, &about.qualifier)
+                .env(ZR_VERSION, about.version.to_string()),
         )
     }
 
@@ -204,9 +217,10 @@ pub struct Tools {
     tools: Vec<Tool>,
     cache: PathBuf,
     on_final: Mutex<Vec<(usize, PathBuf, String)>>,
+    about: About,
 }
 impl Tools {
-    pub fn capture(local: &Path, cache: PathBuf) -> anyhow::Result<Self> {
+    pub fn capture(local: &Path, cache: PathBuf, about: About) -> anyhow::Result<Self> {
         let mut tools = vec![];
         visit_tools(local, |t| {
             tools.push(t);
@@ -216,13 +230,14 @@ impl Tools {
             tools,
             cache,
             on_final: Mutex::new(vec![]),
+            about,
         })
     }
 
     pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<String> {
         for (i, tool) in self.tools.iter().enumerate() {
             if tool.name == tool_name {
-                let output = tool.run(&self.cache, source, target, request, None)?;
+                let output = tool.run(&self.cache, source, target, request, &self.about, None)?;
                 for warn in output.warnings {
                     warn!("{warn}")
                 }
@@ -240,7 +255,7 @@ impl Tools {
     pub fn run_final(self, source: &Path, target: &Path) -> anyhow::Result<()> {
         for (i, request, args) in self.on_final.into_inner() {
             println!(cstr!("<bold>{}</bold> {}"), self.tools[i].name, args);
-            let output = self.tools[i].run(&self.cache, source, target, &request, Some(args))?;
+            let output = self.tools[i].run(&self.cache, source, target, &request, &self.about, Some(args))?;
             for warn in output.warnings {
                 warn!("{warn}")
             }

@@ -281,7 +281,9 @@ Tools are configured using environment variables:
 * `ZR_CACHE_DIR` — Dir to use for intermediary data for the specific request. Keyed on the source dir, target dir, request file and request file content.
 * `ZR_WORKSPACE_DIR` — Cargo workspace that contains the source dir. This is also the working dir (`current_dir`) set for the tool.
 * `ZR_REQUEST` — Request file that called the tool.
+* `ZR_REQUEST_DD` — Parent dir of the request file.
 * `ZR_TARGET` — Target file implied by the request file name. That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
+* `ZR_TARGET_DD` — Parent dir of thr target file.
 * `ZR_FINAL` — Set to the args if the tool requested `zng-res::on-final={args}`.
 * `ZR_HELP` — Print help text for `cargo zng res --list`. If this is set the other vars will not be set.
 
@@ -460,7 +462,8 @@ The expanded help for each:
   ZR_CRATE_NAME — package.name in snake_case
   ZR_QUALIFIER — package.metadata.zng.about.qualifier
 
-  See `zng::env::about` for more details.
+  See `zng::env::about` for more details about metadata vars.
+  See the cargo-zng crate docs for a full list of ZR vars.
 ```
 
 #### `.zr-sh`
@@ -478,7 +481,9 @@ The expanded help for each:
   ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
   ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. Also the working dir.
   ZR_REQUEST — Request file that called the tool (.zr-sh).
+  ZR_REQUEST_DD — Parent dir of the request file.
   ZR_TARGET — Target file implied by the request file name.
+  ZR_TARGET_DD — Parent dir of the target file.
 
   ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
 

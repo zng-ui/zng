@@ -23,7 +23,7 @@ lazy_static! {
     static ref ABOUT: About = About::fallback_name();
 }
 
-/// Init [`about`] from cargo manifest that is required by other function in this module.
+/// Init [`about`] from cargo manifest.
 ///
 /// See [`About`] docs for what Cargo.toml values are read.
 ///
@@ -38,7 +38,8 @@ macro_rules! init {
 
 /// Initialize [`about`] manually.
 ///
-/// Prefer calling [`init!`] instead of this, or at least also set the Cargo.toml metadata as it is used by `cargo-zng`.
+/// Prefer calling [`init!`] instead of this, or at least also set duplicate values in `[package.metadata.zng.about]`
+/// on the Cargo.toml manifest. Cargo tools like `cargo zng res` parse these metadata when packaging resources.
 pub fn init(about: About) {
     if lazy_static_init(&ABOUT, about).is_err() {
         panic!("env already inited, env::init must be the first call in the process")
@@ -75,6 +76,11 @@ pub struct About {
     pub description: Txt,
     /// package.homepage
     pub homepage: Txt,
+    /// If package.metadata.zng.about is set on the Cargo.toml manifest.
+    ///
+    /// The presence of this section is used by `cargo zng res` to find the main
+    /// crate if the workspace has multiple bin crates.
+    pub has_about: bool,
 }
 impl About {
     fn fallback_name() -> Self {
@@ -88,6 +94,7 @@ impl About {
             qualifier: Txt::from_static(""),
             description: Txt::from_static(""),
             homepage: Txt::from_static(""),
+            has_about: false,
         }
     }
 
@@ -104,8 +111,10 @@ impl About {
             app: Txt::from_static(""),
             org: Txt::from_static(""),
             qualifier: Txt::from_static(""),
+            has_about: false,
         };
         if let Some(m) = m.package.metadata.and_then(|m| m.zng).and_then(|z| z.about) {
+            about.has_about = true;
             about.app = m.app.unwrap_or_default();
             about.org = m.org.unwrap_or_default();
             about.qualifier = m.qualifier.unwrap_or_default();
@@ -673,7 +682,7 @@ mod tests {
     fn parse_manifest() {
         let a = About::parse_manifest(include_str!(concat!(std::env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"))).unwrap();
         assert_eq!(a.pkg_name, "zng-env");
-        assert_eq!(a.app, "Zng Env");
+        assert_eq!(a.app, "zng-env");
         assert_eq!(a.pkg_authors, vec![Txt::from("The Zng Project Developers")]);
         assert_eq!(a.org, "The Zng Project Developers");
     }

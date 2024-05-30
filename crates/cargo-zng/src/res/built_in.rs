@@ -17,6 +17,9 @@ pub const ZR_WORKSPACE_DIR: &str = "ZR_WORKSPACE_DIR";
 /// Env var set by cargo-zng to the resources source directory.
 pub const ZR_SOURCE_DIR: &str = "ZR_SOURCE_DIR";
 /// Env var set by cargo-zng to the resources build target directory.
+///
+/// Note that this is the 'root' of the built resources, use [`ZR_TARGET_DD`] to get the
+/// parent dir of the target file inside the target directory.
 pub const ZR_TARGET_DIR: &str = "ZR_TARGET_DIR";
 /// Env var set by cargo-zng to dir that the tool can use to store intermediary data for the specific request.
 ///
@@ -25,16 +28,39 @@ pub const ZR_CACHE_DIR: &str = "ZR_CACHE_DIR";
 
 /// Env var set by cargo-zng to the request file that called the tool.
 pub const ZR_REQUEST: &str = "ZR_REQUEST";
+/// Env var set by cargo-zng to the request file parent dir.
+pub const ZR_REQUEST_DD: &str = "ZR_REQUEST_DD";
 /// Env var set by cargo-zng to the target file implied by the request file name.
 ///
 /// That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
 pub const ZR_TARGET: &str = "ZR_TARGET";
+/// Env var set by cargo-zng to the target file parent dir.
+pub const ZR_TARGET_DD: &str = "ZR_TARGET_DD";
 
 /// Env var set by cargo-zng when it is running a tool that requested `zng-res::on-final=` again.
 pub const ZR_FINAL: &str = "ZR_FINAL";
 
 /// Env var set by cargo-zng when it needs the tool print the help text shown in `cargo zng res --list`.
 pub const ZR_HELP: &str = "ZR_HELP";
+
+/// package.metadata.zng.about.app or package.name
+pub const ZR_APP: &str = "ZR_APP";
+/// package.metadata.zng.about.org or the first package.authors
+pub const ZR_ORG: &str = "ZR_ORG";
+/// package.version
+pub const ZR_VERSION: &str = "ZR_VERSION";
+/// package.description
+pub const ZR_DESCRIPTION: &str = "ZR_DESCRIPTION";
+/// package.homepage
+pub const ZR_HOMEPAGE: &str = "ZR_HOMEPAGE";
+/// package.name
+pub const ZR_PKG_NAME: &str = "ZR_PKG_NAME";
+/// package.authors
+pub const ZR_PKG_AUTHORS: &str = "ZR_PKG_AUTHORS";
+/// package.name in snake_case
+pub const ZR_CRATE_NAME: &str = "ZR_CRATE_NAME";
+/// package.metadata.zng.about.qualifier
+pub const ZR_QUALIFIER: &str = "ZR_QUALIFIER";
 
 /// Print the help and exit if is help request.
 pub fn help(help: &str) {
@@ -252,7 +278,7 @@ The fallback(else) can have nested ${VAR} patterns.
 
 Variables:
 
-All env variables are available, metadata from the binary crate is also available:
+All env variables can be used, of particular use with this tool are:
 
 ZR_APP — package.metadata.zng.about.app or package.name
 ZR_ORG — package.metadata.zng.about.org or the first package.authors
@@ -264,7 +290,8 @@ ZR_PKG_AUTHORS — package.authors
 ZR_CRATE_NAME — package.name in snake_case
 ZR_QUALIFIER — package.metadata.zng.about.qualifier
 
-See `zng::env::about` for more details.
+See `zng::env::about` for more details about metadata vars.
+See the cargo-zng crate docs for a full list of ZR vars.
 
 ";
 fn rp() {
@@ -415,7 +442,9 @@ ZR_TARGET_DIR — Target directory where resources are being built to.
 ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
 ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. Also the working dir.
 ZR_REQUEST — Request file that called the tool (.zr-sh).
+ZR_REQUEST_DD — Parent dir of the request file.
 ZR_TARGET — Target file implied by the request file name.
+ZR_TARGET_DD — Parent dir of the target file.
 
 ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
 
