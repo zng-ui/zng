@@ -60,7 +60,6 @@ jobs:
       uses: baptiste0928/cargo-install@v3
       with:
         crate: cargo-about
-        locked: false
     - name: install cargo-nextest
       uses: taiki-e/install-action@v2
       with:
@@ -83,7 +82,6 @@ jobs:
       uses: baptiste0928/cargo-install@v3
       with:
         crate: cargo-about
-        locked: false
     - name: install cargo-nextest
       uses: taiki-e/install-action@v2
       with:
@@ -104,7 +102,6 @@ jobs:
       uses: baptiste0928/cargo-install@v3
       with:
         crate: cargo-about
-        locked: false
     - name: install cargo-nextest
       uses: taiki-e/install-action@v2
       with:

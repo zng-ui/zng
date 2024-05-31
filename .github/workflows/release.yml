@@ -108,7 +108,6 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
-          locked: false
       - name: install dav1d dep nasm
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: ilammy/setup-nasm@v1
@@ -166,7 +165,6 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
-          locked: false
       - name: config msvc for dav1d
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: ilammy/msvc-dev-cmd@v1
@@ -237,7 +235,6 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
-          locked: false
       - name: install dav1d dep nasm
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: ilammy/setup-nasm@v1
