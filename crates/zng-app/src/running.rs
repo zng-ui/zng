@@ -1,5 +1,10 @@
 use std::{
-    collections::HashMap, fmt, mem, path::PathBuf, sync::Arc, task::Waker, time::{Duration, Instant}
+    collections::HashMap,
+    fmt, mem,
+    path::PathBuf,
+    sync::Arc,
+    task::Waker,
+    time::{Duration, Instant},
 };
 
 use crate::Deadline;
