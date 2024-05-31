@@ -44,7 +44,7 @@ pub use zng_env_proc_macros::init_parse;
 
 /// Register a `fn() -> !` pointer to be called on [`init!`].
 ///
-/// Components that spawn a special executable instance implemented on the same executable
+/// Components that spawn special process instances implemented on the same executable
 /// can use this macro to inject their own "main" without needing to ask the user to plug an init
 /// function on the executable main. The component can use [`run_process`] to spawn an instance of the executable
 /// that run as the component's process.
