@@ -9,56 +9,56 @@ use std::{
 
 use convert_case::{Case, Casing};
 
-/// Env var set by cargo-zng to the Cargo workspace directory that is parent to the res source.
+/// Env var set to the Cargo workspace directory that is parent to the res source.
 ///
 /// Note that the tool also runs with this dir as working directory (`current_dir`).
 pub const ZR_WORKSPACE_DIR: &str = "ZR_WORKSPACE_DIR";
-/// Env var set by cargo-zng to the resources source directory.
+/// Env var set to the resources source directory.
 pub const ZR_SOURCE_DIR: &str = "ZR_SOURCE_DIR";
-/// Env var set by cargo-zng to the resources build target directory.
+/// Env var set to the resources build target directory.
 ///
 /// Note that this is the 'root' of the built resources, use [`ZR_TARGET_DD`] to get the
 /// parent dir of the target file inside the target directory.
 pub const ZR_TARGET_DIR: &str = "ZR_TARGET_DIR";
-/// Env var set by cargo-zng to dir that the tool can use to store intermediary data for the specific request.
+/// Env var set to dir that the tool can use to store intermediary data for the specific request.
 ///
 /// The cache key (dir name) is a hash of source, target, request and request content only.
 pub const ZR_CACHE_DIR: &str = "ZR_CACHE_DIR";
 
-/// Env var set by cargo-zng to the request file that called the tool.
+/// Env var set to the request file that called the tool.
 pub const ZR_REQUEST: &str = "ZR_REQUEST";
-/// Env var set by cargo-zng to the request file parent dir.
+/// Env var set to the request file parent dir.
 pub const ZR_REQUEST_DD: &str = "ZR_REQUEST_DD";
-/// Env var set by cargo-zng to the target file implied by the request file name.
+/// Env var set to the target file implied by the request file name.
 ///
 /// That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
 pub const ZR_TARGET: &str = "ZR_TARGET";
-/// Env var set by cargo-zng to the target file parent dir.
+/// Env var set to the target file parent dir.
 pub const ZR_TARGET_DD: &str = "ZR_TARGET_DD";
 
-/// Env var set by cargo-zng when it is running a tool that requested `zng-res::on-final=` again.
+/// Env var set when it is running a tool that requested `zng-res::on-final=` again.
 pub const ZR_FINAL: &str = "ZR_FINAL";
 
-/// Env var set by cargo-zng when it needs the tool print the help text shown in `cargo zng res --list`.
+/// Env var set when it needs the tool print the help text shown in `cargo zng res --list`.
 pub const ZR_HELP: &str = "ZR_HELP";
 
-/// package.metadata.zng.about.app or package.name
+/// Env var set to package.metadata.zng.about.app or package.name
 pub const ZR_APP: &str = "ZR_APP";
-/// package.metadata.zng.about.org or the first package.authors
+/// Env var set to package.metadata.zng.about.org or the first package.authors
 pub const ZR_ORG: &str = "ZR_ORG";
-/// package.version
+/// Env var set to package.version
 pub const ZR_VERSION: &str = "ZR_VERSION";
-/// package.description
+/// Env var set to package.description
 pub const ZR_DESCRIPTION: &str = "ZR_DESCRIPTION";
-/// package.homepage
+/// Env var set to package.homepage
 pub const ZR_HOMEPAGE: &str = "ZR_HOMEPAGE";
-/// package.name
+/// Env var set to package.name
 pub const ZR_PKG_NAME: &str = "ZR_PKG_NAME";
-/// package.authors
+/// Env var set to package.authors
 pub const ZR_PKG_AUTHORS: &str = "ZR_PKG_AUTHORS";
-/// package.name in snake_case
+/// Env var set to package.name in snake_case
 pub const ZR_CRATE_NAME: &str = "ZR_CRATE_NAME";
-/// package.metadata.zng.about.qualifier
+/// Env var set to package.metadata.zng.about.qualifier
 pub const ZR_QUALIFIER: &str = "ZR_QUALIFIER";
 
 /// Print the help and exit if is help request.

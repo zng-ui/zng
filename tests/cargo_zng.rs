@@ -131,7 +131,7 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
 
 fn cargo_zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, pack: bool) -> io::Result<(String, String)> {
     let mut cmd = std::process::Command::new("cargo");
-    cmd.arg("run").arg("-p").arg("cargo-zng").arg("--").arg("res");
+    cmd.arg("run").arg("-p").arg("cargo-zng").arg("--").arg("zng").arg("res");
     if pack {
         cmd.arg("--pack");
     }
