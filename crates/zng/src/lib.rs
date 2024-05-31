@@ -26,7 +26,7 @@
 //! use zng::prelude::*;
 //!
 //! fn main() {
-//!     zng::view_process::prebuilt::init();
+//!     zng::env::init!();
 //!     app();
 //! }
 //!

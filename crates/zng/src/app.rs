@@ -14,11 +14,11 @@
 //!
 //! ## View-Process
 //!
-//! To simplify distribution the view-process is an instance of the same app executable, the view-process crate provides
-//! and `init` function that does nothing the process is not the view-process or takes over execution if it is, never returning.
+//! To simplify distribution the view-process is an instance of the same app executable, the view-process crate injects
+//! their own "main" in the [`zng::env::init!`] call, automatically taking over the process if the executable spawns as a view-process.
 //!
-//! On the first instance of the app executable the `init` function does nothing, the app init spawns a second process marked as
-//! the view-process, on this second instance the init function never returns, for this reason the function
+//! On the first instance of the app executable the `init` only inits the env and returns, the app init spawns a second process
+//! marked as the view-process, on this second instance the init call never returns, for this reason the init
 //! must be called early in main, all code before the `init` call runs in both the app and view processes.
 //!
 //! ```toml
@@ -31,7 +31,7 @@
 //!
 //! fn main() {
 //!     app_and_view();
-//!     zng::view_process::prebuilt::init(); // init only returns if it is not called in the view-process.
+//!     zng::env::init!(); // init only returns if it is not called in the view-process.
 //!     app();
 //! }
 //!
@@ -58,6 +58,7 @@
 //! use zng::prelude::*;
 //!
 //! fn main() {
+//!     zng::env::init!();
 //!     zng::view_process::prebuilt::run_same_process(app);
 //! }
 //!
@@ -68,6 +69,8 @@
 //!     })
 //! }
 //! ```
+//!
+//! Note that you must still call `init!` as it also initializes the app metadata and directories.
 //!
 //! # Headless
 //!
@@ -445,12 +448,7 @@ pub use zng_ext_single_instance::{is_single_instance, single_instance, single_in
 /// fn main() {
 ///     // tracing applied to all processes.
 ///     zng::app::print_tracing(tracing::Level::INFO);
-///
-///     // worker-process
-///     // zng::task::ipc::run_worker(worker);
-///
-///     // view-process init for app-process and dialog-process.
-///     zng::view_process::prebuilt::init();
+///     zng::init!();
 ///     
 ///     // monitor-process or dialog-process init.
 ///     //

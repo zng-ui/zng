@@ -13,7 +13,7 @@
 //! }
 //!
 //! fn multi_process() {
-//!     view_process::init();
+//!     zng::env::init!();
 //!     app();
 //! }
 //!

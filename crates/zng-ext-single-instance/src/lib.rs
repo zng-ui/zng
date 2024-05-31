@@ -153,7 +153,7 @@ event! {
 /// # impl FakeDefaults for zng_app::APP { fn defaults(self) -> zng_app::AppExtended<impl zng_app::AppExtension> { self.minimal() } }
 /// # use zng_app::{APP, handler::app_hn};
 /// fn main() {
-///     view_process::init();
+///     zng::env::init!();
 ///     // zng::task::ipc::run_worker(worker);
 ///
 ///     // must be called after `view_process`, `run_worker` and before the APP build.

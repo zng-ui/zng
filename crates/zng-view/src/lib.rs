@@ -23,7 +23,7 @@
 //! use zng::prelude::*;
 //!
 //! fn main() {
-//!     zng_view::init();
+//!     zng::env::init!();
 //!
 //!     APP.defaults().run_window(|ctx| {
 //!         unimplemented!()
@@ -74,7 +74,7 @@
 //! use zng_view_prebuilt as zng_view;
 //!
 //! fn main() {
-//!     zng_view::init();
+//!     zng::env::init!();
 //!     
 //!     // APP.defaults().run ..
 //! }
