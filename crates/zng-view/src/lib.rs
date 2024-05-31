@@ -69,7 +69,7 @@
 //! Then in the `main.rs` file:
 //!
 //! ```no_run
-//! # mod zng_view_prebuilt { pub fn init() { } }
+//! # mod zng { pub use zng_env as env; }
 //! use zng_view_prebuilt as zng_view;
 //!
 //! fn main() {
