@@ -66,19 +66,6 @@
 //! zng-view-prebuilt = "0.1"
 //! ```
 //!
-//! Then in the `main.rs` file:
-//!
-//! ```no_run
-//! # mod zng { pub use zng_env as env; }
-//! use zng_view_prebuilt as zng_view;
-//!
-//! fn main() {
-//!     zng::env::init!();
-//!     
-//!     // APP.defaults().run ..
-//! }
-//! ```
-//!
 //! The pre-built crate includes the `"software"` and `"ipc"` features, in fact `ipc` is required, even for running on the same process,
 //! you can also configure where the pre-build library is installed, see the [`zng-view-prebuilt`] documentation for details.
 //!
