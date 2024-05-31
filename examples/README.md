@@ -276,21 +276,30 @@ Demonstrates the window widget, service, state and commands.
 
 ## Adding an Example
 
-Add the new example in `examples/<example-name>.rs`:
+Add the new example crate in `examples/<example-name>`:
+
+`examples/<example-name>/Cargo.toml`
+
+```
+[package]
+name = "<example-name>"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+zng = { path = "../crates/zng", features = ["view_prebuilt"] }
+```
+
+`examples/<example-name>/src/main.rs`: 
 
 ```rust
 //! Demonstrates foo, bar.
-
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use zng::prelude::*;
-
-use zng::view_process::prebuilt as view_process;
 
 fn main() {
     examples_util::print_info();
-
-    view_process::init();
+    zng::env::init!();
     zng::app::crash_handler::init_debug();
     app_main();
 }
@@ -305,27 +314,19 @@ fn app_main() {
 }
 ```
 
-Register it in `examples/Cargo.toml`:
-
-```toml
-[[example]]
-name = "<example-name>"
-path = "<example-name>.rs"
-```
-
 Run the example and test it.
 
 ```console
 cargo do run <example-name>
 ```
 
-Optionally, take a screenshot and save it to `examples/res/screenshots/<example-name>.png`. You can take a screenshot using
+Optionally, take a screenshot and save it to `examples/<example-name>/res/screenshot.png`. You can take a screenshot using
 the inspector window, press `Ctrl+Shift+I` then click the "Save Screenshot" menu.
 
 Run [`oxipng`](https://github.com/shssoichiro/oxipng) or another minifier on the screenshot before committing.
 
 ```console
-oxipng -o max --strip safe --alpha "examples/res/screenshots/<example-name>.png"
+oxipng -o max --strip safe --alpha "examples/<example-name>/res/screenshot.png"
 ```
 
 Update the auto generated README:
@@ -338,5 +339,4 @@ Done.
 
 ## Local Example
 
-You can create local examples for manual testing in `/examples/examples/<test>.rs`. These
-files are git-ignored and can be run using `cargo do run <test>` without needing to register.
+You can create a local "example" for manual testing in `/examples/test/`. This dir is gitignored.

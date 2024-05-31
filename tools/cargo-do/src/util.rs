@@ -248,12 +248,12 @@ pub fn all_ext(dir: &str, ext: &str) -> Vec<String> {
     glob(&format!("{dir}/**/*.{ext}"))
 }
 
-// Get all `examples/*.rs` file names.
+// Get all `examples/*/src/main.rs` names.
 pub fn examples() -> Vec<String> {
-    match glob::glob("examples/*.rs") {
+    match glob::glob("examples/*/src/main.rs") {
         Ok(iter) => iter
             .filter_map(|r| match r {
-                Ok(p) => p.file_name().map(|n| n.to_string_lossy().trim_end_matches(".rs").to_owned()),
+                Ok(p) => Some(p.parent()?.parent()?.file_name()?.to_string_lossy().into_owned()),
                 Err(e) => {
                     error(e);
                     None

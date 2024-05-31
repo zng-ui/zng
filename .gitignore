@@ -11,13 +11,12 @@ screencast.*
 wip
 cargo-timing*
 large-image.*
-examples/examples
+examples/test
 TODO/_local.md
 crates/zng-view-prebuilt/lib/zng_view.*
 crates/zng-view-prebuilt/lib/libzng_view.*
 **/*.mm_profdata
 *.mono_items.md
-examples/.do-doc-readme-*
 do.bat
 do.ps1
 do

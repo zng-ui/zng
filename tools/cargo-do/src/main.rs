@@ -1,7 +1,7 @@
 mod readme_gen;
 mod util;
 mod version_doc_sync;
-use std::format_args as f;
+use std::{fmt::Write as _, format_args as f};
 use util::*;
 
 fn main() {
@@ -523,21 +523,32 @@ fn run(mut args: Vec<&str>) {
         } else {
             &[""]
         };
-        let mut build_args = vec!["build", "--package", "examples", "--examples"];
-        build_args.extend(release);
-        cmd_env("cargo", &build_args, &[], &[trace]);
-        for example in examples() {
-            let mut ex_args = vec!["run", "--package", "examples", "--example", &example];
-            ex_args.extend(release);
-            cmd_env("cargo", &ex_args, &[], &[trace]);
+
+        let examples = examples();
+        let mut build_args = vec!["build"];
+        for example in &examples {
+            build_args.push("--package");
+            build_args.push(example);
+            cmd_env("cargo", &build_args, release, &[trace]);
+        }
+
+        for example in examples {
+            cmd_env("cargo", &["run", "--package", &example], release, &[trace]);
         }
     } else {
         if take_flag(&mut args, &["--release-lto"]) {
             args.push("--profile");
             args.push("release-lto");
         }
-
-        cmd_env("cargo", &["run", "--package", "examples", "--example"], &args, &[trace]);
+        if !args.iter().any(|a| !a.starts_with('-')) {
+            let mut msg = "missing example name, options:\n".to_owned();
+            for example in examples() {
+                writeln!(&mut msg, "   {example}").unwrap();
+            }
+        } else {
+            let example = args.remove(0);
+            cmd_env("cargo", &["run", "--package", &example], &args, &[trace]);
+        }
     }
 }
 

@@ -181,38 +181,15 @@ const SECTION_END: &str = "<!--do doc --readme #SECTION-END-->";
 pub fn generate_examples(_args: Vec<&str>) {
     use std::fmt::*;
 
-    let cargo = std::fs::read_to_string("examples/Cargo.toml").unwrap();
-    let mut is_example = false;
-
-    let mut examples = vec![];
-
-    let mut name = String::new();
-    for line in cargo.lines() {
-        let line = line.trim();
-
-        if line == "[[example]]" {
-            is_example = true;
-        } else if line.starts_with('[') {
-            is_example = false;
-        } else if is_example {
-            if let Some(n) = line.strip_prefix("name = ") {
-                name = n.trim_matches(&['"', ' ']).to_owned();
-            } else if let Some(p) = line.strip_prefix("path = ") {
-                let p = p.trim_matches(&['"', ' ']);
-                if p != format!("{name}.rs") {
-                    crate::error(format_args!("expected example `{name}` to have the same file name, but was `{p}`"));
-                } else {
-                    examples.push(std::mem::take(&mut name));
-                }
-            }
-        }
-    }
-
     const TAG: &str = "<!--do doc --readme-examples-->";
     let mut section = format!("{TAG}\n");
 
-    for example in examples {
-        let file = format!("examples/{example}.rs");
+    for example in crate::util::examples() {
+        if example == "test" {
+            continue;
+        }
+
+        let file = format!("examples/{example}/src/main.rs");
         println(&file);
 
         let file = std::fs::read_to_string(file).unwrap();
@@ -228,12 +205,12 @@ pub fn generate_examples(_args: Vec<&str>) {
 
         writeln!(&mut section, "### `{example}`\n").unwrap();
 
-        let screenshot = format!("./res/screenshots/{example}.png");
+        let screenshot = format!("./{example}/res/screenshot.png");
         if PathBuf::from("examples").join(&screenshot).exists() {
             writeln!(&mut section, "<img alt='{example} screenshot' src='{screenshot}' width='300'>\n",).unwrap();
         }
 
-        writeln!(&mut section, "Source: [{example}.rs](./{example}.rs)\n").unwrap();
+        writeln!(&mut section, "Source: [{example}/src](./{example}/src)\n").unwrap();
         writeln!(&mut section, "```console\ncargo do run {example}\n```\n").unwrap();
 
         if docs.is_empty() {
