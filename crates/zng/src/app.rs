@@ -448,7 +448,7 @@ pub use zng_ext_single_instance::{is_single_instance, single_instance, single_in
 /// fn main() {
 ///     // tracing applied to all processes.
 ///     zng::app::print_tracing(tracing::Level::INFO);
-///     zng::init!();
+///     zng::env::init!();
 ///     
 ///     // monitor-process or dialog-process init.
 ///     //
