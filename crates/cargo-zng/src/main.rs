@@ -28,10 +28,17 @@ pub mod res_tool_util {
 
 use clap::*;
 
-#[derive(Parser, Debug)]
+#[derive(Parser)] // requires `derive` feature
+#[command(name = "cargo")]
+#[command(bin_name = "cargo")]
+enum CargoCli {
+    Zng(Zng),
+}
+
+#[derive(Args, Debug)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
-struct Cli {
+struct Zng {
     /// Command.
     #[command(subcommand)]
     pub command: Command,
@@ -56,7 +63,7 @@ enum Command {
 fn main() {
     res::built_in::run();
 
-    let cli = Cli::parse();
+    let CargoCli::Zng(cli) = CargoCli::parse();
 
     match cli.command {
         Command::New(args) => new::run(args),
