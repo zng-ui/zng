@@ -22,6 +22,10 @@
 //!
 //! The example above uses [`init!`] to initialize the metadata used to find a good place for each directory, it then
 //! uses [`config`] to write and read a file.
+//!
+//! # Full API
+//!
+//! See [`zng_env`] for the full API.
 
 pub use zng_env::{
     about, bin, cache, clear_cache, config, init, init_cache, init_config, init_res, migrate_cache, migrate_config, res, About,
