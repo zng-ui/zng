@@ -127,7 +127,7 @@ fn main() {
             "cargo:rustc-env=ZNG_VIEW_LIB_HASH={}",
             base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
         );
-    } else if is_docs_rs || PathBuf::from("../../do").exists() {
+    } else if is_docs_rs || PathBuf::from("../../tools/cargo-do").exists() {
         println!("cargo:warning=view prebuilt not embedded, missing '{file}', call `do prebuild`");
     } else {
         panic!("view prebuilt not embedded, missing '{file}', failed to download");

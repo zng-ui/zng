@@ -26,6 +26,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
+          locked: false
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
   check-windows:
     needs: [check-ubuntu]
@@ -45,6 +46,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
+          locked: false
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }}
   check-macos:
     needs: [check-ubuntu]
@@ -61,6 +63,7 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
+          locked: false
       - run: cargo +nightly check --workspace ${{ matrix.feature }} ${{ matrix.profile }} 
   doc:
     runs-on: ubuntu-latest
@@ -72,4 +75,5 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-about
+          locked: false
       - run: cargo +nightly doc --all-features --no-deps
