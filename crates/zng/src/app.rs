@@ -558,13 +558,6 @@ pub mod crash_handler {
             args.exit(0xBADC0DE)
         }
 
-        // Just in case no view-process was inited before the crash_handler setup.
-        // Multiple view-process inits are ok because they either do nothing or never return.
-        #[cfg(feature = "view_prebuilt")]
-        crate::view_process::prebuilt::init();
-        #[cfg(feature = "view")]
-        crate::view_process::default::init();
-
         APP.defaults()
             .run_window(async_clmv!(args, { zng_wgt_inspector::crash_handler::debug_dialog(args) }));
 

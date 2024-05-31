@@ -18,6 +18,7 @@
 
 use std::{
     any::{type_name, TypeId},
+    collections::HashMap,
     fmt,
     future::Future,
     ops,
@@ -1186,6 +1187,7 @@ impl APP {
         AppExtended {
             extensions: vec![],
             view_process_exe: None,
+            view_process_env: HashMap::new(),
             _cleanup: scope,
         }
     }
@@ -1213,6 +1215,7 @@ impl APP {
 pub struct AppExtended<E: AppExtension> {
     extensions: E,
     view_process_exe: Option<PathBuf>,
+    view_process_env: HashMap<Txt, Txt>,
 
     // cleanup on drop.
     _cleanup: AppScope,
@@ -1240,21 +1243,29 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         self.extend(EnableDeviceEvents)
     }
 
-    fn run_dyn(mut self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
-        let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
+    fn run_dyn(self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
+        let app = RunningApp::start(
+            self._cleanup,
+            self.extensions,
+            true,
+            true,
+            self.view_process_exe,
+            self.view_process_env,
+        );
 
         UPDATES.run(start).perm();
 
         app.run_headed();
     }
 
-    fn run_headless_dyn(mut self, with_renderer: bool) -> HeadlessApp {
+    fn run_headless_dyn(self, with_renderer: bool) -> HeadlessApp {
         let app = RunningApp::start(
             self._cleanup,
             self.extensions.boxed(),
             false,
             with_renderer,
-            self.view_process_exe.take(),
+            self.view_process_exe,
+            self.view_process_env,
         );
 
         HeadlessApp { app }
@@ -1273,6 +1284,7 @@ impl<E: AppExtension> AppExtended<E> {
                 AppExtended {
                     extensions: vec![app.extensions.boxed()],
                     view_process_exe: app.view_process_exe,
+                    view_process_env: app.view_process_env,
                     _cleanup: app._cleanup,
                 }
             }
@@ -1296,6 +1308,7 @@ impl<E: AppExtension> AppExtended<E> {
             _cleanup: self._cleanup,
             extensions: (self.extensions, TraceAppExt(extension)),
             view_process_exe: self.view_process_exe,
+            view_process_env: self.view_process_env,
         }
     }
 
@@ -1314,21 +1327,29 @@ impl<E: AppExtension> AppExtended<E> {
         self.extend(EnableDeviceEvents)
     }
 
-    fn run_impl(mut self, start: impl Future<Output = ()> + Send + 'static) {
-        let app = RunningApp::start(self._cleanup, self.extensions, true, true, self.view_process_exe.take());
+    fn run_impl(self, start: impl Future<Output = ()> + Send + 'static) {
+        let app = RunningApp::start(
+            self._cleanup,
+            self.extensions,
+            true,
+            true,
+            self.view_process_exe,
+            self.view_process_env,
+        );
 
         UPDATES.run(start).perm();
 
         app.run_headed();
     }
 
-    fn run_headless_impl(mut self, with_renderer: bool) -> HeadlessApp {
+    fn run_headless_impl(self, with_renderer: bool) -> HeadlessApp {
         let app = RunningApp::start(
             self._cleanup,
             self.extensions.boxed(),
             false,
             with_renderer,
-            self.view_process_exe.take(),
+            self.view_process_exe,
+            self.view_process_env,
         );
 
         HeadlessApp { app }
@@ -1346,6 +1367,12 @@ impl<E: AppExtension> AppExtended<E> {
     /// [`VERSION`]: zng_view_api::VERSION  
     pub fn view_process_exe(mut self, view_process_exe: impl Into<PathBuf>) -> Self {
         self.view_process_exe = Some(view_process_exe.into());
+        self
+    }
+
+    /// Set an env variable for the view-process.
+    pub fn view_process_env(mut self, name: impl Into<Txt>, value: impl Into<Txt>) -> Self {
+        self.view_process_env.insert(name.into(), value.into());
         self
     }
 

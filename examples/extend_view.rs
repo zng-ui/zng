@@ -11,13 +11,14 @@ use zng_view::extensions::ViewExtensions;
 
 fn main() {
     examples_util::print_info();
+    zng::env::init!();
     zng::app::crash_handler::init_debug();
 
-    zng_view::init_extended(view_extensions);
-    app_main();
-
     // zng_view::run_same_process_extended(app_main, view_extensions);
+    app_main();
 }
+
+zng_view::view_process_extension!(view_extensions);
 
 fn app_main() {
     APP.defaults().run_window(async {

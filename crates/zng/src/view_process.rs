@@ -38,7 +38,7 @@
 /// See [`zng_view`] for the full API.
 #[cfg(feature = "view")]
 pub mod default {
-    pub use zng_view::{init, run_same_process};
+    pub use zng_view::run_same_process;
 }
 
 /// Default view-process implementation as an embedded precompiled binary.
@@ -48,5 +48,5 @@ pub mod default {
 /// See [`zng_view_prebuilt`] and [`zng_view`] for the full API.
 #[cfg(feature = "view_prebuilt")]
 pub mod prebuilt {
-    pub use zng_view_prebuilt::{init, run_same_process};
+    pub use zng_view_prebuilt::run_same_process;
 }

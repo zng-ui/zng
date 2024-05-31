@@ -51,30 +51,35 @@ pub use zng_env_proc_macros::init_parse;
 ///
 /// # Examples
 ///
-/// The example below declares a "main" for a foo component and a function that spawns it.
+/// First add dependency to [`linkme`](https://crates.io/crates/linkme) in Cargo.toml.
+///
+/// Then declare the "main" entry for the process:
 ///
 /// ```
-/// zng_env::process_main!("name::of::foo" => foo_main);
+/// zng_env::process_main!("my-crate/foo-process" => foo_main);
 /// fn foo_main() -> ! {
 ///     println!("Spawned as foo!");
 ///     std::process::exit(0)
-/// }
-///
-/// pub fn spawn_foo() -> String {
-///     zng_env::run_process("name::of::foo").spawn()?;
 /// }
 ///
 /// fn main() {
 ///     zng_env::init!(); // foo_main OR
 ///     // normal main
 /// }
+///
+/// pub fn spawn_foo() -> std::io::Result<()> {
+///     std::process::Command::new(std::env::current_exe()?).env(zng_env::PROCESS_MAIN, "my-crate/foo-process").spawn()?;
+///     Ok(())
+/// }
 /// ```
+///
+/// The example above declares a "main" for a foo component and a function that spawns it.
 #[macro_export]
 macro_rules! process_main {
-    (name:tt => $init_fn:path) => {
+    ($name:tt => $init_fn:path) => {
         #[doc(hidden)]
-        #[$crate::distributed_slice($crate::ZNG_ENV_RUN_PROCESS)]
-        static _ZNG_ENV_RUN_PROCESS: $crate::RunAsProcessHandler = $crate::RunAsProcessHandler::new($init_fn);
+        #[::linkme::distributed_slice($crate::ZNG_ENV_RUN_PROCESS)]
+        static _ZNG_ENV_RUN_PROCESS: $crate::RunAsProcessHandler = $crate::RunAsProcessHandler::new($name, $init_fn);
     };
 }
 
@@ -83,26 +88,20 @@ pub fn init(about: About) {
     if lazy_static_init(&ABOUT, about).is_err() {
         panic!("env already inited, env::init must be the first call in the process")
     }
-    if let Ok(name) = env::var("ZNG_ENV_RUN_PROCESS") {
+    if let Ok(name) = env::var(PROCESS_MAIN) {
         if !name.is_empty() {
             for h in ZNG_ENV_RUN_PROCESS {
                 if h.name == name {
                     (h.handler)() // -> !
                 }
             }
-            panic!("run_process({name:?}) is not registered with process_main!");
+            panic!("{PROCESS_MAIN}={name:?} is not registered with process_main!");
         }
     }
 }
 
-/// Starts building a command to run the current executable as another process.
-///
-/// The component must register the alternative main using [`process_main!`].
-pub fn run_process(name: &'static str) -> std::process::Command {
-    let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
-    cmd.env("ZNG_ENV_RUN_PROCESS", name);
-    cmd
-}
+/// Env var key that must be set to the [`process_main!`] name to run that process.
+pub const PROCESS_MAIN: &str = "ZNG_ENV_PROCESS_MAIN";
 
 /// Metadata about the app and main crate.
 ///
@@ -759,9 +758,6 @@ fn read_line(path: &Path) -> io::Result<String> {
     }
     Err(io::Error::new(io::ErrorKind::UnexpectedEof, "no uncommented line"))
 }
-
-#[doc(hidden)]
-pub use linkme::distributed_slice;
 
 #[doc(hidden)]
 #[linkme::distributed_slice]

@@ -4,11 +4,9 @@
 
 use zng::prelude::*;
 
-use zng::view_process::prebuilt as view_process;
-
 fn main() {
     examples_util::print_info();
-    view_process::init();
+    zng::env::init!();
     zng::app::crash_handler::init_debug();
     app_main();
 }

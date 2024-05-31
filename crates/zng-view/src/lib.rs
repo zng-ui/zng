@@ -165,46 +165,51 @@ use zng_view_api::{
 
 use rustc_hash::FxHashMap;
 
-/// Runs the view-process server if called in the environment of a view-process.
-///
-/// If this function is called in a process not configured to be a view-process it will return
-/// immediately, with the expectation that the app will be started. If called in a view-process
-/// if will highjack the process **never returning**.
-///
-/// # Panics
-///
-/// Panics if not called in the main thread, this is a requirement of some operating systems.
-///
-/// Panics if there was an error connecting with the app-process.
-///
-/// # Aborts
-///
-/// If called in a view-process a custom panic hook is set that logs panics to `stderr` and exits
-/// the process with exit code `101`. This is handled by the app-process by logging the error and
-/// attempting to respawn the view-process.
+/// Name of the view-process in [`zng_env::process_main!`].
 #[cfg(feature = "ipc")]
-pub fn init() {
-    init_extended(extensions::ViewExtensions::new)
+pub const ZNG_ENV_VIEW_PROCESS: &str = "zng-view/view-process";
+
+#[cfg(feature = "ipc")]
+zng_env::process_main!(ZNG_ENV_VIEW_PROCESS => view_process_main);
+
+/// Register a `fn() -> ViewExtensions` to be called on view-process init to inject custom API extensions.
+///
+/// See [`ViewExtensions`] for more details.
+#[macro_export]
+macro_rules! view_process_extension {
+    ($extension_fn:path) => {
+        // !!: TODO
+    };
 }
 
-/// Like [`init`] but with custom API extensions.
+#[doc(hidden)]
+#[linkme::distributed_slice]
+pub static VIEW_EXTENSIONS: [fn() -> ViewExtensions];
+
+/// Runs the view-process server.
+///
+/// Note that this only needs to be called if the view-process is not built on the same executable, if
+/// it is you only need to call [`zng_env::init!`] at the beginning of the executable main.
 #[cfg(feature = "ipc")]
-pub fn init_extended(ext: fn() -> ViewExtensions) {
-    if let Some(config) = ViewConfig::from_env() {
-        std::panic::set_hook(Box::new(init_abort));
+pub fn view_process_main() -> ! {
+    std::panic::set_hook(Box::new(init_abort));
 
-        config.assert_version(false);
+    let config = ViewConfig::from_env().expect("view-process missing env config");
+    config.assert_version(false);
+    let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app-process");
 
-        let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app-process");
-
-        if config.headless {
-            App::run_headless(c, ext());
-        } else {
-            App::run_headed(c, ext());
-        }
-    } else {
-        tracing::trace!("init not in view-process");
+    let mut ext = ViewExtensions::new();
+    for e in VIEW_EXTENSIONS {
+        ext.append(e());
     }
+
+    if config.headless {
+        App::run_headless(c, ext);
+    } else {
+        App::run_headed(c, ext);
+    }
+
+    std::process::exit(0)
 }
 
 #[cfg(feature = "ipc")]
@@ -212,7 +217,7 @@ pub fn init_extended(ext: fn() -> ViewExtensions) {
 #[no_mangle]
 pub extern "C" fn extern_init() {
     std::panic::set_hook(Box::new(ffi_abort));
-    init()
+    view_process_main()
 }
 
 /// Runs the view-process server in the current process and calls `run_app` to also
