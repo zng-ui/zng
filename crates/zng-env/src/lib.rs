@@ -60,7 +60,7 @@ pub use zng_env_proc_macros::init_parse;
 ///     std::process::exit(0)
 /// }
 ///
-/// pub fn spawn_foo() -> std::io::String {
+/// pub fn spawn_foo() -> String {
 ///     zng_env::run_process("name::of::foo").spawn()?;
 /// }
 ///
@@ -71,7 +71,7 @@ pub use zng_env_proc_macros::init_parse;
 /// ```
 #[macro_export]
 macro_rules! process_main {
-    (name: &'static str => $init_fn:path) => {
+    (name:tt => $init_fn:path) => {
         #[doc(hidden)]
         #[$crate::distributed_slice($crate::ZNG_ENV_RUN_PROCESS)]
         static _ZNG_ENV_RUN_PROCESS: $crate::RunAsProcessHandler = $crate::RunAsProcessHandler::new($init_fn);
