@@ -46,7 +46,7 @@ pub use zng_env_proc_macros::init_parse;
 ///
 /// Components that spawn special process instances implemented on the same executable
 /// can use this macro to inject their own "main" without needing to ask the user to plug an init
-/// function on the executable main. The component can set the [`PROCESS_MAIN`] env var to spawn an 
+/// function on the executable main. The component can set the [`PROCESS_MAIN`] env var to spawn an
 /// instance of the executable that run as the component's process.
 ///
 /// # Examples
