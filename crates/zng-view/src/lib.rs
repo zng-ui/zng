@@ -15,7 +15,7 @@
 //! zng-view = "0.3.4"
 //! ```
 //!
-//! Then call [`init`] before any other code in `main` to setup a view-process that uses
+//! Then call `zng::env::init` before any other code in `main` to setup a view-process that uses
 //! the same app executable:
 //!
 //! ```
@@ -32,9 +32,8 @@
 //! # }}
 //! ```
 //!
-//! When the app is executed `init` setup its startup and returns, `run_window` gets called and
-//! internally starts the view-process, using the `init` setup. The current executable is started
-//! again, this time configured to be a view-process, `init` detects this and highjacks the process
+//! When the app is executed `run_window` gets called and internally starts the view-process.
+//! The current executable is started this time configured to be a view-process, `init` detects this and highjacks the process
 //! **never returning**.
 //!
 //! # Software Backend
