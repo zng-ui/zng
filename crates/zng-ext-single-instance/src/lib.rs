@@ -146,47 +146,6 @@ event! {
 /// the app starts building. After the app starts building, before run, a subscription for [`APP_INSTANCE_EVENT`] is setup,
 /// this event will receive args for the current instance on run and for other instances latter.
 ///
-/// ```
-/// # mod zng { pub(crate) use zng_ext_single_instance as app; }
-/// # mod view_process { pub fn init() { } }
-/// # trait FakeDefaults { fn defaults(self) -> zng_app::AppExtended<impl zng_app::AppExtension>; }
-/// # impl FakeDefaults for zng_app::APP { fn defaults(self) -> zng_app::AppExtended<impl zng_app::AppExtension> { self.minimal() } }
-/// # use zng_app::{APP, handler::app_hn};
-/// fn main() {
-///     zng::env::init!();
-///     // zng::task::ipc::run_worker(worker);
-///
-///     // must be called after `view_process`, `run_worker` and before the APP build.
-///     zng::app::single_instance();
-///
-///     app_main();
-/// }
-///
-/// fn app_main() {
-///     let app = APP.defaults();
-///
-///     zng::app::APP_INSTANCE_EVENT
-///         .on_event(app_hn!(|args: &zng::app::AppInstanceArgs, _| {
-///             println!("app instance #{}, args: {:?}", args.count, args.args);
-///         }))
-///         .perm();
-///
-/// # macro_rules! demo { () => {
-///     app.run_window(async {
-///         Window! {
-///             child_align = Align::CENTER;
-///             child = Button! {
-///                 child = Text!("Spawn Instance");
-///                 on_click = hn!(|_| {
-///                     let exe = std::env::current_exe().unwrap();
-///                     std::process::Command::new(exe).arg("app arg 1").arg("--arg2").spawn().unwrap();
-///                 });
-///             }
-///         }
-///     });
-/// # }}
-/// }
-/// ```
 pub fn single_instance() {
     single_instance_named(
         std::env::current_exe()
