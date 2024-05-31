@@ -1204,6 +1204,7 @@ impl APP {
         AppExtended {
             extensions: (),
             view_process_exe: None,
+            view_process_env: HashMap::new(),
             _cleanup: scope,
         }
     }
