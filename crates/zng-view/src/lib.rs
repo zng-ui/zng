@@ -178,7 +178,9 @@ zng_env::process_main!(ZNG_ENV_VIEW_PROCESS => view_process_main);
 #[macro_export]
 macro_rules! view_process_extension {
     ($extension_fn:path) => {
-        // !!: TODO
+        #[doc(hidden)]
+        #[::linkme::distributed_slice($crate::VIEW_EXTENSIONS)]
+        static VIEW_EXTENSIONS: fn() -> ViewExtensions = $extension_fn;
     };
 }
 
