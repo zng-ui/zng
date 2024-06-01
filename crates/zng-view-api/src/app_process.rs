@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     panic,
     path::{Path, PathBuf},
     thread::{self, JoinHandle},
@@ -40,6 +41,7 @@ pub struct Controller {
     generation: ViewProcessGen,
     is_respawn: bool,
     view_process_exe: PathBuf,
+    view_process_env: HashMap<Txt, Txt>,
     request_sender: ipc::RequestSender,
     response_receiver: ipc::ResponseReceiver,
     event_listener: Option<EventListenerJoin>,
@@ -56,8 +58,11 @@ fn _assert_sync(x: Controller) -> impl Send + Sync {
 impl Controller {
     /// Start with a custom view process.
     ///
-    /// The `view_process_exe` must be an executable that starts a view server, if not set
-    /// the [`current_exe`] is used. Note that the [`VERSION`] of this crate must match in both executables.
+    /// The `view_process_exe` must be an executable that starts a view server.
+    /// Note that the [`VERSION`] of this crate must match in both executables.
+    ///
+    /// The `view_process_env` can be set to any env var needed to start the view-process. Note that if `view_process_exe`
+    /// is the current executable this most likely need set `zng_env::PROCESS_MAIN`.
     ///
     /// The `on_event` closure is called in another thread every time the app receives an event.
     ///
@@ -69,14 +74,21 @@ impl Controller {
     ///
     /// [`current_exe`]: std::env::current_exe
     /// [`VERSION`]: crate::VERSION
-    pub fn start<F>(view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F) -> Self
+    pub fn start<F>(
+        view_process_exe: PathBuf,
+        view_process_env: HashMap<Txt, Txt>,
+        device_events: bool,
+        headless: bool,
+        on_event: F,
+    ) -> Self
     where
         F: FnMut(Event) + Send + 'static,
     {
-        Self::start_impl(view_process_exe, device_events, headless, Box::new(on_event))
+        Self::start_impl(view_process_exe, view_process_env, device_events, headless, Box::new(on_event))
     }
     fn start_impl(
-        view_process_exe: Option<PathBuf>,
+        view_process_exe: PathBuf,
+        view_process_env: HashMap<Txt, Txt>,
         device_events: bool,
         headless: bool,
         mut on_event: Box<dyn FnMut(Event) + Send>,
@@ -85,14 +97,8 @@ impl Controller {
             panic!("cannot start Controller in process configured to be view-process");
         }
 
-        let view_process_exe = view_process_exe.unwrap_or_else(|| {
-            std::env::current_exe()
-                .and_then(dunce::canonicalize)
-                .expect("failed to get the current exe")
-        });
-
         let (process, request_sender, response_receiver, mut event_receiver) =
-            Self::spawn_view_process(&view_process_exe, headless).expect("failed to spawn or connect to view-process");
+            Self::spawn_view_process(&view_process_exe, &view_process_env, headless).expect("failed to spawn or connect to view-process");
 
         let ev = thread::spawn(move || {
             while let Ok(ev) = event_receiver.recv() {
@@ -109,6 +115,7 @@ impl Controller {
             online: false,
             process,
             view_process_exe,
+            view_process_env,
             request_sender,
             response_receiver,
             event_listener: Some(ev),
@@ -203,6 +210,7 @@ impl Controller {
 
     fn spawn_view_process(
         view_process_exe: &Path,
+        view_process_env: &HashMap<Txt, Txt>,
         headless: bool,
     ) -> AnyResult<(Option<DuctHandle>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EventReceiver)> {
         let _span = tracing::trace_span!("spawn_view_process").entered();
@@ -220,13 +228,17 @@ impl Controller {
         } else {
             #[cfg(not(feature = "ipc"))]
             {
-                let _ = view_process_exe;
+                let _ = (view_process_exe, view_process_env);
                 panic!("expected only same_process mode with `ipc` feature disabled");
             }
 
             #[cfg(feature = "ipc")]
             {
-                let process = duct::cmd!(view_process_exe)
+                let mut process = duct::cmd!(view_process_exe);
+                for (name, val) in view_process_env {
+                    process = process.env(name, val);
+                }
+                let process = process
                     .env(VIEW_VERSION, crate::VERSION)
                     .env(VIEW_SERVER, init.name())
                     .env(VIEW_MODE, if headless { "headless" } else { "headed" })
@@ -466,7 +478,7 @@ impl Controller {
         // respawn
         let mut retries = 3;
         let (new_process, request, response, mut event) = loop {
-            match Self::spawn_view_process(&self.view_process_exe, self.headless) {
+            match Self::spawn_view_process(&self.view_process_exe, &self.view_process_env, self.headless) {
                 Ok(r) => break r,
                 Err(e) => {
                     tracing::error!(target: "vp_respawn", "failed to respawn, {e:?}");

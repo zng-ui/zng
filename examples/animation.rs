@@ -22,16 +22,14 @@ use zng::{
     window::RenderMode,
 };
 
-use zng::view_process::prebuilt as view_process;
-
 fn main() {
     examples_util::print_info();
-    view_process::init();
+    zng::env::init!();
     zng::app::crash_handler::init_debug();
 
     // let rec = examples_util::record_profile("animation");
 
-    // view_process::run_same_process(app_main);
+    // zng::view_process::prebuilt::run_same_process(app_main);
     app_main();
 
     // rec.finish();

@@ -46,7 +46,7 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
     };
     let p_name = m.package.name;
     let c_name = p_name.replace('-', "_");
-    let p_authors = m.package.authors;
+    let p_authors = m.package.authors.unwrap_or_default();
     let major = m.package.version.major;
     let minor = m.package.version.minor;
     let patch = m.package.version.patch;
@@ -120,7 +120,7 @@ struct Package {
     version: Version,
     description: Option<String>,
     homepage: Option<String>,
-    authors: Box<[String]>,
+    authors: Option<Box<[String]>>,
     metadata: Option<Metadata>,
 }
 #[derive(serde::Deserialize)]

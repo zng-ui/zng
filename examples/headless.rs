@@ -13,14 +13,11 @@ use zng::{
     window::{FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt},
 };
 
-use zng::view_process::prebuilt as view_process;
-
 fn main() {
     examples_util::print_info();
-    view_process::init();
+    zng::env::init!();
 
-    // view_process::run_same_process(headless_example);
-
+    // zng::view_process::prebuilt::run_same_process(headless_example);
     headless_example();
     // headless_example_video();
     // images_render();

@@ -26,7 +26,7 @@ Then create your first window:
 use zng::prelude::*;
 
 fn main() {
-    zng::view_process::prebuilt::init();
+    zng::env::init!();
     APP.defaults().run_window(async {
         let size = var(layout::Size::new(800, 600));
         Window! {

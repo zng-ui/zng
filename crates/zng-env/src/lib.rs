@@ -10,7 +10,7 @@
 #![warn(missing_docs)]
 
 use std::{
-    fs,
+    env, fs,
     io::{self, BufRead},
     path::{Path, PathBuf},
     str::FromStr,
@@ -24,9 +24,15 @@ lazy_static! {
     static ref ABOUT: About = About::fallback_name();
 }
 
-/// Init [`about`] from cargo manifest.
+/// Init [`about`] from cargo manifest and handles witch process to execute.
 ///
 /// See [`About`] docs for what Cargo.toml values are read.
+///
+/// # Processes
+///
+/// A single Zng executable can be built with multiple components that spawn different instances
+/// of the executable that must run as different processes. If the current instance is requested
+/// by component `init!` runs it and exits the process, never returning flow to the normal main function.
 #[macro_export]
 macro_rules! init {
     () => {
@@ -36,15 +42,66 @@ macro_rules! init {
 #[doc(hidden)]
 pub use zng_env_proc_macros::init_parse;
 
-/// Initialize [`about`] manually.
+/// Register a `fn() -> !` pointer to be called on [`init!`].
 ///
-/// Prefer calling [`init!`] instead of this, or at least also set duplicate values in `[package.metadata.zng.about]`
-/// on the Cargo.toml manifest. Cargo tools like `cargo zng res` parse these metadata when packaging resources.
+/// Components that spawn special process instances implemented on the same executable
+/// can use this macro to inject their own "main" without needing to ask the user to plug an init
+/// function on the executable main. The component can set the [`PROCESS_MAIN`] env var to spawn an
+/// instance of the executable that run as the component's process.
+///
+/// # Examples
+///
+/// First add dependency to [`linkme`](https://crates.io/crates/linkme) in Cargo.toml.
+///
+/// Then declare the "main" entry for the process:
+///
+/// ```
+/// zng_env::process_main!("my-crate/foo-process" => foo_main);
+/// fn foo_main() -> ! {
+///     println!("Spawned as foo!");
+///     std::process::exit(0)
+/// }
+///
+/// fn main() {
+///     zng_env::init!(); // foo_main OR
+///     // normal main
+/// }
+///
+/// pub fn spawn_foo() -> std::io::Result<()> {
+///     std::process::Command::new(std::env::current_exe()?).env(zng_env::PROCESS_MAIN, "my-crate/foo-process").spawn()?;
+///     Ok(())
+/// }
+/// ```
+///
+/// The example above declares a "main" for a foo component and a function that spawns it.
+#[macro_export]
+macro_rules! process_main {
+    ($name:tt => $init_fn:path) => {
+        #[doc(hidden)]
+        #[::linkme::distributed_slice($crate::ZNG_ENV_RUN_PROCESS)]
+        static _ZNG_ENV_RUN_PROCESS: $crate::RunAsProcessHandler = $crate::RunAsProcessHandler::new($name, $init_fn);
+    };
+}
+
+#[doc(hidden)]
 pub fn init(about: About) {
     if lazy_static_init(&ABOUT, about).is_err() {
         panic!("env already inited, env::init must be the first call in the process")
     }
+    if let Ok(name) = env::var(PROCESS_MAIN) {
+        if !name.is_empty() {
+            for h in ZNG_ENV_RUN_PROCESS {
+                if h.name == name {
+                    (h.handler)() // -> !
+                }
+            }
+            panic!("{PROCESS_MAIN}={name:?} is not registered with process_main!");
+        }
+    }
 }
+
+/// Env var key that must be set to the [`process_main!`] name to run that process.
+pub const PROCESS_MAIN: &str = "ZNG_ENV_PROCESS_MAIN";
 
 /// Metadata about the app and main crate.
 ///
@@ -700,6 +757,21 @@ fn read_line(path: &Path) -> io::Result<String> {
         return Ok(line.into());
     }
     Err(io::Error::new(io::ErrorKind::UnexpectedEof, "no uncommented line"))
+}
+
+#[doc(hidden)]
+#[linkme::distributed_slice]
+pub static ZNG_ENV_RUN_PROCESS: [RunAsProcessHandler];
+
+#[doc(hidden)]
+pub struct RunAsProcessHandler {
+    name: &'static str,
+    handler: fn() -> !,
+}
+impl RunAsProcessHandler {
+    pub const fn new(name: &'static str, handler: fn() -> !) -> Self {
+        Self { name, handler }
+    }
 }
 
 #[cfg(test)]

@@ -4,7 +4,6 @@
 
 use std::path::PathBuf;
 
-use zng::view_process::prebuilt as view_process;
 use zng::{
     app, button,
     checkerboard::Checkerboard,
@@ -26,14 +25,12 @@ use zng_wgt_webrender_debug as wr;
 
 fn main() {
     examples_util::print_info();
-    // view_process::init();
+    zng::env::init!();
     zng::app::crash_handler::init_debug();
 
     // let rec = examples_util::record_profile("image");
 
-    view_process::run_same_process(app_main);
-
-    // app_main();
+    app_main();
     // rec.finish();
 }
 
