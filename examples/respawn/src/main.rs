@@ -12,6 +12,8 @@ use zng_app::view_process::VIEW_PROCESS;
 use zng_view::extensions::ViewExtensions;
 
 fn main() {
+    // log other processes too.
+    zng::app::print_tracing(tracing::Level::INFO);
     // init metadata, view-process, crash-dialog-process.
     zng::env::init!();
 

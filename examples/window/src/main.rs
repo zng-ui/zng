@@ -30,7 +30,7 @@ fn main() {
 
     // let rec = examples_util::record_profile("window");
 
-    zng::view_process::default::run_same_process(app_main);
+    zng::view_process::prebuilt::run_same_process(app_main);
     // app_main();
 
     // rec.finish();
