@@ -38,18 +38,18 @@ lazy_static! {
 #[macro_export]
 macro_rules! init {
     () => {
-        $crate::init_parse!($crate)
+        let _on_main_exit = $crate::init_parse!($crate);
     };
 }
 #[doc(hidden)]
 pub use zng_env_proc_macros::init_parse;
 
 #[doc(hidden)]
-pub fn init(about: About) {
+pub fn init(about: About) -> impl Drop {
     if lazy_static_init(&ABOUT, about).is_err() {
         panic!("env already inited, env::init must be the first call in the process")
     }
-    process_init();
+    process_init()
 }
 
 /// Metadata about the app and main crate.

@@ -151,22 +151,21 @@ use zng_view_api::{
 
 use rustc_hash::FxHashMap;
 
-/// Name of the view-process in [`zng_env::process_main!`].
 #[cfg(feature = "ipc")]
-pub const ZNG_ENV_VIEW_PROCESS: &str = "zng-view/view-process";
-
-#[cfg(feature = "ipc")]
-zng_env::process_main!(ZNG_ENV_VIEW_PROCESS => view_process_main);
+zng_env::on_process_start!(|_| view_process_main());
 
 /// Runs the view-process server.
 ///
 /// Note that this only needs to be called if the view-process is not built on the same executable, if
 /// it is you only need to call [`zng_env::init!`] at the beginning of the executable main.
 #[cfg(feature = "ipc")]
-pub fn view_process_main() -> ! {
-    std::panic::set_hook(Box::new(init_abort));
+pub fn view_process_main() {
+    let config = match ViewConfig::from_env() {
+        Some(c) => c,
+        None => return,
+    };
 
-    let config = ViewConfig::from_env().expect("view-process missing env config");
+    std::panic::set_hook(Box::new(init_abort));
     config.assert_version(false);
     let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app-process");
 
@@ -181,13 +180,13 @@ pub fn view_process_main() -> ! {
         App::run_headed(c, ext);
     }
 
-    std::process::exit(0)
+    zng_env::exit(0)
 }
 
 #[cfg(feature = "ipc")]
 #[doc(hidden)]
 #[no_mangle]
-pub extern "C" fn extern_init() {
+pub extern "C" fn extern_view_process_main() {
     std::panic::set_hook(Box::new(ffi_abort));
     view_process_main()
 }
