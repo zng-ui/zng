@@ -9,4 +9,3 @@ zng = { path = "../../crates/zng", features = ["view"] }
 zng-view = { path = "../../crates/zng-view" }
 zng-app = { path = "../../crates/zng-app" }
 tracing = "0.1"
-linkme = "0.3"
