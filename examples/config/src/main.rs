@@ -14,6 +14,7 @@ use zng::config::*;
 
 fn main() {
     zng::env::init!();
+    zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::app::crash_handler::init_debug();
 
     // let rec = examples_util::record_profile("button");
@@ -26,9 +27,9 @@ fn main() {
 
 fn load_config() -> Box<dyn FallbackConfigReset> {
     // config file for the app, keys with prefix "main." are saved here.
-    let user_cfg = JsonConfig::sync("target/tmp/example.config.json");
+    let user_cfg = JsonConfig::sync(zng::env::config("example.config.json"));
     // entries not found in `user_cfg` bind to this file first before going to embedded fallback.
-    let default_cfg = ReadOnlyConfig::new(JsonConfig::sync("examples/res/config/defaults.json"));
+    let default_cfg = ReadOnlyConfig::new(JsonConfig::sync(zng::env::res("defaults.json")));
 
     // the app settings.
     let main_cfg = FallbackConfig::new(user_cfg, default_cfg);
@@ -37,7 +38,7 @@ fn load_config() -> Box<dyn FallbackConfigReset> {
     let main_ref = main_cfg.clone_boxed();
 
     // any other configs (Window::save_state for example)
-    let other_cfg = JsonConfig::sync("target/tmp/example.config.other.json");
+    let other_cfg = JsonConfig::sync(zng::env::config("example.config.other.json"));
 
     CONFIG.load(SwitchConfig::new().with_prefix("main.", main_cfg).with_prefix("", other_cfg));
 
