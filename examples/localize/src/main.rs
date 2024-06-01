@@ -21,7 +21,7 @@ use zng::{
 // l10n-msg-### This standalone comment is only added to the `msg` file.
 
 // Run this command to scrap template:
-// cargo run -p cargo-zng -- l10n "examples/localize*" "examples/localize/res"
+// cargo run -p cargo-zng -- zng l10n "examples/localize/src" "examples/localize/res"
 
 fn main() {
     zng::env::init!();
