@@ -1,5 +1,5 @@
 [package]
-name = "respawn"
+name = "zng-example-respawn"
 version = "0.0.0"
 publish = false
 edition = "2021"

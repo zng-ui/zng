@@ -1,9 +1,9 @@
 [package]
-name = "hot-reload"
+name = "zng-example-hot-reload"
 version = "0.0.0"
 publish = false
 edition = "2021"
 
 [dependencies]
-hot-reload-lib = { path = "../hot-reload-lib" }
+hot-reload-lib = { path = "../hot-reload-lib", package = "zng-example-hot-reload-lib"}
 zng = { path = "../../crates/zng", features = ["view_prebuilt"] }

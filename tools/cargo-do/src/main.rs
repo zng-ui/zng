@@ -503,7 +503,7 @@ fn test(mut args: Vec<&str>) {
 //     run some_example --backtrace
 //        Runs the "some_example" with `RUST_BACKTRACE=1`.
 //     run --all
-//        Builds all examples then runs them one by one.
+//        Runs all examples one by one.
 fn run(mut args: Vec<&str>) {
     let trace = if take_flag(&mut args, &["-b", "--backtrace"]) {
         ("RUST_BACKTRACE", "full")

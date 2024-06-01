@@ -1,5 +1,5 @@
 [package]
-name = "focus"
+name = "zng-example-focus"
 version = "0.0.0"
 publish = false
 edition = "2021"

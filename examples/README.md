@@ -286,7 +286,7 @@ Add the new example crate in `examples/<example-name>`:
 
 ```
 [package]
-name = "<example-name>"
+name = "zng-example-<example-name>"
 version = "0.0.0"
 publish = false
 edition = "2021"
