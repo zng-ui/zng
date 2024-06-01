@@ -288,7 +288,7 @@ publish = false
 edition = "2021"
 
 [dependencies]
-zng = { path = "../crates/zng", features = ["view_prebuilt"] }
+zng = { path = "../../crates/zng", features = ["view_prebuilt"] }
 ```
 
 `examples/<example-name>/src/main.rs`: 

@@ -6,8 +6,8 @@ profile*.json.gz
 **/*.expanded.rs
 dump.*
 dump*.*
-screenshot.*
-screencast.*
+/screenshot.*
+/screencast.*
 wip
 cargo-timing*
 large-image.*
