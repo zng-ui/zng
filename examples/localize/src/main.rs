@@ -25,6 +25,7 @@ use zng::{
 
 fn main() {
     zng::env::init!();
+    zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::app::crash_handler::init_debug();
 
     // let rec = examples_util::record_profile("localize");
@@ -38,7 +39,7 @@ fn main() {
 fn app_main() {
     APP.defaults().run_window(async {
         // load `available_langs`
-        L10N.load_dir("examples/res/localize");
+        L10N.load_dir(zng::env::res(""));
 
         // pre-load resources for the first available lang in sys-langs.
         let (lang, handle) = L10N.wait_first(L10N.app_lang().get()).await;

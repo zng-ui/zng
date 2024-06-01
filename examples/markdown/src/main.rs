@@ -1,8 +1,5 @@
 //! Demonstrates the `Markdown!` widget.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use std::path::PathBuf;
-
 use zng::{
     image::{self, ImageLimits, PathFilter, UriFilter},
     markdown::{self, Markdown},
@@ -12,6 +9,7 @@ use zng::{
 
 fn main() {
     zng::env::init!();
+    zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::app::crash_handler::init_debug();
 
     // let rec = examples_util::record_profile("markdown");
@@ -30,7 +28,7 @@ fn app_main() {
                 mode = ScrollMode::VERTICAL;
                 padding = 10;
                 child = Markdown! {
-                    txt = std::fs::read_to_string("examples/res/markdown/sample.md").unwrap_or_else(|e| e.to_string());
+                    txt = std::fs::read_to_string(zng::env::res("sample.md")).unwrap_or_else(|e| e.to_string());
 
                     // allow limited image download and read.
                     image::img_limits = ImageLimits::default()
@@ -42,7 +40,7 @@ fn app_main() {
                         let mut r: ImageSource = img.into();
                         if let ImageSource::Read(file) = &mut r {
                             if file.is_relative() {
-                                *file = PathBuf::from("examples/res/markdown").join(&file);
+                                *file = zng::env::res(&file);
                             }
                         }
                         r
