@@ -25,6 +25,7 @@ use zng_wgt_webrender_debug as wr;
 
 fn main() {
     zng::env::init!();
+    zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::app::crash_handler::init_debug();
 
     // let rec = examples_util::record_profile("image");
@@ -72,18 +73,18 @@ fn app_main() {
                                     fn img(source: &str) -> impl UiNode {
                                         Image! {
                                             grid::cell::at = grid::cell::AT_AUTO;
-                                            source;
+                                            source = zng::env::res(source);
                                         }
                                     }
                                     ui_vec![
-                                        img("examples/res/image/Luma8.png"),
-                                        img("examples/res/image/Luma16.png"),
-                                        img("examples/res/image/LumaA8.png"),
-                                        img("examples/res/image/LumaA16.png"),
-                                        img("examples/res/image/RGB8.png"),
-                                        img("examples/res/image/RGB16.png"),
-                                        img("examples/res/image/RGBA8.png"),
-                                        img("examples/res/image/RGBA16.png"),
+                                        img("Luma8.png"),
+                                        img("Luma16.png"),
+                                        img("LumaA8.png"),
+                                        img("LumaA16.png"),
+                                        img("RGB8.png"),
+                                        img("RGB16.png"),
+                                        img("RGBA8.png"),
+                                        img("RGBA16.png"),
                                     ]
                                 }
                           },
@@ -112,7 +113,7 @@ fn app_main() {
                             },
                             sub_title("Render Mask"),
                             Image! {
-                                source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                source = zng::env::res("zdenek-machacek-unsplash.jpg");
                                 size = (200, 120);
                                 mask_image = ImageSource::render_node(RenderMode::Software, |_| Text! {
                                     txt = "Mask";
@@ -143,7 +144,7 @@ fn app_main() {
                                 "Mix-Blend",
                                 ui_vec![
                                     Image! {
-                                        source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                                        source = zng::env::res("zdenek-machacek-unsplash.jpg");
                                         size = (200, 100);
                                         widget::foreground = Text! {
                                             mix_blend = color::MixBlendMode::ColorDodge;
@@ -224,7 +225,7 @@ fn img_fit(fit: impl IntoVar<ImageFit>) -> impl UiNode {
         children = ui_vec![
             sub_title(fit.map_debug()),
             Image! {
-                source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                source = zng::env::res("zdenek-machacek-unsplash.jpg");
                 size = (200, 100);
                 img_fit = fit;
                 border = {
@@ -254,7 +255,7 @@ fn img_filter(filter: impl IntoVar<Filter>) -> impl UiNode {
                 }
             })),
             Image! {
-                source = "examples/res/image/zdenek-machacek-unsplash.jpg";
+                source = zng::env::res("zdenek-machacek-unsplash.jpg");
                 size = (200, 100);
                 filter;
             }
@@ -285,7 +286,7 @@ fn sprite() -> impl UiNode {
                 });
             },
             Image! {
-                source = "examples/res/image/player_combat_sheet-10-96x84-CC0.png";
+                source = zng::env::res("player_combat_sheet-10-96x84-CC0.png");
                 size = (96, 84);
                 border = {
                     widths: 1,
@@ -597,7 +598,7 @@ impl ImgWindow {
             state = WindowState::Maximized;
             size = (1140, 770);// restore size
 
-            icon = "examples/res/image/zng-logo.png";
+            icon = zng::env::res("zng-logo.png");
             widget::background = Checkerboard!();
 
             color_scheme = color::ColorScheme::Dark;

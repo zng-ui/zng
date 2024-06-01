@@ -524,16 +524,13 @@ fn run(mut args: Vec<&str>) {
             &[""]
         };
 
-        let examples = examples();
-        let mut build_args = vec!["build"];
-        for example in &examples {
-            build_args.push("--package");
-            build_args.push(example);
-            cmd_env("cargo", &build_args, release, &[trace]);
-        }
-
-        for example in examples {
-            cmd_env("cargo", &["run", "--package", &example], release, &[trace]);
+        for example in examples() {
+            cmd_env(
+                "cargo",
+                &["run", "--manifest-path", &format!("examples/{example}/Cargo.toml")],
+                release,
+                &[trace],
+            );
         }
     } else {
         if take_flag(&mut args, &["--release-lto"]) {
@@ -547,7 +544,12 @@ fn run(mut args: Vec<&str>) {
             }
         } else {
             let example = args.remove(0);
-            cmd_env("cargo", &["run", "--package", &example], &args, &[trace]);
+            cmd_env(
+                "cargo",
+                &["run", "--manifest-path", &format!("examples/{example}/Cargo.toml")],
+                &args,
+                &[trace],
+            );
         }
     }
 }
