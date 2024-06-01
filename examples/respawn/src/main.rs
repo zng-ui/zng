@@ -12,7 +12,6 @@ use zng_app::view_process::VIEW_PROCESS;
 use zng_view::extensions::ViewExtensions;
 
 fn main() {
-    examples_util::print_info();
     // init metadata, view-process, crash-dialog-process.
     zng::env::init!();
 
@@ -211,7 +210,7 @@ fn click_counter() -> impl UiNode {
 
 fn image() -> impl UiNode {
     Image! {
-        source = include_bytes!("res/window/icon-bytes.png"); size = (32, 32);
+        source = include_bytes!("../../window/res/icon-bytes.png"); size = (32, 32);
         tooltip = Tip!(Text!("Image reloads after respawn"));
     }
 }

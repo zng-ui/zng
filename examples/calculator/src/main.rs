@@ -8,7 +8,6 @@ use zng::{
 };
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
 
@@ -265,7 +264,7 @@ async fn set_fallback_font() {
     {
         // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 
-        static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
+        static FALLBACK: &[u8] = include_bytes!("../res/notosanssymbols2-regular-subset.ttf");
         let fallback = CustomFont::from_bytes("fallback", FontDataRef::from_static(FALLBACK), 0);
 
         FONTS.register(fallback).wait_rsp().await.unwrap();

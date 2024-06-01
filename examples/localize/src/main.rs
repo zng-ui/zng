@@ -24,7 +24,6 @@ use zng::{
 // cargo run -p cargo-zng -- l10n "examples/localize*" "examples/res/localize"
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
 

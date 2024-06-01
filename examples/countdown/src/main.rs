@@ -4,7 +4,6 @@
 use zng::{image, prelude::*, widget::background_color};
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
     app_main();

@@ -14,7 +14,6 @@ use zng::{
 };
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
 
     // zng::view_process::prebuilt::run_same_process(headless_example);

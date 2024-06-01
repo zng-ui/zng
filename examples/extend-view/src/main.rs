@@ -10,7 +10,6 @@ use zng_view::extensions::ViewExtensions;
 // using custom nodes/properties.
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
 

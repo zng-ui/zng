@@ -11,7 +11,6 @@ use zng::{
 };
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
 

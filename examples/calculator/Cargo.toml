@@ -6,3 +6,4 @@ edition = "2021"
 
 [dependencies]
 zng = { path = "../../crates/zng", features = ["view_prebuilt"] }
+mexprp = { version = "0.3", default-features = false }

@@ -5,7 +5,6 @@
 use zng::prelude::*;
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
     app_main();
@@ -22,10 +21,10 @@ fn app_main() {
         let state = var(true);
         let example = Container! {
             // hot reloading node, edit the code in `examples/hot-reload-lib` to see updates.
-            child = examples_hot_reload::hot_node();
+            child = hot_reload_lib::hot_node();
 
             // hot reloading property, the state does not change, but changes in the property code update.
-            examples_hot_reload::hot_prop = state.clone();
+            hot_reload_lib::hot_prop = state.clone();
             gesture::on_click = hn!(|_| { state.set(!state.get()); });
         };
 

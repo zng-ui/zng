@@ -25,7 +25,6 @@ use zng::{
 };
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
 
@@ -248,8 +247,8 @@ fn icon_example() -> impl UiNode {
         WINDOW.vars().icon(),
         ui_vec![
             icon_btn("Default", WindowIcon::Default),
-            icon_btn("Png File", "examples/res/window/icon-file.png".into()),
-            icon_btn("Png Bytes", include_bytes!("res/window/icon-bytes.png").into()),
+            icon_btn("Png File", "../res/icon-file.png".into()),
+            icon_btn("Png Bytes", include_bytes!("../res/icon-bytes.png").into()),
             icon_btn("Raw BGRA", {
                 let color = [0, 0, 255, 255 / 2];
 

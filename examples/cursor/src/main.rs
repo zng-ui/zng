@@ -11,7 +11,6 @@ use zng::{
 };
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
     app_main();
@@ -97,46 +96,46 @@ fn cursor_img_demo(label: &'static str, img: &'static [u8], hotspot: (i32, i32),
 
 // (cursor, demo image)
 pub const CURSORS: &[(CursorIcon, &[u8])] = &[
-    (CursorIcon::Default, include_bytes!("res/cursor/default.png")),
-    (CursorIcon::Crosshair, include_bytes!("res/cursor/crosshair.png")),
-    (CursorIcon::Pointer, include_bytes!("res/cursor/pointer.png")),
-    (CursorIcon::Move, include_bytes!("res/cursor/move.png")),
-    (CursorIcon::Text, include_bytes!("res/cursor/text.png")),
-    (CursorIcon::Wait, include_bytes!("res/cursor/wait.png")),
-    (CursorIcon::Help, include_bytes!("res/cursor/help.png")),
-    (CursorIcon::Progress, include_bytes!("res/cursor/progress.png")),
-    (CursorIcon::NotAllowed, include_bytes!("res/cursor/not-allowed.png")),
-    (CursorIcon::ContextMenu, include_bytes!("res/cursor/context-menu.png")),
-    (CursorIcon::Cell, include_bytes!("res/cursor/cell.png")),
-    (CursorIcon::VerticalText, include_bytes!("res/cursor/vertical-text.png")),
-    (CursorIcon::Alias, include_bytes!("res/cursor/alias.png")),
-    (CursorIcon::Copy, include_bytes!("res/cursor/copy.png")),
-    (CursorIcon::NoDrop, include_bytes!("res/cursor/no-drop.png")),
-    (CursorIcon::Grab, include_bytes!("res/cursor/grab.png")),
-    (CursorIcon::Grabbing, include_bytes!("res/cursor/grabbing.png")),
-    (CursorIcon::AllScroll, include_bytes!("res/cursor/all-scroll.png")),
-    (CursorIcon::ZoomIn, include_bytes!("res/cursor/zoom-in.png")),
-    (CursorIcon::ZoomOut, include_bytes!("res/cursor/zoom-out.png")),
-    (CursorIcon::EResize, include_bytes!("res/cursor/e-resize.png")),
-    (CursorIcon::NResize, include_bytes!("res/cursor/n-resize.png")),
-    (CursorIcon::NeResize, include_bytes!("res/cursor/ne-resize.png")),
-    (CursorIcon::NwResize, include_bytes!("res/cursor/nw-resize.png")),
-    (CursorIcon::SResize, include_bytes!("res/cursor/s-resize.png")),
-    (CursorIcon::SeResize, include_bytes!("res/cursor/se-resize.png")),
-    (CursorIcon::SwResize, include_bytes!("res/cursor/sw-resize.png")),
-    (CursorIcon::WResize, include_bytes!("res/cursor/w-resize.png")),
-    (CursorIcon::EwResize, include_bytes!("res/cursor/3-resize.png")),
-    (CursorIcon::NsResize, include_bytes!("res/cursor/6-resize.png")),
-    (CursorIcon::NeswResize, include_bytes!("res/cursor/1-resize.png")),
-    (CursorIcon::NwseResize, include_bytes!("res/cursor/4-resize.png")),
-    (CursorIcon::ColResize, include_bytes!("res/cursor/col-resize.png")),
-    (CursorIcon::RowResize, include_bytes!("res/cursor/row-resize.png")),
+    (CursorIcon::Default, include_bytes!("../res/default.png")),
+    (CursorIcon::Crosshair, include_bytes!("../res/crosshair.png")),
+    (CursorIcon::Pointer, include_bytes!("../res/pointer.png")),
+    (CursorIcon::Move, include_bytes!("../res/move.png")),
+    (CursorIcon::Text, include_bytes!("../res/text.png")),
+    (CursorIcon::Wait, include_bytes!("../res/wait.png")),
+    (CursorIcon::Help, include_bytes!("../res/help.png")),
+    (CursorIcon::Progress, include_bytes!("../res/progress.png")),
+    (CursorIcon::NotAllowed, include_bytes!("../res/not-allowed.png")),
+    (CursorIcon::ContextMenu, include_bytes!("../res/context-menu.png")),
+    (CursorIcon::Cell, include_bytes!("../res/cell.png")),
+    (CursorIcon::VerticalText, include_bytes!("../res/vertical-text.png")),
+    (CursorIcon::Alias, include_bytes!("../res/alias.png")),
+    (CursorIcon::Copy, include_bytes!("../res/copy.png")),
+    (CursorIcon::NoDrop, include_bytes!("../res/no-drop.png")),
+    (CursorIcon::Grab, include_bytes!("../res/grab.png")),
+    (CursorIcon::Grabbing, include_bytes!("../res/grabbing.png")),
+    (CursorIcon::AllScroll, include_bytes!("../res/all-scroll.png")),
+    (CursorIcon::ZoomIn, include_bytes!("../res/zoom-in.png")),
+    (CursorIcon::ZoomOut, include_bytes!("../res/zoom-out.png")),
+    (CursorIcon::EResize, include_bytes!("../res/e-resize.png")),
+    (CursorIcon::NResize, include_bytes!("../res/n-resize.png")),
+    (CursorIcon::NeResize, include_bytes!("../res/ne-resize.png")),
+    (CursorIcon::NwResize, include_bytes!("../res/nw-resize.png")),
+    (CursorIcon::SResize, include_bytes!("../res/s-resize.png")),
+    (CursorIcon::SeResize, include_bytes!("../res/se-resize.png")),
+    (CursorIcon::SwResize, include_bytes!("../res/sw-resize.png")),
+    (CursorIcon::WResize, include_bytes!("../res/w-resize.png")),
+    (CursorIcon::EwResize, include_bytes!("../res/3-resize.png")),
+    (CursorIcon::NsResize, include_bytes!("../res/6-resize.png")),
+    (CursorIcon::NeswResize, include_bytes!("../res/1-resize.png")),
+    (CursorIcon::NwseResize, include_bytes!("../res/4-resize.png")),
+    (CursorIcon::ColResize, include_bytes!("../res/col-resize.png")),
+    (CursorIcon::RowResize, include_bytes!("../res/row-resize.png")),
 ];
 
 // (label, cursor_img, fallback)
 #[allow(clippy::type_complexity)]
 pub const CURSOR_IMGS: &[(&str, (&[u8], i32, i32), CursorIcon)] =
-    &[("custom", (include_bytes!("res/image/RGBA8.png"), 4, 6), CursorIcon::Default)];
+    &[("custom", (include_bytes!("../../image/res/RGBA8.png"), 4, 6), CursorIcon::Default)];
 
 mod widgets {
     use zng::{prelude::*, prelude_wgt::*};

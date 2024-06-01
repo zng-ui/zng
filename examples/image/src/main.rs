@@ -24,7 +24,6 @@ use zng::{
 use zng_wgt_webrender_debug as wr;
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
 
@@ -48,7 +47,7 @@ fn app_main() {
         // setup a file cache so we don't download the images every run.
         http::set_default_client_init(move || {
             http::Client::builder()
-                .cache(http::FileSystemCache::new(examples_util::temp_dir("image")).unwrap())
+                .cache(http::FileSystemCache::new(zng::env::cache("image")).unwrap())
                 .cache_mode(img_cache_mode)
                 .build()
         })

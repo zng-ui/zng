@@ -13,7 +13,6 @@ use zng::{
 };
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
     zng::app::crash_handler::init_debug();
 
@@ -102,7 +101,7 @@ fn image_button() -> impl UiNode {
         on_click = hn!(|_| tracing::info!("Clicked image button"));
         child_start = {
             node: Image! {
-                source = include_bytes!("res/window/icon-bytes.png");
+                source = include_bytes!("../../window/res/icon-bytes.png");
                 layout::size = 16;
                 align = Align::CENTER;
             },
