@@ -70,7 +70,7 @@ Source: [countdown/src](./countdown/src)
 cargo do run countdown
 ```
 
-Demonstrates the TIMERS service, variable mapping.
+Demonstrates the TIMERS service, variable mapping and profiler trace recording.
 
 ### `cursor`
 

@@ -20,3 +20,4 @@ crates/zng-view-prebuilt/lib/libzng_view.*
 do.bat
 do.ps1
 do
+/trace-*.json
