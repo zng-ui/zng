@@ -1,5 +1,5 @@
 [package]
-name = "gradient"
+name = "zng-example-gradient"
 version = "0.0.0"
 publish = false
 edition = "2021"

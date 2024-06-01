@@ -1,5 +1,5 @@
 [package]
-name = "animation"
+name = "zng-example-animation"
 version = "0.0.0"
 publish = false
 edition = "2021"

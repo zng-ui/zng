@@ -1082,3 +1082,40 @@ impl AsyncBlobImageRasterizer for BlockExtensionsImgRasterizer {
         responses
     }
 }
+
+/// Register a `fn() -> ViewExtensions` to be called on view-process init to inject custom API extensions.
+///
+/// See [`ViewExtensions`] for more details.
+#[macro_export]
+macro_rules! view_process_extension {
+    ($extension_fn:path) => {
+        // expanded from:
+        // #[linkme::distributed_slice(ZNG_ENV_RUN_PROCESS)]
+        // static _VIEW_EXTENSIONS = fn() -> $crate::extensions::ViewExtensions = $extension_fn;
+        // so that users don't need to depend on linkme just to call this macro.
+        #[used]
+        #[cfg_attr(
+            any(
+                target_os = "none",
+                target_os = "linux",
+                target_os = "android",
+                target_os = "fuchsia",
+                target_os = "psp"
+            ),
+            link_section = "linkme_VIEW_EXTENSIONS"
+        )]
+        #[cfg_attr(
+            any(target_os = "macos", target_os = "ios", target_os = "tvos"),
+            link_section = "__DATA,__linkmeTbhLJz52,regular,no_dead_strip"
+        )]
+        #[cfg_attr(target_os = "windows", link_section = ".linkme_VIEW_EXTENSIONS$b")]
+        #[cfg_attr(target_os = "illumos", link_section = "set_linkme_VIEW_EXTENSIONS")]
+        #[cfg_attr(target_os = "freebsd", link_section = "linkme_VIEW_EXTENSIONS")]
+        #[doc(hidden)]
+        static _VIEW_EXTENSIONS: fn() -> $crate::extensions::ViewExtensions = $extension_fn;
+    };
+}
+
+#[doc(hidden)]
+#[linkme::distributed_slice]
+pub static VIEW_EXTENSIONS: [fn() -> ViewExtensions];

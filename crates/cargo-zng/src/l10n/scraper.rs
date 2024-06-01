@@ -16,42 +16,42 @@ use rayon::prelude::*;
 /// # Panics
 ///
 /// Panics if `code_files_glob` had an incorrect pattern.
-pub fn scrape_fluent_text(code_files_glob: &str, custom_macro_names: &[&str]) -> io::Result<FluentTemplate> {
+pub fn scrape_fluent_text(code_files_glob: &str, custom_macro_names: &[&str]) -> FluentTemplate {
     let num_threads = rayon::max_num_threads();
     let mut buf = Vec::with_capacity(num_threads);
 
     let mut r = FluentTemplate::default();
-    for file in glob::glob(code_files_glob).unwrap() {
-        buf.push(file.map_err(|e| e.into_error())?);
+    for file in glob::glob(code_files_glob).unwrap_or_else(|e| fatal!("{e}")) {
+        let file = file.unwrap_or_else(|e| fatal!("{e}"));
+        if file.is_dir() {
+            continue;
+        }
+        buf.push(file);
         if buf.len() == num_threads {
-            r.extend(scrape_files(&mut buf, custom_macro_names)?);
+            r.extend(scrape_files(&mut buf, custom_macro_names));
         }
     }
+    buf.sort();
     if !buf.is_empty() {
-        r.extend(scrape_files(&mut buf, custom_macro_names)?);
+        r.extend(scrape_files(&mut buf, custom_macro_names));
     }
 
-    Ok(r)
+    r
 }
-fn scrape_files(buf: &mut Vec<PathBuf>, custom_macro_names: &[&str]) -> io::Result<FluentTemplate> {
+fn scrape_files(buf: &mut Vec<PathBuf>, custom_macro_names: &[&str]) -> FluentTemplate {
     buf.par_drain(..).map(|f| scrape_file(f, custom_macro_names)).reduce(
-        || {
-            Ok(FluentTemplate {
-                notes: vec![],
-                entries: vec![],
-            })
+        || FluentTemplate {
+            notes: vec![],
+            entries: vec![],
         },
-        |a, b| match (a, b) {
-            (Ok(mut a), Ok(b)) => {
-                a.extend(b);
-                Ok(a)
-            }
-            (Err(e), _) | (_, Err(e)) => Err(e),
+        |mut a, b| {
+            a.extend(b);
+            a
         },
     )
 }
-fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentTemplate> {
-    let file = std::fs::read_to_string(file)?;
+fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> FluentTemplate {
+    let file = std::fs::read_to_string(&file).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", file.display()));
     let mut s = file.as_str();
 
     const BOM: &str = "\u{feff}";
@@ -171,7 +171,7 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
                             .trim_matches('#')
                             .trim_matches('"')
                             .to_owned();
-                        let (file, id, attr) = parse_validate_id(&message_id)?;
+                        let (file, id, attr) = parse_validate_id(&message_id);
                         entry.file = file;
                         entry.id = id;
                         entry.attribute = attr;
@@ -325,10 +325,10 @@ fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> io::Result<FluentT
         s = &s[token.len..];
     }
 
-    Ok(FluentTemplate {
+    FluentTemplate {
         notes: l10n_notes,
         entries: output,
-    })
+    }
 }
 
 /// Represents a standalone note, declared using `// l10n-{file}-### {note}` or `l10n-### {note}`.
@@ -601,7 +601,7 @@ impl FluentTemplate {
 }
 
 // Returns "file", "id", "attribute"
-fn parse_validate_id(s: &str) -> io::Result<(String, String, String)> {
+fn parse_validate_id(s: &str) -> (String, String, String) {
     let mut id = s;
     let mut file = "";
     let mut attribute = "";
@@ -627,10 +627,7 @@ fn parse_validate_id(s: &str) -> io::Result<(String, String, String)> {
             first = false;
         }
         if !valid {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("invalid file {file:?}, must be a single file name"),
-            ));
+            fatal!("invalid file {file:?}, must be a single file name")
         }
     }
 
@@ -655,17 +652,11 @@ fn parse_validate_id(s: &str) -> io::Result<(String, String, String)> {
         true
     }
     if !validate(id) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("invalid id {id:?}, must start with letter, followed by any letters, digits, `_` or `-`"),
-        ));
+        fatal!("invalid id {id:?}, must start with letter, followed by any letters, digits, `_` or `-`")
     }
     if !attribute.is_empty() && !validate(attribute) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("invalid id {attribute:?}, must start with letter, followed by any letters, digits, `_` or `-`"),
-        ));
+        fatal!("invalid id {attribute:?}, must start with letter, followed by any letters, digits, `_` or `-`")
     }
 
-    Ok((file.to_owned(), id.to_owned(), attribute.to_owned()))
+    (file.to_owned(), id.to_owned(), attribute.to_owned())
 }

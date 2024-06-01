@@ -1,7 +1,5 @@
 //! Demonstrates image loading, displaying, animated sprites, rendering, pasting.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use std::path::PathBuf;
 
 use zng::{
@@ -27,11 +25,7 @@ fn main() {
     zng::env::init!();
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::app::crash_handler::init_debug();
-
-    // let rec = examples_util::record_profile("image");
-
     app_main();
-    // rec.finish();
 }
 
 fn app_main() {

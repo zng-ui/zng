@@ -1,5 +1,5 @@
-#![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo-icon.png")]
-#![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/master/examples/res/image/zng-logo.png")]
+#![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/main/examples/image/res/zng-logo-icon.png")]
+#![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/main/examples/image/res/zng-logo.png")]
 //!
 //! View-Process implementation.
 //!
@@ -158,22 +158,6 @@ pub const ZNG_ENV_VIEW_PROCESS: &str = "zng-view/view-process";
 #[cfg(feature = "ipc")]
 zng_env::process_main!(ZNG_ENV_VIEW_PROCESS => view_process_main);
 
-/// Register a `fn() -> ViewExtensions` to be called on view-process init to inject custom API extensions.
-///
-/// See [`ViewExtensions`] for more details.
-#[macro_export]
-macro_rules! view_process_extension {
-    ($extension_fn:path) => {
-        #[doc(hidden)]
-        #[::linkme::distributed_slice($crate::VIEW_EXTENSIONS)]
-        static VIEW_EXTENSIONS: fn() -> ViewExtensions = $extension_fn;
-    };
-}
-
-#[doc(hidden)]
-#[linkme::distributed_slice]
-pub static VIEW_EXTENSIONS: [fn() -> ViewExtensions];
-
 /// Runs the view-process server.
 ///
 /// Note that this only needs to be called if the view-process is not built on the same executable, if
@@ -187,7 +171,7 @@ pub fn view_process_main() -> ! {
     let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app-process");
 
     let mut ext = ViewExtensions::new();
-    for e in VIEW_EXTENSIONS {
+    for e in extensions::VIEW_EXTENSIONS {
         ext.append(e());
     }
 

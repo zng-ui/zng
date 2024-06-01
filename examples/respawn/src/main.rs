@@ -1,7 +1,5 @@
 //! Demonstrates app-process crash handler and view-process respawn.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use zng::{
     color::{filter::opacity, gradient::stops},
     layout::size,

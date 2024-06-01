@@ -1,12 +1,17 @@
-//! Demonstrates the TIMERS service, variable mapping.
+//! Demonstrates the TIMERS service, variable mapping and profiler trace recording.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use zng::{image, prelude::*, widget::background_color};
 
 fn main() {
     zng::env::init!();
     zng::app::crash_handler::init_debug();
-    app_main();
+
+    // record profiler, use chrome://tracing or <ui.perfetto.dev>.
+    let (chrome_layer, _guard) = tracing_chrome::ChromeLayerBuilder::new().build();
+    tracing_subscriber::registry().with(chrome_layer).init();
+
+    zng::view_process::default::run_same_process(app_main);
 }
 
 fn app_main() {

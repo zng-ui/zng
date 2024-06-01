@@ -1,6 +1,5 @@
 //! Simple calculator, demonstrates Grid layout, data context.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use std::convert::TryInto;
 use zng::{
     gesture::{click_shortcut, Shortcuts},
@@ -10,13 +9,7 @@ use zng::{
 fn main() {
     zng::env::init!();
     zng::app::crash_handler::init_debug();
-
-    //let rec = examples_util::record_profile("calculator");
-
-    // zng::view_process::prebuilt::run_same_process(app_main);
     app_main();
-
-    //rec.finish();
 }
 
 fn app_main() {

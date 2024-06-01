@@ -1,7 +1,5 @@
 //! Demonstrates the LAYERS service.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use zng::{
     button,
     color::{color_scheme_map, filter::opacity},
@@ -15,13 +13,7 @@ use zng::{
 fn main() {
     zng::env::init!();
     zng::app::crash_handler::init_debug();
-
-    // let rec = examples_util::record_profile("layer");
-
-    // zng::view_process::prebuilt::run_same_process(app_main);
     app_main();
-
-    // rec.finish();
 }
 
 fn app_main() {

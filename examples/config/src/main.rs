@@ -1,6 +1,5 @@
 //! Demonstrates the CONFIG service, live updating config between processes.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{
     color::filter::opacity,
     icon::{material_outlined as icons, Icon},
@@ -16,13 +15,7 @@ fn main() {
     zng::env::init!();
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::app::crash_handler::init_debug();
-
-    // let rec = examples_util::record_profile("button");
-
-    // zng::view_process::prebuilt::run_same_process(app_main);
     app_main();
-
-    // rec.finish();
 }
 
 fn load_config() -> Box<dyn FallbackConfigReset> {

@@ -70,7 +70,7 @@ Source: [countdown/src](./countdown/src)
 cargo do run countdown
 ```
 
-Demonstrates the TIMERS service, variable mapping.
+Demonstrates the TIMERS service, variable mapping and profiler trace recording.
 
 ### `cursor`
 
@@ -286,7 +286,7 @@ Add the new example crate in `examples/<example-name>`:
 
 ```
 [package]
-name = "<example-name>"
+name = "zng-example-<example-name>"
 version = "0.0.0"
 publish = false
 edition = "2021"

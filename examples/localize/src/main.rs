@@ -21,19 +21,13 @@ use zng::{
 // l10n-msg-### This standalone comment is only added to the `msg` file.
 
 // Run this command to scrap template:
-// cargo run -p cargo-zng -- l10n "examples/localize*" "examples/res/localize"
+// cargo run -p cargo-zng -- zng l10n "examples/localize/src" "examples/localize/res"
 
 fn main() {
     zng::env::init!();
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::app::crash_handler::init_debug();
-
-    // let rec = examples_util::record_profile("localize");
-
-    // zng::view_process::prebuilt::run_same_process(app_main);
     app_main();
-
-    // rec.finish();
 }
 
 fn app_main() {
