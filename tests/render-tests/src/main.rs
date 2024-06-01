@@ -50,14 +50,14 @@ fn main() {
 fn run(args: Args, view_process: ViewProcess) {
     match view_process {
         ViewProcess::DefaultInit => {
-            view_process::default::init();
+            zng::env::init!();
             run_tests(args, view_process, APP.defaults().run_headless(true));
         }
         ViewProcess::DefaultSame => {
             view_process::default::run_same_process(move || run_tests(args, view_process, APP.defaults().run_headless(true)))
         }
         ViewProcess::PrebuiltInit => {
-            view_process::prebuilt::init();
+            zng::env::init!();
             run_tests(args, view_process, APP.defaults().run_headless(true));
         }
         ViewProcess::PrebuiltSame => {

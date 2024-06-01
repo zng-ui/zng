@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt, mem,
     path::PathBuf,
     sync::Arc,
@@ -10,6 +11,7 @@ use crate::Deadline;
 use zng_app_context::{app_local, AppScope};
 use zng_task::DEADLINE_APP;
 use zng_time::{InstantMode, INSTANT_APP};
+use zng_txt::Txt;
 use zng_var::{response_var, ArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
 
 use crate::{
@@ -55,6 +57,7 @@ impl<E: AppExtension> RunningApp<E> {
         is_headed: bool,
         with_renderer: bool,
         view_process_exe: Option<PathBuf>,
+        view_process_env: HashMap<Txt, Txt>,
     ) -> Self {
         let _s = tracing::debug_span!("APP::start").entered();
 
@@ -82,7 +85,9 @@ impl<E: AppExtension> RunningApp<E> {
             sv.set_extensions(info, device_events);
         }
 
-        let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, device_events);
+        let view_process_exe = view_process_exe.unwrap_or_else(|| std::env::current_exe().expect("current_exe"));
+
+        let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, view_process_env, device_events);
 
         {
             let _s = tracing::debug_span!("extensions.init").entered();
@@ -1136,7 +1141,13 @@ struct PendingExit {
 }
 impl AppIntrinsic {
     /// Pre-init intrinsic services and commands, must be called before extensions init.
-    pub(super) fn pre_init(is_headed: bool, with_renderer: bool, view_process_exe: Option<PathBuf>, device_events: bool) -> Self {
+    pub(super) fn pre_init(
+        is_headed: bool,
+        with_renderer: bool,
+        view_process_exe: PathBuf,
+        view_process_env: HashMap<Txt, Txt>,
+        device_events: bool,
+    ) -> Self {
         APP_PROCESS_SV
             .read()
             .pause_time_for_updates
@@ -1156,12 +1167,12 @@ impl AppIntrinsic {
             debug_assert!(with_renderer);
 
             let view_evs_sender = UPDATES.sender();
-            VIEW_PROCESS.start(view_process_exe, device_events, false, move |ev| {
+            VIEW_PROCESS.start(view_process_exe, view_process_env, device_events, false, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
         } else if with_renderer {
             let view_evs_sender = UPDATES.sender();
-            VIEW_PROCESS.start(view_process_exe, false, true, move |ev| {
+            VIEW_PROCESS.start(view_process_exe, view_process_env, false, true, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
         }

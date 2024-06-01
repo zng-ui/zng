@@ -828,6 +828,11 @@ impl ViewExtensions {
             ext.low_memory();
         }
     }
+
+    /// Add `other` to self.
+    pub fn append(&mut self, mut other: ViewExtensions) {
+        self.exts.append(&mut other.exts);
+    }
 }
 
 /// Sets renderer debug flags.

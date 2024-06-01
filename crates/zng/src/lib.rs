@@ -26,7 +26,7 @@
 //! use zng::prelude::*;
 //!
 //! fn main() {
-//!     zng::view_process::prebuilt::init();
+//!     zng::env::init!();
 //!     app();
 //! }
 //!
@@ -850,6 +850,11 @@ mod defaults {
         /// * [`HotReloadManager`] if the `"hot_reload"` feature is enabled.
         /// * [`MaterialFonts`] if any `"material_icons*"` feature is enabled.
         ///
+        /// # View-Process
+        ///
+        /// If the `"view_prebuilt"` feature is enabled configures the prebuilt view-process to run if `run_same_process` is not used. Else,
+        /// if the `"view"` feature is enabled configures it to run. If both are enabled logs a warning and uses prebuilt.
+        ///
         /// [`MaterialFonts`]: zng_wgt_material_icons::MaterialFonts
         /// [`SingleInstanceManager`]: zng_ext_single_instance::SingleInstanceManager
         /// [`HotReloadManager`]: zng_ext_hot_reload::HotReloadManager
@@ -873,6 +878,14 @@ mod defaults {
                 .extend(ImageManager::default())
                 .extend(ClipboardManager::default())
                 .extend(UndoManager::default());
+
+            #[cfg(feature = "view")]
+            let r = r.view_process_env(zng_env::PROCESS_MAIN, zng_view::ZNG_ENV_VIEW_PROCESS);
+            #[cfg(feature = "view_prebuilt")]
+            let r = r.view_process_env(zng_env::PROCESS_MAIN, zng_view_prebuilt::ZNG_ENV_VIEW_PROCESS);
+
+            #[cfg(all(feature = "view", feature = "view_prebuilt"))]
+            tracing::warn!(r#"both "view" and "view_prebuilt" enabled, will use "view_prebuilt""#);
 
             #[cfg(feature = "single_instance")]
             let r = r.extend(zng_ext_single_instance::SingleInstanceManager::default());

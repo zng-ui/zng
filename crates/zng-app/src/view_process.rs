@@ -297,13 +297,19 @@ impl VIEW_PROCESS {
     }
 
     /// Spawn the View Process.
-    pub(super) fn start<F>(&self, view_process_exe: Option<PathBuf>, device_events: bool, headless: bool, on_event: F)
-    where
+    pub(super) fn start<F>(
+        &self,
+        view_process_exe: PathBuf,
+        view_process_env: HashMap<Txt, Txt>,
+        device_events: bool,
+        headless: bool,
+        on_event: F,
+    ) where
         F: FnMut(Event) + Send + 'static,
     {
         let _s = tracing::debug_span!("VIEW_PROCESS.start").entered();
 
-        let process = zng_view_api::Controller::start(view_process_exe, device_events, headless, on_event);
+        let process = zng_view_api::Controller::start(view_process_exe, view_process_env, device_events, headless, on_event);
         *VIEW_PROCESS_SV.write() = Some(ViewProcessService {
             data_generation: process.generation(),
             process,

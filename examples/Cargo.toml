@@ -13,6 +13,7 @@ regex = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 raw-window-handle = "0.6"
 dunce = "1.0"
+linkme = "0.3"
 
 zng = { path = "../crates/zng", features = [
     "http",
@@ -26,9 +27,9 @@ zng = { path = "../crates/zng", features = [
     # "multi_app",
 ] }
 
-zng-app = { path = "../crates/zng-app" }           # for respawn and extend_view examples
-zng-view-api = { path = "../crates/zng-view-api" } # for the extend_view example
-zng-view = { path = "../crates/zng-view" } # for the extend_view example
+zng-app = { path = "../crates/zng-app" }                                 # for respawn and extend_view examples
+zng-view-api = { path = "../crates/zng-view-api" }                       # for the extend_view example
+zng-view = { path = "../crates/zng-view" }                               # for the extend_view example
 zng-wgt-webrender-debug = { path = "../crates/zng-wgt-webrender-debug" } # for the extend_view example
 
 examples-util = { path = "util" }

@@ -13,17 +13,19 @@ use zng_view::extensions::ViewExtensions;
 
 fn main() {
     examples_util::print_info();
+    // init metadata, view-process, crash-dialog-process.
+    zng::env::init!();
 
     // init crash-handler before view to use different view for the crash dialog app.
     zng::app::crash_handler::init_debug();
     // zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(app_crash_dialog));
 
     // this is the normal app-process:
-
-    // init view with extensions used to cause a crash in the view-process.
-    zng_view::init_extended(test_extensions);
     app_main();
 }
+
+// init view with extensions used to cause a crash in the view-process.
+zng_view::view_process_extension!(test_extensions);
 
 fn app_main() {
     APP.defaults().run_window(async {
@@ -88,7 +90,6 @@ fn app_main() {
 // Crash dialog app, runs in the dialog-process.
 #[allow(unused)]
 fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
-    zng::view_process::prebuilt::init();
     APP.defaults().run_window(async move {
         Window! {
             title = "Respawn Example - App Crashed";

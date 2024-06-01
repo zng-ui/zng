@@ -922,7 +922,7 @@ impl Image {
         } else {
             let r = if width > 255 || height > 255 {
                 // resize to max 255
-                let mut buf = pixels.as_ref().to_vec();
+                let mut buf = pixels[..].to_vec();
                 // BGRA to RGBA
                 buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
                 let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
@@ -934,7 +934,7 @@ impl Image {
                 let buf = img.into_rgba8().into_raw();
                 winit::window::Icon::from_rgba(buf, width, height)
             } else {
-                let mut buf = pixels.as_ref().to_vec();
+                let mut buf = pixels[..].to_vec();
                 // BGRA to RGBA
                 buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
                 winit::window::Icon::from_rgba(buf, width, height)
@@ -964,7 +964,7 @@ impl Image {
         if width == 0 || height == 0 || hotspot_x > width || hotspot_y > height || self.0.is_mask() {
             None
         } else {
-            let mut buf = pixels.as_ref().to_vec();
+            let mut buf = pixels[..].to_vec();
             // BGRA to RGBA
             buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
             match CustomCursor::from_rgba(buf, width, height, hotspot_x, hotspot_y) {

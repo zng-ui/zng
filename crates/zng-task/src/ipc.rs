@@ -386,6 +386,11 @@ impl<I: IpcValue, O: IpcValue> Drop for Worker<I, O> {
     }
 }
 
+// !!: TODO
+// fn worker_main() {
+//     zng_env::process_main!(std::concat!("zng-task::ipc/", ""));
+// }
+
 /// If the process was started by a [`Worker`] runs the worker loop and never returns. If
 /// not started as worker does nothing.
 ///
