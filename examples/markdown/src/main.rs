@@ -11,13 +11,7 @@ fn main() {
     zng::env::init!();
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::app::crash_handler::init_debug();
-
-    // let rec = examples_util::record_profile("markdown");
-
-    // zng::view_process::prebuilt::run_same_process(app_main);
     app_main();
-
-    // rec.finish();
 }
 
 fn app_main() {

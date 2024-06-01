@@ -1,6 +1,5 @@
 //! Demonstrates the TIMERS service, variable mapping.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{image, prelude::*, widget::background_color};
 
 fn main() {

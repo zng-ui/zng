@@ -1,7 +1,5 @@
 //! Demonstrates gradient rendering.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use zng::{
     color::{
         self,
@@ -16,8 +14,6 @@ use zng::{
 fn main() {
     zng::env::init!();
     zng::app::crash_handler::init_debug();
-
-    // zng::view_process::prebuilt::run_same_process(app_main);
     app_main();
 }
 

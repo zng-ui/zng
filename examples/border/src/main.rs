@@ -1,6 +1,5 @@
 //! Demonstrates borders, corner radius, multiple borders per widget and clip-to-bounds.
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zng::{
     prelude::*,
     widget::{background_color, border_align, corner_radius},
@@ -11,13 +10,7 @@ mod widgets;
 fn main() {
     zng::env::init!();
     zng::app::crash_handler::init_debug();
-
-    //let rec = examples_util::record_profile("border");
-
-    // zng::view_process::prebuilt::run_same_process(app_main);
     app_main();
-
-    // rec.finish();
 }
 
 fn app_main() {

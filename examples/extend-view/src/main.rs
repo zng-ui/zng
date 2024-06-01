@@ -12,8 +12,6 @@ use zng_view::extensions::ViewExtensions;
 fn main() {
     zng::env::init!();
     zng::app::crash_handler::init_debug();
-
-    // zng_view::run_same_process_extended(app_main, view_extensions);
     app_main();
 }
 
