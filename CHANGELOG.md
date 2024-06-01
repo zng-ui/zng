@@ -5,6 +5,7 @@
     - Only `zng::env::init!()` needs to be called to setup the view-process.
 * **Breaking** `zng_view_api::Controller::start` now requires the exe path and supports optional env variables to set.
     - This only affects custom view-process implementers.
+* **Breaking** New default `zng::env::res`, was `./assets` now is `./res`.
 
 
 # 0.6.2

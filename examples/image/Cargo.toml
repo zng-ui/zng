@@ -1,0 +1,10 @@
+[package]
+name = "image"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+zng = { path = "../../crates/zng", features = ["view_prebuilt", "http"] }
+zng-wgt-webrender-debug = { path = "../../crates/zng-wgt-webrender-debug" }
+tracing = "0.1"

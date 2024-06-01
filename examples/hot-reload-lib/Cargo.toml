@@ -1,5 +1,5 @@
 [package]
-name = "examples-hot-reload"
+name = "hot-reload-lib"
 version = "0.0.0"
 edition = "2021"
 publish = false

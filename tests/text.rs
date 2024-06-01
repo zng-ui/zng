@@ -8,7 +8,7 @@ use zng::{
 
 #[test]
 fn emoji_segs() {
-    let tests = std::fs::read_to_string("../examples/res/text/unicode-emoji-15.0/emoji-test.txt").unwrap();
+    let tests = std::fs::read_to_string("../examples/text/res/unicode-emoji-15.0/emoji-test.txt").unwrap();
 
     let mut errors = String::new();
     let mut error_count = 0;

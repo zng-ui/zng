@@ -278,9 +278,8 @@ lazy_static! {
 /// Gets a path relative to the package resources.
 ///
 /// * The res dir can be set by [`init_res`] before any env dir is used.
-/// * In all platforms if a file `bin/current_exe_name.zng_res_dir` is found the file first line not starting with
-///  `"\s#"` and non empty is used as the res path.
-/// * In `cfg(debug_assertions)` builds returns `assets`.
+/// * In all platforms if a file `bin/current_exe_name.zng_res_dir` is found it defines the res path.
+/// * In `cfg(debug_assertions)` builds returns `res`.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
 /// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
 /// * In Android returns `bin("../res")`, assumes the package is deployed as a `.apk` file.
@@ -289,11 +288,11 @@ lazy_static! {
 ///
 /// # Built Resources
 ///
-/// In `cfg(any(debug_assertions, feature="built_res"))` builds if the `target/assets/{relative_path}` path exists it
-/// is returned instead. This is useful during development when the app depends on assets that are generated locally and not
+/// In `cfg(any(debug_assertions, feature="built_res"))` builds if the `target/res/{relative_path}` path exists it
+/// is returned instead. This is useful during development when the app depends on res that are generated locally and not
 /// included in version control.
 ///
-/// Note that the built resources must be packaged with the other assets at the same relative location, so that release builds can find then.
+/// Note that the built resources must be packaged with the other res at the same relative location, so that release builds can find then.
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
     res_impl(relative_path.as_ref())
 }
@@ -338,7 +337,7 @@ lazy_static! {
     static ref RES: PathBuf = find_res();
 
     #[cfg(any(debug_assertions, feature="built_res"))]
-    static ref BUILT_RES: PathBuf = PathBuf::from("target/assets");
+    static ref BUILT_RES: PathBuf = PathBuf::from("target/res");
 }
 fn find_res() -> PathBuf {
     if let Ok(mut p) = std::env::current_exe() {
@@ -348,7 +347,7 @@ fn find_res() -> PathBuf {
         }
     }
     if cfg!(debug_assertions) {
-        PathBuf::from("assets")
+        PathBuf::from("res")
     } else if cfg!(windows) {
         bin("../res")
     } else if cfg!(target_os = "macos") {

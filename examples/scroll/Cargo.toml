@@ -1,0 +1,10 @@
+[package]
+name = "scroll"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+zng = { path = "../../crates/zng", features = ["view_prebuilt"] }
+rand = "0.8"
+lipsum = "0.9"

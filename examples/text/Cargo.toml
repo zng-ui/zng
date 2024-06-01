@@ -1,0 +1,9 @@
+[package]
+name = "text"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+zng = { path = "../../crates/zng", features = ["view_prebuilt", "material_icons"] }
+tracing = "0.1"

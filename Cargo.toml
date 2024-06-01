@@ -4,8 +4,7 @@ resolver = "2"
 
 members = [
     "crates/*",
-    "examples",
-    "examples/util",
+    "examples/*",
     "tests",
     "tests/macro-tests",
     "tests/render-tests",
