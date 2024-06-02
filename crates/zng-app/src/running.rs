@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::Deadline;
+use parking_lot::Mutex;
 use zng_app_context::{app_local, AppScope};
 use zng_task::DEADLINE_APP;
 use zng_time::{InstantMode, INSTANT_APP};
@@ -95,6 +96,11 @@ impl<E: AppExtension> RunningApp<E> {
         {
             let _s = tracing::debug_span!("extensions.init").entered();
             extensions.init();
+        }
+
+        let args = AppStartArgs { _private: () };
+        for h in zng_unique_id::hot_static_ref!(ON_APP_START).lock().iter_mut() {
+            h(&args)
         }
 
         RunningApp {
@@ -908,6 +914,27 @@ impl<E: AppExtension> Drop for RunningApp<E> {
         VIEW_PROCESS.exit();
     }
 }
+
+/// Arguments for [`on_app_start`] handlers.
+///
+/// Empty in this release. The handler is called in the new app context so you can use `APP` or
+/// any other app service to access the new app.
+pub struct AppStartArgs {
+    _private: (),
+}
+
+/// Register a `handler` to run when an `APP` starts running in the process.
+///
+/// The `handler` is called in the new app context, just before the "run" future executes, all app service are already available in it.
+///
+/// In `"multi_app"` builds the handler can be called more them once.
+pub fn on_app_start(handler: impl FnMut(&AppStartArgs) + Send + 'static) {
+    zng_unique_id::hot_static_ref!(ON_APP_START).lock().push(Box::new(handler))
+}
+zng_unique_id::hot_static! {
+    static ON_APP_START: Mutex<Vec<AppStartHandler>> = Mutex::new(vec![]);
+}
+type AppStartHandler = Box<dyn FnMut(&AppStartArgs) + Send + 'static>;
 
 /// App main loop timer.
 #[derive(Debug)]

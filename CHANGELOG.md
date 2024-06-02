@@ -1,8 +1,9 @@
 # Unpublished
 
-* Add `zng::env::on_process_start!` to inject a callback in `zng::env::init!`.
+* Add `zng::env::on_process_start!` to inject custom code in `zng::env::init!`.
 * Add `zng::env::on_process_exit` to register a handler for process exit.
 * Add `zng::env::exit` to collaboratively exit the process.
+* Add `zng::app::on_app_start` to register a handler to be called when the `APP` context starts.
 * **Breaking** Remove `zng_view::init`, `zng_view_prebuilt::init`, `zng::view_process::default::init`, `zng::view_process::prebuilt::init`.
     - Only `zng::env::init!()` needs to be called to setup the view-process.
 * **Breaking** `zng_view_api::Controller::start` now requires the exe path and supports optional env variables to set.

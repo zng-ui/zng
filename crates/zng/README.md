@@ -98,9 +98,10 @@ depending on the current thread.
 Not enabled by default, but enabled by `feature="test_util"`.
 
 #### `"single_instance"`
-Allow single app-process instance mode.
+Enables single app-process instance mode.
 
-Note that `zng::app::single_instance()` must be called to enable single instance mode.
+Builds with this feature only allow one app-process, subsequent attempts to spawn the app redirect to
+the running app-process.
 
 #### `"crash_handler"`
 Allow app-process crash handler.
