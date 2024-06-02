@@ -4,6 +4,7 @@
 * Add `zng::env::on_process_exit` to register a handler for process exit.
 * Add `zng::env::exit` to collaboratively exit the process.
 * Add `zng::app::on_app_start` to register a handler to be called when the `APP` context starts.
+* Implement `From<Txt>` for `std::ffi::OsString`.
 * **Breaking** Remove `zng_view::init`, `zng_view_prebuilt::init`, `zng::view_process::default::init`, `zng::view_process::prebuilt::init`.
     - Only `zng::env::init!()` needs to be called to setup the view-process.
 * **Breaking** `zng_view_api::Controller::start` now requires the exe path and supports optional env variables to set.
@@ -12,6 +13,9 @@
 * **Breaking** Renamed `zng_view_prebuilt::ViewLib::init` to `view_process_main`.
 * **Breaking** Remove `is_single_instance`, `single_instance`, `single_instance_named`.
     - Single instance now enabled automatically just by setting `feature="single_instance"`.
+* **Braking** Add name requirement for `zng::task::ipc` workers.
+    - Workers are no longer limited to a single entry with an enum switch.
+    - Use `zng::env::on_process_start!` to declare the worker entry anywhere.
 
 # 0.6.2
 

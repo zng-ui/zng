@@ -22,53 +22,46 @@
 //! The example below demonstrates a worker-process setup that uses the same executable as the app-process.
 //!
 //! ```
-//! # use zng_task as task;
+//! # mod zng { pub mod env { pub use zng_env::*; } pub mod task { pub use zng_task::*; } }
 //! #
 //! fn main() {
-//!     // this must be called before the app start, when the process
-//!     // is a worker this function never returns.
-//!     task::ipc::run_worker(worker);
-//!
+//!     zng::env::init!();
 //!     // normal app init..
-//!     # task::doc_test(false, on_click());
+//!     # zng::task::doc_test(false, on_click());
 //! }
 //!
-//! // All tasks for the same worker-process instance must be defined on the same type.
-//! #[derive(Debug, serde::Serialize, serde::Deserialize)]
-//! enum IpcRequest {
-//!     Task1,
-//!     Task2,
-//! }
-//! #[derive(Debug, serde::Serialize, serde::Deserialize)]
-//! enum IpcResponse {
-//!     Result1,
-//!     Result2,
-//! }
+//! mod task1 {
+//! # use crate::zng;
+//!     use zng::{task::ipc, env};
 //!
-//! // This handler is called for every worker task, in the worker-process.
-//! async fn worker(args: task::ipc::RequestArgs<IpcRequest>) -> IpcResponse {
-//!    println!("received request `{:?}` in worker-process #{}", &args.request, std::process::id());
-//!     match args.request {
-//!         IpcRequest::Task1 => IpcResponse::Result1,
-//!         IpcRequest::Task2 => IpcResponse::Result2,
+//!     const NAME: &str = "zng::example::task1";
+//!
+//!     env::on_process_start!(|_| ipc::run_worker(NAME, work));
+//!     async fn work(args: ipc::RequestArgs<Request>) -> Response {
+//!         let rsp = format!("received 'task1' request `{:?}` in worker-process #{}", &args.request.data, std::process::id());
+//!         Response { data: rsp }
+//!     }
+//!     
+//!     #[derive(Debug, serde::Serialize, serde::Deserialize)]
+//!     pub struct Request { pub data: String }
+//!
+//!     #[derive(Debug, serde::Serialize, serde::Deserialize)]
+//!     pub struct Response { pub data: String }
+//!
+//!     // called in app-process
+//!     pub async fn start() -> ipc::Worker<Request, Response> {
+//!         ipc::Worker::start(NAME).await.expect("cannot spawn 'task1'")
 //!     }
 //! }
 //!
 //! // This runs in the app-process, it starts a worker process and requests a task run.
 //! async fn on_click() {
 //!     println!("app-process #{} starting a worker", std::process::id());
-//!     let mut worker = match task::ipc::Worker::start().await {
-//!         Ok(w) => w,
-//!         Err(e) => {
-//!             eprintln!("error: {e}");
-//!             return;
-//!         },
-//!     };
+//!     let mut worker = task1::start().await;
 //!     // request a task run and await it.
-//!     match worker.run(IpcRequest::Task1).await {
-//!         Ok(IpcResponse::Result1) => println!("ok."),
+//!     match worker.run(task1::Request { data: "request".to_owned() }).await {
+//!         Ok(task1::Response { data }) => println!("ok. {data}"),
 //!         Err(e) => eprintln!("error: {e}"),
-//!         _ => unreachable!(),
 //!     }
 //!     // multiple tasks can be requested in parallel, use `task::all!` to await ..
 //!
@@ -78,52 +71,8 @@
 //!
 //! ```
 //!
-//! Note that you can setup different worker types on the same executable using [`Worker::start_with`] with a custom
-//! environment variable that switches the [`run_worker`] call.
-//!
-//! ```
-//! # use zng_task as task;
-//! #
-//! fn run_workers() {
-//!     match std::env::var("MY_APP_WORKER") {
-//!         Ok(name) => match name.as_str() {
-//!             "worker_a" => task::ipc::run_worker(worker_a),
-//!             "worker_b" => task::ipc::run_worker(worker_b),
-//!             unknown => panic!("unknown worker, {unknown:?}"),
-//!         },
-//!         Err(e) => match e {
-//!             std::env::VarError::NotPresent => {} // not a worker run
-//!             e => panic!("invalid worker name, {e}"),
-//!         },
-//!     }
-//! }
-//!
-//! async fn worker_a(args: task::ipc::RequestArgs<bool>) -> char {
-//!     if args.request {
-//!         'A'
-//!     } else {
-//!         'a'
-//!     }
-//! }
-//!
-//! async fn worker_b(args: task::ipc::RequestArgs<char>) -> bool {
-//!     args.request == 'B' || args.request == 'b'
-//! }
-//!
-//! fn main() {
-//!     self::run_workers();
-//!
-//!     // normal app init..
-//!     # task::doc_test(false, on_click());
-//! }
-//!
-//! // And in the app side:
-//! async fn on_click() {
-//!     let mut worker_a = task::ipc::Worker::start_with(&[("MY_APP_WORKER", "worker_a")], &[]).await.unwrap();
-//!     let r = worker_a.run(true).await.ok();
-//!     assert_eq!(r, Some('A'));
-//! }
-//! ```
+//! Note that you can setup multiple workers the same executable, as long as the `on_process_start!` call happens
+//! on different modules.
 
 use core::fmt;
 use std::{future::Future, marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
@@ -156,6 +105,7 @@ impl<T: fmt::Debug + serde::Serialize + for<'d> serde::de::Deserialize<'d> + Sen
 
 const WORKER_VERSION: &str = "ZNG_TASK_IPC_WORKER_VERSION";
 const WORKER_SERVER: &str = "ZNG_TASK_IPC_WORKER_SERVER";
+const WORKER_NAME: &str = "ZNG_TASK_IPC_WORKER_NAME";
 
 /// The *App Process* and *Worker Process* must be build using the same exact version and this is
 /// validated during run-time, causing a panic if the versions don't match.
@@ -176,43 +126,51 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
     /// Start a worker process implemented in the current executable.
     ///
     /// Note that the current process must call [`run_worker`] at startup to actually work.
-    pub async fn start() -> std::io::Result<Self> {
-        Self::start_impl(duct::cmd!(dunce::canonicalize(std::env::current_exe()?)?)).await
+    /// You can use [`zng_env::on_process_start!`] to inject startup code.
+    pub async fn start(worker_name: impl Into<Txt>) -> std::io::Result<Self> {
+        Self::start_impl(worker_name.into(), duct::cmd!(dunce::canonicalize(std::env::current_exe()?)?)).await
     }
 
     /// Start a worker process implemented in the current executable with custom env vars and args.
-    pub async fn start_with(env_vars: &[(&str, &str)], args: &[&str]) -> std::io::Result<Self> {
+    pub async fn start_with(worker_name: impl Into<Txt>, env_vars: &[(&str, &str)], args: &[&str]) -> std::io::Result<Self> {
         let mut worker = duct::cmd(dunce::canonicalize(std::env::current_exe()?)?, args);
         for (name, value) in env_vars {
             worker = worker.env(name, value);
         }
-        Self::start_impl(worker).await
+        Self::start_impl(worker_name.into(), worker).await
     }
 
     /// Start a worker process implemented in another executable with custom env vars and args.
-    pub async fn start_other(worker_exe: impl Into<PathBuf>, env_vars: &[(&str, &str)], args: &[&str]) -> std::io::Result<Self> {
+    pub async fn start_other(
+        worker_name: impl Into<Txt>,
+        worker_exe: impl Into<PathBuf>,
+        env_vars: &[(&str, &str)],
+        args: &[&str],
+    ) -> std::io::Result<Self> {
         let mut worker = duct::cmd(worker_exe.into(), args);
         for (name, value) in env_vars {
             worker = worker.env(name, value);
         }
-        Self::start_impl(worker).await
+        Self::start_impl(worker_name.into(), worker).await
     }
 
     /// Start a worker process from a custom configured [`duct`] process.
     ///
     /// Note that the worker executable must call [`run_worker`] at startup to actually work.
+    /// You can use [`zng_env::on_process_start!`] to inject startup code.
     ///
     /// [`duct`]: https://docs.rs/duct/
-    pub async fn start_duct(worker: duct::Expression) -> std::io::Result<Self> {
-        Self::start_impl(worker).await
+    pub async fn start_duct(worker_name: impl Into<Txt>, worker: duct::Expression) -> std::io::Result<Self> {
+        Self::start_impl(worker_name.into(), worker).await
     }
 
-    async fn start_impl(worker: duct::Expression) -> std::io::Result<Self> {
+    async fn start_impl(worker_name: Txt, worker: duct::Expression) -> std::io::Result<Self> {
         let (server, name) = ipc_channel::ipc::IpcOneShotServer::<WorkerInit<I, O>>::new()?;
 
         let worker = worker
             .env(WORKER_VERSION, crate::ipc::VERSION)
             .env(WORKER_SERVER, name)
+            .env(WORKER_NAME, worker_name)
             .env("RUST_BACKTRACE", "full")
             .stdin_null()
             .stdout_capture()
@@ -386,57 +344,66 @@ impl<I: IpcValue, O: IpcValue> Drop for Worker<I, O> {
     }
 }
 
-// !!: TODO
-// fn worker_main() {
-//     zng_env::process_main!(std::concat!("zng-task::ipc/", ""));
-// }
-
 /// If the process was started by a [`Worker`] runs the worker loop and never returns. If
 /// not started as worker does nothing.
 ///
 /// The `handler` is called for each work request.
-pub fn run_worker<I, O, F>(handler: fn(RequestArgs<I>) -> F)
+pub fn run_worker<I, O, F>(worker_name: impl Into<Txt>, handler: impl Fn(RequestArgs<I>) -> F + Send + Sync + 'static)
 where
     I: IpcValue,
     O: IpcValue,
     F: Future<Output = O> + Send + Sync + 'static,
 {
-    if let (Ok(version), Ok(server_name)) = (std::env::var(WORKER_VERSION), std::env::var(WORKER_SERVER)) {
-        if version != VERSION {
-            eprintln!(
-                "worker API version is not equal, app-process: {}, worker-process: {}",
-                version, VERSION
-            );
-            zng_env::exit(i32::from_le_bytes(*b"vapi"));
-        }
-
-        let app_init_sender = IpcSender::<WorkerInit<I, O>>::connect(server_name).expect("failed to connect to init channel");
+    let name = worker_name.into();
+    if let Some(server_name) = run_worker_server(&name) {
+        let app_init_sender = IpcSender::<WorkerInit<I, O>>::connect(server_name)
+            .unwrap_or_else(|e| panic!("failed to connect to '{name}' init channel, {e}"));
 
         let (req_sender, req_recv) = ipc_channel::ipc::channel().unwrap();
         let (chan_sender, chan_recv) = ipc_channel::ipc::channel().unwrap();
 
         app_init_sender.send((req_sender, chan_sender)).unwrap();
         let rsp_sender = chan_recv.recv().unwrap();
+        let handler = Arc::new(handler);
 
         loop {
             match req_recv.recv() {
                 Ok((id, input)) => match input {
-                    Request::Run(r) => crate::spawn(async_clmv!(rsp_sender, {
+                    Request::Run(r) => crate::spawn(async_clmv!(handler, rsp_sender, {
                         let output = handler(RequestArgs { request: r }).await;
                         let _ = rsp_sender.send((id, Response::Out(output)));
                     })),
                 },
                 Err(e) => match e {
                     ipc_channel::ipc::IpcError::Bincode(e) => {
-                        eprintln!("worker request error, {e}")
+                        eprintln!("worker '{name}' request error, {e}")
                     }
-                    ipc_channel::ipc::IpcError::Io(e) => panic!("worker request io error, {e}"),
+                    ipc_channel::ipc::IpcError::Io(e) => panic!("worker '{name}' request io error, {e}"),
                     ipc_channel::ipc::IpcError::Disconnected => break,
                 },
             }
         }
 
         zng_env::exit(0);
+    }
+}
+fn run_worker_server(worker_name: &str) -> Option<String> {
+    if let (Ok(w_name), Ok(version), Ok(server_name)) = (
+        std::env::var(WORKER_NAME),
+        std::env::var(WORKER_VERSION),
+        std::env::var(WORKER_SERVER),
+    ) {
+        if w_name != worker_name {
+            return None;
+        }
+        if version != VERSION {
+            eprintln!("worker '{worker_name}' API version is not equal, app-process: {version}, worker-process: {VERSION}");
+            zng_env::exit(i32::from_le_bytes(*b"vapi"));
+        }
+
+        Some(server_name)
+    } else {
+        None
     }
 }
 
