@@ -27,9 +27,9 @@ lazy_static! {
 }
 
 /// Inits process metadata, calls process start handlers and defines the process lifetime in `main`.
-/// 
+///
 /// This **must** be called in main.
-/// 
+///
 /// Init [`about`] an [`About`] for the process metadata. See [`on_process_start!`] for process start handlers.
 /// See [`on_exit`] for exit handlers called at the end of the `main` function.
 ///
@@ -38,7 +38,7 @@ lazy_static! {
 /// A single Zng executable can be built with multiple components that spawn different instances
 /// of the executable that must run as different processes. If the current instance is requested
 /// by component `init!` runs it and exits the process, never returning flow to the normal main function.
-/// 
+///
 /// ```
 /// # mod zng { pub use zng_env as env; }
 /// fn main() {
@@ -50,7 +50,7 @@ lazy_static! {
 ///     let _res = zng::env::res("");
 ///     
 ///     // APP.defaults().run(...);
-/// 
+///
 ///     // on_exit handlers are called here
 /// }
 /// ```

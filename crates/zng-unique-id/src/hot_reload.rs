@@ -53,7 +53,6 @@ macro_rules! hot_static_patchable {
     (
         $vis:vis static $IDENT:ident: $Ty:ty = $init:expr;
     ) => {
-       
         $crate::paste! {
             struct [<_K $IDENT:camel>];
             impl $crate::hot_reload::PatchKey for [<_K $IDENT:camel>] {
