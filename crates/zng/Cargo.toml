@@ -74,9 +74,10 @@ test_util = [
 # Not enabled by default, but enabled by `feature="test_util"`.
 multi_app = ["zng-app/multi_app"]
 
-# Allow single app-process instance mode.
+# Enables single app-process instance mode.
 #
-# Note that `zng::app::single_instance()` must be called to enable single instance mode.
+# Builds with this feature only allow one app-process, subsequent attempts to spawn the app redirect to
+# the running app-process.
 single_instance = ["dep:zng-ext-single-instance"]
 
 # Allow app-process crash handler.
