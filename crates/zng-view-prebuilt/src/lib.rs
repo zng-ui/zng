@@ -157,7 +157,14 @@ impl ViewLib {
         unsafe {
             let lib = Library::new(lib)?;
             Ok(ViewLib {
-                view_process_main_fn: *lib.get(b"extern_view_process_main")?,
+                view_process_main_fn: *match lib.get(b"extern_view_process_main") {
+                    Ok(f) => f,
+                    // try old name (<=0.6.2)
+                    Err(e) => match lib.get(b"extern_init") {
+                        Ok(f) => f,
+                        Err(_) => return Err(e.into()),
+                    },
+                },
                 run_same_process_fn: *lib.get(b"extern_run_same_process")?,
                 _lib: lib,
             })

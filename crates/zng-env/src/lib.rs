@@ -40,7 +40,7 @@ lazy_static! {
 /// by component `init!` runs it and exits the process, never returning flow to the normal main function.
 ///
 /// ```
-/// # mod zng { pub use zng_env as env; }
+/// # mod zng { pub mod env { pub use zng_env::*; } }
 /// fn main() {
 ///     println!("print in all processes");
 ///     zng::env::init!();
