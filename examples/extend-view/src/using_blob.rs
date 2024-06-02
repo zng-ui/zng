@@ -28,7 +28,7 @@ pub mod view_side {
     use zng::prelude::task::parking_lot::Mutex;
     use zng_view::extensions::PxToWr as _;
     use zng_view::{
-        extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
+        extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension},
         webrender::{
             api::{
                 units::{BlobDirtyRect, DeviceIntRect, DeviceIntSize, LayoutRect},
@@ -40,9 +40,9 @@ pub mod view_side {
     };
     use zng_view_api::api_extension::ApiExtensionId;
 
-    pub fn extend(exts: &mut ViewExtensions) {
+    zng_view::view_process_extension!(|exts| {
         exts.renderer(super::api::extension_name(), CustomExtension::new);
-    }
+    });
 
     struct CustomExtension {
         // id of this extension, for tracing.

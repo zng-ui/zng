@@ -7,7 +7,6 @@ use zng::{
     prelude::*,
 };
 use zng_app::view_process::VIEW_PROCESS;
-use zng_view::extensions::ViewExtensions;
 
 fn main() {
     // log other processes too.
@@ -22,9 +21,6 @@ fn main() {
     // this is the normal app-process:
     app_main();
 }
-
-// init view with extensions used to cause a crash in the view-process.
-zng_view::view_process_extension!(test_extensions);
 
 fn app_main() {
     APP.defaults().run_window(async {
@@ -253,8 +249,7 @@ fn icon() -> impl UiNode {
     }
 }
 
-fn test_extensions() -> ViewExtensions {
-    let mut ext = ViewExtensions::new();
+// init view with extensions used to cause a crash in the view-process.
+zng_view::view_process_extension!(|ext| {
     ext.command::<(), ()>("zng.examples.respawn.crash", |_, _| panic!("Test view-process crash!"));
-    ext
-}
+});
