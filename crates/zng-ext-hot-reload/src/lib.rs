@@ -100,7 +100,7 @@ pub mod zng_hot_entry {
         std::panic::set_hook(Box::new(|args| {
             eprintln!("PANIC IN HOT LOADED LIBRARY, ABORTING");
             crate::util::crash_handler(args);
-            std::process::exit(101);
+            zng_env::exit(101);
         }));
 
         // SAFETY: hot reload rebuilds in the same environment, so this is safe if the keys are strong enough.

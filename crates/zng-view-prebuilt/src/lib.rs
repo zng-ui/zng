@@ -218,7 +218,7 @@ impl ViewLib {
             (self.run_same_process_fn)(run)
         }
         // exit the process to ensure all threads are stopped
-        std::process::exit(0)
+        zng_env::exit(0)
     }
 }
 

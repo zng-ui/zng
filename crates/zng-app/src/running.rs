@@ -1268,7 +1268,7 @@ pub(crate) fn check_deadlock() {
             // we write directly to stderr and exit the process.
             use std::io::Write;
             let _ = write!(&mut std::io::stderr(), "{msg}");
-            std::process::exit(-1);
+            zng_env::exit(-1);
         }
     });
 }

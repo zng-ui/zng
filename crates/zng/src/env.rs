@@ -28,7 +28,8 @@
 //! See [`zng_env`] for the full API.
 
 pub use zng_env::{
-    about, bin, cache, clear_cache, config, init, init_cache, init_config, init_res, migrate_cache, migrate_config, res, About,
+    about, bin, cache, clear_cache, config, exit, init, init_cache, init_config, init_res, migrate_cache, migrate_config, on_process_exit,
+    on_process_start, res, About, ProcessExitArgs, ProcessStartArgs,
 };
 
 #[cfg(any(debug_assertions, feature = "built_res"))]

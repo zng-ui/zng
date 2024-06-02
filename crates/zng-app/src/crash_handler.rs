@@ -133,20 +133,20 @@ impl CrashArgs {
     pub fn restart(&self) -> ! {
         let json_args = serde_json::to_string(&self.latest().args[..]).unwrap();
         println!("{RESPONSE_PREFIX}restart {json_args}");
-        std::process::exit(0)
+        zng_env::exit(0)
     }
 
     /// Restart the app-process with custom arguments.
     pub fn restart_with(&self, args: &[Txt]) -> ! {
         let json_args = serde_json::to_string(&args).unwrap();
         println!("{RESPONSE_PREFIX}restart {json_args}");
-        std::process::exit(0)
+        zng_env::exit(0)
     }
 
     /// Exit the monitor-process (application) with code.
     pub fn exit(&self, code: i32) -> ! {
         println!("{RESPONSE_PREFIX}exit {code}");
-        std::process::exit(0)
+        zng_env::exit(0)
     }
 }
 impl fmt::Display for CrashArgs {
@@ -714,7 +714,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                         "crash monitor-process exiting with success code ({code}), {} crashes",
                         dialog_args.app_crashes.len()
                     );
-                    std::process::exit(code);
+                    zng_env::exit(code);
                 } else {
                     let code = status.code();
                     #[allow(unused_mut)]
@@ -726,7 +726,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                             "app-process exit code (1), probably killed by the system, \
                                         will exit monitor-process with the same code"
                         );
-                        std::process::exit(1);
+                        zng_env::exit(1);
                     }
                     #[cfg(unix)]
                     if code.is_none() {
@@ -739,7 +739,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                     "app-process exited by signal ({sig}), \
                                                 will exit monitor-process with code 1"
                                 );
-                                std::process::exit(1);
+                                zng_env::exit(1);
                             }
                         }
                     }
@@ -830,7 +830,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                             "dialog-process exit code (1), probably killed by the system, \
                                                         will exit monitor-process with the same code"
                                         );
-                                        std::process::exit(1);
+                                        zng_env::exit(1);
                                     }
                                     #[cfg(unix)]
                                     if code.is_none() {
@@ -843,7 +843,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                                     "dialog-process exited by signal ({sig}), \
                                                                 will exit monitor-process with code 1"
                                                 );
-                                                std::process::exit(1);
+                                                zng_env::exit(1);
                                             }
                                         }
                                     }
@@ -864,7 +864,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                     } else {
                                         let latest = dialog_args.latest();
                                         eprintln!("{latest}");
-                                        std::process::exit(latest.code.unwrap_or(1));
+                                        zng_env::exit(latest.code.unwrap_or(1));
                                     }
                                 }
                             }
@@ -876,7 +876,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                             break;
                         } else if let Some(code) = response.strip_prefix("exit ") {
                             let code: i32 = code.parse().expect("crash dialog-process did not respond 'code' correctly");
-                            std::process::exit(code);
+                            zng_env::exit(code);
                         } else {
                             panic!("crash dialog-process did not respond correctly")
                         }

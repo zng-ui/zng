@@ -212,13 +212,13 @@ fn single_instance_impl(name: Txt) {
                 std::thread::sleep(std::time::Duration::from_millis(300));
             }
             match try_write() {
-                Ok(_) => std::process::exit(0),
+                Ok(_) => zng_env::exit(0),
                 Err(e) => {
                     eprintln!("error writing args (retries: {i}), {e}");
                 }
             }
         }
-        std::process::exit(1);
+        zng_env::exit(1);
     }
 }
 

@@ -225,7 +225,7 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
                     // This workaround ensures that don't become a zombie process.
                     thread::sleep(std::time::Duration::from_secs(5));
                     eprintln!("run_same_process did not exit after 5s of a fatal panic, exiting now");
-                    std::process::exit(101);
+                    zng_env::exit(101);
                 });
                 // Propagate panic in case the normal disconnect/shutdown handler works.
                 std::panic::resume_unwind(e);
@@ -274,7 +274,7 @@ fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
         crate::util::set_suppressed_panic(panic);
     } else {
         eprintln!("{panic}\n{details}");
-        std::process::exit(101) // Rust panic exit code.
+        zng_env::exit(101) // Rust panic exit code.
     }
 }
 

@@ -63,7 +63,9 @@ macro_rules! on_process_start {
         #[doc(hidden)]
         static _ON_PROCESS_START: fn(&$crate::ProcessStartArgs) = _on_process_start;
         fn _on_process_start(args: &$crate::ProcessStartArgs) {
-            fn on_process_start(args: &$crate::ProcessStartArgs, handler: impl FnOnce(&$crate::ProcessStartArgs)) { handler(args) }
+            fn on_process_start(args: &$crate::ProcessStartArgs, handler: impl FnOnce(&$crate::ProcessStartArgs)) {
+                handler(args)
+            }
             on_process_start(args, $closure)
         }
     };

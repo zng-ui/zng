@@ -137,7 +137,7 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
             }, 5;
         }
     });
-    std::process::exit(0)
+    zng::env::exit(0)
 }
 
 fn view_respawn() -> impl UiNode {
@@ -186,7 +186,7 @@ fn app_crash(crash_name: &'static str) -> impl UiNode {
                 }
                 "custom exit" => {
                     eprintln!("custom error");
-                    std::process::exit(0xBAD);
+                    zng::env::exit(0xBAD);
                 }
                 n => panic!("Unknown crash '{n}'"),
             }

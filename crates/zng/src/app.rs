@@ -528,7 +528,7 @@ pub use zng_ext_single_instance::{is_single_instance, single_instance, single_in
 ///             }, 10;
 ///         }
 ///     });
-///     std::process::exit(0)
+///     zng::env::exit(0)
 /// }
 /// ```
 ///
