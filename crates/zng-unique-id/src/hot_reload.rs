@@ -53,13 +53,14 @@ macro_rules! hot_static_patchable {
     (
         $vis:vis static $IDENT:ident: $Ty:ty = $init:expr;
     ) => {
-        struct _K;
-        impl $crate::hot_reload::PatchKey for _K {
-            fn id(&'static self) -> &'static str {
-                std::any::type_name::<_K>()
-            }
-        }
         $crate::paste! {
+            struct [<_K $IDENT:camel>];
+            impl $crate::hot_reload::PatchKey for [<_K $IDENT:camel>] {
+                fn id(&'static self) -> &'static str {
+                    std::any::type_name::<[<_K $IDENT:camel>]>()
+                }
+            }
+
             static [<$IDENT _COLD>] : $Ty = $init;
             #[allow(non_camel_case_types)]
             static mut $IDENT: &$Ty = &[<$IDENT _COLD>];
@@ -70,7 +71,7 @@ macro_rules! hot_static_patchable {
 
             $crate::hot_reload::HOT_STATICS! {
                 static [<$IDENT _REGISTER>]: (&'static dyn $crate::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()) = (
-                    &_K,
+                    &[<_K $IDENT:camel>],
                     [<$IDENT _INIT>]
                 );
             }

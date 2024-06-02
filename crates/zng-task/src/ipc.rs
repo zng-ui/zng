@@ -407,7 +407,7 @@ where
                 "worker API version is not equal, app-process: {}, worker-process: {}",
                 version, VERSION
             );
-            std::process::exit(i32::from_le_bytes(*b"vapi"));
+            zng_env::exit(i32::from_le_bytes(*b"vapi"));
         }
 
         let app_init_sender = IpcSender::<WorkerInit<I, O>>::connect(server_name).expect("failed to connect to init channel");
@@ -436,7 +436,7 @@ where
             }
         }
 
-        std::process::exit(0);
+        zng_env::exit(0);
     }
 }
 

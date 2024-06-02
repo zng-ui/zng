@@ -318,7 +318,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
         zng_task::spawn(async {
             zng_task::deadline(65.secs()).await;
             eprintln!("doc_test_window reached 65s fallback deadline");
-            std::process::exit(-1);
+            zng_env::exit(-1);
         });
         let window_id = self.open_window(new_window);
 

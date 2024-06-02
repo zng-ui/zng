@@ -189,12 +189,12 @@ impl LocalContext {
             if let Err(p) = r {
                 tracing::error!("panic on app drop. {}", panic_str(&p));
                 eprintln!("panic on app drop. {}", panic_str(&p));
-                std::process::exit(i32::from_le_bytes(*b"appa"));
+                zng_env::exit(i32::from_le_bytes(*b"appa"));
             }
         } else {
             tracing::error!("can only drop app in one of its threads");
             eprintln!("can only drop app in one of its threads");
-            std::process::exit(i32::from_le_bytes(*b"appa"));
+            zng_env::exit(i32::from_le_bytes(*b"appa"));
         }
     }
 

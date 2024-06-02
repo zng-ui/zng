@@ -270,7 +270,7 @@ impl Controller {
                                 "view-process API version mismatch, the view-process build must use the same exact version as the app-process, \
                                         will exit app-process with code 0x{code:x}"
                             );
-                            std::process::exit(code);
+                            zng_env::exit(code);
                         }
                     }
                 }
@@ -413,7 +413,7 @@ impl Controller {
                 if code == Some(1) {
                     tracing::warn!(target: "vp_respawn", "view-process exit code (1), probably killed by the system, \
                                         will exit app-process with the same code");
-                    std::process::exit(1);
+                    zng_env::exit(1);
                 }
 
                 #[cfg(unix)]
@@ -425,7 +425,7 @@ impl Controller {
                         if [2, 9, 17, 19, 23].contains(&sig) {
                             tracing::warn!(target: "vp_respawn", "view-process exited by signal ({sig}), \
                                             will exit app-process with code 1");
-                            std::process::exit(1);
+                            zng_env::exit(1);
                         }
                     }
                 }
@@ -454,7 +454,7 @@ impl Controller {
                 let code = code.unwrap_or(1);
                 tracing::error!(target: "vp_respawn", "view-process API version mismatch, the view-process build must use the same exact version as the app-process, \
                                         will exit app-process with code 0x{code:x}");
-                std::process::exit(code);
+                zng_env::exit(code);
             }
 
             match String::from_utf8(c.stdout) {

@@ -85,6 +85,9 @@ impl<E: AppExtension> RunningApp<E> {
             sv.set_extensions(info, device_events);
         }
 
+        if with_renderer && view_process_exe.is_none() {
+            zng_env::assert_inited();
+        }
         let view_process_exe = view_process_exe.unwrap_or_else(|| std::env::current_exe().expect("current_exe"));
 
         let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, view_process_env, device_events);
@@ -1268,7 +1271,7 @@ pub(crate) fn check_deadlock() {
             // we write directly to stderr and exit the process.
             use std::io::Write;
             let _ = write!(&mut std::io::stderr(), "{msg}");
-            std::process::exit(-1);
+            zng_env::exit(-1);
         }
     });
 }

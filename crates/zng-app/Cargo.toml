@@ -72,6 +72,7 @@ deadlock_detection = ["zng-task/deadlock_detection"]
 zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.3.2" }
 
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.2" }
+zng-env = { path = "../zng-env", version = "0.1.1" }
 zng-handle = { path = "../zng-handle", version = "0.2.4" }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.6" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.4" }

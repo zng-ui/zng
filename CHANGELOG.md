@@ -1,12 +1,14 @@
 # Unpublished
 
-* Add `zng_env::process_main!` to inject a "process takeover" callback in `zng::env::init!`,
+* Add `zng::env::on_process_start!` to inject a callback in `zng::env::init!`.
+* Add `zng::env::on_process_exit` to register a handler for process exit.
+* Add `zng::env::exit` to collaboratively exit the process.
 * **Breaking** Remove `zng_view::init`, `zng_view_prebuilt::init`, `zng::view_process::default::init`, `zng::view_process::prebuilt::init`.
     - Only `zng::env::init!()` needs to be called to setup the view-process.
 * **Breaking** `zng_view_api::Controller::start` now requires the exe path and supports optional env variables to set.
     - This only affects custom view-process implementers.
 * **Breaking** New default `zng::env::res`, was `./assets` now is `./res`.
-
+* **Breaking** Renamed `zng_view_prebuilt::ViewLib::init` to `view_process_main`.
 
 # 0.6.2
 

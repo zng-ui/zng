@@ -124,7 +124,7 @@ impl ViewConfig {
                 panic!("{}", msg)
             } else {
                 eprintln!("{msg}");
-                std::process::exit(i32::from_le_bytes(*b"vapi"));
+                zng_env::exit(i32::from_le_bytes(*b"vapi"));
             }
         }
     }
