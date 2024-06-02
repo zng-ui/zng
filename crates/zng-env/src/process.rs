@@ -35,6 +35,11 @@ use parking_lot::Mutex;
 /// ```
 ///
 /// Note the use of [`exit`], it is important to call it to collaborate with [`on_process_exit`] handlers.
+///
+/// # App Context
+///
+/// This event happens on the executable process context, before any `APP` context starts, you can use
+/// `zng::app::on_app_start` here to register a handler to be called in the app context, if and when it starts.
 #[macro_export]
 macro_rules! on_process_start {
     ($closure:expr) => {
@@ -91,7 +96,7 @@ pub(crate) fn process_init() -> impl Drop {
 
 /// Arguments for [`on_process_start`] handlers.
 ///
-/// Empty in this release
+/// Empty in this release.
 pub struct ProcessStartArgs {
     _private: (),
 }
