@@ -31,7 +31,7 @@ lazy_static! {
 /// This **must** be called in main.
 ///
 /// Init [`about`] an [`About`] for the process metadata. See [`on_process_start!`] for process start handlers.
-/// See [`on_exit`] for exit handlers called at the end of the `main` function.
+/// See [`on_process_exit`] for exit handlers called at the end of the `main` function.
 ///
 /// # Process Start
 ///
