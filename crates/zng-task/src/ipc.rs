@@ -31,6 +31,7 @@
 //! }
 //!
 //! mod task1 {
+//! # use crate::zng;
 //!     use zng::{task::ipc, env};
 //!
 //!     const NAME: &str = "zng::example::task1";
