@@ -98,7 +98,7 @@ pub(crate) fn run(mut args: ResArgs) {
     args.tool_cache = canonicalize(&args.tool_cache);
 
     if args.source == args.target {
-       fatal!("cannot build res to same dir"); 
+        fatal!("cannot build res to same dir");
     }
 
     let about = about::find_about(args.metadata.as_deref());
