@@ -430,7 +430,7 @@ pub mod raw_device_events {
 }
 
 #[cfg(feature = "single_instance")]
-pub use zng_ext_single_instance::{is_single_instance, single_instance, single_instance_named, AppInstanceArgs, APP_INSTANCE_EVENT};
+pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 
 /// App-process crash handler.
 ///

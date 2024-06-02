@@ -9,6 +9,8 @@
     - This only affects custom view-process implementers.
 * **Breaking** New default `zng::env::res`, was `./assets` now is `./res`.
 * **Breaking** Renamed `zng_view_prebuilt::ViewLib::init` to `view_process_main`.
+* **Breaking** Remove `is_single_instance`, `single_instance`, `single_instance_named`.
+    - Single instance now enabled automatically just by setting `feature="single_instance"`.
 
 # 0.6.2
 

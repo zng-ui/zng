@@ -27,9 +27,6 @@ use zng_txt::{ToTxt, Txt};
 /// Events this extension provides.
 ///
 /// * [`APP_INSTANCE_EVENT`]
-///
-/// Note that the event will notify even if [`single_instance()`] is not called, but it must be
-/// called to make the app actually single instance.
 #[derive(Default)]
 pub struct SingleInstanceManager {}
 impl AppExtension for SingleInstanceManager {
@@ -136,44 +133,15 @@ event! {
     pub static APP_INSTANCE_EVENT: AppInstanceArgs;
 }
 
-/// Enable single instance mode for the app-process.
-///
-/// The current executable path is used as the unique name. See [`single_instance_named`] for more details about name.
-///
-/// # Examples
-///
-/// The example below demonstrates a single instance process setup. The [`single_instance()`] function is called before
-/// the app starts building. After the app starts building, before run, a subscription for [`APP_INSTANCE_EVENT`] is setup,
-/// this event will receive args for the current instance on run and for other instances latter.
-///
-pub fn single_instance() {
-    single_instance_named(
+zng_env::on_process_start!(|_| {
+    single_instance_impl(
         std::env::current_exe()
             .and_then(dunce::canonicalize)
             .expect("current exe is required")
             .display()
             .to_txt(),
     )
-}
-
-/// Enable single instance mode for the app-process, using a custom unique identifier for the app.
-///
-/// The name should have only ASCII alphanumerics and be at maximum 128 bytes in length only, otherwise it will be mangled.
-/// The name is used to create a global lock, see the [single-instance] crate for more details.
-///
-/// [single-instance]: https://docs.rs/single-instance/
-pub fn single_instance_named(unique_name: impl Into<Txt>) {
-    single_instance_impl(unique_name.into())
-}
-
-/// If single instance mode is enabled and the current process is the instance.
-///
-/// This is only valid after calling [`single_instance`] or [`single_instance_named`].
-///
-/// [`single_instance`]: fn@single_instance
-pub fn is_single_instance() -> bool {
-    SINGLE_INSTANCE.lock().is_some()
-}
+});
 
 fn single_instance_impl(name: Txt) {
     let mut lock = SINGLE_INSTANCE.lock();
