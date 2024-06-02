@@ -520,6 +520,11 @@ impl From<Txt> for Box<dyn std::error::Error + Send + Sync> {
         err.into_owned().into()
     }
 }
+impl From<Txt> for std::ffi::OsString {
+    fn from(value: Txt) -> Self {
+        String::from(value).into()
+    }
+}
 impl std::ops::Deref for Txt {
     type Target = str;
 
