@@ -97,6 +97,10 @@ pub(crate) fn run(mut args: ResArgs) {
     args.target = canonicalize(&args.target);
     args.tool_cache = canonicalize(&args.tool_cache);
 
+    if args.source == args.target {
+        fatal!("cannot build res to same dir");
+    }
+
     let about = about::find_about(args.metadata.as_deref());
 
     // tool request paths are relative to the workspace root
