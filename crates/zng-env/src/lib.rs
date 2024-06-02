@@ -26,15 +26,34 @@ lazy_static! {
     static ref ABOUT: About = About::fallback_name();
 }
 
-/// Init [`about`] from cargo manifest and handles witch process to execute.
+/// Inits process metadata, calls process start handlers and defines the process lifetime in `main`.
+/// 
+/// This **must** be called in main.
+/// 
+/// Init [`about`] an [`About`] for the process metadata. See [`on_process_start!`] for process start handlers.
+/// See [`on_exit`] for exit handlers called at the end of the `main` function.
 ///
-/// See [`About`] docs for what Cargo.toml values are read.
-///
-/// # Processes
+/// # Process Start
 ///
 /// A single Zng executable can be built with multiple components that spawn different instances
 /// of the executable that must run as different processes. If the current instance is requested
 /// by component `init!` runs it and exits the process, never returning flow to the normal main function.
+/// 
+/// ```
+/// # mod zng { pub use zng_env as env; }
+/// fn main() {
+///     println!("print in all processes");
+///     zng::env::init!();
+///     println!("print only in the app-process");
+///
+///     // directories are available after `init!`.
+///     let _res = zng::env::res("");
+///     
+///     // APP.defaults().run(...);
+/// 
+///     // on_exit handlers are called here
+/// }
+/// ```
 #[macro_export]
 macro_rules! init {
     () => {

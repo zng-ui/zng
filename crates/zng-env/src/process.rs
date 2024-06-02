@@ -76,6 +76,12 @@ macro_rules! on_process_start {
 pub static ZNG_ENV_ON_PROCESS_START: [fn(&ProcessStartArgs)];
 
 pub(crate) fn process_init() -> impl Drop {
+    let process_state = std::mem::replace(
+        &mut *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock(),
+        ProcessLifetimeState::Inited,
+    );
+    assert_eq!(process_state, ProcessLifetimeState::BeforeInit, "init!() already called");
+
     let args = ProcessStartArgs { _private: () };
     for h in ZNG_ENV_ON_PROCESS_START {
         h(&args);
@@ -112,6 +118,8 @@ pub fn exit(code: i32) -> ! {
 }
 
 fn run_exit_handlers(code: i32) {
+    *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock() = ProcessLifetimeState::Exiting;
+
     let on_exit = mem::take(&mut *zng_unique_id::hot_static_ref!(ON_PROCESS_EXIT).lock());
     let args = ProcessExitArgs { code };
     for h in on_exit {
@@ -133,4 +141,37 @@ pub struct ProcessExitArgs {
 /// [`init!`]: crate::init!
 pub fn on_process_exit(handler: impl FnOnce(&ProcessExitArgs) + Send + 'static) {
     zng_unique_id::hot_static_ref!(ON_PROCESS_EXIT).lock().push(Box::new(handler))
+}
+
+/// Defines the state of the current process instance.
+///
+/// Use [`process_lifetime_state()`] to get.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProcessLifetimeState {
+    /// Init not called yet.
+    BeforeInit,
+    /// Init called and the function where it is called has not returned yet.
+    Inited,
+    /// Init called and the function where it is called is returning.
+    Exiting,
+}
+
+zng_unique_id::hot_static! {
+    static PROCESS_LIFETIME_STATE: Mutex<ProcessLifetimeState> = Mutex::new(ProcessLifetimeState::BeforeInit);
+}
+
+/// Get the state of the current process instance.
+pub fn process_lifetime_state() -> ProcessLifetimeState {
+    *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock()
+}
+
+/// Panics with an standard message if `zng::env::init!()` was not called or was not called correctly.
+pub fn assert_inited() {
+    match process_lifetime_state() {
+        ProcessLifetimeState::BeforeInit => panic!("env not inited, please call `zng::env::init!()` in main"),
+        ProcessLifetimeState::Inited => {}
+        ProcessLifetimeState::Exiting => {
+            panic!("env not inited correctly, please call `zng::env::init!()` at the beginning of the actual main function")
+        }
+    }
 }

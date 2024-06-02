@@ -1177,6 +1177,7 @@ impl APP {
     /// Starts building an application with no extensions.
     #[cfg(feature = "dyn_app_extension")]
     pub fn minimal(&self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        zng_env::assert_inited();
         #[cfg(debug_assertions)]
         print_tracing(tracing::Level::INFO);
         assert_not_view_process();

@@ -1,12 +1,17 @@
-//! Process external directories and files.
+//! Process events, external directories and metadata.
 //!
-//! This module contains functions to get external files associated with the installed app package. Note that
-//! these values are associated with the executable, not just the `APP` context.
+//! This module contains functions and macros that operate on the executable level, not the app level. Zng apps
+//! can have multiple process instances, most common a view-process and app-process pair, plus the crash handler.
+//!
+//! The app-process is the normal execution, the other processes use [`on_process_start!`] to takeover the
+//! process if specific environment variables are set. The process start handlers are called on [`init!`],
+//! if a process takeover it exits without returning, so only the normal app-process code executes after `init!()`.
 //!
 //! ```
 //! fn main() {
-//!    // optional, but recommended package metadata init.
+//!    println!("print in all processes");
 //!    zng::env::init!();
+//!    println!("print only in the app-process");
 //!
 //!    // get a path in the app config dir, the config dir is created if needed.    
 //!    let my_config = zng::env::config("my-config.txt");
@@ -20,8 +25,8 @@
 //! }
 //! ```
 //!
-//! The example above uses [`init!`] to initialize the metadata used to find a good place for each directory, it then
-//! uses [`config`] to write and read a file.
+//! Note that init **must be called in main**, it must be called in main to define the lifetime of the processes,
+//! this is needed to properly call [`on_process_exit`] handlers.
 //!
 //! # Full API
 //!
