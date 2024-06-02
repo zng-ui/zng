@@ -24,13 +24,9 @@ use zng::{
 // cargo run -p cargo-zng -- zng l10n "examples/localize/src" "examples/localize/res"
 
 fn main() {
-    zng::env::init!();
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
+    zng::env::init!();
 
-fn app_main() {
     APP.defaults().run_window(async {
         // load `available_langs`
         L10N.load_dir(zng::env::res(""));

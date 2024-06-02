@@ -52,8 +52,6 @@ Note that this can cause very large trace files and bad performance.
 #### `"crash_handler"`
 Allow app-process crash handler.
 
-Note that `crash_handler::init(_)` must be called to enable.
-
 *Enabled by default.*
 
 #### `"ipc"`

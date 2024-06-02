@@ -6,11 +6,7 @@ use zng::{font::FontName, layout::align, prelude::*};
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
 
-fn app_main() {
     APP.defaults().run_window(async {
         let shortcut_text = var(Txt::from_str(""));
         let keypress_text = var(Txt::from_str(""));

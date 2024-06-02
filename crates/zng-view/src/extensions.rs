@@ -1112,6 +1112,7 @@ macro_rules! view_process_extension {
         #[cfg_attr(target_os = "freebsd", link_section = "linkme_VIEW_EXTENSIONS")]
         #[doc(hidden)]
         static _VIEW_EXTENSIONS: fn(&mut $crate::extensions::ViewExtensions) = _view_extensions;
+        #[doc(hidden)]
         fn _view_extensions(ext: &mut $crate::extensions::ViewExtensions) {
             fn view_extensions(
                 ext: &mut $crate::extensions::ViewExtensions,

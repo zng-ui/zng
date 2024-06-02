@@ -15,9 +15,11 @@
 * **Breaking** Renamed `zng_view_prebuilt::ViewLib::init` to `view_process_main`.
 * **Breaking** Remove `is_single_instance`, `single_instance`, `single_instance_named`.
     - Single instance now enabled automatically just by setting `feature="single_instance"`.
-* **Braking** Add name requirement for `zng::task::ipc` workers.
+* **Breaking** Add name requirement for `zng::task::ipc` workers.
     - Workers are no longer limited to a single entry with an enum switch.
     - Use `zng::env::on_process_start!` to declare the worker entry anywhere.
+* **Breaking** Remove `zng::app::crash_handler::init` and `CrashConfig::new`.
+    - Use `zng::app::crash_handler::crash_handler_config` to config.
 
 # 0.6.2
 

@@ -10,7 +10,6 @@ use zng::{color::filter::hue_rotate, layout::size, prelude::*};
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
     app_main();
 }
 

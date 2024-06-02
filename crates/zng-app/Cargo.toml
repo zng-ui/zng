@@ -56,8 +56,6 @@ trace_widget = []
 trace_wgt_item = []
 
 # Allow app-process crash handler.
-#
-# Note that `crash_handler::init(_)` must be called to enable.
 crash_handler = ["dep:serde_json", "dep:breakpad-handler", "dep:minidump", "dep:linkme"]
 
 # Enables IPC tasks and pre-build views and connecting to views running in another process.

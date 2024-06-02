@@ -106,7 +106,7 @@ the running app-process.
 #### `"crash_handler"`
 Allow app-process crash handler.
 
-Note that `zng::app::crash_handler::init(_)` must be called to enable.
+Builds with this feature spawn a crash monitor-process for each app-process.
 
 *Enabled by default.*
 
