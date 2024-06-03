@@ -21,6 +21,12 @@ mod tests;
 static FAILED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
+    std::thread::spawn(|| {
+        std::thread::sleep(10.minutes());
+        eprintln!("TIMEOUT, exceeded 10 minutes");
+        std::process::exit(101);
+    });
+
     zng::env::init!();
 
     let args = Args::parse();
@@ -52,14 +58,12 @@ fn main() {
 fn run(args: Args, view_process: ViewProcess) {
     match view_process {
         ViewProcess::DefaultInit => {
-            zng::env::init!();
             run_tests(args, view_process, APP.defaults().run_headless(true));
         }
         ViewProcess::DefaultSame => {
             view_process::default::run_same_process(move || run_tests(args, view_process, APP.defaults().run_headless(true)))
         }
         ViewProcess::PrebuiltInit => {
-            zng::env::init!();
             run_tests(args, view_process, APP.defaults().run_headless(true));
         }
         ViewProcess::PrebuiltSame => {
