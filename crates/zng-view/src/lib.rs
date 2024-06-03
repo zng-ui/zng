@@ -152,12 +152,19 @@ use zng_view_api::{
 use rustc_hash::FxHashMap;
 
 #[cfg(feature = "ipc")]
-zng_env::on_process_start!(|_| view_process_main());
+zng_env::on_process_start!(|_| {
+    if std::env::var("ZNG_VIEW_NO_INIT_START").is_err() {
+        view_process_main();
+    }
+});
 
 /// Runs the view-process server.
 ///
 /// Note that this only needs to be called if the view-process is not built on the same executable, if
 /// it is you only need to call [`zng_env::init!`] at the beginning of the executable main.
+///
+/// You can also disable start on init by setting the `ZNG_VIEW_NO_INIT_START` environment variable. In this
+/// case you must manually call this function.
 #[cfg(feature = "ipc")]
 pub fn view_process_main() {
     let config = match ViewConfig::from_env() {
