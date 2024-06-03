@@ -36,10 +36,7 @@ impl AppExtension for SingleInstanceManager {
 
         let name = match SINGLE_INSTANCE.lock().as_ref().map(|l| l.name.clone()) {
             Some(n) => n,
-            None => {
-                tracing::error!("single instance did not setup correctly on_process_start! app is not running in single instance mode");
-                return;
-            }
+            None => return, // app is running in a special process, like a crash dialog
         };
 
         let args_file = std::env::temp_dir().join(name);
