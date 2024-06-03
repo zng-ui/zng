@@ -8,13 +8,9 @@ use zng::{
 };
 
 fn main() {
-    zng::env::init!();
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
+    zng::env::init!();
 
-fn app_main() {
     APP.defaults().run_window(async {
         Window! {
             title = "Markdown Example";

@@ -20,11 +20,7 @@ use zng::{
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
 
-fn app_main() {
     APP.defaults().run_window(async {
         WINDOW.id().set_name("main").unwrap();
 

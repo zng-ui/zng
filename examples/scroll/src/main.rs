@@ -10,11 +10,7 @@ use rand::SeedableRng;
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
 
-fn app_main() {
     APP.defaults().run_window(async {
         let mouse_pan = var(false);
         let smooth_scrolling = var(true);

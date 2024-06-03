@@ -435,13 +435,17 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 
 /// App-process crash handler.
 ///
-/// The [`zng::app::crash_handler::init`] function takes over the first process turning it into the monitor-process,
-/// it spawns another process that is the monitored app-process. If the app-process crashes the monitor-process spawns a
-/// dialog-process that calls the dialog handler to show an error message, upload crash reports, etc.
+/// In builds with `"crash_handler"` feature the crash handler takes over the first "app-process" turning it into
+/// the monitor-process, it spawns another process that is the monitored app-process. If the app-process crashes
+/// the monitor-process spawns a dialog-process that calls the dialog handler to show an error message, upload crash reports, etc.
+///
+/// The dialog handler can be set using [`crash_handler_config!`].
+///
+/// [`crash_handler_config!`]: crate::app::crash_handler::crash_handler_config
 ///
 /// # Examples
 ///
-/// The example below demonstrates an app setup to handle crashes in the app-process.
+/// The example below demonstrates an app setup to show a custom crash dialog.
 ///
 /// ```no_run
 /// use zng::prelude::*;
@@ -449,21 +453,11 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 /// fn main() {
 ///     // tracing applied to all processes.
 ///     zng::app::print_tracing(tracing::Level::INFO);
+///
+///     // monitor-process spawns app-process and if needed dialog-process here.
 ///     zng::env::init!();
-///     
-///     // monitor-process or dialog-process init.
-///     //
-///     // Note that the dialog-process will use the same view-process init. Alternatively you
-///     // can call this before the view-process init and then init a custom view_process just
-///     // for the dialog or don't use Zng for the dialog.
-///     #[cfg(debug_assertions)]
-///     zng::app::crash_handler::init_debug();
-///     #[cfg(not(debug_assertions))]
-///     zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(dialog_main));
 ///
-///     // normal app-process
-///
-///     // zng::app::single_instance();
+///     // app-process:
 ///     app_main();
 /// }
 ///
@@ -497,40 +491,44 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 ///     });
 /// }
 ///
-/// #[cfg(not(debug_assertions))]
-/// fn dialog_main(args: zng::app::crash_handler::CrashArgs) -> ! {
-///     APP.defaults().run_window(async move {
-///         Window! {
-///             title = "App Crashed!";
-///             auto_size = true;
-///             min_size = (300, 100);
-///             start_position = window::StartPosition::CenterMonitor;
-///             on_load = hn_once!(|_| WINDOW.bring_to_top());
-///             padding = 10;
-///             child = Text!(args.latest().message());
-///             child_bottom = Stack! {
-///                 direction = StackDirection::start_to_end();
-///                 layout::align = Align::BOTTOM_END;
-///                 spacing = 5;
-///                 children = ui_vec![
-///                     Button! {
-///                         child = Text!("Restart App");
-///                         on_click = hn_once!(args, |_| {
-///                             args.restart();
-///                         });
-///                     },
-///                     Button! {
-///                         child = Text!("Exit App");
-///                         on_click = hn_once!(|_| {
-///                             args.exit(0);
-///                         });
-///                     },
-///                 ]
-///             }, 10;
-///         }
+/// zng::app::crash_handler::crash_handler_config!(|cfg| {
+///     // monitor-process and dialog-process
+///
+///     cfg.dialog(|args| {
+///         // dialog-process
+///         APP.defaults().run_window(async move {
+///             Window! {
+///                 title = "App Crashed!";
+///                 auto_size = true;
+///                 min_size = (300, 100);
+///                 start_position = window::StartPosition::CenterMonitor;
+///                 on_load = hn_once!(|_| WINDOW.bring_to_top());
+///                 padding = 10;
+///                 child = Text!(args.latest().message());
+///                 child_bottom = Stack! {
+///                     direction = StackDirection::start_to_end();
+///                     layout::align = Align::BOTTOM_END;
+///                     spacing = 5;
+///                     children = ui_vec![
+///                         Button! {
+///                             child = Text!("Restart App");
+///                             on_click = hn_once!(args, |_| {
+///                                 args.restart();
+///                             });
+///                         },
+///                         Button! {
+///                             child = Text!("Exit App");
+///                             on_click = hn_once!(|_| {
+///                                 args.exit(0);
+///                             });
+///                         },
+///                     ]
+///                 }, 10;
+///             }
+///         });
 ///     });
-///     zng::env::exit(0)
-/// }
+/// });
+///
 /// ```
 ///
 /// # Full API
@@ -538,28 +536,25 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 /// See [`zng_app::crash_handler`] and [`zng_wgt_inspector::crash_handler`] for the full API.
 #[cfg(feature = "crash_handler")]
 pub mod crash_handler {
-    use crate::prelude::*;
-    pub use zng_app::crash_handler::{init, BacktraceFrame, CrashArgs, CrashConfig, CrashError, CrashPanic};
+    pub use zng_app::crash_handler::{crash_handler_config, BacktraceFrame, CrashArgs, CrashConfig, CrashError, CrashPanic};
 
     pub use zng_wgt_inspector::crash_handler::debug_dialog;
 
-    /// Init a crash-handler with dialog that shows detailed debug info.
-    pub fn init_debug() {
-        init(CrashConfig::new(debug_app))
-    }
+    crash_handler_config!(|cfg| {
+        use crate::prelude::*;
+        cfg.default_dialog(|args| {
+            if let Some(c) = &args.dialog_crash {
+                eprintln!("DEBUG CRASH DIALOG ALSO CRASHED");
+                eprintln!("   {}", c.message());
+                eprintln!("ORIGINAL APP CRASH");
+                eprintln!("   {}", args.latest().message());
+                args.exit(0xBADC0DE)
+            }
 
-    fn debug_app(args: CrashArgs) -> ! {
-        if let Some(c) = &args.dialog_crash {
-            eprintln!("DEBUG CRASH DIALOG ALSO CRASHED");
-            eprintln!("   {}", c.message());
-            eprintln!("ORIGINAL APP CRASH");
-            eprintln!("   {}", args.latest().message());
-            args.exit(0xBADC0DE)
-        }
+            APP.defaults()
+                .run_window(async_clmv!(args, { zng_wgt_inspector::crash_handler::debug_dialog(args) }));
 
-        APP.defaults()
-            .run_window(async_clmv!(args, { zng_wgt_inspector::crash_handler::debug_dialog(args) }));
-
-        args.exit(0)
-    }
+            args.exit(0)
+        });
+    });
 }

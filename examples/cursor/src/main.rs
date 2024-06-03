@@ -12,11 +12,7 @@ mod widgets;
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
 
-fn app_main() {
     APP.defaults().run_window(async {
         let mut demos = ui_vec![];
         for icon in CURSORS {

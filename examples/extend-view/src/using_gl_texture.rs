@@ -24,7 +24,7 @@ pub mod app_side {
 pub mod view_side {
     use zng::layout::PxRect;
     use zng_view::{
-        extensions::{PxToWr as _, RenderItemArgs, RendererExtension, ViewExtensions},
+        extensions::{PxToWr as _, RenderItemArgs, RendererExtension},
         gleam::gl,
         webrender::api::{
             units::{DeviceIntSize, TexelRect},
@@ -34,9 +34,9 @@ pub mod view_side {
     };
     use zng_view_api::api_extension::ApiExtensionId;
 
-    pub fn extend(exts: &mut ViewExtensions) {
+    zng_view::view_process_extension!(|exts| {
         exts.renderer(super::api::extension_name(), CustomExtension::new);
-    }
+    });
 
     struct TextureInfo {
         // texture in OpenGL.

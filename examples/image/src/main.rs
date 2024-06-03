@@ -22,13 +22,9 @@ use zng::{
 use zng_wgt_webrender_debug as wr;
 
 fn main() {
-    zng::env::init!();
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
+    zng::env::init!();
 
-fn app_main() {
     APP.defaults().run_window(async {
         // by default all "ImageSource::Download" requests are blocked and "ImageSource::Read"
         // is limited to only the exe dir. The limits can be set globally in here and overridden 

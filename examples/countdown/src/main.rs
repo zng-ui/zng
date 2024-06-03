@@ -5,7 +5,6 @@ use zng::{image, prelude::*, widget::background_color};
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
 
     // record profiler, use chrome://tracing or <ui.perfetto.dev>.
     let (chrome_layer, _guard) = tracing_chrome::ChromeLayerBuilder::new().build();

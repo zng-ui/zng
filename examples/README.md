@@ -302,13 +302,8 @@ zng = { path = "../../crates/zng", features = ["view_prebuilt"] }
 use zng::prelude::*;
 
 fn main() {
-    examples_util::print_info();
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
 
-fn app_main() {
     APP.defaults().run_window(async {
         Window! {
             title = "Foo Example";

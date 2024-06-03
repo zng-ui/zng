@@ -7,7 +7,6 @@ use zng::{
     prelude::*,
 };
 use zng_app::view_process::VIEW_PROCESS;
-use zng_view::extensions::ViewExtensions;
 
 fn main() {
     // log other processes too.
@@ -15,18 +14,7 @@ fn main() {
     // init metadata, view-process, crash-dialog-process.
     zng::env::init!();
 
-    // init crash-handler before view to use different view for the crash dialog app.
-    zng::app::crash_handler::init_debug();
-    // zng::app::crash_handler::init(zng::app::crash_handler::CrashConfig::new(app_crash_dialog));
-
     // this is the normal app-process:
-    app_main();
-}
-
-// init view with extensions used to cause a crash in the view-process.
-zng_view::view_process_extension!(test_extensions);
-
-fn app_main() {
     APP.defaults().run_window(async {
         Window! {
             title = "Respawn Example";
@@ -87,8 +75,9 @@ fn app_main() {
 }
 
 // Crash dialog app, runs in the dialog-process.
+// zng::app::crash_handler::crash_handler_config!(|cfg| cfg.dialog(app_crash_handler));
 #[allow(unused)]
-fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
+fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) {
     APP.defaults().run_window(async move {
         Window! {
             title = "Respawn Example - App Crashed";
@@ -137,7 +126,6 @@ fn app_crash_dialog(args: zng::app::crash_handler::CrashArgs) -> ! {
             }, 5;
         }
     });
-    zng::env::exit(0)
 }
 
 fn view_respawn() -> impl UiNode {
@@ -253,8 +241,7 @@ fn icon() -> impl UiNode {
     }
 }
 
-fn test_extensions() -> ViewExtensions {
-    let mut ext = ViewExtensions::new();
+// init view with extensions used to cause a crash in the view-process.
+zng_view::view_process_extension!(|ext| {
     ext.command::<(), ()>("zng.examples.respawn.crash", |_, _| panic!("Test view-process crash!"));
-    ext
-}
+});

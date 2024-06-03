@@ -9,11 +9,7 @@ mod widgets;
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
 
-fn app_main() {
     APP.defaults().run_window(async {
         Window! {
             title = "Border Example";

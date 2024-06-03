@@ -36,12 +36,12 @@ pub mod app_side {
 /// View-process stuff, the actual extension.
 pub mod view_side {
     use zng::text::formatx;
-    use zng_view::extensions::{ViewExtensions, WindowExtension};
+    use zng_view::extensions::WindowExtension;
     use zng_view_api::api_extension::{ApiExtensionId, ApiExtensionPayload};
 
-    pub fn extend(exts: &mut ViewExtensions) {
+    zng_view::view_process_extension!(|exts| {
         exts.window(super::api::extension_name(), CustomExtension::new);
-    }
+    });
 
     struct CustomExtension {
         id: ApiExtensionId,

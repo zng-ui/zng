@@ -24,16 +24,16 @@ pub mod app_side {
 pub mod view_side {
     use zng::layout::{Px, PxPoint, PxRect, PxSize};
     use zng_view::{
-        extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
+        extensions::{RenderItemArgs, RenderUpdateArgs, RendererExtension},
         gleam::gl,
     };
     use zng_view_api::api_extension::ApiExtensionId;
 
     use super::api::BindingId;
 
-    pub fn extend(exts: &mut ViewExtensions) {
+    zng_view::view_process_extension!(|exts| {
         exts.renderer(super::api::extension_name(), CustomExtension::new);
-    }
+    });
 
     struct CustomExtension {
         // id of this extension, for tracing.

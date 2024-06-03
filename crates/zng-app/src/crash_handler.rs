@@ -15,26 +15,42 @@ use zng_layout::unit::TimeUnits as _;
 
 use zng_txt::{ToTxt as _, Txt};
 
-/// Starts the current app-process in a monitored instance.
-///
-/// This function takes over the first process turning it into the monitor-process, it spawns another process that
-/// is the monitored app-process. If the app-process crashes it spawns a dialog-process that calls the dialog handler
-/// to show an error message, upload crash reports, etc.
-pub fn init(config: CrashConfig) {
+zng_env::on_process_start!(|process_start_args| {
+    let mut config = CrashConfig::new();
+    for ext in CRASH_CONFIG {
+        ext(&mut config);
+    }
+
     if std::env::var(APP_PROCESS) != Err(std::env::VarError::NotPresent) {
         return crash_handler_app_process(config.dump_dir.as_deref());
     }
 
     match std::env::var(DIALOG_PROCESS) {
-        Ok(args_file) => crash_handler_dialog_process(config.dump_dir.as_deref(), config.dialog, args_file),
+        Ok(args_file) => crash_handler_dialog_process(
+            config.dump_dir.as_deref(),
+            config
+                .dialog
+                .or(config.default_dialog)
+                .expect("dialog-process spawned without dialog handler"),
+            args_file,
+        ),
         Err(e) => match e {
             std::env::VarError::NotPresent => {}
             e => panic!("invalid dialog env args, {e:?}"),
         },
     }
 
-    crash_handler_monitor_process(config.cfg_app, config.cfg_dialog);
-}
+    if process_start_args.next_handlers_count > 0 && process_start_args.yield_count < zng_env::ProcessStartArgs::MAX_YIELD_COUNT - 10 {
+        // extra sure that this is the app-process
+        return process_start_args.yield_once();
+    }
+
+    crash_handler_monitor_process(
+        config.app_process,
+        config.dialog_process,
+        config.default_dialog.is_some() || config.dialog.is_some(),
+    );
+});
 
 /// Gets the number of crash restarts in the app-process.
 ///
@@ -50,61 +66,119 @@ const APP_PROCESS: &str = "ZNG_CRASH_HANDLER_APP";
 const DIALOG_PROCESS: &str = "ZNG_CRASH_HANDLER_DIALOG";
 const RESPONSE_PREFIX: &str = "zng_crash_response: ";
 
+#[linkme::distributed_slice]
+static CRASH_CONFIG: [fn(&mut CrashConfig)];
+
+/// <span data-del-macro-root></span> Register a `FnOnce(&mut CrashConfig)` closure to be
+/// called on process init to configure the crash handler.
+///
+/// See [`CrashConfig`] for more details.
+#[macro_export]
+macro_rules! crash_handler_config {
+    ($closure:expr) => {
+        #[used]
+        #[cfg_attr(
+            any(
+                target_os = "none",
+                target_os = "linux",
+                target_os = "android",
+                target_os = "fuchsia",
+                target_os = "psp"
+            ),
+            link_section = "linkme_CRASH_CONFIG"
+        )]
+        #[cfg_attr(
+            any(target_os = "macos", target_os = "ios", target_os = "tvos"),
+            link_section = "__DATA,__linkmeK3uV0Fq0,regular,no_dead_strip"
+        )]
+        #[cfg_attr(target_os = "windows", link_section = ".linkme_CRASH_CONFIG$b")]
+        #[cfg_attr(target_os = "illumos", link_section = "set_linkme_CRASH_CONFIG")]
+        #[cfg_attr(target_os = "freebsd", link_section = "linkme_CRASH_CONFIG")]
+        #[doc(hidden)]
+        static _CRASH_CONFIG: fn(&mut $crate::crash_handler::CrashConfig) = _crash_config;
+        #[doc(hidden)]
+        fn _crash_config(cfg: &mut $crate::crash_handler::CrashConfig) {
+            fn crash_config(cfg: &mut $crate::crash_handler::CrashConfig, handler: impl FnOnce(&mut $crate::crash_handler::CrashConfig)) {
+                handler(cfg)
+            }
+            crash_config(cfg, $closure)
+        }
+    };
+}
+pub use crate::crash_handler_config;
+
 type ConfigProcess = Vec<Box<dyn for<'a, 'b> FnMut(&'a mut std::process::Command, &'b CrashArgs) -> &'a mut std::process::Command>>;
+type CrashDialogHandler = Box<dyn FnOnce(CrashArgs)>;
 
 /// Crash handler config.
+///
+/// Use [`crash_handler_config!`] to set config.
+///
+/// [`crash_handler_config!`]: crate::crash_handler_config!
 pub struct CrashConfig {
-    dialog: fn(CrashArgs) -> !,
-    cfg_app: ConfigProcess,
-    cfg_dialog: ConfigProcess,
+    default_dialog: Option<CrashDialogHandler>,
+    dialog: Option<CrashDialogHandler>,
+    app_process: ConfigProcess,
+    dialog_process: ConfigProcess,
     dump_dir: Option<PathBuf>,
 }
 impl CrashConfig {
-    /// New with function called in the dialog-process.
-    pub fn new(dialog: fn(CrashArgs) -> !) -> Self {
+    fn new() -> Self {
         Self {
-            dialog,
-            cfg_app: vec![],
-            cfg_dialog: vec![],
-            dump_dir: Some(std::env::temp_dir().join("zng_minidump")),
+            default_dialog: None,
+            dialog: None,
+            app_process: vec![],
+            dialog_process: vec![],
+            dump_dir: Some(zng_env::cache("zng_minidump")),
         }
     }
 
+    /// Set the crash dialog process handler.
+    ///
+    /// The dialog `handler` can run an app or show a native dialog, it must use the [`CrashArgs`] process
+    /// terminating methods to respond, if it returns [`CrashArgs::exit`] will run.
+    ///
+    /// Note that the handler does not need to actually show any dialog, it can just save crash info and
+    /// restart the app for example.
+    pub fn dialog(&mut self, handler: impl FnOnce(CrashArgs) + 'static) {
+        if self.dialog.is_none() {
+            self.dialog = Some(Box::new(handler));
+        }
+    }
+
+    /// Set the crash dialog-handler used if `crash_dialog` is not set.
+    ///
+    /// This is used by app libraries or themes to provide a default dialog.
+    pub fn default_dialog(&mut self, handler: impl FnOnce(CrashArgs) + 'static) {
+        self.default_dialog = Some(Box::new(handler));
+    }
+
     /// Add a closure that is called just before the app-process is spawned.
-    pub fn cfg_app(
-        mut self,
+    pub fn app_process(
+        &mut self,
         cfg: impl for<'a, 'b> FnMut(&'a mut std::process::Command, &'b CrashArgs) -> &'a mut std::process::Command + 'static,
-    ) -> Self {
-        self.cfg_app.push(Box::new(cfg));
-        self
+    ) {
+        self.app_process.push(Box::new(cfg));
     }
 
     /// Add a closure that is called just before the dialog-process is spawned.
-    pub fn cfg_dialog(
-        mut self,
+    pub fn dialog_process(
+        &mut self,
         cfg: impl for<'a, 'b> FnMut(&'a mut std::process::Command, &'b CrashArgs) -> &'a mut std::process::Command + 'static,
-    ) -> Self {
-        self.cfg_dialog.push(Box::new(cfg));
-        self
+    ) {
+        self.dialog_process.push(Box::new(cfg));
     }
 
     /// Change the minidump directory.
     ///
-    /// Is the temp dir by default.
-    pub fn minidump_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+    /// Is `zng::env::cache("zng_minidump")` by default.
+    pub fn minidump_dir(&mut self, dir: impl Into<PathBuf>) {
         self.dump_dir = Some(dir.into());
-        self
     }
 
     /// Do not collect a minidump.
-    pub fn no_minidump(mut self) -> Self {
+    pub fn no_minidump(&mut self) {
         self.dump_dir = None;
-        self
-    }
-}
-impl From<fn(CrashArgs) -> !> for CrashConfig {
-    fn from(dialog: fn(CrashArgs) -> !) -> Self {
-        Self::new(dialog)
     }
 }
 
@@ -683,7 +757,7 @@ impl BacktraceFrame {
     }
 }
 
-fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: ConfigProcess) -> ! {
+fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: ConfigProcess, has_dialog_handler: bool) -> ! {
     // monitor-process:
     tracing::info!("crash monitor-process is running");
 
@@ -797,11 +871,15 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                             retries += 1;
                         };
 
-                        let mut dialog_process = std::process::Command::new(&exe);
-                        for cfg in &mut cfg_dialog {
-                            cfg(&mut dialog_process, &dialog_args);
-                        }
-                        let dialog_result = run_process(dialog_process.env(DIALOG_PROCESS, &crash_file));
+                        let dialog_result = if has_dialog_handler {
+                            let mut dialog_process = std::process::Command::new(&exe);
+                            for cfg in &mut cfg_dialog {
+                                cfg(&mut dialog_process, &dialog_args);
+                            }
+                            run_process(dialog_process.env(DIALOG_PROCESS, &crash_file))
+                        } else {
+                            Ok((std::process::ExitStatus::default(), [String::new(), String::new()]))
+                        };
 
                         for _ in 0..5 {
                             if !crash_file.exists() || std::fs::remove_file(&crash_file).is_ok() {
@@ -817,7 +895,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                         .lines()
                                         .filter_map(|l| l.trim().strip_prefix(RESPONSE_PREFIX))
                                         .last()
-                                        .expect("crash dialog-process did not respond correctly")
+                                        .unwrap_or("exit 0")
                                         .to_owned()
                                 } else {
                                     let code = dlg_status.code();
@@ -955,7 +1033,7 @@ fn crash_handler_app_process(dump_dir: Option<&Path>) {
     // app-process execution happens after the `crash_handler` function returns.
 }
 
-fn crash_handler_dialog_process(dump_dir: Option<&Path>, dialog: fn(CrashArgs) -> !, args_file: String) -> ! {
+fn crash_handler_dialog_process(dump_dir: Option<&Path>, dialog: CrashDialogHandler, args_file: String) -> ! {
     tracing::info!("crash dialog-process is running");
 
     std::panic::set_hook(Box::new(panic_handler));
@@ -977,7 +1055,12 @@ fn crash_handler_dialog_process(dump_dir: Option<&Path>, dialog: fn(CrashArgs) -
         }
     };
 
-    dialog(serde_json::from_str(&args).expect("error deserializing args"))
+    dialog(serde_json::from_str(&args).expect("error deserializing args"));
+    CrashArgs {
+        app_crashes: vec![],
+        dialog_crash: None,
+    }
+    .exit(0)
 }
 
 fn panic_handler(info: &std::panic::PanicInfo) {

@@ -125,7 +125,7 @@ pub mod view_side {
 
     use zng::prelude_wgt::PxPoint;
     use zng_view::{
-        extensions::{PxToWr as _, RenderItemArgs, RenderUpdateArgs, RendererExtension, ViewExtensions},
+        extensions::{PxToWr as _, RenderItemArgs, RenderUpdateArgs, RendererExtension},
         webrender::{
             api::{
                 units::{LayoutPoint, LayoutRect},
@@ -136,9 +136,9 @@ pub mod view_side {
     };
     use zng_view_api::api_extension::ApiExtensionId;
 
-    pub fn extend(exts: &mut ViewExtensions) {
+    zng_view::view_process_extension!(|exts| {
         exts.renderer(super::api::extension_name(), CustomExtension::new);
-    }
+    });
 
     struct CustomExtension {
         // id of this extension, for tracing.

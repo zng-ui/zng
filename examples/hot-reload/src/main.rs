@@ -6,11 +6,7 @@ use zng::prelude::*;
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
-    app_main();
-}
 
-fn app_main() {
     // examples/Cargo.toml enables the `"hot_reload"` feature for `zng`,
     // so the hot reload extension is available in `APP.defaults()`.
     APP.defaults().run_window(async {

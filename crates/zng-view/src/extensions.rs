@@ -660,14 +660,13 @@ pub struct RendererCommandArgs<'a> {
 }
 
 /// View extensions register.
-#[derive(Default)]
 pub struct ViewExtensions {
     exts: Vec<Box<dyn ViewExtension>>,
 }
 impl ViewExtensions {
     /// New empty.
-    pub fn new() -> Self {
-        Self::default()
+    pub(crate) fn new() -> Self {
+        Self { exts: vec![] }
     }
 
     /// Register an extension with the ID that will be assigned to it.
@@ -1083,15 +1082,15 @@ impl AsyncBlobImageRasterizer for BlockExtensionsImgRasterizer {
     }
 }
 
-/// Register a `fn() -> ViewExtensions` to be called on view-process init to inject custom API extensions.
+/// Register a `FnOnce(&mut ViewExtensions)` closure to be called on view-process init to inject custom API extensions.
 ///
 /// See [`ViewExtensions`] for more details.
 #[macro_export]
 macro_rules! view_process_extension {
-    ($extension_fn:path) => {
+    ($closure:expr) => {
         // expanded from:
         // #[linkme::distributed_slice(ZNG_ENV_RUN_PROCESS)]
-        // static _VIEW_EXTENSIONS = fn() -> $crate::extensions::ViewExtensions = $extension_fn;
+        // static _VIEW_EXTENSIONS = fn...;
         // so that users don't need to depend on linkme just to call this macro.
         #[used]
         #[cfg_attr(
@@ -1112,10 +1111,20 @@ macro_rules! view_process_extension {
         #[cfg_attr(target_os = "illumos", link_section = "set_linkme_VIEW_EXTENSIONS")]
         #[cfg_attr(target_os = "freebsd", link_section = "linkme_VIEW_EXTENSIONS")]
         #[doc(hidden)]
-        static _VIEW_EXTENSIONS: fn() -> $crate::extensions::ViewExtensions = $extension_fn;
+        static _VIEW_EXTENSIONS: fn(&mut $crate::extensions::ViewExtensions) = _view_extensions;
+        #[doc(hidden)]
+        fn _view_extensions(ext: &mut $crate::extensions::ViewExtensions) {
+            fn view_extensions(
+                ext: &mut $crate::extensions::ViewExtensions,
+                handler: impl FnOnce(&mut $crate::extensions::ViewExtensions),
+            ) {
+                handler(ext)
+            }
+            view_extensions(ext, $closure)
+        }
     };
 }
 
 #[doc(hidden)]
 #[linkme::distributed_slice]
-pub static VIEW_EXTENSIONS: [fn() -> ViewExtensions];
+pub static VIEW_EXTENSIONS: [fn(&mut ViewExtensions)];

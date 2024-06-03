@@ -24,7 +24,6 @@ use zng::{
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
     zng::view_process::prebuilt::run_same_process(app_main);
 }
 

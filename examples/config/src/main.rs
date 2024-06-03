@@ -12,9 +12,8 @@ use zng::{
 use zng::config::*;
 
 fn main() {
-    zng::env::init!();
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
-    zng::app::crash_handler::init_debug();
+    zng::env::init!();
     app_main();
 }
 

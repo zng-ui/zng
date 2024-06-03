@@ -82,7 +82,7 @@ single_instance = ["dep:zng-ext-single-instance"]
 
 # Allow app-process crash handler.
 #
-# Note that `zng::app::crash_handler::init(_)` must be called to enable.
+# Builds with this feature spawn a crash monitor-process for each app-process.
 crash_handler = ["zng-app/crash_handler", "zng-wgt-inspector/crash_handler"]
 
 # Instrument every widget outer-most node to trace UI methods.

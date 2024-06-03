@@ -171,7 +171,7 @@ pub fn view_process_main() {
 
     let mut ext = ViewExtensions::new();
     for e in extensions::VIEW_EXTENSIONS {
-        ext.append(e());
+        e(&mut ext);
     }
 
     if config.headless {

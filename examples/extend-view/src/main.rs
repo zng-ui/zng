@@ -1,7 +1,6 @@
 //! Demonstrates the `zng-view` extension API and render extensions API.
 
 use zng::{color::filter::hue_rotate, layout::size, prelude::*};
-use zng_view::extensions::ViewExtensions;
 // use zng_wgt_webrender_debug as wr;
 
 // Examples of how to extend the view-process with custom renderers.
@@ -11,21 +10,7 @@ use zng_view::extensions::ViewExtensions;
 
 fn main() {
     zng::env::init!();
-    zng::app::crash_handler::init_debug();
     app_main();
-}
-
-zng_view::view_process_extension!(view_extensions);
-
-/// Called in the view-process to init extensions.
-fn view_extensions() -> ViewExtensions {
-    let mut exts = ViewExtensions::new();
-    get_window_handle::view_side::extend(&mut exts);
-    using_display_items::view_side::extend(&mut exts);
-    using_blob::view_side::extend(&mut exts);
-    using_gl_overlay::view_side::extend(&mut exts);
-    using_gl_texture::view_side::extend(&mut exts);
-    exts
 }
 
 mod get_window_handle;
