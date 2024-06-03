@@ -21,16 +21,16 @@ http = ["zng-task/http"]
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.3" }
 zng-app-context = { path = "../zng-app-context", version = "0.4.2" }
-zng-app = { path = "../zng-app", version = "0.5.3" }
+zng-app = { path = "../zng-app", version = "0.6.0" }
 zng-var = { path = "../zng-var", version = "0.4.2" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 zng-layout = { path = "../zng-layout", version = "0.2.12" }
 zng-state-map = { path = "../zng-state-map", version = "0.3.2" }
-zng-view-api = { path = "../zng-view-api", version = "0.4.5" }
-zng-task = { path = "../zng-task", version = "0.2.12" }
+zng-view-api = { path = "../zng-view-api", version = "0.5.0" }
+zng-task = { path = "../zng-task", version = "0.3.0" }
 zng-ext-image = { path = "../zng-ext-image", version = "0.2.15" }
 zng-color = { path = "../zng-color", version = "0.2.15" }
-zng-env ={ path = "../zng-env", version = "0.1.0" }
+zng-env = { path = "../zng-env", version = "0.2.0" }
 
 serde = { version = "1.0", features = ["derive"] }
 bitflags = { version = "2.5", features = ["serde", "bytemuck"] }

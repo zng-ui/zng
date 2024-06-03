@@ -1,7 +1,7 @@
 # Unpublished
 
 
-# 0.6.3
+# 0.7.0
 
 * Add `zng::env::on_process_start!` to inject custom code in `zng::env::init!`.
 * Add `zng::env::on_process_exit` to register a handler for process exit.
