@@ -1,4 +1,7 @@
-use std::mem;
+use std::{
+    mem,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use parking_lot::Mutex;
 
@@ -87,9 +90,44 @@ pub(crate) fn process_init() -> impl Drop {
     );
     assert_eq!(process_state, ProcessLifetimeState::BeforeInit, "init!() already called");
 
-    let args = ProcessStartArgs { _private: () };
+    let mut yielded = vec![];
+    let mut next_handlers_count = ZNG_ENV_ON_PROCESS_START.len();
     for h in ZNG_ENV_ON_PROCESS_START {
+        next_handlers_count -= 1;
+        let args = ProcessStartArgs {
+            next_handlers_count,
+            yield_count: 0,
+            yield_requested: AtomicBool::new(false),
+        };
         h(&args);
+        if args.yield_requested.load(Ordering::Relaxed) {
+            yielded.push(h);
+            next_handlers_count += 1;
+        }
+    }
+
+    let mut yield_count = 0;
+    while !yielded.is_empty() {
+        yield_count += 1;
+        if yield_count > ProcessStartArgs::MAX_YIELD_COUNT {
+            eprintln!("start handlers requested `yield_start` more them 32 times");
+            break;
+        }
+
+        next_handlers_count = yielded.len();
+        for h in mem::take(&mut yielded) {
+            next_handlers_count -= 1;
+            let args = ProcessStartArgs {
+                next_handlers_count,
+                yield_count,
+                yield_requested: AtomicBool::new(false),
+            };
+            h(&args);
+            if args.yield_requested.load(Ordering::Relaxed) {
+                yielded.push(h);
+                next_handlers_count += 1;
+            }
+        }
     }
     MainExitHandler
 }
@@ -98,7 +136,26 @@ pub(crate) fn process_init() -> impl Drop {
 ///
 /// Empty in this release.
 pub struct ProcessStartArgs {
-    _private: (),
+    /// Number of start handlers yet to run.
+    pub next_handlers_count: usize,
+
+    /// Number of times this handler has yielded.
+    ///
+    /// If this exceeds 32 times the handler is ignored.
+    pub yield_count: u16,
+
+    yield_requested: AtomicBool,
+}
+impl ProcessStartArgs {
+    /// Yield requests after this are ignored.
+    pub const MAX_YIELD_COUNT: u16 = 32;
+
+    /// Let other process start handlers run first.
+    ///
+    /// The handler must call this if it takes over the process and it cannot determinate if it should from the environment.
+    pub fn yield_once(&self) {
+        self.yield_requested.store(true, Ordering::Relaxed);
+    }
 }
 
 struct MainExitHandler;
@@ -133,6 +190,7 @@ fn run_exit_handlers(code: i32) {
 }
 
 /// Arguments for [`on_process_exit`] handlers.
+#[non_exhaustive]
 pub struct ProcessExitArgs {
     /// Exit code that will be used.
     pub code: i32,

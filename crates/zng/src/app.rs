@@ -441,7 +441,7 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 ///
 /// The dialog handler can be set using [`crash_handler_config!`].
 ///
-/// [`crash_handler_config`]: crate::app::crash_handler::crash_handler_config!
+/// [`crash_handler_config!`]: crate::app::crash_handler::crash_handler_config
 ///
 /// # Examples
 ///

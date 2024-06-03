@@ -15,7 +15,7 @@ use zng_layout::unit::TimeUnits as _;
 
 use zng_txt::{ToTxt as _, Txt};
 
-zng_env::on_process_start!(|_| {
+zng_env::on_process_start!(|process_start_args| {
     let mut config = CrashConfig::new();
     for ext in CRASH_CONFIG {
         ext(&mut config);
@@ -38,6 +38,11 @@ zng_env::on_process_start!(|_| {
             std::env::VarError::NotPresent => {}
             e => panic!("invalid dialog env args, {e:?}"),
         },
+    }
+
+    if process_start_args.next_handlers_count > 0 && process_start_args.yield_count < zng_env::ProcessStartArgs::MAX_YIELD_COUNT - 10 {
+        // extra sure that this is the app-process
+        return process_start_args.yield_once();
     }
 
     crash_handler_monitor_process(

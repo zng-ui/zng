@@ -34,68 +34,72 @@ impl AppExtension for SingleInstanceManager {
         let args: Box<[_]> = std::env::args().map(Txt::from).collect();
         APP_INSTANCE_EVENT.notify(AppInstanceArgs::now(args, 0usize));
 
-        if let Some(name) = SINGLE_INSTANCE.lock().as_ref().map(|l| l.name.clone()) {
-            let args_file = std::env::temp_dir().join(name);
-            let mut count = 1usize;
-            WATCHER
-                .on_file_changed(
-                    &args_file,
-                    async_app_hn!(args_file, |_, _| {
-                        let args = zng_task::wait(clmv!(args_file, || {
-                            for i in 0..5 {
-                                if i > 0 {
-                                    std::thread::sleep(Duration::from_millis(200));
-                                }
+        let name = match SINGLE_INSTANCE.lock().as_ref().map(|l| l.name.clone()) {
+            Some(n) => n,
+            None => {
+                tracing::error!("single instance did not setup correctly on_process_start! app is not running in single instance mode");
+                return;
+            }
+        };
 
-                                // take args
-                                // read all text and truncates the file
-                                match std::fs::File::options().read(true).write(true).open(&args_file) {
-                                    Ok(mut file) => {
-                                        let mut s = String::new();
-                                        if let Err(e) = file.read_to_string(&mut s) {
-                                            tracing::error!("error reading args (retry {i}), {e}");
-                                            continue;
-                                        }
-                                        file.set_len(0).unwrap();
-                                        return s;
-                                    }
-                                    Err(e) => {
-                                        if e.kind() == std::io::ErrorKind::NotFound {
-                                            return String::new();
-                                        }
-                                        tracing::error!("error reading args (retry {i}), {e}")
-                                    }
-                                }
-                            }
-                            String::new()
-                        }))
-                        .await;
-
-                        // parse args
-                        for line in args.lines() {
-                            let line = line.trim();
-                            if line.is_empty() {
-                                continue;
+        let args_file = std::env::temp_dir().join(name);
+        let mut count = 1usize;
+        WATCHER
+            .on_file_changed(
+                &args_file,
+                async_app_hn!(args_file, |_, _| {
+                    let args = zng_task::wait(clmv!(args_file, || {
+                        for i in 0..5 {
+                            if i > 0 {
+                                std::thread::sleep(Duration::from_millis(200));
                             }
 
-                            let args = match serde_json::from_str::<Box<[Txt]>>(line) {
-                                Ok(args) => args,
+                            // take args
+                            // read all text and truncates the file
+                            match std::fs::File::options().read(true).write(true).open(&args_file) {
+                                Ok(mut file) => {
+                                    let mut s = String::new();
+                                    if let Err(e) = file.read_to_string(&mut s) {
+                                        tracing::error!("error reading args (retry {i}), {e}");
+                                        continue;
+                                    }
+                                    file.set_len(0).unwrap();
+                                    return s;
+                                }
                                 Err(e) => {
-                                    tracing::error!("invalid args, {e}");
-                                    Box::new([])
+                                    if e.kind() == std::io::ErrorKind::NotFound {
+                                        return String::new();
+                                    }
+                                    tracing::error!("error reading args (retry {i}), {e}")
                                 }
-                            };
-
-                            APP_INSTANCE_EVENT.notify(AppInstanceArgs::now(args, count));
-
-                            count += 1;
+                            }
                         }
-                    }),
-                )
-                .perm();
-        } else {
-            tracing::warn!("using `SingleInstanceManager` without calling `single_instance()`");
-        }
+                        String::new()
+                    }))
+                    .await;
+
+                    // parse args
+                    for line in args.lines() {
+                        let line = line.trim();
+                        if line.is_empty() {
+                            continue;
+                        }
+
+                        let args = match serde_json::from_str::<Box<[Txt]>>(line) {
+                            Ok(args) => args,
+                            Err(e) => {
+                                tracing::error!("invalid args, {e}");
+                                Box::new([])
+                            }
+                        };
+
+                        APP_INSTANCE_EVENT.notify(AppInstanceArgs::now(args, count));
+
+                        count += 1;
+                    }
+                }),
+            )
+            .perm();
     }
 }
 
@@ -133,20 +137,20 @@ event! {
     pub static APP_INSTANCE_EVENT: AppInstanceArgs;
 }
 
-zng_env::on_process_start!(|_| {
-    single_instance_impl(
-        std::env::current_exe()
-            .and_then(dunce::canonicalize)
-            .expect("current exe is required")
-            .display()
-            .to_txt(),
-    )
-});
+zng_env::on_process_start!(|args| {
+    if args.next_handlers_count > 0 && args.yield_count < zng_env::ProcessStartArgs::MAX_YIELD_COUNT {
+        // absolute sure that this is the app-process
+        return args.yield_once();
+    }
 
-fn single_instance_impl(name: Txt) {
     let mut lock = SINGLE_INSTANCE.lock();
     assert!(lock.is_none(), "single_instance already called in this process");
 
+    let name = std::env::current_exe()
+        .and_then(dunce::canonicalize)
+        .expect("current exe is required")
+        .display()
+        .to_txt();
     let name: String = name
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
@@ -162,7 +166,7 @@ fn single_instance_impl(name: Txt) {
     if l.is_single() {
         *lock = Some(SingleInstanceData { _lock: l, name });
     } else {
-        tracing::info!("another instance running, will send args an exit");
+        tracing::info!("another instance running, will send args and exit");
 
         let args: Box<[_]> = std::env::args().collect();
         let args = format!("\n{}\n", serde_json::to_string(&args).unwrap());
@@ -188,7 +192,7 @@ fn single_instance_impl(name: Txt) {
         }
         zng_env::exit(1);
     }
-}
+});
 
 struct SingleInstanceData {
     _lock: single_instance::SingleInstance,
