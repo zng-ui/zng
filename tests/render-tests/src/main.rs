@@ -21,6 +21,8 @@ mod tests;
 static FAILED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
+    zng::env::init!();
+
     let args = Args::parse();
     if let Ok(vp) = env::var("RENDER_TESTS_VP") {
         return run(args, vp.into());
