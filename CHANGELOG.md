@@ -1,5 +1,8 @@
 # Unpublished
 
+
+# 0.6.3
+
 * Add `zng::env::on_process_start!` to inject custom code in `zng::env::init!`.
 * Add `zng::env::on_process_exit` to register a handler for process exit.
 * Add `zng::env::exit` to collaboratively exit the process.
