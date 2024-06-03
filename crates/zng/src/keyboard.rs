@@ -27,8 +27,8 @@
 pub use zng_app::shortcut::ModifiersState;
 
 pub use zng_ext_input::keyboard::{
-    HeadlessAppKeyboardExt, Key, KeyCode, KeyInputArgs, KeyRepeatConfig, KeyState, ModifiersChangedArgs, NativeKeyCode, KEYBOARD,
-    KEY_INPUT_EVENT, MODIFIERS_CHANGED_EVENT,
+    HeadlessAppKeyboardExt, Key, KeyCode, KeyInputArgs, KeyLocation, KeyRepeatConfig, KeyState, ModifiersChangedArgs, NativeKeyCode,
+    KEYBOARD, KEY_INPUT_EVENT, MODIFIERS_CHANGED_EVENT,
 };
 
 pub use zng_wgt_input::keyboard::{

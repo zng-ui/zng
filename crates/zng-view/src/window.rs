@@ -294,6 +294,7 @@ impl Window {
                                 key: Key::F4,
                                 key_modified: Key::F4,
                                 text: Txt::from_static(""),
+                                key_location: zng_view_api::keyboard::KeyLocation::Standard,
                             }));
                             return Some(0);
                         }

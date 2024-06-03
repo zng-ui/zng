@@ -1,3 +1,4 @@
+use keyboard::KeyLocation;
 use zng::{
     focus::focusable,
     keyboard::{Key, KeyCode},
@@ -42,7 +43,7 @@ fn shortcut() {
 
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
 
-    app.press_key(window_id, KeyCode::KeyF, Key::Char('F'));
+    app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
     let widget_id = WidgetId::named("test-widget");
     // because we target the scoped first.
@@ -56,7 +57,7 @@ fn shortcut_with_focused_scope() {
 
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
 
-    app.press_key(window_id, KeyCode::KeyF, Key::Char('F'));
+    app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
     let trace = TEST_TRACE.read();
     let widget_id = WidgetId::named("other-widget");
@@ -72,7 +73,7 @@ fn shortcut_scoped() {
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
     FOO_CMD.scoped(window_id).shortcut().set(shortcut!('G')).unwrap();
 
-    app.press_key(window_id, KeyCode::KeyG, Key::Char('G'));
+    app.press_key(window_id, KeyCode::KeyG, KeyLocation::Standard, Key::Char('G'));
 
     {
         let mut trace = TEST_TRACE.write();
@@ -80,7 +81,7 @@ fn shortcut_scoped() {
         trace.clear();
     }
 
-    app.press_key(window_id, KeyCode::KeyF, Key::Char('F'));
+    app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
     let widget_id = WidgetId::named("test-widget");
     assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);

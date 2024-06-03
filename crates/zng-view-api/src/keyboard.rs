@@ -5,6 +5,53 @@ use std::{fmt, mem};
 use serde::{Deserialize, Serialize};
 use zng_txt::Txt;
 
+/// The location of the key on the keyboard.
+///
+/// Certain physical keys on the keyboard can have the same value, but are in different locations.
+/// For instance, the Shift key can be on the left or right side of the keyboard, or the number
+/// keys can be above the letters or on the numpad. This enum allows the user to differentiate
+/// them.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[repr(u8)]
+pub enum KeyLocation {
+    /// The key is in its "normal" location on the keyboard.
+    ///
+    /// For instance, the "1" key above the "Q" key on a QWERTY keyboard will use this location.
+    /// This invariant is also returned when the location of the key cannot be identified.
+    Standard,
+
+    /// The key is on the left side of the keyboard.
+    ///
+    /// For instance, the left Shift key below the Caps Lock key on a QWERTY keyboard will use this
+    /// location.
+    Left,
+
+    /// The key is on the right side of the keyboard.
+    ///
+    /// For instance, the right Shift key below the Enter key on a QWERTY keyboard will use this
+    /// location.
+    Right,
+
+    /// The key is on the numpad.
+    ///
+    /// For instance, the "1" key on the numpad will use this location.
+    Numpad,
+}
+impl KeyLocation {
+    /// Gets the variant name.
+    pub fn name(self) -> &'static str {
+        serde_variant::to_variant_name(&self).unwrap_or("")
+    }
+}
+impl std::fmt::Debug for KeyLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            write!(f, "KeyLocation::")?;
+        }
+        write!(f, "{}", self.name())
+    }
+}
+
 /// Contains the platform-native physical key identifier
 ///
 /// The exact values vary from platform to platform (which is part of why this is a per-platform
@@ -16,7 +63,7 @@ use zng_txt::Txt;
 ///
 /// - Correctly match key press and release events.
 /// - On non-web platforms, support assigning key binds to virtually any key through a UI.
-#[derive(Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[repr(u8)]
 pub enum NativeKeyCode {
     /// Implementer did not identify system or scancode.
@@ -29,11 +76,6 @@ pub enum NativeKeyCode {
     Windows(u16),
     /// An XKB "keycode".
     Xkb(u32),
-}
-impl Clone for NativeKeyCode {
-    fn clone(&self) -> Self {
-        *self
-    }
 }
 impl NativeKeyCode {
     /// Gets the variant name.

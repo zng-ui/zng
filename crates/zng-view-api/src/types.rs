@@ -7,7 +7,7 @@ use crate::{
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     image::{ImageId, ImageLoadedData, ImagePpi},
     ipc::IpcBytes,
-    keyboard::{Key, KeyCode, KeyState},
+    keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonId, ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
@@ -246,10 +246,13 @@ pub enum Event {
         key_code: KeyCode,
         /// If the key was pressed or released.
         state: KeyState,
+        /// The location of the key on the keyboard.
+        key_location: KeyLocation,
 
-        /// Semantic key.
+        /// Semantic key unmodified.
         ///
-        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERTY keyboards, the modifiers are not applied.
+        /// Pressing `Shift+A` key will produce `Key::Char('a')` in QWERTY keyboards, the modifiers are not applied. Note that
+        /// the numpad keys do not represents the numbers unmodified
         key: Key,
         /// Semantic key modified by the current active modifiers.
         ///

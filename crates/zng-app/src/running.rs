@@ -228,10 +228,20 @@ impl<E: AppExtension> RunningApp<E> {
                 key_code,
                 state,
                 key,
+                key_location,
                 key_modified,
                 text,
             } => {
-                let args = RawKeyInputArgs::now(window_id(w_id), self.device_id(d_id), key_code, state, key, key_modified, text);
+                let args = RawKeyInputArgs::now(
+                    window_id(w_id),
+                    self.device_id(d_id),
+                    key_code,
+                    key_location,
+                    state,
+                    key,
+                    key_modified,
+                    text,
+                );
                 self.notify_event(RAW_KEY_INPUT_EVENT.new_update(args), observer);
             }
             Event::Ime { window: w_id, ime } => {

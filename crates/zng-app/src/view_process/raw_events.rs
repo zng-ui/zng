@@ -21,7 +21,7 @@ use zng_txt::Txt;
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
-    keyboard::{Key, KeyCode, KeyState},
+    keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
     window::{EventCause, FrameId, FrameWaitId, HeadlessOpenData, MonitorInfo, WindowStateAll},
@@ -46,6 +46,9 @@ event_args! {
 
         /// Physical key.
         pub key_code: KeyCode,
+
+        /// The location of the key on the keyboard.
+        pub key_location: KeyLocation,
 
         /// If the key was pressed or released.
         pub state: KeyState,

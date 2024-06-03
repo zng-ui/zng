@@ -26,7 +26,7 @@ use zng_var::{types::ArcCowVar, var, var_default, ArcVar, ReadOnlyArcVar, Var};
 use zng_view_api::config::AnimationsConfig;
 pub use zng_view_api::{
     config::KeyRepeatConfig,
-    keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
+    keyboard::{Key, KeyCode, KeyLocation, KeyState, NativeKeyCode},
 };
 
 use crate::focus::FOCUS;
@@ -42,6 +42,9 @@ event_args! {
 
         /// Physical key.
         pub key_code: KeyCode,
+
+        /// The location of the key on the keyboard.
+        pub key_location: KeyLocation,
 
         /// If the key was pressed or released.
         pub state: KeyState,
@@ -112,6 +115,15 @@ impl KeyInputArgs {
     /// [`target`]: Self::target
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+    }
+
+    /// Gets the modified key for Numpad keys and the unmodified key for the rest.
+    pub fn shortcut_key(&self) -> &Key {
+        if matches!(self.key_location, KeyLocation::Numpad) {
+            &self.key_modified
+        } else {
+            &self.key
+        }
     }
 }
 
@@ -436,6 +448,7 @@ impl KeyboardService {
                     args.window_id,
                     args.device_id,
                     args.key_code,
+                    args.key_location,
                     args.state,
                     args.key.clone(),
                     args.key_modified.clone(),
@@ -523,48 +536,48 @@ pub trait HeadlessAppKeyboardExt {
     /// Notifies keyboard input event.
     ///
     /// Note that the app is not updated so the event is pending after this call.
-    fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, key: Key, state: KeyState);
+    fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, location: KeyLocation, key: Key, state: KeyState);
 
     /// Does a key-down, key-up and updates.
-    fn press_key(&mut self, window_id: WindowId, code: KeyCode, key: Key);
+    fn press_key(&mut self, window_id: WindowId, code: KeyCode, location: KeyLocation, key: Key);
 
     /// Does a modifiers changed, key-down, key-up, reset modifiers and updates.
-    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, code: KeyCode, key: Key);
+    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, code: KeyCode, location: KeyLocation, key: Key);
 }
 impl HeadlessAppKeyboardExt for HeadlessApp {
-    fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, key: Key, state: KeyState) {
+    fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, location: KeyLocation, key: Key, state: KeyState) {
         use zng_app::view_process::raw_events::*;
 
-        let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), code, state, key.clone(), key, "");
+        let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), code, location, state, key.clone(), key, "");
         RAW_KEY_INPUT_EVENT.notify(args);
     }
 
-    fn press_key(&mut self, window_id: WindowId, code: KeyCode, key: Key) {
-        self.on_keyboard_input(window_id, code, key.clone(), KeyState::Pressed);
-        self.on_keyboard_input(window_id, code, key, KeyState::Released);
+    fn press_key(&mut self, window_id: WindowId, code: KeyCode, location: KeyLocation, key: Key) {
+        self.on_keyboard_input(window_id, code, location, key.clone(), KeyState::Pressed);
+        self.on_keyboard_input(window_id, code, location, key, KeyState::Released);
         let _ = self.update(false);
     }
 
-    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, code: KeyCode, key: Key) {
+    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, code: KeyCode, location: KeyLocation, key: Key) {
         if modifiers.is_empty() {
-            self.press_key(window_id, code, key);
+            self.press_key(window_id, code, location, key);
         } else {
             let modifiers = modifiers.keys();
             for key in &modifiers {
-                self.on_keyboard_input(window_id, code, key.clone(), KeyState::Pressed);
+                self.on_keyboard_input(window_id, code, location, key.clone(), KeyState::Pressed);
             }
 
             // pressed the modifiers.
             let _ = self.update(false);
 
-            self.on_keyboard_input(window_id, code, key.clone(), KeyState::Pressed);
-            self.on_keyboard_input(window_id, code, key.clone(), KeyState::Released);
+            self.on_keyboard_input(window_id, code, location, key.clone(), KeyState::Pressed);
+            self.on_keyboard_input(window_id, code, location, key.clone(), KeyState::Released);
 
             // pressed the key.
             let _ = self.update(false);
 
             for key in modifiers {
-                self.on_keyboard_input(window_id, code, key, KeyState::Released);
+                self.on_keyboard_input(window_id, code, location, key, KeyState::Released);
             }
 
             // released the modifiers.
