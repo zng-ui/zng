@@ -1215,6 +1215,10 @@ fn publish(mut args: Vec<&str>) {
 //    Runs cargo semver-checks for each published crate.
 fn semver_check(args: Vec<&str>) {
     for member in util::publish_members() {
+        if member.name.starts_with("cargo-") {
+            continue;
+        }
+
         let published_ver = util::crates_io_latest(member.name.as_str());
 
         if !published_ver.is_empty() && !member.name.ends_with("-proc-macros") && !member.name.ends_with("-scraper") {
