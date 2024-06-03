@@ -7,7 +7,7 @@
 //! process if specific environment variables are set. The process start handlers are called on [`init!`],
 //! if a process takeover it exits without returning, so only the normal app-process code executes after `init!()`.
 //!
-//! ```
+//! ```no_run
 //! fn main() {
 //!    println!("print in all processes");
 //!    zng::env::init!();
