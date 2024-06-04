@@ -272,13 +272,15 @@ pub extern "C" fn extern_run_same_process(patch: &StaticPatch, run_app: extern "
     #[allow(clippy::redundant_closure)]
     run_same_process(move || run_app())
 }
-
+#[cfg(feature = "ipc")]
 fn init_abort(info: &std::panic::PanicInfo) {
     panic_hook(info, "note: aborting to respawn");
 }
+#[cfg(feature = "ipc")]
 fn ffi_abort(info: &std::panic::PanicInfo) {
     panic_hook(info, "note: aborting to avoid unwind across FFI");
 }
+#[cfg(feature = "ipc")]
 fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
     // see `default_hook` in https://doc.rust-lang.org/src/std/panicking.rs.html#182
 

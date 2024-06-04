@@ -942,10 +942,11 @@ thread_local! {
 }
 
 /// If `true` our custom panic hook must not log anything.
+#[cfg(feature = "ipc")]
 pub(crate) fn suppress_panic() -> bool {
     SUPPRESS.get()
 }
-
+#[cfg(feature = "ipc")]
 pub(crate) fn set_suppressed_panic(panic: SuppressedPanic) {
     SUPPRESSED_PANIC.set(Some(panic));
 }
@@ -960,6 +961,7 @@ pub(crate) struct SuppressedPanic {
     pub backtrace: Backtrace,
 }
 impl SuppressedPanic {
+    #[cfg(feature = "ipc")]
     pub fn from_hook(info: &std::panic::PanicInfo, backtrace: Backtrace) -> Self {
         let current_thread = std::thread::current();
         let thread = current_thread.name().unwrap_or("<unnamed>");
