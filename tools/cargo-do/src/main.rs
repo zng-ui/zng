@@ -45,25 +45,31 @@ fn main() {
 //     install --execute
 //       Runs the installation commands.
 fn install(mut args: Vec<&str>) {
+    static CMDS: &[(&str, &[&str])] = &[
+        ("rustup", &["toolchain", "install", "nightly"]),
+        ("cargo", &["install", "cargo-expand"]),
+        ("cargo", &["install", "cargo-asm"]),
+        ("cargo", &["install", "cargo-about", "--locked"]),
+        ("cargo", &["install", "cargo-semver-checks", "--locked"]),
+        ("cargo", &["install", "basic-http-server"]),
+    ];
+
     if take_flag(&mut args, &["--execute"]) {
-        cmd("rustup", &["toolchain", "install", "nightly"], &[]);
-        cmd("rustup", &["component", "add", "rustfmt"], &[]);
-        cmd("rustup", &["component", "add", "clippy"], &[]);
-        cmd("cargo", &["install", "cargo-expand"], &[]);
-        cmd("cargo", &["install", "cargo-asm"], &[]);
-        cmd("cargo", &["install", "cargo-about"], &[]);
-        cmd("cargo", &["install", "cargo-semver-checks", "--locked"], &[])
+        for (prog, args) in CMDS {
+            cmd(prog, args, &[]);
+        }
     } else {
         println(f!(
             "Install cargo binaries used by `do` after confirmation.\n  ACCEPT:\n   {} install --execute\n\n  TO RUN:",
             do_cmd()
         ));
-        println("   rustup toolchain install nightly");
-        println("   rustup component add rustfmt");
-        println("   rustup component add clippy");
-        println("   cargo install cargo-expand");
-        println("   cargo install cargo-about");
-        println("   cargo install cargo-semver-checks --locked");
+        for (prog, args) in CMDS {
+            print!("   {prog}");
+            for arg in args.iter() {
+                print!(" {arg}");
+            }
+            println!();
+        }
     }
 }
 
