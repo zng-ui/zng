@@ -11,7 +11,6 @@ use zng::{
     app::HeadlessApp,
     layout::{FactorUnits as _, TimeUnits as _},
     text::{formatx, Txt},
-    view_process,
     window::RenderMode,
     APP,
 };
@@ -21,6 +20,14 @@ mod tests;
 static FAILED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
+    std::thread::spawn(move || {
+        std::thread::sleep(10.minutes());
+        eprintln!(cstr!("<bold><red>TIMEOUT</>:</> render-tests did not exit after 10 minutes"),);
+        std::process::exit(101);
+    });
+
+    zng::env::init!();
+
     let args = Args::parse();
     if let Ok(vp) = env::var("RENDER_TESTS_VP") {
         return run(args, vp.into());
@@ -31,6 +38,7 @@ fn main() {
 
         if args.include_vp(&view_process) {
             let result = std::process::Command::new(std::env::current_exe().unwrap())
+                .env("ZNG_VIEW_NO_INIT_START", "")
                 .env("RENDER_TESTS_VP", view_process)
                 .args(std::env::args().skip(1))
                 // .env("RUST_BACKTRACE", "1")
@@ -50,18 +58,16 @@ fn main() {
 fn run(args: Args, view_process: ViewProcess) {
     match view_process {
         ViewProcess::DefaultInit => {
-            zng::env::init!();
+            zng_view::view_process_main();
             run_tests(args, view_process, APP.defaults().run_headless(true));
         }
-        ViewProcess::DefaultSame => {
-            view_process::default::run_same_process(move || run_tests(args, view_process, APP.defaults().run_headless(true)))
-        }
+        ViewProcess::DefaultSame => zng_view::run_same_process(move || run_tests(args, view_process, APP.defaults().run_headless(true))),
         ViewProcess::PrebuiltInit => {
-            zng::env::init!();
+            zng_view_prebuilt::view_process_main();
             run_tests(args, view_process, APP.defaults().run_headless(true));
         }
         ViewProcess::PrebuiltSame => {
-            view_process::prebuilt::run_same_process(move || run_tests(args, view_process, APP.defaults().run_headless(true)))
+            zng_view_prebuilt::run_same_process(move || run_tests(args, view_process, APP.defaults().run_headless(true)))
         }
     }
     if FAILED.load(Relaxed) {

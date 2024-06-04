@@ -98,6 +98,7 @@ use std::{
 use extensions::ViewExtensions;
 use gl::GlContextManager;
 use image_cache::ImageCache;
+use keyboard::KeyLocation;
 use util::WinitToPx;
 use winit::{
     event::{DeviceEvent, WindowEvent},
@@ -152,12 +153,19 @@ use zng_view_api::{
 use rustc_hash::FxHashMap;
 
 #[cfg(feature = "ipc")]
-zng_env::on_process_start!(|_| view_process_main());
+zng_env::on_process_start!(|_| {
+    if std::env::var("ZNG_VIEW_NO_INIT_START").is_err() {
+        view_process_main();
+    }
+});
 
 /// Runs the view-process server.
 ///
 /// Note that this only needs to be called if the view-process is not built on the same executable, if
 /// it is you only need to call [`zng_env::init!`] at the beginning of the executable main.
+///
+/// You can also disable start on init by setting the `ZNG_VIEW_NO_INIT_START` environment variable. In this
+/// case you must manually call this function.
 #[cfg(feature = "ipc")]
 pub fn view_process_main() {
     let config = match ViewConfig::from_env() {
@@ -323,7 +331,7 @@ pub(crate) struct App {
     #[cfg(windows)]
     skip_ralt: bool,
 
-    pressed_modifiers: FxHashMap<Key, (DeviceId, KeyCode)>,
+    pressed_modifiers: FxHashMap<(Key, KeyLocation), (DeviceId, KeyCode)>,
     pending_modifiers_update: Option<ModifiersState>,
     pending_modifiers_focus_clear: bool,
 
@@ -588,6 +596,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     let key = util::winit_key_to_key(event.key_without_modifiers());
                     let key_modified = util::winit_key_to_key(event.logical_key);
                     let key_code = util::winit_physical_key_to_key_code(event.physical_key);
+                    let key_location = util::winit_key_location_to_zng(event.location);
                     let d_id = self.device_id(device_id);
 
                     let mut send_event = true;
@@ -595,9 +604,12 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     if key.is_modifier() {
                         match state {
                             KeyState::Pressed => {
-                                send_event = self.pressed_modifiers.insert(key.clone(), (d_id, key_code)).is_none();
+                                send_event = self
+                                    .pressed_modifiers
+                                    .insert((key.clone(), key_location), (d_id, key_code))
+                                    .is_none();
                             }
-                            KeyState::Released => send_event = self.pressed_modifiers.remove(&key).is_some(),
+                            KeyState::Released => send_event = self.pressed_modifiers.remove(&(key.clone(), key_location)).is_some(),
                         }
                     }
 
@@ -606,6 +618,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             window: id,
                             device: d_id,
                             key_code,
+                            key_location,
                             state,
                             key,
                             key_modified,
@@ -670,8 +683,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.notify(Event::MouseWheel {
                     window: id,
                     device: d_id,
-                    delta: util::winit_mouse_wheel_delta_to_zui(delta),
-                    phase: util::winit_touch_phase_to_zui(phase),
+                    delta: util::winit_mouse_wheel_delta_to_zng(delta),
+                    phase: util::winit_touch_phase_to_zng(phase),
                 });
             }
             WindowEvent::MouseInput {
@@ -683,7 +696,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     window: id,
                     device: d_id,
                     state: util::element_state_to_button_state(state),
-                    button: util::winit_mouse_button_to_zui(button),
+                    button: util::winit_mouse_button_to_zng(button),
                 });
             }
             WindowEvent::TouchpadPressure {
@@ -728,9 +741,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                         window: id,
                         device: d_id,
                         touches: vec![TouchUpdate {
-                            phase: util::winit_touch_phase_to_zui(t.phase),
+                            phase: util::winit_touch_phase_to_zng(t.phase),
                             position,
-                            force: t.force.map(util::winit_force_to_zui),
+                            force: t.force.map(util::winit_force_to_zng),
                             touch: TouchId(t.id),
                         }],
                     });
@@ -770,7 +783,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, None)));
                 }
             }
-            WindowEvent::ThemeChanged(t) => self.notify(Event::ColorSchemeChanged(id, util::winit_theme_to_zui(t))),
+            WindowEvent::ThemeChanged(t) => self.notify(Event::ColorSchemeChanged(id, util::winit_theme_to_zng(t))),
             WindowEvent::Ime(ime) => {
                 linux_modal_dialog_bail!();
 
@@ -866,7 +879,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 }),
                 DeviceEvent::MouseWheel { delta } => self.notify(Event::DeviceMouseWheel {
                     device: d_id,
-                    delta: util::winit_mouse_wheel_delta_to_zui(delta),
+                    delta: util::winit_mouse_wheel_delta_to_zng(delta),
                 }),
                 DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion {
                     device: d_id,
@@ -1189,7 +1202,7 @@ impl App {
         if let Some(m) = self.pending_modifiers_update.take() {
             if let Some(id) = self.windows.iter().find(|w| w.is_focused()).map(|w| w.id()) {
                 let mut notify = vec![];
-                self.pressed_modifiers.retain(|key, (d_id, s_code)| {
+                self.pressed_modifiers.retain(|(key, location), (d_id, s_code)| {
                     let mut retain = true;
                     if matches!(key, Key::Super) && !m.super_key() {
                         retain = false;
@@ -1199,6 +1212,7 @@ impl App {
                             key_code: *s_code,
                             state: KeyState::Released,
                             key: key.clone(),
+                            key_location: *location,
                             key_modified: key.clone(),
                             text: Txt::from_str(""),
                         });
@@ -1211,6 +1225,7 @@ impl App {
                             key_code: *s_code,
                             state: KeyState::Released,
                             key: key.clone(),
+                            key_location: *location,
                             key_modified: key.clone(),
                             text: Txt::from_str(""),
                         });
@@ -1223,6 +1238,7 @@ impl App {
                             key_code: *s_code,
                             state: KeyState::Released,
                             key: key.clone(),
+                            key_location: *location,
                             key_modified: key.clone(),
                             text: Txt::from_str(""),
                         });
@@ -1235,6 +1251,7 @@ impl App {
                             key_code: *s_code,
                             state: KeyState::Released,
                             key: key.clone(),
+                            key_location: *location,
                             key_modified: key.clone(),
                             text: Txt::from_str(""),
                         });

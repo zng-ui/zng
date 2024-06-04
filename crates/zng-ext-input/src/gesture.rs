@@ -30,7 +30,7 @@ use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_layout::unit::DipPoint;
 use zng_var::{var, ArcVar, Var};
 use zng_view_api::{
-    keyboard::{Key, KeyCode, KeyState, NativeKeyCode},
+    keyboard::{Key, KeyCode, KeyLocation, KeyState, NativeKeyCode},
     mouse::MouseButton,
 };
 
@@ -461,7 +461,7 @@ impl GesturesService {
     }
 
     fn on_key_input(&mut self, args: &KeyInputArgs) {
-        let key = &args.key;
+        let key = args.shortcut_key();
         if !args.propagation().is_stopped() && !matches!(key, Key::Unidentified) {
             match args.state {
                 KeyState::Pressed => {
@@ -1088,13 +1088,17 @@ impl HeadlessAppGestureExt for HeadlessApp {
         match shortcut {
             Shortcut::Modifier(m) => {
                 let (code, key) = m.left_key();
-                self.press_key(window_id, code, key);
+                self.press_key(window_id, code, KeyLocation::Standard, key);
             }
             Shortcut::Gesture(g) => match g.key {
-                GestureKey::Key(k) => {
-                    self.press_modified_key(window_id, g.modifiers, KeyCode::Unidentified(NativeKeyCode::Unidentified), k)
-                }
-                GestureKey::Code(c) => self.press_modified_key(window_id, g.modifiers, c, Key::Unidentified),
+                GestureKey::Key(k) => self.press_modified_key(
+                    window_id,
+                    g.modifiers,
+                    KeyCode::Unidentified(NativeKeyCode::Unidentified),
+                    KeyLocation::Standard,
+                    k,
+                ),
+                GestureKey::Code(c) => self.press_modified_key(window_id, g.modifiers, c, KeyLocation::Standard, Key::Unidentified),
             },
             Shortcut::Chord(c) => {
                 self.press_shortcut(window_id, c.starter);

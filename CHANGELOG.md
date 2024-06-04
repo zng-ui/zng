@@ -8,6 +8,8 @@
 * Add `zng::env::exit` to collaboratively exit the process.
 * Add `zng::app::on_app_start` to register a handler to be called when the `APP` context starts.
 * Implement `From<Txt>` for `std::ffi::OsString`.
+* Add `KeyLocation`.
+* Fix numpad shortcuts.
 * **Breaking** Remove `zng_view::init`, `zng_view_prebuilt::init`, `zng::view_process::default::init`, `zng::view_process::prebuilt::init`.
     - Only `zng::env::init!()` needs to be called to setup the view-process.
 * **Breaking** Remove `zng_view::extensions::ViewExtensions::new`.
@@ -23,6 +25,7 @@
     - Use `zng::env::on_process_start!` to declare the worker entry anywhere.
 * **Breaking** Remove `zng::app::crash_handler::init` and `CrashConfig::new`.
     - Use `zng::app::crash_handler::crash_handler_config` to config.
+* **Breaking** Methods of `HeadlessAppKeyboardExt` now require key location.
 
 # 0.6.2
 

@@ -6,7 +6,9 @@ use zng::{font::FontName, layout::align, prelude::*};
 
 fn main() {
     zng::env::init!();
-
+    zng::view_process::default::run_same_process(app_main);
+}
+fn app_main() {
     APP.defaults().run_window(async {
         let shortcut_text = var(Txt::from_str(""));
         let keypress_text = var(Txt::from_str(""));
@@ -35,11 +37,12 @@ fn main() {
                         return;
                     }
                     let mut new_shortcut_text = "not supported";
-                    if !matches!(&args.key, keyboard::Key::Unidentified) {
-                        if args.key.is_modifier() {
+                    let key = args.shortcut_key();
+                    if !matches!(&key, keyboard::Key::Unidentified) {
+                        if key.is_modifier() {
                             new_shortcut_text = "";
                         }
-                        keypress_text.set(formatx!("{:?}", args.key))
+                        keypress_text.set(formatx!("{:?}", key))
                     } else {
                         keypress_text.set(formatx!("Key Code: {:?}", args.key_code))
                     }

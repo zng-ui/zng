@@ -13,7 +13,7 @@ use zng_txt::{ToTxt, Txt};
 use zng_unit::*;
 use zng_view_api::access::AccessNodeId;
 use zng_view_api::clipboard as clipboard_api;
-use zng_view_api::keyboard::NativeKeyCode;
+use zng_view_api::keyboard::{KeyLocation, NativeKeyCode};
 use zng_view_api::window::{FrameCapture, FrameRequest, FrameUpdateRequest, ResizeDirection, WindowButton};
 use zng_view_api::{
     config::ColorScheme,
@@ -324,14 +324,14 @@ pub(crate) fn element_state_to_button_state(s: ElementState) -> ButtonState {
     }
 }
 
-pub(crate) fn winit_mouse_wheel_delta_to_zui(w: winit::event::MouseScrollDelta) -> MouseScrollDelta {
+pub(crate) fn winit_mouse_wheel_delta_to_zng(w: winit::event::MouseScrollDelta) -> MouseScrollDelta {
     match w {
         winit::event::MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(x, y),
         winit::event::MouseScrollDelta::PixelDelta(d) => MouseScrollDelta::PixelDelta(d.x as f32, d.y as f32),
     }
 }
 
-pub(crate) fn winit_touch_phase_to_zui(w: winit::event::TouchPhase) -> TouchPhase {
+pub(crate) fn winit_touch_phase_to_zng(w: winit::event::TouchPhase) -> TouchPhase {
     match w {
         winit::event::TouchPhase::Started => TouchPhase::Start,
         winit::event::TouchPhase::Moved => TouchPhase::Move,
@@ -340,7 +340,7 @@ pub(crate) fn winit_touch_phase_to_zui(w: winit::event::TouchPhase) -> TouchPhas
     }
 }
 
-pub(crate) fn winit_force_to_zui(f: winit::event::Force) -> TouchForce {
+pub(crate) fn winit_force_to_zng(f: winit::event::Force) -> TouchForce {
     match f {
         winit::event::Force::Calibrated {
             force,
@@ -355,7 +355,7 @@ pub(crate) fn winit_force_to_zui(f: winit::event::Force) -> TouchForce {
     }
 }
 
-pub(crate) fn winit_mouse_button_to_zui(b: winit::event::MouseButton) -> MouseButton {
+pub(crate) fn winit_mouse_button_to_zng(b: winit::event::MouseButton) -> MouseButton {
     match b {
         winit::event::MouseButton::Left => MouseButton::Left,
         winit::event::MouseButton::Right => MouseButton::Right,
@@ -366,7 +366,7 @@ pub(crate) fn winit_mouse_button_to_zui(b: winit::event::MouseButton) -> MouseBu
     }
 }
 
-pub(crate) fn winit_theme_to_zui(t: winit::window::Theme) -> ColorScheme {
+pub(crate) fn winit_theme_to_zng(t: winit::window::Theme) -> ColorScheme {
     match t {
         winit::window::Theme::Light => ColorScheme::Light,
         winit::window::Theme::Dark => ColorScheme::Dark,
@@ -379,6 +379,15 @@ pub(crate) fn winit_to_hwnd(window: &winit::window::Window) -> isize {
     match window.raw_window_handle() {
         raw_window_handle::RawWindowHandle::Win32(w) => w.hwnd as _,
         _ => unreachable!(),
+    }
+}
+
+pub(crate) fn winit_key_location_to_zng(t: winit::keyboard::KeyLocation) -> KeyLocation {
+    match t {
+        winit::keyboard::KeyLocation::Standard => KeyLocation::Standard,
+        winit::keyboard::KeyLocation::Left => KeyLocation::Left,
+        winit::keyboard::KeyLocation::Right => KeyLocation::Right,
+        winit::keyboard::KeyLocation::Numpad => KeyLocation::Numpad,
     }
 }
 
