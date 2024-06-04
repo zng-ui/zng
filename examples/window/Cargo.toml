@@ -5,5 +5,5 @@ publish = false
 edition = "2021"
 
 [dependencies]
-zng = { path = "../../crates/zng", features = ["view_prebuilt", "inspector"] }
+zng = { path = "../../crates/zng", features = ["view", "inspector"] }
 tracing = "0.1"

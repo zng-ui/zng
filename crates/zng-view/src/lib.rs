@@ -260,8 +260,14 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
 #[cfg(feature = "ipc")]
 #[doc(hidden)]
 #[no_mangle]
-pub extern "C" fn extern_run_same_process(run_app: extern "C" fn()) {
+pub extern "C" fn extern_run_same_process(patch: &StaticPatch, run_app: extern "C" fn()) {
     std::panic::set_hook(Box::new(ffi_abort));
+
+    // SAFETY:
+    // safe because it is called before any view related code in the library.
+    unsafe {
+        patch.install();
+    }
 
     #[allow(clippy::redundant_closure)]
     run_same_process(move || run_app())

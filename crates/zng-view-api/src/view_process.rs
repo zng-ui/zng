@@ -1,8 +1,9 @@
 use std::{
-    env, thread,
+    env, mem, thread,
     time::{Duration, Instant},
 };
 
+use parking_lot::Mutex;
 use zng_txt::Txt;
 
 use crate::{VIEW_MODE, VIEW_SERVER, VIEW_VERSION};
@@ -47,7 +48,7 @@ impl ViewConfig {
     /// Returns `true` if the current process is awaiting for the config to start the
     /// view process in the same process.
     pub(crate) fn is_awaiting_same_process() -> bool {
-        env::var_os(Self::SAME_PROCESS_VAR).unwrap_or_default() == Self::SG_WAITING
+        matches!(*same_process().lock(), SameProcess::Awaiting)
     }
 
     /// Sets and unblocks the same-process config if there is a request.
@@ -57,8 +58,7 @@ impl ViewConfig {
     /// If there is no pending `wait_same_process`.
     pub(crate) fn set_same_process(cfg: ViewConfig) {
         if Self::is_awaiting_same_process() {
-            let cfg = format!("{}\n{}\n{}", cfg.version, cfg.server_name, cfg.headless);
-            env::set_var(Self::SAME_PROCESS_VAR, cfg);
+            *same_process().lock() = SameProcess::Ready(cfg);
         } else {
             unreachable!("use `waiting_same_process` to check, then call `set_same_process` only once")
         }
@@ -72,11 +72,11 @@ impl ViewConfig {
     pub fn wait_same_process() -> Self {
         let _s = tracing::trace_span!("ViewConfig::wait_same_process").entered();
 
-        if env::var_os(Self::SAME_PROCESS_VAR).is_some() {
+        if !matches!(*same_process().lock(), SameProcess::Not) {
             panic!("`wait_same_process` can only be called once");
         }
 
-        env::set_var(Self::SAME_PROCESS_VAR, Self::SG_WAITING);
+        *same_process().lock() = SameProcess::Awaiting;
 
         let time = Instant::now();
         let timeout = Duration::from_secs(5);
@@ -88,22 +88,9 @@ impl ViewConfig {
             }
         }
 
-        let config = env::var(Self::SAME_PROCESS_VAR).unwrap();
-
-        env::set_var(Self::SAME_PROCESS_VAR, Self::SG_DONE);
-
-        let config: Vec<_> = config.lines().collect();
-        assert_eq!(
-            config.len(),
-            3,
-            "var `{}` format incorrect, expected 3 lines",
-            Self::SAME_PROCESS_VAR
-        );
-
-        ViewConfig {
-            version: Txt::from_str(config[0]),
-            server_name: Txt::from_str(config[1]),
-            headless: config[2] == "true",
+        match mem::replace(&mut *same_process().lock(), SameProcess::Done) {
+            SameProcess::Ready(cfg) => cfg,
+            _ => unreachable!(),
         }
     }
 
@@ -136,11 +123,48 @@ impl ViewConfig {
         exit_code.map(|e| e == i32::from_le_bytes(*b"vapi")).unwrap_or(false)
             || stderr.map(|s| s.contains("view API version is not equal")).unwrap_or(false)
     }
+}
 
-    /// Used to communicate the `ViewConfig` in the same process, we don't use
-    /// a static variable because prebuild view-process implementations don't
-    /// statically link with the same variable.
-    const SAME_PROCESS_VAR: &'static str = "zng_view_api::ViewConfig";
-    const SG_WAITING: &'static str = "WAITING";
-    const SG_DONE: &'static str = "DONE";
+enum SameProcess {
+    Not,
+    Awaiting,
+    Ready(ViewConfig),
+    Done,
+}
+
+// because some view libs are dynamically loaded this variable needs to be patchable.
+//
+// This follows the same idea as the "hot-reload" patches, just manually implemented.
+static mut SAME_PROCESS: &Mutex<SameProcess> = &SAME_PROCESS_COLD;
+static SAME_PROCESS_COLD: Mutex<SameProcess> = Mutex::new(SameProcess::Not);
+
+fn same_process() -> &'static Mutex<SameProcess> {
+    // SAFETY: this is safe because SAME_PROCESS is only mutated on dynamic lib init, before any other code.
+    unsafe { *std::ptr::addr_of!(SAME_PROCESS) }
+}
+
+/// Dynamic view-process "same process" implementations must patch the static variables used by
+/// the view-api. This patch also propagates the tracing and log contexts.
+pub struct StaticPatch {
+    same_process: *const Mutex<SameProcess>,
+    tracing: tracing_shared::SharedLogger,
+}
+impl StaticPatch {
+    /// Called in the main executable.
+    pub fn capture() -> Self {
+        Self {
+            same_process: same_process(),
+            tracing: tracing_shared::SharedLogger::new(),
+        }
+    }
+
+    /// Called in the dynamic library.
+    ///
+    /// # Safety
+    ///
+    /// Only safe if it is the first view-process code to run in the dynamic library.
+    pub unsafe fn install(&self) {
+        *std::ptr::addr_of_mut!(SAME_PROCESS) = &*self.same_process;
+        self.tracing.install();
+    }
 }
