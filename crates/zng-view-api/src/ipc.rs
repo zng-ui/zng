@@ -19,7 +19,7 @@ pub(crate) type IpcResult<T> = std::result::Result<T, Disconnected>;
 /// Bytes sender.
 ///
 /// Use [`bytes_channel`] to create.
-#[cfg_attr(feature = "ipc", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "ipc", derive(serde::Serialize, serde::Deserialize))]
 pub struct IpcBytesSender {
     #[cfg(feature = "ipc")]
     sender: ipc_channel::ipc::IpcBytesSender,
@@ -47,7 +47,7 @@ impl fmt::Debug for IpcBytesSender {
 /// Bytes receiver.
 ///
 /// Use [`bytes_channel`] to create.
-#[cfg_attr(feature = "ipc", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "ipc", derive(serde::Serialize, serde::Deserialize))]
 pub struct IpcBytesReceiver {
     #[cfg(feature = "ipc")]
     recv: ipc_channel::ipc::IpcBytesReceiver,
@@ -80,6 +80,22 @@ pub fn bytes_channel() -> (IpcBytesSender, IpcBytesReceiver) {
     (IpcBytesSender { sender }, IpcBytesReceiver { recv })
 }
 
+#[cfg(not(feature = "ipc"))]
+mod arc_bytes {
+    pub fn serialize<S>(bytes: &std::sync::Arc<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde_bytes::serialize(&bytes[..], serializer)
+    }
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<std::sync::Arc<Vec<u8>>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(std::sync::Arc::new(serde_bytes::deserialize(deserializer)?))
+    }
+}
+
 /// Immutable shared memory that can be send fast over IPC.
 ///
 /// # `not(feature="ipc")`
@@ -92,6 +108,7 @@ pub struct IpcBytes {
     bytes: Option<ipc_channel::ipc::IpcSharedMemory>,
     // `IpcSharedMemory` only clones a pointer.
     #[cfg(not(feature = "ipc"))]
+    #[serde(with = "arc_bytes")]
     bytes: std::sync::Arc<Vec<u8>>,
 }
 /// Pointer equal.
