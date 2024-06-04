@@ -24,6 +24,7 @@ use zng::{
 
 fn main() {
     zng::env::init!();
+    zng::app::print_tracing(tracing::Level::INFO); // trace in view-process (thread)
     zng::view_process::prebuilt::run_same_process(app_main);
 }
 

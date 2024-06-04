@@ -1,4 +1,4 @@
-use std::{cell::Cell, error::Error, ffi::CString, fmt, mem, num::NonZeroU32, rc::Rc};
+use std::{cell::Cell, error::Error, ffi::CString, fmt, mem, num::NonZeroU32, rc::Rc, thread};
 
 use gleam::gl;
 use glutin::{
@@ -52,7 +52,23 @@ impl GlContextManager {
                 continue;
             }
 
-            let window = winit_loop.create_window(window.clone()).unwrap();
+            let mut retries = 0;
+            let window = loop {
+                match winit_loop.create_window(window.clone()) {
+                    Ok(w) => break w,
+                    Err(e) => {
+                        // Some platforms work after a retry
+                        // X11: After a GLXBadWindow
+                        retries += 1;
+                        if retries == 10 {
+                            panic!("cannot create winit window, {e}")
+                        } else if retries > 1 {
+                            tracing::error!("cannot create winit window (retry={retries}), {e}");
+                            thread::sleep(std::time::Duration::from_millis(retries * 100));
+                        }
+                    }
+                }
+            };
 
             let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
                 RenderMode::Dedicated => self.create_headed_glutin(id, &window, config.hardware_acceleration),

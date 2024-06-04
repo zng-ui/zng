@@ -12,6 +12,10 @@
 //! The [`VERSION`] of this crate must match exactly in both *App-Process* and *View-Process*, otherwise a runtime
 //! panic error is generated.
 //!
+//! # Same Process Patch
+//!
+//! Dynamically loaded same process implementers must propagate a [`StaticPatch`], otherwise the view will not connect.
+//!
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]

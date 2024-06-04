@@ -14,6 +14,7 @@
 use core::fmt;
 use libloading::*;
 use std::{env, io, path::PathBuf};
+use zng_view_api::StaticPatch;
 
 zng_env::on_process_start!(|_| {
     if std::env::var("ZNG_VIEW_NO_INIT_START").is_err() {
@@ -56,7 +57,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 /// Dynamically linked pre-built view.
 pub struct ViewLib {
     view_process_main_fn: unsafe extern "C" fn(),
-    run_same_process_fn: unsafe extern "C" fn(extern "C" fn()),
+    run_same_process_fn: unsafe extern "C" fn(&StaticPatch, extern "C" fn()),
     _lib: Library,
 }
 impl ViewLib {
@@ -214,6 +215,7 @@ impl ViewLib {
         self.run_same_process_impl(Box::new(run_app))
     }
     fn run_same_process_impl(self, run_app: Box<dyn FnOnce() + Send>) -> ! {
+        let patch = StaticPatch::capture();
         unsafe {
             use std::sync::atomic::{AtomicU8, Ordering};
 
@@ -239,7 +241,7 @@ impl ViewLib {
                 run_app();
             }
 
-            (self.run_same_process_fn)(run)
+            (self.run_same_process_fn)(&patch, run)
         }
         // exit the process to ensure all threads are stopped
         zng_env::exit(0)

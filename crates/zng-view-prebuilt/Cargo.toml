@@ -18,6 +18,7 @@ default = ["embedded"]
 embedded = []
 
 [dependencies]
+zng-view-api = { path = "../zng-view-api", version = "0.5.0", default-features = false }
 zng-env = { path = "../zng-env", version = "0.2.0" }
 libloading = "0.8"
 dunce = "1.0"
