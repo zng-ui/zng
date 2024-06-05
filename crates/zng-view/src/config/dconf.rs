@@ -1,4 +1,4 @@
-use std::{io::BufRead as _, sync::Arc};
+use std::{io::BufRead as _, sync::Arc, time::Duration};
 
 use zng_unit::TimeUnits as _;
 use zng_view_api::{
@@ -6,16 +6,34 @@ use zng_view_api::{
     Event,
 };
 
+use crate::AppEvent;
+
 pub fn font_aa() -> FontAntiAliasing {
     super::other::font_aa()
 }
 
 pub fn multi_click_config() -> MultiClickConfig {
-    super::other::multi_click_config()
+    let mut cfg = MultiClickConfig::default();
+    if let Some(d) = dconf_uint("/org/gnome/desktop/peripherals/mouse/double-click") {
+        cfg.time = d.ms();
+    }
+    cfg
 }
 
 pub fn animations_config() -> AnimationsConfig {
-    super::other::animations_config()
+    let mut cfg = AnimationsConfig::default();
+    if let Some(e) = dconf_bool("/org/gnome/desktop/interface/enable-animations") {
+        cfg.enabled = e;
+    }
+    if let Some(d) = dconf_uint("/org/gnome/desktop/interface/cursor-blink-time") {
+        cfg.caret_blink_interval = d.ms();
+    }
+    if let Some(e) = dconf_bool("/org/gnome/desktop/interface/cursor-blink") {
+        if !e {
+            cfg.caret_blink_interval = Duration::MAX;
+        }
+    }
+    cfg
 }
 
 pub fn key_repeat_config() -> KeyRepeatConfig {
@@ -51,17 +69,36 @@ pub fn locale_config() -> LocaleConfig {
     super::other::locale_config()
 }
 
-fn on_change(key: &str, event_loop: &crate::AppEventSender) {
-    // println!("{key}"); // to discover keys, uncomment and change the config in system config app.
+fn on_change(key: &str, s: &crate::AppEventSender) {
+    println!("{key}"); // to discover keys, uncomment and change the config in system config app.
 
     match key {
         "/org/gnome/desktop/interface/color-scheme" => {
-            let _ = event_loop.send(crate::AppEvent::ColorSchemeConfigChanged);
+            let _ = s.send(AppEvent::ColorSchemeConfigChanged);
         }
         "/org/gnome/desktop/peripherals/keyboard/delay" | "/org/gnome/desktop/peripherals/keyboard/repeat-interval" => {
-            let _ = event_loop.send(crate::AppEvent::Notify(Event::KeyRepeatConfigChanged(key_repeat_config())));
+            let _ = s.send(AppEvent::Notify(Event::KeyRepeatConfigChanged(key_repeat_config())));
+        }
+        "/org/gnome/desktop/peripherals/mouse/double-click" => {
+            let _ = s.send(AppEvent::Notify(Event::MultiClickConfigChanged(multi_click_config())));
+        }
+        "/org/gnome/desktop/interface/enable-animations"
+        | "/org/gnome/desktop/interface/cursor-blink-time"
+        | "/org/gnome/desktop/interface/cursor-blink" => {
+            let _ = s.send(AppEvent::Notify(Event::AnimationsConfigChanged(animations_config())));
         }
         _ => {}
+    }
+}
+
+fn dconf_bool(key: &str) -> Option<bool> {
+    let s = dconf(key)?;
+    match s.parse::<bool>() {
+        Ok(b) => Some(b),
+        Err(e) => {
+            tracing::error!("unexpected value for {key} '{s}', parse error: {e}");
+            None
+        }
     }
 }
 
