@@ -1,4 +1,6 @@
-use zng_view_api::config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig};
+#![allow(unused)]
+
+use zng_view_api::config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
 
 pub fn font_aa() -> FontAntiAliasing {
     warn("font_aa");
@@ -30,6 +32,7 @@ pub fn color_scheme_config() -> ColorScheme {
     ColorScheme::default()
 }
 
+#[cfg(not(windows))]
 pub fn locale_config() -> LocaleConfig {
     LocaleConfig {
         langs: sys_locale::get_locale().into_iter().map(zng_txt::Txt::from).collect(),
