@@ -104,17 +104,21 @@ fn dconf_bool(key: &str) -> Option<bool> {
 
 fn dconf_uint(key: &str) -> Option<u64> {
     let s = dconf(key)?;
-    if let Some((_, i)) = s.rsplit_once(' ') {
-        match i.parse::<u64>() {
-            Ok(i) => Some(i),
-            Err(e) => {
-                tracing::error!("unexpected value for {key} '{i}', parse error: {e}");
-                None
-            }
+    let s = if let Some((t, i)) = s.rsplit_once(' ') {
+        if !t.starts_with("uint") {
+            tracing::error!("unexpected value for {key} '{s}'");
+            return None;
         }
+        i
     } else {
-        tracing::error!("unexpected value for {key} '{s}'");
-        None
+        s.as_str()
+    };
+    match s.parse::<u64>() {
+        Ok(i) => Some(i),
+        Err(e) => {
+            tracing::error!("unexpected value for {key} '{s}', parse error: {e}");
+            None
+        }
     }
 }
 
