@@ -9,5 +9,5 @@ description = "Hot reload library example for `hot_reload` example"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-zng = { path = "../../crates/zng" }
+zng = { path = "../../crates/zng", features = ["hot_reload"] }
 tracing = "0.1"
