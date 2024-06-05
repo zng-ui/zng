@@ -311,7 +311,77 @@ pub fn key_repeat_config() -> KeyRepeatConfig {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd"
+))]
+fn gsettings<T: std::str::FromStr>(schema: &str, key: &str, ty: &str) -> Option<T>
+where
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    match std::process::Command::new("gsettings").arg("get").arg(schema).output() {
+        Ok(out) => {
+            if out.status.success() {
+                let r = String::from_utf8_lossy(&out.stdout);
+                match r.strip_prefix(ty) {
+                    Some(s) => match s.trim().parse() {
+                        Ok(r) => Some(r),
+                        Err(e) => {
+                            tracing::error!("cannot parse gsettings {schema} {key}\n{e}");
+                            None
+                        }
+                    },
+                    None => {
+                        tracing::error!("gsettings {schema} {key} type is not `{ty}`");
+                        None
+                    }
+                }
+            } else {
+                let e = String::from_utf8_lossy(&out.stderr);
+                tracing::error!("failed `gsettings get {schema} {key}`\n{e}");
+                None
+            }
+        }
+        Err(e) => {
+            tracing::error!("failed `gsettings get {schema} {key}`\n{e}");
+            None
+        }
+    }
+}
+
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd"
+))]
+pub fn key_repeat_config() -> KeyRepeatConfig {
+    let delay = gsettings::<u32>("org.gnome.desktop.peripherals.keyboard", "delay", "uint32");
+    // let repeat = gsettings::<bool>("org.gnome.desktop.peripherals.keyboard", "repeat", "");
+    let interval = gsettings::<u32>("org.gnome.desktop.peripherals.keyboard", "repeat-interval", "uint32");
+
+    if let (Some(delay), Some(interval)) = (delay, interval) {
+        KeyRepeatConfig {
+            start_delay: std::time::Duration::from_millis(delay as _),
+            interval: std::time::Duration::from_millis(interval as _),
+        }
+    } else {
+        KeyRepeatConfig::default()
+    }
+}
+
+#[cfg(not(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd"
+)))]
 pub fn key_repeat_config() -> KeyRepeatConfig {
     tracing::error!("`key_repeat_config` not implemented for this OS, will use default");
     KeyRepeatConfig::default()
