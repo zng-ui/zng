@@ -34,6 +34,32 @@ impl Default for GlContextManager {
     }
 }
 
+enum GlWindowCreation {
+    /// Windows requires this.
+    Before(winit::window::Window),
+    /// Other platforms don't. X11 requires this because it needs to set the XVisualID.
+    After(winit::window::WindowAttributes),
+}
+fn winit_create_window(winit_loop: &ActiveEventLoop, window: &winit::window::WindowAttributes) -> winit::window::Window {
+    let mut retries = 0;
+    loop {
+        match winit_loop.create_window(window.clone()) {
+            Ok(w) => break w,
+            Err(e) => {
+                // Some platforms work after a retry
+                // X11: After a GLXBadWindow
+                retries += 1;
+                if retries == 10 {
+                    panic!("cannot create winit window, {e}")
+                } else if retries > 1 {
+                    tracing::error!("cannot create winit window (retry={retries}), {e}");
+                    thread::sleep(std::time::Duration::from_millis(retries * 100));
+                }
+            }
+        }
+    }
+}
+
 impl GlContextManager {
     /// New window context.
     pub(crate) fn create_headed(
@@ -52,32 +78,20 @@ impl GlContextManager {
                 continue;
             }
 
-            let mut retries = 0;
-            let window = loop {
-                match winit_loop.create_window(window.clone()) {
-                    Ok(w) => break w,
-                    Err(e) => {
-                        // Some platforms work after a retry
-                        // X11: After a GLXBadWindow
-                        retries += 1;
-                        if retries == 10 {
-                            panic!("cannot create winit window, {e}")
-                        } else if retries > 1 {
-                            tracing::error!("cannot create winit window (retry={retries}), {e}");
-                            thread::sleep(std::time::Duration::from_millis(retries * 100));
-                        }
-                    }
-                }
+            let window = if cfg!(windows) || matches!(config.mode, RenderMode::Software) {
+                GlWindowCreation::Before(winit_create_window(winit_loop, &window))
+            } else {
+                GlWindowCreation::After(window.clone())
             };
 
             let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
-                RenderMode::Dedicated => self.create_headed_glutin(id, &window, config.hardware_acceleration),
-                RenderMode::Integrated => self.create_headed_glutin(id, &window, Some(false)),
-                RenderMode::Software => self.create_headed_swgl(id, &window),
+                RenderMode::Dedicated => self.create_headed_glutin(winit_loop, id, window, config.hardware_acceleration),
+                RenderMode::Integrated => self.create_headed_glutin(winit_loop, id, window, Some(false)),
+                RenderMode::Software => self.create_headed_swgl(winit_loop, id, window),
             }));
 
             let error = match r {
-                Ok(Ok(ctx)) => return (window, ctx),
+                Ok(Ok(r)) => return r,
                 Ok(Err(e)) => e,
                 Err(panic) => {
                     let component = match config.mode {
@@ -166,15 +180,16 @@ impl GlContextManager {
 
     fn create_headed_glutin(
         &mut self,
+        event_loop: &ActiveEventLoop,
         id: WindowId,
-        window: &winit::window::Window,
+        window: GlWindowCreation,
         hardware: Option<bool>,
-    ) -> Result<GlContext, Box<dyn Error>> {
-        let display_handle = window.raw_display_handle();
-        let window_handle = window.raw_window_handle();
-
+    ) -> Result<(winit::window::Window, GlContext), Box<dyn Error>> {
         #[cfg(windows)]
-        let display_pref = DisplayApiPreference::WglThenEgl(Some(window_handle));
+        let display_pref = DisplayApiPreference::WglThenEgl(Some(match &window {
+            GlWindowCreation::Before(w) => w.raw_window_handle(),
+            GlWindowCreation::After(_) => unreachable!(),
+        }));
 
         #[cfg(any(
             target_os = "linux",
@@ -188,19 +203,52 @@ impl GlContextManager {
         #[cfg(target_os = "macos")]
         let display_pref = DisplayApiPreference::Cgl;
 
+        let display_handle = match &window {
+            GlWindowCreation::Before(w) => w.raw_display_handle(),
+            GlWindowCreation::After(_) => event_loop.raw_display_handle(),
+        };
+
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
         let display = unsafe { Display::new(display_handle, display_pref) }?;
 
-        let template = ConfigTemplateBuilder::new()
+        let mut template = ConfigTemplateBuilder::new()
             .with_alpha_size(8)
             .with_transparency(true)
-            .compatible_with_native_window(window_handle)
             .with_surface_type(ConfigSurfaceTypes::WINDOW)
-            .prefer_hardware_accelerated(hardware)
-            .build();
+            .prefer_hardware_accelerated(hardware);
+        if let GlWindowCreation::Before(w) = &window {
+            template = template.compatible_with_native_window(w.raw_window_handle());
+        }
+        let template = template.build();
 
         // SAFETY: we are holding the `window` reference.
         let config = unsafe { display.find_configs(template)?.next().ok_or("no display config") }?;
+
+        let window = match window {
+            GlWindowCreation::Before(w) => w,
+            GlWindowCreation::After(w) => {
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "openbsd",
+                    target_os = "netbsd"
+                ))]
+                let w = {
+                    use glutin::platform::x11::X11GlConfigExt as _;
+                    use winit::platform::x11::WindowAttributesExtX11 as _;
+
+                    if let Some(id) = config.x11_visual() {
+                        w.with_x11_visual(id.visual_id() as _)
+                    } else {
+                        w
+                    }
+                };
+                winit_create_window(event_loop, &w)
+            }
+        };
+
+        let window_handle = window.raw_window_handle();
 
         let size = window.inner_size();
         let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
@@ -264,11 +312,16 @@ impl GlContextManager {
 
         context.resize(size);
 
-        Ok(context)
+        Ok((window, context))
     }
 
     #[allow(unreachable_code)]
-    fn create_headed_swgl(&mut self, id: WindowId, window: &winit::window::Window) -> Result<GlContext, Box<dyn Error>> {
+    fn create_headed_swgl(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        id: WindowId,
+        window: GlWindowCreation,
+    ) -> Result<(winit::window::Window, GlContext), Box<dyn Error>> {
         #[cfg(not(feature = "software"))]
         {
             let _ = (id, window);
@@ -281,7 +334,12 @@ impl GlContextManager {
                 return Err("zng-view does not fully implement headed \"software\" backend on target OS (missing blit)".into());
             }
 
-            let blit = blit::Impl::new(window);
+            let window = match window {
+                GlWindowCreation::Before(w) => w,
+                GlWindowCreation::After(w) => event_loop.create_window(w)?,
+            };
+
+            let blit = blit::Impl::new(&window);
             let context = swgl::Context::create();
             let gl = Rc::new(context);
 
@@ -289,13 +347,14 @@ impl GlContextManager {
             self.current.set(Some(id));
             context.make_current();
 
-            Ok(GlContext {
+            let context = GlContext {
                 id,
                 current: self.current.clone(),
                 backend: GlBackend::Swgl { context, blit: Some(blit) },
                 gl,
                 render_mode: RenderMode::Software,
-            })
+            };
+            Ok((window, context))
         }
     }
 
