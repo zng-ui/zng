@@ -186,7 +186,10 @@ impl GlContextManager {
         hardware: Option<bool>,
     ) -> Result<(winit::window::Window, GlContext), Box<dyn Error>> {
         #[cfg(windows)]
-        let display_pref = DisplayApiPreference::WglThenEgl(Some(window.unwrap_before().raw_window_handle()));
+        let display_pref = DisplayApiPreference::WglThenEgl(Some(match &window {
+            GlWindowCreation::Before(w) => w.raw_window_handle(),
+            GlWindowCreation::After(_) => unreachable!(),
+        }));
 
         #[cfg(any(
             target_os = "linux",
