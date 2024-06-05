@@ -1112,7 +1112,6 @@ impl App {
         );
         app.start_receiving(ipc.request_receiver);
 
-        #[cfg(windows)]
         config::spawn_listener(app.app_sender.clone());
 
         if let Err(e) = event_loop.run_app(&mut app) {

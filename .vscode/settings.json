@@ -95,6 +95,7 @@
         "Jp",
         "lft",
         "libfontconfig",
+        "libglib",
         "libzng",
         "lig",
         "liga",
