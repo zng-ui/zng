@@ -1,5 +1,6 @@
 # Unpublished
 
+* Fix integrated/dedicated render mode in Ubuntu.
 * Fix build of zng-view-* without `"ipc"` feature.
 * Prebuilt view-process now uses the same tracing context as the app-process.
     - Note that the tracing context must be set before `run_same_process`.
