@@ -33,14 +33,15 @@ pub fn color_scheme_config() -> ColorScheme {
 }
 
 #[cfg(not(windows))]
-pub fn locale_config() -> LocaleConfig {
-    LocaleConfig {
+pub fn locale_config() -> zng_view_api::config::LocaleConfig {
+    zng_view_api::config::LocaleConfig {
         langs: sys_locale::get_locale().into_iter().map(zng_txt::Txt::from).collect(),
     }
 }
 
-pub fn spawn_listener(_: crate::AppEventSender) {
+pub fn spawn_listener(_: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
     tracing::warn!("config events not implemented for {}", std::env::consts::OS);
+    None
 }
 
 fn warn(name: &str) {

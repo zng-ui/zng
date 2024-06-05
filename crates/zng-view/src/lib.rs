@@ -346,6 +346,8 @@ pub(crate) struct App {
     #[cfg(not(windows))]
     arboard: Option<arboard::Clipboard>,
 
+    config_listener_exit: Option<Box<dyn FnOnce()>>,
+
     exited: bool,
 }
 impl fmt::Debug for App {
@@ -864,6 +866,22 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     w.redraw();
                 }
             }
+            AppEvent::ColorSchemeConfigChanged => {
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
+                {
+                    let cfg = crate::config::color_scheme_config();
+                    let ids: Vec<_> = self.windows.iter().map(|w| w.id()).collect();
+                    for id in ids {
+                        self.notify(Event::ColorSchemeChanged(id, cfg));
+                    }
+                }
+            }
             AppEvent::InitDeviceEvents(enabled) => {
                 self.init_device_events(enabled, Some(winit_loop));
             }
@@ -931,6 +949,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
     fn exiting(&mut self, event_loop: &ActiveEventLoop) {
         let _ = event_loop;
+        if let Some(t) = self.config_listener_exit.take() {
+            t();
+        }
     }
 
     fn memory_warning(&mut self, winit_loop: &ActiveEventLoop) {
@@ -1072,6 +1093,7 @@ impl App {
                                 self.app.image_cache.loaded(data);
                             }
                             AppEvent::MonitorPowerChanged => {} // headless
+                            AppEvent::ColorSchemeConfigChanged => {}
                             AppEvent::InitDeviceEvents(enabled) => {
                                 self.app.init_device_events(enabled, None);
                             }
@@ -1112,7 +1134,7 @@ impl App {
         );
         app.start_receiving(ipc.request_receiver);
 
-        config::spawn_listener(app.app_sender.clone());
+        app.config_listener_exit = config::spawn_listener(app.app_sender.clone());
 
         if let Err(e) = event_loop.run_app(&mut app) {
             if app.exited {
@@ -1164,6 +1186,7 @@ impl App {
             pressed_modifiers: FxHashMap::default(),
             pending_modifiers_update: None,
             pending_modifiers_focus_clear: false,
+            config_listener_exit: None,
 
             #[cfg(not(windows))]
             arboard: None,
@@ -1533,6 +1556,9 @@ impl Api for App {
         self.assert_started();
         self.started = false;
         self.exited = true;
+        if let Some(t) = self.config_listener_exit.take() {
+            t();
+        }
         // not really, but just to exit winit loop
         let _ = self.app_sender.send(AppEvent::ParentProcessExited);
     }
@@ -2050,6 +2076,12 @@ pub(crate) enum AppEvent {
     /// Send when monitor was turned on/off by the OS, need to redraw all screens to avoid blank issue.
     #[allow(unused)]
     MonitorPowerChanged,
+
+    /// System color scheme changed.
+    ///
+    /// X11/Wayland needs this
+    #[allow(unused)]
+    ColorSchemeConfigChanged,
 }
 
 /// Message inserted in the request loop from the view-process.

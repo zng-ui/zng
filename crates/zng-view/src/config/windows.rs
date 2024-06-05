@@ -1,7 +1,7 @@
 use zng_view_api::config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig};
 
 /// Create a hidden window that listens to Windows config change events.
-pub(crate) fn spawn_listener(event_loop: crate::AppEventSender) {
+pub(crate) fn spawn_listener(event_loop: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
     config_listener(event_loop);
     /*
     std::thread::Builder::new()
@@ -9,6 +9,7 @@ pub(crate) fn spawn_listener(event_loop: crate::AppEventSender) {
     .spawn(move || config_listener(event_loop))
     .unwrap();
     */
+    None
 }
 fn config_listener(event_loop: crate::AppEventSender) {
     let _span = tracing::trace_span!("config_listener").entered();

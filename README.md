@@ -86,9 +86,6 @@ On Linux:
 * Packages needed to build with `"view_prebuilt"` feature:
     - `curl`
 
-* Packages needed to build with `"view"` feature:
-    - `libglib2.0-dev`
-
 On macOS:
 
 * To build with `"crash_handler"` feature, enabled by default:

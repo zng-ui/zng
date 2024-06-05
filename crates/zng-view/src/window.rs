@@ -1147,20 +1147,15 @@ impl Window {
         self.state.clone()
     }
 
-    #[cfg(windows)]
     /// Returns the preferred color scheme for the window.
     pub fn color_scheme(&self) -> ColorScheme {
-        match self.window.theme().unwrap_or(winit::window::Theme::Light) {
-            winit::window::Theme::Light => ColorScheme::Light,
-            winit::window::Theme::Dark => ColorScheme::Dark,
+        match self.window.theme() {
+            Some(t) => match t {
+                winit::window::Theme::Light => ColorScheme::Light,
+                winit::window::Theme::Dark => ColorScheme::Dark,
+            },
+            None => crate::config::color_scheme_config(),
         }
-    }
-
-    #[cfg(not(windows))]
-    /// Returns the preferred color scheme for the window.
-    pub fn color_scheme(&self) -> ColorScheme {
-        tracing::error!("`color_scheme` not implemented for this OS");
-        ColorScheme::default()
     }
 
     fn set_inner_position(&self, pos: DipPoint) {

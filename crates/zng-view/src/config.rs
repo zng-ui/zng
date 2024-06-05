@@ -12,7 +12,7 @@ use windows as platform;
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-mod gsettings;
+mod dconf;
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -20,7 +20,7 @@ mod gsettings;
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-use gsettings as platform;
+use dconf as platform;
 
 mod other;
 #[cfg(not(any(
@@ -61,6 +61,8 @@ pub fn locale_config() -> LocaleConfig {
     platform::locale_config()
 }
 
-pub fn spawn_listener(event_loop: crate::AppEventSender) {
+/// Return handle must be called on exit.
+#[must_use]
+pub fn spawn_listener(event_loop: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
     platform::spawn_listener(event_loop)
 }
