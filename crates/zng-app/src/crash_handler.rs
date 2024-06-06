@@ -974,7 +974,7 @@ fn run_process(command: &mut std::process::Command) -> std::io::Result<(std::pro
         .spawn()?;
 
     let stdout = capture_and_print(app_process.stdout.take().unwrap(), false);
-    let stderr = capture_and_print(app_process.stderr.take().unwrap(), false);
+    let stderr = capture_and_print(app_process.stderr.take().unwrap(), true);
 
     let status = app_process.wait()?;
 
