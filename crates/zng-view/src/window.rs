@@ -124,6 +124,15 @@ pub(crate) struct Window {
 
     cursor: Option<CursorIcon>,
     cursor_img: Option<CustomCursor>,
+
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
+    xlib_maximize: bool,
 }
 impl fmt::Debug for Window {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -458,6 +467,15 @@ impl Window {
             has_shutdown_warn: false,
             cursor: None,
             cursor_img: None,
+
+            #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+            ))]
+            xlib_maximize: false,
         };
 
         if !cfg.default_position && win.state.state == WindowState::Normal {
@@ -723,6 +741,20 @@ impl Window {
     /// Returns `Some(new_size)` if the window size is different from the previous call to this function.
     pub fn resized(&mut self) -> Option<DipSize> {
         if !self.visible {
+            return None;
+        }
+
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd"
+        ))]
+        if std::mem::take(&mut self.xlib_maximize) {
+            // X11 does not open maximized
+            // to work we need to set inner_size (after first frame) and request maximized here after xlib resizes.
+            self.window.set_maximized(true);
             return None;
         }
 
@@ -1488,6 +1520,22 @@ impl Window {
                 self.window.request_redraw();
             } else if self.visible {
                 self.set_visible(true);
+
+                // X11 does not open maximized
+                // to work we need to set inner_size and after xlib resizes it request maximized...
+                #[cfg(any(
+                    target_os = "linux",
+                    target_os = "dragonfly",
+                    target_os = "freebsd",
+                    target_os = "netbsd",
+                    target_os = "openbsd"
+                ))]
+                if let (raw_window_handle::RawWindowHandle::Xlib(_), WindowState::Maximized) = (
+                    raw_window_handle::HasRawWindowHandle::raw_window_handle(&self.window),
+                    self.state.state,
+                ) {
+                    self.xlib_maximize = self.window.request_inner_size(self.window.inner_size()).is_none();
+                }
 
                 if mem::take(&mut self.steal_init_focus) {
                     self.window.focus_window();
