@@ -1082,7 +1082,7 @@ impl Window {
             return;
         }
         self.taskbar_visible = visible;
-        tracing::error!("`set_taskbar_visible` not implemented for this OS");
+        tracing::error!("`set_taskbar_visible` not implemented for {}", std::env::consts::OS);
     }
 
     #[cfg(windows)]
