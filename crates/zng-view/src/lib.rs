@@ -1490,7 +1490,13 @@ macro_rules! with_window_or_surface {
         }
     };
 }
-
+impl Drop for App {
+    fn drop(&mut self) {
+        if let Some(f) = self.config_listener_exit.take() {
+            f();
+        }
+    }
+}
 impl App {
     fn open_headless_impl(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
         self.assert_started();

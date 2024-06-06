@@ -493,8 +493,14 @@ impl Drop for Controller {
         let _ = self.exit();
         #[cfg(feature = "ipc")]
         if let Some(mut process) = self.process.take() {
-            let _ = process.kill();
-            let _ = process.wait();
+            if process.try_wait().is_err() {
+                std::thread::sleep(Duration::from_secs(1));
+                if process.try_wait().is_err() {
+                    tracing::error!("view-process did not exit after 1s, killing");
+                    let _ = process.kill();
+                    let _ = process.wait();
+                }
+            }
         }
     }
 }
