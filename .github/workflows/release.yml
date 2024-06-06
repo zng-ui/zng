@@ -163,6 +163,9 @@ jobs:
     env:
       ZNG_TP_LICENSES: true
     steps:
+      - name: fix clang version issue
+        run: choco upgrade llvm
+        # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
       - name: install cargo-about
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
