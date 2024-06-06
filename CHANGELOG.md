@@ -1,10 +1,13 @@
 # Unpublished
 
-* Fix integrated/dedicated render mode in Ubuntu.
+* Fix integrated/dedicated render mode on Ubuntu.
 * Fix build of zng-view-* without `"ipc"` feature.
 * Prebuilt view-process now uses the same tracing context as the app-process.
     - Note that the tracing context must be set before `run_same_process`.
-* Fix "GLXBadWindow" fatal error in Ubuntu.
+* Fix "GLXBadWindow" fatal error on Ubuntu.
+* Fix ComboStyle arrow icon on Ubuntu.
+* Now does not capture view-process stdout/err, inherits stdio from app-process.
+* Fix view-process getting killed before exit request can finish.
 
 # 0.7.0
 
