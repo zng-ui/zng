@@ -78,8 +78,8 @@ jobs:
       CXX: 'clang-cl'
     steps:
     - name: fix clang version issue
-      run: $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -ne 'C:\Program Files\LLVM\bin' }) -join ';'
-    # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150541007
+      run: choco upgrade llvm
+    # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
     - uses: dtolnay/rust-toolchain@stable
     - name: install cargo-about
       uses: baptiste0928/cargo-install@v3
