@@ -32,7 +32,6 @@ use zng_wgt_input::{click_mode, is_hovered, pointer_capture::capture_pointer_on_
 use zng_wgt_layer::popup::{PopupState, POPUP};
 use zng_wgt_size_offset::{size, x, y};
 use zng_wgt_style::{impl_style_fn, style_fn, Style};
-use zng_wgt_transform::scale_y;
 
 pub mod cmd;
 
@@ -1149,19 +1148,60 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
 
 #[allow(non_snake_case)]
 fn combomark_visual() -> impl UiNode {
-    zng_wgt_text::Text! {
-        hit_test_mode = false;
-        accessible = false;
-        font_family = FontNames::system_ui(&lang!(und));
-        txt_align = Align::CENTER;
-        align = Align::CENTER;
-        font_size = 0.6.em();
+    let color_key = FrameValueKey::new_unique();
+    let mut size = PxSize::zero();
+    let mut bounds = PxBox::zero();
+    let mut transform = PxTransform::identity();
 
-        txt = "▼";
+    // (8x8) at 45º, scaled-x 70%
+    fn layout() -> (PxSize, PxTransform, PxBox) {
+        let size = Size::from(8).layout();
+        let center = size.to_vector() * 0.5.fct();
+        let transform = Transform::new_translate(-center.x, -center.y)
+            .rotate(45.deg())
+            .scale_x(0.7)
+            .translate(center.x, center.y)
+            .layout();
 
-        when #{IS_CHECKED_VAR}.unwrap_or(true) {
-            scale_y = -1.0f32;
+        let bounds = transform.outer_transformed(PxBox::from_size(size)).unwrap_or_default();
+        (size, transform, bounds)
+    }
+
+    let visual = match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_render_update(&zng_wgt_text::FONT_COLOR_VAR);
+            WIDGET.sub_var_render(&IS_CHECKED_VAR);
         }
+        UiNodeOp::Measure { desired_size, .. } => {
+            let (s, _, _) = layout();
+            *desired_size = s;
+        }
+        UiNodeOp::Layout { final_size, .. } => {
+            (size, transform, bounds) = layout();
+            *final_size = size;
+        }
+        UiNodeOp::Render { frame } => {
+            let mut clip = bounds.to_rect();
+            clip.size.height *= 0.5.fct();
+
+            if !IS_CHECKED_VAR.get().unwrap_or(false) {
+                clip.origin.y += clip.size.height;
+            }
+
+            frame.push_clip_rect(clip, false, false, |frame| {
+                frame.push_reference_frame((WIDGET.id(), 0).into(), transform.into(), false, false, |frame| {
+                    frame.push_color(PxRect::from_size(size), color_key.bind_var(&zng_wgt_text::FONT_COLOR_VAR, |&c| c));
+                })
+            });
+        }
+        UiNodeOp::RenderUpdate { update } => {
+            update.update_color_opt(color_key.update_var(&zng_wgt_text::FONT_COLOR_VAR, |&c| c));
+        }
+        _ => {}
+    });
+    zng_wgt_container::Container! {
+        child = visual;
+        child_align = Align::CENTER;
     }
 }
 
