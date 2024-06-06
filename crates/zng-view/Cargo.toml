@@ -132,7 +132,6 @@ sys-locale = "0.3"
 wayland-client = { version = "0.31", default-features = false } # matches winit
 x11-dl = "2.18.5"                                               # matches winit
 tempfile = "3.10"
-duct = "0.13"
 
 # xlib is re-exported by glutin/winit
 

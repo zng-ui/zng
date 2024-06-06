@@ -1,4 +1,4 @@
-use std::{io::BufRead as _, sync::Arc, time::Duration};
+use std::{io::BufRead as _, time::Duration};
 
 use zng_unit::TimeUnits as _;
 use zng_view_api::{
@@ -142,18 +142,23 @@ fn dconf(key: &str) -> Option<String> {
 }
 
 pub fn spawn_listener(event_loop: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
-    let w = match duct::cmd!("dconf", "watch", "/").reader() {
+    let mut w = std::process::Command::new("dconf");
+    w.arg("watch")
+        .arg("/")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null());
+
+    let mut w = match w.spawn() {
         Ok(w) => w,
         Err(e) => {
             tracing::error!("cannot monitor config, dconf did not spawn, {e}");
             return None;
         }
     };
-    let w = Arc::new(w);
-    let ww = w.clone();
-
+    let stdout = w.stdout.take().unwrap();
     std::thread::spawn(move || {
-        for line in std::io::BufReader::new(&*w).lines() {
+        for line in std::io::BufReader::new(stdout).lines() {
             match line {
                 Ok(l) => {
                     if l.starts_with('/') {
@@ -168,6 +173,7 @@ pub fn spawn_listener(event_loop: crate::AppEventSender) -> Option<Box<dyn FnOnc
     });
 
     Some(Box::new(move || {
-        let _ = ww.kill();
+        let _ = w.kill();
+        let _ = w.wait();
     }))
 }
