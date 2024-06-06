@@ -61,6 +61,9 @@ jobs:
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
+      - name: fix clang version issue
+        run: choco upgrade llvm
+        # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
@@ -160,6 +163,9 @@ jobs:
     env:
       ZNG_TP_LICENSES: true
     steps:
+      - name: fix clang version issue
+        run: choco upgrade llvm
+        # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
       - name: install cargo-about
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: baptiste0928/cargo-install@v3
@@ -358,6 +364,9 @@ jobs:
       CXX: 'clang-cl'
       NEXTEST_RETRIES: 3
     steps:
+      - name: fix clang version issue
+        run: choco upgrade llvm
+        # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
       - name: install cargo-nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: taiki-e/install-action@v2
