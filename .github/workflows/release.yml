@@ -358,6 +358,9 @@ jobs:
       CXX: 'clang-cl'
       NEXTEST_RETRIES: 3
     steps:
+      - name: fix clang version issue
+        run: choco upgrade llvm
+        # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
       - name: install cargo-nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: taiki-e/install-action@v2
