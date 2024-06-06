@@ -70,7 +70,7 @@ pub fn locale_config() -> LocaleConfig {
 }
 
 fn on_change(key: &str, s: &crate::AppEventSender) {
-    println!("{key}"); // to discover keys, uncomment and change the config in system config app.
+    // println!("{key}"); // to discover keys, uncomment and change the config in system config app.
 
     match key {
         "/org/gnome/desktop/interface/color-scheme" => {
