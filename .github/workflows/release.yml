@@ -61,6 +61,9 @@ jobs:
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
+      - name: fix clang version issue
+        run: choco upgrade llvm
+        # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
