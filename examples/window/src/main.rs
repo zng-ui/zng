@@ -23,6 +23,7 @@ use zng::{
 };
 
 fn main() {
+    zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
     zng::app::print_tracing(tracing::Level::INFO); // trace in view-process (thread)
     zng::view_process::prebuilt::run_same_process(app_main);
@@ -37,7 +38,7 @@ async fn main_window() -> window::WindowRoot {
 
     zng::image::IMAGES.limits().modify(|l| {
         let l = l.to_mut();
-        l.allow_path = zng::image::PathFilter::allow_dir("examples/res");
+        l.allow_path = zng::image::PathFilter::allow_dir(zng::env::res(""));
     });
 
     let window_vars = WINDOW.vars();
@@ -239,7 +240,7 @@ fn icon_example() -> impl UiNode {
         WINDOW.vars().icon(),
         ui_vec![
             icon_btn("Default", WindowIcon::Default),
-            icon_btn("Png File", "../res/icon-file.png".into()),
+            icon_btn("Png File", zng::env::res("icon-file.png").into()),
             icon_btn("Png Bytes", include_bytes!("../res/icon-bytes.png").into()),
             icon_btn("Raw BGRA", {
                 let color = [0, 0, 255, 255 / 2];

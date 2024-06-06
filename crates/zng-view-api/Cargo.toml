@@ -18,7 +18,7 @@ default = ["ipc"]
 #
 # When this is enabled communication with the view is (de)serialized which can add a 
 # minor cost, something like a 1ms per 3MB frame request.
-ipc = ["dep:ipc-channel", "dep:duct"]
+ipc = ["dep:ipc-channel"]
 
 # Implement `IntoVar<T>` for API types.
 var = ["dep:zng-var"]
@@ -37,7 +37,6 @@ zng-var = { path = "../zng-var", version = "0.4.2", optional = true }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
-duct = { version = "0.13", optional = true }
 
 tracing = "0.1"
 flume = { version = "0.11", default-features = false }

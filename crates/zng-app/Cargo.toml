@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc", "debug_default", "crash_handler"]
+default = ["ipc", "debug_default"]
 
 # Enable the `"dyn_*"` and `"inspector"` features in debug builds.
 debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]

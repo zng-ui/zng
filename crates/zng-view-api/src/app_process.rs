@@ -16,11 +16,6 @@ use crate::{ipc, AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen
 /// The listener returns the closure on join for reuse in respawn.
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Event) + Send>>;
 
-#[cfg(feature = "ipc")]
-type DuctHandle = duct::Handle;
-#[cfg(not(feature = "ipc"))]
-struct DuctHandle;
-
 pub(crate) const VIEW_VERSION: &str = "ZNG_VIEW_VERSION";
 pub(crate) const VIEW_SERVER: &str = "ZNG_VIEW_SERVER";
 pub(crate) const VIEW_MODE: &str = "ZNG_VIEW_MODE";
@@ -36,7 +31,7 @@ pub(crate) const VIEW_MODE: &str = "ZNG_VIEW_MODE";
 /// [exits]: std::process::exit
 #[cfg_attr(not(feature = "ipc"), allow(unused))]
 pub struct Controller {
-    process: Option<DuctHandle>,
+    process: Option<std::process::Child>,
     online: bool,
     generation: ViewProcessGen,
     is_respawn: bool,
@@ -212,7 +207,12 @@ impl Controller {
         view_process_exe: &Path,
         view_process_env: &HashMap<Txt, Txt>,
         headless: bool,
-    ) -> AnyResult<(Option<DuctHandle>, ipc::RequestSender, ipc::ResponseReceiver, ipc::EventReceiver)> {
+    ) -> AnyResult<(
+        Option<std::process::Child>,
+        ipc::RequestSender,
+        ipc::ResponseReceiver,
+        ipc::EventReceiver,
+    )> {
         let _span = tracing::trace_span!("spawn_view_process").entered();
 
         let init = ipc::AppInit::new();
@@ -234,20 +234,16 @@ impl Controller {
 
             #[cfg(feature = "ipc")]
             {
-                let mut process = duct::cmd!(view_process_exe);
+                let mut process = std::process::Command::new(view_process_exe);
                 for (name, val) in view_process_env {
-                    process = process.env(name, val);
+                    process.env(name, val);
                 }
                 let process = process
                     .env(VIEW_VERSION, crate::VERSION)
                     .env(VIEW_SERVER, init.name())
                     .env(VIEW_MODE, if headless { "headless" } else { "headed" })
                     .env("RUST_BACKTRACE", "full")
-                    .stdin_null()
-                    .stdout_capture()
-                    .stderr_capture()
-                    .unchecked()
-                    .start()?;
+                    .spawn()?;
                 Some(process)
             }
         };
@@ -256,15 +252,14 @@ impl Controller {
             Ok(r) => r,
             Err(e) => {
                 #[cfg(feature = "ipc")]
-                if let Some(p) = process {
+                if let Some(mut p) = process {
                     if let Err(ke) = p.kill() {
                         tracing::error!(
                             "failed to kill new view-process after failing to connect to it\n connection error: {e:?}\n kill error: {ke:?}",
                         );
                     } else if let Ok(output) = p.wait() {
-                        let code = output.status.code();
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        if ViewConfig::is_version_err(code, Some(&stderr)) {
+                        let code = output.code();
+                        if ViewConfig::is_version_err(code, None) {
                             let code = code.unwrap_or(1);
                             tracing::error!(
                                 "view-process API version mismatch, the view-process build must use the same exact version as the app-process, \
@@ -345,7 +340,7 @@ impl Controller {
         self.online = false;
         self.is_respawn = true;
 
-        let process = if let Some(p) = self.process.take() {
+        let mut process = if let Some(p) = self.process.take() {
             p
         } else {
             if self.same_process {
@@ -390,7 +385,7 @@ impl Controller {
             }
         }
 
-        let code_and_output = match process.into_output() {
+        let code_and_output = match process.wait() {
             Ok(c) => Some(c),
             Err(e) => {
                 tracing::error!(target: "vp_respawn", "view-process could not be killed, will abandon running, {e:?}");
@@ -402,7 +397,7 @@ impl Controller {
         if let Some(c) = code_and_output {
             tracing::info!(target: "vp_respawn", "view-process killed");
 
-            let code = c.status.code();
+            let code = c.code();
             #[allow(unused_mut)]
             let mut signal = None::<i32>;
 
@@ -419,7 +414,7 @@ impl Controller {
                 #[cfg(unix)]
                 if code.is_none() {
                     use std::os::unix::process::ExitStatusExt as _;
-                    signal = c.status.signal();
+                    signal = c.signal();
 
                     if let Some(sig) = signal {
                         if [2, 9, 17, 19, 23].contains(&sig) {
@@ -437,33 +432,11 @@ impl Controller {
                 tracing::error!(target: "vp_respawn", "view-process exit code: {code:#X}, signal: {signal}");
             }
 
-            let stderr = match String::from_utf8(c.stderr) {
-                Ok(s) => {
-                    if !s.is_empty() {
-                        tracing::error!(target: "vp_respawn", "view-process stderr:\n```stderr\n{s}\n```")
-                    }
-                    Some(s)
-                }
-                Err(e) => {
-                    tracing::error!(target: "vp_respawn", "failed to read view-process stderr: {e}");
-                    None
-                }
-            };
-
-            if ViewConfig::is_version_err(code, stderr.as_deref()) {
+            if ViewConfig::is_version_err(code, None) {
                 let code = code.unwrap_or(1);
                 tracing::error!(target: "vp_respawn", "view-process API version mismatch, the view-process build must use the same exact version as the app-process, \
                                         will exit app-process with code 0x{code:x}");
                 zng_env::exit(code);
-            }
-
-            match String::from_utf8(c.stdout) {
-                Ok(s) => {
-                    if !s.is_empty() {
-                        tracing::info!(target: "vp_respawn", "view-process stdout:\n```stdout\n{s}\n```")
-                    }
-                }
-                Err(e) => tracing::error!(target: "vp_respawn", "failed to read view-process stdout: {e}"),
             }
         } else {
             tracing::error!(target: "vp_respawn", "failed to kill view-process, will abandon it running and spawn a new one");
@@ -519,8 +492,15 @@ impl Drop for Controller {
     fn drop(&mut self) {
         let _ = self.exit();
         #[cfg(feature = "ipc")]
-        if let Some(process) = self.process.take() {
-            let _ = process.kill();
+        if let Some(mut process) = self.process.take() {
+            if process.try_wait().is_err() {
+                std::thread::sleep(Duration::from_secs(1));
+                if process.try_wait().is_err() {
+                    tracing::error!("view-process did not exit after 1s, killing");
+                    let _ = process.kill();
+                    let _ = process.wait();
+                }
+            }
         }
     }
 }
