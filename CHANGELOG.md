@@ -9,6 +9,7 @@
 * Now does not capture view-process stdout/err, inherits stdio from app-process.
 * Fix view-process getting killed before exit request can finish.
 * Fix windows not opening maximized in X11.
+* Fix bold default UI font on Ubuntu.
 
 # 0.7.0
 
