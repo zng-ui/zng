@@ -346,7 +346,7 @@ impl FontNames {
 
         if lang!("zh-Hans").matches(lang, true, false) {
             [
-                "Ubuntu",
+                "Ubuntu Regular",
                 "Droid Sans",
                 "Source Han Sans SC",
                 "Source Han Sans CN",
@@ -357,7 +357,7 @@ impl FontNames {
             .into()
         } else if lang!("zh-Hant").matches(lang, true, false) {
             [
-                "Ubuntu",
+                "Ubuntu Regular",
                 "Droid Sans",
                 "Source Han Sans TC",
                 "Source Han Sans TW",
@@ -369,7 +369,7 @@ impl FontNames {
         } else if lang!(ja).matches(lang, true, false) {
             [
                 "system-ui",
-                "Ubuntu",
+                "Ubuntu Regular",
                 "Droid Sans",
                 "Source Han Sans J",
                 "Source Han Sans JP",
@@ -381,7 +381,7 @@ impl FontNames {
         } else if lang!(ko).matches(lang, true, false) {
             [
                 "system-ui",
-                "Ubuntu",
+                "Ubuntu Regular",
                 "Droid Sans",
                 "Source Han Sans K",
                 "Source Han Sans JR",
@@ -393,7 +393,7 @@ impl FontNames {
             ]
             .into()
         } else {
-            ["system-ui", "Ubuntu", "Droid Sans", "Noto Color Emoji", "sans-serif"].into()
+            ["system-ui", "Ubuntu Regular", "Droid Sans", "Noto Color Emoji", "sans-serif"].into()
         }
     }
 
