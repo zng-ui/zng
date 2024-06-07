@@ -488,27 +488,26 @@ impl HotReloadService {
     fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: &StaticPatch) -> (RebuildLoadVar, SignalOnce) {
         let (rebuild, cancel) = self.rebuild(manifest_dir.clone());
         let rebuild_load = zng_task::respond(async_clmv!(static_patch, {
-            let mut path = rebuild.wait_into_rsp().await?;
+            let build_path = rebuild.wait_into_rsp().await?;
+            let mut unblocked_path = build_path.clone();
 
             // copy dylib to not block the next rebuild
-            let file_name = match path.file_name() {
+            let file_name = match build_path.file_name() {
                 Some(f) => f.to_string_lossy(),
                 None => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "dylib path does not have a file name").into()),
             };
             for i in 0..1000 {
-                let mut unblocked_path = path.clone();
                 unblocked_path.set_file_name(format!("zng-hot-{i}-{file_name}"));
                 if unblocked_path.exists() {
                     // try free for next use
-                    let _ = std::fs::remove_file(unblocked_path);
+                    let _ = std::fs::remove_file(&unblocked_path);
                 } else {
-                    std::fs::copy(&path, &unblocked_path)?;
-                    path = unblocked_path;
+                    std::fs::copy(&build_path, &unblocked_path)?;
                     break;
                 }
             }
 
-            let dylib = zng_task::wait(move || HotLib::new(&static_patch, manifest_dir, path));
+            let dylib = zng_task::wait(move || HotLib::new(&static_patch, manifest_dir, unblocked_path));
             match zng_task::with_deadline(dylib, 2.secs()).await {
                 Ok(r) => r.map_err(Into::into),
                 Err(_) => Err(BuildError::InitTimeout),
