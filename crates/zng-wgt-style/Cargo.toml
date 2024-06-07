@@ -17,6 +17,6 @@ trace_widget = ["zng-app/trace_widget"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.3.6" }
-zng-app = { path = "../zng-app", version = "0.6.1" }
+zng-app = { path = "../zng-app", version = "0.7.0" }
 
 tracing = "0.1"

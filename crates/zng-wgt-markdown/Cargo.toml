@@ -34,7 +34,7 @@ zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.16" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.4" }
 zng-ext-image = { path = "../zng-ext-image", version = "0.2.16" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.3.12" }
-zng-app = { path = "../zng-app", version = "0.6.1" }
+zng-app = { path = "../zng-app", version = "0.7.0" }
 
 pulldown-cmark = "0.9"
 http = "1.1"

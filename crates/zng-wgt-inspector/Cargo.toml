@@ -22,7 +22,7 @@ crash_handler = ["zng-app/crash_handler", "dep:open"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.3.6" }
-zng-app = { path = "../zng-app", version = "0.6.1" }
+zng-app = { path = "../zng-app", version = "0.7.0" }
 zng-env = { path = "../zng-env", version = "0.2.0" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.4" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.3.12" }
