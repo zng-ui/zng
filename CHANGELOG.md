@@ -1,5 +1,7 @@
 # Unpublished
 
+* **Breaking** `get_font_use` now gets font references, not just names.
+
 * Fix integrated/dedicated render mode on Ubuntu.
 * Fix build of zng-view-* without `"ipc"` feature.
 * Prebuilt view-process now uses the same tracing context as the app-process.
