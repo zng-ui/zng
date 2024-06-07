@@ -52,6 +52,8 @@ pub fn build_custom(manifest_dir: &str, mut build: Command, cancel: SignalOnce) 
                 zng_task::spawn_wait(move || {
                     if let Err(e) = child.kill() {
                         tracing::error!("failed to kill build after hot dylib successfully built, {e}");
+                    } else {
+                        let _ = child.wait();
                     }
                 });
                 Ok(p)
@@ -61,6 +63,8 @@ pub fn build_custom(manifest_dir: &str, mut build: Command, cancel: SignalOnce) 
                     zng_task::spawn_wait(move || {
                         if let Err(e) = child.kill() {
                             tracing::error!("failed to kill build after cancel, {e}");
+                        } else {
+                            let _ = child.wait();
                         }
                     });
 
