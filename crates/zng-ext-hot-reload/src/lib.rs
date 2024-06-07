@@ -508,8 +508,11 @@ impl HotReloadService {
                 }
             }
 
-            let dylib = HotLib::new(&static_patch, manifest_dir, path)?;
-            Ok(dylib)
+            let dylib = zng_task::wait(move || HotLib::new(&static_patch, manifest_dir, path));
+            match zng_task::with_deadline(dylib, 2.secs()).await {
+                Ok(r) => r.map_err(Into::into),
+                Err(_) => Err(BuildError::InitTimeout),
+            }
         }));
         (rebuild_load, cancel)
     }
