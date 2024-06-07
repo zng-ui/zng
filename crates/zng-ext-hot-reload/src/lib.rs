@@ -59,7 +59,7 @@ macro_rules! zng_hot_entry {
 
         #[no_mangle]
         #[doc(hidden)]
-        pub extern "C" fn zng_hot_entry_init(patch: $crate::StaticPatch) {
+        pub extern "C" fn zng_hot_entry_init(patch: &$crate::StaticPatch) {
             $crate::zng_hot_entry::init(patch)
         }
     };
@@ -96,7 +96,7 @@ pub mod zng_hot_entry {
         None
     }
 
-    pub fn init(statics: StaticPatch) {
+    pub fn init(statics: &StaticPatch) {
         std::panic::set_hook(Box::new(|args| {
             eprintln!("PANIC IN HOT LOADED LIBRARY, ABORTING");
             crate::util::crash_handler(args);
@@ -112,9 +112,10 @@ type StaticPatchersMap = HashMap<&'static dyn zng_unique_id::hot_reload::PatchKe
 
 #[doc(hidden)]
 #[derive(Clone)]
+#[repr(C)]
 pub struct StaticPatch {
-    entries: Arc<StaticPatchersMap>,
     tracing: tracing_shared::SharedLogger,
+    entries: Arc<StaticPatchersMap>,
 }
 impl StaticPatch {
     /// Called on the static code (host).
