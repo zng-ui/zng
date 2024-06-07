@@ -1414,6 +1414,8 @@ mod private {
 /// In debug builds this function is called automatically with level INFO on app start.
 ///
 /// See also [`test_log`] to enable panicking for errors.
+/// 
+/// See also [`print_tracing_filter`] for the filter used by this.
 ///
 /// [`tracing`]: https://docs.rs/tracing
 pub fn print_tracing(max: tracing::Level) -> bool {
@@ -1429,7 +1431,7 @@ pub fn print_tracing(max: tracing::Level) -> bool {
 struct FilterLayer(tracing::Level);
 impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
     fn enabled(&self, metadata: &tracing::Metadata<'_>, _: tracing_subscriber::layer::Context<'_, S>) -> bool {
-        filter(&self.0, metadata)
+        print_tracing_filter(&self.0, metadata)
     }
 
     fn max_level_hint(&self) -> Option<tracing::metadata::LevelFilter> {
@@ -1458,29 +1460,41 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
         }
     }
 }
-fn filter(level: &tracing::Level, metadata: &tracing::Metadata) -> bool {
+/// Filter used by [`print_tracing`], removes some log noise from dependencies.
+pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata) -> bool {
     if metadata.level() > level {
         return false;
     }
 
-    // suppress webrender warnings:
-    //
-    if metadata.target() == "webrender::device::gl" {
-        // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
-        // This happens when an empty frame is rendered.
-        if metadata.line() == Some(4661) {
+    if metadata.level() == &tracing::Level::INFO {
+        // suppress large info about texture cache
+        if metadata.target() == "zng_webrender::device::gl" {
             return false;
         }
-    }
-
-    // suppress font-kit warnings:
-    //
-    if metadata.target() == "font_kit::loaders::freetype" {
-        // Suppress "$fn(): found invalid platform ID $n"
-        // This does not look fully implemented and generates a lot of warns
-        // with the default Ubuntu font set all with valid platform IDs.
-        if metadata.line() == Some(735) {
+        // suppress config dump
+        if metadata.target() == "zng_webrender::renderer::init" {
             return false;
+        }
+    } else if metadata.level() == &tracing::Level::WARN {
+        // suppress webrender warnings:
+        //
+        if metadata.target() == "zng_webrender::device::gl" {
+            // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
+            // This happens when an empty frame is rendered.
+            if metadata.line() == Some(4661) {
+                return false;
+            }
+        }
+
+        // suppress font-kit warnings:
+        //
+        if metadata.target() == "font_kit::loaders::freetype" {
+            // Suppress "$fn(): found invalid platform ID $n"
+            // This does not look fully implemented and generates a lot of warns
+            // with the default Ubuntu font set all with valid platform IDs.
+            if metadata.line() == Some(734) {
+                return false;
+            }
         }
     }
 
