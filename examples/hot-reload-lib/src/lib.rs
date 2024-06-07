@@ -1,10 +1,10 @@
 use zng::{prelude::*, prelude_wgt::*};
 
 // Declare hot reload dynamic entry.
-// zng::hot_reload::zng_hot_entry!();
+zng::hot_reload::zng_hot_entry!();
 
 /// Hot reloading node.
-// #[hot_node]
+#[hot_node]
 pub fn hot_node() -> impl UiNode {
     tracing::info!("`hot_node()` called");
     Text! {

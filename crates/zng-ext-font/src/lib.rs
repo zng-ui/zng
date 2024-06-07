@@ -1975,7 +1975,7 @@ impl FontFaceLoader {
 
                     #[cfg(debug_assertions)]
                     if NOT_FOUND.lock().get_or_insert_with(HashSet::default).insert(font_name.clone()) {
-                        tracing::warn!(r#"font "{font_name}" not found"#);
+                        tracing::debug!(r#"font "{font_name}" not found"#);
                     }
 
                     return None;
