@@ -14,6 +14,7 @@ use zng_var::ResponseVar;
 /// Build and return the dylib path.
 pub fn build(
     manifest_dir: &str,
+    package_option: &str,
     package: &str,
     bin_option: &str,
     bin: &str,
@@ -22,7 +23,7 @@ pub fn build(
     let mut build = Command::new("cargo");
     build.arg("build").arg("--message-format").arg("json");
     if !package.is_empty() {
-        build.arg("--package").arg(package);
+        build.arg(package_option).arg(package);
     }
     if !bin.is_empty() {
         build.arg(bin_option).arg(bin);

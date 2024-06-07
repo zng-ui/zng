@@ -5,5 +5,5 @@ publish = false
 edition = "2021"
 
 [dependencies]
-hot-reload-lib = { path = "../hot-reload-lib", package = "zng-example-hot-reload-lib"}
+hot-reload-lib = { path = "../hot-reload-lib", package = "zng-example-hot-reload-lib" }
 zng = { path = "../../crates/zng", features = ["view_prebuilt", "hot_reload"] }

@@ -327,6 +327,7 @@ impl BuildArgs {
     pub fn build(&self, package: Option<&str>) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
+            "--package",
             package.unwrap_or(""),
             "",
             "",
@@ -341,6 +342,7 @@ impl BuildArgs {
     pub fn build_example(&self, package: Option<&str>, example: &str) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
+            "--package",
             package.unwrap_or(""),
             "--example",
             example,
@@ -355,9 +357,24 @@ impl BuildArgs {
     pub fn build_bin(&self, package: Option<&str>, bin: &str) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
+            "--package",
             package.unwrap_or(""),
             "--bin",
             bin,
+            self.cancel_build.clone(),
+        ))
+    }
+
+    /// Calls `cargo build --manifest-path {path} --message-format json` and cancels it as soon as the dylib is rebuilt.
+    ///
+    /// Always returns `Some(_)`.
+    pub fn build_manifest(&self, path: &str) -> Option<RebuildVar> {
+        Some(cargo::build(
+            &self.manifest_dir,
+            "--manifest-path",
+            path,
+            "",
+            "",
             self.cancel_build.clone(),
         ))
     }
