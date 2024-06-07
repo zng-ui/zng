@@ -20,6 +20,8 @@ extern crate bitflags;
 
 pub mod font_features;
 
+mod match_util;
+
 mod emoji_util;
 pub use emoji_util::*;
 
@@ -346,7 +348,7 @@ impl FontNames {
 
         if lang!("zh-Hans").matches(lang, true, false) {
             [
-                "Ubuntu Regular",
+                "Ubuntu",
                 "Droid Sans",
                 "Source Han Sans SC",
                 "Source Han Sans CN",
@@ -357,7 +359,7 @@ impl FontNames {
             .into()
         } else if lang!("zh-Hant").matches(lang, true, false) {
             [
-                "Ubuntu Regular",
+                "Ubuntu",
                 "Droid Sans",
                 "Source Han Sans TC",
                 "Source Han Sans TW",
@@ -369,7 +371,7 @@ impl FontNames {
         } else if lang!(ja).matches(lang, true, false) {
             [
                 "system-ui",
-                "Ubuntu Regular",
+                "Ubuntu",
                 "Droid Sans",
                 "Source Han Sans J",
                 "Source Han Sans JP",
@@ -381,7 +383,7 @@ impl FontNames {
         } else if lang!(ko).matches(lang, true, false) {
             [
                 "system-ui",
-                "Ubuntu Regular",
+                "Ubuntu",
                 "Droid Sans",
                 "Source Han Sans K",
                 "Source Han Sans JR",
@@ -393,7 +395,7 @@ impl FontNames {
             ]
             .into()
         } else {
-            ["system-ui", "Ubuntu Regular", "Droid Sans", "Noto Color Emoji", "sans-serif"].into()
+            ["system-ui", "Ubuntu", "Droid Sans", "Noto Color Emoji", "sans-serif"].into()
         }
     }
 
@@ -2011,25 +2013,7 @@ impl FontFaceLoader {
 
     fn get_system(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<font_kit::handle::Handle> {
         let _span = tracing::trace_span!("FontFaceLoader::get_system").entered();
-        let family_name = font_kit::family_name::FamilyName::from(font_name.clone());
-        match font_kit::source::SystemSource::new().select_best_match(
-            &[family_name],
-            &font_kit::properties::Properties {
-                style: style.into(),
-                weight: weight.into(),
-                stretch: stretch.into(),
-            },
-        ) {
-            Ok(handle) => Some(handle),
-            Err(font_kit::error::SelectionError::NotFound) => {
-                tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
-                None
-            }
-            Err(e) => {
-                tracing::error!(target: "font_loading", "failed to select system font, {e}\nquery: {:?}", (font_name, style, weight, stretch));
-                None
-            }
-        }
+        match_util::best(font_name, style, weight, stretch)
     }
 
     fn match_custom(faces: &[FontFace], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFace {

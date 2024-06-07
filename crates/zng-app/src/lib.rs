@@ -1414,7 +1414,7 @@ mod private {
 /// In debug builds this function is called automatically with level INFO on app start.
 ///
 /// See also [`test_log`] to enable panicking for errors.
-/// 
+///
 /// See also [`print_tracing_filter`] for the filter used by this.
 ///
 /// [`tracing`]: https://docs.rs/tracing
