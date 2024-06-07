@@ -32,7 +32,6 @@ use zng_app::{
 use zng_app_context::{app_local, LocalContext};
 use zng_ext_fs_watcher::WATCHER;
 pub use zng_ext_hot_reload_proc_macros::hot_node;
-use zng_hot_entry::HotRequest;
 use zng_task::{parking_lot::Mutex, SignalOnce};
 use zng_txt::Txt;
 use zng_unique_id::hot_reload::HOT_STATICS;
@@ -53,8 +52,13 @@ macro_rules! zng_hot_entry {
 
         #[no_mangle]
         #[doc(hidden)] // used by lib loader
-        pub extern "C" fn zng_hot_entry(request: $crate::zng_hot_entry::HotRequest) -> Option<$crate::zng_hot_entry::HotNode> {
-            $crate::zng_hot_entry::entry(request)
+        pub extern "C" fn zng_hot_entry(
+            manifest_dir: &&str,
+            node_name: &&'static str,
+            ctx: &mut $crate::zng_hot_entry::LocalContext,
+            exchange: &mut $crate::HotEntryExchange,
+        ) {
+            $crate::zng_hot_entry::entry(manifest_dir, node_name, ctx, exchange)
         }
 
         #[no_mangle]
@@ -68,8 +72,8 @@ macro_rules! zng_hot_entry {
 #[doc(hidden)]
 pub mod zng_hot_entry {
     pub use crate::node::{HotNode, HotNodeArgs, HotNodeHost};
-    use crate::StaticPatch;
-    use zng_app_context::LocalContext;
+    use crate::{HotEntryExchange, StaticPatch};
+    pub use zng_app_context::LocalContext;
 
     pub struct HotNodeEntry {
         pub manifest_dir: &'static str,
@@ -80,20 +84,19 @@ pub mod zng_hot_entry {
     #[linkme::distributed_slice]
     pub static HOT_NODES: [HotNodeEntry];
 
-    pub struct HotRequest {
-        pub manifest_dir: String,
-        pub hot_node_name: &'static str,
-        pub ctx: LocalContext,
-        pub args: HotNodeArgs,
-    }
-
-    pub fn entry(mut request: HotRequest) -> Option<crate::HotNode> {
+    pub fn entry(manifest_dir: &str, node_name: &'static str, ctx: &mut LocalContext, exchange: &mut HotEntryExchange) {
         for entry in HOT_NODES.iter() {
-            if request.hot_node_name == entry.hot_node_name && request.manifest_dir == entry.manifest_dir {
-                return request.ctx.with_context(|| Some((entry.hot_node_fn)(request.args)));
+            if node_name == entry.hot_node_name && manifest_dir == entry.manifest_dir {
+                let args = match std::mem::replace(exchange, HotEntryExchange::Responding) {
+                    HotEntryExchange::Request(args) => args,
+                    _ => panic!("bad request"),
+                };
+                let node = ctx.with_context(|| (entry.hot_node_fn)(args));
+                *exchange = HotEntryExchange::Response(Some(node));
+                return;
             }
         }
-        None
+        *exchange = HotEntryExchange::Response(None);
     }
 
     pub fn init(statics: &StaticPatch) {
@@ -630,12 +633,19 @@ struct BuildingLib {
     cancel_build: SignalOnce,
 }
 
+#[doc(hidden)]
+pub enum HotEntryExchange {
+    Request(HotNodeArgs),
+    Responding,
+    Response(Option<HotNode>),
+}
+
 /// Dynamically loaded library.
 #[derive(Clone)]
 pub(crate) struct HotLib {
     manifest_dir: Txt,
     lib: Arc<libloading::Library>,
-    hot_entry: unsafe fn(HotRequest) -> Option<HotNode>,
+    hot_entry: unsafe extern "C" fn(&&str, &&'static str, &mut LocalContext, &mut HotEntryExchange),
 }
 impl PartialEq for HotLib {
     fn eq(&self, other: &Self) -> bool {
@@ -676,18 +686,17 @@ impl HotLib {
         &self.manifest_dir
     }
 
-    pub fn instantiate(&self, hot_node_name: &'static str, ctx: LocalContext, args: HotNodeArgs) -> Option<HotNode> {
-        let request = HotRequest {
-            manifest_dir: self.manifest_dir.to_string(),
-            hot_node_name,
-            ctx,
-            args,
-        };
+    pub fn instantiate(&self, hot_node_name: &'static str, ctx: &mut LocalContext, args: HotNodeArgs) -> Option<HotNode> {
+        let mut exchange = HotEntryExchange::Request(args);
         // SAFETY: lib is still loaded and will remain until all HotNodes are dropped.
-        let mut r = unsafe { (self.hot_entry)(request) };
-        if let Some(n) = &mut r {
+        unsafe { (self.hot_entry)(&self.manifest_dir.as_str(), &hot_node_name, ctx, &mut exchange) };
+        let mut node = match exchange {
+            HotEntryExchange::Response(n) => n,
+            _ => None,
+        };
+        if let Some(n) = &mut node {
             n._lib = Some(self.lib.clone());
         }
-        r
+        node
     }
 }
