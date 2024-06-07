@@ -10,6 +10,10 @@
 * Fix view-process getting killed before exit request can finish.
 * Fix windows not opening maximized in X11.
 * Fix bold default UI font on Ubuntu.
+* Fix multiple hot-reload bugs, now is tested on Windows and Ubuntu.
+* **Breaking** Remove `crash_handler` feature from defaults of `zng-app`.
+    - The feature ended-up activated by the numerous crates that depend on `zng-app`.
+    - This is only a breaking change for direct dependents.
 
 # 0.7.0
 
