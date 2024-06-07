@@ -1,10 +1,10 @@
 use zng::{prelude::*, prelude_wgt::*};
 
 // Declare hot reload dynamic entry.
-// zng::hot_reload::zng_hot_entry!();
+zng::hot_reload::zng_hot_entry!();
 
 /// Hot reloading node.
-// #[hot_node]
+#[hot_node]
 pub fn hot_node() -> impl UiNode {
     tracing::info!("`hot_node()` called");
     Text! {
@@ -24,7 +24,7 @@ pub fn hot_node() -> impl UiNode {
 /// Note that the `input` does not hot reload, only changes inside the property. As an alternative
 /// you can declare a test `hot_node` that creates an widget that sets the property, in that context
 /// the property input can be hot reloaded.
-// #[hot_node]
+#[hot_node]
 #[property(FILL)]
 pub fn hot_prop(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
     let input = input.into_var();

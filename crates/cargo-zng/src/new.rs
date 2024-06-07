@@ -430,7 +430,7 @@ fn parse_keys(zng_template_v1: String, include_docs: bool) -> io::Result<KeyMap>
                 if line.starts_with(' ') {
                     line = &line[1..];
                 }
-                docs.push_str(dbg!(line));
+                docs.push_str(line);
                 docs.push('\n');
             }
             continue;

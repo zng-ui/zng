@@ -119,8 +119,7 @@
 //! ##### Hot Libraries Don't Unload
 //!
 //! Every hot reload represents a new version of the library reloading and the previous one cannot be unloaded because static references
-//! to it might persist in the program, usually `&'static str` texts captured during info rebuild. Currently you should be able to hot
-//! reload up to 1000 times, after the builds will fail due to files still in use.
+//! to it might persist in the program, usually `&'static str` texts captured during info rebuild.
 //!
 //! [`property`]: crate::widget::property#input-types
 //!

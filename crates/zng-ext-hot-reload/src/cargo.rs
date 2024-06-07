@@ -14,6 +14,7 @@ use zng_var::ResponseVar;
 /// Build and return the dylib path.
 pub fn build(
     manifest_dir: &str,
+    package_option: &str,
     package: &str,
     bin_option: &str,
     bin: &str,
@@ -22,7 +23,7 @@ pub fn build(
     let mut build = Command::new("cargo");
     build.arg("build").arg("--message-format").arg("json");
     if !package.is_empty() {
-        build.arg("--package").arg(package);
+        build.arg(package_option).arg(package);
     }
     if !bin.is_empty() {
         build.arg(bin_option).arg(bin);
@@ -52,6 +53,8 @@ pub fn build_custom(manifest_dir: &str, mut build: Command, cancel: SignalOnce) 
                 zng_task::spawn_wait(move || {
                     if let Err(e) = child.kill() {
                         tracing::error!("failed to kill build after hot dylib successfully built, {e}");
+                    } else {
+                        let _ = child.wait();
                     }
                 });
                 Ok(p)
@@ -61,6 +64,8 @@ pub fn build_custom(manifest_dir: &str, mut build: Command, cancel: SignalOnce) 
                     zng_task::spawn_wait(move || {
                         if let Err(e) = child.kill() {
                             tracing::error!("failed to kill build after cancel, {e}");
+                        } else {
+                            let _ = child.wait();
                         }
                     });
 
@@ -152,6 +157,9 @@ fn run_build(manifest_path: PathBuf, stdout: ChildStdout) -> Result<PathBuf, Bui
                     return Ok(file);
                 }
             }
+            return Err(BuildError::UnknownMessageFormat {
+                pat: FILENAMES_FIELD.into(),
+            });
         }
     }
 
@@ -182,6 +190,10 @@ pub enum BuildError {
     },
     /// Error loading built library.
     Load(Arc<libloading::Error>),
+    /// Rebuilt dylib did not init after 10s.
+    ///
+    /// This hang was observed in Linux builds.
+    InitTimeout,
     /// Build cancelled.
     Cancelled,
 }
@@ -239,6 +251,7 @@ impl fmt::Display for BuildError {
             BuildError::ManifestPathDidNotBuild { path } => write!(f, "build command did not build `{}`", path.display()),
             BuildError::UnknownMessageFormat { pat: field } => write!(f, "could not find expected `{field}` in cargo JSON message"),
             BuildError::Load(e) => fmt::Display::fmt(e, f),
+            BuildError::InitTimeout => write!(f, "rebuilt dylib init timeout"),
             BuildError::Cancelled => write!(f, "build cancelled"),
         }
     }

@@ -165,7 +165,7 @@ impl UiNode for HotNodeHost {
         let mut ctx = LocalContext::capture();
 
         self.instance = match HOT_RELOAD.lib(self.manifest_dir) {
-            Some(lib) => match lib.instantiate(self.name, ctx.clone(), self.args.clone()) {
+            Some(lib) => match lib.instantiate(self.name, &mut ctx, self.args.clone()) {
                 Some(ok) => {
                     tracing::debug!("loaded hot `{}` in `{}`", self.name, WIDGET.trace_id());
                     ok

@@ -54,7 +54,7 @@ serde_variant = "0.1"
 unic-langid = { version = "0.9", features = ["serde"] }
 
 dunce = "1.0"
-tracing-shared = "0.1.3"
+tracing-shared = { version = "0.1.5", default-features = false, features = ["log"] }
 
 [package.metadata.docs.rs]
 all-features = true
