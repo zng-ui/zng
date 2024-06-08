@@ -15,7 +15,17 @@ use zng_layout::unit::TimeUnits as _;
 
 use zng_txt::{ToTxt as _, Txt};
 
+/// Environment variable that causes the crash handler to not start if set.
+///
+/// This is particularly useful to set in debugger launch configs. Crash handler spawns
+/// a different process for the app  so break points will not work.
+pub const NO_ZNG_CRASH_HANDLER: &str = "NO_ZNG_CRASH_HANDLER";
+
 zng_env::on_process_start!(|process_start_args| {
+    if std::env::var(NO_ZNG_CRASH_HANDLER).is_ok() {
+        return;
+    }
+
     let mut config = CrashConfig::new();
     for ext in CRASH_CONFIG {
         ext(&mut config);

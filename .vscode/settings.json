@@ -199,5 +199,8 @@
         "Zalgo",
         "zdenek",
         "zng"
-    ]
+    ],
+    "lldb.launch.env": {
+        "NO_ZNG_CRASH_HANDLER": ""
+    }
 }
