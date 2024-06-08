@@ -80,7 +80,10 @@ pub fn run() {
                     let _ = std::fs::remove_dir_all(temp);
                     encoded.set(true);
 
-                    assert!(ffmpeg.unwrap().success());
+                    match ffmpeg {
+                        Ok(ffmpeg) => assert!(ffmpeg.success()),
+                        Err(e) => panic!("cannot run 'ffmpeg', {e}"),
+                    }
                 }));
                 encoded.wait_value(|&f| f).await;
                 println!("\rfinished.");

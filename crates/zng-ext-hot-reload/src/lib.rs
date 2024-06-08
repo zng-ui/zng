@@ -14,7 +14,7 @@ mod node;
 mod util;
 use std::{
     collections::{HashMap, HashSet},
-    fmt, mem,
+    fmt, io, mem,
     path::PathBuf,
     sync::Arc,
     time::Duration,
@@ -536,7 +536,10 @@ impl HotReloadService {
             let dylib = zng_task::wait(move || HotLib::new(&static_patch, manifest_dir, unique_path));
             match zng_task::with_deadline(dylib, 2.secs()).await {
                 Ok(r) => r.map_err(Into::into),
-                Err(_) => Err(BuildError::InitTimeout),
+                Err(_) => Err(BuildError::Io(Arc::new(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "hot dylib did not init after 2s",
+                )))),
             }
         }));
         (rebuild_load, cancel)
