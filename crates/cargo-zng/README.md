@@ -502,6 +502,8 @@ The expanded help for each:
   Script can make requests to the resource builder by printing to stdout.
   Current supported requests:
 
+  zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
+  zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
 
   If the script fails the entire stderr is printed and the resource build fails.
 
