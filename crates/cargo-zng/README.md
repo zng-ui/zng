@@ -208,14 +208,14 @@ Arguments:
   [SOURCE]
           Resources source dir
 
-          [default: assets]
+          [default: res]
 
   [TARGET]
           Resources target dir
 
           This directory is wiped before each build.
 
-          [default: target/assets]
+          [default: target/res]
 
 Options:
       --pack
@@ -235,7 +235,7 @@ Options:
       --tool-cache <TOOL_CACHE>
           Tools cache dir
 
-          [default: target/assets.cache]
+          [default: target/res.cache]
 
       --recursion-limit <RECURSION_LIMIT>
           Number of build passes allowed before final
@@ -249,7 +249,7 @@ Options:
           Print version
 ```
 
-This subcommand can be used to build assets and package releases. It is very simple, you create
+This subcommand can be used to build resources and package releases. It is very simple, you create
 a resources directory tree as close as possible to the final resources structure, and place special
 `.zr-{tool}` files on it that are calls to `cargo-zng-res-{tool}` crates or executables.
 
