@@ -403,9 +403,9 @@
 #[allow(deprecated)]
 pub use zng_app::about_app_from_crate;
 pub use zng_app::{
-    on_app_start, print_tracing, AboutApp, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed,
-    AppExtensionInfo, AppStartArgs, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT,
-    INSTANT,
+    on_app_start, print_tracing, print_tracing_filter, AboutApp, AppControlFlow, AppEventObserver, AppExtended, AppExtension,
+    AppExtensionBoxed, AppExtensionInfo, AppStartArgs, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD,
+    EXIT_REQUESTED_EVENT, INSTANT,
 };
 
 #[cfg(feature = "test_util")]

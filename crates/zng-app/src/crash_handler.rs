@@ -19,16 +19,19 @@ use zng_txt::{ToTxt as _, Txt};
 ///
 /// This is particularly useful to set in debugger launch configs. Crash handler spawns
 /// a different process for the app  so break points will not work.
-pub const NO_ZNG_CRASH_HANDLER: &str = "NO_ZNG_CRASH_HANDLER";
+pub const NO_CRASH_HANDLER: &str = "ZNG_NO_CRASH_HANDLER";
 
 zng_env::on_process_start!(|process_start_args| {
-    if std::env::var(NO_ZNG_CRASH_HANDLER).is_ok() {
+    if std::env::var(NO_CRASH_HANDLER).is_ok() {
         return;
     }
 
     let mut config = CrashConfig::new();
     for ext in CRASH_CONFIG {
         ext(&mut config);
+        if config.no_crash_handler {
+            return;
+        }
     }
 
     if std::env::var(APP_PROCESS) != Err(std::env::VarError::NotPresent) {
@@ -131,6 +134,7 @@ pub struct CrashConfig {
     app_process: ConfigProcess,
     dialog_process: ConfigProcess,
     dump_dir: Option<PathBuf>,
+    no_crash_handler: bool,
 }
 impl CrashConfig {
     fn new() -> Self {
@@ -140,6 +144,7 @@ impl CrashConfig {
             app_process: vec![],
             dialog_process: vec![],
             dump_dir: Some(zng_env::cache("zng_minidump")),
+            no_crash_handler: false,
         }
     }
 
@@ -189,6 +194,13 @@ impl CrashConfig {
     /// Do not collect a minidump.
     pub fn no_minidump(&mut self) {
         self.dump_dir = None;
+    }
+
+    /// Does not run with crash handler.
+    ///
+    /// This is equivalent of running with `NO_ZNG_CRASH_HANDLER` env var.
+    pub fn no_crash_handler(&mut self) {
+        self.no_crash_handler = true;
     }
 }
 
