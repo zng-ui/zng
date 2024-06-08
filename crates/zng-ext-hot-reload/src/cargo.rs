@@ -190,10 +190,6 @@ pub enum BuildError {
     },
     /// Error loading built library.
     Load(Arc<libloading::Error>),
-    /// Rebuilt dylib did not init after 10s.
-    ///
-    /// This hang was observed in Linux builds.
-    InitTimeout,
     /// Build cancelled.
     Cancelled,
 }
@@ -251,7 +247,6 @@ impl fmt::Display for BuildError {
             BuildError::ManifestPathDidNotBuild { path } => write!(f, "build command did not build `{}`", path.display()),
             BuildError::UnknownMessageFormat { pat: field } => write!(f, "could not find expected `{field}` in cargo JSON message"),
             BuildError::Load(e) => fmt::Display::fmt(e, f),
-            BuildError::InitTimeout => write!(f, "rebuilt dylib init timeout"),
             BuildError::Cancelled => write!(f, "build cancelled"),
         }
     }
