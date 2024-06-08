@@ -449,7 +449,7 @@
 //!
 //! The [`zng::app::crash_handler`] is enabled by default, it collect panic backtraces, crash minidumps, show a crash dialog to the user
 //! and restart the app. During development a debug crash dialog is provided, it shows the stdout/stderr, panics stacktrace and
-//! minidumps collected if any non-panic fatal error happens. Note that the crash handler **stops debuggers from working**, see the 
+//! minidumps collected if any non-panic fatal error happens. Note that the crash handler **stops debuggers from working**, see the
 //! [Debugger section] of the crash-handler docs on how to automatically disable the crash handler for debugger runs.
 //!
 //! [`tracing`]: https://docs.rs/tracing
