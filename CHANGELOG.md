@@ -1,5 +1,6 @@
 # Unpublished
 
+* Add `NO_ZNG_CRASH_HANDLER` env var to easily disable crash handler for special runs like for a debugger.
 
 # 0.7.1
 

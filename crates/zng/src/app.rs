@@ -531,6 +531,20 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 ///
 /// ```
 ///
+/// # Debugger
+///
+/// Note that because the crash handler spawns a different process for the app debuggers will not
+/// stop at break points in the app code. You can configure your debugger to set the `NO_ZNG_CRASH_HANDLER` environment
+/// variable to not use a crash handler in debug runs.
+///
+/// On VS Code with the CodeLLDB extension you can add this workspace configuration:
+///
+/// ```json
+/// "lldb.launch.env": {
+///    "NO_ZNG_CRASH_HANDLER": ""
+/// }
+/// ```
+///
 /// # Full API
 ///
 /// See [`zng_app::crash_handler`] and [`zng_wgt_inspector::crash_handler`] for the full API.
