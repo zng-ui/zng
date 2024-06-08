@@ -7,7 +7,7 @@
 use parking_lot::Mutex;
 use std::{
     fmt,
-    io::{BufRead, BufReader},
+    io::{BufRead, Write},
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -989,33 +989,34 @@ fn run_process(command: &mut std::process::Command) -> std::io::Result<(std::pro
 
     Ok((status, [stdout, stderr]))
 }
-fn capture_and_print(stream: impl std::io::Read + Send + 'static, is_err: bool) -> std::thread::JoinHandle<String> {
+fn capture_and_print(mut stream: impl std::io::Read + Send + 'static, is_err: bool) -> std::thread::JoinHandle<String> {
     std::thread::spawn(move || {
-        let mut capture = String::new();
-
-        let mut reader = BufReader::new(stream);
-
+        let mut capture = vec![];
+        let mut buffer = [0u8; 32];
         loop {
-            let mut line = String::new();
-            match reader.read_line(&mut line) {
+            match stream.read(&mut buffer) {
                 Ok(n) => {
-                    if n > 0 {
-                        if is_err {
-                            eprint!("{line}");
-                        } else {
-                            print!("{line}");
-                        }
-                        capture.push_str(&line);
-                        line.clear();
-                    } else {
+                    if n == 0 {
                         break;
+                    }
+
+                    let new = &buffer[..n];
+                    capture.write_all(new).unwrap();
+                    let r = if is_err {
+                        let mut s = std::io::stderr();
+                        s.write_all(new).and_then(|_| s.flush())
+                    } else {
+                        let mut s = std::io::stdout();
+                        s.write_all(new).and_then(|_| s.flush())
+                    };
+                    if let Err(e) = r {
+                        panic!("{} write error, {}", if is_err { "stderr" } else { "stdout" }, e)
                     }
                 }
                 Err(e) => panic!("{} read error, {}", if is_err { "stderr" } else { "stdout" }, e),
             }
         }
-
-        capture
+        String::from_utf8_lossy(&capture).into_owned()
     })
 }
 
