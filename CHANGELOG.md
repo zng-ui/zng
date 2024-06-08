@@ -1,6 +1,7 @@
 # Unpublished
 
-* Add `NO_ZNG_CRASH_HANDLER` env var to easily disable crash handler for special runs like for a debugger.
+* Add `ZNG_NO_CRASH_HANDLER` env var to easily disable crash handler for special runs like for a debugger.
+* Add `CrashConfig::no_crash_handler` for custom crash handler disabling.
 
 # 0.7.1
 
