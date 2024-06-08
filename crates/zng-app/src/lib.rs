@@ -1461,6 +1461,8 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
     }
 }
 /// Filter used by [`print_tracing`], removes some log noise from dependencies.
+/// 
+/// Use `tracing_subscriber::filter::FilterFn` plug this filter into a tracing setup.
 pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata) -> bool {
     if metadata.level() > level {
         return false;
