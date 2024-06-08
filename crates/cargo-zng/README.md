@@ -351,7 +351,7 @@ The expanded help for each:
 #### `.zr-copy`
 
 ```console
-# cargo run -p cargo-zng -- res --tool copy
+$ cargo run -p cargo-zng -- res --tool copy
 
   Copy the file or dir
 
@@ -369,7 +369,7 @@ The expanded help for each:
 #### `.zr-glob`
 
 ```console
-# cargo run -p cargo-zng -- res --tool glob
+$ cargo run -p cargo-zng -- res --tool glob
 
 .zr-glob @ cargo-zng
   Copy all matches in place
@@ -412,7 +412,7 @@ The expanded help for each:
 #### `.zr-rp`
 
 ```console
-# cargo run -p cargo-zng -- res --tool rp
+$ cargo run -p cargo-zng -- res --tool rp
 
 .zr-rp @ cargo-zng
   Replace ${VAR} occurrences in the content
@@ -469,7 +469,7 @@ The expanded help for each:
 #### `.zr-sh`
 
 ```console
-# cargo run -p cargo-zng -- res --tool sh
+$ cargo run -p cargo-zng -- res --tool sh
 
 .zr-sh @ cargo-zng
   Run a bash script
@@ -510,10 +510,21 @@ The expanded help for each:
   Runs on $ZR_SH, $PROGRAMFILES/Git/bin/sh.exe or sh.
 ```
 
+#### `.zr-shf`
+
+```console
+$ cargo run -p cargo-zng -- res --tool shf
+
+.zr-shf @ target/debug/cargo-zng
+  Run a bash script on the final pass
+  
+  Apart from running on final this tool behaves exactly like .zr-sh
+```
+
 ### `.zr-warn`
 
 ```console
-# cargo run -p cargo-zng -- res --tool warn
+$ cargo run -p cargo-zng -- res --tool warn
 
 .zr-warn @ cargo-zng
   Print a warning message
@@ -530,7 +541,7 @@ The expanded help for each:
 ### `.zr-fail`
 
 ```console
-# cargo run -p cargo-zng -- res --tool fail
+$ cargo run -p cargo-zng -- res --tool fail
 
 .zr-fail @ cargo-zng
   Print an error message and fail the build

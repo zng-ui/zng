@@ -477,6 +477,9 @@ Runs on $ZR_SH, $PROGRAMFILES/Git/bin/sh.exe or sh.
 "#;
 fn sh() {
     help(SH_HELP);
+    sh_impl();
+}
+fn sh_impl() {
     if let Ok(sh) = env::var("ZR_SH") {
         if !sh.is_empty() {
             let sh = PathBuf::from(sh);
@@ -510,6 +513,20 @@ fn sh_run(sh: impl AsRef<std::ffi::OsStr>) {
                 fatal!("{e}")
             }
         }
+    }
+}
+
+const SHF_HELP: &str = r#"
+Run a bash script on the final pass
+
+Apart from running on final this tool behaves exactly like .zr-sh
+"#;
+fn shf() {
+    help(SHF_HELP);
+    if std::env::var(ZR_FINAL).is_ok() {
+        sh_impl()
+    } else {
+        println!("zng-res::on-final=");
     }
 }
 
@@ -628,6 +645,7 @@ built_in! {
     glob,
     rp,
     sh,
+    shf,
     warn,
     fail,
 }
