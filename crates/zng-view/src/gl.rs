@@ -204,8 +204,8 @@ impl GlContextManager {
         let display_pref = DisplayApiPreference::Cgl;
 
         let display_handle = match &window {
-            GlWindowCreation::Before(w) => w.raw_display_handle(),
-            GlWindowCreation::After(_) => event_loop.raw_display_handle(),
+            GlWindowCreation::Before(w) => w.display_handle().unwrap().as_raw(),
+            GlWindowCreation::After(_) => event_loop.display_handle().unwrap().as_raw(),
         };
 
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
@@ -217,7 +217,7 @@ impl GlContextManager {
             .with_surface_type(ConfigSurfaceTypes::WINDOW)
             .prefer_hardware_accelerated(hardware);
         if let GlWindowCreation::Before(w) = &window {
-            template = template.compatible_with_native_window(w.raw_window_handle());
+            template = template.compatible_with_native_window(w.window_handle().unwrap().as_raw());
         }
         let template = template.build();
 
@@ -248,7 +248,7 @@ impl GlContextManager {
             }
         };
 
-        let window_handle = window.raw_window_handle();
+        let window_handle = window.window_handle().unwrap().as_raw();
 
         let size = window.inner_size();
         let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
@@ -371,8 +371,8 @@ impl GlContextManager {
             .with_decorations(false);
         let hidden_window = winit_loop.create_window(hidden_window)?;
 
-        let display_handle = winit_loop.raw_display_handle();
-        let window_handle = hidden_window.raw_window_handle();
+        let display_handle = winit_loop.display_handle().unwrap().as_raw();
+        let window_handle = hidden_window.window_handle().unwrap().as_raw();
 
         #[cfg(windows)]
         let display_pref = DisplayApiPreference::WglThenEgl(Some(window_handle));
@@ -961,21 +961,23 @@ mod blit {
 
         impl XLibOrWaylandBlit {
             pub fn new(window: &winit::window::Window) -> Self {
-                if let (RawDisplayHandle::Xlib(d), RawWindowHandle::Xlib(w)) = (window.raw_display_handle(), window.raw_window_handle()) {
+                if let (RawDisplayHandle::Xlib(d), RawWindowHandle::Xlib(w)) =
+                    (window.display_handle().unwrap().as_raw(), window.window_handle().unwrap().as_raw())
+                {
                     Self::XLib {
                         xlib: Xlib::open().unwrap(),
-                        display: d.display as _,
+                        display: d.display.unwrap().as_ptr() as _,
                         window: w.window as _,
                     }
                 } else if let (RawDisplayHandle::Wayland(d), RawWindowHandle::Wayland(w)) =
-                    (window.raw_display_handle(), window.raw_window_handle())
+                    (window.display_handle().unwrap().as_raw(), window.window_handle().unwrap().as_raw())
                 {
                     let conn = wayland_client::Connection::connect_to_env().unwrap();
 
                     let event_queue = conn.new_event_queue::<WaylandNoOp>();
                     let qhandle = event_queue.handle();
 
-                    let display: *const WlDisplay = d.display as _;
+                    let display: *const WlDisplay = d.display.as_ptr() as _;
                     let display = unsafe { &*display };
                     let shm: WlShm = display.get_registry(&qhandle, ()).bind(1, 0, &qhandle, ());
                     let file = tempfile::tempfile().expect("cannot create file for wayland blit");
@@ -994,7 +996,7 @@ mod blit {
                     );
 
                     Self::Wayland {
-                        surface: w.surface as _,
+                        surface: w.surface.as_ptr() as _,
                         data: WaylandData {
                             pool,
                             buf,
