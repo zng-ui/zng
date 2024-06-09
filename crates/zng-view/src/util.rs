@@ -375,9 +375,10 @@ pub(crate) fn winit_theme_to_zng(t: winit::window::Theme) -> ColorScheme {
 
 #[cfg(windows)]
 pub(crate) fn winit_to_hwnd(window: &winit::window::Window) -> isize {
-    use raw_window_handle::HasRawWindowHandle;
-    match window.raw_window_handle() {
-        raw_window_handle::RawWindowHandle::Win32(w) => w.hwnd as _,
+    use raw_window_handle::HasWindowHandle as _;
+
+    match window.window_handle().unwrap().as_raw() {
+        raw_window_handle::RawWindowHandle::Win32(w) => w.hwnd.get() as _,
         _ => unreachable!(),
     }
 }

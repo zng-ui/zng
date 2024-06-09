@@ -187,7 +187,7 @@ impl GlContextManager {
     ) -> Result<(winit::window::Window, GlContext), Box<dyn Error>> {
         #[cfg(windows)]
         let display_pref = DisplayApiPreference::WglThenEgl(Some(match &window {
-            GlWindowCreation::Before(w) => w.raw_window_handle(),
+            GlWindowCreation::Before(w) => w.window_handle().unwrap().as_raw(),
             GlWindowCreation::After(_) => unreachable!(),
         }));
 
@@ -796,8 +796,7 @@ mod blit {
 
     #[cfg(windows)]
     mod windows_blit {
-
-        use raw_window_handle::HasRawWindowHandle;
+        use raw_window_handle::HasWindowHandle as _;
         use windows_sys::Win32::Foundation::HWND;
         use windows_sys::Win32::Graphics::Gdi::*;
 
@@ -807,8 +806,8 @@ mod blit {
 
         impl GdiBlit {
             pub fn new(window: &winit::window::Window) -> Self {
-                match window.raw_window_handle() {
-                    raw_window_handle::RawWindowHandle::Win32(h) => GdiBlit { hwnd: h.hwnd as _ },
+                match window.window_handle().unwrap().as_raw() {
+                    raw_window_handle::RawWindowHandle::Win32(h) => GdiBlit { hwnd: h.hwnd.get() as _ },
                     _ => unreachable!(),
                 }
             }
