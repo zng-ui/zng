@@ -12,7 +12,10 @@ fn main() {
     APP.defaults().run_window(async {
         // default rebuild is just `cargo build`, the rebuilder must match the Cargo feature set
         // used to run the program, it will rebuild only until the dylib is finished.
-        zng::hot_reload::HOT_RELOAD.rebuilder(|a| a.build_example(Some("examples"), "hot_reload"));
+        //
+        // do run hot-reload uses the --manifest-path
+        let manifest_path = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
+        zng::hot_reload::HOT_RELOAD.rebuilder(|a| a.build_manifest(manifest_path));
 
         let state = var(true);
         let example = Container! {

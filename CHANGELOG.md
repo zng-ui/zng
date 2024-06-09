@@ -1,6 +1,14 @@
 # Unpublished
 
 * **Breaking** `get_font_use` now gets font references, not just names.
+* Add `ZNG_NO_CRASH_HANDLER` env var to easily disable crash handler for special runs like for a debugger.
+* Add `CrashConfig::no_crash_handler` for custom crash handler disabling.
+* Add `zng::app::print_tracing_filter`.
+* **Breaking** `cargo zng res` defaults changed from `assets` to `res`.
+* **Breaking** Remove `FullLocalContext`, a type that is from an old version of the context API.
+    - The type cannot be constructed, so this has no actual impact.
+
+# 0.7.1
 
 * Fix integrated/dedicated render mode on Ubuntu.
 * Fix build of zng-view-* without `"ipc"` feature.
@@ -12,6 +20,10 @@
 * Fix view-process getting killed before exit request can finish.
 * Fix windows not opening maximized in X11.
 * Fix bold default UI font on Ubuntu.
+* Fix multiple hot-reload bugs, now is tested on Windows and Ubuntu.
+* **Breaking** Remove `crash_handler` feature from defaults of `zng-app`.
+    - The feature ended-up activated by the numerous crates that depend on `zng-app`.
+    - This is only a breaking change for direct dependents.
 
 # 0.7.0
 

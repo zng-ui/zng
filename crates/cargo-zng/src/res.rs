@@ -23,12 +23,12 @@ mod tool;
 #[derive(Args, Debug)]
 pub struct ResArgs {
     /// Resources source dir
-    #[arg(default_value = "assets")]
+    #[arg(default_value = "res")]
     source: PathBuf,
     /// Resources target dir
     ///
     /// This directory is wiped before each build.
-    #[arg(default_value = "target/assets")]
+    #[arg(default_value = "target/res")]
     target: PathBuf,
 
     /// Copy all static files to the target dir
@@ -46,7 +46,7 @@ pub struct ResArgs {
     tool: Option<String>,
 
     /// Tools cache dir
-    #[arg(long, default_value = "target/assets.cache")]
+    #[arg(long, default_value = "target/res.cache")]
     tool_cache: PathBuf,
 
     /// Number of build passes allowed before final

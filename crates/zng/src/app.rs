@@ -23,7 +23,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = { version = "0.7.0", features = ["view_prebuilt"] }
+//! zng = { version = "0.7.1", features = ["view_prebuilt"] }
 //! ```
 //!
 //! ```no_run
@@ -403,16 +403,16 @@
 #[allow(deprecated)]
 pub use zng_app::about_app_from_crate;
 pub use zng_app::{
-    on_app_start, print_tracing, AboutApp, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed,
-    AppExtensionInfo, AppStartArgs, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT,
-    INSTANT,
+    on_app_start, print_tracing, print_tracing_filter, AboutApp, AppControlFlow, AppEventObserver, AppExtended, AppExtension,
+    AppExtensionBoxed, AppExtensionInfo, AppStartArgs, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD,
+    EXIT_REQUESTED_EVENT, INSTANT,
 };
 
 #[cfg(feature = "test_util")]
 pub use zng_app::test_log;
 
 pub use zng_app_context::{
-    app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,
+    app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, LocalContext,
     MappedRwLockReadGuardOwned, MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned,
 };
 pub use zng_wgt_input::cmd::{
@@ -529,6 +529,20 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 ///     });
 /// });
 ///
+/// ```
+///
+/// # Debugger
+///
+/// Note that because the crash handler spawns a different process for the app debuggers will not
+/// stop at break points in the app code. You can configure your debugger to set the `NO_ZNG_CRASH_HANDLER` environment
+/// variable to not use a crash handler in debug runs.
+///
+/// On VS Code with the CodeLLDB extension you can add this workspace configuration:
+///
+/// ```json
+/// "lldb.launch.env": {
+///    "NO_ZNG_CRASH_HANDLER": ""
+/// }
 /// ```
 ///
 /// # Full API

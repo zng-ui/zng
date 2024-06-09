@@ -208,14 +208,14 @@ Arguments:
   [SOURCE]
           Resources source dir
 
-          [default: assets]
+          [default: res]
 
   [TARGET]
           Resources target dir
 
           This directory is wiped before each build.
 
-          [default: target/assets]
+          [default: target/res]
 
 Options:
       --pack
@@ -235,7 +235,7 @@ Options:
       --tool-cache <TOOL_CACHE>
           Tools cache dir
 
-          [default: target/assets.cache]
+          [default: target/res.cache]
 
       --recursion-limit <RECURSION_LIMIT>
           Number of build passes allowed before final
@@ -249,7 +249,7 @@ Options:
           Print version
 ```
 
-This subcommand can be used to build assets and package releases. It is very simple, you create
+This subcommand can be used to build resources and package releases. It is very simple, you create
 a resources directory tree as close as possible to the final resources structure, and place special
 `.zr-{tool}` files on it that are calls to `cargo-zng-res-{tool}` crates or executables.
 
@@ -351,7 +351,7 @@ The expanded help for each:
 #### `.zr-copy`
 
 ```console
-# cargo run -p cargo-zng -- res --tool copy
+$ cargo run -p cargo-zng -- res --tool copy
 
   Copy the file or dir
 
@@ -369,7 +369,7 @@ The expanded help for each:
 #### `.zr-glob`
 
 ```console
-# cargo run -p cargo-zng -- res --tool glob
+$ cargo run -p cargo-zng -- res --tool glob
 
 .zr-glob @ cargo-zng
   Copy all matches in place
@@ -412,7 +412,7 @@ The expanded help for each:
 #### `.zr-rp`
 
 ```console
-# cargo run -p cargo-zng -- res --tool rp
+$ cargo run -p cargo-zng -- res --tool rp
 
 .zr-rp @ cargo-zng
   Replace ${VAR} occurrences in the content
@@ -469,7 +469,7 @@ The expanded help for each:
 #### `.zr-sh`
 
 ```console
-# cargo run -p cargo-zng -- res --tool sh
+$ cargo run -p cargo-zng -- res --tool sh
 
 .zr-sh @ cargo-zng
   Run a bash script
@@ -502,16 +502,29 @@ The expanded help for each:
   Script can make requests to the resource builder by printing to stdout.
   Current supported requests:
 
+  zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
+  zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
 
   If the script fails the entire stderr is printed and the resource build fails.
 
   Runs on $ZR_SH, $PROGRAMFILES/Git/bin/sh.exe or sh.
 ```
 
+#### `.zr-shf`
+
+```console
+$ cargo run -p cargo-zng -- res --tool shf
+
+.zr-shf @ target/debug/cargo-zng
+  Run a bash script on the final pass
+  
+  Apart from running on final this tool behaves exactly like .zr-sh
+```
+
 ### `.zr-warn`
 
 ```console
-# cargo run -p cargo-zng -- res --tool warn
+$ cargo run -p cargo-zng -- res --tool warn
 
 .zr-warn @ cargo-zng
   Print a warning message
@@ -528,7 +541,7 @@ The expanded help for each:
 ### `.zr-fail`
 
 ```console
-# cargo run -p cargo-zng -- res --tool fail
+$ cargo run -p cargo-zng -- res --tool fail
 
 .zr-fail @ cargo-zng
   Print an error message and fail the build

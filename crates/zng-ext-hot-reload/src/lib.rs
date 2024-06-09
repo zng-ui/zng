@@ -14,7 +14,7 @@ mod node;
 mod util;
 use std::{
     collections::{HashMap, HashSet},
-    fmt, mem,
+    fmt, io, mem,
     path::PathBuf,
     sync::Arc,
     time::Duration,
@@ -32,7 +32,6 @@ use zng_app::{
 use zng_app_context::{app_local, LocalContext};
 use zng_ext_fs_watcher::WATCHER;
 pub use zng_ext_hot_reload_proc_macros::hot_node;
-use zng_hot_entry::HotRequest;
 use zng_task::{parking_lot::Mutex, SignalOnce};
 use zng_txt::Txt;
 use zng_unique_id::hot_reload::HOT_STATICS;
@@ -53,13 +52,18 @@ macro_rules! zng_hot_entry {
 
         #[no_mangle]
         #[doc(hidden)] // used by lib loader
-        pub extern "C" fn zng_hot_entry(request: $crate::zng_hot_entry::HotRequest) -> Option<$crate::zng_hot_entry::HotNode> {
-            $crate::zng_hot_entry::entry(request)
+        pub extern "C" fn zng_hot_entry(
+            manifest_dir: &&str,
+            node_name: &&'static str,
+            ctx: &mut $crate::zng_hot_entry::LocalContext,
+            exchange: &mut $crate::HotEntryExchange,
+        ) {
+            $crate::zng_hot_entry::entry(manifest_dir, node_name, ctx, exchange)
         }
 
         #[no_mangle]
         #[doc(hidden)]
-        pub extern "C" fn zng_hot_entry_init(patch: $crate::StaticPatch) {
+        pub extern "C" fn zng_hot_entry_init(patch: &$crate::StaticPatch) {
             $crate::zng_hot_entry::init(patch)
         }
     };
@@ -68,8 +72,8 @@ macro_rules! zng_hot_entry {
 #[doc(hidden)]
 pub mod zng_hot_entry {
     pub use crate::node::{HotNode, HotNodeArgs, HotNodeHost};
-    use crate::StaticPatch;
-    use zng_app_context::LocalContext;
+    use crate::{HotEntryExchange, StaticPatch};
+    pub use zng_app_context::LocalContext;
 
     pub struct HotNodeEntry {
         pub manifest_dir: &'static str,
@@ -80,23 +84,22 @@ pub mod zng_hot_entry {
     #[linkme::distributed_slice]
     pub static HOT_NODES: [HotNodeEntry];
 
-    pub struct HotRequest {
-        pub manifest_dir: String,
-        pub hot_node_name: &'static str,
-        pub ctx: LocalContext,
-        pub args: HotNodeArgs,
-    }
-
-    pub fn entry(mut request: HotRequest) -> Option<crate::HotNode> {
+    pub fn entry(manifest_dir: &str, node_name: &'static str, ctx: &mut LocalContext, exchange: &mut HotEntryExchange) {
         for entry in HOT_NODES.iter() {
-            if request.hot_node_name == entry.hot_node_name && request.manifest_dir == entry.manifest_dir {
-                return request.ctx.with_context(|| Some((entry.hot_node_fn)(request.args)));
+            if node_name == entry.hot_node_name && manifest_dir == entry.manifest_dir {
+                let args = match std::mem::replace(exchange, HotEntryExchange::Responding) {
+                    HotEntryExchange::Request(args) => args,
+                    _ => panic!("bad request"),
+                };
+                let node = ctx.with_context(|| (entry.hot_node_fn)(args));
+                *exchange = HotEntryExchange::Response(Some(node));
+                return;
             }
         }
-        None
+        *exchange = HotEntryExchange::Response(None);
     }
 
-    pub fn init(statics: StaticPatch) {
+    pub fn init(statics: &StaticPatch) {
         std::panic::set_hook(Box::new(|args| {
             eprintln!("PANIC IN HOT LOADED LIBRARY, ABORTING");
             crate::util::crash_handler(args);
@@ -112,9 +115,10 @@ type StaticPatchersMap = HashMap<&'static dyn zng_unique_id::hot_reload::PatchKe
 
 #[doc(hidden)]
 #[derive(Clone)]
+#[repr(C)]
 pub struct StaticPatch {
-    entries: Arc<StaticPatchersMap>,
     tracing: tracing_shared::SharedLogger,
+    entries: Arc<StaticPatchersMap>,
 }
 impl StaticPatch {
     /// Called on the static code (host).
@@ -327,6 +331,7 @@ impl BuildArgs {
     pub fn build(&self, package: Option<&str>) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
+            "--package",
             package.unwrap_or(""),
             "",
             "",
@@ -341,6 +346,7 @@ impl BuildArgs {
     pub fn build_example(&self, package: Option<&str>, example: &str) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
+            "--package",
             package.unwrap_or(""),
             "--example",
             example,
@@ -355,9 +361,24 @@ impl BuildArgs {
     pub fn build_bin(&self, package: Option<&str>, bin: &str) -> Option<RebuildVar> {
         Some(cargo::build(
             &self.manifest_dir,
+            "--package",
             package.unwrap_or(""),
             "--bin",
             bin,
+            self.cancel_build.clone(),
+        ))
+    }
+
+    /// Calls `cargo build --manifest-path {path} --message-format json` and cancels it as soon as the dylib is rebuilt.
+    ///
+    /// Always returns `Some(_)`.
+    pub fn build_manifest(&self, path: &str) -> Option<RebuildVar> {
+        Some(cargo::build(
+            &self.manifest_dir,
+            "--manifest-path",
+            path,
+            "",
+            "",
             self.cancel_build.clone(),
         ))
     }
@@ -488,28 +509,38 @@ impl HotReloadService {
     fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: &StaticPatch) -> (RebuildLoadVar, SignalOnce) {
         let (rebuild, cancel) = self.rebuild(manifest_dir.clone());
         let rebuild_load = zng_task::respond(async_clmv!(static_patch, {
-            let mut path = rebuild.wait_into_rsp().await?;
+            let build_path = rebuild.wait_into_rsp().await?;
 
             // copy dylib to not block the next rebuild
-            let file_name = match path.file_name() {
+            let file_name = match build_path.file_name() {
                 Some(f) => f.to_string_lossy(),
                 None => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "dylib path does not have a file name").into()),
             };
-            for i in 0..1000 {
-                let mut unblocked_path = path.clone();
-                unblocked_path.set_file_name(format!("zng-hot-{i}-{file_name}"));
-                if unblocked_path.exists() {
-                    // try free for next use
-                    let _ = std::fs::remove_file(unblocked_path);
-                } else {
-                    std::fs::copy(&path, &unblocked_path)?;
-                    path = unblocked_path;
-                    break;
-                }
+
+            // cleanup previous session
+            for p in glob::glob(&format!("{}/zng-hot-{file_name}-*", build_path.parent().unwrap().display()))
+                .unwrap()
+                .flatten()
+            {
+                let _ = std::fs::remove_file(p);
             }
 
-            let dylib = HotLib::new(&static_patch, manifest_dir, path)?;
-            Ok(dylib)
+            let mut unique_path = build_path.clone();
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+            unique_path.set_file_name(format!("zng-hot-{file_name}-{ts:x}"));
+            std::fs::copy(&build_path, &unique_path)?;
+
+            let dylib = zng_task::wait(move || HotLib::new(&static_patch, manifest_dir, unique_path));
+            match zng_task::with_deadline(dylib, 2.secs()).await {
+                Ok(r) => r.map_err(Into::into),
+                Err(_) => Err(BuildError::Io(Arc::new(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "hot dylib did not init after 2s",
+                )))),
+            }
         }));
         (rebuild_load, cancel)
     }
@@ -605,12 +636,19 @@ struct BuildingLib {
     cancel_build: SignalOnce,
 }
 
+#[doc(hidden)]
+pub enum HotEntryExchange {
+    Request(HotNodeArgs),
+    Responding,
+    Response(Option<HotNode>),
+}
+
 /// Dynamically loaded library.
 #[derive(Clone)]
 pub(crate) struct HotLib {
     manifest_dir: Txt,
     lib: Arc<libloading::Library>,
-    hot_entry: unsafe fn(HotRequest) -> Option<HotNode>,
+    hot_entry: unsafe extern "C" fn(&&str, &&'static str, &mut LocalContext, &mut HotEntryExchange),
 }
 impl PartialEq for HotLib {
     fn eq(&self, other: &Self) -> bool {
@@ -651,18 +689,17 @@ impl HotLib {
         &self.manifest_dir
     }
 
-    pub fn instantiate(&self, hot_node_name: &'static str, ctx: LocalContext, args: HotNodeArgs) -> Option<HotNode> {
-        let request = HotRequest {
-            manifest_dir: self.manifest_dir.to_string(),
-            hot_node_name,
-            ctx,
-            args,
-        };
+    pub fn instantiate(&self, hot_node_name: &'static str, ctx: &mut LocalContext, args: HotNodeArgs) -> Option<HotNode> {
+        let mut exchange = HotEntryExchange::Request(args);
         // SAFETY: lib is still loaded and will remain until all HotNodes are dropped.
-        let mut r = unsafe { (self.hot_entry)(request) };
-        if let Some(n) = &mut r {
+        unsafe { (self.hot_entry)(&self.manifest_dir.as_str(), &hot_node_name, ctx, &mut exchange) };
+        let mut node = match exchange {
+            HotEntryExchange::Response(n) => n,
+            _ => None,
+        };
+        if let Some(n) = &mut node {
             n._lib = Some(self.lib.clone());
         }
-        r
+        node
     }
 }

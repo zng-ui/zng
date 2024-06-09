@@ -19,6 +19,7 @@
     ],
     "files.associations": {
         "*.zr-sh": "shellscript",
+        "*.zr-shf": "shellscript",
         "*.zr-copy": "ini",
         "*.zr-glob": "ini",
         "*.md.zr-glob": "md"
@@ -199,5 +200,8 @@
         "Zalgo",
         "zdenek",
         "zng"
-    ]
+    ],
+    "lldb.launch.env": {
+        "NO_ZNG_CRASH_HANDLER": ""
+    }
 }

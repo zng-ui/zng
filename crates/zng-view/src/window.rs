@@ -1114,7 +1114,7 @@ impl Window {
             return;
         }
         self.taskbar_visible = visible;
-        tracing::error!("`set_taskbar_visible` not implemented for {}", std::env::consts::OS);
+        tracing::warn!("`set_taskbar_visible` not implemented for {}", std::env::consts::OS);
     }
 
     #[cfg(windows)]
@@ -1923,7 +1923,7 @@ impl Window {
     #[cfg(not(windows))]
     pub(crate) fn set_system_shutdown_warn(&mut self, reason: Txt) {
         if !reason.is_empty() {
-            tracing::error!("cannot set system shutdown warn, not implemented, requested warn reason was: {reason}");
+            tracing::warn!("system shutdown warn not implemented on {}", std::env::consts::OS);
         }
     }
 }

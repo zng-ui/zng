@@ -17,7 +17,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = { version = "0.7.0", features = ["view_prebuilt"] }
+//! zng = { version = "0.7.1", features = ["view_prebuilt"] }
 //! ```
 //!
 //! Then create your first app:
@@ -447,11 +447,13 @@
 //! some catastrophic video driver errors, like a forced disconnect caused by a driver update. The [`task::spawn`] and related
 //! fire-and-forget task runners will also just log the panic as an error.
 //!
-//! You can also use the [`zng::app::crash_handler`] to collect panic backtraces, crash minidumps, show a crash dialog to the user
+//! The [`zng::app::crash_handler`] is enabled by default, it collect panic backtraces, crash minidumps, show a crash dialog to the user
 //! and restart the app. During development a debug crash dialog is provided, it shows the stdout/stderr, panics stacktrace and
-//! minidumps collected if any non-panic fatal error happens.
+//! minidumps collected if any non-panic fatal error happens. Note that the crash handler **stops debuggers from working**, see the
+//! [Debugger section] of the crash-handler docs on how to automatically disable the crash handler for debugger runs.
 //!
 //! [`tracing`]: https://docs.rs/tracing
+//! [Debugger section]: zng::app::crash_handler#debugger
 //!
 //! # In-Depth Documentation
 //!
@@ -769,9 +771,7 @@ mod __prelude_wgt {
 
     pub use crate::task;
 
-    pub use zng_app_context::{
-        app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext, RunOnDrop,
-    };
+    pub use zng_app_context::{app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, LocalContext, RunOnDrop};
 
     pub use crate::state_map;
     pub use zng_state_map::{static_id, OwnedStateMap, StateId, StateMapMut, StateMapRef};

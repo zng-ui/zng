@@ -995,7 +995,7 @@ impl MouseManager {
                 MOUSE_HOVERED_EVENT.notify(args);
             }
         } else if coalesced_pos.is_empty() {
-            tracing::warn!("RawCursorMoved did not actually move")
+            tracing::debug!("RawCursorMoved did not actually move")
         }
     }
 
