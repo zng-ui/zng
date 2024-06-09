@@ -4,6 +4,8 @@
 * Add `CrashConfig::no_crash_handler` for custom crash handler disabling.
 * Add `zng::app::print_tracing_filter`.
 * **Breaking** `cargo zng res` defaults changed from `assets` to `res`.
+* **Breaking** Remove `FullLocalContext`, a type that is from an old version of the context API.
+    - The type cannot be constructed, so this has no actual impact.
 
 # 0.7.1
 
