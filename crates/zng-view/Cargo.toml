@@ -88,8 +88,8 @@ byteorder = "1.5"
 rustc-hash = "1.1"
 rayon = "1.10"
 serde = "1.0"
-accesskit = "0.14"
-accesskit_winit = "0.20"
+accesskit = "0.15"
+accesskit_winit = "0.21"
 # rfd
 [target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd")))'.dependencies.rfd]
 version = "0.14"

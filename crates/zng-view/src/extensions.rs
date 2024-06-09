@@ -1110,10 +1110,7 @@ macro_rules! view_process_extension {
         #[cfg_attr(target_os = "windows", link_section = ".linkme_VIEW_EXTENSIONS$b")]
         #[cfg_attr(target_os = "illumos", link_section = "set_linkme_VIEW_EXTENSIONS")]
         #[cfg_attr(target_os = "freebsd", link_section = "linkme_VIEW_EXTENSIONS")]
-        #[cfg_attr(
-            any(target_os = "freebsd", target_os = "openbsd"),
-            link_section = "linkme_VIEW_EXTENSIONS"
-        )]
+        #[cfg_attr(any(target_os = "freebsd", target_os = "openbsd"), link_section = "linkme_VIEW_EXTENSIONS")]
         #[doc(hidden)]
         static _VIEW_EXTENSIONS: fn(&mut $crate::extensions::ViewExtensions) = _view_extensions;
         #[doc(hidden)]
