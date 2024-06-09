@@ -67,7 +67,10 @@ macro_rules! on_process_start {
         )]
         #[cfg_attr(target_os = "windows", link_section = ".linkme_ZNG_ENV_ON_PROCESS_START$b")]
         #[cfg_attr(target_os = "illumos", link_section = "set_linkme_ZNG_ENV_ON_PROCESS_START")]
-        #[cfg_attr(target_os = "freebsd", link_section = "linkme_ZNG_ENV_ON_PROCESS_START")]
+        #[cfg_attr(
+            any(target_os = "freebsd", target_os = "openbsd"),
+            link_section = "linkme_ZNG_ENV_ON_PROCESS_START"
+        )]
         #[doc(hidden)]
         static _ON_PROCESS_START: fn(&$crate::ProcessStartArgs) = _on_process_start;
         fn _on_process_start(args: &$crate::ProcessStartArgs) {
@@ -78,10 +81,6 @@ macro_rules! on_process_start {
         }
     };
 }
-
-#[doc(hidden)]
-#[linkme::distributed_slice(ZNG_ENV_ON_PROCESS_START)]
-static _ON_PROCESS_START: fn(&mut $crate::ProcessStartArgs) = _on_process_start;
 
 #[doc(hidden)]
 #[linkme::distributed_slice]
