@@ -43,8 +43,8 @@ bundle_licenses = ["zng-tp-licenses/bundle"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-webrender = { git = "https://github.com/zng-ui/zng-webrender.git", branch = "update", package = "zng-webrender", version = "0.63.0" }
-swgl = { git = "https://github.com/zng-ui/zng-webrender.git", branch = "update", package = "zng-swgl", version = "0.2.0", optional = true }
+webrender = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-webrender", version = "0.63.0" }
+swgl = { git = "https://github.com/zng-ui/zng-webrender.git", package = "zng-swgl", version = "0.2.0", optional = true }
 
 zng-view-api = { path = "../zng-view-api", version = "0.5.1", default-features = false }
 zng-unit = { path = "../zng-unit", version = "0.2.7" }
