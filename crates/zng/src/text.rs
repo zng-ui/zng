@@ -34,7 +34,7 @@
 //!                 let mut r = Txt::from("");
 //!                 for (font, range) in u {
 //!                     use std::fmt::Write as _;
-//!                     writeln!(&mut r, "{} = {:?}", font, &txt[range.clone()]).unwrap();
+//!                     writeln!(&mut r, "{} = {:?}", font.face().family_name(), &txt[range.clone()]).unwrap();
 //!                 }
 //!                 r.end_mut();
 //!                 r

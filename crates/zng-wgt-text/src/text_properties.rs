@@ -1884,11 +1884,11 @@ pub fn txt_highlight(child: impl UiNode, range: impl IntoVar<std::ops::Range<Car
     })
 }
 
-/// Gets a vector of font names and ranges.
+/// Gets a vector of font and ranges.
 ///
 /// This property must be set in the text widget.
 #[property(CHILD_LAYOUT+100, widget_impl(TextInspectMix<P>))]
-pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(FontName, std::ops::Range<usize>)>>) -> impl UiNode {
+pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(Font, std::ops::Range<usize>)>>) -> impl UiNode {
     let font_use = font_use.into_var();
     let mut shaped_text_version = u32::MAX;
     match_node(child, move |c, op| {
@@ -1907,7 +1907,6 @@ pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(FontName, st
                     let seg_range = seg.text_range();
 
                     for (font, glyphs) in seg.glyphs() {
-                        let font = font.face().family_name();
                         if r.is_empty() {
                             r.push((font.clone(), 0..seg_range.end));
                         } else {
