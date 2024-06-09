@@ -19,6 +19,7 @@
     ],
     "files.associations": {
         "*.zr-sh": "shellscript",
+        "*.zr-shf": "shellscript",
         "*.zr-copy": "ini",
         "*.zr-glob": "ini",
         "*.md.zr-glob": "md"

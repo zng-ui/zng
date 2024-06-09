@@ -3,6 +3,7 @@
 * Add `ZNG_NO_CRASH_HANDLER` env var to easily disable crash handler for special runs like for a debugger.
 * Add `CrashConfig::no_crash_handler` for custom crash handler disabling.
 * Add `zng::app::print_tracing_filter`.
+* **Breaking** `cargo zng res` defaults changed from `assets` to `res`.
 
 # 0.7.1
 
