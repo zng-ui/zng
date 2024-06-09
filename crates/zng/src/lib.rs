@@ -771,9 +771,7 @@ mod __prelude_wgt {
 
     pub use crate::task;
 
-    pub use zng_app_context::{
-        app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext, RunOnDrop,
-    };
+    pub use zng_app_context::{app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, LocalContext, RunOnDrop};
 
     pub use crate::state_map;
     pub use zng_state_map::{static_id, OwnedStateMap, StateId, StateMapMut, StateMapRef};

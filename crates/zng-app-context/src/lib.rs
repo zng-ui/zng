@@ -418,17 +418,6 @@ thread_local! {
     };
 }
 
-/// A local context that can be loaded cheaply.
-pub struct FullLocalContext(LocalContext);
-impl FullLocalContext {}
-impl ops::Deref for FullLocalContext {
-    type Target = LocalContext;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 trait LocalKeyDyn {
     fn with_borrow_dyn<R>(&'static self, f: impl FnOnce(&LocalData) -> R) -> R;
     fn with_borrow_mut_dyn<R>(&'static self, f: impl FnOnce(&mut LocalData) -> R) -> R;

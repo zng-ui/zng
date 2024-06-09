@@ -82,9 +82,7 @@ mod __prelude {
 
     pub use zng_task as task;
 
-    pub use zng_app_context::{
-        app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext, RunOnDrop,
-    };
+    pub use zng_app_context::{app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, LocalContext, RunOnDrop};
 
     pub use zng_state_map::{state_map, static_id, OwnedStateMap, StateId, StateMapMut, StateMapRef};
 

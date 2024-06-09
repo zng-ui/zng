@@ -412,7 +412,7 @@ pub use zng_app::{
 pub use zng_app::test_log;
 
 pub use zng_app_context::{
-    app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, FullLocalContext, LocalContext,
+    app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, LocalContext,
     MappedRwLockReadGuardOwned, MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned,
 };
 pub use zng_wgt_input::cmd::{
