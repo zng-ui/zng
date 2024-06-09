@@ -80,6 +80,10 @@ macro_rules! on_process_start {
 }
 
 #[doc(hidden)]
+#[linkme::distributed_slice(ZNG_ENV_ON_PROCESS_START)]
+static _ON_PROCESS_START: fn(&mut $crate::ProcessStartArgs) = _on_process_start;
+
+#[doc(hidden)]
 #[linkme::distributed_slice]
 pub static ZNG_ENV_ON_PROCESS_START: [fn(&ProcessStartArgs)];
 

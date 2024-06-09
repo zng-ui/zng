@@ -78,6 +78,7 @@ macro_rules! hot_static_patchable {
         }
     };
 }
+// !!: TODO
 
 #[doc(hidden)]
 pub unsafe fn init_static<T>(s: &mut &'static T, static_ptr: *const ()) -> *const () {

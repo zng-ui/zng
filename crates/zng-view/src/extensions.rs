@@ -1089,7 +1089,7 @@ impl AsyncBlobImageRasterizer for BlockExtensionsImgRasterizer {
 macro_rules! view_process_extension {
     ($closure:expr) => {
         // expanded from:
-        // #[linkme::distributed_slice(ZNG_ENV_RUN_PROCESS)]
+        // #[linkme::distributed_slice(VIEW_EXTENSIONS)]
         // static _VIEW_EXTENSIONS = fn...;
         // so that users don't need to depend on linkme just to call this macro.
         #[used]
@@ -1124,6 +1124,11 @@ macro_rules! view_process_extension {
         }
     };
 }
+
+!!: TODO
+#[doc(hidden)]
+#[linkme::distributed_slice(VIEW_EXTENSIONS)]
+static _VIEW_EXTENSIONS: fn(&mut $crate::extensions::ViewExtensions) = _view_extensions;
 
 #[doc(hidden)]
 #[linkme::distributed_slice]
