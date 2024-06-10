@@ -9,6 +9,8 @@ on:
       cmd:
         required: true
 
+run-name: on ${{ github.event.inputs.runs-on }} do ${{ github.event.inputs.cmd }}
+
 env:
   RUST_BACKTRACE: 1
   RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
