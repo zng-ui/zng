@@ -1,5 +1,7 @@
 # Unpublished
 
+* Allow missing authors field in `zng_env::About::parse_manifest`.
+* Fix `cargo zng res` not finding any metadata.
 
 # 0.8.0
 

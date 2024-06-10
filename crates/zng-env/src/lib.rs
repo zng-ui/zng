@@ -124,7 +124,7 @@ impl About {
         let mut about = About {
             crate_name: m.package.name.replace('-', "_").into(),
             pkg_name: m.package.name,
-            pkg_authors: m.package.authors,
+            pkg_authors: m.package.authors.unwrap_or_default(),
             version: m.package.version,
             description: m.package.description.unwrap_or_default(),
             homepage: m.package.homepage.unwrap_or_default(),
@@ -191,7 +191,7 @@ struct Package {
     version: Version,
     description: Option<Txt>,
     homepage: Option<Txt>,
-    authors: Box<[Txt]>,
+    authors: Option<Box<[Txt]>>,
     metadata: Option<Metadata>,
 }
 #[derive(serde::Deserialize)]

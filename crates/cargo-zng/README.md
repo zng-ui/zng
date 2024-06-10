@@ -199,22 +199,21 @@ Build resources
 
 Build resources
 
-Builds resources SOURCE to TARGET, delegates `.zr-{tool}` files to `cargo-zng-res-{tool}`
-executables and crates.
+Builds resources SOURCE to TARGET, delegates `.zr-{tool}` files to `cargo-zng-res-{tool}` executables and crates.
 
 Usage: cargo zng res [OPTIONS] [SOURCE] [TARGET]
 
 Arguments:
   [SOURCE]
           Resources source dir
-
+          
           [default: res]
 
   [TARGET]
           Resources target dir
-
+          
           This directory is wiped before each build.
-
+          
           [default: target/res]
 
 Options:
@@ -223,7 +222,7 @@ Options:
 
       --tool-dir <DIR>
           Search for `zng-res-{tool}` in this directory first
-
+          
           [default: tools]
 
       --tools
@@ -234,13 +233,23 @@ Options:
 
       --tool-cache <TOOL_CACHE>
           Tools cache dir
-
+          
           [default: target/res.cache]
 
       --recursion-limit <RECURSION_LIMIT>
           Number of build passes allowed before final
-
+          
           [default: 32]
+
+      --metadata <TOML_FILE>
+          TOML file that that defines metadata uses by tools (ZR_APP, ZR_ORG, ..)
+          
+          This is only needed if the workspace has multiple bin crates and none or many set '[package.metadata.zng.about]'.
+          
+          See `zng::env::About` for more details.
+
+      --metadata-dump
+          Writes the metadata extracted the workspace or --metadata
 
   -h, --help
           Print help (see a summary with '-h')

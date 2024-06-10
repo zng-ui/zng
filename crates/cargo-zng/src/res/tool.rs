@@ -97,6 +97,18 @@ pub fn visit_tools(local: &Path, mut tool: impl FnMut(Tool) -> anyhow::Result<Co
     Ok(())
 }
 
+pub fn visit_about_vars(about: &About, mut visit: impl FnMut(&str, &str)) {
+    visit(ZR_APP, &about.app);
+    visit(ZR_CRATE_NAME, &about.crate_name);
+    visit(ZR_HOMEPAGE, &about.homepage);
+    visit(ZR_ORG, &about.org);
+    visit(ZR_PKG_AUTHORS, &about.pkg_authors.clone().join(","));
+    visit(ZR_PKG_NAME, &about.pkg_name);
+    visit(ZR_QUALIFIER, &about.qualifier);
+    visit(ZR_VERSION, &about.version.to_string());
+    visit(ZR_DESCRIPTION, &about.description);
+}
+
 pub struct Tool {
     pub name: String,
     pub kind: ToolKind,
@@ -147,25 +159,18 @@ impl Tool {
             target = target_dir.join(p);
         }
 
-        self.run_cmd(
-            cmd.env(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap())
-                .env(ZR_SOURCE_DIR, source_dir)
-                .env(ZR_TARGET_DIR, target_dir)
-                .env(ZR_REQUEST_DD, request.parent().unwrap())
-                .env(ZR_REQUEST, request)
-                .env(ZR_TARGET_DD, target.parent().unwrap())
-                .env(ZR_TARGET, target)
-                .env(ZR_CACHE_DIR, cache.join(cache_dir))
-                .env(ZR_APP, &about.app)
-                .env(ZR_CRATE_NAME, &about.crate_name)
-                .env(ZR_DESCRIPTION, &about.description)
-                .env(ZR_HOMEPAGE, &about.homepage)
-                .env(ZR_ORG, &about.org)
-                .env(ZR_PKG_AUTHORS, about.pkg_authors.clone().join(","))
-                .env(ZR_PKG_NAME, &about.pkg_name)
-                .env(ZR_QUALIFIER, &about.qualifier)
-                .env(ZR_VERSION, about.version.to_string()),
-        )
+        cmd.env(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap())
+            .env(ZR_SOURCE_DIR, source_dir)
+            .env(ZR_TARGET_DIR, target_dir)
+            .env(ZR_REQUEST_DD, request.parent().unwrap())
+            .env(ZR_REQUEST, request)
+            .env(ZR_TARGET_DD, target.parent().unwrap())
+            .env(ZR_TARGET, target)
+            .env(ZR_CACHE_DIR, cache.join(cache_dir));
+        visit_about_vars(about, |key, value| {
+            cmd.env(key, value);
+        });
+        self.run_cmd(&mut cmd)
     }
 
     fn cmd(&self) -> std::process::Command {

@@ -59,8 +59,12 @@ pub struct ResArgs {
     /// and none or many set '[package.metadata.zng.about]'.
     ///
     /// See `zng::env::About` for more details.
-    #[arg(long, value_name = "TOML")]
+    #[arg(long, value_name = "TOML_FILE")]
     metadata: Option<PathBuf>,
+
+    /// Writes the metadata extracted the workspace or --metadata
+    #[arg(long, action)]
+    metadata_dump: bool,
 }
 
 fn canonicalize(path: &Path) -> PathBuf {
@@ -76,6 +80,14 @@ pub(crate) fn run(mut args: ResArgs) {
     }
     if let Some(t) = args.tool {
         return tool_help(&args.tool_dir, &t);
+    }
+
+    if args.metadata_dump {
+        let about = about::find_about(args.metadata.as_deref());
+        crate::res::tool::visit_about_vars(&about, |key, value| {
+            println!("{key}={value}");
+        });
+        return;
     }
 
     if !args.source.exists() {
