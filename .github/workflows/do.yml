@@ -8,10 +8,8 @@ on:
         required: true
       cmd:
         required: true
-        description: "run: cargo do $cmd"
       commit-msg:
         required: false
-        description: commits changes if set
 
 run-name: on ${{ github.event.inputs.runs-on }} do ${{ github.event.inputs.cmd }}
 

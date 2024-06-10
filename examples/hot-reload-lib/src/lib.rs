@@ -27,7 +27,7 @@ pub fn hot_node() -> impl UiNode {
 #[hot_node]
 #[property(FILL)]
 pub fn hot_prop(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
-    let input = input.into_var();
+    let input =           input.into_var();
 
     let mut clip = PxRect::zero();
 
