@@ -140,7 +140,7 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
     })
 }
 
-fn markdown_view_fn(md: &str) -> impl UiNode {
+fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
     use pulldown_cmark::*;
     use resolvers::*;
     use view_fn::*;
@@ -172,19 +172,21 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
     struct ListInfo {
         block_start: usize,
         inline_start: usize,
+        first_num: Option<u64>,
         item_num: Option<u64>,
         item_checked: Option<bool>,
     }
     let mut blocks = vec![];
     let mut inlines = vec![];
-    let mut link_start = None;
+
+    let mut link = None;
     let mut list_info = vec![];
     let mut list_items = vec![];
     let mut block_quote_start = vec![];
-    let mut code_block_text = None;
-    let mut image_alt = None;
+    let mut code_block = None;
+    let mut image = None;
     let mut heading_text = None;
-    let mut footnote_def_start = None;
+    let mut footnote_def = None;
     let mut table_cells = vec![];
     let mut table_cols = vec![];
     let mut table_col = 0;
@@ -192,29 +194,30 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
 
     let mut last_txt_end = '\0';
 
-    for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b| Some((b.reference, "".into())))) {
+    for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b: BrokenLink<'a>| Some((b.reference, "".into())))) {
         match item {
             Event::Start(tag) => match tag {
                 Tag::Paragraph => {
                     last_txt_end = '\0';
                 }
-                Tag::Heading(_, _, _) => {
+                Tag::Heading { .. } => {
                     last_txt_end = '\0';
                     heading_text = Some(String::new());
                 }
-                Tag::BlockQuote => {
+                Tag::BlockQuote(_) => {
                     last_txt_end = '\0';
                     block_quote_start.push(blocks.len());
                 }
-                Tag::CodeBlock(_) => {
+                Tag::CodeBlock(kind) => {
                     last_txt_end = '\0';
-                    code_block_text = Some(String::new());
+                    code_block = Some((String::new(), kind));
                 }
                 Tag::List(n) => {
                     last_txt_end = '\0';
                     list_info.push(ListInfo {
                         block_start: blocks.len(),
                         inline_start: inlines.len(),
+                        first_num: n,
                         item_num: n,
                         item_checked: None,
                     });
@@ -225,9 +228,9 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         list.block_start = blocks.len();
                     }
                 }
-                Tag::FootnoteDefinition(_) => {
+                Tag::FootnoteDefinition(label) => {
                     last_txt_end = '\0';
-                    footnote_def_start = Some(blocks.len());
+                    footnote_def = Some((blocks.len(), label));
                 }
                 Tag::Table(columns) => {
                     last_txt_end = '\0';
@@ -262,16 +265,23 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                 Tag::Strikethrough => {
                     strong += 1;
                 }
-                Tag::Link(_, _, _) => {
-                    link_start = Some(inlines.len());
+                Tag::Link {
+                    link_type,
+                    dest_url,
+                    title,
+                    id,
+                } => {
+                    link = Some((inlines.len(), link_type, dest_url, title, id));
                 }
-                Tag::Image(_, _, _) => {
+                Tag::Image { dest_url, title, .. } => {
                     last_txt_end = '\0';
-                    image_alt = Some(String::new());
+                    image = Some((String::new(), dest_url, title));
                 }
+                Tag::HtmlBlock => {}
+                Tag::MetadataBlock(_) => {}
             },
             Event::End(tag) => match tag {
-                Tag::Paragraph => {
+                TagEnd::Paragraph => {
                     if !inlines.is_empty() {
                         blocks.push(paragraph_view(ParagraphFnArgs {
                             index: blocks.len() as u32,
@@ -279,7 +289,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }));
                     }
                 }
-                Tag::Heading(level, _, _) => {
+                TagEnd::Heading(level) => {
                     if !inlines.is_empty() {
                         blocks.push(heading_view(HeadingFnArgs {
                             level,
@@ -288,7 +298,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }));
                     }
                 }
-                Tag::BlockQuote => {
+                TagEnd::BlockQuote => {
                     if let Some(start) = block_quote_start.pop() {
                         let items: UiNodeVec = blocks.drain(start..).collect();
                         if !items.is_empty() {
@@ -299,30 +309,29 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }
                     }
                 }
-                Tag::CodeBlock(kind) => {
-                    if let Some(mut txt) = code_block_text.take() {
-                        if txt.ends_with('\n') {
-                            txt.pop();
-                        }
-                        blocks.push(code_block_view(CodeBlockFnArgs {
-                            lang: match kind {
-                                CodeBlockKind::Indented => Txt::from_str(""),
-                                CodeBlockKind::Fenced(l) => l.to_txt(),
-                            },
-                            txt: txt.into(),
-                        }))
+                TagEnd::CodeBlock => {
+                    let (mut txt, kind) = code_block.take().unwrap();
+                    if txt.ends_with('\n') {
+                        txt.pop();
                     }
+                    blocks.push(code_block_view(CodeBlockFnArgs {
+                        lang: match kind {
+                            CodeBlockKind::Indented => Txt::from_str(""),
+                            CodeBlockKind::Fenced(l) => l.to_txt(),
+                        },
+                        txt: txt.into(),
+                    }))
                 }
-                Tag::List(n) => {
-                    if let Some(_list) = list_info.pop() {
+                TagEnd::List(_) => {
+                    if let Some(list) = list_info.pop() {
                         blocks.push(list_view(ListFnArgs {
                             depth: list_info.len() as u32,
-                            first_num: n,
+                            first_num: list.first_num,
                             items: mem::take(&mut list_items).into(),
                         }));
                     }
                 }
-                Tag::Item => {
+                TagEnd::Item => {
                     let depth = list_info.len().saturating_sub(1);
                     if let Some(list) = list_info.last_mut() {
                         let num = match &mut list.item_num {
@@ -347,8 +356,8 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }));
                     }
                 }
-                Tag::FootnoteDefinition(label) => {
-                    if let Some(i) = footnote_def_start.take() {
+                TagEnd::FootnoteDefinition => {
+                    if let Some((i, label)) = footnote_def.take() {
                         let label = html_escape::decode_html_entities(label.as_ref());
                         let items = blocks.drain(i..).collect();
                         blocks.push(footnote_def_view(FootnoteDefFnArgs {
@@ -357,7 +366,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }));
                     }
                 }
-                Tag::Table(_) => {
+                TagEnd::Table => {
                     if !table_cells.is_empty() {
                         blocks.push(table_view(TableFnArgs {
                             columns: mem::take(&mut table_cols),
@@ -365,11 +374,11 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }));
                     }
                 }
-                Tag::TableHead => {
+                TagEnd::TableHead => {
                     table_head = false;
                 }
-                Tag::TableRow => {}
-                Tag::TableCell => {
+                TagEnd::TableRow => {}
+                TagEnd::TableCell => {
                     table_cells.push(table_cell_view(TableCellFnArgs {
                         is_heading: table_head,
                         col_align: table_cols[table_col],
@@ -377,16 +386,17 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     }));
                     table_col += 1;
                 }
-                Tag::Emphasis => {
+                TagEnd::Emphasis => {
                     emphasis -= 1;
                 }
-                Tag::Strong => {
+                TagEnd::Strong => {
                     strong -= 1;
                 }
-                Tag::Strikethrough => {
+                TagEnd::Strikethrough => {
                     strikethrough -= 1;
                 }
-                Tag::Link(kind, url, title) => {
+                TagEnd::Link => {
+                    let (inlines_start, kind, url, title, _id) = link.take().unwrap();
                     let title = html_escape::decode_html_entities(title.as_ref());
                     let url = link_resolver.resolve(url.as_ref());
                     match kind {
@@ -412,31 +422,32 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                         }
                     }
                     if !inlines.is_empty() {
-                        if let Some(s) = link_start.take() {
-                            let items = inlines.drain(s..).collect();
-                            if let Some(lnk) = link_view.call_checked(LinkFnArgs {
-                                url,
-                                title: title.to_txt(),
-                                items,
-                            }) {
-                                inlines.push(lnk);
-                            }
+                        let items = inlines.drain(inlines_start..).collect();
+                        if let Some(lnk) = link_view.call_checked(LinkFnArgs {
+                            url,
+                            title: title.to_txt(),
+                            items,
+                        }) {
+                            inlines.push(lnk);
                         }
                     }
                 }
-                Tag::Image(_, url, title) => {
+                TagEnd::Image => {
+                    let (alt_txt, url, title) = image.take().unwrap();
                     let title = html_escape::decode_html_entities(title.as_ref());
                     blocks.push(image_view(ImageFnArgs {
                         source: image_resolver.resolve(&url),
                         title: title.to_txt(),
                         alt_items: mem::take(&mut inlines).into(),
-                        alt_txt: image_alt.take().unwrap_or_default().into(),
+                        alt_txt: alt_txt.into(),
                     }));
                 }
+                TagEnd::HtmlBlock => {}
+                TagEnd::MetadataBlock(_) => {}
             },
             Event::Text(txt) => {
                 let txt = html_escape::decode_html_entities(txt.as_ref());
-                if let Some(t) = &mut code_block_text {
+                if let Some((t, _)) = &mut code_block {
                     t.push_str(&txt);
                 } else if !txt.is_empty() {
                     let mut txt = Txt::from_string(txt.into_owned());
@@ -468,7 +479,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     if let Some(t) = &mut heading_text {
                         t.push_str(&txt);
                     }
-                    if let Some(t) = &mut image_alt {
+                    if let Some((t, _, _)) = &mut image {
                         t.push_str(&txt);
                     }
                     if let Some(txt) = text_view.call_checked(TextFnArgs {
@@ -505,7 +516,7 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     inlines.push(txt);
                 }
             }
-            Event::Html(tag) => match tag.as_ref() {
+            Event::Html(tag) | Event::InlineHtml(tag) => match tag.as_ref() {
                 "<b>" => strong += 1,
                 "</b>" => strong -= 1,
                 "<em>" => emphasis += 1,
@@ -530,6 +541,8 @@ fn markdown_view_fn(md: &str) -> impl UiNode {
                     l.item_checked = Some(c);
                 }
             }
+            Event::InlineMath(_) => {}
+            Event::DisplayMath(_) => {}
         }
     }
 

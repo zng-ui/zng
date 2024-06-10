@@ -69,12 +69,30 @@ macro_rules! hot_static_patchable {
                 $crate::hot_reload::init_static(&mut $IDENT, static_ptr)
             }
 
-            $crate::hot_reload::HOT_STATICS! {
-                static [<$IDENT _REGISTER>]: (&'static dyn $crate::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()) = (
-                    &[<_K $IDENT:camel>],
-                    [<$IDENT _INIT>]
-                );
-            }
+            #[used]
+            #[cfg_attr(
+                any(
+                    target_os = "none",
+                    target_os = "linux",
+                    target_os = "android",
+                    target_os = "fuchsia",
+                    target_os = "psp"
+                ),
+                link_section = "linkme_HOT_STATICS"
+            )]
+            #[cfg_attr(
+                any(target_os = "macos", target_os = "ios", target_os = "tvos"),
+                link_section = "__DATA,__linkmeAGDMMOwP,regular,no_dead_strip"
+            )]
+            #[cfg_attr(target_os = "windows", link_section = ".linkme_HOT_STATICS$b")]
+            #[cfg_attr(target_os = "illumos", link_section = "set_linkme_HOT_STATICS")]
+            #[cfg_attr(any(target_os = "freebsd", target_os = "openbsd"), link_section = "linkme_HOT_STATICS")]
+            #[doc(hidden)]
+            static [<$IDENT _REGISTER>]: (&'static dyn $crate::hot_reload::PatchKey, unsafe fn(*const ()) -> *const ()) = (
+                &[<_K $IDENT:camel>],
+                [<$IDENT _INIT>]
+            );
+
         }
     };
 }
