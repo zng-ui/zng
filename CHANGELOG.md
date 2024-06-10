@@ -8,6 +8,7 @@
 * **Breaking** Remove `FullLocalContext`, a type that is from an old version of the context API.
     - The type cannot be constructed, so this has no actual impact.
 * [Updated Webrender](https://github.com/zng-ui/zng-webrender/pull/1)
+* Fix unbalanced HTML text style tags in `Markdown!` leaking outside of their block.
 
 # 0.7.1
 

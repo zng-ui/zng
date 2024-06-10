@@ -198,21 +198,27 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
         match item {
             Event::Start(tag) => match tag {
                 Tag::Paragraph => {
+                    // close unbalanced HTML tags
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                 }
                 Tag::Heading { .. } => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     heading_text = Some(String::new());
                 }
                 Tag::BlockQuote(_) => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     block_quote_start.push(blocks.len());
                 }
                 Tag::CodeBlock(kind) => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     code_block = Some((String::new(), kind));
                 }
                 Tag::List(n) => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     list_info.push(ListInfo {
                         block_start: blocks.len(),
@@ -223,16 +229,19 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                     });
                 }
                 Tag::Item => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     if let Some(list) = list_info.last_mut() {
                         list.block_start = blocks.len();
                     }
                 }
                 Tag::FootnoteDefinition(label) => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     footnote_def = Some((blocks.len(), label));
                 }
                 Tag::Table(columns) => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     table_cols = columns
                         .into_iter()
@@ -245,15 +254,18 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                         .collect()
                 }
                 Tag::TableHead => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     table_head = true;
                     table_col = 0;
                 }
                 Tag::TableRow => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     table_col = 0;
                 }
                 Tag::TableCell => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                 }
                 Tag::Emphasis => {
