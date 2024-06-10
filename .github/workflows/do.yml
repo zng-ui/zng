@@ -3,15 +3,15 @@ name: do
 on:
   workflow_dispatch:
     inputs:
-      on: 
+      runs-on: 
         default: 'ubuntu-latest'
-        description: action runner
-      do:
-        description: do command
-      commit:
-        description: set to commit
+        required: true
+      cargo-do:
+        required: true
+      commit-msg:
+        required: false
 
-run-name: on ${{ github.event.inputs.on }} do ${{ github.event.inputs.do }}
+run-name: on ${{ github.event.inputs.runs-on }} do ${{ github.event.inputs.cargo-do }}
 
 env:
   RUST_BACKTRACE: 1
@@ -22,7 +22,7 @@ env:
 
 jobs:
   do:
-    runs-on: ${{ github.event.inputs.on }}
+    runs-on: ${{ github.event.inputs.runs-on }}
     permissions:
       contents: write
     steps:
@@ -30,12 +30,12 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-      - run: cargo do ${{ github.event.inputs.do }}
-      - if: ${{ github.event.inputs.commit != '' }}
+      - run: cargo do ${{ github.event.inputs.cargo-do }}
+      - if: ${{ github.event.inputs.commit-msg && github.event.inputs.commit-msg != '' }}
         name: commit all changes
         run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
           git add -A
-          git commit -m "${{ github.event.inputs.commit }}"
+          git commit -m "${{ github.event.inputs.commit-msg }}"
           git push
