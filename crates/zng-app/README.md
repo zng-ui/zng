@@ -4,7 +4,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 12 feature flags, 3 enabled by default.
+This crate provides 12 feature flags, 2 enabled by default.
 
 #### `"debug_default"`
 Enable the `"dyn_*"` and `"inspector"` features in debug builds.
@@ -51,8 +51,6 @@ Note that this can cause very large trace files and bad performance.
 
 #### `"crash_handler"`
 Allow app-process crash handler.
-
-*Enabled by default.*
 
 #### `"ipc"`
 Enables IPC tasks and pre-build views and connecting to views running in another process.
