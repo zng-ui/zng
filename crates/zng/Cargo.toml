@@ -1,6 +1,6 @@
 [package]
 name = "zng"
-version = "0.7.2"
+version = "0.8.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -170,7 +170,7 @@ built_res = ["zng-env/built_res"]
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 zng-state-map = { path = "../zng-state-map", version = "0.3.3" }
-zng-app-context = { path = "../zng-app-context", version = "0.4.3" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.0" }
 zng-layout = { path = "../zng-layout", version = "0.2.13" }
 zng-var = { path = "../zng-var", version = "0.4.3" }
 zng-task = { path = "../zng-task", version = "0.3.1" }
@@ -181,7 +181,7 @@ zng-unique-id = { path = "../zng-unique-id", version = "0.4.4" }
 # view
 zng-view-api = { path = "../zng-view-api", version = "0.5.2", default-features = false }
 zng-view = { path = "../zng-view", version = "0.4.2", default-features = false, optional = true }
-zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.7.2", optional = true }
+zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.8.0", optional = true }
 
 # app
 zng-app = { path = "../zng-app", version = "0.7.1", default-features = false }
@@ -197,7 +197,7 @@ zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.17" }
 zng-ext-hot-reload = { path = "../zng-ext-hot-reload", version = "0.1.6", optional = true }
 
 # widgets
-zng-wgt = { path = "../zng-wgt", version = "0.3.7" }
+zng-wgt = { path = "../zng-wgt", version = "0.4.0" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.17" }
 zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.17" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.17" }

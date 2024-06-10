@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.4.3" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.0" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
 zng-view-api = { path = "../zng-view-api", version = "0.5.2" }
 zng-app = { path = "../zng-app", version = "0.7.1" }

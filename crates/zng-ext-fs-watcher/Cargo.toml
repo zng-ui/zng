@@ -22,7 +22,7 @@ toml = ["dep:toml"]
 ron = ["dep:ron"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.4.3" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.0" }
 zng-app = { path = "../zng-app", version = "0.7.1" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
 zng-var = { path = "../zng-var", version = "0.4.3" }

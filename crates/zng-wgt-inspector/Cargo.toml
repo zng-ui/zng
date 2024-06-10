@@ -21,7 +21,7 @@ live = []
 crash_handler = ["zng-app/crash_handler", "dep:open"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.3.7" }
+zng-wgt = { path = "../zng-wgt", version = "0.4.0" }
 zng-app = { path = "../zng-app", version = "0.7.1" }
 zng-env = { path = "../zng-env", version = "0.2.1" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.5" }

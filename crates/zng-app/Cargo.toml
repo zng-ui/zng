@@ -74,7 +74,7 @@ zng-env = { path = "../zng-env", version = "0.2.1" }
 zng-handle = { path = "../zng-handle", version = "0.2.5" }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.7" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
-zng-app-context = { path = "../zng-app-context", version = "0.4.3" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.0" }
 zng-time = { path = "../zng-time", version = "0.2.11" }
 zng-var = { path = "../zng-var", version = "0.4.3" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
