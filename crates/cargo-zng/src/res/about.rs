@@ -20,11 +20,12 @@ pub fn find_about(metadata: Option<&Path>) -> zng_env::About {
                 .arg("locate-project")
                 .arg("--workspace")
                 .arg("--message-format=plain")
+                .current_dir(manifest.parent().unwrap())
                 .output()
                 .unwrap_or_else(|e| fatal!("cannot locate workspace, {e}"));
 
             if output.status.success() {
-                let w2 = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim());
+                let w2 = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim()).parent().unwrap();
                 if workspace_manifest == w2 {
                     let cargo_toml = fs::read_to_string(&manifest).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", manifest.display()));
                     options.push(
@@ -37,7 +38,7 @@ pub fn find_about(metadata: Option<&Path>) -> zng_env::About {
     }
 
     match options.len().cmp(&1) {
-        Ordering::Less => fatal!("cannot find main crate metadata, workspace has no bin crate\nuse --metadata to select a source"),
+        Ordering::Less => fatal!("cannot find main crate metadata, workspace has no bin crate, use --metadata to select a source"),
         Ordering::Equal => options.remove(0),
         Ordering::Greater => {
             let mut main_options = Vec::with_capacity(1);
@@ -55,7 +56,7 @@ pub fn find_about(metadata: Option<&Path>) -> zng_env::About {
                     }
                     writeln!(
                         &mut msg,
-                        r#"set [package.metadata.zng.about]app="Display Name"\nin one of the crates"#
+                        "set [package.metadata.zng.about]app=\"Display Name\" in one of the crates\nor use --metadata to select the source"
                     )
                     .unwrap();
                     fatal!("{msg}");
@@ -67,7 +68,7 @@ pub fn find_about(metadata: Option<&Path>) -> zng_env::About {
                     }
                     writeln!(
                         &mut msg,
-                        r#"set [package.metadata.zng.about] in only one crate\nor use --metadata to select the source"#
+                        "set [package.metadata.zng.about] in only one crate\nor use --metadata to select the source"
                     )
                     .unwrap();
                     fatal!("{msg}");
