@@ -1058,7 +1058,10 @@ fn publish(mut args: Vec<&str>) {
         let mut new_versions = std::collections::HashMap::new();
 
         for crate_ in &crates {
-            let member = members.iter().find(|m| &m.name == crate_).unwrap();
+            let member = members
+                .iter()
+                .find(|m| &m.name == crate_)
+                .unwrap_or_else(|| util::fatal(f!("crate '{crate_}' not found in members")));
             let mut new_version = member.version;
             bump(&mut new_version);
             new_versions.insert(member.name.as_str(), new_version);
