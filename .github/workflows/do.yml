@@ -6,12 +6,12 @@ on:
       runs-on: 
         default: 'ubuntu-latest'
         required: true
-      cmd:
+      cargo-do:
         required: true
       commit-msg:
         required: false
 
-run-name: on ${{ github.event.inputs.runs-on }} do ${{ github.event.inputs.cmd }}
+run-name: on ${{ github.event.inputs.runs-on }} do ${{ github.event.inputs.cargo-do }}
 
 env:
   RUST_BACKTRACE: 1
@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-      - run: cargo do ${{ github.event.inputs.cmd }}
+      - run: cargo do ${{ github.event.inputs.cargo-do }}
       - if: ${{ github.event.inputs.commit-msg && github.event.inputs.commit-msg != '' }}
         name: commit all changes
         run: |
