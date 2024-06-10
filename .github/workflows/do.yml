@@ -5,7 +5,9 @@ on:
     inputs:
       runs-on: 
         default: 'ubuntu-latest'
+        required: true
       cmd:
+        required: true
 
 env:
   RUST_BACKTRACE: 1
