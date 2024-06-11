@@ -154,7 +154,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: prebuilt-ubuntu
+          name: libzng_view.x86_64-unknown-linux-gnu.so
           path: crates/zng-view-prebuilt/lib/libzng_view.x86_64-unknown-linux-gnu.so
           
   prebuild-windows:
@@ -228,7 +228,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: prebuilt-windows
+          name: zng_view.x86_64-pc-windows-msvc.dll
           path: crates/zng-view-prebuilt/lib/zng_view.x86_64-pc-windows-msvc.dll
   prebuild-macos:
     runs-on: macos-latest
@@ -282,7 +282,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: prebuilt-macos
+          name: libzng_view.x86_64-apple-darwin.dylib
           path: crates/zng-view-prebuilt/lib/libzng_view.x86_64-apple-darwin.dylib
 
   doc-ubuntu:
@@ -329,7 +329,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: prebuilt-ubuntu
+          name: libzng_view.x86_64-unknown-linux-gnu.so
           path: crates/zng-view-prebuilt/lib
       - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -382,7 +382,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: prebuilt-windows
+          name: zng_view.x86_64-pc-windows-msvc.dll
           path: crates/zng-view-prebuilt/lib
       - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -421,7 +421,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: prebuilt-macos
+          name: libzng_view.x86_64-apple-darwin.dylib
           path: crates/zng-view-prebuilt/lib
       - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -480,25 +480,25 @@ jobs:
       - uses: actions/download-artifact@v4
         if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
-          name: prebuilt-ubuntu
+          name: libzng_view.x86_64-unknown-linux-gnu.so
           path: prebuilt-ubuntu
       - uses: actions/download-artifact@v4
         if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
-          name: prebuilt-windows
+          name: zng_view.x86_64-pc-windows-msvc.dll
           path: prebuilt-windows
       - uses: actions/download-artifact@v4
         if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
-          name: prebuilt-macos
+          name: libzng_view.x86_64-apple-darwin.dylib
           path: prebuilt-macos
       - name: compress
         if: ${{ github.event.inputs.skip_release != 'true' }}
         run: |
           mkdir prebuilt
-          tar -czf "prebuilt/prebuilt-ubuntu.tar.gz" -C "prebuilt-ubuntu/" .
-          tar -czf "prebuilt/prebuilt-windows.tar.gz" -C "prebuilt-windows/" .
-          tar -czf "prebuilt/prebuilt-macos.tar.gz" -C "prebuilt-macos/" .
+          tar -czf "prebuilt/libzng_view.x86_64-unknown-linux-gnu.so.tar.gz" -C "prebuilt-ubuntu/" .
+          tar -czf "prebuilt/zng_view.x86_64-pc-windows-msvc.dll.tar.gz" -C "prebuilt-windows/" .
+          tar -czf "prebuilt/libzng_view.x86_64-apple-darwin.dylib.tar.gz" -C "prebuilt-macos/" .
       - run: ls --all ./prebuilt
         if: ${{ github.event.inputs.skip_release != 'true' }}
       - name: publish release
