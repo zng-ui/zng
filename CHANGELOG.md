@@ -1,5 +1,6 @@
 # Unpublished
 
+* Fix `cargo zng res` in non-workspace crates.
 
 # 0.8.1
 
