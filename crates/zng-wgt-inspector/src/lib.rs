@@ -53,9 +53,9 @@ pub fn inspector(child: impl UiNode, mut inspector: impl UiNode) -> impl UiNode 
 
 #[cfg(feature = "live")]
 /// Live interactive inspector.
-/// 
+///
 /// Can be set on a window using the [`inspector`](fn@inspector) property.
-/// Note that the main `APP.defaults()` already sets this for all windows when 
+/// Note that the main `APP.defaults()` already sets this for all windows when
 /// the `"inspector"` feature is enabled.
 pub fn live_inspector(can_inspect: impl IntoVar<bool>) -> impl UiNode {
     live::inspect_node(can_inspect)
