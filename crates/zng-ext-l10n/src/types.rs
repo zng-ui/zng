@@ -243,32 +243,32 @@ impl L10nArgument {
 }
 
 #[doc(hidden)]
-pub struct L10nSpecialize<T>(pub T);
+pub struct L10nSpecialize<T>(pub Option<T>);
 #[doc(hidden)]
 pub trait IntoL10nVar {
     type Var: Var<L10nArgument>;
-    fn into_l10n_var(self) -> Self::Var;
+    fn to_l10n_var(&mut self) -> Self::Var;
 }
 
 impl<T: Into<L10nArgument>> IntoL10nVar for L10nSpecialize<T> {
     type Var = LocalVar<L10nArgument>;
 
-    fn into_l10n_var(self) -> Self::Var {
-        LocalVar(self.0.into())
+    fn to_l10n_var(&mut self) -> Self::Var {
+        LocalVar(self.0.take().unwrap().into())
     }
 }
-impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &L10nSpecialize<ArcVar<T>> {
+impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &mut L10nSpecialize<ArcVar<T>> {
     type Var = ReadOnlyArcVar<L10nArgument>;
 
-    fn into_l10n_var(self) -> Self::Var {
-        self.0.map_into()
+    fn to_l10n_var(&mut self) -> Self::Var {
+        self.0.take().unwrap().map_into()
     }
 }
-impl<V: Var<L10nArgument>> IntoL10nVar for &&L10nSpecialize<V> {
+impl<V: Var<L10nArgument>> IntoL10nVar for &mut &mut L10nSpecialize<V> {
     type Var = V;
 
-    fn into_l10n_var(self) -> Self::Var {
-        self.0.clone()
+    fn to_l10n_var(&mut self) -> Self::Var {
+        self.0.take().unwrap()
     }
 }
 

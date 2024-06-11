@@ -92,7 +92,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             build.extend(quote_spanned! {span=>
                 .l10n_arg(#var, {
                     use #l10n_path::IntoL10nVar;
-                    (&&#l10n_path::L10nSpecialize(#var_ident)).into_l10n_var()
+                    (&mut &mut #l10n_path::L10nSpecialize(Some(#var_ident))).to_l10n_var()
                 })
             });
         }
