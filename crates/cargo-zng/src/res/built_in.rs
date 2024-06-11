@@ -226,6 +226,7 @@ fn glob() {
                     fs::copy(source, &target)
                         .unwrap_or_else(|e| fatal!("cannot copy `{}` to `{}`, {e}", source.display(), target.display()));
                 }
+                println!("{}", display_path(&target));
             }
         } else if source.is_file() {
             // filters match 'entry'
