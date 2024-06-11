@@ -233,7 +233,14 @@ jobs:
           path: crates/zng-view-prebuilt/lib/zng_view.x86_64-pc-windows-msvc.dll
           if-no-files-found: error
   prebuild-macos:
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - os: macOS-13
+            target: x86_64-apple-darwin
+          - os: macOS-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
     needs: [check-macos]
     env:
       ZNG_TP_LICENSES: true
@@ -284,8 +291,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: libzng_view.x86_64-apple-darwin.dylib
-          path: crates/zng-view-prebuilt/lib/libzng_view.x86_64-apple-darwin.dylib
+          name: libzng_view.${{ matrix.target }}.dylib
+          path: crates/zng-view-prebuilt/lib/libzng_view.${{ matrix.target }}.dylib
           if-no-files-found: error
 
   doc-ubuntu:
@@ -426,7 +433,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: libzng_view.x86_64-apple-darwin.dylib
+          name: libzng_view.aarch64-apple-darwin.dylib
           path: crates/zng-view-prebuilt/lib
       - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -495,15 +502,21 @@ jobs:
       - uses: actions/download-artifact@v4
         if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
-          name: libzng_view.x86_64-apple-darwin.dylib
+          name: libzng_view.aarch64-apple-darwin.dylib aarch64-apple-darwin
           path: prebuilt-macos
+      - uses: actions/download-artifact@v4
+        if: ${{ github.event.inputs.skip_release != 'true' }}
+        with:
+          name: libzng_view.x86_64-apple-darwin.dylib 
+          path: prebuilt-macos-x64
       - name: compress
         if: ${{ github.event.inputs.skip_release != 'true' }}
         run: |
           mkdir prebuilt
           tar -czf "prebuilt/libzng_view.x86_64-unknown-linux-gnu.so.tar.gz" -C "prebuilt-ubuntu/" .
           tar -czf "prebuilt/zng_view.x86_64-pc-windows-msvc.dll.tar.gz" -C "prebuilt-windows/" .
-          tar -czf "prebuilt/libzng_view.x86_64-apple-darwin.dylib.tar.gz" -C "prebuilt-macos/" .
+          tar -czf "prebuilt/libzng_view.x86_64-apple-darwin.dylib.tar.gz" -C "prebuilt-macos-x64/" .
+          tar -czf "prebuilt/libzng_view.aarch64-apple-darwin.dylib.tar.gz" -C "prebuilt-macos/" .
       - run: ls --all ./prebuilt
         if: ${{ github.event.inputs.skip_release != 'true' }}
       - name: publish release
