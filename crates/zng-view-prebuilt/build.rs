@@ -21,45 +21,25 @@ fn main() {
     #[allow(unused_variables)]
     let file = "";
 
-    #[cfg(target_os = "windows")]
-    let file = "zng_view.dll";
+    let file = format!(
+        "{}zng_view.{}{}",
+        std::env::consts::DLL_PREFIX,
+        std::env::var("TARGET").unwrap(),
+        std::env::consts::DLL_SUFFIX
+    );
 
-    #[cfg(target_os = "linux")]
-    let file = "libzng_view.so";
-
-    #[cfg(target_os = "macos")]
-    let file = "libzng_view.dylib";
-
-    if file.is_empty() {
-        println!("cargo:warning=view prebuilt not embedded, unsupported os");
-        return;
-    }
-
-    lib = lib.join(file);
+    lib = lib.join(&file);
 
     let is_docs_rs = env::var("DOCS_RS").is_ok();
 
-    if !lib.exists() {
+    if !lib.exists() && !is_docs_rs {
         let version = env::var("CARGO_PKG_VERSION").unwrap();
-        lib = home::cargo_home()
-            .unwrap()
-            .join(".zng-view-prebuilt")
-            .join(format!("{file}.{version}.bin"));
-        if !is_docs_rs && !lib.exists() {
-            #[cfg(target_os = "windows")]
-            let download_file = "prebuilt-windows.tar.gz";
+        let out_dir = Path::new(&env::var("OUT_DIR").unwrap()).join(format!("v{version}"));
+        lib = out_dir.join(&file);
+        if !lib.exists() {
+            let lib_tar = out_dir.join(format!("{file}.tar.gz"));
 
-            #[cfg(target_os = "linux")]
-            let download_file = "prebuilt-ubuntu.tar.gz";
-
-            #[cfg(target_os = "macos")]
-            let download_file = "prebuilt-macos.tar.gz";
-
-            let url = format!("https://github.com/zng-ui/zng/releases/download/v{version}/{download_file}");
-
-            let out_dir = env::var("OUT_DIR").unwrap();
-            let output = Path::new(&out_dir).join(download_file);
-
+            let url = format!("https://github.com/zng-ui/zng/releases/download/v{version}/{file}.tar.gz");
             let r = std::process::Command::new("curl")
                 .arg("--location")
                 .arg("--fail")
@@ -67,7 +47,7 @@ fn main() {
                 .arg("--show-error")
                 .arg("--create-dirs")
                 .arg("--output")
-                .arg(&output)
+                .arg(&lib_tar)
                 .arg(&url)
                 .status();
             match r {
@@ -75,7 +55,7 @@ fn main() {
                     if s.success() {
                         let r = std::process::Command::new("tar")
                             .arg("-xf")
-                            .arg(output)
+                            .arg(lib_tar)
                             .arg("-C")
                             .arg(&out_dir)
                             .status();
@@ -83,7 +63,9 @@ fn main() {
                         match r {
                             Ok(s) => {
                                 if s.success() {
-                                    lib = Path::new(&out_dir).join(file);
+                                    if !lib.exists() {
+                                        println!("cargo:warning=view prebuilt not embedded, unexpected missing {}", lib.display(),)
+                                    }
                                 } else {
                                     println!(
                                         "cargo:warning=view prebuilt not embedded, failed extract, tar exit code: {:?}",
@@ -130,6 +112,6 @@ fn main() {
     } else if is_docs_rs || PathBuf::from("../../tools/cargo-do").exists() {
         println!("cargo:warning=view prebuilt not embedded, missing '{file}', call `do prebuild`");
     } else {
-        panic!("view prebuilt not embedded, missing '{file}', failed to download");
+        panic!("view prebuilt not embedded, missing '{file}'");
     }
 }

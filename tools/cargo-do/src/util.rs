@@ -298,33 +298,6 @@ pub fn macro_test_cases() -> Vec<(String, String)> {
     }
 }
 
-// Get "cdylib" crate output.
-pub fn cdylib_files(path: impl Into<PathBuf>) -> Vec<PathBuf> {
-    let mut path = path.into();
-    let file_name = path.file_name().unwrap().to_string_lossy();
-
-    let linux = format!("lib{file_name}.so");
-    let windows = format!("{file_name}.dll");
-    let macos = format!("lib{file_name}.dylib");
-
-    let mut r = vec![];
-
-    path.set_file_name(linux);
-    if path.exists() {
-        r.push(path.clone());
-    }
-    path.set_file_name(windows);
-    if path.exists() {
-        r.push(path.clone());
-    }
-    path.set_file_name(macos);
-    if path.exists() {
-        r.push(path);
-    }
-
-    r
-}
-
 /*
 // Extracts the file name from path, or panics.
 pub fn file_name(path: &str) -> String {

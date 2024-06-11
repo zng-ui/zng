@@ -48,6 +48,8 @@ fn main() {
             }
         }
     }
+
+    println!("cargo::rustc-env=TARGET_PLATFORM={}", std::env::var("TARGET").unwrap());
 }
 
 // parse {name_0} [, {name_1}] [, {name_n}] [{options}]
