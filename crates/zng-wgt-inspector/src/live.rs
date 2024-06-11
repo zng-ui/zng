@@ -520,6 +520,7 @@ mod inspector_window {
                 access_role = AccessRole::SearchBox;
                 margin = (0, 0, 0, 50);
                 padding = (3, 5);
+                txt_align = Align::START;
                 focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
                 background = Text! {
                     padding = (4, 6); // +1 border
