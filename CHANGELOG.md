@@ -1,5 +1,6 @@
 # Unpublished
 
+* Fix align of search box in the Inspector window.
 * Fix `l10n!` interpolation of non-var values.
 * Allow missing authors field in `zng_env::About::parse_manifest`.
 * Fix `cargo zng res` not finding any metadata.

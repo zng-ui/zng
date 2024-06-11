@@ -1544,11 +1544,11 @@ impl UpdatesService {
             match self.event_sender.as_ref() {
                 Some(s) => {
                     if let Err(AppDisconnected(())) = s.send_check_update() {
-                        tracing::error!("no app connected to update");
+                        tracing::debug!("no app connected to update");
                     }
                 }
                 None => {
-                    tracing::error!("no app connected yet to update");
+                    tracing::debug!("no app connected yet to update");
                 }
             }
         }
