@@ -16,13 +16,13 @@ pub fn find_about(metadata: Option<&Path>) -> zng_env::About {
         let bin = bin.unwrap_or_else(|e| fatal!("error searching metadata, {e}"));
         let manifest = bin.parent().unwrap().parent().unwrap().join("Cargo.toml");
         if manifest.exists() {
-            let output = std::process::Command::new("cargo")
-                .arg("locate-project")
-                .arg("--workspace")
-                .arg("--message-format=plain")
-                .current_dir(manifest.parent().unwrap())
-                .output()
-                .unwrap_or_else(|e| fatal!("cannot locate workspace, {e}"));
+            let mut cmd = std::process::Command::new("cargo");
+            cmd.arg("locate-project").arg("--workspace").arg("--message-format=plain");
+            let manifest_dir = manifest.parent().unwrap();
+            if !manifest_dir.as_os_str().is_empty() {
+                cmd.current_dir(manifest_dir);
+            }
+            let output = cmd.output().unwrap_or_else(|e| fatal!("cannot locate workspace, {e}"));
 
             if output.status.success() {
                 let w2 = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim()).parent().unwrap();

@@ -1,5 +1,7 @@
 # Unpublished
 
+* Fix `cargo zng res` in non-workspace crates.
+* Fix zr-glob not printing copied paths in subdirectories.
 
 # 0.8.1
 

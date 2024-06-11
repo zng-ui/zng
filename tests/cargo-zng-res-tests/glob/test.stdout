@@ -1,4 +1,8 @@
 tests/cargo-zng-res-tests/glob/source/filter.zr-glob
+  target/tmp/tests/cargo_zng/glob/refs/aa
+  target/tmp/tests/cargo_zng/glob/refs/ac
+  target/tmp/tests/cargo_zng/glob/refs/i/aai
+  target/tmp/tests/cargo_zng/glob/refs/i/aci
 tests/cargo-zng-res-tests/glob/source/flatten
   target/tmp/tests/cargo_zng/glob/flatten
 tests/cargo-zng-res-tests/glob/source/flatten/refs-glob.zr-glob
