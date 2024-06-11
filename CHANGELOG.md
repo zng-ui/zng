@@ -1,5 +1,8 @@
 # Unpublished
 
+
+# 0.8.1
+
 * Fix align of search box in the Inspector window.
 * Fix `l10n!` interpolation of non-var values.
 * Allow missing authors field in `zng_env::About::parse_manifest`.
