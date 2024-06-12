@@ -1,5 +1,8 @@
 # Unpublished
 
+
+# 0.8.2
+
 * Implement some system config reading for macOS.
 * Add `aarch64-pc-windows-msvc` view_prebuilt.
     - Without AVIF, not tested.

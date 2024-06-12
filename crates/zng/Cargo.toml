@@ -1,6 +1,6 @@
 [package]
 name = "zng"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -180,8 +180,8 @@ zng-unique-id = { path = "../zng-unique-id", version = "0.4.4" }
 
 # view
 zng-view-api = { path = "../zng-view-api", version = "0.5.3", default-features = false }
-zng-view = { path = "../zng-view", version = "0.4.3", default-features = false, optional = true }
-zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.8.1", optional = true }
+zng-view = { path = "../zng-view", version = "0.4.4", default-features = false, optional = true }
+zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.8.2", optional = true }
 
 # app
 zng-app = { path = "../zng-app", version = "0.7.2", default-features = false }
