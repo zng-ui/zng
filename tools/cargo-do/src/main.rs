@@ -767,19 +767,32 @@ fn prebuild(mut args: Vec<&str>) {
         &args,
     );
 
-    let files = cdylib_files(format!("target/{}/zng_view", if profile == "dev" { "debug" } else { profile }));
+    let target_platform = args.iter().position(|&a| a == "--target").map(|i| args[i + 1]);
 
-    if files.is_empty() {
-        error("no pre-built `cdylib` output found");
+    let build_target = target_platform.map(|t| format!("/{t}")).unwrap_or_default();
+    let file = std::path::PathBuf::from(format!(
+        "target{build_target}/{}/{}zng_view{}",
+        if profile == "dev" { "debug" } else { profile },
+        std::env::consts::DLL_PREFIX,
+        std::env::consts::DLL_SUFFIX
+    ));
+
+    if !file.exists() {
+        error(f!("no pre-built `cdylib` output found, expected {}", file.display()));
         return;
     }
 
-    for file in files {
-        let target = format!("crates/zng-view-prebuilt/lib/{}", file.file_name().unwrap().to_string_lossy());
-        if let Err(e) = std::fs::copy(&file, &target) {
-            error(f!("failed to copy pre-build lib `{}` to `{target}`, {e}", file.display()))
-        }
+    let do_build_target = std::env::var("TARGET_PLATFORM").unwrap();
+    let target = format!(
+        "crates/zng-view-prebuilt/lib/{}zng_view.{}{}",
+        std::env::consts::DLL_PREFIX,
+        target_platform.unwrap_or_else(|| do_build_target.as_str()),
+        std::env::consts::DLL_SUFFIX,
+    );
+    if let Err(e) = std::fs::copy(&file, &target) {
+        error(f!("failed to copy pre-build lib `{}` to `{target}`, {e}", file.display()))
     }
+    println!("prebuilt to {target}");
 
     // test build
     cmd("cargo", &["build", "-p", "zng-view-prebuilt", "--release"], &[]);
