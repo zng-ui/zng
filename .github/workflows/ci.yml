@@ -29,6 +29,43 @@ jobs:
       - run: cargo do fmt --check
       - run: cargo do check
       - run: cargo clean
+  check-macos:
+    needs: [check]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo do version --verbose
+      - run: cargo do fmt --check
+      - run: cargo do check
+      - run: cargo clean
+  check-windows:
+    needs: [check]
+    runs-on: windows-latest
+    env:
+      CC: 'clang-cl'
+      CXX: 'clang-cl'
+    steps:
+      - name: fix clang version issue
+        run: choco upgrade llvm
+        # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo do version --verbose
+      - run: cargo do fmt --check
+      - run: cargo do check
+      - run: cargo clean
+  check-release:
+    runs-on: ubuntu-latest
+    needs: [check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --examples --tests --release
+      - run: cargo clean
   doc:
     runs-on: ubuntu-latest
     needs: [check]
@@ -39,15 +76,6 @@ jobs:
         with:
           cache-targets: false # do doc needs a clean target/doc
       - run: cargo do doc
-      - run: cargo clean
-  check-release:
-    runs-on: ubuntu-latest
-    needs: [check]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check --workspace --examples --tests --release
       - run: cargo clean
   test-ubuntu:
     runs-on: ubuntu-latest
@@ -135,6 +163,6 @@ jobs:
       - run: cargo clean
   test-all:
     runs-on: ubuntu-latest
-    needs: [check-release, doc, test-ubuntu, test-windows, test-macos, test-doc, test-macro]
+    needs: [check-release, check-macos, doc, test-ubuntu, test-windows, test-macos, test-doc, test-macro]
     steps:
       - run: exit 0
