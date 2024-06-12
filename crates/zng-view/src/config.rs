@@ -30,6 +30,7 @@ use dconf as platform;
 mod other;
 #[cfg(not(any(
     windows,
+    target_os = "macos",
     target_os = "linux",
     target_os = "dragonfly",
     target_os = "freebsd",

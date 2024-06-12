@@ -8,7 +8,7 @@ pub fn font_aa() -> FontAntiAliasing {
 
 pub fn multi_click_config() -> MultiClickConfig {
     let mut cfg = MultiClickConfig::default();
-    cfg.time = unsafe { NSEvent::doubleClickInterval() }.ms();
+    cfg.time = (unsafe { NSEvent::doubleClickInterval() } as f32).ms();
     cfg
 }
 
@@ -18,8 +18,8 @@ pub fn animations_config() -> AnimationsConfig {
 
 pub fn key_repeat_config() -> KeyRepeatConfig {
     let mut cfg = KeyRepeatConfig::default();
-    cfg.start_delay = unsafe { NSEvent::keyRepeatDelay() }.ms();
-    cfg.interval = unsafe { NSEvent::keyRepeatInterval() }.ms();
+    cfg.start_delay = (unsafe { NSEvent::keyRepeatDelay() } as f32).ms();
+    cfg.interval = (unsafe { NSEvent::keyRepeatInterval() } as f32).ms();
     cfg
 }
 
