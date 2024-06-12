@@ -103,6 +103,7 @@ jobs:
 
   prebuild-ubuntu:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -170,6 +171,7 @@ jobs:
           
   prebuild-windows:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-pc-windows-msvc
@@ -250,6 +252,7 @@ jobs:
           if-no-files-found: error
   prebuild-macos:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macOS-13
@@ -428,6 +431,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
   test-macos:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macOS-13
