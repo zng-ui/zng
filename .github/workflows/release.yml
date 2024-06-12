@@ -519,11 +519,11 @@ jobs:
         with:
           name: libzng_view.x86_64-unknown-linux-gnu.so
           path: prebuilt-ubuntu-x64
-      - uses: actions/download-artifact@v4
-        if: ${{ github.event.inputs.skip_release != 'true' }}
-        with:
-          name: libzng_view.aarch64-unknown-linux-gnu.so
-          path: prebuilt-ubuntu-arm
+      # - uses: actions/download-artifact@v4
+      #   if: ${{ github.event.inputs.skip_release != 'true' }}
+      #   with:
+      #     name: libzng_view.aarch64-unknown-linux-gnu.so
+      #     path: prebuilt-ubuntu-arm
       - uses: actions/download-artifact@v4
         if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
