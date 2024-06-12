@@ -5,6 +5,11 @@ mod windows;
 #[cfg(windows)]
 use windows as platform;
 
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+use macos as platform;
+
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
