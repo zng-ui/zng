@@ -107,7 +107,7 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             features: --features avif
-          - target: aarch64-unknown-linux-gnu
+          # - target: aarch64-unknown-linux-gnu 
     runs-on: ubuntu-latest
     needs: [check-ubuntu]
     env:
@@ -545,7 +545,6 @@ jobs:
         run: |
           mkdir prebuilt
           tar -czf "prebuilt/libzng_view.x86_64-unknown-linux-gnu.so.tar.gz" -C "prebuilt-ubuntu-x64/" .
-          tar -czf "prebuilt/libzng_view.aarch64-unknown-linux-gnu.so.tar.gz" -C "prebuilt-ubuntu-arm/" .
           tar -czf "prebuilt/zng_view.x86_64-pc-windows-msvc.dll.tar.gz" -C "prebuilt-windows-x64/" .
           tar -czf "prebuilt/zng_view.aarch64-pc-windows-msvc.dll.tar.gz" -C "prebuilt-windows-arm/" .
           tar -czf "prebuilt/libzng_view.x86_64-apple-darwin.dylib.tar.gz" -C "prebuilt-macos-x64/" .
