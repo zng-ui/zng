@@ -146,6 +146,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        with:
+          target: ${{ matrix.target }}
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
       - name: cargo do prebuild ${{ matrix.features }}
