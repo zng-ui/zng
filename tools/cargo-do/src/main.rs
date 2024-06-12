@@ -792,6 +792,7 @@ fn prebuild(mut args: Vec<&str>) {
     if let Err(e) = std::fs::copy(&file, &target) {
         error(f!("failed to copy pre-build lib `{}` to `{target}`, {e}", file.display()))
     }
+    println!("prebuilt to {target}");
 
     // test build
     cmd("cargo", &["build", "-p", "zng-view-prebuilt", "--release"], &[]);
