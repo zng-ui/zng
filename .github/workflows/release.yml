@@ -141,6 +141,9 @@ jobs:
           ninja -C build install
           echo "PKG_CONFIG_PATH=$HOME/$DAV1D_DIR/$LIB_PATH/pkgconfig" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$HOME/$DAV1D_DIR/$LIB_PATH" >> $GITHUB_ENV
+      - name: install aarch64 deps
+        if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+        run: sudo apt-get install g++-aarch64-linux-gnu
 
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
