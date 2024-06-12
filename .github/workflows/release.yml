@@ -102,6 +102,12 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
 
   prebuild-ubuntu:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            features: --features avif
+          - target: aarch64-unknown-linux-gnu
     runs-on: ubuntu-latest
     needs: [check-ubuntu]
     env:
@@ -116,13 +122,13 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: ilammy/setup-nasm@v1
       - name: install dav1d python deps
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
         run: |
           pip install -U pip
           pip install -U wheel setuptools
           pip install -U meson ninja
       - name: build dav1d
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
         env:
           DAV1D_DIR: dav1d_dir
           LIB_PATH: lib/x86_64-linux-gnu
@@ -141,22 +147,20 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
-      - name: cargo do prebuild --features avif
+        if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
+      - name: cargo do prebuild ${{ matrix.features }}
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         env:
           SYSTEM_DEPS_LINK: static
-        run: cargo do prebuild --features avif
+        run: cargo do prebuild ${{ matrix.features }}
       - run: cargo clean
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
-      - run: cargo do comment_feature "crates/zng-view/Cargo.toml" avif
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: libzng_view.x86_64-unknown-linux-gnu.so
-          path: crates/zng-view-prebuilt/lib/libzng_view.x86_64-unknown-linux-gnu.so
+          name: libzng_view.${{ matrix.target }}.so
+          path: crates/zng-view-prebuilt/lib/libzng_view.${{ matrix.target }}.so
           if-no-files-found: error
           
   prebuild-windows:
@@ -223,7 +227,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-pc-windows-msvc' }}
       - name: cargo do prebuild ${{ matrix.features }}
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         env:
@@ -232,8 +236,6 @@ jobs:
           SYSTEM_DEPS_LINK: static
         run: cargo do prebuild ${{ matrix.features }}
       - run: cargo clean
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
-      - run: cargo do comment_feature "crates/zng-view/Cargo.toml" avif
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
@@ -294,8 +296,6 @@ jobs:
           SYSTEM_DEPS_LINK: static
         run: cargo do prebuild --features avif
       - run: cargo clean
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
-      - run: cargo do comment_feature "crates/zng-view/Cargo.toml" avif
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
@@ -514,6 +514,11 @@ jobs:
       - uses: actions/download-artifact@v4
         if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
+          name: libzng_view.aarch64-unknown-linux-gnu.so
+          path: prebuilt-ubuntu-arm
+      - uses: actions/download-artifact@v4
+        if: ${{ github.event.inputs.skip_release != 'true' }}
+        with:
           name: zng_view.x86_64-pc-windows-msvc.dll
           path: prebuilt-windows-x64
       - uses: actions/download-artifact@v4
@@ -536,6 +541,7 @@ jobs:
         run: |
           mkdir prebuilt
           tar -czf "prebuilt/libzng_view.x86_64-unknown-linux-gnu.so.tar.gz" -C "prebuilt-ubuntu-x64/" .
+          tar -czf "prebuilt/libzng_view.aarch64-unknown-linux-gnu.so.tar.gz" -C "prebuilt-ubuntu-arm/" .
           tar -czf "prebuilt/zng_view.x86_64-pc-windows-msvc.dll.tar.gz" -C "prebuilt-windows-x64/" .
           tar -czf "prebuilt/zng_view.aarch64-pc-windows-msvc.dll.tar.gz" -C "prebuilt-windows-arm/" .
           tar -czf "prebuilt/libzng_view.x86_64-apple-darwin.dylib.tar.gz" -C "prebuilt-macos-x64/" .
