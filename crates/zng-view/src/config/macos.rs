@@ -7,9 +7,10 @@ pub fn font_aa() -> FontAntiAliasing {
 }
 
 pub fn multi_click_config() -> MultiClickConfig {
-    let mut cfg = MultiClickConfig::default();
-    cfg.time = (unsafe { NSEvent::doubleClickInterval() } as f32).ms();
-    cfg
+    MultiClickConfig {
+        time: (unsafe { NSEvent::doubleClickInterval() } as f32).ms(),
+        ..Default::default()
+    }
 }
 
 pub fn animations_config() -> AnimationsConfig {
@@ -17,10 +18,10 @@ pub fn animations_config() -> AnimationsConfig {
 }
 
 pub fn key_repeat_config() -> KeyRepeatConfig {
-    let mut cfg = KeyRepeatConfig::default();
-    cfg.start_delay = (unsafe { NSEvent::keyRepeatDelay() } as f32).ms();
-    cfg.interval = (unsafe { NSEvent::keyRepeatInterval() } as f32).ms();
-    cfg
+    KeyRepeatConfig {
+        start_delay: (unsafe { NSEvent::keyRepeatDelay() } as f32).ms(),
+        interval: (unsafe { NSEvent::keyRepeatInterval() } as f32).ms(),
+    }
 }
 
 pub fn touch_config() -> TouchConfig {
