@@ -1483,7 +1483,7 @@ pub fn print_tracing_filter(level: &tracing::Level, metadata: &tracing::Metadata
         if metadata.target() == "zng_webrender::device::gl" {
             // Suppress "Cropping texture upload Box2D((0, 0), (0, 1)) to None"
             // This happens when an empty frame is rendered.
-            if metadata.line() == Some(4661) {
+            if metadata.line() == Some(4647) {
                 return false;
             }
         }
