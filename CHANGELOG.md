@@ -1,5 +1,6 @@
 # Unpublished
 
+* Add `aarch64-pc-windows-msvc` view_prebuilt.
 * Fix view_prebuilt in `x86_64-apple-darwin`.
 * Fix `cargo zng res` in non-workspace crates.
 * Fix zr-glob not printing copied paths in subdirectories.
