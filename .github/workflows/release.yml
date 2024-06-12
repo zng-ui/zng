@@ -152,7 +152,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         env:
           SYSTEM_DEPS_LINK: static
-        run: cargo do prebuild ${{ matrix.features }}
+        run: cargo do prebuild --target ${{ matrix.target }} ${{ matrix.features }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
@@ -174,7 +174,6 @@ jobs:
     needs: [check-windows]
     env:
       ZNG_TP_LICENSES: true
-      CARGO_BUILD_TARGET: ${{ matrix.target }}
     steps:
       - name: fix clang version issue
         run: choco upgrade llvm
@@ -228,7 +227,7 @@ jobs:
           target: ${{ matrix.target }}
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" avif
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-pc-windows-msvc' }}
-      - name: cargo do prebuild ${{ matrix.features }}
+      - name: cargo do prebuild --target ${{ matrix.target }} ${{ matrix.features }}
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         env:
           CC: clang-cl
