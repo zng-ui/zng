@@ -30,7 +30,6 @@ jobs:
       - run: cargo do check
       - run: cargo clean
   check-macos:
-    needs: [check]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +40,6 @@ jobs:
       - run: cargo do check
       - run: cargo clean
   check-windows:
-    needs: [check]
     runs-on: windows-latest
     env:
       CC: 'clang-cl'
@@ -98,7 +96,7 @@ jobs:
     - run: cargo clean
   test-windows:
     runs-on: windows-latest
-    needs: [check]
+    needs: [check-windows]
     env:
       ZNG_TP_LICENSES: true
       NEXTEST_RETRIES: 3
@@ -123,7 +121,7 @@ jobs:
     - run: cargo clean
   test-macos:
     runs-on: macos-latest
-    needs: [check]
+    needs: [check-macos]
     env:
       ZNG_TP_LICENSES: true
       NEXTEST_RETRIES: 3
@@ -163,6 +161,6 @@ jobs:
       - run: cargo clean
   test-all:
     runs-on: ubuntu-latest
-    needs: [check-release, check-macos, doc, test-ubuntu, test-windows, test-macos, test-doc, test-macro]
+    needs: [check-release, doc, test-ubuntu, test-windows, test-macos, test-doc, test-macro]
     steps:
       - run: exit 0
