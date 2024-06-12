@@ -767,7 +767,6 @@ fn prebuild(mut args: Vec<&str>) {
         &args,
     );
 
-    dbg!(&args);
     let target_platform = args.iter().position(|&a| a == "--target").map(|i| args[i + 1]);
 
     let build_target = target_platform.map(|t| format!("/{t}")).unwrap_or_default();
@@ -782,8 +781,6 @@ fn prebuild(mut args: Vec<&str>) {
         error(f!("no pre-built `cdylib` output found, expected {}", file.display()));
         return;
     }
-
-    dbg!(&target_platform);
 
     let do_build_target = std::env::var("TARGET_PLATFORM").unwrap();
     let target = format!(

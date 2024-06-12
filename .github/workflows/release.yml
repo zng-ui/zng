@@ -240,7 +240,7 @@ jobs:
           CC: clang-cl
           CXX: clang-cl
           SYSTEM_DEPS_LINK: static
-        run: cargo do prebuild ${{ matrix.features }}
+        run: cargo do prebuild --target ${{ matrix.target }} ${{ matrix.features }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - name: upload prebuilt
