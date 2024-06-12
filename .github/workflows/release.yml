@@ -413,7 +413,14 @@ jobs:
       - run: cargo clean
         if: ${{ github.event.inputs.skip_tests != 'true' }}
   test-macos:
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - os: macOS-13
+            target: x86_64-apple-darwin
+          - os: macOS-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
     needs: [prebuild-macos]
     env:
       NEXTEST_RETRIES: 3
@@ -433,7 +440,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: libzng_view.aarch64-apple-darwin.dylib
+          name: libzng_view.${{ matrix.target }}.dylib
           path: crates/zng-view-prebuilt/lib
       - run: cargo do test --nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
