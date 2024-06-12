@@ -1,5 +1,6 @@
 # Unpublished
 
+* Implement some system config reading for macOS.
 * Add `aarch64-pc-windows-msvc` view_prebuilt.
     - Without AVIF, not tested.
 * Fix view_prebuilt in `x86_64-apple-darwin`.
