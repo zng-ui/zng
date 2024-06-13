@@ -44,22 +44,6 @@ error[E0119]: conflicting implementations of trait `Deref` for type `TestWidget`
   |
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0282]: type annotations needed
- --> cases/widget/name_conflict2.rs:3:1
-  |
-3 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
-  |
-note: the requirement `_ <: _` appears on the `impl`'s method `deref` but not on the corresponding trait's method
- --> $RUST/core/src/ops/deref.rs
-  |
-  | pub trait Deref {
-  |           ----- in this trait
-...
-  |     fn deref(&self) -> &Self::Target;
-  |        ^^^^^ this trait's method doesn't have the requirement `_ <: _`
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0119]: conflicting implementations of trait `DerefMut` for type `TestWidget`
  --> cases/widget/name_conflict2.rs:6:1
   |
@@ -80,22 +64,6 @@ error[E0119]: conflicting implementations of trait `WidgetImpl` for type `TestWi
 6 | #[widget($crate::TestWidget)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `TestWidget`
   |
-  = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0282]: type annotations needed
- --> cases/widget/name_conflict2.rs:6:1
-  |
-6 | #[widget($crate::TestWidget)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
-  |
-note: the requirement `_ <: _` appears on the `impl`'s method `deref` but not on the corresponding trait's method
- --> $RUST/core/src/ops/deref.rs
-  |
-  | pub trait Deref {
-  |           ----- in this trait
-...
-  |     fn deref(&self) -> &Self::Target;
-  |        ^^^^^ this trait's method doesn't have the requirement `_ <: _`
   = note: this error originates in the attribute macro `widget` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0592]: duplicate definitions with name `widget_new`
