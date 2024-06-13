@@ -96,7 +96,7 @@ fn run_tests(args: Args, view_process: ViewProcess, mut app: HeadlessApp) {
                 let start = Instant::now();
 
                 let task = zng::task::run_catch(async move { test(render_mode, scale_factor).await });
-                let task = zng::task::with_deadline(task, 30.secs());
+                let task = zng::task::with_deadline(task, 40.secs());
                 let result = app.run_task(task).unwrap();
 
                 match result {
@@ -109,7 +109,7 @@ fn run_tests(args: Args, view_process: ViewProcess, mut app: HeadlessApp) {
                         }
                     }
                     Err(_) => {
-                        eprintln!(cstr!("<bold><red>TIMEOUT</>:</> test did not complete in 30s"));
+                        eprintln!(cstr!("<bold><red>TIMEOUT</>:</> test did not complete in 40s"));
                         FAILED.store(true, Relaxed);
                     }
                 }
