@@ -1,7 +1,5 @@
-use std::sync::Arc;
-
 use zng::{
-    image::{ImageDataFormat, Img, IMAGES},
+    image::{Img, IMAGES},
     layout::LayoutPassId,
     prelude::*,
     prelude_wgt::*,
@@ -31,7 +29,9 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
     );
 
     while img.with(Img::is_loading) {
-        img.wait_update().await;
+        task::with_deadline(img.wait_update(), 1.secs())
+            .await
+            .expect("img wait_update timeout after 1s");
     }
 
     let img = img.get();
@@ -49,7 +49,6 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
     );
     for color in colors {
         let (copied_rect, p) = img.copy_pixels(rect).unwrap_or_else(|| panic!("expected `{rect:?}`"));
-        save_rect(copied_rect, &p).await;
 
         assert_eq!(copied_rect, rect);
         for cc in p.chunks_exact(4) {
@@ -61,24 +60,24 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
     }
 }
 
-async fn save_rect(rect: PxRect, p: &[u8]) {
-    if let Some(name) = save_name() {
-        let img = IMAGES.from_data(
-            Arc::new(p.to_vec()),
-            ImageDataFormat::Bgra8 {
-                size: rect.size,
-                ppi: None,
-            },
-        );
-        while img.with(Img::is_loading) {
-            img.wait_update().await;
-        }
-        let img = img.get();
-        let file = format!(
-            "{name}.{}by{}at{}x{}.png",
-            rect.size.width.0, rect.size.height.0, rect.origin.x.0, rect.origin.y.0,
-        );
-        img.save(&file).await.unwrap();
-        println!("saved to `{file}`");
-    }
-}
+// async fn save_rect(rect: PxRect, p: &[u8]) {
+//     if let Some(name) = save_name() {
+//         let img = IMAGES.from_data(
+//             Arc::new(p.to_vec()),
+//             ImageDataFormat::Bgra8 {
+//                 size: rect.size,
+//                 ppi: None,
+//             },
+//         );
+//         while img.with(Img::is_loading) {
+//             img.wait_update().await;
+//         }
+//         let img = img.get();
+//         let file = format!(
+//             "{name}.{}by{}at{}x{}.png",
+//             rect.size.width.0, rect.size.height.0, rect.origin.x.0, rect.origin.y.0,
+//         );
+//         img.save(&file).await.unwrap();
+//         println!("saved to `{file}`");
+//     }
+// }
