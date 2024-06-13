@@ -41,7 +41,6 @@ pub mod window;
 
 mod tests;
 
-use var::ArcVar;
 use view_process::VIEW_PROCESS;
 use widget::UiTaskWidget;
 #[doc(hidden)]
@@ -1165,12 +1164,6 @@ impl APP {
     pub fn device_events(&self) -> bool {
         APP_PROCESS_SV.read().device_events
     }
-
-    /// Deprecated.
-    #[deprecated = "use zng::env::about"]
-    pub fn about(&self) -> ArcVar<AboutApp> {
-        APP_PROCESS_SV.read().about.clone()
-    }
 }
 
 impl APP {
@@ -1512,51 +1505,6 @@ pub fn test_log() {
 #[cfg(any(test, feature = "test_util"))]
 zng_app_context::app_local! {
     static TEST_LOG: bool = false;
-}
-
-/// Deprecated.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct AboutApp {
-    /// App name.
-    pub name: Txt,
-    /// App short description.
-    pub description: Txt,
-    /// App version.
-    pub version: Txt,
-    /// App main URL.
-    pub home_page: Txt,
-    /// App documentation URL.
-    pub help_page: Txt,
-}
-impl AboutApp {
-    /// Returns a value that displays `"{name} - ",` or `""` if the name is not set.
-    pub fn title_prefix(&self) -> impl fmt::Display + '_ {
-        struct Title<'a>(&'a AboutApp);
-        impl<'a> fmt::Display for Title<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                if !self.0.name.is_empty() {
-                    write!(f, "{} - ", self.0.name)?;
-                }
-                Ok(())
-            }
-        }
-        Title(self)
-    }
-}
-
-/// Deprecated.
-#[deprecated = "use zng::env::init"]
-#[macro_export]
-macro_rules! about_app_from_crate {
-    () => {
-        $crate::AboutApp {
-            name: $crate::name_from_pkg_name(std::env!("CARGO_PKG_NAME")),
-            description: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_DESCRIPTION")),
-            version: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_VERSION")),
-            home_page: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_HOMEPAGE")),
-            help_page: $crate::txt_from_pkg_meta(std::env!("CARGO_PKG_HOMEPAGE")),
-        }
-    };
 }
 
 #[doc(hidden)]

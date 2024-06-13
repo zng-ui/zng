@@ -1,5 +1,6 @@
 # Unpublished
 
+* **Breaking** Remove deprecated "APP.about" and related types and macro.
 
 # 0.8.2
 
