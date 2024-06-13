@@ -111,7 +111,7 @@ impl AppExtension for L10nManager {
 ///
 /// # Scrap Template
 ///
-/// The `zng-l10n-scraper` tool can be used to collect all localizable text of Rust code files, it is a text based search that
+/// The `cargo zng l10n` tool can be used to collect all localizable text of Rust code files, it is a text based search that
 /// matches this macro name and the two first input literals, avoid renaming this macro to support scrapping, otherwise you will
 /// have to declare the template file manually.
 ///
@@ -160,7 +160,7 @@ impl AppExtension for L10nManager {
 /// You can install the scraper tool using cargo:
 ///
 /// ```console
-/// cargo install zng-l10n-scraper
+/// cargo install cargo-zng
 /// ```
 ///
 /// [Fluent Project]: https://projectfluent.org/fluent/guide/
