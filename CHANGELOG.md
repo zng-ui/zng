@@ -1,5 +1,6 @@
 # Unpublished
 
+* **Breaking** Remove deprecated "APP.about" and related types and macro.
 * **Breaking** Replace dir definition files in `zng::env` 
     - From `.zng_res_dir` to `.res-dir`.
     - From `zng_config_dir` to `config-dir`.
