@@ -400,9 +400,9 @@
 //! may be available at the [`zng_app`], [`zng_app_context`] and [`zng_ext_single_instance`] base crates.
 
 pub use zng_app::{
-    on_app_start, print_tracing, print_tracing_filter, AppControlFlow, AppEventObserver, AppExtended, AppExtension,
-    AppExtensionBoxed, AppExtensionInfo, AppStartArgs, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD,
-    EXIT_REQUESTED_EVENT, INSTANT,
+    on_app_start, print_tracing, print_tracing_filter, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed,
+    AppExtensionInfo, AppStartArgs, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT,
+    INSTANT,
 };
 
 #[cfg(feature = "test_util")]
