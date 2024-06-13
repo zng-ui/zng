@@ -538,7 +538,7 @@ jobs:
         if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
           name: libzng_view.aarch64-apple-darwin.dylib
-          path: prebuilt-macos
+          path: prebuilt-macos-arm
       - uses: actions/download-artifact@v4
         if: ${{ github.event.inputs.skip_release != 'true' }}
         with:
