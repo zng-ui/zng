@@ -568,6 +568,8 @@ jobs:
     needs: [tag]
     permissions:
       contents: write
+    env:
+      HAS_CHANGES: 0
     steps:
       - uses: actions/checkout@v4      
         if: ${{ github.event.inputs.skip_doc != 'true' }}
@@ -585,12 +587,16 @@ jobs:
           name: doc
           path: doc
       - run: |
+          set +e
+          git diff --cached --quiet
+          echo "HAS_CHANGES=$?" >> $GITHUB_ENV
+      - run: |
           git config user.name "$(git log -n 1 --pretty=format:%an)"
           git config user.email "$(git log -n 1 --pretty=format:%ae)"
           git add -A
           git commit -m ${{ needs.tag.outputs.tag_name }} --quiet
           git push
-        if: ${{ github.event.inputs.skip_doc != 'true' }}
+        if: ${{ env.HAS_CHANGES && github.event.inputs.skip_doc != 'true' }}
 
   publish-crates:
     runs-on: ubuntu-latest

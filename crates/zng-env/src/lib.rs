@@ -246,7 +246,8 @@ lazy_static! {
 /// Gets a path relative to the package resources.
 ///
 /// * The res dir can be set by [`init_res`] before any env dir is used.
-/// * In all platforms if a file `bin/current_exe_name.zng_res_dir` is found it defines the res path.
+/// * In all platforms if a file `bin/current_exe_name.res-dir` is found the first non-empty and non-comment (#) line
+///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `res`.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
 /// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
@@ -309,9 +310,9 @@ lazy_static! {
 }
 fn find_res() -> PathBuf {
     if let Ok(mut p) = std::env::current_exe() {
-        p.set_extension("zng_res_dir");
+        p.set_extension("res-dir");
         if let Ok(dir) = read_line(&p) {
-            return dir.into();
+            return bin(dir);
         }
     }
     if cfg!(debug_assertions) {
@@ -328,7 +329,7 @@ fn find_res() -> PathBuf {
         bin("../etc")
     } else {
         panic!(
-            "resources dir not specified for platform {}, use a 'bin/current_exe_name.zng_res_dir' file to specify an alternative",
+            "resources dir not specified for platform {}, use a 'bin/current_exe_name.res-dir' file to specify an alternative",
             std::env::consts::OS
         )
     }
@@ -337,11 +338,11 @@ fn find_res() -> PathBuf {
 /// Gets a path relative to the user config directory for the app.
 ///
 /// * The config dir can be set by [`init_config`] before any env dir is used.
-/// * In all platforms if a file in `res("zng_config_dir")` is found the file first line not starting with
-///  `"\s#"` and non empty is used as the config path.
+/// * In all platforms if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
+///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_config/`.
 /// * In all platforms attempts [`directories::ProjectDirs::config_dir`] and panic if it fails.
-/// * If the config dir selected by the previous method contains a `"zng_config_dir"` file it will be
+/// * If the config dir selected by the previous method contains a `"config-dir"` file it will be
 ///   used to redirect to another config dir, you can use this to implement config migration. Redirection only happens once.
 ///
 /// The config directory is created if it is missing, checks once on init or first use.
@@ -408,7 +409,7 @@ fn migrate_config_impl(new_path: &Path) -> io::Result<()> {
             fs::create_dir(from)?;
         }
 
-        let redirect = ORIGINAL_CONFIG.join("zng_config_dir");
+        let redirect = ORIGINAL_CONFIG.join("config-dir");
         if is_return {
             fs::remove_file(redirect)
         } else {
@@ -449,9 +450,9 @@ lazy_static! {
     static ref CONFIG: PathBuf = redirect_config(original_config());
 }
 fn find_config() -> PathBuf {
-    let cfg_dir = res("zng_config_dir");
+    let cfg_dir = res("config-dir");
     if let Ok(dir) = read_line(&cfg_dir) {
-        return PathBuf::from(dir);
+        return res(dir);
     }
 
     if cfg!(debug_assertions) {
@@ -470,8 +471,11 @@ fn find_config() -> PathBuf {
     }
 }
 fn redirect_config(cfg: PathBuf) -> PathBuf {
-    if let Ok(dir) = read_line(&cfg.join("zng_config_dir")) {
-        let dir = PathBuf::from(dir);
+    if let Ok(dir) = read_line(&cfg.join("config-dir")) {
+        let mut dir = PathBuf::from(dir);
+        if dir.is_relative() {
+            dir = cfg.join(dir);
+        }
         if dir.exists() {
             let test_path = dir.join(".zng-config-test");
             if let Err(e) = fs::create_dir_all(&dir)
@@ -504,8 +508,8 @@ fn create_dir_opt(dir: PathBuf) -> PathBuf {
 /// Gets a path relative to the cache directory for the app.
 ///
 /// * The cache dir can be set by [`init_cache`] before any env dir is used.
-/// * In all platforms if a file `config("zng_cache_dir")` is found the file first line not starting with
-///  `"\s#"` and non empty is used as the cache path.
+/// * In all platforms if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
+///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_cache/`.
 /// * In all platforms attempts [`directories::ProjectDirs::cache_dir`] and panic if it fails.
 ///
@@ -604,7 +608,7 @@ fn migrate_cache_impl(new_path: &Path) -> io::Result<()> {
     fs::write(&write_test, "# zng cache dir".as_bytes())?;
     fs::remove_file(&write_test)?;
 
-    fs::write(config("zng_cache_dir"), new_path.display().to_string().as_bytes())?;
+    fs::write(config("cache-dir"), new_path.display().to_string().as_bytes())?;
 
     tracing::info!("changed cache dir to `{}`", new_path.display());
 
@@ -688,9 +692,9 @@ lazy_static! {
     static ref CACHE: PathBuf = create_dir_opt(find_cache());
 }
 fn find_cache() -> PathBuf {
-    let cache_dir = config("zng_cache_dir");
+    let cache_dir = config("cache-dir");
     if let Ok(dir) = read_line(&cache_dir) {
-        return PathBuf::from(dir);
+        return config(dir);
     }
 
     if cfg!(debug_assertions) {

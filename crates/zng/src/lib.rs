@@ -875,7 +875,7 @@ mod defaults {
                 .extend(UndoManager::default());
 
             #[cfg(all(feature = "view", feature = "view_prebuilt"))]
-            tracing::warn!(r#"both "view" and "view_prebuilt" enabled, will use only one, indeterminate witch"#);
+            tracing::debug!(r#"both "view" and "view_prebuilt" enabled, will use only one, indeterminate witch"#);
 
             #[cfg(feature = "single_instance")]
             let r = r.extend(zng_ext_single_instance::SingleInstanceManager::default());
