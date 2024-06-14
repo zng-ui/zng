@@ -472,9 +472,10 @@ Current supported requests:
 zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
 zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
 
-If the script fails the entire stderr is printed and the resource build fails.
+If the script fails the entire stderr is printed and the resource build fails. Scripts run with
+`set -e` by default.
 
-Runs on $ZR_SH, $PROGRAMFILES/Git/bin/sh.exe or sh.
+Runs on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe or bash or sh.
 "#;
 fn sh() {
     help(SH_HELP);
@@ -494,10 +495,15 @@ fn sh_impl() {
     sh_run(sh_windows().unwrap_or_else(|| fatal!("bash not found, set %ZR_SH% or install Git bash")));
 
     #[cfg(not(windows))]
-    sh_run("sh");
+    if Path::new("bash").exists() {
+        sh_run("bash");
+    } else {
+        sh_run("sh");
+    }
 }
 fn sh_run(sh: impl AsRef<std::ffi::OsStr>) {
-    let script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
+    let mut script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
+    script.insert_str(0, "set -e\n");
     match Command::new(sh).arg("-c").arg(script).status() {
         Ok(s) => {
             if !s.success() {
@@ -534,13 +540,13 @@ fn shf() {
 #[cfg(windows)]
 fn sh_windows() -> Option<PathBuf> {
     if let Ok(pf) = env::var("PROGRAMFILES") {
-        let sh = PathBuf::from(pf).join("Git/bin/sh.exe");
+        let sh = PathBuf::from(pf).join("Git/bin/bash.exe");
         if sh.exists() {
             return Some(sh);
         }
     }
     if let Ok(c) = env::var("SYSTEMDRIVE") {
-        let sh = PathBuf::from(c).join("Program Files (x86)/Git/bin/sh.exe");
+        let sh = PathBuf::from(c).join("Program Files (x86)/Git/bin/bash.exe");
         if sh.exists() {
             return Some(sh);
         }

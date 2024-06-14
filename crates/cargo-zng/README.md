@@ -514,9 +514,10 @@ $ cargo run -p cargo-zng -- res --tool sh
   zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
   zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
 
-  If the script fails the entire stderr is printed and the resource build fails.
+  If the script fails the entire stderr is printed and the resource build fails. Scripts run with
+  `set -e` by default.
 
-  Runs on $ZR_SH, $PROGRAMFILES/Git/bin/sh.exe or sh.
+  Runs on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe or bash or sh.
 ```
 
 #### `.zr-shf`
