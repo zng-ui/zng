@@ -2,5 +2,8 @@ tests/cargo-zng-res-tests/copy/source/a
   target/tmp/tests/cargo_zng/copy/a
 tests/cargo-zng-res-tests/copy/source/a/file-a.txt.zr-copy
   target/tmp/tests/cargo_zng/copy/a/file-a.txt
+tests/cargo-zng-res-tests/copy/source/a.zr-copy
+  target/tmp/tests/cargo_zng/copy/a
+  target/tmp/tests/cargo_zng/copy/a/merged-file-a.txt
 tests/cargo-zng-res-tests/copy/source/file-b.txt.zr-copy
   target/tmp/tests/cargo_zng/copy/file-b.txt

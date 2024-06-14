@@ -116,11 +116,16 @@ fn copy() {
     }
 
     if source.is_dir() {
-        fs::create_dir(&target).unwrap_or_else(|e| fatal!("{e}"));
+        println!("{}", display_path(&target));
+        fs::create_dir(&target).unwrap_or_else(|e| {
+            if e.kind() != io::ErrorKind::AlreadyExists {
+                fatal!("{e}")
+            }
+        });
         copy_dir_all(&source, &target, true);
     } else if source.is_file() {
-        fs::copy(source, &target).unwrap_or_else(|e| fatal!("{e}"));
         println!("{}", display_path(&target));
+        fs::copy(source, &target).unwrap_or_else(|e| fatal!("{e}"));
     } else if source.is_symlink() {
         symlink_warn(&source);
     }
@@ -620,7 +625,11 @@ fn copy_dir_all(from: &Path, to: &Path, trace: bool) {
         let from = entry.path();
         let to = to.join(entry.file_name());
         if entry.file_type().is_dir() {
-            fs::create_dir(&to).unwrap_or_else(|e| fatal!("cannot create_dir `{}`, {e}", to.display()));
+            fs::create_dir(&to).unwrap_or_else(|e| {
+                if e.kind() != io::ErrorKind::AlreadyExists {
+                    fatal!("cannot create_dir `{}`, {e}", to.display())
+                }
+            });
             if trace {
                 println!("{}", display_path(&to));
             }
