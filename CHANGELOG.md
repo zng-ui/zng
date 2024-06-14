@@ -1,5 +1,7 @@
 # Unpublished
 
+* **Breaking** `.zr-sh` now automatically runs with `set -e`.
+* `.zr-sh` now runs in `bash` if it is present, fallbacks to `sh`.
 * **Breaking** Change default `zng::env::res` for Linux to `../share/{executable-name}`.
 * **Breaking** Replace dir definition files in `zng::env` 
     - From `.zng_res_dir` to `.res-dir`.
