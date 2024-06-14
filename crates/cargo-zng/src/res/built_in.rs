@@ -39,7 +39,7 @@ pub const ZR_TARGET_DD: &str = "ZR_TARGET_DD";
 /// Env var set when it is running a tool that requested `zng-res::on-final=` again.
 pub const ZR_FINAL: &str = "ZR_FINAL";
 
-/// Env var set when it needs the tool print the help text shown in `cargo zng res --list`.
+/// Env var set when it needs the tool print the help text shown in `cargo zng res --tools`.
 pub const ZR_HELP: &str = "ZR_HELP";
 
 /// Env var set to package.metadata.zng.about.app or package.name
