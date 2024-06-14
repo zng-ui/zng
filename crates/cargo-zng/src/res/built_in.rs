@@ -495,13 +495,12 @@ fn sh_impl() {
     sh_run(sh_windows().unwrap_or_else(|| fatal!("bash not found, set %ZR_SH% or install Git bash")));
 
     #[cfg(not(windows))]
-    if Path::new("bash").exists() {
-        sh_run("bash");
-    } else {
+    if !sh_run_try("bash") {
         sh_run("sh");
     }
 }
-fn sh_run(sh: impl AsRef<std::ffi::OsStr>) {
+/// Returns `true` if `sh` was found.
+fn sh_run_try(sh: impl AsRef<std::ffi::OsStr>) -> bool {
     let mut script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
     script.insert_str(0, "set -e\n");
     match Command::new(sh).arg("-c").arg(script).status() {
@@ -512,14 +511,20 @@ fn sh_run(sh: impl AsRef<std::ffi::OsStr>) {
                     None => fatal!("script failed"),
                 }
             }
+            true
         }
         Err(e) => {
             if e.kind() == io::ErrorKind::NotFound {
-                fatal!("bash not found, set $ZR_SH")
+                false
             } else {
                 fatal!("{e}")
             }
         }
+    }
+}
+fn sh_run(sh: impl AsRef<std::ffi::OsStr>) {
+    if !sh_run_try(sh) {
+        fatal!("bash not found, set $ZR_SH")
     }
 }
 
