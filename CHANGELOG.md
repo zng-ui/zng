@@ -1,11 +1,12 @@
 # Unpublished
 
-* **Breaking** Remove deprecated "APP.about" and related types and macro.
+* **Breaking** Change default `zng::env::res` for Linux to `../share/{executable-name}`.
 * **Breaking** Replace dir definition files in `zng::env` 
     - From `.zng_res_dir` to `.res-dir`.
     - From `zng_config_dir` to `config-dir`.
     - From `zng_cache_dir` to `cache-dir`.
     - Relative dirs are now resolved from where the file is defined.
+* **Breaking** Remove deprecated "APP.about" and related types and macro.
 
 # 0.8.2
 

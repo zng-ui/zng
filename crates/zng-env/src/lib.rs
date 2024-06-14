@@ -251,9 +251,11 @@ lazy_static! {
 /// * In `cfg(debug_assertions)` builds returns `res`.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
 /// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
-/// * In Android returns `bin("../res")`, assumes the package is deployed as a `.apk` file.
-/// * In all other Unix systems returns `bin("../etc")`, assumes the package is deployed using a `.deb` like structure.
-/// * In Windows returns `bin("../res")`. Note that there is no Windows standard, make sure to install the project using this structure.
+/// * In Android returns `bin("../res/raw")`, assumes the package is deployed as a `.apk` file.
+/// * In all other Unix systems returns `bin("../share/current_exe_name")`, assumes the package is deployed
+///   using a Debian package.
+/// * In Windows returns `bin("../res")`. Note that there is no Windows standard, make sure to install
+///   the project using this structure.
 ///
 /// # Built Resources
 ///
@@ -261,7 +263,7 @@ lazy_static! {
 /// is returned instead. This is useful during development when the app depends on res that are generated locally and not
 /// included in version control.
 ///
-/// Note that the built resources must be packaged with the other res at the same relative location, so that release builds can find then.
+/// Note that the built resources must be packaged with the other res at the same relative location, so that release builds can find them.
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
     res_impl(relative_path.as_ref())
 }
@@ -324,9 +326,10 @@ fn find_res() -> PathBuf {
     } else if cfg!(target_os = "ios") {
         bin("")
     } else if cfg!(target_os = "android") {
-        bin("res")
+        bin("res/raw")
     } else if cfg!(target_family = "unix") {
-        bin("../etc")
+        let c = current_exe();
+        bin(format!("../share/{}", c.file_name().unwrap().to_string_lossy()))
     } else {
         panic!(
             "resources dir not specified for platform {}, use a 'bin/current_exe_name.res-dir' file to specify an alternative",
