@@ -1,5 +1,6 @@
 # Unpublished
 
+* Fix crash handler attaching to other non-app processes.
 * Fix `.zr-copy` not merging folders.
 * **Breaking** `.zr-sh` now automatically runs with `set -e`.
 * `.zr-sh` now runs in `bash` if it is present, fallbacks to `sh`.
