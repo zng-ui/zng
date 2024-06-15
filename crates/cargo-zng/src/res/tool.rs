@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{self, Read, Write},
+    io::{self, BufRead, Read, Write},
     ops::ControlFlow,
     path::{Path, PathBuf},
 };
@@ -216,11 +216,26 @@ impl Tool {
         let mut cmd = cmd
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
             .spawn()?;
 
+        // indent stderr
+        let cmd_err = cmd.stderr.take().unwrap();
+        std::thread::spawn(move || {
+            for line in io::BufReader::new(cmd_err).lines() {
+                match line {
+                    Ok(l) => eprintln!("  {l}"),
+                    Err(e) => {
+                        error!("{e}");
+                        return;
+                    }
+                }
+            }
+        });
+
+        // indent stdout and capture "zng-res::" requests
         let mut requests = vec![];
         const REQUEST: &[u8] = b"zng-res::";
-
         let mut cmd_out = cmd.stdout.take().unwrap();
         let mut out = io::stdout();
         let mut buf = [0u8; 1024];
