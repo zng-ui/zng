@@ -1,5 +1,6 @@
 # Unpublished
 
+* Fix cargo zng res not showing tools progress prints.
 * Fix crash handler attaching to other non-app processes.
 * Fix `.zr-copy` not merging folders.
 * **Breaking** `.zr-sh` now automatically runs with `set -e`.

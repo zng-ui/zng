@@ -1,5 +1,6 @@
 use std::{
-    fs, io,
+    fs,
+    io::{self, Read, Write},
     ops::ControlFlow,
     path::{Path, PathBuf},
 };
@@ -117,7 +118,12 @@ pub struct Tool {
 }
 impl Tool {
     pub fn help(&self) -> anyhow::Result<String> {
-        self.run_cmd(self.cmd().env(ZR_HELP, "")).map(|o| o.output)
+        let out = self.cmd().env(ZR_HELP, "").output()?;
+        if !out.status.success() {
+            let error = String::from_utf8_lossy(&out.stderr);
+            bail!("{error}\nhelp run failed, exit code {}", out.status.code().unwrap_or(0));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
     }
 
     fn run(
@@ -207,12 +213,60 @@ impl Tool {
     }
 
     fn run_cmd(&self, cmd: &mut std::process::Command) -> anyhow::Result<ToolOutput> {
-        let output = cmd.output()?;
-        if output.status.success() {
-            Ok(ToolOutput::from(String::from_utf8_lossy(&output.stdout).into_owned()))
+        let mut cmd = cmd
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .spawn()?;
+
+        let mut requests = vec![];
+        const REQUEST: &[u8] = b"zng-res::";
+
+        let mut cmd_out = cmd.stdout.take().unwrap();
+        let mut out = io::stdout();
+        let mut buf = [0u8; 1024];
+
+        let mut at_line_start = true;
+        let mut maybe_request_start = None;
+        loop {
+            let len = cmd_out.read(&mut buf)?;
+            if len == 0 {
+                break;
+            }
+
+            for s in buf[..len].split_inclusive(|&c| c == b'\n') {
+                if at_line_start {
+                    if s.starts_with(REQUEST) || REQUEST.starts_with(s) {
+                        maybe_request_start = Some(requests.len());
+                    }
+                    if maybe_request_start.is_none() {
+                        out.write_all(b"  ")?;
+                    }
+                }
+                if maybe_request_start.is_none() {
+                    out.write_all(s)?;
+                    out.flush()?;
+                } else {
+                    requests.write_all(s).unwrap();
+                }
+
+                at_line_start = s.last() == Some(&b'\n');
+                if at_line_start {
+                    if let Some(i) = maybe_request_start.take() {
+                        if !requests[i..].starts_with(REQUEST) {
+                            out.write_all(&requests[i..])?;
+                            out.flush()?;
+                            requests.truncate(i);
+                        }
+                    }
+                }
+            }
+        }
+
+        let status = cmd.wait()?;
+        if status.success() {
+            Ok(ToolOutput::from(String::from_utf8_lossy(&requests).as_ref()))
         } else {
-            let err = String::from_utf8_lossy(&output.stderr);
-            bail!("{err}")
+            bail!("command failed, exit code {}", status.code().unwrap_or(0))
         }
     }
 }
@@ -238,7 +292,7 @@ impl Tools {
         })
     }
 
-    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<String> {
+    pub fn run(&self, tool_name: &str, source: &Path, target: &Path, request: &Path) -> anyhow::Result<()> {
         println!("{}", display_path(request));
         for (i, tool) in self.tools.iter().enumerate() {
             if tool.name == tool_name {
@@ -250,7 +304,7 @@ impl Tools {
                     self.on_final.lock().push((i, request.to_owned(), args));
                 }
                 if !output.delegate {
-                    return Ok(output.output);
+                    return Ok(());
                 }
             }
         }
@@ -274,9 +328,6 @@ impl Tools {
 }
 
 struct ToolOutput {
-    // output without requests
-    pub output: String,
-
     // zng-res::delegate
     pub delegate: bool,
     // zng-res::warning=
@@ -284,10 +335,9 @@ struct ToolOutput {
     // zng-res::on-final=
     pub on_final: Vec<String>,
 }
-impl From<String> for ToolOutput {
-    fn from(value: String) -> Self {
+impl From<&str> for ToolOutput {
+    fn from(value: &str) -> Self {
         let mut out = Self {
-            output: String::new(),
             delegate: false,
             warnings: vec![],
             on_final: vec![],
@@ -299,9 +349,6 @@ impl From<String> for ToolOutput {
                 out.warnings.push(w.to_owned());
             } else if let Some(a) = line.strip_prefix("zng-res::on-final=") {
                 out.on_final.push(a.to_owned());
-            } else {
-                out.output.push_str(line);
-                out.output.push('\n');
             }
         }
         out
