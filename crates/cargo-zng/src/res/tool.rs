@@ -117,9 +117,13 @@ pub struct Tool {
     pub path: PathBuf,
 }
 impl Tool {
-    pub fn help(&self) -> anyhow::Result<()> {
-        self.run_cmd(self.cmd().env(ZR_HELP, ""))?;
-        Ok(())
+    pub fn help(&self) -> anyhow::Result<String> {
+        let out = self.cmd().env(ZR_HELP, "").output()?;
+        if !out.status.success() {
+            let error = String::from_utf8_lossy(&out.stderr);
+            bail!("{error}\nhelp run failed, exit code {}", out.status.code().unwrap_or(0));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
     }
 
     fn run(

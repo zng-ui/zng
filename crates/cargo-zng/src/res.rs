@@ -222,7 +222,15 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
 fn tools_help(tools: &Path) {
     let r = tool::visit_tools(tools, |tool| {
         println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
-        tool.help()?;
+        match tool.help() {
+            Ok(h) => {
+                if let Some(line) = h.trim().lines().next() {
+                    println!("  {line}");
+                    println!();
+                }
+            }
+            Err(e) => error!("{e}"),
+        }
         Ok(ControlFlow::Continue(()))
     });
     if let Err(e) = r {
@@ -237,10 +245,17 @@ fn tool_help(tools: &Path, name: &str) {
     let r = tool::visit_tools(tools, |tool| {
         if tool.name == name {
             println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
-            if let Err(e) = tool.help() {
-                error!("{e}");
+            match tool.help() {
+                Ok(h) => {
+                    for line in h.trim().lines() {
+                        println!("  {line}");
+                    }
+                    if !h.is_empty() {
+                        println!();
+                    }
+                }
+                Err(e) => error!("{e}"),
             }
-            println!();
             found = true;
             Ok(ControlFlow::Break(()))
         } else {
