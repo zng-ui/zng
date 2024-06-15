@@ -274,7 +274,7 @@ The resource build follows these steps:
 
 ## Tools
 
-You can call `cargo zng res --list` to see help for all tools available. Tools are searched in this order:
+You can call `cargo zng res --tools` to see help for all tools available. Tools are searched in this order:
 
 * If a crate exists in `tools/cargo-zng-res-{tool}` executes it (with `--quiet` build).
 * If a crate exists in `tools/cargo-zng-res` and it has a `src/bin/{tool}.rs` file executes it with `--bin {tool}`.
@@ -294,7 +294,7 @@ Tools are configured using environment variables:
 * `ZR_TARGET` — Target file implied by the request file name. That is, the request filename without `.zr-{tool}` and in the equivalent target subdirectory.
 * `ZR_TARGET_DD` — Parent dir of thr target file.
 * `ZR_FINAL` — Set to the args if the tool requested `zng-res::on-final={args}`.
-* `ZR_HELP` — Print help text for `cargo zng res --list`. If this is set the other vars will not be set.
+* `ZR_HELP` — Print help text for `cargo zng res --tools`. If this is set the other vars will not be set.
 
 In a Cargo workspace the [`zng::env::about`] metadata is also extracted from the primary binary crate:
 

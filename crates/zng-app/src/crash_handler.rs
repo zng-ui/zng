@@ -34,6 +34,11 @@ zng_env::on_process_start!(|process_start_args| {
         }
     }
 
+    if process_start_args.next_handlers_count > 0 && process_start_args.yield_count < zng_env::ProcessStartArgs::MAX_YIELD_COUNT - 10 {
+        // extra sure that this is the app-process
+        return process_start_args.yield_once();
+    }
+
     if std::env::var(APP_PROCESS) != Err(std::env::VarError::NotPresent) {
         return crash_handler_app_process(config.dump_dir.as_deref());
     }
@@ -51,11 +56,6 @@ zng_env::on_process_start!(|process_start_args| {
             std::env::VarError::NotPresent => {}
             e => panic!("invalid dialog env args, {e:?}"),
         },
-    }
-
-    if process_start_args.next_handlers_count > 0 && process_start_args.yield_count < zng_env::ProcessStartArgs::MAX_YIELD_COUNT - 10 {
-        // extra sure that this is the app-process
-        return process_start_args.yield_once();
     }
 
     crash_handler_monitor_process(
