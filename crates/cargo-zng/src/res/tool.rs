@@ -240,6 +240,7 @@ impl Tool {
                 }
                 if maybe_request_start.is_none() {
                     out.write_all(s)?;
+                    out.flush()?;
                 } else {
                     requests.write_all(s).unwrap();
                 }
@@ -249,6 +250,7 @@ impl Tool {
                     if let Some(i) = maybe_request_start.take() {
                         if !requests[i..].starts_with(REQUEST) {
                             out.write_all(&requests[i..])?;
+                            out.flush()?;
                             requests.truncate(i);
                         }
                     }
