@@ -8,3 +8,4 @@ target/tmp/tests/cargo_zng/bash/recursion.txt.zr-copy
 --final--
 tests/cargo-zng-res-tests/bash/source/on-final.txt.zr-shf
 tests/cargo-zng-res-tests/bash/source/on-final.zr-sh
+  on final: 'final args'

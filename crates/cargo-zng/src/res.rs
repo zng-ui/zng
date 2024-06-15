@@ -178,10 +178,7 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
                 let ext = ext.to_string_lossy();
                 if let Some(tool) = ext.strip_prefix("zr-") {
                     // run prints request
-                    let output = tools.run(tool, &args.source, &args.target, source)?;
-                    for line in output.lines() {
-                        println!("  {line}");
-                    }
+                    tools.run(tool, &args.source, &args.target, source)?;
                     continue;
                 }
             }
@@ -214,10 +211,7 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
                     // run prints request
                     let tool_r = tools.run(tool, &args.source, &args.target, path);
                     fs::remove_file(path)?;
-                    let output = tool_r?;
-                    for line in output.lines() {
-                        println!("  {line}");
-                    }
+                    tool_r?;
                 }
             }
         }
@@ -228,16 +222,7 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
 fn tools_help(tools: &Path) {
     let r = tool::visit_tools(tools, |tool| {
         println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
-        match tool.help() {
-            Ok(h) => {
-                if let Some(line) = h.trim().lines().next() {
-                    println!("  {line}");
-                    println!();
-                }
-            }
-            Err(e) => error!("{e}"),
-        }
-
+        tool.help()?;
         Ok(ControlFlow::Continue(()))
     });
     if let Err(e) = r {
@@ -252,17 +237,10 @@ fn tool_help(tools: &Path, name: &str) {
     let r = tool::visit_tools(tools, |tool| {
         if tool.name == name {
             println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
-            match tool.help() {
-                Ok(h) => {
-                    for line in h.trim().lines() {
-                        println!("  {line}");
-                    }
-                    if !h.is_empty() {
-                        println!();
-                    }
-                }
-                Err(e) => error!("{e}"),
+            if let Err(e) = tool.help() {
+                error!("{e}");
             }
+            println!();
             found = true;
             Ok(ControlFlow::Break(()))
         } else {
