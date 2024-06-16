@@ -3,3 +3,9 @@
 ${ZR_DESCRIPTION}
 
 [${ZR_APP:k}](${ZR_HOMEPAGE})
+
+## From File
+
+${<tests/cargo-zng-res-tests/copy/refs/file-a.txt}
+
+${<tests/cargo-zng-res-tests/copy/refs/file-a.txt:K}
