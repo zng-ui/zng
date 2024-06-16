@@ -378,7 +378,7 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                 let mut case = "";
                 let mut fallback = None;
 
-                if let Some(i) = var.rfind(':') {
+                if let Some(i) = var.find(':') {
                     case = &var[i + 1..];
                     var = &var[..i];
                     if let Some(i) = case.find('?') {
@@ -739,22 +739,22 @@ mod tests {
         );
         assert_eq!(
             "not set 'fallback!'",
-            replace("not set '${ZR_RP_TEST_NOT_SET?fallback!}'", 0).unwrap()
+            replace("not set '${ZR_RP_TEST_NOT_SET:?fallback!}'", 0).unwrap()
         );
         assert_eq!(
             "not set 'nested 'test value'.'",
-            replace("not set '${ZR_RP_TEST_NOT_SET?nested '${ZR_RP_TEST}'.}'", 0).unwrap()
+            replace("not set '${ZR_RP_TEST_NOT_SET:?nested '${ZR_RP_TEST}'.}'", 0).unwrap()
         );
-        assert_eq!("test value", replace("${ZR_RP_TEST_NOT_SET?${ZR_RP_TEST}}", 0).unwrap());
+        assert_eq!("test value", replace("${ZR_RP_TEST_NOT_SET:?${ZR_RP_TEST}}", 0).unwrap());
         assert_eq!(
             "curly test value",
-            replace("curly ${ZR_RP_TEST?{not {what} {is} {going {on {here {?}}}}}}", 0).unwrap()
+            replace("curly ${ZR_RP_TEST:?{not {what} {is} {going {on {here {:?}}}}}}", 0).unwrap()
         );
 
         assert_eq!("replace not closed at: ${MISSING", replace("${MISSING", 0).unwrap_err());
         assert_eq!("replace not closed at: ${MIS", replace("${MIS", 0).unwrap_err());
-        assert_eq!("replace not closed at: ${MIS?{", replace("${MIS?{", 0).unwrap_err());
-        assert_eq!("replace not closed at: ${MIS?{}", replace("${MIS?{}", 0).unwrap_err());
+        assert_eq!("replace not closed at: ${MIS:?{", replace("${MIS:?{", 0).unwrap_err());
+        assert_eq!("replace not closed at: ${MIS:?{}", replace("${MIS:?{}", 0).unwrap_err());
 
         assert_eq!("TEST VALUE", replace("${ZR_RP_TEST:U}", 0).unwrap());
         assert_eq!("TEST-VALUE", replace("${ZR_RP_TEST:K}", 0).unwrap());
