@@ -450,12 +450,12 @@ $ cargo zng res --tool rp
 
   ${VAR}          — Replaces with the env var value, or fails if it is not set.
   ${VAR:case}     — Replaces with the env var value, case converted.
-  ${VAR?else}     — If VAR is not set or is set empty uses 'else' instead.
+  ${VAR:?else}    — If VAR is not set or is set empty uses 'else' instead.
 
   ${<file.txt}    — Replaces with the 'file.txt' content.
                     Paths are relative to the workspace root.
   ${<file:case}   — Replaces with the 'file.txt' content, case converted.
-  ${<file?else}   — If file cannot be read or is empty uses 'else' instead.
+  ${<file:?else}  — If file cannot be read or is empty uses 'else' instead.
 
   ${!cmd -h}      — Replaces with the stdout of the bash script line.
                     The script runs the same bash used by '.zr-sh'.
@@ -464,7 +464,7 @@ $ cargo zng res --tool rp
                     The working directory is the workspace root.
   ${!cmd:case}    — Replaces with the stdout, case converted.
                     If the script contains ':', add a suffix: ${!cmd foo::bar :}
-  $!{!cmd?else}   — If script fails or stdout is empty, uses 'else instead.
+  $!{!cmd:?else}  — If script fails or stdout is empty, uses 'else' instead.
 
   $${VAR}         — Escapes $, replaces with '${VAR}'.
 
@@ -482,8 +482,8 @@ $ cargo zng res --tool rp
   :Tr — Train-Case
   : — Unchanged
 
-  The fallback(?else) can have nested ${...} patterns.
-  You can set both case and else: '${VAR:?else}'.
+  The fallback(:?else) can have nested ${...} patterns.
+  You can set both case and else: '${VAR:case?else}'.
 
   Variables:
 
@@ -546,7 +546,7 @@ $ cargo zng res --tool sh
   If the script fails the entire stderr is printed and the resource build fails. Scripts run with
   `set -e` by default.
 
-  Runs on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe or bash or sh.
+  Tries to run on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
 ```
 
 #### `.zr-shf`
