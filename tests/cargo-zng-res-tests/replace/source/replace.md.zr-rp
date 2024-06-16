@@ -9,3 +9,9 @@ ${ZR_DESCRIPTION}
 ${<tests/cargo-zng-res-tests/copy/refs/file-a.txt}
 
 ${<tests/cargo-zng-res-tests/copy/refs/file-a.txt:K}
+
+## From bash script
+
+${!printf "Hello World!"}
+
+${!printf "Hello World!":k}

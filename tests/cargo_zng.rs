@@ -112,7 +112,7 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
             } else {
                 let expected = fs::read_to_string(expected).unwrap();
                 let actual = fs::read_to_string(actual).unwrap();
-                assert_eq!(expected, actual, "expected file contents to match");
+                pretty_assertions::assert_eq!(expected, actual, "expected file contents to match");
             }
         }
     }

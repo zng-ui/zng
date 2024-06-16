@@ -9,3 +9,9 @@ Part of the zng project.
 file-a
 
 FILE-A
+
+## From bash script
+
+Hello World!
+
+hello-world!

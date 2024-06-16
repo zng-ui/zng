@@ -22,7 +22,7 @@
         "*.zr-shf": "shellscript",
         "*.zr-copy": "ini",
         "*.zr-glob": "ini",
-        "*.md.zr-glob": "md"
+        "*.md.zr-rp": "markdown",
     },
     "cSpell.words": [
         "accesskit",
