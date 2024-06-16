@@ -732,9 +732,9 @@ mod tests {
         assert_eq!("normal text", replace("normal text", 0).unwrap());
         assert_eq!("escaped ${NOT}", replace("escaped $${NOT}", 0).unwrap());
         assert_eq!("replace 'test value'", replace("replace '${ZR_RP_TEST}'", 0).unwrap());
-        assert_eq!("env var ${} is not set", replace("empty '${}'", 0).unwrap_err()); // hmm
+        assert_eq!("${} cannot be read", replace("empty '${}'", 0).unwrap_err()); // hmm
         assert_eq!(
-            "env var ${ZR_RP_TEST_NOT_SET} is not set",
+            "${ZR_RP_TEST_NOT_SET} cannot be read",
             replace("not set '${ZR_RP_TEST_NOT_SET}'", 0).unwrap_err()
         );
         assert_eq!(
