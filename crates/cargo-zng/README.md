@@ -14,12 +14,13 @@ cargo install cargo-zng
 
 Commands overview:
 
+<!--do doc --readme do zng --help -->
 ```console
-# cargo zng --help
+$ cargo zng --help
 
 Zng project manager.
 
-Usage: cargo-zng.exe <COMMAND>
+Usage: cargo zng <COMMAND>
 
 Commands:
   new   Initialize a new repository from a Zng template repository
@@ -36,8 +37,9 @@ Options:
 
 Initialize a new repository from a Zng template repository.
 
+<!--do doc --readme do zng new --help -->
 ```console
-# cargo zng new --help
+$ cargo zng new --help
 
 Initialize a new repository from a Zng template repository
 
@@ -142,8 +144,9 @@ See [zng-ui/zng-template] for an example of templates.
 
 Localization text scraper.
 
+<!--do doc --readme do zng l10n --help -->
 ```console
-# cargo zng l10n --help
+$ cargo zng l10n --help
 
 Localization text scraper
 
@@ -153,7 +156,7 @@ Usage: cargo zng l10n [OPTIONS] <INPUT> <OUTPUT>
 
 Arguments:
   <INPUT>
-          Rust files glob
+          Rust files glob or directory
 
   <OUTPUT>
           Lang resources dir
@@ -194,8 +197,9 @@ Also see [`zng::l10n::l10n!`] docs for more details about the expected format.
 
 Build resources
 
+<!--do doc --readme do zng res --help -->
 ```console
-# cargo zng res --help
+$ cargo zng res --help
 
 Build resources
 
@@ -206,14 +210,14 @@ Usage: cargo zng res [OPTIONS] [SOURCE] [TARGET]
 Arguments:
   [SOURCE]
           Resources source dir
-          
+
           [default: res]
 
   [TARGET]
           Resources target dir
-          
+
           This directory is wiped before each build.
-          
+
           [default: target/res]
 
 Options:
@@ -222,7 +226,7 @@ Options:
 
       --tool-dir <DIR>
           Search for `zng-res-{tool}` in this directory first
-          
+
           [default: tools]
 
       --tools
@@ -233,19 +237,19 @@ Options:
 
       --tool-cache <TOOL_CACHE>
           Tools cache dir
-          
+
           [default: target/res.cache]
 
       --recursion-limit <RECURSION_LIMIT>
           Number of build passes allowed before final
-          
+
           [default: 32]
 
       --metadata <TOML_FILE>
           TOML file that that defines metadata uses by tools (ZR_APP, ZR_ORG, ..)
-          
+
           This is only needed if the workspace has multiple bin crates and none or many set '[package.metadata.zng.about]'.
-          
+
           See `zng::env::About` for more details.
 
       --metadata-dump
@@ -331,8 +335,9 @@ is not inside any Cargo project a warning is printed and the `<SOURCE>` is used 
 
 These are the builtin tools provided:
 
+<!--do doc --readme do zng res --tools -->
 ```console
-# cargo zng res --tools
+$ cargo zng res --tools
 
 .zr-copy @ cargo-zng
   Copy the file or dir
@@ -341,10 +346,13 @@ These are the builtin tools provided:
   Copy all matches in place
 
 .zr-rp @ cargo-zng
-  Replace ${VAR} occurrences in the content
+  Replace ${VAR|<file|!cmd} occurrences in the content
 
 .zr-sh @ cargo-zng
   Run a bash script
+
+.zr-shf @ cargo-zng
+  Run a bash script on the final pass
 
 .zr-warn @ cargo-zng
   Print a warning message
@@ -359,9 +367,11 @@ The expanded help for each:
 
 #### `.zr-copy`
 
+<!--do doc --readme do zng res --tool copy -->
 ```console
-$ cargo run -p cargo-zng -- res --tool copy
+$ cargo zng res --tool copy
 
+.zr-copy</bold> @ cargo-zng
   Copy the file or dir
 
   The request file:
@@ -377,10 +387,11 @@ $ cargo run -p cargo-zng -- res --tool copy
 
 #### `.zr-glob`
 
+<!--do doc --readme do zng res --tool glob -->
 ```console
-$ cargo run -p cargo-zng -- res --tool glob
+$ cargo zng res --tool glob
 
-.zr-glob @ cargo-zng
+.zr-glob</bold> @ cargo-zng
   Copy all matches in place
 
   The request file:
@@ -420,11 +431,12 @@ $ cargo run -p cargo-zng -- res --tool glob
 
 #### `.zr-rp`
 
+<!--do doc --readme do zng res --tool rp -->
 ```console
-$ cargo run -p cargo-zng -- res --tool rp
+$ cargo zng res --tool rp
 
-.zr-rp @ cargo-zng
-  Replace ${VAR} occurrences in the content
+.zr-rp</bold> @ cargo-zng
+  Replace ${VAR|<file|!cmd} occurrences in the content
 
   The request file:
     source/greetings.txt.zr-rp
@@ -434,14 +446,29 @@ $ cargo run -p cargo-zng -- res --tool rp
     target/greetings.txt
     | Thanks for using Foo App!
 
-  The parameters syntax is ${VAR[:[case]][?else]}:
+  The parameters syntax is ${VAR|!|<[:[case]][?else]}:
 
-  ${VAR}          — Replaces with the ENV var value, or fails if it is not set.
-  ${VAR:<case>}   — Replaces with the ENV var value case converted.
-  ${VAR:?<else>}  — If ENV is not set or is set empty uses 'else' instead.
+  ${VAR}          — Replaces with the env var value, or fails if it is not set.
+  ${VAR:case}     — Replaces with the env var value, case converted.
+  ${VAR?else}     — If VAR is not set or is set empty uses 'else' instead.
+
+  ${<file.txt}    — Replaces with the 'file.txt' content.
+                    Paths are relative to the workspace root.
+  ${<file:case}   — Replaces with the 'file.txt' content, case converted.
+  ${<file?else}   — If file cannot be read or is empty uses 'else' instead.
+
+  ${!cmd -h}      — Replaces with the stdout of the bash script line.
+                    The script runs the same bash used by '.zr-sh'.
+                    The script must be defined all in one line.
+                    A separate bash instance is used for each occurrence.
+                    The working directory is the workspace root.
+  ${!cmd:case}    — Replaces with the stdout, case converted.
+                    If the script contains ':', add a suffix: ${!cmd foo::bar :}
+  $!{!cmd?else}   — If script fails or stdout is empty, uses 'else instead.
+
   $${VAR}         — Escapes $, replaces with '${VAR}'.
 
-  The :<case> functions are:
+  The :case functions are:
 
   :k — kebab-case
   :K — UPPER-KEBAB-CASE
@@ -455,11 +482,12 @@ $ cargo run -p cargo-zng -- res --tool rp
   :Tr — Train-Case
   : — Unchanged
 
-  The fallback(else) can have nested ${VAR} patterns.
+  The fallback(?else) can have nested ${...} patterns.
+  You can set both case and else: '${VAR:?else}'.
 
   Variables:
 
-  All env variables are available, metadata from the binary crate is also available:
+  All env variables can be used, of particular use with this tool are:
 
   ZR_APP — package.metadata.zng.about.app or package.name
   ZR_ORG — package.metadata.zng.about.org or the first package.authors
@@ -477,10 +505,11 @@ $ cargo run -p cargo-zng -- res --tool rp
 
 #### `.zr-sh`
 
+<!--do doc --readme do zng res --tool sh -->
 ```console
-$ cargo run -p cargo-zng -- res --tool sh
+$ cargo zng res --tool sh
 
-.zr-sh @ cargo-zng
+.zr-sh</bold> @ cargo-zng
   Run a bash script
 
   Script is configured using environment variables (like other tools):
@@ -522,21 +551,23 @@ $ cargo run -p cargo-zng -- res --tool sh
 
 #### `.zr-shf`
 
+<!--do doc --readme do zng res --tool shf -->
 ```console
-$ cargo run -p cargo-zng -- res --tool shf
+$ cargo zng res --tool shf
 
-.zr-shf @ target/debug/cargo-zng
+.zr-shf</bold> @ cargo-zng
   Run a bash script on the final pass
-  
+
   Apart from running on final this tool behaves exactly like .zr-sh
 ```
 
 ### `.zr-warn`
 
+<!--do doc --readme do zng res --tool warn -->
 ```console
-$ cargo run -p cargo-zng -- res --tool warn
+$ cargo zng res --tool warn
 
-.zr-warn @ cargo-zng
+.zr-warn</bold> @ cargo-zng
   Print a warning message
 
   You can combine this with '.zr-rp' tool
@@ -550,10 +581,11 @@ $ cargo run -p cargo-zng -- res --tool warn
 
 ### `.zr-fail`
 
+<!--do doc --readme do zng res --tool fail -->
 ```console
-$ cargo run -p cargo-zng -- res --tool fail
+$ cargo zng res --tool fail
 
-.zr-fail @ cargo-zng
+.zr-fail</bold> @ cargo-zng
   Print an error message and fail the build
 
   The request file:

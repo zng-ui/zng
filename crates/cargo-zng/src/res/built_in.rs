@@ -252,7 +252,7 @@ fn glob() {
 }
 
 const RP_HELP: &str = "
-Replace ${VAR} occurrences in the content
+Replace ${VAR|<file|!cmd} occurrences in the content
 
 The request file:
   source/greetings.txt.zr-rp
@@ -262,14 +262,29 @@ Writes the text content with ZR_APP replaced:
   target/greetings.txt
   | Thanks for using Foo App!
 
-The parameters syntax is ${VAR[:[case]][?else]}:
+The parameters syntax is ${VAR|!|<[:[case]][?else]}:
 
-${VAR}          — Replaces with the ENV var value, or fails if it is not set.
-${VAR:<case>}   — Replaces with the ENV var value case converted.
-${VAR:?<else>}  — If ENV is not set or is set empty uses 'else' instead.
-$${VAR}         — Escapes $, replaces with '${VAR}'. 
+${VAR}          — Replaces with the env var value, or fails if it is not set.
+${VAR:case}     — Replaces with the env var value, case converted.
+${VAR?else}     — If VAR is not set or is set empty uses 'else' instead.
 
-The :<case> functions are:
+${<file.txt}    — Replaces with the 'file.txt' content. 
+                  Paths are relative to the workspace root.
+${<file:case}   — Replaces with the 'file.txt' content, case converted.
+${<file?else}   — If file cannot be read or is empty uses 'else' instead.
+
+${!cmd -h}      — Replaces with the stdout of the bash script line. 
+                  The script runs the same bash used by '.zr-sh'.
+                  The script must be defined all in one line.
+                  A separate bash instance is used for each occurrence.
+                  The working directory is the workspace root.
+${!cmd:case}    — Replaces with the stdout, case converted. 
+                  If the script contains ':', add a suffix: ${!cmd foo::bar :}
+$!{!cmd?else}   — If script fails or stdout is empty, uses 'else instead.
+
+$${VAR}         — Escapes $, replaces with '${VAR}'.
+
+The :case functions are:
 
 :k — kebab-case
 :K — UPPER-KEBAB-CASE
@@ -283,7 +298,8 @@ The :<case> functions are:
 :Tr — Train-Case
 : — Unchanged
 
-The fallback(else) can have nested ${VAR} patterns.
+The fallback(?else) can have nested ${...} patterns. 
+You can set both case and else: '${VAR:?else}'.
 
 Variables:
 
@@ -361,11 +377,11 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                 let mut var = &line[start..end];
                 let mut case = "";
                 let mut fallback = None;
-                if let Some(i) = var.find('?') {
+                if let Some(i) = var.rfind('?') {
                     fallback = Some(&var[i + 1..]);
                     var = &var[..i];
                 }
-                if let Some(i) = var.find(':') {
+                if let Some(i) = var.rfind(':') {
                     case = &var[i + 1..];
                     var = &var[..i];
                 }
