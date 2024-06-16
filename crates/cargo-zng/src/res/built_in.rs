@@ -392,7 +392,7 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                     var = &var[..i];
                 }
 
-                let value = if let Some(path) = var.strip_prefix('>') {
+                let value = if let Some(path) = var.strip_prefix('<') {
                     match std::fs::read_to_string(path) {
                         Ok(s) => Some(s),
                         Err(e) => {
