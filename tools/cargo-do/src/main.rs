@@ -13,6 +13,7 @@ fn main() {
         "fmt" | "f" => fmt(args),
         "test" | "t" => test(args),
         "run" | "r" => run(args),
+        "zng" => cargo_zng(args),
         "doc" => doc(args),
         "expand" => expand(args),
         "check" | "c" => check(args),
@@ -497,6 +498,12 @@ fn test(mut args: Vec<&str>) {
             test(vec!["--render"]);
         }
     }
+}
+
+// do zng [ARGS]
+//    Run cargo-zng with the same args for `cargo zng`.
+fn cargo_zng(args: Vec<&str>) {
+    cmd("cargo", &["run", "--package", "cargo-zng", "--", "zng"], &args);
 }
 
 // do run, r EXAMPLE [-b, --backtrace] [--release-lto] [<cargo-run-args>]
