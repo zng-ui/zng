@@ -400,10 +400,6 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                 } else {
                     env::var(var).ok()
                 };
-                let value = match value {
-                    Some(v) if !v.is_empty() => Some(v),
-                    _ => None,
-                };
 
                 if let Some(value) = value {
                     let value = match case {

@@ -450,12 +450,12 @@ $ cargo zng res --tool rp
 
   ${VAR}          — Replaces with the env var value, or fails if it is not set.
   ${VAR:case}     — Replaces with the env var value, case converted.
-  ${VAR:?else}    — If VAR is not set or is set empty uses 'else' instead.
+  ${VAR:?else}    — If VAR is not set uses 'else' instead.
 
   ${<file.txt}    — Replaces with the 'file.txt' content.
                     Paths are relative to the workspace root.
   ${<file:case}   — Replaces with the 'file.txt' content, case converted.
-  ${<file:?else}  — If file cannot be read or is empty uses 'else' instead.
+  ${<file:?else}  — If file cannot be read uses 'else' instead.
 
   ${!cmd -h}      — Replaces with the stdout of the bash script line.
                     The script runs the same bash used by '.zr-sh'.
@@ -464,7 +464,7 @@ $ cargo zng res --tool rp
                     The working directory is the workspace root.
   ${!cmd:case}    — Replaces with the stdout, case converted.
                     If the script contains ':', add a suffix: ${!cmd foo::bar :}
-  $!{!cmd:?else}  — If script fails or stdout is empty, uses 'else' instead.
+  $!{!cmd:?else}  — If script fails, uses 'else' instead.
 
   $${VAR}         — Escapes $, replaces with '${VAR}'.
 
