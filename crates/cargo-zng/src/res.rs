@@ -221,7 +221,11 @@ fn target_to_target_pass(args: &ResArgs, tools: &Tools, dir: &Path) -> anyhow::R
 
 fn tools_help(tools: &Path) {
     let r = tool::visit_tools(tools, |tool| {
-        println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+        if crate::util::ansi_enabled() {
+            println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+        } else {
+            println!(".zr-{} @ {}", tool.name, display_tool_path(&tool.path));
+        }
         match tool.help() {
             Ok(h) => {
                 if let Some(line) = h.trim().lines().next() {
@@ -244,7 +248,11 @@ fn tool_help(tools: &Path, name: &str) {
     let mut found = false;
     let r = tool::visit_tools(tools, |tool| {
         if tool.name == name {
-            println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+            if crate::util::ansi_enabled() {
+                println!(cstr!("<bold>.zr-{}</bold> @ {}"), tool.name, display_tool_path(&tool.path));
+            } else {
+                println!(".zr-{}</bold> @ {}", tool.name, display_tool_path(&tool.path));
+            }
             match tool.help() {
                 Ok(h) => {
                     for line in h.trim().lines() {

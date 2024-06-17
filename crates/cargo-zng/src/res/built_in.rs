@@ -3,6 +3,7 @@
 use std::{
     env, fs,
     io::{self, BufRead, Write},
+    mem,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -252,7 +253,7 @@ fn glob() {
 }
 
 const RP_HELP: &str = "
-Replace ${VAR} occurrences in the content
+Replace ${VAR|<file|!cmd} occurrences in the content
 
 The request file:
   source/greetings.txt.zr-rp
@@ -262,14 +263,29 @@ Writes the text content with ZR_APP replaced:
   target/greetings.txt
   | Thanks for using Foo App!
 
-The parameters syntax is ${VAR[:[case]][?else]}:
+The parameters syntax is ${VAR|!|<[:[case]][?else]}:
 
-${VAR}          — Replaces with the ENV var value, or fails if it is not set.
-${VAR:<case>}   — Replaces with the ENV var value case converted.
-${VAR:?<else>}  — If ENV is not set or is set empty uses 'else' instead.
-$${VAR}         — Escapes $, replaces with '${VAR}'. 
+${VAR}          — Replaces with the env var value, or fails if it is not set.
+${VAR:case}     — Replaces with the env var value, case converted.
+${VAR:?else}    — If VAR is not set uses 'else' instead.
 
-The :<case> functions are:
+${<file.txt}    — Replaces with the 'file.txt' content. 
+                  Paths are relative to the workspace root.
+${<file:case}   — Replaces with the 'file.txt' content, case converted.
+${<file:?else}  — If file cannot be read uses 'else' instead.
+
+${!cmd -h}      — Replaces with the stdout of the bash script line. 
+                  The script runs the same bash used by '.zr-sh'.
+                  The script must be defined all in one line.
+                  A separate bash instance is used for each occurrence.
+                  The working directory is the workspace root.
+${!cmd:case}    — Replaces with the stdout, case converted. 
+                  If the script contains ':' quote it with double quotes\"
+$!{!cmd:?else}  — If script fails, uses 'else' instead.
+
+$${VAR}         — Escapes $, replaces with '${VAR}'.
+
+The :case functions are:
 
 :k — kebab-case
 :K — UPPER-KEBAB-CASE
@@ -283,7 +299,8 @@ The :<case> functions are:
 :Tr — Train-Case
 : — Unchanged
 
-The fallback(else) can have nested ${VAR} patterns.
+The fallback(:?else) can have nested ${...} patterns. 
+You can set both case and else: '${VAR:case?else}'.
 
 Variables:
 
@@ -361,16 +378,51 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                 let mut var = &line[start..end];
                 let mut case = "";
                 let mut fallback = None;
-                if let Some(i) = var.find('?') {
-                    fallback = Some(&var[i + 1..]);
-                    var = &var[..i];
+
+                // escape ":"
+                let mut search_start = 0;
+                if var.starts_with('!') {
+                    let mut quoted = false;
+                    let mut escape_next = false;
+                    for (i, c) in var.char_indices() {
+                        if mem::take(&mut escape_next) {
+                            continue;
+                        }
+                        if c == '\\' {
+                            escape_next = true;
+                        } else if c == '"' {
+                            quoted = !quoted;
+                        } else if !quoted && c == ':' {
+                            search_start = i;
+                            break;
+                        }
+                    }
                 }
-                if let Some(i) = var.find(':') {
+                if let Some(i) = var[search_start..].find(':') {
+                    let i = search_start + i;
                     case = &var[i + 1..];
                     var = &var[..i];
+                    if let Some(i) = case.find('?') {
+                        fallback = Some(&case[i + 1..]);
+                        case = &case[..i];
+                    }
                 }
 
-                if let Ok(value) = env::var(var) {
+                let value = if let Some(path) = var.strip_prefix('<') {
+                    match std::fs::read_to_string(path) {
+                        Ok(s) => Some(s),
+                        Err(e) => {
+                            error!("cannot read `{path}`, {e}");
+                            None
+                        }
+                    }
+                } else if let Some(script) = var.strip_prefix('!') {
+                    sh_run(script.to_owned(), true)
+                } else {
+                    env::var(var).ok()
+                };
+
+                if let Some(value) = value {
                     let value = match case {
                         "k" => value.to_case(Case::Kebab),
                         "K" => value.to_case(Case::UpperKebab),
@@ -399,7 +451,7 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                         out.push_str(fallback);
                     }
                 } else {
-                    return Err(format!("env var ${{{var}}} is not set"));
+                    return Err(format!("${{{var}}} cannot be read"));
                 }
             }
         } else {
@@ -480,56 +532,81 @@ zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on fina
 If the script fails the entire stderr is printed and the resource build fails. Scripts run with
 `set -e` by default.
 
-Runs on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe or bash or sh.
+Tries to run on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
 "#;
 fn sh() {
     help(SH_HELP);
-    sh_impl();
+    let script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
+    sh_run(script, false);
 }
-fn sh_impl() {
+
+fn sh_options() -> Vec<std::ffi::OsString> {
+    let mut r = vec![];
     if let Ok(sh) = env::var("ZR_SH") {
         if !sh.is_empty() {
             let sh = PathBuf::from(sh);
             if sh.exists() {
-                return sh_run(sh);
+                r.push(sh.into_os_string());
             }
         }
     }
 
     #[cfg(windows)]
-    sh_run(sh_windows().unwrap_or_else(|| fatal!("bash not found, set %ZR_SH% or install Git bash")));
-
-    #[cfg(not(windows))]
-    if !sh_run_try("bash") {
-        sh_run("sh");
+    if let Ok(pf) = env::var("PROGRAMFILES") {
+        let sh = PathBuf::from(pf).join("Git/bin/bash.exe");
+        if sh.exists() {
+            r.push(sh.into_os_string());
+        }
     }
+    #[cfg(windows)]
+    if let Ok(c) = env::var("SYSTEMDRIVE") {
+        let sh = PathBuf::from(c).join("Program Files (x86)/Git/bin/bash.exe");
+        if sh.exists() {
+            r.push(sh.into_os_string());
+        }
+    }
+
+    r.push("bash".into());
+    r.push("sh".into());
+
+    r
 }
-/// Returns `true` if `sh` was found.
-fn sh_run_try(sh: impl AsRef<std::ffi::OsStr>) -> bool {
-    let mut script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
+fn sh_run(mut script: String, capture: bool) -> Option<String> {
     script.insert_str(0, "set -e\n");
-    match Command::new(sh).arg("-c").arg(script).status() {
+
+    for opt in sh_options() {
+        let r = sh_run_try(&opt, &script, capture);
+        if r.is_some() {
+            return r;
+        }
+    }
+    fatal!("cannot find bash, tried $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh");
+}
+fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool) -> Option<String> {
+    let mut sh = Command::new(sh);
+    sh.arg("-c").arg(script);
+    sh.stdin(std::process::Stdio::null());
+    sh.stderr(std::process::Stdio::inherit());
+    if !capture {
+        sh.stdout(std::process::Stdio::inherit());
+    }
+    match sh.output() {
         Ok(s) => {
-            if !s.success() {
-                match s.code() {
+            if !s.status.success() {
+                match s.status.code() {
                     Some(c) => fatal!("script failed, exit code {c}"),
                     None => fatal!("script failed"),
                 }
             }
-            true
+            Some(String::from_utf8_lossy(&s.stdout).into_owned())
         }
         Err(e) => {
             if e.kind() == io::ErrorKind::NotFound {
-                false
+                None
             } else {
                 fatal!("{e}")
             }
         }
-    }
-}
-fn sh_run(sh: impl AsRef<std::ffi::OsStr>) {
-    if !sh_run_try(sh) {
-        fatal!("bash not found, set $ZR_SH")
     }
 }
 
@@ -541,28 +618,10 @@ Apart from running on final this tool behaves exactly like .zr-sh
 fn shf() {
     help(SHF_HELP);
     if std::env::var(ZR_FINAL).is_ok() {
-        sh_impl()
+        sh();
     } else {
         println!("zng-res::on-final=");
     }
-}
-
-#[cfg(windows)]
-fn sh_windows() -> Option<PathBuf> {
-    if let Ok(pf) = env::var("PROGRAMFILES") {
-        let sh = PathBuf::from(pf).join("Git/bin/bash.exe");
-        if sh.exists() {
-            return Some(sh);
-        }
-    }
-    if let Ok(c) = env::var("SYSTEMDRIVE") {
-        let sh = PathBuf::from(c).join("Program Files (x86)/Git/bin/bash.exe");
-        if sh.exists() {
-            return Some(sh);
-        }
-    }
-
-    None
 }
 
 fn read_line(path: &Path, expected: &str) -> io::Result<String> {
@@ -694,33 +753,38 @@ mod tests {
         assert_eq!("normal text", replace("normal text", 0).unwrap());
         assert_eq!("escaped ${NOT}", replace("escaped $${NOT}", 0).unwrap());
         assert_eq!("replace 'test value'", replace("replace '${ZR_RP_TEST}'", 0).unwrap());
-        assert_eq!("env var ${} is not set", replace("empty '${}'", 0).unwrap_err()); // hmm
+        assert_eq!("${} cannot be read", replace("empty '${}'", 0).unwrap_err()); // hmm
         assert_eq!(
-            "env var ${ZR_RP_TEST_NOT_SET} is not set",
+            "${ZR_RP_TEST_NOT_SET} cannot be read",
             replace("not set '${ZR_RP_TEST_NOT_SET}'", 0).unwrap_err()
         );
         assert_eq!(
             "not set 'fallback!'",
-            replace("not set '${ZR_RP_TEST_NOT_SET?fallback!}'", 0).unwrap()
+            replace("not set '${ZR_RP_TEST_NOT_SET:?fallback!}'", 0).unwrap()
         );
         assert_eq!(
             "not set 'nested 'test value'.'",
-            replace("not set '${ZR_RP_TEST_NOT_SET?nested '${ZR_RP_TEST}'.}'", 0).unwrap()
+            replace("not set '${ZR_RP_TEST_NOT_SET:?nested '${ZR_RP_TEST}'.}'", 0).unwrap()
         );
-        assert_eq!("test value", replace("${ZR_RP_TEST_NOT_SET?${ZR_RP_TEST}}", 0).unwrap());
+        assert_eq!("test value", replace("${ZR_RP_TEST_NOT_SET:?${ZR_RP_TEST}}", 0).unwrap());
         assert_eq!(
             "curly test value",
-            replace("curly ${ZR_RP_TEST?{not {what} {is} {going {on {here {?}}}}}}", 0).unwrap()
+            replace("curly ${ZR_RP_TEST:?{not {what} {is} {going {on {here {:?}}}}}}", 0).unwrap()
         );
 
         assert_eq!("replace not closed at: ${MISSING", replace("${MISSING", 0).unwrap_err());
         assert_eq!("replace not closed at: ${MIS", replace("${MIS", 0).unwrap_err());
-        assert_eq!("replace not closed at: ${MIS?{", replace("${MIS?{", 0).unwrap_err());
-        assert_eq!("replace not closed at: ${MIS?{}", replace("${MIS?{}", 0).unwrap_err());
+        assert_eq!("replace not closed at: ${MIS:?{", replace("${MIS:?{", 0).unwrap_err());
+        assert_eq!("replace not closed at: ${MIS:?{}", replace("${MIS:?{}", 0).unwrap_err());
 
         assert_eq!("TEST VALUE", replace("${ZR_RP_TEST:U}", 0).unwrap());
         assert_eq!("TEST-VALUE", replace("${ZR_RP_TEST:K}", 0).unwrap());
         assert_eq!("TEST_VALUE", replace("${ZR_RP_TEST:S}", 0).unwrap());
         assert_eq!("testValue", replace("${ZR_RP_TEST:c}", 0).unwrap());
+    }
+
+    #[test]
+    fn replace_cmd_case() {
+        assert_eq!("cmd HELLO:?WORLD", replace("cmd ${!printf \"hello:?world\":U}", 0).unwrap(),)
     }
 }

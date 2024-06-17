@@ -1,5 +1,9 @@
 # Unpublished
 
+* `.zr-rp` now can read files using `${<file}`.
+* `.zr-rp` now can read stdout of bash script lines using `${!cmd}`.
+* **Breaking** `.zr-rp` now requires the colon in `:?else`.
+* **Breaking** `.zr-rp` `:?else` is now only used if the source cannot be read or is not set. Empty values are valid.
 * Fix cargo zng res not showing tools progress prints.
 * Fix crash handler attaching to other non-app processes.
 * Fix `.zr-copy` not merging folders.

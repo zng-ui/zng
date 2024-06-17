@@ -387,6 +387,10 @@ fn color(color: &str) -> &str {
 }
 #[allow(unreachable_code)]
 fn ansi_enabled() -> bool {
+    if std::env::var("NO_COLOR").is_ok() {
+        return false;
+    }
+
     #[cfg(windows)]
     {
         use std::sync::atomic::*;

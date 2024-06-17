@@ -76,7 +76,41 @@ pub fn generate(args: Vec<&str>) {
                         writeln!(&mut s, "{SECTION_END}").unwrap();
                     }
                 }
-                _ => {}
+                l => {
+                    if let Some(run) = l.strip_prefix("<!--do doc --readme do zng") {
+                        if let Some(args) = run.strip_suffix("-->") {
+                            let args = args.trim();
+                            let output = std::process::Command::new("cargo")
+                                .args(&["do", "zng"])
+                                .args(args.split(' '))
+                                .env("NO_COLOR", "")
+                                .output()
+                                .unwrap_or_else(|e| crate::util::fatal(format_args!("failed to run `{run}`, {e}")));
+                            let output = String::from_utf8(output.stdout).unwrap();
+                            writeln!(&mut s, "```console\n$ cargo zng {args}\n").unwrap();
+
+                            let mut out_lines = output.trim_end().lines();
+                            out_lines.next().unwrap(); // skip do header
+
+                            while let Some(line) = out_lines.next() {
+                                let line = line.trim_end().replace("@ target/debug/cargo-zng", "@ cargo-zng");
+                                if line == ".zr-tool-crate @ cargo-zng-res-tool-crate" {
+                                    out_lines.next().unwrap(); // skip help
+                                    out_lines.next().unwrap(); // skip empty line
+                                } else {
+                                    writeln!(&mut s, "{line}").unwrap();
+                                }
+                            }
+
+                            writeln!(&mut s, "```").unwrap();
+                            while let Some(l) = lines.next() {
+                                if l == "```" {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

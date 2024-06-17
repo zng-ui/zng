@@ -110,3 +110,7 @@ pub fn workspace_dir() -> Option<PathBuf> {
         None
     }
 }
+
+pub fn ansi_enabled() -> bool {
+    std::env::var("NO_COLOR").is_err()
+}

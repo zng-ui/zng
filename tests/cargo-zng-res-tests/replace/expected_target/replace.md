@@ -3,3 +3,15 @@
 Part of the zng project.
 
 [res-tests](https://zng-ui.github.io/)
+
+## From File
+
+file-a
+
+FILE-A
+
+## From bash script
+
+Hello World!
+
+hello-world!
