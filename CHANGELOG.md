@@ -1,5 +1,8 @@
 # Unpublished
 
+* Add `ZR_LICENSE` in `cargo zng res`.
+* **Breaking** Add `zng::env::About::license`.
+* Implement (de)serialize for `zng::env::About`.
 * **Breaking** `.zng-template` moved to `.zng-template/keys`.
 * **Breaking** `.zng-template-ignore` moved to `.zng-template/ignore`.
 * Add `.zng-template/post`, an optional post template generation script or crate to run.

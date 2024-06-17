@@ -74,7 +74,7 @@ pub fn init(about: About) -> impl Drop {
 /// Metadata about the app and main crate.
 ///
 /// See [`about`] for more details.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct About {
     /// package.name
     pub pkg_name: Txt,
@@ -96,6 +96,10 @@ pub struct About {
     pub description: Txt,
     /// package.homepage
     pub homepage: Txt,
+
+    /// package.license
+    pub license: Txt,
+
     /// If package.metadata.zng.about is set on the Cargo.toml manifest.
     ///
     /// The presence of this section is used by `cargo zng res` to find the main
@@ -114,6 +118,7 @@ impl About {
             qualifier: Txt::from_static(""),
             description: Txt::from_static(""),
             homepage: Txt::from_static(""),
+            license: Txt::from_static(""),
             has_about: false,
         }
     }
@@ -128,6 +133,7 @@ impl About {
             version: m.package.version,
             description: m.package.description.unwrap_or_default(),
             homepage: m.package.homepage.unwrap_or_default(),
+            license: m.package.license.unwrap_or_default(),
             app: Txt::from_static(""),
             org: Txt::from_static(""),
             qualifier: Txt::from_static(""),
@@ -160,6 +166,7 @@ impl About {
         qualifier: &'static str,
         description: &'static str,
         homepage: &'static str,
+        license: &'static str,
         has_about: bool,
     ) -> Self {
         Self {
@@ -177,6 +184,7 @@ impl About {
             qualifier: Txt::from_static(qualifier),
             description: Txt::from_static(description),
             homepage: Txt::from_static(homepage),
+            license: Txt::from_static(license),
             has_about,
         }
     }
@@ -191,6 +199,7 @@ struct Package {
     version: Version,
     description: Option<Txt>,
     homepage: Option<Txt>,
+    license: Option<Txt>,
     authors: Option<Box<[Txt]>>,
     metadata: Option<Metadata>,
 }
