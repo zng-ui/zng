@@ -1,5 +1,8 @@
 # Unpublished
 
+* **Breaking** `.zng-template` moved to `.zng-template/keys`.
+* **Breaking** `.zng-template-ignore` moved to `.zng-template/ignore`.
+* Add `.zng-template/post`, an optional post template generation script or crate to run.
 * `.zr-rp` now can read files using `${<file}`.
 * `.zr-rp` now can read stdout of bash script lines using `${!cmd}`.
 * **Breaking** `.zr-rp` now requires the colon in `:?else`.

@@ -417,7 +417,10 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                         }
                     }
                 } else if let Some(script) = var.strip_prefix('!') {
-                    sh_run(script.to_owned(), true)
+                    match sh_run(script.to_owned(), true) {
+                        Ok(r) => Some(r),
+                        Err(e) => fatal!("{e}"),
+                    }
                 } else {
                     env::var(var).ok()
                 };
@@ -537,7 +540,7 @@ Tries to run on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
 fn sh() {
     help(SH_HELP);
     let script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
-    sh_run(script, false);
+    sh_run(script, false).unwrap_or_else(|e| fatal!("{e}"));
 }
 
 fn sh_options() -> Vec<std::ffi::OsString> {
@@ -571,18 +574,21 @@ fn sh_options() -> Vec<std::ffi::OsString> {
 
     r
 }
-fn sh_run(mut script: String, capture: bool) -> Option<String> {
+pub(crate) fn sh_run(mut script: String, capture: bool) -> io::Result<String> {
     script.insert_str(0, "set -e\n");
 
     for opt in sh_options() {
-        let r = sh_run_try(&opt, &script, capture);
-        if r.is_some() {
-            return r;
+        let r = sh_run_try(&opt, &script, capture)?;
+        if let Some(r) = r {
+            return Ok(r);
         }
     }
-    fatal!("cannot find bash, tried $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh");
+    Err(io::Error::new(
+        io::ErrorKind::NotFound,
+        "cannot find bash, tried $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh",
+    ))
 }
-fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool) -> Option<String> {
+fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool) -> io::Result<Option<String>> {
     let mut sh = Command::new(sh);
     sh.arg("-c").arg(script);
     sh.stdin(std::process::Stdio::null());
@@ -593,18 +599,18 @@ fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool) -> Option<Strin
     match sh.output() {
         Ok(s) => {
             if !s.status.success() {
-                match s.status.code() {
-                    Some(c) => fatal!("script failed, exit code {c}"),
-                    None => fatal!("script failed"),
-                }
+                return Err(match s.status.code() {
+                    Some(c) => io::Error::new(io::ErrorKind::Other, format!("script failed, exit code {c}")),
+                    None => io::Error::new(io::ErrorKind::Other, "script failed"),
+                });
             }
-            Some(String::from_utf8_lossy(&s.stdout).into_owned())
+            Ok(Some(String::from_utf8_lossy(&s.stdout).into_owned()))
         }
         Err(e) => {
             if e.kind() == io::ErrorKind::NotFound {
-                None
+                Ok(None)
             } else {
-                fatal!("{e}")
+                Err(e)
             }
         }
     }

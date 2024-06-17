@@ -82,8 +82,8 @@ Options:
           Print version
 ```
 
-Zng project generator is very simple, it does not use any template engine, just Rust's string replace in UTF-8 text files only.
-The replacement keys are compilable, so template designers can build/check their template like a normal Rust project.
+The Zng project generator is very simple, it does not use any template engine, just Rust's string replace in UTF-8 text files only.
+The replacement keys are valid crate/type names, so template designers can build/check their template like a normal Rust project.
 
 Template keys encode the format they provide, these are the current supported key cases:
 
@@ -103,7 +103,7 @@ The values for each format (except {{key}}) are cleaned of chars that do not mat
 `[ascii_alphabetic][ascii_alphanumeric|'-'|'_'|' '|]*`. The case and separator conversions are applied to this
 cleaned value.
 
-The actual keys are declared by the template in a `.zng-template` file in the root of the template repository, they
+The actual keys are declared by the template in the `.zng-template/keys` file, they
 are ascii alphabetic with >=3 lowercase chars.
 
 Call `cargo zng new --keys` to show help for the template keys.
@@ -139,6 +139,24 @@ pub fn init_my_app() {
 See [zng-ui/zng-template] for an example of templates.
 
 [zng-ui/zng-template]: https://github.com/zng-ui/zng-template
+
+### Ignore
+
+The `.zng-template` directory is not included in the final template, other files can also be *ignored* by the `.zng-template/ignore`
+file. The ignore file uses the same syntax as `.gitignore`, the paths are relative to the workspace root.
+
+### Post
+
+If `.zng-template/post` is present it is executed after the template replacements are applied.
+
+If `post/post.sh` exists it is executed as a Bash script. Tries to run in $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
+
+If `post/Cargo.toml` exists it is executed as a cargo binary. The crate is build with the dev/debug profile quietly.
+
+The post script or crate runs at the workspace root, if the exit code is not 0 `cargo new` fails. 
+
+Note that template keys are replaced on the `post/**` files too, so code can be configured by template keys. The `.zng-template` directory
+is ignored, so the post folder will not be present in current dir, rather it will be in the `ZNG_TEMPLATE_POST_DIR` environment variable.
 
 ## `l10n`
 
