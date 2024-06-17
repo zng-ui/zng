@@ -102,6 +102,7 @@ pub fn visit_about_vars(about: &About, mut visit: impl FnMut(&str, &str)) {
     visit(ZR_APP, &about.app);
     visit(ZR_CRATE_NAME, &about.crate_name);
     visit(ZR_HOMEPAGE, &about.homepage);
+    visit(ZR_LICENSE, &about.license);
     visit(ZR_ORG, &about.org);
     visit(ZR_PKG_AUTHORS, &about.pkg_authors.clone().join(","));
     visit(ZR_PKG_NAME, &about.pkg_name);

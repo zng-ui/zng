@@ -53,6 +53,8 @@ pub const ZR_VERSION: &str = "ZR_VERSION";
 pub const ZR_DESCRIPTION: &str = "ZR_DESCRIPTION";
 /// Env var set to package.homepage
 pub const ZR_HOMEPAGE: &str = "ZR_HOMEPAGE";
+/// Env var set to package.license
+pub const ZR_LICENSE: &str = "ZR_LICENSE";
 /// Env var set to package.name
 pub const ZR_PKG_NAME: &str = "ZR_PKG_NAME";
 /// Env var set to package.authors
@@ -311,6 +313,7 @@ ZR_ORG — package.metadata.zng.about.org or the first package.authors
 ZR_VERSION — package.version
 ZR_DESCRIPTION — package.description
 ZR_HOMEPAGE — package.homepage
+ZR_LICENSE — package.license
 ZR_PKG_NAME — package.name
 ZR_PKG_AUTHORS — package.authors
 ZR_CRATE_NAME — package.name in snake_case
@@ -521,6 +524,7 @@ ZR_ORG — package.metadata.zng.about.org or the first package.authors
 ZR_VERSION — package.version
 ZR_DESCRIPTION — package.description
 ZR_HOMEPAGE — package.homepage
+ZR_LICENSE — package.license
 ZR_PKG_NAME — package.name
 ZR_PKG_AUTHORS — package.authors
 ZR_CRATE_NAME — package.name in snake_case

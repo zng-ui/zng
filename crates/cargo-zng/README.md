@@ -70,7 +70,7 @@ Options:
   -s, --set [<SET>...]
           Set a template value
 
-          Templates have a `.zng-template` file that defines the possible options.
+          Templates have a `.zng-template/keys` file that defines the possible options.
 
   -k, --keys
           Show all possible values that can be set on the template
@@ -325,6 +325,7 @@ In a Cargo workspace the [`zng::env::about`] metadata is also extracted from the
 * `ZR_VERSION` — package.version
 * `ZR_DESCRIPTION` — package.description
 * `ZR_HOMEPAGE` — package.homepage
+* `ZR_LICENSE` — package.license
 * `ZR_PKG_NAME` — package.name
 * `ZR_PKG_AUTHORS` — package.authors
 * `ZR_CRATE_NAME` — package.name in snake_case
@@ -512,6 +513,7 @@ $ cargo zng res --tool rp
   ZR_VERSION — package.version
   ZR_DESCRIPTION — package.description
   ZR_HOMEPAGE — package.homepage
+  ZR_LICENSE — package.license
   ZR_PKG_NAME — package.name
   ZR_PKG_AUTHORS — package.authors
   ZR_CRATE_NAME — package.name in snake_case
@@ -550,6 +552,7 @@ $ cargo zng res --tool sh
   ZR_VERSION — package.version
   ZR_DESCRIPTION — package.description
   ZR_HOMEPAGE — package.homepage
+  ZR_LICENSE — package.license
   ZR_PKG_NAME — package.name
   ZR_PKG_AUTHORS — package.authors
   ZR_CRATE_NAME — package.name in snake_case

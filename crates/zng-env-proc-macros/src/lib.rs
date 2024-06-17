@@ -54,6 +54,7 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
     let build = m.package.version.build.to_string();
     let desc = m.package.description.unwrap_or_default();
     let home = m.package.homepage.unwrap_or_default();
+    let license = m.package.license.unwrap_or_default();
     let mut app = "";
     let mut org = "";
     let mut qualifier = "";
@@ -91,6 +92,7 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
         qualifier: &'static str,
         description: &'static str,
         homepage: &'static str,
+        license: &'static str,
     )
      */
     quote! {
@@ -104,6 +106,7 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
             #qualifier,
             #desc,
             #home,
+            #license,
             #has_about,
         ))
     }
@@ -120,6 +123,7 @@ struct Package {
     version: Version,
     description: Option<String>,
     homepage: Option<String>,
+    license: Option<String>,
     authors: Option<Box<[String]>>,
     metadata: Option<Metadata>,
 }
