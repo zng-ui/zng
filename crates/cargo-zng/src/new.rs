@@ -35,7 +35,7 @@ pub struct NewArgs {
 
     /// Set a template value
     ///
-    /// Templates have a `.zng-template` file that defines the possible options.
+    /// Templates have a `.zng-template/keys` file that defines the possible options.
     #[arg(short, long, num_args(0..))]
     set: Vec<String>,
 
@@ -84,12 +84,12 @@ pub fn run(args: NewArgs) {
         let _ = fs::remove_dir_all(&project_name);
     };
 
-    let template_keys = template.git_clone(&template_temp, false).unwrap_or_else(|e| {
+    let (template_keys, ignore) = template.git_clone(&template_temp, false).unwrap_or_else(|e| {
         fatal_cleanup();
         fatal!("failed to clone template, {e}")
     });
 
-    let cx = Fmt::new(template_keys, arg_keys).unwrap_or_else(|e| {
+    let cx = Context::new(template_keys, arg_keys, ignore).unwrap_or_else(|e| {
         fatal_cleanup();
         fatal!("{e}")
     });
@@ -167,7 +167,7 @@ fn print_keys(template: Template) {
         }
 
         match template.git_clone(&template_temp, true) {
-            Ok(keys) => {
+            Ok((keys, _)) => {
                 println!("TEMPLATE KEYS\n");
                 for kv in keys {
                     let value = match &kv.value {
@@ -221,8 +221,8 @@ enum Template {
     Local(PathBuf),
 }
 impl Template {
-    /// Clone repository, if it is a template return the `.zng-template` file contents.
-    fn git_clone(self, to: &Path, include_docs: bool) -> io::Result<KeyMap> {
+    /// Clone repository, if it is a template return the `.zng-template/keys,ignore` files contents.
+    fn git_clone(self, to: &Path, include_docs: bool) -> io::Result<(KeyMap, Vec<glob::Pattern>)> {
         let from = match self {
             Template::Git(url) => url,
             Template::Local(path) => {
@@ -232,18 +232,35 @@ impl Template {
         };
         util::cmd("git clone --depth 1", &[from.as_str(), &to.display().to_string()], &[])?;
 
-        match fs::read_to_string(PathBuf::from(to).join(".zng-template")) {
-            Ok(s) => parse_keys(s, include_docs),
+        let keys = match fs::read_to_string(Path::new(to).join(".zng-template/keys")) {
+            Ok(s) => parse_keys(s, include_docs)?,
             Err(e) => {
                 if e.kind() == io::ErrorKind::NotFound {
                     return Err(io::Error::new(
                         io::ErrorKind::NotFound,
-                        "git repo is not a zng template, missing `.zng-template`",
+                        "git repo is not a zng template, missing `.zng-template/keys`",
                     ));
                 }
-                Err(e)
+                return Err(e);
+            }
+        };
+
+        let mut ignore = vec![];
+        match fs::read_to_string(Path::new(to).join(".zng-template/ignore")) {
+            Ok(i) => {
+                for glob in i.lines().map(|l| l.trim()).filter(|l| !l.is_empty() && !l.starts_with('#')) {
+                    let glob = glob::Pattern::new(glob).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                    ignore.push(glob);
+                }
+            }
+            Err(e) => {
+                if e.kind() != io::ErrorKind::NotFound {
+                    return Err(e);
+                }
             }
         }
+
+        Ok((keys, ignore))
     }
 }
 
@@ -262,52 +279,65 @@ fn cleanup_cargo_new(path: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn apply_template(cx: &Fmt, template_temp: &Path, package_name: &str) -> io::Result<()> {
-    // remove template .git, .zng-template and Cargo.lock
-    fs::remove_dir_all(template_temp.join(".git"))?;
-    fs::remove_file(template_temp.join(".zng-template"))?;
-
-    // remove .zng-template-ignore
+fn apply_template(cx: &Context, template_temp: &Path, package_name: &str) -> io::Result<()> {
     let template_temp = dunce::canonicalize(template_temp)?;
-    match fs::read_to_string(template_temp.join(".zng-template-ignore")) {
-        Ok(ignore) => {
-            for glob in ignore.lines().map(|l| l.trim()).filter(|l| !l.is_empty() && !l.starts_with('#')) {
-                for path in glob::glob(glob).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))? {
-                    let path = path.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-                    let path = dunce::canonicalize(&path)?;
-                    if path.starts_with(&template_temp) {
-                        if path.is_dir() {
-                            fs::remove_dir_all(path)?;
-                        } else if path.is_file() {
-                            fs::remove_file(path)?;
-                        }
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            if e.kind() != io::ErrorKind::NotFound {
-                return Err(e);
-            }
-        }
+
+    // remove template .git
+    fs::remove_dir_all(template_temp.join(".git"))?;
+
+    // replace keys in post scripts
+    let post = template_temp.join(".zng-template/post");
+    if post.is_dir() {
+        let post_replaced = template_temp.join(".zng-template/post-temp");
+        apply(cx, true, &post, &post_replaced)?;
+        fs::remove_dir_all(&post)?;
+        fs::rename(&post_replaced, &post)?;
+        std::env::set_var("ZNG_TEMPLATE_POST_DIR", &post);
     }
-    fs::remove_file(template_temp.join(".zng-template-ignore"))?;
 
     // rename/rewrite template and move it to new package dir
-    apply(cx, &template_temp, &PathBuf::from(package_name))?;
-    // remove (empty) template temp
+    let to = PathBuf::from(package_name);
+    apply(cx, false, &template_temp, &to)?;
+
+    let bash = post.join("post.sh");
+    if bash.is_file() {
+        let script = fs::read_to_string(bash)?;
+        crate::res::built_in::sh_run(script, false)?;
+    } else {
+        let manifest = post.join("Cargo.toml");
+        if manifest.exists() {
+            let s = std::process::Command::new("cargo")
+                .arg("run")
+                .arg("--quiet")
+                .arg("--manifest-path")
+                .arg(manifest)
+                .current_dir(to)
+                .status()?;
+            if !s.success() {}
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                ".zng-template/post is not a script nor crate",
+            ));
+        }
+    }
+
+    // remove template temp
     fs::remove_dir_all(template_temp)
 }
 
-fn apply(cx: &Fmt, from: &Path, to: &Path) -> io::Result<()> {
+fn apply(cx: &Context, is_post: bool, from: &Path, to: &Path) -> io::Result<()> {
     for entry in fs::read_dir(from)? {
         let from = entry?.path();
+        if cx.ignore(&from, is_post) {
+            continue;
+        }
         if from.is_dir() {
             let from = cx.rename(&from)?;
             let to = to.join(from.file_name().unwrap());
             println!("{}", to.display());
             fs::create_dir(&to)?;
-            apply(cx, &from, &to)?;
+            apply(cx, is_post, &from, &to)?;
         } else if from.is_file() {
             let from = cx.rename(&from)?;
             let to = to.join(from.file_name().unwrap());
@@ -319,11 +349,13 @@ fn apply(cx: &Fmt, from: &Path, to: &Path) -> io::Result<()> {
     Ok(())
 }
 
-struct Fmt {
+struct Context {
     replace: ReplaceMap,
+    ignore_workspace: glob::Pattern,
+    ignore: Vec<glob::Pattern>,
 }
-impl Fmt {
-    fn new(mut template_keys: KeyMap, arg_keys: ArgsKeyMap) -> io::Result<Self> {
+impl Context {
+    fn new(mut template_keys: KeyMap, arg_keys: ArgsKeyMap, ignore: Vec<glob::Pattern>) -> io::Result<Self> {
         for (i, (key, value)) in arg_keys.into_iter().enumerate() {
             if key.is_empty() {
                 if i >= template_keys.len() {
@@ -344,7 +376,22 @@ impl Fmt {
         }
         Ok(Self {
             replace: make_replacements(&template_keys)?,
+            ignore_workspace: glob::Pattern::new(".zng-template").unwrap(),
+            ignore,
         })
+    }
+
+    fn ignore(&self, template_path: &Path, is_post: bool) -> bool {
+        if !is_post && self.ignore_workspace.matches_path(template_path) {
+            return true;
+        }
+
+        for glob in &self.ignore {
+            if glob.matches_path(template_path) {
+                return true;
+            }
+        }
+        false
     }
 
     fn rename(&self, template_path: &Path) -> io::Result<PathBuf> {
