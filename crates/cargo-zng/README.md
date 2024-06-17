@@ -463,7 +463,7 @@ $ cargo zng res --tool rp
                     A separate bash instance is used for each occurrence.
                     The working directory is the workspace root.
   ${!cmd:case}    — Replaces with the stdout, case converted.
-                    If the script contains ':', add a suffix: ${!cmd foo::bar :}
+                    If the script contains ':' quote it with double quotes"
   $!{!cmd:?else}  — If script fails, uses 'else' instead.
 
   $${VAR}         — Escapes $, replaces with '${VAR}'.

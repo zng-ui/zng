@@ -460,7 +460,8 @@ fn test(mut args: Vec<&str>) {
 
         let all = args.is_empty();
 
-        if !all && args.contains(&"--doc") && !args.contains(&"-p") && !args.contains(&"--package") {
+        let has_package = args.contains(&"-p") || args.contains(&"--package");
+        if !all && args.contains(&"--doc") && !has_package {
             version_doc_sync::check();
         }
 
@@ -478,14 +479,27 @@ fn test(mut args: Vec<&str>) {
             }
             cmd_env(
                 "cargo",
-                &[nightly, "nextest", "run", "--no-fail-fast", "--all-features", "--workspace"],
+                &[
+                    nightly,
+                    "nextest",
+                    "run",
+                    "--no-fail-fast",
+                    "--all-features",
+                    if has_package { "" } else { "--workspace" },
+                ],
                 &args,
                 env,
             );
         } else {
             cmd_env(
                 "cargo",
-                &[nightly, "test", "--no-fail-fast", "--all-features", "--workspace"],
+                &[
+                    nightly,
+                    "test",
+                    "--no-fail-fast",
+                    "--all-features",
+                    if has_package { "" } else { "--workspace" },
+                ],
                 &args,
                 env,
             );

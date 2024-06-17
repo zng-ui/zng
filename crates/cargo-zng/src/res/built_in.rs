@@ -3,6 +3,7 @@
 use std::{
     env, fs,
     io::{self, BufRead, Write},
+    mem,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -279,7 +280,7 @@ ${!cmd -h}      — Replaces with the stdout of the bash script line.
                   A separate bash instance is used for each occurrence.
                   The working directory is the workspace root.
 ${!cmd:case}    — Replaces with the stdout, case converted. 
-                  If the script contains ':', add a suffix: ${!cmd foo::bar :}
+                  If the script contains ':' quote it with double quotes\"
 $!{!cmd:?else}  — If script fails, uses 'else' instead.
 
 $${VAR}         — Escapes $, replaces with '${VAR}'.
@@ -378,7 +379,27 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                 let mut case = "";
                 let mut fallback = None;
 
-                if let Some(i) = var.find(':') {
+                // escape ":"
+                let mut search_start = 0;
+                if var.starts_with('!') {
+                    let mut quoted = false;
+                    let mut escape_next = false;
+                    for (i, c) in var.char_indices() {
+                        if mem::take(&mut escape_next) {
+                            continue;
+                        }
+                        if c == '\\' {
+                            escape_next = true;
+                        } else if c == '"' {
+                            quoted = !quoted;
+                        } else if !quoted && c == ':' {
+                            search_start = i;
+                            break;
+                        }
+                    }
+                }
+                if let Some(i) = var[search_start..].find(':') {
+                    let i = search_start + i;
                     case = &var[i + 1..];
                     var = &var[..i];
                     if let Some(i) = case.find('?') {
@@ -760,5 +781,10 @@ mod tests {
         assert_eq!("TEST-VALUE", replace("${ZR_RP_TEST:K}", 0).unwrap());
         assert_eq!("TEST_VALUE", replace("${ZR_RP_TEST:S}", 0).unwrap());
         assert_eq!("testValue", replace("${ZR_RP_TEST:c}", 0).unwrap());
+    }
+
+    #[test]
+    fn replace_cmd_case() {
+        assert_eq!("cmd HELLO:?WORLD", replace("cmd ${!printf \"hello:?world\":U}", 0).unwrap(),)
     }
 }
