@@ -1,0 +1,1 @@
+echo "{{app}}" > t-app-t.txt

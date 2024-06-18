@@ -424,7 +424,7 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                         }
                     }
                 } else if let Some(script) = var.strip_prefix('!') {
-                    match sh_run(script.to_owned(), true) {
+                    match sh_run(script.to_owned(), true, None) {
                         Ok(r) => Some(r),
                         Err(e) => fatal!("{e}"),
                     }
@@ -548,7 +548,7 @@ Tries to run on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
 fn sh() {
     help(SH_HELP);
     let script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
-    sh_run(script, false).unwrap_or_else(|e| fatal!("{e}"));
+    sh_run(script, false, None).unwrap_or_else(|e| fatal!("{e}"));
 }
 
 fn sh_options() -> Vec<std::ffi::OsString> {
@@ -582,11 +582,11 @@ fn sh_options() -> Vec<std::ffi::OsString> {
 
     r
 }
-pub(crate) fn sh_run(mut script: String, capture: bool) -> io::Result<String> {
+pub(crate) fn sh_run(mut script: String, capture: bool, current_dir: Option<&Path>) -> io::Result<String> {
     script.insert_str(0, "set -e\n");
 
     for opt in sh_options() {
-        let r = sh_run_try(&opt, &script, capture)?;
+        let r = sh_run_try(&opt, &script, capture, current_dir)?;
         if let Some(r) = r {
             return Ok(r);
         }
@@ -596,8 +596,11 @@ pub(crate) fn sh_run(mut script: String, capture: bool) -> io::Result<String> {
         "cannot find bash, tried $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh",
     ))
 }
-fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool) -> io::Result<Option<String>> {
+fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool, current_dir: Option<&Path>) -> io::Result<Option<String>> {
     let mut sh = Command::new(sh);
+    if let Some(d) = current_dir {
+        sh.current_dir(d);
+    }
     sh.arg("-c").arg(script);
     sh.stdin(std::process::Stdio::null());
     sh.stderr(std::process::Stdio::inherit());

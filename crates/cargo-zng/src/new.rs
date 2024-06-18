@@ -272,6 +272,7 @@ fn apply_template(cx: &Context, package_name: &str) -> io::Result<()> {
     let post = template_temp.join(".zng-template/post");
     if post.is_dir() {
         let post_replaced = template_temp.join(".zng-template/post-temp");
+        fs::create_dir_all(&post_replaced)?;
         apply(cx, true, &post, &post_replaced)?;
         fs::remove_dir_all(&post)?;
         fs::rename(&post_replaced, &post)?;
@@ -285,7 +286,7 @@ fn apply_template(cx: &Context, package_name: &str) -> io::Result<()> {
     let bash = post.join("post.sh");
     if bash.is_file() {
         let script = fs::read_to_string(bash)?;
-        crate::res::built_in::sh_run(script, false)?;
+        crate::res::built_in::sh_run(script, false, Some(&to))?;
     } else {
         let manifest = post.join("Cargo.toml");
         if manifest.exists() {

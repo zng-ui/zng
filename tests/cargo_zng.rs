@@ -55,6 +55,11 @@ fn new_basic() {
     new("basic", &["The App", r#"-s"org=The Org""#, r#"-s"qualifier=.qual""#], Expect::Ok);
 }
 
+#[test]
+fn new_post() {
+    new("post", &["The App"], Expect::Ok);
+}
+
 fn new(test: &str, keys: &[&str], expect: Expect) {
     let tests_dir = PathBuf::from("./cargo-zng-new-tests");
     let test_dir = tests_dir.join(test);
@@ -117,6 +122,10 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
     }
 
     let _ = fs::remove_dir_all(&source);
+
+    let target_git = target.join("the-app/.git");
+    assert!(target_git.exists(), "git not inited on target {}", target_git.display());
+    fs::remove_dir_all(target_git).unwrap();
 
     verify_output(&test_dir, &stdio, error, expect, &expected_target, &target)
 }
