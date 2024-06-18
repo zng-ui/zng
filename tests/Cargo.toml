@@ -15,6 +15,7 @@ zng-wgt-webrender-debug = { path = "../crates/zng-wgt-webrender-debug" }
 zng-app = { path = "../crates/zng-app" }
 pretty_assertions = "1.4"
 walkdir = "2.5"
+dunce = "1.0"
 
 [[test]]
 name = "cargo_zng"

@@ -61,9 +61,9 @@ Options:
   -t, --template <TEMPLATE>
           Zng template
 
-          Can be `.git` URL or an `owner/repo` for a GitHub repository.
+          Can be a .git URL or an `owner/repo` for a GitHub repository. Can also be an absolute path or `./path` to a local template directory.
 
-          Can also be an absolute path or `./path` to a local template directory.
+          Use `#branch` to select a branch, that is `owner/repo#branch`.
 
           [default: zng-ui/zng-template]
 
@@ -71,6 +71,10 @@ Options:
           Set a template value
 
           Templates have a `.zng-template/keys` file that defines the possible options.
+
+          EXAMPLE
+
+          -s"key=value" -s"k2=v2"
 
   -k, --keys
           Show all possible values that can be set on the template

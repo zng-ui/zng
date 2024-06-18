@@ -52,7 +52,7 @@ fn res_error_bash() {
 
 #[test]
 fn new_basic() {
-    new("basic", &["The App"], Expect::Ok);
+    new("basic", &["The App", r#"-s"org=The Org""#, r#"-s"qualifier=.qual""#], Expect::Ok);
 }
 
 fn new(test: &str, keys: &[&str], expect: Expect) {
@@ -65,26 +65,36 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
 
     let source = test_dir.join("template");
     assert!(source.exists());
+    let expected_target = source.with_file_name("expected_target");
+
     let temp_source = temp.join("template");
     let _ = fs::remove_dir_all(&temp_source);
     fs::create_dir(&temp_source).unwrap();
     copy_dir_all(&source, &temp_source);
     let source = temp_source;
-    assert!(Command::new("git").arg("init").current_dir(&source).status().unwrap().success());
+    assert!(Command::new("git")
+        .arg("init")
+        .current_dir(&source)
+        .output()
+        .unwrap()
+        .status
+        .success());
     assert!(Command::new("git")
         .arg("add")
         .arg(".")
         .current_dir(&source)
-        .status()
+        .output()
         .unwrap()
+        .status
         .success());
     assert!(Command::new("git")
         .arg("commit")
         .arg("-m")
         .arg("test")
         .current_dir(&source)
-        .status()
+        .output()
         .unwrap()
+        .status
         .success());
 
     let target = source.with_file_name("target");
@@ -108,7 +118,7 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
 
     let _ = fs::remove_dir_all(&source);
 
-    verify_output(&test_dir, &stdio, error, expect, &source, &target)
+    verify_output(&test_dir, &stdio, error, expect, &expected_target, &target)
 }
 
 fn res(test: &str, pack: Pack, expect: Expect) {
@@ -155,10 +165,10 @@ fn res(test: &str, pack: Pack, expect: Expect) {
         }
     }
 
-    verify_output(&test_dir, &stdio, error, expect, &source, &target);
+    verify_output(&test_dir, &stdio, error, expect, &source.with_file_name("expected_target"), &target);
 }
 
-fn verify_output(test_dir: &Path, stdio: &StdioStr, error: Option<io::Error>, expect: Expect, source: &Path, target: &Path) {
+fn verify_output(test_dir: &Path, stdio: &StdioStr, error: Option<io::Error>, expect: Expect, expected_target: &Path, target: &Path) {
     let stdout_file = test_dir.join("test.stdout");
     let stderr_file = test_dir.join("test.stderr");
     let existing_stdout = fs::read_to_string(&stdout_file).unwrap_or_default();
@@ -169,7 +179,13 @@ fn verify_output(test_dir: &Path, stdio: &StdioStr, error: Option<io::Error>, ex
 
     match error {
         Some(e) => {
-            assert_eq!(expect, Expect::Err, "{}\n{e}", stdio.stderr)
+            assert_eq!(
+                expect,
+                Expect::Err,
+                "\n--stdout--\n{}\n--stderr--{}\n--error--\n{e}",
+                stdio.stdout,
+                stdio.stderr
+            )
         }
         None => assert_eq!(expect, Expect::Ok),
     }
@@ -178,8 +194,7 @@ fn verify_output(test_dir: &Path, stdio: &StdioStr, error: Option<io::Error>, ex
     pretty_assertions::assert_eq!(existing_stderr, stdio.stderr, "{} changed", stderr_file.display());
 
     if matches!(expect, Expect::Ok) {
-        let expected_target = source.with_file_name("expected_target");
-        let generate = match fs::read_dir(&expected_target) {
+        let generate = match fs::read_dir(expected_target) {
             Ok(mut d) => d.next().is_none(),
             Err(e) => {
                 if e.kind() == io::ErrorKind::NotFound {
@@ -191,10 +206,10 @@ fn verify_output(test_dir: &Path, stdio: &StdioStr, error: Option<io::Error>, ex
         };
 
         if generate {
-            let _ = fs::remove_dir_all(&expected_target);
-            fs::rename(target, &expected_target).expect("cannot generate expected_target");
+            let _ = fs::remove_dir_all(expected_target);
+            fs::rename(target, expected_target).expect("cannot generate expected_target");
         } else {
-            assert_dir_eq(&expected_target, target);
+            assert_dir_eq(expected_target, target);
         }
     }
 }
@@ -284,8 +299,7 @@ fn zng(setup: impl FnOnce(&mut Command) -> &mut Command, cleanup: impl FnOnce(&m
         .status
         .success());
 
-    let cargo_zng = Path::new("../target/debug").join(format!("cargo-zng{}", std::env::consts::EXE_SUFFIX));
-    assert!(cargo_zng.exists());
+    let cargo_zng = dunce::canonicalize(Path::new("../target/debug").join(format!("cargo-zng{}", std::env::consts::EXE_SUFFIX))).unwrap();
 
     let mut cmd = Command::new(cargo_zng);
     cmd.arg("zng");

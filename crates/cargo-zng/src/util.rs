@@ -60,8 +60,15 @@ pub fn exit() -> ! {
     }
 }
 
-/// Run the command with args.
+/// Run the command with args, inherits stdout and stderr.
 pub fn cmd(line: &str, args: &[&str], env: &[(&str, &str)]) -> io::Result<()> {
+    cmd_impl(line, args, env, false)
+}
+/// Run the command with args.
+pub fn cmd_silent(line: &str, args: &[&str], env: &[(&str, &str)]) -> io::Result<()> {
+    cmd_impl(line, args, env, true)
+}
+fn cmd_impl(line: &str, args: &[&str], env: &[(&str, &str)], silent: bool) -> io::Result<()> {
     let mut line_parts = line.split(' ');
     let program = line_parts.next().expect("expected program to run");
     let mut cmd = Command::new(program);
@@ -82,16 +89,32 @@ pub fn cmd(line: &str, args: &[&str], env: &[(&str, &str)]) -> io::Result<()> {
         cmd.env(key, val);
     }
 
-    let status = cmd.status()?;
-    if status.success() {
-        Ok(())
-    } else {
-        let mut cmd = format!("cmd failed: {line}");
-        for arg in args {
-            cmd.push(' ');
-            cmd.push_str(arg);
+    if silent {
+        let output = cmd.output()?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            let mut cmd = format!("cmd failed: {line}");
+            for arg in args {
+                cmd.push(' ');
+                cmd.push_str(arg);
+            }
+            cmd.push('\n');
+            cmd.push_str(&String::from_utf8_lossy(&output.stderr));
+            Err(io::Error::new(io::ErrorKind::Other, cmd))
         }
-        Err(io::Error::new(io::ErrorKind::Other, cmd))
+    } else {
+        let status = cmd.status()?;
+        if status.success() {
+            Ok(())
+        } else {
+            let mut cmd = format!("cmd failed: {line}");
+            for arg in args {
+                cmd.push(' ');
+                cmd.push_str(arg);
+            }
+            Err(io::Error::new(io::ErrorKind::Other, cmd))
+        }
     }
 }
 

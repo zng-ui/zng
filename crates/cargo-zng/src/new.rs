@@ -37,6 +37,10 @@ pub struct NewArgs {
     /// Set a template value
     ///
     /// Templates have a `.zng-template/keys` file that defines the possible options.
+    ///
+    /// EXAMPLE
+    ///
+    /// -s"key=value" -s"k2=v2"
     #[arg(short, long, num_args(0..))]
     set: Vec<String>,
 
@@ -62,7 +66,7 @@ pub fn run(args: NewArgs) {
         Err(e) => fatal!("{e}"),
     };
 
-    println!(cstr!("<bold>validate name and init<bold>"));
+    // validate name and init
     let app = &arg_keys[0].1;
     let project_name = clean_value(app, true)
         .unwrap_or_else(|e| fatal!("{e}"))
@@ -77,7 +81,7 @@ pub fn run(args: NewArgs) {
         fatal!("failed to cleanup `cargo new` template, {e}");
     }
 
-    println!(cstr!("<bold>clone template<bold>"));
+    // clone template
     let template_temp = PathBuf::from(format!("{project_name}.zng_template.tmp"));
 
     let fatal_cleanup = || {
@@ -90,19 +94,19 @@ pub fn run(args: NewArgs) {
         fatal!("failed to clone template, {e}")
     });
 
-    let cx = Context::new(template_keys, arg_keys, ignore).unwrap_or_else(|e| {
+    let cx = Context::new(&template_temp, template_keys, arg_keys, ignore).unwrap_or_else(|e| {
         fatal_cleanup();
         fatal!("cannot parse template, {e}")
     });
-    println!(cstr!("<bold>generate template<bold>"));
-    if let Err(e) = apply_template(&cx, &template_temp, &project_name) {
+    // generate template
+    if let Err(e) = apply_template(&cx, &project_name) {
         error!("cannot generate, {e}");
         fatal_cleanup();
         util::exit();
     }
 
+    // cargo fmt
     if Path::new(&project_name).join("Cargo.toml").exists() {
-        println!(cstr!("<bold>cargo fmt<bold>"));
         if let Err(e) = std::env::set_current_dir(project_name).and_then(|_| util::cmd("cargo fmt", &[], &[])) {
             fatal!("cannot cargo fmt generated project, {e}")
         }
@@ -149,7 +153,7 @@ fn parse_key_values(value: Vec<String>, define: Vec<String>) -> io::Result<ArgsK
     }
 
     for key_value in define {
-        if let Some((key, value)) = key_value.split_once('=') {
+        if let Some((key, value)) = key_value.trim_matches('"').split_once('=') {
             if !is_key(key) {
                 return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("invalid key `{key}`")));
             }
@@ -241,7 +245,7 @@ impl Template {
             args.push("--branch");
             args.push(&branch);
         }
-        util::cmd("git clone --depth 1", &args, &[])?;
+        util::cmd_silent("git clone --depth 1", &args, &[])?;
 
         let keys = match fs::read_to_string(to.join(".zng-template/keys")) {
             Ok(s) => parse_keys(s, include_docs)?,
@@ -290,8 +294,8 @@ fn cleanup_cargo_new(path: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn apply_template(cx: &Context, template_temp: &Path, package_name: &str) -> io::Result<()> {
-    let template_temp = dunce::canonicalize(template_temp)?;
+fn apply_template(cx: &Context, package_name: &str) -> io::Result<()> {
+    let template_temp = &cx.template_root;
 
     // remove template .git
     fs::remove_dir_all(template_temp.join(".git"))?;
@@ -308,7 +312,7 @@ fn apply_template(cx: &Context, template_temp: &Path, package_name: &str) -> io:
 
     // rename/rewrite template and move it to new package dir
     let to = PathBuf::from(package_name);
-    apply(cx, false, &template_temp, &to)?;
+    apply(cx, false, template_temp, &to)?;
 
     let bash = post.join("post.sh");
     if bash.is_file() {
@@ -325,10 +329,10 @@ fn apply_template(cx: &Context, template_temp: &Path, package_name: &str) -> io:
                 .current_dir(to)
                 .status()?;
             if !s.success() {}
-        } else {
+        } else if post.exists() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                ".zng-template/post is not a script nor crate",
+                ".zng-template/post does not contain 'post.sh' nor 'Cargo.toml'",
             ));
         }
     }
@@ -346,14 +350,14 @@ fn apply(cx: &Context, is_post: bool, from: &Path, to: &Path) -> io::Result<()> 
         if from.is_dir() {
             let from = cx.rename(&from)?;
             let to = to.join(from.file_name().unwrap());
-            println!("{}", to.display());
+            println!("  {}", to.display());
             fs::create_dir(&to)?;
             apply(cx, is_post, &from, &to)?;
         } else if from.is_file() {
             let from = cx.rename(&from)?;
             let to = to.join(from.file_name().unwrap());
             cx.rewrite(&from)?;
-            println!("{}", to.display());
+            println!("  {}", to.display());
             fs::rename(from, to).unwrap();
         }
     }
@@ -361,12 +365,13 @@ fn apply(cx: &Context, is_post: bool, from: &Path, to: &Path) -> io::Result<()> 
 }
 
 struct Context {
+    template_root: PathBuf,
     replace: ReplaceMap,
     ignore_workspace: glob::Pattern,
     ignore: Vec<glob::Pattern>,
 }
 impl Context {
-    fn new(mut template_keys: KeyMap, arg_keys: ArgsKeyMap, ignore: Vec<glob::Pattern>) -> io::Result<Self> {
+    fn new(template_root: &Path, mut template_keys: KeyMap, arg_keys: ArgsKeyMap, ignore: Vec<glob::Pattern>) -> io::Result<Self> {
         for (i, (key, value)) in arg_keys.into_iter().enumerate() {
             if key.is_empty() {
                 if i >= template_keys.len() {
@@ -386,6 +391,7 @@ impl Context {
             }
         }
         Ok(Self {
+            template_root: dunce::canonicalize(template_root)?,
             replace: make_replacements(&template_keys)?,
             ignore_workspace: glob::Pattern::new(".zng-template").unwrap(),
             ignore,
@@ -393,6 +399,8 @@ impl Context {
     }
 
     fn ignore(&self, template_path: &Path, is_post: bool) -> bool {
+        let template_path = template_path.strip_prefix(&self.template_root).unwrap();
+
         if !is_post && self.ignore_workspace.matches_path(template_path) {
             return true;
         }
