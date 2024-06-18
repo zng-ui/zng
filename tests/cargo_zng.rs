@@ -56,18 +56,46 @@ fn new_basic() {
 }
 
 fn new(test: &str, keys: &[&str], expect: Expect) {
-    let tests_dir = PathBuf::from("cargo-zng-new-tests");
+    let tests_dir = PathBuf::from("./cargo-zng-new-tests");
     let test_dir = tests_dir.join(test);
-    let source = test_dir.join("source");
+
+    // cannot run tests inside the workspace (nested .git, cargo warnings)
+    let temp = std::env::temp_dir().join("cargo-zng-new-tests").join(test);
+    fs::create_dir_all(&temp).unwrap();
+
+    let source = test_dir.join("template");
     assert!(source.exists());
-    let target = PathBuf::from("../target/tmp/tests/zng_new").join(test);
+    let temp_source = temp.join("template");
+    let _ = fs::remove_dir_all(&temp_source);
+    fs::create_dir(&temp_source).unwrap();
+    copy_dir_all(&source, &temp_source);
+    let source = temp_source;
+    assert!(Command::new("git").arg("init").current_dir(&source).status().unwrap().success());
+    assert!(Command::new("git")
+        .arg("add")
+        .arg(".")
+        .current_dir(&source)
+        .status()
+        .unwrap()
+        .success());
+    assert!(Command::new("git")
+        .arg("commit")
+        .arg("-m")
+        .arg("test")
+        .current_dir(&source)
+        .status()
+        .unwrap()
+        .success());
+
+    let target = source.with_file_name("target");
     if target.exists() {
         let _ = fs::remove_dir_all(&target);
     }
+    fs::create_dir_all(&target).unwrap();
 
     let error;
     let stdio;
-    match zng_new(keys, &source) {
+    match zng_new(keys, &target, &source) {
         Ok(s) => {
             error = None;
             stdio = s;
@@ -78,7 +106,28 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
         }
     }
 
-    verify_output(&test_dir, &stdio.stdout, &stdio.stderr, error, expect, &source, &target)
+    let _ = fs::remove_dir_all(&source);
+
+    let mut clean_stdout = String::new();
+    for line in stdio.stdout.lines() {
+        if line.contains("Finished") && line.contains("res build in") {
+            break;
+        }
+        clean_stdout.push_str(line);
+        clean_stdout.push('\n');
+    }
+    let mut clean_stderr = String::new();
+    let mut copy = false;
+    for line in stdio.stderr.lines() {
+        if copy {
+            clean_stderr.push_str(line);
+            clean_stderr.push('\n');
+        } else if line.contains("Running") {
+            copy = true;
+        }
+    }
+
+    verify_output(&test_dir, &clean_stdout, &clean_stderr, error, expect, &source, &target)
 }
 
 fn res(test: &str, pack: Pack, expect: Expect) {
@@ -90,6 +139,7 @@ fn res(test: &str, pack: Pack, expect: Expect) {
     if target.exists() {
         let _ = fs::remove_dir_all(&target);
     }
+    fs::create_dir_all(&target).unwrap();
     let tool_dir = test_dir.join("tools");
     let metadata = tests_dir.join("metadata.toml");
 
@@ -138,7 +188,7 @@ fn verify_output(test_dir: &Path, stdout: &str, stderr: &str, error: Option<io::
 
     match error {
         Some(e) => {
-            assert_eq!(expect, Expect::Err, "{e}")
+            assert_eq!(expect, Expect::Err, "{stderr}\n{e}")
         }
         None => assert_eq!(expect, Expect::Ok),
     }
@@ -218,8 +268,9 @@ fn zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, pack: 
     zng(cmd, args)
 }
 
-fn zng_new<S: AsRef<OsStr>>(args: &[S], template: &Path) -> Result<StdioStr, (io::Error, StdioStr)> {
+fn zng_new<S: AsRef<OsStr>>(args: &[S], target: &Path, template: &Path) -> Result<StdioStr, (io::Error, StdioStr)> {
     let mut cmd = Command::new("cargo");
+    cmd.current_dir(target);
     cmd.arg("run").arg("-p").arg("cargo-zng").arg("--").arg("zng").arg("new");
     cmd.arg("--template").arg(template);
     zng(cmd, args)
@@ -262,4 +313,22 @@ enum Pack {
 enum Expect {
     Ok,
     Err,
+}
+
+fn copy_dir_all(from: &Path, to: &Path) {
+    for entry in walkdir::WalkDir::new(from).min_depth(1).max_depth(1).sort_by_file_name() {
+        let entry = entry.unwrap_or_else(|e| panic!("cannot walkdir entry `{}`, {e}", from.display()));
+        let from = entry.path();
+        let to = to.join(entry.file_name());
+        if entry.file_type().is_dir() {
+            fs::create_dir(&to).unwrap_or_else(|e| {
+                if e.kind() != io::ErrorKind::AlreadyExists {
+                    panic!("cannot create_dir `{}`, {e}", to.display())
+                }
+            });
+            copy_dir_all(from, &to);
+        } else if entry.file_type().is_file() {
+            fs::copy(from, &to).unwrap_or_else(|e| panic!("cannot copy `{}` to `{}`, {e}", from.display(), to.display()));
+        }
+    }
 }
