@@ -1,28 +1,28 @@
 tests/cargo-zng-res-tests/recursive/source/a
-  [2mtarget/tmp/tests/cargo_zng/recursive/a[22m
+  [2mtarget/tmp/tests/zng_res/recursive/a[22m
 tests/cargo-zng-res-tests/recursive/source/a/copy.zr-copy
-[2m  target/tmp/tests/cargo_zng/recursive/a/copy
-  target/tmp/tests/cargo_zng/recursive/a/copy/a
-  target/tmp/tests/cargo_zng/recursive/a/copy/a/file-a.txt.zr-copy
-  target/tmp/tests/cargo_zng/recursive/a/copy/a.zr-copy
-  target/tmp/tests/cargo_zng/recursive/a/copy/file-b.txt.zr-copy
+[2m  target/tmp/tests/zng_res/recursive/a/copy
+  target/tmp/tests/zng_res/recursive/a/copy/a
+  target/tmp/tests/zng_res/recursive/a/copy/a/file-a.txt.zr-copy
+  target/tmp/tests/zng_res/recursive/a/copy/a.zr-copy
+  target/tmp/tests/zng_res/recursive/a/copy/file-b.txt.zr-copy
 [0mtests/cargo-zng-res-tests/recursive/source/copy.zr-copy
-[2m  target/tmp/tests/cargo_zng/recursive/copy
-  target/tmp/tests/cargo_zng/recursive/copy/a
-  target/tmp/tests/cargo_zng/recursive/copy/a/file-a.txt.zr-copy
-  target/tmp/tests/cargo_zng/recursive/copy/a.zr-copy
-  target/tmp/tests/cargo_zng/recursive/copy/file-b.txt.zr-copy
-[0mtarget/tmp/tests/cargo_zng/recursive/a/copy/a/file-a.txt.zr-copy
-[2m  target/tmp/tests/cargo_zng/recursive/a/copy/a/file-a.txt
-[0mtarget/tmp/tests/cargo_zng/recursive/a/copy/a.zr-copy
-[2m  target/tmp/tests/cargo_zng/recursive/a/copy/a
-  target/tmp/tests/cargo_zng/recursive/a/copy/a/merged-file-a.txt
-[0mtarget/tmp/tests/cargo_zng/recursive/a/copy/file-b.txt.zr-copy
-[2m  target/tmp/tests/cargo_zng/recursive/a/copy/file-b.txt
-[0mtarget/tmp/tests/cargo_zng/recursive/copy/a/file-a.txt.zr-copy
-[2m  target/tmp/tests/cargo_zng/recursive/copy/a/file-a.txt
-[0mtarget/tmp/tests/cargo_zng/recursive/copy/a.zr-copy
-[2m  target/tmp/tests/cargo_zng/recursive/copy/a
-  target/tmp/tests/cargo_zng/recursive/copy/a/merged-file-a.txt
-[0mtarget/tmp/tests/cargo_zng/recursive/copy/file-b.txt.zr-copy
-[2m  target/tmp/tests/cargo_zng/recursive/copy/file-b.txt
+[2m  target/tmp/tests/zng_res/recursive/copy
+  target/tmp/tests/zng_res/recursive/copy/a
+  target/tmp/tests/zng_res/recursive/copy/a/file-a.txt.zr-copy
+  target/tmp/tests/zng_res/recursive/copy/a.zr-copy
+  target/tmp/tests/zng_res/recursive/copy/file-b.txt.zr-copy
+[0mtarget/tmp/tests/zng_res/recursive/a/copy/a/file-a.txt.zr-copy
+[2m  target/tmp/tests/zng_res/recursive/a/copy/a/file-a.txt
+[0mtarget/tmp/tests/zng_res/recursive/a/copy/a.zr-copy
+[2m  target/tmp/tests/zng_res/recursive/a/copy/a
+  target/tmp/tests/zng_res/recursive/a/copy/a/merged-file-a.txt
+[0mtarget/tmp/tests/zng_res/recursive/a/copy/file-b.txt.zr-copy
+[2m  target/tmp/tests/zng_res/recursive/a/copy/file-b.txt
+[0mtarget/tmp/tests/zng_res/recursive/copy/a/file-a.txt.zr-copy
+[2m  target/tmp/tests/zng_res/recursive/copy/a/file-a.txt
+[0mtarget/tmp/tests/zng_res/recursive/copy/a.zr-copy
+[2m  target/tmp/tests/zng_res/recursive/copy/a
+  target/tmp/tests/zng_res/recursive/copy/a/merged-file-a.txt
+[0mtarget/tmp/tests/zng_res/recursive/copy/file-b.txt.zr-copy
+[2m  target/tmp/tests/zng_res/recursive/copy/file-b.txt

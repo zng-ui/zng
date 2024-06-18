@@ -3,8 +3,8 @@ tests/cargo-zng-res-tests/bash/source/hello.txt.zr-sh
 [2m[0mtests/cargo-zng-res-tests/bash/source/on-final.zr-sh
 [2m[0mtests/cargo-zng-res-tests/bash/source/recursion.txt.zr-copy.zr-sh
 [2m[0mtests/cargo-zng-res-tests/bash/source/warning.zr-warn
-[2m[0mtarget/tmp/tests/cargo_zng/bash/recursion.txt.zr-copy
-[2m  target/tmp/tests/cargo_zng/bash/recursion.txt
+[2m[0mtarget/tmp/tests/zng_res/bash/recursion.txt.zr-copy
+[2m  target/tmp/tests/zng_res/bash/recursion.txt
 [0m--final--
 tests/cargo-zng-res-tests/bash/source/on-final.txt.zr-shf
 [2m[0mtests/cargo-zng-res-tests/bash/source/on-final.zr-sh
