@@ -243,6 +243,8 @@ impl Tool {
 
         let mut at_line_start = true;
         let mut maybe_request_start = None;
+
+        print!("\x1B[2m"); // dim
         loop {
             let len = cmd_out.read(&mut buf)?;
             if len == 0 {
@@ -277,7 +279,9 @@ impl Tool {
                 }
             }
         }
+        print!("\x1B[0m"); // clear styles
 
+        let _ = std::io::stdout().flush();
         let status = cmd.wait()?;
         if status.success() {
             Ok(ToolOutput::from(String::from_utf8_lossy(&requests).as_ref()))

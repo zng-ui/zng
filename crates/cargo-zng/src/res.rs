@@ -167,7 +167,7 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
             println!("{}", display_path(source));
             let target = target.join(source.file_name().unwrap());
             fs::create_dir(&target).with_context(|| format!("cannot create_dir {}", target.display()))?;
-            println!("  {}", display_path(&target));
+            println!(cstr!("  <dim>{}</>"), display_path(&target));
 
             source_to_target_pass(args, tools, source, &target)?;
         } else if entry.file_type().is_file() {
@@ -188,7 +188,7 @@ fn source_to_target_pass(args: &ResArgs, tools: &Tools, source: &Path, target: &
                 println!("{}", display_path(source));
                 let target = target.join(source.file_name().unwrap());
                 fs::copy(source, &target).with_context(|| format!("cannot copy {} to {}", source.display(), target.display()))?;
-                println!("  {}", display_path(&target));
+                println!(cstr!("  <dim>{}</>"), display_path(&target));
             }
         } else if entry.file_type().is_symlink() {
             built_in::symlink_warn(entry.path());

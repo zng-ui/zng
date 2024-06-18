@@ -1,18 +1,18 @@
 tests/cargo-zng-res-tests/statics-pack/source/a.txt
-  target/tmp/tests/cargo_zng/statics-pack/a.txt
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/a.txt[22m
 tests/cargo-zng-res-tests/statics-pack/source/b.txt
-  target/tmp/tests/cargo_zng/statics-pack/b.txt
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/b.txt[22m
 tests/cargo-zng-res-tests/statics-pack/source/fa
-  target/tmp/tests/cargo_zng/statics-pack/fa
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/fa[22m
 tests/cargo-zng-res-tests/statics-pack/source/fa/fa-a.txt
-  target/tmp/tests/cargo_zng/statics-pack/fa/fa-a.txt
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/fa/fa-a.txt[22m
 tests/cargo-zng-res-tests/statics-pack/source/fb
-  target/tmp/tests/cargo_zng/statics-pack/fb
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/fb[22m
 tests/cargo-zng-res-tests/statics-pack/source/fb/fb-a.txt
-  target/tmp/tests/cargo_zng/statics-pack/fb/fb-a.txt
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/fb/fb-a.txt[22m
 tests/cargo-zng-res-tests/statics-pack/source/fb/fb-b.txt
-  target/tmp/tests/cargo_zng/statics-pack/fb/fb-b.txt
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/fb/fb-b.txt[22m
 tests/cargo-zng-res-tests/statics-pack/source/fb/fb-fa
-  target/tmp/tests/cargo_zng/statics-pack/fb/fb-fa
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/fb/fb-fa[22m
 tests/cargo-zng-res-tests/statics-pack/source/fb/fb-fa/fb-fa-a.txt
-  target/tmp/tests/cargo_zng/statics-pack/fb/fb-fa/fb-fa-a.txt
+  [2mtarget/tmp/tests/cargo_zng/statics-pack/fb/fb-fa/fb-fa-a.txt[22m
