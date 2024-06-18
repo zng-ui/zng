@@ -10,6 +10,8 @@ use std::{
 
 use convert_case::{Case, Casing};
 
+use crate::util;
+
 /// Env var set to the Cargo workspace directory that is parent to the res source.
 ///
 /// Note that the tool also runs with this dir as working directory (`current_dir`).
@@ -289,17 +291,19 @@ $${VAR}         — Escapes $, replaces with '${VAR}'.
 
 The :case functions are:
 
-:k — kebab-case
-:K — UPPER-KEBAB-CASE
-:s — snake_case
-:S — UPPER_SNAKE_CASE
+:k — kebab-case (cleaned)
+:K — UPPER-KEBAB-CASE (cleaned)
+:s — snake_case (cleaned)
+:S — UPPER_SNAKE_CASE (cleaned)
 :l — lower case
 :U — UPPER CASE
 :T — Title Case
-:c — camelCase
-:P — PascalCase
-:Tr — Train-Case
+:c — camelCase (cleaned)
+:P — PascalCase (cleaned)
+:Tr — Train-Case (cleaned)
 : — Unchanged
+
+Cleaned values only keep ascii alphabetic first char and ascii alphanumerics, ' ', '-' and '_' other chars.
 
 The fallback(:?else) can have nested ${...} patterns. 
 You can set both case and else: '${VAR:case?else}'.
@@ -430,16 +434,16 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
 
                 if let Some(value) = value {
                     let value = match case {
-                        "k" => value.to_case(Case::Kebab),
-                        "K" => value.to_case(Case::UpperKebab),
-                        "s" => value.to_case(Case::Snake),
-                        "S" => value.to_case(Case::UpperSnake),
+                        "k" => util::clean_value(&value, false).unwrap().to_case(Case::Kebab),
+                        "K" => util::clean_value(&value, false).unwrap().to_case(Case::UpperKebab),
+                        "s" => util::clean_value(&value, false).unwrap().to_case(Case::Snake),
+                        "S" => util::clean_value(&value, false).unwrap().to_case(Case::UpperSnake),
                         "l" => value.to_case(Case::Lower),
                         "U" => value.to_case(Case::Upper),
                         "T" => value.to_case(Case::Title),
-                        "c" => value.to_case(Case::Camel),
-                        "P" => value.to_case(Case::Pascal),
-                        "Tr" => value.to_case(Case::Train),
+                        "c" => util::clean_value(&value, false).unwrap().to_case(Case::Camel),
+                        "P" => util::clean_value(&value, false).unwrap().to_case(Case::Pascal),
+                        "Tr" => util::clean_value(&value, false).unwrap().to_case(Case::Train),
                         "" => value,
                         unknown => return Err(format!("unknown case '{unknown}'")),
                     };

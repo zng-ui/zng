@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** `.zr-rp` now cleans the values for some cases.
 * Add `ZR_LICENSE` in `cargo zng res`.
 * **Breaking** Add `zng::env::About::license`.
 * Implement (de)serialize for `zng::env::About`.

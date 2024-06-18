@@ -137,3 +137,35 @@ pub fn workspace_dir() -> Option<PathBuf> {
 pub fn ansi_enabled() -> bool {
     std::env::var("NO_COLOR").is_err()
 }
+
+pub fn clean_value(value: &str, required: bool) -> io::Result<String> {
+    let mut first_char = false;
+    let clean_value: String = value
+        .chars()
+        .filter(|c| {
+            if first_char {
+                first_char = c.is_ascii_alphabetic();
+                first_char
+            } else {
+                *c == ' ' || *c == '-' || *c == '_' || c.is_ascii_alphanumeric()
+            }
+        })
+        .collect();
+    let clean_value = clean_value.trim().to_owned();
+
+    if required && clean_value.is_empty() {
+        if clean_value.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("cannot derive clean value from `{value}`, must contain at least one ascii alphabetic char"),
+            ));
+        }
+        if clean_value.len() > 62 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("cannot derive clean value from `{value}`, must contain <= 62 ascii alphanumeric chars"),
+            ));
+        }
+    }
+    Ok(clean_value)
+}

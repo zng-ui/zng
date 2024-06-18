@@ -103,7 +103,7 @@ Template keys encode the format they provide, these are the current supported ke
 * TtKeyTt — PascalCase
 * {{key}} — Unchanged.
 
-The values for each format (except {{key}}) are cleaned of chars that do not match this pattern
+The values for each key not starting with '{{', 't.', 'T.' are cleaned of chars that do not match this pattern
 `[ascii_alphabetic][ascii_alphanumeric|'-'|'_'|' '|]*`. The case and separator conversions are applied to this
 cleaned value.
 
@@ -493,17 +493,19 @@ $ cargo zng res --tool rp
 
   The :case functions are:
 
-  :k — kebab-case
-  :K — UPPER-KEBAB-CASE
-  :s — snake_case
-  :S — UPPER_SNAKE_CASE
+  :k — kebab-case (cleaned)
+  :K — UPPER-KEBAB-CASE (cleaned)
+  :s — snake_case (cleaned)
+  :S — UPPER_SNAKE_CASE (cleaned)
   :l — lower case
   :U — UPPER CASE
   :T — Title Case
-  :c — camelCase
-  :P — PascalCase
-  :Tr — Train-Case
+  :c — camelCase (cleaned)
+  :P — PascalCase (cleaned)
+  :Tr — Train-Case (cleaned)
   : — Unchanged
+
+  Cleaned values only keep ascii alphabetic first char and ascii alphanumerics, ' ', '-' and '_' other chars.
 
   The fallback(:?else) can have nested ${...} patterns.
   You can set both case and else: '${VAR:case?else}'.

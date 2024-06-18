@@ -68,7 +68,7 @@ pub fn run(args: NewArgs) {
 
     // validate name and init
     let app = &arg_keys[0].1;
-    let project_name = clean_value(app, true)
+    let project_name = util::clean_value(app, true)
         .unwrap_or_else(|e| fatal!("{e}"))
         .replace(' ', "-")
         .to_lowercase();
@@ -111,38 +111,6 @@ pub fn run(args: NewArgs) {
             fatal!("cannot cargo fmt generated project, {e}")
         }
     }
-}
-
-fn clean_value(value: &str, required: bool) -> io::Result<String> {
-    let mut first_char = false;
-    let clean_value: String = value
-        .chars()
-        .filter(|c| {
-            if first_char {
-                first_char = c.is_ascii_alphabetic();
-                first_char
-            } else {
-                *c == ' ' || *c == '-' || *c == '_' || c.is_ascii_alphanumeric()
-            }
-        })
-        .collect();
-    let clean_value = clean_value.trim().to_owned();
-
-    if required && clean_value.is_empty() {
-        if clean_value.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("cannot derive clean value from `{value}`, must contain at least one ascii alphabetic char"),
-            ));
-        }
-        if clean_value.len() > 62 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("cannot derive clean value from `{value}`, must contain <= 62 ascii alphanumeric chars"),
-            ));
-        }
-    }
-    Ok(clean_value)
 }
 
 fn parse_key_values(value: Vec<String>, define: Vec<String>) -> io::Result<ArgsKeyMap> {
@@ -551,13 +519,21 @@ fn make_replacements(keys: &KeyMap) -> io::Result<ReplaceMap> {
                 ))
             }
         };
-        let clean_value = clean_value(value, kv.required)?;
+        let clean_value = util::clean_value(value, kv.required)?;
 
         for (pattern, _, case) in PATTERNS {
             let prefix = &pattern[..2];
             let suffix = &pattern[pattern.len() - 2..];
             let (key, value) = if let Some(case) = case {
-                (kv.key.to_case(*case), clean_value.to_case(*case))
+                let key_case = match case {
+                    Case::Camel => Case::Pascal,
+                    c => *c,
+                };
+                let value = match pattern.contains('.') {
+                    true => &clean_value,
+                    false => value,
+                };
+                (kv.key.to_case(key_case), value.to_case(*case))
             } else {
                 (kv.key.to_owned(), value.to_owned())
             };
