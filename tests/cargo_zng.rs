@@ -6,45 +6,61 @@ use std::{
 
 #[test]
 fn cargo_res_statics_no_pack() {
-    cargo_res("statics", false);
+    cargo_res("statics", Pack::No, Expect::Ok);
 }
 
 #[test]
 fn cargo_res_statics_pack() {
-    cargo_res("statics-pack", true);
+    cargo_res("statics-pack", Pack::Yes, Expect::Ok);
 }
 
 #[test]
 fn cargo_res_copy() {
-    cargo_res("copy", false);
+    cargo_res("copy", Pack::No, Expect::Ok);
 }
 
 #[test]
 fn cargo_res_recursive() {
-    cargo_res("recursive", false);
+    cargo_res("recursive", Pack::No, Expect::Ok);
 }
 
 #[test]
 fn cargo_res_bash() {
-    cargo_res("bash", false);
+    cargo_res("bash", Pack::No, Expect::Ok);
 }
 
 #[test]
 fn cargo_res_custom() {
-    cargo_res("custom", false);
+    cargo_res("custom", Pack::No, Expect::Ok);
 }
 
 #[test]
 fn cargo_res_glob() {
-    cargo_res("glob", false);
+    cargo_res("glob", Pack::No, Expect::Ok);
 }
 
 #[test]
 fn cargo_res_replace() {
-    cargo_res("replace", false);
+    cargo_res("replace", Pack::No, Expect::Ok);
 }
 
-fn cargo_res(test: &str, pack: bool) {
+#[test]
+fn cargo_res_error_bash() {
+    cargo_res("bash-error", Pack::No, Expect::Err);
+}
+
+enum Pack {
+    Yes,
+    No,
+}
+
+#[derive(PartialEq, Debug)]
+enum Expect {
+    Ok,
+    Err,
+}
+
+fn cargo_res(test: &str, pack: Pack, expect: Expect) {
     let tests_dir = PathBuf::from("cargo-zng-res-tests");
     let test_dir = tests_dir.join(test);
     let source = test_dir.join("source");
@@ -56,7 +72,21 @@ fn cargo_res(test: &str, pack: bool) {
     let tool_dir = test_dir.join("tools");
     let metadata = tests_dir.join("metadata.toml");
 
-    let (stdout, stderr) = cargo_zng_res(&[&source, &target], &tool_dir, &metadata, pack).unwrap_or_else(|e| panic!("{e}"));
+    let error;
+    let stdout;
+    let stderr;
+    match cargo_zng_res(&[&source, &target], &tool_dir, &metadata, matches!(pack, Pack::Yes)) {
+        Ok((so, se)) => {
+            error = None;
+            stdout = so;
+            stderr = se;
+        }
+        Err((e, so, se)) => {
+            error = Some(e);
+            stdout = so;
+            stderr = se;
+        }
+    }
     let mut clean_stdout = String::new();
     for line in stdout.lines() {
         if line.contains("Finished") && line.contains("res build in") {
@@ -84,10 +114,19 @@ fn cargo_res(test: &str, pack: bool) {
     fs::write(&stdout, clean_stdout.as_bytes()).unwrap();
     fs::write(&stderr, clean_stderr.as_bytes()).unwrap();
 
+    match error {
+        Some(e) => {
+            assert_eq!(expect, Expect::Err, "{e}")
+        }
+        None => assert_eq!(expect, Expect::Ok),
+    }
+
     pretty_assertions::assert_eq!(existing_stdout, clean_stdout, "{} changed", stdout.display());
     pretty_assertions::assert_eq!(existing_stderr, clean_stderr, "{} changed", stderr.display());
 
-    assert_dir_eq(&source.with_file_name("expected_target"), &target);
+    if matches!(expect, Expect::Ok) {
+        assert_dir_eq(&source.with_file_name("expected_target"), &target);
+    }
 }
 
 fn assert_dir_eq(expected: &Path, actual: &Path) {
@@ -129,7 +168,12 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
     }
 }
 
-fn cargo_zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, pack: bool) -> io::Result<(String, String)> {
+fn cargo_zng_res<S: AsRef<OsStr>>(
+    args: &[S],
+    tool_dir: &Path,
+    metadata: &Path,
+    pack: bool,
+) -> Result<(String, String), (io::Error, String, String)> {
     let mut cmd = std::process::Command::new("cargo");
     cmd.arg("run").arg("-p").arg("cargo-zng").arg("--").arg("zng").arg("res");
     if pack {
@@ -137,14 +181,16 @@ fn cargo_zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, 
     }
     cmd.arg("--tool-dir").arg(tool_dir);
     cmd.arg("--metadata").arg(metadata);
-    let output = cmd.args(args).output()?;
+    let output = cmd.args(args).output().map_err(|e| (e, String::new(), String::new()))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     if output.status.success() {
-        Ok((
-            String::from_utf8_lossy(&output.stdout).into_owned(),
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-        ))
+        Ok((stdout, stderr))
     } else {
-        let err = String::from_utf8_lossy(&output.stderr);
-        Err(io::Error::new(io::ErrorKind::Other, err))
+        Err((
+            io::Error::new(io::ErrorKind::Other, format!("error code {}", output.status.code().unwrap_or(0))),
+            stdout,
+            stderr,
+        ))
     }
 }
