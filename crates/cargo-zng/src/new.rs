@@ -27,9 +27,10 @@ pub struct NewArgs {
 
     /// Zng template
     ///
-    /// Can be `.git` URL or an `owner/repo` for a GitHub repository.
-    ///
+    /// Can be a .git URL or an `owner/repo` for a GitHub repository.
     /// Can also be an absolute path or `./path` to a local template directory.
+    ///
+    /// Use `#branch` to select a branch, that is `owner/repo#branch`.
     #[arg(short, long, default_value = "zng-ui/zng-template")]
     template: String,
 
@@ -194,45 +195,53 @@ fn print_keys(template: Template) {
 }
 
 fn parse_template(arg: String) -> Template {
+    let (arg, branch) = arg.rsplit_once('#').unwrap_or((&arg, ""));
+
     if arg.ends_with(".git") {
-        return Template::Git(arg);
+        return Template::Git(arg.to_owned(), branch.to_owned());
     }
 
     if arg.starts_with("./") {
-        return Template::Local(PathBuf::from(arg));
+        return Template::Local(PathBuf::from(arg), branch.to_owned());
     }
 
     if let Some((owner, repo)) = arg.split_once('/') {
         if !owner.is_empty() && !repo.is_empty() && !repo.contains('/') {
-            return Template::Git(format!("https://github.com/{owner}/{repo}.git"));
+            return Template::Git(format!("https://github.com/{owner}/{repo}.git"), branch.to_owned());
         }
     }
 
     let path = PathBuf::from(arg);
     if path.is_absolute() {
-        return Template::Local(path);
+        return Template::Local(path.to_owned(), branch.to_owned());
     }
 
     fatal!("--template must be a `.git` URL, `owner/repo`, `./local` or `/absolute/local`");
 }
 
 enum Template {
-    Git(String),
-    Local(PathBuf),
+    Git(String, String),
+    Local(PathBuf, String),
 }
 impl Template {
     /// Clone repository, if it is a template return the `.zng-template/keys,ignore` files contents.
     fn git_clone(self, to: &Path, include_docs: bool) -> io::Result<(KeyMap, Vec<glob::Pattern>)> {
-        let from = match self {
-            Template::Git(url) => url,
-            Template::Local(path) => {
+        let (from, branch) = match self {
+            Template::Git(url, b) => (url, b),
+            Template::Local(path, b) => {
                 let path = dunce::canonicalize(path)?;
-                path.display().to_string()
+                (path.display().to_string(), b)
             }
         };
-        util::cmd("git clone --depth 1", &[from.as_str(), &to.display().to_string()], &[])?;
+        let to_str = to.display().to_string();
+        let mut args = vec![from.as_str(), &to_str];
+        if !branch.is_empty() {
+            args.push("--branch");
+            args.push(&branch);
+        }
+        util::cmd("git clone --depth 1", &args, &[])?;
 
-        let keys = match fs::read_to_string(Path::new(to).join(".zng-template/keys")) {
+        let keys = match fs::read_to_string(to.join(".zng-template/keys")) {
             Ok(s) => parse_keys(s, include_docs)?,
             Err(e) => {
                 if e.kind() == io::ErrorKind::NotFound {
@@ -246,7 +255,7 @@ impl Template {
         };
 
         let mut ignore = vec![];
-        match fs::read_to_string(Path::new(to).join(".zng-template/ignore")) {
+        match fs::read_to_string(to.join(".zng-template/ignore")) {
             Ok(i) => {
                 for glob in i.lines().map(|l| l.trim()).filter(|l| !l.is_empty() && !l.starts_with('#')) {
                     let glob = glob::Pattern::new(glob).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
