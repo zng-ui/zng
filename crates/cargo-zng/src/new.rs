@@ -419,7 +419,7 @@ impl Context {
 
 static PATTERNS: &[(&str, &str, Option<Case>)] = &[
     ("t-key-t", "kebab-case", Some(Case::Kebab)),
-    ("T-KEY-T", "UPPER-KEBAB-CASE", Some(Case::UpperFlat)),
+    ("T-KEY-T", "UPPER-KEBAB-CASE", Some(Case::UpperKebab)),
     ("t_key_t", "snake_case", Some(Case::Snake)),
     ("T_KEY_T", "UPPER_SNAKE_CASE", Some(Case::UpperSnake)),
     ("T-Key-T", "Train-Case", Some(Case::Train)),
