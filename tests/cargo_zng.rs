@@ -77,30 +77,7 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
     fs::create_dir(&temp_source).unwrap();
     copy_dir_all(&source, &temp_source);
     let source = temp_source;
-    assert!(Command::new("git")
-        .arg("init")
-        .current_dir(&source)
-        .output()
-        .unwrap()
-        .status
-        .success());
-    assert!(Command::new("git")
-        .arg("add")
-        .arg(".")
-        .current_dir(&source)
-        .output()
-        .unwrap()
-        .status
-        .success());
-    assert!(Command::new("git")
-        .arg("commit")
-        .arg("-m")
-        .arg("test")
-        .current_dir(&source)
-        .output()
-        .unwrap()
-        .status
-        .success());
+    git_init(&source).unwrap();
 
     let target = source.with_file_name("target");
     if target.exists() {
@@ -368,4 +345,32 @@ fn copy_dir_all(from: &Path, to: &Path) {
             fs::copy(from, &to).unwrap_or_else(|e| panic!("cannot copy `{}` to `{}`, {e}", from.display(), to.display()));
         }
     }
+}
+
+fn git_init(dir: &Path) -> io::Result<()> {
+    let mut init = Command::new("git");
+    init.arg("init");
+    let mut add = Command::new("git");
+    add.arg("add").arg(".");
+    let mut commit = Command::new("git");
+    commit.arg("commit").arg("-m").arg("test");
+    for mut cmd in [init, add, commit] {
+        match cmd.current_dir(dir).output() {
+            Ok(s) => {
+                if !s.status.success() {
+                    let stdout = String::from_utf8_lossy(&s.stdout);
+                    let stderr = String::from_utf8_lossy(&s.stderr);
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        format!(
+                            "git exited with {}\n--stdout--\n{stdout}\n--stderr--\n{stderr}",
+                            s.status.code().unwrap_or(0)
+                        ),
+                    ));
+                }
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(())
 }
