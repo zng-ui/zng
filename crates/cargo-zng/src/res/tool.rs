@@ -222,7 +222,7 @@ impl Tool {
 
         // indent stderr
         let cmd_err = cmd.stderr.take().unwrap();
-        std::thread::spawn(move || {
+        let error_pipe = std::thread::spawn(move || {
             for line in io::BufReader::new(cmd_err).lines() {
                 match line {
                     Ok(l) => eprintln!("  {l}"),
@@ -243,6 +243,8 @@ impl Tool {
 
         let mut at_line_start = true;
         let mut maybe_request_start = None;
+
+        print!("\x1B[2m"); // dim
         loop {
             let len = cmd_out.read(&mut buf)?;
             if len == 0 {
@@ -277,8 +279,11 @@ impl Tool {
                 }
             }
         }
+        print!("\x1B[0m"); // clear styles
+        let _ = std::io::stdout().flush();
 
         let status = cmd.wait()?;
+        let _ = error_pipe.join();
         if status.success() {
             Ok(ToolOutput::from(String::from_utf8_lossy(&requests).as_ref()))
         } else {

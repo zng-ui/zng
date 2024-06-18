@@ -1,6 +1,6 @@
 tests/cargo-zng-res-tests/statics/source/fa
-  target/tmp/tests/cargo_zng/statics/fa
+  [2mtarget/tmp/tests/cargo_zng/statics/fa[22m
 tests/cargo-zng-res-tests/statics/source/fb
-  target/tmp/tests/cargo_zng/statics/fb
+  [2mtarget/tmp/tests/cargo_zng/statics/fb[22m
 tests/cargo-zng-res-tests/statics/source/fb/fb-fa
-  target/tmp/tests/cargo_zng/statics/fb/fb-fa
+  [2mtarget/tmp/tests/cargo_zng/statics/fb/fb-fa[22m

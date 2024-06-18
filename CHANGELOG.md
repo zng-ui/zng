@@ -1,4 +1,4 @@
-# Unpublished
+# Unreleased
 
 * Add `ZR_LICENSE` in `cargo zng res`.
 * **Breaking** Add `zng::env::About::license`.

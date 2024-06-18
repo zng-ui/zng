@@ -1,6 +1,6 @@
 tests/cargo-zng-res-tests/custom/source/hello-tool-crate.txt.zr-tool-crate
-  tool-crate print!
-tests/cargo-zng-res-tests/custom/source/hello-tool1.txt.zr-tool1
-  tool1 print!
-tests/cargo-zng-res-tests/custom/source/hello-tool2.txt.zr-tool2
-  tool2 print!
+[2m  tool-crate print!
+[0mtests/cargo-zng-res-tests/custom/source/hello-tool1.txt.zr-tool1
+[2m  tool1 print!
+[0mtests/cargo-zng-res-tests/custom/source/hello-tool2.txt.zr-tool2
+[2m  tool2 print!
