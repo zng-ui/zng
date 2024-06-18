@@ -7,3 +7,5 @@ tests/cargo-zng-res-tests/copy/source/a/file-a.txt.zr-copy
   target/tmp/tests/zng_res/copy/a/merged-file-a.txt
 [0mtests/cargo-zng-res-tests/copy/source/file-b.txt.zr-copy
 [2m  target/tmp/tests/zng_res/copy/file-b.txt
+[0m[32m[1mFinished[39m[22m res build in #ms
+         #DIR#

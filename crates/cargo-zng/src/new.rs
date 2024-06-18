@@ -70,7 +70,7 @@ pub fn run(args: NewArgs) {
         .to_lowercase();
     if let Err(e) = util::cmd("cargo new --quiet --bin", &[project_name.as_str()], &[]) {
         let _ = std::fs::remove_dir_all(&project_name);
-        fatal!("{e}");
+        fatal!("cannot init project folder, {e}");
     }
 
     if let Err(e) = cleanup_cargo_new(&project_name) {
@@ -92,18 +92,20 @@ pub fn run(args: NewArgs) {
 
     let cx = Context::new(template_keys, arg_keys, ignore).unwrap_or_else(|e| {
         fatal_cleanup();
-        fatal!("{e}")
+        fatal!("cannot parse template, {e}")
     });
     println!(cstr!("<bold>generate template<bold>"));
     if let Err(e) = apply_template(&cx, &template_temp, &project_name) {
-        error!("{e}");
+        error!("cannot generate, {e}");
         fatal_cleanup();
         util::exit();
     }
 
-    println!(cstr!("<bold>cargo fmt<bold>"));
-    if let Err(e) = std::env::set_current_dir(project_name).and_then(|_| util::cmd("cargo fmt", &[], &[])) {
-        fatal!("{e}")
+    if Path::new(&project_name).join("Cargo.toml").exists() {
+        println!(cstr!("<bold>cargo fmt<bold>"));
+        if let Err(e) = std::env::set_current_dir(project_name).and_then(|_| util::cmd("cargo fmt", &[], &[])) {
+            fatal!("cannot cargo fmt generated project, {e}")
+        }
     }
 }
 

@@ -12,3 +12,5 @@ tests/cargo-zng-res-tests/glob/source/flatten/refs-glob.zr-glob
   target/tmp/tests/zng_res/glob/flatten/aai
   target/tmp/tests/zng_res/glob/flatten/abi
   target/tmp/tests/zng_res/glob/flatten/aci
+[0m[32m[1mFinished[39m[22m res build in #ms
+         #DIR#

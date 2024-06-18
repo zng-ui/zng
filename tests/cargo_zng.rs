@@ -108,26 +108,7 @@ fn new(test: &str, keys: &[&str], expect: Expect) {
 
     let _ = fs::remove_dir_all(&source);
 
-    let mut clean_stdout = String::new();
-    for line in stdio.stdout.lines() {
-        if line.contains("Finished") && line.contains("res build in") {
-            break;
-        }
-        clean_stdout.push_str(line);
-        clean_stdout.push('\n');
-    }
-    let mut clean_stderr = String::new();
-    let mut copy = false;
-    for line in stdio.stderr.lines() {
-        if copy {
-            clean_stderr.push_str(line);
-            clean_stderr.push('\n');
-        } else if line.contains("Running") {
-            copy = true;
-        }
-    }
-
-    verify_output(&test_dir, &clean_stdout, &clean_stderr, error, expect, &source, &target)
+    verify_output(&test_dir, &stdio, error, expect, &source, &target)
 }
 
 fn res(test: &str, pack: Pack, expect: Expect) {
@@ -174,27 +155,27 @@ fn res(test: &str, pack: Pack, expect: Expect) {
         }
     }
 
-    verify_output(&test_dir, &clean_stdout, &clean_stderr, error, expect, &source, &target);
+    verify_output(&test_dir, &stdio, error, expect, &source, &target);
 }
 
-fn verify_output(test_dir: &Path, stdout: &str, stderr: &str, error: Option<io::Error>, expect: Expect, source: &Path, target: &Path) {
+fn verify_output(test_dir: &Path, stdio: &StdioStr, error: Option<io::Error>, expect: Expect, source: &Path, target: &Path) {
     let stdout_file = test_dir.join("test.stdout");
     let stderr_file = test_dir.join("test.stderr");
     let existing_stdout = fs::read_to_string(&stdout_file).unwrap_or_default();
     let existing_stderr = fs::read_to_string(&stderr_file).unwrap_or_default();
 
-    fs::write(&stdout_file, stdout.as_bytes()).unwrap();
-    fs::write(&stderr_file, stderr.as_bytes()).unwrap();
+    fs::write(&stdout_file, stdio.stdout.as_bytes()).unwrap();
+    fs::write(&stderr_file, stdio.stderr.as_bytes()).unwrap();
 
     match error {
         Some(e) => {
-            assert_eq!(expect, Expect::Err, "{stderr}\n{e}")
+            assert_eq!(expect, Expect::Err, "{}\n{e}", stdio.stderr)
         }
         None => assert_eq!(expect, Expect::Ok),
     }
 
-    pretty_assertions::assert_eq!(existing_stdout, stdout, "{} changed", stdout_file.display());
-    pretty_assertions::assert_eq!(existing_stderr, stderr, "{} changed", stderr_file.display());
+    pretty_assertions::assert_eq!(existing_stdout, stdio.stdout, "{} changed", stdout_file.display());
+    pretty_assertions::assert_eq!(existing_stderr, stdio.stderr, "{} changed", stderr_file.display());
 
     if matches!(expect, Expect::Ok) {
         let expected_target = source.with_file_name("expected_target");
@@ -258,27 +239,60 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
 }
 
 fn zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, pack: bool) -> Result<StdioStr, (io::Error, StdioStr)> {
-    let mut cmd = Command::new("cargo");
-    cmd.arg("run").arg("-p").arg("cargo-zng").arg("--").arg("zng").arg("res");
-    if pack {
-        cmd.arg("--pack");
-    }
-    cmd.arg("--tool-dir").arg(tool_dir);
-    cmd.arg("--metadata").arg(metadata);
-    zng(cmd, args)
+    zng(
+        |cmd| {
+            cmd.arg("res");
+            if pack {
+                cmd.arg("--pack");
+            }
+            cmd.arg("--tool-dir").arg(tool_dir);
+            cmd.arg("--metadata").arg(metadata);
+            cmd.args(args)
+        },
+        |s| {
+            let mut clean = String::new();
+            for line in s.stdout.lines() {
+                if line.contains("Finished") && line.contains("res build") {
+                    let i = line.find("res build").unwrap() + "res build".len();
+                    clean.push_str(&line[..i]);
+                    clean.push_str(" in #ms\n         #DIR#\n");
+                    break;
+                } else {
+                    clean.push_str(line);
+                    clean.push('\n');
+                }
+            }
+            s.stdout = clean;
+        },
+    )
 }
 
 fn zng_new<S: AsRef<OsStr>>(args: &[S], target: &Path, template: &Path) -> Result<StdioStr, (io::Error, StdioStr)> {
-    let mut cmd = Command::new("cargo");
-    cmd.current_dir(target);
-    cmd.arg("run").arg("-p").arg("cargo-zng").arg("--").arg("zng").arg("new");
-    cmd.arg("--template").arg(template);
-    zng(cmd, args)
+    zng(
+        |cmd| cmd.current_dir(target).arg("new").arg("--template").arg(template).args(args),
+        |_| {},
+    )
 }
 
-fn zng<S: AsRef<OsStr>>(mut cmd: Command, args: &[S]) -> Result<StdioStr, (io::Error, StdioStr)> {
-    let output = cmd.args(args).output().map_err(|e| (e, StdioStr::default()))?;
-    let stdio = StdioStr::from(&output);
+fn zng(setup: impl FnOnce(&mut Command) -> &mut Command, cleanup: impl FnOnce(&mut StdioStr)) -> Result<StdioStr, (io::Error, StdioStr)> {
+    assert!(Command::new("cargo")
+        .arg("build")
+        .arg("-p")
+        .arg("cargo-zng")
+        .output()
+        .expect("cannot build cargo-zng")
+        .status
+        .success());
+
+    let cargo_zng = Path::new("../target/debug").join(format!("cargo-zng{}", std::env::consts::EXE_SUFFIX));
+    assert!(cargo_zng.exists());
+
+    let mut cmd = Command::new(cargo_zng);
+    cmd.arg("zng");
+    setup(&mut cmd);
+    let output = cmd.output().map_err(|e| (e, StdioStr::default()))?;
+    let mut stdio = StdioStr::from(&output);
+    cleanup(&mut stdio);
     if output.status.success() {
         Ok(stdio)
     } else {
@@ -289,7 +303,7 @@ fn zng<S: AsRef<OsStr>>(mut cmd: Command, args: &[S]) -> Result<StdioStr, (io::E
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct StdioStr {
     stdout: String,
     stderr: String,

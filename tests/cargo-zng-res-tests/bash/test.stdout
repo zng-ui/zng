@@ -9,3 +9,5 @@ tests/cargo-zng-res-tests/bash/source/hello.txt.zr-sh
 tests/cargo-zng-res-tests/bash/source/on-final.txt.zr-shf
 [2m[0mtests/cargo-zng-res-tests/bash/source/on-final.zr-sh
 [2m  on final: 'final args'
+[0m[32m[1mFinished[39m[22m res build in #ms
+         #DIR#

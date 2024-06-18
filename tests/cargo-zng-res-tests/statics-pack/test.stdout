@@ -16,3 +16,5 @@ tests/cargo-zng-res-tests/statics-pack/source/fb/fb-fa
   [2mtarget/tmp/tests/zng_res/statics-pack/fb/fb-fa[22m
 tests/cargo-zng-res-tests/statics-pack/source/fb/fb-fa/fb-fa-a.txt
   [2mtarget/tmp/tests/zng_res/statics-pack/fb/fb-fa/fb-fa-a.txt[22m
+[32m[1mFinished[39m[22m res build in #ms
+         #DIR#

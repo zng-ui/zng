@@ -4,3 +4,5 @@ tests/cargo-zng-res-tests/statics/source/fb
   [2mtarget/tmp/tests/zng_res/statics/fb[22m
 tests/cargo-zng-res-tests/statics/source/fb/fb-fa
   [2mtarget/tmp/tests/zng_res/statics/fb/fb-fa[22m
+[32m[1mFinished[39m[22m res build in #ms
+         #DIR#

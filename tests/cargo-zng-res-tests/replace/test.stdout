@@ -1,3 +1,5 @@
 tests/cargo-zng-res-tests/replace/source/recursive.zr-warn.zr-rp
 [2m[0mtests/cargo-zng-res-tests/replace/source/replace.md.zr-rp
 [2m[0mtarget/tmp/tests/zng_res/replace/recursive.zr-warn
+[2m[0m[32m[1mFinished[39m[22m res build in #ms
+         #DIR#

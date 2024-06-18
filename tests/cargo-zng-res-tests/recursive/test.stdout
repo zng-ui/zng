@@ -26,3 +26,5 @@ tests/cargo-zng-res-tests/recursive/source/a/copy.zr-copy
   target/tmp/tests/zng_res/recursive/copy/a/merged-file-a.txt
 [0mtarget/tmp/tests/zng_res/recursive/copy/file-b.txt.zr-copy
 [2m  target/tmp/tests/zng_res/recursive/copy/file-b.txt
+[0m[32m[1mFinished[39m[22m res build in #ms
+         #DIR#
