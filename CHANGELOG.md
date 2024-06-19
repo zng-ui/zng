@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `WINDOW.position().set` not moving the window.
 * Add `ZR_LICENSE` in `cargo zng res`.
 * **Breaking** Add `zng::env::About::license`.
 * Implement (de)serialize for `zng::env::About`.
