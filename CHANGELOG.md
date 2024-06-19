@@ -1,6 +1,7 @@
 # Unreleased
 
 * **Breaking** `.zr-rp` now cleans the values for some cases.
+* Fix `WINDOW.position().set` not moving the window.
 * Add `ZR_LICENSE` in `cargo zng res`.
 * **Breaking** Add `zng::env::About::license`.
 * Implement (de)serialize for `zng::env::About`.

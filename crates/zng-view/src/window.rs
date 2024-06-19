@@ -1288,6 +1288,20 @@ impl Window {
         if self.state.state == WindowState::Normal {
             let _ = self.window.request_inner_size(self.state.restore_rect.size.to_winit());
 
+            let outer_offset = match (self.window.outer_position(), self.window.inner_position()) {
+                (Ok(o), Ok(i)) => (i.x - o.x, i.y - o.y),
+                _ => (0, 0),
+            };
+            let mut origin = self
+                .state
+                .restore_rect
+                .origin
+                .to_winit()
+                .to_physical::<i32>(self.window.scale_factor());
+            origin.x -= outer_offset.0;
+            origin.y -= outer_offset.1;
+            self.window.set_outer_position(origin);
+
             self.window.set_min_inner_size(Some(self.state.min_size.to_winit()));
             self.window.set_max_inner_size(Some(self.state.max_size.to_winit()));
 
