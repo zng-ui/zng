@@ -15,3 +15,9 @@ ${<tests/cargo-zng-res-tests/copy/refs/file-a.txt:K}
 ${!printf "Hello World!"}
 
 ${!printf "Hello World!":k}
+
+## Else
+
+${ZR_DESCRIPTION:?${ZR_APP} package.}
+${ZR_NOT_SET:?${ZR_APP} fallback.}
+${ZR_LICENSE:?${ZR_APP} fallback.}

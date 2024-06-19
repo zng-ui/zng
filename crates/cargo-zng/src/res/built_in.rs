@@ -433,7 +433,16 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                 };
 
                 let value = match value {
-                    Some(s) if !s.is_empty() => Some(s),
+                    Some(s) => {
+                        let st = s.trim();
+                        if st.is_empty() {
+                            None
+                        } else if st == s {
+                            Some(s)
+                        } else {
+                            Some(st.to_owned())
+                        }
+                    }
                     _ => None,
                 };
 
