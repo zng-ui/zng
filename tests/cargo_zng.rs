@@ -132,25 +132,6 @@ fn res(test: &str, pack: Pack, expect: Expect) {
             stdio = s;
         }
     }
-    let mut clean_stdout = String::new();
-    for line in stdio.stdout.lines() {
-        if line.contains("Finished") && line.contains("res build in") {
-            break;
-        }
-        clean_stdout.push_str(line);
-        clean_stdout.push('\n');
-    }
-    let mut clean_stderr = String::new();
-    let mut copy = false;
-    for line in stdio.stderr.lines() {
-        if copy {
-            clean_stderr.push_str(line);
-            clean_stderr.push('\n');
-        } else if line.contains("Running") {
-            copy = true;
-        }
-    }
-
     verify_output(&test_dir, &stdio, error, expect, &source.with_file_name("expected_target"), &target);
 }
 
@@ -220,8 +201,10 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
             if expected.is_dir() {
                 check_actual_has(&expected, &actual);
             } else {
-                let expected = fs::read_to_string(expected).unwrap();
-                let actual = fs::read_to_string(actual).unwrap();
+                let expected = fs::read_to_string(expected).unwrap().replace("\r\n", "\n");
+                let actual = fs::read_to_string(actual).unwrap().replace("\r\n", "\n");
+                // let expected = format!("{expected:?}");
+                // let actual = format!("{actual:?}");
                 pretty_assertions::assert_eq!(expected, actual, "expected file contents to match");
             }
         }
@@ -271,7 +254,21 @@ fn zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, pack: 
 fn zng_new<S: AsRef<OsStr>>(args: &[S], target: &Path, template: &Path) -> Result<StdioStr, (io::Error, StdioStr)> {
     zng(
         |cmd| cmd.current_dir(target).arg("new").arg("--template").arg(template).args(args),
-        |_| {},
+        |s| {
+            let mut clean = String::new();
+            for line in s.stdout.lines() {
+                let line = line.replace('\\', "/");
+                if line.ends_with(".sh") {
+                    let i = line.rfind(".zng-template").unwrap();
+                    clean.push_str("#TEMP#/");
+                    clean.push_str(&line[i..]);
+                } else {
+                    clean.push_str(&line);
+                }
+                clean.push('\n');
+            }
+            s.stdout = clean;
+        },
     )
 }
 
