@@ -10,6 +10,8 @@ use std::{
 
 use convert_case::{Case, Casing};
 
+use crate::util;
+
 /// Env var set to the Cargo workspace directory that is parent to the res source.
 ///
 /// Note that the tool also runs with this dir as working directory (`current_dir`).
@@ -289,17 +291,19 @@ $${VAR}         — Escapes $, replaces with '${VAR}'.
 
 The :case functions are:
 
-:k — kebab-case
-:K — UPPER-KEBAB-CASE
-:s — snake_case
-:S — UPPER_SNAKE_CASE
+:k — kebab-case (cleaned)
+:K — UPPER-KEBAB-CASE (cleaned)
+:s — snake_case (cleaned)
+:S — UPPER_SNAKE_CASE (cleaned)
 :l — lower case
 :U — UPPER CASE
 :T — Title Case
-:c — camelCase
-:P — PascalCase
-:Tr — Train-Case
+:c — camelCase (cleaned)
+:P — PascalCase (cleaned)
+:Tr — Train-Case (cleaned)
 : — Unchanged
+
+Cleaned values only keep ascii alphabetic first char and ascii alphanumerics, ' ', '-' and '_' other chars.
 
 The fallback(:?else) can have nested ${...} patterns. 
 You can set both case and else: '${VAR:case?else}'.
@@ -420,7 +424,7 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                         }
                     }
                 } else if let Some(script) = var.strip_prefix('!') {
-                    match sh_run(script.to_owned(), true) {
+                    match sh_run(script.to_owned(), true, None) {
                         Ok(r) => Some(r),
                         Err(e) => fatal!("{e}"),
                     }
@@ -430,16 +434,16 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
 
                 if let Some(value) = value {
                     let value = match case {
-                        "k" => value.to_case(Case::Kebab),
-                        "K" => value.to_case(Case::UpperKebab),
-                        "s" => value.to_case(Case::Snake),
-                        "S" => value.to_case(Case::UpperSnake),
+                        "k" => util::clean_value(&value, false).unwrap().to_case(Case::Kebab),
+                        "K" => util::clean_value(&value, false).unwrap().to_case(Case::UpperKebab),
+                        "s" => util::clean_value(&value, false).unwrap().to_case(Case::Snake),
+                        "S" => util::clean_value(&value, false).unwrap().to_case(Case::UpperSnake),
                         "l" => value.to_case(Case::Lower),
                         "U" => value.to_case(Case::Upper),
                         "T" => value.to_case(Case::Title),
-                        "c" => value.to_case(Case::Camel),
-                        "P" => value.to_case(Case::Pascal),
-                        "Tr" => value.to_case(Case::Train),
+                        "c" => util::clean_value(&value, false).unwrap().to_case(Case::Camel),
+                        "P" => util::clean_value(&value, false).unwrap().to_case(Case::Pascal),
+                        "Tr" => util::clean_value(&value, false).unwrap().to_case(Case::Train),
                         "" => value,
                         unknown => return Err(format!("unknown case '{unknown}'")),
                     };
@@ -544,7 +548,7 @@ Tries to run on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
 fn sh() {
     help(SH_HELP);
     let script = fs::read_to_string(path(ZR_REQUEST)).unwrap_or_else(|e| fatal!("{e}"));
-    sh_run(script, false).unwrap_or_else(|e| fatal!("{e}"));
+    sh_run(script, false, None).unwrap_or_else(|e| fatal!("{e}"));
 }
 
 fn sh_options() -> Vec<std::ffi::OsString> {
@@ -578,11 +582,11 @@ fn sh_options() -> Vec<std::ffi::OsString> {
 
     r
 }
-pub(crate) fn sh_run(mut script: String, capture: bool) -> io::Result<String> {
+pub(crate) fn sh_run(mut script: String, capture: bool, current_dir: Option<&Path>) -> io::Result<String> {
     script.insert_str(0, "set -e\n");
 
     for opt in sh_options() {
-        let r = sh_run_try(&opt, &script, capture)?;
+        let r = sh_run_try(&opt, &script, capture, current_dir)?;
         if let Some(r) = r {
             return Ok(r);
         }
@@ -592,8 +596,11 @@ pub(crate) fn sh_run(mut script: String, capture: bool) -> io::Result<String> {
         "cannot find bash, tried $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh",
     ))
 }
-fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool) -> io::Result<Option<String>> {
+fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool, current_dir: Option<&Path>) -> io::Result<Option<String>> {
     let mut sh = Command::new(sh);
+    if let Some(d) = current_dir {
+        sh.current_dir(d);
+    }
     sh.arg("-c").arg(script);
     sh.stdin(std::process::Stdio::null());
     sh.stderr(std::process::Stdio::inherit());

@@ -60,8 +60,15 @@ pub fn exit() -> ! {
     }
 }
 
-/// Run the command with args.
+/// Run the command with args, inherits stdout and stderr.
 pub fn cmd(line: &str, args: &[&str], env: &[(&str, &str)]) -> io::Result<()> {
+    cmd_impl(line, args, env, false)
+}
+/// Run the command with args.
+pub fn cmd_silent(line: &str, args: &[&str], env: &[(&str, &str)]) -> io::Result<()> {
+    cmd_impl(line, args, env, true)
+}
+fn cmd_impl(line: &str, args: &[&str], env: &[(&str, &str)], silent: bool) -> io::Result<()> {
     let mut line_parts = line.split(' ');
     let program = line_parts.next().expect("expected program to run");
     let mut cmd = Command::new(program);
@@ -82,16 +89,32 @@ pub fn cmd(line: &str, args: &[&str], env: &[(&str, &str)]) -> io::Result<()> {
         cmd.env(key, val);
     }
 
-    let status = cmd.status()?;
-    if status.success() {
-        Ok(())
-    } else {
-        let mut cmd = format!("cmd failed: {line}");
-        for arg in args {
-            cmd.push(' ');
-            cmd.push_str(arg);
+    if silent {
+        let output = cmd.output()?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            let mut cmd = format!("cmd failed: {line}");
+            for arg in args {
+                cmd.push(' ');
+                cmd.push_str(arg);
+            }
+            cmd.push('\n');
+            cmd.push_str(&String::from_utf8_lossy(&output.stderr));
+            Err(io::Error::new(io::ErrorKind::Other, cmd))
         }
-        Err(io::Error::new(io::ErrorKind::Other, cmd))
+    } else {
+        let status = cmd.status()?;
+        if status.success() {
+            Ok(())
+        } else {
+            let mut cmd = format!("cmd failed: {line}");
+            for arg in args {
+                cmd.push(' ');
+                cmd.push_str(arg);
+            }
+            Err(io::Error::new(io::ErrorKind::Other, cmd))
+        }
     }
 }
 
@@ -113,4 +136,36 @@ pub fn workspace_dir() -> Option<PathBuf> {
 
 pub fn ansi_enabled() -> bool {
     std::env::var("NO_COLOR").is_err()
+}
+
+pub fn clean_value(value: &str, required: bool) -> io::Result<String> {
+    let mut first_char = false;
+    let clean_value: String = value
+        .chars()
+        .filter(|c| {
+            if first_char {
+                first_char = c.is_ascii_alphabetic();
+                first_char
+            } else {
+                *c == ' ' || *c == '-' || *c == '_' || c.is_ascii_alphanumeric()
+            }
+        })
+        .collect();
+    let clean_value = clean_value.trim().to_owned();
+
+    if required && clean_value.is_empty() {
+        if clean_value.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("cannot derive clean value from `{value}`, must contain at least one ascii alphabetic char"),
+            ));
+        }
+        if clean_value.len() > 62 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("cannot derive clean value from `{value}`, must contain <= 62 ascii alphanumeric chars"),
+            ));
+        }
+    }
+    Ok(clean_value)
 }

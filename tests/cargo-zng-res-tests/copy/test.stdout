@@ -1,9 +1,11 @@
 tests/cargo-zng-res-tests/copy/source/a
-  [2mtarget/tmp/tests/cargo_zng/copy/a[22m
+  [2mtarget/tmp/tests/zng_res/copy/a[22m
 tests/cargo-zng-res-tests/copy/source/a/file-a.txt.zr-copy
-[2m  target/tmp/tests/cargo_zng/copy/a/file-a.txt
+[2m  target/tmp/tests/zng_res/copy/a/file-a.txt
 [0mtests/cargo-zng-res-tests/copy/source/a.zr-copy
-[2m  target/tmp/tests/cargo_zng/copy/a
-  target/tmp/tests/cargo_zng/copy/a/merged-file-a.txt
+[2m  target/tmp/tests/zng_res/copy/a
+  target/tmp/tests/zng_res/copy/a/merged-file-a.txt
 [0mtests/cargo-zng-res-tests/copy/source/file-b.txt.zr-copy
-[2m  target/tmp/tests/cargo_zng/copy/file-b.txt
+[2m  target/tmp/tests/zng_res/copy/file-b.txt
+[0m[32m[1mFinished[39m[22m res build in #ms
+         #DIR#

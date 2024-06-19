@@ -27,15 +27,20 @@ pub struct NewArgs {
 
     /// Zng template
     ///
-    /// Can be `.git` URL or an `owner/repo` for a GitHub repository.
-    ///
+    /// Can be a .git URL or an `owner/repo` for a GitHub repository.
     /// Can also be an absolute path or `./path` to a local template directory.
+    ///
+    /// Use `#branch` to select a branch, that is `owner/repo#branch`.
     #[arg(short, long, default_value = "zng-ui/zng-template")]
     template: String,
 
     /// Set a template value
     ///
     /// Templates have a `.zng-template/keys` file that defines the possible options.
+    ///
+    /// EXAMPLE
+    ///
+    /// -s"key=value" -s"k2=v2"
     #[arg(short, long, num_args(0..))]
     set: Vec<String>,
 
@@ -61,22 +66,22 @@ pub fn run(args: NewArgs) {
         Err(e) => fatal!("{e}"),
     };
 
-    println!(cstr!("<bold>validate name and init<bold>"));
+    // validate name and init
     let app = &arg_keys[0].1;
-    let project_name = clean_value(app, true)
+    let project_name = util::clean_value(app, true)
         .unwrap_or_else(|e| fatal!("{e}"))
         .replace(' ', "-")
         .to_lowercase();
     if let Err(e) = util::cmd("cargo new --quiet --bin", &[project_name.as_str()], &[]) {
         let _ = std::fs::remove_dir_all(&project_name);
-        fatal!("{e}");
+        fatal!("cannot init project folder, {e}");
     }
 
     if let Err(e) = cleanup_cargo_new(&project_name) {
         fatal!("failed to cleanup `cargo new` template, {e}");
     }
 
-    println!(cstr!("<bold>clone template<bold>"));
+    // clone template
     let template_temp = PathBuf::from(format!("{project_name}.zng_template.tmp"));
 
     let fatal_cleanup = || {
@@ -89,53 +94,23 @@ pub fn run(args: NewArgs) {
         fatal!("failed to clone template, {e}")
     });
 
-    let cx = Context::new(template_keys, arg_keys, ignore).unwrap_or_else(|e| {
+    let cx = Context::new(&template_temp, template_keys, arg_keys, ignore).unwrap_or_else(|e| {
         fatal_cleanup();
-        fatal!("{e}")
+        fatal!("cannot parse template, {e}")
     });
-    println!(cstr!("<bold>generate template<bold>"));
-    if let Err(e) = apply_template(&cx, &template_temp, &project_name) {
-        error!("{e}");
+    // generate template
+    if let Err(e) = apply_template(&cx, &project_name) {
+        error!("cannot generate, {e}");
         fatal_cleanup();
         util::exit();
     }
 
-    println!(cstr!("<bold>cargo fmt<bold>"));
-    if let Err(e) = std::env::set_current_dir(project_name).and_then(|_| util::cmd("cargo fmt", &[], &[])) {
-        fatal!("{e}")
-    }
-}
-
-fn clean_value(value: &str, required: bool) -> io::Result<String> {
-    let mut first_char = false;
-    let clean_value: String = value
-        .chars()
-        .filter(|c| {
-            if first_char {
-                first_char = c.is_ascii_alphabetic();
-                first_char
-            } else {
-                *c == ' ' || *c == '-' || *c == '_' || c.is_ascii_alphanumeric()
-            }
-        })
-        .collect();
-    let clean_value = clean_value.trim().to_owned();
-
-    if required && clean_value.is_empty() {
-        if clean_value.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("cannot derive clean value from `{value}`, must contain at least one ascii alphabetic char"),
-            ));
-        }
-        if clean_value.len() > 62 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("cannot derive clean value from `{value}`, must contain <= 62 ascii alphanumeric chars"),
-            ));
+    // cargo fmt
+    if Path::new(&project_name).join("Cargo.toml").exists() {
+        if let Err(e) = std::env::set_current_dir(project_name).and_then(|_| util::cmd("cargo fmt", &[], &[])) {
+            fatal!("cannot cargo fmt generated project, {e}")
         }
     }
-    Ok(clean_value)
 }
 
 fn parse_key_values(value: Vec<String>, define: Vec<String>) -> io::Result<ArgsKeyMap> {
@@ -146,7 +121,7 @@ fn parse_key_values(value: Vec<String>, define: Vec<String>) -> io::Result<ArgsK
     }
 
     for key_value in define {
-        if let Some((key, value)) = key_value.split_once('=') {
+        if let Some((key, value)) = key_value.trim_matches('"').split_once('=') {
             if !is_key(key) {
                 return Err(io::Error::new(io::ErrorKind::InvalidInput, format!("invalid key `{key}`")));
             }
@@ -194,45 +169,53 @@ fn print_keys(template: Template) {
 }
 
 fn parse_template(arg: String) -> Template {
+    let (arg, branch) = arg.rsplit_once('#').unwrap_or((&arg, ""));
+
     if arg.ends_with(".git") {
-        return Template::Git(arg);
+        return Template::Git(arg.to_owned(), branch.to_owned());
     }
 
     if arg.starts_with("./") {
-        return Template::Local(PathBuf::from(arg));
+        return Template::Local(PathBuf::from(arg), branch.to_owned());
     }
 
     if let Some((owner, repo)) = arg.split_once('/') {
         if !owner.is_empty() && !repo.is_empty() && !repo.contains('/') {
-            return Template::Git(format!("https://github.com/{owner}/{repo}.git"));
+            return Template::Git(format!("https://github.com/{owner}/{repo}.git"), branch.to_owned());
         }
     }
 
     let path = PathBuf::from(arg);
     if path.is_absolute() {
-        return Template::Local(path);
+        return Template::Local(path.to_owned(), branch.to_owned());
     }
 
     fatal!("--template must be a `.git` URL, `owner/repo`, `./local` or `/absolute/local`");
 }
 
 enum Template {
-    Git(String),
-    Local(PathBuf),
+    Git(String, String),
+    Local(PathBuf, String),
 }
 impl Template {
     /// Clone repository, if it is a template return the `.zng-template/keys,ignore` files contents.
     fn git_clone(self, to: &Path, include_docs: bool) -> io::Result<(KeyMap, Vec<glob::Pattern>)> {
-        let from = match self {
-            Template::Git(url) => url,
-            Template::Local(path) => {
+        let (from, branch) = match self {
+            Template::Git(url, b) => (url, b),
+            Template::Local(path, b) => {
                 let path = dunce::canonicalize(path)?;
-                path.display().to_string()
+                (path.display().to_string(), b)
             }
         };
-        util::cmd("git clone --depth 1", &[from.as_str(), &to.display().to_string()], &[])?;
+        let to_str = to.display().to_string();
+        let mut args = vec![from.as_str(), &to_str];
+        if !branch.is_empty() {
+            args.push("--branch");
+            args.push(&branch);
+        }
+        util::cmd_silent("git clone --depth 1", &args, &[])?;
 
-        let keys = match fs::read_to_string(Path::new(to).join(".zng-template/keys")) {
+        let keys = match fs::read_to_string(to.join(".zng-template/keys")) {
             Ok(s) => parse_keys(s, include_docs)?,
             Err(e) => {
                 if e.kind() == io::ErrorKind::NotFound {
@@ -246,7 +229,7 @@ impl Template {
         };
 
         let mut ignore = vec![];
-        match fs::read_to_string(Path::new(to).join(".zng-template/ignore")) {
+        match fs::read_to_string(to.join(".zng-template/ignore")) {
             Ok(i) => {
                 for glob in i.lines().map(|l| l.trim()).filter(|l| !l.is_empty() && !l.starts_with('#')) {
                     let glob = glob::Pattern::new(glob).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
@@ -279,8 +262,8 @@ fn cleanup_cargo_new(path: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn apply_template(cx: &Context, template_temp: &Path, package_name: &str) -> io::Result<()> {
-    let template_temp = dunce::canonicalize(template_temp)?;
+fn apply_template(cx: &Context, package_name: &str) -> io::Result<()> {
+    let template_temp = &cx.template_root;
 
     // remove template .git
     fs::remove_dir_all(template_temp.join(".git"))?;
@@ -289,6 +272,7 @@ fn apply_template(cx: &Context, template_temp: &Path, package_name: &str) -> io:
     let post = template_temp.join(".zng-template/post");
     if post.is_dir() {
         let post_replaced = template_temp.join(".zng-template/post-temp");
+        fs::create_dir_all(&post_replaced)?;
         apply(cx, true, &post, &post_replaced)?;
         fs::remove_dir_all(&post)?;
         fs::rename(&post_replaced, &post)?;
@@ -297,12 +281,12 @@ fn apply_template(cx: &Context, template_temp: &Path, package_name: &str) -> io:
 
     // rename/rewrite template and move it to new package dir
     let to = PathBuf::from(package_name);
-    apply(cx, false, &template_temp, &to)?;
+    apply(cx, false, template_temp, &to)?;
 
     let bash = post.join("post.sh");
     if bash.is_file() {
         let script = fs::read_to_string(bash)?;
-        crate::res::built_in::sh_run(script, false)?;
+        crate::res::built_in::sh_run(script, false, Some(&to))?;
     } else {
         let manifest = post.join("Cargo.toml");
         if manifest.exists() {
@@ -314,10 +298,10 @@ fn apply_template(cx: &Context, template_temp: &Path, package_name: &str) -> io:
                 .current_dir(to)
                 .status()?;
             if !s.success() {}
-        } else {
+        } else if post.exists() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                ".zng-template/post is not a script nor crate",
+                ".zng-template/post does not contain 'post.sh' nor 'Cargo.toml'",
             ));
         }
     }
@@ -335,14 +319,14 @@ fn apply(cx: &Context, is_post: bool, from: &Path, to: &Path) -> io::Result<()> 
         if from.is_dir() {
             let from = cx.rename(&from)?;
             let to = to.join(from.file_name().unwrap());
-            println!("{}", to.display());
+            println!("  {}", to.display());
             fs::create_dir(&to)?;
             apply(cx, is_post, &from, &to)?;
         } else if from.is_file() {
             let from = cx.rename(&from)?;
             let to = to.join(from.file_name().unwrap());
             cx.rewrite(&from)?;
-            println!("{}", to.display());
+            println!("  {}", to.display());
             fs::rename(from, to).unwrap();
         }
     }
@@ -350,12 +334,13 @@ fn apply(cx: &Context, is_post: bool, from: &Path, to: &Path) -> io::Result<()> 
 }
 
 struct Context {
+    template_root: PathBuf,
     replace: ReplaceMap,
     ignore_workspace: glob::Pattern,
     ignore: Vec<glob::Pattern>,
 }
 impl Context {
-    fn new(mut template_keys: KeyMap, arg_keys: ArgsKeyMap, ignore: Vec<glob::Pattern>) -> io::Result<Self> {
+    fn new(template_root: &Path, mut template_keys: KeyMap, arg_keys: ArgsKeyMap, ignore: Vec<glob::Pattern>) -> io::Result<Self> {
         for (i, (key, value)) in arg_keys.into_iter().enumerate() {
             if key.is_empty() {
                 if i >= template_keys.len() {
@@ -375,6 +360,7 @@ impl Context {
             }
         }
         Ok(Self {
+            template_root: dunce::canonicalize(template_root)?,
             replace: make_replacements(&template_keys)?,
             ignore_workspace: glob::Pattern::new(".zng-template").unwrap(),
             ignore,
@@ -382,6 +368,8 @@ impl Context {
     }
 
     fn ignore(&self, template_path: &Path, is_post: bool) -> bool {
+        let template_path = template_path.strip_prefix(&self.template_root).unwrap();
+
         if !is_post && self.ignore_workspace.matches_path(template_path) {
             return true;
         }
@@ -432,7 +420,7 @@ impl Context {
 
 static PATTERNS: &[(&str, &str, Option<Case>)] = &[
     ("t-key-t", "kebab-case", Some(Case::Kebab)),
-    ("T-KEY-T", "UPPER-KEBAB-CASE", Some(Case::UpperFlat)),
+    ("T-KEY-T", "UPPER-KEBAB-CASE", Some(Case::UpperKebab)),
     ("t_key_t", "snake_case", Some(Case::Snake)),
     ("T_KEY_T", "UPPER_SNAKE_CASE", Some(Case::UpperSnake)),
     ("T-Key-T", "Train-Case", Some(Case::Train)),
@@ -532,13 +520,21 @@ fn make_replacements(keys: &KeyMap) -> io::Result<ReplaceMap> {
                 ))
             }
         };
-        let clean_value = clean_value(value, kv.required)?;
+        let clean_value = util::clean_value(value, kv.required)?;
 
         for (pattern, _, case) in PATTERNS {
             let prefix = &pattern[..2];
             let suffix = &pattern[pattern.len() - 2..];
             let (key, value) = if let Some(case) = case {
-                (kv.key.to_case(*case), clean_value.to_case(*case))
+                let key_case = match case {
+                    Case::Camel => Case::Pascal,
+                    c => *c,
+                };
+                let value = match pattern.contains('.') {
+                    true => &clean_value,
+                    false => value,
+                };
+                (kv.key.to_case(key_case), value.to_case(*case))
             } else {
                 (kv.key.to_owned(), value.to_owned())
             };

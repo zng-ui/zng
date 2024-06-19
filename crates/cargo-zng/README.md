@@ -61,9 +61,9 @@ Options:
   -t, --template <TEMPLATE>
           Zng template
 
-          Can be `.git` URL or an `owner/repo` for a GitHub repository.
+          Can be a .git URL or an `owner/repo` for a GitHub repository. Can also be an absolute path or `./path` to a local template directory.
 
-          Can also be an absolute path or `./path` to a local template directory.
+          Use `#branch` to select a branch, that is `owner/repo#branch`.
 
           [default: zng-ui/zng-template]
 
@@ -71,6 +71,10 @@ Options:
           Set a template value
 
           Templates have a `.zng-template/keys` file that defines the possible options.
+
+          EXAMPLE
+
+          -s"key=value" -s"k2=v2"
 
   -k, --keys
           Show all possible values that can be set on the template
@@ -99,7 +103,7 @@ Template keys encode the format they provide, these are the current supported ke
 * TtKeyTt — PascalCase
 * {{key}} — Unchanged.
 
-The values for each format (except {{key}}) are cleaned of chars that do not match this pattern
+The values for each key not starting with '{{', 't.', 'T.' are cleaned of chars that do not match this pattern
 `[ascii_alphabetic][ascii_alphanumeric|'-'|'_'|' '|]*`. The case and separator conversions are applied to this
 cleaned value.
 
@@ -489,17 +493,19 @@ $ cargo zng res --tool rp
 
   The :case functions are:
 
-  :k — kebab-case
-  :K — UPPER-KEBAB-CASE
-  :s — snake_case
-  :S — UPPER_SNAKE_CASE
+  :k — kebab-case (cleaned)
+  :K — UPPER-KEBAB-CASE (cleaned)
+  :s — snake_case (cleaned)
+  :S — UPPER_SNAKE_CASE (cleaned)
   :l — lower case
   :U — UPPER CASE
   :T — Title Case
-  :c — camelCase
-  :P — PascalCase
-  :Tr — Train-Case
+  :c — camelCase (cleaned)
+  :P — PascalCase (cleaned)
+  :Tr — Train-Case (cleaned)
   : — Unchanged
+
+  Cleaned values only keep ascii alphabetic first char and ascii alphanumerics, ' ', '-' and '_' other chars.
 
   The fallback(:?else) can have nested ${...} patterns.
   You can set both case and else: '${VAR:case?else}'.

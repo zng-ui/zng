@@ -14,4 +14,4 @@ FILE-A
 
 Hello World!
 
-hello-world!
+hello-world
