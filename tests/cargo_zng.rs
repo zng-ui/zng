@@ -353,7 +353,14 @@ fn git_init(dir: &Path) -> io::Result<()> {
     let mut add = Command::new("git");
     add.arg("add").arg(".");
     let mut commit = Command::new("git");
-    commit.arg("commit").arg("-m").arg("test");
+    commit
+        .arg("commit")
+        .arg("-m")
+        .arg("test")
+        .env("GIT_AUTHOR_NAME", "cargo_zng::git_init")
+        .env("GIT_AUTHOR_EMAIL", "test@test.com")
+        .env("GIT_COMMITTER_NAME", "cargo_zng::git_init")
+        .env("GIT_COMMITTER_EMAIL", "test@test.com");
     for mut cmd in [init, add, commit] {
         match cmd.current_dir(dir).output() {
             Ok(s) => {
