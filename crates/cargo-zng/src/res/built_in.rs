@@ -271,12 +271,12 @@ The parameters syntax is ${VAR|!|<[:[case]][?else]}:
 
 ${VAR}          — Replaces with the env var value, or fails if it is not set.
 ${VAR:case}     — Replaces with the env var value, case converted.
-${VAR:?else}    — If VAR is not set uses 'else' instead.
+${VAR:?else}    — If VAR is not set or is empty uses 'else' instead.
 
 ${<file.txt}    — Replaces with the 'file.txt' content. 
                   Paths are relative to the workspace root.
 ${<file:case}   — Replaces with the 'file.txt' content, case converted.
-${<file:?else}  — If file cannot be read uses 'else' instead.
+${<file:?else}  — If file cannot be read or is empty uses 'else' instead.
 
 ${!cmd -h}      — Replaces with the stdout of the bash script line. 
                   The script runs the same bash used by '.zr-sh'.
@@ -285,7 +285,7 @@ ${!cmd -h}      — Replaces with the stdout of the bash script line.
                   The working directory is the workspace root.
 ${!cmd:case}    — Replaces with the stdout, case converted. 
                   If the script contains ':' quote it with double quotes\"
-$!{!cmd:?else}  — If script fails, uses 'else' instead.
+$!{!cmd:?else}  — If script fails or ha no stdout, uses 'else' instead.
 
 $${VAR}         — Escapes $, replaces with '${VAR}'.
 
@@ -432,6 +432,11 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                     env::var(var).ok()
                 };
 
+                let value = match value {
+                    Some(s) if !s.is_empty() => Some(s),
+                    _ => None,
+                };
+
                 if let Some(value) = value {
                     let value = match case {
                         "k" => util::clean_value(&value, false).unwrap().to_case(Case::Kebab),
@@ -461,7 +466,7 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                         out.push_str(fallback);
                     }
                 } else {
-                    return Err(format!("${{{var}}} cannot be read"));
+                    return Err(format!("${{{var}}} cannot be read or is empty"));
                 }
             }
         } else {
@@ -770,9 +775,9 @@ mod tests {
         assert_eq!("normal text", replace("normal text", 0).unwrap());
         assert_eq!("escaped ${NOT}", replace("escaped $${NOT}", 0).unwrap());
         assert_eq!("replace 'test value'", replace("replace '${ZR_RP_TEST}'", 0).unwrap());
-        assert_eq!("${} cannot be read", replace("empty '${}'", 0).unwrap_err()); // hmm
+        assert_eq!("${} cannot be read or is empty", replace("empty '${}'", 0).unwrap_err()); // hmm
         assert_eq!(
-            "${ZR_RP_TEST_NOT_SET} cannot be read",
+            "${ZR_RP_TEST_NOT_SET} cannot be read or is empty",
             replace("not set '${ZR_RP_TEST_NOT_SET}'", 0).unwrap_err()
         );
         assert_eq!(
