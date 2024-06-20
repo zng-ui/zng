@@ -618,8 +618,8 @@ jobs:
     steps:
       - uses: geekyeggo/delete-artifact@v5
         with:
-          name: |
-            prebuilt-*
+          name: |   
+            *zng_view*
             doc
             release-changes.md
           failOnError: false
