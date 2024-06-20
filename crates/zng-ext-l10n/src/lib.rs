@@ -208,30 +208,6 @@ impl L10N {
         self.load(L10nDir::open(dir))
     }
 
-    /// Call [`load_dir`], with a relative `dir` that is relative to the current executable directory.
-    ///
-    /// [`load_dir`]: Self::load_dir
-    pub fn load_exe_dir(&self, dir: impl Into<PathBuf>) {
-        self.load_exe_dir_impl(dir.into())
-    }
-    fn load_exe_dir_impl(&self, dir: PathBuf) {
-        if dir.is_absolute() {
-            tracing::warn!("absolute path in `load_exe_dir`");
-            self.load_dir(dir);
-        } else {
-            match std::env::current_exe().and_then(dunce::canonicalize) {
-                Ok(p) => {
-                    if let Some(p) = p.parent() {
-                        self.load_dir(p.join(dir));
-                    } else {
-                        self.load_dir(dir);
-                    }
-                }
-                Err(e) => tracing::error!("no executable path, {e}"),
-            }
-        }
-    }
-
     /// Available localization files.
     ///
     /// The value maps lang to one or more files, the files can be `{dir}/{lang}.flt` or `{dir}/{lang}/*.flt`.
