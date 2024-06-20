@@ -231,7 +231,7 @@ fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: 
     r.boxed()
 }
 
-/// Represents localization source that can swap the actual source without disconnected variables
+/// Represents localization source that can swap the actual source without disconnecting variables
 /// taken on resources.
 ///
 /// Note that [`L10N.load`] already uses this source internally.
