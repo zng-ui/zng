@@ -27,7 +27,7 @@ zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.9" }
 zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.19" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.7" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.3.15" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.3.15" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.4.0" }
 zng-var = { path = "../zng-var", version = "0.4.5" }
 
 parking_lot = "0.12"

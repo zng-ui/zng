@@ -24,4 +24,4 @@ zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.19" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.19" }
 zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.19" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.7" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.3.15" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.4.0" }

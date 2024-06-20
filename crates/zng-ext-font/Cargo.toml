@@ -23,7 +23,7 @@ zng-app-context = { path = "../zng-app-context", version = "0.5.2" }
 zng-app = { path = "../zng-app", version = "0.8.0" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 zng-view-api = { path = "../zng-view-api", version = "0.5.4" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.3.15" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.4.0" }
 zng-var = { path = "../zng-var", version = "0.4.5" }
 zng-task = { path = "../zng-task", version = "0.3.3" }
 zng-layout = { path = "../zng-layout", version = "0.2.15" }

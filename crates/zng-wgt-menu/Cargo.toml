@@ -32,6 +32,6 @@ zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.19" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.19" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.19" }
 zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.3.9" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.3.15" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.4.0" }
 zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.3.9" }
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.3.9" }
