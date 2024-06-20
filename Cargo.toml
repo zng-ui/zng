@@ -17,7 +17,8 @@ debug = 1
 
 [profile.release-lto]
 inherits = "release"
-lto = "thin"
+lto = "fat"
+codegen-units = 1
 
 [profile.prebuild]
 inherits = "release-lto"
