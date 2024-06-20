@@ -31,7 +31,7 @@
 //!
 //! APP.defaults().run_window(async {
 //!     // start loading localization resources
-//!     L10N.load_exe_dir("res/fluent");
+//!     L10N.load_dir(zng::env::res("l10n"));
 //!     // set the app language, by default is the system language
 //!     L10N.app_lang().set(lang!("en-US"));
 //!     // preload the localization resources for a language
