@@ -1,6 +1,6 @@
 [package]
 name = "zng-app"
-version = "0.7.3"
+version = "0.8.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -70,7 +70,7 @@ deadlock_detection = ["zng-task/deadlock_detection"]
 zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.3.3" }
 
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.4" }
-zng-env = { path = "../zng-env", version = "0.2.3" }
+zng-env = { path = "../zng-env", version = "0.3.0" }
 zng-handle = { path = "../zng-handle", version = "0.2.5" }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.7" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }

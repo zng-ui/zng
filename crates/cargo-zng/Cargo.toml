@@ -1,6 +1,6 @@
 [package]
 name = "cargo-zng"
-version = "0.2.3"
+version = "0.3.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -32,7 +32,7 @@ walkdir = "2.5"
 is_executable = "1.0"
 anyhow = "1.0"
 dunce = "1.0"
-zng-env = { path = "../zng-env", version = "0.2.3" }
+zng-env = { path = "../zng-env", version = "0.3.0" }
 
 [package.metadata.docs.rs]
 all-features = true

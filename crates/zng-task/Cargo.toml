@@ -53,7 +53,7 @@ zng-unit = { path = "../zng-unit", version = "0.2.7" }
 zng-app-context = { path = "../zng-app-context", version = "0.5.2" }
 zng-time = { path = "../zng-time", version = "0.2.13" }
 zng-var = { path = "../zng-var", version = "0.4.5" }
-zng-env = { path = "../zng-env", version = "0.2.3" }
+zng-env = { path = "../zng-env", version = "0.3.0" }
 
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.4", default-features = false, optional = true }
 zng-txt = { path = "../zng-txt", version = "0.2.7", optional = true }
