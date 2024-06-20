@@ -1,6 +1,6 @@
 [package]
 name = "zng-env"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -18,7 +18,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 built_res = []
 
 [dependencies]
-zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.1.2" }
+zng-env-proc-macros = { path = "../zng-env-proc-macros", version = "0.2.0" }
 directories = "5.0"
 parking_lot = "0.12"
 tracing = "0.1"

@@ -1,6 +1,6 @@
 [package]
 name = "zng-task"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -50,10 +50,10 @@ test_util = []
 zng-task-proc-macros = { path = "../zng-task-proc-macros", version = "0.2.6" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
 zng-unit = { path = "../zng-unit", version = "0.2.7" }
-zng-app-context = { path = "../zng-app-context", version = "0.5.1" }
-zng-time = { path = "../zng-time", version = "0.2.12" }
-zng-var = { path = "../zng-var", version = "0.4.4" }
-zng-env = { path = "../zng-env", version = "0.2.2" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.2" }
+zng-time = { path = "../zng-time", version = "0.2.13" }
+zng-var = { path = "../zng-var", version = "0.4.5" }
+zng-env = { path = "../zng-env", version = "0.3.0" }
 
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.4", default-features = false, optional = true }
 zng-txt = { path = "../zng-txt", version = "0.2.7", optional = true }
