@@ -52,12 +52,17 @@ fn res_error_bash() {
 
 #[test]
 fn new_basic() {
-    new("basic", &["The App", r#"-s"org=The Org""#, r#"-s"qualifier=.qual""#], Expect::Ok);
+    new("basic", &["The App!", r#"-s"org=The Org!""#, r#"-s"qualifier=.qual""#], Expect::Ok);
 }
 
 #[test]
 fn new_post() {
     new("post", &["The App"], Expect::Ok);
+}
+
+#[test]
+fn new_sanitize() {
+    new("sanitize", &["The App /?/"], Expect::Ok);
 }
 
 fn new(test: &str, keys: &[&str], expect: Expect) {

@@ -385,7 +385,8 @@ impl Context {
     fn rename(&self, template_path: &Path) -> io::Result<PathBuf> {
         let mut path = template_path.to_string_lossy().into_owned();
         for (key, value) in &self.replace {
-            path = path.replace(key, value);
+            let value = sanitise_file_name::sanitize(value);
+            path = path.replace(key, &value);
         }
         let path = PathBuf::from(path);
         if template_path != path {
@@ -530,7 +531,7 @@ fn make_replacements(keys: &KeyMap) -> io::Result<ReplaceMap> {
                     Case::Camel => Case::Pascal,
                     c => *c,
                 };
-                let value = match pattern.contains('.') {
+                let value = match !pattern.contains('.') && !pattern.contains('{') {
                     true => &clean_value,
                     false => value,
                 };

@@ -1,7 +1,7 @@
 | expected  | actual        |
 |-----------|---------------|
 | The App!  | {{app}}       |
-| The Org   | {{org}}       |
+| The Org!  | {{org}}       |
 | .qual     | {{qualifier}} |
 | the-app   | t-app-t       |
 | THE-APP   | T-APP-T       |

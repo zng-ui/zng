@@ -24,6 +24,7 @@ fluent-pseudo = "0.3"
 
 # new
 convert_case = "0.6"
+sanitise-file-name = "1.0"
 
 # res
 sha2 = "0.10"
