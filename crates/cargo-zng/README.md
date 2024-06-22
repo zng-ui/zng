@@ -103,9 +103,10 @@ Template keys encode the format they provide, these are the current supported ke
 * TtKeyTt — PascalCase
 * {{key}} — Unchanged.
 
-The values for each key not starting with '{{', 't.', 'T.' are cleaned of chars that do not match this pattern
-`[ascii_alphabetic][ascii_alphanumeric|'-'|'_'|' '|]*`. The case and separator conversions are applied to this
-cleaned value.
+The values for each key not starting with '{{', 't.', 'T.' are cleaned of chars that are not ASCII alphanumeric, `-`, `_` and ` `,
+the first char is also cleaned of numerals. The case and separator conversions are applied to the cleaned value.
+
+Values in file names are also sanitized to be valid file names in all main operating systems.
 
 The actual keys are declared by the template in the `.zng-template/keys` file, they
 are ascii alphabetic with >=3 lowercase chars.

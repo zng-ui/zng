@@ -1,5 +1,7 @@
 # Unreleased
 
+* Sanitize file names in `cargo zng new`.
+* Fix `cargo zng new` values cleanup.
 
 # 0.9.0
 
