@@ -291,19 +291,23 @@ $${VAR}         — Escapes $, replaces with '${VAR}'.
 
 The :case functions are:
 
-:k — kebab-case (cleaned)
-:K — UPPER-KEBAB-CASE (cleaned)
-:s — snake_case (cleaned)
-:S — UPPER_SNAKE_CASE (cleaned)
-:l — lower case
-:U — UPPER CASE
-:T — Title Case
-:c — camelCase (cleaned)
-:P — PascalCase (cleaned)
-:Tr — Train-Case (cleaned)
-: — Unchanged
+:k or :kebab  — kebab-case (cleaned)
+:K or :KEBAB  — UPPER-KEBAB-CASE (cleaned)
+:s or :snake  — snake_case (cleaned)
+:S or :SNAKE  — UPPER_SNAKE_CASE (cleaned)
+:l or :lower  — lower case
+:U or :UPPER  — UPPER CASE
+:T or :Title  — Title Case
+:c or :camel  — camelCase (cleaned)
+:P or :Pascal — PascalCase (cleaned)
+:Tr or :Train — Train-Case (cleaned)
+:           — Unchanged
+:clean      — Cleaned
+:f or :file — Sanitize file name
 
 Cleaned values only keep ascii alphabetic first char and ascii alphanumerics, ' ', '-' and '_' other chars.
+More then one case function can be used, separated by pipe ':T|f' converts to title case and sanitize for file name. 
+
 
 The fallback(:?else) can have nested ${...} patterns. 
 You can set both case and else: '${VAR:case?else}'.
@@ -446,21 +450,25 @@ fn replace(line: &str, recursion_depth: usize) -> Result<String, String> {
                     _ => None,
                 };
 
-                if let Some(value) = value {
-                    let value = match case {
-                        "k" => util::clean_value(&value, false).unwrap().to_case(Case::Kebab),
-                        "K" => util::clean_value(&value, false).unwrap().to_case(Case::UpperKebab),
-                        "s" => util::clean_value(&value, false).unwrap().to_case(Case::Snake),
-                        "S" => util::clean_value(&value, false).unwrap().to_case(Case::UpperSnake),
-                        "l" => value.to_case(Case::Lower),
-                        "U" => value.to_case(Case::Upper),
-                        "T" => value.to_case(Case::Title),
-                        "c" => util::clean_value(&value, false).unwrap().to_case(Case::Camel),
-                        "P" => util::clean_value(&value, false).unwrap().to_case(Case::Pascal),
-                        "Tr" => util::clean_value(&value, false).unwrap().to_case(Case::Train),
-                        "" => value,
-                        unknown => return Err(format!("unknown case '{unknown}'")),
-                    };
+                if let Some(mut value) = value {
+                    for case in case.split('|') {
+                        value = match case {
+                            "k" | "kebab" => util::clean_value(&value, false).unwrap().to_case(Case::Kebab),
+                            "K" | "KEBAB" => util::clean_value(&value, false).unwrap().to_case(Case::UpperKebab),
+                            "s" | "snake" => util::clean_value(&value, false).unwrap().to_case(Case::Snake),
+                            "S" | "SNAKE" => util::clean_value(&value, false).unwrap().to_case(Case::UpperSnake),
+                            "l" | "lower" => value.to_case(Case::Lower),
+                            "U" | "UPPER" => value.to_case(Case::Upper),
+                            "T" | "Title" => value.to_case(Case::Title),
+                            "c" | "camel" => util::clean_value(&value, false).unwrap().to_case(Case::Camel),
+                            "P" | "Pascal" => util::clean_value(&value, false).unwrap().to_case(Case::Pascal),
+                            "Tr" | "Train" => util::clean_value(&value, false).unwrap().to_case(Case::Train),
+                            "" => value,
+                            "clean" => util::clean_value(&value, false).unwrap(),
+                            "f" | "file" => sanitise_file_name::sanitise(&value),
+                            unknown => return Err(format!("unknown case '{unknown}'")),
+                        };
+                    }
                     out.push_str(&value);
                 } else if let Some(fallback) = fallback {
                     if let Some(error) = fallback.strip_prefix('!') {
