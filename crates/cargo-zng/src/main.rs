@@ -46,7 +46,7 @@ struct Zng {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Initialize a new repository from a Zng template repository.
+    /// New project from a Zng template repository.
     New(new::NewArgs),
     /// Localization text scraper
     ///
