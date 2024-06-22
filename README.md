@@ -49,6 +49,21 @@ See the [`documentation`] for more details.
 
 [`documentation`]: https://zng-ui.github.io/doc/zng/
 
+### Project Template
+
+You can also use [`cargo zng new`] to generate a new project with useful boilerplate and distribution
+packaging already setup.
+
+```console
+cargo install cargo-zng
+cargo zng new "My App!"
+```
+
+The example above installs `cargo-zng` and uses it to generate a new './my-app' crate from the [default template].
+
+[`cargo zng new`]: crates/cargo-zng#new
+[default template]: https://github.com/zng-ui/zng-template
+
 ## Crates
 
 The `zng` crate is the only dependency you need to create apps, it re-exports the primary API of the other 

@@ -1,4 +1,4 @@
-//! Initialize a new repository from a Zng template repository
+//! Initialize a new project from a Zng template repository
 
 use std::{
     fs, io, mem,
@@ -133,8 +133,6 @@ fn parse_key_values(value: Vec<String>, define: Vec<String>) -> io::Result<ArgsK
 }
 
 fn print_keys(template: Template) {
-    println!(cstr!("<bold>clone template to temp dir<bold>"));
-
     for i in 0..100 {
         let template_temp = std::env::temp_dir().join(format!("cargo-zng-template-keys-help-{i}"));
         if template_temp.exists() {

@@ -23,7 +23,7 @@ Zng project manager.
 Usage: cargo zng <COMMAND>
 
 Commands:
-  new   Initialize a new repository from a Zng template repository
+  new   New project from a Zng template repository
   l10n  Localization text scraper
   res   Build resources
   help  Print this message or the help of the given subcommand(s)
@@ -41,7 +41,7 @@ Initialize a new repository from a Zng template repository.
 ```console
 $ cargo zng new --help
 
-Initialize a new repository from a Zng template repository
+New project from a Zng template repository
 
 Usage: cargo zng new [OPTIONS] [VALUE]...
 
