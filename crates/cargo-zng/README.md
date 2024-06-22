@@ -495,19 +495,23 @@ $ cargo zng res --tool rp
 
   The :case functions are:
 
-  :k — kebab-case (cleaned)
-  :K — UPPER-KEBAB-CASE (cleaned)
-  :s — snake_case (cleaned)
-  :S — UPPER_SNAKE_CASE (cleaned)
-  :l — lower case
-  :U — UPPER CASE
-  :T — Title Case
-  :c — camelCase (cleaned)
-  :P — PascalCase (cleaned)
-  :Tr — Train-Case (cleaned)
-  : — Unchanged
+  :k or :kebab  — kebab-case (cleaned)
+  :K or :KEBAB  — UPPER-KEBAB-CASE (cleaned)
+  :s or :snake  — snake_case (cleaned)
+  :S or :SNAKE  — UPPER_SNAKE_CASE (cleaned)
+  :l or :lower  — lower case
+  :U or :UPPER  — UPPER CASE
+  :T or :Title  — Title Case
+  :c or :camel  — camelCase (cleaned)
+  :P or :Pascal — PascalCase (cleaned)
+  :Tr or :Train — Train-Case (cleaned)
+  :           — Unchanged
+  :clean      — Cleaned
+  :f or :file — Sanitize file name
 
   Cleaned values only keep ascii alphabetic first char and ascii alphanumerics, ' ', '-' and '_' other chars.
+  More then one case function can be used, separated by pipe ':T|f' converts to title case and sanitize for file name.
+
 
   The fallback(:?else) can have nested ${...} patterns.
   You can set both case and else: '${VAR:case?else}'.
