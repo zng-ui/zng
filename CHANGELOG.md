@@ -2,6 +2,12 @@
 
 * Sanitize file names in `cargo zng new`.
 * Fix `cargo zng new` values cleanup.
+* Add more :case conversion functions in `.zr-rp`.
+    - Add alternative longer names for all cases.
+    - Add `:clean` that only applies cleanup.
+    - Add `:f` or `:file` that sanitizes for file name.
+* Support multiple :case functions in `.zr-rp`.
+    - Pipe separator, `:T|f` applies `:Title` them `:file`.
 
 # 0.9.0
 
