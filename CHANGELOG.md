@@ -1,6 +1,7 @@
 # Unreleased
 
 * Sanitize file names in `cargo zng new`.
+    - Also add `f-key-f` and `f-Key-f` for templates to interpolate sanitized file names.
 * Fix `cargo zng new` values cleanup.
 * Add more :case conversion functions in `.zr-rp`.
     - Add alternative longer names for all cases.

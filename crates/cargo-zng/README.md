@@ -91,22 +91,23 @@ The replacement keys are valid crate/type names, so template designers can build
 
 Template keys encode the format they provide, these are the current supported key cases:
 
-* t-key-t — kebab-case
-* T-KEY-T — UPPER-KEBAB-CASE
-* t_key_t — snake_case
-* T_KEY_T — UPPER_SNAKE_CASE
-* T-Key-T — Train-Case
+* t-key-t — kebab-case (cleaned)
+* T-KEY-T — UPPER-KEBAB-CASE (cleaned)
+* t_key_t — snake_case (cleaned)
+* T_KEY_T — UPPER_SNAKE_CASE (cleaned)
+* T-Key-T — Train-Case (cleaned)
 * t.key.t — lower case
 * T.KEY.T — UPPER CASE
 * T.Key.T — Title Case
-* ttKeyTt — camelCase
-* TtKeyTt — PascalCase
-* {{key}} — Unchanged.
+* ttKeyTt — camelCase (cleaned)
+* TtKeyTt — PascalCase (cleaned)
+* {{key}} — Unchanged
+* f-key-f — Sanitized, otherwise unchanged
+* f-Key-f — Title Case (sanitized)
 
-The values for each key not starting with '{{', 't.', 'T.' are cleaned of chars that are not ASCII alphanumeric, `-`, `_` and ` `,
-the first char is also cleaned of numerals. The case and separator conversions are applied to the cleaned value.
+Cleaned values only keep ascii alphabetic first char and ascii alphanumerics, ' ', '-' and '_' other chars.
 
-Values in file names are also sanitized to be valid file names in all main operating systems.
+Sanitized values are valid file names in all operating systems. Values in file names are automatically sanitized.
 
 The actual keys are declared by the template in the `.zng-template/keys` file, they
 are ascii alphabetic with >=3 lowercase chars.

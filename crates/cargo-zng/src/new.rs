@@ -385,8 +385,14 @@ impl Context {
     fn rename(&self, template_path: &Path) -> io::Result<PathBuf> {
         let mut path = template_path.to_string_lossy().into_owned();
         for (key, value) in &self.replace {
-            let value = sanitise_file_name::sanitize(value);
-            path = path.replace(key, &value);
+            let s_value;
+            let value = if is_sanitized_key(key) {
+                value
+            } else {
+                s_value = sanitise_file_name::sanitize(value);
+                &s_value
+            };
+            path = path.replace(key, value);
         }
         let path = PathBuf::from(path);
         if template_path != path {
@@ -430,7 +436,9 @@ static PATTERNS: &[(&str, &str, Option<Case>)] = &[
     ("T.Key.T", "Title Case", Some(Case::Title)),
     ("ttKeyTt", "camelCase", Some(Case::Camel)),
     ("TtKeyTt", "PascalCase", Some(Case::Pascal)),
-    ("{{key}}", "<unchanged>", None),
+    ("{{key}}", "Unchanged", None),
+    ("f-key-f", "Sanitized", None),
+    ("F-Key-F", "Title Sanitized", None),
 ];
 
 type KeyMap = Vec<TemplateKey>;
@@ -539,9 +547,18 @@ fn make_replacements(keys: &KeyMap) -> io::Result<ReplaceMap> {
             } else {
                 (kv.key.to_owned(), value.to_owned())
             };
+            let value = if is_sanitized_key(&key) {
+                sanitise_file_name::sanitize(&value)
+            } else {
+                value
+            };
             let key = format!("{prefix}{key}{suffix}");
             r.push((key, value));
         }
     }
     Ok(r)
+}
+
+fn is_sanitized_key(key: &str) -> bool {
+    key.starts_with('f') || key.starts_with('F')
 }
