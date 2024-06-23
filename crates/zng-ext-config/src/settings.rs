@@ -10,7 +10,7 @@ use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue
 use zng_txt::Txt;
 use zng_var::{var, AnyVar, AnyVarHookArgs, AnyVarValue, BoxedAnyVar, BoxedVar, IntoVar, LocalVar, Var, VarValue};
 
-use crate::{ConfigKey, ConfigValue, CONFIG};
+use crate::{AnyConfig, ConfigKey, ConfigValue, CONFIG};
 
 /// Settings metadata service.
 pub struct SETTINGS;
@@ -26,14 +26,34 @@ impl SETTINGS {
         SETTINGS_SV.write().sources_cat.push(Box::new(f))
     }
 
-    /// Select and sort settings matched by `filter`.
+    /// Select and sort settings matched by `filter` that edits configs from [`CONFIG`].
     pub fn get(&self, mut filter: impl FnMut(&ConfigKey, &CategoryId) -> bool, sort: bool) -> Vec<(Category, Vec<Setting>)> {
-        self.get_impl(&mut filter, sort)
+        self.get_impl(None, &mut filter, sort)
     }
-    fn get_impl(&self, filter: &mut dyn FnMut(&ConfigKey, &CategoryId) -> bool, sort: bool) -> Vec<(Category, Vec<Setting>)> {
+
+    /// Select and sort settings matched by `filter` that edits configs from a different source.
+    pub fn get_for(
+        &self,
+        config: &mut impl AnyConfig,
+        mut filter: impl FnMut(&ConfigKey, &CategoryId) -> bool,
+        sort: bool,
+    ) -> Vec<(Category, Vec<Setting>)> {
+        self.get_impl(Some(config), &mut filter, sort)
+    }
+
+    fn get_impl(
+        &self,
+        config: Option<&mut dyn AnyConfig>,
+        filter: &mut dyn FnMut(&ConfigKey, &CategoryId) -> bool,
+        sort: bool,
+    ) -> Vec<(Category, Vec<Setting>)> {
         let sv = SETTINGS_SV.read();
 
-        let mut settings = SettingsBuilder { settings: vec![], filter };
+        let mut settings = SettingsBuilder {
+            config,
+            settings: vec![],
+            filter,
+        };
         for source in sv.sources.iter() {
             source(&mut settings);
         }
@@ -98,6 +118,7 @@ impl SETTINGS {
 
         for source in sv.sources.iter() {
             source(&mut SettingsBuilder {
+                config: None,
                 settings: vec![],
                 filter: &mut |k, i| {
                     if filter(k, i) {
@@ -125,6 +146,7 @@ impl SETTINGS {
 
         for source in sv.sources.iter() {
             source(&mut SettingsBuilder {
+                config: None,
                 settings: vec![],
                 filter: &mut |k, i| {
                     if filter(k, i) {
@@ -323,11 +345,12 @@ struct SettingsService {
 }
 
 /// Settings builder.
-pub struct SettingsBuilder<'f> {
+pub struct SettingsBuilder<'a> {
+    config: Option<&'a mut dyn AnyConfig>,
     settings: Vec<Setting>,
-    filter: &'f mut dyn FnMut(&ConfigKey, &CategoryId) -> bool,
+    filter: &'a mut dyn FnMut(&ConfigKey, &CategoryId) -> bool,
 }
-impl<'f> SettingsBuilder<'f> {
+impl<'c> SettingsBuilder<'c> {
     /// Get the setting entry builder for the key and category if it is requested by the view query.
     ///
     /// If the setting is already present the builder overrides only the metadata set.
@@ -339,6 +362,7 @@ impl<'f> SettingsBuilder<'f> {
             if let Some(i) = self.settings.iter().position(|s| s.key == config_key) {
                 let existing = self.settings.swap_remove(i);
                 Some(SettingBuilder {
+                    config: self.config.as_deref_mut(),
                     settings: &mut self.settings,
                     config_key,
                     category_id,
@@ -350,6 +374,7 @@ impl<'f> SettingsBuilder<'f> {
                 })
             } else {
                 Some(SettingBuilder {
+                    config: self.config.as_deref_mut(),
                     settings: &mut self.settings,
                     config_key,
                     category_id,
@@ -368,6 +393,7 @@ impl<'f> SettingsBuilder<'f> {
 
 /// Setting entry builder.
 pub struct SettingBuilder<'a> {
+    config: Option<&'a mut dyn AnyConfig>,
     settings: &'a mut Vec<Setting>,
     config_key: ConfigKey,
     category_id: CategoryId,
@@ -428,8 +454,12 @@ impl<'a> SettingBuilder<'a> {
     ///
     ///
     pub fn with_cfg<T: ConfigValue>(&mut self, default: T) -> &mut Self {
+        let key = self.key().clone();
         self.cfg = Some((
-            CONFIG.get(self.key().clone(), || default.clone()).boxed_any(),
+            match &mut self.config {
+                Some(cfg) => cfg.get_raw_serde_bidi(key, || default.clone(), true).boxed_any(),
+                None => CONFIG.get(key, || default.clone()).boxed_any(),
+            },
             TypeId::of::<T>(),
             Box::new(default),
         ));

@@ -1,7 +1,6 @@
 use super::*;
 
 use crate::task::parking_lot::Mutex;
-use zng_clone_move::clmv;
 use zng_var::VarHandle;
 
 /// Represents a config source that can swap its backing config source without disconnecting any bound keys.
@@ -47,44 +46,7 @@ impl Config for SwapConfig {
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
         self.shared.get_or_bind(key.into(), |key| {
             // not in shared, bind with source json var.
-
-            let default = default();
-            let source_var = self.cfg.get_mut().get_raw(
-                key.clone(),
-                RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
-                false,
-            );
-            let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));
-
-            source_var
-                .bind_filter_map_bidi(
-                    &var,
-                    // Raw -> T
-                    clmv!(key, |raw| {
-                        match RawConfigValue::deserialize(raw.clone()) {
-                            Ok(value) => Some(value),
-                            Err(e) => {
-                                tracing::error!("swap config get({key:?}) error, {e:?}");
-                                None
-                            }
-                        }
-                    }),
-                    // T -> Raw
-                    clmv!(key, source_var, |value| {
-                        let _strong_ref = &source_var;
-
-                        match RawConfigValue::serialize(value) {
-                            Ok(raw) => Some(raw),
-                            Err(e) => {
-                                tracing::error!("swap config set({key:?}) error, {e:?}");
-                                None
-                            }
-                        }
-                    }),
-                )
-                .perm();
-
-            var.boxed()
+            self.cfg.get_mut().get_raw_serde_bidi(key.clone(), default, false)
         })
     }
 }
