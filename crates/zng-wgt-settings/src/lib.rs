@@ -33,7 +33,7 @@ impl SettingsEditor {
 /// [`SettingsEditor!`]: struct@SettingsEditor
 pub fn settings_editor_node() -> impl UiNode {
     let search = var(Txt::from_static(""));
-    let selected_cat = var(Txt::from_static(""));
+    let selected_cat = var(CategoryId::default());
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET

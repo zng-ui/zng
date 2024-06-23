@@ -3,12 +3,12 @@
 //! The settings editor widget is not implemented here, this module bridges config implementers with settings UI implementers.
 
 use core::fmt;
-use std::{any::TypeId, cmp::Ordering, mem, sync::Arc};
+use std::{any::TypeId, cmp::Ordering, mem, ops, sync::Arc};
 
 use zng_app_context::app_local;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_txt::Txt;
-use zng_var::{var, AnyVar, AnyVarHookArgs, AnyVarValue, BoxedAnyVar, BoxedVar, IntoVar, LocalVar, Var, VarValue};
+use zng_var::{impl_from_and_into_var, var, AnyVar, AnyVarHookArgs, AnyVarValue, BoxedAnyVar, BoxedVar, IntoVar, LocalVar, Var};
 
 use crate::{Config, ConfigKey, ConfigValue, FallbackConfigReset, CONFIG};
 
@@ -59,7 +59,7 @@ impl SETTINGS {
                     Category {
                         id: s.category.clone(),
                         order: u16::MAX,
-                        name: LocalVar(s.category.clone()).boxed(),
+                        name: LocalVar(s.category.0.clone()).boxed(),
                         meta: Arc::new(OwnedStateMap::new()),
                     },
                     vec![s],
@@ -147,7 +147,7 @@ impl SETTINGS {
             for source in sv.sources.iter() {
                 source(&mut SettingsBuilder {
                     settings: vec![],
-                    filter: &mut |cat, _| {
+                    filter: &mut |_, cat| {
                         if !non_empty.contains(cat) {
                             non_empty.push(cat.clone());
                         }
@@ -216,7 +216,31 @@ impl SETTINGS {
 }
 
 /// Unique ID of a [`Category`].
-pub type CategoryId = Txt;
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Default)]
+pub struct CategoryId(pub Txt);
+impl_from_and_into_var! {
+    fn from(id: Txt) -> CategoryId {
+        CategoryId(id)
+    }
+    fn from(id: String) -> CategoryId {
+        CategoryId(id.into())
+    }
+    fn from(id: &'static str) -> CategoryId {
+        CategoryId(id.into())
+    }
+}
+impl ops::Deref for CategoryId {
+    type Target = Txt;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl fmt::Display for CategoryId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
 
 /// Settings category.
 #[derive(Clone)]
@@ -254,7 +278,7 @@ impl Category {
         Self {
             id: missing.clone(),
             order: u16::MAX,
-            name: LocalVar(missing).boxed(),
+            name: LocalVar(missing.0).boxed(),
             meta: Arc::default(),
         }
     }
@@ -440,7 +464,7 @@ impl<'c> SettingsBuilder<'c> {
     /// Get the setting entry builder for the key and category if it is requested by the view query.
     ///
     /// If the setting is already present the builder overrides only the metadata set.
-    pub fn entry<T: VarValue>(&mut self, config_key: impl Into<ConfigKey>, category_id: impl Into<CategoryId>) -> Option<SettingBuilder> {
+    pub fn entry(&mut self, config_key: impl Into<ConfigKey>, category_id: impl Into<CategoryId>) -> Option<SettingBuilder> {
         self.entry_impl(config_key.into(), category_id.into())
     }
     fn entry_impl(&mut self, config_key: ConfigKey, category_id: CategoryId) -> Option<SettingBuilder> {

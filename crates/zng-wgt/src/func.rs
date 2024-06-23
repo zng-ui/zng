@@ -255,7 +255,9 @@ impl VAR_EDITOR {
     }
 }
 
-/// Arguments for [`EDITOR.register`]
+/// Arguments for [`VAR_EDITOR.register`].
+///
+/// [`VAR_EDITOR.register`]: VAR_EDITOR::register
 #[derive(Clone)]
 pub struct VarEditorArgs {
     value: Box<dyn AnyVar>,
