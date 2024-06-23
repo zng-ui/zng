@@ -54,7 +54,7 @@ impl SETTINGS {
             if let Some(i) = result.iter().position(|(c, _)| c.id == s.category) {
                 result[i].1.push(s);
             } else {
-                tracing::debug!("missing category metadata for {}", s.category);
+                tracing::warn!("missing category metadata for {}", s.category);
                 result.push((
                     Category {
                         id: s.category.clone(),
@@ -137,6 +137,71 @@ impl SETTINGS {
         }
 
         count
+    }
+
+    /// Select and sort categories matched by `filter`.
+    ///
+    /// If `include_empty` is `true` includes categories that have no settings.
+    pub fn categories(&self, mut filter: impl FnMut(&CategoryId) -> bool, include_empty: bool, sort: bool) -> Vec<Category> {
+        self.categories_impl(&mut filter, include_empty, sort)
+    }
+    fn categories_impl(&self, filter: &mut dyn FnMut(&CategoryId) -> bool, include_empty: bool, sort: bool) -> Vec<Category> {
+        let sv = SETTINGS_SV.read();
+
+        let mut categories = CategoriesBuilder {
+            categories: vec![],
+            filter,
+        };
+        for source in sv.sources_cat.iter() {
+            source(&mut categories);
+        }
+        let mut result = categories.categories;
+
+        if !include_empty {
+            let mut non_empty = vec![];
+            for source in sv.sources.iter() {
+                source(&mut SettingsBuilder {
+                    settings: vec![],
+                    filter: &mut |cat, _| {
+                        if !non_empty.contains(cat) {
+                            non_empty.push(cat.clone());
+                        }
+                        false
+                    },
+                });
+            }
+
+            result.retain(|c| {
+                if let Some(i) = non_empty.iter().position(|id| &c.id == id) {
+                    non_empty.swap_remove(i);
+                    true
+                } else {
+                    false
+                }
+            });
+
+            for missing in non_empty {
+                tracing::warn!("missing category metadata for {}", missing);
+                result.push(Category {
+                    id: missing.clone(),
+                    order: u16::MAX,
+                    name: LocalVar(missing).boxed(),
+                    meta: Arc::new(OwnedStateMap::new()),
+                });
+            }
+        }
+
+        if sort {
+            result.sort_by(|a, b| {
+                let c = a.order.cmp(&b.order);
+                if matches!(c, Ordering::Equal) {
+                    return a.name.with(|a| b.name.with(|b| a.cmp(b)));
+                }
+                c
+            });
+        }
+
+        result
     }
 }
 
