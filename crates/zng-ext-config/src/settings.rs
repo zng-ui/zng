@@ -10,7 +10,7 @@ use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue
 use zng_txt::Txt;
 use zng_var::{var, AnyVar, AnyVarHookArgs, AnyVarValue, BoxedAnyVar, BoxedVar, IntoVar, LocalVar, Var, VarValue};
 
-use crate::{AnyConfig, ConfigKey, ConfigValue, CONFIG};
+use crate::{Config, ConfigKey, ConfigValue, FallbackConfigReset, CONFIG};
 
 /// Settings metadata service.
 pub struct SETTINGS;
@@ -26,34 +26,15 @@ impl SETTINGS {
         SETTINGS_SV.write().sources_cat.push(Box::new(f))
     }
 
-    /// Select and sort settings matched by `filter` that edits configs from [`CONFIG`].
+    /// Select and sort settings matched by `filter`.
     pub fn get(&self, mut filter: impl FnMut(&ConfigKey, &CategoryId) -> bool, sort: bool) -> Vec<(Category, Vec<Setting>)> {
-        self.get_impl(None, &mut filter, sort)
+        self.get_impl(&mut filter, sort)
     }
 
-    /// Select and sort settings matched by `filter` that edits configs from a different source.
-    pub fn get_for(
-        &self,
-        config: &mut impl AnyConfig,
-        mut filter: impl FnMut(&ConfigKey, &CategoryId) -> bool,
-        sort: bool,
-    ) -> Vec<(Category, Vec<Setting>)> {
-        self.get_impl(Some(config), &mut filter, sort)
-    }
-
-    fn get_impl(
-        &self,
-        config: Option<&mut dyn AnyConfig>,
-        filter: &mut dyn FnMut(&ConfigKey, &CategoryId) -> bool,
-        sort: bool,
-    ) -> Vec<(Category, Vec<Setting>)> {
+    fn get_impl(&self, filter: &mut dyn FnMut(&ConfigKey, &CategoryId) -> bool, sort: bool) -> Vec<(Category, Vec<Setting>)> {
         let sv = SETTINGS_SV.read();
 
-        let mut settings = SettingsBuilder {
-            config,
-            settings: vec![],
-            filter,
-        };
+        let mut settings = SettingsBuilder { settings: vec![], filter };
         for source in sv.sources.iter() {
             source(&mut settings);
         }
@@ -118,7 +99,6 @@ impl SETTINGS {
 
         for source in sv.sources.iter() {
             source(&mut SettingsBuilder {
-                config: None,
                 settings: vec![],
                 filter: &mut |k, i| {
                     if filter(k, i) {
@@ -146,7 +126,6 @@ impl SETTINGS {
 
         for source in sv.sources.iter() {
             source(&mut SettingsBuilder {
-                config: None,
                 settings: vec![],
                 filter: &mut |k, i| {
                     if filter(k, i) {
@@ -207,6 +186,11 @@ impl fmt::Debug for Category {
     }
 }
 
+#[cfg(test)]
+fn _setting_in_var(s: Setting) {
+    let _x = LocalVar(s).get();
+}
+
 /// Setting entry.
 pub struct Setting {
     key: ConfigKey,
@@ -215,11 +199,10 @@ pub struct Setting {
     description: BoxedVar<Txt>,
     category: CategoryId,
     meta: Arc<OwnedStateMap<Setting>>,
-    cfg: BoxedAnyVar,
-    cfg_type: TypeId,
-    cfg_default: Box<dyn AnyVarValue>,
+    value: BoxedAnyVar,
+    value_type: TypeId,
+    reset: Arc<dyn SettingReset>,
 }
-
 impl Clone for Setting {
     fn clone(&self) -> Self {
         Self {
@@ -229,9 +212,9 @@ impl Clone for Setting {
             description: self.description.clone(),
             category: self.category.clone(),
             meta: self.meta.clone(),
-            cfg: self.cfg.clone(),
-            cfg_type: self.cfg_type,
-            cfg_default: self.cfg_default.clone_boxed(),
+            value: self.value.clone(),
+            value_type: self.value_type,
+            reset: self.reset.clone(),
         }
     }
 }
@@ -266,59 +249,42 @@ impl Setting {
         self.meta.borrow()
     }
 
-    /// If the `cfg` and `cfg_default` values where set by the settings builder.
-    pub fn cfg_is_known(&self) -> bool {
-        self.cfg_type != TypeId::of::<SettingValueNotSet>()
+    /// If the `value` is set to an actual config variable.
+    ///
+    /// Setting builders can not set the value, this can be used to indicate that the setting must be edited
+    /// directly on the config file.
+    pub fn value_is_set(&self) -> bool {
+        self.value_type != TypeId::of::<SettingValueNotSet>()
     }
 
     /// Config value.
-    pub fn cfg(&self) -> &BoxedAnyVar {
-        &self.cfg
+    pub fn value(&self) -> &BoxedAnyVar {
+        &self.value
     }
 
     /// Config value type.
-    pub fn cfg_type(&self) -> TypeId {
-        self.cfg_type
+    pub fn value_type(&self) -> TypeId {
+        self.value_type
     }
 
     /// Config value, strongly typed.
-    pub fn cfg_downcast<T: ConfigValue>(&self) -> Option<BoxedVar<T>> {
-        if self.cfg_type == std::any::TypeId::of::<T>() {
-            let v = self.cfg.clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap();
+    pub fn value_downcast<T: ConfigValue>(&self) -> Option<BoxedVar<T>> {
+        if self.value_type == std::any::TypeId::of::<T>() {
+            let v = self.value.clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap();
             Some(*v)
         } else {
             None
         }
     }
 
-    /// Config default value.
-    pub fn cfg_default(&self) -> &dyn AnyVarValue {
-        &*self.cfg_default
+    /// Gets a variable that indicates the current setting value is not the default.
+    pub fn can_reset(&self) -> BoxedVar<bool> {
+        self.reset.can_reset(&self.key, &self.value)
     }
 
-    /// Config default value, strongly typed.
-    pub fn cfg_default_downcast<T: ConfigValue>(&self) -> Option<T> {
-        self.cfg_default.as_any().downcast_ref::<T>().cloned()
-    }
-
-    /// Gets a variable that tracks if the config is set to the default value.
-    pub fn cfg_is_default(&self) -> BoxedVar<bool> {
-        let mut initial = false;
-        self.cfg.with_any(&mut |v| {
-            initial = v.eq_any(&*self.cfg_default);
-        });
-        let map = var(initial);
-
-        let map_in = map.clone();
-        let dft = self.cfg_default.clone_boxed();
-        self.cfg
-            .hook_any(Box::new(move |args: &AnyVarHookArgs| {
-                map_in.set(args.value().eq_any(&*dft));
-                true
-            }))
-            .perm();
-
-        map.clone().boxed()
+    /// Reset the setting value.
+    pub fn reset(&self) {
+        self.reset.reset(&self.key, &self.value);
     }
 }
 impl PartialEq for Setting {
@@ -346,7 +312,6 @@ struct SettingsService {
 
 /// Settings builder.
 pub struct SettingsBuilder<'a> {
-    config: Option<&'a mut dyn AnyConfig>,
     settings: Vec<Setting>,
     filter: &'a mut dyn FnMut(&ConfigKey, &CategoryId) -> bool,
 }
@@ -362,7 +327,6 @@ impl<'c> SettingsBuilder<'c> {
             if let Some(i) = self.settings.iter().position(|s| s.key == config_key) {
                 let existing = self.settings.swap_remove(i);
                 Some(SettingBuilder {
-                    config: self.config.as_deref_mut(),
                     settings: &mut self.settings,
                     config_key,
                     category_id,
@@ -370,11 +334,11 @@ impl<'c> SettingsBuilder<'c> {
                     name: Some(existing.name),
                     description: Some(existing.description),
                     meta: Arc::try_unwrap(existing.meta).unwrap(),
-                    cfg: None,
+                    value: None,
+                    reset: None,
                 })
             } else {
                 Some(SettingBuilder {
-                    config: self.config.as_deref_mut(),
                     settings: &mut self.settings,
                     config_key,
                     category_id,
@@ -382,7 +346,8 @@ impl<'c> SettingsBuilder<'c> {
                     name: None,
                     description: None,
                     meta: OwnedStateMap::new(),
-                    cfg: None,
+                    value: None,
+                    reset: None,
                 })
             }
         } else {
@@ -393,7 +358,6 @@ impl<'c> SettingsBuilder<'c> {
 
 /// Setting entry builder.
 pub struct SettingBuilder<'a> {
-    config: Option<&'a mut dyn AnyConfig>,
     settings: &'a mut Vec<Setting>,
     config_key: ConfigKey,
     category_id: CategoryId,
@@ -401,7 +365,8 @@ pub struct SettingBuilder<'a> {
     name: Option<BoxedVar<Txt>>,
     description: Option<BoxedVar<Txt>>,
     meta: OwnedStateMap<Setting>,
-    cfg: Option<(BoxedAnyVar, TypeId, Box<dyn AnyVarValue>)>,
+    value: Option<(BoxedAnyVar, TypeId)>,
+    reset: Option<Arc<dyn SettingReset>>,
 }
 impl<'a> SettingBuilder<'a> {
     /// The config edited by this setting.
@@ -450,31 +415,42 @@ impl<'a> SettingBuilder<'a> {
         self.meta.borrow_mut()
     }
 
-    /// Set the default value and gets the [`CONFIG`] value for the key.
+    /// Set the value variable from [`CONFIG`].
+    pub fn with_value<T: ConfigValue>(&mut self, default: impl FnOnce() -> T) -> &mut Self {
+        self.with_cfg_value(&mut CONFIG, default)
+    }
+
+    /// Set the value variable from a different config.
+    pub fn with_cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: impl FnOnce() -> T) -> &mut Self {
+        let value = cfg.get(self.config_key.clone(), default);
+        self.value = Some((value.boxed_any(), TypeId::of::<T>()));
+        self
+    }
+
+    /// Use a [`FallbackConfigReset`] to reset the settings.
     ///
+    /// This is the preferred way of implementing reset as it keeps the user config file clean,
+    /// but it does require a config setup with two files.
+    pub fn with_reset(&mut self, cfg: Box<dyn FallbackConfigReset>) -> &mut Self {
+        self.reset = Some(Arc::new(cfg));
+        self
+    }
+
+    /// Use a `default` value to reset the settings.
     ///
-    pub fn with_cfg<T: ConfigValue>(&mut self, default: T) -> &mut Self {
-        let key = self.key().clone();
-        self.cfg = Some((
-            match &mut self.config {
-                Some(cfg) => cfg.get_raw_serde_bidi(key, || default.clone(), true).boxed_any(),
-                None => CONFIG.get(key, || default.clone()).boxed_any(),
-            },
-            TypeId::of::<T>(),
-            Box::new(default),
-        ));
+    /// The default value is set on the config to reset.
+    pub fn with_default<T: ConfigValue>(&mut self, default: T) -> &mut Self {
+        let reset: Box<dyn AnyVarValue> = Box::new(default);
+        self.reset = Some(Arc::new(reset));
         self
     }
 }
 impl<'a> Drop for SettingBuilder<'a> {
     fn drop(&mut self) {
-        let (cfg, cfg_type, cfg_default) = self.cfg.take().unwrap_or_else(|| {
-            (
-                LocalVar(SettingValueNotSet).boxed_any(),
-                TypeId::of::<SettingValueNotSet>(),
-                Box::new(SettingValueNotSet),
-            )
-        });
+        let (cfg, cfg_type) = self
+            .value
+            .take()
+            .unwrap_or_else(|| (LocalVar(SettingValueNotSet).boxed_any(), TypeId::of::<SettingValueNotSet>()));
         self.settings.push(Setting {
             key: mem::take(&mut self.config_key),
             order: self.order,
@@ -482,9 +458,9 @@ impl<'a> Drop for SettingBuilder<'a> {
             description: self.description.take().unwrap_or_else(|| var(Txt::from_static("")).boxed()),
             category: mem::take(&mut self.category_id),
             meta: Arc::new(mem::take(&mut self.meta)),
-            cfg,
-            cfg_type,
-            cfg_default,
+            value: cfg,
+            value_type: cfg_type,
+            reset: self.reset.take().unwrap_or_else(|| Arc::new(SettingValueNotSet)),
         })
     }
 }
@@ -584,4 +560,47 @@ impl<'a> Drop for CategoryBuilder<'a> {
             meta: Arc::new(mem::take(&mut self.meta)),
         })
     }
+}
+trait SettingReset: Send + Sync + 'static {
+    fn can_reset(&self, key: &ConfigKey, value: &BoxedAnyVar) -> BoxedVar<bool>;
+    fn reset(&self, key: &ConfigKey, value: &BoxedAnyVar);
+}
+impl SettingReset for Box<dyn FallbackConfigReset> {
+    fn can_reset(&self, key: &ConfigKey, _: &BoxedAnyVar) -> BoxedVar<bool> {
+        self.as_ref().can_reset(key.clone())
+    }
+
+    fn reset(&self, key: &ConfigKey, _: &BoxedAnyVar) {
+        self.as_ref().reset(key)
+    }
+}
+impl SettingReset for Box<dyn AnyVarValue> {
+    fn can_reset(&self, _: &ConfigKey, value: &BoxedAnyVar) -> BoxedVar<bool> {
+        let mut initial = false;
+        value.with_any(&mut |v| {
+            initial = v.eq_any(&**self);
+        });
+        let map = var(initial);
+
+        let map_in = map.clone();
+        let dft = self.clone_boxed();
+        value
+            .hook_any(Box::new(move |args: &AnyVarHookArgs| {
+                map_in.set(args.value().eq_any(&*dft));
+                true
+            }))
+            .perm();
+
+        map.clone().boxed()
+    }
+
+    fn reset(&self, _: &ConfigKey, value: &BoxedAnyVar) {
+        let _ = value.set_any(self.clone_boxed());
+    }
+}
+impl SettingReset for SettingValueNotSet {
+    fn can_reset(&self, _: &ConfigKey, _: &BoxedAnyVar) -> BoxedVar<bool> {
+        LocalVar(false).boxed()
+    }
+    fn reset(&self, _: &ConfigKey, _: &BoxedAnyVar) {}
 }
