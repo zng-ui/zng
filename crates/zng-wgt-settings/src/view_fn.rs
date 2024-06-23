@@ -1,20 +1,20 @@
+use std::sync::Arc;
+
 use zng_app::{
-    event::app_local,
     static_id,
-    widget::node::{BoxedUiNode, NilUiNode, UiNode, UiNodeVec},
+    widget::node::{BoxedUiNode, UiNode, UiNodeVec},
 };
-use zng_ext_config::settings::{Category, CategoryId, Setting, SettingBuilder, SETTINGS};
+use zng_ext_config::settings::{Category, CategoryId, Setting, SettingBuilder};
 use zng_ext_font::FontWeight;
 use zng_wgt::{
-    prelude::{context_var, ArcVar, StateId, Txt},
-    WidgetFn,
+    prelude::{context_var, ArcVar, OwnedStateMap, StateId, StateMapRef},
+    WidgetFn, VAR_EDITOR,
 };
 use zng_wgt_container::Container;
 use zng_wgt_scroll::{Scroll, ScrollMode};
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_text::Text;
-use zng_wgt_text_input::TextInput;
-use zng_wgt_toggle::{CheckStyle, Selector, Toggle};
+use zng_wgt_toggle::{Selector, Toggle};
 
 context_var! {
     /// Category in a category list.
@@ -117,79 +117,58 @@ pub struct SettingsArgs {
 /// Extends [`SettingBuilder`] to set custom editor metadata.
 pub trait SettingBuilderEditorExt {
     /// Custom editor for the setting.
-    fn editor(&mut self, editor: WidgetFn<Setting>) -> &mut Self;
+    ///
+    /// If an editor is set the `VAR_EDITOR` service is used to instantiate the editor.
+    fn editor_fn(&mut self, editor: WidgetFn<Setting>) -> &mut Self;
 }
 
 /// Extends [`Setting`] to get custom editor metadata.
 pub trait SettingEditorExt {
     /// Custom editor for the setting.
-    fn editor(&self) -> Option<WidgetFn<Setting>>;
+    fn editor_fn(&self) -> Option<WidgetFn<Setting>>;
+
+    /// Instantiate editor.
+    ///
+    /// If an editor is set the [`VAR_EDITOR`] service is used to instantiate the editor.
+    fn editor(&self) -> BoxedUiNode;
+}
+
+/// Extends [`StateMapRef<VAR_EDITOR>`] to provide the setting.
+pub trait VarEditorSettingExt {
+    /// Gets the setting that is requesting an editor.
+    fn setting(&self) -> Option<&Setting>;
 }
 
 static_id! {
-    static ref FOO_ID: StateId<WidgetFn<Setting>>;
+    static ref CUSTOM_EDITOR_ID: StateId<WidgetFn<Setting>>;
+    static ref SETTING_ID: StateId<Setting>;
 }
 
 impl<'a> SettingBuilderEditorExt for SettingBuilder<'a> {
-    fn editor(&mut self, editor: WidgetFn<Setting>) -> &mut Self {
-        self.with_meta(*FOO_ID, editor)
+    fn editor_fn(&mut self, editor: WidgetFn<Setting>) -> &mut Self {
+        self.with_meta(*CUSTOM_EDITOR_ID, editor)
     }
 }
 
 impl SettingEditorExt for Setting {
-    fn editor(&self) -> Option<WidgetFn<Setting>> {
-        self.meta().get_clone(*FOO_ID)
-    }
-}
-
-/// Extends [`SETTINGS`] to register setting editors.
-pub trait SettingsEditorsExt {
-    /// Register a settings editor handler.
-    ///
-    /// The `editor` function must return [`NilUiNode`] if it cannot handle the setting type.
-    fn register_editor_fn(&self, editor: WidgetFn<Setting>);
-
-    /// Make an editor for the setting.
-    fn editor(&self, s: Setting) -> BoxedUiNode;
-}
-impl SettingsEditorsExt for SETTINGS {
-    fn register_editor_fn(&self, editor: WidgetFn<Setting>) {
-        SETTINGS_EDITORS.write().push(editor);
+    fn editor_fn(&self) -> Option<WidgetFn<Setting>> {
+        self.meta().get_clone(*CUSTOM_EDITOR_ID)
     }
 
-    fn editor(&self, s: Setting) -> BoxedUiNode {
-        match s.editor() {
-            Some(e) => e(s),
+    fn editor(&self) -> BoxedUiNode {
+        match self.editor_fn() {
+            Some(f) => f(self.clone()),
             None => {
-                let editors = SETTINGS_EDITORS.read();
-                for editor in editors.iter().rev() {
-                    let editor = editor(s.clone());
-                    if !editor.is_nil() {
-                        return editor;
-                    }
-                }
-                NilUiNode.boxed()
+                let mut meta = OwnedStateMap::new();
+                meta.borrow_mut().set(*SETTING_ID, self.clone());
+                VAR_EDITOR.new_with(self.value().clone_any(), Arc::new(meta))
             }
         }
     }
 }
 
-app_local! {
-    static SETTINGS_EDITORS: Vec<WidgetFn<Setting>> = vec![WidgetFn::new(default_editor)];
-}
-
-fn default_editor(s: Setting) -> BoxedUiNode {
-    if let Some(checked) = s.value_downcast::<bool>() {
-        return Toggle! {
-            checked;
-            style_fn = CheckStyle!();
-        }
-        .boxed();
-    } else if let Some(txt) = s.value_downcast::<Txt>() {
-        return TextInput! {
-            txt;
-        }
-        .boxed();
+impl<'a> VarEditorSettingExt for StateMapRef<'a, VAR_EDITOR> {
+    fn setting(&self) -> Option<&Setting> {
+        self.get(*SETTING_ID)
     }
-    NilUiNode.boxed()
 }

@@ -1,7 +1,8 @@
-use std::{fmt, ops, sync::Arc};
+use std::{any::TypeId, fmt, ops, sync::Arc};
 
 use crate::prelude::*;
 
+use zng_var::AnyVar;
 #[doc(hidden)]
 pub use zng_wgt::prelude::clmv as __clmv;
 
@@ -194,4 +195,102 @@ macro_rules! wgt_fn {
     () => {
         $crate::WidgetFn::nil()
     };
+}
+
+/// Service that provides editor widgets for a given variable.
+///
+/// Auto generating widgets such as a settings list or a properties list can use this
+/// service instantiate widgets for each item.
+///
+/// The main crate registers some common editors.
+#[allow(non_camel_case_types)]
+pub struct VAR_EDITOR;
+impl VAR_EDITOR {
+    /// Register an `editor` handler.
+    ///
+    /// The editor must return [`NilUiNode`] if it cannot handle the value type. Later added editors are called first.
+    pub fn register(&self, editor: WidgetFn<VarEditorArgs>) {
+        VAR_EDITOR_SV.write().editors.push(editor);
+    }
+
+    /// Register an `editor` handler to be called if none of the `register` editors can handle the value.
+    ///
+    /// The editor must return [`NilUiNode`] if it cannot handle the value type. Later added editors are called last.
+    pub fn register_fallback(&self, editor: WidgetFn<VarEditorArgs>) {
+        VAR_EDITOR_SV.write().fallback.insert(0, editor);
+    }
+
+    /// Gets an editor for the `value`.
+    ///
+    /// Returns [`NilUiNode`] if no registered editor can handle the value type.
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(&self, value: impl AnyVar) -> BoxedUiNode {
+        self.new_with(value, Arc::default())
+    }
+
+    /// Gets an editor for the `value` and custom `meta`.
+    ///
+    /// Returns [`NilUiNode`] if no registered editor can handle the request.
+    pub fn new_with(&self, value: impl AnyVar, meta: Arc<OwnedStateMap<VAR_EDITOR>>) -> BoxedUiNode {
+        self.new_impl(VarEditorArgs {
+            value: Box::new(value),
+            meta,
+        })
+    }
+    fn new_impl(&self, args: VarEditorArgs) -> BoxedUiNode {
+        let sv = VAR_EDITOR_SV.read();
+        for editor in sv.editors.iter().rev() {
+            let editor = editor(args.clone());
+            if !editor.is_nil() {
+                return editor;
+            }
+        }
+        for editor in sv.fallback.iter() {
+            let editor = editor(args.clone());
+            if !editor.is_nil() {
+                return editor;
+            }
+        }
+        NilUiNode.boxed()
+    }
+}
+
+/// Arguments for [`EDITOR.register`]
+#[derive(Clone)]
+pub struct VarEditorArgs {
+    value: Box<dyn AnyVar>,
+    meta: Arc<OwnedStateMap<VAR_EDITOR>>,
+}
+impl VarEditorArgs {
+    /// The value variable.
+    pub fn value_any(&self) -> &dyn AnyVar {
+        &self.value
+    }
+
+    /// Try to downcast the value variable to `T`.
+    pub fn value<T: VarValue>(&self) -> Option<BoxedVar<T>> {
+        if self.value.var_type_id() == TypeId::of::<T>() {
+            let value = *self.value.clone_any().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
+            return Some(value);
+        }
+        None
+    }
+
+    /// Custom metadata send with the request.
+    pub fn meta(&self) -> StateMapRef<VAR_EDITOR> {
+        self.meta.borrow()
+    }
+}
+
+app_local! {
+    static VAR_EDITOR_SV: VarEditorService = const {
+        VarEditorService {
+            editors: vec![],
+            fallback: vec![],
+        }
+    };
+}
+struct VarEditorService {
+    editors: Vec<WidgetFn<VarEditorArgs>>,
+    fallback: Vec<WidgetFn<VarEditorArgs>>,
 }

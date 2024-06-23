@@ -812,6 +812,8 @@ mod defaults {
     use zng_ext_undo::UndoManager;
     use zng_ext_window::WindowManager;
 
+    use crate::default_editors;
+
     #[cfg(feature = "dyn_app_extension")]
     macro_rules! DefaultsAppExtended {
         () => {
@@ -898,6 +900,11 @@ mod defaults {
     struct DefaultsInit {}
     impl AppExtension for DefaultsInit {
         fn init(&mut self) {
+            // Common editors.
+            zng_wgt::VAR_EDITOR.register_fallback(zng_wgt::WidgetFn::new(default_editors::handler));
+            tracing::debug!("defaults init, var_editor set");
+
+            // injected in all windows
             zng_ext_window::WINDOWS.register_root_extender(|a| {
                 let child = a.root;
 
@@ -915,6 +922,7 @@ mod defaults {
             });
             tracing::debug!("defaults init, root_extender set");
 
+            // setup OPEN_LICENSES_CMD handler
             crate::third_party::setup_default_view();
             tracing::debug!("defaults init, third_party set");
 
@@ -987,3 +995,30 @@ mod defaults {
 #[doc = include_str!("../../README.md")]
 #[cfg(doctest)]
 pub mod read_me_test {}
+
+mod default_editors {
+    use zng::{
+        prelude::*,
+        widget::{
+            node::{BoxedUiNode, NilUiNode},
+            VarEditorArgs,
+        },
+    };
+
+    pub fn handler(args: VarEditorArgs) -> BoxedUiNode {
+        if let Some(txt) = args.value::<Txt>() {
+            return TextInput! {
+                txt;
+            }
+            .boxed();
+        }
+        if let Some(checked) = args.value::<bool>() {
+            return Toggle! {
+                checked;
+            }
+            .boxed();
+        }
+
+        NilUiNode.boxed()
+    }
+}
