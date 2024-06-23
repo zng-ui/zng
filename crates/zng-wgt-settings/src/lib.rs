@@ -7,7 +7,10 @@ zng_wgt::enable_widget_macros!();
 mod view_fn;
 pub use view_fn::*;
 
-use zng_ext_config::settings::{Category, CategoryId, SETTINGS};
+use zng_ext_config::{
+    settings::{Category, CategoryId, Setting, SETTINGS},
+    ConfigKey,
+};
 use zng_wgt::prelude::*;
 use zng_wgt_container::Container;
 
@@ -70,24 +73,86 @@ pub fn settings_editor_node() -> impl UiNode {
 fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> impl UiNode {
     let search_box = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs { search: search.clone() });
 
-    // avoids presenter rebuilds for ignored search
+    // avoids rebuilds for ignored search changes
     let clean_search = search.map(|s| {
         let s = s.trim();
         if s.len() < 3 {
             Txt::from_static("")
+        } else if !s.starts_with('@') {
+            s.to_lowercase().into()
         } else {
             Txt::from_str(s)
         }
     });
 
-    let categories = presenter(
-        clean_search.clone(),
-        wgt_fn!(selected_cat, |search: Txt| {
-            let categories = if search.is_empty() {
-                SETTINGS.categories(|_| true, false, true)
+    // live query
+    #[derive(PartialEq, Debug, Clone)]
+    struct Results {
+        categories: Vec<Category>,
+        selected_cat: Category,
+        selected_settings: Vec<Setting>,
+        top_match: ConfigKey,
+    }
+    let sel_cat = selected_cat.clone();
+    let search_results = expr_var! {
+        if #{clean_search}.is_empty() {
+            // no search, does not need to load settings of other categories
+            let (cat, settings) = SETTINGS.get(|_, cat| cat == #{sel_cat}, true)
+                            .pop().unwrap_or_else(|| (Category::unknown(#{sel_cat}.clone()), vec![]));
+            Results {
+                categories: SETTINGS.categories(|_| true, false, true),
+                selected_cat: cat,
+                top_match: settings.first().map(|s| s.key().clone()).unwrap_or_default(),
+                selected_settings: settings,
+            }
+        } else {
+            // has search, just load everything
+            let mut r = SETTINGS.get(|_, _| true, false);
+
+            // apply search filter, get best match key (top_match), actual selected_cat.
+            let mut top_match = (usize::MAX, Txt::from(""));
+            let mut actual_cat = None;
+            r.retain_mut(|(c, s)| if c.id() == #{sel_cat} {
+                // is selected cat
+                actual_cat = Some(c.clone());
+                // actually filter settings
+                s.retain(|s| match s.search_index(#{clean_search}) {
+                    Some(i) => {
+                        if i < top_match.0 {
+                            top_match = (i, s.key().clone());
+                        }
+                        true
+                    }
+                    None => false,
+                });
+                !s.is_empty()
             } else {
-                todo!("!!: filter")
+                // is not selected cat, just search, settings will be ignored
+                s.iter().any(|s| match s.search_index(#{clean_search}) {
+                    Some(i) => {
+                        if i < top_match.0 {
+                            top_match = (i, s.key().clone());
+                        }
+                        true
+                    }
+                    None => false,
+                })
+            });
+            let mut r = Results {
+                categories: r.iter().map(|(c, _)| c.clone()).collect(),
+                selected_cat: actual_cat.unwrap_or_else(|| Category::unknown(#{sel_cat}.clone())),
+                selected_settings: r.into_iter().find_map(|(c, s)| if c.id() == #{sel_cat} { Some(s) } else { None }).unwrap_or_default(),
+                top_match: top_match.1,
             };
+            SETTINGS.sort_categories(&mut r.categories);
+            SETTINGS.sort_settings(&mut r.selected_settings);
+            r
+        }
+    };
+
+    let categories = presenter(
+        search_results.map_ref(|r| &r.categories),
+        wgt_fn!(|categories: Vec<Category>| {
             let cat_fn = CATEGORY_ITEM_FN_VAR.get();
             let categories: UiNodeVec = categories
                 .into_iter()
@@ -103,16 +168,15 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
     );
 
     let settings = presenter(
-        expr_var!((#{selected_cat}.clone(), #{clean_search}.clone())),
-        wgt_fn!(|(cat, search)| {
-            let (category, settings) = SETTINGS
-                .get(|_, c| c == &cat, true)
-                .pop()
-                .unwrap_or_else(|| (Category::unknown(cat), vec![]));
-
+        search_results,
+        wgt_fn!(|Results {
+                     selected_cat,
+                     selected_settings,
+                     ..
+                 }: Results| {
             let set_fn = SETTING_FN_VAR.get();
 
-            let settings: UiNodeVec = settings
+            let settings: UiNodeVec = selected_settings
                 .into_iter()
                 .enumerate()
                 .map(|(i, s)| {
@@ -125,11 +189,13 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
                 })
                 .collect();
 
-            let header = CATEGORY_HEADER_FN_VAR.get()(CategoryHeaderArgs { category });
+            let header = CATEGORY_HEADER_FN_VAR.get()(CategoryHeaderArgs { category: selected_cat });
 
             SETTINGS_FN_VAR.get()(SettingsArgs { header, items: settings })
         }),
     );
+
+    // !!: TODO, FOCUS_SETTING_CMD.notify_param(search_results.top_match);
 
     Container! {
         child_start = {

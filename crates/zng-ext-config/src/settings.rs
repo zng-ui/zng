@@ -68,22 +68,7 @@ impl SETTINGS {
         }
 
         if sort {
-            result.sort_by(|a, b| {
-                let c = a.0.order.cmp(&b.0.order);
-                if matches!(c, Ordering::Equal) {
-                    return a.0.name.with(|a| b.0.name.with(|b| a.cmp(b)));
-                }
-                c
-            });
-            for (_, s) in &mut result {
-                s.sort_by(|a, b| {
-                    let c = a.order.cmp(&b.order);
-                    if matches!(c, Ordering::Equal) {
-                        return a.name.with(|a| b.name.with(|b| a.cmp(b)));
-                    }
-                    c
-                });
-            }
+            self.sort(&mut result);
         }
         result
     }
@@ -187,16 +172,46 @@ impl SETTINGS {
         }
 
         if sort {
-            result.sort_by(|a, b| {
-                let c = a.order.cmp(&b.order);
-                if matches!(c, Ordering::Equal) {
-                    return a.name.with(|a| b.name.with(|b| a.cmp(b)));
-                }
-                c
-            });
+            self.sort_categories(&mut result)
         }
 
         result
+    }
+
+    /// Sort `settings`.
+    pub fn sort_settings(&self, settings: &mut [Setting]) {
+        settings.sort_by(|a, b| {
+            let c = a.order.cmp(&b.order);
+            if matches!(c, Ordering::Equal) {
+                return a.name.with(|a| b.name.with(|b| a.cmp(b)));
+            }
+            c
+        });
+    }
+
+    /// Sort `categories`.
+    pub fn sort_categories(&self, categories: &mut [Category]) {
+        categories.sort_by(|a, b| {
+            let c = a.order.cmp(&b.order);
+            if matches!(c, Ordering::Equal) {
+                return a.name.with(|a| b.name.with(|b| a.cmp(b)));
+            }
+            c
+        });
+    }
+
+    /// Sort categories and settings.
+    pub fn sort(&self, settings: &mut [(Category, Vec<Setting>)]) {
+        settings.sort_by(|a, b| {
+            let c = a.0.order.cmp(&b.0.order);
+            if matches!(c, Ordering::Equal) {
+                return a.0.name.with(|a| b.0.name.with(|b| a.cmp(b)));
+            }
+            c
+        });
+        for (_, s) in settings {
+            self.sort_settings(s);
+        }
     }
 }
 
@@ -355,6 +370,42 @@ impl Setting {
     /// Reset the setting value.
     pub fn reset(&self) {
         self.reset.reset(&self.key, &self.value);
+    }
+
+    /// Gets if the setting should be included in the search and how likely it is to be an exact match (0 is exact).
+    ///
+    /// If `search` starts with `@key:` matches key case sensitive, otherwise matches name or description in lower case. Note
+    /// that non-key search is expected to already be lowercase and will panic in debug builds if it is not.
+    pub fn search_index(&self, search: &str) -> Option<usize> {
+        if let Some(key) = search.strip_prefix("@key:") {
+            return if self.key.contains(key) {
+                Some(self.key.len() - search.len())
+            } else {
+                None
+            };
+        }
+        debug_assert!(search.chars().all(|c| c.is_lowercase()));
+
+        let r = self.name.with(|s| {
+            let s = s.to_lowercase();
+            if s.contains(search) {
+                Some(s.len() - search.len())
+            } else {
+                None
+            }
+        });
+        if r.is_some() {
+            return r;
+        }
+
+        self.description.with(|s| {
+            let s = s.to_lowercase();
+            if s.contains(search) {
+                Some(s.len() - search.len() + usize::MAX - 2)
+            } else {
+                None
+            }
+        })
     }
 }
 impl PartialEq for Setting {
