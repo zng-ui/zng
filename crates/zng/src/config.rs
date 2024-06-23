@@ -105,8 +105,20 @@ pub use zng_ext_config::YamlConfig;
 ///
 /// # Full API
 ///
-/// See [`zng_ext_config`] for the full config API.
+/// See [`zng_ext_config::settings`] for the full settings API.
 pub mod settings {
     pub use zng_ext_config::settings::{CategoriesBuilder, Category, CategoryBuilder, Setting, SettingBuilder, SettingsBuilder, SETTINGS};
     pub use zng_wgt_input::cmd::{on_pre_settings, on_settings, SETTINGS_CMD};
+
+    /// Settings editor widget.
+    ///
+    /// # Full API
+    ///
+    /// See [`zng_wgt_settings`] for the full settings editor API.
+    pub mod editor {
+        pub use zng_wgt_settings::{
+            categories_list_fn, category_header_fn, category_item_fn, setting_fn, settings_fn, CategoriesListArgs, CategoryHeaderArgs,
+            CategoryItemArgs, SettingArgs, SettingsArgs, SettingsEditor,
+        };
+    }
 }

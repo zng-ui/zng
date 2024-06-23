@@ -1012,6 +1012,7 @@ mod default_editors {
             }
             .boxed();
         }
+
         if let Some(checked) = args.value::<bool>() {
             return Toggle! {
                 checked;

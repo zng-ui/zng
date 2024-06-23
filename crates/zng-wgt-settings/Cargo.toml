@@ -22,3 +22,4 @@ zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.3.9" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.2.19" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.9" }
 zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.3.9" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.3.9" }

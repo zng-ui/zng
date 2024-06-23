@@ -182,12 +182,7 @@ impl SETTINGS {
 
             for missing in non_empty {
                 tracing::warn!("missing category metadata for {}", missing);
-                result.push(Category {
-                    id: missing.clone(),
-                    order: u16::MAX,
-                    name: LocalVar(missing).boxed(),
-                    meta: Arc::new(OwnedStateMap::new()),
-                });
+                result.push(Category::unknown(missing));
             }
         }
 
@@ -237,6 +232,16 @@ impl Category {
     /// Custom category metadata.
     pub fn meta(&self) -> StateMapRef<Category> {
         self.meta.borrow()
+    }
+
+    /// Category from an ID only, no other metadata.
+    pub fn unknown(missing: CategoryId) -> Self {
+        Self {
+            id: missing.clone(),
+            order: u16::MAX,
+            name: LocalVar(missing).boxed(),
+            meta: Arc::default(),
+        }
     }
 }
 impl PartialEq for Category {
