@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `AnyVarValue::eq_any`.
+* Add `zng::config::settings`.
 
 # 0.9.1
 

@@ -25,11 +25,6 @@ pub use switch::*;
 
 mod sync;
 pub use sync::*;
-use zng_app_context::app_local;
-use zng_clone_move::clmv;
-use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
-use zng_txt::Txt;
-use zng_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar};
 
 #[cfg(feature = "toml")]
 mod toml;
@@ -46,6 +41,8 @@ mod yaml;
 #[cfg(feature = "yaml")]
 pub use self::yaml::*;
 
+pub mod settings;
+
 use std::{
     any::Any,
     collections::{hash_map, HashMap},
@@ -54,7 +51,12 @@ use std::{
 };
 
 use zng_app::{update::EventUpdate, view_process::raw_events::LOW_MEMORY_EVENT, AppExtension};
+use zng_app_context::app_local;
+use zng_clone_move::clmv;
+use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zng_task as task;
+use zng_txt::Txt;
+use zng_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar};
 
 /// Application extension that provides mouse events and service.
 ///

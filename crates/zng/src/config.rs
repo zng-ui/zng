@@ -100,3 +100,13 @@ pub use zng_ext_config::TomlConfig;
 
 #[cfg(feature = "yaml")]
 pub use zng_ext_config::YamlConfig;
+
+/// Settings are the config the user can directly edit, this module implements a basic settings data model.
+///
+/// # Full API
+///
+/// See [`zng_ext_config`] for the full config API.
+pub mod settings {
+    pub use zng_ext_config::settings::{CategoriesBuilder, Category, CategoryBuilder, Setting, SettingBuilder, SettingsBuilder, SETTINGS};
+    pub use zng_wgt_input::cmd::{on_pre_settings, on_settings, SETTINGS_CMD};
+}

@@ -976,6 +976,7 @@ mod defaults {
                 ZOOM_OUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_OUT)));
 
                 OPEN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::FILE_OPEN)));
+                SETTINGS_CMD.init_icon(wgt_fn!(|_| Icon!(icons::SETTINGS)));
 
                 tracing::debug!("defaults init, command_icons set");
             }
