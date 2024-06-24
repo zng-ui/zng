@@ -12,8 +12,10 @@ use zng_ext_font::FontWeight;
 use zng_wgt::{node::with_context_var, prelude::*, WidgetFn, VAR_EDITOR};
 use zng_wgt_button::Button;
 use zng_wgt_container::Container;
+use zng_wgt_rule_line::{hr::Hr, vr::Vr};
 use zng_wgt_scroll::{Scroll, ScrollMode};
 use zng_wgt_stack::{Stack, StackDirection};
+use zng_wgt_style::Style;
 use zng_wgt_text::Text;
 use zng_wgt_text_input::TextInput;
 use zng_wgt_toggle::{Selector, Toggle};
@@ -31,7 +33,7 @@ context_var! {
     pub static SETTING_FN_VAR: WidgetFn<SettingArgs> = WidgetFn::new(default_setting_fn);
     /// Settings list for a category.
     pub static SETTINGS_FN_VAR: WidgetFn<SettingsArgs> = WidgetFn::new(default_settings_fn);
-    /// Settings search box.
+    /// Settings search area.
     pub static SETTINGS_SEARCH_FN_VAR: WidgetFn<SettingsSearchArgs> = WidgetFn::new(default_settings_search_fn);
 }
 
@@ -99,7 +101,8 @@ pub fn default_category_item_fn(args: CategoryItemArgs) -> impl UiNode {
 pub fn default_category_header_fn(args: CategoryHeaderArgs) -> impl UiNode {
     Text! {
         txt = args.category.name().clone();
-        font_size = 1.1.em();
+        font_size = 1.5.em();
+        zng_wgt::margin = 10;
     }
 }
 
@@ -107,14 +110,36 @@ pub fn default_category_header_fn(args: CategoryHeaderArgs) -> impl UiNode {
 ///
 /// See [`CATEGORIES_LIST_FN_VAR`] for more details.
 pub fn default_categories_list_fn(args: CategoriesListArgs) -> impl UiNode {
-    Scroll!(
-        VERTICAL,
-        Stack! {
-            zng_wgt_toggle::selector = Selector::single(args.selected);
-            direction = StackDirection::top_to_bottom();
-            children = args.items;
-        }
-    )
+    Container! {
+        child = Scroll! {
+            mode = ScrollMode::VERTICAL;
+            child_align = Align::FILL_TOP;
+            padding = (10, 20);
+            child = Stack! {
+                zng_wgt_toggle::selector = Selector::single(args.selected);
+                direction = StackDirection::top_to_bottom();
+                children = args.items;
+                zng_wgt_toggle::style_fn = Style! {
+                    replace = true;
+                    zng_wgt_filter::opacity = 70.pct();
+                    zng_wgt_size_offset::height = 2.em();
+                    zng_wgt_container::child_align = Align::START;
+                    zng_wgt_input::cursor = zng_wgt_input::CursorIcon::Pointer;
+
+                    when *#zng_wgt_input::is_hovered {
+                        // zng_wgt_filter::opacity = 100.pct();
+                        zng_wgt_text::font_weight = FontWeight::MEDIUM;
+                    }
+
+                    when *#zng_wgt_toggle::is_checked {
+                        zng_wgt_text::font_weight = FontWeight::BOLD;
+                        zng_wgt_filter::opacity = 100.pct();
+                    }
+                };
+            };
+        };
+        child_end = Vr!(zng_wgt::margin = 0), 0;
+    }
 }
 
 /// Default setting item view.
@@ -145,6 +170,8 @@ pub fn default_settings_fn(args: SettingsArgs) -> impl UiNode {
         child_top = args.header, 5;
         child = Scroll! {
             mode = ScrollMode::VERTICAL;
+            padding = (0, 20, 20, 10);
+            child_align = Align::TOP_START;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = args.items;
@@ -155,8 +182,11 @@ pub fn default_settings_fn(args: SettingsArgs) -> impl UiNode {
 
 /// Default settings search box.
 pub fn default_settings_search_fn(args: SettingsSearchArgs) -> impl UiNode {
-    TextInput! {
-        txt = args.search;
+    Container! {
+        child = TextInput! {
+            txt = args.search;
+        };
+        child_bottom = Hr!(zng_wgt::margin = (10, 10, 0, 10)), 0;
     }
 }
 

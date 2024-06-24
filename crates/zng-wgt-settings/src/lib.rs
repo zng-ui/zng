@@ -33,7 +33,7 @@ impl SettingsEditor {
 /// [`SettingsEditor!`]: struct@SettingsEditor
 pub fn settings_editor_node() -> impl UiNode {
     let search = var(Txt::from_static(""));
-    let selected_cat = var(CategoryId::default());
+    let selected_cat = var(CategoryId::from(""));
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -44,12 +44,12 @@ pub fn settings_editor_node() -> impl UiNode {
                 .sub_var(&CATEGORY_HEADER_FN_VAR)
                 .sub_var(&CATEGORY_ITEM_FN_VAR);
             *c.child() = settings_view_fn(search.clone(), selected_cat.clone()).boxed();
-            search.set("");
-            selected_cat.set("");
         }
         UiNodeOp::Deinit => {
             c.deinit();
             *c.child() = NilUiNode.boxed();
+            search.set("");
+            selected_cat.set("");
         }
         UiNodeOp::Update { .. } => {
             if SETTINGS_FN_VAR.is_new()
@@ -150,6 +150,14 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         }
     };
 
+    search_results.with(|r| {
+        if !r.categories.contains(&r.selected_cat) {
+            if let Some(first) = r.categories.first() {
+                selected_cat.set(first.id().clone());
+            }
+        }
+    });
+
     let categories = presenter(
         search_results.map_ref(|r| &r.categories),
         wgt_fn!(|categories: Vec<Category>| {
@@ -198,13 +206,10 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
     // !!: TODO, FOCUS_SETTING_CMD.notify_param(search_results.top_match);
 
     Container! {
-        child_start = {
-            node: Container! {
-                child_top = search_box, 5;
-                child = categories;
-            },
-            spacing: 5,
+        child_top = search_box, 0;
+        child = Container! {
+            child_start = categories, 0;
+            child = settings
         };
-        child = settings;
     }
 }

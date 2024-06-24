@@ -399,7 +399,7 @@ impl Setting {
     /// Gets if the setting should be included in the search and how likely it is to be an exact match (0 is exact).
     ///
     /// If `search` starts with `@key:` matches key case sensitive, otherwise matches name or description in lower case. Note
-    /// that non-key search is expected to already be lowercase and will panic in debug builds if it is not.
+    /// that non-key search is expected to already be lowercase.
     pub fn search_index(&self, search: &str) -> Option<usize> {
         if let Some(key) = search.strip_prefix("@key:") {
             return if self.key.contains(key) {
@@ -408,7 +408,6 @@ impl Setting {
                 None
             };
         }
-        debug_assert!(search.chars().all(|c| c.is_lowercase()));
 
         let r = self.name.with(|s| {
             let s = s.to_lowercase();
