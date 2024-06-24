@@ -1012,9 +1012,16 @@ mod default_editors {
             }
             .boxed();
         }
+        if let Some(s) = args.value::<String>() {
+            return TextInput! {
+                txt = s.map_bidi(|s| Txt::from_str(s), |t: &Txt| t.to_string());
+            }
+            .boxed();
+        }
 
         if let Some(checked) = args.value::<bool>() {
             return Toggle! {
+                style_fn = toggle::CheckStyle!();
                 checked;
             }
             .boxed();

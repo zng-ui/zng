@@ -10,15 +10,17 @@ use zng_app::{
 use zng_ext_config::settings::{Category, CategoryId, Setting, SettingBuilder};
 use zng_ext_font::FontWeight;
 use zng_wgt::{node::with_context_var, prelude::*, WidgetFn, VAR_EDITOR};
-use zng_wgt_button::Button;
 use zng_wgt_container::Container;
+use zng_wgt_filter::opacity;
+use zng_wgt_markdown::Markdown;
 use zng_wgt_rule_line::{hr::Hr, vr::Vr};
 use zng_wgt_scroll::{Scroll, ScrollMode};
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_style::Style;
-use zng_wgt_text::Text;
+use zng_wgt_text::{icon::Icon, Text};
 use zng_wgt_text_input::TextInput;
 use zng_wgt_toggle::{Selector, Toggle};
+use zng_wgt_tooltip::{disabled_tooltip, tooltip, Tip};
 
 use crate::SettingsEditor;
 
@@ -121,19 +123,18 @@ pub fn default_categories_list_fn(args: CategoriesListArgs) -> impl UiNode {
                 children = args.items;
                 zng_wgt_toggle::style_fn = Style! {
                     replace = true;
-                    zng_wgt_filter::opacity = 70.pct();
+                    opacity = 70.pct();
                     zng_wgt_size_offset::height = 2.em();
                     zng_wgt_container::child_align = Align::START;
                     zng_wgt_input::cursor = zng_wgt_input::CursorIcon::Pointer;
 
-                    when *#zng_wgt_input::is_hovered {
-                        // zng_wgt_filter::opacity = 100.pct();
+                    when *#zng_wgt_input::is_cap_hovered {
                         zng_wgt_text::font_weight = FontWeight::MEDIUM;
                     }
 
                     when *#zng_wgt_toggle::is_checked {
                         zng_wgt_text::font_weight = FontWeight::BOLD;
-                        zng_wgt_filter::opacity = 100.pct();
+                        opacity = 100.pct();
                     }
                 };
             };
@@ -144,23 +145,45 @@ pub fn default_categories_list_fn(args: CategoriesListArgs) -> impl UiNode {
 
 /// Default setting item view.
 pub fn default_setting_fn(args: SettingArgs) -> impl UiNode {
+    let name = args.setting.name().clone();
+    let description = args.setting.description().clone();
+    let can_reset = args.setting.can_reset();
     Container! {
-        child_start = Text! {
-            txt = args.setting.name().clone();
-            font_weight = FontWeight::BOLD;
-        }, 4;
-        child = args.editor;
-        child_bottom = Text! {
-            txt = args.setting.description().clone();
-        }, 4;
-        child_end = {
+        child_start = {
             let s = args.setting;
-            Button! {
-                zng_wgt::enabled = s.can_reset();
-                on_click = hn!(|_| s.reset());
-                child = Text!("R"); // !!: TODO
+            Icon! {
+                zng_wgt::align = Align::TOP;
+                zng_wgt::enabled = can_reset.clone();
+                zng_wgt_input::gesture::on_click = hn!(|_| {
+                    s.reset();
+                });
+                // !!: TODO, some kind of icon intermediary, Icon::Settings that gets fulfilled by the full API from an icon theme.
+                ico = zng_wgt_text::icon::GlyphIcon { font: zng_ext_font::FontName::sans_serif(), features: zng_ext_font::font_features::FontFeatures::new(), glyph: zng_wgt_text::icon::GlyphSource::Code('R') };
+                tooltip = Tip!(Text!("reset"));
+                disabled_tooltip = Tip!(Text!("is default"));
+
+                ico_size = 18;
+
+                opacity = 70.pct();
+                when *#zng_wgt_input::is_cap_hovered {
+                    opacity = 100.pct();
+                }
+                when *#zng_wgt::is_disabled {
+                    opacity = 30.pct();
+                }
             }
         }, 4;
+        child_top = Container! {
+            child_top = Text! {
+                txt = name;
+                font_weight = FontWeight::BOLD;
+            }, 4;
+            child = Markdown! {
+                txt = description;
+                opacity = 70.pct();
+            };
+        }, 5;
+        child = args.editor;
     }
 }
 
@@ -171,9 +194,10 @@ pub fn default_settings_fn(args: SettingsArgs) -> impl UiNode {
         child = Scroll! {
             mode = ScrollMode::VERTICAL;
             padding = (0, 20, 20, 10);
-            child_align = Align::TOP_START;
+            child_align = Align::FILL_TOP;
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
+                spacing = 10;
                 children = args.items;
             };
         };
@@ -268,7 +292,7 @@ static_id! {
 
 impl<'a> SettingBuilderEditorExt for SettingBuilder<'a> {
     fn editor_fn(&mut self, editor: WidgetFn<Setting>) -> &mut Self {
-        self.with_meta(*CUSTOM_EDITOR_ID, editor)
+        self.set(*CUSTOM_EDITOR_ID, editor)
     }
 }
 

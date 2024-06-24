@@ -460,11 +460,19 @@ pub struct SettingsBuilder<'a> {
     filter: &'a mut dyn FnMut(&ConfigKey, &CategoryId) -> bool,
 }
 impl<'c> SettingsBuilder<'c> {
-    /// Get the setting entry builder for the key and category if it is requested by the view query.
+    /// Calls `builder` for the key and category if it is not filtered by the view query.
     ///
     /// If the setting is already present the builder overrides only the metadata set.
-    pub fn entry(&mut self, config_key: impl Into<ConfigKey>, category_id: impl Into<CategoryId>) -> Option<SettingBuilder> {
-        self.entry_impl(config_key.into(), category_id.into())
+    pub fn entry(
+        &mut self,
+        config_key: impl Into<ConfigKey>,
+        category_id: impl Into<CategoryId>,
+        builder: impl for<'a, 'b> FnOnce(&'a mut SettingBuilder<'b>) -> &'a mut SettingBuilder<'b>,
+    ) -> &mut Self {
+        if let Some(mut e) = self.entry_impl(config_key.into(), category_id.into()) {
+            builder(&mut e);
+        }
+        self
     }
     fn entry_impl(&mut self, config_key: ConfigKey, category_id: CategoryId) -> Option<SettingBuilder> {
         if (self.filter)(&config_key, &category_id) {
@@ -525,31 +533,31 @@ impl<'a> SettingBuilder<'a> {
     /// Set the setting order number.
     ///
     /// Lower numbers are listed first, two categories with the same order are sorted by display name.
-    pub fn with_order(&mut self, order: u16) -> &mut Self {
+    pub fn order(&mut self, order: u16) -> &mut Self {
         self.order = order;
         self
     }
 
     /// Set the setting name.
-    pub fn with_name(&mut self, name: impl IntoVar<Txt>) -> &mut Self {
+    pub fn name(&mut self, name: impl IntoVar<Txt>) -> &mut Self {
         self.name = Some(name.into_var().read_only().boxed());
         self
     }
 
     /// Set the setting short help text.
-    pub fn with_description(&mut self, description: impl IntoVar<Txt>) -> &mut Self {
+    pub fn description(&mut self, description: impl IntoVar<Txt>) -> &mut Self {
         self.description = Some(description.into_var().read_only().boxed());
         self
     }
 
     /// Set the custom metadata value.
-    pub fn with_meta<T: StateValue>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>) -> &mut Self {
+    pub fn set<T: StateValue>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>) -> &mut Self {
         self.meta.borrow_mut().set(id, value);
         self
     }
 
     /// Set the custom metadata flag.
-    pub fn with_meta_flag(&mut self, id: impl Into<StateId<()>>) -> &mut Self {
+    pub fn flag(&mut self, id: impl Into<StateId<()>>) -> &mut Self {
         self.meta.borrow_mut().flag(id);
         self
     }
@@ -560,12 +568,12 @@ impl<'a> SettingBuilder<'a> {
     }
 
     /// Set the value variable from [`CONFIG`].
-    pub fn with_value<T: ConfigValue>(&mut self, default: impl FnOnce() -> T) -> &mut Self {
-        self.with_cfg_value(&mut CONFIG, default)
+    pub fn value<T: ConfigValue>(&mut self, default: impl FnOnce() -> T) -> &mut Self {
+        self.cfg_value(&mut CONFIG, default)
     }
 
     /// Set the value variable from a different config.
-    pub fn with_cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: impl FnOnce() -> T) -> &mut Self {
+    pub fn cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: impl FnOnce() -> T) -> &mut Self {
         let value = cfg.get(self.config_key.clone(), default);
         self.value = Some((value.boxed_any(), TypeId::of::<T>()));
         self
@@ -575,15 +583,21 @@ impl<'a> SettingBuilder<'a> {
     ///
     /// This is the preferred way of implementing reset as it keeps the user config file clean,
     /// but it does require a config setup with two files.
-    pub fn with_reset(&mut self, cfg: Box<dyn FallbackConfigReset>) -> &mut Self {
-        self.reset = Some(Arc::new(cfg));
+    ///
+    /// The `strip_key_prefix` is removed from config keys before passing to `resetter`, this is
+    /// required if the config is setup using a switch over multiple files.
+    pub fn reset(&mut self, resetter: Box<dyn FallbackConfigReset>, strip_key_prefix: impl Into<Txt>) -> &mut Self {
+        self.reset = Some(Arc::new(FallbackReset {
+            resetter,
+            strip_key_prefix: strip_key_prefix.into(),
+        }));
         self
     }
 
     /// Use a `default` value to reset the settings.
     ///
     /// The default value is set on the config to reset.
-    pub fn with_default<T: ConfigValue>(&mut self, default: T) -> &mut Self {
+    pub fn default<T: ConfigValue>(&mut self, default: T) -> &mut Self {
         let reset: Box<dyn AnyVarValue> = Box::new(default);
         self.reset = Some(Arc::new(reset));
         self
@@ -618,11 +632,18 @@ pub struct CategoriesBuilder<'f> {
     filter: &'f mut dyn FnMut(&CategoryId) -> bool,
 }
 impl<'f> CategoriesBuilder<'f> {
-    /// Get the category builder for the id if it is requested by the view query.
+    /// Calls `builder` for the id if it is not filtered by the view query.
     ///
     /// If the category is already present the builder overrides only the metadata set.
-    pub fn entry(&mut self, category_id: impl Into<CategoryId>) -> Option<CategoryBuilder> {
-        self.entry_impl(category_id.into())
+    pub fn entry(
+        &mut self,
+        category_id: impl Into<CategoryId>,
+        builder: impl for<'a, 'b> FnOnce(&'a mut CategoryBuilder<'b>) -> &'a mut CategoryBuilder<'b>,
+    ) -> &mut Self {
+        if let Some(mut e) = self.entry_impl(category_id.into()) {
+            builder(&mut e);
+        }
+        self
     }
     fn entry_impl(&mut self, category_id: CategoryId) -> Option<CategoryBuilder> {
         if (self.filter)(&category_id) {
@@ -667,25 +688,25 @@ impl<'a> CategoryBuilder<'a> {
     /// Set the position of the category in a list of categories.
     ///
     /// Lower numbers are listed first, two categories with the same order are sorted by display name.
-    pub fn with_order(&mut self, order: u16) -> &mut Self {
+    pub fn order(&mut self, order: u16) -> &mut Self {
         self.order = order;
         self
     }
 
     /// Set the category name.
-    pub fn with_name(&mut self, name: impl IntoVar<Txt>) -> &mut Self {
+    pub fn name(&mut self, name: impl IntoVar<Txt>) -> &mut Self {
         self.name = Some(name.into_var().read_only().boxed());
         self
     }
 
     /// Set the custom metadata value.
-    pub fn with_meta<T: StateValue>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>) -> &mut Self {
+    pub fn set<T: StateValue>(&mut self, id: impl Into<StateId<T>>, value: impl Into<T>) -> &mut Self {
         self.meta.borrow_mut().set(id, value);
         self
     }
 
     /// Set the custom metadata flag.
-    pub fn with_meta_flag(&mut self, id: impl Into<StateId<()>>) -> &mut Self {
+    pub fn flag(&mut self, id: impl Into<StateId<()>>) -> &mut Self {
         self.meta.borrow_mut().flag(id);
         self
     }
@@ -709,13 +730,25 @@ trait SettingReset: Send + Sync + 'static {
     fn can_reset(&self, key: &ConfigKey, value: &BoxedAnyVar) -> BoxedVar<bool>;
     fn reset(&self, key: &ConfigKey, value: &BoxedAnyVar);
 }
-impl SettingReset for Box<dyn FallbackConfigReset> {
+
+struct FallbackReset {
+    resetter: Box<dyn FallbackConfigReset>,
+    strip_key_prefix: Txt,
+}
+
+impl SettingReset for FallbackReset {
     fn can_reset(&self, key: &ConfigKey, _: &BoxedAnyVar) -> BoxedVar<bool> {
-        self.as_ref().can_reset(key.clone())
+        match key.strip_prefix(self.strip_key_prefix.as_str()) {
+            Some(k) => self.resetter.can_reset(ConfigKey::from_str(k)),
+            None => self.resetter.can_reset(key.clone()),
+        }
     }
 
     fn reset(&self, key: &ConfigKey, _: &BoxedAnyVar) {
-        self.as_ref().reset(key)
+        match key.strip_prefix(self.strip_key_prefix.as_str()) {
+            Some(k) => self.resetter.reset(&ConfigKey::from_str(k)),
+            None => self.resetter.reset(key),
+        }
     }
 }
 impl SettingReset for Box<dyn AnyVarValue> {
