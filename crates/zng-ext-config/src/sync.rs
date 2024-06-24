@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::atomic::AtomicBool};
 
 use atomic::{Atomic, Ordering};
 use zng_clone_move::clmv;
@@ -76,6 +76,7 @@ impl<M: ConfigMap> SyncConfig<M> {
         // config -> entry
         let wk_var = var.downgrade();
         let last_update = Atomic::new(VarUpdateId::never());
+        let backend_lost_entry = AtomicBool::new(false);
         sync_var
             .hook(clmv!(key, |map| {
                 let update_id = VARS.update_id();
@@ -89,8 +90,15 @@ impl<M: ConfigMap> SyncConfig<M> {
                             // get ok
                             if let Some(raw) = raw {
                                 var.set(raw);
+                                if backend_lost_entry.swap(false, Ordering::Relaxed) {
+                                    // restored after reset, var can already have the value,
+                                    // but upstream bindings are stale, cause an update.
+                                    var.update();
+                                }
+                            } else {
+                                // backend lost entry but did not report as error, probably a reset.
+                                backend_lost_entry.store(true, Ordering::Relaxed);
                             }
-                            // else backend lost entry but did not report as error.
                         }
                         Err(e) => {
                             // get error
