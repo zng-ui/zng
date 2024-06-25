@@ -28,7 +28,7 @@
 //!
 //! ```
 //! use zng::{prelude::*, icon};
-//! # let __scope = APP.defaults();
+//! # let _scope = APP.defaults();
 //!
 //! # let _ =
 //! icon::Icon! {

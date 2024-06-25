@@ -1007,6 +1007,7 @@ pub mod read_me_test {}
 mod default_editors {
     use zng::{
         prelude::*,
+        text_input,
         widget::{
             node::{BoxedUiNode, NilUiNode},
             EditorRequestArgs,
@@ -1026,6 +1027,13 @@ mod default_editors {
             }
             .boxed();
         }
+        if let Some(c) = args.value::<char>() {
+            return TextInput! {
+                txt_parse::<char> = c;
+                style_fn = text_input::FieldStyle!();
+            }
+            .boxed();
+        }
 
         if let Some(checked) = args.value::<bool>() {
             return Toggle! {
@@ -1033,6 +1041,24 @@ mod default_editors {
                 checked;
             }
             .boxed();
+        }
+
+        macro_rules! parse {
+            ($($ty:ty),+ $(,)?) => {
+                $(
+                    if let Some(n) = args.value::<$ty>() {
+                        return TextInput! {
+                            txt_parse::<$ty> = n;
+                            style_fn = text_input::FieldStyle!();
+                        }
+                        .boxed();
+                    }
+
+                )+
+            }
+        }
+        parse! {
+            u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64,
         }
 
         NilUiNode.boxed()
