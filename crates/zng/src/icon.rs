@@ -8,13 +8,13 @@
 //! icons having a fixed appearance.
 //!
 //! ```
-//! use zng::{prelude::*, icon};
-//! # let _ = APP.defaults();
+//! use zng::{prelude::*, icon, widget::node::NilUiNode};
+//! # let _scope = APP.defaults();
 //!
-//! icon::ICONS.register(wgt_fn!(|a: : icon::IconRequestArgs| {
+//! icon::ICONS.register(wgt_fn!(|a: icon::IconRequestArgs| {
 //!     match a.name() {
-//!         "accessibility" => icon::Icon!(con::material_rounded::ACCESSIBILITY).boxed(),
-//!         "settings" => icon::Icon!(con::material_rounded::SETTINGS).boxed(),
+//!         "accessibility" => icon::Icon!(icon::material_rounded::ACCESSIBILITY).boxed(),
+//!         "settings" => icon::Icon!(icon::material_rounded::SETTINGS).boxed(),
 //!         _ => NilUiNode.boxed()
 //!     }
 //! }));
@@ -28,7 +28,7 @@
 //!
 //! ```
 //! use zng::{prelude::*, icon};
-//! # let _ = APP.defaults();
+//! # let __scope = APP.defaults();
 //!
 //! # let _ =
 //! icon::Icon! {
@@ -46,7 +46,7 @@
 //! # fn main() { }
 //! use zng::{prelude::*, icon, font};
 //! # async fn demo() {
-//! # let _ = APP.defaults();
+//! # let _scope = APP.defaults();
 //!
 //! let font = font::CustomFont::from_file(
 //!     "Font Awesome 6 Free-Regular",
