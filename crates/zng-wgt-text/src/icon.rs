@@ -49,7 +49,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", move |child| {
         let node = crate::node::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
         let node = crate::font_family(node, icon.map(|i| i.font.clone().into()));
-        let node = crate::font_size(node, ICON_SIZE_VAR);
+        let node = icon_size(node);
         let node = crate::font_features(node, icon.map_ref(|i| &i.features));
         crate::font_color(node, ICON_COLOR_VAR)
     });
@@ -138,7 +138,7 @@ context_var! {
     /// Defines the size of an icon.
     ///
     /// Default is `24.dip()`.
-    pub static ICON_SIZE_VAR: FontSize = 24.dip();
+    pub static ICON_SIZE_VAR: FontSize = FontSize::Default;
 
     /// Defines the color of an icon.
     ///
@@ -148,12 +148,19 @@ context_var! {
     pub static ICON_COLOR_VAR: Rgba = crate::FONT_COLOR_VAR;
 }
 
+/// Sets the icon font size.
+///
+/// The [`FontSize::Default`] value causes the icon to auto size to fill, is there is no size
+/// defaults to 24dip.
+///
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_SIZE_VAR), widget_impl(Icon))]
 pub fn ico_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
     with_context_var(child, ICON_SIZE_VAR, size)
 }
 
+/// Sets the icon font color.
+///
 /// Sets the [`ICON_COLOR_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_COLOR_VAR), widget_impl(Icon))]
 pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
@@ -185,4 +192,44 @@ impl CommandIconExt for Command {
         self.with_meta(|m| m.init_var(*COMMAND_ICON_ID, icon));
         self
     }
+}
+
+/// Same as `font_size`, but `Default` means the smallest available length.
+fn icon_size(child: impl UiNode) -> impl UiNode {
+    match_node(child, |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_layout(&ICON_SIZE_VAR);
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            let font_size = ICON_SIZE_VAR.get();
+            let s = LAYOUT.constraints().fill_size();
+            let mut default_size = s.width.min(s.height);
+            if default_size == Px(0) {
+                default_size = 24.dip().layout_x();
+            }
+            let font_size_px = font_size.layout_dft_x(default_size);
+            *desired_size = if font_size_px >= Px(0) {
+                LAYOUT.with_font_size(font_size_px, || child.measure(wm))
+            } else {
+                tracing::error!("invalid icon font size {font_size:?} => {font_size_px:?}");
+                child.measure(wm)
+            };
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            let font_size = ICON_SIZE_VAR.get();
+            let s = LAYOUT.constraints().fill_size();
+            let mut default_size = s.width.min(s.height);
+            if default_size == Px(0) {
+                default_size = 24.dip().layout_x();
+            }
+            let font_size_px = font_size.layout_dft_x(default_size);
+            *final_size = if font_size_px >= Px(0) {
+                LAYOUT.with_font_size(font_size_px, || child.layout(wl))
+            } else {
+                tracing::error!("invalid icon font size {font_size:?} => {font_size_px:?}");
+                child.layout(wl)
+            };
+        }
+        _ => {}
+    })
 }

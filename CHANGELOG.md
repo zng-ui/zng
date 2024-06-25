@@ -1,5 +1,6 @@
 # Unreleased
 
+* `Icon!` now auto-sizes by default.
 * Add `zng::widget::ICONS`.
 * Add `zng::widget::WeakWidgetFn`.
 * Add `zng::widget::EDITORS`.
