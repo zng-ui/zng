@@ -901,7 +901,7 @@ mod defaults {
     impl AppExtension for DefaultsInit {
         fn init(&mut self) {
             // Common editors.
-            zng_wgt::VAR_EDITOR.register_fallback(zng_wgt::WidgetFn::new(default_editors::handler));
+            zng_wgt::EDITORS.register_fallback(zng_wgt::WidgetFn::new(default_editors::handler));
             tracing::debug!("defaults init, var_editor set");
 
             // injected in all windows
@@ -1001,11 +1001,11 @@ mod default_editors {
         prelude::*,
         widget::{
             node::{BoxedUiNode, NilUiNode},
-            VarEditorArgs,
+            EditorRequestArgs,
         },
     };
 
-    pub fn handler(args: VarEditorArgs) -> BoxedUiNode {
+    pub fn handler(args: EditorRequestArgs) -> BoxedUiNode {
         if let Some(txt) = args.value::<Txt>() {
             return TextInput! {
                 txt;

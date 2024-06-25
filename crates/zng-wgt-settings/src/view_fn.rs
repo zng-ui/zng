@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use zng_app::{
     static_id,
     widget::{
@@ -7,9 +5,10 @@ use zng_app::{
         property,
     },
 };
-use zng_ext_config::settings::{Category, CategoryId, Setting, SettingBuilder};
+use zng_ext_config::settings::{Category, CategoryId, Setting, SettingBuilder, SETTINGS};
 use zng_ext_font::FontWeight;
-use zng_wgt::{node::with_context_var, prelude::*, WidgetFn, VAR_EDITOR};
+use zng_var::{ContextInitHandle, ReadOnlyContextVar};
+use zng_wgt::{node::with_context_var, prelude::*, WidgetFn, EDITORS};
 use zng_wgt_container::Container;
 use zng_wgt_filter::opacity;
 use zng_wgt_markdown::Markdown;
@@ -275,14 +274,8 @@ pub trait SettingEditorExt {
 
     /// Instantiate editor.
     ///
-    /// If an editor is set the [`VAR_EDITOR`] service is used to instantiate the editor.
+    /// If an editor is set the [`EDITORS`] service is used to instantiate the editor.
     fn editor(&self) -> BoxedUiNode;
-}
-
-/// Extends [`StateMapRef<VAR_EDITOR>`] to provide the setting.
-pub trait VarEditorSettingExt {
-    /// Gets the setting that is requesting an editor.
-    fn setting(&self) -> Option<&Setting>;
 }
 
 static_id! {
@@ -304,17 +297,24 @@ impl SettingEditorExt for Setting {
     fn editor(&self) -> BoxedUiNode {
         match self.editor_fn() {
             Some(f) => f(self.clone()),
-            None => {
-                let mut meta = OwnedStateMap::new();
-                meta.borrow_mut().set(*SETTING_ID, self.clone());
-                VAR_EDITOR.new_with(self.value().clone_any(), Arc::new(meta))
-            }
+            None => EDITOR_SETTING_VAR.with_context_var(ContextInitHandle::current(), Some(self.clone()), || {
+                EDITORS.get(self.value().clone_any())
+            }),
         }
     }
 }
 
-impl<'a> VarEditorSettingExt for StateMapRef<'a, VAR_EDITOR> {
-    fn setting(&self) -> Option<&Setting> {
-        self.get(*SETTING_ID)
+/// Extends [`SETTINGS`] to provide contextual information in an editor.
+pub trait SettingsCtxExt {
+    /// Gets a context var that tracks the [`Setting`] entry the widget is inside, or will be.
+    fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>>;
+}
+impl SettingsCtxExt for SETTINGS {
+    fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>> {
+        EDITOR_SETTING_VAR.read_only()
     }
+}
+
+context_var! {
+    pub(crate) static EDITOR_SETTING_VAR: Option<Setting> = None;
 }

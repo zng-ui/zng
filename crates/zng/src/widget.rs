@@ -54,8 +54,8 @@ pub use zng_wgt::{
     on_interactivity_changed, on_move, on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_deinit, on_pre_disable, on_pre_enable,
     on_pre_enabled_changed, on_pre_init, on_pre_interactivity_changed, on_pre_move, on_pre_node_op, on_pre_transform_changed,
     on_pre_unblock, on_pre_update, on_pre_vis_disable, on_pre_vis_enable, on_pre_vis_enabled_changed, on_transform_changed, on_unblock,
-    on_update, on_vis_disable, on_vis_enable, on_vis_enabled_changed, parallel, visibility, wgt_fn, z_index, OnNodeOpArgs, VarEditorArgs,
-    Wgt, WidgetFn, VAR_EDITOR,
+    on_update, on_vis_disable, on_vis_enable, on_vis_enabled_changed, parallel, visibility, wgt_fn, z_index, EditorRequestArgs,
+    OnNodeOpArgs, WeakWidgetFn, Wgt, WidgetFn, EDITORS,
 };
 
 pub use zng_wgt_fill::{

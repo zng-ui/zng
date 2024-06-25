@@ -182,18 +182,19 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
                      selected_settings,
                      ..
                  }: Results| {
-            let set_fn = SETTING_FN_VAR.get();
+            let setting_fn = SETTING_FN_VAR.get();
 
             let settings: UiNodeVec = selected_settings
                 .into_iter()
                 .enumerate()
                 .map(|(i, s)| {
                     let editor = s.editor();
-                    set_fn(SettingArgs {
+                    let child = setting_fn(SettingArgs {
                         index: i,
-                        setting: s,
+                        setting: s.clone(),
                         editor,
-                    })
+                    });
+                    with_context_var(child, EDITOR_SETTING_VAR, Some(s)).into_widget()
                 })
                 .collect();
 
