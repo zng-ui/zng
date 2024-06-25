@@ -36,6 +36,9 @@ impl TabIndex {
     /// The integer value is `u32::MAX / 2`.
     pub const AUTO: TabIndex = TabIndex(u32::MAX / 2);
 
+    /// Last possible widget index.
+    pub const LAST: TabIndex = TabIndex(u32::MAX - 1);
+
     /// If is [`SKIP`](TabIndex::SKIP).
     pub fn is_skip(self) -> bool {
         self == Self::SKIP

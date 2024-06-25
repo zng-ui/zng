@@ -812,6 +812,8 @@ mod defaults {
     use zng_ext_undo::UndoManager;
     use zng_ext_window::WindowManager;
 
+    use crate::default_editors;
+
     #[cfg(feature = "dyn_app_extension")]
     macro_rules! DefaultsAppExtended {
         () => {
@@ -898,6 +900,11 @@ mod defaults {
     struct DefaultsInit {}
     impl AppExtension for DefaultsInit {
         fn init(&mut self) {
+            // Common editors.
+            zng_wgt::EDITORS.register_fallback(zng_wgt::WidgetFn::new(default_editors::handler));
+            tracing::debug!("defaults init, var_editor set");
+
+            // injected in all windows
             zng_ext_window::WINDOWS.register_root_extender(|a| {
                 let child = a.root;
 
@@ -915,6 +922,7 @@ mod defaults {
             });
             tracing::debug!("defaults init, root_extender set");
 
+            // setup OPEN_LICENSES_CMD handler
             crate::third_party::setup_default_view();
             tracing::debug!("defaults init, third_party set");
 
@@ -942,10 +950,11 @@ mod defaults {
 
             #[cfg(feature = "material_icons_outlined")]
             {
+                use zng_app::widget::node::{NilUiNode, UiNode};
                 use zng_ext_clipboard::*;
                 use zng_ext_undo::*;
                 use zng_ext_window::cmd::*;
-                use zng_wgt::wgt_fn;
+                use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
                 use zng_wgt_input::cmd::*;
                 use zng_wgt_material_icons::outlined as icons;
                 use zng_wgt_scroll::cmd::*;
@@ -976,6 +985,14 @@ mod defaults {
                 ZOOM_OUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_OUT)));
 
                 OPEN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::FILE_OPEN)));
+                SETTINGS_CMD.init_icon(wgt_fn!(|_| Icon!(icons::SETTINGS)));
+
+                ICONS.register(wgt_fn!(|args: IconRequestArgs| {
+                    match args.name() {
+                        "settings-reset" => Icon!(icons::SETTINGS_BACKUP_RESTORE).boxed(),
+                        _ => NilUiNode.boxed(),
+                    }
+                }));
 
                 tracing::debug!("defaults init, command_icons set");
             }
@@ -986,3 +1003,64 @@ mod defaults {
 #[doc = include_str!("../../README.md")]
 #[cfg(doctest)]
 pub mod read_me_test {}
+
+mod default_editors {
+    use zng::{
+        prelude::*,
+        text_input,
+        widget::{
+            node::{BoxedUiNode, NilUiNode},
+            EditorRequestArgs,
+        },
+    };
+
+    pub fn handler(args: EditorRequestArgs) -> BoxedUiNode {
+        if let Some(txt) = args.value::<Txt>() {
+            return TextInput! {
+                txt;
+            }
+            .boxed();
+        }
+        if let Some(s) = args.value::<String>() {
+            return TextInput! {
+                txt = s.map_bidi(|s| Txt::from_str(s), |t: &Txt| t.to_string());
+            }
+            .boxed();
+        }
+        if let Some(c) = args.value::<char>() {
+            return TextInput! {
+                txt_parse::<char> = c;
+                style_fn = text_input::FieldStyle!();
+            }
+            .boxed();
+        }
+
+        if let Some(checked) = args.value::<bool>() {
+            return Toggle! {
+                style_fn = toggle::CheckStyle!();
+                checked;
+            }
+            .boxed();
+        }
+
+        macro_rules! parse {
+            ($($ty:ty),+ $(,)?) => {
+                $(
+                    if let Some(n) = args.value::<$ty>() {
+                        return TextInput! {
+                            txt_parse::<$ty> = n;
+                            style_fn = text_input::FieldStyle!();
+                        }
+                        .boxed();
+                    }
+
+                )+
+            }
+        }
+        parse! {
+            u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64,
+        }
+
+        NilUiNode.boxed()
+    }
+}

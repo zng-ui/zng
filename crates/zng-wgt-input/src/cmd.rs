@@ -44,6 +44,19 @@ command! {
     pub static CONTEXT_MENU_CMD = {
         shortcut: [shortcut!(SHIFT+F10), shortcut!(ContextMenu)],
     };
+
+    /// Represents the **open settings** action.
+    ///
+    /// Settings is an editor for a selection of app configs.
+    ///
+    /// # Parameter
+    ///
+    /// The parameter can be a `Txt` that can match a `ConfigKey` or config metadata
+    /// such as the display name or description.
+    pub static SETTINGS_CMD = {
+        name: "Settings",
+        shortcut: [shortcut!(CTRL+',')],
+    };
 }
 
 command_property! {
@@ -120,5 +133,12 @@ command_property! {
     /// [`PASTE_CMD`]: zng_ext_clipboard::PASTE_CMD
     pub fn paste {
         cmd: PASTE_CMD.scoped(WIDGET.id()),
+    }
+
+    /// On settings command.
+    ///
+    /// Receives [`SETTINGS_CMD`] command events scoped on the widget.
+    pub fn settings {
+        cmd: SETTINGS_CMD.scoped(WIDGET.id()),
     }
 }

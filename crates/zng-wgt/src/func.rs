@@ -1,7 +1,8 @@
-use std::{fmt, ops, sync::Arc};
+use std::{any::TypeId, fmt, ops, sync::Arc};
 
 use crate::prelude::*;
 
+use zng_var::AnyVar;
 #[doc(hidden)]
 pub use zng_wgt::prelude::clmv as __clmv;
 
@@ -115,6 +116,14 @@ impl<D> WidgetFn<D> {
         let widget = ArcNode::new(widget);
         Self::new(move |_| widget.take_on_init())
     }
+
+    /// Creates a [`WeakWidgetFn<D>`] reference to this function.
+    pub fn downgrade(&self) -> WeakWidgetFn<D> {
+        match &self.0 {
+            Some(f) => WeakWidgetFn(Arc::downgrade(f)),
+            None => WeakWidgetFn::nil(),
+        }
+    }
 }
 impl<D: 'static> ops::Deref for WidgetFn<D> {
     type Target = dyn Fn(D) -> BoxedUiNode;
@@ -128,6 +137,28 @@ impl<D: 'static> ops::Deref for WidgetFn<D> {
 }
 fn nil_call<D>(_: D) -> BoxedUiNode {
     NilUiNode.boxed()
+}
+
+/// Weak reference to a [`WidgetFn<D>`].
+pub struct WeakWidgetFn<D>(std::sync::Weak<BoxedWgtFn<D>>);
+impl<D> WeakWidgetFn<D> {
+    /// New weak reference to nil.
+    pub const fn nil() -> Self {
+        WeakWidgetFn(std::sync::Weak::new())
+    }
+
+    /// If this weak reference only upgrades to a nil function.
+    pub fn is_nil(&self) -> bool {
+        self.0.strong_count() == 0
+    }
+
+    /// Upgrade to strong reference if it still exists or nil.
+    pub fn upgrade(&self) -> WidgetFn<D> {
+        match self.0.upgrade() {
+            Some(f) => WidgetFn(Some(f)),
+            None => WidgetFn::nil(),
+        }
+    }
 }
 
 /// <span data-del-macro-root></span> Declares a widget function closure.
@@ -194,4 +225,217 @@ macro_rules! wgt_fn {
     () => {
         $crate::WidgetFn::nil()
     };
+}
+
+/// Service that provides editor widgets for a given variable.
+///
+/// Auto generating widgets such as a settings list or a properties list can use this
+/// service to instantiate widgets for each item.
+///
+/// The main crate registers some common editors.
+#[allow(non_camel_case_types)]
+pub struct EDITORS;
+impl EDITORS {
+    /// Register an `editor` handler.
+    ///
+    /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called first.
+    pub fn register(&self, editor: WidgetFn<EditorRequestArgs>) {
+        if !editor.is_nil() {
+            UPDATES
+                .run(async move {
+                    EDITORS_SV.write().push(editor);
+                })
+                .perm();
+        }
+    }
+
+    /// Register an `editor` handler to be called if none of the `register` editors can handle the value.
+    ///
+    /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called last.
+    pub fn register_fallback(&self, editor: WidgetFn<EditorRequestArgs>) {
+        if !editor.is_nil() {
+            UPDATES
+                .run(async move {
+                    EDITORS_SV.write().push_fallback(editor);
+                })
+                .perm();
+        }
+    }
+
+    /// Instantiate an editor for the `value`.
+    ///
+    /// Returns [`NilUiNode`] if no registered editor can handle the value type.
+    pub fn get(&self, value: impl AnyVar) -> BoxedUiNode {
+        EDITORS_SV.read().get(EditorRequestArgs { value: Box::new(value) })
+    }
+
+    /// Same as [`get`], but also logs an error is there are no available editor for the type.
+    ///
+    /// [`get`]: Self::get
+    pub fn req<T: VarValue>(&self, value: impl Var<T>) -> BoxedUiNode {
+        let e = self.get(value);
+        if e.is_nil() {
+            tracing::error!("no editor available for `{}`", std::any::type_name::<T>())
+        }
+        e
+    }
+}
+
+/// Service that provides icon drawing widgets.
+///
+/// This service enables widgets to use icons in an optional way, without needing to bundle icon resources. It
+/// also enables app wide icon theming.
+pub struct ICONS;
+impl ICONS {
+    /// Register an `icon` handler.
+    ///
+    /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called first.
+    pub fn register(&self, icon: WidgetFn<IconRequestArgs>) {
+        if !icon.is_nil() {
+            UPDATES
+                .run(async move {
+                    ICONS_SV.write().push(icon);
+                })
+                .perm();
+        }
+    }
+
+    /// Register an `icon` handler to be called if none of the `register` handlers can handle request.
+    ///
+    /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called last.
+    pub fn register_fallback(&self, icon: WidgetFn<IconRequestArgs>) {
+        if !icon.is_nil() {
+            UPDATES
+                .run(async move {
+                    ICONS_SV.write().push_fallback(icon);
+                })
+                .perm();
+        }
+    }
+
+    /// Instantiate an icon drawing widget for the `icon_name`.
+    ///
+    /// Returns [`NilUiNode`] if no registered handler can provide an icon.
+    pub fn get(&self, icon_name: impl Into<Txt>) -> BoxedUiNode {
+        ICONS_SV.read().get(IconRequestArgs { name: icon_name.into() })
+    }
+
+    /// Instantiate an icon drawing widget for the `icon_name` or call `fallback` to do it
+    /// if no handler can handle the request.
+    pub fn get_or<U: UiNode>(&self, icon_name: impl Into<Txt>, fallback: impl FnOnce() -> U) -> BoxedUiNode {
+        let i = self.get(icon_name.into());
+        if i.is_nil() {
+            fallback().boxed()
+        } else {
+            i
+        }
+    }
+
+    /// Same as [`get`], but also logs an error is there are no available icon for the name.
+    ///
+    /// [`get`]: Self::get
+    pub fn req(&self, icon_name: impl Into<Txt>) -> BoxedUiNode {
+        let name = icon_name.into();
+        let i = self.get(name.clone());
+        if i.is_nil() {
+            tracing::error!("no icon available for {name:?}")
+        }
+        i
+    }
+
+    //// Same as [`get_or`], but also logs an error is there are no available icon for the name.
+    ///
+    /// [`get_or`]: Self::get_or
+    pub fn req_or<U: UiNode>(&self, icon_name: impl Into<Txt>, fallback: impl FnOnce() -> U) -> BoxedUiNode {
+        let i = self.req(icon_name.into());
+        if i.is_nil() {
+            fallback().boxed()
+        } else {
+            i
+        }
+    }
+}
+
+/// Arguments for [`EDITORS.register`].
+///
+/// Note that the handler is usually called in the widget context that will host the editor, so context
+/// variables and services my also be available to inform the editor preferences.
+///
+/// [`EDITORS.register`]: EDITORS::register
+#[derive(Clone)]
+pub struct EditorRequestArgs {
+    value: Box<dyn AnyVar>,
+}
+impl EditorRequestArgs {
+    /// The value variable.
+    pub fn value_any(&self) -> &dyn AnyVar {
+        &self.value
+    }
+
+    /// Try to downcast the value variable to `T`.
+    pub fn value<T: VarValue>(&self) -> Option<BoxedVar<T>> {
+        if self.value.var_type_id() == TypeId::of::<T>() {
+            let value = *self.value.clone_any().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
+            return Some(value);
+        }
+        None
+    }
+}
+
+/// Arguments for [`ICONS.register`].
+///
+/// Note that the handler is usually called in the widget context that will host the editor, so context
+/// variables and services my also be available to inform the editor preferences.
+///
+/// [`ICONS.register`]: ICONS::register
+#[derive(Clone)]
+pub struct IconRequestArgs {
+    name: Txt,
+}
+impl IconRequestArgs {
+    /// Icon unique name,
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+app_local! {
+    static EDITORS_SV: WidgetProviderService<EditorRequestArgs> = const { WidgetProviderService::new() };
+    static ICONS_SV: WidgetProviderService<IconRequestArgs> = const { WidgetProviderService::new() };
+}
+struct WidgetProviderService<A> {
+    handlers: Vec<WidgetFn<A>>,
+    fallback: Vec<WidgetFn<A>>,
+}
+impl<A: Clone + 'static> WidgetProviderService<A> {
+    const fn new() -> Self {
+        Self {
+            handlers: vec![],
+            fallback: vec![],
+        }
+    }
+
+    fn push(&mut self, handler: WidgetFn<A>) {
+        self.handlers.push(handler);
+    }
+
+    fn push_fallback(&mut self, handler: WidgetFn<A>) {
+        self.fallback.push(handler);
+    }
+
+    fn get(&self, args: A) -> BoxedUiNode {
+        for handler in self.handlers.iter().rev() {
+            let editor = handler(args.clone());
+            if !editor.is_nil() {
+                return editor;
+            }
+        }
+        for handler in self.fallback.iter() {
+            let editor = handler(args.clone());
+            if !editor.is_nil() {
+                return editor;
+            }
+        }
+        NilUiNode.boxed()
+    }
 }

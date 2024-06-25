@@ -25,11 +25,6 @@ pub use switch::*;
 
 mod sync;
 pub use sync::*;
-use zng_app_context::app_local;
-use zng_clone_move::clmv;
-use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
-use zng_txt::Txt;
-use zng_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar};
 
 #[cfg(feature = "toml")]
 mod toml;
@@ -46,6 +41,8 @@ mod yaml;
 #[cfg(feature = "yaml")]
 pub use self::yaml::*;
 
+pub mod settings;
+
 use std::{
     any::Any,
     collections::{hash_map, HashMap},
@@ -54,7 +51,12 @@ use std::{
 };
 
 use zng_app::{update::EventUpdate, view_process::raw_events::LOW_MEMORY_EVENT, AppExtension};
+use zng_app_context::app_local;
+use zng_clone_move::clmv;
+use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zng_task as task;
+use zng_txt::Txt;
+use zng_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar};
 
 /// Application extension that provides mouse events and service.
 ///
@@ -255,11 +257,11 @@ pub trait AnyConfig: Send + Any {
     /// This method is used when `T` cannot be passed because the config is behind a dynamic reference,
     /// the backend must convert the value from the in memory representation to [`RawConfigValue`].
     ///
-    /// If `shared` is `true` and the key was already requested it the same var is returned, if `false`
+    /// If `shared` is `true` and the key was already requested the same var is returned, if `false`
     /// a new variable is always generated. Note that if you have two different variables for the same
     /// key they will go out-of-sync as updates from setting one variable do not propagate to the other.
     ///
-    /// The `default` value is used to if the key is not found in the config, the default value
+    /// The `default` value is used if the key is not found in the config, the default value
     /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue>;
 
@@ -277,6 +279,56 @@ pub trait AnyConfig: Send + Any {
 
     /// Cleanup and flush RAM caches.
     fn low_memory(&mut self);
+}
+impl dyn AnyConfig {
+    /// Get raw config and setup a bidi binding that converts to and from `T`.
+    ///
+    /// See [`get_raw`](AnyConfig::get_raw) for more details about the inputs.
+    pub fn get_raw_serde_bidi<T: ConfigValue>(
+        &mut self,
+        key: impl Into<ConfigKey>,
+        default: impl FnOnce() -> T,
+        shared: bool,
+    ) -> BoxedVar<T> {
+        let key = key.into();
+        let default = default();
+        let source_var = self.get_raw(
+            key.clone(),
+            RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
+            shared,
+        );
+        let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));
+
+        source_var
+            .bind_filter_map_bidi(
+                &var,
+                // Raw -> T
+                clmv!(key, |raw| {
+                    match RawConfigValue::deserialize(raw.clone()) {
+                        Ok(value) => Some(value),
+                        Err(e) => {
+                            tracing::error!("get_raw_serde_bidi({key:?}) error, {e:?}");
+                            None
+                        }
+                    }
+                }),
+                // T -> Raw
+                clmv!(key, source_var, |value| {
+                    let _strong_ref = &source_var;
+
+                    match RawConfigValue::serialize(value) {
+                        Ok(raw) => Some(raw),
+                        Err(e) => {
+                            tracing::error!("get_raw_serde_bidi({key:?}) error, {e:?}");
+                            None
+                        }
+                    }
+                }),
+            )
+            .perm();
+
+        var.boxed()
+    }
 }
 
 /// Represents one or more config sources.

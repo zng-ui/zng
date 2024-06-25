@@ -176,6 +176,9 @@ pub trait AnyVarValue: fmt::Debug + Any + Send + Sync {
 
     /// Clone the value into a new boxed [`LocalVar<Self>`].
     fn clone_boxed_var(&self) -> BoxedAnyVar;
+
+    /// Gets if `self` equals `other`.
+    fn eq_any(&self, other: &dyn AnyVarValue) -> bool;
 }
 
 impl<T: VarValue> AnyVarValue for T {
@@ -197,6 +200,13 @@ impl<T: VarValue> AnyVarValue for T {
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
+    }
+
+    fn eq_any(&self, other: &dyn AnyVarValue) -> bool {
+        match other.as_any().downcast_ref::<T>() {
+            Some(v) => self == v,
+            None => false,
+        }
     }
 }
 

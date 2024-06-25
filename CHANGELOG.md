@@ -1,5 +1,11 @@
 # Unreleased
 
+* Add `zng::widget::ICONS`.
+* Add `zng::widget::WeakWidgetFn`.
+* Add `zng::widget::EDITORS`.
+* Add `dyn AnyConfig::get_raw_serde_bidi`.
+* Add `AnyVarValue::eq_any`.
+* Add `zng::config::settings`.
 
 # 0.9.1
 

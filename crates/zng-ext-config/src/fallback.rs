@@ -205,12 +205,15 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
                     if is_reset {
                         fall_res_enabled.store(true, Ordering::Relaxed);
                     } else {
-                        fall_res_enabled.store(false, Ordering::Relaxed);
+                        let after_reset = fall_res_enabled.swap(false, Ordering::Relaxed);
                         let value = args.value().clone();
                         let _ = cfg_var.modify(move |v| {
                             if v.as_ref() != &value {
                                 v.set(value);
                                 v.push_tag(binding_tag);
+                            } else if after_reset {
+                                // cfg still has value from before reset, cause it to write
+                                v.update();
                             }
                         });
                     }
