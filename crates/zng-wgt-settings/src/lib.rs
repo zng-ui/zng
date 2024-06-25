@@ -180,6 +180,7 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         wgt_fn!(|Results {
                      selected_cat,
                      selected_settings,
+                     top_match,
                      ..
                  }: Results| {
             let setting_fn = SETTING_FN_VAR.get();
@@ -189,12 +190,12 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
                 .enumerate()
                 .map(|(i, s)| {
                     let editor = s.editor();
-                    let child = setting_fn(SettingArgs {
+                    setting_fn(SettingArgs {
                         index: i,
+                        is_top_match: s.key() == &top_match,
                         setting: s.clone(),
                         editor,
-                    });
-                    with_context_var(child, EDITOR_SETTING_VAR, Some(s)).into_widget()
+                    })
                 })
                 .collect();
 
@@ -203,8 +204,6 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
             SETTINGS_FN_VAR.get()(SettingsArgs { header, items: settings })
         }),
     );
-
-    // !!: TODO, FOCUS_SETTING_CMD.notify_param(search_results.top_match);
 
     Container! {
         child_top = search_box, 0;

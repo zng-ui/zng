@@ -5,7 +5,10 @@ use zng_app::{
         property,
     },
 };
-use zng_ext_config::settings::{Category, CategoryId, Setting, SettingBuilder, SETTINGS};
+use zng_ext_config::{
+    settings::{Category, CategoryId, Setting, SettingBuilder, SETTINGS},
+    ConfigKey,
+};
 use zng_ext_font::FontWeight;
 use zng_var::{ContextInitHandle, ReadOnlyContextVar};
 use zng_wgt::{node::with_context_var, prelude::*, Wgt, WidgetFn, EDITORS, ICONS};
@@ -64,7 +67,11 @@ pub fn category_header_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Cate
 
 /// Widget function that converts [`SettingArgs`] to a setting editor entry on a settings list.
 ///
+/// Note that the widget must set [`setting`] or some features will not work.
+///
 /// Sets the [`SETTING_FN_VAR`].
+///
+/// [`setting`]: fn@setting
 #[property(CONTEXT, default(SETTING_FN_VAR), widget_impl(SettingsEditor))]
 pub fn setting_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<SettingArgs>>) -> impl UiNode {
     with_context_var(child, SETTING_FN_VAR, wgt_fn)
@@ -147,7 +154,19 @@ pub fn default_setting_fn(args: SettingArgs) -> impl UiNode {
     let name = args.setting.name().clone();
     let description = args.setting.description().clone();
     let can_reset = args.setting.can_reset();
+    let focus_on_init = args.is_top_match;
     Container! {
+        setting = args.setting.clone();
+
+        zng_wgt_input::focus::focus_scope = true;
+        zng_wgt_input::focus::focus_scope_behavior = zng_ext_input::focus::FocusScopeOnFocus::FirstDescendant;
+
+        zng_wgt::on_info_init = hn_once!(|_| {
+            if focus_on_init {
+                zng_ext_input::focus::FOCUS.focus_widget(WIDGET.id(), false);
+            }
+        });
+
         child_start = {
             let s = args.setting;
             Wgt! {
@@ -162,6 +181,8 @@ pub fn default_setting_fn(args: SettingArgs) -> impl UiNode {
 
                 tooltip = Tip!(Text!("reset"));
                 disabled_tooltip = Tip!(Text!("is default"));
+
+                zng_wgt_input::focus::tab_index = zng_ext_input::focus::TabIndex::SKIP;
 
                 opacity = 70.pct();
                 when *#zng_wgt_input::is_cap_hovered {
@@ -239,6 +260,8 @@ pub struct CategoriesListArgs {
 pub struct SettingArgs {
     /// Index of the setting on the list.
     pub index: usize,
+    /// If this is the best search result or the first setting when there is no search.
+    pub is_top_match: bool,
     /// The setting.
     pub setting: Setting,
     /// The setting value editor.
@@ -278,9 +301,15 @@ pub trait SettingEditorExt {
     fn editor(&self) -> BoxedUiNode;
 }
 
+/// Extends [`WidgetInfo`] to provide the setting config key for setting widgets.
+pub trait WidgetInfoSettingExt {
+    /// Gets the setting config key, if this widget represents a setting item.
+    fn setting_key(&self) -> Option<ConfigKey>;
+}
+
 static_id! {
     static ref CUSTOM_EDITOR_ID: StateId<WidgetFn<Setting>>;
-    static ref SETTING_ID: StateId<Setting>;
+    static ref SETTING_KEY_ID: StateId<ConfigKey>;
 }
 
 impl<'a> SettingBuilderEditorExt for SettingBuilder<'a> {
@@ -304,6 +333,12 @@ impl SettingEditorExt for Setting {
     }
 }
 
+impl WidgetInfoSettingExt for WidgetInfo {
+    fn setting_key(&self) -> Option<ConfigKey> {
+        self.meta().get_clone(*SETTING_KEY_ID)
+    }
+}
+
 /// Extends [`SETTINGS`] to provide contextual information in an editor.
 pub trait SettingsCtxExt {
     /// Gets a context var that tracks the [`Setting`] entry the widget is inside, or will be.
@@ -316,5 +351,20 @@ impl SettingsCtxExt for SETTINGS {
 }
 
 context_var! {
-    pub(crate) static EDITOR_SETTING_VAR: Option<Setting> = None;
+    static EDITOR_SETTING_VAR: Option<Setting> = None;
+}
+
+/// Identifies the [`setting_fn`] widget.
+///
+/// [`setting_fn`]: fn@setting_fn
+#[property(CONTEXT)]
+pub fn setting(child: impl UiNode, setting: impl IntoValue<Setting>) -> impl UiNode {
+    let setting = setting.into();
+
+    let child = match_node(child, |_, op| {
+        if let UiNodeOp::Info { info } = op {
+            info.set_meta(*SETTING_KEY_ID, EDITOR_SETTING_VAR.with(|s| s.as_ref().unwrap().key().clone()));
+        }
+    });
+    with_context_var(child, EDITOR_SETTING_VAR, Some(setting))
 }
