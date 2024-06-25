@@ -76,9 +76,7 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
     // avoids rebuilds for ignored search changes
     let clean_search = search.map(|s| {
         let s = s.trim();
-        if s.len() < 3 {
-            Txt::from_static("")
-        } else if !s.starts_with('@') {
+        if !s.starts_with('@') {
             s.to_lowercase().into()
         } else {
             Txt::from_str(s)
@@ -150,12 +148,27 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         }
     };
 
-    search_results.with(|r| {
-        if !r.categories.contains(&r.selected_cat) {
-            if let Some(first) = r.categories.first() {
-                selected_cat.set(first.id().clone());
+    // select first category when previous selection is removed
+    let wk_sel_cat = selected_cat.downgrade();
+    fn correct_sel(options: &[Category], sel: &ArcVar<CategoryId>) {
+        if sel.with(|s| !options.iter().any(|c| c.id() == s)) {
+            if let Some(first) = options.first() {
+                sel.set(first.id().clone());
             }
         }
+    }
+    search_results
+        .hook(move |r| {
+            if let Some(sel) = wk_sel_cat.upgrade() {
+                correct_sel(&r.value().categories, &sel);
+                true
+            } else {
+                false
+            }
+        })
+        .perm();
+    search_results.with(|r| {
+        correct_sel(&r.categories, &selected_cat);
     });
 
     let categories = presenter(
@@ -180,7 +193,6 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         wgt_fn!(|Results {
                      selected_cat,
                      selected_settings,
-                     top_match,
                      ..
                  }: Results| {
             let setting_fn = SETTING_FN_VAR.get();
@@ -192,7 +204,6 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
                     let editor = s.editor();
                     setting_fn(SettingArgs {
                         index: i,
-                        is_top_match: s.key() == &top_match,
                         setting: s.clone(),
                         editor,
                     })

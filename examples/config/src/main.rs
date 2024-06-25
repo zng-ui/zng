@@ -60,8 +60,6 @@ fn load_config() {
             ["u32", "integers", 0u32],
             ["u64", "integers", 0u64],
             ["u128", "integers", 0u128],
-
-
             ["i8", "integers", 0i8],
             ["i16", "integers", 0i16],
             ["i32", "integers", 0i32],

@@ -110,7 +110,7 @@ pub fn default_category_header_fn(args: CategoryHeaderArgs) -> impl UiNode {
     Text! {
         txt = args.category.name().clone();
         font_size = 1.5.em();
-        zng_wgt::margin = 10;
+        zng_wgt::margin = (10, 10, 10, 28);
     }
 }
 
@@ -154,24 +154,20 @@ pub fn default_setting_fn(args: SettingArgs) -> impl UiNode {
     let name = args.setting.name().clone();
     let description = args.setting.description().clone();
     let can_reset = args.setting.can_reset();
-    let focus_on_init = args.is_top_match;
     Container! {
         setting = args.setting.clone();
 
         zng_wgt_input::focus::focus_scope = true;
         zng_wgt_input::focus::focus_scope_behavior = zng_ext_input::focus::FocusScopeOnFocus::FirstDescendant;
 
-        zng_wgt::on_info_init = hn_once!(|_| {
-            if focus_on_init {
-                zng_ext_input::focus::FOCUS.focus_widget(WIDGET.id(), false);
-            }
-        });
-
         child_start = {
             let s = args.setting;
             Wgt! {
                 zng_wgt::align = Align::TOP;
-                zng_wgt::enabled = can_reset.clone();
+                zng_wgt::visibility = can_reset.map(|c| match c {
+                    true => Visibility::Visible,
+                    false => Visibility::Hidden,
+                });
                 zng_wgt_input::gesture::on_click = hn!(|_| {
                     s.reset();
                 });
@@ -260,8 +256,6 @@ pub struct CategoriesListArgs {
 pub struct SettingArgs {
     /// Index of the setting on the list.
     pub index: usize,
-    /// If this is the best search result or the first setting when there is no search.
-    pub is_top_match: bool,
     /// The setting.
     pub setting: Setting,
     /// The setting value editor.
