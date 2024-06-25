@@ -953,12 +953,13 @@ mod defaults {
                 use zng_ext_clipboard::*;
                 use zng_ext_undo::*;
                 use zng_ext_window::cmd::*;
-                use zng_wgt::wgt_fn;
+                use zng_wgt::{wgt_fn, ICONS, IconRequestArgs};
                 use zng_wgt_input::cmd::*;
                 use zng_wgt_material_icons::outlined as icons;
                 use zng_wgt_scroll::cmd::*;
                 use zng_wgt_text::icon::CommandIconExt as _;
                 use zng_wgt_text::icon::Icon;
+                use zng_app::widget::node::{NilUiNode, UiNode};
 
                 CUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CUT)));
                 COPY_CMD.init_icon(wgt_fn!(|_| Icon!(icons::COPY)));
@@ -985,6 +986,13 @@ mod defaults {
 
                 OPEN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::FILE_OPEN)));
                 SETTINGS_CMD.init_icon(wgt_fn!(|_| Icon!(icons::SETTINGS)));
+
+                ICONS.register(wgt_fn!(|args: IconRequestArgs| {
+                    match args.name() {
+                        "settings-reset" => Icon!(icons::SETTINGS_BACKUP_RESTORE).boxed(),
+                        _ => NilUiNode.boxed(),
+                    }
+                }));
 
                 tracing::debug!("defaults init, command_icons set");
             }

@@ -11,8 +11,8 @@
 //! use zng::{prelude::*, icon};
 //! # let _ = APP.defaults();
 //!
-//! icon::ICONS.register(wgt_fn!(|a| {
-//!     match a.name().as_str() {
+//! icon::ICONS.register(wgt_fn!(|a: : icon::IconRequestArgs| {
+//!     match a.name() {
 //!         "accessibility" => icon::Icon!(con::material_rounded::ACCESSIBILITY).boxed(),
 //!         "settings" => icon::Icon!(con::material_rounded::SETTINGS).boxed(),
 //!         _ => NilUiNode.boxed()

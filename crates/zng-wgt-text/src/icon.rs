@@ -4,7 +4,7 @@ use zng_app::{
     event::{CommandMetaVar, CommandMetaVarId},
     static_id,
 };
-use zng_ext_font::{font_features::FontFeatures, FontName};
+use zng_ext_font::{font_features::FontFeatures, FontName, FontSize};
 use zng_wgt::prelude::*;
 
 use std::fmt;
@@ -138,7 +138,7 @@ context_var! {
     /// Defines the size of an icon.
     ///
     /// Default is `24.dip()`.
-    pub static ICON_SIZE_VAR: Length = 24.dip();
+    pub static ICON_SIZE_VAR: FontSize = 24.dip();
 
     /// Defines the color of an icon.
     ///
@@ -150,7 +150,7 @@ context_var! {
 
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_SIZE_VAR), widget_impl(Icon))]
-pub fn ico_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
+pub fn ico_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
     with_context_var(child, ICON_SIZE_VAR, size)
 }
 
