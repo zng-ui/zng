@@ -22,7 +22,7 @@ impl SETTINGS {
     }
 
     /// Register a closure that provides category metadata.
-    pub fn register_cat(&self, f: impl Fn(&mut CategoriesBuilder) + Send + Sync + 'static) {
+    pub fn register_categories(&self, f: impl Fn(&mut CategoriesBuilder) + Send + Sync + 'static) {
         SETTINGS_SV.write().sources_cat.push(Box::new(f))
     }
 
