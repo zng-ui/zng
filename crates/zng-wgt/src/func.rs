@@ -300,7 +300,7 @@ impl ICONS {
         }
     }
 
-    /// Register an `icon` handler to be called if none of the `register` handlers can handle the value.
+    /// Register an `icon` handler to be called if none of the `register` handlers can handle request.
     ///
     /// The handler must return [`NilUiNode`] if it cannot handle the request. Later added handlers are called last.
     pub fn register_fallback(&self, icon: WidgetFn<IconRequestArgs>) {
@@ -320,6 +320,17 @@ impl ICONS {
         ICONS_SV.read().get(IconRequestArgs { name: icon_name.into() })
     }
 
+    /// Instantiate an icon drawing widget for the `icon_name` or call `fallback` to do it
+    /// if no handler can handle the request.
+    pub fn get_or<U: UiNode>(&self, icon_name: impl Into<Txt>, fallback: impl FnOnce() -> U) -> BoxedUiNode {
+        let i = self.get(icon_name.into());
+        if i.is_nil() {
+            fallback().boxed()
+        } else {
+            i
+        }
+    }
+
     /// Same as [`get`], but also logs an error is there are no available icon for the name.
     ///
     /// [`get`]: Self::get
@@ -330,6 +341,18 @@ impl ICONS {
             tracing::error!("no icon available for {name:?}")
         }
         i
+    }
+
+    //// Same as [`get_or`], but also logs an error is there are no available icon for the name.
+    ///
+    /// [`get_or`]: Self::get_or
+    pub fn req_or<U: UiNode>(&self, icon_name: impl Into<Txt>, fallback: impl FnOnce() -> U) -> BoxedUiNode {
+        let i = self.req(icon_name.into());
+        if i.is_nil() {
+            fallback().boxed()
+        } else {
+            i
+        }
     }
 }
 
