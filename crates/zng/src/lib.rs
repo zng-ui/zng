@@ -950,16 +950,16 @@ mod defaults {
 
             #[cfg(feature = "material_icons_outlined")]
             {
+                use zng_app::widget::node::{NilUiNode, UiNode};
                 use zng_ext_clipboard::*;
                 use zng_ext_undo::*;
                 use zng_ext_window::cmd::*;
-                use zng_wgt::{wgt_fn, ICONS, IconRequestArgs};
+                use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
                 use zng_wgt_input::cmd::*;
                 use zng_wgt_material_icons::outlined as icons;
                 use zng_wgt_scroll::cmd::*;
                 use zng_wgt_text::icon::CommandIconExt as _;
                 use zng_wgt_text::icon::Icon;
-                use zng_app::widget::node::{NilUiNode, UiNode};
 
                 CUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CUT)));
                 COPY_CMD.init_icon(wgt_fn!(|_| Icon!(icons::COPY)));
