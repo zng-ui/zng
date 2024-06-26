@@ -8,6 +8,7 @@
 use super::*;
 use zng_app::event::{CommandArgs, CommandParam};
 use zng_ext_window::WINDOWS;
+use zng_wgt::ICONS;
 
 command! {
     /// Represents the **scroll up** by one [`v_line_unit`] action.
@@ -140,6 +141,7 @@ command! {
         info: "Scroll up to the content top.",
         shortcut: [shortcut!(Home), shortcut!(CTRL+Home)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+        icon: wgt_fn!(|_| ICONS.get(["scroll-top", "vertical-align-top"])),
     };
 
     /// Represents the **scroll to bottom** action.
@@ -148,6 +150,7 @@ command! {
         info: "Scroll down to the content bottom.",
         shortcut: [shortcut!(End), shortcut!(CTRL+End)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+        icon: wgt_fn!(|_| ICONS.get(["scroll-bottom", "vertical-align-bottom"])),
     };
 
     /// Represents the **scroll to leftmost** action.
@@ -197,6 +200,7 @@ command! {
         name: "Zoom In",
         shortcut: shortcut!(CTRL+'+'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+        icon: wgt_fn!(|_| ICONS.get("zoom-in")),
     };
 
     /// Represents the **zoom out** action.
@@ -212,6 +216,7 @@ command! {
         name: "Zoom Out",
         shortcut: shortcut!(CTRL+'-'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+        icon: wgt_fn!(|_| ICONS.get("zoom-out")),
     };
 
     /// Represents the **zoom to fit** action.

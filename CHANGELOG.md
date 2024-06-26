@@ -1,5 +1,14 @@
 # Unreleased
 
+* **Breaking** Refactored `zng::icon::material*` modules and `zng-wgt-material-icons`.
+    - Removed consts for each icon.
+    - Modules renamed to `zng::icon::material::*`.
+    - Now uses a `phf` map from string names.
+        - To convert an old const name, lowercase + replace '_' with '-' and strip 'N' prefix if the next char is a number.
+          Example: `N1K_PLUS` -> `"1k-plus"`.
+    - Now registers `ICONS` for each name.
+* **Breaking** Moved `CommandIconExt` from `zng-wgt-text` to `zng-wgt`.
+* `Icon!` now auto-sizes by default.
 * Add `zng::widget::ICONS`.
 * Add `zng::widget::WeakWidgetFn`.
 * Add `zng::widget::EDITORS`.

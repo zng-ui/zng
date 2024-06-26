@@ -41,6 +41,7 @@ use zng_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
 use zng_state_map::{static_id, StateId, StateMapRef};
 use zng_txt::Txt;
 use zng_var::{context_var, var, BoxedVar, Var, VarHandle, VarValue, WeakVar};
+use zng_wgt::{wgt_fn, CommandIconExt as _, ICONS};
 
 mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
@@ -781,6 +782,7 @@ command! {
     pub static UNDO_CMD = {
         name: "Undo",
         shortcut: [shortcut!(CTRL+'Z')],
+        icon: wgt_fn!(|_| ICONS.get("undo")),
     };
 
     /// Represents the **redo** action.
@@ -795,6 +797,7 @@ command! {
     pub static REDO_CMD = {
         name: "Redo",
         shortcut: [shortcut!(CTRL+'Y')],
+        icon: wgt_fn!(|_| ICONS.get("redo")),
     };
 
     /// Represents the **clear history** action.

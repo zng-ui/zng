@@ -13,18 +13,19 @@
 //!
 //! icon::ICONS.register(wgt_fn!(|a: icon::IconRequestArgs| {
 //!     match a.name() {
-//!         "accessibility" => icon::Icon!(icon::material_rounded::ACCESSIBILITY).boxed(),
-//!         "settings" => icon::Icon!(icon::material_rounded::SETTINGS).boxed(),
+//!         "accessibility" => Text!("A").boxed(),
+//!         "settings" => Text!("S").boxed(),
 //!         _ => NilUiNode.boxed()
 //!     }
 //! }));
 //! ```
 //!
-//! The example above registers a handler that provides two icons.
+//! The example above registers a handler that provides two "icons" that are rendered by a `Text!` widgets.
 //!
 //! # Widget
 //!
-//! The [`Icon!`](struct@Icon) widget renders icons using an icon font.
+//! The [`Icon!`](struct@Icon) widget renders icons using an icon font, it allows setting the font and icon in a single value
+//! and can auto size the font size, this makes it a better alternative to just using the `Text!` widget.
 //!
 //! ```
 //! use zng::{prelude::*, icon};
@@ -32,15 +33,14 @@
 //!
 //! # let _ =
 //! icon::Icon! {
-//!     ico = icon::material_rounded::ACCESSIBILITY;
+//!     ico = icon::material::rounded::req("accessibility");
 //!     ico_size = 80;
 //! }
 //! # ;
 //! ```
 //!
-//! You can implement your own icon sets by providing [`GlyphIcon`] instances or a type that converts to `GlyphIcon`, the
-//! [`MaterialIcon`] type is an example of this. Glyph icons define a font name and a [`GlyphSource`] that can be a `char`
-//! or a ligature text.
+//! You can implement your own icon sets by providing [`GlyphIcon`] instances or a type that converts to `GlyphIcon`.
+//! Glyph icons define a font name and a [`GlyphSource`] that can be a `char` or a ligature text.
 //!
 //! ```
 //! # fn main() { }
@@ -66,39 +66,45 @@
 //!
 //! The example above loads an icon font and display one of the icons selected using a ligature that matches `"address-book"`.
 //!
-//! # Material Icons
-//!
-//! The [Material Design Icons] can be embedded using the crate feature `"material_icons"`.
-//!
-//! [Material Design Icons]: https://github.com/google/material-design-icons
-//!
-//! ```toml
-//! zng = { version = "0.9.1", features = ["material_icons"] }
-//! ```
-//! Note that if `"material_icons_outlined"` feature is enabled the default `APP` will register an [`ICONS`] handler that provides
-//! many of the icons needed by the Zng widgets and apps in general.
-//!
 //! # Full API
 //!
 //! See [`zng_wgt_text::icon`] for the full widget API.
 
-pub use zng_wgt_text::icon::{ico_color, ico_size, CommandIconExt, GlyphIcon, GlyphSource, Icon};
+pub use zng_wgt::{CommandIconExt, IconRequestArgs, ICONS};
+pub use zng_wgt_text::icon::{ico_color, ico_size, GlyphIcon, GlyphSource, Icon};
 
-#[cfg(any(
-    feature = "material_icons_filled",
-    feature = "material_icons_outlined",
-    feature = "material_icons_rounded",
-    feature = "material_icons_sharp",
-))]
-pub use zng_wgt_material_icons::{MaterialFonts, MaterialIcon};
-
-#[cfg(feature = "material_icons_filled")]
-pub use zng_wgt_material_icons::filled as material_filled;
-#[cfg(feature = "material_icons_outlined")]
-pub use zng_wgt_material_icons::outlined as material_outlined;
-#[cfg(feature = "material_icons_rounded")]
-pub use zng_wgt_material_icons::rounded as material_rounded;
-#[cfg(feature = "material_icons_sharp")]
-pub use zng_wgt_material_icons::sharp as material_sharp;
-
-pub use zng_wgt::{IconRequestArgs, ICONS};
+/// Material Icons
+///
+/// The [Material Design Icons] can be embedded using the `"material_icons*"` crate features.
+///
+/// [Material Design Icons]: https://github.com/google/material-design-icons
+///
+/// ```toml
+/// zng = { version = "0.9.1", features = ["material_icons"] }
+/// ```
+///
+/// Handlers are registered for [`ICONS`] that provides the icons, the raw codepoints and glyph icon metadata is available in each font module.
+///
+/// If multiple material icons are enabled they are resolved in this order:
+///
+/// * outlined
+/// * filled
+/// * rounded
+/// * sharp
+///
+/// You can disambiguate icons by using a the `"material/{set}/{name}"` where `{set}` is one of the items from the list above,
+/// and `{name}` is the icon name.
+///
+/// # Full API
+///
+/// See [`zng_wgt_material_icons`] for the full API.
+pub mod material {
+    #[cfg(feature = "material_icons_filled")]
+    pub use zng_wgt_material_icons::filled;
+    #[cfg(feature = "material_icons_outlined")]
+    pub use zng_wgt_material_icons::outlined;
+    #[cfg(feature = "material_icons_rounded")]
+    pub use zng_wgt_material_icons::rounded;
+    #[cfg(feature = "material_icons_sharp")]
+    pub use zng_wgt_material_icons::sharp;
+}

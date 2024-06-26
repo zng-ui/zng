@@ -2,6 +2,7 @@ use std::{any::TypeId, fmt, ops, sync::Arc};
 
 use crate::prelude::*;
 
+use zng_app::event::{CommandMetaVar, CommandMetaVarId};
 use zng_var::AnyVar;
 #[doc(hidden)]
 pub use zng_wgt::prelude::clmv as __clmv;
@@ -316,14 +317,24 @@ impl ICONS {
     /// Instantiate an icon drawing widget for the `icon_name`.
     ///
     /// Returns [`NilUiNode`] if no registered handler can provide an icon.
-    pub fn get(&self, icon_name: impl Into<Txt>) -> BoxedUiNode {
-        ICONS_SV.read().get(IconRequestArgs { name: icon_name.into() })
+    pub fn get(&self, icon_name: impl IconNames) -> BoxedUiNode {
+        self.get_impl(&mut icon_name.names())
+    }
+    fn get_impl(&self, names: &mut dyn Iterator<Item = Txt>) -> BoxedUiNode {
+        let sv = ICONS_SV.read();
+        for name in names {
+            let node = sv.get(IconRequestArgs { name });
+            if !node.is_nil() {
+                return node;
+            }
+        }
+        NilUiNode.boxed()
     }
 
     /// Instantiate an icon drawing widget for the `icon_name` or call `fallback` to do it
     /// if no handler can handle the request.
-    pub fn get_or<U: UiNode>(&self, icon_name: impl Into<Txt>, fallback: impl FnOnce() -> U) -> BoxedUiNode {
-        let i = self.get(icon_name.into());
+    pub fn get_or<U: UiNode>(&self, icon_name: impl IconNames, fallback: impl FnOnce() -> U) -> BoxedUiNode {
+        let i = self.get(icon_name);
         if i.is_nil() {
             fallback().boxed()
         } else {
@@ -331,28 +342,101 @@ impl ICONS {
         }
     }
 
-    /// Same as [`get`], but also logs an error is there are no available icon for the name.
+    /// Same as [`get`], but also logs an error is there are no available icon for any of the names.
     ///
     /// [`get`]: Self::get
-    pub fn req(&self, icon_name: impl Into<Txt>) -> BoxedUiNode {
-        let name = icon_name.into();
-        let i = self.get(name.clone());
-        if i.is_nil() {
-            tracing::error!("no icon available for {name:?}")
+    pub fn req(&self, icon_name: impl IconNames) -> BoxedUiNode {
+        self.req_impl(&mut icon_name.names())
+    }
+    fn req_impl(&self, names: &mut dyn Iterator<Item = Txt>) -> BoxedUiNode {
+        let sv = ICONS_SV.read();
+        let mut missing = vec![];
+        for name in names {
+            let node = sv.get(IconRequestArgs { name: name.clone() });
+            if !node.is_nil() {
+                return node;
+            } else {
+                missing.push(name);
+            }
         }
-        i
+        tracing::error!("no icon available for {missing:?}");
+        NilUiNode.boxed()
     }
 
-    //// Same as [`get_or`], but also logs an error is there are no available icon for the name.
+    //// Same as [`get_or`], but also logs an error is there are no available icon for any of the names.
     ///
     /// [`get_or`]: Self::get_or
-    pub fn req_or<U: UiNode>(&self, icon_name: impl Into<Txt>, fallback: impl FnOnce() -> U) -> BoxedUiNode {
-        let i = self.req(icon_name.into());
+    pub fn req_or<U: UiNode>(&self, icon_name: impl IconNames, fallback: impl FnOnce() -> U) -> BoxedUiNode {
+        let i = self.req(icon_name);
         if i.is_nil() {
             fallback().boxed()
         } else {
             i
         }
+    }
+}
+
+/// Adapter for [`ICONS`] queries.
+///
+/// Can be `"name"` or `["name", "fallback-name1"]` names.
+pub trait IconNames {
+    /// Iterate over names, from most wanted to least.
+    fn names(self) -> impl Iterator<Item = Txt>;
+}
+impl IconNames for &'static str {
+    fn names(self) -> impl Iterator<Item = Txt> {
+        [Txt::from(self)].into_iter()
+    }
+}
+impl IconNames for Txt {
+    fn names(self) -> impl Iterator<Item = Txt> {
+        [self].into_iter()
+    }
+}
+impl IconNames for Vec<Txt> {
+    fn names(self) -> impl Iterator<Item = Txt> {
+        self.into_iter()
+    }
+}
+impl IconNames for &[Txt] {
+    fn names(self) -> impl Iterator<Item = Txt> {
+        self.iter().cloned()
+    }
+}
+impl IconNames for &[&'static str] {
+    fn names(self) -> impl Iterator<Item = Txt> {
+        self.iter().copied().map(Txt::from)
+    }
+}
+impl<const N: usize> IconNames for [&'static str; N] {
+    fn names(self) -> impl Iterator<Item = Txt> {
+        self.into_iter().map(Txt::from)
+    }
+}
+
+/// Adds the [`icon`](CommandIconExt::icon) command metadata.
+///
+/// The value is an [`WidgetFn<()>`] that can generate any icon widget, the [`ICONS`] service is recommended.
+///
+/// [`WidgetFn<()>`]: WidgetFn
+pub trait CommandIconExt {
+    /// Gets a read-write variable that is the icon for the command.
+    fn icon(self) -> CommandMetaVar<WidgetFn<()>>;
+
+    /// Sets the initial icon if it is not set.
+    fn init_icon(self, icon: WidgetFn<()>) -> Self;
+}
+static_id! {
+    static ref COMMAND_ICON_ID: CommandMetaVarId<WidgetFn<()>>;
+}
+impl CommandIconExt for Command {
+    fn icon(self) -> CommandMetaVar<WidgetFn<()>> {
+        self.with_meta(|m| m.get_var_or_default(*COMMAND_ICON_ID))
+    }
+
+    fn init_icon(self, icon: WidgetFn<()>) -> Self {
+        self.with_meta(|m| m.init_var(*COMMAND_ICON_ID, icon));
+        self
     }
 }
 

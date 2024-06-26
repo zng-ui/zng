@@ -224,6 +224,7 @@ fn menu(
                             zng_wgt_menu::context::ContextMenu!(ui_vec![
                                 Button! {
                                     child = Text!("Save Screenshot");
+                                    zng_wgt_menu::icon = zng_wgt::ICONS.get("save");
                                     zng_wgt::enabled = screenshot_idle.clone();
                                     on_click = hn!(screenshot_idle, |_| {
                                         // not async_hn here because menu is dropped on click
@@ -236,6 +237,7 @@ fn menu(
                                 },
                                 Button! {
                                     child = Text!("Copy Screenshot");
+                                    zng_wgt_menu::icon = zng_wgt::ICONS.get("copy");
                                     zng_wgt::enabled = screenshot_idle.clone();
                                     on_click = hn!(screenshot_idle, |_| {
                                         task::spawn(async_clmv!(screenshot_idle, {

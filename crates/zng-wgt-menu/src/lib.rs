@@ -24,7 +24,6 @@ use zng_wgt_input::{click_mode, focus::is_focused, mouse::on_pre_mouse_enter};
 use zng_wgt_input::{cursor, focus::alt_focus_scope, CursorIcon};
 use zng_wgt_size_offset::size;
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
-use zng_wgt_text::icon::CommandIconExt as _;
 use zng_wgt_text::Text;
 
 pub mod context;

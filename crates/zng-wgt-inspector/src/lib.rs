@@ -11,7 +11,7 @@
 
 zng_wgt::enable_widget_macros!();
 
-use zng_wgt::prelude::*;
+use zng_wgt::{prelude::*, ICONS};
 
 pub mod crash_handler;
 pub mod debug;
@@ -25,6 +25,7 @@ command! {
         name: "Debug Inspector",
         info: "Inspect the window.",
         shortcut: [shortcut!(CTRL|SHIFT+'I'), shortcut!(F12)],
+        icon: wgt_fn!(|_| ICONS.get(["inspector", "screen-search-desktop"])),
     };
 }
 

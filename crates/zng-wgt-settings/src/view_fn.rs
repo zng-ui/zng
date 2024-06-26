@@ -172,7 +172,7 @@ pub fn default_setting_fn(args: SettingArgs) -> impl UiNode {
                     s.reset();
                 });
 
-                zng_wgt_fill::background = ICONS.req_or("settings-reset", || Text!("R"));
+                zng_wgt_fill::background = ICONS.req_or(["settings-reset", "settings-backup-restore"], || Text!("R"));
                 zng_wgt_size_offset::size = 18;
 
                 tooltip = Tip!(Text!("reset"));

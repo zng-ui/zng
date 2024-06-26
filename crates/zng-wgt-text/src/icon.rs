@@ -1,19 +1,16 @@
-//! Glyph icon widget, properties and nodes..
+//! Glyph icon widget, properties and nodes.
 
-use zng_app::{
-    event::{CommandMetaVar, CommandMetaVarId},
-    static_id,
-};
 use zng_ext_font::{font_features::FontFeatures, FontName, FontSize};
 use zng_wgt::prelude::*;
 
 use std::fmt;
 
+use crate::FONT_SIZE_VAR;
+
 /// Render icons defined as glyphs in an icon font.
 ///
 /// Note that no icons are embedded in this crate directly, you can manually create a [`GlyphIcon`]
-/// or use an icon set crate. See the `zng::icon::material_*` modules, they provides documented constants for
-/// each icon in the fonts.
+/// or use an icon set crate. See the `zng::icon::material` module for an example.
 #[widget($crate::icon::Icon {
     ($ico:expr) => {
         ico = $ico;
@@ -49,7 +46,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", move |child| {
         let node = crate::node::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
         let node = crate::font_family(node, icon.map(|i| i.font.clone().into()));
-        let node = crate::font_size(node, ICON_SIZE_VAR);
+        let node = icon_size(node);
         let node = crate::font_features(node, icon.map_ref(|i| &i.features));
         crate::font_color(node, ICON_COLOR_VAR)
     });
@@ -137,8 +134,8 @@ impl_from_and_into_var! {
 context_var! {
     /// Defines the size of an icon.
     ///
-    /// Default is `24.dip()`.
-    pub static ICON_SIZE_VAR: FontSize = 24.dip();
+    /// Default is auto sized or the font size if cannot auto size.
+    pub static ICON_SIZE_VAR: FontSize = FontSize::Default;
 
     /// Defines the color of an icon.
     ///
@@ -148,41 +145,60 @@ context_var! {
     pub static ICON_COLOR_VAR: Rgba = crate::FONT_COLOR_VAR;
 }
 
+/// Sets the icon font size.
+///
+/// The [`FontSize::Default`] value enables auto size to fill, or if the `font_size` if cannot auto size.
+///
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_SIZE_VAR), widget_impl(Icon))]
 pub fn ico_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
     with_context_var(child, ICON_SIZE_VAR, size)
 }
 
+/// Sets the icon font color.
+///
 /// Sets the [`ICON_COLOR_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_COLOR_VAR), widget_impl(Icon))]
 pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ICON_COLOR_VAR, color)
 }
 
-/// Adds the [`icon`](CommandIconExt::icon) command metadata.
-///
-/// The value is an [`WidgetFn<()>`] that can generate any icon widget, the [`Icon!`] widget is recommended.
-///
-/// [`Icon!`]: struct@Icon
-/// [`WidgetFn<()>`]: zng_wgt::WidgetFn
-pub trait CommandIconExt {
-    /// Gets a read-write variable that is the icon for the command.
-    fn icon(self) -> CommandMetaVar<WidgetFn<()>>;
-
-    /// Sets the initial icon if it is not set.
-    fn init_icon(self, icon: WidgetFn<()>) -> Self;
-}
-static_id! {
-    static ref COMMAND_ICON_ID: CommandMetaVarId<WidgetFn<()>>;
-}
-impl CommandIconExt for Command {
-    fn icon(self) -> CommandMetaVar<WidgetFn<()>> {
-        self.with_meta(|m| m.get_var_or_default(*COMMAND_ICON_ID))
-    }
-
-    fn init_icon(self, icon: WidgetFn<()>) -> Self {
-        self.with_meta(|m| m.init_var(*COMMAND_ICON_ID, icon));
-        self
-    }
+/// Same as `font_size`, but `Default` means the smallest available length.
+fn icon_size(child: impl UiNode) -> impl UiNode {
+    match_node(child, |child, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var_layout(&ICON_SIZE_VAR);
+        }
+        UiNodeOp::Measure { wm, desired_size } => {
+            let font_size = ICON_SIZE_VAR.get();
+            let s = LAYOUT.constraints().fill_size();
+            let mut default_size = s.width.min(s.height);
+            if default_size == Px(0) {
+                default_size = FONT_SIZE_VAR.layout_x();
+            }
+            let font_size_px = font_size.layout_dft_x(default_size);
+            *desired_size = if font_size_px >= Px(0) {
+                LAYOUT.with_font_size(font_size_px, || child.measure(wm))
+            } else {
+                tracing::error!("invalid icon font size {font_size:?} => {font_size_px:?}");
+                child.measure(wm)
+            };
+        }
+        UiNodeOp::Layout { wl, final_size } => {
+            let font_size = ICON_SIZE_VAR.get();
+            let s = LAYOUT.constraints().fill_size();
+            let mut default_size = s.width.min(s.height);
+            if default_size == Px(0) {
+                default_size = FONT_SIZE_VAR.layout_x();
+            }
+            let font_size_px = font_size.layout_dft_x(default_size);
+            *final_size = if font_size_px >= Px(0) {
+                LAYOUT.with_font_size(font_size_px, || child.layout(wl))
+            } else {
+                tracing::error!("invalid icon font size {font_size:?} => {font_size_px:?}");
+                child.layout(wl)
+            };
+        }
+        _ => {}
+    })
 }
