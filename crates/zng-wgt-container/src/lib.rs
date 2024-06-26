@@ -206,6 +206,8 @@ pub fn child_insert(
             };
         }
         UiNodeOp::Layout { wl, final_size } => {
+            wl.require_child_ref_frame();
+
             let placement = placement.get().resolve_direction(LAYOUT.direction());
             let c = LAYOUT.constraints();
 

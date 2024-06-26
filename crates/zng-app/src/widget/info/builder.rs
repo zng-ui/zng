@@ -1136,7 +1136,7 @@ pub struct WidgetLayout {
     bounds: WidgetBoundsInfo,
     nest_group: LayoutNestGroup,
     inline: Option<WidgetInlineInfo>,
-    child_count: Option<u32>,
+    needs_ref_count: Option<u32>,
 }
 impl WidgetLayout {
     /// Defines the root widget outer-bounds scope.
@@ -1148,7 +1148,7 @@ impl WidgetLayout {
             bounds: WIDGET.bounds(),
             nest_group: LayoutNestGroup::Inner,
             inline: None,
-            child_count: None,
+            needs_ref_count: None,
         }
         .with_widget(layout)
     }
@@ -1171,7 +1171,7 @@ impl WidgetLayout {
             bounds: self.bounds.clone(),
             nest_group: LayoutNestGroup::Child,
             inline: None,
-            child_count: None,
+            needs_ref_count: None,
         }))
     }
 
@@ -1180,8 +1180,8 @@ impl WidgetLayout {
         let folded = split.take();
         assert_eq!(self.bounds, folded.bounds);
 
-        let count = self.child_count.unwrap_or(0) + folded.child_count.unwrap_or(0);
-        self.child_count = Some(count);
+        let count = self.needs_ref_count.unwrap_or(0) + folded.needs_ref_count.unwrap_or(0);
+        self.needs_ref_count = Some(count);
     }
 
     /// Defines a widget scope, translations inside `layout` target the widget's inner offset.
@@ -1197,8 +1197,8 @@ impl WidgetLayout {
         let bounds = WIDGET.bounds();
 
         let snap = metrics.snapshot();
-        if let Some(child_count) = &mut self.child_count {
-            *child_count += 1;
+        if let Some(c) = &mut self.needs_ref_count {
+            *c += 1;
         }
 
         if !WIDGET.take_update(UpdateFlags::LAYOUT) && !self.layout_widgets.delivery_list().enter_widget(WIDGET.id()) {
@@ -1211,7 +1211,7 @@ impl WidgetLayout {
             }
         }
 
-        let parent_child_count = self.child_count.take();
+        let parent_needs_ref_count = self.needs_ref_count.take();
         let parent_inline = self.inline.take();
         if LAYOUT.inline_constraints().is_some() && bounds.measure_inline().is_some() {
             // inline enabled by parent and widget
@@ -1265,7 +1265,7 @@ impl WidgetLayout {
             WIDGET.render_update();
         }
 
-        self.child_count = parent_child_count;
+        self.needs_ref_count = parent_needs_ref_count;
         self.inline = parent_inline;
         self.bounds = parent_bounds;
         self.nest_group = LayoutNestGroup::Child;
@@ -1337,23 +1337,37 @@ impl WidgetLayout {
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     /// [`with_branch_child`]: Self::with_branch_child
     pub fn with_child(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (PxSize, bool) {
-        let parent_child_count = mem::replace(&mut self.child_count, Some(0));
+        let parent_needs_ref_count = mem::replace(&mut self.needs_ref_count, Some(0));
 
         self.nest_group = LayoutNestGroup::Child;
         let child_size = layout(self);
         self.nest_group = LayoutNestGroup::Child;
 
-        let need_ref_frame = self.child_count != Some(1);
-        self.child_count = parent_child_count;
+        let need_ref_frame = self.needs_ref_count != Some(1);
+        self.needs_ref_count = parent_needs_ref_count;
         (child_size, need_ref_frame)
+    }
+
+    /// Ensure that the parent [`with_child`] will receive a reference frame request.
+    ///
+    /// Nodes that branch out children inside the widget's child scope must call this to ensure that the offsets
+    /// are not given to the only widget child among other nodes.
+    ///
+    /// [`with_child`]: Self::with_child
+    pub fn require_child_ref_frame(&mut self) {
+        if let Some(c) = &mut self.needs_ref_count {
+            *c += 2;
+        }
     }
 
     /// Defines a custom scope that does not affect the widget's offsets, only any widget inside `layout`.
     ///
-    /// Returns the output of `layout` and `Some(translate)` if any translations inside `layout` where not handled
+    /// Nodes that branch out children outside widget's child scope must use this method.
+    ///
+    /// Returns the output of `layout` and a translate vector if any translations inside `layout` where not handled
     /// by child widgets.
     pub fn with_branch_child(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (PxSize, PxVector) {
-        let parent_child_count = self.child_count;
+        let parent_needs_ref_count = self.needs_ref_count;
         let parent_translate = self.bounds.child_offset();
         let parent_inner_offset_baseline = self.bounds.inner_offset_baseline();
         self.bounds.set_child_offset(PxVector::zero());
@@ -1366,7 +1380,7 @@ impl WidgetLayout {
         self.bounds.set_child_offset(parent_translate);
         self.bounds.set_inner_offset_baseline(parent_inner_offset_baseline);
         self.nest_group = parent_group;
-        self.child_count = parent_child_count;
+        self.needs_ref_count = parent_needs_ref_count;
 
         (child_size, translate)
     }
