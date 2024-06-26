@@ -3,7 +3,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use zng::{
-    access::{access_role, AccessRole, ACCESS},
+    access::ACCESS,
     clipboard,
     color::{
         color_scheme_map,
@@ -108,24 +108,11 @@ fn icons() -> impl UiNode {
             TextInput! {
                 id = "search";
                 txt = search.clone();
-                margin = (15, 0, 0, 0);
-                padding = (7, 15, 7, 26);
-                layout::min_width = 40.vh_pct();
                 focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
-                widget::foreground = Icon! {
-                    align = Align::LEFT;
-                    ico = icon::material::outlined::req("search");
-                    ico_size = 18;
-                    margin = (0, 0, 0, 6);
-                };
-                widget::background = Text! {
-                    padding = (8, 16, 8, 27); // +1 border width
-                    txt = "search icons";
-                    opacity = 50.pct();
-                    widget::visibility = search.map(|t| t.is_empty().into());
-                };
-                access_role = AccessRole::SearchBox;
-                tooltip = Tip!(Text!("search icons (S, Ctrl+F)"));
+                placeholder_txt = "search icons (S, Ctrl+F)";
+                style_fn = zng::text_input::SearchStyle!();
+                layout::min_width = 40.vh_pct();
+                layout::margin = (15, 0, 0, 0);
             },
             Stack! {
                 margin = (10, 0, 20, 0);

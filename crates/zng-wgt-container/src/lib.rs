@@ -85,6 +85,15 @@ pub enum ChildInsert {
     /// [`LayoutDirection::LTR`]: zng_wgt::prelude::LayoutDirection::LTR
     /// [`LayoutDirection::RTL`]: zng_wgt::prelude::LayoutDirection::RTL
     End,
+
+    /// Insert node over the child.
+    ///
+    /// Spacing is ignored for this placement.
+    Over,
+    /// Insert node under the child.
+    ///
+    /// Spacing is ignored for this placement.
+    Under,
 }
 impl fmt::Debug for ChildInsert {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -98,6 +107,8 @@ impl fmt::Debug for ChildInsert {
             Self::Left => write!(f, "Left"),
             Self::Start => write!(f, "Start"),
             Self::End => write!(f, "End"),
+            Self::Over => write!(f, "Over"),
+            Self::Under => write!(f, "Under"),
         }
     }
 }
@@ -126,6 +137,11 @@ impl ChildInsert {
     pub fn is_y_axis(self) -> bool {
         matches!(self, Self::Top | Self::Bottom)
     }
+
+    /// Inserted node is over or under the child node.
+    pub fn is_z_axis(self) -> bool {
+        matches!(self, Self::Over | Self::Under)
+    }
 }
 
 /// Insert `node` in the `placement` relative to the widget's child.
@@ -150,7 +166,8 @@ pub fn child_insert(
         }
         UiNodeOp::Measure { wm, desired_size } => {
             let c = LAYOUT.constraints();
-            *desired_size = if placement.get().is_x_axis() {
+            let placement = placement.get();
+            *desired_size = if placement.is_x_axis() {
                 let mut spacing = spacing.layout_x();
                 let insert_size = children.with_node(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || wm.measure_block(n))
@@ -166,7 +183,7 @@ pub fn child_insert(
                     insert_size.width + spacing + child_size.width,
                     insert_size.height.max(child_size.height),
                 )
-            } else {
+            } else if placement.is_y_axis() {
                 let mut spacing = spacing.layout_y();
                 let insert_size = children.with_node(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || wm.measure_block(n))
@@ -184,6 +201,8 @@ pub fn child_insert(
                     insert_size.width.max(child_size.width),
                     insert_size.height + spacing + child_size.height,
                 )
+            } else {
+                children.with_node(0, |n| wm.measure_block(n))
             };
         }
         UiNodeOp::Layout { wl, final_size } => {
@@ -327,31 +346,50 @@ pub fn child_insert(
                         insert_size.height + spacing + child_size.height,
                     )
                 }
-                _ => {
-                    unreachable!()
+                ChildInsert::Over | ChildInsert::Under => {
+                    let child_size = children.with_node(0, |n| n.layout(wl));
+                    children.with_node(1, |n| {
+                        LAYOUT.with_constraints(PxConstraints2d::new_exact_size(child_size), || n.layout(wl));
+                    });
+                    child_size
                 }
+                ChildInsert::Start | ChildInsert::End => unreachable!(), // already resolved
             };
         }
-        UiNodeOp::Render { frame } => children.for_each(|i, child| {
-            if i as u8 == offset_child {
-                frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, true, |frame| {
-                    child.render(frame);
-                });
-            } else {
-                child.render(frame);
+        UiNodeOp::Render { frame } => match placement.get() {
+            ChildInsert::Over => children.render_all(frame),
+            ChildInsert::Under => {
+                children.with_node(1, |n| n.render(frame));
+                children.with_node(0, |n| n.render(frame));
             }
-        }),
-        UiNodeOp::RenderUpdate { update } => {
-            children.for_each(|i, child| {
+            _ => children.for_each(|i, child| {
                 if i as u8 == offset_child {
-                    update.with_transform(offset_key.update(offset.into(), false), true, |update| {
-                        child.render_update(update);
+                    frame.push_reference_frame(offset_key.into(), offset_key.bind(offset.into(), false), true, true, |frame| {
+                        child.render(frame);
                     });
                 } else {
-                    child.render_update(update);
+                    child.render(frame);
                 }
-            });
-        }
+            }),
+        },
+        UiNodeOp::RenderUpdate { update } => match placement.get() {
+            ChildInsert::Over => children.render_update_all(update),
+            ChildInsert::Under => {
+                children.with_node(1, |n| n.render_update(update));
+                children.with_node(0, |n| n.render_update(update));
+            }
+            _ => {
+                children.for_each(|i, child| {
+                    if i as u8 == offset_child {
+                        update.with_transform(offset_key.update(offset.into(), false), true, |update| {
+                            child.render_update(update);
+                        });
+                    } else {
+                        child.render_update(update);
+                    }
+                });
+            }
+        },
         _ => {}
     })
 }
@@ -429,4 +467,24 @@ pub fn child_start(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<
 #[property(CHILD, default(NilUiNode, 0), widget_impl(Container))]
 pub fn child_end(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
     child_insert(child, ChildInsert::End, node, spacing)
+}
+
+/// Insert `node` over the widget's child.
+///
+/// This property disables inline layout for the widget. See [`child_insert`] for more details.
+///
+/// [`child_insert`]: fn@child_insert
+#[property(CHILD, default(NilUiNode), widget_impl(Container))]
+pub fn child_over(child: impl UiNode, node: impl UiNode) -> impl UiNode {
+    child_insert(child, ChildInsert::Over, node, 0)
+}
+
+/// Insert `node` under the widget's child.
+///
+/// This property disables inline layout for the widget. See [`child_insert`] for more details.
+///
+/// [`child_insert`]: fn@child_insert
+#[property(CHILD, default(NilUiNode), widget_impl(Container))]
+pub fn child_under(child: impl UiNode, node: impl UiNode) -> impl UiNode {
+    child_insert(child, ChildInsert::Under, node, 0)
 }

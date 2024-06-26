@@ -209,6 +209,81 @@ impl DefaultStyle {
     }
 }
 
+/// Text input style for a search field.
+#[widget($crate::SearchStyle)]
+pub struct SearchStyle(DefaultStyle);
+impl SearchStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            zng_wgt_access::access_role = zng_wgt_access::AccessRole::SearchBox;
+            zng_wgt_container::child_out_insert = {
+                placement: zng_wgt_container::ChildInsert::Start,
+                spacing: 0,
+                node: zng_wgt_container::Container! {
+                    zng_wgt::align = Align::CENTER;
+                    child = zng_wgt::ICONS.req("search");
+                    zng_wgt_size_offset::size = 18;
+                    zng_wgt::margin = DIRECTION_VAR.map(|d| match d {
+                        LayoutDirection::LTR => (0, 0, 0, 6),
+                        LayoutDirection::RTL => (0, 6, 0, 0),
+                    }.into());
+                },
+            };
+        }
+    }
+}
+
+/// Text shown when the the `txt` is empty.
+///
+/// The placeholder has the same text style as the parent widget, with 50% opacity.
+/// You can use the [`placeholder`](fn@placeholder) to use a custom widget placeholder.
+#[property(CHILD, default(""), widget_impl(TextInput))]
+pub fn placeholder_txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
+    placeholder(
+        child,
+        Text! {
+            txt;
+            zng_wgt_filter::opacity = 50.pct();
+            zng_wgt::hit_test_mode = false;
+        },
+    )
+}
+
+/// Widget shown when the the `txt` is empty.
+///
+/// The `placeholder` can be any widget, the `Text!` widget is recommended.
+#[property(CHILD, widget_impl(TextInput))]
+pub fn placeholder(child: impl UiNode, placeholder: impl UiNode) -> impl UiNode {
+    let mut txt_is_empty = None;
+    zng_wgt_container::child_under(
+        child,
+        match_widget(placeholder, move |c, op| match op {
+            UiNodeOp::Init => {
+                let is_empty = zng_wgt_text::node::TEXT.resolved().txt.map(|t| t.is_empty());
+                WIDGET.sub_var_render(&is_empty);
+                txt_is_empty = Some(is_empty);
+            }
+            UiNodeOp::Deinit => {
+                txt_is_empty = None;
+            }
+            UiNodeOp::Render { frame } => {
+                c.delegated();
+                if txt_is_empty.as_ref().unwrap().get() {
+                    c.render(frame);
+                }
+            }
+            UiNodeOp::RenderUpdate { update } => {
+                c.delegated();
+                if txt_is_empty.as_ref().unwrap().get() {
+                    c.render_update(update);
+                }
+            }
+            _ => {}
+        }),
+    )
+}
+
 /// Text input style that shows data notes, info, warn and error.
 ///
 /// You can also set the [`field_help`] property in text inputs with this style to set a text that
