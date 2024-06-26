@@ -5,11 +5,12 @@ use zng_wgt::prelude::*;
 
 use std::fmt;
 
+use crate::FONT_SIZE_VAR;
+
 /// Render icons defined as glyphs in an icon font.
 ///
 /// Note that no icons are embedded in this crate directly, you can manually create a [`GlyphIcon`]
-/// or use an icon set crate. See the `zng::icon::material_*` modules, they provides documented constants for
-/// each icon in the fonts.
+/// or use an icon set crate. See the `zng::icon::material` module for an example.
 #[widget($crate::icon::Icon {
     ($ico:expr) => {
         ico = $ico;
@@ -133,7 +134,7 @@ impl_from_and_into_var! {
 context_var! {
     /// Defines the size of an icon.
     ///
-    /// Default is `24.dip()`.
+    /// Default is auto sized or the font size if cannot auto size.
     pub static ICON_SIZE_VAR: FontSize = FontSize::Default;
 
     /// Defines the color of an icon.
@@ -146,8 +147,7 @@ context_var! {
 
 /// Sets the icon font size.
 ///
-/// The [`FontSize::Default`] value causes the icon to auto size to fill, is there is no size
-/// defaults to 24dip.
+/// The [`FontSize::Default`] value enables auto size to fill, or if the `font_size` if cannot auto size.
 ///
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_SIZE_VAR), widget_impl(Icon))]
@@ -174,7 +174,7 @@ fn icon_size(child: impl UiNode) -> impl UiNode {
             let s = LAYOUT.constraints().fill_size();
             let mut default_size = s.width.min(s.height);
             if default_size == Px(0) {
-                default_size = 24.dip().layout_x();
+                default_size = FONT_SIZE_VAR.layout_x();
             }
             let font_size_px = font_size.layout_dft_x(default_size);
             *desired_size = if font_size_px >= Px(0) {
@@ -189,7 +189,7 @@ fn icon_size(child: impl UiNode) -> impl UiNode {
             let s = LAYOUT.constraints().fill_size();
             let mut default_size = s.width.min(s.height);
             if default_size == Px(0) {
-                default_size = 24.dip().layout_x();
+                default_size = FONT_SIZE_VAR.layout_x();
             }
             let font_size_px = font_size.layout_dft_x(default_size);
             *final_size = if font_size_px >= Px(0) {

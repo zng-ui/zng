@@ -1,4 +1,4 @@
-//! Search and copy Material Icons constants.
+//! Search and copy Material Icons keys.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -9,6 +9,7 @@ use zng::{
         color_scheme_map,
         filter::{backdrop_blur, drop_shadow, opacity},
     },
+    container,
     data_view::{DataView, DataViewArgs},
     focus::{directional_nav, focus_scope, focus_shortcut, tab_nav, DirectionalNav, TabNav},
     font::FontName,
@@ -150,6 +151,7 @@ fn icons() -> impl UiNode {
                             "sharp" => icon::material::sharp::all().collect(),
                             _ => unreachable!(),
                         };
+                        icons.sort_by_key(|(k, _)| *k);
                         if let Some(len) = s.strip_prefix("-len") {
                             let len: usize = len.trim().parse().unwrap_or(0);
                             icons.retain(|f| {
@@ -189,7 +191,7 @@ fn icon_btn(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) ->
                     ico = ico.clone();
                 },
                 Text! {
-                    txt = ico.glyph.to_txt();
+                    txt = name;
                     txt_align = Align::CENTER;
                     font_size = 10;
                     layout::height = 2.em();
@@ -235,32 +237,9 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                     children_align = Align::TOP_LEFT;
                     children = ui_vec![
                         title(name.into()),
-                        {
-                            let full_path = formatx!("icon::{font_mod}::req({name:?})");
-                            let copied = var(false);
-                            Label! {
-                                txt = name;
-                                font_family = FontName::monospace();
-                                font_size = 18;
-                                mouse::cursor = mouse::CursorIcon::Pointer;
-                                widget::enabled = copied.map(|&c| !c);
-                                tooltip = Tip!(Text!("copy '{full_path}'"));
-                                tip::disabled_tooltip = Tip!(Text!("copied!"));
-                                on_click = async_hn!(copied, full_path, |_| {
-                                    if clipboard::CLIPBOARD.set_text(full_path).wait_rsp().await.is_ok() {
-                                        ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
-                                        copied.set(true);
-                                        task::deadline(2.secs()).await;
-                                        copied.set(false);
-                                    }
-                                });
-                                when *#gesture::is_hovered {
-                                    background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
-                                }
-                            }
-                        },
-                        sub_title("Using `Icon!`:"),
                         Stack! {
+                            align = Align::CENTER;
+                            margin = 10;
                             direction = StackDirection::left_to_right();
                             spacing = 5;
                             children_align = Align::TOP_LEFT;
@@ -285,34 +264,8 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                                 }.boxed()
                             })).collect::<Vec<_>>()
                         },
-
-                        sub_title("Using `Text!`:"),
-                        Stack! {
-                            direction = StackDirection::left_to_right();
-                            spacing = 5;
-                            children_align = Align::TOP_LEFT;
-                            children = [64, 48, 32, 24, 16].into_iter().map(clmv!(ico, |size| {
-                                Stack! {
-                                    direction = StackDirection::top_to_bottom();
-                                    spacing = 3;
-                                    children = ui_vec![
-                                        size_label(formatx!("{size}")),
-                                        Text! {
-                                            txt = ico.glyph.to_txt();
-                                            font_family = ico.font.clone();
-                                            font_size = size;
-
-                                            background_color = color_scheme_map(
-                                                colors::BLACK.with_alpha(85.pct()),
-                                                colors::WHITE.with_alpha(85.pct())
-                                            );
-                                            corner_radius = 4;
-                                            padding = 2;
-                                        }
-                                    ]
-                                }.boxed()
-                            })).collect::<Vec<_>>()
-                        }
+                        code_copy("ICONS.req".into(), formatx!("ICONS.req(\"material/{font_mod}/{name}\")")),
+                        code_copy(formatx!("{font_mod}::req"), formatx!("icon::{font_mod}::req(\"{name}\")")),
                     ]
                 },
                 Button! {
@@ -343,16 +296,35 @@ fn title(title: Txt) -> impl UiNode {
         txt_align = Align::CENTER;
     }
 }
-fn sub_title(title: impl Into<Txt>) -> impl UiNode {
-    Text! {
-        txt = title.into();
-        font_size = 16;
-    }
-}
+
 fn size_label(size: Txt) -> impl UiNode {
     Text! {
         txt = size;
         font_size = 10;
         txt_align = Align::CENTER;
+    }
+}
+
+fn code_copy(label: Txt, code: Txt) -> impl UiNode {
+    let copied = var(false);
+    Label! {
+        txt = label;
+        font_family = FontName::monospace();
+        mouse::cursor = mouse::CursorIcon::Pointer;
+        widget::enabled = copied.map(|&c| !c);
+        tooltip = Tip!(Text!("copy {code}"));
+        tip::disabled_tooltip = Tip!(Text!("copied!"));
+        container::child_start = ICONS.get("copy"), 4;
+        on_click = async_hn!(copied, code, |_| {
+            if clipboard::CLIPBOARD.set_text(code).wait_rsp().await.is_ok() {
+                ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
+                copied.set(true);
+                task::deadline(2.secs()).await;
+                copied.set(false);
+            }
+        });
+        when *#gesture::is_hovered {
+            background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+        }
     }
 }

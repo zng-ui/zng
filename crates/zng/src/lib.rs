@@ -628,7 +628,7 @@ mod __prelude {
         WINDOWS,
     };
 
-    pub use zng_wgt::{CommandIconExt as _, Wgt};
+    pub use zng_wgt::{CommandIconExt as _, Wgt, ICONS};
 
     pub use crate::text;
     pub use zng_wgt_text::Text;
