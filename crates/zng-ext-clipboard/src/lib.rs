@@ -13,8 +13,8 @@ use core::fmt;
 use std::path::PathBuf;
 
 use zng_app::{
-    event::{command, CommandInfoExt, CommandNameExt},
-    shortcut::{shortcut, CommandShortcutExt, ShortcutFilter},
+    event::{command, CommandInfoExt as _, CommandNameExt as _},
+    shortcut::{shortcut, CommandShortcutExt as _, ShortcutFilter},
     view_process::{ViewClipboard, VIEW_PROCESS},
     AppExtension,
 };
@@ -23,6 +23,7 @@ use zng_ext_image::{ImageHasher, ImageVar, Img, IMAGES};
 use zng_txt::Txt;
 use zng_var::{response_var, ResponderVar, ResponseVar};
 use zng_view_api::ViewProcessOffline;
+use zng_wgt::{wgt_fn, CommandIconExt as _, ICONS};
 
 use zng_view_api::clipboard as clipboard_api;
 use zng_view_api::ipc::IpcBytes;
@@ -279,6 +280,7 @@ command! {
         info: "Remove the selection and place it in the clipboard.",
         shortcut: [shortcut!(CTRL+'X'), shortcut!(SHIFT+Delete), shortcut!(Cut)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+        icon: wgt_fn!(|_| ICONS.get("cut")),
     };
 
     /// Represents the clipboard **copy** action.
@@ -287,6 +289,7 @@ command! {
         info: "Place a copy of the selection in the clipboard.",
         shortcut: [shortcut!(CTRL+'C'), shortcut!(CTRL+Insert), shortcut!(Copy)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+        icon: wgt_fn!(|_| ICONS.get("copy")),
     };
 
     /// Represents the clipboard **paste** action.
@@ -295,5 +298,6 @@ command! {
         info: "Insert content from the clipboard.",
         shortcut: [shortcut!(CTRL+'V'), shortcut!(SHIFT+Insert), shortcut!(Paste)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
+        icon: wgt_fn!(|_| ICONS.get("paste")),
     };
 }

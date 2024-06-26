@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Moved `CommandIconExt` from `zng-wgt-text` to `zng-wgt`.
 * `Icon!` now auto-sizes by default.
 * Add `zng::widget::ICONS`.
 * Add `zng::widget::WeakWidgetFn`.

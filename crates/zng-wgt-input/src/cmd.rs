@@ -2,7 +2,7 @@
 //!
 
 use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
-use zng_wgt::prelude::*;
+use zng_wgt::{prelude::*, ICONS};
 
 command! {
     /// Represents the **new** action.
@@ -21,6 +21,7 @@ command! {
     pub static OPEN_CMD = {
         name: "Open…",
         shortcut: [shortcut!(CTRL+'O'), shortcut!(Open)],
+        icon: wgt_fn!(|_| ICONS.get("open-file")),
     };
 
     /// Represents the **save** action.
@@ -43,6 +44,7 @@ command! {
     /// Represents the **context menu open** action.
     pub static CONTEXT_MENU_CMD = {
         shortcut: [shortcut!(SHIFT+F10), shortcut!(ContextMenu)],
+        icon: wgt_fn!(|_| ICONS.get("context-menu")),
     };
 
     /// Represents the **open settings** action.
@@ -56,6 +58,7 @@ command! {
     pub static SETTINGS_CMD = {
         name: "Settings",
         shortcut: [shortcut!(CTRL+',')],
+        icon: wgt_fn!(|_| ICONS.get("settings")),
     };
 }
 

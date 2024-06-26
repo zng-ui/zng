@@ -82,7 +82,7 @@
 //!
 //! See [`zng_wgt_text::icon`] for the full widget API.
 
-pub use zng_wgt_text::icon::{ico_color, ico_size, CommandIconExt, GlyphIcon, GlyphSource, Icon};
+pub use zng_wgt_text::icon::{ico_color, ico_size, GlyphIcon, GlyphSource, Icon};
 
 #[cfg(any(
     feature = "material_icons_filled",
@@ -101,4 +101,4 @@ pub use zng_wgt_material_icons::rounded as material_rounded;
 #[cfg(feature = "material_icons_sharp")]
 pub use zng_wgt_material_icons::sharp as material_sharp;
 
-pub use zng_wgt::{IconRequestArgs, ICONS};
+pub use zng_wgt::{CommandIconExt, IconRequestArgs, ICONS};

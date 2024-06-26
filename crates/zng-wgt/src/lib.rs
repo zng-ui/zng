@@ -99,7 +99,7 @@ mod __prelude {
         with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
 
-    pub use crate::{wgt_fn, WidgetFn};
+    pub use crate::{wgt_fn, CommandIconExt as _, WidgetFn};
 }
 
 pub mod node;

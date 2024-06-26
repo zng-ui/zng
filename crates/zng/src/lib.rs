@@ -628,7 +628,7 @@ mod __prelude {
         WINDOWS,
     };
 
-    pub use zng_wgt::Wgt;
+    pub use zng_wgt::{CommandIconExt as _, Wgt};
 
     pub use crate::text;
     pub use zng_wgt_text::Text;
@@ -649,8 +649,6 @@ mod __prelude {
 
     pub use crate::layer;
     pub use zng_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
-
-    pub use zng_wgt_text::icon::CommandIconExt as _;
 
     pub use crate::popup;
     pub use zng_wgt_layer::popup::POPUP;
@@ -951,44 +949,37 @@ mod defaults {
             #[cfg(feature = "material_icons_outlined")]
             {
                 use zng_app::widget::node::{NilUiNode, UiNode};
-                use zng_ext_clipboard::*;
-                use zng_ext_undo::*;
-                use zng_ext_window::cmd::*;
                 use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
-                use zng_wgt_input::cmd::*;
                 use zng_wgt_material_icons::outlined as icons;
-                use zng_wgt_scroll::cmd::*;
-                use zng_wgt_text::icon::CommandIconExt as _;
                 use zng_wgt_text::icon::Icon;
 
-                CUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CUT)));
-                COPY_CMD.init_icon(wgt_fn!(|_| Icon!(icons::COPY)));
-                PASTE_CMD.init_icon(wgt_fn!(|_| Icon!(icons::PASTE)));
-
-                UNDO_CMD.init_icon(wgt_fn!(|_| Icon!(icons::UNDO)));
-                REDO_CMD.init_icon(wgt_fn!(|_| Icon!(icons::REDO)));
-
-                CLOSE_CMD.init_icon(wgt_fn!(|_| Icon!(icons::CLOSE)));
-                MINIMIZE_CMD.init_icon(wgt_fn!(|_| Icon!(icons::MINIMIZE)));
-                MAXIMIZE_CMD.init_icon(wgt_fn!(|_| Icon!(icons::MAXIMIZE)));
-                FULLSCREEN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::FULLSCREEN)));
-
-                CONTEXT_MENU_CMD.init_icon(wgt_fn!(|_| Icon!(icons::MENU_OPEN)));
-
-                #[cfg(feature = "inspector")]
-                zng_wgt_inspector::INSPECT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::SCREEN_SEARCH_DESKTOP)));
-
-                SCROLL_TO_TOP_CMD.init_icon(wgt_fn!(|_| Icon!(icons::VERTICAL_ALIGN_TOP)));
-                SCROLL_TO_BOTTOM_CMD.init_icon(wgt_fn!(|_| Icon!(icons::VERTICAL_ALIGN_BOTTOM)));
-
-                ZOOM_IN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_IN)));
-                ZOOM_OUT_CMD.init_icon(wgt_fn!(|_| Icon!(icons::ZOOM_OUT)));
-
-                OPEN_CMD.init_icon(wgt_fn!(|_| Icon!(icons::FILE_OPEN)));
-                SETTINGS_CMD.init_icon(wgt_fn!(|_| Icon!(icons::SETTINGS)));
-
-                ICONS.register(wgt_fn!(|args: IconRequestArgs| {
+                ICONS.register_fallback(wgt_fn!(|args: IconRequestArgs| {
                     match args.name() {
+                        "cut" => Icon!(icons::CUT).boxed(),
+                        "copy" => Icon!(icons::COPY).boxed(),
+                        "paste" => Icon!(icons::PASTE).boxed(),
+
+                        "undo" => Icon!(icons::UNDO).boxed(),
+                        "redo" => Icon!(icons::REDO).boxed(),
+
+                        "close" => Icon!(icons::CLOSE).boxed(),
+                        "minimize" => Icon!(icons::MINIMIZE).boxed(),
+                        "maximize" => Icon!(icons::MAXIMIZE).boxed(),
+                        "fullscreen" => Icon!(icons::FULLSCREEN).boxed(),
+
+                        "scroll-top" => Icon!(icons::VERTICAL_ALIGN_TOP).boxed(),
+                        "scroll-bottom" => Icon!(icons::VERTICAL_ALIGN_BOTTOM).boxed(),
+
+                        "zoom-in" => Icon!(icons::ZOOM_IN).boxed(),
+                        "zoom-out" => Icon!(icons::ZOOM_OUT).boxed(),
+
+                        "context-menu" => Icon!(icons::MENU_OPEN).boxed(),
+
+                        "inspector" => Icon!(icons::SCREEN_SEARCH_DESKTOP).boxed(),
+
+                        "open-file" => Icon!(icons::FILE_OPEN).boxed(),
+
+                        "settings" => Icon!(icons::SETTINGS).boxed(),
                         "settings-reset" => Icon!(icons::SETTINGS_BACKUP_RESTORE).boxed(),
                         _ => NilUiNode.boxed(),
                     }

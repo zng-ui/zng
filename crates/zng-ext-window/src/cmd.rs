@@ -8,6 +8,7 @@ use zng_app::{
 };
 use zng_var::Var;
 use zng_view_api::window::WindowState;
+use zng_wgt::{wgt_fn, CommandIconExt as _, ICONS};
 
 use crate::{WindowVars, WINDOWS};
 
@@ -19,18 +20,21 @@ command! {
         name: "Close",
         info: "Close the window.",
         shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+'W')],
+        icon: wgt_fn!(|_| ICONS.get("close")),
     };
 
     /// Represents the window **minimize** action.
     pub static MINIMIZE_CMD = {
         name: "Minimize",
         info: "Minimize the window.",
+        icon: wgt_fn!(|_| ICONS.get("minimize")),
     };
 
     /// Represents the window **maximize** action.
     pub static MAXIMIZE_CMD = {
         name: "Maximize",
         info: "Maximize the window.",
+        icon: wgt_fn!(|_| ICONS.get("maximize")),
     };
 
     /// Represents the window **toggle fullscreen** action.
@@ -49,7 +53,8 @@ command! {
                 shortcut!(F11)
             };
             [a, shortcut!(ZoomToggle)]
-        }
+        },
+        icon: wgt_fn!(|_| ICONS.get("fullscreen")),
     };
 
     /// Represents the window **toggle fullscreen** action.
@@ -61,6 +66,7 @@ command! {
     pub static EXCLUSIVE_FULLSCREEN_CMD = {
         name: "Exclusive Full-Screen",
         info: "Toggle exclusive full-screen mode on the window.",
+        icon: wgt_fn!(|_| ICONS.get("fullscreen")),
     };
 
     /// Represents the window **restore** action.
@@ -69,6 +75,7 @@ command! {
     pub static RESTORE_CMD = {
         name: "Restore",
         info: "Restores the window to its previous non-minimized state or normal state.",
+        icon: wgt_fn!(|_| ICONS.get("restore")),
     };
 
     /// Represents the **close IME** action.

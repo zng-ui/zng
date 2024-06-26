@@ -2,6 +2,7 @@ use std::{any::TypeId, fmt, ops, sync::Arc};
 
 use crate::prelude::*;
 
+use zng_app::event::{CommandMetaVar, CommandMetaVarId};
 use zng_var::AnyVar;
 #[doc(hidden)]
 pub use zng_wgt::prelude::clmv as __clmv;
@@ -353,6 +354,32 @@ impl ICONS {
         } else {
             i
         }
+    }
+}
+
+/// Adds the [`icon`](CommandIconExt::icon) command metadata.
+///
+/// The value is an [`WidgetFn<()>`] that can generate any icon widget, the [`ICONS`] service is recommended.
+///
+/// [`WidgetFn<()>`]: WidgetFn
+pub trait CommandIconExt {
+    /// Gets a read-write variable that is the icon for the command.
+    fn icon(self) -> CommandMetaVar<WidgetFn<()>>;
+
+    /// Sets the initial icon if it is not set.
+    fn init_icon(self, icon: WidgetFn<()>) -> Self;
+}
+static_id! {
+    static ref COMMAND_ICON_ID: CommandMetaVarId<WidgetFn<()>>;
+}
+impl CommandIconExt for Command {
+    fn icon(self) -> CommandMetaVar<WidgetFn<()>> {
+        self.with_meta(|m| m.get_var_or_default(*COMMAND_ICON_ID))
+    }
+
+    fn init_icon(self, icon: WidgetFn<()>) -> Self {
+        self.with_meta(|m| m.init_var(*COMMAND_ICON_ID, icon));
+        self
     }
 }
 
