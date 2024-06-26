@@ -1,34 +1,46 @@
 use std::{env, error::Error, fmt, fs, path::PathBuf};
 
 static FONTS: &[(&str, &str, &str, &[u8], &str)] = &[
-    (
-        "outlined",
-        "otf",
-        "opentype",
-        include_bytes!("fonts/MaterialIconsOutlined-Regular.otf"),
-        include_str!("fonts/MaterialIconsOutlined-Regular.codepoints"),
-    ),
-    (
-        "filled",
-        "ttf",
-        "truetype",
-        include_bytes!("fonts/MaterialIcons-Regular.ttf"),
-        include_str!("fonts/MaterialIcons-Regular.codepoints"),
-    ),
-    (
-        "rounded",
-        "otf",
-        "opentype",
-        include_bytes!("fonts/MaterialIconsRound-Regular.otf"),
-        include_str!("fonts/MaterialIconsRound-Regular.codepoints"),
-    ),
-    (
-        "sharp",
-        "otf",
-        "opentype",
-        include_bytes!("fonts/MaterialIconsSharp-Regular.otf"),
-        include_str!("fonts/MaterialIconsSharp-Regular.codepoints"),
-    ),
+    #[cfg(feature = "outlined")]
+    {
+        (
+            "outlined",
+            "otf",
+            "opentype",
+            include_bytes!("fonts/MaterialIconsOutlined-Regular.otf"),
+            include_str!("fonts/MaterialIconsOutlined-Regular.codepoints"),
+        )
+    },
+    #[cfg(feature = "filled")]
+    {
+        (
+            "filled",
+            "ttf",
+            "truetype",
+            include_bytes!("fonts/MaterialIcons-Regular.ttf"),
+            include_str!("fonts/MaterialIcons-Regular.codepoints"),
+        )
+    },
+    #[cfg(feature = "rounded")]
+    {
+        (
+            "rounded",
+            "otf",
+            "opentype",
+            include_bytes!("fonts/MaterialIconsRound-Regular.otf"),
+            include_str!("fonts/MaterialIconsRound-Regular.codepoints"),
+        )
+    },
+    #[cfg(feature = "sharp")]
+    {
+        (
+            "sharp",
+            "otf",
+            "opentype",
+            include_bytes!("fonts/MaterialIconsSharp-Regular.otf"),
+            include_str!("fonts/MaterialIconsSharp-Regular.codepoints"),
+        )
+    },
 ];
 
 fn main() {
