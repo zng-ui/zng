@@ -21,7 +21,7 @@ command! {
     pub static OPEN_CMD = {
         name: "Open…",
         shortcut: [shortcut!(CTRL+'O'), shortcut!(Open)],
-        icon: wgt_fn!(|_| ICONS.get("open-file")),
+        icon: wgt_fn!(|_| ICONS.get("file-open")),
     };
 
     /// Represents the **save** action.
@@ -31,6 +31,7 @@ command! {
     pub static SAVE_CMD = {
         name: "Save",
         shortcut: [shortcut!(CTRL+'S'), shortcut!(Save)],
+        icon: wgt_fn!(|_| ICONS.get("save")),
     };
 
     /// Represents the **save-as** action.
@@ -44,7 +45,7 @@ command! {
     /// Represents the **context menu open** action.
     pub static CONTEXT_MENU_CMD = {
         shortcut: [shortcut!(SHIFT+F10), shortcut!(ContextMenu)],
-        icon: wgt_fn!(|_| ICONS.get("context-menu")),
+        icon: wgt_fn!(|_| ICONS.get(["context-menu", "menu-open"])),
     };
 
     /// Represents the **open settings** action.

@@ -7,7 +7,7 @@ use zng::{
     color::filter::opacity,
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
     gesture::click_shortcut,
-    icon::{self, Icon},
+    icon::{self, ICONS},
     layout::{align, margin, padding, Dip},
     prelude::*,
     rule_line,
@@ -168,7 +168,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
         rule_line::vr::margin = 0;
         children = ui_vec![
             Button! {
-                child = Icon!(icon::material_sharp::INSERT_DRIVE_FILE);
+                child = ICONS.req("material/sharp/insert-drive-file");
                 child_right = Text!(txt = NEW_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(NEW_CMD.name_with_shortcut()));
 
@@ -178,7 +178,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 });
             },
             Button! {
-                child = Icon!(icon::material_sharp::FOLDER_OPEN);
+                child = ICONS.req("material/sharp/folder-open");
                 child_right = Text!(txt = OPEN_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(OPEN_CMD.name_with_shortcut()));
 
@@ -188,7 +188,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
                 });
             },
             Button! {
-                child = Icon!(icon::material_sharp::SAVE);
+                child = ICONS.req("material/sharp/save");
                 child_right = Text!(txt = SAVE_CMD.name(); visibility = gt_500.clone()), 4;
                 tooltip = Tip!(Text!(SAVE_CMD.name_with_shortcut()));
 
@@ -201,7 +201,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             Button! {
                 child = Text!(SAVE_AS_CMD.name());
                 when #{gt_500}.is_collapsed() {
-                    child = Icon!(icon::material_sharp::SAVE_AS);
+                    child = ICONS.req("material/sharp/save-as");
                 }
 
                 tooltip = Tip!(Text!(SAVE_AS_CMD.name_with_shortcut()));

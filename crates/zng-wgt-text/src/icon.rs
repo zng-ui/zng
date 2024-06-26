@@ -1,4 +1,4 @@
-//! Glyph icon widget, properties and nodes..
+//! Glyph icon widget, properties and nodes.
 
 use zng_ext_font::{font_features::FontFeatures, FontName, FontSize};
 use zng_wgt::prelude::*;

@@ -3,8 +3,9 @@
 //!
 //! Material icons for the [`Icon!`] widget.
 //!
-//! A constant for each icon is defined in a module for each font. The font files are embedded
-//! and can be registered using the [`MaterialFonts`] app extension.
+//! A map from name to icon codepoint is defined in a module for each font. The font files are embedded
+//! by default and can are registered using the [`MaterialIconsManager`] app extension. The extension
+//! also registers [`ICONS`] handlers that provide the icons.
 //!
 //! The icons are from the [Material Design Icons] project.
 //!
@@ -17,31 +18,29 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use std::{fmt, mem};
+use zng_app::widget::node::{NilUiNode, UiNode as _};
 use zng_ext_font::FontName;
-use zng_wgt_text::icon::GlyphIcon;
+use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
+use zng_wgt_text::icon::{GlyphIcon, Icon};
 
-/// Material fonts.
+zng_wgt::enable_widget_macros!();
+
+/// Material icon fonts manager.
 ///
-/// You can call the [`MaterialFonts::register`] method yourself before creating any windows or you can
-/// use this struct as an app extension that does the same thing on app init.
-#[cfg(feature = "embedded")]
-pub struct MaterialFonts;
-#[cfg(feature = "embedded")]
-impl MaterialFonts {
-    /// Register the material fonts in an app.
-    ///
-    /// The fonts will be available after the current update.
-    pub fn register() {
+/// This app extension registers the fonts in `"embedded"` builds and registers [`ICONS`] handlers that provide the icons.
+pub struct MaterialIconsManager;
+impl MaterialIconsManager {
+    #[cfg(feature = "embedded")]
+    fn register_fonts(&self) {
         let sets = [
             #[cfg(feature = "outlined")]
-            (outlined::meta::FONT_NAME, outlined::meta::FONT_BYTES),
+            (outlined::FONT_NAME, outlined::FONT_BYTES),
             #[cfg(feature = "filled")]
-            (filled::meta::FONT_NAME, filled::meta::FONT_BYTES),
+            (filled::FONT_NAME, filled::FONT_BYTES),
             #[cfg(feature = "rounded")]
-            (rounded::meta::FONT_NAME, rounded::meta::FONT_BYTES),
+            (rounded::FONT_NAME, rounded::FONT_BYTES),
             #[cfg(feature = "sharp")]
-            (sharp::meta::FONT_NAME, sharp::meta::FONT_BYTES),
+            (sharp::FONT_NAME, sharp::FONT_BYTES),
         ];
 
         for (name, bytes) in sets {
@@ -51,148 +50,202 @@ impl MaterialFonts {
     }
 }
 #[cfg(feature = "embedded")]
-impl zng_app::AppExtension for MaterialFonts {
+impl zng_app::AppExtension for MaterialIconsManager {
     fn init(&mut self) {
-        MaterialFonts::register();
-    }
-}
+        self.register_fonts();
 
-/// Represents a material font icon.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct MaterialIcon {
-    /// Font name.
-    pub font: FontName,
-    /// Constant name of the icon.
-    pub name: &'static str,
-    /// Codepoint.
-    pub code: char,
-}
-impl MaterialIcon {
-    /// Format the name for display.
-    pub fn display_name(&self) -> String {
-        format!("{self}")
-    }
-}
-zng_var::impl_from_and_into_var! {
-    fn from(icon: MaterialIcon) -> GlyphIcon {
-        GlyphIcon::new(icon.font, icon.code)
-    }
-}
-impl fmt::Display for MaterialIcon {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut chars = self.name.chars().peekable();
-        if let Some(n) = chars.next() {
-            // skip N if followed by number.
-            if n == 'N' {
-                if let Some(q) = chars.peek() {
-                    if !q.is_ascii_digit() {
-                        write!(f, "{n}")?;
+        ICONS.register(wgt_fn!(|args: IconRequestArgs| {
+            if let Some(strong_key) = args.name().strip_prefix("material/") {
+                #[allow(clippy::type_complexity)]
+                let sets: &[(&str, fn(&str) -> Option<GlyphIcon>)] = &[
+                    #[cfg(feature = "outlined")]
+                    ("outlined/", outlined::get),
+                    #[cfg(feature = "filled")]
+                    ("filled/", filled::get),
+                    #[cfg(feature = "rounded")]
+                    ("rounded/", rounded::get),
+                    #[cfg(feature = "sharp")]
+                    ("sharp/", sharp::get),
+                ];
+                for (name, get) in sets {
+                    if let Some(key) = strong_key.strip_prefix(name) {
+                        if let Some(ico) = get(key) {
+                            return Icon!(ico).boxed();
+                        }
                     }
                 }
-            } else {
-                write!(f, "{n}")?;
             }
+
+            NilUiNode.boxed()
+        }));
+
+        ICONS.register_fallback(wgt_fn!(|args: IconRequestArgs| {
+            let sets = [
+                #[cfg(feature = "outlined")]
+                outlined::get,
+                #[cfg(feature = "filled")]
+                filled::get,
+                #[cfg(feature = "rounded")]
+                rounded::get,
+                #[cfg(feature = "sharp")]
+                sharp::get,
+            ];
+            for get in sets {
+                if let Some(ico) = get(args.name()) {
+                    return Icon!(ico).boxed();
+                }
+            }
+            NilUiNode.boxed()
+        }));
+    }
+}
+
+macro_rules! getters {
+    ($FONT_NAME:ident, $MAP:ident) => {
+        /// Gets the [`GlyphIcon`].
+        pub fn get(key: &str) -> Option<GlyphIcon> {
+            Some(GlyphIcon::new($FONT_NAME.clone(), *$MAP.get(key)?))
         }
-        let mut is_cap = false;
-        for c in chars {
-            if c == '_' {
-                write!(f, " ")?;
-                is_cap = true;
-            } else if mem::take(&mut is_cap) {
-                write!(f, "{c}")?;
-            } else {
-                write!(f, "{}", c.to_lowercase())?;
+
+        /// Require the [`GlyphIcon`], logs an error if not found.
+        ///
+        /// # Panics
+        ///
+        /// Panics if the `key` is not found.
+        pub fn req(key: &str) -> GlyphIcon {
+            match get(key) {
+                Some(g) => g,
+                None => {
+                    tracing::error!("icon {key:?} not found in `outlined`");
+                    GlyphIcon::new("", '\0')
+                }
             }
         }
 
-        Ok(())
-    }
+        /// All icons.
+        pub fn all() -> impl ExactSizeIterator<Item = (&'static str, GlyphIcon)> {
+            $MAP.entries()
+                .map(|(key, val)| (*key, GlyphIcon::new($FONT_NAME.clone(), *val)))
+        }
+    };
 }
 
 /// Outline icons.
 ///  
 /// This is the "Material Icons Outlined" font.
+///
+/// # Icons
+///
+/// Use the [`ICONS`] service with key `"material/outlined/{name}"` or `"{name}"` to get an widget that renders the icon.
+///
+/// Use [`outlined::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
+///
+/// [`Icon!`]: struct@Icon
+///
+/// | Name | Icon |
+/// |------|------|
+#[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.outlined.docs.txt"))]
 #[cfg(feature = "outlined")]
 pub mod outlined {
     use super::*;
 
-    /// Font metadata.
-    pub mod meta {
-        use super::*;
+    /// "Material Icons Outlined".
+    pub const FONT_NAME: FontName = FontName::from_static("Material Icons Outlined");
 
-        /// "Material Icons Outlined".
-        pub const FONT_NAME: FontName = FontName::from_static("Material Icons Outlined");
+    /// Embedded font bytes.
+    #[cfg(feature = "embedded")]
+    pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsOutlined-Regular.otf");
 
-        /// Embedded font bytes.
-        #[cfg(feature = "embedded")]
-        pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsOutlined-Regular.otf");
-    }
-
-    include!(concat!(env!("OUT_DIR"), "/generated.outlined.rs"));
+    include!(concat!(env!("OUT_DIR"), "/generated.outlined.map.rs"));
+    getters!(FONT_NAME, MAP);
 }
 
 /// Filled icons.
 ///
 /// This is the "Material Icons" font.
+///
+/// # Icons
+///
+/// Use the [`ICONS`] service with key `"material/filled/{name}"` or `"{name}"` to get an widget that renders the icon.
+///
+/// Use [`filled::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
+///
+/// [`Icon!`]: struct@Icon
+///
+/// | Name | Icon |
+/// |------|------|
+#[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.filled.docs.txt"))]
 #[cfg(feature = "filled")]
 pub mod filled {
     use super::*;
 
-    /// Font metadata.
-    pub mod meta {
-        use super::*;
+    /// "Material Icons".
+    pub const FONT_NAME: FontName = FontName::from_static("Material Icons");
 
-        /// "Material Icons".
-        pub const FONT_NAME: FontName = FontName::from_static("Material Icons");
+    /// Embedded font bytes.
+    #[cfg(feature = "embedded")]
+    pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIcons-Regular.ttf");
 
-        /// Embedded font bytes.
-        #[cfg(feature = "embedded")]
-        pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIcons-Regular.ttf");
-    }
-
-    include!(concat!(env!("OUT_DIR"), "/generated.filled.rs"));
+    include!(concat!(env!("OUT_DIR"), "/generated.filled.map.rs"));
+    getters!(FONT_NAME, MAP);
 }
 
 /// Rounded icons.
 ///  
 /// This is the "Material Icons Rounded" font.
+///
+/// # Icons
+///
+/// Use the [`ICONS`] service with key `"material/rounded/{name}"` or `"{name}"` to get an widget that renders the icon.
+///
+/// Use [`rounded::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
+///
+/// [`Icon!`]: struct@Icon
+///
+/// | Name | Icon |
+/// |------|------|
+#[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.rounded.docs.txt"))]
 #[cfg(feature = "rounded")]
 pub mod rounded {
     use super::*;
 
-    /// Font metadata.
-    pub mod meta {
-        use super::*;
+    /// "Material Icons Rounded".
+    pub const FONT_NAME: FontName = FontName::from_static("Material Icons Rounded");
 
-        /// "Material Icons Rounded".
-        pub const FONT_NAME: FontName = FontName::from_static("Material Icons Rounded");
+    /// Embedded font bytes.
+    #[cfg(feature = "embedded")]
+    pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsRound-Regular.otf");
 
-        /// Embedded font bytes.
-        #[cfg(feature = "embedded")]
-        pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsRound-Regular.otf");
-    }
-
-    include!(concat!(env!("OUT_DIR"), "/generated.rounded.rs"));
+    include!(concat!(env!("OUT_DIR"), "/generated.rounded.map.rs"));
+    getters!(FONT_NAME, MAP);
 }
 
 /// Sharp icons.
 ///  
 /// This is the "Material Icons Sharp" font.
+///
+/// # Icons
+///
+/// Use the [`ICONS`] service with key `"material/sharp/{name}"` or `"{name}"` to get an widget that renders the icon.
+///
+/// Use [`sharp::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
+///
+/// [`Icon!`]: struct@Icon
+///
+/// | Name | Icon |
+/// |------|------|
+#[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.sharp.docs.txt"))]
 #[cfg(feature = "sharp")]
 pub mod sharp {
     use super::*;
 
-    /// Font metadata.
-    pub mod meta {
-        use super::*;
+    /// "Material Icons Sharp".
+    pub const FONT_NAME: FontName = FontName::from_static("Material Icons Sharp");
 
-        /// "Material Icons Sharp".
-        pub const FONT_NAME: FontName = FontName::from_static("Material Icons Sharp");
+    /// Embedded font bytes.
+    #[cfg(feature = "embedded")]
+    pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsSharp-Regular.otf");
 
-        /// Embedded font bytes.
-        #[cfg(feature = "embedded")]
-        pub const FONT_BYTES: &[u8] = include_bytes!("../fonts/MaterialIconsSharp-Regular.otf");
-    }
-
-    include!(concat!(env!("OUT_DIR"), "/generated.sharp.rs"));
+    include!(concat!(env!("OUT_DIR"), "/generated.sharp.map.rs"));
+    getters!(FONT_NAME, MAP);
 }

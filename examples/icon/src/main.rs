@@ -13,7 +13,7 @@ use zng::{
     focus::{directional_nav, focus_scope, focus_shortcut, tab_nav, DirectionalNav, TabNav},
     font::FontName,
     gesture::{on_click, ClickArgs},
-    icon::{self, Icon, MaterialIcon},
+    icon::{self, GlyphIcon, Icon},
     label::Label,
     layout::{align, margin, padding},
     prelude::*,
@@ -29,7 +29,7 @@ fn main() {
         Window! {
             title = "Icon Example";
             icon = WindowIcon::render(|| Icon! {
-                ico = icon::material_filled::LIGHTBULB;
+                ico = icon::material::filled::req("lightbulb");
                 ico_color = colors::YELLOW;
                 drop_shadow = (0, 0), 3, colors::WHITE;
             });
@@ -52,7 +52,7 @@ fn icons() -> impl UiNode {
             value::<&'static str> = key;
         }
     }
-    fn show_font(icons: Vec<MaterialIcon>, font_mod: &'static str) -> impl UiNode {
+    fn show_font(icons: Vec<(&'static str, GlyphIcon)>, font_mod: &'static str) -> impl UiNode {
         let _scope = tracing::error_span!("show_font").entered();
         let icons_len = icons.len();
         Wrap! {
@@ -75,7 +75,7 @@ fn icons() -> impl UiNode {
                     children = {
                         let mut r = vec![];
                         c.par_iter()
-                                .map(|i| icon_btn(i.clone(), font_mod).boxed())
+                                .map(|(name, ico)| icon_btn(name, ico.clone(), font_mod).boxed())
                                 .collect_into_vec(&mut r);
                         r
                     };
@@ -113,7 +113,7 @@ fn icons() -> impl UiNode {
                 focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
                 widget::foreground = Icon! {
                     align = Align::LEFT;
-                    ico = icon::material_outlined::SEARCH;
+                    ico = icon::material::outlined::req("search");
                     ico_size = 18;
                     margin = (0, 0, 0, 6);
                 };
@@ -143,23 +143,22 @@ fn icons() -> impl UiNode {
                 merge_var!(selected_font, search, |f, s| (*f, s.clone())),
                 hn!(|a: &DataViewArgs<(&'static str, Txt)>| {
                     if let Some((f, s)) = a.get_new() {
-                        let mut icons = match f {
-                            "filled" => icon::material_filled::all(),
-                            "outlined" => icon::material_outlined::all(),
-                            "rounded" => icon::material_rounded::all(),
-                            "sharp" => icon::material_sharp::all(),
+                        let mut icons: Vec<_> = match f {
+                            "filled" => icon::material::filled::all().collect(),
+                            "outlined" => icon::material::outlined::all().collect(),
+                            "rounded" => icon::material::rounded::all().collect(),
+                            "sharp" => icon::material::sharp::all().collect(),
                             _ => unreachable!(),
                         };
                         if let Some(len) = s.strip_prefix("-len") {
                             let len: usize = len.trim().parse().unwrap_or(0);
                             icons.retain(|f| {
-                                f.name.len() >= len
+                                f.0.len() >= len
                             });
                         } else if !s.is_empty() {
-                            let s = s.to_uppercase();
+                            let s = s.to_lowercase();
                             icons.retain(|f| {
-                                f.name.contains(&s) ||
-                                f.display_name().to_uppercase().contains(&s)
+                                f.0.contains(&s)
                             });
                         }
                         if icons.is_empty() {
@@ -177,7 +176,7 @@ fn icons() -> impl UiNode {
     }
 }
 
-fn icon_btn(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode {
+fn icon_btn(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) -> impl UiNode {
     Button! {
         padding = 2;
         layout::size = (80, 80);
@@ -190,7 +189,7 @@ fn icon_btn(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode {
                     ico = ico.clone();
                 },
                 Text! {
-                    txt = formatx!("{ico}");
+                    txt = ico.glyph.to_txt();
                     txt_align = Align::CENTER;
                     font_size = 10;
                     layout::height = 2.em();
@@ -199,12 +198,12 @@ fn icon_btn(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode {
             ]
         };
         on_click = hn!(|_| {
-            LAYERS.insert(LayerIndex::TOP_MOST, expanded_icon(ico.clone(), font_mod));
+            LAYERS.insert(LayerIndex::TOP_MOST, expanded_icon(name, ico.clone(), font_mod));
         })
     }
 }
 
-fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode {
+fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static str) -> impl UiNode {
     let opacity = var(0.fct());
     opacity.ease(1.fct(), 200.ms(), easing::linear).perm();
     Container! {
@@ -235,12 +234,12 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
                     padding = 10;
                     children_align = Align::TOP_LEFT;
                     children = ui_vec![
-                        title(formatx!("{ico}")),
+                        title(name.into()),
                         {
-                            let full_path = formatx!("icon::{font_mod}::{}", ico.name);
+                            let full_path = formatx!("icon::{font_mod}::req({name:?})");
                             let copied = var(false);
                             Label! {
-                                txt = ico.name;
+                                txt = name;
                                 font_family = FontName::monospace();
                                 font_size = 18;
                                 mouse::cursor = mouse::CursorIcon::Pointer;
@@ -299,7 +298,7 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
                                     children = ui_vec![
                                         size_label(formatx!("{size}")),
                                         Text! {
-                                            txt = ico.code;
+                                            txt = ico.glyph.to_txt();
                                             font_family = ico.font.clone();
                                             font_size = size;
 
@@ -319,7 +318,7 @@ fn expanded_icon(ico: icon::MaterialIcon, font_mod: &'static str) -> impl UiNode
                 Button! {
                     id = "close-btn";
                     icon::ico_size = 14;
-                    child = Icon!(icon::material_filled::CLOSE);
+                    child = Icon!(icon::material::filled::req("close"));
                     align = Align::TOP_RIGHT;
                     padding = 2;
                     margin = 4;

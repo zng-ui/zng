@@ -31,12 +31,17 @@ sharp = []
 
 [dependencies]
 zng-app = { path = "../zng-app", version = "0.8.0" }
+zng-wgt = { path = "../zng-wgt", version = "0.4.2" }
 zng-var = { path = "../zng-var", version = "0.4.5" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.3.15" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.3.9" }
 
+phf = { version = "0.11", default-features = false }
+tracing = "0.1"
+
 [build-dependencies]
 dunce = "1.0"
+phf_codegen = "0.11"
 
 [package.metadata.docs.rs]
 all-features = true

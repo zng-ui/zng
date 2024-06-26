@@ -141,7 +141,7 @@ command! {
         info: "Scroll up to the content top.",
         shortcut: [shortcut!(Home), shortcut!(CTRL+Home)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
-        icon: wgt_fn!(|_| ICONS.get("scroll-top")),
+        icon: wgt_fn!(|_| ICONS.get(["scroll-top", "vertical-align-top"])),
     };
 
     /// Represents the **scroll to bottom** action.
@@ -150,7 +150,7 @@ command! {
         info: "Scroll down to the content bottom.",
         shortcut: [shortcut!(End), shortcut!(CTRL+End)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
-        icon: wgt_fn!(|_| ICONS.get("scroll-bottom")),
+        icon: wgt_fn!(|_| ICONS.get(["scroll-bottom", "vertical-align-bottom"])),
     };
 
     /// Represents the **scroll to leftmost** action.

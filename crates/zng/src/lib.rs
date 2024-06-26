@@ -848,9 +848,9 @@ mod defaults {
         /// * [`UndoManager`]
         /// * [`SingleInstanceManager`] if the `"single_instance"` feature is enabled.
         /// * [`HotReloadManager`] if the `"hot_reload"` feature is enabled.
-        /// * [`MaterialFonts`] if any `"material_icons*"` feature is enabled.
+        /// * [`MaterialIconsManager`] if any `"material_icons*"` feature is enabled.
         ///
-        /// [`MaterialFonts`]: zng_wgt_material_icons::MaterialFonts
+        /// [`MaterialIconsManager`]: zng_wgt_material_icons::MaterialIconsManager
         /// [`SingleInstanceManager`]: zng_ext_single_instance::SingleInstanceManager
         /// [`HotReloadManager`]: zng_ext_hot_reload::HotReloadManager
         /// [`ConfigManager`]: zng_ext_config::ConfigManager
@@ -889,7 +889,7 @@ mod defaults {
                 feature = "material_icons_rounded",
                 feature = "material_icons_sharp",
             ))]
-            let r = r.extend(zng_wgt_material_icons::MaterialFonts);
+            let r = r.extend(zng_wgt_material_icons::MaterialIconsManager);
 
             r.extend(DefaultsInit {})
         }
@@ -944,48 +944,6 @@ mod defaults {
                     }))
                     .perm();
                 tracing::debug!("defaults init, single_instance set");
-            }
-
-            #[cfg(feature = "material_icons_outlined")]
-            {
-                use zng_app::widget::node::{NilUiNode, UiNode};
-                use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
-                use zng_wgt_material_icons::outlined as icons;
-                use zng_wgt_text::icon::Icon;
-
-                ICONS.register_fallback(wgt_fn!(|args: IconRequestArgs| {
-                    match args.name() {
-                        "cut" => Icon!(icons::CUT).boxed(),
-                        "copy" => Icon!(icons::COPY).boxed(),
-                        "paste" => Icon!(icons::PASTE).boxed(),
-
-                        "undo" => Icon!(icons::UNDO).boxed(),
-                        "redo" => Icon!(icons::REDO).boxed(),
-
-                        "close" => Icon!(icons::CLOSE).boxed(),
-                        "minimize" => Icon!(icons::MINIMIZE).boxed(),
-                        "maximize" => Icon!(icons::MAXIMIZE).boxed(),
-                        "fullscreen" => Icon!(icons::FULLSCREEN).boxed(),
-
-                        "scroll-top" => Icon!(icons::VERTICAL_ALIGN_TOP).boxed(),
-                        "scroll-bottom" => Icon!(icons::VERTICAL_ALIGN_BOTTOM).boxed(),
-
-                        "zoom-in" => Icon!(icons::ZOOM_IN).boxed(),
-                        "zoom-out" => Icon!(icons::ZOOM_OUT).boxed(),
-
-                        "context-menu" => Icon!(icons::MENU_OPEN).boxed(),
-
-                        "inspector" => Icon!(icons::SCREEN_SEARCH_DESKTOP).boxed(),
-
-                        "open-file" => Icon!(icons::FILE_OPEN).boxed(),
-
-                        "settings" => Icon!(icons::SETTINGS).boxed(),
-                        "settings-reset" => Icon!(icons::SETTINGS_BACKUP_RESTORE).boxed(),
-                        _ => NilUiNode.boxed(),
-                    }
-                }));
-
-                tracing::debug!("defaults init, command_icons set");
             }
         }
     }

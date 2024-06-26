@@ -25,7 +25,7 @@ command! {
         name: "Debug Inspector",
         info: "Inspect the window.",
         shortcut: [shortcut!(CTRL|SHIFT+'I'), shortcut!(F12)],
-        icon: wgt_fn!(|_| ICONS.get("inspector")),
+        icon: wgt_fn!(|_| ICONS.get(["inspector", "screen-search-desktop"])),
     };
 }
 
