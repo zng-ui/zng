@@ -225,6 +225,9 @@ pub fn default_settings_search_fn(args: SettingsSearchArgs) -> impl UiNode {
     Container! {
         child = TextInput! {
             txt = args.search;
+            style_fn = zng_wgt_text_input::SearchStyle!();
+            zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
+            placeholder_txt = "search settings (Ctrl+F)";
         };
         child_bottom = Hr!(zng_wgt::margin = (10, 10, 0, 10)), 0;
     }

@@ -21,6 +21,11 @@ use zng_wgt_container::Container;
 pub struct SettingsEditor(WidgetBase);
 impl SettingsEditor {
     fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            zng_wgt_fill::background_color = color_scheme_pair((rgb(0.15, 0.15, 0.15), rgb(0.85, 0.85, 0.85)));
+            zng_wgt_container::padding = 10;
+        }
         self.widget_builder().push_build_action(|wgt| {
             let child = settings_editor_node();
             wgt.set_child(child.boxed());

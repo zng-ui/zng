@@ -174,7 +174,7 @@ impl DefaultStyle {
         widget_set! {
             self;
             replace = true;
-            padding = (7, 15);
+            padding = (7, 10);
             cursor = CursorIcon::Text;
             background_color = color_scheme_pair(BASE_COLORS_VAR);
             border = {
@@ -217,19 +217,16 @@ impl SearchStyle {
         widget_set! {
             self;
             zng_wgt_access::access_role = zng_wgt_access::AccessRole::SearchBox;
-            zng_wgt_container::child_out_insert = {
-                placement: zng_wgt_container::ChildInsert::Start,
-                spacing: 0,
-                node: zng_wgt_container::Container! {
-                    zng_wgt::align = Align::CENTER;
-                    child = zng_wgt::ICONS.req("search");
-                    zng_wgt_size_offset::size = 18;
-                    zng_wgt::margin = DIRECTION_VAR.map(|d| match d {
-                        LayoutDirection::LTR => (0, 0, 0, 6),
-                        LayoutDirection::RTL => (0, 6, 0, 0),
-                    }.into());
-                },
-            };
+            zng_wgt_container::child_out_start = zng_wgt_container::Container! {
+                zng_wgt::align = Align::CENTER;
+                child = zng_wgt::ICONS.req("search");
+                zng_wgt_size_offset::size = 18;
+                zng_wgt::margin = DIRECTION_VAR.map(|d| match d {
+                    LayoutDirection::LTR => (0, 0, 0, 6),
+                    LayoutDirection::RTL => (0, 6, 0, 0),
+                }.into());
+                zng_wgt_fill::background_color = colors::RED;
+            }, 0;
         }
     }
 }

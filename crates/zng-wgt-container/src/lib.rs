@@ -396,7 +396,7 @@ pub fn child_insert(
     })
 }
 
-/// Insert `node` in the `placement` relative to the widget's child, but outside of the child layout.
+/// Insert `node` in the `placement` relative to the widget's child, outside of the child layout.
 ///
 /// This is still *inside* the parent widget, but outside of properties like padding.
 ///
@@ -489,4 +489,84 @@ pub fn child_over(child: impl UiNode, node: impl UiNode) -> impl UiNode {
 #[property(CHILD, default(NilUiNode), widget_impl(Container))]
 pub fn child_under(child: impl UiNode, node: impl UiNode) -> impl UiNode {
     child_insert(child, ChildInsert::Under, node, 0)
+}
+
+/// Insert `node` to the left of the widget's child, outside of the child layout.
+///
+/// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
+///
+/// [`child_out_insert`]: fn@child_insert
+#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
+pub fn child_out_left(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_out_insert(child, ChildInsert::Left, node, spacing)
+}
+
+/// Insert `node` to the right of the widget's child, outside of the child layout.
+///
+/// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
+///
+/// [`child_out_insert`]: fn@child_out_insert
+#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
+pub fn child_out_right(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_out_insert(child, ChildInsert::Right, node, spacing)
+}
+
+/// Insert `node` above the widget's child, outside of the child layout.
+///
+/// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
+///
+/// [`child_out_insert`]: fn@child_out_insert
+#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
+pub fn child_out_top(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_out_insert(child, ChildInsert::Top, node, spacing)
+}
+
+/// Insert `node` below the widget's child, outside of the child layout.
+///
+/// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
+///
+/// [`child_out_insert`]: fn@child_out_insert
+#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
+pub fn child_out_bottom(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_out_insert(child, ChildInsert::Bottom, node, spacing)
+}
+
+/// Insert `node` to the left of the widget's child in LTR contexts or to the right in RTL contexts, outside of the child layout.
+///
+/// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
+///
+/// [`child_out_insert`]: fn@child_out_insert
+#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
+pub fn child_out_start(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_out_insert(child, ChildInsert::Start, node, spacing)
+}
+
+/// Insert `node` to the right of the widget's child in LTR contexts or to the right of the widget's child in RTL contexts, outside of the child layout.
+///
+/// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
+///
+/// [`child_out_insert`]: fn@child_out_insert
+#[property(CHILD_LAYOUT - 1, default(NilUiNode, 0), widget_impl(Container))]
+pub fn child_out_end(child: impl UiNode, node: impl UiNode, spacing: impl IntoVar<Length>) -> impl UiNode {
+    child_out_insert(child, ChildInsert::End, node, spacing)
+}
+
+/// Insert `node` over the widget's child, not affected by child layout.
+///
+/// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
+///
+/// [`child_out_insert`]: fn@child_out_insert
+#[property(CHILD_LAYOUT - 1, default(NilUiNode), widget_impl(Container))]
+pub fn child_out_over(child: impl UiNode, node: impl UiNode) -> impl UiNode {
+    child_out_insert(child, ChildInsert::Over, node, 0)
+}
+
+/// Insert `node` under the widget's child, not affected by child layout.
+///
+/// This property disables inline layout for the widget. See [`child_out_insert`] for more details.
+///
+/// [`child_out_insert`]: fn@child_out_insert
+#[property(CHILD_LAYOUT - 1, default(NilUiNode), widget_impl(Container))]
+pub fn child_out_under(child: impl UiNode, node: impl UiNode) -> impl UiNode {
+    child_out_insert(child, ChildInsert::Under, node, 0)
 }
