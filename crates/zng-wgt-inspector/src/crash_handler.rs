@@ -183,8 +183,8 @@ fn std_panel(std: Txt, config_key: &'static str) -> impl UiNode {
         child_align = Align::TOP_START;
         background_color = colors::BLACK;
         padding = 5;
-        horizontal_offset = CONFIG.get(formatx!("{config_key}.scroll.h"), || 0.fct());
-        vertical_offset = CONFIG.get(formatx!("{config_key}.scroll.v"), || 0.fct());
+        horizontal_offset = CONFIG.get(formatx!("{config_key}.scroll.h"), 0.fct());
+        vertical_offset = CONFIG.get(formatx!("{config_key}.scroll.v"), 0.fct());
         child = AnsiText! {
             txt = std;
             font_size = 0.9.em();
@@ -206,8 +206,8 @@ fn minidump_panel(path: PathBuf) -> impl UiNode {
         child_align = Align::TOP_START;
         background_color = colors::BLACK;
         padding = 5;
-        horizontal_offset = CONFIG.get(formatx!("minidump.scroll.h"), || 0.fct());
-        vertical_offset = CONFIG.get(formatx!("minidump.scroll.v"), || 0.fct());
+        horizontal_offset = CONFIG.get(formatx!("minidump.scroll.h"), 0.fct());
+        vertical_offset = CONFIG.get(formatx!("minidump.scroll.v"), 0.fct());
         child = Stack! {
             direction = StackDirection::top_to_bottom();
             spacing = 5;
@@ -336,8 +336,8 @@ fn plain_panel(txt: Txt, config_key: &'static str) -> impl UiNode {
         child_align = Align::TOP_START;
         background_color = colors::BLACK;
         padding = 5;
-        horizontal_offset = CONFIG.get(formatx!("{config_key}.scroll.h"), || 0.fct());
-        vertical_offset = CONFIG.get(formatx!("{config_key}.scroll.v"), || 0.fct());
+        horizontal_offset = CONFIG.get(formatx!("{config_key}.scroll.h"), 0.fct());
+        vertical_offset = CONFIG.get(formatx!("{config_key}.scroll.v"), 0.fct());
         child = SelectableText! {
             txt;
             font_size = 0.9.em();

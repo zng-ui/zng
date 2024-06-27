@@ -38,7 +38,7 @@ fn load_config() {
         s.entry("settings.bool", "bool", |s| {
             s.name("bool")
                 .description("Example *bool* value.")
-                .value(|| false)
+                .value(false)
                 .reset(settings_ref.clone_boxed(), "settings.")
         });
 
@@ -48,7 +48,7 @@ fn load_config() {
                     s.entry(concat!("settings.", $ty), $cat, |s| {
                         s.name($ty)
                             .description(concat!("Example *", $ty, "* value."))
-                            .value(|| $default)
+                            .value($default)
                             .reset(settings_ref.clone_boxed(), "settings.")
                     });
                 )+

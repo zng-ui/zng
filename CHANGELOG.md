@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** `CONFIG.get` and `Config::get` now receive a default value, not a closure.
+    - The closure was immediately evaluated by most config backends.
 * **Breaking** Refactored `zng_wgt_window::SaveState`.
     - Is now in `zng::config::SaveState`.
     - Does not define window load wait time.

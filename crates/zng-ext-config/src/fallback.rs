@@ -241,8 +241,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     }
 }
 impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
-        let default = default();
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         self.get_raw(key.into(), RawConfigValue::serialize(&default).unwrap(), true)
             .filter_map_bidi(
                 |raw| raw.clone().deserialize().ok(),

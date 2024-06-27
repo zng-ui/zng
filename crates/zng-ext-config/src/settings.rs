@@ -568,12 +568,12 @@ impl<'a> SettingBuilder<'a> {
     }
 
     /// Set the value variable from [`CONFIG`].
-    pub fn value<T: ConfigValue>(&mut self, default: impl FnOnce() -> T) -> &mut Self {
+    pub fn value<T: ConfigValue>(&mut self, default: T) -> &mut Self {
         self.cfg_value(&mut CONFIG, default)
     }
 
     /// Set the value variable from a different config.
-    pub fn cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: impl FnOnce() -> T) -> &mut Self {
+    pub fn cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: T) -> &mut Self {
         let value = cfg.get(self.config_key.clone(), default);
         self.value = Some((value.boxed_any(), TypeId::of::<T>()));
         self

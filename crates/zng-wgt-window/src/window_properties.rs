@@ -247,7 +247,7 @@ pub fn save_state_node<S: ConfigValue>(
             if let Some(key) = enabled.enabled_key() {
                 if WINDOW.is_loaded() {
                     if CONFIG.contains_key(key.clone()).get() {
-                        let cfg = CONFIG.get(key, || on_update_save(true).unwrap());
+                        let cfg = CONFIG.get(key, on_update_save(true).unwrap());
                         on_load_restore(Some(cfg.get()));
                         state = State::LoadedWithCfg(cfg);
                     } else {
@@ -269,7 +269,7 @@ pub fn save_state_node<S: ConfigValue>(
             if matches!(&state, State::AwaitingLoad) && WINDOW_LOAD_EVENT.has(update) {
                 if let Some(key) = enabled.enabled_key() {
                     if CONFIG.contains_key(key.clone()).get() {
-                        let cfg = CONFIG.get(key, || on_update_save(true).unwrap());
+                        let cfg = CONFIG.get(key, on_update_save(true).unwrap());
                         on_load_restore(Some(cfg.get()));
                         state = State::LoadedWithCfg(cfg);
                     } else {
@@ -291,7 +291,7 @@ pub fn save_state_node<S: ConfigValue>(
             State::Loaded => {
                 if let Some(new) = on_update_save(false) {
                     if let Some(key) = enabled.enabled_key() {
-                        let cfg = CONFIG.get(key, || new.clone());
+                        let cfg = CONFIG.get(key, new.clone());
                         let _ = cfg.set(new);
                         state = State::LoadedWithCfg(cfg);
                     } else {

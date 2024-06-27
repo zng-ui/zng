@@ -43,7 +43,7 @@ impl AnyConfig for SwapConfig {
     }
 }
 impl Config for SwapConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         self.shared.get_or_bind(key.into(), |key| {
             // not in shared, bind with source json var.
             self.cfg.get_mut().get_raw_serde_bidi(key.clone(), default, false)
@@ -102,12 +102,12 @@ mod tests {
 
         let mut cfg = SwapConfig::new();
 
-        let v = cfg.get("key", || true);
+        let v = cfg.get("key", true);
         assert!(v.get());
         v.set(false).unwrap();
         app.update(false).assert_wait();
 
-        let v2 = cfg.get("key", || true);
+        let v2 = cfg.get("key", true);
         assert!(!v2.get() && !v.get());
         assert_eq!(v.var_ptr(), v2.var_ptr());
     }
@@ -128,7 +128,7 @@ mod tests {
         let mut test = SwapConfig::new();
         test.replace_source(Box::new(inner1));
 
-        let c1 = test.get("key", || 0);
+        let c1 = test.get("key", 0);
 
         assert_eq!(32, c1.get());
     }
@@ -149,7 +149,7 @@ mod tests {
         let mut test = SwapConfig::new();
         test.replace_source(Box::new(inner1));
 
-        let cfg = test.get("key", || 0);
+        let cfg = test.get("key", 0);
 
         assert_eq!(32, cfg.get());
 
@@ -180,7 +180,7 @@ mod tests {
         let mut test = SwapConfig::new();
         test.replace_source(Box::new(inner1));
 
-        let cfg = test.get("key", || 0);
+        let cfg = test.get("key", 0);
 
         assert_eq!(32, cfg.get());
 
@@ -220,7 +220,7 @@ mod tests {
         let mut test = SwapConfig::new();
         test.replace_source(Box::new(FallbackConfig::new(inner1, fallback)));
 
-        let cfg = test.get("key", || -1);
+        let cfg = test.get("key", -1);
 
         assert_eq!(32, cfg.get());
 
