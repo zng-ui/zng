@@ -1,5 +1,11 @@
 # Unreleased
 
+* **Breaking** Refactored `zng_wgt_window::SaveState`.
+    - Is now in `zng::config::SaveState`.
+    - Does not define window load wait time.
+        - A new `Window::config_block_window_load` property handles blocking for all configs on window.
+    - Add `zng::config::save_state_node` helper for declaring state persistency properties for other widgets.
+    - Automatic config keys now require an ID name.
 * Fix "child_insert" layouts when the children end-up having a single full widget and other non-widget nodes.
 * Add `TextInput::placeholder`.
     - Add `TextInput::placeholder_txt`.

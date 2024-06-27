@@ -79,6 +79,8 @@ fn load_config() {
 fn app_main() {
     APP.defaults().run_window(async {
         load_config();
+
+        WINDOW.id().set_name("main").unwrap(); // name used to save window state.
         Window! {
             title = if std::env::var("OTHER-PROCESS").is_err() { "Config Example" } else { "Config Example - Other Process" };
             size = (600, 500);

@@ -92,6 +92,8 @@ pub use zng_ext_config::{
     ReadOnlyConfig, SwapConfig, SwitchConfig, CONFIG,
 };
 
+pub use zng_wgt_window::{save_state_node, SaveState};
+
 #[cfg(feature = "ron")]
 pub use zng_ext_config::RonConfig;
 
