@@ -143,7 +143,7 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
     })
 }
 
-/// Window persistence config.
+/// Window or widget persistence config.
 ///
 /// See the [`save_state`] property for more details.
 ///
@@ -152,9 +152,9 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
 pub enum SaveState {
     /// Save and restore state.
     Enabled {
-        /// Config key that identifies the window.
+        /// Config key that identifies the window or widget.
         ///
-        /// If `None` a key is generated for the window, using the [`window_key`] method.
+        /// If `None` a key is generated from the widget and window IDs.
         ///
         /// [`window_key`]: Self::window_key
         key: Option<ConfigKey>,
@@ -192,6 +192,21 @@ impl SaveState {
                     formatx!("window.sequential({}).state", id.sequential())
                 } else {
                     formatx!("window.{name}.state")
+                }
+            })),
+            SaveState::Disabled => None,
+        }
+    }
+
+    /// Gets the config key used for the widget identified by `id`.
+    pub fn widget_key(&self, id: WidgetId) -> Option<ConfigKey> {
+        match self {
+            SaveState::Enabled { key, .. } => Some(key.clone().unwrap_or_else(|| {
+                let name = id.name();
+                if name.is_empty() {
+                    formatx!("widget.sequential({}).state", id.sequential())
+                } else {
+                    formatx!("widget.{name}.state")
                 }
             })),
             SaveState::Disabled => None,
@@ -236,8 +251,8 @@ impl_from_and_into_var! {
 /// If enabled a config entry is created for the window state in [`CONFIG`], and if a config backend is set
 /// the window state is persisted on change and restored when the app reopens.
 ///
-/// It is recommended to open the window with an unique name if
-/// the app can open more than one window, otherwise the state will be associated with the sequential ID of the window.
+/// It is highly recommended to open the window with a named ID,
+/// otherwise the state will be associated with the sequential ID of the window.
 ///
 /// This property is enabled by default in the `Window!` widget.
 ///

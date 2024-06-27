@@ -15,8 +15,6 @@ use zng_wgt::prelude::*;
 use zng_wgt_container::Container;
 
 /// Settings editor widget.
-///
-/// The editor
 #[widget($crate::SettingsEditor)]
 pub struct SettingsEditor(WidgetBase);
 impl SettingsEditor {

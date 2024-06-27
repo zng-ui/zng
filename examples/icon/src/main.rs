@@ -109,7 +109,7 @@ fn icons() -> impl UiNode {
                 id = "search";
                 txt = search.clone();
                 focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
-                placeholder_txt = "search icons (S, Ctrl+F)";
+                placeholder_txt = "search icons (S)";
                 style_fn = zng::text_input::SearchStyle!();
                 layout::min_width = 40.vh_pct();
                 layout::margin = (15, 0, 0, 0);

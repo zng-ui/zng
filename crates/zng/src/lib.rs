@@ -924,6 +924,10 @@ mod defaults {
             crate::third_party::setup_default_view();
             tracing::debug!("defaults init, third_party set");
 
+            // setup SETTINGS_CMD handler
+            crate::config::settings::setup_default_view();
+            tracing::debug!("defaults init, settings set");
+
             #[cfg(feature = "single_instance")]
             {
                 crate::app::APP_INSTANCE_EVENT

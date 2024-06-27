@@ -1,3 +1,4 @@
+use cmd::SELECT_ALL_CMD;
 use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use zng_wgt::{align, is_disabled, margin, prelude::*};
 use zng_wgt_access::{access_role, AccessRole};
@@ -216,17 +217,19 @@ impl SearchStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            zng_wgt_container::padding = (7, 10, 7, 0);
             zng_wgt_access::access_role = zng_wgt_access::AccessRole::SearchBox;
             zng_wgt_container::child_out_start = zng_wgt_container::Container! {
-                zng_wgt::align = Align::CENTER;
                 child = zng_wgt::ICONS.req("search");
+                zng_wgt::align = Align::CENTER;
+                zng_wgt::hit_test_mode = false;
                 zng_wgt_size_offset::size = 18;
                 zng_wgt::margin = DIRECTION_VAR.map(|d| match d {
                     LayoutDirection::LTR => (0, 0, 0, 6),
                     LayoutDirection::RTL => (0, 6, 0, 0),
                 }.into());
-                zng_wgt_fill::background_color = colors::RED;
             }, 0;
+            zng_wgt_input::focus::on_focus = hn!(|_| SELECT_ALL_CMD.scoped(WIDGET.id()).notify());
         }
     }
 }

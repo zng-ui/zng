@@ -119,7 +119,7 @@ fn app_main() {
                         }
                     })
                 }, 0;
-            }, 10;
+            }, 0;
             on_load = hn_once!(|_| {
                 // window position is saved, so we move the second window a bit
                 if let Ok(pos) = std::env::var("OTHER-PROCESS") {
