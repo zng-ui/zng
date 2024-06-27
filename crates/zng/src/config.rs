@@ -15,11 +15,11 @@
 //! use zng::prelude::*;
 //!
 //! fn txt_input() -> impl UiNode {
-//!     TextInput!(CONFIG.get("example.txt", Txt::default))
+//!     TextInput!(CONFIG.get("example.txt", Txt::from("")))
 //! }
 //!
 //! fn txt_display() -> impl UiNode {
-//!     Text!(CONFIG.get("example.txt", Txt::default))
+//!     Text!(CONFIG.get("example.txt", Txt::from("")))
 //! }
 //!
 //! # fn main() { }
