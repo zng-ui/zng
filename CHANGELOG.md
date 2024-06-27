@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix "child_insert" layouts when the children end-up having a single full widget and other non-widget nodes.
 * Add `TextInput::placeholder`.
     - Add `TextInput::placeholder_txt`.
 * Add `Container::child_under/over`.
