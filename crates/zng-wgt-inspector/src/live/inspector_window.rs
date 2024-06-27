@@ -13,10 +13,9 @@ use zng_ext_l10n::lang;
 use zng_ext_window::{WindowRoot, WINDOWS};
 use zng_var::animation::easing;
 use zng_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
-use zng_wgt_access::{access_role, AccessRole};
 use zng_wgt_button::Button;
 use zng_wgt_container::{child_align, padding, Container};
-use zng_wgt_fill::{background, background_color};
+use zng_wgt_fill::background_color;
 use zng_wgt_filter::opacity;
 use zng_wgt_input::{focus::focus_shortcut, gesture::click_shortcut, is_hovered};
 use zng_wgt_rule_line::hr::Hr;
@@ -254,17 +253,12 @@ fn menu(
             ]
         }, 0;
         child = TextInput! {
-            access_role = AccessRole::SearchBox;
+            style_fn = zng_wgt_text_input::SearchStyle!();
             margin = (0, 0, 0, 50);
             padding = (3, 5);
             txt_align = Align::START;
             focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
-            background = Text! {
-                padding = (4, 6); // +1 border
-                txt = "search widgets (S)";
-                opacity = 50.pct();
-                visibility = search.map(|t| t.is_empty().into());
-            };
+            placeholder_txt = "search widgets (S)";
             txt = search;
         }
     }

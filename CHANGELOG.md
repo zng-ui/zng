@@ -1,5 +1,11 @@
 # Unreleased
 
+* Fix "child_insert" layouts when the children end-up having a single full widget and other non-widget nodes.
+* Add `TextInput::placeholder`.
+    - Add `TextInput::placeholder_txt`.
+* Add `Container::child_under/over`.
+    - Add `ChildInsert::Under/Over`.
+* Add `zng::text_input::SearchStyle`.
 * **Breaking** Refactored `zng::icon::material*` modules and `zng-wgt-material-icons`.
     - Removed consts for each icon.
     - Modules renamed to `zng::icon::material::*`.

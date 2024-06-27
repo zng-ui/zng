@@ -80,13 +80,7 @@
 //! # let _ =
 //! TextInput! {
 //!     access_role = AccessRole::SearchBox;
-//!
-//!     widget::background = Text! {
-//!         txt = "search";
-//!         layout::padding = (8, 16, 8, 16);
-//!         color::filter::opacity = 50.pct();
-//!         widget::visibility = search_txt.map(|t| t.is_empty().into());
-//!     };
+//!     placeholder_txt = "search";
 //!     txt = search_txt;
 //! }
 //! # ;
