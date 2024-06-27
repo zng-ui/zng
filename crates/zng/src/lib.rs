@@ -925,7 +925,7 @@ mod defaults {
             tracing::debug!("defaults init, third_party set");
 
             // setup SETTINGS_CMD handler
-            crate::config::settings::setup_default_view();
+            zng_wgt_settings::handle_settings_cmd();
             tracing::debug!("defaults init, settings set");
 
             #[cfg(feature = "single_instance")]

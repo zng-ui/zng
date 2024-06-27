@@ -111,7 +111,6 @@ pub use zng_ext_config::YamlConfig;
 pub mod settings {
     pub use zng_ext_config::settings::{CategoriesBuilder, Category, CategoryBuilder, Setting, SettingBuilder, SettingsBuilder, SETTINGS};
     pub use zng_wgt_input::cmd::{on_pre_settings, on_settings, SETTINGS_CMD};
-    use zng_wgt_window::Window;
 
     /// Settings editor widget.
     ///
@@ -123,49 +122,5 @@ pub mod settings {
             categories_list_fn, category_header_fn, category_item_fn, setting_fn, settings_fn, CategoriesListArgs, CategoryHeaderArgs,
             CategoryItemArgs, SettingArgs, SettingsArgs, SettingsEditor,
         };
-    }
-
-    pub(crate) fn setup_default_view() {
-        use zng_app::{
-            app_hn,
-            event::AnyEventArgs as _,
-            window::{WindowId, WINDOW},
-        };
-        use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
-        use zng_txt::formatx;
-        use zng_var::Var as _;
-
-        let id = WindowId::named("zng-config-settings-default");
-        SETTINGS_CMD
-            .on_event(
-                true,
-                app_hn!(|args: &zng_app::event::AppCommandArgs, _| {
-                    if args.propagation().is_stopped() || !SETTINGS.any(|_, _| true) {
-                        return;
-                    }
-
-                    args.propagation().stop();
-
-                    let parent = WINDOWS.focused_window_id();
-
-                    WINDOWS.focus_or_open(id, async move {
-                        if let Some(p) = parent {
-                            if let Ok(p) = WINDOWS.vars(p) {
-                                let v = WINDOW.vars();
-                                p.icon().set_bind(&v.icon()).perm();
-                            }
-                        }
-
-                        Window! {
-                            title = formatx!("{} - Settings", zng::env::about().app);
-                            parent;
-                            child = editor::SettingsEditor! {
-                                id = "zng-config-settings-default-editor";
-                            };
-                        }
-                    });
-                }),
-            )
-            .perm();
     }
 }

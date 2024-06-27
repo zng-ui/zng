@@ -11,8 +11,11 @@ use zng_ext_config::{
     settings::{Category, CategoryId, Setting, SETTINGS},
     ConfigKey,
 };
+use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
 use zng_wgt::prelude::*;
 use zng_wgt_container::Container;
+use zng_wgt_input::cmd::SETTINGS_CMD;
+use zng_wgt_window::{save_state_node, SaveState, Window};
 
 /// Settings editor widget.
 #[widget($crate::SettingsEditor)]
@@ -21,6 +24,7 @@ impl SettingsEditor {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            save_state = SaveState::enabled();
             zng_wgt_fill::background_color = color_scheme_pair((rgb(0.15, 0.15, 0.15), rgb(0.85, 0.85, 0.85)));
             zng_wgt_container::padding = 10;
         }
@@ -176,7 +180,7 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
 
     let categories = presenter(
         search_results.map_ref(|r| &r.categories),
-        wgt_fn!(|categories: Vec<Category>| {
+        wgt_fn!(selected_cat, |categories: Vec<Category>| {
             let cat_fn = CATEGORY_ITEM_FN_VAR.get();
             let categories: UiNodeVec = categories
                 .into_iter()
@@ -219,11 +223,93 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         }),
     );
 
-    Container! {
+    let child = Container! {
         child_top = search_box, 0;
         child = Container! {
             child_start = categories, 0;
             child = settings
         };
+    };
+    let child = with_context_var(child, EDITOR_SEARCH_VAR, search);
+    with_context_var(child, EDITOR_SELECTED_CATEGORY_VAR, selected_cat)
+}
+
+/// Save and restore settings search and selected category.
+///
+/// This property is enabled by default in the `SettingsEditor!` widget, without a key. Note that without a config key
+/// this feature only actually enables if the settings widget ID has a name.
+#[property(CONTEXT, widget_impl(SettingsEditor))]
+pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct SettingsEditorCfg {
+        search: Txt,
+        selected_category: CategoryId,
     }
+    save_state_node::<SettingsEditorCfg>(
+        child,
+        enabled,
+        |cfg| {
+            let search = SETTINGS.editor_search();
+            let cat = SETTINGS.editor_selected_category();
+            WIDGET.sub_var(&search).sub_var(&cat);
+            if let Some(c) = cfg {
+                let _ = search.set(c.search);
+                let _ = cat.set(c.selected_category);
+            }
+        },
+        |required| {
+            let search = SETTINGS.editor_search();
+            let cat = SETTINGS.editor_selected_category();
+            if required || search.is_new() || cat.is_new() {
+                Some(SettingsEditorCfg {
+                    search: search.get(),
+                    selected_category: cat.get(),
+                })
+            } else {
+                None
+            }
+        },
+    )
+}
+
+/// Set a [`SETTINGS_CMD`] handler that shows the settings window.
+pub fn handle_settings_cmd() {
+    use zng_app::{
+        app_hn,
+        event::AnyEventArgs as _,
+        window::{WindowId, WINDOW},
+    };
+
+    let id = WindowId::named("zng-config-settings-default");
+    SETTINGS_CMD
+        .on_event(
+            true,
+            app_hn!(|args: &zng_app::event::AppCommandArgs, _| {
+                if args.propagation().is_stopped() || !SETTINGS.any(|_, _| true) {
+                    return;
+                }
+
+                args.propagation().stop();
+
+                let parent = WINDOWS.focused_window_id();
+
+                WINDOWS.focus_or_open(id, async move {
+                    if let Some(p) = parent {
+                        if let Ok(p) = WINDOWS.vars(p) {
+                            let v = WINDOW.vars();
+                            p.icon().set_bind(&v.icon()).perm();
+                        }
+                    }
+
+                    Window! {
+                        title = formatx!("{} - Settings", zng_env::about().app);
+                        parent;
+                        child = SettingsEditor! {
+                            id = "zng-config-settings-default-editor";
+                        };
+                    }
+                });
+            }),
+        )
+        .perm();
 }

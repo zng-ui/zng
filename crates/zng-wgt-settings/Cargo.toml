@@ -33,3 +33,8 @@ zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.19" }
 zng-wgt-markdown = { path = "../zng-wgt-markdown", version = "0.3.9" }
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.3.9" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.7" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.3.9" }
+zng-wgt-window = { path = "../zng-wgt-window", version = "0.4.7" }
+zng-env = { path = "../zng-env", version = "0.3.0" }
+
+serde = { version = "1.0", features = ["derive"] }

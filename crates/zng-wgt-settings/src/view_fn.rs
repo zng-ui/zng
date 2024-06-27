@@ -338,16 +338,32 @@ impl WidgetInfoSettingExt for WidgetInfo {
 
 /// Extends [`SETTINGS`] to provide contextual information in an editor.
 pub trait SettingsCtxExt {
-    /// Gets a context var that tracks the [`Setting`] entry the widget is inside, or will be.
+    /// Gets a read-write context var that tracks the search text.
+    fn editor_search(&self) -> ContextVar<Txt>;
+
+    /// Gets a read-write context var that tracks the selected category.
+    fn editor_selected_category(&self) -> ContextVar<CategoryId>;
+
+    /// Gets a read-only context var that tracks the [`Setting`] entry the widget is inside, or will be.
     fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>>;
 }
 impl SettingsCtxExt for SETTINGS {
+    fn editor_search(&self) -> ContextVar<Txt> {
+        EDITOR_SEARCH_VAR
+    }
+
+    fn editor_selected_category(&self) -> ContextVar<CategoryId> {
+        EDITOR_SELECTED_CATEGORY_VAR
+    }
+
     fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>> {
         EDITOR_SETTING_VAR.read_only()
     }
 }
 
 context_var! {
+    pub(crate) static EDITOR_SEARCH_VAR: Txt = Txt::from_static("");
+    pub(crate) static EDITOR_SELECTED_CATEGORY_VAR: CategoryId = CategoryId(Txt::from_static(""));
     static EDITOR_SETTING_VAR: Option<Setting> = None;
 }
 

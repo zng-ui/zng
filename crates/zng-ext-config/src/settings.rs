@@ -216,7 +216,8 @@ impl SETTINGS {
 }
 
 /// Unique ID of a [`Category`].
-#[derive(PartialEq, Eq, Clone, Debug, Hash, Default)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct CategoryId(pub Txt);
 impl_from_and_into_var! {
     fn from(id: Txt) -> CategoryId {
