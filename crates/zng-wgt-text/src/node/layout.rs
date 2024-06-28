@@ -16,7 +16,7 @@ use zng_ext_input::{
     keyboard::{KEYBOARD, KEY_INPUT_EVENT},
     mouse::{MOUSE, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
-    touch::{TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
+    touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
 };
 use zng_ext_l10n::LANG_VAR;
 use zng_ext_undo::UNDO;
@@ -858,6 +858,7 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
                 edit.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
                 edit.events[1] = TOUCH_TAP_EVENT.subscribe(id);
                 edit.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
+                edit.events[3] = TOUCH_INPUT_EVENT.subscribe(id);
                 // KEY_INPUT_EVENT subscribed by `resolve_text`.
             }
 
@@ -874,7 +875,7 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
 /// Data allocated only when `editable`.
 #[derive(Default)]
 struct LayoutTextEdit {
-    events: [EventHandle; 3],
+    events: [EventHandle; 4],
     caret_animation: VarHandle,
     select: CommandHandle,
     select_all: CommandHandle,
@@ -1162,22 +1163,23 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                         timestamp: args.timestamp,
                         count: 1,
                     });
-                    // select all on mouse-up if only acquire focus
-                    edit.auto_select = selectable
-                        && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
-                        && !FOCUS.is_focused(WIDGET.id()).get()
-                        && TEXT.resolved().caret.selection_range().is_none();
-
                     1
                 };
 
                 match edit.click_count {
-                    1 => if select {
-                        TextSelectOp::select_nearest_to(args.position)
-                    } else {
-                        TextSelectOp::nearest_to(args.position)
+                    1 => {
+                        if select {
+                            TextSelectOp::select_nearest_to(args.position).call()
+                        } else {
+                            TextSelectOp::nearest_to(args.position).call();
+
+                            // select all on mouse-up if only acquire focus
+                            edit.auto_select = selectable
+                                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                                && !FOCUS.is_focused(WIDGET.id()).get()
+                                && TEXT.resolved().caret.selection_range().is_none();
+                        }
                     }
-                    .call(),
                     2 => {
                         if selectable {
                             TextSelectOp::select_word_nearest_to(!select, args.position).call()
@@ -1215,6 +1217,13 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             }
             edit.selection_move_handles.clear();
         }
+    } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+        edit.auto_select = selectable
+            && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+            && args.modifiers.is_empty()
+            && args.is_touch_start()
+            && !FOCUS.is_focused(WIDGET.id()).get()
+            && TEXT.resolved().caret.selection_range().is_none();
     } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
         if args.modifiers.is_empty() {
             args.propagation().stop();
@@ -1222,6 +1231,15 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             TEXT.resolve().selection_by = SelectionBy::Touch;
 
             TextSelectOp::nearest_to(args.position).call();
+
+            if mem::take(&mut edit.auto_select)
+                && selectable
+                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                && FOCUS.is_focused(WIDGET.id()).get()
+                && TEXT.resolved().caret.selection_range().is_none()
+            {
+                TextSelectOp::select_all().call()
+            }
         }
     } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
         if args.modifiers.is_empty() && selectable {
