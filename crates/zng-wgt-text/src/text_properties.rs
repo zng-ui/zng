@@ -1519,7 +1519,7 @@ pub fn change_stop_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> i
     with_context_var(child, CHANGE_STOP_DELAY_VAR, delay)
 }
 
-/// Auto-selection on focus when the text is editable.
+/// Auto-selection on focus when the text is selectable.
 ///
 /// If enabled on keyboard focus all text is selected and on blur any selection is cleared.
 #[property(CONTEXT, default(AUTO_SELECTION_VAR), widget_impl(TextEditMix<P>))]
@@ -1552,31 +1552,37 @@ pub fn obscure_txt(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
     with_context_var(child, OBSCURE_TXT_VAR, enabled)
 }
 
-/// Defines when text is auto-selected on focus.
-#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
-pub enum AutoSelection {
-    /// Does not select-all on focus.
-    Disabled,
-
-    /// Select-all on keyboard focus ([highlight]).
-    ///
-    /// [highlight]: zng_ext_input::focus::FocusChangedArgs::highlight
-    Enabled,
-
-    /// Select-all on keyboard focus ([highlight]) if the text is not [`accepts_enter`].
-    ///
-    /// [highlight]: zng_ext_input::focus::FocusChangedArgs::highlight
-    /// [`accepts_enter`]: fn@accepts_enter
-    #[default]
-    Auto,
+bitflags! {
+    /// Defines when text is auto-selected on focus.
+    #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+    pub struct AutoSelection: u8 {
+        /// No auto-selection.
+        const DISABLED = 0;
+        /// Clear selection on blur if the widget is not the ALT return focus and is not the parent scope return focus.
+        ///
+        /// This is the default behavior.
+        const CLEAR_ON_BLUR = 0b0000_0001;
+        /// Select all on keyboard initiated focus.
+        const ALL_ON_FOCUS_KEYBOARD = 0b0000_00010;
+        /// Select all on pointer release if the pointer press event caused the focus to happen and it did not change
+        /// the selection and there is no selection on release.
+        const ALL_ON_FOCUS_POINTER = 0b0000_00100;
+        /// All auto-selection features enabled.
+        const ENABLED = 0b1111_1111;
+    }
 }
 impl_from_and_into_var! {
     fn from(enabled: bool) -> AutoSelection {
         if enabled {
-            AutoSelection::Enabled
+            AutoSelection::ENABLED
         } else {
-            AutoSelection::Disabled
+            AutoSelection::DISABLED
         }
+    }
+}
+impl Default for AutoSelection {
+    fn default() -> Self {
+        Self::CLEAR_ON_BLUR
     }
 }
 

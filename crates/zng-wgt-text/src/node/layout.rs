@@ -32,12 +32,12 @@ use zng_wgt_scroll::{cmd::ScrollToMode, SCROLL};
 use crate::{
     cmd::{TextSelectOp, SELECT_ALL_CMD, SELECT_CMD},
     node::SelectionBy,
-    TextOverflow, UnderlinePosition, UnderlineSkip, ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, FONT_FAMILY_VAR, FONT_FEATURES_VAR, FONT_SIZE_VAR,
-    FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHENS_VAR, HYPHEN_CHAR_VAR, IME_UNDERLINE_THICKNESS_VAR,
-    LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR, OBSCURING_CHAR_VAR, OVERLINE_THICKNESS_VAR,
-    STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR, TEXT_OVERFLOW_ALIGN_VAR, TEXT_OVERFLOW_VAR,
-    TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR, UNDERLINE_THICKNESS_VAR, WORD_BREAK_VAR,
-    WORD_SPACING_VAR,
+    AutoSelection, TextOverflow, UnderlinePosition, UnderlineSkip, ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, AUTO_SELECTION_VAR, FONT_FAMILY_VAR,
+    FONT_FEATURES_VAR, FONT_SIZE_VAR, FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHENS_VAR, HYPHEN_CHAR_VAR,
+    IME_UNDERLINE_THICKNESS_VAR, LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR,
+    OBSCURING_CHAR_VAR, OVERLINE_THICKNESS_VAR, STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR,
+    TEXT_OVERFLOW_ALIGN_VAR, TEXT_OVERFLOW_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR,
+    UNDERLINE_THICKNESS_VAR, WORD_BREAK_VAR, WORD_SPACING_VAR,
 };
 
 use super::{LaidoutText, PendingLayout, RenderInfo, LAIDOUT_TEXT, TEXT};
@@ -881,6 +881,7 @@ struct LayoutTextEdit {
     ime_area: Arc<Atomic<PxRect>>,
     click_count: u8,
     selection_mouse_down: Option<SelectionMouseDown>,
+    auto_select: bool,
     selection_move_handles: EventHandles,
 }
 struct SelectionMouseDown {
@@ -1131,7 +1132,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             if modifiers.is_empty() {
                 args.propagation().stop();
 
-                TEXT.resolve().selection_by = SelectionBy::Keyboard;
+                TEXT.resolve().selection_by = SelectionBy::Mouse;
 
                 edit.click_count = if let Some(info) = &mut edit.selection_mouse_down {
                     let cfg = MOUSE.multi_click_config().get();
@@ -1161,6 +1162,12 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                         timestamp: args.timestamp,
                         count: 1,
                     });
+                    // select all on mouse-up if only acquire focus
+                    edit.auto_select = selectable
+                        && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                        && !FOCUS.is_focused(WIDGET.id()).get()
+                        && TEXT.resolved().caret.selection_range().is_none();
+
                     1
                 };
 
@@ -1196,6 +1203,16 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 }
             }
         } else {
+            if mem::take(&mut edit.auto_select)
+                && selectable
+                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                && args.is_primary()
+                && args.is_mouse_up()
+                && FOCUS.is_focused(WIDGET.id()).get()
+                && TEXT.resolved().caret.selection_range().is_none()
+            {
+                TextSelectOp::select_all().call()
+            }
             edit.selection_move_handles.clear();
         }
     } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
@@ -1229,6 +1246,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
         if args.is_lost(WIDGET.id()) {
             edit.selection_move_handles.clear();
+            edit.auto_select = false;
         }
     } else if selectable {
         if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {

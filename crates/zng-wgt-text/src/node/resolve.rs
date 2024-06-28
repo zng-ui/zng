@@ -469,13 +469,9 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
             caret.opacity = var(0.fct()).read_only();
         }
 
-        let auto_select = match AUTO_SELECTION_VAR.get() {
-            AutoSelection::Disabled => false,
-            AutoSelection::Enabled => true,
-            AutoSelection::Auto => !ACCEPTS_ENTER_VAR.get(),
-        };
-        if auto_select && TEXT_SELECTABLE_VAR.get() {
-            if args.is_blur(widget.id()) {
+        let auto_select = AUTO_SELECTION_VAR.get();
+        if auto_select != AutoSelection::DISABLED && TEXT_SELECTABLE_VAR.get() {
+            if auto_select.contains(AutoSelection::CLEAR_ON_BLUR) && args.is_blur(widget.id()) {
                 // deselect if the widget is not the ALT return focus and is not the parent scope return focus.
 
                 let us = Some(widget.id());
@@ -490,9 +486,14 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
                         }
                     }
                 }
-            } else if args.highlight && args.is_focus(widget.id()) {
+            }
+
+            if auto_select.contains(AutoSelection::ALL_ON_FOCUS_KEYBOARD) && args.highlight && args.is_focus(widget.id()) {
+                // select all on keyboard caused focus
                 SELECT_ALL_CMD.scoped(widget.id()).notify();
             }
+
+            // ALL_ON_FOCUS_POINTER handled by `layout_text_edit_events`
         }
     } else if let Some(args) = CUT_CMD.scoped(widget.id()).on_unhandled(update) {
         let mut ctx = TEXT.resolve();

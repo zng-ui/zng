@@ -1,4 +1,3 @@
-use cmd::SELECT_ALL_CMD;
 use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use zng_wgt::{align, is_disabled, margin, prelude::*};
 use zng_wgt_access::{access_role, AccessRole};
@@ -229,7 +228,7 @@ impl SearchStyle {
                     LayoutDirection::RTL => (0, 6, 0, 0),
                 }.into());
             }, 0;
-            zng_wgt_input::focus::on_focus = hn!(|_| SELECT_ALL_CMD.scoped(WIDGET.id()).notify());
+            auto_selection = true;
         }
     }
 }
@@ -309,12 +308,13 @@ impl FieldStyle {
         let adorn = merge_var!(top_txt.clone(), FIELD_HELP_VAR, |t, h| (t.is_empty(), h.is_empty()));
 
         let chars_count = var(0usize);
-        let has_max_count = text::MAX_CHARS_COUNT_VAR.map(|&c| c > 0);
+        let has_max_count = MAX_CHARS_COUNT_VAR.map(|&c| c > 0);
 
         widget_set! {
             self;
             zng_wgt_data::get_data_notes_top = top_notes.clone();
-            text::get_chars_count = chars_count.clone();
+            get_chars_count = chars_count.clone();
+            auto_selection = true;
 
             foreground_highlight = {
                 offsets: -2, // -1 border plus -1 to be outside
