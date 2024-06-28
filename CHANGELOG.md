@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix when expr not recognized.
 * Fix `WINDOWS.is_loading`.
 * Add `WINDOWS.wait_loaded`.
 * **Breaking** Refactored `Button::cmd_param` to accept any type var.
