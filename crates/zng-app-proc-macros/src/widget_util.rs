@@ -413,17 +413,23 @@ fn parse_without_eager_brace(input: parse::ParseStream) -> TokenStream {
                 }
             }
         } else if input.peek2(token::Brace) {
-            if let Some(p) = input.cursor().punct() {
-                if p.0.as_char() != '.' {
-                    let tt = input.parse::<TokenTree>().unwrap();
-                    tt.to_tokens(&mut r);
-                    let tt = input.parse::<TokenTree>().unwrap();
-                    tt.to_tokens(&mut r);
-                    continue; // found #{ }
+            if input.peek(Token![#]) {
+                // #
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut r);
+                // { .. }
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut r);
+
+                if input.peek(token::Brace) {
+                    break; // found { } after expr or Struct #{ }
                 }
+            } else {
+                // item before brace
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut r);
+                break;
             }
-            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
-            break; // found { } after expr or Struct { }
         } else if !is_start && input.peek(token::Brace) {
             break; // found { } after expr
         } else {
