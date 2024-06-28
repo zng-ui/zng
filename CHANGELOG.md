@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Refactored `Button::cmd_param` to accept any type var.
 * Fix `SelectionBy::Mouse` never being set on mouse selection.
 * Add auto-selection on click, when the action does not disrupt the user.
 * **Breaking** Refactored `AutoSelection` into bitflags that implement more features.
