@@ -343,6 +343,9 @@ pub trait SettingsCtxExt {
     /// Gets a read-write context var that tracks the selected category.
     fn editor_selected_category(&self) -> ContextVar<CategoryId>;
 
+    /// Gets a read-only context var that tracks the current editor data state.
+    fn editor_state(&self) -> ReadOnlyContextVar<Option<SettingsEditorState>>;
+
     /// Gets a read-only context var that tracks the [`Setting`] entry the widget is inside, or will be.
     fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>>;
 }
@@ -355,6 +358,10 @@ impl SettingsCtxExt for SETTINGS {
         EDITOR_SELECTED_CATEGORY_VAR
     }
 
+    fn editor_state(&self) -> ReadOnlyContextVar<Option<SettingsEditorState>> {
+        EDITOR_STATE_VAR.read_only()
+    }
+
     fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>> {
         EDITOR_SETTING_VAR.read_only()
     }
@@ -363,6 +370,7 @@ impl SettingsCtxExt for SETTINGS {
 context_var! {
     pub(crate) static EDITOR_SEARCH_VAR: Txt = Txt::from_static("");
     pub(crate) static EDITOR_SELECTED_CATEGORY_VAR: CategoryId = CategoryId(Txt::from_static(""));
+    pub(crate) static EDITOR_STATE_VAR: Option<SettingsEditorState> = None;
     static EDITOR_SETTING_VAR: Option<Setting> = None;
 }
 
@@ -379,4 +387,23 @@ pub fn setting(child: impl UiNode, setting: impl IntoValue<Setting>) -> impl UiN
         }
     });
     with_context_var(child, EDITOR_SETTING_VAR, Some(setting))
+}
+
+/// Represents the current settings data.
+///
+/// Use [`SETTINGS.editor_state`] to get.
+///
+/// [`SETTINGS.editor_state`]: SettingsCtxExt::editor_state
+#[derive(PartialEq, Debug, Clone)]
+pub struct SettingsEditorState {
+    /// The actual text searched.
+    pub clean_search: Txt,
+    /// Categories list.
+    pub categories: Vec<Category>,
+    /// Selected category.
+    pub selected_cat: Category,
+    /// Settings for the selected category that match the search.
+    pub selected_settings: Vec<Setting>,
+    /// Top search match.
+    pub top_match: ConfigKey,
 }
