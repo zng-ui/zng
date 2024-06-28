@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `WINDOWS.is_loading`.
+* Add `WINDOWS.wait_loaded`.
 * **Breaking** Refactored `Button::cmd_param` to accept any type var.
 * Fix `SelectionBy::Mouse` never being set on mouse selection.
 * Add auto-selection on click, when the action does not disrupt the user.

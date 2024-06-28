@@ -352,7 +352,7 @@ pub fn handle_settings_cmd() {
 
                 if let Some(param) = &args.args.param {
                     if let Some(w) = new_window {
-                        w.wait_done().await;
+                        WINDOWS.wait_loaded(w.wait_into_rsp().await, true).await;
                     }
                     SETTINGS_CMD
                         .scoped("zng-config-settings-default-editor")

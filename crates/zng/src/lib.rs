@@ -679,6 +679,8 @@ mod __prelude {
     pub use zng_wgt_wrap::Wrap;
 
     pub use zng_wgt_data_view::{DataView, DataViewArgs};
+
+    pub use zng_wgt_settings::SettingBuilderEditorExt as _;
 }
 
 /// Prelude for declaring new properties and widgets.
