@@ -29,8 +29,11 @@ impl SettingsEditor {
             zng_wgt_container::padding = 10;
         }
         self.widget_builder().push_build_action(|wgt| {
-            let child = settings_editor_node();
-            wgt.set_child(child.boxed());
+            wgt.set_child(settings_editor_node());
+            wgt.push_intrinsic(NestGroup::CONTEXT, "editor-vars", |child| {
+                let child = with_context_var(child, EDITOR_SEARCH_VAR, var(Txt::from("")));
+                with_context_var(child, EDITOR_SELECTED_CATEGORY_VAR, var(CategoryId::from("")))
+            });
         });
     }
 }
@@ -39,8 +42,6 @@ impl SettingsEditor {
 ///
 /// [`SettingsEditor!`]: struct@SettingsEditor
 pub fn settings_editor_node() -> impl UiNode {
-    let search = var(Txt::from_static(""));
-    let selected_cat = var(CategoryId::from(""));
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -50,13 +51,11 @@ pub fn settings_editor_node() -> impl UiNode {
                 .sub_var(&CATEGORIES_LIST_FN_VAR)
                 .sub_var(&CATEGORY_HEADER_FN_VAR)
                 .sub_var(&CATEGORY_ITEM_FN_VAR);
-            *c.child() = settings_view_fn(search.clone(), selected_cat.clone()).boxed();
+            *c.child() = settings_view_fn().boxed();
         }
         UiNodeOp::Deinit => {
             c.deinit();
             *c.child() = NilUiNode.boxed();
-            search.set("");
-            selected_cat.set("");
         }
         UiNodeOp::Update { .. } => {
             if SETTINGS_FN_VAR.is_new()
@@ -68,7 +67,7 @@ pub fn settings_editor_node() -> impl UiNode {
             {
                 c.delegated();
                 c.child().deinit();
-                *c.child() = settings_view_fn(search.clone(), selected_cat.clone()).boxed();
+                *c.child() = settings_view_fn().boxed();
                 c.child().init();
                 WIDGET.update_info().layout().render();
             }
@@ -77,11 +76,11 @@ pub fn settings_editor_node() -> impl UiNode {
     })
 }
 
-fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> impl UiNode {
-    let search_box = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs { search: search.clone() });
+fn settings_view_fn() -> impl UiNode {
+    let search_box = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {});
 
     // avoids rebuilds for ignored search changes
-    let clean_search = search.map(|s| {
+    let clean_search = SETTINGS.editor_search().actual_var().map(|s| {
         let s = s.trim();
         if !s.starts_with('@') {
             s.to_lowercase().into()
@@ -98,7 +97,7 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         selected_settings: Vec<Setting>,
         top_match: ConfigKey,
     }
-    let sel_cat = selected_cat.clone();
+    let sel_cat = SETTINGS.editor_selected_category().actual_var().clone();
     let search_results = expr_var! {
         if #{clean_search}.is_empty() {
             // no search, does not need to load settings of other categories
@@ -156,11 +155,12 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
     };
 
     // select first category when previous selection is removed
-    let wk_sel_cat = selected_cat.downgrade();
-    fn correct_sel(options: &[Category], sel: &ArcVar<CategoryId>) {
+    let sel = SETTINGS.editor_selected_category().actual_var();
+    let wk_sel_cat = sel.downgrade();
+    fn correct_sel(options: &[Category], sel: &BoxedVar<CategoryId>) {
         if sel.with(|s| !options.iter().any(|c| c.id() == s)) {
             if let Some(first) = options.first() {
-                sel.set(first.id().clone());
+                let _ = sel.set(first.id().clone());
             }
         }
     }
@@ -175,12 +175,12 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         })
         .perm();
     search_results.with(|r| {
-        correct_sel(&r.categories, &selected_cat);
+        correct_sel(&r.categories, &sel);
     });
 
     let categories = presenter(
         search_results.map_ref(|r| &r.categories),
-        wgt_fn!(selected_cat, |categories: Vec<Category>| {
+        wgt_fn!(|categories: Vec<Category>| {
             let cat_fn = CATEGORY_ITEM_FN_VAR.get();
             let categories: UiNodeVec = categories
                 .into_iter()
@@ -188,10 +188,7 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
                 .map(|(i, c)| cat_fn(CategoryItemArgs { index: i, category: c }))
                 .collect();
 
-            CATEGORIES_LIST_FN_VAR.get()(CategoriesListArgs {
-                items: categories,
-                selected: selected_cat.clone(),
-            })
+            CATEGORIES_LIST_FN_VAR.get()(CategoriesListArgs { items: categories })
         }),
     );
 
@@ -223,15 +220,13 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         }),
     );
 
-    let child = Container! {
+    Container! {
         child_top = search_box, 0;
         child = Container! {
             child_start = categories, 0;
             child = settings
         };
-    };
-    let child = with_context_var(child, EDITOR_SEARCH_VAR, search);
-    with_context_var(child, EDITOR_SELECTED_CATEGORY_VAR, selected_cat)
+    }
 }
 
 /// Save and restore settings search and selected category.

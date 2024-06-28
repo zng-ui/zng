@@ -425,7 +425,7 @@ impl Setting {
         self.description.with(|s| {
             let s = s.to_lowercase();
             if s.contains(search) {
-                Some(s.len() - search.len() + usize::MAX - 2)
+                Some(s.len() - search.len() + usize::MAX / 2)
             } else {
                 None
             }

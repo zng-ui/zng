@@ -85,7 +85,9 @@ fn app_main() {
             title = if std::env::var("OTHER-PROCESS").is_err() { "Config Example" } else { "Config Example - Other Process" };
             size = (600, 500);
             // settings editor, usually not on the main window
-            child = zng::config::settings::editor::SettingsEditor!();
+            child = zng::config::settings::editor::SettingsEditor! {
+                id = "settings";
+            };
             child_bottom = Container! {
                 child_out_top = Hr!(layout::margin = 0), 0;
                 padding = 10;
