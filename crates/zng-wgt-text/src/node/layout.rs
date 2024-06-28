@@ -16,7 +16,7 @@ use zng_ext_input::{
     keyboard::{KEYBOARD, KEY_INPUT_EVENT},
     mouse::{MOUSE, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
-    touch::{TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
+    touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
 };
 use zng_ext_l10n::LANG_VAR;
 use zng_ext_undo::UNDO;
@@ -32,12 +32,12 @@ use zng_wgt_scroll::{cmd::ScrollToMode, SCROLL};
 use crate::{
     cmd::{TextSelectOp, SELECT_ALL_CMD, SELECT_CMD},
     node::SelectionBy,
-    TextOverflow, UnderlinePosition, UnderlineSkip, ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, FONT_FAMILY_VAR, FONT_FEATURES_VAR, FONT_SIZE_VAR,
-    FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHENS_VAR, HYPHEN_CHAR_VAR, IME_UNDERLINE_THICKNESS_VAR,
-    LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR, OBSCURING_CHAR_VAR, OVERLINE_THICKNESS_VAR,
-    STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR, TEXT_OVERFLOW_ALIGN_VAR, TEXT_OVERFLOW_VAR,
-    TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR, UNDERLINE_THICKNESS_VAR, WORD_BREAK_VAR,
-    WORD_SPACING_VAR,
+    AutoSelection, TextOverflow, UnderlinePosition, UnderlineSkip, ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, AUTO_SELECTION_VAR, FONT_FAMILY_VAR,
+    FONT_FEATURES_VAR, FONT_SIZE_VAR, FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHENS_VAR, HYPHEN_CHAR_VAR,
+    IME_UNDERLINE_THICKNESS_VAR, LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR,
+    OBSCURING_CHAR_VAR, OVERLINE_THICKNESS_VAR, STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR,
+    TEXT_OVERFLOW_ALIGN_VAR, TEXT_OVERFLOW_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR,
+    UNDERLINE_THICKNESS_VAR, WORD_BREAK_VAR, WORD_SPACING_VAR,
 };
 
 use super::{LaidoutText, PendingLayout, RenderInfo, LAIDOUT_TEXT, TEXT};
@@ -858,6 +858,7 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
                 edit.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
                 edit.events[1] = TOUCH_TAP_EVENT.subscribe(id);
                 edit.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
+                edit.events[3] = TOUCH_INPUT_EVENT.subscribe(id);
                 // KEY_INPUT_EVENT subscribed by `resolve_text`.
             }
 
@@ -874,13 +875,14 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
 /// Data allocated only when `editable`.
 #[derive(Default)]
 struct LayoutTextEdit {
-    events: [EventHandle; 3],
+    events: [EventHandle; 4],
     caret_animation: VarHandle,
     select: CommandHandle,
     select_all: CommandHandle,
     ime_area: Arc<Atomic<PxRect>>,
     click_count: u8,
     selection_mouse_down: Option<SelectionMouseDown>,
+    auto_select: bool,
     selection_move_handles: EventHandles,
 }
 struct SelectionMouseDown {
@@ -1131,7 +1133,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             if modifiers.is_empty() {
                 args.propagation().stop();
 
-                TEXT.resolve().selection_by = SelectionBy::Keyboard;
+                TEXT.resolve().selection_by = SelectionBy::Mouse;
 
                 edit.click_count = if let Some(info) = &mut edit.selection_mouse_down {
                     let cfg = MOUSE.multi_click_config().get();
@@ -1165,12 +1167,19 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 };
 
                 match edit.click_count {
-                    1 => if select {
-                        TextSelectOp::select_nearest_to(args.position)
-                    } else {
-                        TextSelectOp::nearest_to(args.position)
+                    1 => {
+                        if select {
+                            TextSelectOp::select_nearest_to(args.position).call()
+                        } else {
+                            TextSelectOp::nearest_to(args.position).call();
+
+                            // select all on mouse-up if only acquire focus
+                            edit.auto_select = selectable
+                                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                                && !FOCUS.is_focused(WIDGET.id()).get()
+                                && TEXT.resolved().caret.selection_range().is_none();
+                        }
                     }
-                    .call(),
                     2 => {
                         if selectable {
                             TextSelectOp::select_word_nearest_to(!select, args.position).call()
@@ -1196,8 +1205,25 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 }
             }
         } else {
+            if mem::take(&mut edit.auto_select)
+                && selectable
+                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                && args.is_primary()
+                && args.is_mouse_up()
+                && FOCUS.is_focused(WIDGET.id()).get()
+                && TEXT.resolved().caret.selection_range().is_none()
+            {
+                TextSelectOp::select_all().call()
+            }
             edit.selection_move_handles.clear();
         }
+    } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+        edit.auto_select = selectable
+            && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+            && args.modifiers.is_empty()
+            && args.is_touch_start()
+            && !FOCUS.is_focused(WIDGET.id()).get()
+            && TEXT.resolved().caret.selection_range().is_none();
     } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
         if args.modifiers.is_empty() {
             args.propagation().stop();
@@ -1205,6 +1231,15 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             TEXT.resolve().selection_by = SelectionBy::Touch;
 
             TextSelectOp::nearest_to(args.position).call();
+
+            if mem::take(&mut edit.auto_select)
+                && selectable
+                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                && FOCUS.is_focused(WIDGET.id()).get()
+                && TEXT.resolved().caret.selection_range().is_none()
+            {
+                TextSelectOp::select_all().call()
+            }
         }
     } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
         if args.modifiers.is_empty() && selectable {
@@ -1229,6 +1264,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
         if args.is_lost(WIDGET.id()) {
             edit.selection_move_handles.clear();
+            edit.auto_select = false;
         }
     } else if selectable {
         if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {

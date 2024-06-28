@@ -216,7 +216,8 @@ impl SETTINGS {
 }
 
 /// Unique ID of a [`Category`].
-#[derive(PartialEq, Eq, Clone, Debug, Hash, Default)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct CategoryId(pub Txt);
 impl_from_and_into_var! {
     fn from(id: Txt) -> CategoryId {
@@ -424,7 +425,7 @@ impl Setting {
         self.description.with(|s| {
             let s = s.to_lowercase();
             if s.contains(search) {
-                Some(s.len() - search.len() + usize::MAX - 2)
+                Some(s.len() - search.len() + usize::MAX / 2)
             } else {
                 None
             }
@@ -568,12 +569,12 @@ impl<'a> SettingBuilder<'a> {
     }
 
     /// Set the value variable from [`CONFIG`].
-    pub fn value<T: ConfigValue>(&mut self, default: impl FnOnce() -> T) -> &mut Self {
+    pub fn value<T: ConfigValue>(&mut self, default: T) -> &mut Self {
         self.cfg_value(&mut CONFIG, default)
     }
 
     /// Set the value variable from a different config.
-    pub fn cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: impl FnOnce() -> T) -> &mut Self {
+    pub fn cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: T) -> &mut Self {
         let value = cfg.get(self.config_key.clone(), default);
         self.value = Some((value.boxed_any(), TypeId::of::<T>()));
         self

@@ -25,6 +25,7 @@ use zng_app::{
 use zng_app_context::app_local;
 
 use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
+use zng_layout::unit::TimeUnits as _;
 use zng_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
 use zng_task::{
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
@@ -557,13 +558,55 @@ impl WINDOWS {
     pub fn is_loading(&self, window_id: impl Into<WindowId>) -> bool {
         let window_id = window_id.into();
         let sv = WINDOWS_SV.read();
-        sv.open_loading.contains_key(&window_id) || sv.windows_info.get(&window_id).map(|i| i.is_loaded).unwrap_or(false)
+        sv.open_loading.contains_key(&window_id) || sv.windows_info.get(&window_id).map(|i| !i.is_loaded).unwrap_or(false)
     }
 
     /// Returns `true` if the window is open and has no pending loading handles.
     pub fn is_loaded(&self, window_id: impl Into<WindowId>) -> bool {
         let window_id = window_id.into();
         WINDOWS_SV.read().windows_info.get(&window_id).map(|i| i.is_loaded).unwrap_or(false)
+    }
+
+    /// Wait until the window is loaded or closed.
+    ///
+    /// If `wait_event` is `true` also awaits for the [`WINDOW_LOAD_EVENT`] to finish notifying.
+    ///
+    /// Returns `true` if the window iis open and has no pending loading handles.
+    pub fn wait_loaded(&self, window_id: impl Into<WindowId>, wait_event: bool) -> impl Future<Output = bool> + Send + Sync + 'static {
+        Self::wait_loaded_impl(window_id.into(), wait_event)
+    }
+    async fn wait_loaded_impl(window_id: WindowId, wait_event: bool) -> bool {
+        if Self.is_loaded(window_id) {
+            if wait_event {
+                // unlikely, but it can just have loaded and the event is ongoing.
+                zng_task::yield_now().await;
+            }
+            return true;
+        }
+
+        // start receiving before loading check otherwise could load after check and before receiver creation.
+        let recv = WINDOW_LOAD_EVENT.receiver();
+        while Self.is_loading(window_id) {
+            while let Ok(msg) = zng_task::with_deadline(recv.recv_async(), 1.secs()).await {
+                if let Ok(args) = msg {
+                    if args.window_id == window_id {
+                        if wait_event {
+                            zng_task::yield_now().await;
+                        }
+                        return true;
+                    }
+                }
+            }
+            // deadline, rare case window closes before load
+        }
+
+        if Self.is_loaded(window_id) {
+            if wait_event {
+                zng_task::yield_now().await;
+            }
+            return true;
+        }
+        false
     }
 
     /// Request operating system focus for the window.

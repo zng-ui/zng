@@ -174,7 +174,7 @@ impl DefaultStyle {
         widget_set! {
             self;
             replace = true;
-            padding = (7, 15);
+            padding = (7, 10);
             cursor = CursorIcon::Text;
             background_color = color_scheme_pair(BASE_COLORS_VAR);
             border = {
@@ -216,20 +216,19 @@ impl SearchStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            zng_wgt_container::padding = (7, 10, 7, 0);
             zng_wgt_access::access_role = zng_wgt_access::AccessRole::SearchBox;
-            zng_wgt_container::child_out_insert = {
-                placement: zng_wgt_container::ChildInsert::Start,
-                spacing: 0,
-                node: zng_wgt_container::Container! {
-                    zng_wgt::align = Align::CENTER;
-                    child = zng_wgt::ICONS.req("search");
-                    zng_wgt_size_offset::size = 18;
-                    zng_wgt::margin = DIRECTION_VAR.map(|d| match d {
-                        LayoutDirection::LTR => (0, 0, 0, 6),
-                        LayoutDirection::RTL => (0, 6, 0, 0),
-                    }.into());
-                },
-            };
+            zng_wgt_container::child_out_start = zng_wgt_container::Container! {
+                child = zng_wgt::ICONS.req("search");
+                zng_wgt::align = Align::CENTER;
+                zng_wgt::hit_test_mode = false;
+                zng_wgt_size_offset::size = 18;
+                zng_wgt::margin = DIRECTION_VAR.map(|d| match d {
+                    LayoutDirection::LTR => (0, 0, 0, 6),
+                    LayoutDirection::RTL => (0, 6, 0, 0),
+                }.into());
+            }, 0;
+            auto_selection = true;
         }
     }
 }
@@ -309,12 +308,13 @@ impl FieldStyle {
         let adorn = merge_var!(top_txt.clone(), FIELD_HELP_VAR, |t, h| (t.is_empty(), h.is_empty()));
 
         let chars_count = var(0usize);
-        let has_max_count = text::MAX_CHARS_COUNT_VAR.map(|&c| c > 0);
+        let has_max_count = MAX_CHARS_COUNT_VAR.map(|&c| c > 0);
 
         widget_set! {
             self;
             zng_wgt_data::get_data_notes_top = top_notes.clone();
-            text::get_chars_count = chars_count.clone();
+            get_chars_count = chars_count.clone();
+            auto_selection = true;
 
             foreground_highlight = {
                 offsets: -2, // -1 border plus -1 to be outside

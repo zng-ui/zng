@@ -110,10 +110,9 @@ impl CONFIG {
     /// The same variable is returned for multiple requests of the same key. If the loaded config is not read-only the
     /// returned variable can be set to update the config source.
     ///
-    /// The `default` closure is used to generate a value if the key is not found in the config, the default value
-    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates. Note
-    /// that the `default` closure may be used even if the key is already in the config, depending on the config implementation.
-    pub fn get<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+    /// The `default` value is used if the key is not found in the config, the default value
+    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
+    pub fn get<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         CONFIG_SV.write().get(key.into(), default)
     }
 }
@@ -139,7 +138,7 @@ impl AnyConfig for CONFIG {
     }
 }
 impl Config for CONFIG {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         CONFIG.get(key, default)
     }
 }
@@ -284,14 +283,8 @@ impl dyn AnyConfig {
     /// Get raw config and setup a bidi binding that converts to and from `T`.
     ///
     /// See [`get_raw`](AnyConfig::get_raw) for more details about the inputs.
-    pub fn get_raw_serde_bidi<T: ConfigValue>(
-        &mut self,
-        key: impl Into<ConfigKey>,
-        default: impl FnOnce() -> T,
-        shared: bool,
-    ) -> BoxedVar<T> {
+    pub fn get_raw_serde_bidi<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, shared: bool) -> BoxedVar<T> {
         let key = key.into();
-        let default = default();
         let source_var = self.get_raw(
             key.clone(),
             RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
@@ -338,10 +331,9 @@ pub trait Config: AnyConfig {
     /// The same variable is returned for multiple requests of the same key. If the loaded config is not read-only the
     /// returned variable can be set to update the config source.
     ///
-    /// The `default` closure is used to generate a value if the key is not found in the config, the default value
-    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates. Note
-    /// that the `default` closure may be used even if the key is already in the config, depending on the config implementation.
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T>;
+    /// The `default` value is used if the key is not found in the config, the default value
+    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T>;
 }
 
 /// Config wrapper that only provides read-only variables from the inner config.
@@ -376,7 +368,7 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
     }
 }
 impl<C: Config> Config for ReadOnlyConfig<C> {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         self.cfg.get(key.into(), default).read_only()
     }
 }
@@ -451,8 +443,7 @@ impl AnyConfig for MemoryConfig {
     }
 }
 impl Config for MemoryConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
-        let default = default();
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         self.get_raw(key.into(), RawConfigValue::serialize(default.clone()).unwrap(), true)
             .filter_map_bidi(
                 |m| m.clone().deserialize::<T>().ok(),

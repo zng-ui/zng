@@ -44,7 +44,7 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
         } else {
             formatx!("window.{}.inspector", WINDOW.id().name())
         },
-        Config::default,
+        Config::default(),
     );
     let adorn_selected = config.map_ref_bidi(|c| &c.adorn_selected, |c| &mut c.adorn_selected);
     let select_focused = config.map_ref_bidi(|c| &c.select_focused, |c| &mut c.select_focused);

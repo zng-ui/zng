@@ -77,7 +77,7 @@ macro_rules! test_config {
         if TEST_READ.get() {
             let key = Txt::from_static($key);
             assert!(CONFIG.contains_key(key.clone()).get(), "did not find {key}");
-            let read_value = CONFIG.get(key, || $($init)*).get();
+            let read_value = CONFIG.get(key, $($init)*).get();
             let expected_value = { $($init)* };
 
             let read_value = format!("{read_value:#?}");
@@ -86,7 +86,7 @@ macro_rules! test_config {
             pretty_assertions::assert_eq!(expected_value, read_value, "test read {}", stringify!($key));
         } else {
             CONFIG
-            .get($key, || $($init)*)
+            .get($key, $($init)*)
                 .update()
                 .unwrap();
         }
@@ -215,7 +215,7 @@ fn concurrent_read_write() {
         let mut app = APP.defaults().run_headless(false);
         zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&file));
-        CONFIG.get("key", || Txt::from_static("default/custom")).set("custom").unwrap();
+        CONFIG.get("key", Txt::from_static("default/custom")).set("custom").unwrap();
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
@@ -240,7 +240,7 @@ fn concurrent_read_write() {
                     task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
                 });
 
-                let var = CONFIG.get("key", || Txt::from_static("default/get"));
+                let var = CONFIG.get("key", Txt::from_static("default/get"));
                 for _ in 0..8 {
                     assert_eq!("custom", var.get());
                     var.set("custom").unwrap();
@@ -272,7 +272,7 @@ fn fallback_swap() {
         let mut app = APP.defaults().run_headless(false);
         zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
+        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback").unwrap();
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -284,7 +284,7 @@ fn fallback_swap() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_prepared_cfg));
-        CONFIG.get("key", || Txt::from_static("default/main")).set("main").unwrap();
+        CONFIG.get("key", Txt::from_static("default/main")).set("main").unwrap();
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
@@ -312,7 +312,7 @@ fn fallback_swap() {
 
     app.update(false).assert_wait();
 
-    let key = CONFIG.get("key", || Txt::from_static("default/get"));
+    let key = CONFIG.get("key", Txt::from_static("default/get"));
     assert_eq!("fallback", key.get());
 
     std::fs::rename(main_prepared_cfg, main_cfg).unwrap();
@@ -344,7 +344,7 @@ fn fallback_reset() {
         let mut app = APP.defaults().run_headless(false);
         zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
+        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback").unwrap();
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -356,7 +356,7 @@ fn fallback_reset() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_cfg));
-        CONFIG.get("key", || Txt::from_static("default/main")).set("main").unwrap();
+        CONFIG.get("key", Txt::from_static("default/main")).set("main").unwrap();
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
@@ -384,7 +384,7 @@ fn fallback_reset() {
 
     app.update(false).assert_wait();
 
-    let key = CONFIG.get("key", || Txt::from_static("default/get"));
+    let key = CONFIG.get("key", Txt::from_static("default/get"));
     assert_eq!("main", key.get());
 
     CONFIG.load(MemoryConfig::default());
@@ -418,7 +418,7 @@ fn fallback_reset_entry() {
         let mut app = APP.defaults().run_headless(false);
         zng::app::test_log();
         CONFIG.load(JsonConfig::sync(&fallback_cfg));
-        CONFIG.get("key", || Txt::from_static("default/fallback")).set("fallback").unwrap();
+        CONFIG.get("key", Txt::from_static("default/fallback")).set("fallback").unwrap();
 
         app.update(false).assert_wait();
         app.run_task(async {
@@ -430,7 +430,7 @@ fn fallback_reset_entry() {
         }
 
         CONFIG.load(JsonConfig::sync(&main_cfg));
-        CONFIG.get("key", || Txt::from_static("default/main")).set("main").unwrap();
+        CONFIG.get("key", Txt::from_static("default/main")).set("main").unwrap();
 
         app.run_task(async {
             task::with_deadline(CONFIG.wait_idle(), 60.secs()).await.unwrap();
@@ -463,7 +463,7 @@ fn fallback_reset_entry() {
         .unwrap();
     });
 
-    let key = cfg.get("key", || Txt::from_static("default/get"));
+    let key = cfg.get("key", Txt::from_static("default/get"));
     assert_eq!("main", key.get());
 
     cfg.reset(&ConfigKey::from_static("key"));

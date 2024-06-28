@@ -38,7 +38,7 @@ fn load_config() {
         s.entry("settings.bool", "bool", |s| {
             s.name("bool")
                 .description("Example *bool* value.")
-                .value(|| false)
+                .value(false)
                 .reset(settings_ref.clone_boxed(), "settings.")
         });
 
@@ -48,7 +48,7 @@ fn load_config() {
                     s.entry(concat!("settings.", $ty), $cat, |s| {
                         s.name($ty)
                             .description(concat!("Example *", $ty, "* value."))
-                            .value(|| $default)
+                            .value($default)
                             .reset(settings_ref.clone_boxed(), "settings.")
                     });
                 )+
@@ -79,14 +79,18 @@ fn load_config() {
 fn app_main() {
     APP.defaults().run_window(async {
         load_config();
+
+        WINDOW.id().set_name("main").unwrap(); // name used to save window state.
         Window! {
             title = if std::env::var("OTHER-PROCESS").is_err() { "Config Example" } else { "Config Example - Other Process" };
             size = (600, 500);
             // settings editor, usually not on the main window
-            padding = 10;
-            child = zng::config::settings::editor::SettingsEditor!();
+            child = zng::config::settings::editor::SettingsEditor! {
+                id = "settings";
+            };
             child_bottom = Container! {
-                child_top = Hr!(layout::margin = 0), 10;
+                child_out_top = Hr!(layout::margin = 0), 0;
+                padding = 10;
 
                 // status
                 child_left = Text! {
@@ -119,7 +123,7 @@ fn app_main() {
                         }
                     })
                 }, 0;
-            }, 10;
+            }, 0;
             on_load = hn_once!(|_| {
                 // window position is saved, so we move the second window a bit
                 if let Ok(pos) = std::env::var("OTHER-PROCESS") {

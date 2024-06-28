@@ -150,17 +150,17 @@ impl<M: ConfigMap> SyncConfig<M> {
         var.boxed()
     }
 
-    fn get_new<T: ConfigValue>(sync_var: &ArcVar<M>, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+    fn get_new<T: ConfigValue>(sync_var: &ArcVar<M>, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         // init var to already present value, or default.
         let key = key.into();
         let var = match sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
             Ok(value) => match value {
                 Some(val) => var(val),
-                None => var(default()),
+                None => var(default),
             },
             Err(e) => {
                 tracing::error!("sync config get({key:?}) error, {e:?}");
-                var(default())
+                var(default)
             }
         };
 
@@ -244,7 +244,7 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
     }
 }
 impl<M: ConfigMap> Config for SyncConfig<M> {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         self.shared
             .get_or_bind(key.into(), |key| Self::get_new(&self.sync_var, key.clone(), default))
     }

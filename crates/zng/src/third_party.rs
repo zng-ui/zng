@@ -143,7 +143,7 @@ pub use zng_app::third_party::{License, LicenseUsed, User, UserLicense, LICENSES
 use crate::prelude::*;
 
 pub(crate) fn setup_default_view() {
-    let mut id = None;
+    let id = WindowId::named("zng-third_party-default");
     OPEN_LICENSES_CMD
         .on_event(
             true,
@@ -155,7 +155,6 @@ pub(crate) fn setup_default_view() {
 
                 let parent = WINDOWS.focused_window_id();
 
-                let id = *id.get_or_insert_with(WindowId::new_unique);
                 WINDOWS.focus_or_open(id, async move {
                     if let Some(p) = parent {
                         if let Ok(p) = WINDOWS.vars(p) {
@@ -201,13 +200,9 @@ fn default_view() -> impl UiNode {
             // search
             child_top = TextInput! {
                 txt = search.clone();
-                layout::margin = 3;
-                widget::background = Text! {
-                    txt = "search";
-                    layout::padding = (8, 16, 8, 27); // +1 border width
-                    color::filter::opacity = 50.pct();
-                    widget::visibility = search.map(|t| t.is_empty().into());
-                };
+                style_fn = zng_wgt_text_input::SearchStyle!();
+                zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
+                placeholder_txt = "search licenses (Ctrl+F)";
             }, 0;
             // list
             child = Scroll! {

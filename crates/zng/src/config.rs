@@ -15,11 +15,11 @@
 //! use zng::prelude::*;
 //!
 //! fn txt_input() -> impl UiNode {
-//!     TextInput!(CONFIG.get("example.txt", Txt::default))
+//!     TextInput!(CONFIG.get("example.txt", Txt::from("")))
 //! }
 //!
 //! fn txt_display() -> impl UiNode {
-//!     Text!(CONFIG.get("example.txt", Txt::default))
+//!     Text!(CONFIG.get("example.txt", Txt::from("")))
 //! }
 //!
 //! # fn main() { }
@@ -92,6 +92,8 @@ pub use zng_ext_config::{
     ReadOnlyConfig, SwapConfig, SwitchConfig, CONFIG,
 };
 
+pub use zng_wgt_window::{save_state_node, SaveState};
+
 #[cfg(feature = "ron")]
 pub use zng_ext_config::RonConfig;
 
@@ -107,7 +109,9 @@ pub use zng_ext_config::YamlConfig;
 ///
 /// See [`zng_ext_config::settings`] for the full settings API.
 pub mod settings {
-    pub use zng_ext_config::settings::{CategoriesBuilder, Category, CategoryBuilder, Setting, SettingBuilder, SettingsBuilder, SETTINGS};
+    pub use zng_ext_config::settings::{
+        CategoriesBuilder, Category, CategoryBuilder, CategoryId, Setting, SettingBuilder, SettingsBuilder, SETTINGS,
+    };
     pub use zng_wgt_input::cmd::{on_pre_settings, on_settings, SETTINGS_CMD};
 
     /// Settings editor widget.
@@ -118,7 +122,7 @@ pub mod settings {
     pub mod editor {
         pub use zng_wgt_settings::{
             categories_list_fn, category_header_fn, category_item_fn, setting_fn, settings_fn, CategoriesListArgs, CategoryHeaderArgs,
-            CategoryItemArgs, SettingArgs, SettingsArgs, SettingsEditor,
+            CategoryItemArgs, SettingArgs, SettingBuilderEditorExt, SettingsArgs, SettingsCtxExt, SettingsEditor,
         };
     }
 }

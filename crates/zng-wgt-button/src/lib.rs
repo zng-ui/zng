@@ -11,7 +11,7 @@
 
 zng_wgt::enable_widget_macros!();
 
-use std::ops;
+use std::{any::TypeId, ops};
 
 use zng_app::event::CommandParam;
 use zng_var::ReadOnlyContextVar;
@@ -242,10 +242,27 @@ pub fn cmd(cmd: impl IntoVar<Command>) {}
 
 /// Optional command parameter for the button to use when notifying [`cmd`].
 ///
+/// If `T` is `Option<CommandParam>` the param can be dynamically unset, otherwise the value is the param.
+///
 /// [`cmd`]: fn@cmd
 #[property(CONTEXT, default(CMD_PARAM_VAR), widget_impl(Button))]
-pub fn cmd_param(child: impl UiNode, cmd_param: impl IntoVar<Option<CommandParam>>) -> impl UiNode {
-    with_context_var(child, CMD_PARAM_VAR, cmd_param)
+pub fn cmd_param<T: VarValue>(child: impl UiNode, cmd_param: impl IntoVar<T>) -> impl UiNode {
+    if TypeId::of::<T>() == TypeId::of::<Option<CommandParam>>() {
+        let cmd_param = *cmd_param
+            .into_var()
+            .boxed_any()
+            .double_boxed_any()
+            .downcast::<BoxedVar<Option<CommandParam>>>()
+            .unwrap();
+        with_context_var(child, CMD_PARAM_VAR, cmd_param).boxed()
+    } else {
+        with_context_var(
+            child,
+            CMD_PARAM_VAR,
+            cmd_param.into_var().map(|p| Some(CommandParam::new(p.clone()))),
+        )
+        .boxed()
+    }
 }
 
 /// Sets the widget function used to produce the button child when [`cmd`] is set and [`child`] is not.

@@ -26,7 +26,7 @@ pub fn animations_config() -> AnimationsConfig {
         cfg.enabled = e;
     }
     if let Some(d) = dconf_uint("/org/gnome/desktop/interface/cursor-blink-time") {
-        cfg.caret_blink_interval = d.ms();
+        cfg.caret_blink_interval = (d / 2).ms();
     }
     if let Some(e) = dconf_bool("/org/gnome/desktop/interface/cursor-blink") {
         if !e {

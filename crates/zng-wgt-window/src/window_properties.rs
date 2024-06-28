@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use zng_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, CONFIG};
+use zng_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, ConfigValue, CONFIG};
 use zng_ext_window::{
     AutoSize, FrameCaptureMode, MonitorQuery, WINDOW_Ext as _, WindowButton, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
     MONITORS, WINDOW_LOAD_EVENT,
@@ -143,27 +143,22 @@ pub fn clear_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode
     })
 }
 
-/// Window persistence config.
+/// Window or widget persistence config.
 ///
-/// See the [`save_state`] property for more details.
+/// See the [`save_state_node`] for more details.
 ///
 /// [`save_state`]: fn@save_state
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SaveState {
     /// Save and restore state.
     Enabled {
-        /// Config key that identifies the window.
+        /// Config key that identifies the window or widget.
         ///
-        /// If `None` a key is generated for the window, using the [`window_key`] method.
+        /// If `None` a key is generated from the widget ID and window ID name, see [`enabled_key`] for
+        /// details about how key generation.
         ///
-        /// [`window_key`]: Self::window_key
+        /// [`enabled_key`]: Self::enabled_key
         key: Option<ConfigKey>,
-        /// Maximum time to keep the window in the loading state awaiting for the config to load.
-        ///
-        /// If the config fails to load in this time frame the window is opened in it's default state.
-        ///
-        /// This is one second by default.
-        loading_timeout: Duration,
     },
     /// Don't save nor restore state.
     Disabled,
@@ -171,52 +166,46 @@ pub enum SaveState {
 impl Default for SaveState {
     /// Enabled, no key, delay 1s.
     fn default() -> Self {
-        SaveState::Enabled {
-            key: None,
-            loading_timeout: 1.secs(),
-        }
+        Self::enabled()
     }
 }
 impl SaveState {
-    /// Default, enabled, no key, delay 1s.
-    pub fn enabled() -> Self {
-        Self::default()
+    /// Default, enabled, no key.
+    pub const fn enabled() -> Self {
+        Self::Enabled { key: None }
     }
 
-    /// Gets the config key used for the window identified by `id`.
-    pub fn window_key(&self, id: WindowId) -> Option<ConfigKey> {
+    /// Gets the config key if is enabled and can enable on the context.
+    ///
+    /// If is enabled without a key, the key is generated from the widget or window name:
+    ///
+    /// * If the widget ID has a name the key is `"wgt-{name}-state"`.
+    /// * If the context is the window root or just a window and the window ID has a name the key is `"win-{name}-state"`.
+    pub fn enabled_key(&self) -> Option<ConfigKey> {
         match self {
-            SaveState::Enabled { key, .. } => Some(key.clone().unwrap_or_else(|| {
-                let name = id.name();
-                if name.is_empty() {
-                    formatx!("window.sequential({}).state", id.sequential())
-                } else {
-                    formatx!("window.{name}.state")
+            Self::Enabled { key } => {
+                if key.is_some() {
+                    return key.clone();
                 }
-            })),
-            SaveState::Disabled => None,
-        }
-    }
-
-    /// Get the loading timeout if it is enabled and the duration is greater than zero.
-    pub fn loading_timeout(&self) -> Option<Duration> {
-        match self {
-            SaveState::Enabled { loading_timeout, .. } => {
-                if *loading_timeout == Duration::ZERO {
-                    None
-                } else {
-                    Some(*loading_timeout)
+                let mut try_win = true;
+                if let Some(wgt) = WIDGET.try_id() {
+                    let name = wgt.name();
+                    if !name.is_empty() {
+                        return Some(formatx!("wgt-{name}"));
+                    }
+                    try_win = WIDGET.parent_id().is_none();
                 }
+                if try_win {
+                    if let Some(win) = WINDOW.try_id() {
+                        let name = win.name();
+                        if !name.is_empty() {
+                            return Some(formatx!("win-{name}"));
+                        }
+                    }
+                }
+                None
             }
-            SaveState::Disabled => None,
-        }
-    }
-
-    /// Returns `true` if it is enabled.
-    pub fn is_enabled(&self) -> bool {
-        match self {
-            SaveState::Enabled { .. } => true,
-            SaveState::Disabled => false,
+            Self::Disabled => None,
         }
     }
 }
@@ -231,110 +220,142 @@ impl_from_and_into_var! {
     }
 }
 
+/// Helper node for implementing widgets save.
+///
+/// The `on_load_restore` closure is called on window load or on init if the window is already loaded. The argument
+/// is the saved state from a previous instance.
+///
+/// The `on_update_save` closure is called every update after the window loads, if it returns a value the config is updated.
+/// If the argument is `true` the closure must return a value, this value is used as the CONFIG fallback value that is required
+/// by some config backends even when the config is already present.
+pub fn save_state_node<S: ConfigValue>(
+    child: impl UiNode,
+    enabled: impl IntoValue<SaveState>,
+    mut on_load_restore: impl FnMut(Option<S>) + Send + 'static,
+    mut on_update_save: impl FnMut(bool) -> Option<S> + Send + 'static,
+) -> impl UiNode {
+    let enabled = enabled.into();
+    enum State<S: ConfigValue> {
+        Disabled,
+        AwaitingLoad,
+        Loaded,
+        LoadedWithCfg(BoxedVar<S>),
+    }
+    let mut state = State::Disabled;
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            if let Some(key) = enabled.enabled_key() {
+                if WINDOW.is_loaded() {
+                    if CONFIG.contains_key(key.clone()).get() {
+                        let cfg = CONFIG.get(key, on_update_save(true).unwrap());
+                        on_load_restore(Some(cfg.get()));
+                        state = State::LoadedWithCfg(cfg);
+                    } else {
+                        on_load_restore(None);
+                        state = State::Loaded;
+                    }
+                } else {
+                    WIDGET.sub_event(&WINDOW_LOAD_EVENT);
+                    state = State::AwaitingLoad;
+                }
+            } else {
+                state = State::Disabled;
+            }
+        }
+        UiNodeOp::Deinit => {
+            state = State::Disabled;
+        }
+        UiNodeOp::Event { update } => {
+            if matches!(&state, State::AwaitingLoad) && WINDOW_LOAD_EVENT.has(update) {
+                if let Some(key) = enabled.enabled_key() {
+                    if CONFIG.contains_key(key.clone()).get() {
+                        let cfg = CONFIG.get(key, on_update_save(true).unwrap());
+                        on_load_restore(Some(cfg.get()));
+                        state = State::LoadedWithCfg(cfg);
+                    } else {
+                        on_load_restore(None);
+                        state = State::Loaded;
+                    }
+                } else {
+                    // this can happen if the parent widget node is not properly implemented (changed context)
+                    state = State::Disabled;
+                }
+            }
+        }
+        UiNodeOp::Update { .. } => match &mut state {
+            State::LoadedWithCfg(cfg) => {
+                if let Some(new) = on_update_save(false) {
+                    let _ = cfg.set(new);
+                }
+            }
+            State::Loaded => {
+                if let Some(new) = on_update_save(false) {
+                    if let Some(key) = enabled.enabled_key() {
+                        let cfg = CONFIG.get(key, new.clone());
+                        let _ = cfg.set(new);
+                        state = State::LoadedWithCfg(cfg);
+                    } else {
+                        state = State::Disabled;
+                    }
+                }
+            }
+            _ => {}
+        },
+        _ => {}
+    })
+}
+
 /// Save and restore the window state.
 ///
 /// If enabled a config entry is created for the window state in [`CONFIG`], and if a config backend is set
 /// the window state is persisted on change and restored when the app reopens.
 ///
-/// It is recommended to open the window with an unique name if
-/// the app can open more than one window, otherwise the state will be associated with the sequential ID of the window.
-///
-/// This property is enabled by default in the `Window!` widget.
+/// This property is enabled by default in the `Window!` widget, without a key. Note that without a config key
+/// the state only actually enables if the window root widget ID or the window ID have a name.
 ///
 /// [`CONFIG`]: zng_ext_config::CONFIG
 #[property(CONTEXT, default(SaveState::Disabled), widget_impl(Window))]
 pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
-    let enabled = enabled.into();
-
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     struct WindowStateCfg {
         state: WindowState,
         restore_rect: euclid::Rect<f32, Dip>,
     }
-    let mut cfg = None;
-
-    struct Loading {
-        cfg_status: BoxedVar<ConfigStatus>,
-        _cfg_status_sub: VarHandle,
-        _win_load_sub: EventHandle,
-        _win_block: Option<WindowLoadingHandle>,
-    }
-    let mut loading = None;
-
-    match_node(child, move |child, op| {
-        let mut apply_to_window = false;
-        match op {
-            UiNodeOp::Init => {
-                if let Some(key) = enabled.window_key(WINDOW.id()) {
-                    let vars = WINDOW.vars();
-                    let state = vars.state();
-                    let restore_rect = vars.restore_rect();
-                    WIDGET.sub_var(&vars.state()).sub_var(&vars.restore_rect());
-
-                    let cfg_status = CONFIG.status();
-                    if !cfg_status.get().is_idle() {
-                        // if status updates before the WINDOW_LOAD_EVENT we will still apply
-                        loading = Some(Box::new(Loading {
-                            _cfg_status_sub: cfg_status.subscribe(UpdateOp::Update, WIDGET.id()),
-                            _win_block: enabled.loading_timeout().and_then(|t| WINDOW.loading_handle(t)),
-                            _win_load_sub: WINDOW_LOAD_EVENT.subscribe(WIDGET.id()),
-                            cfg_status,
-                        }))
-                    } else {
-                        apply_to_window = CONFIG.contains_key(key.clone()).get();
-                    }
-
-                    cfg = Some(CONFIG.get(key, || WindowStateCfg {
-                        state: state.get(),
-                        restore_rect: restore_rect.get().cast(),
-                    }));
-                }
-            }
-            UiNodeOp::Deinit => {
-                loading = None;
-                cfg = None;
-            }
-            UiNodeOp::Event { update } => {
-                child.event(update);
-                if WINDOW_LOAD_EVENT.has(update) {
-                    loading = None;
-                }
-            }
-            UiNodeOp::Update { .. } => {
-                if let Some(l) = &loading {
-                    if l.cfg_status.get().is_idle() {
-                        if let Some(key) = enabled.window_key(WINDOW.id()) {
-                            apply_to_window = CONFIG.contains_key(key).get();
-                        }
-                        loading = None
-                    }
-                }
-                if enabled.is_enabled() {
-                    let vars = WINDOW.vars();
-                    if vars.state().is_new() || vars.restore_rect().is_new() {
-                        let _ = cfg.as_ref().unwrap().set(WindowStateCfg {
-                            state: vars.state().get(),
-                            restore_rect: vars.restore_rect().get().cast(),
-                        });
-                    }
-                }
-            }
-            _ => {}
-        }
-        if apply_to_window {
+    save_state_node::<WindowStateCfg>(
+        child,
+        enabled,
+        |cfg| {
             let vars = WINDOW.vars();
-            let cfg = cfg.as_ref().unwrap().get();
+            let state = vars.state();
+            WIDGET.sub_var(&state).sub_var(&vars.restore_rect());
 
-            vars.state().set(cfg.state);
+            if let Some(cfg) = cfg {
+                // restore state
+                state.set(cfg.state);
 
-            let restore_rect: DipRect = cfg.restore_rect.cast();
-            let visible = MONITORS.available_monitors().iter().any(|m| m.dip_rect().intersects(&restore_rect));
-            if visible {
-                vars.position().set(restore_rect.origin);
+                // restore normal position if it is valid (visible in a monitor)
+                let restore_rect: DipRect = cfg.restore_rect.cast();
+                let visible = MONITORS.available_monitors().iter().any(|m| m.dip_rect().intersects(&restore_rect));
+                if visible {
+                    vars.position().set(restore_rect.origin);
+                }
+                vars.size().set(restore_rect.size);
             }
-            vars.size().set(restore_rect.size);
-        }
-    })
+        },
+        |required| {
+            let vars = WINDOW.vars();
+            let state = vars.state();
+            let rect = vars.restore_rect();
+            if required || state.is_new() || rect.is_new() {
+                Some(WindowStateCfg {
+                    state: state.get(),
+                    restore_rect: rect.get().cast(),
+                })
+            } else {
+                None
+            }
+        },
+    )
 }
 
 /// Defines if a widget load affects the parent window load.
@@ -396,4 +417,48 @@ impl_from_and_into_var! {
     fn from(enabled_timeout: Duration) -> BlockWindowLoad {
         BlockWindowLoad::enabled(enabled_timeout)
     }
+}
+
+/// Block window load until [`CONFIG.status`] is idle.
+///
+/// This property is enabled by default in the `Window!` widget.
+///
+/// [`CONFIG.status`]: CONFIG::status
+#[property(CONTEXT, default(false), widget_impl(Window))]
+pub fn config_block_window_load(child: impl UiNode, enabled: impl IntoValue<BlockWindowLoad>) -> impl UiNode {
+    let enabled = enabled.into();
+
+    enum State {
+        Allow,
+        Block {
+            _handle: WindowLoadingHandle,
+            cfg: BoxedVar<ConfigStatus>,
+        },
+    }
+    let mut state = State::Allow;
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            if let Some(delay) = enabled.deadline() {
+                let cfg = CONFIG.status();
+                if !cfg.get().is_idle() {
+                    if let Some(_handle) = WINDOW.loading_handle(delay) {
+                        WIDGET.sub_var(&cfg);
+                        state = State::Block { _handle, cfg };
+                    }
+                }
+            }
+        }
+        UiNodeOp::Deinit => {
+            state = State::Allow;
+        }
+        UiNodeOp::Update { .. } => {
+            if let State::Block { cfg, .. } = &state {
+                if cfg.get().is_idle() {
+                    state = State::Allow;
+                }
+            }
+        }
+        _ => {}
+    })
 }

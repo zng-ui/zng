@@ -1,5 +1,19 @@
 # Unreleased
 
+* Fix `WINDOWS.is_loading`.
+* Add `WINDOWS.wait_loaded`.
+* **Breaking** Refactored `Button::cmd_param` to accept any type var.
+* Fix `SelectionBy::Mouse` never being set on mouse selection.
+* Add auto-selection on click, when the action does not disrupt the user.
+* **Breaking** Refactored `AutoSelection` into bitflags that implement more features.
+* **Breaking** `CONFIG.get` and `Config::get` now receive a default value, not a closure.
+    - The closure was immediately evaluated by most config backends.
+* **Breaking** Refactored `zng_wgt_window::SaveState`.
+    - Is now in `zng::config::SaveState`.
+    - Does not define window load wait time.
+        - A new `Window::config_block_window_load` property handles blocking for all configs on window.
+    - Add `zng::config::save_state_node` helper for declaring state persistency properties for other widgets.
+    - Automatic config keys now require an ID name.
 * Fix "child_insert" layouts when the children end-up having a single full widget and other non-widget nodes.
 * Add `TextInput::placeholder`.
     - Add `TextInput::placeholder_txt`.

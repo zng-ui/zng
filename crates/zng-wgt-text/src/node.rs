@@ -293,9 +293,7 @@ pub struct ResolvedText {
     /// Caret index and animation.
     pub caret: CaretInfo,
 
-    /// Show interactive carets.
-    ///
-    /// Set to `true` on touch interactions and set to `false` on other interactions.
+    /// Source of the current selection.
     pub selection_by: SelectionBy,
 
     /// If the selection toolbar is open.

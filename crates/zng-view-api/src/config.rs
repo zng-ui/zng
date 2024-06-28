@@ -98,6 +98,8 @@ pub struct AnimationsConfig {
     pub enabled: bool,
 
     /// Interval of the caret blink animation.
+    ///
+    /// This is the duration the cursor stays visible.
     pub caret_blink_interval: Duration,
     /// Duration after which the blink animation stops.
     pub caret_blink_timeout: Duration,

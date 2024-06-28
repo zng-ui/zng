@@ -679,6 +679,8 @@ mod __prelude {
     pub use zng_wgt_wrap::Wrap;
 
     pub use zng_wgt_data_view::{DataView, DataViewArgs};
+
+    pub use zng_wgt_settings::SettingBuilderEditorExt as _;
 }
 
 /// Prelude for declaring new properties and widgets.
@@ -923,6 +925,10 @@ mod defaults {
             // setup OPEN_LICENSES_CMD handler
             crate::third_party::setup_default_view();
             tracing::debug!("defaults init, third_party set");
+
+            // setup SETTINGS_CMD handler
+            zng_wgt_settings::handle_settings_cmd();
+            tracing::debug!("defaults init, settings set");
 
             #[cfg(feature = "single_instance")]
             {

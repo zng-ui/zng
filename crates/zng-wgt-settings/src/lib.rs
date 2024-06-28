@@ -7,23 +7,33 @@ zng_wgt::enable_widget_macros!();
 mod view_fn;
 pub use view_fn::*;
 
-use zng_ext_config::{
-    settings::{Category, CategoryId, Setting, SETTINGS},
-    ConfigKey,
-};
+use zng_ext_config::settings::{Category, CategoryId, SETTINGS};
+use zng_ext_input::focus::FOCUS;
+use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
 use zng_wgt::prelude::*;
 use zng_wgt_container::Container;
+use zng_wgt_input::cmd::SETTINGS_CMD;
+use zng_wgt_window::{save_state_node, SaveState, Window};
 
 /// Settings editor widget.
-///
-/// The editor
 #[widget($crate::SettingsEditor)]
 pub struct SettingsEditor(WidgetBase);
 impl SettingsEditor {
     fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            save_state = SaveState::enabled();
+            zng_wgt_fill::background_color = color_scheme_pair((rgb(0.15, 0.15, 0.15), rgb(0.85, 0.85, 0.85)));
+            zng_wgt_container::padding = 10;
+        }
         self.widget_builder().push_build_action(|wgt| {
-            let child = settings_editor_node();
-            wgt.set_child(child.boxed());
+            wgt.set_child(settings_editor_node());
+            wgt.push_intrinsic(NestGroup::EVENT, "command-handler", command_handler);
+            wgt.push_intrinsic(NestGroup::CONTEXT, "editor-vars", |child| {
+                let child = with_context_var_init(child, EDITOR_STATE_VAR, editor_state);
+                let child = with_context_var(child, EDITOR_SEARCH_VAR, var(Txt::from("")));
+                with_context_var(child, EDITOR_SELECTED_CATEGORY_VAR, var(CategoryId::from("")))
+            });
         });
     }
 }
@@ -32,8 +42,6 @@ impl SettingsEditor {
 ///
 /// [`SettingsEditor!`]: struct@SettingsEditor
 pub fn settings_editor_node() -> impl UiNode {
-    let search = var(Txt::from_static(""));
-    let selected_cat = var(CategoryId::from(""));
     match_node(NilUiNode.boxed(), move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET
@@ -43,13 +51,11 @@ pub fn settings_editor_node() -> impl UiNode {
                 .sub_var(&CATEGORIES_LIST_FN_VAR)
                 .sub_var(&CATEGORY_HEADER_FN_VAR)
                 .sub_var(&CATEGORY_ITEM_FN_VAR);
-            *c.child() = settings_view_fn(search.clone(), selected_cat.clone()).boxed();
+            *c.child() = settings_view_fn().boxed();
         }
         UiNodeOp::Deinit => {
             c.deinit();
             *c.child() = NilUiNode.boxed();
-            search.set("");
-            selected_cat.set("");
         }
         UiNodeOp::Update { .. } => {
             if SETTINGS_FN_VAR.is_new()
@@ -61,7 +67,7 @@ pub fn settings_editor_node() -> impl UiNode {
             {
                 c.delegated();
                 c.child().deinit();
-                *c.child() = settings_view_fn(search.clone(), selected_cat.clone()).boxed();
+                *c.child() = settings_view_fn().boxed();
                 c.child().init();
                 WIDGET.update_info().layout().render();
             }
@@ -70,11 +76,9 @@ pub fn settings_editor_node() -> impl UiNode {
     })
 }
 
-fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> impl UiNode {
-    let search_box = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs { search: search.clone() });
-
+fn editor_state() -> BoxedVar<Option<SettingsEditorState>> {
     // avoids rebuilds for ignored search changes
-    let clean_search = search.map(|s| {
+    let clean_search = SETTINGS.editor_search().actual_var().map(|s| {
         let s = s.trim();
         if !s.starts_with('@') {
             s.to_lowercase().into()
@@ -83,26 +87,19 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
         }
     });
 
-    // live query
-    #[derive(PartialEq, Debug, Clone)]
-    struct Results {
-        categories: Vec<Category>,
-        selected_cat: Category,
-        selected_settings: Vec<Setting>,
-        top_match: ConfigKey,
-    }
-    let sel_cat = selected_cat.clone();
-    let search_results = expr_var! {
+    let sel_cat = SETTINGS.editor_selected_category().actual_var().clone();
+    let r = expr_var! {
         if #{clean_search}.is_empty() {
             // no search, does not need to load settings of other categories
             let (cat, settings) = SETTINGS.get(|_, cat| cat == #{sel_cat}, true)
                             .pop().unwrap_or_else(|| (Category::unknown(#{sel_cat}.clone()), vec![]));
-            Results {
+            Some(SettingsEditorState {
+                clean_search: #{clean_search}.clone(),
                 categories: SETTINGS.categories(|_| true, false, true),
                 selected_cat: cat,
                 top_match: settings.first().map(|s| s.key().clone()).unwrap_or_default(),
                 selected_settings: settings,
-            }
+            })
         } else {
             // has search, just load everything
             let mut r = SETTINGS.get(|_, _| true, false);
@@ -136,7 +133,8 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
                     None => false,
                 })
             });
-            let mut r = Results {
+            let mut r = SettingsEditorState {
+                clean_search: #{clean_search}.clone(),
                 categories: r.iter().map(|(c, _)| c.clone()).collect(),
                 selected_cat: actual_cat.unwrap_or_else(|| Category::unknown(#{sel_cat}.clone())),
                 selected_settings: r.into_iter().find_map(|(c, s)| if c.id() == #{sel_cat} { Some(s) } else { None }).unwrap_or_default(),
@@ -144,35 +142,43 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
             };
             SETTINGS.sort_categories(&mut r.categories);
             SETTINGS.sort_settings(&mut r.selected_settings);
-            r
+            Some(r)
         }
     };
 
     // select first category when previous selection is removed
-    let wk_sel_cat = selected_cat.downgrade();
-    fn correct_sel(options: &[Category], sel: &ArcVar<CategoryId>) {
+    let sel = SETTINGS.editor_selected_category().actual_var();
+    let wk_sel_cat = sel.downgrade();
+    fn correct_sel(options: &[Category], sel: &BoxedVar<CategoryId>) {
         if sel.with(|s| !options.iter().any(|c| c.id() == s)) {
             if let Some(first) = options.first() {
-                sel.set(first.id().clone());
+                let _ = sel.set(first.id().clone());
             }
         }
     }
-    search_results
-        .hook(move |r| {
-            if let Some(sel) = wk_sel_cat.upgrade() {
-                correct_sel(&r.value().categories, &sel);
-                true
-            } else {
-                false
-            }
-        })
-        .perm();
-    search_results.with(|r| {
-        correct_sel(&r.categories, &selected_cat);
+    r.hook(move |r| {
+        if let Some(sel) = wk_sel_cat.upgrade() {
+            correct_sel(&r.value().as_ref().unwrap().categories, &sel);
+            true
+        } else {
+            false
+        }
+    })
+    .perm();
+    r.with(|r| {
+        correct_sel(&r.as_ref().unwrap().categories, &sel);
     });
 
+    r.boxed()
+}
+
+fn settings_view_fn() -> impl UiNode {
+    let search_box = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {});
+
+    let editor_state = SETTINGS.editor_state().actual_var();
+
     let categories = presenter(
-        search_results.map_ref(|r| &r.categories),
+        editor_state.map_ref(|r| &r.as_ref().unwrap().categories),
         wgt_fn!(|categories: Vec<Category>| {
             let cat_fn = CATEGORY_ITEM_FN_VAR.get();
             let categories: UiNodeVec = categories
@@ -181,20 +187,18 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
                 .map(|(i, c)| cat_fn(CategoryItemArgs { index: i, category: c }))
                 .collect();
 
-            CATEGORIES_LIST_FN_VAR.get()(CategoriesListArgs {
-                items: categories,
-                selected: selected_cat.clone(),
-            })
+            CATEGORIES_LIST_FN_VAR.get()(CategoriesListArgs { items: categories })
         }),
     );
 
     let settings = presenter(
-        search_results,
-        wgt_fn!(|Results {
-                     selected_cat,
-                     selected_settings,
-                     ..
-                 }: Results| {
+        editor_state,
+        wgt_fn!(|state: Option<SettingsEditorState>| {
+            let SettingsEditorState {
+                selected_cat,
+                selected_settings,
+                ..
+            } = state.unwrap();
             let setting_fn = SETTING_FN_VAR.get();
 
             let settings: UiNodeVec = selected_settings
@@ -223,4 +227,138 @@ fn settings_view_fn(search: ArcVar<Txt>, selected_cat: ArcVar<CategoryId>) -> im
             child = settings
         };
     }
+}
+
+/// Save and restore settings search and selected category.
+///
+/// This property is enabled by default in the `SettingsEditor!` widget, without a key. Note that without a config key
+/// this feature only actually enables if the settings widget ID has a name.
+#[property(CONTEXT, widget_impl(SettingsEditor))]
+pub fn save_state(child: impl UiNode, enabled: impl IntoValue<SaveState>) -> impl UiNode {
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct SettingsEditorCfg {
+        search: Txt,
+        selected_category: CategoryId,
+    }
+    save_state_node::<SettingsEditorCfg>(
+        child,
+        enabled,
+        |cfg| {
+            let search = SETTINGS.editor_search();
+            let cat = SETTINGS.editor_selected_category();
+            WIDGET.sub_var(&search).sub_var(&cat);
+            if let Some(c) = cfg {
+                let _ = search.set(c.search);
+                let _ = cat.set(c.selected_category);
+            }
+        },
+        |required| {
+            let search = SETTINGS.editor_search();
+            let cat = SETTINGS.editor_selected_category();
+            if required || search.is_new() || cat.is_new() {
+                Some(SettingsEditorCfg {
+                    search: search.get(),
+                    selected_category: cat.get(),
+                })
+            } else {
+                None
+            }
+        },
+    )
+}
+
+/// Intrinsic SETTINGS_CMD handler.
+fn command_handler(child: impl UiNode) -> impl UiNode {
+    let mut _handle = CommandHandle::dummy();
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            _handle = SETTINGS_CMD.scoped(WIDGET.id()).subscribe(true);
+        }
+        UiNodeOp::Deinit => {
+            _handle = CommandHandle::dummy();
+        }
+        UiNodeOp::Event { update } => {
+            c.event(update);
+
+            if let Some(args) = SETTINGS_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+                args.propagation().stop();
+
+                if let Some(id) = args.param::<CategoryId>() {
+                    if SETTINGS
+                        .editor_state()
+                        .with(|s| s.as_ref().unwrap().categories.iter().any(|c| c.id() == id))
+                    {
+                        SETTINGS.editor_selected_category().set(id.clone()).unwrap();
+                    }
+                } else if let Some(key) = args.param::<Txt>() {
+                    let search = if SETTINGS.any(|k, _| k == key) {
+                        formatx!("@key:{key}")
+                    } else {
+                        key.clone()
+                    };
+                    SETTINGS.editor_search().set(search).unwrap();
+                } else if args.param.is_none() && !FOCUS.is_focus_within(WIDGET.id()).get() {
+                    // focus top match
+                    let s = Some(SETTINGS.editor_state().with(|s| s.as_ref().unwrap().top_match.clone()));
+                    let info = WIDGET.info();
+                    if let Some(w) = info.descendants().find(|w| w.setting_key() == s) {
+                        FOCUS.focus_widget_or_enter(w.id(), false, false);
+                    } else {
+                        FOCUS.focus_widget_or_enter(info.id(), false, false);
+                    }
+                }
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Set a [`SETTINGS_CMD`] handler that shows the settings window.
+pub fn handle_settings_cmd() {
+    use zng_app::{
+        event::AnyEventArgs as _,
+        window::{WindowId, WINDOW},
+    };
+
+    let id = WindowId::named("zng-config-settings-default");
+    SETTINGS_CMD
+        .on_event(
+            true,
+            async_app_hn!(|args: zng_app::event::AppCommandArgs, _| {
+                if args.propagation().is_stopped() || !SETTINGS.any(|_, _| true) {
+                    return;
+                }
+
+                args.propagation().stop();
+
+                let parent = WINDOWS.focused_window_id();
+
+                let new_window = WINDOWS.focus_or_open(id, async move {
+                    if let Some(p) = parent {
+                        if let Ok(p) = WINDOWS.vars(p) {
+                            let v = WINDOW.vars();
+                            p.icon().set_bind(&v.icon()).perm();
+                        }
+                    }
+
+                    Window! {
+                        title = formatx!("{} - Settings", zng_env::about().app);
+                        parent;
+                        child = SettingsEditor! {
+                            id = "zng-config-settings-default-editor";
+                        };
+                    }
+                });
+
+                if let Some(param) = &args.args.param {
+                    if let Some(w) = new_window {
+                        WINDOWS.wait_loaded(w.wait_into_rsp().await, true).await;
+                    }
+                    SETTINGS_CMD
+                        .scoped("zng-config-settings-default-editor")
+                        .notify_param(param.clone());
+                }
+            }),
+        )
+        .perm();
 }

@@ -124,7 +124,7 @@ pub fn default_categories_list_fn(args: CategoriesListArgs) -> impl UiNode {
             child_align = Align::FILL_TOP;
             padding = (10, 20);
             child = Stack! {
-                zng_wgt_toggle::selector = Selector::single(args.selected);
+                zng_wgt_toggle::selector = Selector::single(SETTINGS.editor_selected_category());
                 direction = StackDirection::top_to_bottom();
                 children = args.items;
                 zng_wgt_toggle::style_fn = Style! {
@@ -221,10 +221,13 @@ pub fn default_settings_fn(args: SettingsArgs) -> impl UiNode {
 }
 
 /// Default settings search box.
-pub fn default_settings_search_fn(args: SettingsSearchArgs) -> impl UiNode {
+pub fn default_settings_search_fn(_: SettingsSearchArgs) -> impl UiNode {
     Container! {
         child = TextInput! {
-            txt = args.search;
+            txt = SETTINGS.editor_search();
+            style_fn = zng_wgt_text_input::SearchStyle!();
+            zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
+            placeholder_txt = "search settings (Ctrl+F)";
         };
         child_bottom = Hr!(zng_wgt::margin = (10, 10, 0, 10)), 0;
     }
@@ -245,11 +248,11 @@ pub struct CategoryHeaderArgs {
 }
 
 /// Arguments for a widget function that makes a list of category items that can be selected.
+///
+/// The selected category variable is in [`SETTINGS.editor_selected_category`](SettingsCtxExt::editor_selected_category).
 pub struct CategoriesListArgs {
     /// The item views.
     pub items: UiNodeVec,
-    /// The selected item.
-    pub selected: ArcVar<CategoryId>,
 }
 
 /// Arguments for a widget function that makes a setting container.
@@ -271,10 +274,9 @@ pub struct SettingsArgs {
 }
 
 /// Arguments for a search box widget.
-pub struct SettingsSearchArgs {
-    /// Search that matches setting name and descriptions.
-    pub search: ArcVar<Txt>,
-}
+///
+/// The search variable is in [`SETTINGS.editor_search`](SettingsCtxExt::editor_search).
+pub struct SettingsSearchArgs {}
 
 /// Extends [`SettingBuilder`] to set custom editor metadata.
 pub trait SettingBuilderEditorExt {
@@ -335,16 +337,40 @@ impl WidgetInfoSettingExt for WidgetInfo {
 
 /// Extends [`SETTINGS`] to provide contextual information in an editor.
 pub trait SettingsCtxExt {
-    /// Gets a context var that tracks the [`Setting`] entry the widget is inside, or will be.
+    /// Gets a read-write context var that tracks the search text.
+    fn editor_search(&self) -> ContextVar<Txt>;
+
+    /// Gets a read-write context var that tracks the selected category.
+    fn editor_selected_category(&self) -> ContextVar<CategoryId>;
+
+    /// Gets a read-only context var that tracks the current editor data state.
+    fn editor_state(&self) -> ReadOnlyContextVar<Option<SettingsEditorState>>;
+
+    /// Gets a read-only context var that tracks the [`Setting`] entry the widget is inside, or will be.
     fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>>;
 }
 impl SettingsCtxExt for SETTINGS {
+    fn editor_search(&self) -> ContextVar<Txt> {
+        EDITOR_SEARCH_VAR
+    }
+
+    fn editor_selected_category(&self) -> ContextVar<CategoryId> {
+        EDITOR_SELECTED_CATEGORY_VAR
+    }
+
+    fn editor_state(&self) -> ReadOnlyContextVar<Option<SettingsEditorState>> {
+        EDITOR_STATE_VAR.read_only()
+    }
+
     fn editor_setting(&self) -> ReadOnlyContextVar<Option<Setting>> {
         EDITOR_SETTING_VAR.read_only()
     }
 }
 
 context_var! {
+    pub(crate) static EDITOR_SEARCH_VAR: Txt = Txt::from_static("");
+    pub(crate) static EDITOR_SELECTED_CATEGORY_VAR: CategoryId = CategoryId(Txt::from_static(""));
+    pub(crate) static EDITOR_STATE_VAR: Option<SettingsEditorState> = None;
     static EDITOR_SETTING_VAR: Option<Setting> = None;
 }
 
@@ -361,4 +387,23 @@ pub fn setting(child: impl UiNode, setting: impl IntoValue<Setting>) -> impl UiN
         }
     });
     with_context_var(child, EDITOR_SETTING_VAR, Some(setting))
+}
+
+/// Represents the current settings data.
+///
+/// Use [`SETTINGS.editor_state`] to get.
+///
+/// [`SETTINGS.editor_state`]: SettingsCtxExt::editor_state
+#[derive(PartialEq, Debug, Clone)]
+pub struct SettingsEditorState {
+    /// The actual text searched.
+    pub clean_search: Txt,
+    /// Categories list.
+    pub categories: Vec<Category>,
+    /// Selected category.
+    pub selected_cat: Category,
+    /// Settings for the selected category that match the search.
+    pub selected_settings: Vec<Setting>,
+    /// Top search match.
+    pub top_match: ConfigKey,
 }

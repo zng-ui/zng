@@ -112,11 +112,10 @@ impl AnyConfig for SwitchConfig {
     }
 }
 impl Config for SwitchConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: impl FnOnce() -> T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
         let key = key.into();
         match self.cfg_mut(&key) {
             Some((key, cfg)) => {
-                let default = default();
                 let source_var = cfg.get_raw(
                     key.clone(),
                     RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
@@ -154,7 +153,7 @@ impl Config for SwitchConfig {
 
                 var.boxed()
             }
-            None => LocalVar(default()).boxed(),
+            None => LocalVar(default).boxed(),
         }
     }
 }

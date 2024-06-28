@@ -68,6 +68,7 @@ impl Window {
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
             focus_scope_behavior = FocusScopeOnFocus::LastFocused;
+            config_block_window_load = true;
             save_state = SaveState::enabled();
         }
 
