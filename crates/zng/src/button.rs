@@ -118,4 +118,4 @@
 //!
 //! See [`zng_wgt_button`] for the full widget API.
 
-pub use zng_wgt_button::{base_colors, style_fn, Button, DefaultStyle, LinkStyle, BUTTON};
+pub use zng_wgt_button::{base_colors, style_fn, Button, DefaultStyle, LightStyle, LinkStyle, BUTTON};
