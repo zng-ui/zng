@@ -511,6 +511,53 @@ impl TextEditOp {
         }
     }
 
+    /// Remove all the text.
+    pub fn clear() -> Self {
+        #[derive(Default, Clone)]
+        struct Cleared {
+            txt: Txt,
+            selection: SelectionState,
+        }
+        Self::new(Cleared::default(), |data, op| match op {
+            UndoFullOp::Init { .. } => {
+                let ctx = TEXT.resolved();
+                data.txt = ctx.txt.get();
+                if let Some(range) = ctx.caret.selection_range() {
+                    if range.start.index == ctx.caret.index.unwrap_or(CaretIndex::ZERO).index {
+                        data.selection = SelectionState::CaretSelection(range.start, range.end);
+                    } else {
+                        data.selection = SelectionState::SelectionCaret(range.start, range.end);
+                    }
+                } else {
+                    data.selection = SelectionState::Caret(ctx.caret.index.unwrap_or(CaretIndex::ZERO));
+                };
+            }
+            UndoFullOp::Op(UndoOp::Redo) => {
+                let _ = TEXT.resolved().txt.set("");
+            }
+            UndoFullOp::Op(UndoOp::Undo) => {
+                let _ = TEXT.resolved().txt.set(data.txt.clone());
+
+                let (selection_idx, caret_idx) = match data.selection {
+                    SelectionState::Caret(c) => (None, c),
+                    SelectionState::CaretSelection(s, e) => (Some(e), s),
+                    SelectionState::SelectionCaret(s, e) => (Some(s), e),
+                    SelectionState::PreInit => unreachable!(),
+                };
+                let mut caret = TEXT.resolve_caret();
+                caret.set_index(caret_idx); // (re)start caret animation
+                caret.selection_index = selection_idx;
+            }
+            UndoFullOp::Info { info } => *info = Some(Arc::new("clear")),
+            UndoFullOp::Merge {
+                next_data,
+                within_undo_interval,
+                merged,
+                ..
+            } => *merged = within_undo_interval && next_data.is::<Cleared>(),
+        })
+    }
+
     /// Replace operation.
     ///
     /// The `select_before` is removed, and `insert` inserted at the `select_before.start`, after insertion
@@ -635,8 +682,9 @@ impl TextEditOp {
     }
 }
 /// Used by `TextEditOp::insert`, `backspace` and `delete`.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 enum SelectionState {
+    #[default]
     PreInit,
     Caret(CaretIndex),
     CaretSelection(CaretIndex, CaretIndex),

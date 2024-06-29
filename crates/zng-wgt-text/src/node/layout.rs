@@ -933,7 +933,8 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     if !editable && !selectable {
         return;
     }
-    if !WIDGET.info().interactivity().is_enabled() {
+    let widget = WIDGET.info();
+    if !widget.interactivity().is_enabled() {
         return;
     }
 
@@ -944,7 +945,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     drop(resolved);
 
     if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-        if let KeyState::Pressed = args.state {
+        if args.state == KeyState::Pressed && args.target.widget_id() == widget.id() {
             match &args.key {
                 Key::Tab => {
                     if editable && args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
@@ -1126,7 +1127,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             }
         }
     } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
-        if args.is_primary() && args.is_mouse_down() {
+        if args.is_primary() && args.is_mouse_down() && args.target.widget_id() == widget.id() {
             let mut modifiers = args.modifiers;
             let select = selectable && modifiers.take_shift();
 
@@ -1176,7 +1177,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                             // select all on mouse-up if only acquire focus
                             edit.auto_select = selectable
                                 && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
-                                && !FOCUS.is_focused(WIDGET.id()).get()
+                                && !FOCUS.is_focused(widget.id()).get()
                                 && TEXT.resolved().caret.selection_range().is_none();
                         }
                     }
@@ -1198,7 +1199,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     _ => unreachable!(),
                 };
                 if selectable {
-                    let id = WIDGET.id();
+                    let id = widget.id();
                     edit.selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(id));
                     edit.selection_move_handles.push(POINTER_CAPTURE_EVENT.subscribe(id));
                     POINTER_CAPTURE.capture_widget(id);
@@ -1210,7 +1211,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
                 && args.is_primary()
                 && args.is_mouse_up()
-                && FOCUS.is_focused(WIDGET.id()).get()
+                && FOCUS.is_focused(widget.id()).get()
                 && TEXT.resolved().caret.selection_range().is_none()
             {
                 TextSelectOp::select_all().call()
@@ -1218,14 +1219,16 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             edit.selection_move_handles.clear();
         }
     } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
-        edit.auto_select = selectable
-            && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
-            && args.modifiers.is_empty()
-            && args.is_touch_start()
-            && !FOCUS.is_focused(WIDGET.id()).get()
-            && TEXT.resolved().caret.selection_range().is_none();
+        if args.modifiers.is_empty() && args.target.widget_id() == widget.id() {
+            edit.auto_select = selectable
+                && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
+                && args.modifiers.is_empty()
+                && args.is_touch_start()
+                && !FOCUS.is_focused(widget.id()).get()
+                && TEXT.resolved().caret.selection_range().is_none();
+        }
     } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
-        if args.modifiers.is_empty() {
+        if args.modifiers.is_empty() && args.target.widget_id() == widget.id() {
             args.propagation().stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
@@ -1242,7 +1245,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             }
         }
     } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
-        if args.modifiers.is_empty() && selectable {
+        if args.modifiers.is_empty() && selectable && args.target.widget_id() == widget.id() {
             args.propagation().stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
@@ -1250,7 +1253,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             TextSelectOp::select_word_nearest_to(true, args.position).call();
         }
     } else if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-        if !edit.selection_move_handles.is_dummy() && selectable {
+        if !edit.selection_move_handles.is_dummy() && selectable && args.target.widget_id() == widget.id() {
             args.propagation().stop();
 
             match edit.click_count {
@@ -1262,18 +1265,18 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             }
         }
     } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
-        if args.is_lost(WIDGET.id()) {
+        if args.is_lost(widget.id()) {
             edit.selection_move_handles.clear();
             edit.auto_select = false;
         }
     } else if selectable {
-        if let Some(args) = SELECT_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+        if let Some(args) = SELECT_CMD.scoped(widget.id()).on_unhandled(update) {
             if let Some(op) = args.param::<TextSelectOp>() {
                 args.propagation().stop();
 
                 op.clone().call();
             }
-        } else if let Some(args) = SELECT_ALL_CMD.scoped(WIDGET.id()).on_unhandled(update) {
+        } else if let Some(args) = SELECT_ALL_CMD.scoped(widget.id()).on_unhandled(update) {
             args.propagation().stop();
             TextSelectOp::select_all().call();
         }
@@ -1282,12 +1285,12 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     let mut resolve = TEXT.resolve();
     let caret = &mut resolve.caret;
     if (caret.index, caret.index_version, caret.selection_index) != prev_caret_index {
-        if !editable || caret.index.is_none() || !FOCUS.is_focused(WIDGET.id()).get() {
+        if !editable || caret.index.is_none() || !FOCUS.is_focused(widget.id()).get() {
             edit.caret_animation = VarHandle::dummy();
             caret.opacity = var(0.fct()).read_only();
         } else {
             caret.opacity = KEYBOARD.caret_animation();
-            edit.caret_animation = caret.opacity.subscribe(UpdateOp::RenderUpdate, WIDGET.id());
+            edit.caret_animation = caret.opacity.subscribe(UpdateOp::RenderUpdate, widget.id());
         }
         resolve.pending_layout |= PendingLayout::CARET;
         WIDGET.layout(); // update caret_origin

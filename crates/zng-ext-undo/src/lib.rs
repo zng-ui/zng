@@ -681,7 +681,7 @@ pub enum UndoFullOp<'r> {
         /// Closure data for the next undo action.
         ///
         /// The data can be from any full undo closure action, only merge if the data
-        /// indicates that is comes from actions that can be covered by the `self` closure.
+        /// indicates that it comes from actions that can be covered by the `self` closure.
         next_data: &'r mut dyn Any,
 
         /// Timestamp of the previous action registered.

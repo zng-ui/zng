@@ -246,7 +246,7 @@ impl SearchStyle {
                     args.propagation().stop();
                     zng_wgt_text::cmd::EDIT_CMD
                         .scoped(WIDGET.info().parent().unwrap().id())
-                        .notify_param(zng_wgt_text::cmd::TextEditOp::backspace());
+                        .notify_param(zng_wgt_text::cmd::TextEditOp::clear());
                 });
             }, 0;
         }
