@@ -931,6 +931,21 @@ impl DefaultStyle {
     }
 }
 
+/// Toggle light style.
+#[widget($crate::LightStyle)]
+pub struct LightStyle(zng_wgt_button::LightStyle);
+impl LightStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            when *#is_checked {
+                #[easing(0.ms())]
+                background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+            }
+        }
+    }
+}
+
 /// Checkmark toggle style.
 ///
 /// Style a [`Toggle!`] widget to look like a *checkbox*.

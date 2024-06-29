@@ -29,7 +29,7 @@ use zng_wgt_input::{
     CursorIcon,
 };
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
-use zng_wgt_text::{font_color, underline, Text};
+use zng_wgt_text::{font_color, underline, Text, FONT_COLOR_VAR};
 use zng_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
 
 /// A clickable container.
@@ -353,21 +353,35 @@ impl DefaultStyle {
     }
 }
 
-/// Button context.
-pub struct BUTTON;
-impl BUTTON {
-    /// The [`cmd`] value, if set.
-    ///
-    /// [`cmd`]: fn@cmd
-    pub fn cmd(&self) -> ReadOnlyContextVar<Option<Command>> {
-        CMD_VAR.read_only()
-    }
+/// Button light style.
+#[widget($crate::LightStyle)]
+pub struct LightStyle(DefaultStyle);
+impl LightStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            border = unset!;
+            padding = 7;
 
-    /// The [`cmd_param`] value.
-    ///
-    /// [`cmd_param`]: fn@cmd_param
-    pub fn cmd_param(&self) -> ReadOnlyContextVar<Option<CommandParam>> {
-        CMD_PARAM_VAR.read_only()
+            #[easing(150.ms())]
+            background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(0.pct()));
+
+            when *#is_cap_hovered {
+                #[easing(0.ms())]
+                background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
+            }
+
+            when *#is_pressed {
+                #[easing(0.ms())]
+                background_color = FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+            }
+
+            when *#is_disabled {
+                saturate = false;
+                child_opacity = 50.pct();
+                cursor = CursorIcon::NotAllowed;
+            }
+        }
     }
 }
 
@@ -400,5 +414,23 @@ impl LinkStyle {
                 cursor = CursorIcon::NotAllowed;
             }
         }
+    }
+}
+
+/// Button context.
+pub struct BUTTON;
+impl BUTTON {
+    /// The [`cmd`] value, if set.
+    ///
+    /// [`cmd`]: fn@cmd
+    pub fn cmd(&self) -> ReadOnlyContextVar<Option<Command>> {
+        CMD_VAR.read_only()
+    }
+
+    /// The [`cmd_param`] value.
+    ///
+    /// [`cmd_param`]: fn@cmd_param
+    pub fn cmd_param(&self) -> ReadOnlyContextVar<Option<CommandParam>> {
+        CMD_PARAM_VAR.read_only()
     }
 }

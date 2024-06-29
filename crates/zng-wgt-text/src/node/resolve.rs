@@ -402,7 +402,7 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
 
     if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
         let mut ctx = TEXT.resolve();
-        if let KeyState::Pressed = args.state {
+        if args.state == KeyState::Pressed && args.target.widget_id() == widget.id() {
             match &args.key {
                 Key::Backspace => {
                     let caret = &mut ctx.caret;

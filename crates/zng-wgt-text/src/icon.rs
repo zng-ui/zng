@@ -21,36 +21,37 @@ impl Icon {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
-
             crate::txt_align = Align::CENTER;
+
+            // in case the icon is tested on a TextInput
+            crate::txt_editable = false;
+            crate::txt_selectable = false;
         }
-        self.widget_builder().push_build_action(on_build);
+        self.widget_builder().push_build_action(|wgt| {
+            let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(ico)) {
+                icon
+            } else {
+                tracing::error!("missing `icon` property");
+                return;
+            };
+
+            wgt.set_child(crate::node::render_text());
+
+            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", crate::node::layout_text);
+            wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", move |child| {
+                let node = crate::node::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
+                let node = crate::font_family(node, icon.map(|i| i.font.clone().into()));
+                let node = icon_size(node);
+                let node = crate::font_features(node, icon.map_ref(|i| &i.features));
+                crate::font_color(node, ICON_COLOR_VAR)
+            });
+        });
     }
 }
 
 /// The glyph icon.
 #[property(CONTEXT, capture, widget_impl(Icon))]
 pub fn ico(ico: impl IntoVar<GlyphIcon>) {}
-
-fn on_build(wgt: &mut WidgetBuilding) {
-    let icon = if let Some(icon) = wgt.capture_var::<GlyphIcon>(property_id!(ico)) {
-        icon
-    } else {
-        tracing::error!("missing `icon` property");
-        return;
-    };
-
-    wgt.set_child(crate::node::render_text());
-
-    wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", crate::node::layout_text);
-    wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", move |child| {
-        let node = crate::node::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
-        let node = crate::font_family(node, icon.map(|i| i.font.clone().into()));
-        let node = icon_size(node);
-        let node = crate::font_features(node, icon.map_ref(|i| &i.features));
-        crate::font_color(node, ICON_COLOR_VAR)
-    });
-}
 
 /// Identifies an icon glyph in the font set.
 #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

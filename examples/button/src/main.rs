@@ -35,6 +35,8 @@ fn main() {
                             image_button(),
                             repeat_button(),
                             split_button(),
+                            separator(),
+                            light_button(),
                         ];
                     },
 
@@ -97,6 +99,27 @@ fn image_button() -> impl UiNode {
             spacing: 5,
         };
         child = Text!("Image!");
+    }
+}
+fn light_button() -> impl UiNode {
+    Stack! {
+        direction = StackDirection::left_to_right();
+        spacing = 5;
+        children = ui_vec![
+            Button! {
+                tooltip = Tip!(Text!("light button, ideal for icons"));
+                style_fn = zng::button::LightStyle!();
+                child = ICONS.req("material/outlined/insert-emoticon");
+            },
+            Toggle! {
+                style_fn = zng::toggle::LightStyle!();
+                child = ICONS.req("material/outlined/lightbulb");
+                checked = var(true);
+                when *#is_checked {
+                    child = ICONS.req("material/filled/lightbulb");
+                }
+            },
+        ]
     }
 }
 fn repeat_button() -> impl UiNode {
