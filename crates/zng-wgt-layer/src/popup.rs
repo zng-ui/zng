@@ -319,7 +319,7 @@ impl DefaultStyle {
             replace = true;
 
             // same as window
-            background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+            background_color = rgba_pair(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
             drop_shadow = {
                 offset: 2,
                 blur_radius: 2,

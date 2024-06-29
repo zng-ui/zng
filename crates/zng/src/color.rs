@@ -105,12 +105,12 @@
 //! See [`zng_color`], [`zng_wgt_filter`] and [`zng_wgt_fill`] for the full API.
 
 pub use zng_color::{
-    color_scheme_highlight, color_scheme_map, color_scheme_pair, colors, hex, hsl, hsla, hsla_linear_sampler, hsla_sampler, hsv, hsva,
-    lerp_space, rgb, rgba, rgba_sampler, web_colors, with_lerp_space, ColorPair, ColorScheme, Hsla, Hsva, LerpSpace, MixAdjust,
-    MixBlendMode, PreMulRgba, RenderMixBlendMode, Rgba, COLOR_SCHEME_VAR,
+    colors, hex, hsl, hsla, hsla_linear_sampler, hsla_sampler, hsv, hsva, lerp_space, rgb, rgba, rgba_pair, rgba_sampler, web_colors,
+    with_lerp_space, ColorScheme, Hsla, Hsva, LerpSpace, MixAdjust, MixBlendMode, PreMulRgba, RenderMixBlendMode, Rgba, RgbaPair,
+    RgbaPairVarExt, COLOR_SCHEME_VAR,
 };
 
-pub use zng_wgt::color_scheme;
+pub use zng_wgt::{accent_color, base_color, color_scheme};
 
 pub use zng_wgt_fill::node::flood;
 

@@ -11,10 +11,11 @@
 
 zng_wgt::enable_widget_macros!();
 
+use colors::BASE_COLOR_VAR;
 use zng_ext_font::FontNames;
 use zng_ext_input::{focus::FOCUS, mouse::ClickMode};
 use zng_ext_l10n::lang;
-use zng_wgt::{align, is_disabled, margin, prelude::*};
+use zng_wgt::{align, base_color, is_disabled, margin, prelude::*};
 use zng_wgt_access::{access_role, AccessRole};
 use zng_wgt_button::BUTTON;
 use zng_wgt_container::{child_align, child_end, padding};
@@ -101,9 +102,10 @@ impl DefaultStyle {
 
             // also see context::DefaultStyle
 
+            base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
             zng_wgt_button::style_fn = style_fn!(|_| ButtonStyle!());
             zng_wgt_toggle::style_fn = style_fn!(|_| ToggleStyle!());
-            zng_wgt_rule_line::hr::color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
+            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
             zng_wgt_text::icon::ico_size = 18;
         }
     }
@@ -127,7 +129,8 @@ impl ButtonStyle {
             padding = (4, 0);
             child_align = Align::START;
 
-            background_color = color_scheme_pair(zng_wgt_button::BASE_COLORS_VAR);
+            base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+            background_color = BASE_COLOR_VAR.map_to_rgba();
             opacity = 90.pct();
             foreground_highlight = unset!;
             zng_wgt_tooltip::tooltip_fn = WidgetFn::nil(); // cmd sets tooltip
@@ -153,7 +156,7 @@ impl ButtonStyle {
             });
 
             when *#is_focused {
-                background_color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
+                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
                 opacity = 100.pct();
             }
 

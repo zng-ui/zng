@@ -139,7 +139,6 @@
 //! [`on_pre_event`]: crate::event::Command::on_pre_event
 
 pub use zng_app::third_party::{License, LicenseUsed, User, UserLicense, LICENSES, OPEN_LICENSES_CMD};
-
 use crate::prelude::*;
 
 pub(crate) fn setup_default_view() {
@@ -195,7 +194,7 @@ fn default_view() -> impl UiNode {
 
     Container! {
         child_start = Container! {
-            widget::background_color = color::color_scheme_pair(zng_wgt_button::BASE_COLORS_VAR);
+            widget::background_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
 
             // search
             child_top = TextInput! {

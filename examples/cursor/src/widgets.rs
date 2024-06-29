@@ -25,14 +25,14 @@ impl DemoEntry {
             tip::tooltip_delay = 0.ms();
 
             layout::margin = 1;
-            widget::background_color = color_scheme_map(colors::BLACK, colors::WHITE);
+            widget::background_color = rgba_pair(colors::BLACK, colors::WHITE);
 
             #[easing(150.ms())]
-            text::font_color = color_scheme_map(rgb(140, 140, 140), rgb(115, 115, 115));
+            text::font_color = rgba_pair(rgb(140, 140, 140), rgb(115, 115, 115));
 
             when *#gesture::is_hovered {
                 #[easing(0.ms())]
-                text::font_color = color_scheme_map(colors::WHITE, colors::BLACK);
+                text::font_color = rgba_pair(colors::WHITE, colors::BLACK);
             }
 
             text::font_family = "monospace";

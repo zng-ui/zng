@@ -20,7 +20,7 @@ fn main() {
             child = Scroll! {
                 id = "scroll";
                 padding = 20;
-                widget::background_color = color::color_scheme_map(
+                widget::background_color = rgba_pair(
                     hex!(#245E81),
                     colors::WHITE.with_alpha(80.pct()).mix_normal(hex!(#245E81))
                 );

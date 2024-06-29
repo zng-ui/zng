@@ -1,5 +1,6 @@
 //! Context menu widget and properties.
 
+use colors::BASE_COLOR_VAR;
 use zng_ext_input::gesture::CLICK_EVENT;
 use zng_wgt::prelude::*;
 use zng_wgt_input::focus::alt_focus_scope;
@@ -174,7 +175,7 @@ impl DefaultStyle {
             replace = true;
             zng_wgt_button::style_fn = style_fn!(|_| super::ButtonStyle!());
             zng_wgt_toggle::style_fn = style_fn!(|_| super::ToggleStyle!());
-            zng_wgt_rule_line::hr::color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
+            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
             zng_wgt_text::icon::ico_size = 18;
         }
     }
@@ -193,7 +194,7 @@ impl TouchStyle {
                 children = args.children;
             });
             zng_wgt_button::style_fn = style_fn!(|_| super::TouchButtonStyle!());
-            zng_wgt_rule_line::vr::color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
+            zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
         }
     }
 }

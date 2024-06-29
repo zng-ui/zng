@@ -5,7 +5,6 @@ use zng::{
     app::EXIT_CMD,
     button,
     color::{
-        color_scheme_map,
         filter::{backdrop_blur, drop_shadow, opacity},
         Rgba,
     },
@@ -124,15 +123,15 @@ fn background_color_example(color: impl Var<Rgba>) -> impl UiNode {
     }
     fn primary_color(c: Rgba) -> impl UiNode {
         let c = c.desaturate(50.pct());
-        let c = color_scheme_map(rgba(0, 0, 0, 20.pct()).mix_normal(c), rgba(255, 255, 255, 20.pct()).mix_normal(c));
-        color_btn(c, false)
+        let c = rgba_pair(rgba(0, 0, 0, 20.pct()).mix_normal(c), rgba(255, 255, 255, 20.pct()).mix_normal(c));
+        color_btn(c.rgba_var(), false)
     }
 
     select(
         "Background Color",
         color,
         ui_vec![
-            color_btn(color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9)), true),
+            color_btn(rgba_pair(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9)).rgba_var(), true),
             primary_color(rgb(1.0, 0.0, 0.0)),
             primary_color(rgb(0.0, 0.8, 0.0)),
             primary_color(rgb(0.0, 0.0, 1.0)),
@@ -418,7 +417,7 @@ fn custom_chrome(title: impl Var<Txt>) -> impl UiNode {
     let title = Text! {
         txt = title.clone();
         align = Align::TOP;
-        background_color = color_scheme_map(colors::BLACK, colors::WHITE);
+        background_color = rgba_pair(colors::BLACK, colors::WHITE);
         padding = 4;
         corner_radius = (0, 0, 5, 5);
 
@@ -494,7 +493,7 @@ fn custom_chrome(title: impl Var<Txt>) -> impl UiNode {
         child = title;
 
         when matches!(#{vars.state()}, WindowState::Normal) {
-            widget::border = 5, color_scheme_map(colors::BLACK, colors::WHITE);
+            widget::border = 5, rgba_pair(colors::BLACK, colors::WHITE).rgba_var().map_into();
             mouse::cursor = cursor.clone();
             mouse::on_mouse_move = hn!(|args: &mouse::MouseMoveArgs| {
                 cursor.set(match args.position_wgt().and_then(resize_direction) {
@@ -724,7 +723,7 @@ fn close_dialog(mut windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl U
         id = "close-dialog";
         widget::modal = true;
         backdrop_blur = 2;
-        background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
+        background_color = rgba_pair(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         child_align = Align::CENTER;
         gesture::on_click = hn!(|args: &gesture::ClickArgs| {
             if WIDGET.id() == args.target.widget_id() {
@@ -733,7 +732,7 @@ fn close_dialog(mut windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl U
             }
         });
         child = Container! {
-            background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
+            background_color = rgba_pair(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;

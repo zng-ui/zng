@@ -1,5 +1,9 @@
 # Unreleased
 
+* **Breaking** Refactored "color pair".
+    - Now named `RgbaPair` and includes a `highlight: Factor` value.
+    - Removed helper methods for declaring vars, now `IntoVar<Rgba> for RgbaPair` is contextual.
+* **Breaking** Removed `BASE_COLORS_CAR` form specific widgets, now use the unified `zng::color::BASE_COLOR_VAR`.
 * Add `TextEditOp::clear`.
 * Add `button::LightStyle!()` and `toggle::LightStyle!()`.
 * Fix when expr not recognized.

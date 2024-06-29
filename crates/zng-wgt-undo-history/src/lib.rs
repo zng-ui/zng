@@ -11,10 +11,11 @@
 
 zng_wgt::enable_widget_macros!();
 
+use colors::BASE_COLOR_VAR;
 use zng_ext_input::gesture::ClickArgs;
 use zng_ext_l10n::{l10n, L10nArgument};
 use zng_ext_undo::*;
-use zng_wgt::{margin, prelude::*};
+use zng_wgt::{base_color, margin, prelude::*};
 use zng_wgt_button::Button;
 use zng_wgt_container::{child_align, padding, Container};
 use zng_wgt_fill::background_color;
@@ -359,15 +360,16 @@ impl UndoRedoButtonStyle {
             padding = 4;
             child_align = Align::START;
 
-            background_color = color_scheme_pair(zng_wgt_button::BASE_COLORS_VAR);
+            base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+            background_color = BASE_COLOR_VAR.map_to_rgba();
 
             when *#is_cap_hovered_timestamp {
-                background_color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
+                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
             }
 
             when *#is_pressed {
                 #[easing(0.ms())]
-                background_color = zng_wgt_button::color_scheme_pressed(zng_wgt_button::BASE_COLORS_VAR);
+                background_color = BASE_COLOR_VAR.map(|c| c.pressed()).map_to_rgba();
             }
         }
     }

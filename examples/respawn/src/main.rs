@@ -217,7 +217,7 @@ fn window_status() -> impl UiNode {
         spacing = 5;
         layout::margin = 10;
         layout::align = Align::BOTTOM_START;
-        widget::background_color = color::color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
+        widget::background_color = rgba_pair(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
         text::font_family = "monospace";
         opacity = 80.pct();
         children = ui_vec![

@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use super::ButtonStyle;
+use colors::BASE_COLOR_VAR;
 use zng_ext_font::FontNames;
 use zng_ext_input::{
     focus::{WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
@@ -466,7 +467,7 @@ impl DefaultStyle {
             });
 
             when *#is_hovered || *#is_focused || *#is_open {
-                background_color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
+                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
                 opacity = 100.pct();
             }
 
@@ -495,7 +496,7 @@ impl SubMenuStyle {
             }.with_min_size(AnchorSize::Unbounded));
 
             when *#is_open {
-                background_color = zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR);
+                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
                 opacity = 100.pct();
             }
 

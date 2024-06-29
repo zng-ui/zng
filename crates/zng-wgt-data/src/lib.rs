@@ -237,7 +237,7 @@ context_var! {
     /// The colors can be used directly as text color.
     ///
     /// Defaults set only for the named levels.
-    pub static DATA_NOTE_COLORS_VAR: HashMap<DataNoteLevel, ColorPair> = {
+    pub static DATA_NOTE_COLORS_VAR: HashMap<DataNoteLevel, RgbaPair> = {
         let mut map = HashMap::new();
         // (dark, light)
         map.insert(DataNoteLevel::INFO, (colors::AZURE, colors::AZURE).into());
@@ -253,7 +253,7 @@ context_var! {
 ///
 /// This property sets the [`DATA_NOTE_COLORS_VAR`].
 #[property(CONTEXT, default(DATA_NOTE_COLORS_VAR))]
-pub fn replace_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<DataNoteLevel, ColorPair>>) -> impl UiNode {
+pub fn replace_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<DataNoteLevel, RgbaPair>>) -> impl UiNode {
     with_context_var(child, DATA_NOTE_COLORS_VAR, colors)
 }
 
@@ -263,7 +263,7 @@ pub fn replace_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap
 ///
 /// This property sets the [`DATA_NOTE_COLORS_VAR`].
 #[property(CONTEXT, default(HashMap::new()))]
-pub fn extend_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<DataNoteLevel, ColorPair>>) -> impl UiNode {
+pub fn extend_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<DataNoteLevel, RgbaPair>>) -> impl UiNode {
     with_context_var(
         child,
         DATA_NOTE_COLORS_VAR,
@@ -276,7 +276,7 @@ pub fn extend_data_note_colors(child: impl UiNode, colors: impl IntoVar<HashMap<
 }
 
 /// Node that inserts a data note color in [`DATA_NOTE_COLORS_VAR`].
-pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: impl IntoVar<ColorPair>) -> impl UiNode {
+pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: impl IntoVar<RgbaPair>) -> impl UiNode {
     with_context_var(
         child,
         DATA_NOTE_COLORS_VAR,
@@ -294,7 +294,7 @@ pub fn with_data_note_color(child: impl UiNode, level: DataNoteLevel, color: imp
 ///
 /// [`INFO`]: DataNoteLevel::INFO
 #[property(CONTEXT)]
-pub fn data_info_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
+pub fn data_info_color(child: impl UiNode, color: impl IntoVar<RgbaPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::INFO, color)
 }
 
@@ -304,7 +304,7 @@ pub fn data_info_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> im
 ///
 /// [`WARN`]: DataNoteLevel::WARN
 #[property(CONTEXT)]
-pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
+pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<RgbaPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::WARN, color)
 }
 
@@ -314,7 +314,7 @@ pub fn data_warn_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> im
 ///
 /// [`ERROR`]: DataNoteLevel::ERROR
 #[property(CONTEXT)]
-pub fn data_error_color(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
+pub fn data_error_color(child: impl UiNode, color: impl IntoVar<RgbaPair>) -> impl UiNode {
     with_data_note_color(child, DataNoteLevel::ERROR, color)
 }
 
@@ -430,7 +430,7 @@ impl DATA {
                     }
                 }
 
-                color.unwrap_or_else(|| ColorPair::from((colors::BLACK, colors::WHITE)))
+                color.unwrap_or_else(|| RgbaPair::from((colors::BLACK, colors::WHITE)))
             };
             match scheme {
                 ColorScheme::Light => c.light,

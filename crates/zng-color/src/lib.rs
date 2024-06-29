@@ -13,10 +13,12 @@
 use std::{fmt, sync::Arc};
 use zng_app_context::context_local;
 
-use zng_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor};
+use zng_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor, FactorUnits};
 use zng_var::{
     animation::{easing::EasingStep, Transition, Transitionable},
-    context_var, impl_from_and_into_var, merge_var, IntoVar, Var, VarValue,
+    context_var, expr_var, impl_from_and_into_var,
+    types::ContextualizedVar,
+    IntoVar, Var,
 };
 
 pub use zng_view_api::config::ColorScheme;
@@ -826,93 +828,112 @@ context_var! {
     pub static COLOR_SCHEME_VAR: ColorScheme = ColorScheme::default();
 }
 
-/// Create a variable that maps to `dark` or `light` depending on the contextual [`COLOR_SCHEME_VAR`].
-pub fn color_scheme_map<T: VarValue>(dark: impl IntoVar<T>, light: impl IntoVar<T>) -> impl Var<T> {
-    merge_var!(COLOR_SCHEME_VAR, dark.into_var(), light.into_var(), |&scheme, dark, light| {
-        match scheme {
-            ColorScheme::Dark => dark.clone(),
-            ColorScheme::Light => light.clone(),
-        }
-    })
-}
-
-/// Create a variable that selects the [`ColorPair`] depending on the contextual [`COLOR_SCHEME_VAR`].
-pub fn color_scheme_pair(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
-    merge_var!(COLOR_SCHEME_VAR, pair.into_var(), |&scheme, &pair| {
-        match scheme {
-            ColorScheme::Dark => pair.dark,
-            ColorScheme::Light => pair.light,
-        }
-    })
-}
-
-/// Create a variable that selects the [`ColorPair`] highlight depending on the contextual [`COLOR_SCHEME_VAR`].
-pub fn color_scheme_highlight(pair: impl IntoVar<ColorPair>, highlight: impl IntoVar<Factor>) -> impl Var<Rgba> {
-    merge_var!(
-        COLOR_SCHEME_VAR,
-        pair.into_var(),
-        highlight.into_var(),
-        |&scheme, &pair, &highlight| {
-            match scheme {
-                ColorScheme::Dark => pair.highlight_dark(highlight),
-                ColorScheme::Light => pair.highlight_light(highlight),
-            }
-        }
-    )
+/// RGBA color pair.
+///
+/// # Arguments
+///
+/// The arguments can be any color type that converts to [`Rgba`]. The first color
+/// is used in [`ColorScheme::Dark`] contexts, the second color is used in [`ColorScheme::Light`] contexts.
+///
+/// Note that [`ColorPair`] converts `IntoVar<Rgba>` with a contextual var that selects the color, so you
+/// can just set color properties directly with a color pair .
+pub fn rgba_pair(dark: impl Into<Rgba>, light: impl Into<Rgba>) -> RgbaPair {
+    RgbaPair::from((dark, light))
 }
 
 /// Represents a dark and light *color*.
+///
+///
+/// Note that [`ColorPair`] converts `IntoVar<Rgba>` with a contextual var that selects the color, so you
+/// can just set color properties directly with a color pair.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
-pub struct ColorPair {
+pub struct RgbaPair {
     /// Color used when [`ColorScheme::Dark`].
     pub dark: Rgba,
     /// Color used when [`ColorScheme::Light`].
     pub light: Rgba,
+    /// Alpha of BLACK or WHITE overlay to the color when converted in a given [`ColorScheme`] context.
+    pub highlight: Factor,
 }
 impl_from_and_into_var! {
     /// From `(dark, light)` tuple.
-    fn from<D: Into<Rgba>, L: Into<Rgba>>((dark, light): (D, L)) -> ColorPair {
-        ColorPair {
+    fn from<D: Into<Rgba>, L: Into<Rgba>>((dark, light): (D, L)) -> RgbaPair {
+        RgbaPair {
             dark: dark.into(),
             light: light.into(),
+            highlight: 0.fct(),
         }
     }
 
     /// From same color to both.
-    fn from(color: Rgba) -> ColorPair {
-        ColorPair { dark: color, light: color }
+    fn from(color: Rgba) -> RgbaPair {
+        RgbaPair { dark: color, light: color, highlight: 0.fct() }
     }
 
     /// From same color to both.
-    fn from(color: Hsva) -> ColorPair {
+    fn from(color: Hsva) -> RgbaPair {
         Rgba::from(color).into()
     }
 
     /// From same color to both.
-    fn from(color: Hsla) -> ColorPair {
+    fn from(color: Hsla) -> RgbaPair {
         Rgba::from(color).into()
     }
 }
-impl ColorPair {
-    /// Overlay white with `highlight` amount as alpha over the [`dark`] color.
-    ///
-    /// [`dark`]: ColorPair::dark
-    pub fn highlight_dark(self, highlight: impl Into<Factor>) -> Rgba {
-        colors::WHITE.with_alpha(highlight.into()).mix_normal(self.dark)
+impl IntoVar<Rgba> for RgbaPair {
+    type Var = ContextualizedVar<Rgba>;
+
+    fn into_var(self) -> Self::Var {
+        COLOR_SCHEME_VAR.map(move |s| self.rgba(*s))
+    }
+}
+impl RgbaPair {
+    /// Set the alpha of BLACK or WHITE overlay to the color when converted in a given [`ColorScheme`] context.
+    pub fn with_highlight(mut self, highlight: impl Into<Factor>) -> Self {
+        self.highlight = highlight.into();
+        self
     }
 
-    /// Overlay black with `highlight` amount as alpha over the [`light`] color.
-    ///
-    /// [`light`]: ColorPair::light
-    pub fn highlight_light(self, highlight: impl Into<Factor>) -> Rgba {
-        colors::BLACK.with_alpha(highlight.into()).mix_normal(self.light)
+    /// Standard "hovered" highlight.
+    pub fn hovered(self) -> Self {
+        self.with_highlight(0.08)
+    }
+
+    /// Standard "pressed" or "checked" highlight.
+    pub fn pressed(self) -> Self {
+        self.with_highlight(0.16)
     }
 
     /// Gets the color for the scheme.
-    pub fn color(self, scheme: ColorScheme) -> Rgba {
-        match scheme {
-            ColorScheme::Light => self.light,
-            ColorScheme::Dark => self.dark,
+    pub fn rgba(self, scheme: ColorScheme) -> Rgba {
+        let (rgba, highlight) = match scheme {
+            ColorScheme::Dark => (self.dark, colors::WHITE),
+            ColorScheme::Light => (self.light, colors::BLACK),
+        };
+        if self.highlight != 0.fct() {
+            highlight.with_alpha(self.highlight).mix_normal(rgba)
+        } else {
+            rgba
+        }
+    }
+
+    /// Gets a contextual `Rgba` var that selects the `color` for the context scheme.
+    ///
+    /// Also see [`RgbaPairVarExt`] for mapping from vars.
+    pub fn rgba_var(self) -> ContextualizedVar<Rgba> {
+        IntoVar::<Rgba>::into_var(self)
+    }
+}
+
+/// Extension methods for `impl Var<RgbaPair>`.
+pub trait RgbaPairVarExt {
+    /// Gets a contextualized var that maps to [`RgbaPair::rgba`].
+    fn map_to_rgba(&self) -> impl Var<Rgba>;
+}
+impl<V: Var<RgbaPair>> RgbaPairVarExt for V {
+    fn map_to_rgba(&self) -> impl Var<Rgba> {
+        expr_var! {
+            #{self.clone()}.rgba(*#{COLOR_SCHEME_VAR})
         }
     }
 }
@@ -981,7 +1002,7 @@ context_local! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zng_layout::unit::{AngleUnits as _, FactorUnits as _};
+    use zng_layout::unit::AngleUnits as _;
 
     #[test]
     fn hsl_red() {

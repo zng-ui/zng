@@ -96,13 +96,13 @@
 //!
 //! ```
 //! use zng::prelude::*;
-//! use zng::button;
+//! use zng::{button, color::base_color};
 //!
 //! # let _scope = APP.defaults(); let _ =
 //! Window! {
 //!     button::style_fn = Style! {
 //!         when *#{button::BUTTON.cmd()} == Some(window::cmd::CLOSE_CMD) {
-//!             button::base_colors = color::ColorPair {
+//!             base_color = color::ColorPair {
 //!                 // dark theme base
 //!                 dark: colors::BLACK.with_alpha(80.pct()).mix_normal(colors::RED),
 //!                 // light theme base
@@ -118,4 +118,4 @@
 //!
 //! See [`zng_wgt_button`] for the full widget API.
 
-pub use zng_wgt_button::{base_colors, style_fn, Button, DefaultStyle, LightStyle, LinkStyle, BUTTON};
+pub use zng_wgt_button::{style_fn, Button, DefaultStyle, LightStyle, LinkStyle, BUTTON};
