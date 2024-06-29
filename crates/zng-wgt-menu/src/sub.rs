@@ -467,7 +467,7 @@ impl DefaultStyle {
             });
 
             when *#is_hovered || *#is_focused || *#is_open {
-                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
+                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
                 opacity = 100.pct();
             }
 
@@ -496,7 +496,7 @@ impl SubMenuStyle {
             }.with_min_size(AnchorSize::Unbounded));
 
             when *#is_open {
-                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
+                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
                 opacity = 100.pct();
             }
 

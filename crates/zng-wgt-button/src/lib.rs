@@ -299,26 +299,26 @@ impl DefaultStyle {
             base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
 
             #[easing(150.ms())]
-            background_color = BASE_COLOR_VAR.map_to_rgba();
+            background_color = BASE_COLOR_VAR.rgba();
             #[easing(150.ms())]
             border = {
                 widths: 1,
-                sides: BASE_COLOR_VAR.map_to_rgba().map_into()
+                sides: BASE_COLOR_VAR.rgba_into()
             };
 
             when *#is_cap_hovered {
                 #[easing(0.ms())]
-                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
+                background_color = BASE_COLOR_VAR.hovered();
                 #[easing(0.ms())]
                 border = {
                     widths: 1,
-                    sides: BASE_COLOR_VAR.map(|c| c.pressed()).map_to_rgba().map_into(),
+                    sides: BASE_COLOR_VAR.pressed_into(),
                 };
             }
 
             when *#is_pressed {
                 #[easing(0.ms())]
-                background_color = BASE_COLOR_VAR.map(|c| c.pressed()).map_to_rgba();
+                background_color = BASE_COLOR_VAR.pressed();
             }
 
             when *#is_disabled {

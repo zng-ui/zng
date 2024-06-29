@@ -18,7 +18,7 @@ use zng_var::{
     animation::{easing::EasingStep, Transition, Transitionable},
     context_var, expr_var, impl_from_and_into_var,
     types::ContextualizedVar,
-    IntoVar, Var,
+    IntoVar, Var, VarValue,
 };
 
 pub use zng_view_api::config::ColorScheme;
@@ -894,13 +894,13 @@ impl RgbaPair {
         self
     }
 
-    /// Standard "hovered" highlight.
-    pub fn hovered(self) -> Self {
+    /// Standard "hovered" highlight, 8%.
+    pub fn h1(self) -> Self {
         self.with_highlight(0.08)
     }
 
-    /// Standard "pressed" or "checked" highlight.
-    pub fn pressed(self) -> Self {
+    /// Standard "pressed" or "checked" highlight, 16%.
+    pub fn h2(self) -> Self {
         self.with_highlight(0.16)
     }
 
@@ -928,12 +928,77 @@ impl RgbaPair {
 /// Extension methods for `impl Var<RgbaPair>`.
 pub trait RgbaPairVarExt {
     /// Gets a contextualized var that maps to [`RgbaPair::rgba`].
-    fn map_to_rgba(&self) -> impl Var<Rgba>;
+    fn rgba(&self) -> impl Var<Rgba>;
+    /// Gets a contextualized var that maps to [`RgbaPair::rgba`] and `map`.
+    fn rgba_map<T: VarValue>(&self, map: impl FnMut(Rgba) -> T + Send + 'static) -> impl Var<T>;
+    /// Gets a contextualized var that maps to [`RgbaPair::rgba`] converted into `T`.
+    fn rgba_into<T: VarValue + From<Rgba>>(&self) -> impl Var<T>;
+
+    /// Gets a contextualized var that maps using `map` and then to [`RgbaPair::rgba`].
+    fn map_rgba(&self, map: impl FnMut(RgbaPair) -> RgbaPair + Send + 'static) -> impl Var<Rgba>;
+    /// Gets a contextualized var that maps using `map` and then into `T`.
+    fn map_rgba_into<T: VarValue + From<Rgba>>(&self, map: impl FnMut(RgbaPair) -> RgbaPair + Send + 'static) -> impl Var<T>;
+
+    /// Gets a contextualized var that maps to [`RgbaPair::hovered`] and then to [`RgbaPair::rgba`].
+    fn hovered(&self) -> impl Var<Rgba>;
+    /// Gets a contextualized var that maps to [`RgbaPair::hovered`] and then to [`RgbaPair::rgba`] and then into `T`.
+    fn hovered_into<T: VarValue + From<Rgba>>(&self) -> impl Var<T>;
+
+    /// Gets a contextualized var that maps to [`RgbaPair::pressed`] and then to [`RgbaPair::rgba`].
+    fn pressed(&self) -> impl Var<Rgba>;
+    /// Gets a contextualized var that maps to [`RgbaPair::pressed`] and then to [`RgbaPair::rgba`] and then into `T`.
+    fn pressed_into<T: VarValue + From<Rgba>>(&self) -> impl Var<T>;
 }
 impl<V: Var<RgbaPair>> RgbaPairVarExt for V {
-    fn map_to_rgba(&self) -> impl Var<Rgba> {
+    fn rgba(&self) -> impl Var<Rgba> {
         expr_var! {
             #{self.clone()}.rgba(*#{COLOR_SCHEME_VAR})
+        }
+    }
+    
+    fn rgba_map<T: VarValue>(&self, mut map: impl FnMut(Rgba) -> T + Send + 'static) -> impl Var<T> {
+        expr_var! {
+            map(#{self.clone()}.rgba(*#{COLOR_SCHEME_VAR}))
+        }
+    }
+    
+    fn rgba_into<T: VarValue + From<Rgba>>(&self) -> impl Var<T> {
+        self.rgba_map(Into::into)
+    }
+    
+    fn map_rgba(&self, mut map: impl FnMut(RgbaPair) -> RgbaPair + Send + 'static) -> impl Var<Rgba> {
+        expr_var! {
+            map(*#{self.clone()}).rgba(*#{COLOR_SCHEME_VAR})
+        }
+    }
+    
+    fn map_rgba_into<T: VarValue + From<Rgba>>(&self, mut map: impl FnMut(RgbaPair) -> RgbaPair + Send + 'static) -> impl Var<T> {
+        expr_var! {
+            T::from(map(*#{self.clone()}).rgba(*#{COLOR_SCHEME_VAR}))
+        }
+    }
+    
+    fn hovered(&self) -> impl Var<Rgba> {
+        expr_var! {
+            #{self.clone()}.hovered().rgba(*#{COLOR_SCHEME_VAR})
+        }
+    }
+    
+    fn pressed(&self) -> impl Var<Rgba> {
+        expr_var! {
+            #{self.clone()}.pressed().rgba(*#{COLOR_SCHEME_VAR})
+        }
+    }
+    
+    fn hovered_into<T: VarValue + From<Rgba>>(&self) -> impl Var<T> {
+        expr_var! {
+            T::from(#{self.clone()}.hovered().rgba(*#{COLOR_SCHEME_VAR}))
+        }
+    }
+    
+    fn pressed_into<T: VarValue + From<Rgba>>(&self) -> impl Var<T> {
+        expr_var! {
+            T::from(#{self.clone()}.pressed().rgba(*#{COLOR_SCHEME_VAR}))
         }
     }
 }

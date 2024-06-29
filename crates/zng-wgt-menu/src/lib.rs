@@ -105,7 +105,7 @@ impl DefaultStyle {
             base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
             zng_wgt_button::style_fn = style_fn!(|_| ButtonStyle!());
             zng_wgt_toggle::style_fn = style_fn!(|_| ToggleStyle!());
-            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
+            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
             zng_wgt_text::icon::ico_size = 18;
         }
     }
@@ -130,7 +130,7 @@ impl ButtonStyle {
             child_align = Align::START;
 
             base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
-            background_color = BASE_COLOR_VAR.map_to_rgba();
+            background_color = BASE_COLOR_VAR.rgba();
             opacity = 90.pct();
             foreground_highlight = unset!;
             zng_wgt_tooltip::tooltip_fn = WidgetFn::nil(); // cmd sets tooltip
@@ -156,7 +156,7 @@ impl ButtonStyle {
             });
 
             when *#is_focused {
-                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
+                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
                 opacity = 100.pct();
             }
 

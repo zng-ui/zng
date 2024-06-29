@@ -545,11 +545,11 @@ impl DefaultStyle {
             padding = (2, 4);
             corner_radius = 3;
             base_color = rgba_pair(rgb(20, 20, 20), rgb(235, 235, 235));
-            background_color = colors::BASE_COLOR_VAR.map_to_rgba();
+            background_color = colors::BASE_COLOR_VAR.rgba();
             zng_wgt_text::font_size = 10.pt();
             border = {
                 widths: 1.px(),
-                sides: colors::BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba().map_into()
+                sides: colors::BASE_COLOR_VAR.map(|c| c.hovered()).rgba().map_into()
             };
         }
     }

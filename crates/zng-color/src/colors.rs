@@ -72,5 +72,9 @@ context_var! {
     pub static ACCENT_COLOR_VAR: Rgba = BLUE;
 
     /// Seed color for widget background.
+    /// 
+    /// See also [`RgbaPairVarExt`] for helper methods implemented on [`RgbaPair`] variables.
+    /// 
+    /// [`RgbaPairVarExt`]: crate::RgbaPairVarExt
     pub static BASE_COLOR_VAR: RgbaPair = rgba_pair(BLACK, WHITE);
 }

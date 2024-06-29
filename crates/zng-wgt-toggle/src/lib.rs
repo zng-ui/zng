@@ -922,10 +922,10 @@ impl DefaultStyle {
             self;
             replace = true;
             when *#is_checked {
-                background_color = BASE_COLOR_VAR.map(|c| c.pressed()).map_to_rgba();
+                background_color = BASE_COLOR_VAR.map(|c| c.pressed()).rgba();
                 border = {
                     widths: 1,
-                    sides: BASE_COLOR_VAR.map(|c| c.pressed()).map_to_rgba().map_into(),
+                    sides: BASE_COLOR_VAR.map(|c| c.pressed()).rgba().map_into(),
                 };
             }
         }

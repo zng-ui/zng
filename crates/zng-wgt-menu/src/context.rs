@@ -175,7 +175,7 @@ impl DefaultStyle {
             replace = true;
             zng_wgt_button::style_fn = style_fn!(|_| super::ButtonStyle!());
             zng_wgt_toggle::style_fn = style_fn!(|_| super::ToggleStyle!());
-            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
+            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
             zng_wgt_text::icon::ico_size = 18;
         }
     }
@@ -194,7 +194,7 @@ impl TouchStyle {
                 children = args.children;
             });
             zng_wgt_button::style_fn = style_fn!(|_| super::TouchButtonStyle!());
-            zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.map(|c| c.hovered()).map_to_rgba();
+            zng_wgt_rule_line::vr::color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
         }
     }
 }
