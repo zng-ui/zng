@@ -218,6 +218,8 @@ impl SearchStyle {
             self;
             zng_wgt_container::padding = (7, 10, 7, 0);
             zng_wgt_access::access_role = zng_wgt_access::AccessRole::SearchBox;
+            auto_selection = true;
+
             zng_wgt_container::child_out_start = zng_wgt_container::Container! {
                 child = zng_wgt::ICONS.req("search");
                 zng_wgt::align = Align::CENTER;
@@ -228,7 +230,25 @@ impl SearchStyle {
                     LayoutDirection::RTL => (0, 6, 0, 0),
                 }.into());
             }, 0;
-            auto_selection = true;
+
+            zng_wgt_container::child_out_end = zng_wgt_button::Button! {
+                zng_wgt::corner_radius = 0;
+                style_fn = zng_wgt_button::LightStyle!();
+                child = zng_wgt::ICONS.req("backspace");
+                focusable = false;
+                zng_wgt::visibility = zng_var::types::ContextualizedVar::new(|| {
+                    zng_wgt_text::node::TEXT.resolved().txt.clone().map(|t| match t.is_empty() {
+                        true => Visibility::Collapsed,
+                        false => Visibility::Visible,
+                    })
+                });
+                on_click = hn!(|args: &zng_ext_input::gesture::ClickArgs| {
+                    args.propagation().stop();
+                    zng_wgt_text::cmd::EDIT_CMD
+                        .scoped(WIDGET.info().parent().unwrap().id())
+                        .notify_param(zng_wgt_text::cmd::TextEditOp::backspace());
+                });
+            }, 0;
         }
     }
 }
