@@ -835,7 +835,7 @@ context_var! {
 /// The arguments can be any color type that converts to [`Rgba`]. The first color
 /// is used in [`ColorScheme::Dark`] contexts, the second color is used in [`ColorScheme::Light`] contexts.
 ///
-/// Note that [`ColorPair`] converts `IntoVar<Rgba>` with a contextual var that selects the color, so you
+/// Note that [`LightDark`] converts `IntoVar<Rgba>` with a contextual var that selects the color, so you
 /// can just set color properties directly with a color pair .
 pub fn light_dark(light: impl Into<Rgba>, dark: impl Into<Rgba>) -> LightDark {
     LightDark {
@@ -847,7 +847,7 @@ pub fn light_dark(light: impl Into<Rgba>, dark: impl Into<Rgba>) -> LightDark {
 /// Represents a dark and light *color*.
 ///
 ///
-/// Note that [`ColorPair`] converts `IntoVar<Rgba>` with a contextual var that selects the color, so you
+/// Note that this struct converts `IntoVar<Rgba>` with a contextual var that selects the color, so you
 /// can just set color properties directly with a color pair.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct LightDark {
@@ -975,7 +975,7 @@ pub trait LightDarkVarExt {
 
     /// Gets a contextualized var that maps to [`LightDark::shade_fct`] and then to [`LightDark::rgba`].
     fn shade_fct(&self, fct: impl Into<Factor>) -> impl Var<Rgba>;
-    /// Gets a contextualized var that maps to [`LightDark::hovered`] and then to [`LightDark::rgba`] and then into `T`.
+    /// Gets a contextualized var that maps to [`LightDark::shade_fct`] and then to [`LightDark::rgba`] and then into `T`.
     fn shade_fct_into<T: VarValue + From<Rgba>>(&self, fct: impl Into<Factor>) -> impl Var<T>;
 
     /// Gets a contextualized var that maps to [`LightDark::shade`] and then to [`LightDark::rgba`].   

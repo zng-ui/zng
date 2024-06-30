@@ -88,7 +88,7 @@
 //!
 //! ## Base Colors
 //!
-//! The default style derive all colors from the [`base_colors`](fn@base_colors), so if you
+//! The default style derive all colors from the [`base_color`](fn@crate::color::base_color), so if you
 //! only want to change color of buttons you can use this property.
 //!
 //! The example below extends the button style to change the button color to red when it represents
@@ -102,11 +102,11 @@
 //! Window! {
 //!     button::style_fn = Style! {
 //!         when *#{button::BUTTON.cmd()} == Some(window::cmd::CLOSE_CMD) {
-//!             base_color = color::ColorPair {
-//!                 // dark theme base
-//!                 dark: colors::BLACK.with_alpha(80.pct()).mix_normal(colors::RED),
+//!             base_color = color::LightDark {
 //!                 // light theme base
 //!                 light: colors::WHITE.with_alpha(80.pct()).mix_normal(colors::RED),
+//!                 // dark theme base
+//!                 dark: colors::BLACK.with_alpha(80.pct()).mix_normal(colors::RED),
 //!             };
 //!         }
 //!     };
