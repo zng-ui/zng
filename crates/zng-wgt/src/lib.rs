@@ -89,8 +89,8 @@ mod __prelude {
     pub use zng_unique_id::{IdEntry, IdMap, IdSet};
 
     pub use zng_color::{
-        colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, rgba_pair, web_colors, ColorScheme, Hsla, Hsva, MixAdjust as _,
-        MixBlendMode, Rgba, RgbaPair, RgbaPairVarExt as _,
+        colors, gradient, hex, hsl, hsla, hsv, hsva, light_dark, rgb, rgba, web_colors, ColorScheme, Hsla, Hsva, LightDark,
+        LightDarkVarExt as _, MixAdjust as _, MixBlendMode, Rgba,
     };
 
     pub use crate::node::{

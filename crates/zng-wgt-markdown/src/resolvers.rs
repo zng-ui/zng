@@ -307,14 +307,14 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         #[easing(200.ms())]
         offset = (0, -10);
 
-        background_color = rgba_pair(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
+        background_color = light_dark(colors::WHITE.with_alpha(90.pct()), colors::BLACK.with_alpha(90.pct()));
 
         when *#{status.clone()} == Status::Pending {
             opacity = 100.pct();
             offset = (0, 0);
         }
         when *#{status.clone()} == Status::Err {
-            background_color = rgba_pair(web_colors::DARK_RED.with_alpha(90.pct()), web_colors::PINK.with_alpha(90.pct()));
+            background_color = light_dark(web_colors::PINK.with_alpha(90.pct()), web_colors::DARK_RED.with_alpha(90.pct()));
         }
 
         child = Stack! {

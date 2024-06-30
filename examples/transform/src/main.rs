@@ -80,11 +80,11 @@ fn transform3d_examples() -> impl UiNode {
                 child = Container! {
                     transform = Transform::new_rotate_y(45.deg()).translate_z(20);
                     child = Text!("Perspective");
-                    background_color = rgba_pair(colors::BLUE.with_alpha(80.pct()), hex!(#62BEFC).with_alpha(80.pct()));
+                    background_color = light_dark(hex!(#62BEFC).with_alpha(80.pct()), colors::BLUE.with_alpha(80.pct()));
                     padding = 10;
                 };
 
-                background_color = rgba_pair(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
                 transform_style = TransformStyle::Preserve3D;
                 border = 2, (colors::GRAY, BorderStyle::Dashed);
 
@@ -140,7 +140,7 @@ fn transformed(label: impl Into<Txt>, transform: Transform) -> impl UiNode {
             #[easing(300.ms())]
             transform;
             child = Text!(label.into());
-            background_color = rgba_pair(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+            background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -158,7 +158,7 @@ fn transformed_3d(label: impl Into<Txt>, transform: Transform, origin: Point) ->
             #[easing(300.ms())]
             transform;
             child = Text!(label.into());
-            background_color = rgba_pair(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+            background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -182,7 +182,7 @@ fn transformed_at(label: impl Into<Txt>, transform: Transform, origin: impl Into
             layout::transform_origin = origin.into();
 
             child = Text!(label.into());
-            background_color = rgba_pair(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+            background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
             padding = 10;
 
             when *#is_hovered || *#{parent_is_hovered.clone()} {
@@ -207,7 +207,7 @@ fn transformed_sampler(
                     .easing_with(300.ms(), easing::linear, sampler);
 
                 child = Text!(label.into());
-                background_color = rgba_pair(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
                 padding = 10;
 
                 is_hovered;
@@ -234,7 +234,7 @@ fn transform_stack() -> impl UiNode {
                 id = "in-stack";
                 transform = Transform::new_rotate(45.deg());
                 child = Text!("Rotated 45º");
-                background_color = rgba_pair(web_colors::BROWN.with_alpha(80.pct()), hex!(#EF6950).with_alpha(80.pct()));
+                background_color = light_dark(hex!(#EF6950).with_alpha(80.pct()), web_colors::BROWN.with_alpha(80.pct()));
                 padding = 10;
 
                 when *#is_hovered {

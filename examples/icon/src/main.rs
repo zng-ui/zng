@@ -198,7 +198,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
         id = "expanded-icon";
         widget::modal = true;
         backdrop_blur = 2;
-        background_color = rgba_pair(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
+        background_color = light_dark(colors::BLACK.with_alpha(10.pct()), colors::WHITE.with_alpha(10.pct()));
         child_align = Align::CENTER;
         on_click = hn!(|args: &ClickArgs| {
             if WIDGET.id() == args.target.widget_id() {
@@ -208,7 +208,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
         });
         child = Container! {
             id = "panel";
-            background_color = rgba_pair(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
+            background_color = light_dark(colors::WHITE.with_alpha(90.pct()), colors::BLACK.with_alpha(90.pct()));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
@@ -237,9 +237,9 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
                                             ico = ico.clone();
                                             ico_size = size;
 
-                                            background_color = rgba_pair(
+                                            background_color = light_dark(
+                                                colors::WHITE.with_alpha(85.pct()),
                                                 colors::BLACK.with_alpha(85.pct()),
-                                                colors::WHITE.with_alpha(85.pct())
                                             );
                                             corner_radius = 4;
                                             padding = 2;

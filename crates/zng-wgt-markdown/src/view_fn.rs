@@ -453,7 +453,7 @@ pub fn default_code_inline_fn(args: CodeInlineFnArgs) -> impl UiNode {
     widget_set! {
         &mut builder;
         font_family = ["JetBrains Mono", "Consolas", "monospace"];
-        background_color = rgba_pair(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
+        background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
     }
 
     builder.widget_build()
@@ -506,7 +506,7 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
             txt = args.txt;
             padding = 6;
             corner_radius = 4;
-            background_color = rgba_pair(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
+            background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
         }
         .boxed()
     } else {
@@ -515,7 +515,7 @@ pub fn default_code_block_fn(args: CodeBlockFnArgs) -> impl UiNode {
             padding = 6;
             corner_radius = 4;
             font_family = ["JetBrains Mono", "Consolas", "monospace"];
-            background_color = rgba_pair(rgb(0.05, 0.05, 0.05), rgb(0.95, 0.95, 0.95));
+            background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
         }
         .boxed()
     }

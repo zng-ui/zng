@@ -544,12 +544,12 @@ impl DefaultStyle {
             replace = true;
             padding = (2, 4);
             corner_radius = 3;
-            base_color = rgba_pair(rgb(20, 20, 20), rgb(235, 235, 235));
+            base_color = light_dark(rgb(235, 235, 235), rgb(20, 20, 20));
             background_color = colors::BASE_COLOR_VAR.rgba();
             zng_wgt_text::font_size = 10.pt();
             border = {
                 widths: 1.px(),
-                sides: colors::BASE_COLOR_VAR.map(|c| c.hovered()).rgba().map_into()
+                sides: colors::BASE_COLOR_VAR.shade_into(1)
             };
         }
     }

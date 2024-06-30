@@ -613,7 +613,7 @@ impl ImgWindow {
 
             // button color
             zng::button::style_fn = Style! {
-                color::base_color = rgba_pair(rgb(0, 0, 40), rgb(0, 0, 255 - 40));
+                color::base_color = light_dark(rgb(0, 0, 255 - 40), rgb(0, 0, 40));
             };
         }
     }

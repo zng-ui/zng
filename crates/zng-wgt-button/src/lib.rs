@@ -296,7 +296,7 @@ impl DefaultStyle {
             corner_radius = 4;
             child_align = Align::CENTER;
 
-            base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
 
             #[easing(150.ms())]
             background_color = BASE_COLOR_VAR.rgba();
@@ -308,17 +308,17 @@ impl DefaultStyle {
 
             when *#is_cap_hovered {
                 #[easing(0.ms())]
-                background_color = BASE_COLOR_VAR.hovered();
+                background_color = BASE_COLOR_VAR.shade(1);
                 #[easing(0.ms())]
                 border = {
                     widths: 1,
-                    sides: BASE_COLOR_VAR.pressed_into(),
+                    sides: BASE_COLOR_VAR.shade_into(2),
                 };
             }
 
             when *#is_pressed {
                 #[easing(0.ms())]
-                background_color = BASE_COLOR_VAR.pressed();
+                background_color = BASE_COLOR_VAR.shade(2);
             }
 
             when *#is_disabled {
@@ -373,7 +373,7 @@ impl LinkStyle {
             self;
             replace = true;
 
-            font_color = rgba_pair(web_colors::LIGHT_BLUE, colors::BLUE);
+            font_color = light_dark(colors::BLUE, web_colors::LIGHT_BLUE);
             cursor = CursorIcon::Pointer;
             access_role = AccessRole::Link;
 
@@ -382,7 +382,7 @@ impl LinkStyle {
             }
 
             when *#is_pressed {
-                font_color = rgba_pair(colors::YELLOW, web_colors::BROWN);
+                font_color = light_dark(web_colors::BROWN, colors::YELLOW);
             }
 
             when *#is_disabled {

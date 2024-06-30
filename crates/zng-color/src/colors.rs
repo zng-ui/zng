@@ -7,7 +7,7 @@
 
 use zng_var::context_var;
 
-use crate::{rgba_pair, RgbaPair};
+use crate::{light_dark, LightDark};
 
 use super::Rgba;
 
@@ -69,12 +69,12 @@ pub const ROSE: Rgba = rgb!(255, 0, 128);
 
 context_var! {
     /// Color that contrasts with the text color.
-    pub static ACCENT_COLOR_VAR: Rgba = BLUE;
+    pub static ACCENT_COLOR_VAR: LightDark = BLUE;
 
     /// Seed color for widget background.
-    /// 
-    /// See also [`RgbaPairVarExt`] for helper methods implemented on [`RgbaPair`] variables.
-    /// 
-    /// [`RgbaPairVarExt`]: crate::RgbaPairVarExt
-    pub static BASE_COLOR_VAR: RgbaPair = rgba_pair(BLACK, WHITE);
+    ///
+    /// See also [`LightDarkVarExt`] for helper methods implemented on [`LightDark`] variables.
+    ///
+    /// [`LightDarkVarExt`]: crate::LightDarkVarExt
+    pub static BASE_COLOR_VAR: LightDark = light_dark(WHITE, BLACK);
 }

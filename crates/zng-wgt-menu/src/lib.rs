@@ -102,10 +102,10 @@ impl DefaultStyle {
 
             // also see context::DefaultStyle
 
-            base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
             zng_wgt_button::style_fn = style_fn!(|_| ButtonStyle!());
             zng_wgt_toggle::style_fn = style_fn!(|_| ToggleStyle!());
-            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
+            zng_wgt_rule_line::hr::color = BASE_COLOR_VAR.shade(1);
             zng_wgt_text::icon::ico_size = 18;
         }
     }
@@ -129,7 +129,7 @@ impl ButtonStyle {
             padding = (4, 0);
             child_align = Align::START;
 
-            base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
             background_color = BASE_COLOR_VAR.rgba();
             opacity = 90.pct();
             foreground_highlight = unset!;
@@ -156,7 +156,7 @@ impl ButtonStyle {
             });
 
             when *#is_focused {
-                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
+                background_color = BASE_COLOR_VAR.shade(1);
                 opacity = 100.pct();
             }
 

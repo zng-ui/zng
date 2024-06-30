@@ -19,7 +19,7 @@ pub fn color_scheme(child: impl UiNode, pref: impl IntoVar<ColorScheme>) -> impl
 ///
 /// Sets the [`COLOR_SCHEME_VAR`].
 #[property(CONTEXT, default(ACCENT_COLOR_VAR))]
-pub fn accent_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn accent_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> impl UiNode {
     with_context_var(child, ACCENT_COLOR_VAR, color)
 }
 
@@ -27,6 +27,6 @@ pub fn accent_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNod
 ///
 /// Usually the color is used directly for background fill and highlighted for others.
 #[property(CONTEXT, default(BASE_COLOR_VAR))]
-pub fn base_color(child: impl UiNode, color: impl IntoVar<RgbaPair>) -> impl UiNode {
+pub fn base_color(child: impl UiNode, color: impl IntoVar<LightDark>) -> impl UiNode {
     with_context_var(child, BASE_COLOR_VAR, color)
 }

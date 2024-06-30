@@ -360,16 +360,16 @@ impl UndoRedoButtonStyle {
             padding = 4;
             child_align = Align::START;
 
-            base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
             background_color = BASE_COLOR_VAR.rgba();
 
             when *#is_cap_hovered_timestamp {
-                background_color = BASE_COLOR_VAR.map(|c| c.hovered()).rgba();
+                background_color = BASE_COLOR_VAR.shade(1);
             }
 
             when *#is_pressed {
                 #[easing(0.ms())]
-                background_color = BASE_COLOR_VAR.map(|c| c.pressed()).rgba();
+                background_color = BASE_COLOR_VAR.shade(2);
             }
         }
     }

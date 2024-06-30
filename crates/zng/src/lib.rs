@@ -598,7 +598,7 @@ mod __prelude {
 
     pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
-    pub use zng_color::{colors, hex, hsl, hsla, hsv, hsva, rgb, rgba, rgba_pair, web_colors, MixAdjust as _, RgbaPairVarExt as _};
+    pub use zng_color::{colors, hex, hsl, hsla, hsv, hsva, light_dark, rgb, rgba, web_colors, LightDarkVarExt as _, MixAdjust as _};
 
     pub use zng_ext_clipboard::CLIPBOARD;
 
@@ -781,8 +781,8 @@ mod __prelude_wgt {
     pub use zng_wgt::{wgt_fn, WidgetFn};
 
     pub use zng_color::{
-        colors, gradient, hex, hsl, hsla, hsv, hsva, rgb, rgba, rgba_pair, web_colors, ColorScheme, Hsla, Hsva, MixAdjust as _,
-        MixBlendMode, Rgba, RgbaPair,
+        colors, gradient, hex, hsl, hsla, hsv, hsva, light_dark, rgb, rgba, web_colors, ColorScheme, Hsla, Hsva, LightDark, MixAdjust as _,
+        MixBlendMode, Rgba,
     };
 
     pub use zng_wgt::node::{

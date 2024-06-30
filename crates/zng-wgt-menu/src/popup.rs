@@ -84,11 +84,11 @@ impl DefaultStyle {
 
             super::sub::style_fn = style_fn!(|_| super::sub::SubMenuStyle!());
 
-            base_color = rgba_pair(rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
             background_color = BASE_COLOR_VAR.rgba();
             border = {
                 widths: 1,
-                sides: BASE_COLOR_VAR.map(|c| c.hovered()).rgba().map_into(),
+                sides: BASE_COLOR_VAR.shade_into(1),
             };
         }
     }

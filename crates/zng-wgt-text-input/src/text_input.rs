@@ -150,11 +150,11 @@ impl DefaultStyle {
             replace = true;
             padding = (7, 10);
             cursor = CursorIcon::Text;
-            base_color = rgba_pair(rgb(0.12, 0.12, 0.12), rgb(0.88, 0.88, 0.88));
+            base_color = light_dark(rgb(0.88, 0.88, 0.88), rgb(0.12, 0.12, 0.12));
             background_color = BASE_COLOR_VAR.rgba();
             border = {
                 widths: 1,
-                sides: BASE_COLOR_VAR.map(|c| c.with_highlight(0.20)).rgba().map_into(),
+                sides: BASE_COLOR_VAR.shade_fct_into(0.20),
             };
 
             popup::context_capture = default_popup_context_capture();
@@ -164,14 +164,14 @@ impl DefaultStyle {
             when *#is_cap_hovered || *#is_return_focus {
                 border = {
                     widths: 1,
-                    sides: BASE_COLOR_VAR.map(|c| c.with_highlight(0.30)).rgba().map_into(),
+                    sides: BASE_COLOR_VAR.shade_fct_into(0.30),
                 };
             }
 
             when *#is_focused {
                 border = {
                     widths: 1,
-                    sides: BASE_COLOR_VAR.map(|c| c.with_highlight(0.40)).rgba().map_into(),
+                    sides: BASE_COLOR_VAR.shade_fct_into(0.40),
                 };
             }
 
