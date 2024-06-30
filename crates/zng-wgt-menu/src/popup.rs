@@ -2,12 +2,13 @@
 
 use std::sync::Arc;
 
+use colors::BASE_COLOR_VAR;
 use zng_ext_input::{
     focus::{WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
     keyboard::{Key, KeyState, KEY_INPUT_EVENT},
 };
 use zng_layout::unit::Orientation2D;
-use zng_wgt::{border, prelude::*};
+use zng_wgt::{base_color, border, prelude::*};
 use zng_wgt_fill::background_color;
 use zng_wgt_input::pointer_capture::{capture_pointer_on_init, CaptureMode};
 use zng_wgt_layer::popup::{PopupCloseMode, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT};
@@ -83,10 +84,11 @@ impl DefaultStyle {
 
             super::sub::style_fn = style_fn!(|_| super::sub::SubMenuStyle!());
 
-            background_color = color_scheme_pair(zng_wgt_button::BASE_COLORS_VAR);
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
+            background_color = BASE_COLOR_VAR.rgba();
             border = {
                 widths: 1,
-                sides: zng_wgt_button::color_scheme_hovered(zng_wgt_button::BASE_COLORS_VAR).map_into(),
+                sides: BASE_COLOR_VAR.shade_into(1),
             };
         }
     }

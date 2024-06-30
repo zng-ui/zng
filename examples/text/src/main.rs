@@ -2,7 +2,6 @@
 
 use zng::{
     button,
-    color::color_scheme_map,
     font::{FontName, FontNames},
     gesture::{click_shortcut, is_hovered},
     layout::{align, margin, padding},
@@ -89,7 +88,7 @@ fn font_size_example(font_size: ArcVar<Length>) -> impl UiNode {
         direction = StackDirection::left_to_right();
         spacing = 5;
         corner_radius = 4;
-        background_color = color_scheme_map(rgba(0, 0, 0, 40.pct()), rgba(1., 1., 1., 40.pct()));
+        background_color = light_dark(rgba(1., 1., 1., 40.pct()), rgba(0, 0, 0, 40.pct()));
         padding = 4;
         children = ui_vec![
             Button! {
@@ -125,11 +124,11 @@ fn basic() -> impl UiNode {
             text::Strong!("Strong Text"),
             text::Em!("Emphasis Text"),
             Text! {
-                font_color = color_scheme_map(web_colors::LIGHT_GREEN, web_colors::DARK_GREEN);
+                font_color = light_dark(web_colors::DARK_GREEN, web_colors::LIGHT_GREEN);
                 txt = "Colored Text";
 
                 when *#is_hovered {
-                    font_color = color_scheme_map(web_colors::YELLOW, web_colors::BROWN);
+                    font_color = light_dark(web_colors::BROWN, web_colors::YELLOW);
                 }
             },
             Text!("Emoticons 🔎👨‍💻🧐"),

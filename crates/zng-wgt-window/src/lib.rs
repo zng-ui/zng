@@ -53,17 +53,14 @@ impl Window {
             // set layout direction.
             lang = zng_ext_l10n::LANG_VAR;
 
-            font_color = color_scheme_map(rgb(0.92, 0.92, 0.92), rgb(0.08, 0.08, 0.08));
-            background_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+            font_color = light_dark(rgb(0.08, 0.08, 0.08), rgb(0.92, 0.92, 0.92));
+            background_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1));
             focus_highlight = {
                 offsets: FOCUS_HIGHLIGHT_OFFSETS_VAR,
                 widths: FOCUS_HIGHLIGHT_WIDTHS_VAR,
-                sides: color_scheme_map(
-                    BorderSides::dashed(rgba(200, 200, 200, 1.0)),
-                    BorderSides::dashed(colors::BLACK)
-                ),
+                sides: light_dark(colors::BLACK, rgb(200, 200, 200)).rgba_map(BorderSides::dashed),
             };
-            clear_color = color_scheme_map(rgb(0.1, 0.1, 0.1), rgb(0.9, 0.9, 0.9));
+            clear_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1));
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;

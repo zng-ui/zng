@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use zng::{
-    app, button,
+    app,
     checkerboard::Checkerboard,
     clipboard,
     color::{
@@ -612,7 +612,9 @@ impl ImgWindow {
             });
 
             // button color
-            button::base_colors = (rgb(0, 0, 40), rgb(0, 0, 255 - 40));
+            zng::button::style_fn = Style! {
+                color::base_color = light_dark(rgb(0, 0, 255 - 40), rgb(0, 0, 40));
+            };
         }
     }
 }

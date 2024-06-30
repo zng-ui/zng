@@ -5,6 +5,10 @@
 //! [`darken`]: crate::MixAdjust::darken
 //! [`lighten`]: crate::MixAdjust::lighten
 
+use zng_var::context_var;
+
+use crate::{light_dark, LightDark};
+
 use super::Rgba;
 
 macro_rules! rgb {
@@ -62,3 +66,15 @@ pub const MAGENTA: Rgba = rgb!(255, 0, 255);
 
 /// <span style="display: inline-block; background-color:#FF0080; width:20px; height:20px;"></span> Rose, `#FF0080`, `rgb(255, 0, 128)`.
 pub const ROSE: Rgba = rgb!(255, 0, 128);
+
+context_var! {
+    /// Color that contrasts with the text color.
+    pub static ACCENT_COLOR_VAR: LightDark = BLUE;
+
+    /// Seed color for widget background.
+    ///
+    /// See also [`LightDarkVarExt`] for helper methods implemented on [`LightDark`] variables.
+    ///
+    /// [`LightDarkVarExt`]: crate::LightDarkVarExt
+    pub static BASE_COLOR_VAR: LightDark = light_dark(WHITE, BLACK);
+}

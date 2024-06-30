@@ -1,12 +1,6 @@
 //! Demonstrates each `CursorIcon`, tooltip anchored to cursor.
 
-use zng::{
-    color::{color_scheme_map, filter::invert_color},
-    image::ImageFit,
-    mouse::CursorIcon,
-    prelude::*,
-    prelude_wgt::NilUiNode,
-};
+use zng::{color::filter::invert_color, image::ImageFit, mouse::CursorIcon, prelude::*, prelude_wgt::NilUiNode};
 
 mod widgets;
 
@@ -51,7 +45,7 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
             Some((_, img)) => Image!{
                 source = img;
                 img_fit = ImageFit::None;
-                invert_color = color_scheme_map(true, false);
+                invert_color = color::COLOR_SCHEME_VAR.map(|c| (*c == color::ColorScheme::Dark).into());
             }.boxed(),
             None => NilUiNode.boxed(),
         };

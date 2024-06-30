@@ -14,6 +14,7 @@ zng_wgt::enable_widget_macros!();
 use std::ops;
 use std::{error::Error, fmt, marker::PhantomData, sync::Arc};
 
+use colors::BASE_COLOR_VAR;
 use task::parking_lot::Mutex;
 use zng_ext_font::FontNames;
 use zng_ext_input::{
@@ -921,10 +922,10 @@ impl DefaultStyle {
             self;
             replace = true;
             when *#is_checked {
-                background_color = zng_wgt_button::color_scheme_pressed(zng_wgt_button::BASE_COLORS_VAR);
+                background_color = BASE_COLOR_VAR.shade(2);
                 border = {
                     widths: 1,
-                    sides: zng_wgt_button::color_scheme_pressed(zng_wgt_button::BASE_COLORS_VAR).map_into(),
+                    sides: BASE_COLOR_VAR.shade_into(2),
                 };
             }
         }

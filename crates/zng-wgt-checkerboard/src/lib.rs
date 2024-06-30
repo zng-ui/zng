@@ -32,19 +32,19 @@ impl Checkerboard {
 ///
 /// See [`colors`](fn@colors) for more details.
 #[derive(Debug, Clone, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct Colors(pub [ColorPair; 2]);
+pub struct Colors(pub [LightDark; 2]);
 impl ops::Deref for Colors {
-    type Target = [ColorPair; 2];
+    type Target = [LightDark; 2];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 impl_from_and_into_var! {
-    fn from<C: Into<ColorPair>>([c0, c1]: [C; 2]) -> Colors {
+    fn from<C: Into<LightDark>>([c0, c1]: [C; 2]) -> Colors {
         Colors([c0.into(), c1.into()])
     }
-    fn from<C0: Into<ColorPair>, C1: Into<ColorPair>>((c0, c1): (C0, C1)) -> Colors {
+    fn from<C0: Into<LightDark>, C1: Into<LightDark>>((c0, c1): (C0, C1)) -> Colors {
         Colors([c0.into(), c1.into()])
     }
 }
@@ -52,8 +52,8 @@ impl_from_and_into_var! {
 context_var! {
     /// The checkerboard colors.
     pub static COLORS_VAR: Colors = [
-        ColorPair { dark: rgb(20, 20, 20), light: rgb(202, 202, 204) },
-        ColorPair { dark: rgb(40, 40, 40), light: rgb(253, 253, 253) },
+        light_dark(rgb(202, 202, 204), rgb(20, 20, 20)),
+        light_dark(rgb(253, 253, 253), rgb(40, 40, 40)),
     ];
 
     /// Offset applied to the checkerboard pattern.
@@ -138,7 +138,7 @@ pub fn node() -> impl UiNode {
         UiNodeOp::Render { frame } => {
             let [c0, c1] = COLORS_VAR.get().0;
             let sch = COLOR_SCHEME_VAR.get();
-            let colors = [c0.color(sch), c1.color(sch)];
+            let colors = [c0[sch], c1[sch]];
 
             frame.push_conic_gradient(
                 PxRect::from_size(render_size),

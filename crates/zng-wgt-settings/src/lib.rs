@@ -23,7 +23,7 @@ impl SettingsEditor {
         widget_set! {
             self;
             save_state = SaveState::enabled();
-            zng_wgt_fill::background_color = color_scheme_pair((rgb(0.15, 0.15, 0.15), rgb(0.85, 0.85, 0.85)));
+            zng_wgt_fill::background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
             zng_wgt_container::padding = 10;
         }
         self.widget_builder().push_build_action(|wgt| {

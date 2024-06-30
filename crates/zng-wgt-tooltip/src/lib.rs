@@ -20,7 +20,7 @@ use zng_ext_input::{
     keyboard::KEY_INPUT_EVENT,
     mouse::{MOUSE, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_WHEEL_EVENT},
 };
-use zng_wgt::{border, corner_radius, hit_test_mode, prelude::*, HitTestMode};
+use zng_wgt::{base_color, border, corner_radius, hit_test_mode, prelude::*, HitTestMode};
 use zng_wgt_access::{access_role, AccessRole};
 use zng_wgt_container::padding;
 use zng_wgt_fill::background_color;
@@ -534,19 +534,6 @@ impl Tip {
 }
 impl_style_fn!(Tip);
 
-context_var! {
-    /// Idle background dark and light color.
-    pub static BASE_COLORS_VAR: ColorPair = (rgb(20, 20, 20), rgb(235, 235, 235));
-}
-
-/// Sets the colors that is used to compute all background and border colors in the tip style.
-///
-/// Sets [`BASE_COLORS_VAR`].
-#[property(CONTEXT, default(BASE_COLORS_VAR), widget_impl(DefaultStyle))]
-pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
-    with_context_var(child, BASE_COLORS_VAR, color)
-}
-
 /// Tip default style.
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -557,11 +544,12 @@ impl DefaultStyle {
             replace = true;
             padding = (2, 4);
             corner_radius = 3;
-            background_color = color_scheme_pair(BASE_COLORS_VAR);
+            base_color = light_dark(rgb(235, 235, 235), rgb(20, 20, 20));
+            background_color = colors::BASE_COLOR_VAR.rgba();
             zng_wgt_text::font_size = 10.pt();
             border = {
                 widths: 1.px(),
-                sides: color_scheme_highlight(BASE_COLORS_VAR, 0.5).map_into()
+                sides: colors::BASE_COLOR_VAR.shade_into(1)
             };
         }
     }

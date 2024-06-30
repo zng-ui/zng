@@ -2,7 +2,7 @@
 
 use zng::{
     button,
-    color::{color_scheme_map, filter::drop_shadow},
+    color::filter::drop_shadow,
     focus::{
         alt_focus_scope, directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus,
         tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav,
@@ -174,7 +174,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            background_color = color_scheme_map(colors::BLACK.with_alpha(90.pct()), colors::WHITE.with_alpha(90.pct()));
+            background_color = light_dark(colors::WHITE.with_alpha(90.pct()), colors::BLACK.with_alpha(90.pct()));
             drop_shadow = (0, 0), 4, colors::BLACK;
             padding = 2;
             child = Stack! {
@@ -244,12 +244,12 @@ fn delayed_focus() -> impl UiNode {
                 txt = "delayed target";
                 font_style = FontStyle::Italic;
                 txt_align = Align::CENTER;
-                background_color = color_scheme_map(rgb(30, 30, 30), rgb(225, 225, 225));
+                background_color = light_dark(rgb(225, 225, 225), rgb(30, 30, 30));
 
                 focusable = true;
                 when *#is_focused {
                     txt = "focused";
-                    background_color = color_scheme_map(web_colors::DARK_GREEN, web_colors::LIGHT_GREEN);
+                    background_color = light_dark(web_colors::LIGHT_GREEN, web_colors::DARK_GREEN);
                 }
             },
         ]
@@ -320,7 +320,7 @@ fn commands() -> impl UiNode {
                 txt = cmd.name_with_shortcut();
 
                 when *#{cmd.is_enabled()} {
-                    font_color = color_scheme_map(colors::WHITE, colors::BLACK);
+                    font_color = light_dark(colors::BLACK, colors::WHITE);
                 }
             }.boxed()
         }).collect::<Vec<_>>();

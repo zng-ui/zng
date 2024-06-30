@@ -1,5 +1,10 @@
 # Unreleased
 
+* **Breaking** Refactored "color pair".
+    - Now named `LightDark`.
+    - Removed helper methods for declaring vars, now `IntoVar<Rgba> for LightDark` is contextual.
+    - Add `light_dark` helper function and `LightDarkVarExt` helper methods.
+* **Breaking** Removed `BASE_COLORS_CAR` form specific widgets, now use the unified `zng::color::BASE_COLOR_VAR`.
 * Add `TextEditOp::clear`.
 * Add `button::LightStyle!()` and `toggle::LightStyle!()`.
 * Fix when expr not recognized.

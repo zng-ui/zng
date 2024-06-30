@@ -13,9 +13,10 @@ zng_wgt::enable_widget_macros!();
 
 use std::{any::TypeId, ops};
 
+use colors::BASE_COLOR_VAR;
 use zng_app::event::CommandParam;
 use zng_var::ReadOnlyContextVar;
-use zng_wgt::{border, corner_radius, is_disabled, prelude::*};
+use zng_wgt::{base_color, border, corner_radius, is_disabled, prelude::*};
 use zng_wgt_access::{access_role, labelled_by_child, AccessRole};
 use zng_wgt_container::{child_align, padding, Container};
 use zng_wgt_fill::background_color;
@@ -153,9 +154,6 @@ impl Button {
 impl_style_fn!(Button);
 
 context_var! {
-    /// Idle background dark and light color.
-    pub static BASE_COLORS_VAR: ColorPair = (rgb(0.18, 0.18, 0.18), rgb(0.82, 0.82, 0.82));
-
     /// Optional parameter for the button to use when notifying command.
     pub static CMD_PARAM_VAR: Option<CommandParam> = None;
 
@@ -282,28 +280,6 @@ pub fn cmd_tooltip_fn(child: impl UiNode, cmd_tooltip: impl IntoVar<WidgetFn<Cmd
     with_context_var(child, CMD_TOOLTIP_FN_VAR, cmd_tooltip)
 }
 
-/// Sets the colors used to compute all background and border colors in the button style.
-///
-/// Sets the [`BASE_COLORS_VAR`].
-#[property(CONTEXT, default(BASE_COLORS_VAR), widget_impl(DefaultStyle))]
-pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
-    with_context_var(child, BASE_COLORS_VAR, color)
-}
-
-/// Create a [`color_scheme_highlight`] of `0.08`.
-///
-/// [`color_scheme_highlight`]: zng_wgt::prelude::color_scheme_highlight
-pub fn color_scheme_hovered(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
-    color_scheme_highlight(pair, 0.08)
-}
-
-/// Create a [`color_scheme_highlight`] of `0.16`.
-///
-/// [`color_scheme_highlight`]: zng_wgt::prelude::color_scheme_highlight
-pub fn color_scheme_pressed(pair: impl IntoVar<ColorPair>) -> impl Var<Rgba> {
-    color_scheme_highlight(pair, 0.16)
-}
-
 /// Button default style.
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -320,28 +296,29 @@ impl DefaultStyle {
             corner_radius = 4;
             child_align = Align::CENTER;
 
-            #[easing(150.ms())]
-            background_color = color_scheme_pair(BASE_COLORS_VAR);
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
 
+            #[easing(150.ms())]
+            background_color = BASE_COLOR_VAR.rgba();
             #[easing(150.ms())]
             border = {
                 widths: 1,
-                sides: color_scheme_pair(BASE_COLORS_VAR).map_into()
+                sides: BASE_COLOR_VAR.rgba_into()
             };
 
             when *#is_cap_hovered {
                 #[easing(0.ms())]
-                background_color = color_scheme_hovered(BASE_COLORS_VAR);
+                background_color = BASE_COLOR_VAR.shade(1);
                 #[easing(0.ms())]
                 border = {
                     widths: 1,
-                    sides: color_scheme_pressed(BASE_COLORS_VAR).map_into(),
+                    sides: BASE_COLOR_VAR.shade_into(2),
                 };
             }
 
             when *#is_pressed {
                 #[easing(0.ms())]
-                background_color = color_scheme_pressed(BASE_COLORS_VAR);
+                background_color = BASE_COLOR_VAR.shade(2);
             }
 
             when *#is_disabled {
@@ -396,7 +373,7 @@ impl LinkStyle {
             self;
             replace = true;
 
-            font_color = color_scheme_map(web_colors::LIGHT_BLUE, colors::BLUE);
+            font_color = light_dark(colors::BLUE, web_colors::LIGHT_BLUE);
             cursor = CursorIcon::Pointer;
             access_role = AccessRole::Link;
 
@@ -405,7 +382,7 @@ impl LinkStyle {
             }
 
             when *#is_pressed {
-                font_color = color_scheme_map(colors::YELLOW, web_colors::BROWN);
+                font_color = light_dark(web_colors::BROWN, colors::YELLOW);
             }
 
             when *#is_disabled {

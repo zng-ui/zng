@@ -1,4 +1,6 @@
+use colors::BASE_COLOR_VAR;
 use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
+use zng_wgt::base_color;
 use zng_wgt::{align, is_disabled, margin, prelude::*};
 use zng_wgt_access::{access_role, AccessRole};
 use zng_wgt_button::Button;
@@ -74,34 +76,6 @@ impl TextInput {
 }
 impl_style_fn!(TextInput);
 
-context_var! {
-    /// Idle background dark and light color.
-    pub static BASE_COLORS_VAR: ColorPair = (rgb(0.12, 0.12, 0.12), rgb(0.88, 0.88, 0.88));
-}
-
-/// Sets the colors used to compute all background and border colors in the text input style.
-///
-/// Sets [`BASE_COLORS_VAR`].
-#[property(CONTEXT, default(BASE_COLORS_VAR), widget_impl(DefaultStyle))]
-pub fn base_colors(child: impl UiNode, color: impl IntoVar<ColorPair>) -> impl UiNode {
-    with_context_var(child, BASE_COLORS_VAR, color)
-}
-
-/// Default border color.
-pub fn border_color() -> impl Var<Rgba> {
-    color_scheme_highlight(BASE_COLORS_VAR, 0.20)
-}
-
-/// Border color hovered.
-pub fn border_color_hovered() -> impl Var<Rgba> {
-    color_scheme_highlight(BASE_COLORS_VAR, 0.30)
-}
-
-/// Border color focused.
-pub fn border_color_focused() -> impl Var<Rgba> {
-    color_scheme_highlight(BASE_COLORS_VAR, 0.40)
-}
-
 /// Context menu set by the [`DefaultStyle!`].
 ///
 /// [`DefaultStyle!`]: struct@DefaultStyle
@@ -176,10 +150,11 @@ impl DefaultStyle {
             replace = true;
             padding = (7, 10);
             cursor = CursorIcon::Text;
-            background_color = color_scheme_pair(BASE_COLORS_VAR);
+            base_color = light_dark(rgb(0.88, 0.88, 0.88), rgb(0.12, 0.12, 0.12));
+            background_color = BASE_COLOR_VAR.rgba();
             border = {
                 widths: 1,
-                sides: border_color().map_into(),
+                sides: BASE_COLOR_VAR.shade_fct_into(0.20),
             };
 
             popup::context_capture = default_popup_context_capture();
@@ -189,14 +164,14 @@ impl DefaultStyle {
             when *#is_cap_hovered || *#is_return_focus {
                 border = {
                     widths: 1,
-                    sides: border_color_hovered().map_into(),
+                    sides: BASE_COLOR_VAR.shade_fct_into(0.30),
                 };
             }
 
             when *#is_focused {
                 border = {
                     widths: 1,
-                    sides: border_color_focused().map_into(),
+                    sides: BASE_COLOR_VAR.shade_fct_into(0.40),
                 };
             }
 

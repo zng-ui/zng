@@ -2,7 +2,7 @@
 
 use zng::{
     button,
-    color::{color_scheme_map, filter::opacity},
+    color::filter::opacity,
     focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
     layer::AnchorOffset,
     layout::{align, margin, offset},
@@ -62,16 +62,16 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
     Container! {
         id;
         widget::modal = true;
-        background_color = color_scheme_map(colors::WHITE.with_alpha(10.pct()), colors::BLACK.with_alpha(10.pct()));
+        background_color = light_dark(colors::BLACK.with_alpha(10.pct()), colors::WHITE.with_alpha(10.pct()));
         child_align = Align::CENTER;
         child = Container! {
             offset = (offset, offset);
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            background_color = color_scheme_map(
+            background_color = light_dark(
+                colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN),
                 colors::GREEN.darken(80.pct()),
-                colors::WHITE.with_alpha(80.pct()).mix_normal(colors::GREEN)
             );
             button::style_fn = Style! { widget::corner_radius = unset! };
             padding = 2;
