@@ -879,6 +879,8 @@ impl_from_and_into_var! {
     fn from(color: Hsla) -> LightDark {
         Rgba::from(color).into()
     }
+
+    fn from(color: LightDark) -> Option<LightDark>;
 }
 impl IntoVar<Rgba> for LightDark {
     type Var = ContextualizedVar<Rgba>;

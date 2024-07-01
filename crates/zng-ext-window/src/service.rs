@@ -24,6 +24,7 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 
+use zng_color::colors::ACCENT_COLOR_VAR;
 use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
 use zng_layout::unit::TimeUnits as _;
 use zng_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
@@ -44,6 +45,7 @@ use zng_view_api::{
     window::{RenderMode, WindowState},
     ViewProcessOffline,
 };
+use zng_wgt::node::with_context_var;
 
 use crate::{
     cmd::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, ViewExtensionError,
@@ -1475,6 +1477,8 @@ impl AppWindowTask {
                 let root = mem::replace(&mut window.child, NilUiNode.boxed());
                 window.child = ext(WindowRootExtenderArgs { root });
             }
+            let root = mem::replace(&mut window.child, NilUiNode.boxed());
+            window.child = with_context_var(root, ACCENT_COLOR_VAR, WINDOW.vars().actual_accent_color()).boxed();
         });
 
         let mode = self.mode;

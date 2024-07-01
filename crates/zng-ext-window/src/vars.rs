@@ -4,7 +4,7 @@ use zng_app::{
     widget::info::access::AccessEnabled,
     window::{MonitorId, WindowId, WINDOW},
 };
-use zng_color::Rgba;
+use zng_color::LightDark;
 use zng_ext_image::Img;
 use zng_layout::unit::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size};
 use zng_state_map::{static_id, StateId};
@@ -67,8 +67,8 @@ pub(super) struct WindowVarsData {
 
     color_scheme: ArcVar<Option<ColorScheme>>,
     pub(super) actual_color_scheme: ArcVar<ColorScheme>,
-    accent_color: ArcVar<Option<Rgba>>,
-    pub(super) actual_accent_color: ArcVar<Rgba>,
+    accent_color: ArcVar<Option<LightDark>>,
+    pub(super) actual_accent_color: ArcVar<LightDark>,
 
     pub(super) is_open: ArcVar<bool>,
     pub(super) is_loaded: ArcVar<bool>,
@@ -146,7 +146,7 @@ impl WindowVars {
             color_scheme: var(None),
             actual_color_scheme: var(system_colors.scheme),
             accent_color: var(None),
-            actual_accent_color: var(system_colors.accent),
+            actual_accent_color: var(system_colors.accent.into()),
 
             is_open: var(true),
             is_loaded: var(false),
@@ -612,7 +612,7 @@ impl WindowVars {
     /// If set to `None` the system preference is used, see [`actual_accent_color`].
     ///
     /// [`actual_accent_color`]: Self::actual_accent_color
-    pub fn accent_color(&self) -> ArcVar<Option<Rgba>> {
+    pub fn accent_color(&self) -> ArcVar<Option<LightDark>> {
         self.0.accent_color.clone()
     }
 
@@ -624,7 +624,7 @@ impl WindowVars {
     ///
     /// [`color_scheme`]: Self::color_scheme
     /// [`ACCENT_COLOR_VAR`]: zng_color::colors::ACCENT_COLOR_VAR
-    pub fn actual_accent_color(&self) -> ReadOnlyArcVar<Rgba> {
+    pub fn actual_accent_color(&self) -> ReadOnlyArcVar<LightDark> {
         self.0.actual_accent_color.read_only()
     }
 

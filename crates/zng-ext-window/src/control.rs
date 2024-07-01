@@ -25,7 +25,7 @@ use zng_app::{
     Deadline,
 };
 use zng_clone_move::clmv;
-use zng_color::{colors, Rgba};
+use zng_color::{colors, LightDark, Rgba};
 use zng_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
 use zng_layout::{
     context::{LayoutMetrics, LayoutPassId, DIRECTION_VAR, LAYOUT},
@@ -100,7 +100,7 @@ struct HeadedCtrl {
     img_res: ImageResources,
     actual_state: Option<WindowState>, // for WindowChangedEvent
     parent_color_scheme: Option<ReadOnlyArcVar<ColorScheme>>,
-    parent_accent_color: Option<ReadOnlyArcVar<Rgba>>,
+    parent_accent_color: Option<ReadOnlyArcVar<LightDark>>,
     actual_parent: Option<WindowId>,
     root_font_size: Dip,
     render_access_update: Option<WidgetInfoTree>, // previous info tree
@@ -545,7 +545,7 @@ impl HeadedCtrl {
                 .accent_color()
                 .get()
                 .or_else(|| self.parent_accent_color.as_ref().map(|t| t.get()))
-                .unwrap_or_else(|| WINDOWS.system_colors_config().accent);
+                .unwrap_or_else(|| WINDOWS.system_colors_config().accent.into());
             self.vars.0.actual_accent_color.set(accent);
         }
 
@@ -733,7 +733,7 @@ impl HeadedCtrl {
                     .accent_color()
                     .get()
                     .or_else(|| self.parent_accent_color.as_ref().map(|t| t.get()))
-                    .unwrap_or_else(|| WINDOWS.system_colors_config().accent);
+                    .unwrap_or_else(|| WINDOWS.system_colors_config().accent.into());
                 self.vars.0.actual_accent_color.set(accent);
 
                 UPDATES.layout_window(args.window_id).render_window(args.window_id);
@@ -755,7 +755,7 @@ impl HeadedCtrl {
                 .accent_color()
                 .get()
                 .or_else(|| self.parent_accent_color.as_ref().map(|t| t.get()))
-                .unwrap_or(args.config.accent);
+                .unwrap_or_else(|| args.config.accent.into());
             self.vars.0.actual_accent_color.set(color);
         } else if let Some(args) = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.on(update) {
             let w_id = WINDOW.id();
