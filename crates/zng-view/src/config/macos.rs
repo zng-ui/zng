@@ -29,7 +29,33 @@ pub fn touch_config() -> TouchConfig {
 }
 
 pub fn colors_config() -> ColorsConfig {
-    super::other::colors_config() // !!: TODO
+    let appearance = unsafe { NSAppearance::currentDrawingAppearance() };
+
+    fn dark_appearance_name() -> &'static NSString {
+        // Don't use the static `NSAppearanceNameDarkAqua` to allow linking on macOS < 10.14
+        ns_string!("NSAppearanceNameDarkAqua")
+    }
+
+    // source: winit
+    let best_match = appearance.bestMatchFromAppearancesWithNames(&NSArray::from_id_slice(&[
+        unsafe { NSAppearanceNameAqua.copy() },
+        dark_appearance_name().copy(),
+    ]));
+    let scheme = if let Some(best_match) = best_match {
+        if *best_match == *dark_appearance_name() {
+            ColorScheme::Dark
+        } else {
+            ColorScheme::Light
+        }
+    } else {
+        tracing::warn!("failed to determine macOS color scheme");
+        ColorScheme::Light
+    };
+
+    let a = unsafe { NSColor::controlAccentColor() };
+    let accent = Rgba::new(a.redComponent(), a.greenComponent(), a.blueComponent(), a.alphaComponent());
+
+    ColorsConfig { scheme, accent }
 }
 
 #[cfg(not(windows))]

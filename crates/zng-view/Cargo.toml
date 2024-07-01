@@ -137,6 +137,8 @@ tempfile = "3.10"
 version = "0.2.2"
 features = [
     "NSEvent",
+    "NSAppearance",
+    "NSColor",
 ]
 
 
