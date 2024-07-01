@@ -13,7 +13,7 @@ zng_wgt::enable_widget_macros!();
 
 use std::{any::TypeId, ops};
 
-use colors::BASE_COLOR_VAR;
+use colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR};
 use zng_app::event::CommandParam;
 use zng_var::ReadOnlyContextVar;
 use zng_wgt::{base_color, border, corner_radius, is_disabled, prelude::*};
@@ -326,6 +326,20 @@ impl DefaultStyle {
                 child_opacity = 50.pct();
                 cursor = CursorIcon::NotAllowed;
             }
+        }
+    }
+}
+
+/// Primary button style.
+#[widget($crate::PrimaryStyle)]
+pub struct PrimaryStyle(DefaultStyle);
+impl PrimaryStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+
+            base_color = ACCENT_COLOR_VAR.map(|c| c.shade(-2));
+            zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
         }
     }
 }

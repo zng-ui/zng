@@ -910,6 +910,8 @@ mod defaults {
 
                 #[cfg(feature = "inspector")]
                 let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
+
+                child
             });
             tracing::debug!("defaults init, root_extender set");
 
