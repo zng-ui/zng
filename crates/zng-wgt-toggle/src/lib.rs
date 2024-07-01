@@ -24,7 +24,7 @@ use zng_ext_input::{
 };
 use zng_ext_l10n::lang;
 use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar, Var, VarIsReadOnlyError};
-use zng_wgt::{align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*, Wgt};
+use zng_wgt::{align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*, Wgt, ICONS};
 use zng_wgt_access::{access_role, accessible, AccessRole};
 use zng_wgt_container::{child_align, child_end, child_start, padding};
 use zng_wgt_fill::background_color;
@@ -972,7 +972,7 @@ impl CheckStyle {
 }
 context_var! {
     /// Spacing between the checkmark and the content.
-    pub static CHECK_SPACING_VAR: Length = 2;
+    pub static CHECK_SPACING_VAR: Length = 4;
 }
 
 /// Spacing between the checkmark and the content.
@@ -982,30 +982,42 @@ pub fn check_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 }
 
 fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
-    zng_wgt_text::Text! {
+    let checked = ICONS.get_or(["toggle.checked", "check"], || {
+        zng_wgt_text::Text! {
+            txt = "✓";
+            font_family = FontNames::system_ui(&lang!(und));
+            txt_align = Align::CENTER;
+        }
+    });
+    let indeterminate = ICONS.get_or(["toggle.indeterminate"], || {
+        zng_wgt::Wgt! {
+            align = Align::CENTER;
+            background_color = zng_wgt_text::FONT_COLOR_VAR;
+            size = (6, 2);
+            corner_radius = 0;
+        }
+    });
+    zng_wgt_container::Container! {
         hit_test_mode = false;
         accessible = false;
         size = 1.2.em();
-        font_family = FontNames::system_ui(&lang!(und));
-        txt_align = Align::CENTER;
-        align = Align::CENTER;
         corner_radius = 0.1.em();
-
-        txt = "✓";
-        when #{IS_CHECKED_VAR}.is_none() {
-            txt = "━";
-        }
-
-        font_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.transparent());
-        when #{IS_CHECKED_VAR}.unwrap_or(true) {
-            font_color = zng_wgt_text::FONT_COLOR_VAR;
-        }
+        align = Align::CENTER;
 
         #[easing(150.ms())]
         background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
         when *#{parent_hovered} {
             #[easing(0.ms())]
             background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+        }
+
+        when #{IS_CHECKED_VAR}.is_none() {
+            child = indeterminate;
+        }
+        when *#{IS_CHECKED_VAR} == Some(true) {
+            child = checked;
+            #[easing(0.ms())]
+            background_color = colors::ACCENT_COLOR_VAR.shade(-1);
         }
     }
 }
@@ -1280,6 +1292,9 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             #[easing(0.ms())]
             background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
+        when #is_checked {
+            background_color = colors::ACCENT_COLOR_VAR.shade(-1);
+        }
     }
 }
 
@@ -1337,7 +1352,7 @@ fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         when *#is_checked {
             border = {
                 widths: 2,
-                sides: zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()).into()),
+                sides: colors::ACCENT_COLOR_VAR.shade_into(-2),
             };
             #[easing(0.ms())]
             background_color = zng_wgt_text::FONT_COLOR_VAR;
