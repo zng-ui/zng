@@ -24,7 +24,7 @@ use zng_var::ResponderVar;
 use zng_view_api::{
     self,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
-    config::{AnimationsConfig, ColorScheme, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
+    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     font::FontOptions,
     image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
@@ -585,13 +585,8 @@ event_args! {
         /// System locale config.
         pub locale_config: LocaleConfig,
 
-        /// System preferred color scheme.
-        ///
-        /// Updates of this preference can be received in [`RAW_WINDOW_OPEN_EVENT`] and [`RAW_COLOR_SCHEME_CHANGED_EVENT`].
-        ///
-        /// [`RAW_WINDOW_OPEN_EVENT`]: crate::view_process::raw_events::RAW_WINDOW_OPEN_EVENT
-        /// [`RAW_COLOR_SCHEME_CHANGED_EVENT`]: crate::view_process::raw_events::RAW_COLOR_SCHEME_CHANGED_EVENT
-        pub color_scheme: ColorScheme,
+        /// System preferred color scheme and accent color.
+        pub colors_config: ColorsConfig,
 
         /// API extensions implemented by the view-process.
         ///
@@ -633,9 +628,6 @@ pub struct WindowOpenData {
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
-
-    /// Preferred color scheme.
-    pub color_scheme: ColorScheme,
 }
 impl WindowOpenData {
     pub(crate) fn new(data: zng_view_api::window::WindowOpenData, map_monitor: impl FnOnce(ApiMonitorId) -> MonitorId) -> Self {
@@ -646,7 +638,6 @@ impl WindowOpenData {
             size: data.size,
             scale_factor: data.scale_factor,
             render_mode: data.render_mode,
-            color_scheme: data.color_scheme,
         }
     }
 }

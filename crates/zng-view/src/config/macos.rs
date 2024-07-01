@@ -1,6 +1,6 @@
 use objc2_app_kit::*;
 use zng_unit::TimeUnits as _;
-use zng_view_api::config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
+use zng_view_api::config::{AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
 
 pub fn font_aa() -> FontAntiAliasing {
     super::other::font_aa()
@@ -28,8 +28,8 @@ pub fn touch_config() -> TouchConfig {
     super::other::touch_config()
 }
 
-pub fn color_scheme_config() -> ColorScheme {
-    super::other::color_scheme_config()
+pub fn colors_config() -> ColorsConfig {
+    super::other::colors_config() // !!: TODO
 }
 
 #[cfg(not(windows))]

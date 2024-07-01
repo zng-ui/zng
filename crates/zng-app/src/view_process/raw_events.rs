@@ -20,7 +20,7 @@ use zng_layout::unit::{DipPoint, DipSize, Factor, PxPoint, PxRect};
 use zng_txt::Txt;
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
+    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
@@ -481,22 +481,6 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_COLOR_SCHEME_CHANGED_EVENT`].
-    pub struct RawColorSchemeChangedArgs {
-        /// Window for which the preference was changed.
-        pub window_id: WindowId,
-
-        /// New preference.
-        pub color_scheme: ColorScheme,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-           list.search_all();
-        }
-    }
-
     /// Arguments for the image events.
     pub struct RawImageArgs {
         /// Image that changed.
@@ -620,6 +604,19 @@ event_args! {
         }
     }
 
+    /// Arguments for the [`RAW_COLORS_CONFIG_CHANGED_EVENT`].
+    pub struct RawColorsConfigChangedArgs {
+        /// New config.
+        pub config: ColorsConfig,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+           list.search_all();
+        }
+    }
+
     /// Arguments for the [`RAW_EXTENSION_EVENT`].
     pub struct RawExtensionEventArgs {
         /// Id of the sender extension.
@@ -733,8 +730,8 @@ event! {
     /// Monitors added, removed or modified.
     pub static RAW_MONITORS_CHANGED_EVENT: RawMonitorsChangedArgs;
 
-    /// Color scheme preference changed for a window.
-    pub static RAW_COLOR_SCHEME_CHANGED_EVENT: RawColorSchemeChangedArgs;
+    /// Color scheme or accent color preference changed for a window.
+    pub static RAW_COLORS_CONFIG_CHANGED_EVENT: RawColorsConfigChangedArgs;
 
     /// Change in system font anti-aliasing config.
     pub static RAW_FONT_AA_CHANGED_EVENT: RawFontAaChangedArgs;

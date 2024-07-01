@@ -7,7 +7,6 @@ use zng_txt::Txt;
 
 use crate::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    config::ColorScheme,
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
 };
@@ -216,9 +215,6 @@ pub struct WindowOpenData {
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
-
-    /// Preferred color scheme.
-    pub color_scheme: ColorScheme,
 }
 
 /// Information about a successfully opened headless surface.

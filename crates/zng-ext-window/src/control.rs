@@ -11,7 +11,7 @@ use zng_app::{
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
     view_process::{
         raw_events::{
-            RawWindowFocusArgs, RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT,
+            RawWindowFocusArgs, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT,
             RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT,
         },
         ViewHeadless, ViewRenderer, ViewWindow, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
@@ -99,8 +99,8 @@ struct HeadedCtrl {
     resize_wait_id: Option<FrameWaitId>,
     img_res: ImageResources,
     actual_state: Option<WindowState>, // for WindowChangedEvent
-    system_color_scheme: Option<ColorScheme>,
     parent_color_scheme: Option<ReadOnlyArcVar<ColorScheme>>,
+    parent_accent_color: Option<ReadOnlyArcVar<Rgba>>,
     actual_parent: Option<WindowId>,
     root_font_size: Dip,
     render_access_update: Option<WidgetInfoTree>, // previous info tree
@@ -130,8 +130,8 @@ impl HeadedCtrl {
             monitor: None,
             resize_wait_id: None,
             img_res: ImageResources::default(),
-            system_color_scheme: None,
             parent_color_scheme: None,
+            parent_accent_color: None,
             actual_parent: None,
             actual_state: None,
             root_font_size: Dip::from_px(Length::pt_to_px(11.0, 1.fct()), 1.fct()),
@@ -518,27 +518,35 @@ impl HeadedCtrl {
             // else indicator is send with init.
         }
 
-        let mut update_color_scheme = false;
+        let mut update_colors = false;
 
         if update_parent(&mut self.actual_parent, &self.vars) {
             self.parent_color_scheme = self
                 .actual_parent
                 .and_then(|id| WINDOWS.vars(id).ok().map(|v| v.actual_color_scheme()));
-            update_color_scheme = true;
+            self.parent_accent_color = self
+                .actual_parent
+                .and_then(|id| WINDOWS.vars(id).ok().map(|v| v.actual_accent_color()));
+            update_colors = true;
         }
 
-        if update_color_scheme
-            || self.vars.color_scheme().is_new()
-            || self.parent_color_scheme.as_ref().map(|t| t.is_new()).unwrap_or(false)
-        {
+        if update_colors || self.vars.color_scheme().is_new() || self.parent_color_scheme.as_ref().map(|t| t.is_new()).unwrap_or(false) {
             let scheme = self
                 .vars
                 .color_scheme()
                 .get()
                 .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
-                .or(self.system_color_scheme)
-                .unwrap_or_default();
+                .unwrap_or_else(|| WINDOWS.system_colors_config().scheme);
             self.vars.0.actual_color_scheme.set(scheme);
+        }
+        if update_colors || self.vars.accent_color().is_new() || self.parent_accent_color.as_ref().map(|t| t.is_new()).unwrap_or(false) {
+            let accent = self
+                .vars
+                .accent_color()
+                .get()
+                .or_else(|| self.parent_accent_color.as_ref().map(|t| t.get()))
+                .unwrap_or_else(|| WINDOWS.system_colors_config().accent);
+            self.vars.0.actual_accent_color.set(accent);
         }
 
         if self.vars.0.access_enabled.is_new() {
@@ -712,16 +720,21 @@ impl HeadedCtrl {
                 self.vars.0.scale_factor.set(args.data.scale_factor);
 
                 self.state = Some(args.data.state.clone());
-                self.system_color_scheme = Some(args.data.color_scheme);
 
                 let scheme = self
                     .vars
                     .color_scheme()
                     .get()
                     .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
-                    .or(self.system_color_scheme)
-                    .unwrap_or_default();
+                    .unwrap_or_else(|| WINDOWS.system_colors_config().scheme);
                 self.vars.0.actual_color_scheme.set(scheme);
+                let accent = self
+                    .vars
+                    .accent_color()
+                    .get()
+                    .or_else(|| self.parent_accent_color.as_ref().map(|t| t.get()))
+                    .unwrap_or_else(|| WINDOWS.system_colors_config().accent);
+                self.vars.0.actual_accent_color.set(accent);
 
                 UPDATES.layout_window(args.window_id).render_window(args.window_id);
 
@@ -729,19 +742,21 @@ impl HeadedCtrl {
                     update(&args.window);
                 }
             }
-        } else if let Some(args) = RAW_COLOR_SCHEME_CHANGED_EVENT.on(update) {
-            if args.window_id == WINDOW.id() {
-                self.system_color_scheme = Some(args.color_scheme);
-
-                let scheme = self
-                    .vars
-                    .color_scheme()
-                    .get()
-                    .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
-                    .or(self.system_color_scheme)
-                    .unwrap_or_default();
-                self.vars.0.actual_color_scheme.set(scheme);
-            }
+        } else if let Some(args) = RAW_COLORS_CONFIG_CHANGED_EVENT.on(update) {
+            let scheme = self
+                .vars
+                .color_scheme()
+                .get()
+                .or_else(|| self.parent_color_scheme.as_ref().map(|t| t.get()))
+                .unwrap_or(args.config.scheme);
+            self.vars.0.actual_color_scheme.set(scheme);
+            let color = self
+                .vars
+                .accent_color()
+                .get()
+                .or_else(|| self.parent_accent_color.as_ref().map(|t| t.get()))
+                .unwrap_or(args.config.accent);
+            self.vars.0.actual_accent_color.set(color);
         } else if let Some(args) = RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT.on(update) {
             let w_id = WINDOW.id();
             if args.window_id == w_id && self.window.is_none() && self.waiting_view {

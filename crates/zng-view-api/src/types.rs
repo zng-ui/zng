@@ -3,7 +3,7 @@
 use crate::{
     access::{AccessCmd, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
-    config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
+    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     image::{ImageId, ImageLoadedData, ImagePpi},
     ipc::IpcBytes,
@@ -131,8 +131,8 @@ pub struct Inited {
     pub animations_config: AnimationsConfig,
     /// System locale config.
     pub locale_config: LocaleConfig,
-    /// System preferred color scheme.
-    pub color_scheme: ColorScheme,
+    /// System preferred color scheme and colors.
+    pub colors_config: ColorsConfig,
     /// API extensions implemented by the view-process.
     ///
     /// The extension IDs will stay valid for the duration of the view-process.
@@ -375,8 +375,6 @@ pub enum Event {
     /// The available monitors have changed.
     MonitorsChanged(Vec<(MonitorId, MonitorInfo)>),
 
-    /// The preferred color scheme for a window has changed.
-    ColorSchemeChanged(WindowId, ColorScheme),
     /// The window has been requested to close.
     WindowCloseRequested(WindowId),
     /// The window has closed.
@@ -465,6 +463,8 @@ pub enum Event {
     TouchConfigChanged(TouchConfig),
     /// System locale changed.
     LocaleChanged(LocaleConfig),
+    /// System color scheme or colors changed.
+    ColorsConfigChanged(ColorsConfig),
 
     /* Raw device events */
     /// Device added or installed.

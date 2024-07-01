@@ -16,7 +16,6 @@ use zng_view_api::clipboard as clipboard_api;
 use zng_view_api::keyboard::{KeyLocation, NativeKeyCode};
 use zng_view_api::window::{FrameCapture, FrameRequest, FrameUpdateRequest, ResizeDirection, WindowButton};
 use zng_view_api::{
-    config::ColorScheme,
     keyboard::{Key, KeyCode, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchForce, TouchPhase},
@@ -363,13 +362,6 @@ pub(crate) fn winit_mouse_button_to_zng(b: winit::event::MouseButton) -> MouseBu
         winit::event::MouseButton::Back => MouseButton::Back,
         winit::event::MouseButton::Forward => MouseButton::Forward,
         winit::event::MouseButton::Other(btn) => MouseButton::Other(btn),
-    }
-}
-
-pub(crate) fn winit_theme_to_zng(t: winit::window::Theme) -> ColorScheme {
-    match t {
-        winit::window::Theme::Light => ColorScheme::Light,
-        winit::window::Theme::Dark => ColorScheme::Dark,
     }
 }
 

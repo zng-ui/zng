@@ -5,7 +5,7 @@ use std::{fmt, time::Duration};
 use serde::{Deserialize, Serialize};
 
 use zng_txt::Txt;
-use zng_unit::{Dip, DipSize};
+use zng_unit::{Dip, DipSize, Rgba};
 
 /// System settings needed for implementing double/triple clicks.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
@@ -162,6 +162,27 @@ impl Default for ColorScheme {
     /// Light.
     fn default() -> Self {
         ColorScheme::Light
+    }
+}
+
+/// System colors and color scheme.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ColorsConfig {
+    /// Color scheme (light/dark) preference.
+    pub scheme: ColorScheme,
+    /// Accent color.
+    ///
+    /// Accent color preference.
+    ///
+    /// Expect a saturated color that contrasts with the text color.
+    pub accent: Rgba,
+}
+impl Default for ColorsConfig {
+    fn default() -> Self {
+        Self {
+            scheme: Default::default(),
+            accent: Rgba::new(10, 10, 200, 255),
+        }
     }
 }
 

@@ -1,8 +1,8 @@
 use std::{io::BufRead as _, time::Duration};
 
-use zng_unit::TimeUnits as _;
+use zng_unit::{Rgba, TimeUnits as _};
 use zng_view_api::{
-    config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
+    config::{AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
     Event,
 };
 
@@ -51,8 +51,8 @@ pub fn touch_config() -> TouchConfig {
     super::other::touch_config()
 }
 
-pub fn color_scheme_config() -> ColorScheme {
-    match dconf("/org/gnome/desktop/interface/color-scheme") {
+pub fn colors_config() -> ColorsConfig {
+    let scheme = match dconf("/org/gnome/desktop/interface/color-scheme") {
         Some(cs) => {
             if cs.contains("dark") {
                 ColorScheme::Dark
@@ -61,7 +61,30 @@ pub fn color_scheme_config() -> ColorScheme {
             }
         }
         None => ColorScheme::Light,
-    }
+    };
+
+    // the color value is not in any config, need to parse theme name
+    let theme = dconf("/org/gnome/desktop/interface/gtk-theme");
+    let theme = match theme.as_ref() {
+        Some(n) => n.strip_prefix("Yaru-").unwrap_or("").split('-').next().unwrap_or(""),
+        None => "?",
+    };
+    // see https://github.com/ubuntu/yaru/blob/6e28865e0ce55c0f95d17a25871618b1660e97b5/common/accent-colors.scss.in
+    let accent = match theme {
+        "" => Rgba::new(233, 84, 32, 255),               // #E95420
+        "bark" => Rgba::new(120, 120, 89, 255),          // #787859
+        "sage" => Rgba::new(101, 123, 105, 255),         // #657b69
+        "olive" => Rgba::new(75, 133, 1, 255),           // #4B8501
+        "viridian" => Rgba::new(3, 135, 91, 255),        // #03875b
+        "prussiangreen" => Rgba::new(48, 130, 128, 255), // #308280
+        "blue" => Rgba::new(0, 115, 229, 255),           // #0073E5
+        "purple" => Rgba::new(119, 100, 216, 255),       // #7764d8
+        "magenta" => Rgba::new(179, 76, 179, 255),       // #b34cb3
+        "red" => Rgba::new(218, 52, 80, 255),            // #DA3450
+        _ => ColorsConfig::default().accent,
+    };
+
+    ColorsConfig { scheme, accent }
 }
 
 pub fn locale_config() -> LocaleConfig {
@@ -73,8 +96,8 @@ fn on_change(key: &str, s: &crate::AppEventSender) {
     // println!("{key}"); // to discover keys, uncomment and change the config in system config app.
 
     match key {
-        "/org/gnome/desktop/interface/color-scheme" => {
-            let _ = s.send(AppEvent::ColorSchemeConfigChanged);
+        "/org/gnome/desktop/interface/color-scheme" | "/org/gnome/desktop/interface/gtk-theme" => {
+            let _ = s.send(AppEvent::Notify(Event::ColorsConfigChanged(colors_config())));
         }
         "/org/gnome/desktop/peripherals/keyboard/delay" | "/org/gnome/desktop/peripherals/keyboard/repeat-interval" => {
             let _ = s.send(AppEvent::Notify(Event::KeyRepeatConfigChanged(key_repeat_config())));
