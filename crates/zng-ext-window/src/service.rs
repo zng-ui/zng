@@ -24,7 +24,7 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 
-use zng_color::colors::ACCENT_COLOR_VAR;
+use zng_color::{colors::ACCENT_COLOR_VAR, COLOR_SCHEME_VAR};
 use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
 use zng_layout::unit::TimeUnits as _;
 use zng_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
@@ -1477,8 +1477,11 @@ impl AppWindowTask {
                 let root = mem::replace(&mut window.child, NilUiNode.boxed());
                 window.child = ext(WindowRootExtenderArgs { root });
             }
-            let root = mem::replace(&mut window.child, NilUiNode.boxed());
-            window.child = with_context_var(root, ACCENT_COLOR_VAR, WINDOW.vars().actual_accent_color()).boxed();
+            let child = mem::replace(&mut window.child, NilUiNode.boxed());
+            let vars = WINDOW.vars();
+            let child = with_context_var(child, ACCENT_COLOR_VAR, vars.actual_accent_color());
+            let child = with_context_var(child, COLOR_SCHEME_VAR, vars.actual_color_scheme());
+            window.child = child.boxed();
         });
 
         let mode = self.mode;
