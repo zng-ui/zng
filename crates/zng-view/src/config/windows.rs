@@ -1,3 +1,4 @@
+use zng_unit::Rgba;
 use zng_view_api::config::{
     AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
 };
@@ -114,7 +115,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
                     let cfg = colors_config();
                     if cfg != colors_cfg {
                         colors_cfg = cfg;
-                        notify(Event::ColorsConfig(cfg));
+                        notify(Event::ColorsConfigChanged(cfg));
                         Some(0)
                     } else {
                         None
@@ -365,12 +366,10 @@ pub fn colors_config() -> ColorsConfig {
     };
 
     let accent = windows::UI::ViewManagement::UISettings::new()
-        .GetColorValue(windows::UI::ViewManagement::UIColorType::Accent)
-        .ok();
-    let accent = match accent {
-        Some(a) => Rgba::new(a.R, a.G, a.B, a.A),
-        None => ColorsConfig::default().accent,
-    };
+        .ok()
+        .and_then(|ui| ui.GetColorValue(windows::UI::ViewManagement::UIColorType::Accent).ok())
+        .map(|a| Rgba::new(a.R, a.G, a.B, a.A))
+        .unwrap_or_else(|| ColorsConfig::default().accent);
 
     ColorsConfig { scheme, accent }
 }

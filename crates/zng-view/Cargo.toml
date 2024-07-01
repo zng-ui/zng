@@ -140,6 +140,10 @@ features = [
     "NSAppearance",
     "NSColor",
 ]
+[target.'cfg(target_os = "macos")'.dependencies.objc2-foundation]
+version = "0.2.2"
+features = ["NSString"]
+
 
 
 [build-dependencies]
