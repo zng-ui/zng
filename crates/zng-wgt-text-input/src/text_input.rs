@@ -1,4 +1,4 @@
-use colors::BASE_COLOR_VAR;
+use colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR};
 use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use zng_wgt::base_color;
 use zng_wgt::{align, is_disabled, margin, prelude::*};
@@ -160,6 +160,7 @@ impl DefaultStyle {
             popup::context_capture = default_popup_context_capture();
             context_menu_fn = WidgetFn::new(default_context_menu);
             selection_toolbar_fn = WidgetFn::new(default_selection_toolbar);
+            selection_color = ACCENT_COLOR_VAR.rgba_map(|c| c.with_alpha(30.pct()));
 
             when *#is_cap_hovered || *#is_return_focus {
                 border = {
@@ -171,7 +172,7 @@ impl DefaultStyle {
             when *#is_focused {
                 border = {
                     widths: 1,
-                    sides: BASE_COLOR_VAR.shade_fct_into(0.40),
+                    sides: ACCENT_COLOR_VAR.rgba_into(),
                 };
             }
 

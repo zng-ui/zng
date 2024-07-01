@@ -1038,7 +1038,7 @@ impl ComboStyle {
             child_align = Align::FILL;
             border_over = false;
             border_align = 1.fct();
-            padding = COMBO_SPACING_VAR.map(|e| SideOffsets::new(-1, e.clone(), -1, -1));
+            padding = -1;
             checked = var(false);
             child_end = {
                 node: combomark_visual(),
@@ -1098,7 +1098,7 @@ impl ComboStyle {
 }
 context_var! {
     /// Spacing between the arrow symbol and the content.
-    pub static COMBO_SPACING_VAR: Length = 2;
+    pub static COMBO_SPACING_VAR: Length = 0;
 }
 
 /// Spacing between the arrow symbol and the content.
@@ -1176,6 +1176,22 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
 
 #[allow(non_snake_case)]
 fn combomark_visual() -> impl UiNode {
+    let dropdown = ICONS.get_or(
+        ["toggle.dropdown", "material/rounded/keyboard-arrow-down", "keyboard-arrow-down"],
+        combomark_visual_fallback,
+    );
+    Wgt! {
+        size = 12;
+        zng_wgt_fill::background = dropdown;
+        align = Align::CENTER;
+
+        zng_wgt_transform::rotate_x = 0.deg();
+        when #is_checked {
+            zng_wgt_transform::rotate_x = 180.deg();
+        }
+    }
+}
+fn combomark_visual_fallback() -> impl UiNode {
     let color_key = FrameValueKey::new_unique();
     let mut size = PxSize::zero();
     let mut bounds = PxBox::zero();
@@ -1189,16 +1205,15 @@ fn combomark_visual() -> impl UiNode {
             .rotate(45.deg())
             .scale_x(0.7)
             .translate(center.x, center.y)
+            .translate_x(Length::from(2).layout_x())
             .layout();
-
         let bounds = transform.outer_transformed(PxBox::from_size(size)).unwrap_or_default();
         (size, transform, bounds)
     }
 
-    let visual = match_node_leaf(move |op| match op {
+    match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_render_update(&zng_wgt_text::FONT_COLOR_VAR);
-            WIDGET.sub_var_render(&IS_CHECKED_VAR);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             let (s, _, _) = layout();
@@ -1211,10 +1226,7 @@ fn combomark_visual() -> impl UiNode {
         UiNodeOp::Render { frame } => {
             let mut clip = bounds.to_rect();
             clip.size.height *= 0.5.fct();
-
-            if !IS_CHECKED_VAR.get().unwrap_or(false) {
-                clip.origin.y += clip.size.height;
-            }
+            clip.origin.y += clip.size.height;
 
             frame.push_clip_rect(clip, false, false, |frame| {
                 frame.push_reference_frame((WIDGET.id(), 0).into(), transform.into(), false, false, |frame| {
@@ -1226,11 +1238,7 @@ fn combomark_visual() -> impl UiNode {
             update.update_color_opt(color_key.update_var(&zng_wgt_text::FONT_COLOR_VAR, |&c| c));
         }
         _ => {}
-    });
-    zng_wgt_container::Container! {
-        child = visual;
-        child_align = Align::CENTER;
-    }
+    })
 }
 
 /// Switch toggle style.
