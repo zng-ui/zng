@@ -34,6 +34,7 @@ env:
   RUSTDOCFLAGS: '--deny=warnings'
   CARGO_TERM_COLOR: always
   ZNG_TP_LICENSES: false
+  NEXTEST_RETRIES: 3
 
 jobs:
   check-ubuntu:
@@ -391,7 +392,6 @@ jobs:
     env:
       CC: 'clang-cl'
       CXX: 'clang-cl'
-      NEXTEST_RETRIES: 3
     steps:
       - name: fix clang version issue
         run: choco upgrade llvm
@@ -440,8 +440,6 @@ jobs:
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     needs: [prebuild-macos]
-    env:
-      NEXTEST_RETRIES: 3
     steps:
       - name: install cargo-nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}

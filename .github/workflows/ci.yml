@@ -17,6 +17,7 @@ env:
   RUSTDOCFLAGS: '--deny=warnings'
   CARGO_TERM_COLOR: always
   ZNG_TP_LICENSES: false
+  NEXTEST_RETRIES: 3
 
 jobs:
   check:
@@ -99,7 +100,6 @@ jobs:
     needs: [check-windows]
     env:
       ZNG_TP_LICENSES: true
-      NEXTEST_RETRIES: 3
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
@@ -124,7 +124,6 @@ jobs:
     needs: [check-macos]
     env:
       ZNG_TP_LICENSES: true
-      NEXTEST_RETRIES: 3
     steps:
     - uses: dtolnay/rust-toolchain@stable
     - name: install cargo-about
