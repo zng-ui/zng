@@ -1,3 +1,4 @@
+use hashbrown::HashSet;
 use zng_app_context::app_local;
 use zng_time::INSTANT_APP;
 
@@ -11,7 +12,7 @@ app_local! {
 
 pub(crate) struct EventsService {
     updates: Mutex<Vec<EventUpdate>>, // not locked, used to make service Sync.
-    commands: Vec<Command>,
+    commands: CommandSet,
     register_commands: Vec<Command>,
 }
 
@@ -19,7 +20,7 @@ impl EventsService {
     const fn new() -> Self {
         Self {
             updates: Mutex::new(vec![]),
-            commands: vec![],
+            commands: HashSet::with_hasher(BuildFxHasher),
             register_commands: vec![],
         }
     }
@@ -46,6 +47,20 @@ impl EventsService {
     }
 }
 
+/// Const rustc-hash hasher.
+#[derive(Clone, Default)]
+pub struct BuildFxHasher;
+impl std::hash::BuildHasher for BuildFxHasher {
+    type Hasher = rustc_hash::FxHasher;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        rustc_hash::FxHasher::default()
+    }
+}
+
+/// Registered commands set.
+pub type CommandSet = HashSet<Command, BuildFxHasher>;
+
 /// App events and commands service.
 pub struct EVENTS;
 impl EVENTS {
@@ -56,7 +71,7 @@ impl EVENTS {
     /// the lifetime of the app, if it is window or widget scoped it only remains while there are handles.
     ///
     /// [`Command::subscribe`]: crate::event::Command::subscribe
-    pub fn commands(&self) -> Vec<Command> {
+    pub fn commands(&self) -> CommandSet {
         EVENTS_SV.read().commands.clone()
     }
 
@@ -77,12 +92,8 @@ impl EVENTS {
         {
             let ev = &mut *ev;
             for cmd in ev.register_commands.drain(..) {
-                if cmd.update_state() {
-                    if ev.commands.iter().any(|c| c == &cmd) {
-                        tracing::error!("command `{cmd:?}` is already registered")
-                    } else {
-                        ev.commands.push(cmd);
-                    }
+                if cmd.update_state() && !ev.commands.insert(cmd) {
+                    tracing::error!("command `{cmd:?}` is already registered")
                 }
             }
         }
