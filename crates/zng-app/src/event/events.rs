@@ -121,7 +121,7 @@ event_args! {
 
 event! {
     /// Event when [`EVENTS.commands`] list changes.
-    /// 
+    ///
     /// [`EVENTS.commands`]: EVENTS::commands
     pub static COMMANDS_CHANGED_EVENT: CommandsChangedArgs;
 }
