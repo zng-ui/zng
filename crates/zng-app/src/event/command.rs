@@ -194,7 +194,7 @@ macro_rules! __command {
 ///
 /// # Metadata
 ///
-/// Commands can have metadata associated with them, this metadata is extendable and can be used to enable
+/// Commands can have associated metadata, this metadata is extendable and can be used to enable
 /// command features such as command shortcuts. The metadata can be accessed using [`with_meta`], metadata
 /// extensions traits can use this metadata to store state. See [`CommandMeta`] for more details.
 ///
