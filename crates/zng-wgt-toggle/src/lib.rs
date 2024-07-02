@@ -24,7 +24,7 @@ use zng_ext_input::{
 };
 use zng_ext_l10n::lang;
 use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar, Var, VarIsReadOnlyError};
-use zng_wgt::{align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*, Wgt};
+use zng_wgt::{align, border, border_align, border_over, corner_radius, hit_test_mode, is_inited, prelude::*, Wgt, ICONS};
 use zng_wgt_access::{access_role, accessible, AccessRole};
 use zng_wgt_container::{child_align, child_end, child_start, padding};
 use zng_wgt_fill::background_color;
@@ -972,7 +972,7 @@ impl CheckStyle {
 }
 context_var! {
     /// Spacing between the checkmark and the content.
-    pub static CHECK_SPACING_VAR: Length = 2;
+    pub static CHECK_SPACING_VAR: Length = 4;
 }
 
 /// Spacing between the checkmark and the content.
@@ -982,30 +982,42 @@ pub fn check_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 }
 
 fn checkmark_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
-    zng_wgt_text::Text! {
+    let checked = ICONS.get_or(["toggle.checked", "check"], || {
+        zng_wgt_text::Text! {
+            txt = "✓";
+            font_family = FontNames::system_ui(&lang!(und));
+            txt_align = Align::CENTER;
+        }
+    });
+    let indeterminate = ICONS.get_or(["toggle.indeterminate"], || {
+        zng_wgt::Wgt! {
+            align = Align::CENTER;
+            background_color = zng_wgt_text::FONT_COLOR_VAR;
+            size = (6, 2);
+            corner_radius = 0;
+        }
+    });
+    zng_wgt_container::Container! {
         hit_test_mode = false;
         accessible = false;
         size = 1.2.em();
-        font_family = FontNames::system_ui(&lang!(und));
-        txt_align = Align::CENTER;
-        align = Align::CENTER;
         corner_radius = 0.1.em();
-
-        txt = "✓";
-        when #{IS_CHECKED_VAR}.is_none() {
-            txt = "━";
-        }
-
-        font_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.transparent());
-        when #{IS_CHECKED_VAR}.unwrap_or(true) {
-            font_color = zng_wgt_text::FONT_COLOR_VAR;
-        }
+        align = Align::CENTER;
 
         #[easing(150.ms())]
         background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(10.pct()));
         when *#{parent_hovered} {
             #[easing(0.ms())]
             background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
+        }
+
+        when #{IS_CHECKED_VAR}.is_none() {
+            child = indeterminate;
+        }
+        when *#{IS_CHECKED_VAR} == Some(true) {
+            child = checked;
+            #[easing(0.ms())]
+            background_color = colors::ACCENT_COLOR_VAR.shade(-1);
         }
     }
 }
@@ -1026,7 +1038,7 @@ impl ComboStyle {
             child_align = Align::FILL;
             border_over = false;
             border_align = 1.fct();
-            padding = COMBO_SPACING_VAR.map(|e| SideOffsets::new(-1, e.clone(), -1, -1));
+            padding = -1;
             checked = var(false);
             child_end = {
                 node: combomark_visual(),
@@ -1086,7 +1098,7 @@ impl ComboStyle {
 }
 context_var! {
     /// Spacing between the arrow symbol and the content.
-    pub static COMBO_SPACING_VAR: Length = 2;
+    pub static COMBO_SPACING_VAR: Length = 0;
 }
 
 /// Spacing between the arrow symbol and the content.
@@ -1164,6 +1176,22 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
 
 #[allow(non_snake_case)]
 fn combomark_visual() -> impl UiNode {
+    let dropdown = ICONS.get_or(
+        ["toggle.dropdown", "material/rounded/keyboard-arrow-down", "keyboard-arrow-down"],
+        combomark_visual_fallback,
+    );
+    Wgt! {
+        size = 12;
+        zng_wgt_fill::background = dropdown;
+        align = Align::CENTER;
+
+        zng_wgt_transform::rotate_x = 0.deg();
+        when #is_checked {
+            zng_wgt_transform::rotate_x = 180.deg();
+        }
+    }
+}
+fn combomark_visual_fallback() -> impl UiNode {
     let color_key = FrameValueKey::new_unique();
     let mut size = PxSize::zero();
     let mut bounds = PxBox::zero();
@@ -1177,16 +1205,15 @@ fn combomark_visual() -> impl UiNode {
             .rotate(45.deg())
             .scale_x(0.7)
             .translate(center.x, center.y)
+            .translate_x(Length::from(2).layout_x())
             .layout();
-
         let bounds = transform.outer_transformed(PxBox::from_size(size)).unwrap_or_default();
         (size, transform, bounds)
     }
 
-    let visual = match_node_leaf(move |op| match op {
+    match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_render_update(&zng_wgt_text::FONT_COLOR_VAR);
-            WIDGET.sub_var_render(&IS_CHECKED_VAR);
         }
         UiNodeOp::Measure { desired_size, .. } => {
             let (s, _, _) = layout();
@@ -1199,10 +1226,7 @@ fn combomark_visual() -> impl UiNode {
         UiNodeOp::Render { frame } => {
             let mut clip = bounds.to_rect();
             clip.size.height *= 0.5.fct();
-
-            if !IS_CHECKED_VAR.get().unwrap_or(false) {
-                clip.origin.y += clip.size.height;
-            }
+            clip.origin.y += clip.size.height;
 
             frame.push_clip_rect(clip, false, false, |frame| {
                 frame.push_reference_frame((WIDGET.id(), 0).into(), transform.into(), false, false, |frame| {
@@ -1214,11 +1238,7 @@ fn combomark_visual() -> impl UiNode {
             update.update_color_opt(color_key.update_var(&zng_wgt_text::FONT_COLOR_VAR, |&c| c));
         }
         _ => {}
-    });
-    zng_wgt_container::Container! {
-        child = visual;
-        child_align = Align::CENTER;
-    }
+    })
 }
 
 /// Switch toggle style.
@@ -1280,6 +1300,9 @@ fn switch_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
             #[easing(0.ms())]
             background_color = zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));
         }
+        when #is_checked {
+            background_color = colors::ACCENT_COLOR_VAR.shade(-1);
+        }
     }
 }
 
@@ -1337,7 +1360,7 @@ fn radio_visual(parent_hovered: impl Var<bool>) -> impl UiNode {
         when *#is_checked {
             border = {
                 widths: 2,
-                sides: zng_wgt_text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()).into()),
+                sides: colors::ACCENT_COLOR_VAR.shade_into(-2),
             };
             #[easing(0.ms())]
             background_color = zng_wgt_text::FONT_COLOR_VAR;

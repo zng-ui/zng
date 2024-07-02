@@ -9,8 +9,8 @@ use zng_app::{
     view_process::{
         self,
         raw_events::{
-            RAW_COLOR_SCHEME_CHANGED_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_WINDOW_CLOSE_EVENT,
-            RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT,
+            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_WINDOW_CLOSE_EVENT,
+            RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT,
         },
         ViewImage, ViewRenderer, ViewWindowOrHeadless, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
@@ -24,6 +24,7 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 
+use zng_color::{colors::ACCENT_COLOR_VAR, COLOR_SCHEME_VAR};
 use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
 use zng_layout::unit::TimeUnits as _;
 use zng_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
@@ -39,11 +40,12 @@ use zng_var::{
 };
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    config::ColorScheme,
+    config::ColorsConfig,
     image::ImageMaskMode,
     window::{RenderMode, WindowState},
     ViewProcessOffline,
 };
+use zng_wgt::node::with_context_var;
 
 use crate::{
     cmd::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, ViewExtensionError,
@@ -79,7 +81,7 @@ pub(super) struct WindowsService {
     frame_images: Vec<WeakArcVar<Img>>,
 
     loading_deadline: Option<DeadlineHandle>,
-    latest_color_scheme: ColorScheme,
+    latest_colors_cfg: ColorsConfig,
 
     view_window_tasks: Vec<ViewWindowTask>,
 }
@@ -102,7 +104,7 @@ impl WindowsService {
             bring_to_top_requests: vec![],
             frame_images: vec![],
             loading_deadline: None,
-            latest_color_scheme: ColorScheme::Dark,
+            latest_colors_cfg: ColorsConfig::default(),
             view_window_tasks: vec![],
         }
     }
@@ -714,6 +716,10 @@ impl WINDOWS {
         }
     }
 
+    pub(super) fn system_colors_config(&self) -> ColorsConfig {
+        WINDOWS_SV.read().latest_colors_cfg
+    }
+
     pub(super) fn take_view_extensions_init(&self, id: WindowId) -> Vec<(ApiExtensionId, ApiExtensionPayload)> {
         std::mem::take(&mut WINDOWS_SV.write().windows_info.get_mut(&id).unwrap().extensions)
     }
@@ -916,12 +922,10 @@ impl WINDOWS {
                 let args = WindowCloseArgs::new(args.timestamp, args.propagation().clone(), windows);
                 WINDOW_CLOSE_EVENT.notify(args);
             }
-        } else if let Some(args) = RAW_WINDOW_OPEN_EVENT.on(update) {
-            WINDOWS_SV.write().latest_color_scheme = args.data.color_scheme;
-        } else if let Some(args) = RAW_COLOR_SCHEME_CHANGED_EVENT.on(update) {
-            WINDOWS_SV.write().latest_color_scheme = args.color_scheme;
+        } else if let Some(args) = RAW_COLORS_CONFIG_CHANGED_EVENT.on(update) {
+            WINDOWS_SV.write().latest_colors_cfg = args.config;
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            WINDOWS_SV.write().latest_color_scheme = args.color_scheme;
+            WINDOWS_SV.write().latest_colors_cfg = args.colors_config;
 
             // we skipped request fulfillment until this event.
             UPDATES.update(None);
@@ -1077,9 +1081,9 @@ impl WINDOWS {
             return;
         }
 
-        let ((open, mut open_tasks, close, focus, bring_to_top, view_tasks), color_scheme) = {
+        let ((open, mut open_tasks, close, focus, bring_to_top, view_tasks), colors_cfg) = {
             let mut wns = WINDOWS_SV.write();
-            (wns.take_requests(), wns.latest_color_scheme)
+            (wns.take_requests(), wns.latest_colors_cfg)
         };
 
         let window_mode = zng_app::APP.window_mode();
@@ -1094,12 +1098,12 @@ impl WINDOWS {
                 (mode, _) => mode,
             };
 
-            let color_scheme = match window_mode {
-                WindowMode::Headed => color_scheme,
-                WindowMode::Headless | WindowMode::HeadlessWithRenderer => ColorScheme::default(),
+            let colors_cfg = match window_mode {
+                WindowMode::Headed => colors_cfg,
+                WindowMode::Headless | WindowMode::HeadlessWithRenderer => ColorsConfig::default(),
             };
 
-            let task = AppWindowTask::new(r.id, window_mode, color_scheme, r.new.into_inner(), r.responder);
+            let task = AppWindowTask::new(r.id, window_mode, colors_cfg, r.new.into_inner(), r.responder);
             open_tasks.push(task);
         }
 
@@ -1427,7 +1431,7 @@ struct AppWindowTask {
     responder: ResponderVar<WindowId>,
 }
 impl AppWindowTask {
-    fn new(id: WindowId, mode: WindowMode, color_scheme: ColorScheme, new: UiTask<WindowRoot>, responder: ResponderVar<WindowId>) -> Self {
+    fn new(id: WindowId, mode: WindowMode, colors_cfg: ColorsConfig, new: UiTask<WindowRoot>, responder: ResponderVar<WindowId>) -> Self {
         let primary_scale_factor = match mode {
             WindowMode::Headed => MONITORS
                 .primary_monitor()
@@ -1438,7 +1442,7 @@ impl AppWindowTask {
 
         let mut ctx = WindowCtx::new(id, mode);
 
-        let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, color_scheme);
+        let vars = WindowVars::new(WINDOWS_SV.read().default_render_mode.get(), primary_scale_factor, colors_cfg);
         ctx.with_state(|s| s.borrow_mut().set(*WINDOW_VARS_ID, vars.clone()));
 
         Self {
@@ -1473,6 +1477,11 @@ impl AppWindowTask {
                 let root = mem::replace(&mut window.child, NilUiNode.boxed());
                 window.child = ext(WindowRootExtenderArgs { root });
             }
+            let child = mem::replace(&mut window.child, NilUiNode.boxed());
+            let vars = WINDOW.vars();
+            let child = with_context_var(child, ACCENT_COLOR_VAR, vars.actual_accent_color());
+            let child = with_context_var(child, COLOR_SCHEME_VAR, vars.actual_color_scheme());
+            window.child = child.boxed();
         });
 
         let mode = self.mode;

@@ -134,7 +134,6 @@ use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    config::ColorScheme,
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest, ImageTextureId},
@@ -793,7 +792,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     self.notify(Event::WindowChanged(WindowChanged::resized(id, size, EventCause::System, None)));
                 }
             }
-            WindowEvent::ThemeChanged(t) => self.notify(Event::ColorSchemeChanged(id, util::winit_theme_to_zng(t))),
             WindowEvent::Ime(ime) => {
                 linux_modal_dialog_bail!();
 
@@ -817,6 +815,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     }
                 }
             }
+            WindowEvent::ThemeChanged(_) => {}
             WindowEvent::Occluded(_) => {}
             WindowEvent::ActivationTokenDone { .. } => {}
             WindowEvent::PinchGesture { .. } => {}
@@ -864,22 +863,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 // if a window opens in power-off it is blank until redraw.
                 for w in &mut self.windows {
                     w.redraw();
-                }
-            }
-            AppEvent::ColorSchemeConfigChanged => {
-                #[cfg(any(
-                    target_os = "linux",
-                    target_os = "dragonfly",
-                    target_os = "freebsd",
-                    target_os = "netbsd",
-                    target_os = "openbsd"
-                ))]
-                {
-                    let cfg = crate::config::color_scheme_config();
-                    let ids: Vec<_> = self.windows.iter().map(|w| w.id()).collect();
-                    for id in ids {
-                        self.notify(Event::ColorSchemeChanged(id, cfg));
-                    }
                 }
             }
             AppEvent::InitDeviceEvents(enabled) => {
@@ -1093,7 +1076,6 @@ impl App {
                                 self.app.image_cache.loaded(data);
                             }
                             AppEvent::MonitorPowerChanged => {} // headless
-                            AppEvent::ColorSchemeConfigChanged => {}
                             AppEvent::InitDeviceEvents(enabled) => {
                                 self.app.init_device_events(enabled, None);
                             }
@@ -1547,13 +1529,13 @@ impl Api for App {
             generation: gen,
             is_respawn,
             available_monitors,
-            color_scheme: config::color_scheme_config(),
             multi_click_config: config::multi_click_config(),
             key_repeat_config: config::key_repeat_config(),
             touch_config: config::touch_config(),
             font_aa: config::font_aa(),
             animations_config: config::animations_config(),
             locale_config: config::locale_config(),
+            colors_config: config::colors_config(),
             extensions: self.exts.api_extensions(),
         }));
     }
@@ -1590,7 +1572,6 @@ impl Api for App {
                 position: (PxPoint::zero(), DipPoint::zero()),
                 size: config.state.restore_rect.size,
                 scale_factor: Factor(1.0),
-                color_scheme: ColorScheme::Light,
                 state: WindowStateAll {
                     state: WindowState::Fullscreen,
                     global_position: PxPoint::zero(),
@@ -1628,7 +1609,6 @@ impl Api for App {
                 scale_factor: win.scale_factor(),
                 render_mode: win.render_mode(),
                 state: win.state(),
-                color_scheme: win.color_scheme(),
             };
 
             self.windows.push(win);
@@ -2082,12 +2062,6 @@ pub(crate) enum AppEvent {
     /// Send when monitor was turned on/off by the OS, need to redraw all screens to avoid blank issue.
     #[allow(unused)]
     MonitorPowerChanged,
-
-    /// System color scheme changed.
-    ///
-    /// X11/Wayland needs this
-    #[allow(unused)]
-    ColorSchemeConfigChanged,
 }
 
 /// Message inserted in the request loop from the view-process.

@@ -25,7 +25,6 @@ use zng_txt::{ToTxt, Txt};
 use zng_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    config::ColorScheme,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     window::{
@@ -1177,17 +1176,6 @@ impl Window {
     /// Returns of the last update state.
     pub fn state(&self) -> WindowStateAll {
         self.state.clone()
-    }
-
-    /// Returns the preferred color scheme for the window.
-    pub fn color_scheme(&self) -> ColorScheme {
-        match self.window.theme() {
-            Some(t) => match t {
-                winit::window::Theme::Light => ColorScheme::Light,
-                winit::window::Theme::Dark => ColorScheme::Dark,
-            },
-            None => crate::config::color_scheme_config(),
-        }
     }
 
     fn set_inner_position(&self, pos: DipPoint) {

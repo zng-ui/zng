@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng::button::PrimaryStyle`.
+* **Breaking** View API now groups color scheme with a new accent color config.
 * **Breaking** Refactored "color pair".
     - Now named `LightDark`.
     - Removed helper methods for declaring vars, now `IntoVar<Rgba> for LightDark` is contextual.

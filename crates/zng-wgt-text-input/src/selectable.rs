@@ -56,6 +56,7 @@ impl DefaultStyle {
             popup::context_capture = crate::default_popup_context_capture();
             context_menu_fn = WidgetFn::new(default_context_menu);
             selection_toolbar_fn = WidgetFn::new(default_selection_toolbar);
+            selection_color = colors::ACCENT_COLOR_VAR.rgba_map(|c| c.with_alpha(30.pct()));
         }
     }
 }

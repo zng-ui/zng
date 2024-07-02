@@ -1,4 +1,6 @@
-use zng_view_api::config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig};
+use zng_view_api::config::{
+    AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
+};
 
 #[cfg(windows)]
 mod windows;
@@ -59,8 +61,8 @@ pub fn touch_config() -> TouchConfig {
     platform::touch_config()
 }
 
-pub fn color_scheme_config() -> ColorScheme {
-    platform::color_scheme_config()
+pub fn colors_config() -> ColorsConfig {
+    platform::colors_config()
 }
 
 pub fn locale_config() -> LocaleConfig {

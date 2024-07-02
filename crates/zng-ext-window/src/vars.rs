@@ -4,6 +4,7 @@ use zng_app::{
     widget::info::access::AccessEnabled,
     window::{MonitorId, WindowId, WINDOW},
 };
+use zng_color::LightDark;
 use zng_ext_image::Img;
 use zng_layout::unit::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size};
 use zng_state_map::{static_id, StateId};
@@ -11,7 +12,7 @@ use zng_txt::Txt;
 use zng_unique_id::IdSet;
 use zng_var::{merge_var, var, var_from, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
 use zng_view_api::{
-    config::ColorScheme,
+    config::{ColorScheme, ColorsConfig},
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},
 };
 
@@ -66,6 +67,8 @@ pub(super) struct WindowVarsData {
 
     color_scheme: ArcVar<Option<ColorScheme>>,
     pub(super) actual_color_scheme: ArcVar<ColorScheme>,
+    accent_color: ArcVar<Option<LightDark>>,
+    pub(super) actual_accent_color: ArcVar<LightDark>,
 
     pub(super) is_open: ArcVar<bool>,
     pub(super) is_loaded: ArcVar<bool>,
@@ -88,7 +91,7 @@ pub(super) struct WindowVarsData {
 #[derive(Clone)]
 pub struct WindowVars(pub(super) Arc<WindowVarsData>);
 impl WindowVars {
-    pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor, system_color_scheme: ColorScheme) -> Self {
+    pub(super) fn new(default_render_mode: RenderMode, primary_scale_factor: Factor, system_colors: ColorsConfig) -> Self {
         let vars = Arc::new(WindowVarsData {
             chrome: var(true),
             icon: var(WindowIcon::Default),
@@ -141,7 +144,9 @@ impl WindowVars {
             children: var(IdSet::default()),
 
             color_scheme: var(None),
-            actual_color_scheme: var(system_color_scheme),
+            actual_color_scheme: var(system_colors.scheme),
+            accent_color: var(None),
+            actual_accent_color: var(system_colors.accent.into()),
 
             is_open: var(true),
             is_loaded: var(false),
@@ -547,7 +552,8 @@ impl WindowVars {
     /// * This window is always on-top of the parent window.
     /// * If the parent window is closed, this window is also closed.
     /// * If [`modal`] is set, the parent window cannot be focused while this window is open.
-    /// * If a [`color_scheme`] is not set, the [`color_scheme`] fallback is the parent's actual scheme.
+    /// * If a [`color_scheme`] is not set, the fallback is the parent's actual scheme.
+    /// * If an [`accent_color`] is not set, the fallback is the parent's actual accent.
     ///
     /// The default value is `None`.
     ///
@@ -560,7 +566,7 @@ impl WindowVars {
     ///
     /// [`modal`]: Self::modal
     /// [`color_scheme`]: Self::color_scheme
-    /// [`actual_color_scheme`]: Self::color_scheme
+    /// [`accent_color`]: Self::accent_color
     pub fn parent(&self) -> ArcVar<Option<WindowId>> {
         self.0.parent.clone()
     }
@@ -599,6 +605,27 @@ impl WindowVars {
     /// [`color_scheme`]: Self::color_scheme
     pub fn actual_color_scheme(&self) -> ReadOnlyArcVar<ColorScheme> {
         self.0.actual_color_scheme.read_only()
+    }
+
+    /// Override the preferred accent color.
+    ///
+    /// If set to `None` the system preference is used, see [`actual_accent_color`].
+    ///
+    /// [`actual_accent_color`]: Self::actual_accent_color
+    pub fn accent_color(&self) -> ArcVar<Option<LightDark>> {
+        self.0.accent_color.clone()
+    }
+
+    /// Actual accent color to use.
+    ///
+    /// This is the system preference, or [`color_scheme`] if it is set.
+    ///
+    /// The window widget also sets [`ACCENT_COLOR_VAR`] to this variable.
+    ///
+    /// [`color_scheme`]: Self::color_scheme
+    /// [`ACCENT_COLOR_VAR`]: zng_color::colors::ACCENT_COLOR_VAR
+    pub fn actual_accent_color(&self) -> ReadOnlyArcVar<LightDark> {
+        self.0.actual_accent_color.read_only()
     }
 
     /// If the window is open.

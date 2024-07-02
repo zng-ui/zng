@@ -1,4 +1,7 @@
-use zng_view_api::config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig};
+use zng_unit::Rgba;
+use zng_view_api::config::{
+    AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
+};
 
 /// Create a hidden window that listens to Windows config change events.
 pub(crate) fn spawn_listener(event_loop: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
@@ -80,6 +83,8 @@ fn config_listener(event_loop: crate::AppEventSender) {
         RegisterPowerSettingNotification(window, &GUID_SESSION_DISPLAY_STATUS, 0)
     };
 
+    let mut colors_cfg = colors_config();
+
     let r = util::set_raw_windows_event_handler(window, u32::from_ne_bytes(*b"cevl") as _, move |_, msg, wparam, lparam| {
         let notify = |ev| {
             let _ = event_loop.send(AppEvent::Notify(ev));
@@ -105,7 +110,17 @@ fn config_listener(event_loop: crate::AppEventSender) {
                         _ => None,
                     }
                 }
-                _ => None,
+                _ => {
+                    // winit does this too for color scheme
+                    let cfg = colors_config();
+                    if cfg != colors_cfg {
+                        colors_cfg = cfg;
+                        notify(Event::ColorsConfigChanged(cfg));
+                        Some(0)
+                    } else {
+                        None
+                    }
+                }
             },
             WM_DISPLAYCHANGE => {
                 let _ = event_loop.send(AppEvent::RefreshMonitors);
@@ -292,7 +307,7 @@ pub fn touch_config() -> TouchConfig {
     super::other::touch_config()
 }
 
-pub fn color_scheme_config() -> ColorScheme {
+pub fn colors_config() -> ColorsConfig {
     // source: winit
 
     use std::mem;
@@ -344,11 +359,19 @@ pub fn color_scheme_config() -> ColorScheme {
         ok != 0 && hc.dwFlags & HCF_HIGHCONTRASTON == HCF_HIGHCONTRASTON
     }
 
-    if should_apps_use_dark_mode() && !is_high_contrast() {
+    let scheme = if should_apps_use_dark_mode() && !is_high_contrast() {
         ColorScheme::Dark
     } else {
         ColorScheme::Light
-    }
+    };
+
+    let accent = windows::UI::ViewManagement::UISettings::new()
+        .ok()
+        .and_then(|ui| ui.GetColorValue(windows::UI::ViewManagement::UIColorType::Accent).ok())
+        .map(|a| Rgba::new(a.R, a.G, a.B, a.A))
+        .unwrap_or_else(|| ColorsConfig::default().accent);
+
+    ColorsConfig { scheme, accent }
 }
 
 pub(crate) fn locale_config() -> LocaleConfig {

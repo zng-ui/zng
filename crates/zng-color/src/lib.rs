@@ -857,13 +857,13 @@ pub struct LightDark {
     pub light: Rgba,
 }
 impl_from_and_into_var! {
-    // /// From `(light, dark)` tuple. !!: TODO
-    // fn from<L: Into<Rgba>, D: Into<Rgba>>((light, dark): (L, D)) -> LightDark {
-    //     LightDark {
-    //         light: light.into(),
-    //         dark: dark.into(),
-    //     }
-    // }
+    /// From `(light, dark)` tuple.
+    fn from<L: Into<Rgba>, D: Into<Rgba>>((light, dark): (L, D)) -> LightDark {
+        LightDark {
+            light: light.into(),
+            dark: dark.into(),
+        }
+    }
 
     /// From same color to both.
     fn from(color: Rgba) -> LightDark {
@@ -879,6 +879,8 @@ impl_from_and_into_var! {
     fn from(color: Hsla) -> LightDark {
         Rgba::from(color).into()
     }
+
+    fn from(color: LightDark) -> Option<LightDark>;
 }
 impl IntoVar<Rgba> for LightDark {
     type Var = ContextualizedVar<Rgba>;

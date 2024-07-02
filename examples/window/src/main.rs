@@ -15,7 +15,6 @@ use zng::{
     layout::*,
     prelude::*,
     scroll::ScrollMode,
-    text::Strong,
     var::ArcVar,
     widget::{background_color, corner_radius, enabled, visibility, LineStyle},
     window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
@@ -760,8 +759,9 @@ fn close_dialog(mut windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl U
                         spacing = 4;
                         children = ui_vec![
                             Button! {
+                                style_fn = button::PrimaryStyle!();
                                 focus_on_init = true;
-                                child = Strong!("Close");
+                                child = Text!("Close");
                                 on_click = hn_once!(state, |_| {
                                     state.set(CloseState::Close);
                                     windows.retain(|w| WINDOWS.is_open(*w));

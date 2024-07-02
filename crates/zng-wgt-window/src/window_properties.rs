@@ -90,6 +90,7 @@ set_properties! {
     modal: bool,
 
     color_scheme: Option<ColorScheme>,
+    accent_color: Option<LightDark>,
 
     frame_capture_mode: FrameCaptureMode,
 

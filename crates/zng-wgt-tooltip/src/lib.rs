@@ -542,7 +542,7 @@ impl DefaultStyle {
         widget_set! {
             self;
             replace = true;
-            padding = (2, 4);
+            padding = (4, 6);
             corner_radius = 3;
             base_color = light_dark(rgb(235, 235, 235), rgb(20, 20, 20));
             background_color = colors::BASE_COLOR_VAR.rgba();

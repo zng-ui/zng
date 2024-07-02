@@ -308,10 +308,6 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawMonitorsChangedArgs::now(monitors);
                 self.notify_event(RAW_MONITORS_CHANGED_EVENT.new_update(args), observer);
             }
-            Event::ColorSchemeChanged(w_id, scheme) => {
-                let args = RawColorSchemeChangedArgs::now(window_id(w_id), scheme);
-                self.notify_event(RAW_COLOR_SCHEME_CHANGED_EVENT.new_update(args), observer);
-            }
             Event::WindowCloseRequested(w_id) => {
                 let args = RawWindowCloseRequestedArgs::now(window_id(w_id));
                 self.notify_event(RAW_WINDOW_CLOSE_REQUESTED_EVENT.new_update(args), observer);
@@ -449,6 +445,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawLocaleChangedArgs::now(cfg);
                 self.notify_event(RAW_LOCALE_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
+            Event::ColorsConfigChanged(cfg) => {
+                let args = RawColorsConfigChangedArgs::now(cfg);
+                self.notify_event(RAW_COLORS_CONFIG_CHANGED_EVENT.new_update(args), observer);
+            }
 
             // `device_events`
             Event::DeviceAdded(d_id) => {
@@ -562,7 +562,7 @@ impl<E: AppExtension> RunningApp<E> {
                     font_aa,
                     animations_config,
                     locale_config,
-                    color_scheme,
+                    colors_config,
                     extensions,
                 }) => {
                     // notify immediately.
@@ -589,7 +589,7 @@ impl<E: AppExtension> RunningApp<E> {
                         font_aa,
                         animations_config,
                         locale_config,
-                        color_scheme,
+                        colors_config,
                         extensions,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);

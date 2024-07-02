@@ -1,6 +1,7 @@
 use objc2_app_kit::*;
-use zng_unit::TimeUnits as _;
-use zng_view_api::config::{AnimationsConfig, ColorScheme, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
+use objc2_foundation::*;
+use zng_unit::{Rgba, TimeUnits as _};
+use zng_view_api::config::{AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
 
 pub fn font_aa() -> FontAntiAliasing {
     super::other::font_aa()
@@ -28,8 +29,35 @@ pub fn touch_config() -> TouchConfig {
     super::other::touch_config()
 }
 
-pub fn color_scheme_config() -> ColorScheme {
-    super::other::color_scheme_config()
+pub fn colors_config() -> ColorsConfig {
+    let appearance = unsafe { NSAppearance::currentDrawingAppearance() };
+
+    // source: winit
+    fn dark_appearance_name() -> &'static NSString {
+        // Don't use the static `NSAppearanceNameDarkAqua` to allow linking on macOS < 10.14
+        ns_string!("NSAppearanceNameDarkAqua")
+    }
+    let best_match = appearance.bestMatchFromAppearancesWithNames(&NSArray::from_id_slice(&[
+        unsafe { NSAppearanceNameAqua.copy() },
+        dark_appearance_name().copy(),
+    ]));
+    let scheme = if let Some(best_match) = best_match {
+        if *best_match == *dark_appearance_name() {
+            ColorScheme::Dark
+        } else {
+            ColorScheme::Light
+        }
+    } else {
+        tracing::warn!("failed to determine macOS color scheme");
+        ColorScheme::Light
+    };
+
+    let accent = unsafe {
+        let a = NSColor::controlAccentColor();
+        Rgba::new(a.redComponent(), a.greenComponent(), a.blueComponent(), a.alphaComponent())
+    };
+
+    ColorsConfig { scheme, accent }
 }
 
 #[cfg(not(windows))]

@@ -911,14 +911,7 @@ mod defaults {
                 #[cfg(feature = "inspector")]
                 let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
 
-                // setup COLOR_SCHEME_VAR for all windows, this is not done in `Window!` because
-                // WindowRoot is used directly by some headless renderers.
-                zng_wgt::node::with_context_var_init(child, zng_color::COLOR_SCHEME_VAR, || {
-                    use zng_ext_window::WINDOW_Ext as _;
-                    use zng_var::Var as _;
-
-                    zng_app::window::WINDOW.vars().actual_color_scheme().boxed()
-                })
+                child
             });
             tracing::debug!("defaults init, root_extender set");
 
