@@ -52,7 +52,8 @@ impl EVENTS {
     /// Commands that had handles generated in this app.
     ///
     /// When [`Command::subscribe`] is called for the first time in an app, the command gets added
-    /// to this list after the current update.
+    /// to this list after the current update, if the command is app scoped it remains on the list for
+    /// the lifetime of the app, if it is window or widget scoped it only remains while there are handles.
     ///
     /// [`Command::subscribe`]: crate::event::Command::subscribe
     pub fn commands(&self) -> Vec<Command> {
@@ -99,4 +100,28 @@ impl EVENTS {
         }
         updates
     }
+}
+
+event_args! {
+    /// Arguments for [`COMMANDS_CHANGED_EVENT`].
+    pub struct CommandsChangedArgs {
+        /// Scoped commands that lost all handlers.
+        pub removed: Vec<Command>,
+
+        /// New commands.
+        pub added: Vec<Command>,
+
+        ..
+
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all();
+        }
+    }
+}
+
+event! {
+    /// Event when [`EVENTS.commands`] list changes.
+    /// 
+    /// [`EVENTS.commands`]: EVENTS::commands
+    pub static COMMANDS_CHANGED_EVENT: CommandsChangedArgs;
 }

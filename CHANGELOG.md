@@ -1,5 +1,6 @@
 # Unreleased
 
+* Impl `std::hash::Hash` for `AppLocal<T>`, `AnyEvent` and `Command`.
 * Add `zng::button::PrimaryStyle`.
 * **Breaking** View API now groups color scheme with a new accent color config.
 * **Breaking** Refactored "color pair".

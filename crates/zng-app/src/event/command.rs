@@ -518,6 +518,12 @@ impl PartialEq for Command {
     }
 }
 impl Eq for Command {}
+impl std::hash::Hash for Command {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&self.event.as_any(), state);
+        std::hash::Hash::hash(&self.scope, state);
+    }
+}
 
 struct CmdAppHandler<H> {
     handler: H,
