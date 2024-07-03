@@ -412,6 +412,8 @@ impl L10N {
     /// Bind the command metadata to a message.
     ///
     /// This is automatically called by [`command!`] instances that set the metadata `l10n!: true` or `l10n!: "file"`.
+    ///
+    /// [`command!`]: zng_app::event::command!
     pub fn bind_command_meta(&self, file: impl Into<Txt>, cmd: Command, meta_name: impl Into<Txt>, meta_value: CommandMetaVar<Txt>) {
         let msg = self.message(file, cmd.event().as_any().name(), meta_name, meta_value.get()).build();
         meta_value.set_from(&msg).unwrap();

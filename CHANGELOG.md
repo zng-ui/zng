@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add localization helper for commands.
+    - Set `l10n!: true` in `command!` declarations to localize metadata.
+    - Use `cargo zng l10n` to scrap metadata.
 * **Breaking** Use HashSet for `EVENTS.commands`.
 * Impl `std::hash::Hash` for `AppLocal<T>`, `AnyEvent` and `Command`.
 * Add `zng::button::PrimaryStyle`.
