@@ -163,8 +163,6 @@ fn scrape_file(rs_file: PathBuf, custom_macro_names: &[&str]) -> FluentTemplate 
     while let Some(tt) = next(&mut stream_stack) {
         match tt {
             TokenTree::Group(g) => {
-                tail2.clear();
-
                 if matches!(g.delimiter(), Delimiter::Brace | Delimiter::Parenthesis | Delimiter::Bracket)
                     && tail2.len() == 2
                     && matches!(&tail2[0], TokenTree::Punct(p) if p.as_char() == '!')
@@ -176,6 +174,8 @@ fn scrape_file(rs_file: PathBuf, custom_macro_names: &[&str]) -> FluentTemplate 
                         TokenTree::Ident(i) => i.span().start().line,
                         _ => unreachable!(),
                     };
+
+                    tail2.clear();
 
                     if let Ok(args) = L10nMacroArgs::try_from(g.stream()) {
                         let (file, id, attribute) = match parse_validate_id(&args.id) {

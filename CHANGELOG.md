@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix localization scrapper only adding section comments to main file.
 * Add localization helper for commands.
     - Set `l10n!: true` in `command!` declarations to localize metadata.
     - Use `cargo zng l10n` to scrap metadata.

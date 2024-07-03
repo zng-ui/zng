@@ -124,9 +124,9 @@ impl AppExtension for L10nManager {
 ///
 /// The scrapper can also scrap comments, if the previous code line from a [`l10n!`] call is a comment starting with
 /// prefix `l10n-# ` the text the follows is collected, same for a comment in the same line of the [`l10n!`] call. Sections
-/// can be declared using `l10n-##` and standalone notes can be added to the top of the template file from anywhere using
-/// `l10n-{file_pattern}-###`, file pattern can be omitted, `l10n-###` is equivalent to `l10n--###` that matches the localization
-/// template used when no file is specified.
+/// can be declared using `l10n-## `, all entries after a section comment are added to that section. Standalone notes can be added to
+/// the top of the template file from anywhere using `l10n-{file_pattern}-### `, file pattern can be omitted, `l10n-### ` is equivalent
+/// to `l10n--### ` that matches the localization template used when no file is specified.
 ///
 /// ```
 /// # use zng_ext_l10n::*;
