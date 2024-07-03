@@ -11,7 +11,19 @@ window =
     .icon = Ŀo
     .title = Ŀoƈaŀiẑe Eẋaḿƥŀe (ŧeḿƥŀaŧe)
 
+## Commands
+
+LOCALIZED_CMD =
+    .info = Ŀoƈaŀiẑeḓ iƞ ŧħe ḓeƒauŀŧ ƒiŀe.
+    .name = Ŀoƈaŀiẑeḓ
+
+PRIVATE_LOCALIZED_CMD =
+    .info = Ƥřiṽaŧe ƈoḿḿaƞḓ, ƥuƀŀiƈ ŀoƈaŀiẑaŧioƞ ŧeẋŧ.
+    .name = Ƥřiṽaŧe
+
 ## Example Section
 
 # button sets "click-count"
 button = Ɓuŧŧoƞ
+
+example-cmds = Eẋaḿƥŀe Ƈoḿḿaƞḓş:

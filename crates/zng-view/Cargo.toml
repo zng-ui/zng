@@ -85,11 +85,11 @@ image = { version = "0.25", default-features = false, features = [
 ] }
 img-parts = "0.3"
 byteorder = "1.5"
-rustc-hash = "1.1"
+rustc-hash = "2.0"
 rayon = "1.10"
 serde = "1.0"
-accesskit = "0.15"
-accesskit_winit = "0.21"
+accesskit = "0.16"
+accesskit_winit = "0.22"
 # rfd
 [target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd")))'.dependencies.rfd]
 version = "0.14"

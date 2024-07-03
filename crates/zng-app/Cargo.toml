@@ -56,7 +56,12 @@ trace_widget = []
 trace_wgt_item = []
 
 # Allow app-process crash handler.
-crash_handler = ["dep:serde_json", "dep:breakpad-handler", "dep:minidump", "dep:linkme"]
+crash_handler = [
+    "dep:serde_json",
+    "dep:breakpad-handler",
+    "dep:minidump",
+    "dep:linkme",
+]
 
 # Enables IPC tasks and pre-build views and connecting to views running in another process.
 ipc = ["zng-view-api/ipc", "zng-task/ipc"]
@@ -104,6 +109,8 @@ serde_json = { version = "1.0", optional = true }
 breakpad-handler = { version = "0.2", optional = true }
 minidump = { version = "0.21", optional = true }
 linkme = { version = "=0.3.27", optional = true }
+hashbrown = { version = "*", features = ["rayon"] }
+rustc-hash = "2.0"
 
 dunce = "1.0"
 

@@ -29,6 +29,7 @@ command! {
     ///
     /// The request is the same as [`SELECT_CMD`] with [`TextSelectOp::select_all`].
     pub static SELECT_ALL_CMD = {
+        l10n!: true,
         name: "Select All",
         shortcut: shortcut!(CTRL+'A'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,

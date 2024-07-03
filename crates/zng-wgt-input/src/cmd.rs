@@ -10,6 +10,7 @@ command! {
     /// The command parameter can identify the new item type, otherwise the default (or single) type
     /// must be used.
     pub static NEW_CMD = {
+        l10n!: true,
         name: "New",
         shortcut: [shortcut!(CTRL+'N'), shortcut!(New)],
     };
@@ -19,6 +20,7 @@ command! {
     /// The command parameter can be an item path to open (like a `PathBuf`), otherwise the
     /// command implementer must identify the item, either by context or by prompting the user.
     pub static OPEN_CMD = {
+        l10n!: true,
         name: "Open…",
         shortcut: [shortcut!(CTRL+'O'), shortcut!(Open)],
         icon: wgt_fn!(|_| ICONS.get("file-open")),
@@ -29,6 +31,7 @@ command! {
     /// Usually this saves to the already defined item path (open or previous save path),
     /// otherwise the user is prompted like [`SAVE_AS_CMD`].
     pub static SAVE_CMD = {
+        l10n!: true,
         name: "Save",
         shortcut: [shortcut!(CTRL+'S'), shortcut!(Save)],
         icon: wgt_fn!(|_| ICONS.get("save")),
@@ -38,6 +41,7 @@ command! {
     ///
     /// Usually this prompts the user for a save path, even if a previous path is already known.
     pub static SAVE_AS_CMD = {
+        l10n!: true,
         name: "Save As…",
         shortcut: [shortcut!(CTRL|SHIFT+'S')],
     };
@@ -57,6 +61,7 @@ command! {
     /// The parameter can be a `Txt` that can match a `ConfigKey` or config metadata
     /// such as the display name or description.
     pub static SETTINGS_CMD = {
+        l10n!: true,
         name: "Settings",
         shortcut: [shortcut!(CTRL+',')],
         icon: wgt_fn!(|_| ICONS.get("settings")),

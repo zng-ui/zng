@@ -780,6 +780,7 @@ command! {
     /// You can use [`CommandUndoExt::undo_scoped`] to get a command variable that is always scoped on the
     /// focused undo scope.
     pub static UNDO_CMD = {
+        l10n!: true,
         name: "Undo",
         shortcut: [shortcut!(CTRL+'Z')],
         icon: wgt_fn!(|_| ICONS.get("undo")),
@@ -795,6 +796,7 @@ command! {
     /// [`redo_select`]: UNDO::redo_select
     /// [`redo`]: UNDO::redo
     pub static REDO_CMD = {
+        l10n!: true,
         name: "Redo",
         shortcut: [shortcut!(CTRL+'Y')],
         icon: wgt_fn!(|_| ICONS.get("redo")),
@@ -806,6 +808,7 @@ command! {
     ///
     /// [`clear`]: UNDO::clear
     pub static CLEAR_HISTORY_CMD = {
+        l10n!: true,
         name: "Clear History",
     };
 }

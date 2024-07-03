@@ -80,6 +80,51 @@ use super::*;
 ///
 /// For the first kind of metadata initialization a documentation section is also generated with a table of metadata.
 ///
+/// # Localization
+///
+/// If the first metadata is `l10n!:` the command init will attempt to localize the other string metadata. The `cargo zng l10n`
+/// command line tool scraps commands that set this special metadata.
+///
+/// ```
+/// # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
+/// command! {
+///     pub static FOO_CMD = {
+///         l10n!: true,
+///         name: "Foo!",
+///         info: "Does the foo thing.",
+///     };
+/// }
+/// ```
+///
+/// The example above will be scrapped as:
+///
+/// ```ftl
+/// FOO_CMD =
+///     .name = Foo!
+///     .info = Does the foo thing.
+/// ```
+///
+/// The `l10n!:` meta can also be set to a localization file name:
+///
+/// ```
+/// # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
+/// command! {
+///     pub static FOO_CMD = {
+///         l10n!: "file",
+///         name: "Foo!",
+///     };
+/// }
+/// ```
+///
+/// The example above is scrapped to `{l10n-dir}/{lang}/file.ftl` files.
+///
+/// ## Limitations
+///
+/// Interpolation is not supported in command localization strings.
+///
+/// The `l10n!:` value must be a *textual* literal, that is, it can be only a string literal or a `bool` literal, and it cannot be
+/// inside a macro expansion.
+///
 /// [`Command`]: crate::event::Command
 /// [`CommandArgs`]: crate::event::CommandArgs
 /// [`CommandNameExt`]: crate::event::CommandNameExt
@@ -91,7 +136,7 @@ use super::*;
 macro_rules! command {
     ($(
         $(#[$attr:meta])*
-        $vis:vis static $COMMAND:ident $(=> |$cmd:ident|$custom_meta_init:expr ;)? $(= { $($meta_ident:ident : $meta_init:expr),* $(,)? };)? $(;)?
+        $vis:vis static $COMMAND:ident $(=> |$cmd:ident|$custom_meta_init:expr ;)? $(= { $($meta_ident:ident $(!)? : $meta_init:expr),* $(,)? };)? $(;)?
     )+) => {
         $(
             $crate::__command! {
@@ -138,6 +183,37 @@ macro_rules! __command {
     };
     (
         $(#[$attr:meta])*
+        $vis:vis static $COMMAND:ident = { l10n: $l10n_arg:expr, $($meta_ident:ident : $meta_init:expr),* $(,)? };
+    ) => {
+        $crate::event::paste! {
+            $crate::__command! {
+                $(#[$attr])*
+                ///
+                /// # Metadata
+                ///
+                /// This command has the following default metadata:
+                ///
+                /// <table>
+                /// <thead><tr><th>metadata</th><th>value</th></tr></thead>
+                /// <tbody>
+                $(#[doc = concat!("<tr> <td>", stringify!($meta_ident), "</td> <td>", stringify!($meta_init), "</td> </tr>")])+
+                ///
+                /// </tbody>
+                /// </table>
+                ///
+                /// Text metadata is localized.
+                $vis static $COMMAND => |cmd| {
+                    let __l10n_arg = $l10n_arg;
+                    $(
+                        cmd.[<init_ $meta_ident>]($meta_init);
+                        $crate::event::init_meta_l10n(&__l10n_arg, cmd, stringify!($meta_ident), &cmd.$meta_ident());
+                    )*
+                };
+            }
+        }
+    };
+    (
+        $(#[$attr:meta])*
         $vis:vis static $COMMAND:ident = { $($meta_ident:ident : $meta_init:expr),* $(,)? };
     ) => {
         $crate::event::paste! {
@@ -174,6 +250,26 @@ macro_rules! __command {
     };
 }
 
+#[doc(hidden)]
+pub fn init_meta_l10n(l10n_arg: &dyn Any, cmd: Command, meta_name: &'static str, meta_value: &dyn Any) {
+    if let Some(txt) = meta_value.downcast_ref::<CommandMetaVar<Txt>>() {
+        let mut l10n_file = "";
+
+        if let Some(&enabled) = l10n_arg.downcast_ref::<bool>() {
+            if !enabled {
+                return;
+            }
+        } else if let Some(&file) = l10n_arg.downcast_ref::<&'static str>() {
+            l10n_file = file;
+        } else {
+            tracing::error!("unknown l10n value in {}", cmd.event().as_any().name());
+            return;
+        }
+
+        EVENTS_L10N.init_meta_l10n(l10n_file, cmd, meta_name, txt.clone());
+    }
+}
+
 /// Identifies a command event.
 ///
 /// Use the [`command!`] to declare commands, it declares command static items with optional
@@ -194,7 +290,7 @@ macro_rules! __command {
 ///
 /// # Metadata
 ///
-/// Commands can have metadata associated with them, this metadata is extendable and can be used to enable
+/// Commands can have associated metadata, this metadata is extendable and can be used to enable
 /// command features such as command shortcuts. The metadata can be accessed using [`with_meta`], metadata
 /// extensions traits can use this metadata to store state. See [`CommandMeta`] for more details.
 ///
@@ -518,6 +614,12 @@ impl PartialEq for Command {
     }
 }
 impl Eq for Command {}
+impl std::hash::Hash for Command {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&self.event.as_any(), state);
+        std::hash::Hash::hash(&self.scope, state);
+    }
+}
 
 struct CmdAppHandler<H> {
     handler: H,

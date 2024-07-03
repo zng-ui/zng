@@ -1,5 +1,11 @@
 # Unreleased
 
+* Fix localization scrapper only adding section comments to main file.
+* Add localization helper for commands.
+    - Set `l10n!: true` in `command!` declarations to localize metadata.
+    - Use `cargo zng l10n` to scrap metadata.
+* **Breaking** Use HashSet for `EVENTS.commands`.
+* Impl `std::hash::Hash` for `AppLocal<T>`, `AnyEvent` and `Command`.
 * Add `zng::button::PrimaryStyle`.
 * **Breaking** View API now groups color scheme with a new accent color config.
 * **Breaking** Refactored "color pair".

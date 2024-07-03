@@ -474,6 +474,11 @@ impl PartialEq for AnyEvent {
     }
 }
 impl Eq for AnyEvent {}
+impl std::hash::Hash for AnyEvent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(self.local, state)
+    }
+}
 impl<A: EventArgs> PartialEq<AnyEvent> for Event<A> {
     fn eq(&self, other: &AnyEvent) -> bool {
         self.local == other.local

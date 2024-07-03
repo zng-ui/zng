@@ -791,6 +791,12 @@ impl<T: Send + Sync + 'static> PartialEq for AppLocal<T> {
     }
 }
 impl<T: Send + Sync + 'static> Eq for AppLocal<T> {}
+impl<T: Send + Sync + 'static> std::hash::Hash for AppLocal<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let a = AppLocalId((self.inner)() as *const dyn AppLocalImpl<T> as *const () as _);
+        std::hash::Hash::hash(&a, state)
+    }
+}
 
 /// Identifies an [`AppLocal<T>`] instance.
 ///

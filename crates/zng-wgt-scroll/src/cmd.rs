@@ -20,6 +20,7 @@ command! {
     ///
     /// [`v_line_unit`]: fn@crate::v_line_unit
     pub static SCROLL_UP_CMD = {
+        l10n!: true,
         name: "Scroll Up",
         info: "Scroll Up by one scroll unit.",
         shortcut: shortcut!(ArrowUp),
@@ -35,6 +36,7 @@ command! {
     ///
     /// [`v_line_unit`]: fn@crate::v_line_unit
     pub static SCROLL_DOWN_CMD = {
+        l10n!: true,
         name: "Scroll Down",
         info: "Scroll Down by one scroll unit.",
         shortcut: shortcut!(ArrowDown),
@@ -50,6 +52,7 @@ command! {
     ///
     /// [`h_line_unit`]: fn@crate::h_line_unit
     pub static SCROLL_LEFT_CMD = {
+        l10n!: true,
         name: "Scroll Left",
         info: "Scroll Left by one scroll unit.",
         shortcut: shortcut!(ArrowLeft),
@@ -65,6 +68,7 @@ command! {
     ///
     /// [`h_line_unit`]: fn@crate::h_line_unit
     pub static SCROLL_RIGHT_CMD = {
+        l10n!: true,
         name: "Scroll Right",
         info: "Scroll Right by one scroll unit.",
         shortcut: shortcut!(ArrowRight),
@@ -84,6 +88,7 @@ command! {
     /// [`shortcut`]: CommandShortcutExt
     /// [`v_page_unit`]: fn@crate::v_page_unit
     pub static PAGE_UP_CMD = {
+        l10n!: true,
         name: "Page Up",
         info: "Scroll Up by one page unit.",
         shortcut: shortcut!(PageUp),
@@ -99,6 +104,7 @@ command! {
     ///
     /// [`v_page_unit`]: fn@crate::v_page_unit
     pub static PAGE_DOWN_CMD = {
+        l10n!: true,
         name: "Page Down",
         info: "Scroll down by one page unit.",
         shortcut: shortcut!(PageDown),
@@ -114,6 +120,7 @@ command! {
     ///
     /// [`h_page_unit`]: fn@crate::h_page_unit
     pub static PAGE_LEFT_CMD = {
+        l10n!: true,
         name: "Page Left",
         info: "Scroll Left by one page unit.",
         shortcut: shortcut!(SHIFT+PageUp),
@@ -129,6 +136,7 @@ command! {
     ///
     /// [`h_page_unit`]: fn@crate::h_page_unit
     pub static PAGE_RIGHT_CMD = {
+        l10n!: true,
         name: "Page Right",
         info: "Scroll Right by one page unit.",
         shortcut: shortcut!(SHIFT+PageDown),
@@ -137,6 +145,7 @@ command! {
 
     /// Represents the **scroll to top** action.
     pub static SCROLL_TO_TOP_CMD = {
+        l10n!: true,
         name: "Scroll to Top",
         info: "Scroll up to the content top.",
         shortcut: [shortcut!(Home), shortcut!(CTRL+Home)],
@@ -146,6 +155,7 @@ command! {
 
     /// Represents the **scroll to bottom** action.
     pub static SCROLL_TO_BOTTOM_CMD = {
+        l10n!: true,
         name: "Scroll to Bottom",
         info: "Scroll down to the content bottom.",
         shortcut: [shortcut!(End), shortcut!(CTRL+End)],
@@ -155,6 +165,7 @@ command! {
 
     /// Represents the **scroll to leftmost** action.
     pub static SCROLL_TO_LEFTMOST_CMD = {
+        l10n!: true,
         name: "Scroll to Leftmost",
         info: "Scroll left to the content left edge.",
         shortcut: [shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)],
@@ -163,6 +174,7 @@ command! {
 
     /// Represents the **scroll to rightmost** action.
     pub static SCROLL_TO_RIGHTMOST_CMD = {
+        l10n!: true,
         name: "Scroll to Rightmost",
         info: "Scroll right to the content right edge.",
         shortcut: [shortcut!(SHIFT+End), shortcut!(CTRL|SHIFT+End)],
@@ -197,6 +209,7 @@ command! {
     ///
     /// [`Point`]: zng_wgt::prelude::Point
     pub static ZOOM_IN_CMD = {
+        l10n!: true,
         name: "Zoom In",
         shortcut: shortcut!(CTRL+'+'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
@@ -213,6 +226,7 @@ command! {
     ///
     /// [`Point`]: zng_wgt::prelude::Point
     pub static ZOOM_OUT_CMD = {
+        l10n!: true,
         name: "Zoom Out",
         shortcut: shortcut!(CTRL+'-'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
@@ -223,6 +237,7 @@ command! {
     ///
     /// The content is scaled to fit the viewport, the equivalent to `ImageFit::Contain`.
     pub static ZOOM_TO_FIT_CMD = {
+        l10n!: true,
         name: "Zoom to Fit",
         shortcut: shortcut!(CTRL+'0'),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
@@ -232,6 +247,7 @@ command! {
     ///
     /// The content is scaled back to 100%, without adjusting the scroll.
     pub static ZOOM_RESET_CMD = {
+        l10n!: true,
         name: "Reset Zoom",
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };

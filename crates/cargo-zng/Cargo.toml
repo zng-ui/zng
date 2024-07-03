@@ -19,8 +19,9 @@ color-print = "0.3"
 # l10n
 rayon = "1.10"
 glob = "0.3"
-rustc_lexer = "0.1"
 fluent-pseudo = "0.3"
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+litrs = "0.4"
 
 # new
 convert_case = "0.6"

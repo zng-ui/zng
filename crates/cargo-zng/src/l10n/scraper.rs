@@ -1,7 +1,9 @@
 //! Localization text scraping.
 
-use std::{borrow::Cow, fmt::Debug, io, mem, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, fs, io, mem, path::PathBuf, sync::Arc};
 
+use litrs::StringLit;
+use proc_macro2::{Delimiter, Ident, Span, TokenStream, TokenTree};
 use rayon::prelude::*;
 
 /// Scrapes all use of the `l10n!` macro in Rust files selected by a glob pattern.
@@ -50,285 +52,393 @@ fn scrape_files(buf: &mut Vec<PathBuf>, custom_macro_names: &[&str]) -> FluentTe
         },
     )
 }
-fn scrape_file(file: PathBuf, custom_macro_names: &[&str]) -> FluentTemplate {
-    let file = std::fs::read_to_string(&file).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", file.display()));
-    let mut s = file.as_str();
+fn scrape_file(rs_file: PathBuf, custom_macro_names: &[&str]) -> FluentTemplate {
+    let mut r = FluentTemplate::default();
 
-    const BOM: &str = "\u{feff}";
-    if s.starts_with(BOM) {
-        s = &s[BOM.len()..];
+    let file = fs::read_to_string(&rs_file).unwrap_or_else(|e| fatal!("cannot open `{}`, {e}", rs_file.display()));
+
+    if !["l10n!", "command!", "l10n-"]
+        .iter()
+        .chain(custom_macro_names)
+        .any(|h| file.contains(h))
+    {
+        return FluentTemplate::default();
     }
-    if let Some(i) = rustc_lexer::strip_shebang(s) {
-        s = &s[i..];
-    }
 
-    let mut l10n_notes = vec![];
-    let mut l10n_section = Arc::new(String::new());
-
-    let mut output: Vec<FluentEntry> = vec![];
-    let mut entry = FluentEntry {
-        section: l10n_section.clone(),
-        comments: String::new(),
-        file: String::new(),
-        id: String::new(),
-        attribute: String::new(),
-        message: String::new(),
+    // skip UTF-8 BOM
+    let file = file.strip_prefix('\u{feff}').unwrap_or(file.as_str());
+    // skip shebang line
+    let file = if file.starts_with("#!") {
+        &file[file.find('\n').unwrap_or(file.len())..]
+    } else {
+        file
     };
-    let mut last_comment_line = 0;
-    let mut last_entry_line = 0;
-    let mut line = 0;
 
-    #[derive(Clone, Copy)]
-    enum Expect {
-        CommentOrMacroName,
-        Bang,
-        OpenGroup,
-        StrLiteralId,
-        Comma,
-        StrLiteralMessage,
-    }
-    let mut expect = Expect::CommentOrMacroName;
+    let mut sections = vec![(0, Arc::new(String::new()))];
+    let mut comments = vec![];
 
-    for token in rustc_lexer::tokenize(s) {
-        line += s[..token.len].chars().filter(|&a| a == '\n').count();
-
-        match expect {
-            Expect::CommentOrMacroName => match token.kind {
-                rustc_lexer::TokenKind::LineComment => {
-                    let c = s[..token.len].trim().trim_start_matches('/').trim_start();
-
-                    if let Some(c) = c.strip_prefix("l10n-") {
-                        if let Some(i) = c.find("###") {
-                            let file_name = c[..i].trim_end_matches('-');
-                            let c = &c[i + "###".len()..];
-
-                            l10n_notes.push(FluentNote {
-                                file: file_name.to_owned(),
-                                note: c.trim().to_owned(),
-                            });
-                        } else if let Some(c) = c.strip_prefix("##") {
-                            l10n_section = Arc::new(c.trim().to_owned())
-                        } else if let Some(c) = c.strip_prefix('#') {
-                            let c = c.trim_start();
-
-                            // comment still on the last already inserted entry lines
-                            if last_entry_line == line && !output.is_empty() {
-                                let last = output.len() - 1;
-                                if !output[last].comments.is_empty() {
-                                    output[last].comments.push('\n');
-                                }
-                                output[last].comments.push_str(c);
-                            } else {
-                                if !entry.comments.is_empty() {
-                                    if (line - last_comment_line) > 1 {
-                                        entry.comments.clear();
-                                    } else {
-                                        entry.comments.push('\n');
-                                    }
-                                }
-                                entry.comments.push_str(c);
-                                last_comment_line = line;
-                            }
-                        }
-                    }
-                }
-                rustc_lexer::TokenKind::Ident => {
-                    if (line - last_comment_line) > 1 {
-                        entry.comments.clear();
-                    }
-
-                    let ident = &s[..token.len];
-                    if ["l10n"].iter().chain(custom_macro_names).any(|&i| i == ident) {
-                        expect = Expect::Bang;
-                    }
-                }
-                rustc_lexer::TokenKind::Whitespace => {}
-                _ => {}
-            },
-            Expect::Bang => {
-                if "!" == &s[..token.len] {
-                    expect = Expect::OpenGroup;
-                } else {
-                    entry.comments.clear();
-                    expect = Expect::CommentOrMacroName;
+    // parse comments
+    let mut str_lit = false;
+    for (ln, mut line) in file.lines().enumerate() {
+        if str_lit {
+            // seek end of multiline string literal.
+            while let Some(i) = line.find('"') {
+                let str_end = i == 0 || !line[..i].ends_with('\\');
+                line = &line[i + 1..];
+                if str_end {
+                    break;
                 }
             }
-            Expect::OpenGroup => match token.kind {
-                rustc_lexer::TokenKind::OpenParen | rustc_lexer::TokenKind::OpenBrace | rustc_lexer::TokenKind::OpenBracket => {
-                    expect = Expect::StrLiteralId;
-                }
-                rustc_lexer::TokenKind::Whitespace => {}
-                _ => {
-                    entry.comments.clear();
-                    expect = Expect::CommentOrMacroName;
-                }
-            },
-            Expect::StrLiteralId => match token.kind {
-                rustc_lexer::TokenKind::Literal { kind, .. } => match kind {
-                    rustc_lexer::LiteralKind::Str { .. } | rustc_lexer::LiteralKind::RawStr { .. } => {
-                        let message_id = s[..token.len]
-                            .trim_start_matches('r')
-                            .trim_matches('#')
-                            .trim_matches('"')
-                            .to_owned();
-                        let (file, id, attr) = parse_validate_id(&message_id);
-                        entry.file = file;
-                        entry.id = id;
-                        entry.attribute = attr;
-
-                        expect = Expect::Comma;
-                    }
-                    _ => {
-                        entry.comments.clear();
-                        expect = Expect::CommentOrMacroName;
-                    }
-                },
-                rustc_lexer::TokenKind::LineComment => {
-                    // comment inside macro
-
-                    let c = s[..token.len].trim().trim_start_matches('/').trim_start();
-                    if let Some(c) = c.strip_prefix("l10n-") {
-                        if let Some(i) = c.find("###") {
-                            let file_name = c[..i].trim_end_matches('-');
-                            let c = &c[i + "###".len()..];
-
-                            l10n_notes.push(FluentNote {
-                                file: file_name.to_owned(),
-                                note: c.trim().to_owned(),
-                            });
-                        } else if let Some(c) = c.strip_prefix("##") {
-                            l10n_section = Arc::new(c.trim().to_owned())
-                        } else if let Some(c) = c.strip_prefix('#') {
-                            let c = c.trim_start();
-
-                            if !entry.comments.is_empty() {
-                                entry.comments.push('\n');
-                            }
-                            entry.comments.push_str(c);
-                            last_comment_line = line;
-                        }
-                    }
-                }
-                rustc_lexer::TokenKind::Whitespace => {}
-                _ => {
-                    entry.comments.clear();
-                    expect = Expect::CommentOrMacroName;
-                }
-            },
-            Expect::Comma => match token.kind {
-                rustc_lexer::TokenKind::Comma => {
-                    expect = Expect::StrLiteralMessage;
-                }
-                rustc_lexer::TokenKind::LineComment => {
-                    // comment inside macro
-
-                    let c = s[..token.len].trim().trim_start_matches('/').trim_start();
-                    if let Some(c) = c.strip_prefix("l10n-") {
-                        if let Some(i) = c.find("###") {
-                            let file_name = c[..i].trim_end_matches('-');
-                            let c = &c[i + "###".len()..];
-
-                            l10n_notes.push(FluentNote {
-                                file: file_name.to_owned(),
-                                note: c.trim().to_owned(),
-                            });
-                        } else if let Some(c) = c.strip_prefix("##") {
-                            l10n_section = Arc::new(c.trim().to_owned())
-                        } else if let Some(c) = c.strip_prefix('#') {
-                            let c = c.trim_start();
-
-                            if !entry.comments.is_empty() {
-                                entry.comments.push('\n');
-                            }
-                            entry.comments.push_str(c);
-                            last_comment_line = line;
-                        }
-                    }
-                }
-                rustc_lexer::TokenKind::Whitespace => {}
-                _ => {
-                    entry.comments.clear();
-                    entry.file.clear();
-                    entry.id.clear();
-                    entry.attribute.clear();
-                    expect = Expect::CommentOrMacroName;
-                }
-            },
-            Expect::StrLiteralMessage => match token.kind {
-                rustc_lexer::TokenKind::Literal { kind, .. } => match kind {
-                    rustc_lexer::LiteralKind::Str { .. } | rustc_lexer::LiteralKind::RawStr { .. } => {
-                        s[..token.len]
-                            .trim_start_matches('r')
-                            .trim_matches('#')
-                            .trim_matches('"')
-                            .clone_into(&mut entry.message);
-
-                        output.push(mem::replace(
-                            &mut entry,
-                            FluentEntry {
-                                section: l10n_section.clone(),
-                                comments: String::new(),
-                                file: String::new(),
-                                id: String::new(),
-                                attribute: String::new(),
-                                message: String::new(),
-                            },
-                        ));
-                        last_entry_line = line;
-
-                        expect = Expect::CommentOrMacroName;
-                    }
-                    _ => {
-                        entry.comments.clear();
-                        entry.file.clear();
-                        entry.id.clear();
-                        entry.attribute.clear();
-                        expect = Expect::CommentOrMacroName;
-                    }
-                },
-                rustc_lexer::TokenKind::LineComment => {
-                    // comment inside macro
-
-                    let c = s[..token.len].trim().trim_start_matches('/').trim_start();
-                    if let Some(c) = c.strip_prefix("l10n-") {
-                        if let Some(i) = c.find("###") {
-                            let file_name = c[..i].trim_end_matches('-');
-                            let c = &c[i + "###".len()..];
-
-                            l10n_notes.push(FluentNote {
-                                file: file_name.to_owned(),
-                                note: c.trim().to_owned(),
-                            });
-                        } else if let Some(c) = c.strip_prefix("##") {
-                            l10n_section = Arc::new(c.trim().to_owned())
-                        } else if let Some(c) = c.strip_prefix('#') {
-                            let c = c.trim_start();
-
-                            if !entry.comments.is_empty() {
-                                entry.comments.push('\n');
-                            }
-                            entry.comments.push_str(c);
-                            last_comment_line = line;
-                        }
-                    }
-                }
-                rustc_lexer::TokenKind::Whitespace => {}
-                _ => {
-                    entry.comments.clear();
-                    entry.file.clear();
-                    entry.id.clear();
-                    entry.attribute.clear();
-                    expect = Expect::CommentOrMacroName;
-                }
-            },
         }
-        s = &s[token.len..];
+        let line = line.trim();
+        if let Some(line) = line.strip_prefix("//") {
+            let line = line.trim_start();
+            if let Some(c) = line.strip_prefix("l10n-") {
+                // l10n comment (// l10n-### note | // l10n-file-### note | // l10n-## section | // l10n-# comment)
+                if let Some(i) = c.find("###") {
+                    let file_name = c[..i].trim_end_matches('-');
+                    let c = &c[i + "###".len()..];
+
+                    r.notes.push(FluentNote {
+                        file: file_name.to_owned(),
+                        note: c.trim().to_owned(),
+                    });
+                } else if let Some(c) = c.strip_prefix("##") {
+                    sections.push((ln + 1, Arc::new(c.trim().to_owned())));
+                } else if let Some(c) = c.strip_prefix('#') {
+                    comments.push((ln + 1, c.trim()));
+                }
+            }
+        } else {
+            let mut line = line;
+            while !line.is_empty() {
+                if let Some((code, comment)) = line.split_once("//") {
+                    let mut escape = false;
+                    for c in code.chars() {
+                        if mem::take(&mut escape) {
+                            continue;
+                        }
+                        match c {
+                            '\\' => escape = true,
+                            '"' => str_lit = !str_lit,
+                            _ => {}
+                        }
+                    }
+                    if str_lit {
+                        line = comment;
+                    } else {
+                        if let Some(c) = comment.trim_start().strip_prefix("l10n-#") {
+                            if !c.starts_with('#') {
+                                comments.push((ln + 1, c.trim()));
+                            }
+                        }
+
+                        // comment end
+                        break;
+                    }
+                } else {
+                    // no potential comment in line
+                    break;
+                }
+            }
+        }
     }
 
-    FluentTemplate {
-        notes: l10n_notes,
-        entries: output,
+    let file: TokenStream = file.parse().unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display()));
+
+    // TokenTree::Group that are not matched to l10n macros are pushed on this stack
+    let mut stream_stack = vec![file.into_iter()];
+    let next = |stack: &mut Vec<proc_macro2::token_stream::IntoIter>| {
+        while !stack.is_empty() {
+            let tt = stack.last_mut().unwrap().next();
+            if tt.is_some() {
+                return tt;
+            }
+            stack.pop();
+        }
+        None
+    };
+
+    let mut tail2 = Vec::with_capacity(2);
+    while let Some(tt) = next(&mut stream_stack) {
+        match tt {
+            TokenTree::Group(g) => {
+                if matches!(g.delimiter(), Delimiter::Brace | Delimiter::Parenthesis | Delimiter::Bracket)
+                    && tail2.len() == 2
+                    && matches!(&tail2[0], TokenTree::Punct(p) if p.as_char() == '!')
+                    && matches!(&tail2[1], TokenTree::Ident(i) if ["l10n", "command"].iter().chain(custom_macro_names).any(|n| i == n))
+                {
+                    // matches #macro_name ! #g
+
+                    let macro_ln = match &tail2[1] {
+                        TokenTree::Ident(i) => i.span().start().line,
+                        _ => unreachable!(),
+                    };
+
+                    tail2.clear();
+
+                    if let Ok(args) = L10nMacroArgs::try_from(g.stream()) {
+                        let (file, id, attribute) = match parse_validate_id(&args.id) {
+                            Ok(t) => t,
+                            Err(e) => {
+                                let lc = args.id_span.start();
+                                error!("{e}\n     {}:{}:{}", rs_file.display(), lc.line, lc.column);
+                                continue;
+                            }
+                        };
+
+                        // first section before macro
+                        debug_assert!(!sections.is_empty()); // always an empty header section
+                        let section = sections.iter().position(|(l, _)| *l > macro_ln).unwrap_or(sections.len());
+                        let section = sections[section - 1].1.clone();
+
+                        // all comments on the line before macro or on the macro lines
+                        let last_ln = g.span_close().end().line;
+                        let mut t = String::new();
+                        let mut sep = "";
+                        for (l, c) in &comments {
+                            if *l <= last_ln {
+                                if (macro_ln - 1..=last_ln).contains(l) {
+                                    t.push_str(sep);
+                                    t.push_str(c);
+                                    sep = "\n";
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+
+                        r.entries.push(FluentEntry {
+                            section,
+                            comments: t,
+                            file,
+                            id,
+                            attribute,
+                            message: args.msg,
+                        })
+                    } else {
+                        match CommandMacroArgs::try_from(g.stream()) {
+                            Ok(cmds) => {
+                                for cmd in cmds.entries {
+                                    let (file, id, _attribute) = match parse_validate_id(&cmd.id) {
+                                        Ok(t) => t,
+                                        Err(e) => {
+                                            let lc = cmd.file_span.start();
+                                            error!("{e}\n     {}:{}:{}", rs_file.display(), lc.line, lc.column);
+                                            continue;
+                                        }
+                                    };
+                                    debug_assert!(_attribute.is_empty());
+
+                                    // first section before macro
+                                    let section = sections.iter().position(|(l, _)| *l > macro_ln).unwrap_or(sections.len());
+                                    let section = sections[section - 1].1.clone();
+
+                                    for meta in cmd.metadata {
+                                        // all comments on the line before meta entry and on the value string lines.
+                                        let ln = meta.name.span().start().line;
+                                        let last_ln = meta.value_span.end().line;
+
+                                        let mut t = String::new();
+                                        let mut sep = "";
+                                        for (l, c) in &comments {
+                                            if *l <= last_ln {
+                                                if (ln - 1..=last_ln).contains(l) {
+                                                    t.push_str(sep);
+                                                    t.push_str(c);
+                                                    sep = "\n";
+                                                }
+                                            } else {
+                                                break;
+                                            }
+                                        }
+
+                                        r.entries.push(FluentEntry {
+                                            section: section.clone(),
+                                            comments: t,
+                                            file: file.clone(),
+                                            id: id.clone(),
+                                            attribute: meta.name.to_string(),
+                                            message: meta.value,
+                                        })
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                if let Some((e, span)) = e {
+                                    let lc = span.start();
+                                    error!("{e}\n     {}:{}:{}", rs_file.display(), lc.line, lc.column);
+                                }
+                                stream_stack.push(g.stream().into_iter());
+                            }
+                        }
+                    }
+                } else {
+                    stream_stack.push(g.stream().into_iter());
+                }
+            }
+            tt => {
+                if tail2.len() == 2 {
+                    tail2.pop();
+                }
+                tail2.insert(0, tt);
+            }
+        }
     }
+
+    r
+}
+struct L10nMacroArgs {
+    id: String,
+    id_span: Span,
+    msg: String,
+}
+impl TryFrom<TokenStream> for L10nMacroArgs {
+    type Error = String;
+
+    fn try_from(macro_group_stream: TokenStream) -> Result<Self, Self::Error> {
+        let three: Vec<_> = macro_group_stream.into_iter().take(3).collect();
+        match &three[..] {
+            [TokenTree::Literal(l0), TokenTree::Punct(p), TokenTree::Literal(l1)] if p.as_char() == ',' => {
+                match (StringLit::try_from(l0), StringLit::try_from(l1)) {
+                    (Ok(s0), Ok(s1)) => Ok(Self {
+                        id: s0.into_value().into_owned(),
+                        id_span: l0.span(),
+                        msg: s1.into_value().into_owned(),
+                    }),
+                    _ => Err(String::new()),
+                }
+            }
+            _ => Err(String::new()),
+        }
+    }
+}
+
+struct CommandMacroArgs {
+    entries: Vec<CommandMacroEntry>,
+}
+impl TryFrom<TokenStream> for CommandMacroArgs {
+    type Error = Option<(String, Span)>;
+
+    fn try_from(macro_group_stream: TokenStream) -> Result<Self, Self::Error> {
+        let mut entries = vec![];
+        // seek and parse static IDENT = { .. }
+        let mut tail4 = Vec::with_capacity(4);
+        for tt in macro_group_stream.into_iter() {
+            tail4.push(tt);
+            if tail4.len() > 4 {
+                tail4.remove(0);
+                match &tail4[..] {
+                    [TokenTree::Ident(i0), TokenTree::Ident(id), TokenTree::Punct(p0), TokenTree::Group(g)]
+                        if i0 == "static"
+                            && p0.as_char() == '='
+                            && matches!(g.delimiter(), Delimiter::Brace | Delimiter::Parenthesis | Delimiter::Bracket) =>
+                    {
+                        match CommandMacroEntry::try_from(g.stream()) {
+                            Ok(mut entry) => {
+                                entry.id.push('/');
+                                entry.id.push_str(&id.to_string());
+                                entries.push(entry);
+                            }
+                            Err(e) => {
+                                if e.is_some() {
+                                    return Err(e);
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if entries.is_empty() {
+            Err(None)
+        } else {
+            Ok(Self { entries })
+        }
+    }
+}
+struct CommandMacroEntry {
+    id: String,
+    file_span: Span,
+    metadata: Vec<CommandMetaEntry>,
+}
+impl TryFrom<TokenStream> for CommandMacroEntry {
+    type Error = Option<(String, Span)>;
+
+    fn try_from(command_meta_group_stream: TokenStream) -> Result<Self, Self::Error> {
+        // static FOO_CMD = { #command_meta_group_stream };
+        let mut tts = command_meta_group_stream.into_iter();
+
+        let mut r = CommandMacroEntry {
+            id: String::new(),
+            file_span: Span::call_site(),
+            metadata: vec![],
+        };
+
+        // parse l10n!: #lit
+        let mut buf: Vec<_> = (&mut tts).take(5).collect();
+        match &buf[..] {
+            [TokenTree::Ident(i), TokenTree::Punct(p0), TokenTree::Punct(p1), value, TokenTree::Punct(p2)]
+                if i == "l10n" && p0.as_char() == '!' && p1.as_char() == ':' && p2.as_char() == ',' =>
+            {
+                match litrs::Literal::try_from(value) {
+                    Ok(litrs::Literal::String(str)) => {
+                        r.id = str.into_value().into_owned();
+                        r.file_span = value.span();
+                    }
+                    Ok(litrs::Literal::Bool(b)) => {
+                        if !b.value() {
+                            return Err(None);
+                        }
+                    }
+                    _ => {
+                        return Err(Some((
+                            "unexpected l10n: value, must be string or bool literal".to_owned(),
+                            value.span(),
+                        )))
+                    }
+                }
+            }
+            _ => return Err(None),
+        }
+
+        // seek and parse meta: "lit",
+        buf.clear();
+        for tt in tts {
+            if buf.is_empty() && matches!(&tt, TokenTree::Punct(p) if p.as_char() == ',') {
+                continue;
+            }
+
+            buf.push(tt);
+            if buf.len() == 3 {
+                match &buf[..] {
+                    [TokenTree::Ident(i), TokenTree::Punct(p), TokenTree::Literal(l)] if p.as_char() == ':' => {
+                        if let Ok(s) = StringLit::try_from(l) {
+                            r.metadata.push(CommandMetaEntry {
+                                name: i.clone(),
+                                value: s.into_value().into_owned(),
+                                value_span: l.span(),
+                            })
+                        }
+                    }
+                    _ => {}
+                }
+                buf.clear();
+            }
+        }
+
+        if r.metadata.is_empty() {
+            Err(None)
+        } else {
+            Ok(r)
+        }
+    }
+}
+struct CommandMetaEntry {
+    name: Ident,
+    value: String,
+    value_span: Span,
 }
 
 /// Represents a standalone note, declared using `// l10n-{file}-### {note}` or `l10n-### {note}`.
@@ -601,7 +711,7 @@ impl FluentTemplate {
 }
 
 // Returns "file", "id", "attribute"
-fn parse_validate_id(s: &str) -> (String, String, String) {
+fn parse_validate_id(s: &str) -> Result<(String, String, String), String> {
     let mut id = s;
     let mut file = "";
     let mut attribute = "";
@@ -627,7 +737,7 @@ fn parse_validate_id(s: &str) -> (String, String, String) {
             first = false;
         }
         if !valid {
-            fatal!("invalid file {file:?}, must be a single file name")
+            return Err(format!("invalid file {file:?}, must be a single file name"));
         }
     }
 
@@ -652,11 +762,15 @@ fn parse_validate_id(s: &str) -> (String, String, String) {
         true
     }
     if !validate(id) {
-        fatal!("invalid id {id:?}, must start with letter, followed by any letters, digits, `_` or `-`")
+        return Err(format!(
+            "invalid id {id:?}, must start with letter, followed by any letters, digits, `_` or `-`"
+        ));
     }
     if !attribute.is_empty() && !validate(attribute) {
-        fatal!("invalid id {attribute:?}, must start with letter, followed by any letters, digits, `_` or `-`")
+        return Err(format!(
+            "invalid id {attribute:?}, must start with letter, followed by any letters, digits, `_` or `-`"
+        ));
     }
 
-    (file.to_owned(), id.to_owned(), attribute.to_owned())
+    Ok((file.to_owned(), id.to_owned(), attribute.to_owned()))
 }

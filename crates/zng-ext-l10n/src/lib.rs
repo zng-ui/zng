@@ -12,6 +12,7 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use zng_app::{
+    event::{Command, CommandMetaVar, EVENTS_L10N},
     update::EventUpdate,
     view_process::{raw_events::RAW_LOCALE_CONFIG_CHANGED_EVENT, VIEW_PROCESS_INITED_EVENT},
     AppExtension,
@@ -53,6 +54,12 @@ pub struct L10N;
 #[derive(Default)]
 pub struct L10nManager {}
 impl AppExtension for L10nManager {
+    fn init(&mut self) {
+        EVENTS_L10N.init_l10n(|file, cmd, attr, txt| {
+            L10N.bind_command_meta(file, cmd, attr, txt);
+        });
+    }
+
     fn event_preview(&mut self, update: &mut EventUpdate) {
         if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT
             .on(update)
@@ -117,9 +124,9 @@ impl AppExtension for L10nManager {
 ///
 /// The scrapper can also scrap comments, if the previous code line from a [`l10n!`] call is a comment starting with
 /// prefix `l10n-# ` the text the follows is collected, same for a comment in the same line of the [`l10n!`] call. Sections
-/// can be declared using `l10n-##` and standalone notes can be added to the top of the template file from anywhere using
-/// `l10n-{file_pattern}-###`, file pattern can be omitted, `l10n-###` is equivalent to `l10n--###` that matches the localization
-/// template used when no file is specified.
+/// can be declared using `l10n-## `, all entries after a section comment are added to that section. Standalone notes can be added to
+/// the top of the template file from anywhere using `l10n-{file_pattern}-### `, file pattern can be omitted, `l10n-### ` is equivalent
+/// to `l10n--### ` that matches the localization template used when no file is specified.
 ///
 /// ```
 /// # use zng_ext_l10n::*;
@@ -267,7 +274,7 @@ impl L10N {
         L10N_SV.read().sys_lang()
     }
 
-    /// Gets a variable that is a localized message in the localization context
+    /// Gets a read-only variable that is a localized message in the localization context
     /// where the variable is first used. The variable will update when the contextual language changes.
     ///
     /// If the message has variable arguments they must be provided using [`L10nMessageBuilder::arg`], the
@@ -400,6 +407,26 @@ impl L10N {
         }
 
         (None, LangResources(vec![]))
+    }
+
+    /// Bind the command metadata to a message.
+    ///
+    /// This is automatically called by [`command!`] instances that set the metadata `l10n!: true` or `l10n!: "file"`.
+    ///
+    /// [`command!`]: zng_app::event::command!
+    pub fn bind_command_meta(&self, file: impl Into<Txt>, cmd: Command, meta_name: impl Into<Txt>, meta_value: CommandMetaVar<Txt>) {
+        let msg = self.message(file, cmd.event().as_any().name(), meta_name, meta_value.get()).build();
+        meta_value.set_from(&msg).unwrap();
+
+        // bind only holds a weak ref to `meta_value`` in `msg`
+        msg.bind(&meta_value).perm();
+        meta_value
+            .hook(move |_| {
+                // keep `msg` alive to it continues updating `meta_value`
+                let _keep = &msg;
+                true
+            })
+            .perm();
     }
 }
 
