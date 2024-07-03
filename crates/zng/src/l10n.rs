@@ -60,7 +60,7 @@
 //!
 //! # Scraper
 //!
-//! The `cargo-zng` tool can be used to generate a Fluent file from source code, the Fluent file can be
+//! The `cargo zng l10n` tool can be used to generate a Fluent file from source code, the Fluent file can be
 //! used as a template for translators, it will include the fallback text and comments written close the key
 //! declaration.
 //!
@@ -97,18 +97,52 @@
 //!
 //! [`l10n!`]: crate::l10n::l10n
 //!
-//! # Localize Commands
+//! # Commands
 //!
-//! Currently [`command!`](zng::event::command) declarations are not integrated with the localization
-//! service yet, you will need to manually bind localization to command metadata to localize it.
+//! Commands metadata can be localized and scrapped, to enable this set `l10n!:` on the [`command!`](zng::event::command) declarations.
+//!
+//! If the first metadata is `l10n!:` the command init will attempt to localize the other string metadata. The `cargo zng l10n`
+//! command line tool scraps commands that set this special metadata.
 //!
 //! ```
-//! use zng::prelude::*;
-//! # let _scope = APP.defaults();
-//!
-//! l10n!("COPY_CMD.name", "Copy").set_bind(&zng::clipboard::COPY_CMD.name()).perm();
+//! # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
+//! command! {
+//!     pub static FOO_CMD = {
+//!         l10n!: true,
+//!         name: "Foo!",
+//!         info: "Does the foo thing.",
+//!     };
+//! }
 //! ```
 //!
+//! The example above will be scrapped as:
+//!
+//! ```ftl
+//! FOO_CMD =
+//!     .name = Foo!
+//!     .info = Does the foo thing.
+//! ```
+//!
+//! The `l10n!:` meta can also be set to a localization file name:
+//!
+//! ```
+//! # use zng_app::{event::{command, CommandNameExt, CommandInfoExt}, shortcut::{CommandShortcutExt, shortcut}};
+//! command! {
+//!     pub static FOO_CMD = {
+//!         l10n!: "file",
+//!         name: "Foo!",
+//!     };
+//! }
+//! ```
+//!
+//! The example above is scrapped to `{l10n-dir}/{lang}/file.ftl` files.
+//!
+//! ## Limitations
+//!
+//! Interpolation is not supported in command localization strings.
+//!
+//! The `l10n!:` value must be a *textual* literal, that is, it can be only a string literal or a `bool` literal, and it cannot be
+//! inside a macro expansion.
 //! # Full API
 //!
 //! See [`zng_ext_l10n`] for the full localization API.

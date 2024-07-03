@@ -276,6 +276,7 @@ impl CLIPBOARD {
 command! {
     /// Represents the clipboard **cut** action.
     pub static CUT_CMD = {
+        l10n!: true,
         name: "Cut",
         info: "Remove the selection and place it in the clipboard.",
         shortcut: [shortcut!(CTRL+'X'), shortcut!(SHIFT+Delete), shortcut!(Cut)],
@@ -285,6 +286,7 @@ command! {
 
     /// Represents the clipboard **copy** action.
     pub static COPY_CMD = {
+        l10n!: true,
         name: "Copy",
         info: "Place a copy of the selection in the clipboard.",
         shortcut: [shortcut!(CTRL+'C'), shortcut!(CTRL+Insert), shortcut!(Copy)],
@@ -294,6 +296,7 @@ command! {
 
     /// Represents the clipboard **paste** action.
     pub static PASTE_CMD = {
+        l10n!: true,
         name: "Paste",
         info: "Insert content from the clipboard.",
         shortcut: [shortcut!(CTRL+'V'), shortcut!(SHIFT+Insert), shortcut!(Paste)],

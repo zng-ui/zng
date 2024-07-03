@@ -22,6 +22,7 @@ mod live;
 command! {
     /// Represent the window **inspect** action.
     pub static INSPECT_CMD = {
+        l10n!: true,
         name: "Debug Inspector",
         info: "Inspect the window.",
         shortcut: [shortcut!(CTRL|SHIFT+'I'), shortcut!(F12)],

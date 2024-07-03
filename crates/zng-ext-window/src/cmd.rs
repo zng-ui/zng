@@ -17,6 +17,7 @@ pub use zng_view_api::window::ResizeDirection;
 command! {
     /// Represents the window **close** action.
     pub static CLOSE_CMD = {
+        l10n!: true,
         name: "Close",
         info: "Close the window.",
         shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+'W')],
@@ -25,6 +26,7 @@ command! {
 
     /// Represents the window **minimize** action.
     pub static MINIMIZE_CMD = {
+        l10n!: true,
         name: "Minimize",
         info: "Minimize the window.",
         icon: wgt_fn!(|_| ICONS.get("minimize")),
@@ -32,6 +34,7 @@ command! {
 
     /// Represents the window **maximize** action.
     pub static MAXIMIZE_CMD = {
+        l10n!: true,
         name: "Maximize",
         info: "Maximize the window.",
         icon: wgt_fn!(|_| ICONS.get("maximize")),
@@ -44,6 +47,7 @@ command! {
     /// This command is about the *windowed* fullscreen state ([`WindowState::Fullscreen`]),
     /// use the [`EXCLUSIVE_FULLSCREEN_CMD`] to toggle *exclusive* video mode fullscreen.
     pub static FULLSCREEN_CMD = {
+        l10n!: true,
         name: "Full-Screen",
         info: "Toggle full-screen mode on the window.",
         shortcut: {
@@ -64,6 +68,7 @@ command! {
     /// This command is about the *exclusive* fullscreen state ([`WindowState::Exclusive`]),
     /// use the [`FULLSCREEN_CMD`] to toggle *windowed* fullscreen.
     pub static EXCLUSIVE_FULLSCREEN_CMD = {
+        l10n!: true,
         name: "Exclusive Full-Screen",
         info: "Toggle exclusive full-screen mode on the window.",
         icon: wgt_fn!(|_| ICONS.get("fullscreen")),
@@ -73,6 +78,7 @@ command! {
     ///
     /// Restores the window to its previous non-minimized state or normal state.
     pub static RESTORE_CMD = {
+        l10n!: true,
         name: "Restore",
         info: "Restores the window to its previous non-minimized state or normal state.",
         icon: wgt_fn!(|_| ICONS.get("restore")),

@@ -1153,6 +1153,7 @@ command! {
     ///
     /// [`exit`]: APP::exit
     pub static EXIT_CMD = {
+        l10n!: true,
         name: "Exit",
         info: "Close all windows and exit.",
         shortcut: shortcut!(Exit),

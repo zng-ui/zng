@@ -1,6 +1,7 @@
 use hashbrown::HashSet;
 use zng_app_context::app_local;
 use zng_time::INSTANT_APP;
+use zng_txt::Txt;
 
 use crate::update::{UpdatesTrace, UPDATES};
 
@@ -14,14 +15,19 @@ pub(crate) struct EventsService {
     updates: Mutex<Vec<EventUpdate>>, // not locked, used to make service Sync.
     commands: CommandSet,
     register_commands: Vec<Command>,
+    l10n: EventsL10n,
 }
-
+enum EventsL10n {
+    Pending(Vec<(&'static str, Command, &'static str, CommandMetaVar<Txt>)>),
+    Init(Box<dyn Fn(&'static str, Command, &'static str, CommandMetaVar<Txt>) + Send + Sync>),
+}
 impl EventsService {
     const fn new() -> Self {
         Self {
             updates: Mutex::new(vec![]),
             commands: HashSet::with_hasher(BuildFxHasher),
             register_commands: vec![],
+            l10n: EventsL10n::Pending(vec![]),
         }
     }
 
@@ -113,26 +119,44 @@ impl EVENTS {
     }
 }
 
-event_args! {
-    /// Arguments for [`COMMANDS_CHANGED_EVENT`].
-    pub struct CommandsChangedArgs {
-        /// Scoped commands that lost all handlers.
-        pub removed: Vec<Command>,
+/// EVENTS L10N integration.
+#[allow(non_camel_case_types)]
+pub struct EVENTS_L10N;
+impl EVENTS_L10N {
+    pub(crate) fn init_meta_l10n(&self, file: &'static str, cmd: Command, meta_name: &'static str, txt: CommandMetaVar<Txt>) {
+        {
+            let sv = EVENTS_SV.read();
+            if let EventsL10n::Init(f) = &sv.l10n {
+                f(file, cmd, meta_name, txt);
+                return;
+            }
+        }
 
-        /// New commands.
-        pub added: Vec<Command>,
-
-        ..
-
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all();
+        let mut sv = EVENTS_SV.write();
+        match &mut sv.l10n {
+            EventsL10n::Pending(a) => a.push((file, cmd, meta_name, txt)),
+            EventsL10n::Init(f) => f(file, cmd, meta_name, txt),
         }
     }
-}
 
-event! {
-    /// Event when [`EVENTS.commands`] list changes.
+    /// Register a closure that is called to localize command metadata.
     ///
-    /// [`EVENTS.commands`]: EVENTS::commands
-    pub static COMMANDS_CHANGED_EVENT: CommandsChangedArgs;
+    /// The closure arguments are:
+    ///
+    /// * `file` is the command declaration `@l10n: "file"` value or is empty if `@l10n` was set to something else.
+    /// * `cmd` is the command, the command event name should be used as key.
+    /// * `meta` is the metadata name, for example `"name"`, should be used as attribute.
+    /// * `txt` is text variable that must be set with the translation.
+    pub fn init_l10n(&self, localize: impl Fn(&'static str, Command, &'static str, CommandMetaVar<Txt>) + Send + Sync + 'static) {
+        let mut sv = EVENTS_SV.write();
+        match &mut sv.l10n {
+            EventsL10n::Pending(a) => {
+                for (f, k, a, t) in a.drain(..) {
+                    localize(f, k, a, t);
+                }
+            }
+            EventsL10n::Init(_) => panic!("EVENTS_L10N already has a localizer"),
+        }
+        sv.l10n = EventsL10n::Init(Box::new(localize));
+    }
 }

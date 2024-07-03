@@ -219,6 +219,7 @@
 //! command! {
 //!     /// Foo docs.
 //!     pub static FOO_CMD = {
+//!         l10n!: true,
 //!         name: "Foo",
 //!         info: "foo bar",
 //!         shortcut: shortcut![CTRL+'F'],
@@ -258,6 +259,13 @@
 //!
 //! [command extensions]: Command#extensions
 //! [`CommandShortcutExt`]: crate::gesture::CommandShortcutExt
+//!
+//! ### Localization
+//!
+//! The special `l10n!:` metadata enables localization for the other text metadata of the command. It must be the first
+//! metadata assign and the value must be a literal `bool` or string `""`, the string defines the localization file.
+//!
+//! See the [`l10n`](crate::zng::l10n#commands) module docs om commands for more details.
 //!
 //! ## Scopes
 //!
