@@ -285,7 +285,6 @@ fn scrape_file(rs_file: PathBuf, custom_macro_names: &[&str]) -> FluentTemplate 
             }
         }
     }
-    // !!: TODO visit macros, use span ln to correlate with comments
 
     r
 }
@@ -322,14 +321,17 @@ impl TryFrom<TokenStream> for CommandMacroArgs {
     type Error = Option<(String, Span)>;
 
     fn try_from(macro_group_stream: TokenStream) -> Result<Self, Self::Error> {
-        let mut tts = macro_group_stream.into_iter();
         let mut entries = vec![];
         // seek and parse static IDENT = { .. }
-        while let Some(tt) = tts.next() {
-            if matches!(tt, TokenTree::Ident(i) if i == "static") {
-                match [tts.next(), tts.next(), tts.next()] {
-                    [Some(TokenTree::Ident(id)), Some(TokenTree::Punct(p)), Some(TokenTree::Group(g))]
-                        if p.as_char() == '='
+        let mut tail4 = Vec::with_capacity(4);
+        for tt in macro_group_stream.into_iter() {
+            tail4.push(tt);
+            if tail4.len() > 4 {
+                tail4.remove(0);
+                match &tail4[..] {
+                    [TokenTree::Ident(i0), TokenTree::Ident(id), TokenTree::Punct(p0), TokenTree::Group(g)]
+                        if i0 == "static"
+                            && p0.as_char() == '='
                             && matches!(g.delimiter(), Delimiter::Brace | Delimiter::Parenthesis | Delimiter::Bracket) =>
                     {
                         match CommandMacroEntry::try_from(g.stream()) {
@@ -345,7 +347,7 @@ impl TryFrom<TokenStream> for CommandMacroArgs {
                             }
                         }
                     }
-                    _ => return Err(None),
+                    _ => {}
                 }
             }
         }

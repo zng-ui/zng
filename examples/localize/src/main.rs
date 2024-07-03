@@ -43,12 +43,8 @@ fn main() {
             // l10n-# Main window title
             title = l10n!("window.title", "Localize Example (template)");
             icon = WindowIcon::render(window_icon);
-            child = Stack! {
-                children = ui_vec![
-                    locale_menu(),
-                    window_content(),
-                ]
-            }
+            child_top = locale_menu(), 0;
+            child = window_content();
         }
     })
 }
@@ -75,6 +71,18 @@ fn window_icon() -> impl UiNode {
 fn window_content() -> impl UiNode {
     let click_count = var(0u32);
     let click_msg = l10n!("msg/click-count", "Clicked {$n} times", n = click_count.clone());
+
+    let test_cmds = [
+        NO_META_CMD,
+        NOT_LOCALIZED_CMD,
+        LOCALIZED_CMD,
+        PRIVATE_LOCALIZED_CMD,
+        L10N_FALSE_CMD,
+        LOCALIZED_FILE_CMD,
+    ];
+    let handles: Vec<_> = test_cmds.iter().map(|c| c.subscribe(true)).collect();
+    handles.leak(); // perm enable commands for test
+
     Stack! {
         align = Align::CENTER;
         direction = StackDirection::top_to_bottom();
@@ -93,7 +101,21 @@ fn window_content() -> impl UiNode {
             Text! {
                 txt = click_msg;
             },
-        ]
+
+            text::Text! {
+                layout::margin = (20, 0, 0, 0);
+                txt = l10n!("example-cmds", "Example Commands:");
+                font_weight = FontWeight::SEMIBOLD;
+            },
+            Wrap! {
+                children = test_cmds.into_iter().map(|c| Button!(c)).collect::<UiNodeVec>();
+                spacing = 4;
+                zng::button::style_fn = Style! {
+                    layout::padding = 2;
+                };
+                layout::max_width = 200;
+            }
+        ];
     }
 }
 
@@ -158,3 +180,36 @@ fn locale_menu() -> impl UiNode {
 }
 
 // l10n--### Another standalone comment, also added to the top of the template file.
+
+// l10n-## Commands
+
+zng::event::command! {
+    pub static NO_META_CMD;
+
+    pub static NOT_LOCALIZED_CMD = {
+        name: "Not Localized",
+    };
+
+    pub static LOCALIZED_CMD = {
+        l10n!: true,
+        name: "Localized",
+        info: "Localized in the default file.",
+    };
+
+    static PRIVATE_LOCALIZED_CMD = {
+        l10n!: true,
+        name: "Private",
+        info: "Private command, public localization text.",
+    };
+
+    pub static L10N_FALSE_CMD = {
+        l10n!: false,
+        name: "No L10n",
+    };
+
+    pub static LOCALIZED_FILE_CMD = {
+        l10n!: "msg",
+        name: "Localized File",
+        info: "Localized in a named file 'msg'."
+    };
+}

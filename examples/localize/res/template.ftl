@@ -11,7 +11,19 @@ window =
     .icon = Lo
     .title = Localize Example (template)
 
+## Commands
+
+LOCALIZED_CMD =
+    .info = Localized in the default file.
+    .name = Localized
+
+PRIVATE_LOCALIZED_CMD =
+    .info = Private command, public localization text.
+    .name = Private
+
 ## Example Section
 
 # button sets "click-count"
 button = Button
+
+example-cmds = Example Commands:
