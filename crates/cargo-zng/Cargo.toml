@@ -20,8 +20,11 @@ color-print = "0.3"
 rayon = "1.10"
 glob = "0.3"
 fluent-pseudo = "0.3"
+fluent = "0.16"
 proc-macro2 = { version = "1.0", features = ["span-locations"] }
 litrs = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
 # new
 convert_case = "0.6"

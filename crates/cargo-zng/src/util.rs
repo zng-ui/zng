@@ -1,9 +1,11 @@
 use std::{
     io,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
     sync::atomic::AtomicBool,
 };
+
+use serde::Deserialize;
 
 /// Print warning message.
 macro_rules! warn {
@@ -168,4 +170,35 @@ pub fn clean_value(value: &str, required: bool) -> io::Result<String> {
         }
     }
     Ok(clean_value)
+}
+
+pub fn manifest_path_from_package(package: &str) -> Option<String> {
+    #[derive(Deserialize)]
+    struct Metadata {
+        packages: Vec<Package>,
+    } 
+    #[derive(Deserialize)]
+    struct Package {
+        name: String,
+        manifest_path: String,
+    }
+
+    let metadata = match Command::new("cargo").args(&["metadata", "--format-version", "1",  "--no-deps"]).stderr(Stdio::inherit()).output() {
+        Ok(m) => {
+            if !m.status.success() {
+                fatal!("cargo metadata error")
+            }
+            String::from_utf8_lossy(&m.stdout).into_owned()
+        },
+        Err(e) => fatal!("cargo metadata error, {e}"),
+    };
+
+    let metadata: Metadata = serde_json::from_str(&metadata).unwrap_or_else(|e| fatal!("unexpected cargo metadata format, {e}"));
+
+    for p in metadata.packages {
+        if p.name == package {
+            return Some(p.manifest_path);
+        }
+    }
+    None
 }

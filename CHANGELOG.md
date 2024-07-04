@@ -1,5 +1,9 @@
 # Unreleased
 
+* **Breaking** `cargo zng l10n` CLI refactor.
+    - Now requires arg name for input and output.
+    - Pseudo arg values now define a dir and lang to generate pseudo from.
+* Add `cargo zng l10n --package/--manifest-path` for scrapping from lib crates for publishing.
 * Fix localization scrapper only adding section comments to main file.
 * Add localization helper for commands.
     - Set `l10n!: true` in `command!` declarations to localize metadata.

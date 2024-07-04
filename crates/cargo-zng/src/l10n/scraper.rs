@@ -1,6 +1,6 @@
 //! Localization text scraping.
 
-use std::{borrow::Cow, fs, io, mem, path::PathBuf, sync::Arc};
+use std::{fs, io, mem, path::PathBuf, sync::Arc};
 
 use litrs::StringLit;
 use proc_macro2::{Delimiter, Ident, Span, TokenStream, TokenTree};
@@ -596,11 +596,7 @@ impl FluentTemplate {
     ///
     /// The `select_l10n_file` closure is called once for each different file, it must return
     /// a writer that will be the output file.
-    pub fn write(
-        &self,
-        transform_msg: fn(&str) -> Cow<str>,
-        select_l10n_file: impl Fn(&str) -> io::Result<Box<dyn io::Write + Send>> + Send + Sync,
-    ) -> io::Result<()> {
+    pub fn write(&self, select_l10n_file: impl Fn(&str) -> io::Result<Box<dyn io::Write + Send>> + Send + Sync) -> io::Result<()> {
         let mut file = None;
         let mut output = None;
         let mut section = "";
@@ -688,7 +684,7 @@ impl FluentTemplate {
                 if entry.attribute.is_empty() {
                     let mut prefix = " ";
 
-                    for line in transform_msg(&entry.message).lines() {
+                    for line in entry.message.lines() {
                         output.write_fmt(format_args!("{prefix}{line}\n"))?;
                         prefix = "    ";
                     }
@@ -699,7 +695,7 @@ impl FluentTemplate {
             if !entry.attribute.is_empty() {
                 output.write_fmt(format_args!("    .{} = ", entry.attribute))?;
                 let mut prefix = "";
-                for line in transform_msg(&entry.message).lines() {
+                for line in entry.message.lines() {
                     output.write_fmt(format_args!("{prefix}{line}\n"))?;
                     prefix = "        ";
                 }

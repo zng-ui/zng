@@ -4,7 +4,10 @@
 //!
 //! [`l10n!`]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
 
-use std::{borrow::Cow, io::Write, path::PathBuf};
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use clap::*;
 
@@ -14,99 +17,130 @@ mod scraper;
 #[derive(Args, Debug)]
 pub struct L10nArgs {
     /// Rust files glob or directory
+    #[arg(short, long, default_value = "")]
     input: String,
 
-    /// Lang resources dir
-    output: PathBuf,
+    /// L10n resources dir
+    #[arg(short, long, default_value = "")]
+    output: String,
+
+    /// Package to scrap
+    ///
+    /// If set overrides --input and sets --output default to l10n/ beside src/
+    #[arg(short, long, default_value = "")]
+    package: String,
+
+    /// Path to Cargo.toml of crate to scrap
+    ///
+    /// If set overrides --input and sets --output default to l10n/ beside src/
+    #[arg(long, default_value = "")]
+    manifest_path: String,
 
     /// Custom l10n macro names, comma separated
     #[arg(short, long, default_value = "")]
     macros: String,
 
-    /// Pseudo Base name, empty to disable
-    #[arg(long, default_value = "pseudo")]
+    /// Generate pseudo locale from dir/lang
+    ///
+    /// EXAMPLE
+    ///
+    /// "l10n/en" generates pseudo from "l10n/en.ftl" and "l10n/en/*.ftl"
+    #[arg(long, default_value = "")]
     pseudo: String,
-    /// Pseudo Mirrored name, empty to disable
-    #[arg(long, default_value = "pseudo-mirr")]
+    /// Generate pseudo mirrored locale
+    #[arg(long, default_value = "")]
     pseudo_m: String,
-    /// Pseudo Wide name, empty to disable
-    #[arg(long, default_value = "pseudo-wide")]
+    /// Generate pseudo wide locale
+    #[arg(long, default_value = "")]
     pseudo_w: String,
 }
 
-pub fn run(args: L10nArgs) {
-    let mut input = args.input;
-    if !input.contains('*') && PathBuf::from(&input).is_dir() {
-        input = format!("{}/**/*.rs", input.trim_end_matches(&['\\', '/']));
+pub fn run(mut args: L10nArgs) {
+    if !args.input.is_empty() as u8 + !args.package.is_empty() as u8 + !args.manifest_path.is_empty() as u8 > 1 {
+        fatal!("only one of --input --package --manifest-path must be set")
     }
 
-    println!(r#"searching "{input}".."#);
+    let mut input = String::new();
+    let mut output = args.output.replace('\\', "/");
 
-    let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
-
-    if let Err(e) = std::fs::create_dir_all(&args.output) {
-        fatal!("cannot create dir `{}`, {e}", args.output.display());
-    }
-
-    let mut template = scraper::scrape_fluent_text(&input, &custom_macro_names);
-    match template.entries.len() {
-        0 => {
-            println!("did not find any entry");
-            return;
+    if !args.input.is_empty() {
+        if output.is_empty() {
+            fatal!("--output is required for --input")
         }
-        1 => println!("found 1 entry"),
-        n => println!("found {n} entries"),
+
+        input = args.input.replace('\\', "/");
+
+        if !input.contains('*') && PathBuf::from(&input).is_dir() {
+            input = format!("{}/**/*.rs", input.trim_end_matches('/'));
+        }
+    } else {
+        if !args.package.is_empty() {
+            if let Some(m) = crate::util::manifest_path_from_package(&args.package) {
+                args.manifest_path = m;
+            } else {
+                fatal!("package `{}` not found in workspace", args.package);
+            }
+        }
+
+        if !Path::new(&args.manifest_path).exists() {
+            fatal!("{input} does not exist")
+        }
+
+        input = args.manifest_path.replace('\\', "/");
+        if let Some(manifest_path) = input.strip_prefix("/Cargo.toml") {
+            if output.is_empty() {
+                output = format!("{manifest_path}/l10n");
+            }
+            input = format!("{manifest_path}/src/**/*.rs");
+        } else {
+            fatal!("expected path to Cargo.toml manifest file");
+        }
     }
 
-    struct Task {
-        name: String,
-        transform: fn(&str) -> Cow<str>,
-    }
-    let mut tasks = vec![Task {
-        name: "template".to_owned(),
-        transform: pseudo::none,
-    }];
-    if !args.pseudo.is_empty() {
-        tasks.push(Task {
-            name: args.pseudo,
-            transform: pseudo::pseudo,
-        })
-    }
-    if !args.pseudo_m.is_empty() {
-        tasks.push(Task {
-            name: args.pseudo_m,
-            transform: pseudo::pseudo_mirr,
-        })
-    }
-    if !args.pseudo_w.is_empty() {
-        tasks.push(Task {
-            name: args.pseudo_w,
-            transform: pseudo::pseudo_wide,
-        })
-    }
+    if !input.is_empty() {
+        println!(r#"searching "{input}".."#);
 
-    template.sort();
+        let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
+        // let args = ();
 
-    for task in tasks {
-        let r = template.write(task.transform, |file| {
+        let template = scraper::scrape_fluent_text(&input, &custom_macro_names);
+        match template.entries.len() {
+            0 => println!("did not find any entry"),
+            1 => println!("found 1 entry"),
+            n => println!("found {n} entries"),
+        }
+
+        if let Err(e) = std::fs::create_dir_all(&output) {
+            fatal!("cannot create dir `{output}`, {e}");
+        }
+
+        let r = template.write(|file| {
             fn box_dyn(file: std::fs::File) -> Box<dyn Write + Send> {
                 Box::new(file)
             }
 
-            let mut output = args.output.clone();
+            let mut output = PathBuf::from(&output);
             if file.is_empty() {
-                output.push(format!("{}.ftl", task.name));
+                output.push(format!("template.ftl"));
             } else {
-                output.push(&task.name);
+                output.push("template");
                 std::fs::create_dir_all(&output)?;
                 output.push(format!("{file}.ftl"));
             }
             std::fs::File::create(output).map(box_dyn)
         });
-
-        match r {
-            Ok(()) => println!("finished {:?}.", task.name),
-            Err(e) => fatal!("{:?} error: {}", task.name, e),
+        if let Err(e) = r {
+            fatal!("error writing template files, {e}");
         }
+    }
+
+    if !args.pseudo.is_empty() {
+        pseudo::pseudo(&args.pseudo);
+    }
+    if !args.pseudo_m.is_empty() {
+        pseudo::pseudo_mirr(&args.pseudo);
+    }
+    if !args.pseudo_w.is_empty() {
+        pseudo::pseudo_wide(&args.pseudo);
     }
 }

@@ -21,3 +21,5 @@ do.bat
 do.ps1
 do
 /trace-*.json
+pseudo*.ftl
+pseudo*/*.ftl
