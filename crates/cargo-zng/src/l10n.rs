@@ -121,37 +121,39 @@ pub fn run(mut args: L10nArgs) {
             n => println!("found {n} entries"),
         }
 
-        if let Err(e) = std::fs::create_dir_all(&output) {
-            fatal!("cannot create dir `{output}`, {e}");
-        }
-
-        template.sort();
-
-        let name_empty = template.has_named_files();
-
-        let r = template.write(|file| {
-            fn box_dyn(file: std::fs::File) -> Box<dyn Write + Send> {
-                Box::new(file)
+        if !template.entries.is_empty() || !template.notes.is_empty() {
+            if let Err(e) = std::fs::create_dir_all(&output) {
+                fatal!("cannot create dir `{output}`, {e}");
             }
 
-            let mut output = PathBuf::from(&output);
-            if file.is_empty() {
-                if name_empty {
+            template.sort();
+
+            let name_empty = template.has_named_files();
+
+            let r = template.write(|file| {
+                fn box_dyn(file: std::fs::File) -> Box<dyn Write + Send> {
+                    Box::new(file)
+                }
+
+                let mut output = PathBuf::from(&output);
+                if file.is_empty() {
+                    if name_empty {
+                        output.push("template");
+                        std::fs::create_dir_all(&output)?;
+                        output.push("_.ftl");
+                    } else {
+                        output.push("template.ftl");
+                    }
+                } else {
                     output.push("template");
                     std::fs::create_dir_all(&output)?;
-                    output.push("_.ftl");
-                } else {
-                    output.push("template.ftl");
+                    output.push(format!("{file}.ftl"));
                 }
-            } else {
-                output.push("template");
-                std::fs::create_dir_all(&output)?;
-                output.push(format!("{file}.ftl"));
+                std::fs::File::create(output).map(box_dyn)
+            });
+            if let Err(e) = r {
+                fatal!("error writing template files, {e}");
             }
-            std::fs::File::create(output).map(box_dyn)
-        });
-        if let Err(e) = r {
-            fatal!("error writing template files, {e}");
         }
     }
 

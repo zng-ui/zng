@@ -358,8 +358,10 @@ fn l10n(mut args: Vec<&str>) {
     for manifest_path in crates {
         let output = std::path::Path::new(&manifest_path).with_file_name("l10n");
         if let Err(e) = std::fs::remove_dir_all(&output) {
-            error(f!("cannot clear `{}`, {e}", output.display()));
-            continue;
+            if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
+                error(f!("cannot clear `{}`, {e}", output.display()));
+                continue;
+            }
         }
         cmd(&exe, &["zng", "l10n", "--manifest-path", manifest_path.as_str()], &[]);
     }
