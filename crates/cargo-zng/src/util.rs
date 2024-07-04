@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -173,16 +174,6 @@ pub fn clean_value(value: &str, required: bool) -> io::Result<String> {
 }
 
 pub fn manifest_path_from_package(package: &str) -> Option<String> {
-    #[derive(Deserialize)]
-    struct Metadata {
-        packages: Vec<Package>,
-    }
-    #[derive(Deserialize)]
-    struct Package {
-        name: String,
-        manifest_path: String,
-    }
-
     let metadata = match Command::new("cargo")
         .args(["metadata", "--format-version", "1", "--no-deps"])
         .stderr(Stdio::inherit())
@@ -197,6 +188,15 @@ pub fn manifest_path_from_package(package: &str) -> Option<String> {
         Err(e) => fatal!("cargo metadata error, {e}"),
     };
 
+    #[derive(Deserialize)]
+    struct Metadata {
+        packages: Vec<Package>,
+    }
+    #[derive(Deserialize)]
+    struct Package {
+        name: String,
+        manifest_path: String,
+    }
     let metadata: Metadata = serde_json::from_str(&metadata).unwrap_or_else(|e| fatal!("unexpected cargo metadata format, {e}"));
 
     for p in metadata.packages {
@@ -205,4 +205,68 @@ pub fn manifest_path_from_package(package: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// Manifest paths of the dependencies of manifest_path
+pub fn dependencies(manifest_path: &str) -> Vec<String> {
+    let metadata = match Command::new("cargo")
+        .args(["metadata", "--format-version", "1", "--manifest-path"])
+        .arg(manifest_path)
+        .stderr(Stdio::inherit())
+        .output()
+    {
+        Ok(m) => {
+            if !m.status.success() {
+                fatal!("cargo metadata error")
+            }
+            String::from_utf8_lossy(&m.stdout).into_owned()
+        }
+        Err(e) => fatal!("cargo metadata error, {e}"),
+    };
+
+    // !!: TODO: support multiple versions
+
+    #[derive(Deserialize)]
+    struct Metadata {
+        packages: Vec<Package>,
+    }
+    #[derive(Deserialize)]
+    struct Package {
+        name: String,
+        dependencies: Vec<Dependency>,
+        manifest_path: String,
+    }
+    #[derive(Deserialize)]
+    struct Dependency {
+        name: String,
+        kind: Option<String>,
+    }
+
+    let metadata: Metadata = serde_json::from_str(&metadata).unwrap_or_else(|e| fatal!("unexpected cargo metadata format, {e}"));
+
+    let manifest_path = dunce::canonicalize(manifest_path).unwrap();
+
+    let mut dependencies: &[Dependency] = &[];
+
+    for pkg in &metadata.packages {
+        let pkg_path = Path::new(&pkg.manifest_path);
+        if pkg_path == manifest_path {
+            dependencies = &pkg.dependencies;
+            break;
+        }
+    }
+    if !dependencies.is_empty() {
+        let map: HashMap<_, _> = metadata
+            .packages
+            .iter()
+            .map(|p| (p.name.as_str(), p.manifest_path.as_str()))
+            .collect();
+        return dependencies
+            .iter()
+            .filter(|d| d.kind.is_none())
+            .filter_map(|d| map.get(d.name.as_str()).map(|&s| s.to_owned()))
+            .collect();
+    }
+
+    vec![]
 }

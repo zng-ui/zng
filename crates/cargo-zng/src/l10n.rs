@@ -11,6 +11,8 @@ use std::{
 
 use clap::*;
 
+use crate::util;
+
 mod pseudo;
 mod scraper;
 
@@ -109,7 +111,7 @@ pub fn run(mut args: L10nArgs) {
     }
 
     if !input.is_empty() {
-        println!(r#"searching "{input}".."#);
+        println!(r#"scraping "{input}".."#);
 
         let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
         // let args = ();
@@ -154,6 +156,18 @@ pub fn run(mut args: L10nArgs) {
             if let Err(e) = r {
                 fatal!("error writing template files, {e}");
             }
+        }
+
+        if args.deps {
+            let mut count = 0;
+            for dep in util::dependencies(&args.manifest_path) {
+                let path = Path::new(&dep).with_file_name("l10n");
+                if path.exists() {
+                    count += 1;
+                    // !!: TODO, need package name
+                }
+            }
+            println!("found {count} dependencies with localization");
         }
     }
 
