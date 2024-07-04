@@ -103,7 +103,7 @@ pub fn run(mut args: L10nArgs) {
         let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
         // let args = ();
 
-        let template = scraper::scrape_fluent_text(&input, &custom_macro_names);
+        let mut template = scraper::scrape_fluent_text(&input, &custom_macro_names);
         match template.entries.len() {
             0 => println!("did not find any entry"),
             1 => println!("found 1 entry"),
@@ -114,6 +114,10 @@ pub fn run(mut args: L10nArgs) {
             fatal!("cannot create dir `{output}`, {e}");
         }
 
+        template.sort();
+
+        let name_empty = template.has_named_files();
+
         let r = template.write(|file| {
             fn box_dyn(file: std::fs::File) -> Box<dyn Write + Send> {
                 Box::new(file)
@@ -121,7 +125,13 @@ pub fn run(mut args: L10nArgs) {
 
             let mut output = PathBuf::from(&output);
             if file.is_empty() {
-                output.push(format!("template.ftl"));
+                if name_empty {
+                    output.push("template");
+                    std::fs::create_dir_all(&output)?;
+                    output.push("_.ftl");
+                } else {
+                    output.push("template.ftl");
+                }
             } else {
                 output.push("template");
                 std::fs::create_dir_all(&output)?;

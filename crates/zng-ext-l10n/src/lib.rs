@@ -114,7 +114,7 @@ impl AppExtension for L10nManager {
 ///     .attr = message
 /// ```
 ///
-/// And a key `"id.attr"` will be searched in the file `{dir}/{lang}.ftl`.
+/// And a key `"id.attr"` will be searched in the file `{dir}/{lang}.ftl` and `{dir}/{lang}/_.ftl`.
 ///
 /// # Scrap Template
 ///

@@ -587,6 +587,11 @@ impl FluentTemplate {
         });
     }
 
+    /// Gets if any entry or note sets a file name.
+    pub fn has_named_files(&self) -> bool {
+        self.entries.iter().any(|e| !e.file.is_empty()) || self.notes.iter().any(|n| !n.file.is_empty())
+    }
+
     /// Write all entries to new FLT files.
     ///
     /// Template must be sorted before this call.

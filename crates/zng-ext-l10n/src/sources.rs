@@ -1,10 +1,4 @@
-use std::{
-    collections::HashMap,
-    io,
-    path::{Path, PathBuf},
-    str::FromStr,
-    sync::Arc,
-};
+use std::{collections::HashMap, io, path::PathBuf, str::FromStr, sync::Arc};
 
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::WATCHER;
@@ -15,10 +9,9 @@ use crate::{FluentParserErrors, L10nSource, Lang, LangMap, LangResourceStatus};
 
 /// Represents localization resources synchronized from files in a directory.
 ///
-/// The expected directory layout is `{dir}/{lang}.flt` for lang only and `{dir}/{lang}/file.flt` for
-/// lang with file.
+/// The expected directory layout is `{dir}/{lang}.flt` for lang only and `{dir}/{lang}/{file}.ftl` for
+/// lang with files. The `{dir}/{lang}/_.ftl` file is also a valid "lang only" file.
 pub struct L10nDir {
-    dir: PathBuf,
     dir_watch: BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
     dir_watch_status: BoxedVar<LangResourceStatus>,
     res: HashMap<(Lang, Txt), L10nFile>,
@@ -86,10 +79,14 @@ impl L10nDir {
                                                 match entry {
                                                     Ok(f) => {
                                                         if let Ok(name_and_ext) = f.file_name().into_string() {
-                                                            if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
+                                                            if let Some((mut name, ext)) = name_and_ext.rsplit_once('.') {
                                                                 if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
                                                                     // found .flt file.
                                                                     tracing::debug!("found {dir_name}/{name}.{ext}");
+
+                                                                    if name == "_" {
+                                                                        name = "";
+                                                                    }
                                                                     inner.insert(Txt::from_str(name), f.path());
                                                                 }
                                                             }
@@ -127,7 +124,6 @@ impl L10nDir {
         dir_watch.bind_map(&status, |_| LangResourceStatus::Loaded).perm();
 
         Self {
-            dir,
             dir_watch: dir_watch.boxed(),
             dir_watch_status: status.read_only().boxed(),
             res: HashMap::new(),
@@ -149,7 +145,7 @@ impl L10nSource for L10nDir {
                     out
                 } else {
                     let (lang, file) = e.key();
-                    let out = load_file(e.get().status.clone(), &self.dir, lang, file);
+                    let out = resource_var(&self.dir_watch, e.get().status.clone(), lang.clone(), file.clone());
                     e.get_mut().res = out.downgrade();
                     out
                 }
@@ -157,7 +153,7 @@ impl L10nSource for L10nDir {
             std::collections::hash_map::Entry::Vacant(e) => {
                 let mut f = L10nFile::new();
                 let (lang, file) = e.key();
-                let out = load_file(f.status.clone(), &self.dir, lang, file);
+                let out = resource_var(&self.dir_watch, f.status.clone(), lang.clone(), file.clone());
                 f.res = out.downgrade();
                 e.insert(f);
                 out
@@ -186,49 +182,56 @@ impl L10nFile {
         }
     }
 }
-fn load_file(status: ArcVar<LangResourceStatus>, dir: &Path, lang: &Lang, file: &Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
-    status.set(LangResourceStatus::Loading);
 
-    let path = if file.is_empty() {
-        format!("{lang}.ftl")
-    } else {
-        format!("{lang}/{file}.ftl")
-    };
+fn resource_var(
+    dir_watch: &BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
+    status: ArcVar<LangResourceStatus>,
+    lang: Lang,
+    file: Txt,
+) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+    dir_watch
+        .map(move |w| w.get(&lang).and_then(|m| m.get(&file)).cloned())
+        .flat_map(move |p| match p {
+            Some(p) => {
+                status.set(LangResourceStatus::Loading);
 
-    let r = WATCHER.read(
-        dir.join(path),
-        None,
-        clmv!(status, |file| {
-            status.set(LangResourceStatus::Loading);
+                let r = WATCHER.read(
+                    p.clone(),
+                    None,
+                    clmv!(status, |file| {
+                        status.set(LangResourceStatus::Loading);
 
-            match file.and_then(|mut f| f.string()) {
-                Ok(flt) => match fluent::FluentResource::try_new(flt) {
-                    Ok(flt) => {
-                        // ok
-                        // Loaded set by `r` to avoid race condition in waiter.
-                        return Some(Some(ArcEq::new(flt)));
-                    }
-                    Err(e) => {
-                        let e = FluentParserErrors(e.1);
-                        tracing::error!("error parsing fluent resource, {e}");
-                        status.set(LangResourceStatus::Errors(vec![Arc::new(e)]));
-                    }
-                },
-                Err(e) => {
-                    if matches!(e.kind(), io::ErrorKind::NotFound) {
-                        status.set(LangResourceStatus::NotAvailable);
-                    } else {
-                        tracing::error!("error loading fluent resource, {e}");
-                        status.set(LangResourceStatus::Errors(vec![Arc::new(e)]));
-                    }
-                }
+                        match file.and_then(|mut f| f.string()) {
+                            Ok(flt) => match fluent::FluentResource::try_new(flt) {
+                                Ok(flt) => {
+                                    // ok
+                                    // Loaded set by `r` to avoid race condition in waiter.
+                                    return Some(Some(ArcEq::new(flt)));
+                                }
+                                Err(e) => {
+                                    let e = FluentParserErrors(e.1);
+                                    tracing::error!("error parsing fluent resource, {e}");
+                                    status.set(LangResourceStatus::Errors(vec![Arc::new(e)]));
+                                }
+                            },
+                            Err(e) => {
+                                if matches!(e.kind(), io::ErrorKind::NotFound) {
+                                    status.set(LangResourceStatus::NotAvailable);
+                                } else {
+                                    tracing::error!("error loading fluent resource, {e}");
+                                    status.set(LangResourceStatus::Errors(vec![Arc::new(e)]));
+                                }
+                            }
+                        }
+                        // not ok
+                        Some(None)
+                    }),
+                );
+                r.bind_map(&status, |_| LangResourceStatus::Loaded).perm();
+                r.boxed()
             }
-            // not ok
-            Some(None)
-        }),
-    );
-    r.bind_map(&status, |_| LangResourceStatus::Loaded).perm();
-    r.boxed()
+            None => LocalVar(None).boxed(),
+        })
 }
 
 /// Represents localization source that can swap the actual source without disconnecting variables
