@@ -36,6 +36,12 @@ pub struct L10nArgs {
     #[arg(long, default_value = "")]
     manifest_path: String,
 
+    /// Copy dependencies localization
+    ///
+    /// Use with --package or --manifest-path to copy {dep-pkg}/l10n/*.ftl files
+    #[arg(long, action)]
+    deps: bool,
+
     /// Custom l10n macro names, comma separated
     #[arg(short, long, default_value = "")]
     macros: String,
@@ -58,6 +64,9 @@ pub struct L10nArgs {
 pub fn run(mut args: L10nArgs) {
     if !args.input.is_empty() as u8 + !args.package.is_empty() as u8 + !args.manifest_path.is_empty() as u8 > 1 {
         fatal!("only one of --input --package --manifest-path must be set")
+    }
+    if args.deps && args.package.is_empty() && args.manifest_path.is_empty() {
+        fatal!("can only copy --deps with --package or --manifest-path")
     }
 
     let mut input = String::new();
@@ -88,7 +97,7 @@ pub fn run(mut args: L10nArgs) {
             }
 
             input = args.manifest_path.replace('\\', "/");
-            if let Some(manifest_path) = input.strip_prefix("/Cargo.toml") {
+            if let Some(manifest_path) = input.strip_suffix("/Cargo.toml") {
                 if output.is_empty() {
                     output = format!("{manifest_path}/l10n");
                 }
