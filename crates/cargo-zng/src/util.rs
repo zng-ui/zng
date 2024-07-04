@@ -176,20 +176,24 @@ pub fn manifest_path_from_package(package: &str) -> Option<String> {
     #[derive(Deserialize)]
     struct Metadata {
         packages: Vec<Package>,
-    } 
+    }
     #[derive(Deserialize)]
     struct Package {
         name: String,
         manifest_path: String,
     }
 
-    let metadata = match Command::new("cargo").args(["metadata", "--format-version", "1",  "--no-deps"]).stderr(Stdio::inherit()).output() {
+    let metadata = match Command::new("cargo")
+        .args(["metadata", "--format-version", "1", "--no-deps"])
+        .stderr(Stdio::inherit())
+        .output()
+    {
         Ok(m) => {
             if !m.status.success() {
                 fatal!("cargo metadata error")
             }
             String::from_utf8_lossy(&m.stdout).into_owned()
-        },
+        }
         Err(e) => fatal!("cargo metadata error, {e}"),
     };
 

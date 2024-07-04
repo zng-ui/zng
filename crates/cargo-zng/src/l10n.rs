@@ -82,18 +82,20 @@ pub fn run(mut args: L10nArgs) {
             }
         }
 
-        if !Path::new(&args.manifest_path).exists() {
-            fatal!("{input} does not exist")
-        }
-
-        input = args.manifest_path.replace('\\', "/");
-        if let Some(manifest_path) = input.strip_prefix("/Cargo.toml") {
-            if output.is_empty() {
-                output = format!("{manifest_path}/l10n");
+        if !args.manifest_path.is_empty() {
+            if !Path::new(&args.manifest_path).exists() {
+                fatal!("{input} does not exist")
             }
-            input = format!("{manifest_path}/src/**/*.rs");
-        } else {
-            fatal!("expected path to Cargo.toml manifest file");
+
+            input = args.manifest_path.replace('\\', "/");
+            if let Some(manifest_path) = input.strip_prefix("/Cargo.toml") {
+                if output.is_empty() {
+                    output = format!("{manifest_path}/l10n");
+                }
+                input = format!("{manifest_path}/src/**/*.rs");
+            } else {
+                fatal!("expected path to Cargo.toml manifest file");
+            }
         }
     }
 
@@ -148,9 +150,9 @@ pub fn run(mut args: L10nArgs) {
         pseudo::pseudo(&args.pseudo);
     }
     if !args.pseudo_m.is_empty() {
-        pseudo::pseudo_mirr(&args.pseudo);
+        pseudo::pseudo_mirr(&args.pseudo_m);
     }
     if !args.pseudo_w.is_empty() {
-        pseudo::pseudo_wide(&args.pseudo);
+        pseudo::pseudo_wide(&args.pseudo_w);
     }
 }
