@@ -207,8 +207,8 @@ pub fn manifest_path_from_package(package: &str) -> Option<String> {
     None
 }
 
-/// Manifest paths of the dependencies of manifest_path
-pub fn dependencies(manifest_path: &str) -> Vec<String> {
+/// Dependencies of manifest_path, [(pkg-name, manifest-path)]
+pub fn dependencies(manifest_path: &str) -> Vec<(String, String)> {
     let metadata = match Command::new("cargo")
         .args(["metadata", "--format-version", "1", "--manifest-path"])
         .arg(manifest_path)
@@ -264,7 +264,7 @@ pub fn dependencies(manifest_path: &str) -> Vec<String> {
         return dependencies
             .iter()
             .filter(|d| d.kind.is_none())
-            .filter_map(|d| map.get(d.name.as_str()).map(|&s| s.to_owned()))
+            .filter_map(|d| Some((d.name.clone(), map.get(d.name.as_str()).map(|&s| s.to_owned())?)))
             .collect();
     }
 

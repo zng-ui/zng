@@ -5,7 +5,8 @@
 //! [`l10n!`]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
 
 use std::{
-    io::Write,
+    fs,
+    io::{self, Write},
     path::{Path, PathBuf},
 };
 
@@ -160,12 +161,74 @@ pub fn run(mut args: L10nArgs) {
 
         if args.deps {
             let mut count = 0;
-            for dep in util::dependencies(&args.manifest_path) {
-                let path = Path::new(&dep).with_file_name("l10n");
-                if path.exists() {
-                    count += 1;
-                    // !!: TODO, need package name
+            for (dep_name, dep_path) in util::dependencies(&args.manifest_path) {
+                let dep_l10n = Path::new(&dep_path).with_file_name("l10n");
+                let dep_l10n_reader = match fs::read_dir(&dep_l10n) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        if !matches!(e.kind(), io::ErrorKind::NotFound) {
+                            error!("cannot read `{}`, {e}", dep_l10n.display());
+                        }
+                        continue;
+                    }
+                };
+
+                let mut any = false;
+                let l10n_dir = Path::new(&args.manifest_path).with_file_name("l10n");
+                // l10n/deps/{dep_name}/
+                let output_dir = l10n_dir.join("deps").join(&dep_name);
+
+                for dep_l10n_entry in dep_l10n_reader {
+                    let dep_l10n_entry = match dep_l10n_entry {
+                        Ok(e) => e.path(),
+                        Err(e) => {
+                            error!("cannot read `{}` entry, {e}", dep_l10n.display());
+                            continue;
+                        }
+                    };
+                    if dep_l10n_entry.is_dir() {
+                        // l10n/{lang}/deps/{dep_name}/
+                        let output_dir = l10n_dir.join(dep_l10n_entry.file_name().unwrap()).join("deps").join(&dep_name);
+
+                        let lang_dir_reader = match fs::read_dir(&dep_l10n_entry) {
+                            Ok(d) => d,
+                            Err(e) => {
+                                error!("cannot read `{}`, {e}", dep_l10n_entry.display());
+                                continue;
+                            }
+                        };
+
+                        for lang_entry in lang_dir_reader {
+                            let lang_entry = match lang_entry {
+                                Ok(e) => e.path(),
+                                Err(e) => {
+                                    error!("cannot read `{}` entry, {e}", dep_l10n_entry.display());
+                                    continue;
+                                }
+                            };
+
+                            if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
+                                let _ = fs::create_dir_all(&output_dir);
+                                let to = output_dir.join(lang_entry.file_name().unwrap());
+                                if let Err(e) = fs::copy(&lang_entry, &to) {
+                                    error!("cannot copy `{}` to `{}`, {e}", lang_entry.display(), to.display());
+                                    continue;
+                                }
+                                any = true;
+                            }
+                        }
+                    } else if dep_l10n_entry.is_file() && dep_l10n_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
+                        let _ = fs::create_dir_all(&output_dir);
+                        let to = output_dir.join(dep_l10n_entry.file_name().unwrap());
+                        if let Err(e) = fs::copy(&dep_l10n_entry, &to) {
+                            error!("cannot copy `{}` to `{}`, {e}", dep_l10n_entry.display(), to.display());
+                            continue;
+                        }
+                        any = true;
+                    }
                 }
+
+                count += any as u32;
             }
             println!("found {count} dependencies with localization");
         }
