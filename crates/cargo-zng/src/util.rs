@@ -6,6 +6,7 @@ use std::{
     sync::atomic::AtomicBool,
 };
 
+use semver::{Version, VersionReq};
 use serde::Deserialize;
 
 /// Print warning message.
@@ -207,8 +208,8 @@ pub fn manifest_path_from_package(package: &str) -> Option<String> {
     None
 }
 
-/// Dependencies of manifest_path, [(pkg-name, manifest-path)]
-pub fn dependencies(manifest_path: &str) -> Vec<(String, String)> {
+/// Dependencies of manifest_path
+pub fn dependencies(manifest_path: &str) -> Vec<DependencyManifest> {
     let metadata = match Command::new("cargo")
         .args(["metadata", "--format-version", "1", "--manifest-path"])
         .arg(manifest_path)
@@ -224,8 +225,6 @@ pub fn dependencies(manifest_path: &str) -> Vec<(String, String)> {
         Err(e) => fatal!("cargo metadata error, {e}"),
     };
 
-    // !!: TODO: support multiple versions
-
     #[derive(Deserialize)]
     struct Metadata {
         packages: Vec<Package>,
@@ -233,6 +232,7 @@ pub fn dependencies(manifest_path: &str) -> Vec<(String, String)> {
     #[derive(Deserialize)]
     struct Package {
         name: String,
+        version: Version,
         dependencies: Vec<Dependency>,
         manifest_path: String,
     }
@@ -240,6 +240,7 @@ pub fn dependencies(manifest_path: &str) -> Vec<(String, String)> {
     struct Dependency {
         name: String,
         kind: Option<String>,
+        req: VersionReq,
     }
 
     let metadata: Metadata = serde_json::from_str(&metadata).unwrap_or_else(|e| fatal!("unexpected cargo metadata format, {e}"));
@@ -256,17 +257,35 @@ pub fn dependencies(manifest_path: &str) -> Vec<(String, String)> {
         }
     }
     if !dependencies.is_empty() {
-        let map: HashMap<_, _> = metadata
-            .packages
-            .iter()
-            .map(|p| (p.name.as_str(), p.manifest_path.as_str()))
-            .collect();
+        let mut map = HashMap::new();
+        for pkg in &metadata.packages {
+            map.entry(pkg.name.as_str())
+                .or_insert_with(Vec::new)
+                .push((&pkg.version, pkg.manifest_path.as_str()));
+        }
         return dependencies
             .iter()
             .filter(|d| d.kind.is_none())
-            .filter_map(|d| Some((d.name.clone(), map.get(d.name.as_str()).map(|&s| s.to_owned())?)))
+            .filter_map(|d| {
+                for (version, path) in map.get(d.name.as_str())?.iter() {
+                    if d.req.matches(version) {
+                        return Some(DependencyManifest {
+                            name: d.name.clone(),
+                            version: (*version).clone(),
+                            manifest_path: path.into(),
+                        });
+                    }
+                }
+                None
+            })
             .collect();
     }
 
     vec![]
+}
+
+pub struct DependencyManifest {
+    pub name: String,
+    pub version: Version,
+    pub manifest_path: PathBuf,
 }

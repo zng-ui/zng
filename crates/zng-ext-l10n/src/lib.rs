@@ -302,6 +302,7 @@ impl L10N {
     ) -> L10nMessageBuilder {
         L10nMessageBuilder {
             pkg_name: Txt::from_static(""),
+            pkg_version: Txt::from_static(""),
             file: file.into(),
             id: id.into(),
             attribute: attribute.into(),
@@ -312,7 +313,7 @@ impl L10N {
 
     /// Gets a message from a dependency package.
     ///
-    /// The `pkg_name` parameter is the package name, the other parameters are the same as [`message`].
+    /// The `pkg_name` and `pkg_version` parameter is the package name and version, the other parameters are the same as [`message`].
     ///
     /// In the default directory layout, if the `pkg_name` is set to a package different from the [`About::pkg_name`] the file
     /// is searched at `{dir}/deps/{pkg_name}/` and `{dir}/{lang}/deps/{pkg_name}`. You can use `cargo zng l10n` to copy all dependency
@@ -323,6 +324,7 @@ impl L10N {
     pub fn dep_message(
         &self,
         pkg_name: impl Into<Txt>,
+        pkg_version: impl Into<Txt>,
         file: impl Into<Txt>,
         id: impl Into<Txt>,
         attribute: impl Into<Txt>,
@@ -330,6 +332,7 @@ impl L10N {
     ) -> L10nMessageBuilder {
         L10nMessageBuilder {
             pkg_name: pkg_name.into(),
+            pkg_version: pkg_version.into(),
             file: file.into(),
             id: id.into(),
             attribute: attribute.into(),
@@ -343,6 +346,7 @@ impl L10N {
     pub fn l10n_message(
         &self,
         pkg_name: &'static str,
+        pkg_version: &'static str,
         file: &'static str,
         id: &'static str,
         attribute: &'static str,
@@ -350,6 +354,7 @@ impl L10N {
     ) -> L10nMessageBuilder {
         self.dep_message(
             Txt::from_static(pkg_name),
+            Txt::from_static(pkg_version),
             Txt::from_static(file),
             Txt::from_static(id),
             Txt::from_static(attribute),

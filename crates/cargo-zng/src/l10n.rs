@@ -5,6 +5,7 @@
 //! [`l10n!`]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
 
 use std::{
+    cmp::Ordering,
     fs,
     io::{self, Write},
     path::{Path, PathBuf},
@@ -62,6 +63,10 @@ pub struct L10nArgs {
     /// Generate pseudo wide locale
     #[arg(long, default_value = "")]
     pseudo_w: String,
+
+    /// Verify that the generated files are the same
+    #[arg(long, action)]
+    check: bool, // !!: TODO
 }
 
 pub fn run(mut args: L10nArgs) {
@@ -161,8 +166,8 @@ pub fn run(mut args: L10nArgs) {
 
         if args.deps {
             let mut count = 0;
-            for (dep_name, dep_path) in util::dependencies(&args.manifest_path) {
-                let dep_l10n = Path::new(&dep_path).with_file_name("l10n");
+            for dep in util::dependencies(&args.manifest_path) {
+                let dep_l10n = dep.manifest_path.with_file_name("l10n");
                 let dep_l10n_reader = match fs::read_dir(&dep_l10n) {
                     Ok(d) => d,
                     Err(e) => {
@@ -175,8 +180,47 @@ pub fn run(mut args: L10nArgs) {
 
                 let mut any = false;
                 let l10n_dir = Path::new(&args.manifest_path).with_file_name("l10n");
-                // l10n/deps/{dep_name}/
-                let output_dir = l10n_dir.join("deps").join(&dep_name);
+
+                // get l10n_dir/{lang}/deps/dep.name/dep.version/
+                let mut l10n_dir = |lang: Option<&std::ffi::OsStr>| {
+                    any = true;
+                    let dir = match lang {
+                        Some(l) => l10n_dir.join(l).join("deps"),
+                        None => l10n_dir.join("deps"),
+                    };
+                    let ignore_file = dir.join(".gitignore");
+
+                    if !ignore_file.exists() {
+                        // create dir and .gitignore file
+                        (|| -> io::Result<()> {
+                            fs::create_dir_all(&dir)?;
+                            let mut f = io::BufWriter::new(fs::File::options().create(true).truncate(true).write(true).open(ignore_file)?);
+                            writeln!(&mut f, "# Dependency localization files")?;
+                            if !args.package.is_empty() {
+                                writeln!(&mut f, "#Call `cargo zng l10n --package {}` to update", args.package)?;
+                            } else {
+                                let path = Path::new(&args.manifest_path)
+                                    .strip_prefix(std::env::current_dir().unwrap())
+                                    .unwrap();
+                                writeln!(&mut f, "#Call `cargo zng l10n --manifest-path {}` to update", path.display())?;
+                            }
+                            writeln!(&mut f)?;
+                            writeln!(&mut f, "*")?;
+                            writeln!(&mut f, "!.gitignore")?;
+                            f.flush()?;
+                            Ok(())
+                        })()
+                        .unwrap_or_else(|e| fatal!("cannot create `{}`, {e}", l10n_dir.display()));
+                    }
+
+                    let dir = dir.join(&dep.name).join(dep.version.to_string());
+                    let _ = fs::create_dir_all(&dir);
+
+                    dir
+                };
+
+                // [(exporter_dep, has_lang, ".../{lang}?/deps")]
+                let mut reexport_deps = vec![];
 
                 for dep_l10n_entry in dep_l10n_reader {
                     let dep_l10n_entry = match dep_l10n_entry {
@@ -187,8 +231,14 @@ pub fn run(mut args: L10nArgs) {
                         }
                     };
                     if dep_l10n_entry.is_dir() {
-                        // l10n/{lang}/deps/{dep_name}/
-                        let output_dir = l10n_dir.join(dep_l10n_entry.file_name().unwrap()).join("deps").join(&dep_name);
+                        if dep_l10n_entry.file_name().map(|n| n == "deps").unwrap_or(false) {
+                            reexport_deps.push((&dep, false, dep_l10n_entry));
+                            continue;
+                        }
+
+                        // l10n/{lang}/deps/{dep.name}/{dep.version}
+                        let output_dir = l10n_dir(dep_l10n_entry.file_name());
+                        let _ = fs::create_dir_all(&output_dir);
 
                         let lang_dir_reader = match fs::read_dir(&dep_l10n_entry) {
                             Ok(d) => d,
@@ -207,25 +257,36 @@ pub fn run(mut args: L10nArgs) {
                                 }
                             };
 
-                            if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
+                            if lang_entry.is_dir() {
+                                if lang_entry.file_name().map(|n| n == "deps").unwrap_or(false) {
+                                    reexport_deps.push((&dep, true, lang_entry));
+                                }
+                            } else if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
                                 let _ = fs::create_dir_all(&output_dir);
                                 let to = output_dir.join(lang_entry.file_name().unwrap());
                                 if let Err(e) = fs::copy(&lang_entry, &to) {
                                     error!("cannot copy `{}` to `{}`, {e}", lang_entry.display(), to.display());
                                     continue;
                                 }
-                                any = true;
                             }
                         }
                     } else if dep_l10n_entry.is_file() && dep_l10n_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
-                        let _ = fs::create_dir_all(&output_dir);
-                        let to = output_dir.join(dep_l10n_entry.file_name().unwrap());
+                        // l10n/deps/{dep.name}/{dep.version}/
+                        let to = l10n_dir(None);
                         if let Err(e) = fs::copy(&dep_l10n_entry, &to) {
                             error!("cannot copy `{}` to `{}`, {e}", dep_l10n_entry.display(), to.display());
                             continue;
                         }
-                        any = true;
                     }
+                }
+
+                reexport_deps.sort_by(|a, b| match a.0.name.cmp(&b.0.name) {
+                    Ordering::Equal => b.0.version.cmp(&a.0.version),
+                    o => o,
+                });
+
+                for (_, _has_lang, _deps) in reexport_deps {
+                    // !!: TODO, copy, don't replace
                 }
 
                 count += any as u32;
