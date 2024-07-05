@@ -217,10 +217,10 @@ impl L10N {
 
     /// Available localization files.
     ///
-    /// The value maps lang to one or more files, the files can be `{dir}/{lang}.flt` or `{dir}/{lang}/*.flt`.
+    /// The value maps lang to one or more files, the files can be `{dir}/{lang}.ftl` or `{dir}/{lang}/*.ftl`.
     ///
     /// Note that this map will include any file in the source dir that has a name that is a valid [`lang!`],
-    /// that includes the `template.flt` file and test pseudo-locales such as `qps-ploc.flt`.
+    /// that includes the `template.ftl` file and test pseudo-locales such as `qps-ploc.ftl`.
     pub fn available_langs(&self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
         L10N_SV.write().available_langs()
     }
@@ -284,8 +284,9 @@ impl L10N {
     ///
     /// # Params
     ///
-    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.flt`, if
-    ///           empty the file is searched at `{dir}/{lang}.flt`. Only a single file name is valid, no other path components allowed.
+    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.ftl`, if
+    ///           empty the file is searched at `{dir}/{lang}.ftl` and `{dir}/{lang}/_.ftl`. Only a single file name is valid, no
+    ///           other path components allowed.
     /// * `id`: Message identifier inside the resource file.
     /// * `attribute`: Attribute of the identifier, leave empty to not use an attribute.
     ///
@@ -300,6 +301,35 @@ impl L10N {
         fallback: impl Into<Txt>,
     ) -> L10nMessageBuilder {
         L10nMessageBuilder {
+            pkg_name: Txt::from_static(""),
+            file: file.into(),
+            id: id.into(),
+            attribute: attribute.into(),
+            fallback: fallback.into(),
+            args: vec![],
+        }
+    }
+
+    /// Gets a message from a dependency package.
+    ///
+    /// The `pkg_name` parameter is the package name, the other parameters are the same as [`message`].
+    ///
+    /// In the default directory layout, if the `pkg_name` is set to a package different from the [`About::pkg_name`] the file
+    /// is searched at `{dir}/deps/{pkg_name}/` and `{dir}/{lang}/deps/{pkg_name}`. You can use `cargo zng l10n` to copy all dependency
+    /// localization files to these directories.
+    ///
+    /// [`message`]: Self::message
+    /// [`About::pkg_name`]: zng_env::About::pkg_name
+    pub fn dep_message(
+        &self,
+        pkg_name: impl Into<Txt>,
+        file: impl Into<Txt>,
+        id: impl Into<Txt>,
+        attribute: impl Into<Txt>,
+        fallback: impl Into<Txt>,
+    ) -> L10nMessageBuilder {
+        L10nMessageBuilder {
+            pkg_name: pkg_name.into(),
             file: file.into(),
             id: id.into(),
             attribute: attribute.into(),
@@ -312,12 +342,14 @@ impl L10N {
     #[doc(hidden)]
     pub fn l10n_message(
         &self,
+        pkg_name: &'static str,
         file: &'static str,
         id: &'static str,
         attribute: &'static str,
         fallback: &'static str,
     ) -> L10nMessageBuilder {
-        self.message(
+        self.dep_message(
+            Txt::from_static(pkg_name),
             Txt::from_static(file),
             Txt::from_static(id),
             Txt::from_static(attribute),
@@ -331,7 +363,7 @@ impl L10N {
     ///
     /// The lang file resource is lazy loaded and stays in memory only when there are variables alive linked to it, each lang
     /// in the list is matched to available resources if no match is available the `fallback` message is used. The variable
-    /// may temporary contain the `fallback` as lang resources are loaded asynchronous.
+    /// may temporary contain the `fallback` as lang resources are loaded asynchronously.
     pub fn localized_message(
         &self,
         lang: impl Into<Langs>,
@@ -358,8 +390,9 @@ impl L10N {
     /// # Params
     ///
     /// * `lang`: Language identifier.
-    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.flt`, if
-    ///           empty the file is searched at `{dir}/{lang}.flt`. Only a single file name is valid, no other path components allowed.
+    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.ftl`, if
+    ///           empty the file is searched at `{dir}/{lang}.ftl` and `{dir}/{lang}/_.ftl`. Only a single file name is valid, no
+    ///           other path components allowed.
     ///
     /// Panics if the file is invalid.
     pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<Txt>) -> LangResource {

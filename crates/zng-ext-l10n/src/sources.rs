@@ -9,7 +9,7 @@ use crate::{FluentParserErrors, L10nSource, Lang, LangMap, LangResourceStatus};
 
 /// Represents localization resources synchronized from files in a directory.
 ///
-/// The expected directory layout is `{dir}/{lang}.flt` for lang only and `{dir}/{lang}/{file}.ftl` for
+/// The expected directory layout is `{dir}/{lang}.ftl` for lang only and `{dir}/{lang}/{file}.ftl` for
 /// lang with files. The `{dir}/{lang}/_.ftl` file is also a valid "lang only" file.
 pub struct L10nDir {
     dir_watch: BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
@@ -50,12 +50,12 @@ impl L10nDir {
                             const EXT: unicase::Ascii<&'static str> = unicase::Ascii::new("ftl");
 
                             if ty.is_file() {
-                                // match dir/lang.flt files
+                                // match dir/lang.ftl files
                                 if let Some(name_and_ext) = f.file_name().to_str() {
                                     if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
                                         if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
                                             tracing::debug!("found {name}.{ext}");
-                                            // found .flt file.
+                                            // found .ftl file.
                                             match Lang::from_str(name) {
                                                 Ok(lang) => {
                                                     // and it is named correctly.
@@ -70,7 +70,7 @@ impl L10nDir {
                                     }
                                 }
                             } else if f.depth() == 1 && ty.is_dir() {
-                                // match dir/lang/file.flt files
+                                // match dir/lang/file.ftl files
                                 if let Some(dir_name) = f.file_name().to_str() {
                                     match Lang::from_str(dir_name) {
                                         Ok(lang) => {
@@ -81,7 +81,7 @@ impl L10nDir {
                                                         if let Ok(name_and_ext) = f.file_name().into_string() {
                                                             if let Some((mut name, ext)) = name_and_ext.rsplit_once('.') {
                                                                 if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
-                                                                    // found .flt file.
+                                                                    // found .ftl file.
                                                                     tracing::debug!("found {dir_name}/{name}.{ext}");
 
                                                                     if name == "_" {

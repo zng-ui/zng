@@ -144,6 +144,7 @@ type StatusError = Vec<Arc<dyn std::error::Error + Send + Sync>>;
 ///
 /// [`L10N.message`]: L10N::message
 pub struct L10nMessageBuilder {
+    pub(super) pkg_name: Txt,
     pub(super) file: Txt,
     pub(super) id: Txt,
     pub(super) attribute: Txt,
@@ -164,12 +165,14 @@ impl L10nMessageBuilder {
     /// Build the variable.
     pub fn build(self) -> impl Var<Txt> {
         let Self {
+            pkg_name,
             file,
             id,
             attribute,
             fallback,
             args,
         } = self;
+        let _ = pkg_name; // !!: TODO, include in file? what about version?
         LANG_VAR.flat_map(move |l| {
             L10N_SV.write().localized_message(
                 l.clone(),
