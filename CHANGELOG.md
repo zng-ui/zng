@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Removed `L10N.localized_message`, use `L10N.message(..).build_for(lang)`.
 * **Breaking** `cargo zng l10n` CLI refactor.
     - Now requires arg name for input and output.
     - Pseudo arg values now define a dir and lang to generate pseudo from.

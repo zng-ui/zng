@@ -285,8 +285,25 @@ pub fn run(mut args: L10nArgs) {
                     o => o,
                 });
 
-                for (_, _has_lang, _deps) in reexport_deps {
-                    // !!: TODO, copy, don't replace
+                for (_, has_lang, deps) in reexport_deps {
+                    let target = l10n_dir(if has_lang {
+                        // dep/l10n/lang/deps/
+                        deps.parent().and_then(|p| p.file_name())
+                    } else {
+                        // dep/l10n/deps/
+                        None
+                    });
+
+                    // deps/pkg-name/pkg-version/*.ftl
+                    for entry in glob::glob(&deps.join("*/*/*.ftl").display().to_string()).unwrap() {
+                        let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
+                        let target = target.join(entry.strip_prefix(&deps).unwrap());
+                        if !target.exists() && entry.is_file() {
+                            if let Err(e) = fs::copy(&entry, &target) {
+                                error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
+                            }
+                        }
+                    }
                 }
 
                 count += any as u32;

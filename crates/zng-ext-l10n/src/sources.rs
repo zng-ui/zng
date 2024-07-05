@@ -5,16 +5,16 @@ use zng_ext_fs_watcher::WATCHER;
 use zng_txt::Txt;
 use zng_var::{types::WeakArcVar, var, AnyVar, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, Var, VarHandle, WeakVar};
 
-use crate::{FluentParserErrors, L10nSource, Lang, LangMap, LangResourceStatus};
+use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 
 /// Represents localization resources synchronized from files in a directory.
 ///
 /// The expected directory layout is `{dir}/{lang}.ftl` for lang only and `{dir}/{lang}/{file}.ftl` for
 /// lang with files. The `{dir}/{lang}/_.ftl` file is also a valid "lang only" file.
 pub struct L10nDir {
-    dir_watch: BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
+    dir_watch: BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
     dir_watch_status: BoxedVar<LangResourceStatus>,
-    res: HashMap<(Lang, Txt), L10nFile>,
+    res: HashMap<(Lang, LangFilePath), L10nFile>,
 }
 impl L10nDir {
     /// Start watching the `dir` for localization files.
@@ -30,7 +30,7 @@ impl L10nDir {
             clmv!(status, |d| {
                 status.set(LangResourceStatus::Loading);
 
-                let mut set: LangMap<HashMap<Txt, PathBuf>> = LangMap::new();
+                let mut set: LangMap<HashMap<LangFilePath, PathBuf>> = LangMap::new();
                 let mut errors: Vec<Arc<dyn std::error::Error + Send + Sync>> = vec![];
                 let mut dir = None;
                 for entry in d.min_depth(0).max_depth(1) {
@@ -60,7 +60,7 @@ impl L10nDir {
                                                 Ok(lang) => {
                                                     // and it is named correctly.
                                                     set.get_exact_or_insert(lang, Default::default)
-                                                        .insert(Txt::from_str(""), dir.as_ref().unwrap().join(name_and_ext));
+                                                        .insert(LangFilePath::current_app(""), dir.as_ref().unwrap().join(name_and_ext));
                                                 }
                                                 Err(e) => {
                                                     errors.push(Arc::new(e));
@@ -87,7 +87,7 @@ impl L10nDir {
                                                                     if name == "_" {
                                                                         name = "";
                                                                     }
-                                                                    inner.insert(Txt::from_str(name), f.path());
+                                                                    inner.insert(LangFilePath::current_app(Txt::from_str(name)), f.path());
                                                                 }
                                                             }
                                                         }
@@ -131,14 +131,14 @@ impl L10nDir {
     }
 }
 impl L10nSource for L10nDir {
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
+    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         self.dir_watch.clone()
     }
     fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus> {
         self.dir_watch_status.clone()
     }
 
-    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
         match self.res.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 if let Some(out) = e.get().res.upgrade() {
@@ -161,7 +161,7 @@ impl L10nSource for L10nDir {
         }
     }
 
-    fn lang_resource_status(&mut self, lang: Lang, file: Txt) -> BoxedVar<LangResourceStatus> {
+    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<LangResourceStatus> {
         self.res
             .entry((lang, file))
             .or_insert_with(L10nFile::new)
@@ -184,10 +184,10 @@ impl L10nFile {
 }
 
 fn resource_var(
-    dir_watch: &BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
+    dir_watch: &BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
     status: ArcVar<LangResourceStatus>,
     lang: Lang,
-    file: Txt,
+    file: LangFilePath,
 ) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
     dir_watch
         .map(move |w| w.get(&lang).and_then(|m| m.get(&file)).cloned())
@@ -243,10 +243,10 @@ fn resource_var(
 pub struct SwapL10nSource {
     actual: Box<dyn L10nSource>,
 
-    available_langs: ArcVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>,
+    available_langs: ArcVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
     available_langs_status: ArcVar<LangResourceStatus>,
 
-    res: HashMap<(Lang, Txt), SwapFile>,
+    res: HashMap<(Lang, LangFilePath), SwapFile>,
 }
 impl SwapL10nSource {
     /// New with [`NilL10nSource`].
@@ -299,7 +299,7 @@ impl Default for SwapL10nSource {
     }
 }
 impl L10nSource for SwapL10nSource {
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
+    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         self.available_langs.read_only().boxed()
     }
 
@@ -307,7 +307,7 @@ impl L10nSource for SwapL10nSource {
         self.available_langs_status.read_only().boxed()
     }
 
-    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
         match self.res.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 if let Some(res) = e.get().res.upgrade() {
@@ -361,7 +361,7 @@ impl L10nSource for SwapL10nSource {
         }
     }
 
-    fn lang_resource_status(&mut self, lang: Lang, file: Txt) -> BoxedVar<LangResourceStatus> {
+    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<LangResourceStatus> {
         self.res
             .entry((lang, file))
             .or_insert_with(SwapFile::new)
@@ -392,7 +392,7 @@ impl SwapFile {
 /// Localization source that is never available.
 pub struct NilL10nSource;
 impl L10nSource for NilL10nSource {
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
+    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         LocalVar(Arc::default()).boxed()
     }
 
@@ -400,11 +400,11 @@ impl L10nSource for NilL10nSource {
         LocalVar(LangResourceStatus::NotAvailable).boxed()
     }
 
-    fn lang_resource(&mut self, _: Lang, _: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, _: Lang, _: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
         LocalVar(None).boxed()
     }
 
-    fn lang_resource_status(&mut self, _: Lang, _: Txt) -> BoxedVar<LangResourceStatus> {
+    fn lang_resource_status(&mut self, _: Lang, _: LangFilePath) -> BoxedVar<LangResourceStatus> {
         LocalVar(LangResourceStatus::NotAvailable).boxed()
     }
 }

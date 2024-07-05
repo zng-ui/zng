@@ -9,7 +9,7 @@ use zng::{
     color::filter::drop_shadow,
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
     image,
-    l10n::LangMap,
+    l10n::{LangFilePath, LangMap},
     layout::align,
     prelude::*,
     widget::node::presenter,
@@ -130,7 +130,7 @@ fn locale_menu() -> impl UiNode {
         focus_click_behavior = FocusClickBehavior::Exit;
         child = presenter(
             L10N.available_langs(),
-            wgt_fn!(|langs: Arc<LangMap<HashMap<Txt, PathBuf>>>| {
+            wgt_fn!(|langs: Arc<LangMap<HashMap<LangFilePath, PathBuf>>>| {
                 let mut actual = vec![];
                 let mut pseudo = vec![];
                 let mut template = vec![];

@@ -1,7 +1,8 @@
-use std::{borrow::Cow, fmt, mem, ops, sync::Arc};
+use std::{borrow::Cow, fmt, mem, ops, path::PathBuf, sync::Arc};
 
 use fluent::types::FluentNumber;
 use once_cell::sync::Lazy;
+use semver::Version;
 use zng_ext_fs_watcher::WatcherReadStatus;
 use zng_layout::context::LayoutDirection;
 use zng_txt::Txt;
@@ -144,9 +145,7 @@ type StatusError = Vec<Arc<dyn std::error::Error + Send + Sync>>;
 ///
 /// [`L10N.message`]: L10N::message
 pub struct L10nMessageBuilder {
-    pub(super) pkg_name: Txt,
-    pub(super) pkg_version: Txt,
-    pub(super) file: Txt,
+    pub(super) file: LangFilePath,
     pub(super) id: Txt,
     pub(super) attribute: Txt,
     pub(super) fallback: Txt,
@@ -163,18 +162,22 @@ impl L10nMessageBuilder {
         self.arg(Txt::from_static(name), value)
     }
 
-    /// Build the variable.
+    /// Build the message var for the given languages.
+    pub fn build_for(self, lang: impl Into<Langs>) -> impl Var<Txt> {
+        L10N_SV
+            .write()
+            .localized_message(lang.into(), self.file, self.id, self.attribute, self.fallback, self.args)
+    }
+
+    /// Build the message var for the contextual language.
     pub fn build(self) -> impl Var<Txt> {
         let Self {
-            pkg_name,
-            pkg_version,
             file,
             id,
             attribute,
             fallback,
             args,
         } = self;
-        let _ = (pkg_name, pkg_version); // !!: TODO, include in file?
         LANG_VAR.flat_map(move |l| {
             L10N_SV.write().localized_message(
                 l.clone(),
@@ -662,5 +665,70 @@ impl std::error::Error for FluentParserErrors {
         } else {
             None
         }
+    }
+}
+
+/// Localization resource file path in the localization directory.
+///
+/// In the default directory layout, localization dependencies are collected using `cargo zng l10n --deps`
+/// and copied to `l10n/deps/{lang}?/{name}/{version}/`.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash)]
+pub struct LangFilePath {
+    /// Package name.
+    pub pkg_name: Txt,
+    /// Package version.
+    pub pkg_version: Version,
+    /// The file name.
+    pub file: Txt,
+}
+impl LangFilePath {
+    /// New from package name, version and file.
+    pub fn new(pkg_name: impl Into<Txt>, pkg_version: Version, file: impl Into<Txt>) -> Self {
+        Self {
+            pkg_name: pkg_name.into(),
+            pkg_version,
+            file: file.into(),
+        }
+    }
+
+    /// Gets a file in the current app.
+    ///
+    /// This value indicates that the localization resources are directly on the `l10n/{lang?}/` directories, not
+    /// in the dependencies directories.
+    ///
+    /// See [`zng_env::about()`] for more details.
+    pub fn current_app(file: impl Into<Txt>) -> LangFilePath {
+        let about = zng_env::about();
+        Self::new(about.pkg_name.clone(), about.version.clone(), file.into())
+    }
+
+    /// Gets if this file is in the [`current_app`] resources.
+    ///
+    /// [`current_app`]: Self::current_app
+    pub fn is_current_app(&self) -> bool {
+        let about = zng_env::about();
+        self.pkg_name == about.pkg_name && self.pkg_version == about.version
+    }
+
+    /// Gets `{name}/{version}/{file}?`.
+    pub fn to_path(&self) -> PathBuf {
+        if self.file.is_empty() {
+            format!("{}/{}/{}", self.pkg_name, self.pkg_version, self.file).into()
+        } else {
+            format!("{}/{}", self.pkg_name, self.pkg_version).into()
+        }
+    }
+}
+impl_from_and_into_var! {
+    fn from(file: Txt) -> LangFilePath {
+        LangFilePath::current_app(file)
+    }
+
+    fn from(file: &'static str) -> LangFilePath {
+        LangFilePath::current_app(file)
+    }
+
+    fn from(file: String) -> LangFilePath {
+        LangFilePath::current_app(file)
     }
 }

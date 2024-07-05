@@ -221,7 +221,7 @@ impl L10N {
     ///
     /// Note that this map will include any file in the source dir that has a name that is a valid [`lang!`],
     /// that includes the `template.ftl` file and test pseudo-locales such as `qps-ploc.ftl`.
-    pub fn available_langs(&self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
+    pub fn available_langs(&self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         L10N_SV.write().available_langs()
     }
 
@@ -289,50 +289,19 @@ impl L10N {
     ///           other path components allowed.
     /// * `id`: Message identifier inside the resource file.
     /// * `attribute`: Attribute of the identifier, leave empty to not use an attribute.
+    /// * `fallback`: Message to use when a localized message cannot be found.
     ///
     /// The `id` and `attribute` is only valid if it starts with letter `[a-zA-Z]`, followed by any letters, digits, _ or - `[a-zA-Z0-9_-]*`.
     ///
     /// Panics if any parameter is invalid.
     pub fn message(
         &self,
-        file: impl Into<Txt>,
+        file: impl Into<LangFilePath>,
         id: impl Into<Txt>,
         attribute: impl Into<Txt>,
         fallback: impl Into<Txt>,
     ) -> L10nMessageBuilder {
         L10nMessageBuilder {
-            pkg_name: Txt::from_static(""),
-            pkg_version: Txt::from_static(""),
-            file: file.into(),
-            id: id.into(),
-            attribute: attribute.into(),
-            fallback: fallback.into(),
-            args: vec![],
-        }
-    }
-
-    /// Gets a message from a dependency package.
-    ///
-    /// The `pkg_name` and `pkg_version` parameter is the package name and version, the other parameters are the same as [`message`].
-    ///
-    /// In the default directory layout, if the `pkg_name` is set to a package different from the [`About::pkg_name`] the file
-    /// is searched at `{dir}/deps/{pkg_name}/` and `{dir}/{lang}/deps/{pkg_name}`. You can use `cargo zng l10n` to copy all dependency
-    /// localization files to these directories.
-    ///
-    /// [`message`]: Self::message
-    /// [`About::pkg_name`]: zng_env::About::pkg_name
-    pub fn dep_message(
-        &self,
-        pkg_name: impl Into<Txt>,
-        pkg_version: impl Into<Txt>,
-        file: impl Into<Txt>,
-        id: impl Into<Txt>,
-        attribute: impl Into<Txt>,
-        fallback: impl Into<Txt>,
-    ) -> L10nMessageBuilder {
-        L10nMessageBuilder {
-            pkg_name: pkg_name.into(),
-            pkg_version: pkg_version.into(),
             file: file.into(),
             id: id.into(),
             attribute: attribute.into(),
@@ -352,35 +321,16 @@ impl L10N {
         attribute: &'static str,
         fallback: &'static str,
     ) -> L10nMessageBuilder {
-        self.dep_message(
-            Txt::from_static(pkg_name),
-            Txt::from_static(pkg_version),
-            Txt::from_static(file),
+        self.message(
+            LangFilePath {
+                pkg_name: Txt::from_static(pkg_name),
+                pkg_version: pkg_version.parse().unwrap(),
+                file: Txt::from_static(file),
+            },
             Txt::from_static(id),
             Txt::from_static(attribute),
             Txt::from_static(fallback),
         )
-    }
-
-    /// Gets a formatted message var localized to a given `lang`.
-    ///
-    /// The returned variable is read-only and will update when the backing resource changes and when the `args` variables change.
-    ///
-    /// The lang file resource is lazy loaded and stays in memory only when there are variables alive linked to it, each lang
-    /// in the list is matched to available resources if no match is available the `fallback` message is used. The variable
-    /// may temporary contain the `fallback` as lang resources are loaded asynchronously.
-    pub fn localized_message(
-        &self,
-        lang: impl Into<Langs>,
-        file: impl Into<Txt>,
-        id: impl Into<Txt>,
-        attribute: impl Into<Txt>,
-        fallback: impl Into<Txt>,
-        args: impl Into<Vec<(Txt, BoxedVar<L10nArgument>)>>,
-    ) -> BoxedVar<Txt> {
-        L10N_SV
-            .write()
-            .localized_message(lang.into(), file.into(), id.into(), attribute.into(), fallback.into(), args.into())
     }
 
     /// Gets a handle to the lang file resource.
@@ -400,7 +350,7 @@ impl L10N {
     ///           other path components allowed.
     ///
     /// Panics if the file is invalid.
-    pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<Txt>) -> LangResource {
+    pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<LangFilePath>) -> LangResource {
         L10N_SV.write().lang_resource(lang.into(), file.into())
     }
 
@@ -409,14 +359,11 @@ impl L10N {
     /// This awaits for the available langs to load, then collect an awaits for all lang files.
     pub async fn wait_lang(&self, lang: impl Into<Lang>) -> LangResources {
         let lang = lang.into();
-        let base = self.lang_resource(lang.clone(), "");
-        base.wait().await;
-
-        let mut r = vec![base];
-        for (name, _) in self.available_langs().get().get(&lang).into_iter().flatten() {
-            r.push(self.lang_resource(lang.clone(), name.clone()));
+        let mut r = vec![];
+        for (file, _) in self.available_langs().get().get(&lang).into_iter().flatten() {
+            r.push(self.lang_resource(lang.clone(), file.clone()));
         }
-        for h in &r[1..] {
+        for h in &r {
             h.wait().await;
         }
         LangResources(r)
@@ -434,8 +381,8 @@ impl L10N {
         for lang in langs.0 {
             if let Some(files) = available.get_exact(&lang) {
                 let mut r = Vec::with_capacity(files.len());
-                for name in files.keys() {
-                    r.push(self.lang_resource(lang.clone(), name.clone()));
+                for file in files.keys() {
+                    r.push(self.lang_resource(lang.clone(), file.clone()));
                 }
                 let handle = LangResources(r);
                 handle.wait().await;
@@ -452,7 +399,13 @@ impl L10N {
     /// This is automatically called by [`command!`] instances that set the metadata `l10n!: true` or `l10n!: "file"`.
     ///
     /// [`command!`]: zng_app::event::command!
-    pub fn bind_command_meta(&self, file: impl Into<Txt>, cmd: Command, meta_name: impl Into<Txt>, meta_value: CommandMetaVar<Txt>) {
+    pub fn bind_command_meta(
+        &self,
+        file: impl Into<LangFilePath>,
+        cmd: Command,
+        meta_name: impl Into<Txt>,
+        meta_value: CommandMetaVar<Txt>,
+    ) {
         let msg = self.message(file, cmd.event().as_any().name(), meta_name, meta_value.get()).build();
         meta_value.set_from(&msg).unwrap();
 
@@ -506,18 +459,18 @@ macro_rules! lang {
 /// [`L10N.load`]: L10N::load
 pub trait L10nSource: Send + 'static {
     /// Gets a read-only variable with all lang files that the source can provide.
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>;
+    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>;
     /// Gets a read-only variable that is the status of the [`available_langs`] value.
     ///
     /// [`available_langs`]: Self::available_langs
     fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus>;
 
     /// Gets a read-only variable that provides the fluent resource for the `lang` and `file` if available.
-    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>>;
+    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>>;
     /// Gets a read-only variable that is the status of the [`lang_resource`] value.
     ///
     /// [`lang_resource`]: Self::lang_resource
-    fn lang_resource_status(&mut self, lang: Lang, file: Txt) -> BoxedVar<LangResourceStatus>;
+    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<LangResourceStatus>;
 }
 
 fn from_unic_char_direction(d: unic_langid::CharacterDirection) -> LayoutDirection {
