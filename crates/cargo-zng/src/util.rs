@@ -259,26 +259,34 @@ pub fn dependencies(manifest_path: &str) -> Vec<DependencyManifest> {
     if !dependencies.is_empty() {
         let mut map = HashMap::new();
         for pkg in &metadata.packages {
-            map.entry(pkg.name.as_str())
-                .or_insert_with(Vec::new)
-                .push((&pkg.version, pkg.manifest_path.as_str()));
+            map.entry(pkg.name.as_str()).or_insert_with(Vec::new).push((&pkg.version, pkg));
         }
-        return dependencies
-            .iter()
-            .filter(|d| d.kind.is_none())
-            .filter_map(|d| {
-                for (version, path) in map.get(d.name.as_str())?.iter() {
-                    if d.req.matches(version) {
-                        return Some(DependencyManifest {
-                            name: d.name.clone(),
-                            version: (*version).clone(),
-                            manifest_path: path.into(),
-                        });
+
+        let mut r = vec![];
+        fn collect(map: &mut HashMap<&str, Vec<(&Version, &Package)>>, dependencies: &[Dependency], r: &mut Vec<DependencyManifest>) {
+            for dep in dependencies {
+                if dep.kind.is_some() {
+                    // skip build/dev-dependencies
+                    continue;
+                }
+                if let Some(versions) = map.remove(dep.name.as_str()) {
+                    for (version, pkg) in versions.iter() {
+                        if dep.req.matches(version) {
+                            r.push(DependencyManifest {
+                                name: pkg.name.clone(),
+                                version: pkg.version.clone(),
+                                manifest_path: pkg.manifest_path.as_str().into(),
+                            });
+
+                            // collect dependencies of dependencies
+                            collect(map, &pkg.dependencies, r)
+                        }
                     }
                 }
-                None
-            })
-            .collect();
+            }
+        }
+        collect(&mut map, dependencies, &mut r);
+        return r;
     }
 
     vec![]
