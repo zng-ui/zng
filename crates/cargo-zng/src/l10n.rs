@@ -184,9 +184,8 @@ pub fn run(mut args: L10nArgs) {
                             if !args.package.is_empty() {
                                 writeln!(&mut f, "#Call `cargo zng l10n --package {}` to update", args.package)?;
                             } else {
-                                let path = Path::new(&args.manifest_path)
-                                    .strip_prefix(std::env::current_dir().unwrap())
-                                    .unwrap();
+                                let path = Path::new(&args.manifest_path);
+                                let path = path.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(path);
                                 writeln!(&mut f, "#Call `cargo zng l10n --manifest-path {}` to update", path.display())?;
                             }
                             writeln!(&mut f)?;
@@ -249,13 +248,6 @@ pub fn run(mut args: L10nArgs) {
                                     continue;
                                 }
                             }
-                        }
-                    } else if dep_l10n_entry.is_file() && dep_l10n_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
-                        // l10n/deps/{dep.name}/{dep.version}/
-                        let to = l10n_dir(None);
-                        if let Err(e) = fs::copy(&dep_l10n_entry, &to) {
-                            error!("cannot copy `{}` to `{}`, {e}", dep_l10n_entry.display(), to.display());
-                            continue;
                         }
                     }
                 }

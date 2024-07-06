@@ -363,7 +363,7 @@ fn l10n(mut args: Vec<&str>) {
                 continue;
             }
         }
-        cmd(&exe, &["zng", "l10n", "--manifest-path", manifest_path.as_str()], &[]);
+        cmd(&exe, &["zng", "l10n", "--no-deps", "--manifest-path", manifest_path.as_str()], &[]);
     }
 }
 
