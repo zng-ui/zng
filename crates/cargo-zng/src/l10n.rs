@@ -28,23 +28,23 @@ pub struct L10nArgs {
     #[arg(short, long, default_value = "")]
     output: String,
 
-    /// Package to scrap
+    /// Package to scrap and copy dependencies
     ///
-    /// If set overrides --input and sets --output default to l10n/ beside src/
+    /// If set the --input and --output default is src/**.rs and l10n/
     #[arg(short, long, default_value = "")]
     package: String,
 
-    /// Path to Cargo.toml of crate to scrap
+    /// Path to Cargo.toml of crate to scrap and copy dependencies
     ///
-    /// If set overrides --input and sets --output default to l10n/ beside src/
+    /// If set the --input and --output default to src/**.rs and l10n/
     #[arg(long, default_value = "")]
     manifest_path: String,
 
-    /// Copy dependencies localization
+    /// Don't copy dependencies localization
     ///
     /// Use with --package or --manifest-path to copy {dep-pkg}/l10n/*.ftl files
     #[arg(long, action)]
-    deps: bool,
+    no_deps: bool,
 
     /// Custom l10n macro names, comma separated
     #[arg(short, long, default_value = "")]
@@ -70,53 +70,50 @@ pub struct L10nArgs {
 }
 
 pub fn run(mut args: L10nArgs) {
-    if !args.input.is_empty() as u8 + !args.package.is_empty() as u8 + !args.manifest_path.is_empty() as u8 > 1 {
-        fatal!("only one of --input --package --manifest-path must be set")
-    }
-    if args.deps && args.package.is_empty() && args.manifest_path.is_empty() {
-        fatal!("can only copy --deps with --package or --manifest-path")
+    if !args.package.is_empty() && !args.manifest_path.is_empty() {
+        fatal!("only one of --package --manifest-path must be set")
     }
 
     let mut input = String::new();
     let mut output = args.output.replace('\\', "/");
 
     if !args.input.is_empty() {
-        if output.is_empty() {
-            fatal!("--output is required for --input")
-        }
-
         input = args.input.replace('\\', "/");
 
         if !input.contains('*') && PathBuf::from(&input).is_dir() {
             input = format!("{}/**/*.rs", input.trim_end_matches('/'));
         }
-    } else {
-        if !args.package.is_empty() {
-            if let Some(m) = crate::util::manifest_path_from_package(&args.package) {
-                args.manifest_path = m;
-            } else {
-                fatal!("package `{}` not found in workspace", args.package);
-            }
+    }
+    if !args.package.is_empty() {
+        if let Some(m) = crate::util::manifest_path_from_package(&args.package) {
+            args.manifest_path = m;
+        } else {
+            fatal!("package `{}` not found in workspace", args.package);
+        }
+    }
+
+    if !args.manifest_path.is_empty() {
+        if !Path::new(&args.manifest_path).exists() {
+            fatal!("{input} does not exist")
         }
 
-        if !args.manifest_path.is_empty() {
-            if !Path::new(&args.manifest_path).exists() {
-                fatal!("{input} does not exist")
+        if let Some(path) = args.manifest_path.replace('\\', "/").strip_suffix("/Cargo.toml") {
+            if output.is_empty() {
+                output = format!("{path}/l10n");
             }
-
-            input = args.manifest_path.replace('\\', "/");
-            if let Some(manifest_path) = input.strip_suffix("/Cargo.toml") {
-                if output.is_empty() {
-                    output = format!("{manifest_path}/l10n");
-                }
-                input = format!("{manifest_path}/src/**/*.rs");
-            } else {
-                fatal!("expected path to Cargo.toml manifest file");
+            if input.is_empty() {
+                input = format!("{path}/src/**/*.rs");
             }
+        } else {
+            fatal!("expected path to Cargo.toml manifest file");
         }
     }
 
     if !input.is_empty() {
+        if output.is_empty() {
+            fatal!("--output is required for --input")
+        }
+
         println!(r#"scraping "{input}".."#);
 
         let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
@@ -152,7 +149,7 @@ pub fn run(mut args: L10nArgs) {
             }
         }
 
-        if args.deps {
+        if !args.no_deps {
             let mut count = 0;
             for dep in util::dependencies(&args.manifest_path) {
                 let dep_l10n = dep.manifest_path.with_file_name("l10n");
