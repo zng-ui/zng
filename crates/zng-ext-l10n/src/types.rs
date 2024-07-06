@@ -718,7 +718,7 @@ impl std::error::Error for FluentParserErrors {
 ///
 /// In the default directory layout, localization dependencies are collected using `cargo zng l10n --deps`
 /// and copied to `l10n/{lang}/deps/{name}/{version}/`.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub struct LangFilePath {
     /// Package name.
     pub pkg_name: Txt,
@@ -726,6 +726,37 @@ pub struct LangFilePath {
     pub pkg_version: Version,
     /// The file name.
     pub file: Txt,
+}
+impl Ord for LangFilePath {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.pkg_name.cmp(&other.pkg_name) {
+            core::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.pkg_version.cmp(&other.pkg_version) {
+            core::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        self.file().cmp(&other.file())
+    }
+}
+impl PartialOrd for LangFilePath {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl std::hash::Hash for LangFilePath {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.pkg_name.hash(state);
+        self.pkg_version.hash(state);
+        self.file().hash(state);
+    }
+}
+impl Eq for LangFilePath {}
+impl PartialEq for LangFilePath {
+    fn eq(&self, other: &Self) -> bool {
+        self.pkg_name == other.pkg_name && self.pkg_version == other.pkg_version && self.file() == other.file()
+    }
 }
 impl LangFilePath {
     /// New from package name, version and file.
@@ -758,28 +789,30 @@ impl LangFilePath {
         }
     }
 
+    /// Gets the normalized file name.
+    pub fn file(&self) -> Txt {
+        if self.file.is_empty() {
+            Txt::from_char('_')
+        } else {
+            self.file.clone()
+        }
+    }
+
     /// Get the file path, relative to the localization dir.
     ///
-    /// * If package [`is_current_app`]:
-    ///     - And the `file` name is empty gets `{lang}.ftl`.
-    ///     - Or gets `{lang}/{file}.ftl`.
-    /// * Else if is another package:
-    ///     - Empty file name is the same as `_`.
-    ///     - Gets `{lang}/deps/{pkg_name}/{pkg_version}/{file}.ftl`.
+    /// * Empty file name is the same as `_`.
+    /// * If package [`is_current_app`] gets `{lang}/{file}.ftl`.
+    /// * Else if is another package gets `{lang}/deps/{pkg_name}/{pkg_version}/{file}.ftl`.
     ///
     /// [`is_current_app`]: Self::is_current_app
     pub fn to_path(&self, lang: &Lang) -> PathBuf {
+        let mut file = self.file.as_str();
+        if file.is_empty() {
+            file = "_";
+        }
         if self.is_current_app() {
-            if self.file.is_empty() {
-                format!("{lang}.ftl")
-            } else {
-                format!("{lang}/{}.ftl", self.file)
-            }
+            format!("{lang}/{file}.ftl")
         } else {
-            let mut file = self.file.as_str();
-            if file.is_empty() {
-                file = "_";
-            }
             format!("{lang}/deps/{}/{}/{file}.ftl", self.pkg_name, self.pkg_version)
         }
         .into()

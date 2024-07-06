@@ -136,27 +136,15 @@ pub fn run(mut args: L10nArgs) {
 
             template.sort();
 
-            let name_empty = template.has_named_files();
-
             let r = template.write(|file| {
                 fn box_dyn(file: std::fs::File) -> Box<dyn Write + Send> {
                     Box::new(file)
                 }
 
                 let mut output = PathBuf::from(&output);
-                if file.is_empty() {
-                    if name_empty {
-                        output.push("template");
-                        std::fs::create_dir_all(&output)?;
-                        output.push("_.ftl");
-                    } else {
-                        output.push("template.ftl");
-                    }
-                } else {
-                    output.push("template");
-                    std::fs::create_dir_all(&output)?;
-                    output.push(format!("{file}.ftl"));
-                }
+                output.push("template");
+                std::fs::create_dir_all(&output)?;
+                output.push(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
                 std::fs::File::create(output).map(box_dyn)
             });
             if let Err(e) = r {
@@ -219,7 +207,7 @@ pub fn run(mut args: L10nArgs) {
                     dir
                 };
 
-                // [(exporter_dep, has_lang, ".../{lang}?/deps")]
+                // [(exporter_dep, ".../{lang}?/deps")]
                 let mut reexport_deps = vec![];
 
                 for dep_l10n_entry in dep_l10n_reader {
@@ -231,11 +219,6 @@ pub fn run(mut args: L10nArgs) {
                         }
                     };
                     if dep_l10n_entry.is_dir() {
-                        if dep_l10n_entry.file_name().map(|n| n == "deps").unwrap_or(false) {
-                            reexport_deps.push((&dep, false, dep_l10n_entry));
-                            continue;
-                        }
-
                         // l10n/{lang}/deps/{dep.name}/{dep.version}
                         let output_dir = l10n_dir(dep_l10n_entry.file_name());
                         let _ = fs::create_dir_all(&output_dir);
@@ -259,7 +242,7 @@ pub fn run(mut args: L10nArgs) {
 
                             if lang_entry.is_dir() {
                                 if lang_entry.file_name().map(|n| n == "deps").unwrap_or(false) {
-                                    reexport_deps.push((&dep, true, lang_entry));
+                                    reexport_deps.push((&dep, lang_entry));
                                 }
                             } else if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
                                 let _ = fs::create_dir_all(&output_dir);
@@ -285,24 +268,14 @@ pub fn run(mut args: L10nArgs) {
                     o => o,
                 });
 
-                for (_, has_lang, deps) in reexport_deps {
+                for (_, deps) in reexport_deps {
                     // dep/l10n/lang/deps/
-                    let target = l10n_dir(if has_lang {
-                        deps.parent().and_then(|p| p.file_name())
-                    } else {
-                        deps.file_name()
-                            .and_then(|s| s.to_str())
-                            .and_then(|s| s.split_once('.'))
-                            .map(|s| std::ffi::OsStr::new(s.0))
-                    });
+                    let target = l10n_dir(deps.parent().and_then(|p| p.file_name()));
 
                     // deps/pkg-name/pkg-version/*.ftl
                     for entry in glob::glob(&deps.join("*/*/*.ftl").display().to_string()).unwrap() {
                         let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
-                        let mut target = target.join(entry.strip_prefix(&deps).unwrap());
-                        if has_lang {
-                            target.set_file_name("_.ftl");
-                        }
+                        let target = target.join(entry.strip_prefix(&deps).unwrap());
                         if !target.exists() && entry.is_file() {
                             if let Err(e) = fs::copy(&entry, &target) {
                                 error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());

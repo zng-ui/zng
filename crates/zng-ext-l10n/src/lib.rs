@@ -11,6 +11,7 @@
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
+use semver::Version;
 use zng_app::{
     event::{Command, CommandMetaVar, EVENTS_L10N},
     update::EventUpdate,
@@ -56,7 +57,19 @@ pub struct L10nManager {}
 impl AppExtension for L10nManager {
     fn init(&mut self) {
         EVENTS_L10N.init_l10n(|file, cmd, attr, txt| {
-            L10N.bind_command_meta(file, cmd, attr, txt);
+            L10N.bind_command_meta(
+                LangFilePath {
+                    pkg_name: file[0].into(),
+                    pkg_version: file[1].parse().unwrap_or_else(|e| {
+                        tracing::error!("invalid package version from command localization, {e}");
+                        Version::new(0, 0, 0)
+                    }),
+                    file: file[2].into(),
+                },
+                cmd,
+                attr,
+                txt,
+            );
         });
     }
 
@@ -114,7 +127,12 @@ impl AppExtension for L10nManager {
 ///     .attr = message
 /// ```
 ///
-/// And a key `"id.attr"` will be searched in the file `{dir}/{lang}.ftl` and `{dir}/{lang}/_.ftl`.
+/// And a key `"id.attr"` will be searched in the file `{dir}/{lang}/_.ftl`.
+///
+/// ### Package
+///
+/// The crate package name and version are also implicitly collected, when the message is requested from a different crate
+/// it is searched in `{dir}/{lang}/{pkg-name}/{pkg-version}/{file}.ftl`. Version matches any other version, the nearest is selected.
 ///
 /// # Scrap Template
 ///
@@ -205,7 +223,7 @@ impl L10N {
         L10N_SV.write().load(source);
     }
 
-    /// Start watching the `dir` for `"dir/{lang}.ftl"` and "dir/{lang}/*.ftl" files.
+    /// Start watching the `dir` for `dir/{lang}/*.ftl` and `dir/{lang}/deps/*/*/*.ftl` files.
     ///
     /// The [`available_langs`] variable maintains an up-to-date list of locale files found, the files
     /// are only loaded when needed, and also are watched to update automatically.
@@ -217,7 +235,8 @@ impl L10N {
 
     /// Available localization files.
     ///
-    /// The value maps lang to one or more files, the files can be `{dir}/{lang}.ftl` or `{dir}/{lang}/*.ftl`.
+    /// The value maps lang to one or more files, the files can be from the project `dir/{lang}/{file}.ftl` or from dependencies
+    /// `dir/{lang}/deps/{pkg-name/{pkg-version}/{file}.ftl`.
     ///
     /// Note that this map will include any file in the source dir that has a name that is a valid [`lang!`],
     /// that includes the `template.ftl` file and test pseudo-locales such as `qps-ploc.ftl`.
@@ -284,9 +303,10 @@ impl L10N {
     ///
     /// # Params
     ///
-    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.ftl`, if
-    ///           empty the file is searched at `{dir}/{lang}.ftl` and `{dir}/{lang}/_.ftl`. Only a single file name is valid, no
-    ///           other path components allowed.
+    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `dir/{lang}/{file}.ftl`, if
+    ///           empty the file is searched at `dir/{lang}/_.ftl`. Only a single file name is valid, no other path components allowed.
+    ///           Note that the file can also be a full [`LangFilePath`] that includes dependency package info. Those files are searched in
+    ///           `dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`.
     /// * `id`: Message identifier inside the resource file.
     /// * `attribute`: Attribute of the identifier, leave empty to not use an attribute.
     /// * `fallback`: Message to use when a localized message cannot be found.
@@ -345,9 +365,10 @@ impl L10N {
     /// # Params
     ///
     /// * `lang`: Language identifier.
-    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.ftl`, if
-    ///           empty the file is searched at `{dir}/{lang}.ftl` and `{dir}/{lang}/_.ftl`. Only a single file name is valid, no
-    ///           other path components allowed.
+    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `dir/{lang}/{file}.ftl`, if
+    ///           empty the file is searched at `dir/{lang}/_.ftl`. Only a single file name is valid, no other path components allowed.
+    ///           Note that the file can also be a full [`LangFilePath`] that includes dependency package info. Those files are searched in
+    ///           `dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`.
     ///
     /// Panics if the file is invalid.
     pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<LangFilePath>) -> LangResource {

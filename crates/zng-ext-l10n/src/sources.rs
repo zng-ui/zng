@@ -10,8 +10,8 @@ use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangRes
 
 /// Represents localization resources synchronized from files in a directory.
 ///
-/// The expected directory layout is `{dir}/{lang}.ftl` for lang only and `{dir}/{lang}/{file}.ftl` for
-/// lang with files. The `{dir}/{lang}/_.ftl` file is also a valid "lang only" file.
+/// The expected directory layout is `{dir}/{lang}/{file}.ftl` app files and `{dir}/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`
+/// for dependencies.
 pub struct L10nDir {
     dir_watch: BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
     dir_watch_status: BoxedVar<LangResourceStatus>,
@@ -74,11 +74,6 @@ impl L10nDir {
                     }
 
                     let (lang, mut file) = match entry.depth() {
-                        // lang.ftl
-                        1 => {
-                            let (lang, _) = utf8_path[0].rsplit_once('.').unwrap();
-                            (lang, LangFilePath::current_app(""))
-                        }
                         // lang/file.ftl
                         2 => {
                             let lang = utf8_path[0];
