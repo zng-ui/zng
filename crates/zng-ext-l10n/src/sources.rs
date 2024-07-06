@@ -1,5 +1,6 @@
 use std::{collections::HashMap, io, path::PathBuf, str::FromStr, sync::Arc};
 
+use semver::Version;
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::WATCHER;
 use zng_txt::Txt;
@@ -22,92 +23,109 @@ impl L10nDir {
         Self::new(dir.into())
     }
     fn new(dir: PathBuf) -> Self {
-        let status = var(LangResourceStatus::Loading);
-        let dir_watch = WATCHER.read_dir(
+        let (dir_watch, status) = WATCHER.read_dir_status(
             dir.clone(),
             true,
             Arc::default(),
-            clmv!(status, |d| {
-                status.set(LangResourceStatus::Loading);
-
+            clmv!(|d| {
                 let mut set: LangMap<HashMap<LangFilePath, PathBuf>> = LangMap::new();
                 let mut errors: Vec<Arc<dyn std::error::Error + Send + Sync>> = vec![];
                 let mut dir = None;
-                for entry in d.min_depth(0).max_depth(1) {
-                    match entry {
-                        Ok(f) => {
-                            let ty = f.file_type();
-                            if dir.is_none() {
-                                // get the watched dir
-                                if !ty.is_dir() {
-                                    tracing::error!("L10N path not a directory");
-                                    status.set(LangResourceStatus::NotAvailable);
-                                    return None;
-                                }
-                                dir = Some(f.path().to_owned());
-                            }
-
-                            const EXT: unicase::Ascii<&'static str> = unicase::Ascii::new("ftl");
-
-                            if ty.is_file() {
-                                // match dir/lang.ftl files
-                                if let Some(name_and_ext) = f.file_name().to_str() {
-                                    if let Some((name, ext)) = name_and_ext.rsplit_once('.') {
-                                        if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
-                                            tracing::debug!("found {name}.{ext}");
-                                            // found .ftl file.
-                                            match Lang::from_str(name) {
-                                                Ok(lang) => {
-                                                    // and it is named correctly.
-                                                    set.get_exact_or_insert(lang, Default::default)
-                                                        .insert(LangFilePath::current_app(""), dir.as_ref().unwrap().join(name_and_ext));
-                                                }
-                                                Err(e) => {
-                                                    errors.push(Arc::new(e));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if f.depth() == 1 && ty.is_dir() {
-                                // match dir/lang/file.ftl files
-                                if let Some(dir_name) = f.file_name().to_str() {
-                                    match Lang::from_str(dir_name) {
-                                        Ok(lang) => {
-                                            let inner = set.get_exact_or_insert(lang, Default::default);
-                                            for entry in std::fs::read_dir(f.path()).into_iter().flatten() {
-                                                match entry {
-                                                    Ok(f) => {
-                                                        if let Ok(name_and_ext) = f.file_name().into_string() {
-                                                            if let Some((mut name, ext)) = name_and_ext.rsplit_once('.') {
-                                                                if ext.is_ascii() && unicase::Ascii::new(ext) == EXT {
-                                                                    // found .ftl file.
-                                                                    tracing::debug!("found {dir_name}/{name}.{ext}");
-
-                                                                    if name == "_" {
-                                                                        name = "";
-                                                                    }
-                                                                    inner.insert(LangFilePath::current_app(Txt::from_str(name)), f.path());
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                    Err(e) => errors.push(Arc::new(e)),
-                                                }
-                                            }
-                                            if inner.is_empty() {
-                                                set.pop();
-                                            }
-                                        }
-                                        Err(e) => {
-                                            tracing::trace!("dir {dir_name}/ is not l10n, {e}");
-                                        }
-                                    }
-                                }
-                            }
+                for entry in d.min_depth(0).max_depth(5) {
+                    let entry = match entry {
+                        Ok(e) => e,
+                        Err(e) => {
+                            errors.push(Arc::new(e));
+                            continue;
                         }
-                        Err(e) => errors.push(Arc::new(e)),
+                    };
+                    let ty = entry.file_type();
+
+                    if dir.is_none() {
+                        // get the watched dir (first because of min_depth(0))
+                        if !ty.is_dir() {
+                            tracing::error!("L10N path not a directory");
+                            return Err(LangResourceStatus::NotAvailable);
+                        }
+                        dir = Some(entry.path().to_owned());
+                        continue;
                     }
+
+                    const EXT: unicase::Ascii<&'static str> = unicase::Ascii::new("ftl");
+
+                    let is_ftl = ty.is_file()
+                        && entry
+                            .file_name()
+                            .to_str()
+                            .and_then(|n| n.rsplit_once('.'))
+                            .map(|(_, ext)| ext.is_ascii() && unicase::Ascii::new(ext) == EXT)
+                            .unwrap_or(false);
+
+                    if !is_ftl {
+                        continue;
+                    }
+
+                    let mut utf8_path = [""; 5];
+                    for (i, part) in entry.path().iter().rev().take(entry.depth()).enumerate() {
+                        match part.to_str() {
+                            Some(p) => utf8_path[entry.depth() - i - 1] = p,
+                            None => continue,
+                        }
+                    }
+
+                    let (lang, mut file) = match entry.depth() {
+                        // lang.ftl
+                        1 => {
+                            let (lang, _) = utf8_path[0].rsplit_once('.').unwrap();
+                            (lang, LangFilePath::current_app(""))
+                        }
+                        // lang/file.ftl
+                        2 => {
+                            let lang = utf8_path[0];
+                            let file = Txt::from_str(utf8_path[1].rsplit_once('.').unwrap().0);
+                            (lang, LangFilePath::current_app(file))
+                        }
+                        // deps/pkg-name/pkg-version/lang.ftl
+                        4 => {
+                            todo!("!!: TODO, don't support this in cargo-zng")
+                        }
+                        // lang/deps/pkg-name/pkg-version/file.ftl
+                        5 => {
+                            if utf8_path[1] != "deps" {
+                                continue;
+                            }
+                            let lang = utf8_path[0];
+                            let pkg_name = Txt::from_str(utf8_path[2]);
+                            let pkg_version: Version = match utf8_path[3].parse() {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    errors.push(Arc::new(e));
+                                    continue;
+                                }
+                            };
+                            let file = Txt::from_str(utf8_path[4]);
+
+                            (lang, LangFilePath::new(pkg_name, pkg_version, file))
+                        }
+                        _ => {
+                            continue;
+                        }
+                    };
+
+                    let lang = match Lang::from_str(lang) {
+                        Ok(l) => l,
+                        Err(e) => {
+                            errors.push(Arc::new(e));
+                            continue;
+                        }
+                    };
+
+                    if file.file == "_" {
+                        file.file = "".into();
+                    }
+
+                    set.get_exact_or_insert(lang, Default::default)
+                        .insert(file, entry.path().to_owned());
                 }
 
                 if errors.is_empty() {
@@ -115,13 +133,12 @@ impl L10nDir {
                 } else {
                     let s = LangResourceStatus::Errors(errors);
                     tracing::error!("'loading available' {s}");
-                    status.set(s)
+                    return Err(s);
                 }
 
-                Some(Arc::new(set))
+                Ok(Some(Arc::new(set)))
             }),
         );
-        dir_watch.bind_map(&status, |_| LangResourceStatus::Loaded).perm();
 
         Self {
             dir_watch: dir_watch.boxed(),

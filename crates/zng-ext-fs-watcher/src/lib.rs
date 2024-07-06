@@ -177,7 +177,8 @@ impl WATCHER {
     /// Same operation as [`read`] but also tracks the operation status in a second var.
     ///
     /// The status variable is set to [`WatcherReadStatus::reading`] as soon as `read` starts and
-    /// is set to [`WatcherReadStatus::idle`] only when it updates with new read value.
+    /// is set to [`WatcherReadStatus::idle`] when read returns. If read returns a value the status
+    /// only updates to idle  when the new value is available on the var, or because read the same value.
     ///
     /// [`read`]: Self::read
     pub fn read_status<O, S, E>(
@@ -217,7 +218,8 @@ impl WATCHER {
     /// Same operation as [`read_dir`] but also tracks the operation status in a second var.
     ///
     /// The status variable is set to [`WatcherReadStatus::reading`] as soon as `read` starts and
-    /// is set to [`WatcherReadStatus::idle`] only when it updates with new read value.
+    /// is set to [`WatcherReadStatus::idle`] when read returns. If read returns a value the status
+    /// only updates to idle when the new value is available on the var, or because read the same value.
     ///
     /// [`read_dir`]: Self::read_dir
     pub fn read_dir_status<O, S, E>(
@@ -298,6 +300,10 @@ impl WATCHER {
     }
 
     /// Same operation as [`sync`] but also tracks the operation status in a second var.
+    ///
+    /// The status variable is set to [`WatcherReadStatus::reading`] as soon as `read` starts and
+    /// is set to [`WatcherReadStatus::idle`] when read returns. If read returns a value the status
+    /// only updates to idle when the new sync value is available, or because read the same value.
     ///
     /// The status variable is set to [`WatcherSyncStatus::writing`] as soon as it updates and
     /// is set to [`WatcherReadStatus::idle`] only when the new sync value is available, either

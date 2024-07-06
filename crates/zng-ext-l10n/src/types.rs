@@ -136,6 +136,19 @@ impl WatcherReadStatus<StatusError> for LangResourceStatus {
         Self::Errors(e)
     }
 }
+impl WatcherReadStatus<LangResourceStatus> for LangResourceStatus {
+    fn idle() -> Self {
+        Self::Loaded
+    }
+
+    fn reading() -> Self {
+        Self::Loading
+    }
+
+    fn read_error(e: LangResourceStatus) -> Self {
+        e
+    }
+}
 
 type StatusError = Vec<Arc<dyn std::error::Error + Send + Sync>>;
 
@@ -671,7 +684,7 @@ impl std::error::Error for FluentParserErrors {
 /// Localization resource file path in the localization directory.
 ///
 /// In the default directory layout, localization dependencies are collected using `cargo zng l10n --deps`
-/// and copied to `l10n/deps/{lang}?/{name}/{version}/`.
+/// and copied to `l10n/{lang}?/deps/{name}/{version}/`.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash)]
 pub struct LangFilePath {
     /// Package name.
