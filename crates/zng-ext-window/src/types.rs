@@ -51,8 +51,8 @@ impl WindowRoot {
     ///
     /// * `root_id` - Widget ID of `root`.
     /// * `start_position` - Position of the window when it first opens.
-    /// * `kiosk` - Only allow full-screen mode. Note this does not configure the windows manager, only blocks the app itself
-    ///             from accidentally exiting full-screen. Also causes subsequent open windows to be child of this window.
+    /// * `kiosk` - Only allow fullscreen mode. Note this does not configure the windows manager, only blocks the app itself
+    ///             from accidentally exiting fullscreen. Also causes subsequent open windows to be child of this window.
     /// * `transparent` - If the window should be created in a compositor mode that renders semi-transparent pixels as "see-through".
     /// * `render_mode` - Render mode preference overwrite for this window, note that the actual render mode selected can be different.
     /// * `headless_monitor` - "Monitor" configuration used in [headless mode](zng_app::window::WindowMode::is_headless).
@@ -204,9 +204,9 @@ bitflags! {
         const MINIMIZE = 0b0001;
         /// Enable maximize.
         const MAXIMIZE = 0b0010;
-        /// Enable full-screen, but only windowed not exclusive video.
+        /// Enable fullscreen, but only windowed not exclusive video.
         const FULLSCREEN_WN_ONLY = 0b0100;
-        /// Allow full-screen windowed or exclusive video.
+        /// Allow fullscreen windowed or exclusive video.
         const FULLSCREEN = 0b1100;
     }
 }

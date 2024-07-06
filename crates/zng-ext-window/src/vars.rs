@@ -235,7 +235,7 @@ impl WindowVars {
 
     /// Window screen state.
     ///
-    /// Minimized, maximized or full-screen. See [`WindowState`] for details.
+    /// Minimized, maximized or fullscreen. See [`WindowState`] for details.
     ///
     /// The default value is [`WindowState::Normal`].
     pub fn state(&self) -> ArcVar<WindowState> {

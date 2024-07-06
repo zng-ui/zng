@@ -1459,7 +1459,7 @@ pub enum Key {
     VideoModeNext,
     /// Cause device to identify itself in some manner, e.g., audibly or visibly. (`VK_WINK`)
     Wink,
-    /// Toggle between full-screen and scaled content, or alter magnification level. (`VK_ZOOM`,
+    /// Toggle between fullscreen and scaled content, or alter magnification level. (`VK_ZOOM`,
     /// `KEYCODE_TV_ZOOM_MODE`)
     ZoomToggle,
     /// General-purpose function key.

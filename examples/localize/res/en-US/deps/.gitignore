@@ -1,0 +1,5 @@
+# Dependency localization files
+# Call `cargo zng l10n --package zng-example-localize --output "examples/localize/res"` to update
+
+*
+!.gitignore
