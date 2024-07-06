@@ -15,7 +15,9 @@ use zng_var::{
 };
 use zng_view_api::config::LocaleConfig;
 
-use crate::{FluentParserErrors, L10nArgument, L10nSource, Lang, LangMap, LangResource, LangResourceStatus, Langs, SwapL10nSource};
+use crate::{
+    FluentParserErrors, L10nArgument, L10nSource, Lang, LangFilePath, LangMap, LangResource, LangResourceStatus, Langs, SwapL10nSource,
+};
 
 pub(super) struct L10nService {
     source: Mutex<SwapL10nSource>, // Mutex for `Sync` only.
@@ -23,7 +25,7 @@ pub(super) struct L10nService {
     app_lang: ArcCowVar<Langs, ArcVar<Langs>>,
 
     perm_res: Vec<BoxedVar<Option<ArcEq<fluent::FluentResource>>>>,
-    bundles: HashMap<(Langs, Txt), BoxedWeakVar<ArcFluentBundle>>,
+    bundles: HashMap<(Langs, LangFilePath), BoxedWeakVar<ArcFluentBundle>>,
 }
 impl L10nService {
     pub fn new() -> Self {
@@ -41,7 +43,7 @@ impl L10nService {
         self.source.get_mut().load(source);
     }
 
-    pub fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
+    pub fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         self.source.get_mut().available_langs()
     }
 
@@ -57,10 +59,11 @@ impl L10nService {
         self.app_lang.clone()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn localized_message(
         &mut self,
         langs: Langs,
-        file: Txt,
+        file: LangFilePath,
         id: Txt,
         attribute: Txt,
         fallback: Txt,
@@ -75,7 +78,7 @@ impl L10nService {
                 fluent_args_var(args)
                     .map(move |args| {
                         let args = args.lock();
-                        format_fallback(file.as_str(), id.as_str(), attribute.as_str(), &fallback, Some(&*args))
+                        format_fallback(&file.file, id.as_str(), attribute.as_str(), &fallback, Some(&*args))
                     })
                     .boxed()
             };
@@ -131,7 +134,7 @@ impl L10nService {
                         if !errors.is_empty() {
                             let e = FluentErrors(errors);
                             let key = DisplayKey {
-                                file: file.as_str(),
+                                file: &file.file,
                                 id: id.as_str(),
                                 attribute: attribute.as_str(),
                             };
@@ -141,7 +144,7 @@ impl L10nService {
                     }
                 }
 
-                format_fallback(file.as_str(), id.as_str(), attribute.as_str(), &fallback, Some(&args))
+                format_fallback(&file.file, id.as_str(), attribute.as_str(), &fallback, Some(&args))
             })
             .boxed()
         } else {
@@ -161,7 +164,7 @@ impl L10nService {
                         if !errors.is_empty() {
                             let e = FluentErrors(errors);
                             let key = DisplayKey {
-                                file: file.as_str(),
+                                file: &file.file,
                                 id: id.as_str(),
                                 attribute: attribute.as_str(),
                             };
@@ -172,13 +175,13 @@ impl L10nService {
                 }
 
                 let args = args.lock();
-                format_fallback(file.as_str(), id.as_str(), attribute.as_str(), &fallback, Some(&*args))
+                format_fallback(&file.file, id.as_str(), attribute.as_str(), &fallback, Some(&*args))
             })
             .boxed()
         }
     }
 
-    fn resource_bundle(&mut self, langs: Langs, file: Txt) -> BoxedVar<ArcFluentBundle> {
+    fn resource_bundle(&mut self, langs: Langs, file: LangFilePath) -> BoxedVar<ArcFluentBundle> {
         match self.bundles.entry((langs, file)) {
             hash_map::Entry::Occupied(mut e) => {
                 if let Some(r) = e.get().upgrade() {
@@ -197,7 +200,7 @@ impl L10nService {
             }
         }
     }
-    fn new_resource_bundle(source: &mut SwapL10nSource, langs: &Langs, file: &Txt) -> BoxedVar<ArcFluentBundle> {
+    fn new_resource_bundle(source: &mut SwapL10nSource, langs: &Langs, file: &LangFilePath) -> BoxedVar<ArcFluentBundle> {
         if langs.len() == 1 {
             let lang = langs[0].clone();
             let res = source.lang_resource(lang.clone(), file.clone());
@@ -229,7 +232,7 @@ impl L10nService {
         }
     }
 
-    pub fn lang_resource(&mut self, lang: Lang, file: Txt) -> LangResource {
+    pub fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> LangResource {
         LangResource {
             res: self.source.get_mut().lang_resource(lang.clone(), file.clone()),
             status: self.source.get_mut().lang_resource_status(lang, file),

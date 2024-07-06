@@ -15,6 +15,7 @@ fn main() {
         "run" | "r" => run(args),
         "zng" => cargo_zng(args),
         "doc" => doc(args),
+        "l10n" => l10n(args),
         "expand" => expand(args),
         "check" | "c" => check(args),
         "build" | "b" => build(args),
@@ -328,6 +329,41 @@ fn doc(mut args: Vec<&str>) {
 
     if let Some(s) = server {
         let _ = s.join();
+    }
+}
+
+// do l10n [-p, --package <pkg>]
+//         [--all]
+//
+//    Scrap localization files for publishing. Localization filers are placed in
+//    crate-dir/l0n/ for each crate. The l10n/ dir is cleared before scrapping.
+//
+// USAGE:
+//     l10n --all
+//          Scrap for all publishable crates in workspace.
+//     l10n -p <pkg>
+//          Scrap for the specific workspace member.
+fn l10n(mut args: Vec<&str>) {
+    let crates = if let Some(p) = take_option(&mut args, &["-p", "--package"], "<pkg>") {
+        p.into_iter().map(|s| format!("crates/{s}/Cargo.toml")).collect()
+    } else {
+        if !take_flag(&mut args, &["--all"]) {
+            fatal("expected --package or --all")
+        }
+        util::top_cargo_toml("crates")
+    };
+
+    cmd_req("cargo", &["build", "--package", "cargo-zng"], &[]);
+    let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
+    for manifest_path in crates {
+        let output = std::path::Path::new(&manifest_path).with_file_name("l10n");
+        if let Err(e) = std::fs::remove_dir_all(&output) {
+            if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
+                error(f!("cannot clear `{}`, {e}", output.display()));
+                continue;
+            }
+        }
+        cmd(&exe, &["zng", "l10n", "--no-deps", "--manifest-path", manifest_path.as_str()], &[]);
     }
 }
 

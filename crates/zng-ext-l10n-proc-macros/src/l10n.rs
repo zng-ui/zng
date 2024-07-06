@@ -85,7 +85,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let span = input.message.span();
 
         let mut build = quote_spanned! {span=>
-            #l10n_path::L10N.l10n_message(#message_params, #message)
+            #l10n_path::L10N.l10n_message(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), #message_params, #message)
         };
         for var in variables {
             let var_ident = ident_spanned!(span=> "{}", var);

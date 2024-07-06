@@ -1,7 +1,8 @@
-use std::{borrow::Cow, fmt, mem, ops, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, fmt, mem, ops, path::PathBuf, sync::Arc};
 
 use fluent::types::FluentNumber;
 use once_cell::sync::Lazy;
+use semver::Version;
 use zng_ext_fs_watcher::WatcherReadStatus;
 use zng_layout::context::LayoutDirection;
 use zng_txt::Txt;
@@ -135,6 +136,19 @@ impl WatcherReadStatus<StatusError> for LangResourceStatus {
         Self::Errors(e)
     }
 }
+impl WatcherReadStatus<LangResourceStatus> for LangResourceStatus {
+    fn idle() -> Self {
+        Self::Loaded
+    }
+
+    fn reading() -> Self {
+        Self::Loading
+    }
+
+    fn read_error(e: LangResourceStatus) -> Self {
+        e
+    }
+}
 
 type StatusError = Vec<Arc<dyn std::error::Error + Send + Sync>>;
 
@@ -144,7 +158,7 @@ type StatusError = Vec<Arc<dyn std::error::Error + Send + Sync>>;
 ///
 /// [`L10N.message`]: L10N::message
 pub struct L10nMessageBuilder {
-    pub(super) file: Txt,
+    pub(super) file: LangFilePath,
     pub(super) id: Txt,
     pub(super) attribute: Txt,
     pub(super) fallback: Txt,
@@ -161,7 +175,14 @@ impl L10nMessageBuilder {
         self.arg(Txt::from_static(name), value)
     }
 
-    /// Build the variable.
+    /// Build the message var for the given languages.
+    pub fn build_for(self, lang: impl Into<Langs>) -> impl Var<Txt> {
+        L10N_SV
+            .write()
+            .localized_message(lang.into(), self.file, self.id, self.attribute, self.fallback, self.args)
+    }
+
+    /// Build the message var for the contextual language.
     pub fn build(self) -> impl Var<Txt> {
         let Self {
             file,
@@ -613,6 +634,39 @@ impl<V> LangMap<V> {
         self.inner.iter_mut().map(|(k, v)| (&*k, v))
     }
 }
+impl<V> LangMap<HashMap<LangFilePath, V>> {
+    /// Returns the match for `lang` and `file`.
+    pub fn get_file(&self, lang: &Lang, file: &LangFilePath) -> Option<&V> {
+        let files = self.get(lang)?;
+        if let Some(exact) = files.get(file) {
+            return Some(exact);
+        }
+        Self::best_file(files, file).map(|(_, v)| v)
+    }
+
+    /// Returns the best match to `lang` and `file` currently in the map.
+    pub fn best_file_match(&self, lang: &Lang, file: &LangFilePath) -> Option<&LangFilePath> {
+        let files = self.get(lang)?;
+        if let Some((exact, _)) = files.get_key_value(file) {
+            return Some(exact);
+        }
+        Self::best_file(files, file).map(|(k, _)| k)
+    }
+
+    fn best_file<'a>(files: &'a HashMap<LangFilePath, V>, file: &LangFilePath) -> Option<(&'a LangFilePath, &'a V)> {
+        let mut best = None;
+        let mut best_dist = u64::MAX;
+        for (k, v) in files {
+            if let Some(d) = k.matches(file) {
+                if d < best_dist {
+                    best = Some((k, v));
+                    best_dist = d;
+                }
+            }
+        }
+        best
+    }
+}
 impl<V> IntoIterator for LangMap<V> {
     type Item = (Lang, V);
 
@@ -657,5 +711,192 @@ impl std::error::Error for FluentParserErrors {
         } else {
             None
         }
+    }
+}
+
+/// Localization resource file path in the localization directory.
+///
+/// In the default directory layout, localization dependencies are collected using `cargo zng l10n --deps`
+/// and copied to `l10n/{lang}/deps/{name}/{version}/`.
+#[derive(Debug, Clone)]
+pub struct LangFilePath {
+    /// Package name.
+    pub pkg_name: Txt,
+    /// Package version.
+    pub pkg_version: Version,
+    /// The file name.
+    pub file: Txt,
+}
+impl Ord for LangFilePath {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.pkg_name.cmp(&other.pkg_name) {
+            core::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.pkg_version.cmp(&other.pkg_version) {
+            core::cmp::Ordering::Equal => {}
+            ord => return ord,
+        }
+        self.file().cmp(&other.file())
+    }
+}
+impl PartialOrd for LangFilePath {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl std::hash::Hash for LangFilePath {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.pkg_name.hash(state);
+        self.pkg_version.hash(state);
+        self.file().hash(state);
+    }
+}
+impl Eq for LangFilePath {}
+impl PartialEq for LangFilePath {
+    fn eq(&self, other: &Self) -> bool {
+        self.pkg_name == other.pkg_name && self.pkg_version == other.pkg_version && self.file() == other.file()
+    }
+}
+impl LangFilePath {
+    /// New from package name, version and file.
+    pub fn new(pkg_name: impl Into<Txt>, pkg_version: Version, file: impl Into<Txt>) -> Self {
+        Self {
+            pkg_name: pkg_name.into(),
+            pkg_version,
+            file: file.into(),
+        }
+    }
+
+    /// Gets a file in the current app.
+    ///
+    /// This value indicates that the localization resources are directly on the `l10n/{lang?}/` directories, not
+    /// in the dependencies directories.
+    ///
+    /// See [`zng_env::about()`] for more details.
+    pub fn current_app(file: impl Into<Txt>) -> LangFilePath {
+        let about = zng_env::about();
+        Self::new(about.pkg_name.clone(), about.version.clone(), file.into())
+    }
+
+    /// Gets if this file is in the [`current_app`] resources.
+    ///
+    /// [`current_app`]: Self::current_app
+    pub fn is_current_app(&self) -> bool {
+        self.pkg_name.is_empty() || {
+            let about = zng_env::about();
+            self.pkg_name == about.pkg_name && self.pkg_version == about.version
+        }
+    }
+
+    /// Gets the normalized file name.
+    pub fn file(&self) -> Txt {
+        if self.file.is_empty() {
+            Txt::from_char('_')
+        } else {
+            self.file.clone()
+        }
+    }
+
+    /// Get the file path, relative to the localization dir.
+    ///
+    /// * Empty file name is the same as `_`.
+    /// * If package [`is_current_app`] gets `{lang}/{file}.ftl`.
+    /// * Else if is another package gets `{lang}/deps/{pkg_name}/{pkg_version}/{file}.ftl`.
+    ///
+    /// [`is_current_app`]: Self::is_current_app
+    pub fn to_path(&self, lang: &Lang) -> PathBuf {
+        let mut file = self.file.as_str();
+        if file.is_empty() {
+            file = "_";
+        }
+        if self.is_current_app() {
+            format!("{lang}/{file}.ftl")
+        } else {
+            format!("{lang}/deps/{}/{}/{file}.ftl", self.pkg_name, self.pkg_version)
+        }
+        .into()
+    }
+
+    /// Gets a value that indicates if the resources represented by `self` can be used for `search`.
+    ///
+    /// The number indicates the quality of the match:
+    ///
+    /// * `0` is an exact match.
+    /// * `b1` is a match with only version `build` differences.
+    /// * `b10` is a match with only version `pre` differences.
+    /// * `(0..u16::MAX) << 16` is a match with only `patch` differences and the absolute distance.
+    /// * `(0..u16::MAX) << 16 * 2` is a match with `minor` differences and the absolute distance.
+    /// * `(0..u16::MAX) << 16 * 3` is a match with `major` differences and the absolute distance.
+    /// * `None`` is a `pkg_name` mismatch.
+    pub fn matches(&self, search: &Self) -> Option<u64> {
+        if self.pkg_name != search.pkg_name {
+            return None;
+        }
+
+        fn dist(a: u64, b: u64, shift: u64) -> u64 {
+            let (l, s) = match a.cmp(&b) {
+                std::cmp::Ordering::Equal => return 0,
+                std::cmp::Ordering::Less => (b, a),
+                std::cmp::Ordering::Greater => (a, b),
+            };
+
+            (l - s).min(u16::MAX as u64) << (16 * shift)
+        }
+
+        let mut d = 0;
+        if self.pkg_version.build != search.pkg_version.build {
+            d = 1;
+        }
+        if self.pkg_version.pre != search.pkg_version.pre {
+            d |= 0b10;
+        }
+
+        d |= dist(self.pkg_version.patch, search.pkg_version.patch, 1);
+        d |= dist(self.pkg_version.minor, search.pkg_version.minor, 2);
+        d |= dist(self.pkg_version.major, search.pkg_version.major, 3);
+
+        Some(d)
+    }
+}
+impl_from_and_into_var! {
+    fn from(file: Txt) -> LangFilePath {
+        LangFilePath::current_app(file)
+    }
+
+    fn from(file: &'static str) -> LangFilePath {
+        LangFilePath::current_app(file)
+    }
+
+    fn from(file: String) -> LangFilePath {
+        LangFilePath::current_app(file)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_matches() {
+        fn check(a: &str, b: &str, c: &str) {
+            let ap = LangFilePath::new("name", a.parse().unwrap(), "file");
+            let bp = LangFilePath::new("name", b.parse().unwrap(), "file");
+            let cp = LangFilePath::new("name", c.parse().unwrap(), "file");
+
+            let ab = ap.matches(&bp);
+            let ac = ap.matches(&cp);
+
+            assert!(ab < ac, "expected {a}.matches({b}) < {a}.matches({c})")
+        }
+
+        check("0.0.0", "0.0.1", "0.1.0");
+        check("0.0.1", "0.1.0", "1.0.0");
+        check("0.0.0-pre", "0.0.0-pre+build", "0.0.0-other+build");
+        check("0.0.0+build", "0.0.0+build", "0.0.0+other");
+        check("0.0.1", "0.0.2", "0.0.3");
+        check("0.1.0", "0.2.0", "0.3.0");
+        check("1.0.0", "2.0.0", "3.0.0");
+        check("1.0.0", "1.1.0", "2.0.0");
     }
 }

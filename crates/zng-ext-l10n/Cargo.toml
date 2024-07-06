@@ -23,6 +23,7 @@ zng-view-api = { path = "../zng-view-api", version = "0.5.4" }
 zng-layout = { path = "../zng-layout", version = "0.2.15" }
 zng-task = { path = "../zng-task", version = "0.3.3" }
 zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.19" }
+zng-env = { path = "../zng-env", version = "0.3.0" }
 
 fluent = "0.16"
 fluent-syntax = "0.11"
@@ -33,3 +34,4 @@ tracing = "0.1"
 unicase = "2.7"
 once_cell = "1.19"
 dunce = "1.0"
+semver = "1.0"

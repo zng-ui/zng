@@ -18,8 +18,8 @@ pub(crate) struct EventsService {
     l10n: EventsL10n,
 }
 enum EventsL10n {
-    Pending(Vec<(&'static str, Command, &'static str, CommandMetaVar<Txt>)>),
-    Init(Box<dyn Fn(&'static str, Command, &'static str, CommandMetaVar<Txt>) + Send + Sync>),
+    Pending(Vec<([&'static str; 3], Command, &'static str, CommandMetaVar<Txt>)>),
+    Init(Box<dyn Fn([&'static str; 3], Command, &'static str, CommandMetaVar<Txt>) + Send + Sync>),
 }
 impl EventsService {
     const fn new() -> Self {
@@ -123,7 +123,7 @@ impl EVENTS {
 #[allow(non_camel_case_types)]
 pub struct EVENTS_L10N;
 impl EVENTS_L10N {
-    pub(crate) fn init_meta_l10n(&self, file: &'static str, cmd: Command, meta_name: &'static str, txt: CommandMetaVar<Txt>) {
+    pub(crate) fn init_meta_l10n(&self, file: [&'static str; 3], cmd: Command, meta_name: &'static str, txt: CommandMetaVar<Txt>) {
         {
             let sv = EVENTS_SV.read();
             if let EventsL10n::Init(f) = &sv.l10n {
@@ -143,11 +143,12 @@ impl EVENTS_L10N {
     ///
     /// The closure arguments are:
     ///
-    /// * `file` is the command declaration `@l10n: "file"` value or is empty if `@l10n` was set to something else.
+    /// * `file` is the crate package name, version and the file from command declaration `@l10n: "file"`
+    ///    value or is empty if `@l10n` was set to something else.
     /// * `cmd` is the command, the command event name should be used as key.
     /// * `meta` is the metadata name, for example `"name"`, should be used as attribute.
     /// * `txt` is text variable that must be set with the translation.
-    pub fn init_l10n(&self, localize: impl Fn(&'static str, Command, &'static str, CommandMetaVar<Txt>) + Send + Sync + 'static) {
+    pub fn init_l10n(&self, localize: impl Fn([&'static str; 3], Command, &'static str, CommandMetaVar<Txt>) + Send + Sync + 'static) {
         let mut sv = EVENTS_SV.write();
         match &mut sv.l10n {
             EventsL10n::Pending(a) => {

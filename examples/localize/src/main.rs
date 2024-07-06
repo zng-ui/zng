@@ -6,10 +6,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use zng::{
+    clipboard::{COPY_CMD, PASTE_CMD},
     color::filter::drop_shadow,
     focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
     image,
-    l10n::LangMap,
+    l10n::{LangFilePath, LangMap},
     layout::align,
     prelude::*,
     widget::node::presenter,
@@ -21,7 +22,7 @@ use zng::{
 // l10n-msg-### This standalone comment is only added to the `msg` file.
 
 // Run this command to scrap template:
-// cargo do zng l10n "examples/localize/src" "examples/localize/res"
+// cargo do zng l10n -p "zng-example-localize" -o "examples/localize/res"
 
 fn main() {
     zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
@@ -79,6 +80,8 @@ fn window_content() -> impl UiNode {
         PRIVATE_LOCALIZED_CMD,
         L10N_FALSE_CMD,
         LOCALIZED_FILE_CMD,
+        COPY_CMD,
+        PASTE_CMD,
     ];
     let handles: Vec<_> = test_cmds.iter().map(|c| c.subscribe(true)).collect();
     handles.leak(); // perm enable commands for test
@@ -130,7 +133,7 @@ fn locale_menu() -> impl UiNode {
         focus_click_behavior = FocusClickBehavior::Exit;
         child = presenter(
             L10N.available_langs(),
-            wgt_fn!(|langs: Arc<LangMap<HashMap<Txt, PathBuf>>>| {
+            wgt_fn!(|langs: Arc<LangMap<HashMap<LangFilePath, PathBuf>>>| {
                 let mut actual = vec![];
                 let mut pseudo = vec![];
                 let mut template = vec![];

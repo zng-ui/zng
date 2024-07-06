@@ -717,7 +717,7 @@ impl WindowVars {
     /// The current `zng::view_process` or `zng-view` only implements this feature on Windows and it will only work properly
     /// under these conditions:
     ///
-    /// * It must be running in `run_same_process` mode. Windows kills all other processes, so in a run with `init` the the app-process
+    /// * It must be running in `run_same_process` mode. Windows kills all other processes, so in a run with `init` the app-process
     /// will be lost. Note that this also mean that the crash handler and worker processes are also killed.
     /// * Must be built with `#![windows_subsystem = "windows"]` and must be running from the Windows Explorer (desktop).
     pub fn system_shutdown_warn(&self) -> ArcVar<Txt> {

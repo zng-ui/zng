@@ -1,9 +1,13 @@
 use std::{
+    collections::HashMap,
     io,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
     sync::atomic::AtomicBool,
 };
+
+use semver::{Version, VersionReq};
+use serde::Deserialize;
 
 /// Print warning message.
 macro_rules! warn {
@@ -168,4 +172,128 @@ pub fn clean_value(value: &str, required: bool) -> io::Result<String> {
         }
     }
     Ok(clean_value)
+}
+
+pub fn manifest_path_from_package(package: &str) -> Option<String> {
+    let metadata = match Command::new("cargo")
+        .args(["metadata", "--format-version", "1", "--no-deps"])
+        .stderr(Stdio::inherit())
+        .output()
+    {
+        Ok(m) => {
+            if !m.status.success() {
+                fatal!("cargo metadata error")
+            }
+            String::from_utf8_lossy(&m.stdout).into_owned()
+        }
+        Err(e) => fatal!("cargo metadata error, {e}"),
+    };
+
+    #[derive(Deserialize)]
+    struct Metadata {
+        packages: Vec<Package>,
+    }
+    #[derive(Deserialize)]
+    struct Package {
+        name: String,
+        manifest_path: String,
+    }
+    let metadata: Metadata = serde_json::from_str(&metadata).unwrap_or_else(|e| fatal!("unexpected cargo metadata format, {e}"));
+
+    for p in metadata.packages {
+        if p.name == package {
+            return Some(p.manifest_path);
+        }
+    }
+    None
+}
+
+/// Dependencies of manifest_path
+pub fn dependencies(manifest_path: &str) -> Vec<DependencyManifest> {
+    let metadata = match Command::new("cargo")
+        .args(["metadata", "--format-version", "1", "--manifest-path"])
+        .arg(manifest_path)
+        .stderr(Stdio::inherit())
+        .output()
+    {
+        Ok(m) => {
+            if !m.status.success() {
+                fatal!("cargo metadata error")
+            }
+            String::from_utf8_lossy(&m.stdout).into_owned()
+        }
+        Err(e) => fatal!("cargo metadata error, {e}"),
+    };
+
+    #[derive(Deserialize)]
+    struct Metadata {
+        packages: Vec<Package>,
+    }
+    #[derive(Deserialize)]
+    struct Package {
+        name: String,
+        version: Version,
+        dependencies: Vec<Dependency>,
+        manifest_path: String,
+    }
+    #[derive(Deserialize)]
+    struct Dependency {
+        name: String,
+        kind: Option<String>,
+        req: VersionReq,
+    }
+
+    let metadata: Metadata = serde_json::from_str(&metadata).unwrap_or_else(|e| fatal!("unexpected cargo metadata format, {e}"));
+
+    let manifest_path = dunce::canonicalize(manifest_path).unwrap();
+
+    let mut dependencies: &[Dependency] = &[];
+
+    for pkg in &metadata.packages {
+        let pkg_path = Path::new(&pkg.manifest_path);
+        if pkg_path == manifest_path {
+            dependencies = &pkg.dependencies;
+            break;
+        }
+    }
+    if !dependencies.is_empty() {
+        let mut map = HashMap::new();
+        for pkg in &metadata.packages {
+            map.entry(pkg.name.as_str()).or_insert_with(Vec::new).push((&pkg.version, pkg));
+        }
+
+        let mut r = vec![];
+        fn collect(map: &mut HashMap<&str, Vec<(&Version, &Package)>>, dependencies: &[Dependency], r: &mut Vec<DependencyManifest>) {
+            for dep in dependencies {
+                if dep.kind.is_some() {
+                    // skip build/dev-dependencies
+                    continue;
+                }
+                if let Some(versions) = map.remove(dep.name.as_str()) {
+                    for (version, pkg) in versions.iter() {
+                        if dep.req.matches(version) {
+                            r.push(DependencyManifest {
+                                name: pkg.name.clone(),
+                                version: pkg.version.clone(),
+                                manifest_path: pkg.manifest_path.as_str().into(),
+                            });
+
+                            // collect dependencies of dependencies
+                            collect(map, &pkg.dependencies, r)
+                        }
+                    }
+                }
+            }
+        }
+        collect(&mut map, dependencies, &mut r);
+        return r;
+    }
+
+    vec![]
+}
+
+pub struct DependencyManifest {
+    pub name: String,
+    pub version: Version,
+    pub manifest_path: PathBuf,
 }

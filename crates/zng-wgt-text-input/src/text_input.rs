@@ -229,7 +229,7 @@ impl SearchStyle {
     }
 }
 
-/// Text shown when the the `txt` is empty.
+/// Text shown when the `txt` is empty.
 ///
 /// The placeholder has the same text style as the parent widget, with 50% opacity.
 /// You can use the [`placeholder`](fn@placeholder) to use a custom widget placeholder.
@@ -245,7 +245,7 @@ pub fn placeholder_txt(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNod
     )
 }
 
-/// Widget shown when the the `txt` is empty.
+/// Widget shown when the `txt` is empty.
 ///
 /// The `placeholder` can be any widget, the `Text!` widget is recommended.
 #[property(CHILD, widget_impl(TextInput))]

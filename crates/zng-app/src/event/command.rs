@@ -206,7 +206,7 @@ macro_rules! __command {
                     let __l10n_arg = $l10n_arg;
                     $(
                         cmd.[<init_ $meta_ident>]($meta_init);
-                        $crate::event::init_meta_l10n(&__l10n_arg, cmd, stringify!($meta_ident), &cmd.$meta_ident());
+                        $crate::event::init_meta_l10n(std::env!("CARGO_PKG_NAME"), std::env!("CARGO_PKG_VERSION"), &__l10n_arg, cmd, stringify!($meta_ident), &cmd.$meta_ident());
                     )*
                 };
             }
@@ -251,7 +251,14 @@ macro_rules! __command {
 }
 
 #[doc(hidden)]
-pub fn init_meta_l10n(l10n_arg: &dyn Any, cmd: Command, meta_name: &'static str, meta_value: &dyn Any) {
+pub fn init_meta_l10n(
+    pkg_name: &'static str,
+    pkg_version: &'static str,
+    l10n_arg: &dyn Any,
+    cmd: Command,
+    meta_name: &'static str,
+    meta_value: &dyn Any,
+) {
     if let Some(txt) = meta_value.downcast_ref::<CommandMetaVar<Txt>>() {
         let mut l10n_file = "";
 
@@ -266,7 +273,7 @@ pub fn init_meta_l10n(l10n_arg: &dyn Any, cmd: Command, meta_name: &'static str,
             return;
         }
 
-        EVENTS_L10N.init_meta_l10n(l10n_file, cmd, meta_name, txt.clone());
+        EVENTS_L10N.init_meta_l10n([pkg_name, pkg_version, l10n_file], cmd, meta_name, txt.clone());
     }
 }
 

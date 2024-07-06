@@ -11,6 +11,7 @@
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
+use semver::Version;
 use zng_app::{
     event::{Command, CommandMetaVar, EVENTS_L10N},
     update::EventUpdate,
@@ -56,7 +57,19 @@ pub struct L10nManager {}
 impl AppExtension for L10nManager {
     fn init(&mut self) {
         EVENTS_L10N.init_l10n(|file, cmd, attr, txt| {
-            L10N.bind_command_meta(file, cmd, attr, txt);
+            L10N.bind_command_meta(
+                LangFilePath {
+                    pkg_name: file[0].into(),
+                    pkg_version: file[1].parse().unwrap_or_else(|e| {
+                        tracing::error!("invalid package version from command localization, {e}");
+                        Version::new(0, 0, 0)
+                    }),
+                    file: file[2].into(),
+                },
+                cmd,
+                attr,
+                txt,
+            );
         });
     }
 
@@ -114,7 +127,12 @@ impl AppExtension for L10nManager {
 ///     .attr = message
 /// ```
 ///
-/// And a key `"id.attr"` will be searched in the file `{dir}/{lang}.ftl`.
+/// And a key `"id.attr"` will be searched in the file `{dir}/{lang}/_.ftl`.
+///
+/// ### Package
+///
+/// The crate package name and version are also implicitly collected, when the message is requested from a different crate
+/// it is searched in `{dir}/{lang}/{pkg-name}/{pkg-version}/{file}.ftl`. Version matches any other version, the nearest is selected.
 ///
 /// # Scrap Template
 ///
@@ -205,7 +223,7 @@ impl L10N {
         L10N_SV.write().load(source);
     }
 
-    /// Start watching the `dir` for `"dir/{lang}.ftl"` and "dir/{lang}/*.ftl" files.
+    /// Start watching the `dir` for `dir/{lang}/*.ftl` and `dir/{lang}/deps/*/*/*.ftl` files.
     ///
     /// The [`available_langs`] variable maintains an up-to-date list of locale files found, the files
     /// are only loaded when needed, and also are watched to update automatically.
@@ -217,11 +235,12 @@ impl L10N {
 
     /// Available localization files.
     ///
-    /// The value maps lang to one or more files, the files can be `{dir}/{lang}.flt` or `{dir}/{lang}/*.flt`.
+    /// The value maps lang to one or more files, the files can be from the project `dir/{lang}/{file}.ftl` or from dependencies
+    /// `dir/{lang}/deps/{pkg-name/{pkg-version}/{file}.ftl`.
     ///
     /// Note that this map will include any file in the source dir that has a name that is a valid [`lang!`],
-    /// that includes the `template.flt` file and test pseudo-locales such as `qps-ploc.flt`.
-    pub fn available_langs(&self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>> {
+    /// that includes the `template.ftl` file and test pseudo-locales such as `qps-ploc.ftl`.
+    pub fn available_langs(&self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         L10N_SV.write().available_langs()
     }
 
@@ -284,17 +303,20 @@ impl L10N {
     ///
     /// # Params
     ///
-    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.flt`, if
-    ///           empty the file is searched at `{dir}/{lang}.flt`. Only a single file name is valid, no other path components allowed.
+    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `dir/{lang}/{file}.ftl`, if
+    ///           empty the file is searched at `dir/{lang}/_.ftl`. Only a single file name is valid, no other path components allowed.
+    ///           Note that the file can also be a full [`LangFilePath`] that includes dependency package info. Those files are searched in
+    ///           `dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`.
     /// * `id`: Message identifier inside the resource file.
     /// * `attribute`: Attribute of the identifier, leave empty to not use an attribute.
+    /// * `fallback`: Message to use when a localized message cannot be found.
     ///
     /// The `id` and `attribute` is only valid if it starts with letter `[a-zA-Z]`, followed by any letters, digits, _ or - `[a-zA-Z0-9_-]*`.
     ///
     /// Panics if any parameter is invalid.
     pub fn message(
         &self,
-        file: impl Into<Txt>,
+        file: impl Into<LangFilePath>,
         id: impl Into<Txt>,
         attribute: impl Into<Txt>,
         fallback: impl Into<Txt>,
@@ -312,38 +334,23 @@ impl L10N {
     #[doc(hidden)]
     pub fn l10n_message(
         &self,
+        pkg_name: &'static str,
+        pkg_version: &'static str,
         file: &'static str,
         id: &'static str,
         attribute: &'static str,
         fallback: &'static str,
     ) -> L10nMessageBuilder {
         self.message(
-            Txt::from_static(file),
+            LangFilePath {
+                pkg_name: Txt::from_static(pkg_name),
+                pkg_version: pkg_version.parse().unwrap(),
+                file: Txt::from_static(file),
+            },
             Txt::from_static(id),
             Txt::from_static(attribute),
             Txt::from_static(fallback),
         )
-    }
-
-    /// Gets a formatted message var localized to a given `lang`.
-    ///
-    /// The returned variable is read-only and will update when the backing resource changes and when the `args` variables change.
-    ///
-    /// The lang file resource is lazy loaded and stays in memory only when there are variables alive linked to it, each lang
-    /// in the list is matched to available resources if no match is available the `fallback` message is used. The variable
-    /// may temporary contain the `fallback` as lang resources are loaded asynchronous.
-    pub fn localized_message(
-        &self,
-        lang: impl Into<Langs>,
-        file: impl Into<Txt>,
-        id: impl Into<Txt>,
-        attribute: impl Into<Txt>,
-        fallback: impl Into<Txt>,
-        args: impl Into<Vec<(Txt, BoxedVar<L10nArgument>)>>,
-    ) -> BoxedVar<Txt> {
-        L10N_SV
-            .write()
-            .localized_message(lang.into(), file.into(), id.into(), attribute.into(), fallback.into(), args.into())
     }
 
     /// Gets a handle to the lang file resource.
@@ -358,11 +365,13 @@ impl L10N {
     /// # Params
     ///
     /// * `lang`: Language identifier.
-    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `{dir}/{lang}/{file}.flt`, if
-    ///           empty the file is searched at `{dir}/{lang}.flt`. Only a single file name is valid, no other path components allowed.
+    /// * `file`: Name of the resource file, in the default directory layout the file is searched at `dir/{lang}/{file}.ftl`, if
+    ///           empty the file is searched at `dir/{lang}/_.ftl`. Only a single file name is valid, no other path components allowed.
+    ///           Note that the file can also be a full [`LangFilePath`] that includes dependency package info. Those files are searched in
+    ///           `dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`.
     ///
     /// Panics if the file is invalid.
-    pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<Txt>) -> LangResource {
+    pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<LangFilePath>) -> LangResource {
         L10N_SV.write().lang_resource(lang.into(), file.into())
     }
 
@@ -371,14 +380,11 @@ impl L10N {
     /// This awaits for the available langs to load, then collect an awaits for all lang files.
     pub async fn wait_lang(&self, lang: impl Into<Lang>) -> LangResources {
         let lang = lang.into();
-        let base = self.lang_resource(lang.clone(), "");
-        base.wait().await;
-
-        let mut r = vec![base];
-        for (name, _) in self.available_langs().get().get(&lang).into_iter().flatten() {
-            r.push(self.lang_resource(lang.clone(), name.clone()));
+        let mut r = vec![];
+        for (file, _) in self.available_langs().get().get(&lang).into_iter().flatten() {
+            r.push(self.lang_resource(lang.clone(), file.clone()));
         }
-        for h in &r[1..] {
+        for h in &r {
             h.wait().await;
         }
         LangResources(r)
@@ -396,8 +402,8 @@ impl L10N {
         for lang in langs.0 {
             if let Some(files) = available.get_exact(&lang) {
                 let mut r = Vec::with_capacity(files.len());
-                for name in files.keys() {
-                    r.push(self.lang_resource(lang.clone(), name.clone()));
+                for file in files.keys() {
+                    r.push(self.lang_resource(lang.clone(), file.clone()));
                 }
                 let handle = LangResources(r);
                 handle.wait().await;
@@ -414,7 +420,13 @@ impl L10N {
     /// This is automatically called by [`command!`] instances that set the metadata `l10n!: true` or `l10n!: "file"`.
     ///
     /// [`command!`]: zng_app::event::command!
-    pub fn bind_command_meta(&self, file: impl Into<Txt>, cmd: Command, meta_name: impl Into<Txt>, meta_value: CommandMetaVar<Txt>) {
+    pub fn bind_command_meta(
+        &self,
+        file: impl Into<LangFilePath>,
+        cmd: Command,
+        meta_name: impl Into<Txt>,
+        meta_value: CommandMetaVar<Txt>,
+    ) {
         let msg = self.message(file, cmd.event().as_any().name(), meta_name, meta_value.get()).build();
         meta_value.set_from(&msg).unwrap();
 
@@ -468,18 +480,18 @@ macro_rules! lang {
 /// [`L10N.load`]: L10N::load
 pub trait L10nSource: Send + 'static {
     /// Gets a read-only variable with all lang files that the source can provide.
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<Txt, PathBuf>>>>;
+    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>;
     /// Gets a read-only variable that is the status of the [`available_langs`] value.
     ///
     /// [`available_langs`]: Self::available_langs
     fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus>;
 
     /// Gets a read-only variable that provides the fluent resource for the `lang` and `file` if available.
-    fn lang_resource(&mut self, lang: Lang, file: Txt) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>>;
+    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>>;
     /// Gets a read-only variable that is the status of the [`lang_resource`] value.
     ///
     /// [`lang_resource`]: Self::lang_resource
-    fn lang_resource_status(&mut self, lang: Lang, file: Txt) -> BoxedVar<LangResourceStatus>;
+    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<LangResourceStatus>;
 }
 
 fn from_unic_char_direction(d: unic_langid::CharacterDirection) -> LayoutDirection {

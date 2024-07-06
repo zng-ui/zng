@@ -216,6 +216,7 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
         };
         L10nArgument::from(c)
     });
+    // l10n-# Number of undo/redo actions that are selected to run
     let count = l10n!("UndoHistory.count_actions", "{$n} actions", n = count);
 
     Container! {
