@@ -767,7 +767,7 @@ impl LangFilePath {
     ///     - Empty file name is the same as `_`.
     ///     - Gets `{lang}/deps/{pkg_name}/{pkg_version}/{file}.ftl`.
     ///
-    /// [`current_app`]: Self::current_app
+    /// [`is_current_app`]: Self::is_current_app
     pub fn to_path(&self, lang: &Lang) -> PathBuf {
         if self.is_current_app() {
             if self.file.is_empty() {
