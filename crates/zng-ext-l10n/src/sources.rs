@@ -85,10 +85,6 @@ impl L10nDir {
                             let file = Txt::from_str(utf8_path[1].rsplit_once('.').unwrap().0);
                             (lang, LangFilePath::current_app(file))
                         }
-                        // deps/pkg-name/pkg-version/lang.ftl
-                        4 => {
-                            todo!("!!: TODO, don't support this in cargo-zng")
-                        }
                         // lang/deps/pkg-name/pkg-version/file.ftl
                         5 => {
                             if utf8_path[1] != "deps" {
@@ -207,7 +203,7 @@ fn resource_var(
     file: LangFilePath,
 ) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
     dir_watch
-        .map(move |w| w.get(&lang).and_then(|m| m.get(&file)).cloned())
+        .map(move |w| w.get_file(&lang, &file).cloned())
         .flat_map(move |p| match p {
             Some(p) => {
                 status.set(LangResourceStatus::Loading);

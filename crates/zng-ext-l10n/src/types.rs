@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt, mem, ops, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, fmt, mem, ops, path::PathBuf, sync::Arc};
 
 use fluent::types::FluentNumber;
 use once_cell::sync::Lazy;
@@ -634,6 +634,39 @@ impl<V> LangMap<V> {
         self.inner.iter_mut().map(|(k, v)| (&*k, v))
     }
 }
+impl<V> LangMap<HashMap<LangFilePath, V>> {
+    /// Returns the match for `lang` and `file`.
+    pub fn get_file(&self, lang: &Lang, file: &LangFilePath) -> Option<&V> {
+        let files = self.get(lang)?;
+        if let Some(exact) = files.get(file) {
+            return Some(exact);
+        }
+        Self::best_file(files, file).map(|(_, v)| v)
+    }
+
+    /// Returns the best match to `lang` and `file` currently in the map.
+    pub fn best_file_match(&self, lang: &Lang, file: &LangFilePath) -> Option<&LangFilePath> {
+        let files = self.get(lang)?;
+        if let Some((exact, _)) = files.get_key_value(file) {
+            return Some(exact);
+        }
+        Self::best_file(files, file).map(|(k, _)| k)
+    }
+
+    fn best_file<'a>(files: &'a HashMap<LangFilePath, V>, file: &LangFilePath) -> Option<(&'a LangFilePath, &'a V)> {
+        let mut best = None;
+        let mut best_dist = u64::MAX;
+        for (k, v) in files {
+            if let Some(d) = k.matches(file) {
+                if d < best_dist {
+                    best = Some((k, v));
+                    best_dist = d;
+                }
+            }
+        }
+        best
+    }
+}
 impl<V> IntoIterator for LangMap<V> {
     type Item = (Lang, V);
 
@@ -684,7 +717,7 @@ impl std::error::Error for FluentParserErrors {
 /// Localization resource file path in the localization directory.
 ///
 /// In the default directory layout, localization dependencies are collected using `cargo zng l10n --deps`
-/// and copied to `l10n/{lang}?/deps/{name}/{version}/`.
+/// and copied to `l10n/{lang}/deps/{name}/{version}/`.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash)]
 pub struct LangFilePath {
     /// Package name.
@@ -719,17 +752,78 @@ impl LangFilePath {
     ///
     /// [`current_app`]: Self::current_app
     pub fn is_current_app(&self) -> bool {
-        let about = zng_env::about();
-        self.pkg_name == about.pkg_name && self.pkg_version == about.version
+        self.pkg_name.is_empty() || {
+            let about = zng_env::about();
+            self.pkg_name == about.pkg_name && self.pkg_version == about.version
+        }
     }
 
-    /// Gets `{name}/{version}/{file}?`.
-    pub fn to_path(&self) -> PathBuf {
-        if self.file.is_empty() {
-            format!("{}/{}/{}", self.pkg_name, self.pkg_version, self.file).into()
+    /// Get the file path, relative to the localization dir.
+    ///
+    /// * If package [`is_current_app`]:
+    ///     - And the `file` name is empty gets `{lang}.ftl`.
+    ///     - Or gets `{lang}/{file}.ftl`.
+    /// * Else if is another package:
+    ///     - Empty file name is the same as `_`.
+    ///     - Gets `{lang}/deps/{pkg_name}/{pkg_version}/{file}.ftl`.
+    ///
+    /// [`current_app`]: Self::current_app
+    pub fn to_path(&self, lang: &Lang) -> PathBuf {
+        if self.is_current_app() {
+            if self.file.is_empty() {
+                format!("{lang}.ftl")
+            } else {
+                format!("{lang}/{}.ftl", self.file)
+            }
         } else {
-            format!("{}/{}", self.pkg_name, self.pkg_version).into()
+            let mut file = self.file.as_str();
+            if file.is_empty() {
+                file = "_";
+            }
+            format!("{lang}/deps/{}/{}/{file}.ftl", self.pkg_name, self.pkg_version)
         }
+        .into()
+    }
+
+    /// Gets a value that indicates if the resources represented by `self` can be used for `search`.
+    ///
+    /// The number indicates the quality of the match:
+    ///
+    /// * `0` is an exact match.
+    /// * `b1` is a match with only version `build` differences.
+    /// * `b10` is a match with only version `pre` differences.
+    /// * `(0..u16::MAX) << 16` is a match with only `patch` differences and the absolute distance.
+    /// * `(0..u16::MAX) << 16 * 2` is a match with `minor` differences and the absolute distance.
+    /// * `(0..u16::MAX) << 16 * 3` is a match with `major` differences and the absolute distance.
+    /// * `None`` is a `pkg_name` mismatch.
+    pub fn matches(&self, search: &Self) -> Option<u64> {
+        if self.pkg_name != search.pkg_name {
+            return None;
+        }
+
+        fn dist(a: u64, b: u64, shift: u64) -> u64 {
+            let (l, s) = match a.cmp(&b) {
+                std::cmp::Ordering::Equal => return 0,
+                std::cmp::Ordering::Less => (b, a),
+                std::cmp::Ordering::Greater => (a, b),
+            };
+
+            (l - s).min(u16::MAX as u64) << (16 * shift)
+        }
+
+        let mut d = 0;
+        if self.pkg_version.build != search.pkg_version.build {
+            d = 1;
+        }
+        if self.pkg_version.pre != search.pkg_version.pre {
+            d |= 0b10;
+        }
+
+        d |= dist(self.pkg_version.patch, search.pkg_version.patch, 1);
+        d |= dist(self.pkg_version.minor, search.pkg_version.minor, 2);
+        d |= dist(self.pkg_version.major, search.pkg_version.major, 3);
+
+        Some(d)
     }
 }
 impl_from_and_into_var! {
@@ -743,5 +837,33 @@ impl_from_and_into_var! {
 
     fn from(file: String) -> LangFilePath {
         LangFilePath::current_app(file)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_matches() {
+        fn check(a: &str, b: &str, c: &str) {
+            let ap = LangFilePath::new("name", a.parse().unwrap(), "file");
+            let bp = LangFilePath::new("name", b.parse().unwrap(), "file");
+            let cp = LangFilePath::new("name", c.parse().unwrap(), "file");
+
+            let ab = ap.matches(&bp);
+            let ac = ap.matches(&cp);
+
+            assert!(ab < ac, "expected {a}.matches({b}) < {a}.matches({c})")
+        }
+
+        check("0.0.0", "0.0.1", "0.1.0");
+        check("0.0.1", "0.1.0", "1.0.0");
+        check("0.0.0-pre", "0.0.0-pre+build", "0.0.0-other+build");
+        check("0.0.0+build", "0.0.0+build", "0.0.0+other");
+        check("0.0.1", "0.0.2", "0.0.3");
+        check("0.1.0", "0.2.0", "0.3.0");
+        check("1.0.0", "2.0.0", "3.0.0");
+        check("1.0.0", "1.1.0", "2.0.0");
     }
 }

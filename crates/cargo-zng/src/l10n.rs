@@ -64,7 +64,7 @@ pub struct L10nArgs {
     #[arg(long, default_value = "")]
     pseudo_w: String,
 
-    /// Verify that the generated files are the same
+    /// Only verify that the generated files are the same
     #[arg(long, action)]
     check: bool, // !!: TODO
 }
@@ -286,18 +286,23 @@ pub fn run(mut args: L10nArgs) {
                 });
 
                 for (_, has_lang, deps) in reexport_deps {
+                    // dep/l10n/lang/deps/
                     let target = l10n_dir(if has_lang {
-                        // dep/l10n/lang/deps/
                         deps.parent().and_then(|p| p.file_name())
                     } else {
-                        // dep/l10n/deps/
-                        None
+                        deps.file_name()
+                            .and_then(|s| s.to_str())
+                            .and_then(|s| s.split_once('.'))
+                            .map(|s| std::ffi::OsStr::new(s.0))
                     });
 
                     // deps/pkg-name/pkg-version/*.ftl
                     for entry in glob::glob(&deps.join("*/*/*.ftl").display().to_string()).unwrap() {
                         let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
-                        let target = target.join(entry.strip_prefix(&deps).unwrap());
+                        let mut target = target.join(entry.strip_prefix(&deps).unwrap());
+                        if has_lang {
+                            target.set_file_name("_.ftl");
+                        }
                         if !target.exists() && entry.is_file() {
                             if let Err(e) = fs::copy(&entry, &target) {
                                 error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
