@@ -181,12 +181,26 @@ pub fn run(mut args: L10nArgs) {
                             fs::create_dir_all(&dir)?;
                             let mut f = io::BufWriter::new(fs::File::options().create(true).truncate(true).write(true).open(ignore_file)?);
                             writeln!(&mut f, "# Dependency localization files")?;
+                            let output = Path::new(&output);
+                            let custom_output = if output != Path::new(&args.manifest_path).with_file_name("l10n") {
+                                format!(
+                                    " --output \"{}\"",
+                                    output.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(output).display()
+                                )
+                                .replace('\\', "/")
+                            } else {
+                                String::new()
+                            };
                             if !args.package.is_empty() {
-                                writeln!(&mut f, "# Call `cargo zng l10n --package {}` to update", args.package)?;
+                                writeln!(
+                                    &mut f,
+                                    "# Call `cargo zng l10n --package {}{custom_output}` to update",
+                                    args.package
+                                )?;
                             } else {
                                 let path = Path::new(&args.manifest_path);
                                 let path = path.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(path);
-                                writeln!(&mut f, "# Call `cargo zng l10n --manifest-path {}` to update", path.display())?;
+                                writeln!(&mut f, "# Call `cargo zng l10n --manifest-path \"{}\"` to update", path.display())?;
                             }
                             writeln!(&mut f)?;
                             writeln!(&mut f, "*")?;

@@ -48,8 +48,8 @@ command! {
     /// use the [`EXCLUSIVE_FULLSCREEN_CMD`] to toggle *exclusive* video mode fullscreen.
     pub static FULLSCREEN_CMD = {
         l10n!: true,
-        name: "Full-Screen",
-        info: "Toggle full-screen mode on the window.",
+        name: "Fullscreen",
+        info: "Toggle fullscreen mode on the window.",
         shortcut: {
             let a = if cfg!(target_os = "macos") {
                 shortcut!(CTRL|SHIFT+'F')
@@ -69,8 +69,8 @@ command! {
     /// use the [`FULLSCREEN_CMD`] to toggle *windowed* fullscreen.
     pub static EXCLUSIVE_FULLSCREEN_CMD = {
         l10n!: true,
-        name: "Exclusive Full-Screen",
-        info: "Toggle exclusive full-screen mode on the window.",
+        name: "Exclusive Fullscreen",
+        info: "Toggle exclusive fullscreen mode on the window.",
         icon: wgt_fn!(|_| ICONS.get("fullscreen")),
     };
 

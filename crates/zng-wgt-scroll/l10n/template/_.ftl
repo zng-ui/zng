@@ -1,59 +1,59 @@
 PAGE_DOWN_CMD =
-    .info = Scroll down by one page unit.
-    .name = Page Down
+    .info = Rolar uma página abaixo.
+    .name = Página Abaixo
 
 PAGE_LEFT_CMD =
-    .info = Scroll Left by one page unit.
-    .name = Page Left
+    .info = Rolar uma página a esquerda.
+    .name = Página a Esquerda
 
 PAGE_RIGHT_CMD =
-    .info = Scroll Right by one page unit.
-    .name = Page Right
+    .info = Rolar uma página a direita.
+    .name = Página a Direita
 
 PAGE_UP_CMD =
-    .info = Scroll Up by one page unit.
-    .name = Page Up
+    .info = Rolar uma página acima.
+    .name = Página Acima
 
 SCROLL_DOWN_CMD =
-    .info = Scroll Down by one scroll unit.
-    .name = Scroll Down
+    .info = Rolar uma unidade de rolagem abaixo.
+    .name = Rolar Abaixo
 
 SCROLL_LEFT_CMD =
-    .info = Scroll Left by one scroll unit.
-    .name = Scroll Left
+    .info = Rolar uma unidade de rolagem a esquerda.
+    .name = Rolar a Esquerda
 
 SCROLL_RIGHT_CMD =
-    .info = Scroll Right by one scroll unit.
-    .name = Scroll Right
+    .info = Rolar uma unidade de rolagem a direita.
+    .name = Rolar a Direita
 
 SCROLL_TO_BOTTOM_CMD =
-    .info = Scroll down to the content bottom.
-    .name = Scroll to Bottom
+    .info = Rolar abaixo até o fim.
+    .name = Rolar até o Fim
 
 SCROLL_TO_LEFTMOST_CMD =
-    .info = Scroll left to the content left edge.
-    .name = Scroll to Leftmost
+    .info = Rolar a esquerda até a borda do conteúdo.
+    .name = Rolar a Esquerda Max.
 
 SCROLL_TO_RIGHTMOST_CMD =
-    .info = Scroll right to the content right edge.
-    .name = Scroll to Rightmost
+    .info = Rolar a direita até a borda do conteúdo.
+    .name = Rolar a Direita Max.
 
 SCROLL_TO_TOP_CMD =
-    .info = Scroll up to the content top.
-    .name = Scroll to Top
+    .info = Rolar acima até o topo.
+    .name = Rolar ao Topo
 
 SCROLL_UP_CMD =
-    .info = Scroll Up by one scroll unit.
-    .name = Scroll Up
+    .info = Rolar uma unidade de rolagem acima.
+    .name = Rolar Acima
 
 ZOOM_IN_CMD =
-    .name = Zoom In
+    .name = Aumentar Zoom
 
 ZOOM_OUT_CMD =
-    .name = Zoom Out
+    .name = Diminuir Zoom
 
 ZOOM_RESET_CMD =
-    .name = Reset Zoom
+    .name = Redefinir Zoom
 
 ZOOM_TO_FIT_CMD =
-    .name = Zoom to Fit
+    .name = Ajustar Zoom

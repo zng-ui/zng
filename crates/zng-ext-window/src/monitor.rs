@@ -37,10 +37,10 @@ app_local! {
 /// an specific parent monitor, it is important to track the parent monitor as it defines properties that affect the layout of the window.
 /// This service is used to provide information to implement this feature.
 ///
-/// #### Full-Screen
+/// #### Fullscreen
 ///
-/// To set a window to full-screen a monitor must be selected, by default it can be the one the window is at but
-/// the users may want to select a monitor. To enter full-screen exclusive the video mode must also be decided, all video
+/// To set a window to fullscreen a monitor must be selected, by default it can be the one the window is at but
+/// the users may want to select a monitor. To enter fullscreen exclusive the video mode must also be decided, all video
 /// modes supported by the monitor are available in the [`MonitorInfo`] value.
 ///
 /// #### Real-Size Preview
