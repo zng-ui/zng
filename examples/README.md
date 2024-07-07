@@ -58,7 +58,7 @@ Source: [config/src](./config/src)
 cargo do run config
 ```
 
-Demonstrates the CONFIG service, live updating config between processes.
+Demonstrates the CONFIG and SETTINGS services, live updating config between processes.
 
 ### `countdown`
 
@@ -154,7 +154,7 @@ Source: [icon/src](./icon/src)
 cargo do run icon
 ```
 
-Search and copy Material Icons constants.
+Search and copy Material Icons keys.
 
 ### `image`
 

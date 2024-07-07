@@ -116,16 +116,22 @@ pub fn run(mut args: L10nArgs) {
             fatal!("--output is required for --input")
         }
 
-        println!(r#"scraping "{input}".."#);
+        if args.check {
+            println!(r#"checking "{input}".."#);
+        } else {
+            println!(r#"scraping "{input}".."#);
+        }
 
         let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
         // let args = ();
 
         let mut template = scraper::scrape_fluent_text(&input, &custom_macro_names);
-        match template.entries.len() {
-            0 => println!("did not find any entry"),
-            1 => println!("found 1 entry"),
-            n => println!("found {n} entries"),
+        if !args.check {
+            match template.entries.len() {
+                0 => println!("did not find any entry"),
+                1 => println!("found 1 entry"),
+                n => println!("found {n} entries"),
+            }
         }
 
         if !template.entries.is_empty() || !template.notes.is_empty() {

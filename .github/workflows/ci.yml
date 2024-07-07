@@ -29,6 +29,7 @@ jobs:
       - run: cargo do version --verbose
       - run: cargo do fmt --check
       - run: cargo do check
+      - run: cargo do l10n --all --check
       - run: cargo clean
   check-macos:
     runs-on: macos-latest

@@ -107,7 +107,7 @@ unicase = "2.7"
 
 serde_json = { version = "1.0", optional = true }
 breakpad-handler = { version = "0.2", optional = true }
-minidump = { version = "0.21", optional = true }
+minidump = { version = "0.22", optional = true }
 linkme = { version = "=0.3.27", optional = true }
 hashbrown = { version = "*", features = ["rayon"] }
 rustc-hash = "2.0"

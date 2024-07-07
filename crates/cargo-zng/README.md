@@ -176,35 +176,64 @@ Localization text scraper
 
 See the docs for `l10n!` for more details about the expected format.
 
-Usage: cargo zng l10n [OPTIONS] <INPUT> <OUTPUT>
-
-Arguments:
-  <INPUT>
-          Rust files glob or directory
-
-  <OUTPUT>
-          Lang resources dir
+Usage: cargo zng l10n [OPTIONS]
 
 Options:
+  -i, --input <INPUT>
+          Rust files glob or directory
+
+          [default: ]
+
+  -o, --output <OUTPUT>
+          L10n resources dir
+
+          [default: ]
+
+  -p, --package <PACKAGE>
+          Package to scrap and copy dependencies
+
+          If set the --input and --output default is src/**.rs and l10n/
+
+          [default: ]
+
+      --manifest-path <MANIFEST_PATH>
+          Path to Cargo.toml of crate to scrap and copy dependencies
+
+          If set the --input and --output default to src/**.rs and l10n/
+
+          [default: ]
+
+      --no-deps
+          Don't copy dependencies localization
+
+          Use with --package or --manifest-path to copy {dep-pkg}/l10n/*.ftl files
+
   -m, --macros <MACROS>
           Custom l10n macro names, comma separated
 
           [default: ]
 
       --pseudo <PSEUDO>
-          Pseudo Base name, empty to disable
+          Generate pseudo locale from dir/lang
 
-          [default: pseudo]
+          EXAMPLE
+
+          "l10n/en" generates pseudo from "l10n/en.ftl" and "l10n/en/*.ftl"
+
+          [default: ]
 
       --pseudo-m <PSEUDO_M>
-          Pseudo Mirrored name, empty to disable
+          Generate pseudo mirrored locale
 
-          [default: pseudo-mirr]
+          [default: ]
 
       --pseudo-w <PSEUDO_W>
-          Pseudo Wide name, empty to disable
+          Generate pseudo wide locale
 
-          [default: pseudo-wide]
+          [default: ]
+
+      --check
+          Only verify that the generated files are the same
 
   -h, --help
           Print help (see a summary with '-h')
