@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
-    io,
+    fs,
+    io::{self, BufReader, Read},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::AtomicBool,
@@ -296,4 +297,81 @@ pub struct DependencyManifest {
     pub name: String,
     pub version: Version,
     pub manifest_path: PathBuf,
+}
+
+pub fn check_or_create_dir(check: bool, path: impl AsRef<Path>) -> io::Result<()> {
+    if check {
+        let path = path.as_ref();
+        if !path.is_dir() {
+            fatal!("expected `{}` dir", path.display());
+        }
+        Ok(())
+    } else {
+        fs::create_dir(path)
+    }
+}
+
+pub fn check_or_create_dir_all(check: bool, path: impl AsRef<Path>) -> io::Result<()> {
+    if check {
+        let path = path.as_ref();
+        if !path.is_dir() {
+            fatal!("expected `{}` dir", path.display());
+        }
+        Ok(())
+    } else {
+        fs::create_dir_all(path)
+    }
+}
+
+pub fn check_or_write(check: bool, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
+    if check {
+        let path = path.as_ref();
+        let contents = contents.as_ref();
+        if !path.is_file() {
+            fatal!("expected `{}` file", path.display());
+        }
+        let file = fs::File::open(path).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", path.display()));
+        let mut bytes = vec![];
+        BufReader::new(file)
+            .read_to_end(&mut bytes)
+            .unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", path.display()));
+
+        if bytes != contents {
+            fatal!("file `{}` contents changed", path.display());
+        }
+
+        Ok(())
+    } else {
+        fs::write(path, contents)
+    }
+}
+
+pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<u64> {
+    if check {
+        let from = from.as_ref();
+        let to = to.as_ref();
+
+        if !to.is_file() {
+            fatal!("expected `{}` file", to.display());
+        }
+
+        let mut bytes = vec![];
+        for path in [from, to] {
+            let file = fs::File::open(path).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", path.display()));
+            let mut b = vec![];
+            BufReader::new(file)
+                .read_to_end(&mut b)
+                .unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", path.display()));
+
+            bytes.push(b);
+        }
+
+        if bytes[0] != bytes[1] {
+            fatal!("file `{}` contents changed", to.display());
+        }
+
+        Ok(bytes[1].len() as u64)
+    } else {
+        fs::copy(from, to)
+    }
 }

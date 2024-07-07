@@ -1,6 +1,6 @@
 //! Localization text scraping.
 
-use std::{fs, io, mem, path::PathBuf, sync::Arc};
+use std::{fmt::Write as _, fs, io, mem, path::PathBuf, sync::Arc};
 
 use litrs::StringLit;
 use proc_macro2::{Delimiter, Ident, Span, TokenStream, TokenTree};
@@ -594,18 +594,24 @@ impl FluentTemplate {
     /// Entries are separated by file and grouped by section, the notes are
     /// copied at the beginning of each file, the section, id and attribute lists are sorted.
     ///
-    /// The `select_l10n_file` closure is called once for each different file, it must return
-    /// a writer that will be the output file.
-    pub fn write(&self, select_l10n_file: impl Fn(&str) -> io::Result<Box<dyn io::Write + Send>> + Send + Sync) -> io::Result<()> {
+    /// The `write_file` closure is called once for each different file, it must write (or check) the file.
+    pub fn write(&self, write_file: impl Fn(&str, &str) -> io::Result<()> + Send + Sync) -> io::Result<()> {
         let mut file = None;
-        let mut output = None;
+        let mut output = String::new();
         let mut section = "";
         let mut id = "";
 
         for (i, entry) in self.entries.iter().enumerate() {
             if file != Some(&entry.file) {
-                // Open file and write ### Notes
-                let mut out = select_l10n_file(&entry.file)?;
+                if let Some(prev) = &file {
+                    write_file(prev, &output)?;
+                    output.clear();
+                    section = "";
+                    id = "";
+                }
+                file = Some(&entry.file);
+
+                // write ### Notes
 
                 if !self.notes.is_empty() {
                     for n in &self.notes {
@@ -619,30 +625,23 @@ impl FluentTemplate {
                         };
 
                         if matches_file {
-                            out.write_fmt(format_args!("### {}\n", n.note))?;
+                            writeln!(&mut output, "### {}", n.note).unwrap();
                         }
                     }
-                    out.write_all("\n".as_bytes())?;
+                    writeln!(&mut output).unwrap();
                 }
-
-                output = Some(out);
-                file = Some(&entry.file);
-                section = "";
-                id = "";
             }
 
-            let output = output.as_mut().unwrap();
-
             if id != entry.id && !id.is_empty() {
-                output.write_all("\n".as_bytes())?;
+                writeln!(&mut output).unwrap();
             }
 
             if section != entry.section.as_str() {
                 // Write ## Section
                 for line in entry.section.lines() {
-                    output.write_fmt(format_args!("## {line}\n"))?;
+                    writeln!(&mut output, "## {line}").unwrap();
                 }
-                output.write_all("\n".as_bytes())?;
+                writeln!(&mut output).unwrap();
                 section = entry.section.as_str();
             }
 
@@ -672,34 +671,38 @@ impl FluentTemplate {
                     }
                     let mut prefix = "";
                     if !entry.attribute.is_empty() {
-                        output.write_fmt(format_args!("# {}:\n", entry.attribute))?;
+                        writeln!(&mut output, "# {}:", entry.attribute).unwrap();
                         prefix = "    ";
                     }
                     for line in entry.comments.lines() {
-                        output.write_fmt(format_args!("# {prefix}{line}\n"))?;
+                        writeln!(&mut output, "# {prefix}{line}").unwrap();
                     }
                 }
 
-                output.write_fmt(format_args!("{id} ="))?;
+                write!(&mut output, "{id} =").unwrap();
                 if entry.attribute.is_empty() {
                     let mut prefix = " ";
 
                     for line in entry.message.lines() {
-                        output.write_fmt(format_args!("{prefix}{line}\n"))?;
+                        writeln!(&mut output, "{prefix}{line}").unwrap();
                         prefix = "    ";
                     }
                 } else {
-                    output.write_all("\n".as_bytes())?;
+                    writeln!(&mut output).unwrap();
                 }
             }
             if !entry.attribute.is_empty() {
-                output.write_fmt(format_args!("    .{} = ", entry.attribute))?;
+                write!(&mut output, "    .{} = ", entry.attribute).unwrap();
                 let mut prefix = "";
                 for line in entry.message.lines() {
-                    output.write_fmt(format_args!("{prefix}{line}\n"))?;
+                    writeln!(&mut output, "{prefix}{line}").unwrap();
                     prefix = "        ";
                 }
             }
+        }
+
+        if let Some(prev) = &file {
+            write_file(prev, &output)?;
         }
 
         Ok(())
