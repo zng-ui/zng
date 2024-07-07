@@ -6,8 +6,8 @@
 
 use std::{
     cmp::Ordering,
-    fs,
-    io::{self, Write},
+    fmt::Write as _,
+    fs, io,
     path::{Path, PathBuf},
 };
 
@@ -66,8 +66,10 @@ pub struct L10nArgs {
 
     /// Only verify that the generated files are the same
     #[arg(long, action)]
-    check: bool, // !!: TODO
+    check: bool,
 }
+
+// !!: TODO internal crates
 
 pub fn run(mut args: L10nArgs) {
     if !args.package.is_empty() && !args.manifest_path.is_empty() {
@@ -127,22 +129,18 @@ pub fn run(mut args: L10nArgs) {
         }
 
         if !template.entries.is_empty() || !template.notes.is_empty() {
-            if let Err(e) = std::fs::create_dir_all(&output) {
+            if let Err(e) = util::check_or_create_dir_all(args.check, &output) {
                 fatal!("cannot create dir `{output}`, {e}");
             }
 
             template.sort();
 
-            let r = template.write(|file| {
-                fn box_dyn(file: std::fs::File) -> Box<dyn Write + Send> {
-                    Box::new(file)
-                }
-
+            let r = template.write(|file, contents| {
                 let mut output = PathBuf::from(&output);
                 output.push("template");
-                std::fs::create_dir_all(&output)?;
+                util::check_or_create_dir_all(args.check, &output)?;
                 output.push(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
-                std::fs::File::create(output).map(box_dyn)
+                util::check_or_write(args.check, output, contents)
             });
             if let Err(e) = r {
                 fatal!("error writing template files, {e}");
@@ -178,9 +176,10 @@ pub fn run(mut args: L10nArgs) {
                     if !ignore_file.exists() {
                         // create dir and .gitignore file
                         (|| -> io::Result<()> {
-                            fs::create_dir_all(&dir)?;
-                            let mut f = io::BufWriter::new(fs::File::options().create(true).truncate(true).write(true).open(ignore_file)?);
-                            writeln!(&mut f, "# Dependency localization files")?;
+                            util::check_or_create_dir_all(args.check, &dir)?;
+
+                            let mut ignore = "# Dependency localization files\n".to_owned();
+
                             let output = Path::new(&output);
                             let custom_output = if output != Path::new(&args.manifest_path).with_file_name("l10n") {
                                 format!(
@@ -193,26 +192,32 @@ pub fn run(mut args: L10nArgs) {
                             };
                             if !args.package.is_empty() {
                                 writeln!(
-                                    &mut f,
+                                    &mut ignore,
                                     "# Call `cargo zng l10n --package {}{custom_output}` to update",
                                     args.package
-                                )?;
+                                )
+                                .unwrap();
                             } else {
                                 let path = Path::new(&args.manifest_path);
                                 let path = path.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(path);
-                                writeln!(&mut f, "# Call `cargo zng l10n --manifest-path \"{}\"` to update", path.display())?;
+                                writeln!(
+                                    &mut ignore,
+                                    "# Call `cargo zng l10n --manifest-path \"{}\"` to update",
+                                    path.display()
+                                )
+                                .unwrap();
                             }
-                            writeln!(&mut f)?;
-                            writeln!(&mut f, "*")?;
-                            writeln!(&mut f, "!.gitignore")?;
-                            f.flush()?;
+                            writeln!(&mut ignore).unwrap();
+                            writeln!(&mut ignore, "*").unwrap();
+                            writeln!(&mut ignore, "!.gitignore").unwrap();
+
                             Ok(())
                         })()
                         .unwrap_or_else(|e| fatal!("cannot create `{}`, {e}", l10n_dir.display()));
                     }
 
                     let dir = dir.join(&dep.name).join(dep.version.to_string());
-                    let _ = fs::create_dir_all(&dir);
+                    let _ = util::check_or_create_dir_all(args.check, &dir);
 
                     dir
                 };
@@ -231,7 +236,7 @@ pub fn run(mut args: L10nArgs) {
                     if dep_l10n_entry.is_dir() {
                         // l10n/{lang}/deps/{dep.name}/{dep.version}
                         let output_dir = l10n_dir(dep_l10n_entry.file_name());
-                        let _ = fs::create_dir_all(&output_dir);
+                        let _ = util::check_or_create_dir_all(args.check, &output_dir);
 
                         let lang_dir_reader = match fs::read_dir(&dep_l10n_entry) {
                             Ok(d) => d,
@@ -255,9 +260,9 @@ pub fn run(mut args: L10nArgs) {
                                     reexport_deps.push((&dep, lang_entry));
                                 }
                             } else if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
-                                let _ = fs::create_dir_all(&output_dir);
+                                let _ = util::check_or_create_dir_all(args.check, &output_dir);
                                 let to = output_dir.join(lang_entry.file_name().unwrap());
-                                if let Err(e) = fs::copy(&lang_entry, &to) {
+                                if let Err(e) = util::check_or_copy(args.check, &lang_entry, &to) {
                                     error!("cannot copy `{}` to `{}`, {e}", lang_entry.display(), to.display());
                                     continue;
                                 }
@@ -280,7 +285,7 @@ pub fn run(mut args: L10nArgs) {
                         let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
                         let target = target.join(entry.strip_prefix(&deps).unwrap());
                         if !target.exists() && entry.is_file() {
-                            if let Err(e) = fs::copy(&entry, &target) {
+                            if let Err(e) = util::check_or_copy(args.check, &entry, &target) {
                                 error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
                             }
                         }
@@ -294,12 +299,12 @@ pub fn run(mut args: L10nArgs) {
     }
 
     if !args.pseudo.is_empty() {
-        pseudo::pseudo(&args.pseudo);
+        pseudo::pseudo(&args.pseudo, args.check);
     }
     if !args.pseudo_m.is_empty() {
-        pseudo::pseudo_mirr(&args.pseudo_m);
+        pseudo::pseudo_mirr(&args.pseudo_m, args.check);
     }
     if !args.pseudo_w.is_empty() {
-        pseudo::pseudo_wide(&args.pseudo_w);
+        pseudo::pseudo_wide(&args.pseudo_w, args.check);
     }
 }
