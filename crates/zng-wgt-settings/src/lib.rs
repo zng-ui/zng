@@ -9,6 +9,7 @@ pub use view_fn::*;
 
 use zng_ext_config::settings::{Category, CategoryId, SETTINGS};
 use zng_ext_input::focus::FOCUS;
+use zng_ext_l10n::l10n;
 use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
 use zng_wgt::prelude::*;
 use zng_wgt_container::Container;
@@ -342,7 +343,7 @@ pub fn handle_settings_cmd() {
                     }
 
                     Window! {
-                        title = formatx!("{} - Settings", zng_env::about().app);
+                        title = l10n!("widow.title", "{$app} - Settings", app=zng_env::about().app.clone());
                         parent;
                         child = SettingsEditor! {
                             id = "zng-config-settings-default-editor";

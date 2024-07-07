@@ -357,7 +357,7 @@ fn l10n(mut args: Vec<&str>) {
     let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
     for manifest_path in crates {
         let output = std::path::Path::new(&manifest_path).with_file_name("l10n");
-        if let Err(e) = std::fs::remove_dir_all(&output) {
+        if let Err(e) = std::fs::remove_dir_all(&output.join("template")) {
             if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
                 error(f!("cannot clear `{}`, {e}", output.display()));
                 continue;

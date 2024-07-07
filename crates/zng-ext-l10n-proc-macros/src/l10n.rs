@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Write as _};
 
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
@@ -14,12 +14,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let message_params = parse_validate_id(input.message_id, &mut errors);
 
-    let fluent_msg = format!("id = {message}");
+    let mut fluent_msg;
     let mut variables = HashSet::new();
 
     if message.is_empty() {
         errors.push("message cannot be empty", input.message.span());
     } else {
+        fluent_msg = "id = ".to_owned();
+        let mut spacing = "";
+        for line in message.lines() {
+            writeln!(&mut fluent_msg, "{spacing}{line}").unwrap();
+            spacing = "   ";
+        }
         match fluent_syntax::parser::parse_runtime(fluent_msg.as_str()) {
             Ok(ast) => {
                 let span = input.message.span();

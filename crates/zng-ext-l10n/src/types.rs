@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use semver::Version;
 use zng_ext_fs_watcher::WatcherReadStatus;
 use zng_layout::context::LayoutDirection;
-use zng_txt::Txt;
+use zng_txt::{ToTxt, Txt};
 use zng_var::{context_var, impl_from_and_into_var, ArcEq, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, VarValue};
 
 use crate::{lang, service::L10N_SV, L10N};
@@ -230,7 +230,9 @@ impl_from_and_into_var! {
     fn from(number: FluentNumber) -> L10nArgument {
         L10nArgument::Number(number)
     }
-
+    fn from(b: bool) -> L10nArgument {
+        b.to_txt().into()
+    }
 }
 macro_rules! impl_from_and_into_var_number {
     ($($literal:tt),+) => {

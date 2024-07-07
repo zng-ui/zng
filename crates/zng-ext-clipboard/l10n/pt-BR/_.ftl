@@ -1,11 +1,11 @@
 COPY_CMD =
-    .info = Place a copy of the selection in the clipboard.
-    .name = Copy
+    .info = Colocar uma cópia da seleção na área de transferência.
+    .name = Copiar
 
 CUT_CMD =
-    .info = Remove the selection and place it in the clipboard.
-    .name = Cut
+    .info = Remover a seleção e colocá-la na área de transferência.
+    .name = Recortar
 
 PASTE_CMD =
-    .info = Insert content from the clipboard.
-    .name = Paste
+    .info = Inserir o conteúdo da área de transferência.
+    .name = Colar

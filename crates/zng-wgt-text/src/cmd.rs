@@ -9,6 +9,7 @@ use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
+use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_wgt::prelude::*;
 
@@ -549,7 +550,7 @@ impl TextEditOp {
                 caret.set_index(caret_idx); // (re)start caret animation
                 caret.selection_index = selection_idx;
             }
-            UndoFullOp::Info { info } => *info = Some(Arc::new("clear")),
+            UndoFullOp::Info { info } => *info = Some(Arc::new(l10n!("text-edit-op.clear", "clear").get())),
             UndoFullOp::Merge {
                 next_data,
                 within_undo_interval,
@@ -607,7 +608,7 @@ impl TextEditOp {
                 drop(ctx);
                 TEXT.resolve_caret().set_char_selection(select_before.start, select_before.end);
             }
-            UndoFullOp::Info { info } => *info = Some(Arc::new("replace")),
+            UndoFullOp::Info { info } => *info = Some(Arc::new(l10n!("text-edit-op.replace", "replace").get())),
             UndoFullOp::Merge { .. } => {}
         })
     }
@@ -649,7 +650,7 @@ impl TextEditOp {
                     let _ = ctx.txt.set(prev.clone());
                 }
             }
-            UndoFullOp::Info { info } => *info = Some(Arc::new("transform")),
+            UndoFullOp::Info { info } => *info = Some(Arc::new(l10n!("text-edit-op.transform", "transform").get())),
             UndoFullOp::Merge { .. } => {}
         })
     }
@@ -730,7 +731,7 @@ impl UndoAction for UndoTextEditOp {
         let mut info = None;
         (op.op)(&mut *op.data, UndoFullOp::Info { info: &mut info });
 
-        info.unwrap_or_else(|| Arc::new("text edit"))
+        info.unwrap_or_else(|| Arc::new(l10n!("text-edit-op.generic", "text edit").get()))
     }
 
     fn as_any(&mut self) -> &mut dyn std::any::Any {
@@ -782,7 +783,7 @@ impl RedoAction for UndoTextEditOp {
         let mut info = None;
         (op.op)(&mut *op.data, UndoFullOp::Info { info: &mut info });
 
-        info.unwrap_or_else(|| Arc::new("text edit"))
+        info.unwrap_or_else(|| Arc::new(l10n!("text-edit-op.generic", "text edit").get()))
     }
 }
 

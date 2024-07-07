@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 use zng_app::crash_handler::*;
 use zng_ext_config::CONFIG;
+use zng_ext_l10n::l10n;
 use zng_ext_window::{StartPosition, WindowRoot, WINDOWS};
 use zng_wgt::prelude::*;
 use zng_wgt::{align, corner_radius, enabled, margin};
@@ -24,13 +25,15 @@ use zng_wgt_tooltip::{tooltip, Tip};
 use zng_wgt_window::Window;
 use zng_wgt_wrap::Wrap;
 
+// l10n-## Debug Crash Handler
+
 /// Debug dialog window.
 ///
 /// Used by `zng::app::init_debug`.
 pub fn debug_dialog(args: CrashArgs) -> WindowRoot {
     let error = args.latest();
     Window! {
-        title = formatx!("{} - App Crashed", zng_env::about().app);
+        title = l10n!("crash-handler/window.title", "{$app} - App Crashed", app=zng_env::about().app.clone());
         start_position = StartPosition::CenterMonitor;
         color_scheme = ColorScheme::Dark;
 
@@ -109,6 +112,8 @@ fn panels(error: &CrashError) -> impl UiNode {
     }
 }
 
+// l10n-## Panels
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ErrorPanel {
     Summary,
@@ -123,16 +128,15 @@ enum ErrorPanel {
 impl ErrorPanel {
     fn title(&self) -> Txt {
         match self {
-            ErrorPanel::Summary => "Summary",
-            ErrorPanel::Stdout => "Stdout",
-            ErrorPanel::Stderr => "Stderr",
-            ErrorPanel::StdoutPlain => "Stdout (plain)",
-            ErrorPanel::StderrPlain => "Stderr (plain)",
-            ErrorPanel::Panic => "Panic",
-            ErrorPanel::Widget => "Widget",
-            ErrorPanel::Minidump => "Minidump",
+            ErrorPanel::Summary => l10n!("crash-handler/summary.title", "Summary").get(),
+            ErrorPanel::Stdout => l10n!("crash-handler/stdout.title", "Stdout").get(),
+            ErrorPanel::Stderr => l10n!("crash-handler/stderr.title", "Stderr").get(),
+            ErrorPanel::StdoutPlain => l10n!("crash-handler/stdout.title-plain", "Stdout (plain)").get(),
+            ErrorPanel::StderrPlain => l10n!("crash-handler/stderr.title-plain", "Stderr (plain)").get(),
+            ErrorPanel::Panic => l10n!("crash-handler/panic.title", "Panic").get(),
+            ErrorPanel::Widget => l10n!("crash-handler/widget.title", "Widget").get(),
+            ErrorPanel::Minidump => l10n!("crash-handler/minidump.title", "Minidump").get(),
         }
-        .into()
     }
 
     fn panel(&self, error: &CrashError) -> BoxedUiNode {
@@ -150,32 +154,43 @@ impl ErrorPanel {
 }
 
 fn summary_panel(error: &CrashError) -> impl UiNode {
-    let s = formatx!(
-        "Timestamp: {}\nExit Code: {}\nSignal: {}\nStderr: {} bytes\nStdout: {} bytes\nPanic: {}\nMinidump: {}\n\nArgs: {:?}\nOS: {}",
-        error.unix_time(),
-        match error.code {
+    let s = l10n!(
+        "crash-handler/summary.text",
+        "Timestamp: {$timestamp}
+Exit Code: {$exit_code}
+Signal: {$signal}
+Stderr: {$stderr_len} bytes
+Stdout: {$stdout_len} bytes
+Panic: {$is_panic}
+Minidump: {$minidump_path}
+
+Args: {$args}
+OS: {$os}
+",
+        timestamp = error.unix_time(),
+        exit_code = match error.code {
             Some(c) => format!("{c:#x}"),
-            None => "<none>".to_owned(),
+            None => String::new(),
         },
-        match error.signal {
+        signal = match error.signal {
             Some(c) => format!("{c}"),
-            None => "<none>".to_owned(),
+            None => String::new(),
         },
-        error.stderr.len(),
-        error.stdout.len(),
-        error.find_panic().is_some(),
-        match &error.minidump {
+        stderr_len = error.stderr.len(),
+        stdout_len = error.stdout.len(),
+        is_panic = error.find_panic().is_some(),
+        minidump_path = match &error.minidump {
             Some(p) => {
                 let path = p.display().to_string();
                 let path = path.trim_start_matches(r"\\?\");
                 path.to_owned()
             }
-            None => "<none>".to_owned(),
+            None => "none".to_owned(),
         },
-        error.args,
-        error.os,
+        args = format!("{:?}", error.args),
+        os = error.os.clone(),
     );
-    plain_panel(s, "summary")
+    plain_panel(s.get(), "summary")
 }
 
 fn std_panel(std: Txt, config_key: &'static str) -> impl UiNode {
@@ -270,7 +285,15 @@ async fn open_path(enabled: ArcVar<bool>, path: PathBuf) {
     enabled.set(false);
 
     if let Err(e) = task::wait(move || open::that(path)).await {
-        error_message(formatx!("Failed to open minidump.\n{e}")).await;
+        error_message(
+            l10n!(
+                "crash-handler/minidump.open-error",
+                "Failed to open minidump.\n{$error}",
+                error = e.to_string()
+            )
+            .get(),
+        )
+        .await;
     }
 
     enabled.set(true);
@@ -279,15 +302,20 @@ async fn save_copy(enabled: ArcVar<bool>, path: PathBuf) {
     enabled.set(false);
 
     let mut dialog = zng_view_api::dialog::FileDialog {
-        title: "Save Copy".into(),
+        title: l10n!("crash-handler/minidump.save-copy-title", "Save Copy").get(),
         starting_dir: path.parent().unwrap().to_owned(),
-        starting_name: "minidump".into(),
+        // l10n-# default file name
+        starting_name: l10n!("crash-handler/minidump.save-copy-starting-name", "minidump").get(),
         kind: zng_view_api::dialog::FileDialogKind::SaveFile,
         ..Default::default()
     };
 
     if let Some(ext) = path.extension() {
-        dialog.push_filter("Minidump", &[ext.to_string_lossy()]);
+        // l10n-# name for the minidump file type in the save file dialog
+        dialog.push_filter(
+            l10n!("crash-handler/minidump.save-copy-filter-name", "Minidump").get().as_str(),
+            &[ext.to_string_lossy()],
+        );
     }
 
     let r = WINDOWS.native_file_dialog(WINDOW.id(), dialog).wait_into_rsp().await;
@@ -296,11 +324,29 @@ async fn save_copy(enabled: ArcVar<bool>, path: PathBuf) {
         zng_view_api::dialog::FileDialogResponse::Selected(mut paths) => {
             let destiny = paths.remove(0);
             if let Err(e) = task::wait(move || std::fs::copy(path, destiny)).await {
-                error_message(formatx!("Failed so save minidump copy.\n{e}")).await;
+                error_message(
+                    l10n!(
+                        "crash-handler/minidump.save-error",
+                        "Failed so save minidump copy.\n{$error}",
+                        error = format!("[copy] {e}"),
+                    )
+                    .get(),
+                )
+                .await;
             }
         }
         zng_view_api::dialog::FileDialogResponse::Cancel => {}
-        zng_view_api::dialog::FileDialogResponse::Error(e) => error_message(formatx!("Failed to save minidump.\n{e}")).await,
+        zng_view_api::dialog::FileDialogResponse::Error(e) => {
+            error_message(
+                l10n!(
+                    "crash-handler/minidump.save-error",
+                    "Failed so save minidump copy.\n{$error}",
+                    error = format!("[dialog] {e}"),
+                )
+                .get(),
+            )
+            .await
+        }
     }
 
     enabled.set(true);
@@ -310,7 +356,15 @@ async fn remove_path(enabled: ArcVar<bool>, path: PathBuf) {
 
     if let Err(e) = task::wait(move || std::fs::remove_file(path)).await {
         if e.kind() != std::io::ErrorKind::NotFound {
-            error_message(formatx!("Failed to open minidump.\n{e}")).await;
+            error_message(
+                l10n!(
+                    "crash-handler/minidump.remove-error",
+                    "Failed to remove minidump.\n{$error}",
+                    error = e.to_string()
+                )
+                .get(),
+            )
+            .await;
         }
     }
 

@@ -163,7 +163,7 @@ pub(crate) fn setup_default_view() {
                     }
 
                     Window! {
-                        title = formatx!("{} - Third Party Licenses", zng::env::about().app);
+                        title = l10n!("window.title", "{$app} - Third Party Licenses", app=zng::env::about().app.clone());
                         child = default_view();
                         parent;
                     }
@@ -178,13 +178,15 @@ fn default_view() -> impl UiNode {
     if licenses.is_empty() {
         licenses.push(UserLicense {
             user: User {
-                name: "<none>".into(),
+                // l10n-# "user" is the package that uses the license
+                name: l10n!("license-none.user-name", "<none>").get(),
                 version: "".into(),
                 url: "".into(),
             },
             license: License {
-                id: "<none>".into(),
-                name: "No license data".into(),
+                id: l10n!("license-none.id", "<none>").get(),
+                // l10n-# License name
+                name: l10n!("license-none.name", "No license data").get(),
                 text: "".into(),
             },
         });
@@ -201,7 +203,7 @@ fn default_view() -> impl UiNode {
                 txt = search.clone();
                 style_fn = zng_wgt_text_input::SearchStyle!();
                 zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
-                placeholder_txt = "search licenses (Ctrl+F)";
+                placeholder_txt = l10n!("search.placeholder", "search licenses ({$shortcut})", shortcut="Ctrl+F");
             }, 0;
             // list
             child = Scroll! {

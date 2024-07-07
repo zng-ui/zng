@@ -9,7 +9,7 @@ use zng_app::widget::{
 use zng_color::Rgba;
 use zng_ext_font::{FontStyle, FontWeight};
 use zng_ext_input::focus::FOCUS;
-use zng_ext_l10n::lang;
+use zng_ext_l10n::{l10n, lang};
 use zng_ext_window::{WindowRoot, WINDOWS};
 use zng_var::animation::easing;
 use zng_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
@@ -34,6 +34,8 @@ use super::data_model::*;
 
 use super::HitSelect;
 
+// l10n-## Inspector Window (always en-US)
+
 /// New inspector window.
 pub(super) fn new(
     inspected: WindowId,
@@ -47,13 +49,11 @@ pub(super) fn new(
 
     let vars = WINDOWS.vars(inspected).unwrap();
 
-    let title = vars.title().map(|t| {
-        if !t.is_empty() {
-            formatx!("{t} - Inspector")
-        } else {
-            "Inspector".into()
-        }
-    });
+    let title = l10n!(
+        "inspector/window.title",
+        "{$inspected_window_title} - Inspector",
+        inspected_window_title = vars.title()
+    );
     let icon = vars.icon();
 
     let wgt_filter = var(Txt::from_static(""));
@@ -458,7 +458,7 @@ fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
             txt_align = Align::TOP;
             padding = 20;
             font_style = FontStyle::Italic;
-            txt = formatx!("select a widget to inspect");
+            txt = l10n!("inspector/select-widget", "select a widget to inspect");
         }
     }
 }
@@ -514,7 +514,7 @@ fn nest_group_view(group: NestGroup, mut items: UiNodeVec) -> impl UiNode {
         0,
         Text! {
             txt = formatx!("// {}", group.name());
-            tooltip = Tip!(Text!("nest group"));
+            tooltip = Tip!(Text!(l10n!("inspector/nest-group-help", "nest group")));
             margin = (10, 0, 0, 0);
             font_color = NEST_GROUP_COLOR_VAR;
         },
@@ -600,7 +600,7 @@ fn intrinsic_view(name: &'static str) -> impl UiNode {
     Text! {
         txt = name;
         font_style = FontStyle::Italic;
-        tooltip = Tip!(Text!("intrinsic node"));
+        tooltip = Tip!(Text!(l10n!("inspector/intrinsic-help", "intrinsic node")));
     }
 }
 
@@ -649,7 +649,7 @@ fn info_watchers(wgt: &InspectedWidget) -> impl UiNode {
         children = ui_vec![
             Text! {
                 txt = formatx!("/* INFO */");
-                tooltip = Tip!(Text!("watched widget info"));
+                tooltip = Tip!(Text!(l10n!("inspector/info-help", "watched widget info")));
                 font_color = NEST_GROUP_COLOR_VAR;
             },
             Wrap!(children),
@@ -691,16 +691,19 @@ async fn save_screenshot(inspected: WindowId, inspector: WindowId) {
     let frame = WINDOWS.frame_image(inspected, None);
 
     let mut dlg = zng_view_api::dialog::FileDialog {
-        title: "Save Screenshot".into(),
+        title: l10n!("inspector/screenshot.save-dlg-title", "Save Screenshot").get(),
         kind: zng_view_api::dialog::FileDialogKind::SaveFile,
-        starting_name: "screenshot.png".into(),
+        starting_name: l10n!("inspector/screenshot.save-dlg-starting-name", "screenshot.png").get(),
         ..Default::default()
     };
     let encoders = zng_ext_image::IMAGES.available_encoders();
     for enc in &encoders {
         dlg.push_filter(&enc.to_uppercase(), &[enc]);
     }
-    dlg.push_filter("Image Files", &encoders);
+    dlg.push_filter(
+        l10n!("inspector/screenshot.save-dlg-filter", "Image Files").get().as_str(),
+        &encoders,
+    );
 
     let r = WINDOWS.native_file_dialog(inspector, dlg).wait_rsp().await;
     let path = match r {
@@ -720,7 +723,16 @@ async fn save_screenshot(inspected: WindowId, inspector: WindowId) {
     } else {
         let r = frame.save(path).await;
         if let Err(e) = r {
-            screenshot_error(formatx!("Screenshot save error. {e}"), inspector).await;
+            screenshot_error(
+                l10n!(
+                    "inspector/screenshot.save-error",
+                    "Screenshot save error. {$error}",
+                    error = e.to_string()
+                )
+                .get(),
+                inspector,
+            )
+            .await;
         }
     }
 }
@@ -736,7 +748,16 @@ async fn copy_screenshot(inspected: WindowId, inspector: WindowId) {
     } else {
         let r = zng_ext_clipboard::CLIPBOARD.set_image(frame).wait_rsp().await;
         if let Err(e) = r {
-            screenshot_error(formatx!("Clipboard error. {e}"), inspector).await;
+            screenshot_error(
+                l10n!(
+                    "inspector/screenshot.copy-error",
+                    "Screenshot copy error. {$error}",
+                    error = e.to_string()
+                )
+                .get(),
+                inspector,
+            )
+            .await;
         }
     }
 }
@@ -745,8 +766,8 @@ async fn screenshot_error(e: Txt, inspector: WindowId) {
     let r = WINDOWS.native_message_dialog(
         inspector,
         zng_view_api::dialog::MsgDialog {
-            title: "Screenshot Error".into(),
-            message: formatx!("Screenshot error.\n\n{e}"),
+            title: l10n!("inspector/screenshot.error-dlg-title", "Screenshot Error").get(),
+            message: e,
             icon: zng_view_api::dialog::MsgDialogIcon::Error,
             ..Default::default()
         },
