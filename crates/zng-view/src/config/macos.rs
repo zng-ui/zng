@@ -54,9 +54,13 @@ pub fn colors_config() -> ColorsConfig {
 
     let accent = unsafe {
         let a = NSColor::controlAccentColor();
-        Rgba::new(a.redComponent(), a.greenComponent(), a.blueComponent(), a.alphaComponent())
+        if let Some(a) = a.colorUsingColorSpace(&NSColorSpace::deviceRGBColorSpace()) {
+            Rgba::new(a.redComponent(), a.greenComponent(), a.blueComponent(), a.alphaComponent())
+        } else {
+            tracing::warn!("failed to determine macOS accent color");
+            ColorsConfig::default().accent
+        }
     };
-
     ColorsConfig { scheme, accent }
 }
 

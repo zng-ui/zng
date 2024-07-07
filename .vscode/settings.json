@@ -202,6 +202,6 @@
         "zng"
     ],
     "lldb.launch.env": {
-        "NO_ZNG_CRASH_HANDLER": ""
+        "ZNG_NO_CRASH_HANDLER": ""
     }
 }

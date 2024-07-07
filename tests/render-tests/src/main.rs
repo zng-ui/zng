@@ -26,10 +26,9 @@ fn main() {
         std::process::exit(101);
     });
 
-    zng::env::init!();
-
     let args = Args::parse();
     if let Ok(vp) = env::var("RENDER_TESTS_VP") {
+        zng::env::init!();
         return run(args, vp.into());
     }
 
@@ -39,6 +38,7 @@ fn main() {
         if args.include_vp(&view_process) {
             let result = std::process::Command::new(std::env::current_exe().unwrap())
                 .env("ZNG_VIEW_NO_INIT_START", "")
+                .env("ZNG_NO_CRASH_HANDLER", "")
                 .env("RENDER_TESTS_VP", view_process)
                 .args(std::env::args().skip(1))
                 // .env("RUST_BACKTRACE", "1")
