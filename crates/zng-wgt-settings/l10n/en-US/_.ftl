@@ -1,0 +1,2 @@
+widow =
+    .title = {$app} - Settings
