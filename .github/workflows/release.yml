@@ -54,6 +54,8 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo check --workspace --examples --tests --release
         if: ${{ github.event.inputs.skip_checks != 'true' }}
+      - run: cargo do l10n --all --check
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
   check-windows:

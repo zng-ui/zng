@@ -332,7 +332,7 @@ fn doc(mut args: Vec<&str>) {
     }
 }
 
-// do l10n [-p, --package <pkg>]
+// do l10n [-p, --package <pkg>] [--check]
 //         [--all]
 //
 //    Scrap localization files for publishing. Localization filers are placed in
@@ -353,17 +353,26 @@ fn l10n(mut args: Vec<&str>) {
         util::top_cargo_toml("crates")
     };
 
+    let check = args.iter().any(|a| *a == "--check");
+
     cmd_req("cargo", &["build", "--package", "cargo-zng"], &[]);
     let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
     for manifest_path in crates {
         let output = std::path::Path::new(&manifest_path).with_file_name("l10n");
-        if let Err(e) = std::fs::remove_dir_all(&output.join("template")) {
-            if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
-                error(f!("cannot clear `{}`, {e}", output.display()));
-                continue;
+
+        if !check {
+            if let Err(e) = std::fs::remove_dir_all(&output.join("template")) {
+                if !matches!(e.kind(), std::io::ErrorKind::NotFound) {
+                    error(f!("cannot clear `{}`, {e}", output.display()));
+                    continue;
+                }
             }
         }
-        cmd(&exe, &["zng", "l10n", "--no-deps", "--manifest-path", manifest_path.as_str()], &[]);
+        cmd(
+            &exe,
+            &["zng", "l10n", "--no-deps", "--manifest-path", manifest_path.as_str()],
+            &args,
+        );
     }
 }
 

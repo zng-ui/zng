@@ -117,7 +117,7 @@ features = [
     "Win32_System_Shutdown",
 ]
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.57.0"
+version = "0.58.0"
 features = ["Foundation_Collections", "System_UserProfile", "UI_ViewManagement"]
 
 [target.'cfg(windows)'.dependencies]
