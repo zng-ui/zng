@@ -13,10 +13,10 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.4.3" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.3.10" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.0" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.10" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.2.20" }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.3.10" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.0" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.0" }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.10" }
 zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.3.10" }
 zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.3.10" }
@@ -28,13 +28,13 @@ zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.20" }
 zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.20" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.20" }
 zng-wgt-image = { path = "../zng-wgt-image", version = "0.3.10" }
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.3.10" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.4.0" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.20" }
 zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.20" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.8" }
 zng-ext-image = { path = "../zng-ext-image", version = "0.2.20" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.3.16" }
-zng-app = { path = "../zng-app", version = "0.8.1" }
+zng-app = { path = "../zng-app", version = "0.9.0" }
 
 pulldown-cmark = "0.11"
 http = "1.1"

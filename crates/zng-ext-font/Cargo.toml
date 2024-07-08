@@ -20,14 +20,14 @@ hyphenation_embed_all = ["hyphenation/embed_all"]
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
 zng-app-context = { path = "../zng-app-context", version = "0.5.3" }
-zng-app = { path = "../zng-app", version = "0.8.1" }
+zng-app = { path = "../zng-app", version = "0.9.0" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
-zng-view-api = { path = "../zng-view-api", version = "0.5.5" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.4.1" }
+zng-view-api = { path = "../zng-view-api", version = "0.6.0" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.0" }
 zng-var = { path = "../zng-var", version = "0.4.6" }
 zng-task = { path = "../zng-task", version = "0.3.4" }
 zng-layout = { path = "../zng-layout", version = "0.2.16" }
-zng-color = { path = "../zng-color", version = "0.2.20" }
+zng-color = { path = "../zng-color", version = "0.3.0" }
 
 serde = "1.0"
 unicase = "2.7"

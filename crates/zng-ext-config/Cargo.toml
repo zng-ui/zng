@@ -21,7 +21,7 @@ ron = ["dep:ron", "zng-ext-fs-watcher/ron"]
 
 [dependencies]
 zng-app-context = { path = "../zng-app-context", version = "0.5.3" }
-zng-app = { path = "../zng-app", version = "0.8.1" }
+zng-app = { path = "../zng-app", version = "0.9.0" }
 zng-var = { path = "../zng-var", version = "0.4.6" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 zng-task = { path = "../zng-task", version = "0.3.4" }
