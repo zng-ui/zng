@@ -109,7 +109,7 @@ serde_json = { version = "1.0", optional = true }
 breakpad-handler = { version = "0.2", optional = true }
 minidump = { version = "0.22", optional = true }
 linkme = { version = "=0.3.27", optional = true }
-hashbrown = { version = "*", features = ["rayon"] }
+hashbrown = { version = "0.14", features = ["rayon"] }
 rustc-hash = "2.0"
 
 dunce = "1.0"
