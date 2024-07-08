@@ -81,7 +81,7 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         .boxed()
     }
 
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
         let mut d = self.0.lock();
         let d = &mut *d;
 
@@ -97,9 +97,9 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
         let cfg_contains_key_var = d.config.contains_key(key.clone());
         let is_already_set = cfg_contains_key_var.get();
 
-        let cfg_var = d.config.get_raw(key.clone(), default.clone(), shared);
+        let cfg_var = d.config.get_raw(key.clone(), default.clone(), insert, shared);
 
-        let fall_var = d.fallback.get_raw(key, default, shared);
+        let fall_var = d.fallback.get_raw(key, default, false, shared);
 
         let res_var = var(if is_already_set { cfg_var.get() } else { fall_var.get() });
         entry.res = res_var.downgrade();
@@ -241,8 +241,8 @@ impl<S: Config, F: Config> AnyConfig for FallbackConfig<S, F> {
     }
 }
 impl<S: Config, F: Config> Config for FallbackConfig<S, F> {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
-        self.get_raw(key.into(), RawConfigValue::serialize(&default).unwrap(), true)
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
+        self.get_raw(key.into(), RawConfigValue::serialize(&default).unwrap(), insert, true)
             .filter_map_bidi(
                 |raw| raw.clone().deserialize().ok(),
                 |v| RawConfigValue::serialize(v).ok(),

@@ -292,8 +292,7 @@ pub fn save_state_node<S: ConfigValue>(
             State::Loaded => {
                 if let Some(new) = on_update_save(false) {
                     if let Some(key) = enabled.enabled_key() {
-                        let cfg = CONFIG.get(key, new.clone());
-                        let _ = cfg.set(new);
+                        let cfg = CONFIG.insert(key, new.clone());
                         state = State::LoadedWithCfg(cfg);
                     } else {
                         state = State::Disabled;

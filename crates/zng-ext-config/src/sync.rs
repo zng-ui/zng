@@ -54,29 +54,38 @@ impl<M: ConfigMap> SyncConfig<M> {
         }
     }
 
-    fn get_new_raw(sync_var: &ArcVar<M>, key: ConfigKey, default: RawConfigValue) -> BoxedVar<RawConfigValue> {
+    fn get_new_raw(sync_var: &ArcVar<M>, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
         // init var to already present value, or default.
+        let mut used_default = false;
         let var = match sync_var.with(|m| ConfigMap::get_raw(m, &key)) {
             Ok(raw) => {
                 // get ok
                 match raw {
                     Some(raw) => var(raw),
-                    None => var(default),
+                    None => {
+                        used_default = true;
+                        var(default)
+                    }
                 }
             }
             Err(e) => {
                 // get error
                 tracing::error!("sync config get({key:?}) error, {e:?}");
+                used_default = true;
                 var(default)
             }
         };
+
+        if insert && used_default {
+            var.update();
+        }
 
         // bind entry var
 
         // config -> entry
         let wk_var = var.downgrade();
         let last_update = Atomic::new(VarUpdateId::never());
-        let backend_lost_entry = AtomicBool::new(false);
+        let request_update = AtomicBool::new(used_default);
         sync_var
             .hook(clmv!(key, |map| {
                 let update_id = VARS.update_id();
@@ -90,14 +99,14 @@ impl<M: ConfigMap> SyncConfig<M> {
                             // get ok
                             if let Some(raw) = raw {
                                 var.set(raw);
-                                if backend_lost_entry.swap(false, Ordering::Relaxed) {
+                                if request_update.swap(false, Ordering::Relaxed) {
                                     // restored after reset, var can already have the value,
                                     // but upstream bindings are stale, cause an update.
                                     var.update();
                                 }
                             } else {
                                 // backend lost entry but did not report as error, probably a reset.
-                                backend_lost_entry.store(true, Ordering::Relaxed);
+                                request_update.store(true, Ordering::Relaxed);
                             }
                         }
                         Err(e) => {
@@ -150,19 +159,28 @@ impl<M: ConfigMap> SyncConfig<M> {
         var.boxed()
     }
 
-    fn get_new<T: ConfigValue>(sync_var: &ArcVar<M>, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
+    fn get_new<T: ConfigValue>(sync_var: &ArcVar<M>, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
         // init var to already present value, or default.
         let key = key.into();
+        let mut used_default = false;
         let var = match sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
             Ok(value) => match value {
                 Some(val) => var(val),
-                None => var(default),
+                None => {
+                    used_default = true;
+                    var(default)
+                }
             },
             Err(e) => {
                 tracing::error!("sync config get({key:?}) error, {e:?}");
+                used_default = true;
                 var(default)
             }
         };
+
+        if insert && used_default {
+            var.update();
+        }
 
         // bind entry var
 
@@ -212,12 +230,12 @@ impl<M: ConfigMap> SyncConfig<M> {
     }
 }
 impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
         if shared {
             self.shared
-                .get_or_bind(key, |key| Self::get_new_raw(&self.sync_var, key.clone(), default))
+                .get_or_bind(key, |key| Self::get_new_raw(&self.sync_var, key.clone(), default, insert))
         } else {
-            Self::get_new_raw(&self.sync_var, key, default)
+            Self::get_new_raw(&self.sync_var, key, default, insert)
         }
     }
 
@@ -244,8 +262,8 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
     }
 }
 impl<M: ConfigMap> Config for SyncConfig<M> {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
         self.shared
-            .get_or_bind(key.into(), |key| Self::get_new(&self.sync_var, key.clone(), default))
+            .get_or_bind(key.into(), |key| Self::get_new(&self.sync_var, key.clone(), default, insert))
     }
 }

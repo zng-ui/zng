@@ -113,12 +113,17 @@ impl CONFIG {
     /// The `default` value is used if the key is not found in the config, the default value
     /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
     pub fn get<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
-        CONFIG_SV.write().get(key.into(), default)
+        CONFIG_SV.write().get(key.into(), default, false)
+    }
+
+    /// Gets a variable that is bound to the config `key`, the `value` is set and if the `key` was not present it is also inserted on the config.
+    pub fn insert<T: ConfigValue>(&self, key: impl Into<ConfigKey>, value: T) -> BoxedVar<T> {
+        CONFIG_SV.write().get(key.into(), value, true)
     }
 }
 impl AnyConfig for CONFIG {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
-        CONFIG_SV.write().get_raw(key, default, shared)
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
+        CONFIG_SV.write().get_raw(key, default, insert, shared)
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
@@ -138,8 +143,8 @@ impl AnyConfig for CONFIG {
     }
 }
 impl Config for CONFIG {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
-        CONFIG.get(key, default)
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
+        CONFIG_SV.write().get(key, default, insert)
     }
 }
 
@@ -261,8 +266,8 @@ pub trait AnyConfig: Send + Any {
     /// key they will go out-of-sync as updates from setting one variable do not propagate to the other.
     ///
     /// The `default` value is used if the key is not found in the config, the default value
-    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue>;
+    /// is only inserted in the config if `insert`, otherwise the key is inserted or replaced only when the returned variable changes.
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue>;
 
     /// Gets a read-only variable that tracks if an entry for the `key` is in the backing storage.
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool>;
@@ -283,11 +288,12 @@ impl dyn AnyConfig {
     /// Get raw config and setup a bidi binding that converts to and from `T`.
     ///
     /// See [`get_raw`](AnyConfig::get_raw) for more details about the inputs.
-    pub fn get_raw_serde_bidi<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, shared: bool) -> BoxedVar<T> {
+    pub fn get_raw_serde_bidi<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool, shared: bool) -> BoxedVar<T> {
         let key = key.into();
         let source_var = self.get_raw(
             key.clone(),
             RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
+            insert,
             shared,
         );
         let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));
@@ -332,8 +338,8 @@ pub trait Config: AnyConfig {
     /// returned variable can be set to update the config source.
     ///
     /// The `default` value is used if the key is not found in the config, the default value
-    /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T>;
+    /// is only inserted in the config if `insert`, otherwise the key is inserted or replaced only when the returned variable changes.
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T>;
 }
 
 /// Config wrapper that only provides read-only variables from the inner config.
@@ -347,8 +353,8 @@ impl<C: Config> ReadOnlyConfig<C> {
     }
 }
 impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
-        self.cfg.get_raw(key, default, shared).read_only()
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _: bool, shared: bool) -> BoxedVar<RawConfigValue> {
+        self.cfg.get_raw(key, default, false, shared).read_only()
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
@@ -368,8 +374,8 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
     }
 }
 impl<C: Config> Config for ReadOnlyConfig<C> {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
-        self.cfg.get(key.into(), default).read_only()
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, _: bool) -> BoxedVar<T> {
+        self.cfg.get(key.into(), default, false).read_only()
     }
 }
 
@@ -387,7 +393,7 @@ impl AnyConfig for MemoryConfig {
         LocalVar(ConfigStatus::Loaded).boxed()
     }
 
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _shared: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _insert: bool, _shared: bool) -> BoxedVar<RawConfigValue> {
         match self.values.entry(key) {
             hash_map::Entry::Occupied(e) => e.get().clone().boxed(),
             hash_map::Entry::Vacant(e) => {
@@ -443,8 +449,8 @@ impl AnyConfig for MemoryConfig {
     }
 }
 impl Config for MemoryConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
-        self.get_raw(key.into(), RawConfigValue::serialize(default.clone()).unwrap(), true)
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
+        self.get_raw(key.into(), RawConfigValue::serialize(default.clone()).unwrap(), insert, true)
             .filter_map_bidi(
                 |m| m.clone().deserialize::<T>().ok(),
                 |v| RawConfigValue::serialize(v).ok(),
@@ -615,7 +621,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
         };
 
         // get or insert the source var
-        let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), false);
+        let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), false, false);
 
         // var.set_from_map(source_var)
         var.modify(clmv!(source_var, key, |vm| {

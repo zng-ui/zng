@@ -15,12 +15,12 @@ pub struct SwapConfig {
     status_binding: VarHandle,
 }
 impl AnyConfig for SwapConfig {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
         if shared {
             self.shared
-                .get_or_bind(key, |key| self.cfg.get_mut().get_raw(key.clone(), default, false))
+                .get_or_bind(key, |key| self.cfg.get_mut().get_raw(key.clone(), default, insert, false))
         } else {
-            self.cfg.get_mut().get_raw(key, default, false)
+            self.cfg.get_mut().get_raw(key, default, insert, false)
         }
     }
 
@@ -43,10 +43,10 @@ impl AnyConfig for SwapConfig {
     }
 }
 impl Config for SwapConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
         self.shared.get_or_bind(key.into(), |key| {
             // not in shared, bind with source json var.
-            self.cfg.get_mut().get_raw_serde_bidi(key.clone(), default, false)
+            self.cfg.get_mut().get_raw_serde_bidi(key.clone(), default, insert, false)
         })
     }
 }
@@ -102,12 +102,12 @@ mod tests {
 
         let mut cfg = SwapConfig::new();
 
-        let v = cfg.get("key", true);
+        let v = cfg.get("key", true, false);
         assert!(v.get());
         v.set(false).unwrap();
         app.update(false).assert_wait();
 
-        let v2 = cfg.get("key", true);
+        let v2 = cfg.get("key", true, false);
         assert!(!v2.get() && !v.get());
         assert_eq!(v.var_ptr(), v2.var_ptr());
     }
@@ -121,14 +121,14 @@ mod tests {
             .run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
-        let c1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        let c1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
         c1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
 
         let mut test = SwapConfig::new();
         test.replace_source(Box::new(inner1));
 
-        let c1 = test.get("key", 0);
+        let c1 = test.get("key", 0, false);
 
         assert_eq!(32, c1.get());
     }
@@ -142,19 +142,19 @@ mod tests {
             .run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
-        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
 
         let mut test = SwapConfig::new();
         test.replace_source(Box::new(inner1));
 
-        let cfg = test.get("key", 0);
+        let cfg = test.get("key", 0, false);
 
         assert_eq!(32, cfg.get());
 
         let mut inner2 = MemoryConfig::default();
-        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
         inner_v2.set(RawConfigValue::serialize(42).unwrap()).unwrap();
         app.update(false).assert_wait();
 
@@ -173,19 +173,19 @@ mod tests {
             .run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
-        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
 
         let mut test = SwapConfig::new();
         test.replace_source(Box::new(inner1));
 
-        let cfg = test.get("key", 0);
+        let cfg = test.get("key", 0, false);
 
         assert_eq!(32, cfg.get());
 
         let mut inner2 = MemoryConfig::default();
-        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
         app.update(false).assert_wait();
 
         test.replace_source(Box::new(inner2));
@@ -208,29 +208,29 @@ mod tests {
 
         let mut fallback = MemoryConfig::default();
         fallback
-            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true)
+            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true)
             .set(RawConfigValue::serialize(100).unwrap())
             .unwrap();
 
         let mut inner1 = MemoryConfig::default();
-        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
 
         let mut test = SwapConfig::new();
         test.replace_source(Box::new(FallbackConfig::new(inner1, fallback)));
 
-        let cfg = test.get("key", -1);
+        let cfg = test.get("key", -1, false);
 
         assert_eq!(32, cfg.get());
 
         let mut fallback = MemoryConfig::default();
         fallback
-            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true)
+            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true)
             .set(RawConfigValue::serialize(100).unwrap())
             .unwrap();
         let mut inner2 = MemoryConfig::default();
-        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), true);
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
         app.update(false).assert_wait();
 
         test.replace_source(Box::new(FallbackConfig::new(inner2, fallback)));

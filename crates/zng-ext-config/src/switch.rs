@@ -84,9 +84,9 @@ impl AnyConfig for SwitchConfig {
         s.build(|status| ConfigStatus::merge_status(status.iter().cloned())).boxed()
     }
 
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, shared: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
         match self.cfg_mut(&key) {
-            Some((key, cfg)) => cfg.get_raw(key, default, shared),
+            Some((key, cfg)) => cfg.get_raw(key, default, insert, shared),
             None => LocalVar(default).boxed(),
         }
     }
@@ -112,13 +112,14 @@ impl AnyConfig for SwitchConfig {
     }
 }
 impl Config for SwitchConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
         let key = key.into();
         match self.cfg_mut(&key) {
             Some((key, cfg)) => {
                 let source_var = cfg.get_raw(
                     key.clone(),
                     RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
+                    insert,
                     false,
                 );
                 let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));

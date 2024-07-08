@@ -575,7 +575,7 @@ impl<'a> SettingBuilder<'a> {
 
     /// Set the value variable from a different config.
     pub fn cfg_value<T: ConfigValue>(&mut self, cfg: &mut impl Config, default: T) -> &mut Self {
-        let value = cfg.get(self.config_key.clone(), default);
+        let value = cfg.get(self.config_key.clone(), default, false);
         self.value = Some((value.boxed_any(), TypeId::of::<T>()));
         self
     }
