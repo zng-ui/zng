@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use zng::{
     app::AppId,
@@ -34,7 +37,7 @@ fn yaml() {
 }
 
 fn test_config<C: AnyConfig>(file: &str, source: impl Fn(&Path) -> C) {
-    let file = PathBuf::from("../target/tmp").join(file);
+    let file = temp(file);
 
     fn run<C: AnyConfig>(source: impl Fn() -> C, test_read: bool) {
         let mut app = APP.defaults().run_headless(false);
@@ -207,7 +210,7 @@ fn test_core_border() {
 
 #[test]
 fn concurrent_read_write() {
-    let file = PathBuf::from("../target/tmp/test.concurrent.json");
+    let file = temp("concurrent.json");
 
     {
         // setup
@@ -259,9 +262,9 @@ fn concurrent_read_write() {
 
 #[test]
 fn fallback_swap() {
-    let main_cfg = PathBuf::from("../target/tmp/test.fallback_swap.target.json");
-    let main_prepared_cfg = PathBuf::from("../target/tmp/test.fallback_swap.prep.json");
-    let fallback_cfg = PathBuf::from("../target/tmp/test.fallback_swap.fallback.json");
+    let main_cfg = temp("fallback_swap.target.json");
+    let main_prepared_cfg = temp("fallback_swap.prep.json");
+    let fallback_cfg = temp("fallback_swap.fallback.json");
 
     {
         // setup
@@ -333,8 +336,8 @@ fn fallback_swap() {
 
 #[test]
 fn fallback_reset() {
-    let main_cfg = PathBuf::from("../target/tmp/test.fallback_reset.target.json");
-    let fallback_cfg = PathBuf::from("../target/tmp/test.fallback_reset.fallback.json");
+    let main_cfg = temp("fallback_reset.target.json");
+    let fallback_cfg = temp("fallback_reset.fallback.json");
 
     {
         // setup
@@ -407,8 +410,8 @@ fn fallback_reset() {
 
 #[test]
 fn fallback_reset_entry() {
-    let main_cfg = PathBuf::from("../target/tmp/test.fallback_reset_entry.target.json");
-    let fallback_cfg = PathBuf::from("../target/tmp/test.fallback_reset_entry.fallback.json");
+    let main_cfg = temp("fallback_reset_entry.target.json");
+    let fallback_cfg = temp("fallback_reset_entry.fallback.json");
 
     {
         // setup
@@ -498,4 +501,10 @@ fn rmv_file_assert(path: &Path) {
             panic!("cannot remove `{}`\n{e}", path.display());
         }
     }
+}
+
+fn temp(file_name: &str) -> PathBuf {
+    let p = Path::new("../target/tmp/tests/config/");
+    let _ = fs::create_dir_all(p);
+    p.join(file_name)
 }

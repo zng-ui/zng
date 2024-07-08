@@ -621,7 +621,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
         };
 
         // get or insert the source var
-        let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), true, false);
+        let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), false, false);
 
         // var.set_from_map(source_var)
         var.modify(clmv!(source_var, key, |vm| {
