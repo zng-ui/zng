@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.9.2
+
 * **Breaking** Removed support for `{lang}.ftl` localization files, now is named `{lang}/_.ftl`.
 * **Breaking** Removed `L10N.localized_message`, use `L10N.message(..).build_for(lang)`.
 * **Breaking** `cargo zng l10n` CLI refactor.

@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-fs-watcher"
-version = "0.2.19"
+version = "0.2.20"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -22,14 +22,14 @@ toml = ["dep:toml"]
 ron = ["dep:ron"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.5.2" }
-zng-app = { path = "../zng-app", version = "0.8.0" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.3" }
+zng-app = { path = "../zng-app", version = "0.8.1" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
-zng-var = { path = "../zng-var", version = "0.4.5" }
+zng-var = { path = "../zng-var", version = "0.4.6" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 zng-unit = { path = "../zng-unit", version = "0.2.7" }
 zng-handle = { path = "../zng-handle", version = "0.2.5" }
-zng-task = { path = "../zng-task", version = "0.3.3" }
+zng-task = { path = "../zng-task", version = "0.3.4" }
 
 walkdir = "2.5"
 serde = "1.0"
