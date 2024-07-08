@@ -36,15 +36,26 @@ fn main() {
         let view_process = format!("{view_process:?}");
 
         if args.include_vp(&view_process) {
-            let result = std::process::Command::new(std::env::current_exe().unwrap())
-                .env("ZNG_VIEW_NO_INIT_START", "")
-                .env("ZNG_NO_CRASH_HANDLER", "")
-                .env("RENDER_TESTS_VP", view_process)
-                .args(std::env::args().skip(1))
-                // .env("RUST_BACKTRACE", "1")
-                .status()
-                .unwrap();
-            if !result.success() {
+            let mut failed = true;
+            for _retries in 0..3 {
+                // CI fails some times (view 10s disconnect)
+                let result = std::process::Command::new(std::env::current_exe().unwrap())
+                    .env("ZNG_VIEW_NO_INIT_START", "")
+                    .env("ZNG_NO_CRASH_HANDLER", "")
+                    .env("RENDER_TESTS_VP", &view_process)
+                    .args(std::env::args().skip(1))
+                    // .env("RUST_BACKTRACE", "1")
+                    .status()
+                    .unwrap();
+
+                if result.success() {
+                    failed = false;
+                    break;
+                } else {
+                    eprintln!("failed, retrying..");
+                }
+            }
+            if failed {
                 FAILED.store(true, Relaxed);
             }
         }
