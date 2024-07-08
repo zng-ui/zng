@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement serialization for l10n types.
 
 # 0.10.0
 
