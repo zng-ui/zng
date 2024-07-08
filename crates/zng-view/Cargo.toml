@@ -135,16 +135,10 @@ tempfile = "3.10"
 
 [target.'cfg(target_os = "macos")'.dependencies.objc2-app-kit]
 version = "0.2.2"
-features = [
-    "NSEvent",
-    "NSAppearance",
-    "NSColor",
-]
+features = ["NSEvent", "NSAppearance", "NSColor", "NSColorSpace"]
 [target.'cfg(target_os = "macos")'.dependencies.objc2-foundation]
 version = "0.2.2"
 features = ["NSString"]
-
-
 
 [build-dependencies]
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.7", features = [

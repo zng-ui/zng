@@ -538,7 +538,7 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 ///
 /// ```json
 /// "lldb.launch.env": {
-///    "NO_ZNG_CRASH_HANDLER": ""
+///    "ZNG_NO_CRASH_HANDLER": ""
 /// }
 /// ```
 ///

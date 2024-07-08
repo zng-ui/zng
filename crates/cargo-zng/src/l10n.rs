@@ -69,8 +69,6 @@ pub struct L10nArgs {
     check: bool,
 }
 
-// !!: TODO internal crates
-
 pub fn run(mut args: L10nArgs) {
     if !args.package.is_empty() && !args.manifest_path.is_empty() {
         fatal!("only one of --package --manifest-path must be set")
