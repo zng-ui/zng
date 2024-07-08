@@ -4,7 +4,7 @@ This document covers how to bump versions and release the prebuilt binaries and 
 
 To make a release a `zng-ui` project owner needs to follow/monitor these steps:
 
-1. Select a master commit to be the next release head.
+1. Select a commit from main branch to be the next release head.
    * All significant changes are documented in the CHANGELOG.
    * Auto README sections are updated, call `do doc --readme` and `do doc --readme-examples` to be sure.
    * All CI tests pass.

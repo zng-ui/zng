@@ -463,7 +463,7 @@ fn fallback_reset_entry() {
         .unwrap();
     });
 
-    let key = cfg.get("key", Txt::from_static("default/get"));
+    let key = cfg.get("key", Txt::from_static("default/get"), false);
     assert_eq!("main", key.get());
 
     cfg.reset(&ConfigKey::from_static("key"));

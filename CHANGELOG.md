@@ -31,6 +31,8 @@
 * Fix `SelectionBy::Mouse` never being set on mouse selection.
 * Add auto-selection on click, when the action does not disrupt the user.
 * **Breaking** Refactored `AutoSelection` into bitflags that implement more features.
+* Add  `CONFIG.insert`.
+* **BReaking** `Config::get` and `AnyConfig::get_raw` now also receives an `insert` boolean.
 * **Breaking** `CONFIG.get` and `Config::get` now receive a default value, not a closure.
     - The closure was immediately evaluated by most config backends.
 * **Breaking** Refactored `zng_wgt_window::SaveState`.
