@@ -42,6 +42,7 @@ fn shortcut() {
     let window_id = app.open_window(listener_window(false));
 
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
+    let _ = app.update(false);
 
     app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
@@ -56,6 +57,7 @@ fn shortcut_with_focused_scope() {
     let window_id = app.open_window(listener_window(true));
 
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
+    let _ = app.update(false);
 
     app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
@@ -72,6 +74,7 @@ fn shortcut_scoped() {
 
     FOO_CMD.shortcut().set(shortcut!('F')).unwrap();
     FOO_CMD.scoped(window_id).shortcut().set(shortcut!('G')).unwrap();
+    let _ = app.update(false);
 
     app.press_key(window_id, KeyCode::KeyG, KeyLocation::Standard, Key::Char('G'));
 
