@@ -57,6 +57,8 @@ pub(crate) struct VarsService {
 
     app_waker: Option<Box<dyn Fn() + Send + Sync>>,
     modify_trace: Option<Box<dyn Fn(&'static str) + Send + Sync>>,
+
+    perm: Mutex<Vec<Box<dyn Any + Send>>>,
 }
 impl VarsService {
     pub(crate) fn new() -> Self {
@@ -68,6 +70,7 @@ impl VarsService {
             updates_after: Mutex::new(vec![]),
             app_waker: None,
             modify_trace: None,
+            perm: Mutex::new(vec![]),
         }
     }
 
@@ -285,6 +288,12 @@ impl VARS {
             vars.updates.lock().push((cur_modify, update));
             vars.wake_app();
         }
+    }
+
+    /// Keep the `value` alive for  the app lifetime.
+    pub fn perm(&self, value: impl Any + Send) {
+        let value = Box::new(value);
+        VARS_SV.read().perm.lock().push(value);
     }
 
     pub(crate) fn wake_app(&self) {

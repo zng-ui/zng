@@ -647,6 +647,19 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     /// [`map`]: Var::map
     /// [`Txt`]: Txt
     fn map_debug(&self) -> BoxedVar<Txt>;
+
+    /// Hold the variable in memory until the app exit.
+    fn perm(&self) {
+        VARS.perm(self.clone_any());
+    }
+
+    /// Keep `other` alive until the handle or `self` are dropped.
+    fn hold_any(&self, value: Box<dyn Any + Send + Sync>) -> VarHandle {
+        self.hook_any(Box::new(move |_| {
+            let _hold = &value;
+            true
+        }))
+    }
 }
 
 #[derive(Debug)]
@@ -1977,6 +1990,18 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
             var: self,
             _t: PhantomData,
         }
+    }
+
+    /// Keep `value` alive until the handle or `self` are dropped.
+    fn hold<V>(&self, value: V) -> VarHandle
+    where
+        V: Any + Send,
+    {
+        let value = Mutex::new(value); // + Sync
+        self.hook_any(Box::new(move |_| {
+            let _hold = &value;
+            true
+        }))
     }
 }
 

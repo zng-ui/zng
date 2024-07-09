@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `Var::hold`, `AnyVar::hold_any`.
+* Add `AnyVar::perm`, `VARS::perm`.
 
 # 0.10.1
 
