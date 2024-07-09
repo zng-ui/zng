@@ -206,7 +206,12 @@ Options:
       --no-deps
           Don't copy dependencies localization
 
-          Use with --package or --manifest-path to copy {dep-pkg}/l10n/*.ftl files
+          Use with --package or --manifest-path to not copy {dep-pkg}/l10n/*.ftl files
+
+      --no-local
+          Don't scrap `#.#.#-local` dependencies
+
+          Use with --package or --manifest-path to not scrap local dependencies.
 
   -m, --macros <MACROS>
           Custom l10n macro names, comma separated
