@@ -42,9 +42,15 @@ pub struct L10nArgs {
 
     /// Don't copy dependencies localization
     ///
-    /// Use with --package or --manifest-path to copy {dep-pkg}/l10n/*.ftl files
+    /// Use with --package or --manifest-path to not copy {dep-pkg}/l10n/*.ftl files
     #[arg(long, action)]
     no_deps: bool,
+
+    /// Don't scrap `#.#.#-local` dependencies
+    ///
+    /// Use with --package or --manifest-path to not scrap local dependencies.
+    #[arg(long, action)]
+    no_local: bool,
 
     /// Custom l10n macro names, comma separated
     #[arg(short, long, default_value = "")]
@@ -151,9 +157,17 @@ pub fn run(mut args: L10nArgs) {
             }
         }
 
+        let mut local = vec![];
+
         if !args.no_deps {
             let mut count = 0;
-            for dep in util::dependencies(&args.manifest_path) {
+            let (workspace_root, deps) = util::dependencies(&args.manifest_path);
+            for dep in deps {
+                if dep.version.pre.as_str() == "local" && dep.manifest_path.starts_with(&workspace_root) {
+                    local.push(dep);
+                    continue;
+                }
+
                 let dep_l10n = dep.manifest_path.with_file_name("l10n");
                 let dep_l10n_reader = match fs::read_dir(&dep_l10n) {
                     Ok(d) => d,
@@ -300,6 +314,24 @@ pub fn run(mut args: L10nArgs) {
                 count += any as u32;
             }
             println!("found {count} dependencies with localization");
+        }
+
+        if !args.no_local {
+            for dep in local {
+                run(L10nArgs {
+                    input: String::new(),
+                    output: output.clone(),
+                    package: String::new(),
+                    manifest_path: dep.manifest_path.display().to_string(),
+                    no_deps: true,
+                    no_local: true,
+                    macros: args.macros.clone(),
+                    pseudo: String::new(),
+                    pseudo_m: String::new(),
+                    pseudo_w: String::new(),
+                    check: args.check,
+                })
+            }
         }
     }
 
