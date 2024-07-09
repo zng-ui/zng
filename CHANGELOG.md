@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.10.2
+
 * Localization now scraps `#.#.#-local` workspace dependencies.
 * Add `Var::hold`, `AnyVar::hold_any`.
 * Add `AnyVar::perm`, `VARS::perm`.
