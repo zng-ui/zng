@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `cargo zng l10n` not generating a .gitignore file for deps.
 * Implement serialization for l10n types.
 
 # 0.10.0
