@@ -37,7 +37,7 @@ fn main() {
 
         if args.include_vp(&view_process) {
             let mut failed = true;
-            for _retries in 0..3 {
+            for retries in 0..5 {
                 // CI fails some times (view 10s disconnect)
                 let result = std::process::Command::new(std::env::current_exe().unwrap())
                     .env("ZNG_VIEW_NO_INIT_START", "")
@@ -53,6 +53,7 @@ fn main() {
                     break;
                 } else {
                     eprintln!("failed, retrying..");
+                    std::thread::sleep(std::time::Duration::new(retries + 1, 0));
                 }
             }
             if failed {
