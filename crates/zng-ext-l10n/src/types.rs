@@ -312,7 +312,8 @@ context_var! {
 /// type is just an alias for the core struct of that crate.
 ///
 /// [`unic_langid`]: https://docs.rs/unic-langid
-#[derive(PartialEq, Eq, Hash, Clone, Default, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Hash, Clone, Default, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct Lang(pub unic_langid::LanguageIdentifier);
 impl Lang {
     /// Returns character direction of the language.
@@ -357,7 +358,8 @@ impl std::str::FromStr for Lang {
 }
 
 /// List of languages, in priority order.
-#[derive(Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Default, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct Langs(pub Vec<Lang>);
 impl fmt::Debug for Langs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -427,7 +429,8 @@ impl std::str::FromStr for Langs {
 }
 
 /// Represents a map of [`Lang`] keys that can be partially matched.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
 pub struct LangMap<V> {
     inner: Vec<(Lang, V)>,
 }
@@ -720,7 +723,7 @@ impl std::error::Error for FluentParserErrors {
 ///
 /// In the default directory layout, localization dependencies are collected using `cargo zng l10n --deps`
 /// and copied to `l10n/{lang}/deps/{name}/{version}/`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LangFilePath {
     /// Package name.
     pub pkg_name: Txt,
