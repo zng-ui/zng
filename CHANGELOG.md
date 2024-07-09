@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix race condition in command metadata init when parallel widgets read the same metadata.
 * Fix `cargo zng l10n` not generating a .gitignore file for deps.
 * Implement serialization for l10n types.
 

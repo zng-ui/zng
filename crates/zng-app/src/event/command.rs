@@ -2,6 +2,7 @@ use std::{
     any::TypeId,
     collections::{hash_map, HashMap},
     mem, ops,
+    thread::ThreadId,
 };
 
 use crate::{shortcut::CommandShortcutExt, update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId, APP};
@@ -150,6 +151,7 @@ macro_rules! command {
 }
 #[doc(inline)]
 pub use command;
+
 use zng_app_context::AppId;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_txt::Txt;
@@ -401,9 +403,22 @@ impl Command {
     pub fn with_meta<R>(&self, visit: impl FnOnce(&mut CommandMeta) -> R) -> R {
         {
             let mut write = self.local.write();
-            if let Some(init) = write.meta_init.take() {
-                drop(write);
-                init(*self);
+            match write.meta_init.clone() {
+                MetaInit::Init(init) => {
+                    let lock = Arc::new((std::thread::current().id(), Mutex::new(())));
+                    write.meta_init = MetaInit::Initing(lock.clone());
+                    let _init_guard = lock.1.lock();
+                    drop(write);
+                    init(*self);
+                    self.local.write().meta_init = MetaInit::Inited;
+                }
+                MetaInit::Initing(l) => {
+                    drop(write);
+                    if l.0 != std::thread::current().id() {
+                        let _wait = l.1.lock();
+                    }
+                }
+                MetaInit::Inited => {}
             }
         }
 
@@ -1310,9 +1325,17 @@ impl CommandInfoExt for Command {
 
 enum CommandMetaState {}
 
+#[derive(Clone)]
+enum MetaInit {
+    Init(fn(Command)),
+    /// Initing in a thread, lock is for other threads.
+    Initing(Arc<(ThreadId, Mutex<()>)>),
+    Inited,
+}
+
 #[doc(hidden)]
 pub struct CommandData {
-    meta_init: Option<fn(Command)>,
+    meta_init: MetaInit,
     meta: Mutex<OwnedStateMap<CommandMetaState>>,
 
     handle_count: usize,
@@ -1327,7 +1350,7 @@ pub struct CommandData {
 impl CommandData {
     pub fn new(meta_init: fn(Command)) -> Self {
         CommandData {
-            meta_init: Some(meta_init),
+            meta_init: MetaInit::Init(meta_init),
             meta: Mutex::new(OwnedStateMap::new()),
 
             handle_count: 0,
