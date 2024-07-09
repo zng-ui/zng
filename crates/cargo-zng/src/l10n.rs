@@ -171,10 +171,7 @@ pub fn run(mut args: L10nArgs) {
                 // get l10n_dir/{lang}/deps/dep.name/dep.version/
                 let mut l10n_dir = |lang: Option<&std::ffi::OsStr>| {
                     any = true;
-                    let dir = match lang {
-                        Some(l) => l10n_dir.join(l).join("deps"),
-                        None => l10n_dir.join("deps"),
-                    };
+                    let dir = l10n_dir.join(lang.unwrap()).join("deps");
                     let ignore_file = dir.join(".gitignore");
 
                     if !ignore_file.exists() {
@@ -214,6 +211,10 @@ pub fn run(mut args: L10nArgs) {
                             writeln!(&mut ignore).unwrap();
                             writeln!(&mut ignore, "*").unwrap();
                             writeln!(&mut ignore, "!.gitignore").unwrap();
+
+                            if let Err(e) = fs::write(&ignore_file, ignore.as_bytes()) {
+                                fatal!("cannot write `{}`, {e}", ignore_file.display())
+                            }
 
                             Ok(())
                         })()
