@@ -4,7 +4,7 @@ use semver::Version;
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::WATCHER;
 use zng_txt::Txt;
-use zng_var::{types::WeakArcVar, var, AnyVar, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, Var, VarHandle, WeakVar};
+use zng_var::{types::WeakArcVar, var, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, Var, VarHandle, WeakVar};
 
 use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 
@@ -286,11 +286,7 @@ impl SwapL10nSource {
             if let Some(res) = f.res.upgrade() {
                 let actual_f = self.actual.lang_resource(lang.clone(), file.clone());
                 f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
-                f.res_strong_actual = res.hook_any(Box::new(move |_| {
-                    // strong ref to `actual_f` is held by `res`.
-                    let _hold = &actual_f;
-                    true
-                }));
+                f.res_strong_actual = res.hold(actual_f); // strong ref to `actual_f` is held by `res`.
 
                 let actual_s = self.actual.lang_resource_status(lang.clone(), file.clone());
                 f.status.set_from(&actual_s);
@@ -329,11 +325,7 @@ impl L10nSource for SwapL10nSource {
 
                     let res = var(actual_f.get());
                     f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
-                    f.res_strong_actual = res.hook_any(Box::new(move |_| {
-                        // strong ref to `actual_f` is held by `res`.
-                        let _hold = &actual_f;
-                        true
-                    }));
+                    f.res_strong_actual = res.hold(actual_f); // strong ref to `actual_f` is held by `res`.
                     let res = res.boxed();
                     f.res = res.downgrade();
 
@@ -351,11 +343,7 @@ impl L10nSource for SwapL10nSource {
 
                 let res = var(actual_f.get());
                 f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
-                f.res_strong_actual = res.hook_any(Box::new(move |_| {
-                    // strong ref to `actual_f` is held by `res`.
-                    let _hold = &actual_f;
-                    true
-                }));
+                f.res_strong_actual = res.hold(actual_f); // strong ref to `actual_f` is held by `res`.
                 let res = res.boxed();
                 f.res = res.downgrade();
 
