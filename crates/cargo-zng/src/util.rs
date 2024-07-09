@@ -209,8 +209,8 @@ pub fn manifest_path_from_package(package: &str) -> Option<String> {
     None
 }
 
-/// Dependencies of manifest_path
-pub fn dependencies(manifest_path: &str) -> Vec<DependencyManifest> {
+/// Workspace root and dependencies of manifest_path
+pub fn dependencies(manifest_path: &str) -> (PathBuf, Vec<DependencyManifest>) {
     let metadata = match Command::new("cargo")
         .args(["metadata", "--format-version", "1", "--manifest-path"])
         .arg(manifest_path)
@@ -229,15 +229,16 @@ pub fn dependencies(manifest_path: &str) -> Vec<DependencyManifest> {
     #[derive(Deserialize)]
     struct Metadata {
         packages: Vec<Package>,
+        workspace_root: PathBuf,
     }
-    #[derive(Deserialize)]
+    #[derive(Debug, Deserialize)]
     struct Package {
         name: String,
         version: Version,
         dependencies: Vec<Dependency>,
         manifest_path: String,
     }
-    #[derive(Deserialize)]
+    #[derive(Debug, Deserialize)]
     struct Dependency {
         name: String,
         kind: Option<String>,
@@ -272,7 +273,7 @@ pub fn dependencies(manifest_path: &str) -> Vec<DependencyManifest> {
                 }
                 if let Some(versions) = map.remove(dep.name.as_str()) {
                     for (version, pkg) in versions.iter() {
-                        if dep.req.matches(version) {
+                        if dep.req.comparators.is_empty() || dep.req.matches(version) {
                             r.push(DependencyManifest {
                                 name: pkg.name.clone(),
                                 version: pkg.version.clone(),
@@ -287,10 +288,10 @@ pub fn dependencies(manifest_path: &str) -> Vec<DependencyManifest> {
             }
         }
         collect(&mut map, dependencies, &mut r);
-        return r;
+        return (metadata.workspace_root, r);
     }
 
-    vec![]
+    (metadata.workspace_root, vec![])
 }
 
 pub struct DependencyManifest {

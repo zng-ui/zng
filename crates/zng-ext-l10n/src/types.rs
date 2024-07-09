@@ -721,8 +721,11 @@ impl std::error::Error for FluentParserErrors {
 
 /// Localization resource file path in the localization directory.
 ///
-/// In the default directory layout, localization dependencies are collected using `cargo zng l10n --deps`
-/// and copied to `l10n/{lang}/deps/{name}/{version}/`.
+/// In the default directory layout, localization dependencies are collected using `cargo zng l10n`
+/// and copied to `l10n/{lang}/deps/{name}/{version}/`, and localization for the app ([`is_current_app`])
+/// is placed in `l10n/{lang}/`.
+///
+/// [`is_current_app`]: Self::is_current_app
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LangFilePath {
     /// Package name.
@@ -784,11 +787,11 @@ impl LangFilePath {
         Self::new(about.pkg_name.clone(), about.version.clone(), file.into())
     }
 
-    /// Gets if this file is in the [`current_app`] resources.
+    /// Gets if this file is in the [`current_app`] resources, or the `pkg_name` is empty or the `pkg_version.pre` is `#.#.#-local`.
     ///
     /// [`current_app`]: Self::current_app
     pub fn is_current_app(&self) -> bool {
-        self.pkg_name.is_empty() || {
+        self.pkg_name.is_empty() || self.pkg_version.pre.as_str() == "local" || {
             let about = zng_env::about();
             self.pkg_name == about.pkg_name && self.pkg_version == about.version
         }
