@@ -248,6 +248,7 @@ impl Controller {
             }
         };
 
+        tracing::info!("!!: test print before connect");
         let (req, rsp, ev) = match init.connect() {
             Ok(r) => r,
             Err(e) => {
