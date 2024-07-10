@@ -156,10 +156,10 @@ pub enum ViewProcess {
 }
 impl ViewProcess {
     const OPTIONS: [ViewProcess; 4] = [
-        ViewProcess::DefaultInit,
-        ViewProcess::DefaultInit,
-        ViewProcess::DefaultInit,
-        ViewProcess::DefaultInit,
+        ViewProcess::PrebuiltSame,
+        ViewProcess::PrebuiltSame,
+        ViewProcess::PrebuiltSame,
+        ViewProcess::PrebuiltSame,
     ];
 }
 impl From<String> for ViewProcess {

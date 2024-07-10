@@ -41,6 +41,20 @@ jobs:
     - run: cargo do test --render
     - run: cargo do test --render
     - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
+    - run: cargo do test --render
     - run: cargo clean
 
   test-all:
