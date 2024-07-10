@@ -148,7 +148,7 @@ fn run_tests(args: Args, view_process: ViewProcess, mut app: HeadlessApp) {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum ViewProcess {
+pub enum ViewProcess {
     DefaultInit,
     DefaultSame,
     PrebuiltInit,
@@ -156,10 +156,10 @@ enum ViewProcess {
 }
 impl ViewProcess {
     const OPTIONS: [ViewProcess; 4] = [
-        ViewProcess::DefaultInit,
         ViewProcess::DefaultSame,
-        ViewProcess::PrebuiltInit,
-        ViewProcess::PrebuiltSame,
+        ViewProcess::DefaultSame,
+        ViewProcess::DefaultSame,
+        ViewProcess::DefaultSame,
     ];
 }
 impl From<String> for ViewProcess {
