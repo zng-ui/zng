@@ -94,7 +94,10 @@ impl ViewLib {
             let file = Self::install_path(dir);
 
             if !file.exists() {
+                tracing::debug!("install prebuilt to {}", file.display());
                 std::fs::write(&file, LIB)?;
+            } else {
+                tracing::debug!("prebuilt already installed to {}", file.display());
             }
 
             Self::link(file)
@@ -241,6 +244,7 @@ impl ViewLib {
                 run_app();
             }
 
+            tracing::trace!("run_same_process run");
             (self.run_same_process_fn)(&patch, run)
         }
         // exit the process to ensure all threads are stopped

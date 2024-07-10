@@ -37,6 +37,7 @@ jobs:
         crate: cargo-about
     - uses: actions/checkout@v4
     - uses: Swatinem/rust-cache@v2
+    - run: cargo do prebuild
     - run: cargo do test --render
     - run: cargo do test --render
     - run: cargo do test --render

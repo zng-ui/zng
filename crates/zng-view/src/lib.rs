@@ -169,8 +169,13 @@ zng_env::on_process_start!(|_| {
 pub fn view_process_main() {
     let config = match ViewConfig::from_env() {
         Some(c) => c,
-        None => return,
+        None => {
+            tracing::info!("!!: view_process_main no config");
+            return
+        },
     };
+
+    tracing::info!("!!: view_process_main config: {config:?}");
 
     std::panic::set_hook(Box::new(init_abort));
     config.assert_version(false);
@@ -194,6 +199,7 @@ pub fn view_process_main() {
 #[doc(hidden)]
 #[no_mangle]
 pub extern "C" fn extern_view_process_main() {
+    tracing::info!("!!: PREBUILT extern_view_process_main");
     std::panic::set_hook(Box::new(ffi_abort));
     view_process_main()
 }
