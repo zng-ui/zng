@@ -20,7 +20,7 @@ env:
   NEXTEST_RETRIES: 3
 
 jobs:
-  check:
+  check-ubuntu:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,9 +47,6 @@ jobs:
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
-      - name: fix clang version issue
-        run: choco upgrade llvm
-        # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -59,7 +56,7 @@ jobs:
       - run: cargo clean
   check-release:
     runs-on: ubuntu-latest
-    needs: [check]
+    needs: [check-ubuntu]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -68,7 +65,7 @@ jobs:
       - run: cargo clean
   doc:
     runs-on: ubuntu-latest
-    needs: [check]
+    needs: [check-ubuntu]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -79,7 +76,7 @@ jobs:
       - run: cargo clean
   test-ubuntu:
     runs-on: ubuntu-latest
-    needs: [check]
+    needs: [check-ubuntu]
     env:
       ZNG_TP_LICENSES: true
     steps:
@@ -104,9 +101,6 @@ jobs:
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
-    - name: fix clang version issue
-      run: choco upgrade llvm
-    # see: https://github.com/actions/runner-images/issues/10001#issuecomment-2150768562
     - uses: dtolnay/rust-toolchain@stable
     - name: install cargo-about
       uses: baptiste0928/cargo-install@v3
@@ -141,7 +135,7 @@ jobs:
     - run: cargo clean
   test-doc:
     runs-on: ubuntu-latest
-    needs: [check]
+    needs: [check-ubuntu]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -150,7 +144,7 @@ jobs:
       - run: cargo clean
   test-macro:
     runs-on: ubuntu-latest
-    needs: [check]
+    needs: [check-ubuntu]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -159,8 +153,49 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo do test --macro --all
       - run: cargo clean
+  test-render-ubuntu:
+    runs-on: ubuntu-latest
+    needs: [check-ubuntu]
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+      - name: install winit deps
+        run: |
+             sudo apt-get update
+             sudo apt install libxkbcommon-x11-0
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo do test --render --no-prebuilt
+        uses: coactions/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
+        with:
+          run: cargo do test --render --no-prebuilt
+      - run: cargo clean
+  test-render-windows:
+    runs-on: windows-latest
+    needs: [check-windows]
+    env:
+      ZNG_TP_LICENSES: true
+      CC: 'clang-cl'
+      CXX: 'clang-cl'
+    steps:
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo do test --render --no-prebuilt
+    - run: cargo clean
+  test-render-macos:
+    runs-on: macos-latest
+    needs: [check-macos]
+    env:
+      ZNG_TP_LICENSES: true
+    steps:
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo do test --render --no-prebuilt
+    - run: cargo clean
+
   test-all:
     runs-on: ubuntu-latest
-    needs: [check-release, doc, test-ubuntu, test-windows, test-macos, test-doc, test-macro]
+    needs: [check-release, doc, test-ubuntu, test-windows, test-macos, test-doc, test-macro, test-render-ubuntu, test-render-windows, test-render-macos]
     steps:
       - run: exit 0
