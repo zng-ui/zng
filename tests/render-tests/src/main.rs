@@ -20,6 +20,8 @@ mod tests;
 static FAILED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
+    zng::app::print_tracing(tracing::Level::INFO);
+
     std::thread::spawn(move || {
         std::thread::sleep(10.minutes());
         eprintln!(cstr!("<bold><red>TIMEOUT</>:</> render-tests did not exit after 10 minutes"),);
@@ -36,8 +38,8 @@ fn main() {
         let view_process = format!("{view_process:?}");
 
         if args.include_vp(&view_process) {
-            let mut failed = true;
-            for retries in 0..5 {
+            let mut retries = 0;
+            while retries < 5 {
                 // CI fails some times (view 10s disconnect)
                 let result = std::process::Command::new(std::env::current_exe().unwrap())
                     .env("ZNG_VIEW_NO_INIT_START", "")
@@ -49,14 +51,17 @@ fn main() {
                     .unwrap();
 
                 if result.success() {
-                    failed = false;
+                    retries = 0;
                     break;
                 } else {
-                    eprintln!("failed, retrying..");
-                    std::thread::sleep(std::time::Duration::new(retries + 1, 0));
+                    retries += 1;
+                    if retries < 4 {
+                        eprintln!("\n\nfailed, retrying ({retries})..");
+                        std::thread::sleep(std::time::Duration::new(retries + 1, 0));
+                    }
                 }
             }
-            if failed {
+            if retries > 0 {
                 FAILED.store(true, Relaxed);
             }
         }
