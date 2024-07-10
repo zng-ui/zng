@@ -437,21 +437,6 @@ pub fn path_span(path: &syn::Path) -> Span {
     path.segments.last().map(|s| s.span()).unwrap_or_else(|| path.span())
 }
 
-struct CfgCondition {
-    tokens: TokenStream,
-}
-impl Parse for CfgCondition {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let inner;
-        syn::parenthesized!(inner in input);
-        Ok(CfgCondition { tokens: inner.parse()? })
-    }
-}
-impl ToTokens for CfgCondition {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.tokens.to_tokens(tokens);
-    }
-}
 struct OuterAttr {
     pound_token: Token![#],
     style: syn::AttrStyle,
