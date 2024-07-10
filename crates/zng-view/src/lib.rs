@@ -169,9 +169,7 @@ zng_env::on_process_start!(|_| {
 pub fn view_process_main() {
     let config = match ViewConfig::from_env() {
         Some(c) => c,
-        None => {
-            return;
-        }
+        None => return,
     };
 
     std::panic::set_hook(Box::new(init_abort));

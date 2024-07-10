@@ -22,7 +22,6 @@ zng-view-api = { path = "../zng-view-api", version = "0.6.1", default-features =
 zng-env = { path = "../zng-env", version = "0.3.0" }
 libloading = "0.8"
 dunce = "1.0"
-tracing = "0.1"
 
 [build-dependencies]
 hashers = "1.0"

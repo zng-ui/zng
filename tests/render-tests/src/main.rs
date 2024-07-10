@@ -96,7 +96,7 @@ fn run_tests(args: Args, view_process: ViewProcess, mut app: HeadlessApp) {
     SAVE.set(args.save);
 
     let test = [("bw_rgb", tests::bw_rgb)];
-    let render_mode = [RenderMode::Dedicated, RenderMode::Integrated, RenderMode::Software];
+    let render_mode = [RenderMode::Software, RenderMode::Dedicated, RenderMode::Integrated];
     let scale_factor = [1.fct(), 1.5.fct(), 2.fct()];
 
     for (test_name, test) in test {
