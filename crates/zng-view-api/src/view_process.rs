@@ -1,5 +1,5 @@
 use std::{
-    env, mem, thread,
+    env, mem,
     time::{Duration, Instant},
 };
 
@@ -57,9 +57,7 @@ impl ViewConfig {
     ///
     /// If there is no pending `wait_same_process`.
     pub(crate) fn set_same_process(cfg: ViewConfig) {
-        println!("!!: set_same_process {cfg:?}");
         if Self::is_awaiting_same_process() {
-            println!("!!: set_same_process Ready");
             *same_process().lock() = SameProcess::Ready(cfg);
         } else {
             unreachable!("use `waiting_same_process` to check, then call `set_same_process` only once")
@@ -74,28 +72,21 @@ impl ViewConfig {
     pub fn wait_same_process() -> Self {
         let _s = tracing::trace_span!("ViewConfig::wait_same_process").entered();
 
-        println!("!!: wait_same_process");
         if !matches!(*same_process().lock(), SameProcess::Not) {
             panic!("`wait_same_process` can only be called once");
         }
-        println!("!!: wait_same_process after");
 
         *same_process().lock() = SameProcess::Awaiting;
-        println!("!!: wait_same_process Awaiting");
 
         let time = Instant::now();
         let timeout = Duration::from_secs(5);
 
         while Self::is_awaiting_same_process() {
-            println!("!!: wait_same_process still awaiting");
-            thread::yield_now();
+            std::hint::spin_loop();
             if time.elapsed() >= timeout {
-                println!("!!: wait_same_process TIMEOUT");
                 panic!("timeout, `wait_same_process` waited for `{timeout:?}`");
             }
         }
-
-        println!("!!: wait_same_process Done");
 
         match mem::replace(&mut *same_process().lock(), SameProcess::Done) {
             SameProcess::Ready(cfg) => cfg,
