@@ -96,7 +96,7 @@ fn run_tests(args: Args, view_process: ViewProcess, mut app: HeadlessApp) {
     SAVE.set(args.save);
 
     let test = [("bw_rgb", tests::bw_rgb)];
-    let render_mode = [RenderMode::Software, RenderMode::Software, RenderMode::Software];
+    let render_mode = [RenderMode::Dedicated, RenderMode::Integrated, RenderMode::Software];
     let scale_factor = [1.fct(), 1.5.fct(), 2.fct()];
 
     for (test_name, test) in test {
@@ -148,7 +148,7 @@ fn run_tests(args: Args, view_process: ViewProcess, mut app: HeadlessApp) {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ViewProcess {
+enum ViewProcess {
     DefaultInit,
     DefaultSame,
     PrebuiltInit,
@@ -156,9 +156,9 @@ pub enum ViewProcess {
 }
 impl ViewProcess {
     const OPTIONS: [ViewProcess; 4] = [
-        ViewProcess::PrebuiltSame,
-        ViewProcess::PrebuiltSame,
-        ViewProcess::PrebuiltSame,
+        ViewProcess::DefaultInit,
+        ViewProcess::DefaultSame,
+        ViewProcess::PrebuiltInit,
         ViewProcess::PrebuiltSame,
     ];
 }
