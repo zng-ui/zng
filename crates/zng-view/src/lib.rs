@@ -167,6 +167,9 @@ zng_env::on_process_start!(|_| {
 /// case you must manually call this function.
 #[cfg(feature = "ipc")]
 pub fn view_process_main() {
+    println!("!!: view_process_main");
+    tracing::info!("!!: view_process_main");
+    println!("!!: view_process_main 2");
     let config = match ViewConfig::from_env() {
         Some(c) => c,
         None => {
