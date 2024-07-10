@@ -87,8 +87,10 @@ impl ViewConfig {
         let timeout = Duration::from_secs(5);
 
         while Self::is_awaiting_same_process() {
+            println!("!!: wait_same_process still awaiting");
             thread::yield_now();
             if time.elapsed() >= timeout {
+                println!("!!: wait_same_process TIMEOUT");
                 panic!("timeout, `wait_same_process` waited for `{timeout:?}`");
             }
         }
