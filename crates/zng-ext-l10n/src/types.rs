@@ -737,11 +737,13 @@ pub struct LangFilePath {
 }
 impl Ord for LangFilePath {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.pkg_name.cmp(&other.pkg_name) {
+        let self_pkg = self.actual_pkg_data();
+        let other_pkg = other.actual_pkg_data();
+        match self_pkg.0.cmp(other_pkg.0) {
             core::cmp::Ordering::Equal => {}
             ord => return ord,
         }
-        match self.pkg_version.cmp(&other.pkg_version) {
+        match self_pkg.1.cmp(other_pkg.1) {
             core::cmp::Ordering::Equal => {}
             ord => return ord,
         }
@@ -755,15 +757,14 @@ impl PartialOrd for LangFilePath {
 }
 impl std::hash::Hash for LangFilePath {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.pkg_name.hash(state);
-        self.pkg_version.hash(state);
+        self.actual_pkg_data().hash(state);
         self.file().hash(state);
     }
 }
 impl Eq for LangFilePath {}
 impl PartialEq for LangFilePath {
     fn eq(&self, other: &Self) -> bool {
-        self.pkg_name == other.pkg_name && self.pkg_version == other.pkg_version && self.file() == other.file()
+        self.actual_pkg_data() == other.actual_pkg_data() && self.file() == other.file()
     }
 }
 impl LangFilePath {
@@ -791,13 +792,46 @@ impl LangFilePath {
     ///
     /// [`current_app`]: Self::current_app
     pub fn is_current_app(&self) -> bool {
-        self.pkg_name.is_empty() || self.pkg_version.pre.as_str() == "local" || {
+        self.is_current_app_no_check() || {
             let about = zng_env::about();
             self.pkg_name == about.pkg_name && self.pkg_version == about.version
         }
     }
 
+    fn is_current_app_no_check(&self) -> bool {
+        self.pkg_name.is_empty() || self.pkg_version.pre.as_str() == "local"
+    }
+
+    fn actual_pkg_data(&self) -> (&Txt, &Version) {
+        if self.is_current_app_no_check() {
+            let about = zng_env::about();
+            (&about.pkg_name, &about.version)
+        } else {
+            (&self.pkg_name, &self.pkg_version)
+        }
+    }
+
+    /// Gets the normalized package name.
+    ///
+    /// This is the app package name if [`is_current_app`], otherwise is just the `pkg_name` value.
+    ///
+    /// [`is_current_app`]: Self::is_current_app
+    pub fn pkg_name(&self) -> Txt {
+        self.actual_pkg_data().0.clone()
+    }
+
+    /// Gets the normalized package version.
+    ///
+    /// This is the app version if [`is_current_app`], otherwise is just the `pkg_version` value.
+    ///
+    /// [`is_current_app`]: Self::is_current_app
+    pub fn pkg_version(&self) -> Version {
+        self.actual_pkg_data().1.clone()
+    }
+
     /// Gets the normalized file name.
+    ///
+    /// This `"_"` for empty file or the file.
     pub fn file(&self) -> Txt {
         if self.file.is_empty() {
             Txt::from_char('_')
@@ -838,7 +872,10 @@ impl LangFilePath {
     /// * `(0..u16::MAX) << 16 * 3` is a match with `major` differences and the absolute distance.
     /// * `None`` is a `pkg_name` mismatch.
     pub fn matches(&self, search: &Self) -> Option<u64> {
-        if self.pkg_name != search.pkg_name {
+        let (self_name, self_version) = self.actual_pkg_data();
+        let (search_name, search_version) = search.actual_pkg_data();
+
+        if self_name != search_name {
             return None;
         }
 
@@ -853,16 +890,16 @@ impl LangFilePath {
         }
 
         let mut d = 0;
-        if self.pkg_version.build != search.pkg_version.build {
+        if self_version.build != search_version.build {
             d = 1;
         }
-        if self.pkg_version.pre != search.pkg_version.pre {
+        if self_version.pre != search_version.pre {
             d |= 0b10;
         }
 
-        d |= dist(self.pkg_version.patch, search.pkg_version.patch, 1);
-        d |= dist(self.pkg_version.minor, search.pkg_version.minor, 2);
-        d |= dist(self.pkg_version.major, search.pkg_version.major, 3);
+        d |= dist(self_version.patch, search_version.patch, 1);
+        d |= dist(self_version.minor, search_version.minor, 2);
+        d |= dist(self_version.major, search_version.major, 3);
 
         Some(d)
     }

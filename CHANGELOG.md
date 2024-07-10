@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `#.#.#-local` localization not matching the app resources.
 
 # 0.10.2
 

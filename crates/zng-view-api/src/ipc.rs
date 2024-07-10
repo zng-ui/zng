@@ -270,7 +270,6 @@ impl AppInit {
 pub fn connect_view_process(server_name: Txt) -> IpcResult<ViewChannels> {
     let _s = tracing::trace_span!("connect_view_process").entered();
 
-    tracing::info!("!!: IpcSender::connect {server_name}");
     let app_init_sender = IpcSender::connect(server_name.into_owned()).expect("failed to connect to init channel");
 
     let (req_sender, req_recv) = channel().map_err(handle_io_error)?;
@@ -279,9 +278,7 @@ pub fn connect_view_process(server_name: Txt) -> IpcResult<ViewChannels> {
     // See issue: https://github.com/servo/ipc-channel/issues/277
     let (chan_sender, chan_recv) = channel().map_err(handle_io_error)?;
 
-    tracing::info!("!!: send channels (view -> app)");
     app_init_sender.send((req_sender, chan_sender)).map_err(handle_send_error)?;
-    tracing::info!("!!: receive channels (view <- app)");
     let (rsp_sender, evt_sender) = chan_recv.recv().map_err(handle_recv_error)?;
 
     Ok(ViewChannels {
