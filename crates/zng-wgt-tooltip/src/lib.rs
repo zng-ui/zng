@@ -13,7 +13,10 @@ zng_wgt::enable_widget_macros!();
 
 use std::time::Duration;
 
-use zng_app::{access::ACCESS_TOOLTIP_EVENT, widget::{info::INTERACTIVITY_CHANGED_EVENT, OnVarArgs}};
+use zng_app::{
+    access::ACCESS_TOOLTIP_EVENT,
+    widget::{info::INTERACTIVITY_CHANGED_EVENT, OnVarArgs},
+};
 use zng_ext_input::{
     focus::FOCUS_CHANGED_EVENT,
     gesture::CLICK_EVENT,

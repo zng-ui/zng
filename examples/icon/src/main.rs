@@ -290,22 +290,35 @@ fn size_label(size: Txt) -> impl UiNode {
 
 fn code_copy(label: Txt, code: Txt) -> impl UiNode {
     let enabled = var(true);
+    let copy_status = var(Txt::from(""));
     Button! {
         style_fn = zng::button::LightStyle!();
         padding = 2;
+
+        container::child_start = ICONS.get("copy"), 4;
         child = Text!(label);
+
         text::font_family = FontName::monospace();
         mouse::cursor = mouse::CursorIcon::Pointer;
         widget::enabled = enabled.clone();
+
         tooltip = Tip!(Text!("copy {code}"));
-        tip::disabled_tooltip = Tip!(Text!("copied!"));
-        container::child_start = ICONS.get("copy"), 4;
-        on_click = async_hn!(enabled, code, |_| {
+        tip::disabled_tooltip = Tip!(Text!(copy_status.clone()));
+
+        on_click = async_hn!(enabled, code, copy_status, |_| {
+            copy_status.set("copying..");
             enabled.set(false);
-            if clipboard::CLIPBOARD.set_text(code).wait_rsp().await.is_ok() {
-                // ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
-                task::deadline(2.secs()).await;
+            ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
+
+            match clipboard::CLIPBOARD.set_text(code).wait_rsp().await {
+                Ok(copied) => {
+                    debug_assert!(copied); // no other clipboard request
+                    copy_status.set("copied!");
+                },
+                Err(e) => copy_status.set(formatx!("error: {e}")),
             }
+
+            task::deadline(2.secs()).await;
             enabled.set(true);
         });
         when *#gesture::is_hovered {

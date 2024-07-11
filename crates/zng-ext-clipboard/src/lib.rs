@@ -216,6 +216,9 @@ impl CLIPBOARD {
             .map(|s| s.map(|s| Txt::from_str(&s)))
     }
     /// Sets the text string on the clipboard after the current update.
+    ///
+    /// Returns a response var that updates to `Ok(true)` is the text is put on the clipboard,
+    /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
     pub fn set_text(&self, txt: impl Into<Txt>) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().text.request(txt.into())
     }
@@ -244,6 +247,9 @@ impl CLIPBOARD {
     }
 
     /// Set the image on the clipboard after the current update, if it is loaded.
+    ///
+    /// Returns a response var that updates to `Ok(true)` is the text is put on the clipboard,
+    /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
     pub fn set_image(&self, img: Img) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().image.request(img)
     }
@@ -254,6 +260,9 @@ impl CLIPBOARD {
     }
 
     /// Sets the file list on the clipboard after the current update.
+    ///
+    /// Returns a response var that updates to `Ok(true)` is the text is put on the clipboard,
+    /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
     pub fn set_file_list(&self, list: impl Into<Vec<PathBuf>>) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().file_list.request(list.into())
     }
@@ -268,6 +277,9 @@ impl CLIPBOARD {
     /// Set a custom data on the clipboard.
     ///
     /// The current view-process must support `data_type` after the current update.
+    ///
+    /// Returns a response var that updates to `Ok(true)` is the text is put on the clipboard,
+    /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
     pub fn set_extension(&self, data_type: impl Into<Txt>, data: IpcBytes) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().ext.request((data_type.into(), data))
     }
