@@ -12,7 +12,6 @@ use zng::{
     font::FontName,
     gesture::{on_click, ClickArgs},
     icon::{self, GlyphIcon, Icon},
-    label::Label,
     layout::{align, margin, padding},
     prelude::*,
     scroll::{lazy, LazyMode, ScrollMode},
@@ -290,22 +289,24 @@ fn size_label(size: Txt) -> impl UiNode {
 }
 
 fn code_copy(label: Txt, code: Txt) -> impl UiNode {
-    let copied = var(false);
-    Label! {
-        txt = label;
-        font_family = FontName::monospace();
+    let enabled = var(true);
+    Button! {
+        style_fn = zng::button::LightStyle!();
+        padding = 2;
+        child = Text!(label);
+        text::font_family = FontName::monospace();
         mouse::cursor = mouse::CursorIcon::Pointer;
-        widget::enabled = copied.map(|&c| !c);
+        widget::enabled = enabled.clone();
         tooltip = Tip!(Text!("copy {code}"));
         tip::disabled_tooltip = Tip!(Text!("copied!"));
         container::child_start = ICONS.get("copy"), 4;
-        on_click = async_hn!(copied, code, |_| {
+        on_click = async_hn!(enabled, code, |_| {
+            enabled.set(false);
             if clipboard::CLIPBOARD.set_text(code).wait_rsp().await.is_ok() {
-                ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
-                copied.set(true);
+                // ACCESS.show_tooltip(WINDOW.id(), WIDGET.id());
                 task::deadline(2.secs()).await;
-                copied.set(false);
             }
+            enabled.set(true);
         });
         when *#gesture::is_hovered {
             background_color = text::FONT_COLOR_VAR.map(|c| c.with_alpha(20.pct()));

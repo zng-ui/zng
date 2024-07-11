@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix tooltip opened by `ACCESS.show_tooltip` closing immediately on mouse leave.
 
 # 0.10.3
 
