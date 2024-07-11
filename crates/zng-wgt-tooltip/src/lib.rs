@@ -13,7 +13,7 @@ zng_wgt::enable_widget_macros!();
 
 use std::time::Duration;
 
-use zng_app::{access::ACCESS_TOOLTIP_EVENT, widget::OnVarArgs};
+use zng_app::{access::ACCESS_TOOLTIP_EVENT, widget::{info::INTERACTIVITY_CHANGED_EVENT, OnVarArgs}};
 use zng_ext_input::{
     focus::FOCUS_CHANGED_EVENT,
     gesture::CLICK_EVENT,
@@ -105,7 +105,8 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                 WIDGET
                     .sub_var(&tip)
                     .sub_event(&MOUSE_HOVERED_EVENT)
-                    .sub_event(&ACCESS_TOOLTIP_EVENT);
+                    .sub_event(&ACCESS_TOOLTIP_EVENT)
+                    .sub_event(&INTERACTIVITY_CHANGED_EVENT);
             }
             UiNodeOp::Deinit => {
                 child.deinit();
@@ -144,6 +145,10 @@ fn tooltip_node(child: impl UiNode, tip: impl IntoVar<WidgetFn<TooltipArgs>>, di
                         if args.visible {
                             check_cursor = true;
                         }
+                    }
+                } else if let Some(args) = INTERACTIVITY_CHANGED_EVENT.on(update) {
+                    if disabled_only != args.new_interactivity(WIDGET.id()).is_disabled() {
+                        show_hide = Some(false);
                     }
                 }
 
