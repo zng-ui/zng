@@ -1,5 +1,5 @@
 use std::{
-    env, mem, thread,
+    env, mem,
     time::{Duration, Instant},
 };
 
@@ -80,9 +80,10 @@ impl ViewConfig {
 
         let time = Instant::now();
         let timeout = Duration::from_secs(5);
+        let sleep = Duration::from_millis(10);
 
         while Self::is_awaiting_same_process() {
-            thread::yield_now();
+            std::thread::sleep(sleep);
             if time.elapsed() >= timeout {
                 panic!("timeout, `wait_same_process` waited for `{timeout:?}`");
             }

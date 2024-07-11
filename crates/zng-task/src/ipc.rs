@@ -186,12 +186,24 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                 Ok(r) => r,
                 Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::ConnectionRefused, e)),
             },
-            Err(_) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    "worker process did not connect in 10s",
-                ))
-            }
+            Err(_) => match process.kill() {
+                Ok(()) => {
+                    let output = process.wait().unwrap();
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let code = output.status.code().unwrap_or(0);
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        format!("worker process did not connect in 10 seconds\nworker exit code: {code}\n--worker stdout--\n{stdout}\n--worker stderr--\n{stderr}"),
+                    ));
+                }
+                Err(e) => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        format!("worker process did not connect in 10s\ncannot be kill worker process, {e}"),
+                    ))
+                }
+            },
         };
 
         let (rsp_sender, rsp_recv) = ipc_channel::ipc::channel()?;

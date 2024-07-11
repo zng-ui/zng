@@ -20,6 +20,8 @@ mod tests;
 static FAILED: AtomicBool = AtomicBool::new(false);
 
 fn main() {
+    zng::app::print_tracing(tracing::Level::INFO);
+
     std::thread::spawn(move || {
         std::thread::sleep(10.minutes());
         eprintln!(cstr!("<bold><red>TIMEOUT</>:</> render-tests did not exit after 10 minutes"),);
@@ -33,11 +35,15 @@ fn main() {
     }
 
     for view_process in ViewProcess::OPTIONS {
+        if args.no_prebuilt && view_process.is_prebuilt() {
+            continue;
+        }
+
         let view_process = format!("{view_process:?}");
 
         if args.include_vp(&view_process) {
-            let mut failed = true;
-            for retries in 0..5 {
+            let mut retries = 0;
+            while retries < 5 {
                 // CI fails some times (view 10s disconnect)
                 let result = std::process::Command::new(std::env::current_exe().unwrap())
                     .env("ZNG_VIEW_NO_INIT_START", "")
@@ -49,14 +55,17 @@ fn main() {
                     .unwrap();
 
                 if result.success() {
-                    failed = false;
+                    retries = 0;
                     break;
                 } else {
-                    eprintln!("failed, retrying..");
-                    std::thread::sleep(std::time::Duration::new(retries + 1, 0));
+                    retries += 1;
+                    if retries < 4 {
+                        eprintln!("\n\nfailed, retrying ({retries})..");
+                        std::thread::sleep(std::time::Duration::new(retries + 1, 0));
+                    }
                 }
             }
-            if failed {
+            if retries > 0 {
                 FAILED.store(true, Relaxed);
             }
         }
@@ -150,6 +159,11 @@ enum ViewProcess {
     PrebuiltSame,
 }
 impl ViewProcess {
+    pub fn is_prebuilt(self) -> bool {
+        matches!(self, Self::PrebuiltInit | Self::PrebuiltSame)
+    }
+}
+impl ViewProcess {
     const OPTIONS: [ViewProcess; 4] = [
         ViewProcess::DefaultInit,
         ViewProcess::DefaultSame,
@@ -197,22 +211,34 @@ zng::app::app_local! {
     pub static SAVE: bool = const { false };
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Args {
     save: bool,
+    no_prebuilt: bool,
     filter: Txt,
 }
 impl Args {
     fn parse() -> Self {
-        let mut args = std::env::args();
-        args.next();
-        let arg0 = args.next().unwrap_or_default();
-        let save = arg0 == "--save";
-        let filter = if save { args.next().unwrap_or_default() } else { arg0 };
-        Self {
-            save,
-            filter: filter.into(),
+        let mut args = Args {
+            save: false,
+            no_prebuilt: false,
+            filter: Txt::from_static(""),
+        };
+
+        for arg in std::env::args().skip(1) {
+            match arg.as_str() {
+                "--save" => args.save = true,
+                "--no-prebuilt" => args.no_prebuilt = true,
+                a => {
+                    if a.starts_with('-') {
+                        panic!("unexpected arg '{a}'");
+                    }
+                    args.filter = Txt::from_str(a);
+                }
+            }
         }
+
+        args
     }
 
     fn include_vp(&self, view_process: &str) -> bool {

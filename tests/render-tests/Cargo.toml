@@ -16,3 +16,4 @@ zng-view-prebuilt = { path = "../../crates/zng-view-prebuilt" }
 zng-view = { path = "../../crates/zng-view" }
 
 color-print = "0.3"
+tracing = "0.1"
