@@ -573,7 +573,22 @@ where
 
             if let Some(args) = event.on(update) {
                 if !args.propagation().is_stopped() && filter(args) {
+                    #[cfg(debug_assertions)]
+                    let t = std::time::Instant::now();
+
                     handler.event(args);
+
+                    #[cfg(debug_assertions)]
+                    {
+                        let t = t.elapsed();
+                        if t > std::time::Duration::from_millis(300) {
+                            tracing::warn!(
+                                "event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
+                                event.as_any().name(),
+                                WIDGET.id()
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -639,7 +654,22 @@ where
         UiNodeOp::Event { update } => {
             if let Some(args) = event.on(update) {
                 if !args.propagation().is_stopped() && filter(args) {
+                    #[cfg(debug_assertions)]
+                    let t = std::time::Instant::now();
+
                     handler.event(args);
+
+                    #[cfg(debug_assertions)]
+                    {
+                        let t = t.elapsed();
+                        if t > std::time::Duration::from_millis(300) {
+                            tracing::warn!(
+                                "preview event handler for `{}` in {:?} blocked for {t:?}, consider using `async_hn!`",
+                                event.as_any().name(),
+                                WIDGET.id()
+                            );
+                        }
+                    }
                 }
             }
         }

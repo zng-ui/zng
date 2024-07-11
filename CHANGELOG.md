@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add warning for slow event handlers in debug builds.
 * Add in memory "clipboard" for headless tests that use `CLIPBOARD`.
 * Fix `tooltip` showing instead of `disabled_tooltip` in contexts that disable the widget after a slight delay.
 * Fix tooltip opened by `ACCESS.show_tooltip` closing immediately on mouse leave.
