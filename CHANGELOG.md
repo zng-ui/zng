@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.10.3
+
 * Fix view-process sometimes never connecting in slow machines.
 * Fix `#.#.#-local` localization not matching the app resources.
 
