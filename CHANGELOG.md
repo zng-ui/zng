@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `tooltip` showing instead of `disabled_tooltip` in contexts that disable the widget after a slight delay.
+* Fix tooltip opened by `ACCESS.show_tooltip` closing immediately on mouse leave.
 
 # 0.10.3
 
