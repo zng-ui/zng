@@ -38,8 +38,8 @@ name = "config"
 path = "config.rs"
 
 [[test]]
-name = "text"
-path = "text.rs"
+name = "misc"
+path = "misc.rs"
 
 [[test]]
 name = "var"
