@@ -1,10 +1,6 @@
 use std::fmt::Write as _;
 
-use zng::{
-    font::SegmentedText,
-    layout::TextSegmentKind,
-    prelude_wgt::{LayoutDirection, Txt},
-};
+use zng::{font::SegmentedText, layout::TextSegmentKind, prelude::*, prelude_wgt::*};
 
 #[test]
 fn emoji_segs() {
@@ -46,4 +42,16 @@ fn emoji_segs() {
         }
         panic!("\n\n{errors}");
     }
+}
+
+#[test]
+fn headless_clipboard() {
+    let mut app = APP.defaults().run_headless(false);
+
+    let rsp = CLIPBOARD.set_text("test");
+    assert!(CLIPBOARD.text().unwrap().is_none()); // same app update
+
+    app.update(false).assert_wait();
+    assert_eq!(rsp.into_rsp().unwrap(), Ok(true));
+    assert_eq!("test", CLIPBOARD.text().unwrap().unwrap());
 }

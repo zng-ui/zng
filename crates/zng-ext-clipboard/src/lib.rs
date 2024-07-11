@@ -10,13 +10,13 @@
 #![warn(missing_docs)]
 
 use core::fmt;
-use std::path::PathBuf;
+use std::{any::Any, path::PathBuf};
 
 use zng_app::{
     event::{command, CommandInfoExt as _, CommandNameExt as _},
     shortcut::{shortcut, CommandShortcutExt as _, ShortcutFilter},
-    view_process::{ViewClipboard, VIEW_PROCESS},
-    AppExtension,
+    view_process::{ViewClipboard, ViewImage, VIEW_PROCESS},
+    AppExtension, APP,
 };
 use zng_app_context::app_local;
 use zng_ext_image::{ImageHasher, ImageVar, Img, IMAGES};
@@ -59,6 +59,7 @@ impl AppExtension for ClipboardManager {
 
 app_local! {
     static CLIPBOARD_SV: ClipboardService = ClipboardService::default();
+    static HEADLESS_CLIPBOARD: Option<Box<dyn Any + Send + Sync>> = const { None };
 }
 
 #[derive(Default)]
@@ -81,13 +82,10 @@ impl<O: 'static, I: 'static> Default for ClipboardData<O, I> {
     }
 }
 impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
-    pub fn get(
-        &mut self,
-        getter: impl FnOnce(&ViewClipboard) -> Result<Result<O, clipboard_api::ClipboardError>, ViewProcessOffline>,
-    ) -> Result<Option<O>, ClipboardError> {
+    pub fn get(&mut self, getter: impl FnOnce(&dyn ActualClipboard) -> ActualClipboardResult<O>) -> Result<Option<O>, ClipboardError> {
         self.latest
             .get_or_insert_with(|| {
-                let r = CLIPBOARD.view().and_then(|v| match getter(v) {
+                let r = match getter(CLIPBOARD.actual()) {
                     Ok(r) => match r {
                         Ok(r) => Ok(Some(r)),
                         Err(e) => match e {
@@ -97,7 +95,7 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
                         },
                     },
                     Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
-                });
+                };
                 if let Err(e) = &r {
                     tracing::error!("clipboard get error, {e:?}");
                 }
@@ -116,17 +114,14 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
         response
     }
 
-    pub fn update(
-        &mut self,
-        setter: impl FnOnce(&ViewClipboard, I) -> Result<Result<(), clipboard_api::ClipboardError>, ViewProcessOffline>,
-    ) {
+    pub fn update(&mut self, setter: impl FnOnce(&dyn ActualClipboard, I) -> ActualClipboardResult<()>) {
         self.map_update(Ok, setter)
     }
 
     pub fn map_update<VI>(
         &mut self,
         to_view: impl FnOnce(I) -> Result<VI, ClipboardError>,
-        setter: impl FnOnce(&ViewClipboard, VI) -> Result<Result<(), clipboard_api::ClipboardError>, ViewProcessOffline>,
+        setter: impl FnOnce(&dyn ActualClipboard, VI) -> ActualClipboardResult<()>,
     ) {
         self.latest = None;
         if let Some((i, rsp)) = self.request.take() {
@@ -138,7 +133,7 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
                     return;
                 }
             };
-            let r = CLIPBOARD.view().and_then(|v| match setter(v, vi) {
+            let r = match setter(CLIPBOARD.actual(), vi) {
                 Ok(r) => match r {
                     Ok(()) => Ok(true),
                     Err(e) => match e {
@@ -150,7 +145,7 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
                     },
                 },
                 Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
-            });
+            };
             if let Err(e) = &r {
                 tracing::error!("clipboard set error, {e:?}");
             }
@@ -165,6 +160,9 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClipboardError {
     /// No view-process available to process the request.
+    ///
+    /// Note that this error only happens if the view-process is respawning. For headless apps (without renderer)
+    /// a in memory "clipboard" is used and this error does not return.
     ViewProcessOffline,
     /// View-process or operating system does not support the data type.
     NotSupported,
@@ -200,13 +198,6 @@ impl fmt::Display for ClipboardError {
 /// without renderer (no view-process) the service will always return [`ClipboardError::ViewProcessOffline`].
 pub struct CLIPBOARD;
 impl CLIPBOARD {
-    fn view(&self) -> Result<&ViewClipboard, ClipboardError> {
-        match VIEW_PROCESS.clipboard() {
-            Ok(c) => Ok(c),
-            Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
-        }
-    }
-
     /// Gets a text string from the clipboard.
     pub fn text(&self) -> Result<Option<Txt>, ClipboardError> {
         CLIPBOARD_SV
@@ -282,6 +273,153 @@ impl CLIPBOARD {
     /// `Ok(false)` if another request made on the same update pass replaces this one or `Err(ClipboardError)`.
     pub fn set_extension(&self, data_type: impl Into<Txt>, data: IpcBytes) -> ResponseVar<Result<bool, ClipboardError>> {
         CLIPBOARD_SV.write().ext.request((data_type.into(), data))
+    }
+}
+
+type ActualClipboardResult<T> = Result<Result<T, clipboard_api::ClipboardError>, ViewProcessOffline>;
+impl CLIPBOARD {
+    fn actual(&self) -> &dyn ActualClipboard {
+        if VIEW_PROCESS.is_available() {
+            match VIEW_PROCESS.clipboard() {
+                Ok(c) => c,
+                Err(ViewProcessOffline) => {
+                    if !APP.window_mode().has_renderer() {
+                        &CLIPBOARD
+                    } else {
+                        &ViewProcessOffline
+                    }
+                }
+            }
+        } else if !APP.window_mode().has_renderer() {
+            &CLIPBOARD
+        } else {
+            &ViewProcessOffline
+        }
+    }
+}
+trait ActualClipboard {
+    fn read_text(&self) -> ActualClipboardResult<Txt>;
+    fn write_text(&self, txt: Txt) -> ActualClipboardResult<()>;
+
+    fn read_image(&self) -> ActualClipboardResult<ViewImage>;
+    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()>;
+
+    fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>>;
+    fn write_file_list(&self, list: Vec<PathBuf>) -> ActualClipboardResult<()>;
+
+    fn read_extension(&self, data_type: Txt) -> ActualClipboardResult<IpcBytes>;
+    fn write_extension(&self, data_type: Txt, data: IpcBytes) -> ActualClipboardResult<()>;
+}
+impl ActualClipboard for ViewClipboard {
+    fn read_text(&self) -> ActualClipboardResult<Txt> {
+        self.read_text()
+    }
+    fn write_text(&self, txt: Txt) -> ActualClipboardResult<()> {
+        self.write_text(txt)
+    }
+
+    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+        self.read_image()
+    }
+    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()> {
+        self.write_image(img)
+    }
+
+    fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>> {
+        self.read_file_list()
+    }
+    fn write_file_list(&self, list: Vec<PathBuf>) -> ActualClipboardResult<()> {
+        self.write_file_list(list)
+    }
+
+    fn read_extension(&self, data_type: Txt) -> ActualClipboardResult<IpcBytes> {
+        self.read_extension(data_type)
+    }
+    fn write_extension(&self, data_type: Txt, data: IpcBytes) -> ActualClipboardResult<()> {
+        self.write_extension(data_type, data)
+    }
+}
+impl CLIPBOARD {
+    fn headless_clipboard_get<T: Any + Clone>(&self) -> ActualClipboardResult<T> {
+        let sv = HEADLESS_CLIPBOARD.read();
+        Ok(match &*sv {
+            Some(v) => match v.downcast_ref::<T>() {
+                Some(v) => Ok(v.clone()),
+                None => Err(clipboard_api::ClipboardError::NotFound),
+            },
+            None => Err(clipboard_api::ClipboardError::NotFound),
+        })
+    }
+
+    fn headless_clipboard_set(&self, t: impl Any + Send + Sync) -> ActualClipboardResult<()> {
+        *HEADLESS_CLIPBOARD.write() = Some(Box::new(t));
+        Ok(Ok(()))
+    }
+}
+impl ActualClipboard for CLIPBOARD {
+    fn read_text(&self) -> ActualClipboardResult<Txt> {
+        self.headless_clipboard_get()
+    }
+    fn write_text(&self, txt: Txt) -> ActualClipboardResult<()> {
+        self.headless_clipboard_set(txt)
+    }
+    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+        self.headless_clipboard_get()
+    }
+    fn write_image(&self, img: &ViewImage) -> ActualClipboardResult<()> {
+        self.headless_clipboard_set(img.clone())
+    }
+
+    fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>> {
+        self.headless_clipboard_get()
+    }
+    fn write_file_list(&self, list: Vec<PathBuf>) -> ActualClipboardResult<()> {
+        self.headless_clipboard_set(list)
+    }
+
+    fn read_extension(&self, data_type: Txt) -> ActualClipboardResult<IpcBytes> {
+        match self.headless_clipboard_get::<(Txt, IpcBytes)>()? {
+            Ok((t, b)) => {
+                if t == data_type {
+                    Ok(Ok(b))
+                } else {
+                    Ok(Err(clipboard_api::ClipboardError::NotFound))
+                }
+            }
+            Err(e) => Ok(Err(e)),
+        }
+    }
+    fn write_extension(&self, data_type: Txt, data: IpcBytes) -> ActualClipboardResult<()> {
+        self.headless_clipboard_set((data_type, data))
+    }
+}
+impl ActualClipboard for ViewProcessOffline {
+    fn read_text(&self) -> ActualClipboardResult<Txt> {
+        Err(ViewProcessOffline)
+    }
+    fn write_text(&self, _: Txt) -> ActualClipboardResult<()> {
+        Err(ViewProcessOffline)
+    }
+
+    fn read_image(&self) -> ActualClipboardResult<ViewImage> {
+        Err(ViewProcessOffline)
+    }
+    fn write_image(&self, _: &ViewImage) -> ActualClipboardResult<()> {
+        Err(ViewProcessOffline)
+    }
+
+    fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>> {
+        Err(ViewProcessOffline)
+    }
+    fn write_file_list(&self, _: Vec<PathBuf>) -> ActualClipboardResult<()> {
+        Err(ViewProcessOffline)
+    }
+
+    fn read_extension(&self, _: Txt) -> ActualClipboardResult<IpcBytes> {
+        Err(ViewProcessOffline)
+    }
+    fn write_extension(&self, _: Txt, _: IpcBytes) -> ActualClipboardResult<()> {
+        Err(ViewProcessOffline)
     }
 }
 
