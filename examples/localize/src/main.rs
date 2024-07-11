@@ -88,8 +88,10 @@ fn window_content() -> impl UiNode {
 
     Stack! {
         align = Align::CENTER;
+        children_align = Align::TOP_START;
         direction = StackDirection::top_to_bottom();
         spacing = 5;
+        layout::height = 400;
         children = ui_vec![
             Button! {
                 child = Text!(l10n!("button", "Button")); // l10n-# button sets "click-count"
@@ -116,7 +118,7 @@ fn window_content() -> impl UiNode {
                 zng::button::style_fn = Style! {
                     layout::padding = 2;
                 };
-                layout::max_width = 200;
+                layout::width = 200;
             }
         ];
     }
