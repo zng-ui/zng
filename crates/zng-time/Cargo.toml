@@ -1,6 +1,6 @@
 [package]
 name = "zng-time"
-version = "0.2.14"
+version = "0.2.15"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"

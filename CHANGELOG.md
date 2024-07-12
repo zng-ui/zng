@@ -1,6 +1,10 @@
 # Unreleased
 
+
+# 0.10.4
+
 * `DInstant` addition now also saturates like subtraction.
+    - Fixes crash in systems without caret blink animation.
 * Add `return_focus_on_deinit`.
 * Add a copy button to the markdown links popup.
 * Add warning for slow event handlers in debug builds.
