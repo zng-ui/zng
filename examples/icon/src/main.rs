@@ -196,6 +196,7 @@ fn expanded_icon(name: &'static str, ico: icon::GlyphIcon, font_mod: &'static st
 
         id = "expanded-icon";
         widget::modal = true;
+        zng::focus::return_focus_on_deinit = true;
         backdrop_blur = 2;
         background_color = light_dark(colors::BLACK.with_alpha(10.pct()), colors::WHITE.with_alpha(10.pct()));
         child_align = Align::CENTER;

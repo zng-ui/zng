@@ -62,6 +62,7 @@ fn overlay(id: impl Into<WidgetId>, offset: i32) -> impl UiNode {
     Container! {
         id;
         widget::modal = true;
+        zng::focus::return_focus_on_deinit = true;
         background_color = light_dark(colors::BLACK.with_alpha(10.pct()), colors::WHITE.with_alpha(10.pct()));
         child_align = Align::CENTER;
         child = Container! {

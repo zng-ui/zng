@@ -5,8 +5,8 @@ use zng::{
     color::filter::drop_shadow,
     focus::{
         alt_focus_scope, directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus,
-        tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav,
-        FOCUS_CHANGED_EVENT,
+        return_focus_on_deinit, tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget,
+        TabIndex, TabNav, FOCUS_CHANGED_EVENT,
     },
     font::FontName,
     gesture::ClickArgs,
@@ -145,6 +145,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
             disable_window(window_enabled.clone()),
             // Overlay Scope
             Button! {
+                id = "overlay-scope-btn";
                 child = Text!("Overlay Scope");
                 on_click = hn!(|_| {
                     LAYERS.insert(LayerIndex::TOP_MOST, overlay(window_enabled.clone()));
@@ -169,6 +170,7 @@ fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
     Container! {
         id = "overlay";
         widget::modal = true;
+        return_focus_on_deinit = true;
         child_align = Align::CENTER;
         child = Container! {
             focus_scope = true;

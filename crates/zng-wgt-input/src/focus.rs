@@ -4,6 +4,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
 use zng_ext_input::focus::*;
 use zng_ext_input::gesture::{CLICK_EVENT, GESTURES};
 use zng_ext_input::mouse::MOUSE_INPUT_EVENT;
@@ -482,6 +483,45 @@ pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
             if let State::InfoInited = &state {
                 state = State::Done;
                 FOCUS.focus_widget_or_related(WIDGET.id(), false, false);
+            }
+        }
+        _ => {}
+    })
+}
+
+/// If the widget return focus to the previous focus when it inited.
+///
+/// This can be used with the [`modal`] property to declare *modal dialogs* that return the focus
+/// to the widget that opens the dialog.
+///
+/// [`modal`]: fn@zng_wgt::modal
+#[property(CONTEXT, default(false), widget_impl(FocusableMix<P>))]
+pub fn return_focus_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    let enabled = enabled.into_var();
+    let mut return_focus = None;
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            return_focus = FOCUS.focused().with(|p| p.as_ref().map(|p| p.widget_id()));
+        }
+        UiNodeOp::Deinit => {
+            if let Some(id) = return_focus.take() {
+                if enabled.get() {
+                    if let Some(w) = zng_ext_window::WINDOWS.widget_info(id) {
+                        if w.into_focusable(false, false).is_some() {
+                            // can focus on the next update
+                            FOCUS.focus_widget(id, false);
+                            return;
+                        }
+                    }
+                    // try focus after info rebuild.
+                    WIDGET_INFO_CHANGED_EVENT
+                        .on_pre_event(app_hn_once!(|_| {
+                            FOCUS.focus_widget(id, false);
+                        }))
+                        .perm();
+                    // ensure info rebuilds to clear the event at least
+                    WIDGET.update_info();
+                }
             }
         }
         _ => {}
