@@ -5,6 +5,7 @@ use std::sync::Arc;
 use zng_wgt::{prelude::*, *};
 
 use zng_app::widget::info::TransformChangedArgs;
+use zng_ext_clipboard::{CLIPBOARD, COPY_CMD};
 use zng_ext_image::ImageSource;
 use zng_ext_input::focus::WidgetInfoFocusExt as _;
 use zng_ext_input::{focus::FOCUS, gesture::ClickArgs};
@@ -12,11 +13,10 @@ use zng_wgt_button::Button;
 use zng_wgt_container::Container;
 use zng_wgt_fill::*;
 use zng_wgt_filter::*;
-use zng_wgt_input::focus::on_blur;
+use zng_wgt_input::focus::on_focus_leave;
 use zng_wgt_layer::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
 use zng_wgt_scroll::cmd::ScrollToMode;
 use zng_wgt_size_offset::*;
-use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_text::{self as text, Text};
 
 use super::Markdown;
@@ -266,6 +266,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         return false;
     }
 
+    #[derive(Clone)]
     enum Link {
         Url(Uri),
         Path(PathBuf),
@@ -317,72 +318,95 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
             background_color = light_dark(web_colors::PINK.with_alpha(90.pct()), web_colors::DARK_RED.with_alpha(90.pct()));
         }
 
-        child = Stack! {
-            direction = StackDirection::left_to_right();
-            children = ui_vec![
-                Button! {
-                    style_fn = zng_wgt_button::LinkStyle!();
+        on_focus_leave = async_hn_once!(status, |_| {
+            if status.get() != Status::Pending {
+                return;
+            }
 
-                    focus_on_init = true;
+            status.set(Status::Cancel);
+            task::deadline(200.ms()).await;
 
-                    child = Text!(url);
-                    text::underline_skip = text::UnderlineSkip::SPACES;
+            LAYERS.remove(popup_id);
+        });
+        on_move = async_hn!(status, |args: TransformChangedArgs| {
+            if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                return;
+            }
 
-                    on_blur = async_hn_once!(status, |_| {
-                        if status.get() != Status::Pending {
-                            return;
-                        }
+            status.set(Status::Cancel);
+            task::deadline(200.ms()).await;
 
-                        status.set(Status::Cancel);
-                        task::deadline(200.ms()).await;
+            LAYERS.remove(popup_id);
+        });
 
-                        LAYERS.remove(popup_id);
-                    });
-                    on_move = async_hn!(status, |args: TransformChangedArgs| {
-                        if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
-                            return;
-                        }
+        child = Button! {
+            style_fn = zng_wgt_button::LinkStyle!();
 
-                        status.set(Status::Cancel);
-                        task::deadline(200.ms()).await;
+            focus_on_init = true;
 
-                        LAYERS.remove(popup_id);
-                    });
+            child = Text!(url);
+            child_end = ICONS.get_or("arrow-outward", || Text!("🡵")), 2;
 
-                    on_click = async_hn_once!(status, |args: ClickArgs| {
-                        if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
-                            return;
-                        }
+            text::underline_skip = text::UnderlineSkip::SPACES;
 
-                        args.propagation().stop();
+            on_click = async_hn_once!(status, link, |args: ClickArgs| {
+                if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                    return;
+                }
 
-                        let url = match link {
-                            Link::Url(u) => u.to_string(),
-                            Link::Path(p) => {
-                                match dunce::canonicalize(&p) {
-                                    Ok(p) => p.display().to_string(),
-                                    Err(e) => {
-                                        tracing::error!("error canonicalizing \"{}\", {e}", p.display());
-                                        return;
-                                    }
-                                }
+                args.propagation().stop();
+
+                let (uri, kind) = match link {
+                    Link::Url(u) => (u.to_string(), "url"),
+                    Link::Path(p) => {
+                        match dunce::canonicalize(&p) {
+                            Ok(p) => (p.display().to_string(), "path"),
+                            Err(e) => {
+                                tracing::error!("error canonicalizing \"{}\", {e}", p.display());
+                                return;
                             }
-                        };
-
-                        let r = task::wait(clmv!(url, || open::that(url))).await;
-                        if let Err(e) = &r {
-                            tracing::error!("error opening \"{url}\", {e}");
                         }
+                    }
+                };
 
-                        status.set(if r.is_ok() { Status::Ok } else { Status::Err });
-                        task::deadline(200.ms()).await;
+                let r = task::wait( || open::that(uri)).await;
+                if let Err(e) = &r {
+                    tracing::error!("error opening {kind}, {e}");
+                }
 
-                        LAYERS.remove(popup_id);
-                    });
-                },
-                Text!(" 🡵"),
-            ];
-        }
+                status.set(if r.is_ok() { Status::Ok } else { Status::Err });
+                task::deadline(200.ms()).await;
+
+                LAYERS.remove(popup_id);
+            });
+        };
+        child_end = Button! {
+            style_fn = zng_wgt_button::LightStyle!();
+            padding = 3;
+            child = presenter((), COPY_CMD.icon());
+            on_click = async_hn_once!(status, |args: ClickArgs| {
+                if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
+                    return;
+                }
+
+                args.propagation().stop();
+
+                let txt = match link {
+                    Link::Url(u) => u.to_txt(),
+                    Link::Path(p) => p.display().to_txt(),
+                };
+
+                let r = CLIPBOARD.set_text(txt.clone()).wait_into_rsp().await;
+                if let Err(e) = &r {
+                    tracing::error!("error copying uri, {e}");
+                }
+
+                status.set(if r.is_ok() { Status::Ok } else { Status::Err });
+                task::deadline(200.ms()).await;
+
+                LAYERS.remove(popup_id);
+            });
+        }, 0;
     };
 
     LAYERS.insert_anchored(
