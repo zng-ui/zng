@@ -1,5 +1,5 @@
 use std::{
-    env,
+    env, fs,
     hash::Hasher,
     path::{Path, PathBuf},
 };
@@ -14,9 +14,19 @@ fn main() {
         return;
     }
 
-    let mut lib = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("lib");
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let manifest_dir = Path::new(&manifest_dir);
 
+    let mut lib = manifest_dir.join("lib");
     println!("cargo:rerun-if-changed={}", lib.display());
+
+    // rerun-if-changed disables the default check
+    //
+    // if version updates
+    println!("cargo:rerun-if-changed={}", manifest_dir.join("Cargo.toml").display());
+    // in case of intermittent download error
+    let rerun_request = Path::new(&env::var("OUT_DIR").unwrap()).join("rerun");
+    println!("cargo:rerun-if-changed={}", rerun_request.display());
 
     #[allow(unused_variables)]
     let file = "";
@@ -31,6 +41,8 @@ fn main() {
     lib = lib.join(&file);
 
     let is_docs_rs = env::var("DOCS_RS").is_ok();
+
+    let mut rerun = false;
 
     if !lib.exists() && !is_docs_rs {
         let version = env::var("CARGO_PKG_VERSION").unwrap();
@@ -64,28 +76,33 @@ fn main() {
                             Ok(s) => {
                                 if s.success() {
                                     if !lib.exists() {
-                                        println!("cargo:warning=view prebuilt not embedded, unexpected missing {}", lib.display(),)
+                                        println!("cargo:warning=view prebuilt not embedded, unexpected missing {}", lib.display());
+                                        rerun = true;
                                     }
                                 } else {
                                     println!(
                                         "cargo:warning=view prebuilt not embedded, failed extract, tar exit code: {:?}",
                                         s.code()
-                                    )
+                                    );
+                                    rerun = true;
                                 }
                             }
                             Err(e) => {
                                 println!("cargo:warning=view prebuilt not embedded, failed extract, {e}");
+                                rerun = true;
                             }
                         }
                     } else {
                         println!(
                             "cargo:warning=view prebuilt not embedded, failed download, curl exit code: {:?}",
                             s.code()
-                        )
+                        );
+                        rerun = true;
                     }
                 }
                 Err(e) => {
                     println!("cargo:warning=view prebuilt not embedded, failed download, {e}");
+                    rerun = true;
                 }
             }
         }
@@ -111,7 +128,11 @@ fn main() {
         );
     } else if is_docs_rs || PathBuf::from("../../tools/cargo-do").exists() {
         println!("cargo:warning=view prebuilt not embedded, missing '{file}', call `do prebuild`");
+        if rerun {
+            fs::write(rerun_request, "rerun").unwrap();
+        }
     } else {
+        // exit with error also flags rerun
         panic!("view prebuilt not embedded, missing '{file}'");
     }
 }
