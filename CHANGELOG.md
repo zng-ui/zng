@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `Dialog!` widget, `DIALOG` service and related types.
 
 # 0.10.4
 

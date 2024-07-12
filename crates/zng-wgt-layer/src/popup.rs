@@ -1,7 +1,5 @@
 //! Popup widget.
 
-zng_wgt::enable_widget_macros!();
-
 use std::time::Duration;
 
 use zng_ext_input::focus::{DirectionalNav, TabNav, FOCUS_CHANGED_EVENT};
