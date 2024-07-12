@@ -24,7 +24,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::{fmt, mem, ops};
 
-pub mod dialog;
 pub mod popup;
 
 struct LayersCtx {

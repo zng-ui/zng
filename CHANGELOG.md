@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `ResponseVar::map_response`.
 * Add `Dialog!` widget, `DIALOG` service and related types.
 
 # 0.10.4

@@ -1,19 +1,33 @@
-//! Dialog widget.
+#![doc(html_favicon_url = "https://raw.githubusercontent.com/zng-ui/zng/main/examples/image/res/zng-logo-icon.png")]
+#![doc(html_logo_url = "https://raw.githubusercontent.com/zng-ui/zng/main/examples/image/res/zng-logo.png")]
+//!
+//! Dialog widget and service.
+//!
+//! # Crate
+//!
+#![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
+
+zng_wgt::enable_widget_macros!();
 
 use core::fmt;
 use std::ops;
 
 use zng_ext_input::focus::{DirectionalNav, TabNav};
 use zng_ext_l10n::l10n;
-use zng_wgt::{modal, prelude::*};
+use zng_wgt::{align, corner_radius, margin, modal, prelude::*};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::drop_shadow;
 use zng_wgt_input::focus::{directional_nav, tab_nav, FocusableMix};
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_text::Text;
+use zng_wgt_text_input::selectable::SelectableText;
+use zng_wgt_wrap::Wrap;
 
 /// A modal dialog overlay container.
-#[widget($crate::dialog::Dialog)]
+#[widget($crate::Dialog)]
 pub struct Dialog(FocusableMix<StyleMix<Container>>);
 impl Dialog {
     fn widget_intrinsic(&mut self) {
@@ -34,7 +48,7 @@ impl Dialog {
 impl_style_fn!(Dialog);
 
 /// Dialog default style.
-#[widget($crate::dialog::DefaultStyle)]
+#[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
@@ -43,13 +57,45 @@ impl DefaultStyle {
 
             replace = true;
 
-            // same as window
-            background_color = light_dark(rgb(0.9, 0.9, 0.9), rgb(0.1, 0.1, 0.1));
+            background_color = light_dark(rgb(0.7, 0.7, 0.7), rgb(0.3, 0.3, 0.3));
             drop_shadow = {
-                offset: 2,
-                blur_radius: 2,
+                offset: 4,
+                blur_radius: 6,
                 color: colors::BLACK.with_alpha(50.pct()),
             };
+
+            corner_radius = 8;
+            margin = 10;
+            zng_wgt_container::padding = 10;
+
+            align = Align::CENTER;
+
+            zng_wgt_container::child = presenter((), DIALOG_CONTENT_VAR);
+
+            zng_wgt_container::child_out_top = Container! {
+                child = presenter((), DIALOG_TITLE_VAR);
+                child_align = Align::START;
+            }, 0;
+            zng_wgt_container::child_out_left = Container! {
+                child = presenter((), DIALOG_ICON_VAR);
+                child_align = Align::TOP;
+            }, 0;
+            zng_wgt_container::child_out_bottom = presenter(DIALOG_RESPONSES_VAR, wgt_fn!(|responses: Responses| {
+                Wrap! {
+                    children_align = Align::END;
+                    children = {
+                        let last = responses.len().saturating_sub(1);
+                        responses.0
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, r)| presenter(
+                                DialogButtonArgs { response: r, is_last: i == last },
+                                DIALOG_BUTTON_FN_VAR
+                            ).boxed())
+                            .collect::<UiNodeVec>()
+                    };
+                }
+            })), 0;
         }
     }
 }
@@ -70,6 +116,7 @@ context_var! {
 /// Arguments for [`button_fn`].
 ///
 /// [`button_fn`]: fn@button_fn
+#[derive(Debug, Clone, PartialEq)]
 pub struct DialogButtonArgs {
     /// The response that must be represented by the button.
     pub response: Response,
@@ -80,44 +127,34 @@ pub struct DialogButtonArgs {
 /// Dialog title widget.
 ///
 /// Note that this takes in an widget, you can use `Text!("title")` to set to a text.
-///
-/// Sets the [`DIALOG_TITLE_VAR`].
-#[property(CONTEXT, default(DIALOG_TITLE_VAR), widget_impl(Dialog))]
-pub fn title(child: impl UiNode, title: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    with_context_var(child, DIALOG_TITLE_VAR, title)
+#[property(CONTEXT, default(NilUiNode), widget_impl(Dialog))]
+pub fn title(child: impl UiNode, title: impl UiNode) -> impl UiNode {
+    with_context_var(child, DIALOG_TITLE_VAR, WidgetFn::singleton(title))
 }
 
 /// Dialog icon widget.
 ///
 /// Note that this takes in an widget, you can use the `ICONS` service to get an icon widget.
-///
-/// Sets the [`DIALOG_ICON_VAR`].
-#[property(CONTEXT, default(DIALOG_ICON_VAR), widget_impl(Dialog))]
-pub fn icon(child: impl UiNode, icon: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    with_context_var(child, DIALOG_ICON_VAR, icon)
+#[property(CONTEXT, default(NilUiNode), widget_impl(Dialog))]
+pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
+    with_context_var(child, DIALOG_ICON_VAR, WidgetFn::singleton(icon))
 }
 
 /// Dialog content widget.
 ///
 /// Note that this takes in an widget, you can use `SelectableText!("message")` for the message.
-///
-/// Sets the [`DIALOG_CONTENT_VAR`].
-#[property(CONTEXT, default(DIALOG_CONTENT_VAR), widget_impl(Dialog))]
-pub fn content(child: impl UiNode, content: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
-    with_context_var(child, DIALOG_CONTENT_VAR, content)
+#[property(CONTEXT, default(FillUiNode), widget_impl(Dialog))]
+pub fn content(child: impl UiNode, content: impl UiNode) -> impl UiNode {
+    with_context_var(child, DIALOG_CONTENT_VAR, WidgetFn::singleton(content))
 }
 
 /// Dialog button generator.
-///
-/// Sets the [`DIALOG_BUTTON_FN_VAR`].
 #[property(CONTEXT, default(DIALOG_BUTTON_FN_VAR), widget_impl(Dialog))]
 pub fn button_fn(child: impl UiNode, button: impl IntoVar<WidgetFn<DialogButtonArgs>>) -> impl UiNode {
     with_context_var(child, DIALOG_BUTTON_FN_VAR, button)
 }
 
 /// Dialog responses.
-///
-/// Sets the [`DIALOG_RESPONSES_VAR`].
 #[property(CONTEXT, default(DIALOG_RESPONSES_VAR), widget_impl(Dialog))]
 pub fn responses(child: impl UiNode, responses: impl IntoVar<Responses>) -> impl UiNode {
     with_context_var(child, DIALOG_RESPONSES_VAR, responses)
@@ -126,31 +163,40 @@ pub fn responses(child: impl UiNode, responses: impl IntoVar<Responses>) -> impl
 /// Dialog info style.
 ///
 /// Sets the info icon and a single "Ok" response.
-#[widget($crate::dialog::InfoStyle)]
+#[widget($crate::InfoStyle)]
 pub struct InfoStyle(DefaultStyle);
+impl InfoStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            responses = Responses::ok();
+
+        }
+    }
+}
 
 /// Dialog warn style.
 ///
 /// Sets the warn icon and a single "Ok" response.
-#[widget($crate::dialog::WarnStyle)]
+#[widget($crate::WarnStyle)]
 pub struct WarnStyle(DefaultStyle);
 
 /// Dialog error style.
 ///
 /// Sets the error icon and a single "Ok" response.
-#[widget($crate::dialog::ErrorStyle)]
+#[widget($crate::ErrorStyle)]
 pub struct ErrorStyle(DefaultStyle);
 
 /// Question style.
 ///
 /// Sets the question icon and two "No" and "Yes" responses.
-#[widget($crate::dialog::QuestionStyle)]
+#[widget($crate::QuestionStyle)]
 pub struct QuestionStyle(DefaultStyle);
 
 /// Confirmation style.
 ///
 /// Sets the question icon and two "Cancel" and "Ok" responses.
-#[widget($crate::dialog::ConfirmStyle)]
+#[widget($crate::ConfirmStyle)]
 pub struct ConfirmStyle(DefaultStyle);
 
 /// Dialog response.
@@ -182,26 +228,26 @@ impl Response {
 
     /// "Ok"
     pub fn ok() -> Self {
-        Self::new("Ok", l10n!("dialog/response-ok", "Ok"))
+        Self::new("Ok", l10n!("response-ok", "Ok"))
     }
 
     /// "Cancel"
     pub fn cancel() -> Self {
-        Self::new("Cancel", l10n!("dialog/response-cancel", "Cancel"))
+        Self::new("Cancel", l10n!("response-cancel", "Cancel"))
     }
 
     /// "Yes"
     pub fn yes() -> Self {
-        Self::new("Yes", l10n!("dialog/response-yes", "Yes"))
+        Self::new("Yes", l10n!("response-yes", "Yes"))
     }
     /// "No"
     pub fn no() -> Self {
-        Self::new("No", l10n!("dialog/response-no", "No"))
+        Self::new("No", l10n!("response-no", "No"))
     }
 
     /// "Close"
     pub fn close() -> Self {
-        Self::new("Close", l10n!("dialog/response-close", "Close"))
+        Self::new("Close", l10n!("response-close", "Close"))
     }
 }
 
@@ -276,8 +322,58 @@ impl DIALOG {
     /// Returns the selected response or [`close`] if the dialog is closed without response.
     ///
     /// [`close`]: Response::close
-    pub fn open(&self, _dialog: impl UiNode) -> ResponseVar<Response> {
+    pub fn show(&self, _dialog: impl UiNode) -> ResponseVar<Response> {
         todo!()
+    }
+
+    /// Show an info dialog with "Ok" button.
+    pub fn inform(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+        self.show(Dialog! {
+            style_fn = InfoStyle!();
+            title = Text!(title);
+            content = SelectableText!(msg);
+        })
+        .map_response(|_| ())
+    }
+
+    /// Show a warning dialog with "Ok" button.
+    pub fn warn(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+        self.show(Dialog! {
+            style_fn = WarnStyle!();
+            title = Text!(title);
+            content = SelectableText!(msg);
+        })
+        .map_response(|_| ())
+    }
+
+    /// Show an error dialog with "Ok" button.
+    pub fn error(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+        self.show(Dialog! {
+            style_fn = ErrorStyle!();
+            title = Text!(title);
+            content = SelectableText!(msg);
+        })
+        .map_response(|_| ())
+    }
+
+    /// Shows a question dialog with "No" and "Yes" buttons. Returns `true` for "Yes".
+    pub fn ask(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
+        self.show(Dialog! {
+            style_fn = QuestionStyle!();
+            title = Text!(title);
+            content = SelectableText!(question);
+        })
+        .map_response(|r| r.name == "Yes")
+    }
+
+    /// Shows a question dialog with "Cancel" and "Ok" buttons. Returns `true` for "Ok".
+    pub fn confirm(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
+        self.show(Dialog! {
+            style_fn = InfoStyle!();
+            title = Text!(title);
+            content = SelectableText!(question);
+        })
+        .map_response(|r| r.name == "Ok")
     }
 
     /// Close the contextual dialog with the response.
