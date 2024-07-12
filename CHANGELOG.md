@@ -1,5 +1,6 @@
 # Unreleased
 
+* `DInstant` addition now also saturates like subtraction.
 * Add `return_focus_on_deinit`.
 * Add a copy button to the markdown links popup.
 * Add warning for slow event handlers in debug builds.

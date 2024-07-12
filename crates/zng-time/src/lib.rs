@@ -204,24 +204,24 @@ impl ops::Add<Duration> for DInstant {
     type Output = Self;
 
     fn add(self, rhs: Duration) -> Self {
-        Self(self.0 + rhs)
+        Self(self.0.saturating_add(rhs))
     }
 }
 impl ops::AddAssign<Duration> for DInstant {
     fn add_assign(&mut self, rhs: Duration) {
-        self.0 += rhs;
+        self.0 = self.0.saturating_add(rhs);
     }
 }
 impl ops::Sub<Duration> for DInstant {
     type Output = Self;
 
     fn sub(self, rhs: Duration) -> Self {
-        Self(self.0 - rhs)
+        Self(self.0.saturating_sub(rhs))
     }
 }
 impl ops::SubAssign<Duration> for DInstant {
     fn sub_assign(&mut self, rhs: Duration) {
-        self.0 -= rhs;
+        self.0 = self.0.saturating_sub(rhs);
     }
 }
 impl ops::Sub for DInstant {
