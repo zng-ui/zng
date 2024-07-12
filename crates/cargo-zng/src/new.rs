@@ -309,19 +309,20 @@ fn apply_template(cx: &Context, package_name: &str) -> io::Result<()> {
 }
 
 fn apply(cx: &Context, is_post: bool, from: &Path, to: &Path) -> io::Result<()> {
-    for entry in fs::read_dir(from)? {
-        let from = entry?.path();
-        if cx.ignore(&from, is_post) {
+    for entry in walkdir::WalkDir::new(from).min_depth(1).max_depth(1).sort_by_file_name() {
+        let entry = entry?;
+        let from = entry.path();
+        if cx.ignore(from, is_post) {
             continue;
         }
         if from.is_dir() {
-            let from = cx.rename(&from)?;
+            let from = cx.rename(from)?;
             let to = to.join(from.file_name().unwrap());
             println!("  {}", to.display());
             fs::create_dir(&to)?;
             apply(cx, is_post, &from, &to)?;
         } else if from.is_file() {
-            let from = cx.rename(&from)?;
+            let from = cx.rename(from)?;
             let to = to.join(from.file_name().unwrap());
             cx.rewrite(&from)?;
             println!("  {}", to.display());
