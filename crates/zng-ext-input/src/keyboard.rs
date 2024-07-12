@@ -507,7 +507,7 @@ impl KeyboardService {
 
         var.animate(move |anim, vm| {
             let (interval, timeout) = cfg.get();
-            if anim.start_time().elapsed() >= timeout {
+            if anim.start_time().elapsed() >= timeout || interval == Duration::MAX {
                 if **vm != one {
                     vm.set(one);
                 }
