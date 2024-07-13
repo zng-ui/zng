@@ -13,14 +13,16 @@ zng_wgt::enable_widget_macros!();
 
 use std::{fmt, ops, sync::Arc};
 
+use parking_lot::Mutex;
 use zng_ext_l10n::l10n;
-use zng_wgt::{align, corner_radius, margin, modal, modal_included, prelude::*};
+use zng_var::ContextInitHandle;
+use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::drop_shadow;
 use zng_wgt_input::focus::alt_focus_scope;
 use zng_wgt_layer::{
-    popup::{ContextCapture, Popup, PopupState, POPUP},
+    popup::{ContextCapture, Popup, POPUP},
     AnchorMode,
 };
 use zng_wgt_style::{impl_style_fn, style_fn, Style};
@@ -68,24 +70,28 @@ impl DefaultStyle {
             };
 
             corner_radius = 8;
+            clip_to_bounds = true;
+
             margin = 10;
-            zng_wgt_container::padding = 10;
+            zng_wgt_container::padding = 15;
 
             align = Align::CENTER;
 
-            zng_wgt_container::child = presenter((), DIALOG_CONTENT_VAR);
-
             zng_wgt_container::child_out_top = Container! {
+                corner_radius = 0;
+                background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
                 child = presenter((), DIALOG_TITLE_VAR);
                 child_align = Align::START;
+                padding = (4, 8);
+                zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
             }, 0;
-            zng_wgt_container::child_out_left = Container! {
-                child = presenter((), DIALOG_ICON_VAR);
-                child_align = Align::TOP;
-            }, 0;
+            
             zng_wgt_container::child_out_bottom = presenter(DIALOG_RESPONSES_VAR, wgt_fn!(|responses: Responses| {
                 Wrap! {
+                    corner_radius = 0;
+                    background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
                     children_align = Align::END;
+                    zng_wgt_container::padding = 3;
                     children = {
                         let last = responses.len().saturating_sub(1);
                         responses.0
@@ -99,6 +105,13 @@ impl DefaultStyle {
                     };
                 }
             })), 0;
+            
+            zng_wgt_container::child_out_left = Container! {
+                child = presenter((), DIALOG_ICON_VAR);
+                child_align = Align::TOP;
+            }, 0;
+
+            zng_wgt_container::child = presenter((), DIALOG_CONTENT_VAR);
         }
     }
 }
@@ -111,9 +124,24 @@ context_var! {
     /// Content widget, usually the dialog child.
     pub static DIALOG_CONTENT_VAR: WidgetFn<()> = WidgetFn::nil();
     /// Dialog response button generator, usually placed as `child_out_bottom`.
-    pub static DIALOG_BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::nil();
+    pub static DIALOG_BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::new(default_dialog_button_fn);
     /// Dialog responses.
     pub static DIALOG_RESPONSES_VAR: Responses = Responses::ok();
+}
+
+/// Default value of [`dialog_button_fn`](fn@dialog_button_fn)
+pub fn default_dialog_button_fn(args: DialogButtonArgs) -> impl UiNode {
+    zng_wgt_button::Button! {
+        child = Text!(args.response.name.clone());
+        on_click = hn_once!(|a: &zng_wgt_input::gesture::ClickArgs| {
+            a.propagation().stop();
+            DIALOG.respond(args.response);
+        });
+        focus_on_init = args.is_last;
+        when args.is_last {
+            style_fn = zng_wgt_button::PrimaryStyle!();
+        }
+    }
 }
 
 /// Arguments for [`button_fn`].
@@ -172,6 +200,12 @@ impl InfoStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            icon = Container! {
+                child = ICONS.req(["dialog-info", "info"]);
+                zng_wgt_size_offset::size = 48;
+                zng_wgt_text::font_color = colors::AZURE;
+                padding = 5;
+            };
             responses = Responses::ok();
 
         }
@@ -313,7 +347,7 @@ impl_from_and_into_var! {
 /// Dialog overlay service.
 pub struct DIALOG;
 impl DIALOG {
-    /// Open the `dialog`.
+    /// Open the custom `dialog`.
     ///
     /// Returns the selected response or [`close`] if the dialog is closed without response.
     ///
@@ -322,60 +356,54 @@ impl DIALOG {
         self.show_impl(dialog.boxed())
     }
 
-    /// Show an info dialog with "Ok" button.
-    pub fn inform(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+    fn show_dlg(&self, msg: BoxedVar<Txt>, title: BoxedVar<Txt>, style: zng_wgt_style::StyleBuilder) -> ResponseVar<Response> {
         self.show(Dialog! {
-            style_fn = InfoStyle!();
-            title = Text!(title);
+            style_fn = style;
+            title = Text! {
+                visibility = title.map(|t| Visibility::from(!t.is_empty()));
+                txt = title;
+            };
             content = SelectableText!(msg);
         })
-        .map_response(|_| ())
+    }
+
+    /// Show an info dialog with "Ok" button.
+    pub fn info(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+        self.show_dlg(msg.into_var().boxed(), title.into_var().boxed(), InfoStyle!())
+            .map_response(|_| ())
     }
 
     /// Show a warning dialog with "Ok" button.
     pub fn warn(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
-        self.show(Dialog! {
-            style_fn = WarnStyle!();
-            title = Text!(title);
-            content = SelectableText!(msg);
-        })
-        .map_response(|_| ())
+        self.show_dlg(msg.into_var().boxed(), title.into_var().boxed(), WarnStyle!())
+            .map_response(|_| ())
     }
 
     /// Show an error dialog with "Ok" button.
     pub fn error(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
-        self.show(Dialog! {
-            style_fn = ErrorStyle!();
-            title = Text!(title);
-            content = SelectableText!(msg);
-        })
-        .map_response(|_| ())
+        self.show_dlg(msg.into_var().boxed(), title.into_var().boxed(), ErrorStyle!())
+            .map_response(|_| ())
     }
 
     /// Shows a question dialog with "No" and "Yes" buttons. Returns `true` for "Yes".
-    pub fn ask(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
-        self.show(Dialog! {
-            style_fn = QuestionStyle!();
-            title = Text!(title);
-            content = SelectableText!(question);
-        })
-        .map_response(|r| r.name == "Yes")
+    pub fn question(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
+        self.show_dlg(question.into_var().boxed(), title.into_var().boxed(), QuestionStyle!())
+            .map_response(|r| r.name == "Yes")
     }
 
     /// Shows a question dialog with "Cancel" and "Ok" buttons. Returns `true` for "Ok".
     pub fn confirm(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
-        self.show(Dialog! {
-            style_fn = InfoStyle!();
-            title = Text!(title);
-            content = SelectableText!(question);
-        })
-        .map_response(|r| r.name == "Ok")
+        self.show_dlg(question.into_var().boxed(), title.into_var().boxed(), ConfirmStyle!())
+            .map_response(|r| r.name == "Ok")
     }
 
     /// Close the contextual dialog with the response.
     pub fn respond(&self, response: Response) {
-        if DIALOG_RESPONDER_VAR.set(zng_var::types::Response::Done(response)).is_ok() {
-            POPUP.close_id(WIDGET.id());
+        let ctx = DIALOG_CTX.get();
+        let id = *ctx.dialog_id.lock();
+        if let Some(id) = id {
+            ctx.responder.respond(response);
+            POPUP.close_id(id);
         } else {
             tracing::error!("DIALOG.respond called outside of a dialog");
         }
@@ -384,53 +412,50 @@ impl DIALOG {
     fn show_impl(&self, dialog: BoxedUiNode) -> ResponseVar<Response> {
         let (responder, response) = response_var();
 
-        let mut ctx = Some(Arc::new(responder.clone().boxed()));
-        let id = zng_var::ContextInitHandle::new();
+        let mut ctx = Some(Arc::new(DialogCtx {
+            dialog_id: Mutex::new(None),
+            responder,
+        }));
+
         let dialog = match_widget(
             dialog,
-            clmv!(id, |c, op| {
-                DIALOG_RESPONDER_VAR.with_context(id.clone(), &mut ctx, || c.op(op));
+            clmv!(|c, op| {
+                match &op {
+                    UiNodeOp::Init => {
+                        *ctx.as_ref().unwrap().dialog_id.lock() = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
+                        DIALOG_CTX.with_context(&mut ctx, || c.op(op));
+                        // in case a non-standard dialog widget is used
+                        *ctx.as_ref().unwrap().dialog_id.lock() = c.with_context(WidgetUpdateMode::Ignore, || WIDGET.id());
+                    }
+                    UiNodeOp::Deinit => {}
+                    _ => {
+                        DIALOG_CTX.with_context(&mut ctx, || c.op(op));
+                    }
+                }
             }),
         );
 
-        let state = zng_wgt_layer::popup::CLOSE_ON_FOCUS_LEAVE_VAR.with_context_var(id, false, || {
+        zng_wgt_layer::popup::CLOSE_ON_FOCUS_LEAVE_VAR.with_context_var(ContextInitHandle::new(), false, || {
             POPUP.open_config(
                 dialog,
                 AnchorMode::window(),
-                ContextCapture::CaptureBlend {
-                    filter: CaptureFilter::None,
-                    over: false,
-                },
+                ContextCapture::NoCapture,
             )
         });
-
-        // if popup closes without responding set response to `Response::close()`.
-        let responder_wk = responder.downgrade();
-        state
-            .hook(move |v| {
-                let mut retain = false;
-                if let Some(r) = responder_wk.upgrade() {
-                    retain = true;
-                    if matches!(v.value(), PopupState::Closed) {
-                        retain = false;
-                        r.modify(|v| {
-                            if v.is_waiting() {
-                                v.set(zng_var::types::Response::Done(Response::close()));
-                            }
-                        });
-                    }
-                }
-                retain
-            })
-            .perm();
-        responder.hold(state).perm();
 
         response
     }
 }
 
-context_var! {
-    static DIALOG_RESPONDER_VAR: zng_var::types::Response<Response> = zng_var::types::Response::Waiting;
+struct DialogCtx {
+    dialog_id: Mutex<Option<WidgetId>>,
+    responder: ResponderVar<Response>,
+}
+context_local! {
+    static DIALOG_CTX: DialogCtx = DialogCtx {
+        dialog_id: Mutex::new(None),
+        responder: response_var().0,
+    };
 }
 
 // !!: TODO
