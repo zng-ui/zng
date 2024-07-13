@@ -238,7 +238,7 @@ impl POPUP {
                     set
                 });
                 (filter, false)
-            },
+            }
             ContextCapture::CaptureBlend { filter, over } => (filter, over),
         };
         if filter != CaptureFilter::None {
@@ -347,9 +347,9 @@ impl DefaultStyle {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ContextCapture {
     /// No context capture except the popup configuration context.
-    /// 
+    ///
     /// The popup will only have the window context as it is open as a layer on the window root.
-    /// 
+    ///
     /// Note to filter out even the popup config use [`CaptureFilter::None`] instead.
     NoCapture,
     /// Build/instantiation context is captured and blended with the node context during all [`UiNodeOp`].

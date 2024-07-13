@@ -11,24 +11,26 @@
 
 zng_wgt::enable_widget_macros!();
 
-use core::fmt;
-use std::ops;
+use std::{fmt, ops, sync::Arc};
 
-use zng_ext_input::focus::{DirectionalNav, TabNav};
 use zng_ext_l10n::l10n;
-use zng_wgt::{align, corner_radius, margin, modal, prelude::*};
+use zng_wgt::{align, corner_radius, margin, modal, modal_included, prelude::*};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::drop_shadow;
-use zng_wgt_input::focus::{directional_nav, tab_nav, FocusableMix};
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_input::focus::alt_focus_scope;
+use zng_wgt_layer::{
+    popup::{ContextCapture, Popup, PopupState, POPUP},
+    AnchorMode,
+};
+use zng_wgt_style::{impl_style_fn, style_fn, Style};
 use zng_wgt_text::Text;
 use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_wrap::Wrap;
 
 /// A modal dialog overlay container.
 #[widget($crate::Dialog)]
-pub struct Dialog(FocusableMix<StyleMix<Container>>);
+pub struct Dialog(Popup);
 impl Dialog {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
@@ -37,11 +39,12 @@ impl Dialog {
             self;
             style_base_fn = style_fn!(|_| DefaultStyle!());
 
-            directional_nav = DirectionalNav::Cycle;
-            tab_nav = TabNav::Cycle;
             modal = true;
-            focus_on_init = true;
             return_focus_on_deinit = true;
+
+            alt_focus_scope = unset!;
+            focus_click_behavior = unset!;
+            modal_included = unset!;
         }
     }
 }
@@ -307,13 +310,6 @@ impl_from_and_into_var! {
     }
 }
 
-// !!: TODO
-// * Outer background?
-//   - No, it should be only one if there is any dialog open?
-//   - If a second dialog opens it moves over the previous dialog, it does not blurs twice
-//   - This should be optional, the layer example does not
-// * WidgetListFn?
-
 /// Dialog overlay service.
 pub struct DIALOG;
 impl DIALOG {
@@ -322,8 +318,8 @@ impl DIALOG {
     /// Returns the selected response or [`close`] if the dialog is closed without response.
     ///
     /// [`close`]: Response::close
-    pub fn show(&self, _dialog: impl UiNode) -> ResponseVar<Response> {
-        todo!()
+    pub fn show(&self, dialog: impl UiNode) -> ResponseVar<Response> {
+        self.show_impl(dialog.boxed())
     }
 
     /// Show an info dialog with "Ok" button.
@@ -377,7 +373,69 @@ impl DIALOG {
     }
 
     /// Close the contextual dialog with the response.
-    pub fn respond(&self, _response: Response) {
-        todo!()
+    pub fn respond(&self, response: Response) {
+        if DIALOG_RESPONDER_VAR.set(zng_var::types::Response::Done(response)).is_ok() {
+            POPUP.close_id(WIDGET.id());
+        } else {
+            tracing::error!("DIALOG.respond called outside of a dialog");
+        }
+    }
+
+    fn show_impl(&self, dialog: BoxedUiNode) -> ResponseVar<Response> {
+        let (responder, response) = response_var();
+
+        let mut ctx = Some(Arc::new(responder.clone().boxed()));
+        let id = zng_var::ContextInitHandle::new();
+        let dialog = match_widget(
+            dialog,
+            clmv!(id, |c, op| {
+                DIALOG_RESPONDER_VAR.with_context(id.clone(), &mut ctx, || c.op(op));
+            }),
+        );
+
+        let state = zng_wgt_layer::popup::CLOSE_ON_FOCUS_LEAVE_VAR.with_context_var(id, false, || {
+            POPUP.open_config(
+                dialog,
+                AnchorMode::window(),
+                ContextCapture::CaptureBlend {
+                    filter: CaptureFilter::None,
+                    over: false,
+                },
+            )
+        });
+
+        // if popup closes without responding set response to `Response::close()`.
+        let responder_wk = responder.downgrade();
+        state
+            .hook(move |v| {
+                let mut retain = false;
+                if let Some(r) = responder_wk.upgrade() {
+                    retain = true;
+                    if matches!(v.value(), PopupState::Closed) {
+                        retain = false;
+                        r.modify(|v| {
+                            if v.is_waiting() {
+                                v.set(zng_var::types::Response::Done(Response::close()));
+                            }
+                        });
+                    }
+                }
+                retain
+            })
+            .perm();
+        responder.hold(state).perm();
+
+        response
     }
 }
+
+context_var! {
+    static DIALOG_RESPONDER_VAR: zng_var::types::Response<Response> = zng_var::types::Response::Waiting;
+}
+
+// !!: TODO
+// * Backdrop widget
+//   - No, it should be only one if there is any dialog open?
+//   - If a second dialog opens it moves over the previous dialog, it does not blurs twice
+//   - This should be optional, the layer example does not
+// * Animate

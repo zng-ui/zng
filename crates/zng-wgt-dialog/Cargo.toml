@@ -21,8 +21,10 @@ zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.24" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.14" }
 zng-app = { path = "../zng-app", version = "0.9.4" }
 zng-var = { path = "../zng-var", version = "0.4.8" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.12" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.4" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.4" }
 zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.4.4" }
 zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.3.14" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.14" }
+
+tracing = "0.1"
