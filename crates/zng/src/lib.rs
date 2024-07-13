@@ -491,6 +491,7 @@ pub mod config;
 pub mod container;
 pub mod data_context;
 pub mod data_view;
+pub mod dialog;
 pub mod env;
 pub mod event;
 pub mod focus;
@@ -681,6 +682,8 @@ mod __prelude {
     pub use zng_wgt_data_view::{DataView, DataViewArgs};
 
     pub use zng_wgt_settings::SettingBuilderEditorExt as _;
+
+    pub use zng_wgt_dialog::DIALOG;
 }
 
 /// Prelude for declaring new properties and widgets.

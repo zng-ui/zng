@@ -96,6 +96,7 @@ or for custom properties that deeply integrate with a widget.
 - `zng-wgt-fill`
 - `zng-wgt-checkerboard`
 - `zng-wgt-layer`
+- `zng-wgt-dialog`
 - `zng-wgt-undo-history`
 - `zng-wgt-image`
 - `zng-wgt-text`
