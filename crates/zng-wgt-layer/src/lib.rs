@@ -281,9 +281,9 @@ impl LAYERS {
                         let mut constraints = match mode.min_size {
                             AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
                             AnchorSize::Window => LAYOUT.constraints(),
-                            AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
-                            AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
-                            AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
+                            AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()).with_fill(false, false),
+                            AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)).with_fill(false, false),
+                            AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()).with_fill(false, false),
                         };
                         if mode.max_size != mode.min_size {
                             constraints = match mode.max_size {
@@ -297,7 +297,6 @@ impl LAYERS {
                                 AnchorSize::OuterSize => constraints.with_new_max_size(bounds.outer_size()),
                             };
                         }
-                        constraints = constraints.with_fill(false, false);
 
                         *desired_size = LAYOUT.with_constraints(constraints, || widget.measure(wm));
                     }
@@ -315,9 +314,9 @@ impl LAYERS {
                         let mut constraints = match mode.min_size {
                             AnchorSize::Unbounded => PxConstraints2d::new_unbounded(),
                             AnchorSize::Window => LAYOUT.constraints(),
-                            AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()),
-                            AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)),
-                            AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()),
+                            AnchorSize::InnerSize => PxConstraints2d::new_exact_size(bounds.inner_size()).with_fill(false, false),
+                            AnchorSize::InnerBorder => PxConstraints2d::new_exact_size(border.inner_size(bounds)).with_fill(false, false),
+                            AnchorSize::OuterSize => PxConstraints2d::new_exact_size(bounds.outer_size()).with_fill(false, false),
                         };
                         if mode.max_size != mode.min_size {
                             constraints = match mode.max_size {
@@ -331,7 +330,6 @@ impl LAYERS {
                                 AnchorSize::OuterSize => constraints.with_new_max_size(bounds.outer_size()),
                             };
                         }
-                        constraints = constraints.with_fill(false, false);
 
                         let layer_size = LAYOUT.with_constraints(constraints, || {
                             if mode.corner_radius {

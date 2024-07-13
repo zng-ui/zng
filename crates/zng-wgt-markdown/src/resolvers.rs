@@ -412,9 +412,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
     LAYERS.insert_anchored(
         LayerIndex::ADORNER,
         args.link.widget_id(),
-        AnchorMode::window()
-            .with_transform(AnchorOffset::out_bottom())
-            .with_viewport_bound(true),
+        AnchorMode::popup(AnchorOffset::out_bottom()),
         popup,
     );
 
