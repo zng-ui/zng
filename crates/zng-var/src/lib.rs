@@ -1069,7 +1069,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Output of [`Var::map_bidi`].
     type MapBidi<O: VarValue>: Var<O>;
 
-    /// Output of [`Var::map_bidi`].
+    /// Output of [`Var::flat_map`].
     type FlatMap<O: VarValue, V: Var<O>>: Var<O>;
 
     /// Output of [`Var::filter_map`].
