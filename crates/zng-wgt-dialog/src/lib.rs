@@ -85,7 +85,7 @@ impl DefaultStyle {
                 padding = (4, 8);
                 zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
             }, 0;
-            
+
             zng_wgt_container::child_out_bottom = presenter(DIALOG_RESPONSES_VAR, wgt_fn!(|responses: Responses| {
                 Wrap! {
                     corner_radius = 0;
@@ -105,7 +105,7 @@ impl DefaultStyle {
                     };
                 }
             })), 0;
-            
+
             zng_wgt_container::child_out_left = Container! {
                 child = presenter((), DIALOG_ICON_VAR);
                 child_align = Align::TOP;
@@ -127,6 +127,8 @@ context_var! {
     pub static DIALOG_BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::new(default_dialog_button_fn);
     /// Dialog responses.
     pub static DIALOG_RESPONSES_VAR: Responses = Responses::ok();
+    /// Dialog outer container.
+    pub static DIALOG_BACKDROP_FN_VAR: WidgetFn<DialogBackdropArgs> = WidgetFn::new(default_dialog_backdrop_fn);
 }
 
 /// Default value of [`dialog_button_fn`](fn@dialog_button_fn)
@@ -144,6 +146,14 @@ pub fn default_dialog_button_fn(args: DialogButtonArgs) -> impl UiNode {
     }
 }
 
+/// Default value of [`dialog_backdrop_fn`](fn@dialog_backdrop_fn)
+pub fn default_dialog_backdrop_fn(args: DialogBackdropArgs) -> impl UiNode {
+    Container! {
+        child = args.dialog;
+        background_color = colors::RED;
+    }
+}
+
 /// Arguments for [`button_fn`].
 ///
 /// [`button_fn`]: fn@button_fn
@@ -153,6 +163,12 @@ pub struct DialogButtonArgs {
     pub response: Response,
     /// If the button is the last entry on the responses list.
     pub is_last: bool,
+}
+
+/// Arguments for [`dialog_backdrop_fn`].
+pub struct DialogBackdropArgs {
+    /// The dialog widget.
+    pub dialog: BoxedUiNode,
 }
 
 /// Dialog title widget.
@@ -189,6 +205,14 @@ pub fn button_fn(child: impl UiNode, button: impl IntoVar<WidgetFn<DialogButtonA
 #[property(CONTEXT, default(DIALOG_RESPONSES_VAR), widget_impl(Dialog))]
 pub fn responses(child: impl UiNode, responses: impl IntoVar<Responses>) -> impl UiNode {
     with_context_var(child, DIALOG_RESPONSES_VAR, responses)
+}
+
+/// Widget function called when a dialog is shown in the context to create the backdrop.
+///
+/// Note that this property must be set on a parent widget or the window, not on the dialog widget.
+#[property(CONTEXT, default(DIALOG_BACKDROP_FN_VAR))]
+pub fn dialog_backdrop_fn(child: impl UiNode, backdrop: impl IntoVar<WidgetFn<DialogBackdropArgs>>) -> impl UiNode {
+    with_context_var(child, DIALOG_BACKDROP_FN_VAR, backdrop)
 }
 
 /// Dialog info style.
@@ -417,6 +441,8 @@ impl DIALOG {
             responder,
         }));
 
+        let dialog = DIALOG_BACKDROP_FN_VAR.get()(DialogBackdropArgs { dialog });
+
         let dialog = match_widget(
             dialog,
             clmv!(|c, op| {
@@ -436,11 +462,7 @@ impl DIALOG {
         );
 
         zng_wgt_layer::popup::CLOSE_ON_FOCUS_LEAVE_VAR.with_context_var(ContextInitHandle::new(), false, || {
-            POPUP.open_config(
-                dialog,
-                AnchorMode::window(),
-                ContextCapture::NoCapture,
-            )
+            POPUP.open_config(dialog, AnchorMode::window(), ContextCapture::NoCapture)
         });
 
         response
