@@ -820,7 +820,15 @@ pub async fn get(uri: impl TryUri) -> Result<Response, Error> {
 /// Send a GET request to the `uri` and read the response as a string.
 ///
 /// The [`default_client`] is used to send the request.
+#[deprecated = "use get_txt"]
 pub async fn get_text(uri: impl TryUri) -> Result<Txt, Error> {
+    default_client().get_text(uri).await
+}
+
+/// Send a GET request to the `uri` and read the response as a string.
+///
+/// The [`default_client`] is used to send the request.
+pub async fn get_txt(uri: impl TryUri) -> Result<Txt, Error> {
     default_client().get_text(uri).await
 }
 
