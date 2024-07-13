@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `ContextCapture::NoCapture` excluding popup config.
 * Add `ResponseVar::map_response`.
 * Add `Dialog!` widget, `DIALOG` service and related types.
 

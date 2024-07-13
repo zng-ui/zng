@@ -497,7 +497,7 @@ pub fn focus_on_init(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// Consider using [`focus_click_behavior`] if the widget is also an ALT focus scope.
 ///
 /// [`modal`]: fn@zng_wgt::modal
-/// [`focus_click_behavior`]: fn@zng_wgt::focus_click_behavior
+/// [`focus_click_behavior`]: fn@focus_click_behavior
 #[property(CONTEXT, default(false), widget_impl(FocusableMix<P>))]
 pub fn return_focus_on_deinit(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
