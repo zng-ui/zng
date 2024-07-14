@@ -514,25 +514,20 @@ fn open_or_paste_image() -> impl UiNode {
 }
 
 async fn open_dialog() -> Option<PathBuf> {
-    use window::native_dialog::*;
-
-    let mut dlg = FileDialog {
-        title: "Open Image".into(),
-        kind: FileDialogKind::OpenFile,
-        ..Default::default()
-    };
-    dlg.push_filter("Image Files", &IMAGES.available_decoders())
-        .push_filter("All Files", &["*"]);
-
-    let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
-    match r {
-        FileDialogResponse::Selected(mut s) => s.pop(),
-        FileDialogResponse::Cancel => None,
-        FileDialogResponse::Error(e) => {
-            tracing::error!("{e:?}");
+    DIALOG
+        .open_file("Open Image", std::env::current_dir().unwrap_or_default(), "", {
+            let mut f = dialog::FileDialogFilters::default();
+            f.push_filter("Image Files", &IMAGES.available_decoders());
+            f.push_filter("All Files", &["*"]);
+            f
+        })
+        .wait_rsp()
+        .await
+        .into_path()
+        .unwrap_or_else(|e| {
+            tracing::error!("open file dialog error, {e}");
             None
-        }
-    }
+        })
 }
 
 fn img_cache_mode(req: &task::http::Request) -> http::CacheMode {

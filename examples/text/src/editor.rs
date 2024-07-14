@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use zng::{
     app::{NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD},
@@ -15,7 +15,7 @@ use zng::{
     undo::UNDO_CMD,
     var::ArcVar,
     widget::{corner_radius, enabled, visibility, Visibility},
-    window::{native_dialog, WindowRoot},
+    window::WindowRoot,
 };
 
 pub fn text_editor() -> impl UiNode {
@@ -292,16 +292,14 @@ impl TextEditor {
             return;
         }
 
-        let mut dlg = native_dialog::FileDialog {
-            title: "Open Text".into(),
-            kind: native_dialog::FileDialogKind::OpenFile,
-            ..Default::default()
-        };
-        dlg.push_filter("Text Files", &["txt", "md"]).push_filter("All Files", &["*"]);
-        let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
+        let (init_dir, init_name, filters) = self.file_dialog_data();
+        let r = DIALOG
+            .open_file("Open Text", init_dir, init_name, filters)
+            .wait_rsp()
+            .await
+            .into_path();
         match r {
-            native_dialog::FileDialogResponse::Selected(mut s) => {
-                let file = s.remove(0);
+            Ok(Some(file)) => {
                 let r = task::wait(clmv!(file, || std::fs::read_to_string(file))).await;
                 match r {
                     Ok(t) => {
@@ -314,10 +312,10 @@ impl TextEditor {
                     }
                 }
             }
-            native_dialog::FileDialogResponse::Cancel => {}
-            native_dialog::FileDialogResponse::Error(e) => {
+            Err(e) => {
                 self.handle_error("opening file", e).await;
             }
+            _ => {}
         }
     }
 
@@ -335,30 +333,25 @@ impl TextEditor {
     pub async fn save_as(&self) -> bool {
         let _busy = self.enter_busy();
 
-        let mut dlg = native_dialog::FileDialog {
-            title: "Save Text".into(),
-            kind: native_dialog::FileDialogKind::SaveFile,
-            ..Default::default()
-        };
-        dlg.push_filter("Text", &["txt"])
-            .push_filter("Markdown", &["md"])
-            .push_filter("All Files", &["*"]);
-        let r = WINDOWS.native_file_dialog(WINDOW.id(), dlg).wait_rsp().await;
+        let (init_dir, init_name, filters) = self.file_dialog_data();
+        let r = DIALOG
+            .save_file("Save Text", init_dir, init_name, filters)
+            .wait_rsp()
+            .await
+            .into_path();
         match r {
-            native_dialog::FileDialogResponse::Selected(mut s) => {
-                if let Some(file) = s.pop() {
-                    let ok = self.write(file.clone()).await;
-                    self.txt_touched.set(!ok);
-                    if ok {
-                        self.file.set(Some(file));
-                    }
-                    return ok;
+            Ok(Some(file)) => {
+                let ok = self.write(file.clone()).await;
+                self.txt_touched.set(!ok);
+                if ok {
+                    self.file.set(Some(file));
                 }
+                return ok;
             }
-            native_dialog::FileDialogResponse::Cancel => {}
-            native_dialog::FileDialogResponse::Error(e) => {
+            Err(e) => {
                 self.handle_error("saving file", e.to_txt()).await;
             }
+            _ => {}
         }
 
         false // cancel
@@ -372,6 +365,27 @@ impl TextEditor {
                 WINDOW.close();
             }
         }
+    }
+
+    fn file_dialog_data(&self) -> (PathBuf, Txt, dialog::FileDialogFilters) {
+        let mut dlg_dir = std::env::current_dir().unwrap_or_default();
+        let mut dlg_name = Txt::from("text.md");
+        if let Some(p) = self.file.get() {
+            if let Some(n) = p.file_name() {
+                dlg_name = n.to_string_lossy().to_txt();
+            }
+            if let Some(p) = p.parent() {
+                p.clone_into(&mut dlg_dir);
+            }
+        }
+
+        let mut f = dialog::FileDialogFilters::default();
+        f.push_filter("Text Files", &["txt", "md"]);
+        f.push_filter("Text File", &["txt"]);
+        f.push_filter("Markdown File", &["md"]);
+        f.push_filter("All Files", &["*"]);
+
+        (dlg_dir, dlg_name, f)
     }
 
     async fn write(&self, file: std::path::PathBuf) -> bool {
@@ -391,30 +405,29 @@ impl TextEditor {
             return true;
         }
 
-        let dlg = native_dialog::MsgDialog {
-            title: "Save File?".into(),
-            message: "Save file? All unsaved changes will be lost.".into(),
-            icon: native_dialog::MsgDialogIcon::Warn,
-            buttons: native_dialog::MsgDialogButtons::YesNo,
-        };
-        let r = WINDOWS.native_message_dialog(WINDOW.id(), dlg).wait_rsp().await;
-        match r {
-            native_dialog::MsgDialogResponse::Yes => self.save().await,
-            native_dialog::MsgDialogResponse::No => true,
+        let r = DIALOG
+            .custom(dialog::Dialog! {
+                style_fn = dialog::WarnStyle!();
+                title = Text!("Save File?");
+                content = SelectableText!("Save file? All unsaved changes will be lost.");
+                responses = vec![
+                    dialog::Response::cancel(),
+                    dialog::Response::new("Discard", "Discard"),
+                    dialog::Response::new("Save", "Save"),
+                ]
+            })
+            .wait_rsp()
+            .await;
+        match r.name.as_str() {
+            "Discard" => true,
+            "Save" => self.save().await,
             _ => false,
         }
     }
 
     async fn handle_error(&self, context: &'static str, e: Txt) {
         tracing::error!("error {context}, {e}");
-
-        let dlg = native_dialog::MsgDialog {
-            title: "Error".into(),
-            message: formatx!("Error {context}.\n\n{e}"),
-            icon: native_dialog::MsgDialogIcon::Error,
-            buttons: native_dialog::MsgDialogButtons::Ok,
-        };
-        let _ = WINDOWS.native_message_dialog(WINDOW.id(), dlg).wait_rsp().await;
+        DIALOG.error("Error", formatx!("Error {context}.\n\n{e}")).wait_rsp().await;
     }
 
     fn enter_busy(&self) -> impl Drop {

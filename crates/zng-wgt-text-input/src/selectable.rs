@@ -11,6 +11,9 @@ use zng_wgt_menu::{
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 use zng_wgt_text::{self as text, *};
 
+#[doc(hidden)]
+pub use zng_wgt::prelude::formatx as __formatx;
+
 /// Styleable read-only text widget that can be selected and copied to clipboard.
 ///
 /// # Shorthand
@@ -18,13 +21,13 @@ use zng_wgt_text::{self as text, *};
 /// The same [`Text!`](struct@zng_wgt_text::Text#shorthand) shorthand can be used in this macro.
 #[widget($crate::selectable::SelectableText {
     ($txt:literal) => {
-        txt = $crate::__formatx!($txt);
+        txt = $crate::selectable::__formatx!($txt);
     };
     ($txt:expr) => {
         txt = $txt;
     };
     ($txt:tt, $($format:tt)*) => {
-        txt = $crate::__formatx!($txt, $($format)*);
+        txt = $crate::selectable::__formatx!($txt, $($format)*);
     };
 })]
 pub struct SelectableText(FocusableMix<StyleMix<zng_wgt_text::Text>>);

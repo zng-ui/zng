@@ -17,7 +17,7 @@ use zng::{
     scroll::ScrollMode,
     var::ArcVar,
     widget::{background_color, corner_radius, enabled, visibility, LineStyle},
-    window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
+    window::{FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
 };
 
 fn main() {
@@ -588,97 +588,71 @@ fn native() -> impl UiNode {
             Button! {
                 child = Text!("Messages");
                 tooltip = Tip!(Text!(r#"Shows a "Yes/No" message, then an "Ok" message dialogs."#));
+                dialog::native_dialogs = true;
                 on_click = async_hn!(|_| {
-                    let rsp = WINDOWS.native_message_dialog(WINDOW.id(), native_dialog::MsgDialog {
-                        title: Txt::from_static("Question?"),
-                        message: Txt::from_static("Example message. Yes -> Warn, No -> Error."),
-                        icon: native_dialog::MsgDialogIcon::Info,
-                        buttons: native_dialog::MsgDialogButtons::YesNo,
-                    }).wait_rsp().await;
-                    let icon = match rsp {
-                        native_dialog::MsgDialogResponse::Yes => {
-                            native_dialog::MsgDialogIcon::Warn
-                        },
-                        native_dialog::MsgDialogResponse::No => {
-                            native_dialog::MsgDialogIcon::Error
-                        }
-                        e => {
-                            tracing::error!("unexpected message response {e:?}");
-                            return;
-                        },
-                    };
-                    WINDOWS.native_message_dialog(WINDOW.id(), native_dialog::MsgDialog {
-                        title: Txt::from_static("Title"),
-                        message: Txt::from_static("Message"),
-                        icon,
-                        buttons: native_dialog::MsgDialogButtons::Ok,
-                    });
+                    let rsp = DIALOG.ask("Question?", "Example message. Yes -> Warn, No -> Error.").wait_rsp().await;
+                    if rsp {
+                        DIALOG.warn("Title", "Yes -> Warn Message").wait_done().await;
+                    } else {
+                        DIALOG.error("Title", "No -> Error message").wait_done().await;
+                    }
                 });
             },
             Button! {
                 child = Text!("File Picker");
                 tooltip = Tip!(Text!(r#"Shows a "Directory Picker", then an "Open Many Files", then a "Save File" dialogs."#));
+                dialog::native_dialogs = true;
                 on_click = async_hn!(|_| {
-                    let res = WINDOWS.native_file_dialog(WINDOW.id(), native_dialog::FileDialog {
-                        title: "Select Dir".into(),
-                        starting_dir: "".into(),
-                        starting_name: "".into(),
-                        filters: "".into(),
-                        kind: native_dialog::FileDialogKind::SelectFolder,
-                    }).wait_rsp().await;
+                    let res = DIALOG.select_folder("Select Dir", "", "").wait_rsp().await;
                     let dir = match res {
-                        native_dialog::FileDialogResponse::Selected(mut s) => {
+                        dialog::FileDialogResponse::Selected(mut s) => {
                             s.remove(0)
                         }
-                        native_dialog::FileDialogResponse::Cancel => {
+                        dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        native_dialog::FileDialogResponse::Error(e) => {
+                        dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected select dir response {e:?}");
                             return;
                         }
                     };
 
-                    let mut dlg = native_dialog::FileDialog {
-                        title: "Open Files".into(),
-                        starting_dir: dir,
-                        starting_name: "".into(),
-                        filters: "".into(),
-                        kind: native_dialog::FileDialogKind::OpenFiles,
-                    };
-                    dlg.push_filter("Text", &["*.txt", "*.md"]);
-                    dlg.push_filter("All", &["*.*"]);
-                    let res = WINDOWS.native_file_dialog(WINDOW.id(), dlg.clone()).wait_rsp().await;
+                    let mut filters = dialog::FileDialogFilters::new();
+                    filters.push_filter("Text", &["*.txt", "*.md"]);
+                    filters.push_filter("All", &["*.*"]);
+
+                    let res = DIALOG.open_files("Open Files", dir, "", filters.clone()).wait_rsp().await;
                     let first_file = match res {
-                        native_dialog::FileDialogResponse::Selected(mut s) => {
+                        dialog::FileDialogResponse::Selected(mut s) => {
                             tracing::info!("selected {} file(s)", s.len());
                             s.remove(0)
                         }
-                        native_dialog::FileDialogResponse::Cancel => {
+                        dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        native_dialog::FileDialogResponse::Error(e) => {
+                        dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected open files response {e:?}");
                             return;
                         }
                     };
 
-                    dlg.title = "Save File".into();
-                    dlg.kind = native_dialog::FileDialogKind::SaveFile;
-                    dlg.starting_dir = first_file.parent().map(|p| p.to_owned()).unwrap_or_default();
-                    dlg.starting_name = first_file.file_name().map(|p| Txt::from_str(&p.to_string_lossy())).unwrap_or_default();
-                    let res = WINDOWS.native_file_dialog(WINDOW.id(), dlg.clone()).wait_rsp().await;
+                    let res = DIALOG.save_file(
+                        "Save File",
+                        first_file.parent().map(|p| p.to_owned()).unwrap_or_default(),
+                        first_file.file_name().map(|p| Txt::from_str(&p.to_string_lossy())).unwrap_or_default(),
+                        filters
+                    ).wait_rsp().await;
                     let save_file = match res {
-                        native_dialog::FileDialogResponse::Selected(mut s) => {
+                        dialog::FileDialogResponse::Selected(mut s) => {
                             s.remove(0)
                         }
-                        native_dialog::FileDialogResponse::Cancel => {
+                        dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        native_dialog::FileDialogResponse::Error(e) => {
+                        dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected save file response {e:?}");
                             return;
                         }

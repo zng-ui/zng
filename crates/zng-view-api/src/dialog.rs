@@ -90,10 +90,15 @@ pub enum MsgDialogResponse {
 ///
 /// You can use the [`push_filter`] method to create filters. Note that the extensions are
 /// not glob patterns, they must be an extension (without the dot prefix) or `*` for all files.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct FileDialogFilters(Txt);
 impl FileDialogFilters {
+    /// New default (empty).
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Push a filter entry.
     pub fn push_filter<S: AsRef<str>>(&mut self, display_name: &str, extensions: &[S]) -> &mut Self {
         if !self.0.is_empty() && !self.0.ends_with('|') {
@@ -300,6 +305,21 @@ pub enum FileDialogResponse {
     /// The associated string may contain debug information, caller should assume that native file dialogs
     /// are not available for the given window ID at the current view-process instance.
     Error(Txt),
+}
+impl FileDialogResponse {
+    /// Gets the selected paths, or empty for cancel.
+    pub fn into_paths(self) -> Result<Vec<PathBuf>, Txt> {
+        match self {
+            FileDialogResponse::Selected(s) => Ok(s),
+            FileDialogResponse::Cancel => Ok(vec![]),
+            FileDialogResponse::Error(e) => Err(e),
+        }
+    }
+
+    /// Gets the last selected path, or `None` for cancel.
+    pub fn into_path(self) -> Result<Option<PathBuf>, Txt> {
+        self.into_paths().map(|mut p| p.pop())
+    }
 }
 
 #[cfg(test)]

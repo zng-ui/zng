@@ -458,12 +458,12 @@ impl_from_and_into_var! {
 pub struct DIALOG;
 impl DIALOG {
     /// Show an info dialog with "Ok" button.
-    pub fn info(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+    pub fn info(&self, title: impl IntoVar<Txt>, msg: impl IntoVar<Txt>) -> ResponseVar<()> {
         self.message(
             msg.into_var().boxed(),
             title.into_var().boxed(),
             DialogKind::INFO,
-            InfoStyle!(),
+            &|| InfoStyle!(),
             native_api::MsgDialogIcon::Info,
             native_api::MsgDialogButtons::Ok,
         )
@@ -471,12 +471,12 @@ impl DIALOG {
     }
 
     /// Show a warning dialog with "Ok" button.
-    pub fn warn(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+    pub fn warn(&self, title: impl IntoVar<Txt>, msg: impl IntoVar<Txt>) -> ResponseVar<()> {
         self.message(
             msg.into_var().boxed(),
             title.into_var().boxed(),
             DialogKind::WARN,
-            WarnStyle!(),
+            &|| WarnStyle!(),
             native_api::MsgDialogIcon::Warn,
             native_api::MsgDialogButtons::Ok,
         )
@@ -484,12 +484,12 @@ impl DIALOG {
     }
 
     /// Show an error dialog with "Ok" button.
-    pub fn error(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+    pub fn error(&self, title: impl IntoVar<Txt>, msg: impl IntoVar<Txt>) -> ResponseVar<()> {
         self.message(
             msg.into_var().boxed(),
             title.into_var().boxed(),
             DialogKind::ERROR,
-            ErrorStyle!(),
+            &|| ErrorStyle!(),
             native_api::MsgDialogIcon::Error,
             native_api::MsgDialogButtons::Ok,
         )
@@ -497,12 +497,12 @@ impl DIALOG {
     }
 
     /// Shows a question dialog with "No" and "Yes" buttons. Returns `true` for "Yes".
-    pub fn ask(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
+    pub fn ask(&self, title: impl IntoVar<Txt>, question: impl IntoVar<Txt>) -> ResponseVar<bool> {
         self.message(
             question.into_var().boxed(),
             title.into_var().boxed(),
             DialogKind::ASK,
-            AskStyle!(),
+            &|| AskStyle!(),
             native_api::MsgDialogIcon::Info,
             native_api::MsgDialogButtons::YesNo,
         )
@@ -510,12 +510,12 @@ impl DIALOG {
     }
 
     /// Shows a question dialog with "Cancel" and "Ok" buttons. Returns `true` for "Ok".
-    pub fn confirm(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
+    pub fn confirm(&self, title: impl IntoVar<Txt>, question: impl IntoVar<Txt>) -> ResponseVar<bool> {
         self.message(
             question.into_var().boxed(),
             title.into_var().boxed(),
             DialogKind::CONFIRM,
-            ConfirmStyle!(),
+            &|| ConfirmStyle!(),
             native_api::MsgDialogIcon::Warn,
             native_api::MsgDialogButtons::OkCancel,
         )
@@ -673,6 +673,15 @@ bitflags! {
         const FILE = Self::OPEN_FILE.bits() | Self::OPEN_FILES.bits() | Self::SAVE_FILE.bits()  | Self::SELECT_FOLDER.bits() | Self::SELECT_FOLDERS.bits();
     }
 }
+impl_from_and_into_var! {
+    fn from(empty_or_all: bool) -> DialogKind {
+        if empty_or_all {
+            DialogKind::all()
+        } else {
+            DialogKind::empty()
+        }
+    }
+}
 
 impl DIALOG {
     /// Close the contextual dialog with the response.
@@ -692,7 +701,7 @@ impl DIALOG {
         msg: BoxedVar<Txt>,
         title: BoxedVar<Txt>,
         kind: DialogKind,
-        style: zng_wgt_style::StyleBuilder,
+        style: &dyn Fn() -> zng_wgt_style::StyleBuilder,
         native_icon: native_api::MsgDialogIcon,
         native_buttons: native_api::MsgDialogButtons,
     ) -> ResponseVar<Response> {
@@ -710,7 +719,7 @@ impl DIALOG {
                 .map_response(|r| r.clone().into())
         } else {
             self.custom(Dialog! {
-                style_fn = style;
+                style_fn = style();
                 title = Text! {
                     visibility = title.map(|t| Visibility::from(!t.is_empty()));
                     txt = title;

@@ -683,6 +683,7 @@ mod __prelude {
 
     pub use zng_wgt_settings::SettingBuilderEditorExt as _;
 
+    pub use crate::dialog;
     pub use zng_wgt_dialog::DIALOG;
 }
 
