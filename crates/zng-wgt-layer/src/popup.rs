@@ -475,7 +475,7 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
     let delay = delay.into_var();
     let mut timer = None::<DeadlineHandle>;
 
-    match_node(child, move |_, op| match op {
+    let child = match_node(child, move |_, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
         }
@@ -515,16 +515,16 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
             }
         }
         _ => {}
-    })
+    });
+    with_context_var(child, IS_CLOSE_DELAYED_VAR, var(false))
 }
 
 /// If close was requested for this layered widget and it is just awaiting for the [`close_delay`].
 ///
 /// [`close_delay`]: fn@close_delay
-#[property(CONTEXT, widget_impl(Popup))]
+#[property(EVENT+1, widget_impl(Popup))]
 pub fn is_close_delaying(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    // reverse context var, is set by `close_delay`.
-    with_context_var(child, IS_CLOSE_DELAYED_VAR, state)
+    bind_state(child, IS_CLOSE_DELAYED_VAR, state)
 }
 
 context_var! {

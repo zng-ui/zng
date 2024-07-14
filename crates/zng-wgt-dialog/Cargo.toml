@@ -29,6 +29,7 @@ zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.14" }
 zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.4" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.3.20" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.24" }
+zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.24" }
 
 tracing = "0.1"
 parking_lot = "0.12"

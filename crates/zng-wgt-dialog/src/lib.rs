@@ -20,19 +20,21 @@ use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::drop_shadow;
-use zng_wgt_input::focus::alt_focus_scope;
+use zng_wgt_input::focus::FocusableMix;
 use zng_wgt_layer::{
-    popup::{ContextCapture, Popup, POPUP},
+    popup::{ContextCapture, POPUP},
     AnchorMode,
 };
-use zng_wgt_style::{impl_style_fn, style_fn, Style};
+use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 use zng_wgt_text::Text;
 use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_wrap::Wrap;
 
+pub mod backdrop;
+
 /// A modal dialog overlay container.
 #[widget($crate::Dialog)]
-pub struct Dialog(Popup);
+pub struct Dialog(FocusableMix<StyleMix<Container>>);
 impl Dialog {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
@@ -41,13 +43,22 @@ impl Dialog {
             self;
             style_base_fn = style_fn!(|_| DefaultStyle!());
 
-            modal = true;
+            focus_on_init = true;
             return_focus_on_deinit = true;
 
-            alt_focus_scope = unset!;
-            focus_click_behavior = unset!;
-            modal_included = unset!;
+            when *#is_close_delaying {
+                interactive = false;
+            }
         }
+    }
+
+    widget_impl! {
+        /// If close was requested for this dialog and it is just awaiting for the [`popup::close_delay`].
+        /// 
+        /// The close delay is usually set on the backdrop widget style.
+        ///
+        /// [`popup::close_delay`]: fn@zng_wgt_layer::popup::close_delay
+        pub zng_wgt_layer::popup::is_close_delaying(state: impl IntoVar<bool>);
     }
 }
 impl_style_fn!(Dialog);
@@ -92,6 +103,7 @@ impl DefaultStyle {
                     background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
                     children_align = Align::END;
                     zng_wgt_container::padding = 3;
+                    spacing = 3;
                     children = {
                         let last = responses.len().saturating_sub(1);
                         responses.0
@@ -112,6 +124,15 @@ impl DefaultStyle {
             }, 0;
 
             zng_wgt_container::child = presenter((), DIALOG_CONTENT_VAR);
+
+            #[easing(250.ms())]
+            zng_wgt_filter::opacity = 30.pct();
+            #[easing(250.ms())]
+            zng_wgt_transform::transform = Transform::new_translate_y(-10).scale(98.pct());
+            when *#is_inited && !*#zng_wgt_layer::popup::is_close_delaying {
+                zng_wgt_filter::opacity = 100.pct();
+                zng_wgt_transform::transform = Transform::identity();
+            }
         }
     }
 }
@@ -127,8 +148,6 @@ context_var! {
     pub static DIALOG_BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::new(default_dialog_button_fn);
     /// Dialog responses.
     pub static DIALOG_RESPONSES_VAR: Responses = Responses::ok();
-    /// Dialog outer container.
-    pub static DIALOG_BACKDROP_FN_VAR: WidgetFn<DialogBackdropArgs> = WidgetFn::new(default_dialog_backdrop_fn);
 }
 
 /// Default value of [`dialog_button_fn`](fn@dialog_button_fn)
@@ -146,14 +165,6 @@ pub fn default_dialog_button_fn(args: DialogButtonArgs) -> impl UiNode {
     }
 }
 
-/// Default value of [`dialog_backdrop_fn`](fn@dialog_backdrop_fn)
-pub fn default_dialog_backdrop_fn(args: DialogBackdropArgs) -> impl UiNode {
-    Container! {
-        child = args.dialog;
-        background_color = colors::RED;
-    }
-}
-
 /// Arguments for [`button_fn`].
 ///
 /// [`button_fn`]: fn@button_fn
@@ -163,12 +174,6 @@ pub struct DialogButtonArgs {
     pub response: Response,
     /// If the button is the last entry on the responses list.
     pub is_last: bool,
-}
-
-/// Arguments for [`dialog_backdrop_fn`].
-pub struct DialogBackdropArgs {
-    /// The dialog widget.
-    pub dialog: BoxedUiNode,
 }
 
 /// Dialog title widget.
@@ -207,14 +212,6 @@ pub fn responses(child: impl UiNode, responses: impl IntoVar<Responses>) -> impl
     with_context_var(child, DIALOG_RESPONSES_VAR, responses)
 }
 
-/// Widget function called when a dialog is shown in the context to create the backdrop.
-///
-/// Note that this property must be set on a parent widget or the window, not on the dialog widget.
-#[property(CONTEXT, default(DIALOG_BACKDROP_FN_VAR))]
-pub fn dialog_backdrop_fn(child: impl UiNode, backdrop: impl IntoVar<WidgetFn<DialogBackdropArgs>>) -> impl UiNode {
-    with_context_var(child, DIALOG_BACKDROP_FN_VAR, backdrop)
-}
-
 /// Dialog info style.
 ///
 /// Sets the info icon and a single "Ok" response.
@@ -230,8 +227,6 @@ impl InfoStyle {
                 zng_wgt_text::font_color = colors::AZURE;
                 padding = 5;
             };
-            responses = Responses::ok();
-
         }
     }
 }
@@ -241,24 +236,80 @@ impl InfoStyle {
 /// Sets the warn icon and a single "Ok" response.
 #[widget($crate::WarnStyle)]
 pub struct WarnStyle(DefaultStyle);
+impl WarnStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            icon = Container! {
+                child = ICONS.req(["dialog-warn", "warning"]);
+                zng_wgt_size_offset::size = 48;
+                zng_wgt_text::font_color = colors::ORANGE;
+                padding = 5;
+            };
+
+        }
+    }
+}
 
 /// Dialog error style.
 ///
 /// Sets the error icon and a single "Ok" response.
 #[widget($crate::ErrorStyle)]
 pub struct ErrorStyle(DefaultStyle);
+impl ErrorStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            icon = Container! {
+                child = ICONS.req(["dialog-error", "error"]);
+                zng_wgt_size_offset::size = 48;
+                zng_wgt_text::font_color = rgb(209, 29, 29);
+                padding = 5;
+            };
+
+        }
+    }
+}
 
 /// Question style.
 ///
 /// Sets the question icon and two "No" and "Yes" responses.
 #[widget($crate::QuestionStyle)]
 pub struct QuestionStyle(DefaultStyle);
+impl QuestionStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            icon = Container! {
+                child = ICONS.req(["dialog-question", "question-mark"]);
+                zng_wgt_size_offset::size = 48;
+                zng_wgt_text::font_color = colors::AZURE;
+                padding = 5;
+                responses = Responses::no_yes();
+            };
+        }
+    }
+}
 
 /// Confirmation style.
 ///
 /// Sets the question icon and two "Cancel" and "Ok" responses.
 #[widget($crate::ConfirmStyle)]
 pub struct ConfirmStyle(DefaultStyle);
+impl ConfirmStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            icon = Container! {
+                child = ICONS.req(["dialog-confirm", "question-mark"]);
+                zng_wgt_size_offset::size = 48;
+                zng_wgt_text::font_color = colors::ORANGE;
+                padding = 5;
+                responses = Responses::cancel_ok();
+            };
+        }
+    }
+}
 
 /// Dialog response.
 #[derive(Clone)]
@@ -441,7 +492,7 @@ impl DIALOG {
             responder,
         }));
 
-        let dialog = DIALOG_BACKDROP_FN_VAR.get()(DialogBackdropArgs { dialog });
+        let dialog = backdrop::DialogBackdrop!(dialog);
 
         let dialog = match_widget(
             dialog,
@@ -479,10 +530,3 @@ context_local! {
         responder: response_var().0,
     };
 }
-
-// !!: TODO
-// * Backdrop widget
-//   - No, it should be only one if there is any dialog open?
-//   - If a second dialog opens it moves over the previous dialog, it does not blurs twice
-//   - This should be optional, the layer example does not
-// * Animate
