@@ -127,13 +127,8 @@ pub use zng_wgt_window::events::{
     on_window_restored, on_window_state_changed, on_window_unmaximized, on_window_unminimized,
 };
 
-/// Native dialog types.
-///
-/// Types in this module can be used with [`WINDOWS.native_message_dialog`] and [`WINDOWS.native_file_dialog`]
-/// to show system provided dialog windows.
-///
-/// [`WINDOWS.native_message_dialog`]: WINDOWS::native_message_dialog
-/// [`WINDOWS.native_file_dialog`]: WINDOWS::native_file_dialog
+#[doc(hidden)]
+#[deprecated = "use `zng::dialog`"]
 pub mod native_dialog {
     pub use zng_view_api::dialog::{
         FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse,

@@ -11,11 +11,14 @@
 
 zng_wgt::enable_widget_macros!();
 
-use std::{fmt, ops, sync::Arc};
+use std::{fmt, ops, path::PathBuf, sync::Arc};
 
+use bitflags::bitflags;
 use parking_lot::Mutex;
 use zng_ext_l10n::l10n;
+use zng_ext_window::WINDOWS;
 use zng_var::ContextInitHandle;
+use zng_view_api::dialog as native_api;
 use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
@@ -31,6 +34,8 @@ use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_wrap::Wrap;
 
 pub mod backdrop;
+
+pub use zng_view_api::dialog::{FileDialogFilters, FileDialogResponse};
 
 /// A modal dialog overlay container.
 #[widget($crate::Dialog)]
@@ -54,7 +59,7 @@ impl Dialog {
 
     widget_impl! {
         /// If close was requested for this dialog and it is just awaiting for the [`popup::close_delay`].
-        /// 
+        ///
         /// The close delay is usually set on the backdrop widget style.
         ///
         /// [`popup::close_delay`]: fn@zng_wgt_layer::popup::close_delay
@@ -148,6 +153,8 @@ context_var! {
     pub static DIALOG_BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::new(default_dialog_button_fn);
     /// Dialog responses.
     pub static DIALOG_RESPONSES_VAR: Responses = Responses::ok();
+    /// Defines what native dialogs are used on a context.
+    pub static NATIVE_DIALOGS_VAR: DialogKind = DIALOG.native_dialogs();
 }
 
 /// Default value of [`dialog_button_fn`](fn@dialog_button_fn)
@@ -212,6 +219,14 @@ pub fn responses(child: impl UiNode, responses: impl IntoVar<Responses>) -> impl
     with_context_var(child, DIALOG_RESPONSES_VAR, responses)
 }
 
+/// Defines what native dialogs are used by dialogs opened on the context.
+///
+/// Sets [`NATIVE_DIALOGS_VAR`].
+#[property(CONTEXT, default(NATIVE_DIALOGS_VAR))]
+pub fn native_dialogs(child: impl UiNode, dialogs: impl IntoVar<DialogKind>) -> impl UiNode {
+    with_context_var(child, NATIVE_DIALOGS_VAR, dialogs)
+}
+
 /// Dialog info style.
 ///
 /// Sets the info icon and a single "Ok" response.
@@ -274,9 +289,9 @@ impl ErrorStyle {
 /// Question style.
 ///
 /// Sets the question icon and two "No" and "Yes" responses.
-#[widget($crate::QuestionStyle)]
-pub struct QuestionStyle(DefaultStyle);
-impl QuestionStyle {
+#[widget($crate::AskStyle)]
+pub struct AskStyle(DefaultStyle);
+impl AskStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
@@ -362,6 +377,20 @@ impl Response {
         Self::new("Close", l10n!("response-close", "Close"))
     }
 }
+impl_from_and_into_var! {
+    fn from(native: native_api::MsgDialogResponse) -> Response {
+        match native {
+            native_api::MsgDialogResponse::Ok => Response::ok(),
+            native_api::MsgDialogResponse::Yes => Response::yes(),
+            native_api::MsgDialogResponse::No => Response::no(),
+            native_api::MsgDialogResponse::Cancel => Response::cancel(),
+            native_api::MsgDialogResponse::Error(e) => Response {
+                name: Txt::from_static("native-error"),
+                label: LocalVar(e).boxed(),
+            },
+        }
+    }
+}
 
 /// Response labels.
 #[derive(Clone, PartialEq, Debug)]
@@ -419,59 +448,233 @@ impl_from_and_into_var! {
     }
 }
 
-/// Dialog overlay service.
+/// Dialog service.
+///
+/// The non-custom dialog methods can be configured to open as native dialogs instead of the custom overlay dialogs.
+///
+/// # Panics
+///
+/// All dialog methods panic is not called inside a window.
 pub struct DIALOG;
 impl DIALOG {
+    /// Show an info dialog with "Ok" button.
+    pub fn info(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+        self.message(
+            msg.into_var().boxed(),
+            title.into_var().boxed(),
+            DialogKind::INFO,
+            InfoStyle!(),
+            native_api::MsgDialogIcon::Info,
+            native_api::MsgDialogButtons::Ok,
+        )
+        .map_response(|_| ())
+    }
+
+    /// Show a warning dialog with "Ok" button.
+    pub fn warn(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+        self.message(
+            msg.into_var().boxed(),
+            title.into_var().boxed(),
+            DialogKind::WARN,
+            WarnStyle!(),
+            native_api::MsgDialogIcon::Warn,
+            native_api::MsgDialogButtons::Ok,
+        )
+        .map_response(|_| ())
+    }
+
+    /// Show an error dialog with "Ok" button.
+    pub fn error(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
+        self.message(
+            msg.into_var().boxed(),
+            title.into_var().boxed(),
+            DialogKind::ERROR,
+            ErrorStyle!(),
+            native_api::MsgDialogIcon::Error,
+            native_api::MsgDialogButtons::Ok,
+        )
+        .map_response(|_| ())
+    }
+
+    /// Shows a question dialog with "No" and "Yes" buttons. Returns `true` for "Yes".
+    pub fn ask(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
+        self.message(
+            question.into_var().boxed(),
+            title.into_var().boxed(),
+            DialogKind::ASK,
+            AskStyle!(),
+            native_api::MsgDialogIcon::Info,
+            native_api::MsgDialogButtons::YesNo,
+        )
+        .map_response(|r| r.name == "Yes")
+    }
+
+    /// Shows a question dialog with "Cancel" and "Ok" buttons. Returns `true` for "Ok".
+    pub fn confirm(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
+        self.message(
+            question.into_var().boxed(),
+            title.into_var().boxed(),
+            DialogKind::CONFIRM,
+            ConfirmStyle!(),
+            native_api::MsgDialogIcon::Warn,
+            native_api::MsgDialogButtons::OkCancel,
+        )
+        .map_response(|r| r.name == "Ok")
+    }
+
+    /// Shows a native file picker dialog configured to select one existing file.
+    pub fn open_file(
+        &self,
+        title: impl IntoVar<Txt>,
+        starting_dir: impl Into<PathBuf>,
+        starting_name: impl IntoVar<Txt>,
+        filters: impl Into<FileDialogFilters>,
+    ) -> ResponseVar<FileDialogResponse> {
+        WINDOWS.native_file_dialog(
+            WINDOW.id(),
+            native_api::FileDialog {
+                title: title.into_var().get(),
+                starting_dir: starting_dir.into(),
+                starting_name: starting_name.into_var().get(),
+                filters: filters.into().build(),
+                kind: native_api::FileDialogKind::OpenFile,
+            },
+        )
+    }
+
+    /// Shows a native file picker dialog configured to select one or more existing files.
+    pub fn open_files(
+        &self,
+        title: impl IntoVar<Txt>,
+        starting_dir: impl Into<PathBuf>,
+        starting_name: impl IntoVar<Txt>,
+        filters: impl Into<FileDialogFilters>,
+    ) -> ResponseVar<FileDialogResponse> {
+        WINDOWS.native_file_dialog(
+            WINDOW.id(),
+            native_api::FileDialog {
+                title: title.into_var().get(),
+                starting_dir: starting_dir.into(),
+                starting_name: starting_name.into_var().get(),
+                filters: filters.into().build(),
+                kind: native_api::FileDialogKind::OpenFiles,
+            },
+        )
+    }
+
+    /// Shows a native file picker dialog configured to select one file path that does not exist yet.
+    pub fn save_file(
+        &self,
+        title: impl IntoVar<Txt>,
+        starting_dir: impl Into<PathBuf>,
+        starting_name: impl IntoVar<Txt>,
+        filters: impl Into<FileDialogFilters>,
+    ) -> ResponseVar<FileDialogResponse> {
+        WINDOWS.native_file_dialog(
+            WINDOW.id(),
+            native_api::FileDialog {
+                title: title.into_var().get(),
+                starting_dir: starting_dir.into(),
+                starting_name: starting_name.into_var().get(),
+                filters: filters.into().build(),
+                kind: native_api::FileDialogKind::SaveFile,
+            },
+        )
+    }
+
+    /// Shows a native file picker dialog configured to select one existing directory.
+    pub fn select_folder(
+        &self,
+        title: impl IntoVar<Txt>,
+        starting_dir: impl Into<PathBuf>,
+        starting_name: impl IntoVar<Txt>,
+    ) -> ResponseVar<FileDialogResponse> {
+        WINDOWS.native_file_dialog(
+            WINDOW.id(),
+            native_api::FileDialog {
+                title: title.into_var().get(),
+                starting_dir: starting_dir.into(),
+                starting_name: starting_name.into_var().get(),
+                filters: "".into(),
+                kind: native_api::FileDialogKind::SelectFolder,
+            },
+        )
+    }
+
+    /// Shows a native file picker dialog configured to select one or more existing directories.
+    pub fn select_folders(
+        &self,
+        title: impl IntoVar<Txt>,
+        starting_dir: impl Into<PathBuf>,
+        starting_name: impl IntoVar<Txt>,
+    ) -> ResponseVar<FileDialogResponse> {
+        WINDOWS.native_file_dialog(
+            WINDOW.id(),
+            native_api::FileDialog {
+                title: title.into_var().get(),
+                starting_dir: starting_dir.into(),
+                starting_name: starting_name.into_var().get(),
+                filters: "".into(),
+                kind: native_api::FileDialogKind::SelectFolders,
+            },
+        )
+    }
+
     /// Open the custom `dialog`.
     ///
     /// Returns the selected response or [`close`] if the dialog is closed without response.
     ///
     /// [`close`]: Response::close
-    pub fn show(&self, dialog: impl UiNode) -> ResponseVar<Response> {
+    pub fn custom(&self, dialog: impl UiNode) -> ResponseVar<Response> {
         self.show_impl(dialog.boxed())
     }
+}
 
-    fn show_dlg(&self, msg: BoxedVar<Txt>, title: BoxedVar<Txt>, style: zng_wgt_style::StyleBuilder) -> ResponseVar<Response> {
-        self.show(Dialog! {
-            style_fn = style;
-            title = Text! {
-                visibility = title.map(|t| Visibility::from(!t.is_empty()));
-                txt = title;
-            };
-            content = SelectableText!(msg);
-        })
+impl DIALOG {
+    /// Variable that defines what native dialogs are used when the dialog methods are called in window contexts.
+    ///
+    /// The [`native_dialogs`](fn@native_dialogs) context property can also be used to override the config just for some widgets.
+    ///
+    /// Note that some dialogs only have the native implementation as of this release.
+    pub fn native_dialogs(&self) -> ArcVar<DialogKind> {
+        DIALOG_SV.read().native_dialogs.clone()
     }
+}
+bitflags! {
+    /// Dialog kind options.
+    #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    pub struct DialogKind: u32 {
+        /// [`DIALOG.info`](DIALOG::info)
+        const INFO =    0b0000_0000_0000_0001;
+        /// [`DIALOG.warn`](DIALOG::warn)
+        const WARN =    0b0000_0000_0000_0010;
+        /// [`DIALOG.error`](DIALOG::error)
+        const ERROR =   0b0000_0000_0000_0100;
+        /// [`DIALOG.ask`](DIALOG::ask)
+        const ASK =     0b0000_0000_0000_1000;
+        /// [`DIALOG.confirm`](DIALOG::confirm)
+        const CONFIRM = 0b0000_0000_0001_0000;
 
-    /// Show an info dialog with "Ok" button.
-    pub fn info(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
-        self.show_dlg(msg.into_var().boxed(), title.into_var().boxed(), InfoStyle!())
-            .map_response(|_| ())
+        /// [`DIALOG.open_file`](DIALOG::open_file)
+        const OPEN_FILE =  0b1000_0000_0000_0000;
+        /// [`DIALOG.open_files`](DIALOG::open_files)
+        const OPEN_FILES = 0b0100_0000_0000_0000;
+        /// [`DIALOG.save_file`](DIALOG::save_file)
+        const SAVE_FILE =  0b0010_0000_0000_0000;
+
+        /// [`DIALOG.select_folder`](DIALOG::select_folder)
+        const SELECT_FOLDER =  0b0001_0000_0000_0000;
+        /// [`DIALOG.select_folders`](DIALOG::select_folders)
+        const SELECT_FOLDERS = 0b0000_1000_0000_0000;
+
+        /// All message dialogs.
+        const MESSAGE = Self::INFO.bits() | Self::WARN.bits() | Self::ERROR.bits()  | Self::ASK.bits()  | Self::CONFIRM.bits();
+        /// All file system dialogs.
+        const FILE = Self::OPEN_FILE.bits() | Self::OPEN_FILES.bits() | Self::SAVE_FILE.bits()  | Self::SELECT_FOLDER.bits() | Self::SELECT_FOLDERS.bits();
     }
+}
 
-    /// Show a warning dialog with "Ok" button.
-    pub fn warn(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
-        self.show_dlg(msg.into_var().boxed(), title.into_var().boxed(), WarnStyle!())
-            .map_response(|_| ())
-    }
-
-    /// Show an error dialog with "Ok" button.
-    pub fn error(&self, msg: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<()> {
-        self.show_dlg(msg.into_var().boxed(), title.into_var().boxed(), ErrorStyle!())
-            .map_response(|_| ())
-    }
-
-    /// Shows a question dialog with "No" and "Yes" buttons. Returns `true` for "Yes".
-    pub fn question(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
-        self.show_dlg(question.into_var().boxed(), title.into_var().boxed(), QuestionStyle!())
-            .map_response(|r| r.name == "Yes")
-    }
-
-    /// Shows a question dialog with "Cancel" and "Ok" buttons. Returns `true` for "Ok".
-    pub fn confirm(&self, question: impl IntoVar<Txt>, title: impl IntoVar<Txt>) -> ResponseVar<bool> {
-        self.show_dlg(question.into_var().boxed(), title.into_var().boxed(), ConfirmStyle!())
-            .map_response(|r| r.name == "Ok")
-    }
-
+impl DIALOG {
     /// Close the contextual dialog with the response.
     pub fn respond(&self, response: Response) {
         let ctx = DIALOG_CTX.get();
@@ -481,6 +684,39 @@ impl DIALOG {
             POPUP.close_id(id);
         } else {
             tracing::error!("DIALOG.respond called outside of a dialog");
+        }
+    }
+
+    fn message(
+        &self,
+        msg: BoxedVar<Txt>,
+        title: BoxedVar<Txt>,
+        kind: DialogKind,
+        style: zng_wgt_style::StyleBuilder,
+        native_icon: native_api::MsgDialogIcon,
+        native_buttons: native_api::MsgDialogButtons,
+    ) -> ResponseVar<Response> {
+        if NATIVE_DIALOGS_VAR.get().contains(kind) {
+            WINDOWS
+                .native_message_dialog(
+                    WINDOW.id(),
+                    native_api::MsgDialog {
+                        title: title.get(),
+                        message: msg.get(),
+                        icon: native_icon,
+                        buttons: native_buttons,
+                    },
+                )
+                .map_response(|r| r.clone().into())
+        } else {
+            self.custom(Dialog! {
+                style_fn = style;
+                title = Text! {
+                    visibility = title.map(|t| Visibility::from(!t.is_empty()));
+                    txt = title;
+                };
+                content = SelectableText!(msg);
+            })
         }
     }
 
@@ -530,3 +766,16 @@ context_local! {
         responder: response_var().0,
     };
 }
+
+struct DialogService {
+    native_dialogs: ArcVar<DialogKind>,
+}
+app_local! {
+    static DIALOG_SV: DialogService = DialogService {
+        native_dialogs: var(DialogKind::FILE),
+    };
+}
+
+// !!: TODO
+// * Commands
+// * Custom handlers
