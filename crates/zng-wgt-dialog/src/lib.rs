@@ -16,8 +16,8 @@ use std::{fmt, ops, path::PathBuf, sync::Arc};
 use bitflags::bitflags;
 use parking_lot::Mutex;
 use zng_ext_l10n::l10n;
-use zng_ext_window::WINDOWS;
-use zng_var::ContextInitHandle;
+use zng_ext_window::{WindowCloseRequestedArgs, WINDOWS, WINDOW_CLOSE_REQUESTED_EVENT};
+use zng_var::{animation::easing, ContextInitHandle};
 use zng_view_api::dialog as native_api;
 use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
@@ -25,7 +25,7 @@ use zng_wgt_fill::background_color;
 use zng_wgt_filter::drop_shadow;
 use zng_wgt_input::focus::FocusableMix;
 use zng_wgt_layer::{
-    popup::{ContextCapture, POPUP},
+    popup::{ContextCapture, POPUP, POPUP_CLOSE_REQUESTED_EVENT},
     AnchorMode,
 };
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
@@ -44,6 +44,9 @@ impl Dialog {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
 
+        self.widget_builder()
+            .push_build_action(|b| b.push_intrinsic(NestGroup::EVENT, "dialog-closing", dialog_closing_node));
+
         widget_set! {
             self;
             style_base_fn = style_fn!(|_| DefaultStyle!());
@@ -58,21 +61,112 @@ impl Dialog {
     }
 
     widget_impl! {
-        /// If close was requested for this dialog and it is just awaiting for the [`popup::close_delay`].
+        /// If a respond close was requested for this dialog and it is just awaiting for the [`popup::close_delay`].
         ///
         /// The close delay is usually set on the backdrop widget style.
         ///
         /// [`popup::close_delay`]: fn@zng_wgt_layer::popup::close_delay
         pub zng_wgt_layer::popup::is_close_delaying(state: impl IntoVar<bool>);
+
+        /// An attempt to close the dialog was made without setting the response.
+        ///
+        /// Dialogs must only close using [`DIALOG.respond`](DIALOG::respond).
+        pub on_dialog_close_canceled(args: impl WidgetHandler<DialogCloseCanceledArgs>);
     }
 }
 impl_style_fn!(Dialog);
+
+fn dialog_closing_node(child: impl UiNode) -> impl UiNode {
+    match_node(child, move |_, op| {
+        match op {
+            UiNodeOp::Init => {
+                // layers receive events after window content, so we subscribe directly
+                let id = WIDGET.id();
+                let ctx = DIALOG_CTX.get();
+                let default_response = DEFAULT_RESPONSE_VAR.actual_var();
+                let responder = ctx.responder.clone();
+                let handle = WINDOW_CLOSE_REQUESTED_EVENT.on_pre_event(app_hn!(|args: &WindowCloseRequestedArgs, _| {
+                    // a window is closing
+                    if responder.get().is_waiting() {
+                        // dialog has no response
+
+                        let path = WINDOWS.widget_info(id).unwrap().path();
+                        if args.windows.contains(&path.window_id()) {
+                            // is closing dialog parent window
+
+                            if let Some(default) = default_response.get() {
+                                // has default response
+                                responder.respond(default);
+                                // in case the window close is canceled by other component
+                                zng_wgt_layer::popup::POPUP_CLOSE_CMD
+                                    .scoped(path.window_id())
+                                    .notify_param(path.widget_id());
+                            } else {
+                                // no default response, cancel close
+                                args.propagation().stop();
+                                DIALOG_CLOSE_CANCELED_EVENT.notify(DialogCloseCanceledArgs::now(path));
+                            }
+                        }
+                    }
+                }));
+                WIDGET.push_event_handle(handle);
+                WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
+            }
+            UiNodeOp::Event { update } => {
+                if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update) {
+                    // dialog is closing
+                    let ctx = DIALOG_CTX.get();
+                    if ctx.responder.get().is_waiting() {
+                        // dialog has no response
+                        if let Some(r) = DEFAULT_RESPONSE_VAR.get() {
+                            ctx.responder.respond(r);
+                        } else {
+                            args.propagation().stop();
+                            DIALOG_CLOSE_CANCELED_EVENT.notify(DialogCloseCanceledArgs::now(WIDGET.info().path()));
+                        }
+                    }
+                }
+            }
+            _ => (),
+        }
+    })
+}
+
+event_args! {
+    /// Arguments for [`DIALOG_CLOSE_CANCELED_EVENT`].
+    pub struct DialogCloseCanceledArgs {
+        /// Dialog widget.
+        pub target: WidgetPath,
+
+        ..
+
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_wgt(&self.target);
+        }
+    }
+}
+event! {
+    /// An attempt to close the dialog was made without setting the response.
+    ///
+    /// Dialogs must only close using [`DIALOG.respond`](DIALOG::respond).
+    pub static DIALOG_CLOSE_CANCELED_EVENT: DialogCloseCanceledArgs;
+}
+event_property! {
+    // An attempt to close the dialog was made without setting the response.
+    ///
+    /// Dialogs must only close using [`DIALOG.respond`](DIALOG::respond).
+    pub fn dialog_close_canceled {
+        event: DIALOG_CLOSE_CANCELED_EVENT,
+        args: DialogCloseCanceledArgs,
+    }
+}
 
 /// Dialog default style.
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
+        let highlight_color = var(colors::BLACK.transparent());
         widget_set! {
             self;
 
@@ -96,13 +190,13 @@ impl DefaultStyle {
             zng_wgt_container::child_out_top = Container! {
                 corner_radius = 0;
                 background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
-                child = presenter((), DIALOG_TITLE_VAR);
+                child = presenter((), TITLE_VAR);
                 child_align = Align::START;
                 padding = (4, 8);
                 zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
             }, 0;
 
-            zng_wgt_container::child_out_bottom = presenter(DIALOG_RESPONSES_VAR, wgt_fn!(|responses: Responses| {
+            zng_wgt_container::child_out_bottom = presenter(RESPONSES_VAR, wgt_fn!(|responses: Responses| {
                 Wrap! {
                     corner_radius = 0;
                     background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
@@ -116,7 +210,7 @@ impl DefaultStyle {
                             .enumerate()
                             .map(|(i, r)| presenter(
                                 DialogButtonArgs { response: r, is_last: i == last },
-                                DIALOG_BUTTON_FN_VAR
+                                BUTTON_FN_VAR
                             ).boxed())
                             .collect::<UiNodeVec>()
                     };
@@ -124,11 +218,11 @@ impl DefaultStyle {
             })), 0;
 
             zng_wgt_container::child_out_left = Container! {
-                child = presenter((), DIALOG_ICON_VAR);
+                child = presenter((), ICON_VAR);
                 child_align = Align::TOP;
             }, 0;
 
-            zng_wgt_container::child = presenter((), DIALOG_CONTENT_VAR);
+            zng_wgt_container::child = presenter((), CONTENT_VAR);
 
             #[easing(250.ms())]
             zng_wgt_filter::opacity = 30.pct();
@@ -138,21 +232,41 @@ impl DefaultStyle {
                 zng_wgt_filter::opacity = 100.pct();
                 zng_wgt_transform::transform = Transform::identity();
             }
+
+            zng_wgt_fill::foreground_highlight = {
+                offsets: 0,
+                widths: 2,
+                sides: highlight_color.map_into(),
+            };
+            on_dialog_close_canceled = hn!(highlight_color, |_| {
+                let c = colors::ACCENT_COLOR_VAR.rgba().get();
+                let mut repeats = 0;
+                highlight_color.sequence(move |cv| {
+                    repeats += 1;
+                    if repeats <= 2 {
+                        cv.set_ease(c, c.with_alpha(0.pct()), 120.ms(), easing::linear)
+                    } else {
+                        zng_var::animation::AnimationHandle::dummy()
+                    }
+                }).perm();
+            });
         }
     }
 }
 
 context_var! {
     /// Title widget, usually placed as `child_out_top`.
-    pub static DIALOG_TITLE_VAR: WidgetFn<()> = WidgetFn::nil();
+    pub static TITLE_VAR: WidgetFn<()> = WidgetFn::nil();
     /// Icon widget, usually placed as `child_out_start`.
-    pub static DIALOG_ICON_VAR: WidgetFn<()> = WidgetFn::nil();
+    pub static ICON_VAR: WidgetFn<()> = WidgetFn::nil();
     /// Content widget, usually the dialog child.
-    pub static DIALOG_CONTENT_VAR: WidgetFn<()> = WidgetFn::nil();
+    pub static CONTENT_VAR: WidgetFn<()> = WidgetFn::nil();
     /// Dialog response button generator, usually placed as `child_out_bottom`.
-    pub static DIALOG_BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::new(default_dialog_button_fn);
+    pub static BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::new(default_dialog_button_fn);
     /// Dialog responses.
-    pub static DIALOG_RESPONSES_VAR: Responses = Responses::ok();
+    pub static RESPONSES_VAR: Responses = Responses::ok();
+    /// Dialog response when closed without setting a response.
+    pub static DEFAULT_RESPONSE_VAR: Option<Response> = None;
     /// Defines what native dialogs are used on a context.
     pub static NATIVE_DIALOGS_VAR: DialogKind = DIALOG.native_dialogs();
 }
@@ -188,7 +302,7 @@ pub struct DialogButtonArgs {
 /// Note that this takes in an widget, you can use `Text!("title")` to set to a text.
 #[property(CONTEXT, default(NilUiNode), widget_impl(Dialog))]
 pub fn title(child: impl UiNode, title: impl UiNode) -> impl UiNode {
-    with_context_var(child, DIALOG_TITLE_VAR, WidgetFn::singleton(title))
+    with_context_var(child, TITLE_VAR, WidgetFn::singleton(title))
 }
 
 /// Dialog icon widget.
@@ -196,7 +310,7 @@ pub fn title(child: impl UiNode, title: impl UiNode) -> impl UiNode {
 /// Note that this takes in an widget, you can use the `ICONS` service to get an icon widget.
 #[property(CONTEXT, default(NilUiNode), widget_impl(Dialog))]
 pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
-    with_context_var(child, DIALOG_ICON_VAR, WidgetFn::singleton(icon))
+    with_context_var(child, ICON_VAR, WidgetFn::singleton(icon))
 }
 
 /// Dialog content widget.
@@ -204,19 +318,25 @@ pub fn icon(child: impl UiNode, icon: impl UiNode) -> impl UiNode {
 /// Note that this takes in an widget, you can use `SelectableText!("message")` for the message.
 #[property(CONTEXT, default(FillUiNode), widget_impl(Dialog))]
 pub fn content(child: impl UiNode, content: impl UiNode) -> impl UiNode {
-    with_context_var(child, DIALOG_CONTENT_VAR, WidgetFn::singleton(content))
+    with_context_var(child, CONTENT_VAR, WidgetFn::singleton(content))
 }
 
 /// Dialog button generator.
-#[property(CONTEXT, default(DIALOG_BUTTON_FN_VAR), widget_impl(Dialog))]
+#[property(CONTEXT, default(BUTTON_FN_VAR), widget_impl(Dialog))]
 pub fn button_fn(child: impl UiNode, button: impl IntoVar<WidgetFn<DialogButtonArgs>>) -> impl UiNode {
-    with_context_var(child, DIALOG_BUTTON_FN_VAR, button)
+    with_context_var(child, BUTTON_FN_VAR, button)
 }
 
 /// Dialog responses.
-#[property(CONTEXT, default(DIALOG_RESPONSES_VAR), widget_impl(Dialog))]
+#[property(CONTEXT, default(RESPONSES_VAR), widget_impl(Dialog))]
 pub fn responses(child: impl UiNode, responses: impl IntoVar<Responses>) -> impl UiNode {
-    with_context_var(child, DIALOG_RESPONSES_VAR, responses)
+    with_context_var(child, RESPONSES_VAR, responses)
+}
+
+/// Dialog response when closed without setting a response.
+#[property(CONTEXT, default(DEFAULT_RESPONSE_VAR), widget_impl(Dialog))]
+pub fn default_response(child: impl UiNode, response: impl IntoVar<Option<Response>>) -> impl UiNode {
+    with_context_var(child, DEFAULT_RESPONSE_VAR, response)
 }
 
 /// Defines what native dialogs are used by dialogs opened on the context.
@@ -242,6 +362,7 @@ impl InfoStyle {
                 zng_wgt_text::font_color = colors::AZURE;
                 padding = 5;
             };
+            default_response = Response::ok();
         }
     }
 }
@@ -300,8 +421,8 @@ impl AskStyle {
                 zng_wgt_size_offset::size = 48;
                 zng_wgt_text::font_color = colors::AZURE;
                 padding = 5;
-                responses = Responses::no_yes();
             };
+            responses = Responses::no_yes();
         }
     }
 }
@@ -320,8 +441,8 @@ impl ConfirmStyle {
                 zng_wgt_size_offset::size = 48;
                 zng_wgt_text::font_color = colors::ORANGE;
                 padding = 5;
-                responses = Responses::cancel_ok();
             };
+            responses = Responses::cancel_ok();
         }
     }
 }
@@ -390,6 +511,7 @@ impl_from_and_into_var! {
             },
         }
     }
+    fn from(response: Response) -> Option<Response>;
 }
 
 /// Response labels.
@@ -684,12 +806,25 @@ impl_from_and_into_var! {
 }
 
 impl DIALOG {
-    /// Close the contextual dialog with the response.
+    /// Close the contextual dialog with the `response``.
     pub fn respond(&self, response: Response) {
         let ctx = DIALOG_CTX.get();
         let id = *ctx.dialog_id.lock();
         if let Some(id) = id {
             ctx.responder.respond(response);
+            POPUP.close_id(id);
+        } else {
+            tracing::error!("DIALOG.respond called outside of a dialog");
+        }
+    }
+
+    /// Try to close the contextual dialog without directly setting a response.
+    ///
+    /// If the dialog has no [`default_response`] the [`on_dialog_close_canceled`] event notifies instead of closing.
+    pub fn respond_default(&self) {
+        let ctx = DIALOG_CTX.get();
+        let id = *ctx.dialog_id.lock();
+        if let Some(id) = id {
             POPUP.close_id(id);
         } else {
             tracing::error!("DIALOG.respond called outside of a dialog");
@@ -784,7 +919,3 @@ app_local! {
         native_dialogs: var(DialogKind::FILE),
     };
 }
-
-// !!: TODO
-// * Commands
-// * Custom handlers

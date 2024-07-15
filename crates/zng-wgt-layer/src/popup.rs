@@ -475,7 +475,7 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
     let delay = delay.into_var();
     let mut timer = None::<DeadlineHandle>;
 
-    let child = match_node(child, move |_, op| match op {
+    let child = match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
         }
@@ -483,6 +483,7 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
             timer = None;
         }
         UiNodeOp::Event { update } => {
+            c.event(update);
             if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
                 if args.popup != WIDGET.id() {
                     return;

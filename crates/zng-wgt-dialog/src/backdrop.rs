@@ -4,9 +4,10 @@ use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_input::gesture::{on_click, ClickArgs};
+use zng_wgt_layer::popup::POPUP_CLOSE_REQUESTED_EVENT;
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 
-use crate::{Response, DIALOG};
+use crate::DIALOG;
 
 /// Modal dialog parent widget that fills the window.
 ///
@@ -25,30 +26,43 @@ impl DialogBackdrop {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
 
+        self.widget_builder()
+            .push_build_action(|b| b.push_intrinsic(NestGroup::EVENT, "popup-pump", backdrop_node));
+
         widget_set! {
             self;
             style_base_fn = style_fn!(|_| DefaultStyle!());
             modal = true;
+
+            on_click = hn!(|args: &ClickArgs| {
+                args.propagation().stop();
+                DIALOG.respond_default();
+            });
         }
     }
 }
 impl_style_fn!(DialogBackdrop);
 
-/// Enables dialog close on click.
-///
-/// When enabled a click on the backdrop closes the dialog with [`Response::close`].
-#[property(EVENT, default(false), widget_impl(DialogBackdrop))]
-pub fn close_on_click(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    let enabled = enabled.into_var();
-    on_click(
-        child,
-        hn!(|args: &ClickArgs| {
-            if enabled.get() {
-                args.propagation().stop();
-                DIALOG.respond(Response::close());
+/// Share popup events with the dialog child.
+fn backdrop_node(child: impl UiNode) -> impl UiNode {
+    match_node(child, |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on(update) {
+                for child in WIDGET.info().descendants() {
+                    if POPUP_CLOSE_REQUESTED_EVENT.is_subscriber(child.id()) {
+                        let mut delivery = UpdateDeliveryList::new_any();
+                        delivery.insert_wgt(&child);
+                        let update = POPUP_CLOSE_REQUESTED_EVENT.new_update_custom(args.clone(), delivery);
+                        c.event(&update);
+                    }
+                }
             }
-        }),
-    )
+        }
+        _ => {}
+    })
 }
 
 /// Dialog backdrop default style.

@@ -90,6 +90,8 @@ pub enum MsgDialogResponse {
 ///
 /// You can use the [`push_filter`] method to create filters. Note that the extensions are
 /// not glob patterns, they must be an extension (without the dot prefix) or `*` for all files.
+///
+/// [`push_filter`]: FileDialogFilters::push_filter
 #[derive(Debug, Default, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct FileDialogFilters(Txt);

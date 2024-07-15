@@ -49,7 +49,6 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
         on_close = hn!(is_open, |_| {
             is_open.set(false);
         });
-        enabled = editor.enabled();
         on_close_requested = async_hn!(editor, |args: WindowCloseRequestedArgs| {
             editor.on_close_requested(args).await;
         });
@@ -61,6 +60,7 @@ fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             mode = ScrollMode::VERTICAL;
             child_align = Align::FILL;
             scroll_to_focused_mode = None;
+            enabled = editor.enabled();
 
             // line numbers
             child_start = Text! {
@@ -159,6 +159,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
         spacing = 4;
         direction = StackDirection::left_to_right();
         padding = 4;
+        enabled = editor.enabled();
         layout::actual_width = menu_width;
         button::style_fn = Style! {
             padding = (2, 4);
