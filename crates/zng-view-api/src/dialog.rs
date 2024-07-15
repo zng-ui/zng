@@ -255,7 +255,7 @@ pub struct FileDialog {
 impl FileDialog {
     /// Push a filter entry.
     pub fn push_filter<S: AsRef<str>>(&mut self, display_name: &str, extensions: &[S]) -> &mut Self {
-        let mut f = FileDialogFilters::from(mem::take(&mut self.filters));
+        let mut f = FileDialogFilters(mem::take(&mut self.filters));
         f.push_filter(display_name, extensions);
         self.filters = f.build();
         self

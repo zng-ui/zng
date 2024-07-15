@@ -262,7 +262,7 @@ context_var! {
     /// Content widget, usually the dialog child.
     pub static CONTENT_VAR: WidgetFn<()> = WidgetFn::nil();
     /// Dialog response button generator, usually placed as `child_out_bottom`.
-    pub static BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::new(default_dialog_button_fn);
+    pub static BUTTON_FN_VAR: WidgetFn<DialogButtonArgs> = WidgetFn::new(default_button_fn);
     /// Dialog responses.
     pub static RESPONSES_VAR: Responses = Responses::ok();
     /// Dialog response when closed without setting a response.
@@ -271,10 +271,10 @@ context_var! {
     pub static NATIVE_DIALOGS_VAR: DialogKind = DIALOG.native_dialogs();
 }
 
-/// Default value of [`dialog_button_fn`](fn@dialog_button_fn)
-pub fn default_dialog_button_fn(args: DialogButtonArgs) -> impl UiNode {
+/// Default value of [`button_fn`](fn@button_fn)
+pub fn default_button_fn(args: DialogButtonArgs) -> impl UiNode {
     zng_wgt_button::Button! {
-        child = Text!(args.response.name.clone());
+        child = Text!(args.response.label.clone());
         on_click = hn_once!(|a: &zng_wgt_input::gesture::ClickArgs| {
             a.propagation().stop();
             DIALOG.respond(args.response);
@@ -474,28 +474,28 @@ impl Response {
         }
     }
 
-    /// "Ok"
+    /// "ok"
     pub fn ok() -> Self {
         Self::new("Ok", l10n!("response-ok", "Ok"))
     }
 
-    /// "Cancel"
+    /// "cancel"
     pub fn cancel() -> Self {
-        Self::new("Cancel", l10n!("response-cancel", "Cancel"))
+        Self::new("cancel", l10n!("response-cancel", "Cancel"))
     }
 
-    /// "Yes"
+    /// "yes"
     pub fn yes() -> Self {
-        Self::new("Yes", l10n!("response-yes", "Yes"))
+        Self::new("yes", l10n!("response-yes", "Yes"))
     }
-    /// "No"
+    /// "no"
     pub fn no() -> Self {
-        Self::new("No", l10n!("response-no", "No"))
+        Self::new("no", l10n!("response-no", "No"))
     }
 
-    /// "Close"
+    /// "close"
     pub fn close() -> Self {
-        Self::new("Close", l10n!("response-close", "Close"))
+        Self::new("close", l10n!("response-close", "Close"))
     }
 }
 impl_from_and_into_var! {
@@ -628,7 +628,7 @@ impl DIALOG {
             native_api::MsgDialogIcon::Info,
             native_api::MsgDialogButtons::YesNo,
         )
-        .map_response(|r| r.name == "Yes")
+        .map_response(|r| r.name == "yes")
     }
 
     /// Shows a question dialog with "Cancel" and "Ok" buttons. Returns `true` for "Ok".
@@ -641,7 +641,7 @@ impl DIALOG {
             native_api::MsgDialogIcon::Warn,
             native_api::MsgDialogButtons::OkCancel,
         )
-        .map_response(|r| r.name == "Ok")
+        .map_response(|r| r.name == "ok")
     }
 
     /// Shows a native file picker dialog configured to select one existing file.
@@ -820,7 +820,8 @@ impl DIALOG {
 
     /// Try to close the contextual dialog without directly setting a response.
     ///
-    /// If the dialog has no [`default_response`] the [`on_dialog_close_canceled`] event notifies instead of closing.
+    /// If the dialog has no [`default_response`](fn@default_response) the
+    /// [`on_dialog_close_canceled`](fn@on_dialog_close_canceled) event notifies instead of closing.
     pub fn respond_default(&self) {
         let ctx = DIALOG_CTX.get();
         let id = *ctx.dialog_id.lock();

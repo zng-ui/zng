@@ -25,7 +25,7 @@
 //! Custom dialogs modal widgets, rendered in the window content, instantiated using the [`Dialog!`] widget.
 //!
 //! ```
-//! use zng::prelude::*:
+//! use zng::prelude::*;
 //!
 //! # async fn _demo() {
 //! let r = DIALOG
@@ -53,7 +53,7 @@
 //! Some of the dialogs provided are native by default (and only native on this release), the example below shows a native save file dialog:
 //!
 //! ```
-//! use zng::prelude::*:
+//! use zng::prelude::*;
 //!
 //! # async fn _demo() {
 //! let mut f = dialog::FileDialogFilters::default();
@@ -74,8 +74,6 @@
 //! }
 //! # }
 //! ```
-//!
-//! !!: TODO (also localize )
 //!
 //! [`Dialog!`]: struct@Dialog
 //!
@@ -103,7 +101,7 @@ pub use zng_wgt_dialog::{
 ///         replace = true;
 ///         color::filter::backdrop_blur = 2;
 ///     };
-// }
+/// }
 /// # ;
 /// ```
 ///
@@ -111,7 +109,7 @@ pub use zng_wgt_dialog::{
 ///
 /// [`DialogBackdrop!`]: struct@zng_wgt_dialog::backdrop::DialogBackdrop
 /// [`backdrop::style_fn`]: fn@crate::dialog::backdrop::style_fn
-/// [`DIALOG`]: fn@crate::dialog::DIALOG
+/// [`DIALOG`]: crate::dialog::DIALOG
 ///
 /// # Full API
 ///
