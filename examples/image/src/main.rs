@@ -551,7 +551,8 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
         // the large images can take a moment to decode in debug builds, but the size
         // is already known after read, so the "loading.." message ends-up off-screen
         // because it is centered on the image.
-        layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l() - 1.vw() / s * h);
+        layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l()
+            - 1.vw() / s * h);
         layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
         layout::scale = SCROLL.zoom_scale().map(|&fct| 1.fct() / fct);
         layout::transform_origin = 0;
@@ -583,9 +584,8 @@ impl ImgWindow {
 
             child_align = Align::CENTER;
 
-
             state = WindowState::Maximized;
-            size = (1140, 770);// restore size
+            size = (1140, 770); // restore size
 
             icon = zng::env::res("zng-logo.png");
             widget::background = Checkerboard!();
