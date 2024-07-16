@@ -243,11 +243,6 @@ pub fn top_cargo_toml(dir: &str) -> Vec<String> {
     glob(&format!("{dir}/*/Cargo.toml"))
 }
 
-/// Get all `dir/**/*`.ext files.
-pub fn all_ext(dir: &str, ext: &str) -> Vec<String> {
-    glob(&format!("{dir}/**/*.{ext}"))
-}
-
 // Get all `examples/*/src/main.rs` names.
 pub fn examples() -> Vec<String> {
     match glob::glob("examples/*/src/main.rs") {

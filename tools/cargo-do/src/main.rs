@@ -721,27 +721,37 @@ fn expand(mut args: Vec<&str>) {
 //    Format workspace, macro test samples, test-crates and the tasks script.
 fn fmt(mut args: Vec<&str>) {
     if take_flag(&mut args, &["--check"]) {
-        cmd("cargo", &["fmt", "--", "--check"], &args);
-        let cases = all_ext("tests/macro-tests/cases", "rs");
-        let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
-        cmd("rustfmt", &["--edition", "2021", "--check"], &cases_str);
+        cmd_req("cargo", &["fmt", "--check"], &[]); // fast check for CI
+
+        cmd_req("cargo", &["build", "--quiet", "--package", "cargo-zng"], &[]);
+        let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
+
+        cmd(&exe, &["zng", "fmt", "--check"], &args);
+        cmd(
+            &exe,
+            &["zng", "fmt", "--check", "--files", "tests/macro-tests/cases/**/*.rs"],
+            &args,
+        );
         for tool_crate in top_cargo_toml("tools") {
-            cmd("cargo", &["fmt", "--manifest-path", &tool_crate, "--", "--check"], &args);
+            cmd(&exe, &["zng", "fmt", "--check", "--manifest-path", &tool_crate], &args);
         }
     } else {
+        print("    building cargo-zng fmt ... ");
+        cmd_req("cargo", &["build", "--quiet", "--package", "cargo-zng"], &[]);
+        let exe = format!("target/debug/cargo-zng{}", std::env::consts::EXE_SUFFIX);
+        println("done");
+
         print("    fmt workspace ... ");
-        cmd("cargo", &["fmt"], &args);
+        cmd(&exe, &["zng", "fmt"], &args);
         println("done");
 
         print("    fmt tests/macro-tests/cases/**/*.rs ... ");
-        let cases = all_ext("tests/macro-tests/cases", "rs");
-        let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
-        cmd("rustfmt", &["--edition", "2021"], &cases_str);
+        cmd(&exe, &["zng", "fmt", "--files", "tests/macro-tests/cases/**/*.rs"], &args);
         println("done");
 
         print("    fmt tools ... ");
         for tool_crate in top_cargo_toml("tools") {
-            cmd("cargo", &["fmt", "--manifest-path", &tool_crate], &args);
+            cmd(&exe, &["zng", "fmt", "--manifest-path", &tool_crate], &args);
         }
         println("done");
     }

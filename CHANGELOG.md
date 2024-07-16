@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `cargo zng fmt` that formats with cargo-fmt + Zng macros.
 * Fix named `Align` deserialization from human readable formats.
 * Fix `SelectableText!` shorthand syntax.
 * Fix layer `AnchorSize::Window` not filling the window space by default.

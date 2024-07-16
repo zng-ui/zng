@@ -11,6 +11,7 @@
 
 #[macro_use]
 mod util;
+mod fmt;
 mod l10n;
 mod new;
 mod res;
@@ -58,6 +59,11 @@ enum Command {
     /// Builds resources SOURCE to TARGET, delegates `.zr-{tool}` files to `cargo-zng-res-{tool}`
     /// executables and crates.
     Res(res::ResArgs),
+
+    /// Format code and macros
+    ///
+    /// Runs cargo fmt and formats Zng macros
+    Fmt(fmt::FmtArgs),
 }
 
 fn main() {
@@ -69,6 +75,7 @@ fn main() {
         Command::New(args) => new::run(args),
         Command::L10n(args) => l10n::run(args),
         Command::Res(args) => res::run(args),
+        Command::Fmt(args) => fmt::run(args),
     }
 
     crate::util::exit();
