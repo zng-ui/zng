@@ -149,10 +149,16 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
 
                     if let Some(formatted) = try_fmt_group(base_indent, group_code) {
                         if formatted != group_code {
-                            let already_fmt = &file_code[last_already_fmt_start..group_bytes.start];
-                            formatted_code.push_str(already_fmt);
-                            formatted_code.push_str(&formatted);
-                            last_already_fmt_start = group_bytes.end;
+                            // changed by custom format
+                            if let Some(stable) = try_fmt_group(base_indent, &formatted) {
+                                if formatted == stable {
+                                    // change is sable
+                                    let already_fmt = &file_code[last_already_fmt_start..group_bytes.start];
+                                    formatted_code.push_str(already_fmt);
+                                    formatted_code.push_str(&formatted);
+                                    last_already_fmt_start = group_bytes.end;
+                                }
+                            }
                         }
                     }
                 } else {
@@ -172,16 +178,44 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
     formatted_code.push_str(&file_code[last_already_fmt_start..]);
 
     if formatted_code != file {
+        // custom format can cause normal format to change
+        // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
+        //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
+        let formatted_code = rustfmt_stdin(&formatted_code).unwrap_or(formatted_code);
+
         if check {
             fatal!("extended format does not match in file `{}`", rs_file.display());
         }
-        return fs::write(rs_file, formatted_code);
+        fs::write(rs_file, formatted_code)?;
     }
 
     Ok(())
 }
 
 fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
+    let code = rustfmt_stdin(group_code)?;
+    let mut out = String::new();
+    let mut lb_indent = String::with_capacity(base_indent + 1);
+    for line in code.lines() {
+        if line.is_empty() {
+            if !lb_indent.is_empty() {
+                out.push('\n');
+            }
+        } else {
+            out.push_str(&lb_indent);
+        }
+        out.push_str(line);
+        // "\n    "
+        if lb_indent.is_empty() {
+            lb_indent.push('\n');
+            for _ in 0..base_indent {
+                lb_indent.push(' ');
+            }
+        }
+    }
+    Some(out)
+}
+fn rustfmt_stdin(code: &str) -> Option<String> {
     let mut s = std::process::Command::new("rustfmt")
         .arg("--edition")
         .arg("2021")
@@ -190,35 +224,13 @@ fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
         .stderr(Stdio::piped())
         .spawn()
         .ok()?;
-    s.stdin
-        .take()
-        .unwrap()
-        .write_all(format!("fn __try_fmt(){group_code}").as_bytes())
-        .ok()?;
+    s.stdin.take().unwrap().write_all(format!("fn __try_fmt(){code}").as_bytes()).ok()?;
     let s = s.wait_with_output().ok()?;
+
     if s.status.success() {
         let code = String::from_utf8(s.stdout).ok()?;
-        let code = code.strip_prefix("fn __try_fmt()")?.trim_start();
-        let mut out = String::new();
-        let mut lb_indent = String::with_capacity(base_indent + 1);
-        for line in code.lines() {
-            if line.is_empty() {
-                if !lb_indent.is_empty() {
-                    out.push('\n');
-                }
-            } else {
-                out.push_str(&lb_indent);
-            }
-            out.push_str(line);
-            // "\n    "
-            if lb_indent.is_empty() {
-                lb_indent.push('\n');
-                for _ in 0..base_indent {
-                    lb_indent.push(' ');
-                }
-            }
-        }
-        Some(out)
+        let code = code.strip_prefix("fn __try_fmt()")?.trim_start().to_owned();
+        Some(code)
     } else {
         None
     }
@@ -227,7 +239,6 @@ fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
 // !!: TODO
 //
 // * #[rustfmt::skip]
-// * Format twice? Some code formats again (ui_vec![Widget! { <multiple props> }]).
 // * Recursive format
 // * event_args! has a '.. fn'  token sequence
 // * widget macros with 'when #property'
