@@ -1,23 +1,16 @@
 //! Demonstrates the window widget, service, state and commands.
 
 use zng::{
-    access::ACCESS,
     app::EXIT_CMD,
-    button,
-    color::{
-        filter::{backdrop_blur, drop_shadow, opacity},
-        Rgba,
-    },
+    color::Rgba,
     event::Command,
-    focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
     handler::WidgetHandler,
     image::ImageDataFormat,
     layout::*,
     prelude::*,
     scroll::ScrollMode,
-    var::ArcVar,
     widget::{background_color, corner_radius, enabled, visibility, LineStyle},
-    window::{native_dialog, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
+    window::{FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
 };
 
 fn main() {
@@ -588,97 +581,71 @@ fn native() -> impl UiNode {
             Button! {
                 child = Text!("Messages");
                 tooltip = Tip!(Text!(r#"Shows a "Yes/No" message, then an "Ok" message dialogs."#));
+                dialog::native_dialogs = true;
                 on_click = async_hn!(|_| {
-                    let rsp = WINDOWS.native_message_dialog(WINDOW.id(), native_dialog::MsgDialog {
-                        title: Txt::from_static("Question?"),
-                        message: Txt::from_static("Example message. Yes -> Warn, No -> Error."),
-                        icon: native_dialog::MsgDialogIcon::Info,
-                        buttons: native_dialog::MsgDialogButtons::YesNo,
-                    }).wait_rsp().await;
-                    let icon = match rsp {
-                        native_dialog::MsgDialogResponse::Yes => {
-                            native_dialog::MsgDialogIcon::Warn
-                        },
-                        native_dialog::MsgDialogResponse::No => {
-                            native_dialog::MsgDialogIcon::Error
-                        }
-                        e => {
-                            tracing::error!("unexpected message response {e:?}");
-                            return;
-                        },
-                    };
-                    WINDOWS.native_message_dialog(WINDOW.id(), native_dialog::MsgDialog {
-                        title: Txt::from_static("Title"),
-                        message: Txt::from_static("Message"),
-                        icon,
-                        buttons: native_dialog::MsgDialogButtons::Ok,
-                    });
+                    let rsp = DIALOG.ask("Question?", "Example message. Yes -> Warn, No -> Error.").wait_rsp().await;
+                    if rsp {
+                        DIALOG.warn("Title", "Yes -> Warn Message").wait_done().await;
+                    } else {
+                        DIALOG.error("Title", "No -> Error message").wait_done().await;
+                    }
                 });
             },
             Button! {
                 child = Text!("File Picker");
                 tooltip = Tip!(Text!(r#"Shows a "Directory Picker", then an "Open Many Files", then a "Save File" dialogs."#));
+                dialog::native_dialogs = true;
                 on_click = async_hn!(|_| {
-                    let res = WINDOWS.native_file_dialog(WINDOW.id(), native_dialog::FileDialog {
-                        title: "Select Dir".into(),
-                        starting_dir: "".into(),
-                        starting_name: "".into(),
-                        filters: "".into(),
-                        kind: native_dialog::FileDialogKind::SelectFolder,
-                    }).wait_rsp().await;
+                    let res = DIALOG.select_folder("Select Dir", "", "").wait_rsp().await;
                     let dir = match res {
-                        native_dialog::FileDialogResponse::Selected(mut s) => {
+                        dialog::FileDialogResponse::Selected(mut s) => {
                             s.remove(0)
                         }
-                        native_dialog::FileDialogResponse::Cancel => {
+                        dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        native_dialog::FileDialogResponse::Error(e) => {
+                        dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected select dir response {e:?}");
                             return;
                         }
                     };
 
-                    let mut dlg = native_dialog::FileDialog {
-                        title: "Open Files".into(),
-                        starting_dir: dir,
-                        starting_name: "".into(),
-                        filters: "".into(),
-                        kind: native_dialog::FileDialogKind::OpenFiles,
-                    };
-                    dlg.push_filter("Text", &["*.txt", "*.md"]);
-                    dlg.push_filter("All", &["*.*"]);
-                    let res = WINDOWS.native_file_dialog(WINDOW.id(), dlg.clone()).wait_rsp().await;
+                    let mut filters = dialog::FileDialogFilters::new();
+                    filters.push_filter("Text", &["*.txt", "*.md"]);
+                    filters.push_filter("All", &["*.*"]);
+
+                    let res = DIALOG.open_files("Open Files", dir, "", filters.clone()).wait_rsp().await;
                     let first_file = match res {
-                        native_dialog::FileDialogResponse::Selected(mut s) => {
+                        dialog::FileDialogResponse::Selected(mut s) => {
                             tracing::info!("selected {} file(s)", s.len());
                             s.remove(0)
                         }
-                        native_dialog::FileDialogResponse::Cancel => {
+                        dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        native_dialog::FileDialogResponse::Error(e) => {
+                        dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected open files response {e:?}");
                             return;
                         }
                     };
 
-                    dlg.title = "Save File".into();
-                    dlg.kind = native_dialog::FileDialogKind::SaveFile;
-                    dlg.starting_dir = first_file.parent().map(|p| p.to_owned()).unwrap_or_default();
-                    dlg.starting_name = first_file.file_name().map(|p| Txt::from_str(&p.to_string_lossy())).unwrap_or_default();
-                    let res = WINDOWS.native_file_dialog(WINDOW.id(), dlg.clone()).wait_rsp().await;
+                    let res = DIALOG.save_file(
+                        "Save File",
+                        first_file.parent().map(|p| p.to_owned()).unwrap_or_default(),
+                        first_file.file_name().map(|p| Txt::from_str(&p.to_string_lossy())).unwrap_or_default(),
+                        filters
+                    ).wait_rsp().await;
                     let save_file = match res {
-                        native_dialog::FileDialogResponse::Selected(mut s) => {
+                        dialog::FileDialogResponse::Selected(mut s) => {
                             s.remove(0)
                         }
-                        native_dialog::FileDialogResponse::Cancel => {
+                        dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
                         }
-                        native_dialog::FileDialogResponse::Error(e) => {
+                        dialog::FileDialogResponse::Error(e) => {
                             tracing::error!("unexpected save file response {e:?}");
                             return;
                         }
@@ -698,94 +665,47 @@ enum CloseState {
 }
 fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
     let state = var(CloseState::Ask);
-    hn!(|args: &WindowCloseRequestedArgs| {
+    async_hn!(state, |args: WindowCloseRequestedArgs| {
         match state.get() {
             CloseState::Ask => {
                 args.propagation().stop();
                 state.set(CloseState::Asking);
 
-                let dlg = close_dialog(args.headed().collect(), state.clone());
-                LAYERS.insert(LayerIndex::TOP_MOST, dlg)
+                let dlg = if args.windows.len() == 1 {
+                    dialog::Dialog! {
+                        style_fn = dialog::AskStyle!();
+                        title = Text!("Close?");
+                        content = SelectableText!("Close the window?");
+                        responses = vec![
+                            dialog::Response::cancel(),
+                            dialog::Response::close(),
+                        ]
+                    }
+                } else {
+                    dialog::Dialog! {
+                        style_fn = dialog::AskStyle!();
+                        title = Text!("Close all?");
+                        content = SelectableText!("Close {} windows?", args.windows.len());
+                        responses = vec![
+                            dialog::Response::cancel(),
+                            dialog::Response::new("close", "Close All"),
+                        ]
+                    }
+                };
+                let r = DIALOG.custom(dlg).wait_rsp().await;
+                if r.name == "close" {
+                    state.set(CloseState::Close);
+                    let mut windows = args.windows;
+                    windows.retain(|w| WINDOWS.is_open(*w));
+                    let _ = WINDOWS.close_together(windows);
+                } else {
+                    state.set(CloseState::Ask);
+                }
             }
             CloseState::Asking => args.propagation().stop(),
             CloseState::Close => {}
         }
     })
-}
-
-fn close_dialog(mut windows: Vec<WindowId>, state: ArcVar<CloseState>) -> impl UiNode {
-    let opacity = var(0.fct());
-    opacity.ease(1.fct(), 300.ms(), easing::linear).perm();
-    Container! {
-        opacity = opacity.clone();
-
-        id = "close-dialog";
-        widget::modal = true;
-        zng::focus::return_focus_on_deinit = true;
-        backdrop_blur = 2;
-        background_color = light_dark(colors::BLACK.with_alpha(10.pct()), colors::WHITE.with_alpha(10.pct()));
-        child_align = Align::CENTER;
-        gesture::on_click = hn!(|args: &gesture::ClickArgs| {
-            if WIDGET.id() == args.target.widget_id() {
-                args.propagation().stop();
-                ACCESS.click(WINDOW.id(), "cancel-btn", true);
-            }
-        });
-        child = Container! {
-            background_color = light_dark(colors::WHITE.with_alpha(90.pct()), colors::BLACK.with_alpha(90.pct()));
-            focus_scope = true;
-            tab_nav = TabNav::Cycle;
-            directional_nav = DirectionalNav::Cycle;
-            drop_shadow = (0, 0), 4, colors::BLACK;
-            padding = 4;
-
-            button::style_fn = Style! {
-                padding = 4;
-                corner_radius = unset!;
-            };
-
-            child = Stack! {
-                direction = StackDirection::top_to_bottom();
-                children_align = Align::RIGHT;
-                children = ui_vec![
-                    SelectableText! {
-                        txt = match windows.len() {
-                            1 => "Close Confirmation\n\nClose 1 window?".to_txt(),
-                            n => formatx!("Close Confirmation\n\nClose {n} windows?")
-                        };
-                        margin = 15;
-                    },
-                    Stack! {
-                        direction = StackDirection::left_to_right();
-                        spacing = 4;
-                        children = ui_vec![
-                            Button! {
-                                style_fn = button::PrimaryStyle!();
-                                focus_on_init = true;
-                                child = Text!("Close");
-                                on_click = hn_once!(state, |_| {
-                                    state.set(CloseState::Close);
-                                    windows.retain(|w| WINDOWS.is_open(*w));
-                                    let _ = WINDOWS.close_together(windows);
-                                })
-                            },
-                            Button! {
-                                id = "cancel-btn";
-                                child = Text!("Cancel");
-                                on_click = async_hn!(opacity, state, |_| {
-                                    opacity.ease(0.fct(), 150.ms(), easing::linear).perm();
-                                    opacity.wait_animation().await;
-
-                                    state.set(CloseState::Ask);
-                                    LAYERS.remove("close-dialog");
-                                });
-                            },
-                        ]
-                    }
-                ]
-            }
-        }
-    }
 }
 
 fn cmd_btn(cmd: Command) -> impl UiNode {

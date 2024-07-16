@@ -159,6 +159,18 @@ impl<T: VarValue> ResponseVar<T> {
             waiting_value,
         )
     }
+
+    /// Map to another response variable.
+    pub fn map_response<O, M>(&self, mut map: M) -> ResponseVar<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+    {
+        self.map(move |r| match r {
+            Response::Waiting => Response::Waiting,
+            Response::Done(t) => Response::Done(map(t)),
+        })
+    }
 }
 
 impl<T: VarValue> ResponderVar<T> {

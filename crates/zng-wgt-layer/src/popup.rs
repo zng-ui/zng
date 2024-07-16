@@ -1,7 +1,5 @@
 //! Popup widget.
 
-zng_wgt::enable_widget_macros!();
-
 use std::time::Duration;
 
 use zng_ext_input::focus::{DirectionalNav, TabNav, FOCUS_CHANGED_EVENT};
@@ -230,10 +228,21 @@ impl POPUP {
         )
         .boxed();
 
-        if let ContextCapture::CaptureBlend { filter, over } = context_capture {
-            if filter != CaptureFilter::None {
-                popup = with_context_blend(LocalContext::capture_filtered(filter), over, popup).boxed();
+        let (filter, over) = match context_capture {
+            ContextCapture::NoCapture => {
+                let filter = CaptureFilter::Include({
+                    let mut set = ContextValueSet::new();
+                    set.insert(&CLOSE_ON_FOCUS_LEAVE_VAR);
+                    set.insert(&ANCHOR_MODE_VAR);
+                    set.insert(&CONTEXT_CAPTURE_VAR);
+                    set
+                });
+                (filter, false)
             }
+            ContextCapture::CaptureBlend { filter, over } => (filter, over),
+        };
+        if filter != CaptureFilter::None {
+            popup = with_context_blend(LocalContext::capture_filtered(filter), over, popup).boxed();
         }
         LAYERS.insert_anchored(LayerIndex::TOP_MOST, anchor_id, anchor_mode, popup);
 
@@ -337,8 +346,11 @@ impl DefaultStyle {
 /// [`with_context_blend`]: zng_wgt::prelude::with_context_blend
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ContextCapture {
-    /// No context capture or blending, the popup will have
-    /// the context it is inited in, like any other widget.
+    /// No context capture except the popup configuration context.
+    ///
+    /// The popup will only have the window context as it is open as a layer on the window root.
+    ///
+    /// Note to filter out even the popup config use [`CaptureFilter::None`] instead.
     NoCapture,
     /// Build/instantiation context is captured and blended with the node context during all [`UiNodeOp`].
     ///
@@ -463,7 +475,7 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
     let delay = delay.into_var();
     let mut timer = None::<DeadlineHandle>;
 
-    match_node(child, move |_, op| match op {
+    let child = match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_event(&POPUP_CLOSE_REQUESTED_EVENT);
         }
@@ -471,6 +483,7 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
             timer = None;
         }
         UiNodeOp::Event { update } => {
+            c.event(update);
             if let Some(args) = POPUP_CLOSE_REQUESTED_EVENT.on_unhandled(update) {
                 if args.popup != WIDGET.id() {
                     return;
@@ -503,16 +516,16 @@ pub fn close_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> impl Ui
             }
         }
         _ => {}
-    })
+    });
+    with_context_var(child, IS_CLOSE_DELAYED_VAR, var(false))
 }
 
 /// If close was requested for this layered widget and it is just awaiting for the [`close_delay`].
 ///
 /// [`close_delay`]: fn@close_delay
-#[property(CONTEXT, widget_impl(Popup))]
+#[property(EVENT+1, widget_impl(Popup))]
 pub fn is_close_delaying(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    // reverse context var, is set by `close_delay`.
-    with_context_var(child, IS_CLOSE_DELAYED_VAR, state)
+    bind_state(child, IS_CLOSE_DELAYED_VAR, state)
 }
 
 context_var! {

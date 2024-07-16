@@ -1,6 +1,6 @@
 //! Native dialog types.
 
-use std::path::PathBuf;
+use std::{mem, path::PathBuf};
 
 use zng_txt::Txt;
 
@@ -80,37 +80,31 @@ pub enum MsgDialogResponse {
     Error(Txt),
 }
 
-/// Defines a native file dialog.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct FileDialog {
-    /// Dialog window title.
-    pub title: Txt,
-    /// Selected directory when the dialog opens.
-    pub starting_dir: PathBuf,
-    /// Starting file name.
-    pub starting_name: Txt,
-    /// File extension filters.
-    ///
-    /// Syntax:
-    ///
-    /// ```txt
-    /// Display Name|ext1;ext2|All Files|*
-    /// ```
-    ///
-    /// You can use the [`push_filter`] method to create filters. Note that the extensions are
-    /// not glob patterns, they must be an extension (without the dot prefix) or `*` for all files.
-    ///
-    /// [`push_filter`]: Self::push_filter
-    pub filters: Txt,
+/// File dialog filters builder.
+///
+/// # Syntax
+///
+/// ```txt
+/// Display Name|ext1;ext2|All Files|*
+/// ```
+///
+/// You can use the [`push_filter`] method to create filters. Note that the extensions are
+/// not glob patterns, they must be an extension (without the dot prefix) or `*` for all files.
+///
+/// [`push_filter`]: FileDialogFilters::push_filter
+#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct FileDialogFilters(Txt);
+impl FileDialogFilters {
+    /// New default (empty).
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-    /// Defines the file dialog looks and what kind of result is expected.
-    pub kind: FileDialogKind,
-}
-impl FileDialog {
     /// Push a filter entry.
     pub fn push_filter<S: AsRef<str>>(&mut self, display_name: &str, extensions: &[S]) -> &mut Self {
-        if !self.filters.is_empty() && !self.filters.ends_with('|') {
-            self.filters.push('|');
+        if !self.0.is_empty() && !self.0.ends_with('|') {
+            self.0.push('|');
         }
 
         let mut extensions: Vec<_> = extensions
@@ -125,27 +119,27 @@ impl FileDialog {
         let display_name = display_name.replace('|', " ");
         let display_name = display_name.trim();
         if !display_name.is_empty() {
-            self.filters.push_str(display_name);
-            self.filters.push_str(" (");
+            self.0.push_str(display_name);
+            self.0.push_str(" (");
         }
         let mut prefix = "";
         for pat in &extensions {
-            self.filters.push_str(prefix);
+            self.0.push_str(prefix);
             prefix = ", ";
-            self.filters.push_str("*.");
-            self.filters.push_str(pat);
+            self.0.push_str("*.");
+            self.0.push_str(pat);
         }
         if !display_name.is_empty() {
-            self.filters.push(')');
+            self.0.push(')');
         }
 
-        self.filters.push('|');
+        self.0.push('|');
 
         prefix = "";
         for pat in extensions {
-            self.filters.push_str(prefix);
+            self.0.push_str(prefix);
             prefix = ";";
-            self.filters.push_str(pat);
+            self.0.push_str(pat);
         }
 
         self
@@ -153,6 +147,9 @@ impl FileDialog {
 
     /// Iterate over filter entries and patterns.
     pub fn iter_filters(&self) -> impl Iterator<Item = (&str, impl Iterator<Item = &str>)> {
+        Self::iter_filters_str(self.0.as_str())
+    }
+    fn iter_filters_str(filters: &str) -> impl Iterator<Item = (&str, impl Iterator<Item = &str>)> {
         struct Iter<'a> {
             filters: &'a str,
         }
@@ -208,8 +205,65 @@ impl FileDialog {
             }
         }
         Iter {
-            filters: self.filters.trim_start().trim_start_matches('|'),
+            filters: filters.trim_start().trim_start_matches('|'),
         }
+    }
+
+    /// Gets the filter text.
+    pub fn build(mut self) -> Txt {
+        self.0.end_mut();
+        self.0
+    }
+}
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    fn from(filter: Txt) -> FileDialogFilters {
+        FileDialogFilters(filter)
+    }
+
+    fn from(filter: &'static str) -> FileDialogFilters {
+        FileDialogFilters(filter.into())
+    }
+}
+
+/// Defines a native file dialog.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct FileDialog {
+    /// Dialog window title.
+    pub title: Txt,
+    /// Selected directory when the dialog opens.
+    pub starting_dir: PathBuf,
+    /// Starting file name.
+    pub starting_name: Txt,
+    /// File extension filters.
+    ///
+    /// Syntax:
+    ///
+    /// ```txt
+    /// Display Name|ext1;ext2|All Files|*
+    /// ```
+    ///
+    /// You can use the [`push_filter`] method to create filters. Note that the extensions are
+    /// not glob patterns, they must be an extension (without the dot prefix) or `*` for all files.
+    ///
+    /// [`push_filter`]: Self::push_filter
+    pub filters: Txt,
+
+    /// Defines the file dialog looks and what kind of result is expected.
+    pub kind: FileDialogKind,
+}
+impl FileDialog {
+    /// Push a filter entry.
+    pub fn push_filter<S: AsRef<str>>(&mut self, display_name: &str, extensions: &[S]) -> &mut Self {
+        let mut f = FileDialogFilters(mem::take(&mut self.filters));
+        f.push_filter(display_name, extensions);
+        self.filters = f.build();
+        self
+    }
+
+    /// Iterate over filter entries and patterns.
+    pub fn iter_filters(&self) -> impl Iterator<Item = (&str, impl Iterator<Item = &str>)> {
+        FileDialogFilters::iter_filters_str(&self.filters)
     }
 }
 impl Default for FileDialog {
@@ -253,6 +307,21 @@ pub enum FileDialogResponse {
     /// The associated string may contain debug information, caller should assume that native file dialogs
     /// are not available for the given window ID at the current view-process instance.
     Error(Txt),
+}
+impl FileDialogResponse {
+    /// Gets the selected paths, or empty for cancel.
+    pub fn into_paths(self) -> Result<Vec<PathBuf>, Txt> {
+        match self {
+            FileDialogResponse::Selected(s) => Ok(s),
+            FileDialogResponse::Cancel => Ok(vec![]),
+            FileDialogResponse::Error(e) => Err(e),
+        }
+    }
+
+    /// Gets the last selected path, or `None` for cancel.
+    pub fn into_path(self) -> Result<Option<PathBuf>, Txt> {
+        self.into_paths().map(|mut p| p.pop())
+    }
 }
 
 #[cfg(test)]

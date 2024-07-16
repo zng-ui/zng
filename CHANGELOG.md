@@ -1,5 +1,10 @@
 # Unreleased
 
+* Fix `SelectableText!` shorthand syntax.
+* Fix layer `AnchorSize::Window` not filling the window space by default.
+* Fix `ContextCapture::NoCapture` excluding popup config.
+* Add `ResponseVar::map_response`.
+* Add `Dialog!` widget, `DIALOG` service and related types.
 
 # 0.10.4
 

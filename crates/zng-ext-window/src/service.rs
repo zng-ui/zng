@@ -1340,6 +1340,8 @@ impl WINDOWS {
     ///
     /// The dialog can be modal in the view-process, in the app-process it is always async, the
     /// response var will update once when the user responds to the dialog.
+    ///
+    /// Consider using the `DIALOG` service instead of the method directly.
     pub fn native_message_dialog(
         &self,
         window_id: WindowId,
@@ -1363,6 +1365,8 @@ impl WINDOWS {
     ///
     /// The dialog can be modal in the view-process, in the app-process it is always async, the
     /// response var will update once when the user responds to the dialog.
+    ///
+    /// Consider using the `DIALOG` service instead of the method directly.
     pub fn native_file_dialog(
         &self,
         window_id: WindowId,

@@ -1069,7 +1069,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Output of [`Var::map_bidi`].
     type MapBidi<O: VarValue>: Var<O>;
 
-    /// Output of [`Var::map_bidi`].
+    /// Output of [`Var::flat_map`].
     type FlatMap<O: VarValue, V: Var<O>>: Var<O>;
 
     /// Output of [`Var::filter_map`].
@@ -1199,7 +1199,18 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Gets the value as a display [`Txt`].
     ///
     /// [`Txt`]: Txt
+    #[deprecated = "use get_txt"]
     fn get_text(&self) -> Txt
+    where
+        T: fmt::Display,
+    {
+        self.with(ToTxt::to_txt)
+    }
+
+    /// Gets the value as a display [`Txt`].
+    ///
+    /// [`Txt`]: Txt
+    fn get_txt(&self) -> Txt
     where
         T: fmt::Display,
     {
