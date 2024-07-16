@@ -97,8 +97,6 @@ pub fn run(mut args: FmtArgs) {
 
 fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
     let file = fs::read_to_string(rs_file)?;
-    let _ = check;
-    // !!: TODO find macros, extract Rust parts from macros, use rustfmt stdin.
 
     // skip UTF-8 BOM
     let file_code = file.strip_prefix('\u{feff}').unwrap_or(file.as_str());
@@ -227,6 +225,7 @@ fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
 
 // !!: TODO
 //
+// * #[rustfmt::skip]
 // * Recursive format
 // * event_args! has a '.. fn'  token sequence
 // * widget macros with 'when #property'
