@@ -46,9 +46,14 @@ fn shortcut() {
 
     app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
-    let widget_id = WidgetId::named("test-widget");
-    // because we target the scoped first.
-    assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
+    // because of parallelism "other-widget" can subscribe first
+    let mut any_eq = false;
+    for id in ["test-widget", "other-widget"] {
+        let widget_id = WidgetId::named(id);
+        let expect = vec![format!("scoped-wgt / Widget({widget_id:?})")];
+        any_eq |= *TEST_TRACE.read() == expect;
+    }
+    assert!(any_eq);
 }
 
 #[test]
@@ -86,8 +91,14 @@ fn shortcut_scoped() {
 
     app.press_key(window_id, KeyCode::KeyF, KeyLocation::Standard, Key::Char('F'));
 
-    let widget_id = WidgetId::named("test-widget");
-    assert_eq!(&*TEST_TRACE.read(), &vec![format!("scoped-wgt / Widget({widget_id:?})")]);
+    // because of parallelism "other-widget" can subscribe first
+    let mut any_eq = false;
+    for id in ["test-widget", "other-widget"] {
+        let widget_id = WidgetId::named(id);
+        let expect = vec![format!("scoped-wgt / Widget({widget_id:?})")];
+        any_eq |= *TEST_TRACE.read() == expect;
+    }
+    assert!(any_eq);
 }
 
 async fn listener_window(focused_wgt: bool) -> window::WindowRoot {

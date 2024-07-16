@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fmt::{self, Write},
     ops,
 };
@@ -427,7 +428,7 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for Align {
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum AlignSerde<'s> {
-    Named(&'s str),
+    Named(Cow<'s, str>),
     Unnamed { x: Factor, x_rtl_aware: bool, y: Factor },
 }
 impl serde::Serialize for Align {
@@ -437,7 +438,7 @@ impl serde::Serialize for Align {
     {
         if serializer.is_human_readable() {
             if let Some(name) = self.name() {
-                return name.serialize(serializer);
+                return AlignSerde::Named(Cow::Borrowed(name)).serialize(serializer);
             }
         }
 
@@ -457,11 +458,25 @@ impl<'de> serde::Deserialize<'de> for Align {
         use serde::de::Error;
 
         match AlignSerde::deserialize(deserializer)? {
-            AlignSerde::Named(n) => match Align::from_name(n) {
+            AlignSerde::Named(n) => match Align::from_name(&n) {
                 Some(a) => Ok(a),
                 None => Err(D::Error::custom("unknown align name")),
             },
             AlignSerde::Unnamed { x, x_rtl_aware, y } => Ok(Align { x, x_rtl_aware, y }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn align_named() {
+        let value = serde_json::to_value(Align::TOP_START).unwrap();
+        assert_eq!(value, serde_json::Value::String("TOP_START".to_owned()));
+
+        let align: Align = serde_json::from_value(value).unwrap();
+        assert_eq!(align, Align::TOP_START);
     }
 }

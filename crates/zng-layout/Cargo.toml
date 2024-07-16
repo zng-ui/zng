@@ -22,3 +22,6 @@ bytemuck = { version = "1.15", features = ["derive"] }
 tracing = "0.1"
 atomic = "0.6"
 unicode-bidi = "0.3"
+
+[dev-dependencies]
+serde_json = "1.0"
