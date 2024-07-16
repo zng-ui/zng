@@ -1,6 +1,13 @@
-use std::{fs, io, path::Path};
+use std::{
+    fs,
+    io::{self, Write},
+    path::Path,
+    process::Stdio,
+};
 
 use clap::*;
+use proc_macro2::{Delimiter, TokenStream, TokenTree};
+use rayon::prelude::*;
 
 use crate::util;
 
@@ -24,68 +31,203 @@ pub struct FmtArgs {
 }
 
 pub fn run(mut args: FmtArgs) {
-    let check = if args.check { "--check" } else { "" };
+    let (check, action) = if args.check { ("--check", "checking") } else { ("", "formatting") };
+
+    let mut custom_fmt_files = vec![];
 
     if let Some(glob) = args.files {
+        if args.manifest_path.is_some() || args.package.is_some() {
+            fatal!("--files must not be set when crate is set");
+        }
+
         for file in glob::glob(&glob).unwrap_or_else(|e| fatal!("{e}")) {
             let file = file.unwrap_or_else(|e| fatal!("{e}"));
             if let Err(e) = util::cmd("rustfmt", &["--edition", "2021", check, &file.as_os_str().to_string_lossy()], &[]) {
                 fatal!("{e}");
             }
-            if let Err(e) = custom_fmt(&file, args.check) {
-                fatal!("error formatting `{}`, {e}", file.display());
-            }
-        }
-    }
-
-    if let Some(pkg) = args.package {
-        if args.manifest_path.is_some() {
-            fatal!("expected only one of --package, --manifest-path");
-        }
-        match util::manifest_path_from_package(&pkg) {
-            Some(m) => args.manifest_path = Some(m),
-            None => fatal!("package `{pkg}` not found in workspace"),
-        }
-    }
-
-    if let Some(path) = args.manifest_path {
-        if let Err(e) = util::cmd("cargo fmt --manifest-path", &[&path, check], &[]) {
-            fatal!("{e}");
-        }
-
-        let files = Path::new(&path)
-            .parent()
-            .unwrap()
-            .join("**/*.rs")
-            .display()
-            .to_string()
-            .replace('\\', "/");
-        for file in glob::glob(&files).unwrap_or_else(|e| fatal!("{e}")) {
-            let file = file.unwrap_or_else(|e| fatal!("{e}"));
-            if let Err(e) = custom_fmt(&file, args.check) {
-                fatal!("error formatting `{}`, {e}", file.display());
-            }
+            custom_fmt_files.push(file);
         }
     } else {
-        if let Err(e) = util::cmd("cargo fmt", &[check], &[]) {
-            fatal!("{e}");
+        if let Some(pkg) = args.package {
+            if args.manifest_path.is_some() {
+                fatal!("expected only one of --package, --manifest-path");
+            }
+            match util::manifest_path_from_package(&pkg) {
+                Some(m) => args.manifest_path = Some(m),
+                None => fatal!("package `{pkg}` not found in workspace"),
+            }
         }
+        if let Some(path) = args.manifest_path {
+            if let Err(e) = util::cmd("cargo fmt --manifest-path", &[&path, check], &[]) {
+                fatal!("{e}");
+            }
 
-        for path in util::workspace_manifest_paths() {
-            let files = path.parent().unwrap().join("**/*.rs").display().to_string().replace('\\', "/");
+            let files = Path::new(&path)
+                .parent()
+                .unwrap()
+                .join("**/*.rs")
+                .display()
+                .to_string()
+                .replace('\\', "/");
             for file in glob::glob(&files).unwrap_or_else(|e| fatal!("{e}")) {
                 let file = file.unwrap_or_else(|e| fatal!("{e}"));
-                if let Err(e) = custom_fmt(&file, args.check) {
-                    fatal!("error formatting `{}`, {e}", file.display());
+                custom_fmt_files.push(file);
+            }
+        } else {
+            if let Err(e) = util::cmd("cargo fmt", &[check], &[]) {
+                fatal!("{e}");
+            }
+
+            for path in util::workspace_manifest_paths() {
+                let files = path.parent().unwrap().join("**/*.rs").display().to_string().replace('\\', "/");
+                for file in glob::glob(&files).unwrap_or_else(|e| fatal!("{e}")) {
+                    let file = file.unwrap_or_else(|e| fatal!("{e}"));
+                    custom_fmt_files.push(file);
                 }
             }
         }
     }
+
+    custom_fmt_files.par_iter().for_each(|file| {
+        if let Err(e) = custom_fmt(file, args.check) {
+            fatal!("error {action} `{}`, {e}", file.display());
+        }
+    });
 }
 
-fn custom_fmt(file: &Path, check: bool) -> io::Result<()> {
-    let _file = fs::read_to_string(file)?;
+fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
+    let file = fs::read_to_string(rs_file)?;
     let _ = check;
     // !!: TODO find macros, extract Rust parts from macros, use rustfmt stdin.
+
+    // skip UTF-8 BOM
+    let file_code = file.strip_prefix('\u{feff}').unwrap_or(file.as_str());
+    // skip shebang line
+    let file_code = if file_code.starts_with("#!") {
+        &file_code[file_code.find('\n').unwrap_or(file_code.len())..]
+    } else {
+        file_code
+    };
+
+    let mut formatted_code = file[..file.len() - file_code.len()].to_owned();
+    formatted_code.reserve(file.len());
+    let mut last_already_fmt_start = 0;
+
+    let file_stream: TokenStream = file_code
+        .parse()
+        .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display()));
+    let mut stream_stack = vec![file_stream.into_iter()];
+    let next = |stack: &mut Vec<proc_macro2::token_stream::IntoIter>| {
+        while !stack.is_empty() {
+            let tt = stack.last_mut().unwrap().next();
+            if tt.is_some() {
+                return tt;
+            }
+            stack.pop();
+        }
+        None
+    };
+    let mut tail2 = Vec::with_capacity(2);
+    while let Some(tt) = next(&mut stream_stack) {
+        match tt {
+            TokenTree::Group(g) => {
+                if tail2.len() == 2
+                    && matches!(g.delimiter(), Delimiter::Brace)
+                    && matches!(&tail2[0], TokenTree::Punct(p) if p.as_char() == '!')
+                    && matches!(&tail2[1], TokenTree::Ident(_))
+                {
+                    // macro! {}
+
+                    let bang = tail2[0].span().byte_range().start;
+                    let line_start = file_code[..bang].rfind('\n').unwrap_or(0);
+                    let base_indent = file_code[line_start..bang]
+                        .chars()
+                        .skip_while(|&c| c != ' ')
+                        .take_while(|&c| c == ' ')
+                        .count();
+
+                    let group_bytes = g.span().byte_range();
+                    let group_code = &file_code[group_bytes.clone()];
+
+                    if let Some(formatted) = try_fmt_group(base_indent, group_code) {
+                        if formatted != group_code {
+                            let already_fmt = &file_code[last_already_fmt_start..group_bytes.start];
+                            formatted_code.push_str(already_fmt);
+                            formatted_code.push_str(&formatted);
+                            last_already_fmt_start = group_bytes.end;
+                        }
+                    }
+                } else {
+                    stream_stack.push(g.stream().into_iter());
+                }
+            }
+            tt => {
+                if tail2.len() == 2 {
+                    tail2.pop();
+                }
+                tail2.insert(0, tt);
+            }
+        }
+    }
+
+    formatted_code.push_str(&file_code[last_already_fmt_start..]);
+
+    if formatted_code != file {
+        if check {
+            fatal!("extended format does not match in file `{}`", rs_file.display());
+        }
+        return fs::write(rs_file, formatted_code);
+    }
+
     Ok(())
 }
+
+fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
+    let mut s = std::process::Command::new("rustfmt")
+        .arg("--edition")
+        .arg("2021")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .ok()?;
+    s.stdin
+        .take()
+        .unwrap()
+        .write_all(format!("fn __try_fmt(){group_code}").as_bytes())
+        .ok()?;
+    let s = s.wait_with_output().ok()?;
+    if s.status.success() {
+        let code = String::from_utf8(s.stdout).ok()?;
+        let code = code.strip_prefix("fn __try_fmt()")?.trim_start();
+        let mut out = String::new();
+        let mut lb_indent = String::with_capacity(base_indent + 1);
+        for line in code.lines() {
+            if line.is_empty() {
+                if !lb_indent.is_empty() {
+                    out.push('\n');
+                }
+            } else {
+                out.push_str(&lb_indent);
+            }
+            out.push_str(line);
+            // "\n    "
+            if lb_indent.is_empty() {
+                lb_indent.push('\n');
+                for _ in 0..base_indent {
+                    lb_indent.push(' ');
+                }
+            }
+        }
+        Some(out)
+    } else {
+        None
+    }
+}
+
+// !!: TODO
+//
+// * Recursive format
+// * event_args! has a '.. fn'  token sequence
+// * widget macros with 'when #property'
+// * Review 'expr_var!'
