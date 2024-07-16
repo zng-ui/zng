@@ -18,11 +18,14 @@ use zng::{
 pub fn first_and_last_window_events() {
     let app = TestApp::start();
 
-    let mut buttons = ui_vec![Button! {
-        child = Text!("Button 0")
-    }, Button! {
-        child = Text!("Button 1")
-    },];
+    let mut buttons = ui_vec![
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+    ];
 
     let root_id = WidgetId::new_unique();
     let stack_id = WidgetId::new_unique();
@@ -710,11 +713,14 @@ pub fn tab_inner_container() {
 
     // sanity check for `tab_skip_inner_container`.
 
-    let mut inner_buttons = ui_vec![Button! {
-        child = Text!("Button 1")
-    }, Button! {
-        child = Text!("Button 2")
-    },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
         Button! {
@@ -753,11 +759,14 @@ pub fn tab_skip_inner_container() {
     // but that the items inside will still tab navigate if focused
     // directly.
 
-    let mut inner_buttons = ui_vec![Button! {
-        child = Text!("Button 1")
-    }, Button! {
-        child = Text!("Button 2")
-    },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
         Button! {
@@ -937,11 +946,14 @@ pub fn tab_inner_scope_cycle() {
 
     // we expect tab navigation to enter the inner scope and get trapped in there.
 
-    let mut inner_buttons = ui_vec![Button! {
-        child = Text!("Button 1")
-    }, Button! {
-        child = Text!("Button 2")
-    },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
         Button! {
@@ -990,11 +1002,14 @@ pub fn tab_inner_scope_contained() {
 
     // we expect tab navigation to enter the inner scope and get trapped in there.
 
-    let mut inner_buttons = ui_vec![Button! {
-        child = Text!("Button 1")
-    }, Button! {
-        child = Text!("Button 2")
-    },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
         Button! {
@@ -1043,11 +1058,14 @@ pub fn tab_inner_scope_once() {
 
     // we expect tab navigation to enter the inner scope but then leave it.
 
-    let mut inner_buttons = ui_vec![Button! {
-        child = Text!("Button 1")
-    }, Button! {
-        child = Text!("Button 2")
-    },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
         Button! {
@@ -1161,10 +1179,13 @@ pub fn tab_inner_scope_continue_to_non_focusable_siblings_focusable_child() {
                 tab_nav = TabNav::Continue;
                 children = ui_vec![Button! { id = btn1; child = Text!("Btn 1"); }];
             },
-            Stack!(top_to_bottom, ui_vec![Button! {
-                id = btn2;
-                child = Text!("Btn 2");
-            }])
+            Stack!(
+                top_to_bottom,
+                ui_vec![Button! {
+                    id = btn2;
+                    child = Text!("Btn 2");
+                }]
+            )
         ]
     ));
 
@@ -1187,11 +1208,14 @@ pub fn dont_focus_alt_when_alt_pressed_before_focusing_window() {
             child = Text!("Button 1");
         },
     ];
-    let alt_buttons = ui_vec![Button! {
-        child = Text!("Alt 0");
-    }, Button! {
-        child = Text!("Alt 1");
-    },];
+    let alt_buttons = ui_vec![
+        Button! {
+            child = Text!("Alt 0");
+        },
+        Button! {
+            child = Text!("Alt 1");
+        },
+    ];
 
     let mut app = app.run(Stack!(
         top_to_bottom,
@@ -1229,11 +1253,14 @@ pub fn window_blur_focus() {
             id = expected_id;
         },
     ];
-    let alt_buttons = ui_vec![Button! {
-        child = Text!("Alt 0");
-    }, Button! {
-        child = Text!("Alt 1");
-    },];
+    let alt_buttons = ui_vec![
+        Button! {
+            child = Text!("Alt 0");
+        },
+        Button! {
+            child = Text!("Alt 1");
+        },
+    ];
 
     let mut app = app.run(Stack!(
         top_to_bottom,
@@ -1280,23 +1307,27 @@ pub fn focused_removed_by_interactivity() {
 pub fn focused_removed_by_collapsing() {
     let app = TestApp::start();
     let visibility = var(Visibility::Visible);
-    focused_removed_test(app, Button! {
-        child = Text!("Button 1");
-        visibility = visibility.clone()
-    }, || {
-        visibility.set(Visibility::Collapsed)
-    })
+    focused_removed_test(
+        app,
+        Button! {
+            child = Text!("Button 1");
+            visibility = visibility.clone()
+        },
+        || visibility.set(Visibility::Collapsed),
+    )
 }
 #[test]
 pub fn focused_removed_by_making_not_focusable() {
     let app = TestApp::start();
     let focusable = var(true);
-    focused_removed_test(app, Button! {
-        child = Text!("Button 1");
-        focusable = focusable.clone()
-    }, || {
-        focusable.set(false)
-    })
+    focused_removed_test(
+        app,
+        Button! {
+            child = Text!("Button 1");
+            focusable = focusable.clone()
+        },
+        || focusable.set(false),
+    )
 }
 fn focused_removed_test(app: TestAppBuilder<impl AppExtension>, button1: impl UiNode, set_var: impl FnOnce()) {
     let mut buttons = ui_vec![

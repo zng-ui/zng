@@ -226,7 +226,9 @@ fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
 // !!: TODO
 //
 // * #[rustfmt::skip]
+// * Format twice? Some code formats again (ui_vec![Widget! { <multiple props> }]).
 // * Recursive format
 // * event_args! has a '.. fn'  token sequence
 // * widget macros with 'when #property'
 // * Review 'expr_var!'
+// * ra/vscode integration
