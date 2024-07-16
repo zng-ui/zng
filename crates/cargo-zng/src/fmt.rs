@@ -158,6 +158,7 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
                 } else {
                     stream_stack.push(g.stream().into_iter());
                 }
+                tail2.clear();
             }
             tt => {
                 if tail2.len() == 2 {

@@ -158,12 +158,16 @@ fn main() {
                             img_filter(Filter::new_opacity(50.pct())),
                             img_filter(Filter::new_invert(true)),
                             img_filter(Filter::new_hue_rotate(-(90.deg()))),
-                            img_filter(Filter::new_color_matrix([
-                                2.0, 1.0, 1.0, 1.0, 0.0,
-                                0.0, 1.0, 0.0, 0.0, 0.0,
-                                0.0, 0.0, 1.0, 0.0, 0.0,
-                                0.0, 0.0, 0.0, 1.0, 0.0,
-                            ])),
+                            img_filter({
+                                #[rustfmt::skip]
+                                let custom = Filter::new_color_matrix([
+                                    2.0, 1.0, 1.0, 1.0, 0.0,
+                                    0.0, 1.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.0, 1.0, 0.0, 0.0,
+                                    0.0, 0.0, 0.0, 1.0, 0.0,
+                                ]);
+                                custom
+                            }),
                         ]
                     ),
 
