@@ -166,7 +166,7 @@ macro_rules! __impl_from_and_into_var {
     (
         =input=>
         [$($config:tt)*]
-        ($ident:ident : $Input:ty) $($rest:tt)+
+        ($ident:ident : $Input:ty $(,)?) $($rest:tt)+
     ) => {
         $crate::__impl_from_and_into_var! {
             =output=>
@@ -181,7 +181,7 @@ macro_rules! __impl_from_and_into_var {
     (
         =input=>
         [$($config:tt)*]
-        (( $($destructure:tt)+ ) : $Input:ty) $($rest:tt)+
+        (( $($destructure:tt)+ ) : $Input:ty $(,)?) $($rest:tt)+
     ) => {
         $crate::__impl_from_and_into_var! {
             =output=>
@@ -196,7 +196,7 @@ macro_rules! __impl_from_and_into_var {
     (
         =input=>
         [$($config:tt)*]
-        ([ $($destructure:tt)+ ] : $Input:ty) $($rest:tt)+
+        ([ $($destructure:tt)+ ] : $Input:ty $(,)?) $($rest:tt)+
     ) => {
         $crate::__impl_from_and_into_var! {
             =output=>
