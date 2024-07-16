@@ -7,7 +7,7 @@ fn main() {
     zng::env::init!();
 
     // record profiler, use chrome://tracing or <ui.perfetto.dev>.
-    let (chrome_layer, _guard) = tracing_chrome::ChromeLayerBuilder::new().build();
+    let (chrome_layer, _guard) = tracing_chrome::ChromeLayerBuilder::new().include_args(true).build();
     tracing_subscriber::registry().with(chrome_layer).init();
 
     zng::view_process::default::run_same_process(app_main);
