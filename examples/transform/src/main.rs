@@ -362,15 +362,18 @@ fn open_touch_example() -> impl UiNode {
             } else {
                 let parent = WINDOW.id();
                 is_open.set(true);
-                WINDOWS.open_id(example_id, async_clmv!(is_open, {
-                    Window! {
-                        title = "Transform Example - Touch";
-                        state = WindowState::Maximized;
-                        parent;
-                        child = touch_example();
-                        on_close = hn_once!(|_| is_open.set(false));
-                    }
-                }));
+                WINDOWS.open_id(
+                    example_id,
+                    async_clmv!(is_open, {
+                        Window! {
+                            title = "Transform Example - Touch";
+                            state = WindowState::Maximized;
+                            parent;
+                            child = touch_example();
+                            on_close = hn_once!(|_| is_open.set(false));
+                        }
+                    }),
+                );
             }
         })
     }
@@ -402,7 +405,6 @@ fn touch_example() -> impl UiNode {
                 background_color = web_colors::DODGER_BLUE;
                 corner_radius = 10;
             },
-
             Stack! {
                 toggle::selector = toggle::Selector::bitflags(mode);
                 direction = StackDirection::top_to_bottom();

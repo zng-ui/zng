@@ -498,26 +498,14 @@ impl_from_and_into_var! {
     }
 
     /// New dimension, top-bottom, left-right.
-    fn from<
-        TB: Into<Factor>,
-        LR: Into<Factor>
-        >(
-            (top_bottom, left_right): (TB, LR)
-        )
-        -> FactorSideOffsets {
+    fn from<TB: Into<Factor>, LR: Into<Factor>>((top_bottom, left_right): (TB, LR)) -> FactorSideOffsets {
         FactorSideOffsets::new_vh(top_bottom, left_right)
     }
 
     /// New top, right, bottom, left.
-    fn from<
-        T: Into<Factor>,
-        R: Into<Factor>,
-        B: Into<Factor>,
-        L: Into<Factor>
-        >(
-            (top, right, bottom, left): (T, R, B, L)
-        )
-        -> FactorSideOffsets {
+    fn from<T: Into<Factor>, R: Into<Factor>, B: Into<Factor>, L: Into<Factor>>(
+        (top, right, bottom, left): (T, R, B, L),
+    ) -> FactorSideOffsets {
         FactorSideOffsets::new(top, right, bottom, left)
     }
 }

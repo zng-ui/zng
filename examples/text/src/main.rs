@@ -323,6 +323,7 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
-        }].chain(items);
+        }]
+        .chain(items);
     }
 }

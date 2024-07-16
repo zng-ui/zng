@@ -48,18 +48,20 @@ fn app_main() {
                 r
             }));
 
-            icon = WindowIcon::render(move || Container! {
-                image::render_retain = true;
+            icon = WindowIcon::render(move || {
+                Container! {
+                    image::render_retain = true;
 
-                layout::size = (36, 36);
-                widget::corner_radius = 8;
-                text::font_size = 28;
-                text::font_weight = FontWeight::BOLD;
-                child_align = Align::CENTER;
+                    layout::size = (36, 36);
+                    widget::corner_radius = 8;
+                    text::font_size = 28;
+                    text::font_weight = FontWeight::BOLD;
+                    child_align = Align::CENTER;
 
-                background_color = bkg.clone();
+                    background_color = bkg.clone();
 
-                child = Text!(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_txt() }));
+                    child = Text!(count.map(|&n| if n > 0 { formatx!("{n}") } else { "C".to_txt() }));
+                }
             });
         }
     })

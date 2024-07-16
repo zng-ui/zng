@@ -24,9 +24,7 @@ pub fn form_editor() -> impl UiNode {
                     is_open.set(false);
                 }
             } else {
-                WINDOWS.open_id(editor_id, async_clmv!(is_open, {
-                    form_editor_window(is_open)
-                }));
+                WINDOWS.open_id(editor_id, async_clmv!(is_open, { form_editor_window(is_open) }));
             }
         });
     }

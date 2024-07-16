@@ -382,7 +382,6 @@ impl WarnStyle {
                 zng_wgt_text::font_color = colors::ORANGE;
                 padding = 5;
             };
-
         }
     }
 }
@@ -402,7 +401,6 @@ impl ErrorStyle {
                 zng_wgt_text::font_color = rgb(209, 29, 29);
                 padding = 5;
             };
-
         }
     }
 }

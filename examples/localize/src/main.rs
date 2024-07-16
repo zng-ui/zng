@@ -106,7 +106,6 @@ fn window_content() -> impl UiNode {
             Text! {
                 txt = click_msg;
             },
-
             text::Text! {
                 layout::margin = (20, 0, 0, 0);
                 txt = l10n!("example-cmds", "Example Commands:");

@@ -29,7 +29,9 @@ pub mod xterm_256 {
     }
 
     // credits to https://www.ditig.com/256-colors-cheat-sheet
-    const JSON: &str = include_str! {"xterm-256.json"};
+    const JSON: &str = include_str! {
+        "xterm-256.json"
+    };
 
     #[allow(unused)]
     #[derive(Deserialize)]
@@ -94,7 +96,9 @@ pub mod web_colors {
     }
 
     // credits to https://gist.github.com/raineorshine/10394189
-    const JSON: &str = include_str! {"web_colors.json"};
+    const JSON: &str = include_str! {
+        "web_colors.json"
+    };
 
     #[derive(Deserialize)]
     struct WebColor {
@@ -172,7 +176,9 @@ pub mod colors {
         Ok(s)
     }
 
-    const JSON: &str = include_str! {"colors.json"};
+    const JSON: &str = include_str! {
+        "colors.json"
+    };
 
     #[derive(Deserialize)]
     struct WebColor {

@@ -77,7 +77,10 @@ impl LICENSES {
 }
 
 app_local! {
-    static LICENSES_SV: Licenses = Licenses { sources: vec![], include_view_process: var(true), };
+    static LICENSES_SV: Licenses = Licenses {
+        sources: vec![],
+        include_view_process: var(true),
+    };
 }
 
 struct Licenses {

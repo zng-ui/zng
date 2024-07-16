@@ -402,12 +402,7 @@ declare_api! {
     /// Replace the image resource in the window renderer.
     ///
     /// The [`ImageTextureId`] will be associated with the new [`ImageId`].
-    pub fn update_image_use(
-        &mut self,
-        id: WindowId,
-        texture_id: ImageTextureId,
-        image_id: ImageId,
-    );
+    pub fn update_image_use(&mut self, id: WindowId, texture_id: ImageTextureId, image_id: ImageId);
 
     /// Delete the image resource in the window renderer.
     pub fn delete_image_use(&mut self, id: WindowId, texture_id: ImageTextureId);
@@ -540,13 +535,23 @@ declare_api! {
     ///
     /// This is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
     /// with the `id` window or headless surface.
-    pub fn window_extension(&mut self, id: WindowId, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
+    pub fn window_extension(
+        &mut self,
+        id: WindowId,
+        extension_id: ApiExtensionId,
+        extension_request: ApiExtensionPayload,
+    ) -> ApiExtensionPayload;
 
     /// Call the API extension.
     ///
     /// This is similar to [`Api::app_extension`], but is targeting the instance of an extension associated
     /// with the `id` renderer.
-    pub fn render_extension(&mut self, id: WindowId, extension_id: ApiExtensionId, extension_request: ApiExtensionPayload) -> ApiExtensionPayload;
+    pub fn render_extension(
+        &mut self,
+        id: WindowId,
+        extension_id: ApiExtensionId,
+        extension_request: ApiExtensionPayload,
+    ) -> ApiExtensionPayload;
 }
 
 pub(crate) type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;

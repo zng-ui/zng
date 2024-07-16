@@ -31,9 +31,7 @@ pub fn text_editor() -> impl UiNode {
                     is_open.set(false);
                 }
             } else {
-                WINDOWS.open_id(editor_id, async_clmv!(is_open, {
-                    text_editor_window(is_open)
-                }));
+                WINDOWS.open_id(editor_id, async_clmv!(is_open, { text_editor_window(is_open) }));
             }
         });
     }

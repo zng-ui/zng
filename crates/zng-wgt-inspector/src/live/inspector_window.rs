@@ -550,11 +550,7 @@ fn property_view(
         Text! {
             txt = info.name;
             font_color = PROPERTY_COLOR_VAR;
-            tooltip = Tip!(Text!(if captured {
-                "captured property"
-            } else {
-                "property"
-            }));
+            tooltip = Tip!(Text!(if captured { "captured property" } else { "property" }));
         },
         Text!(" = "),
     ];
@@ -566,11 +562,7 @@ fn property_view(
             txt = value;
             font_color = PROPERTY_VALUE_COLOR_VAR;
             background_color = flash;
-            tooltip = Tip!(Text!(if user_assigned {
-                "instance value"
-            } else {
-                "intrinsic value"
-            }))
+            tooltip = Tip!(Text!(if user_assigned { "instance value" } else { "intrinsic value" }))
         });
         children.push(Text!(";"));
     } else {

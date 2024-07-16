@@ -131,8 +131,20 @@ fn scroll_to_btn(target: WidgetId, mode: ScrollToMode) -> impl UiNode {
     let scroll = WidgetId::named("scroll");
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
-        child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal {..} = &mode { "(minimal)" } else { "(center)" });
-        cmd_param = cmd::ScrollToRequest { target: target.into(), mode: mode.clone(), zoom: None, };
+        child = Text!(
+            "Scroll To {} {}",
+            target,
+            if let ScrollToMode::Minimal { .. } = &mode {
+                "(minimal)"
+            } else {
+                "(center)"
+            }
+        );
+        cmd_param = cmd::ScrollToRequest {
+            target: target.into(),
+            mode: mode.clone(),
+            zoom: None,
+        };
         cmd;
     }
 }
@@ -143,7 +155,11 @@ fn scroll_to_zoom_btn(target: WidgetId, zoom: layout::FactorPercent) -> impl UiN
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
         child = Text!("Scroll To {} (minimal) at {}", target, zoom);
-        cmd_param = cmd::ScrollToRequest { target: target.into(), mode: ScrollToMode::minimal(10), zoom: Some(zoom.into()), };
+        cmd_param = cmd::ScrollToRequest {
+            target: target.into(),
+            mode: ScrollToMode::minimal(10),
+            zoom: Some(zoom.into()),
+        };
         cmd;
     }
 }
@@ -154,8 +170,20 @@ fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> impl UiNode {
     let scroll = WidgetId::named("scroll");
     let cmd = cmd::SCROLL_TO_CMD.scoped(scroll);
     Button! {
-        child = Text!("Scroll To {} {}", target, if let ScrollToMode::Minimal {..} = &mode { "(minimal)" } else { "(center)" });
-        cmd_param = cmd::ScrollToRequest { target: target.clone().into(), mode: mode.clone(), zoom: None, };
+        child = Text!(
+            "Scroll To {} {}",
+            target,
+            if let ScrollToMode::Minimal { .. } = &mode {
+                "(minimal)"
+            } else {
+                "(center)"
+            }
+        );
+        cmd_param = cmd::ScrollToRequest {
+            target: target.clone().into(),
+            mode: mode.clone(),
+            zoom: None,
+        };
         cmd;
     }
 }

@@ -811,7 +811,7 @@ impl_from_and_into_var! {
                 PxConstraints::new_range(b.height, a.height)
             } else {
                 PxConstraints::new_range(a.height, b.height)
-            }
+            },
         }
     }
 }

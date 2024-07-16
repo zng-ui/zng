@@ -57,7 +57,7 @@ fn example() -> impl UiNode {
     Button! {
         on_click = hn!(t, |_| {
             count += 1;
-            let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
+            let new_txt = formatx!("Clicked {count} time{}!", if count > 1 { "s" } else { "" });
             t.set(new_txt);
         });
         gesture::on_double_click = hn!(|_| tracing::info!("double click!"));
@@ -237,7 +237,6 @@ fn combo_box() -> impl UiNode {
     let txt = var(Txt::from_static("Combo"));
     let options = ["Combo", "Congo", "Pombo"];
     Toggle! {
-
         id = "combo";
         child = TextInput! {
             txt = txt.clone();

@@ -180,10 +180,13 @@ impl TouchButtonStyle {
         widget_set! {
             self;
             zng_wgt::corner_radius = 0;
-            zng_wgt::visibility = BUTTON.cmd().flat_map(|c| match c {
-                Some(c) => c.is_enabled().boxed(),
-                None => LocalVar(true).boxed(),
-            }).map_into();
+            zng_wgt::visibility = BUTTON
+                .cmd()
+                .flat_map(|c| match c {
+                    Some(c) => c.is_enabled().boxed(),
+                    None => LocalVar(true).boxed(),
+                })
+                .map_into();
         }
     }
 }
@@ -205,7 +208,7 @@ impl ToggleStyle {
             click_mode = ClickMode::release();
             access_role = AccessRole::MenuItemCheckBox;
 
-            sub::start_column_fn = wgt_fn!(|_ | Text! {
+            sub::start_column_fn = wgt_fn!(|_| Text! {
                 size = 1.2.em();
                 font_family = FontNames::system_ui(&lang!(und));
                 align = Align::CENTER;

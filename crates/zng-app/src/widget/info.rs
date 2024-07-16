@@ -2177,7 +2177,11 @@ impl_from_and_into_var! {
     /// * `true` -> `Visible`
     /// * `false` -> `Collapsed`
     fn from(visible: bool) -> Visibility {
-        if visible { Visibility::Visible } else { Visibility::Collapsed }
+        if visible {
+            Visibility::Visible
+        } else {
+            Visibility::Collapsed
+        }
     }
 }
 

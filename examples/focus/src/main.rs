@@ -64,10 +64,7 @@ fn alt_scope() -> impl UiNode {
             border = unset!;
             corner_radius = unset!;
         };
-        children = ui_vec![
-            button("alt", TabIndex::AUTO),
-            button("scope", TabIndex::AUTO),
-        ];
+        children = ui_vec![button("alt", TabIndex::AUTO), button("scope", TabIndex::AUTO),];
     }
 }
 
@@ -213,10 +210,11 @@ fn delayed_focus() -> impl UiNode {
         focus_shortcut = shortcut!('D');
         children = ui_vec![
             title("Delayed 4s (D)"),
-
             delayed_btn("Force Focus", || {
                 FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct { target: WidgetId::named("target") },
+                    target: FocusTarget::Direct {
+                        target: WidgetId::named("target"),
+                    },
                     highlight: true,
                     force_window_focus: true,
                     window_indicator: None,
@@ -224,7 +222,9 @@ fn delayed_focus() -> impl UiNode {
             }),
             delayed_btn("Info Indicator", || {
                 FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct { target: WidgetId::named("target") },
+                    target: FocusTarget::Direct {
+                        target: WidgetId::named("target"),
+                    },
                     highlight: true,
                     force_window_focus: false,
                     window_indicator: Some(FocusIndicator::Info),
@@ -232,13 +232,14 @@ fn delayed_focus() -> impl UiNode {
             }),
             delayed_btn("Critical Indicator", || {
                 FOCUS.focus(FocusRequest {
-                    target: FocusTarget::Direct { target: WidgetId::named("target") },
+                    target: FocusTarget::Direct {
+                        target: WidgetId::named("target"),
+                    },
                     highlight: true,
                     force_window_focus: false,
                     window_indicator: Some(FocusIndicator::Critical),
                 });
             }),
-
             Text! {
                 id = "target";
                 padding = (7, 15);
@@ -277,7 +278,11 @@ fn delayed_btn(content: impl Into<Txt>, on_timeout: impl FnMut() + Send + 'stati
 }
 
 fn title(txt: impl IntoVar<Txt>) -> impl UiNode {
-    Text! { txt; font_weight = FontWeight::BOLD; align = Align::CENTER; }
+    Text! {
+        txt;
+        font_weight = FontWeight::BOLD;
+        align = Align::CENTER;
+    }
 }
 
 fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNode {
@@ -286,9 +291,7 @@ fn button(content: impl Into<Txt>, tab_index: impl Into<TabIndex>) -> impl UiNod
     Button! {
         child = Text!(content.clone());
         tab_index;
-        on_click = hn!(|_| {
-            tracing::info!("Clicked {content} {tab_index:?}")
-        });
+        on_click = hn!(|_| tracing::info!("Clicked {content} {tab_index:?}"));
     }
 }
 
@@ -317,15 +320,19 @@ fn commands() -> impl UiNode {
         text::font_family = FontName::monospace();
         font_color = colors::GRAY;
 
-        children = cmds.into_iter().map(|cmd| {
-            Text! {
-                txt = cmd.name_with_shortcut();
+        children = cmds
+            .into_iter()
+            .map(|cmd| {
+                Text! {
+                    txt = cmd.name_with_shortcut();
 
-                when *#{cmd.is_enabled()} {
-                    font_color = light_dark(colors::BLACK, colors::WHITE);
+                    when *#{cmd.is_enabled()} {
+                        font_color = light_dark(colors::BLACK, colors::WHITE);
+                    }
                 }
-            }.boxed()
-        }).collect::<Vec<_>>();
+                .boxed()
+            })
+            .collect::<Vec<_>>();
     }
 }
 

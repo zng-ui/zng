@@ -474,11 +474,7 @@ impl_from_and_into_var! {
         let saturation = clamp_normal(hsla.saturation);
 
         let value = lightness + saturation * lightness.min(1.0 - lightness);
-        let saturation = if value <= EPSILON {
-            0.0
-        } else {
-            2.0 * (1.0 - lightness / value)
-        };
+        let saturation = if value <= EPSILON { 0.0 } else { 2.0 * (1.0 - lightness / value) };
 
         Hsva {
             hue: hsla.hue,

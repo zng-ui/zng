@@ -97,7 +97,6 @@ context_var! {
 
     /// Scroll mode.
     pub(super) static SCROLL_MODE_VAR: ScrollMode = ScrollMode::empty();
-
 }
 
 context_local! {

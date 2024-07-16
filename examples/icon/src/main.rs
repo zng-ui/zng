@@ -25,10 +25,12 @@ fn main() {
     APP.defaults().run_window(async {
         Window! {
             title = "Icon Example";
-            icon = WindowIcon::render(|| Icon! {
-                ico = icon::material::filled::req("lightbulb");
-                ico_color = colors::YELLOW;
-                drop_shadow = (0, 0), 3, colors::WHITE;
+            icon = WindowIcon::render(|| {
+                Icon! {
+                    ico = icon::material::filled::req("lightbulb");
+                    ico_color = colors::YELLOW;
+                    drop_shadow = (0, 0), 3, colors::WHITE;
+                }
             });
             child = Scroll! {
                 mode = ScrollMode::VERTICAL;

@@ -81,7 +81,7 @@ context_var! {
     ///
     /// Default is minimal 0dip on all sides.
     pub static SCROLL_TO_FOCUSED_MODE_VAR: Option<ScrollToMode> = ScrollToMode::Minimal {
-        margin: SideOffsets::new_all(0.dip())
+        margin: SideOffsets::new_all(0.dip()),
     };
 
     /// Extra space added to the viewport auto-hide rectangle.
@@ -134,9 +134,7 @@ context_var! {
     /// Is [`node::default_auto_scroll_indicator`] by default.
     ///
     /// [`node::default_auto_scroll_indicator`]: crate::node::default_auto_scroll_indicator
-    pub static AUTO_SCROLL_INDICATOR_VAR: WidgetFn<AutoScrollArgs> = wgt_fn!(|_| {
-        crate::node::default_auto_scroll_indicator()
-    });
+    pub static AUTO_SCROLL_INDICATOR_VAR: WidgetFn<AutoScrollArgs> = wgt_fn!(|_| { crate::node::default_auto_scroll_indicator() });
 }
 
 fn default_scrollbar() -> WidgetFn<ScrollBarArgs> {

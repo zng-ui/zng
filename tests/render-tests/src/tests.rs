@@ -18,12 +18,15 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
         clmv!(colors, || {
             Stack! {
                 direction = StackDirection::left_to_right();
-                children = colors.iter().map(|c| {
-                    Wgt! {
-                        widget::background_color = *c;
-                        layout::size = (5, 10);
-                    }
-                }).collect::<UiNodeVec>()
+                children = colors
+                    .iter()
+                    .map(|c| {
+                        Wgt! {
+                            widget::background_color = *c;
+                            layout::size = (5, 10);
+                        }
+                    })
+                    .collect::<UiNodeVec>()
             }
         }),
     );

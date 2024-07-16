@@ -224,7 +224,7 @@ impl_from_and_into_var! {
         GradientRadius {
             base,
             circle: false,
-            radii: Size::fill()
+            radii: Size::fill(),
         }
     }
 
@@ -233,7 +233,7 @@ impl_from_and_into_var! {
         GradientRadius {
             base: base.into(),
             circle: false,
-            radii: Size::splat(radius)
+            radii: Size::splat(radius),
         }
     }
 
@@ -1117,17 +1117,17 @@ impl_from_and_into_var! {
     }
 
     /// [`GradientStops::from_colors`]
-    fn from< const N: usize>(colors: &[Rgba; N]) -> GradientStops {
+    fn from<const N: usize>(colors: &[Rgba; N]) -> GradientStops {
         GradientStops::from_colors(colors)
     }
 
     /// [`GradientStops::from_colors`]
-    fn from< const N: usize>(colors: &[Hsla; N]) -> GradientStops {
+    fn from<const N: usize>(colors: &[Hsla; N]) -> GradientStops {
         GradientStops::from_colors(colors)
     }
 
     /// [`GradientStops::from_colors`]
-    fn from< const N: usize>(colors: &[Hsva; N]) -> GradientStops {
+    fn from<const N: usize>(colors: &[Hsva; N]) -> GradientStops {
         GradientStops::from_colors(colors)
     }
 

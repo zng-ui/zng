@@ -230,7 +230,7 @@ pub mod vr {
         /// Line style, default is `Solid`.
         pub static LINE_STYLE_VAR: LineStyle = LineStyle::Solid;
 
-                /// Margin around line.
+        /// Margin around line.
         ///
         /// Is `(0, 4)` by default, 0 top-bottom, 4 left-right.
         pub static MARGIN_VAR: SideOffsets = (0, 4);

@@ -407,7 +407,11 @@ fn lerp_px_transform(s: PxTransform, to: &PxTransform, step: EasingStep) -> PxTr
 
 impl_from_and_into_var! {
     fn from(t: PxTransform) -> Transform {
-        Transform { parts: vec![TransformPart::Computed(t)], needs_layout: false, lerp_to: vec![] }
+        Transform {
+            parts: vec![TransformPart::Computed(t)],
+            needs_layout: false,
+            lerp_to: vec![],
+        }
     }
 }
 

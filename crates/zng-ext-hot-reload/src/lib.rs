@@ -490,8 +490,8 @@ app_local! {
             libs: vec![],
             rebuilders: Mutex::new(vec![]),
             status: zng_var::var(vec![]),
-            rebuild_requests: vec![] ,
-            cancel_requests: vec![] ,
+            rebuild_requests: vec![],
+            cancel_requests: vec![],
         }
     };
 }

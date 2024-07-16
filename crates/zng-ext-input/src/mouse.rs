@@ -1492,7 +1492,14 @@ app_local! {
         MouseService {
             multi_click_config: sys_multi_click_config.cow(),
             sys_multi_click_config,
-            repeat_config: KEYBOARD.repeat_config().map(|c| ButtonRepeatConfig { start_delay: c.start_delay, interval: c.interval }).cow().boxed(),
+            repeat_config: KEYBOARD
+                .repeat_config()
+                .map(|c| ButtonRepeatConfig {
+                    start_delay: c.start_delay,
+                    interval: c.interval,
+                })
+                .cow()
+                .boxed(),
             buttons: var(vec![]),
             hovered: var(None),
             position: var(None),

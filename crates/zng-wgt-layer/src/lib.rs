@@ -1111,8 +1111,8 @@ impl AnchorOffset {
     }
 }
 impl_from_and_into_var! {
-     /// `(place, origin)`.
-     fn from<P: Into<Point>, O: Into<Point>>(place_origin: (P, O)) -> AnchorOffset {
+    /// `(place, origin)`.
+    fn from<P: Into<Point>, O: Into<Point>>(place_origin: (P, O)) -> AnchorOffset {
         AnchorOffset {
             place: place_origin.0.into(),
             origin: place_origin.1.into(),

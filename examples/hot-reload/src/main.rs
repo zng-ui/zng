@@ -24,7 +24,9 @@ fn main() {
 
             // hot reloading property, the state does not change, but changes in the property code update.
             hot_reload_lib::hot_prop = state.clone();
-            gesture::on_click = hn!(|_| { state.set(!state.get()); });
+            gesture::on_click = hn!(|_| {
+                state.set(!state.get());
+            });
         };
 
         Window! {
@@ -33,11 +35,10 @@ fn main() {
 
             child = example;
 
-             // layout affects the hot node correctly.
+            // layout affects the hot node correctly.
             child_align = Align::CENTER;
             // context values propagate to the hot node correctly.
             text::font_size = 2.em();
-
         }
     })
 }

@@ -348,7 +348,7 @@ impl_from_and_into_var! {
     fn from(percent: FactorPercent) -> CornerRadius {
         CornerRadius::new_all(percent)
     }
-   /// All corners same relative length.
+    /// All corners same relative length.
     fn from(norm: Factor) -> CornerRadius {
         CornerRadius::new_all(norm)
     }
@@ -364,14 +364,19 @@ impl_from_and_into_var! {
 
     /// (top-left, top-right, bottom-left, bottom-right) corners.
     fn from<TL: Into<Size>, TR: Into<Size>, BR: Into<Size>, BL: Into<Size>>(
-        (top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL)
+        (top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL),
     ) -> CornerRadius {
         CornerRadius::new(top_left, top_right, bottom_right, bottom_left)
     }
 
     /// From layout corner-radius.
     fn from(corner_radius: PxCornerRadius) -> CornerRadius {
-        CornerRadius::new(corner_radius.top_left, corner_radius.top_right, corner_radius.bottom_right, corner_radius.bottom_left)
+        CornerRadius::new(
+            corner_radius.top_left,
+            corner_radius.top_right,
+            corner_radius.bottom_right,
+            corner_radius.bottom_left,
+        )
     }
 }
 
@@ -574,7 +579,7 @@ impl_from_and_into_var! {
 
     /// (top, right, bottom, left) sides.
     fn from<T: Into<BorderSide>, R: Into<BorderSide>, B: Into<BorderSide>, L: Into<BorderSide>>(
-        (top, right, bottom, left): (T, R, B, L)
+        (top, right, bottom, left): (T, R, B, L),
     ) -> BorderSides {
         BorderSides::new(top, right, bottom, left)
     }
@@ -587,15 +592,10 @@ impl_from_and_into_var! {
 
     /// (top-color, right-color, bottom-color, left-color, style) sides.
     fn from<T: Into<Rgba>, R: Into<Rgba>, B: Into<Rgba>, L: Into<Rgba>, S: Into<BorderStyle>>(
-        (top, right, bottom, left, style): (T, R, B, L, S)
+        (top, right, bottom, left, style): (T, R, B, L, S),
     ) -> BorderSides {
         let style = style.into();
-        BorderSides::new(
-            (top, style),
-            (right, style),
-            (bottom, style),
-            (left, style),
-        )
+        BorderSides::new((top, style), (right, style), (bottom, style), (left, style))
     }
 }
 

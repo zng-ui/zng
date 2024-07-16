@@ -16,11 +16,7 @@ use zng_view_api::window::VideoMode;
 use crate::WINDOWS;
 
 app_local! {
-    pub(super) static MONITORS_SV: MonitorsService = const {
-        MonitorsService {
-            monitors: IdMap::new(),
-        }
-    };
+    pub(super) static MONITORS_SV: MonitorsService = const { MonitorsService { monitors: IdMap::new() } };
 }
 
 /// Monitors service.

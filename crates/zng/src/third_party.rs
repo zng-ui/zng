@@ -163,7 +163,7 @@ pub(crate) fn setup_default_view() {
                     }
 
                     Window! {
-                        title = l10n!("window.title", "{$app} - Third Party Licenses", app=zng::env::about().app.clone());
+                        title = l10n!("window.title", "{$app} - Third Party Licenses", app = zng::env::about().app.clone());
                         child = default_view();
                         parent;
                     }
