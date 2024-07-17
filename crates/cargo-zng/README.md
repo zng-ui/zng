@@ -36,7 +36,7 @@ Options:
 
 ## `fmt`
 
-Formats the code with `cargo fmt` and formats Zng macros.
+Formats the code with `cargo fmt` and formats Zng macros and some other braced macros.
 
 <!--do doc --readme do zng fmt --help -->
 ```console
@@ -71,9 +71,15 @@ Options:
           Print version
 ```
 
-Note that you can configure Rust-Analyzer to use this formatter as your IDE formatter. 
+The formatter supports Zng macros and also attempts to format all braced macro contents 
+like `foo! { <contents> }` by copying it into a temporary item `fn _fmt_item() { <contents> }` 
+and trying `rustfmt`, if the contents cannot be formatted like this they are not touched.
 
-In VsCode add this to `.vscode/settings.json`:
+### IDE Integration
+
+You can configure Rust-Analyzer to use `cargo zng fmt --stdin` as your IDE formatter. 
+
+In VsCode add this to the workspace config at `.vscode/settings.json`:
 
 ```json
 "rust-analyzer.rustfmt.overrideCommand": [
@@ -84,7 +90,7 @@ In VsCode add this to `.vscode/settings.json`:
 ],
 ```
 
-Now widgets format with the format context action and command.
+Now Zng macros format with the format context action and command.
 
 ## `new`
 
@@ -681,7 +687,7 @@ $ cargo zng res --tool shf
   Apart from running on final this tool behaves exactly like .zr-sh
 ```
 
-### `.zr-warn`
+#### `.zr-warn`
 
 <!--do doc --readme do zng res --tool warn -->
 ```console
@@ -699,7 +705,7 @@ $ cargo zng res --tool warn
   Prints a warning with the value of ZR_APP
 ```
 
-### `.zr-fail`
+#### `.zr-fail`
 
 <!--do doc --readme do zng res --tool fail -->
 ```console
