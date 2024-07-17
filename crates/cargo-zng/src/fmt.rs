@@ -117,11 +117,6 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
     formatted_code.push_str(&fmt_code(file_code, file_stream));
 
     if formatted_code != file {
-        // custom format can cause normal format to change
-        // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
-        //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
-        let formatted_code = rustfmt_stdin(&formatted_code).unwrap_or(formatted_code);
-
         if check {
             fatal!("extended format does not match in file `{}`", rs_file.display());
         }
@@ -198,6 +193,13 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
     }
 
     formatted_code.push_str(&code[last_already_fmt_start..]);
+
+    if formatted_code != code {
+        // custom format can cause normal format to change
+        // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
+        //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
+        formatted_code = rustfmt_stdin(&formatted_code).unwrap_or(formatted_code);
+    }
 
     formatted_code
 }
