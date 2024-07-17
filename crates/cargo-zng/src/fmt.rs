@@ -25,7 +25,7 @@ pub struct FmtArgs {
     manifest_path: Option<String>,
 
     /// Format the workspace crate identified by package name
-    #[arg(long)]
+    #[arg(short, long)]
     package: Option<String>,
 
     /// Format all files matched by glob
@@ -146,6 +146,7 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
     };
     let mut tail2 = Vec::with_capacity(2);
 
+    let mut skip_next_group = false;
     while let Some(tt) = next(&mut stream_stack) {
         match tt {
             TokenTree::Group(g) => {
@@ -155,6 +156,9 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
                     && matches!(&tail2[1], TokenTree::Ident(_))
                 {
                     // macro! {}
+                    if std::mem::take(&mut skip_next_group) {
+                        continue;
+                    }
 
                     let bang = tail2[0].span().byte_range().start;
                     let line_start = code[..bang].rfind('\n').unwrap_or(0);
@@ -181,7 +185,22 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
                             }
                         }
                     }
-                } else {
+                } else if !tail2.is_empty()
+                    && matches!(g.delimiter(), Delimiter::Bracket)
+                    && matches!(&tail2[0], TokenTree::Punct(p) if p.as_char() == '#')
+                {
+                    // #[..]
+                    let mut attr = g.stream().into_iter();
+                    let attr = [attr.next(), attr.next(), attr.next(), attr.next(), attr.next()];
+                    if let [Some(TokenTree::Ident(i0)), Some(TokenTree::Punct(p0)), Some(TokenTree::Punct(p1)), Some(TokenTree::Ident(i1)), None] =
+                        attr
+                    {
+                        if i0 == "rustfmt" && p0.as_char() == ':' && p1.as_char() == ':' && i1 == "skip" {
+                            // #[rustfmt::skip]
+                            skip_next_group = true;
+                        }
+                    }
+                } else if !std::mem::take(&mut skip_next_group) {
                     stream_stack.push(g.stream().into_iter());
                 }
                 tail2.clear();
@@ -359,5 +378,4 @@ fn rustfmt_stdin(code: &str) -> Option<String> {
 
 // !!: TODO
 //
-// * #[rustfmt::skip]
 // * ra/vscode integration
