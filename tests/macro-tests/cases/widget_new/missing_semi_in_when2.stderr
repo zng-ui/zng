@@ -1,8 +1,8 @@
 error: expected `,`
-  --> cases/widget_new/missing_semi_in_when2.rs:16:13
+  --> cases/widget_new/missing_semi_in_when2.rs:15:22
    |
-16 |             cursor = CursorIcon::Pointer;
-   |             ^^^^^^
+15 |             margin = cursor = CursorIcon::Pointer;
+   |                      ^^^^^^
 
 error[E0061]: this method takes 1 argument but 0 arguments were supplied
   --> cases/widget_new/missing_semi_in_when2.rs:15:13
@@ -12,11 +12,10 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 12 | |         margin = 0;
 13 | |         cursor = CursorIcon::Default;
 14 | |         when *#is_pressed {
-15 | |             margin =
+15 | |             margin = cursor = CursorIcon::Pointer;
    | |             ^^^^^^
-16 | |             cursor = CursorIcon::Pointer;
-17 | |         }
-18 | |     };
+16 | |         }
+17 | |     };
    | |_____- an argument is missing
    |
 note: method defined here
