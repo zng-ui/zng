@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fs,
     io::{self, Write},
     path::Path,
@@ -166,10 +167,10 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
                     let group_bytes = g.span().byte_range();
                     let group_code = &code[group_bytes.clone()];
 
-                    if let Some(formatted) = try_fmt_group(base_indent, group_code) {
+                    if let Some(formatted) = try_fmt_macro(base_indent, group_code) {
                         if formatted != group_code {
                             // changed by custom format
-                            if let Some(stable) = try_fmt_group(base_indent, &formatted) {
+                            if let Some(stable) = try_fmt_macro(base_indent, &formatted) {
                                 if formatted == stable {
                                     // change is sable
                                     let already_fmt = &code[last_already_fmt_start..group_bytes.start];
@@ -206,25 +207,25 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
     formatted_code
 }
 
-fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
-    static EVENT_ARGS_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*(\.\.)\s*$").unwrap());
-    static EVENT_ARGS_MARKER: &str = "// cargo-zng::fmt::dot_dot\n}\nimpl CargoZngFmt {\n";
-    static EVENT_ARGS_RGX_REV: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"(?m)^(\s+)// cargo-zng::fmt::dot_dot\n\s*}\n\s*impl CargoZngFmt\s*\{\n").unwrap());
-
-    let replaced_code = EVENT_ARGS_RGX.replace_all(group_code, |caps: &regex::Captures| {
-        format!(
-            "{}{EVENT_ARGS_MARKER}{}",
-            &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start()],
-            &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..]
-        )
-    });
+fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
+    let mut replaced_code = replace_event_args(group_code, false);
+    let is_event_args = matches!(&replaced_code, Cow::Owned(_));
+    if !is_event_args {
+        replaced_code = replace_widget_when(group_code, false);
+    }
+    let is_widget = matches!(&replaced_code, Cow::Owned(_));
 
     let code = rustfmt_stdin(&replaced_code)?;
 
-    let code = EVENT_ARGS_RGX_REV.replace_all(&code, "\n$1..\n\n");
+    let code = if is_event_args {
+        replace_event_args(&code, true)
+    } else if is_widget {
+        replace_widget_when(&code, true)
+    } else {
+        Cow::Owned(code)
+    };
 
-    let code_stream: TokenStream = code.parse().unwrap();
+    let code_stream: TokenStream = code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{code}"));
     let code_tt = code_stream.into_iter().next().unwrap();
     let code_stream = match code_tt {
         TokenTree::Group(g) => g.stream(),
@@ -253,6 +254,64 @@ fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
     }
     Some(out)
 }
+// replace line with only `..` tokens with:
+//
+// ```
+// // cargo-zng::fmt::dot_dot
+// }
+// impl CargoZngFmt {
+//
+// ```
+fn replace_event_args(code: &str, reverse: bool) -> Cow<str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*(\.\.)\s*$").unwrap());
+    static MARKER: &str = "// cargo-zng::fmt::dot_dot\n}\nimpl CargoZngFmt {\n";
+    static RGX_REV: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?m)^(\s+)// cargo-zng::fmt::dot_dot\n\s*}\n\s*impl CargoZngFmt\s*\{\n").unwrap());
+
+    if !reverse {
+        RGX.replace_all(code, |caps: &regex::Captures| {
+            format!(
+                "{}{MARKER}{}",
+                &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start()],
+                &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..]
+            )
+        })
+    } else {
+        RGX_REV.replace_all(code, "\n$1..\n\n")
+    }
+}
+// replace `when <expr> { <properties> }` with `for cargo_zng_fmt_when in <expr> { <properties> }`
+// AND replace `#expr` with `__P_expr` AND `#{var}` with `__P_!{`
+fn replace_widget_when(code: &str, reverse: bool) -> Cow<str> {
+    static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)\n\s*(when) .+?\{").unwrap());
+    static MARKER: &str = "for cargo_zng_fmt_when in";
+
+    static POUND_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(#)[\w\{]").unwrap());
+    static POUND_MARKER: &str = "__P_";
+    static POUND_VAR_MARKER: &str = "__P_!";
+
+    static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new("__P_!?").unwrap());
+
+    if !reverse {
+        RGX.replace(code, |caps: &regex::Captures| {
+            let prefix_spaces = &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start()];
+
+            let expr = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
+            let expr = POUND_RGX.replace_all(expr, |caps: &regex::Captures| {
+                let c = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
+                let marker = if c == "{" { POUND_VAR_MARKER } else { POUND_MARKER };
+                format!("{marker}{c}")
+            });
+
+            format!("{prefix_spaces}{MARKER}{expr}")
+        })
+    } else {
+        let code = code.replace(MARKER, "when");
+        let r = POUND_REV_RGX.replace_all(&code, "#").into_owned();
+        Cow::Owned(r)
+    }
+}
+
 fn rustfmt_stdin(code: &str) -> Option<String> {
     let mut s = std::process::Command::new("rustfmt")
         .arg("--edition")
@@ -277,6 +336,5 @@ fn rustfmt_stdin(code: &str) -> Option<String> {
 // !!: TODO
 //
 // * #[rustfmt::skip]
-// * widget macros with 'when #property'
 // * Review 'expr_var!'
 // * ra/vscode integration
