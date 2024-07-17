@@ -109,12 +109,33 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
 
     let mut formatted_code = file[..file.len() - file_code.len()].to_owned();
     formatted_code.reserve(file.len());
-    let mut last_already_fmt_start = 0;
 
     let file_stream: TokenStream = file_code
         .parse()
         .unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", rs_file.display()));
-    let mut stream_stack = vec![file_stream.into_iter()];
+
+    formatted_code.push_str(&fmt_code(file_code, file_stream));
+
+    if formatted_code != file {
+        // custom format can cause normal format to change
+        // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
+        //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
+        let formatted_code = rustfmt_stdin(&formatted_code).unwrap_or(formatted_code);
+
+        if check {
+            fatal!("extended format does not match in file `{}`", rs_file.display());
+        }
+        fs::write(rs_file, formatted_code)?;
+    }
+
+    Ok(())
+}
+
+fn fmt_code(code: &str, stream: TokenStream) -> String {
+    let mut formatted_code = String::new();
+    let mut last_already_fmt_start = 0;
+
+    let mut stream_stack = vec![stream.into_iter()];
     let next = |stack: &mut Vec<proc_macro2::token_stream::IntoIter>| {
         while !stack.is_empty() {
             let tt = stack.last_mut().unwrap().next();
@@ -126,6 +147,7 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
         None
     };
     let mut tail2 = Vec::with_capacity(2);
+
     while let Some(tt) = next(&mut stream_stack) {
         match tt {
             TokenTree::Group(g) => {
@@ -137,15 +159,15 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
                     // macro! {}
 
                     let bang = tail2[0].span().byte_range().start;
-                    let line_start = file_code[..bang].rfind('\n').unwrap_or(0);
-                    let base_indent = file_code[line_start..bang]
+                    let line_start = code[..bang].rfind('\n').unwrap_or(0);
+                    let base_indent = code[line_start..bang]
                         .chars()
                         .skip_while(|&c| c != ' ')
                         .take_while(|&c| c == ' ')
                         .count();
 
                     let group_bytes = g.span().byte_range();
-                    let group_code = &file_code[group_bytes.clone()];
+                    let group_code = &code[group_bytes.clone()];
 
                     if let Some(formatted) = try_fmt_group(base_indent, group_code) {
                         if formatted != group_code {
@@ -153,7 +175,7 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
                             if let Some(stable) = try_fmt_group(base_indent, &formatted) {
                                 if formatted == stable {
                                     // change is sable
-                                    let already_fmt = &file_code[last_already_fmt_start..group_bytes.start];
+                                    let already_fmt = &code[last_already_fmt_start..group_bytes.start];
                                     formatted_code.push_str(already_fmt);
                                     formatted_code.push_str(&formatted);
                                     last_already_fmt_start = group_bytes.end;
@@ -175,25 +197,22 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
         }
     }
 
-    formatted_code.push_str(&file_code[last_already_fmt_start..]);
+    formatted_code.push_str(&code[last_already_fmt_start..]);
 
-    if formatted_code != file {
-        // custom format can cause normal format to change
-        // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
-        //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
-        let formatted_code = rustfmt_stdin(&formatted_code).unwrap_or(formatted_code);
-
-        if check {
-            fatal!("extended format does not match in file `{}`", rs_file.display());
-        }
-        fs::write(rs_file, formatted_code)?;
-    }
-
-    Ok(())
+    formatted_code
 }
 
 fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
     let code = rustfmt_stdin(group_code)?;
+
+    let code_stream: TokenStream = code.parse().unwrap();
+    let code_tt = code_stream.into_iter().next().unwrap();
+    let code_stream = match code_tt {
+        TokenTree::Group(g) => g.stream(),
+        _ => unreachable!(),
+    };
+    let code = fmt_code(&code, code_stream);
+
     let mut out = String::new();
     let mut lb_indent = String::with_capacity(base_indent + 1);
     for line in code.lines() {
@@ -239,7 +258,6 @@ fn rustfmt_stdin(code: &str) -> Option<String> {
 // !!: TODO
 //
 // * #[rustfmt::skip]
-// * Recursive format
 // * event_args! has a '.. fn'  token sequence
 // * widget macros with 'when #property'
 // * Review 'expr_var!'
