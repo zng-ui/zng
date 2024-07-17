@@ -490,16 +490,24 @@ impl SubMenuStyle {
         widget_set! {
             self;
 
-            zng_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| match d {
-                LayoutDirection::LTR => AnchorMode::popup(AnchorOffset { place: Point::top_right(), origin: Point::top_left() }),
-                LayoutDirection::RTL => AnchorMode::popup(AnchorOffset { place: Point::top_left(), origin: Point::top_right() }),
-            }.with_min_size(AnchorSize::Unbounded));
+            zng_wgt_layer::popup::anchor_mode = DIRECTION_VAR.map(|d| {
+                match d {
+                    LayoutDirection::LTR => AnchorMode::popup(AnchorOffset {
+                        place: Point::top_right(),
+                        origin: Point::top_left(),
+                    }),
+                    LayoutDirection::RTL => AnchorMode::popup(AnchorOffset {
+                        place: Point::top_left(),
+                        origin: Point::top_right(),
+                    }),
+                }
+                .with_min_size(AnchorSize::Unbounded)
+            });
 
             when *#is_open {
                 background_color = BASE_COLOR_VAR.shade(1);
                 opacity = 100.pct();
             }
-
 
             end_column_fn = wgt_fn!(|_| zng_wgt_text::Text! {
                 size = 1.2.em();
