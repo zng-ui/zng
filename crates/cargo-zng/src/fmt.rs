@@ -6,8 +6,10 @@ use std::{
 };
 
 use clap::*;
+use once_cell::sync::Lazy;
 use proc_macro2::{Delimiter, TokenStream, TokenTree};
 use rayon::prelude::*;
+use regex::Regex;
 
 use crate::util;
 
@@ -205,7 +207,22 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
 }
 
 fn try_fmt_group(base_indent: usize, group_code: &str) -> Option<String> {
-    let code = rustfmt_stdin(group_code)?;
+    static EVENT_ARGS_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*(\.\.)\s*$").unwrap());
+    static EVENT_ARGS_MARKER: &str = "// cargo-zng::fmt::dot_dot\n}\nimpl CargoZngFmt {\n";
+    static EVENT_ARGS_RGX_REV: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?m)^(\s+)// cargo-zng::fmt::dot_dot\n\s*}\n\s*impl CargoZngFmt\s*\{\n").unwrap());
+
+    let replaced_code = EVENT_ARGS_RGX.replace_all(group_code, |caps: &regex::Captures| {
+        format!(
+            "{}{EVENT_ARGS_MARKER}{}",
+            &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start()],
+            &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..]
+        )
+    });
+
+    let code = rustfmt_stdin(&replaced_code)?;
+
+    let code = EVENT_ARGS_RGX_REV.replace_all(&code, "\n$1..\n\n");
 
     let code_stream: TokenStream = code.parse().unwrap();
     let code_tt = code_stream.into_iter().next().unwrap();
@@ -260,7 +277,6 @@ fn rustfmt_stdin(code: &str) -> Option<String> {
 // !!: TODO
 //
 // * #[rustfmt::skip]
-// * event_args! has a '.. fn'  token sequence
 // * widget macros with 'when #property'
 // * Review 'expr_var!'
 // * ra/vscode integration
