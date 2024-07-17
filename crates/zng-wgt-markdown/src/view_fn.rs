@@ -579,7 +579,12 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
             access_role = AccessRole::List;
             margin = (0, 0, 0, 1.em());
             cells = args.items;
-            columns = ui_vec![grid::Column!(), grid::Column! { width = 1.lft() },];
+            columns = ui_vec![
+                grid::Column!(),
+                grid::Column! {
+                    width = 1.lft()
+                },
+            ];
         }
         .boxed()
     }

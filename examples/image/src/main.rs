@@ -421,12 +421,12 @@ fn repeat_image() -> impl UiNode {
                         child = Image! {
                             img_fit = ImageFit::None;
                             img_repeat = true;
-                            img_repeat_spacing = show_pattern.map(|&s| layout::Size::from(if s { 10 } else { 0 })).easing(300.ms(), easing::linear);
+                            img_repeat_spacing = show_pattern
+                                .map(|&s| layout::Size::from(if s { 10 } else { 0 }))
+                                .easing(300.ms(), easing::linear);
                             size = (10000, 100.pct());
                             source = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
-                            mouse::on_mouse_input = hn!(
-                                show_pattern,
-                                |args: &mouse::MouseInputArgs| {
+                            mouse::on_mouse_input = hn!(show_pattern, |args: &mouse::MouseInputArgs| {
                                 show_pattern.set(matches!(args.state, mouse::ButtonState::Pressed));
                             });
                             on_error = hn!(|args: &ImgErrorArgs| {

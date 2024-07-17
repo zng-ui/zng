@@ -1177,7 +1177,10 @@ pub fn tab_inner_scope_continue_to_non_focusable_siblings_focusable_child() {
                 direction = StackDirection::top_to_bottom();
                 focus_scope = true;
                 tab_nav = TabNav::Continue;
-                children = ui_vec![Button! { id = btn1; child = Text!("Btn 1"); }];
+                children = ui_vec![Button! {
+                    id = btn1;
+                    child = Text!("Btn 1");
+                }];
             },
             Stack!(
                 top_to_bottom,
@@ -1468,7 +1471,10 @@ pub fn focus_continued_after_widget_id_move() {
             if a.data().get() {
                 a.set_view(Container! {
                     id = "some_other_place";
-                    child = Button! { id; child = Text!("Button 1") };
+                    child = Button! {
+                        id;
+                        child = Text!("Button 1")
+                    };
                 });
             } else if a.view_is_nil() {
                 a.set_view(Wgt! {
@@ -1568,7 +1574,7 @@ pub fn focus_goes_to_parent_after_remove() {
             child = Button! {
                 id = child_id;
                 interactive = interactive.clone();
-                child = Text!( "item 'removed'")
+                child = Text!("item 'removed'")
             }
         }]
     ));
@@ -1869,7 +1875,10 @@ pub fn directional_continue_up() {
             direction = StackDirection::top_to_bottom();
             focus_scope = true;
             directional_nav = DirectionalNav::Continue;
-            children = ui_vec![Button! { child = Text!("Button 1"); id = start_id; },];
+            children = ui_vec![Button! {
+                child = Text!("Button 1");
+                id = start_id;
+            }];
         },
         Button! {
             child = Text!("Button 2")
@@ -1899,7 +1908,10 @@ pub fn directional_continue_down() {
             direction = StackDirection::top_to_bottom();
             focus_scope = true;
             directional_nav = DirectionalNav::Continue;
-            children = ui_vec![Button! { child = Text!("Button 1"); id = start_id; },];
+            children = ui_vec![Button! {
+                child = Text!("Button 1");
+                id = start_id;
+            }];
         },
         Button! {
             child = Text!("Button 2")
@@ -1929,7 +1941,10 @@ pub fn directional_continue_left() {
             direction = StackDirection::top_to_bottom();
             focus_scope = true;
             directional_nav = DirectionalNav::Continue;
-            children = ui_vec![Button! { child = Text!("Button 1"); id = start_id; },];
+            children = ui_vec![Button! {
+                child = Text!("Button 1");
+                id = start_id;
+            }];
         },
         Button! {
             child = Text!("Button 2")
@@ -1959,7 +1974,10 @@ pub fn directional_continue_right() {
             direction = StackDirection::top_to_bottom();
             focus_scope = true;
             directional_nav = DirectionalNav::Continue;
-            children = ui_vec![Button! { child = Text!("Button 1"); id = start_id; },];
+            children = ui_vec![Button! {
+                child = Text!("Button 1");
+                id = start_id;
+            }];
         },
         Button! {
             child = Text!("Button 2")
