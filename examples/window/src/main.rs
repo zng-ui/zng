@@ -59,35 +59,22 @@ async fn main_window() -> window::WindowRoot {
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![
-                        state_commands(),
-                        focus_control(),
-                    ]
+                    children = ui_vec![state_commands(), focus_control()]
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![
-                        state(),
-                        visibility_example(),
-                    ];
+                    children = ui_vec![state(), visibility_example()];
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![
-                        icon_example(),
-                        background_color_example(background),
-                    ];
+                    children = ui_vec![icon_example(), background_color_example(background)];
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![
-                        screenshot(),
-                        misc(),
-                        native(),
-                    ];
+                    children = ui_vec![screenshot(), misc(), native()];
                 },
             ];
         };
@@ -202,7 +189,7 @@ fn screenshot() -> impl UiNode {
                                 tracing::info!("saving screenshot..");
                                 match args.frame_image.unwrap().save("screenshot.png").await {
                                     Ok(_) => tracing::info!("saved"),
-                                    Err(e) => tracing::error!("{e}")
+                                    Err(e) => tracing::error!("{e}"),
                                 }
                                 debug_assert_eq!(WINDOW.id(), args.window_id);
                                 WINDOW.close();
@@ -369,11 +356,16 @@ fn exclusive_mode() -> impl UiNode {
                     child = Stack! {
                         toggle::selector = toggle::Selector::single(selected_opt);
                         direction = StackDirection::top_to_bottom();
-                        children = [default_opt].into_iter().chain(opts).map(|o| Toggle! {
-                            child = Text!(formatx!("{o}"));
-                            value = o;
-                        })
-                        .collect::<UiNodeVec>();
+                        children = [default_opt]
+                            .into_iter()
+                            .chain(opts)
+                            .map(|o| {
+                                Toggle! {
+                                    child = Text!(formatx!("{o}"));
+                                    value = o;
+                                }
+                            })
+                            .collect::<UiNodeVec>();
                     }
                 };
             }

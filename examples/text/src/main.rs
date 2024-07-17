@@ -32,27 +32,17 @@ fn main() {
                         Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
-                            children = ui_vec![
-                                basic(),
-                                defaults(),
-                            ];
+                            children = ui_vec![basic(), defaults()];
                         },
                         Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
-                            children = ui_vec![
-                                line_height(),
-                                line_spacing(),
-                                word_spacing(),
-                                letter_spacing(),
-                            ];
+                            children = ui_vec![line_height(), line_spacing(), word_spacing(), letter_spacing()];
                         },
                         Stack! {
                             direction = StackDirection::top_to_bottom();
                             spacing = 20;
-                            children = ui_vec![
-                                decoration_lines(),
-                            ]
+                            children = ui_vec![decoration_lines()]
                         }
                     ];
                 },
@@ -67,10 +57,7 @@ fn main() {
                     margin = 20;
                     align = Align::BOTTOM_RIGHT;
                     children_align = Align::RIGHT;
-                    children = ui_vec![
-                        editor::text_editor(),
-                        form::form_editor(),
-                    ];
+                    children = ui_vec![editor::text_editor(), form::form_editor()];
                 },
             ])
         }
@@ -84,7 +71,9 @@ fn font_size_example(font_size: ArcVar<Length>) -> impl UiNode {
         });
     }
     Stack! {
-        button::style_fn = Style! { padding = (0, 5) };
+        button::style_fn = Style! {
+            padding = (0, 5)
+        };
         direction = StackDirection::left_to_right();
         spacing = 5;
         corner_radius = 4;
@@ -96,9 +85,7 @@ fn font_size_example(font_size: ArcVar<Length>) -> impl UiNode {
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!('-')];
-                on_click = hn!(font_size, |_| {
-                    change_size(&font_size, -1.0)
-                });
+                on_click = hn!(font_size, |_| change_size(&font_size, -1.0));
             },
             Text! {
                 txt = font_size.map(|s| formatx!("{s}"));
@@ -108,9 +95,7 @@ fn font_size_example(font_size: ArcVar<Length>) -> impl UiNode {
                 font_family = FontName::monospace();
                 font_weight = FontWeight::BOLD;
                 click_shortcut = [shortcut!('+')];
-                on_click = hn!(font_size, |_| {
-                    change_size(&font_size, 1.0)
-                });
+                on_click = hn!(font_size, |_| change_size(&font_size, 1.0));
             },
         ]
     }

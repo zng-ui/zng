@@ -128,10 +128,7 @@ fn video(finished: zng::var::ArcVar<bool>) -> impl UiNode {
                     color.alpha = 0.3;
                     let stops = color::gradient::GradientStops::from_stripes(&[color, color.transparent()], 0.0);
                     let angle = angle.deg();
-                    color::gradient::linear_gradient(
-                        bkg_rotate.map(move |r| (angle + layout::AngleDegree::from(*r)).into()),
-                        stops
-                    )
+                    color::gradient::linear_gradient(bkg_rotate.map(move |r| (angle + layout::AngleDegree::from(*r)).into()), stops)
                 });
 
                 ui_vec![

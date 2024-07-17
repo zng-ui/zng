@@ -441,13 +441,16 @@ fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
                             },
                         ]
                     },
-                    presenter(wgt.inspector_info(), wgt_fn!(|i| {
-                        if let Some(i) = i {
-                            inspector_info_view(i).boxed()
-                        } else {
-                            NilUiNode.boxed()
-                        }
-                    })),
+                    presenter(
+                        wgt.inspector_info(),
+                        wgt_fn!(|i| {
+                            if let Some(i) = i {
+                                inspector_info_view(i).boxed()
+                            } else {
+                                NilUiNode.boxed()
+                            }
+                        })
+                    ),
                     Hr!(),
                     info_watchers(&wgt),
                 ]

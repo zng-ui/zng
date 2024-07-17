@@ -39,11 +39,7 @@ fn main() {
                         margin = (50, 0, 0, 0);
                         align = Align::CENTER;
                         spacing = 10;
-                        children = ui_vec![
-                            tab_index_example(),
-                            functions(window_enabled),
-                            delayed_focus(),
-                        ]
+                        children = ui_vec![tab_index_example(), functions(window_enabled), delayed_focus()]
                     }
                 ];
             };
@@ -370,10 +366,7 @@ fn nested_focusables() -> impl UiNode {
                     child = Stack! {
                         direction = StackDirection::top_to_bottom();
                         spacing = 10;
-                        children = ui_vec![
-                            nested_focusables_group('a'),
-                            nested_focusables_group('b'),
-                        ];
+                        children = ui_vec![nested_focusables_group('a'), nested_focusables_group('b')];
                     }
                 }
             });
