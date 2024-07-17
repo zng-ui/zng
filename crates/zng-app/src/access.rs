@@ -94,18 +94,18 @@ event_args! {
         }
     }
 
-        /// Arguments for the [`ACCESS_DEINITED_EVENT`].
-        pub struct AccessDeinitedArgs {
-            /// Target window.
-            pub window_id: WindowId,
+    /// Arguments for the [`ACCESS_DEINITED_EVENT`].
+    pub struct AccessDeinitedArgs {
+        /// Target window.
+        pub window_id: WindowId,
 
-            ..
+        ..
 
-            /// Event is broadcast.
-            fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-                list.search_all()
-            }
+        /// Event is broadcast.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
         }
+    }
 
     /// Arguments for the [`ACCESS_CLICK_EVENT`].
     pub struct AccessClickArgs {

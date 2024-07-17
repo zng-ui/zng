@@ -73,7 +73,7 @@ event_args! {
         /// The scope that returns the focus when focused directly.
         ///
         /// Is `None` if the previous focus was the return focus of a scope that was removed.
-        pub scope : Option<InteractionPath>,
+        pub scope: Option<InteractionPath>,
 
         /// Previous return focus of the widget.
         pub prev_return: Option<InteractionPath>,

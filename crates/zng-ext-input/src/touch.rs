@@ -469,45 +469,45 @@ event_args! {
         }
     }
 
-        /// Arguments for [`TOUCH_LONG_PRESS_EVENT`].
-        pub struct TouchLongPressArgs {
-            /// Id of window that received the event.
-            pub window_id: WindowId,
+    /// Arguments for [`TOUCH_LONG_PRESS_EVENT`].
+    pub struct TouchLongPressArgs {
+        /// Id of window that received the event.
+        pub window_id: WindowId,
 
-            /// Id of device that generated the event.
-            pub device_id: DeviceId,
+        /// Id of device that generated the event.
+        pub device_id: DeviceId,
 
-            /// Identify the touch contact or *finger*.
-            ///
-            /// Multiple points of contact can happen in the same device at the same time,
-            /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
-            /// on the same device, after a touch is ended an ID may be reused.
-            pub touch: TouchId,
+        /// Identify the touch contact or *finger*.
+        ///
+        /// Multiple points of contact can happen in the same device at the same time,
+        /// this ID identifies each uninterrupted contact. IDs are unique only among other concurrent touches
+        /// on the same device, after a touch is ended an ID may be reused.
+        pub touch: TouchId,
 
-            /// Center of the touch in the window's content area.
-            pub position: DipPoint,
+        /// Center of the touch in the window's content area.
+        pub position: DipPoint,
 
-            /// Hit-test result for the touch point in the window.
-            pub hits: HitTestInfo,
+        /// Hit-test result for the touch point in the window.
+        pub hits: HitTestInfo,
 
-            /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
-            pub target: InteractionPath,
+        /// Full path to the top-most hit in [`hits`](TouchInputArgs::hits).
+        pub target: InteractionPath,
 
-            /// What modifier keys where pressed when this touch started.
-            pub modifiers: ModifiersState,
+        /// What modifier keys where pressed when this touch started.
+        pub modifiers: ModifiersState,
 
-            /// Timestamp of when the touch started.
-            pub start_time: DInstant,
+        /// Timestamp of when the touch started.
+        pub start_time: DInstant,
 
-            ..
+        ..
 
-            /// The [`target`].
-            ///
-            /// [`target`]: Self::target
-            fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-                list.insert_wgt(&self.target);
-            }
+        /// The [`target`].
+        ///
+        /// [`target`]: Self::target
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.insert_wgt(&self.target);
         }
+    }
 
     /// Arguments for [`TOUCH_TRANSFORM_EVENT`].
     pub struct TouchTransformArgs {

@@ -1560,7 +1560,9 @@ event_args! {
     ///
     /// Requesting `propagation().stop()` on this event cancels the exit.
     pub struct ExitRequestedArgs {
+
         ..
+
         /// Broadcast to all.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.search_all()

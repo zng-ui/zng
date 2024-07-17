@@ -114,7 +114,7 @@ event_args! {
 
         ..
 
-        fn delivery_list(&self, _list: &mut UpdateDeliveryList) { }
+        fn delivery_list(&self, _list: &mut UpdateDeliveryList) {}
     }
 }
 impl AppInstanceArgs {

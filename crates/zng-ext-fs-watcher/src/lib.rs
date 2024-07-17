@@ -886,7 +886,7 @@ impl FsChange {
 }
 
 event_args! {
-     /// [`FS_CHANGES_EVENT`] arguments.
+    /// [`FS_CHANGES_EVENT`] arguments.
     pub struct FsChangesArgs {
         /// All notify changes since the last event.
         pub changes: Arc<Vec<FsChange>>,

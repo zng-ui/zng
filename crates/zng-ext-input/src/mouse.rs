@@ -149,7 +149,7 @@ event_args! {
         /// Position of the mouse in the coordinates of [`target`](MouseClickArgs::target).
         pub position: DipPoint,
 
-         /// What modifier keys where pressed when this event happened.
+        /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
         /// Count of clicks within the double-click interval. Number `1` is single click, `2` is double click, etc.
@@ -251,7 +251,7 @@ event_args! {
 
         /// Position of the mouse in the coordinates of [`target`](MouseWheelArgs::target).
         pub position: DipPoint,
-         /// What modifier keys where pressed when this event happened.
+        /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
         /// Wheel motion delta, value is in pixels if the *wheel* is a touchpad.
