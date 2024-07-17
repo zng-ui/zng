@@ -36,7 +36,7 @@ The [`tests`] README provides an overview of integration and macro tests.
 ### VSCode & Rust Analyzer
 
 Some workspace settings are included in the repository, in particular, `rust-analyzer` "checkOnSave" 
-and runnables are redirected to the `do` tool.
+and runnables are redirected to the `do` tool, and format is redirected to `cargo-zng fmt --stdin`.
 
 Snippets for most Zng macros are also provided, see [`zng.code-snippets`].
 

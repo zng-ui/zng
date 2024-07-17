@@ -23,6 +23,7 @@ Zng project manager.
 Usage: cargo zng <COMMAND>
 
 Commands:
+  fmt   Format code and macros
   new   New project from a Zng template repository
   l10n  Localization text scraper
   res   Build resources
@@ -32,6 +33,58 @@ Options:
   -h, --help     Print help
   -V, --version  Print version
 ```
+
+## `fmt`
+
+Formats the code with `cargo fmt` and formats Zng macros.
+
+<!--do doc --readme do zng fmt --help -->
+```console
+$ cargo zng fmt --help
+
+Format code and macros
+
+Runs cargo fmt and formats Zng macros
+
+Usage: cargo zng fmt [OPTIONS]
+
+Options:
+      --check
+          Only check if files are formatted
+
+      --manifest-path <MANIFEST_PATH>
+          Format the crate identified by Cargo.toml
+
+  -p, --package <PACKAGE>
+          Format the workspace crate identified by package name
+
+  -f, --files <FILES>
+          Format all files matched by glob
+
+  -s, --stdin
+          Format the stdin to the stdout
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+```
+
+Note that you can configure Rust-Analyzer to use this formatter as your IDE formatter. 
+
+In VsCode add this to `.vscode/settings.json`:
+
+```json
+"rust-analyzer.rustfmt.overrideCommand": [
+    "cargo",
+    "zng",
+    "fmt",
+    "--stdin"
+],
+```
+
+Now widgets format with the format context action and command.
 
 ## `new`
 
@@ -251,7 +304,7 @@ Also see [`zng::l10n::l10n!`] docs for more details about the expected format.
 
 [`zng::l10n::l10n!`]: https://zng-ui.github.io/doc/zng/l10n/macro.l10n.html#scrap-template
 
-# `res`
+## `res`
 
 Build resources
 
@@ -324,7 +377,7 @@ This subcommand can be used to build resources and package releases. It is very 
 a resources directory tree as close as possible to the final resources structure, and place special
 `.zr-{tool}` files on it that are calls to `cargo-zng-res-{tool}` crates or executables.
 
-## Resource Build
+### Resource Build
 
 The resource build follows these steps:
 
@@ -334,7 +387,7 @@ The resource build follows these steps:
   - This repeats until a pass does not find any `.zr-*` or the `--recursion_limit` is reached.
 * Run all tools that requested `zng-res::on-final=` from a request that still exists.
 
-## Tools
+### Tools
 
 You can call `cargo zng res --tools` to see help for all tools available. Tools are searched in this order:
 
@@ -343,7 +396,7 @@ You can call `cargo zng res --tools` to see help for all tools available. Tools 
 * If the tool is builtin, executes it.
 * If a `cargo-zng-res-{tool}[.exe]` is installed in the same directory as the running `cargo-zng[.exe]`, executes it.
 
-### Authoring Tools
+#### Authoring Tools
 
 Tools are configured using environment variables:
 

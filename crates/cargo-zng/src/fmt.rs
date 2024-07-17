@@ -407,6 +407,7 @@ fn rustfmt_stdin(code: &str) -> Option<String> {
         .arg("--edition")
         .arg("2021")
         .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()
         .ok()?;
     s.stdin.take().unwrap().write_all(code.as_bytes()).ok()?;
@@ -419,7 +420,3 @@ fn rustfmt_stdin(code: &str) -> Option<String> {
         None
     }
 }
-
-// !!: TODO
-//
-// * ra/vscode integration

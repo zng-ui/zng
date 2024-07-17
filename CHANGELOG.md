@@ -1,6 +1,7 @@
 # Unreleased
 
-* Add `cargo zng fmt` that formats with cargo-fmt + Zng macros.
+* Add `cargo zng fmt` that formats normal code with `cargo fmt` + Zng and other macros.
+    - See [`cargo-zng/README.md`](./crates/cargo-zng/README.md#fmt) for details on IDE integration.
 * Fix named `Align` deserialization from human readable formats.
 * Fix `SelectableText!` shorthand syntax.
 * Fix layer `AnchorSize::Window` not filling the window space by default.

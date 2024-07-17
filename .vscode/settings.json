@@ -7,6 +7,17 @@
         "do",
         "rust_analyzer_check"
     ],
+    "rust-analyzer.rustfmt.overrideCommand": [
+        "cargo",
+        "run",
+        "--quiet",
+        "-p",
+        "cargo-zng",
+        "--",
+        "zng",
+        "fmt",
+        "--stdin"
+    ],
     "files.eol": "\n",
     "explorer.fileNesting.patterns": {
         "*.rs": "${capture}.stderr",
