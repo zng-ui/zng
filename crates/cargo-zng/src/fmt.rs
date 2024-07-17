@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     fs,
-    io::{self, Write},
+    io::{self, Read, Write},
     path::Path,
     process::Stdio,
 };
@@ -29,8 +29,12 @@ pub struct FmtArgs {
     package: Option<String>,
 
     /// Format all files matched by glob
-    #[arg(long)]
+    #[arg(short, long)]
     files: Option<String>,
+
+    /// Format the stdin to the stdout.
+    #[arg(short, long, action)]
+    stdin: bool,
 }
 
 pub fn run(mut args: FmtArgs) {
@@ -38,7 +42,29 @@ pub fn run(mut args: FmtArgs) {
 
     let mut custom_fmt_files = vec![];
 
-    if let Some(glob) = args.files {
+    if args.stdin {
+        if args.manifest_path.is_some() || args.package.is_some() || args.files.is_some() {
+            fatal!("stdin can only be used standalone or with --check");
+        }
+
+        let mut code = String::new();
+        if let Err(e) = std::io::stdin().read_to_string(&mut code) {
+            fatal!("stdin read error, {e}");
+        }
+
+        if code.is_empty() {
+            return;
+        }
+
+        if let Some(code) = rustfmt_stdin(&code) {
+            let stream: TokenStream = code.parse().unwrap_or_else(|e| fatal!("cannot parse stdin, {e}"));
+
+            let formatted = fmt_code(&code, stream);
+            if let Err(e) = std::io::stdout().write_all(formatted.as_bytes()) {
+                fatal!("stdout write error, {e}");
+            }
+        }
+    } else if let Some(glob) = args.files {
         if args.manifest_path.is_some() || args.package.is_some() {
             fatal!("--files must not be set when crate is set");
         }
@@ -220,7 +246,7 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
         // custom format can cause normal format to change
         // example: ui_vec![Wgt!{<many properties>}, Wgt!{<same>}]
         //   Wgt! gets custom formatted onto multiple lines, that causes ui_vec![\n by normal format.
-        formatted_code = rustfmt_stdin(&formatted_code).unwrap_or(formatted_code);
+        formatted_code = rustfmt_stdin_frag(&formatted_code).unwrap_or(formatted_code);
     }
 
     formatted_code
@@ -242,7 +268,7 @@ fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
         is_expr_var = matches!(&replaced_code, Cow::Owned(_));
     }
 
-    let code = rustfmt_stdin(&replaced_code)?;
+    let code = rustfmt_stdin_frag(&replaced_code)?;
 
     let code = if is_event_args {
         replace_event_args(&code, true)
@@ -355,7 +381,7 @@ fn replace_expr_var(code: &str, reverse: bool) -> Cow<str> {
     }
 }
 
-fn rustfmt_stdin(code: &str) -> Option<String> {
+fn rustfmt_stdin_frag(code: &str) -> Option<String> {
     let mut s = std::process::Command::new("rustfmt")
         .arg("--edition")
         .arg("2021")
@@ -370,6 +396,24 @@ fn rustfmt_stdin(code: &str) -> Option<String> {
     if s.status.success() {
         let code = String::from_utf8(s.stdout).ok()?;
         let code = code.strip_prefix("fn __try_fmt()")?.trim_start().to_owned();
+        Some(code)
+    } else {
+        None
+    }
+}
+
+fn rustfmt_stdin(code: &str) -> Option<String> {
+    let mut s = std::process::Command::new("rustfmt")
+        .arg("--edition")
+        .arg("2021")
+        .stdin(Stdio::piped())
+        .spawn()
+        .ok()?;
+    s.stdin.take().unwrap().write_all(code.as_bytes()).ok()?;
+    let s = s.wait_with_output().ok()?;
+
+    if s.status.success() {
+        let code = String::from_utf8(s.stdout).ok()?;
         Some(code)
     } else {
         None
