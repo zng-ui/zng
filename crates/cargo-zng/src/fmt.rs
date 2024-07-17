@@ -210,10 +210,18 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
 fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
     let mut replaced_code = replace_event_args(group_code, false);
     let is_event_args = matches!(&replaced_code, Cow::Owned(_));
+
+    let mut is_widget = false;
     if !is_event_args {
         replaced_code = replace_widget_when(group_code, false);
+        is_widget = matches!(&replaced_code, Cow::Owned(_));
     }
-    let is_widget = matches!(&replaced_code, Cow::Owned(_));
+
+    let mut is_expr_var = false;
+    if !is_event_args && !is_widget {
+        replaced_code = replace_expr_var(group_code, false);
+        is_expr_var = matches!(&replaced_code, Cow::Owned(_));
+    }
 
     let code = rustfmt_stdin(&replaced_code)?;
 
@@ -221,6 +229,8 @@ fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
         replace_event_args(&code, true)
     } else if is_widget {
         replace_widget_when(&code, true)
+    } else if is_expr_var {
+        replace_expr_var(&code, true)
     } else {
         Cow::Owned(code)
     };
@@ -285,12 +295,7 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<str> {
 fn replace_widget_when(code: &str, reverse: bool) -> Cow<str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)\n\s*(when) .+?\{").unwrap());
     static MARKER: &str = "for cargo_zng_fmt_when in";
-
-    static POUND_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(#)[\w\{]").unwrap());
     static POUND_MARKER: &str = "__P_";
-    static POUND_VAR_MARKER: &str = "__P_!";
-
-    static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new("__P_!?").unwrap());
 
     if !reverse {
         RGX.replace(code, |caps: &regex::Captures| {
@@ -309,6 +314,25 @@ fn replace_widget_when(code: &str, reverse: bool) -> Cow<str> {
         let code = code.replace(MARKER, "when");
         let r = POUND_REV_RGX.replace_all(&code, "#").into_owned();
         Cow::Owned(r)
+    }
+}
+static POUND_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(#)[\w\{]").unwrap());
+static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"__P_!?\s?").unwrap());
+static POUND_VAR_MARKER: &str = "__P_!";
+
+// replace `#{` with `__P_!{`
+fn replace_expr_var(code: &str, reverse: bool) -> Cow<str> {
+    if !reverse {
+        POUND_RGX.replace(code, |caps: &regex::Captures| {
+            let c = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
+            if c == "{" {
+                Cow::Borrowed("__P_!{")
+            } else {
+                Cow::Owned(caps[0].to_owned())
+            }
+        })
+    } else {
+        POUND_REV_RGX.replace(code, "#")
     }
 }
 
@@ -336,5 +360,4 @@ fn rustfmt_stdin(code: &str) -> Option<String> {
 // !!: TODO
 //
 // * #[rustfmt::skip]
-// * Review 'expr_var!'
 // * ra/vscode integration
