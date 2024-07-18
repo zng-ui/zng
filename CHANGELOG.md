@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.10.5
+
 * Add `cargo zng fmt` that formats normal code with `cargo fmt` + Zng and other macros.
     - See [`cargo-zng/README.md`](./crates/cargo-zng/README.md#fmt) for details on IDE integration.
 * Fix named `Align` deserialization from human readable formats.
@@ -8,6 +11,11 @@
 * Fix `ContextCapture::NoCapture` excluding popup config.
 * Add `ResponseVar::map_response`.
 * Add `Dialog!` widget, `DIALOG` service and related types.
+* *Deprecated* `http::get_text`, ` http::Client::get_text` and `Var::get_text`.
+    - Renamed to `get_txt`.
+* *Deprecated* `zng::window::native_dialog` module.
+    - The new `zng::dialog` is the new surface API for all dialogs.
+    - The underlying native dialogs will not be removed, just the surface API.
 
 # 0.10.4
 
