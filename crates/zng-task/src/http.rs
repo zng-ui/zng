@@ -817,19 +817,17 @@ pub async fn get(uri: impl TryUri) -> Result<Response, Error> {
     default_client().get(uri).await
 }
 
-/// Send a GET request to the `uri` and read the response as a string.
-///
-/// The [`default_client`] is used to send the request.
+#[doc(hidden)]
 #[deprecated = "use get_txt"]
 pub async fn get_text(uri: impl TryUri) -> Result<Txt, Error> {
-    default_client().get_text(uri).await
+    default_client().get_txt(uri).await
 }
 
 /// Send a GET request to the `uri` and read the response as a string.
 ///
 /// The [`default_client`] is used to send the request.
 pub async fn get_txt(uri: impl TryUri) -> Result<Txt, Error> {
-    default_client().get_text(uri).await
+    default_client().get_txt(uri).await
 }
 
 /// Send a GET request to the `uri` and read the response as raw bytes.
@@ -1147,8 +1145,17 @@ impl Client {
         self.send(Request::get(uri)?.build()).await
     }
 
-    /// Send a GET request to the `uri` and read the response as a string.
+    
+    #[doc(hidden)]
+    #[deprecated = "use get_txt"]
     pub async fn get_text(&self, uri: impl TryUri) -> Result<Txt, Error> {
+        let mut r = self.get(uri).await?;
+        let r = r.text().await?;
+        Ok(r)
+    }
+
+    /// Send a GET request to the `uri` and read the response as a string.
+    pub async fn get_txt(&self, uri: impl TryUri) -> Result<Txt, Error> {
         let mut r = self.get(uri).await?;
         let r = r.text().await?;
         Ok(r)
