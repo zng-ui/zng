@@ -8,6 +8,11 @@
 * Fix `ContextCapture::NoCapture` excluding popup config.
 * Add `ResponseVar::map_response`.
 * Add `Dialog!` widget, `DIALOG` service and related types.
+* *Deprecated* ` zng::task::http::get_text` and `Var::get_text`.
+    - Renamed to `get_txt`.
+* *Deprecated* `zng::window::native_dialog` module.
+    - The new `zng::dialog` is the new surface API for all dialogs.
+    - The underlying native dialogs will not be removed, just the surface API.
 
 # 0.10.4
 
