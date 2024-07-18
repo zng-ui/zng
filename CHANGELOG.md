@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.10.5
+
 * Add `cargo zng fmt` that formats normal code with `cargo fmt` + Zng and other macros.
     - See [`cargo-zng/README.md`](./crates/cargo-zng/README.md#fmt) for details on IDE integration.
 * Fix named `Align` deserialization from human readable formats.
