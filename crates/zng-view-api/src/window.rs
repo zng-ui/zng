@@ -22,7 +22,7 @@ crate::declare_id! {
     /// The App Process defines the ID.
     pub struct WindowId(_);
 
-        /// Monitor screen ID in channel.
+    /// Monitor screen ID in channel.
     ///
     /// In the View Process this is mapped to a system id.
     ///

@@ -63,20 +63,20 @@ pub fn run() {
                 task::spawn_wait(clmv!(encoded, || {
                     // https://www.ffmpeg.org/download.html
                     let ffmpeg = std::process::Command::new("ffmpeg")
-                    .arg("-framerate")
-                    .arg(FPS.to_string())
-                    .arg("-y")
-                    .arg("-i")
-                    .arg(temp.join("%05d.png"))
-                    .arg("-c:v")
-                    .arg("libx264")
-                    .arg("-pix_fmt")
-                    .arg("yuv420p")
-                    .arg("screencast.mp4")
-                    .arg("-hide_banner")
-                    .arg("-loglevel")
-                    .arg("error")
-                    .status();
+                        .arg("-framerate")
+                        .arg(FPS.to_string())
+                        .arg("-y")
+                        .arg("-i")
+                        .arg(temp.join("%05d.png"))
+                        .arg("-c:v")
+                        .arg("libx264")
+                        .arg("-pix_fmt")
+                        .arg("yuv420p")
+                        .arg("screencast.mp4")
+                        .arg("-hide_banner")
+                        .arg("-loglevel")
+                        .arg("error")
+                        .status();
                     let _ = std::fs::remove_dir_all(temp);
                     encoded.set(true);
 
@@ -128,10 +128,7 @@ fn video(finished: zng::var::ArcVar<bool>) -> impl UiNode {
                     color.alpha = 0.3;
                     let stops = color::gradient::GradientStops::from_stripes(&[color, color.transparent()], 0.0);
                     let angle = angle.deg();
-                    color::gradient::linear_gradient(
-                        bkg_rotate.map(move |r| (angle + layout::AngleDegree::from(*r)).into()),
-                        stops
-                    )
+                    color::gradient::linear_gradient(bkg_rotate.map(move |r| (angle + layout::AngleDegree::from(*r)).into()), stops)
                 });
 
                 ui_vec![

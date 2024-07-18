@@ -26,14 +26,20 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
         Ok(m) => PathBuf::from(m).join("Cargo.toml"),
         Err(e) => {
             let msg = format!("missing CARGO_MANIFEST_DIR, {e}");
-            return quote! { compile_error!(#msg) }.into();
+            return quote! {
+                compile_error!(#msg)
+            }
+            .into();
         }
     };
     let manifest_str = match std::fs::read_to_string(&manifest) {
         Ok(s) => s,
         Err(e) => {
             let msg = format!("cannot read `{}`, {e}", manifest.display());
-            return quote! { compile_error!(#msg) }.into();
+            return quote! {
+                compile_error!(#msg)
+            }
+            .into();
         }
     };
 
@@ -41,7 +47,10 @@ pub fn init_parse(crate_: TokenStream) -> TokenStream {
         Ok(m) => m,
         Err(e) => {
             let msg = format!("cannot parse Cargo.toml manifest, {e}");
-            return quote! { compile_error!(#msg) }.into();
+            return quote! {
+                compile_error!(#msg)
+            }
+            .into();
         }
     };
     let p_name = m.package.name;

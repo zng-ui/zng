@@ -413,9 +413,7 @@ impl LocalContext {
     }
 }
 thread_local! {
-    static LOCAL: RefCell<LocalData> = const {
-        RefCell::new(new_local_data())
-    };
+    static LOCAL: RefCell<LocalData> = const { RefCell::new(new_local_data()) };
 }
 
 trait LocalKeyDyn {

@@ -74,9 +74,11 @@ fn example() -> impl UiNode {
                 spacing = 2;
                 toggle::selector = toggle::Selector::single(easing_mod.clone());
                 children = {
-                    let mode = |m: Txt| Toggle! {
-                        child = Text!(m.clone());
-                        value::<Txt> = m;
+                    let mode = |m: Txt| {
+                        Toggle! {
+                            child = Text!(m.clone());
+                            value::<Txt> = m;
+                        }
                     };
                     ui_vec![
                         mode(Txt::from("ease_in")),
@@ -93,7 +95,9 @@ fn example() -> impl UiNode {
                 spacing = 2;
                 columns = ui_vec![grid::Column!(1.lft()); 7];
                 auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
-                button::style_fn = Style! { layout::padding = 3 };
+                button::style_fn = Style! {
+                    layout::padding = 3
+                };
                 cells = ui_vec![
                     ease_btn(&x, &color, "", EasingFn::Linear, &easing_mod),
                     ease_btn(&x, &color, "", EasingFn::Quad, &easing_mod),
@@ -106,8 +110,20 @@ fn example() -> impl UiNode {
                     ease_btn(&x, &color, "", EasingFn::Back, &easing_mod),
                     ease_btn(&x, &color, "", EasingFn::Elastic, &easing_mod),
                     ease_btn(&x, &color, "", EasingFn::Bounce, &easing_mod),
-                    ease_btn(&x, &color, "step_ceil(6)", EasingFn::custom(|t| easing::step_ceil(6, t)), &easing_mod),
-                    ease_btn(&x, &color, "step_floor(6)", EasingFn::custom(|t| easing::step_floor(6, t)), &easing_mod),
+                    ease_btn(
+                        &x,
+                        &color,
+                        "step_ceil(6)",
+                        EasingFn::custom(|t| easing::step_ceil(6, t)),
+                        &easing_mod
+                    ),
+                    ease_btn(
+                        &x,
+                        &color,
+                        "step_floor(6)",
+                        EasingFn::custom(|t| easing::step_floor(6, t)),
+                        &easing_mod
+                    ),
                     ease_btn(&x, &color, "", EasingFn::None, &easing_mod),
                 ]
             },

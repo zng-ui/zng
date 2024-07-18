@@ -47,25 +47,28 @@ fn controls() -> impl UiNode {
     let b_back = btn_backspace();
     let b_equal = btn_eval();
 
+    #[rustfmt::skip]
+    let buttons = ui_vec![
+        b_squre, b_sroot, b_clear, b_back,
+        bn('7'), bn('8'), bn('9'), bn('/'),
+        bn('4'), bn('5'), bn('6'), bn('*'),
+        bn('1'), bn('2'), bn('3'), bn('-'),
+        bn('0'), bn('.'), b_equal, bn('+'),
+    ];
+
     Grid! {
         spacing = 2;
         columns = ui_vec![grid::Column!(1.lft()); 4];
         auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
         text::font_size = 14.pt();
-        cells = ui_vec![
-            b_squre, b_sroot, b_clear, b_back,
-            bn('7'), bn('8'), bn('9'), bn('/'),
-            bn('4'), bn('5'), bn('6'), bn('*'),
-            bn('1'), bn('2'), bn('3'), bn('-'),
-            bn('0'), bn('.'), b_equal, bn('+'),
-        ];
+        cells = buttons;
     }
 }
 
 fn btn_square() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(| c|c.to_mut().square()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().square()).unwrap());
         child = Text!("x²");
     }
 }
@@ -73,7 +76,7 @@ fn btn_square() -> impl UiNode {
 fn btn_square_root() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(| c|c.to_mut().square_root()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().square_root()).unwrap());
         child = Text!("√x");
     }
 }
@@ -81,7 +84,7 @@ fn btn_square_root() -> impl UiNode {
 fn btn_clear() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(| c|c.to_mut().clear()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().clear()).unwrap());
         click_shortcut = shortcut!(Escape);
         child = Text!("C");
     }
@@ -90,7 +93,7 @@ fn btn_clear() -> impl UiNode {
 fn btn_backspace() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c|c.to_mut().backspace()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().backspace()).unwrap());
         click_shortcut = shortcut!(Backspace);
         child = Text!("⌫");
     }
@@ -114,7 +117,7 @@ fn btn(c: char) -> impl UiNode {
 fn btn_eval() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c|c.to_mut().eval()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().eval()).unwrap());
         click_shortcut = vec![shortcut!(Enter), shortcut!('=')];
         child = Text!("=");
     }

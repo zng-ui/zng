@@ -160,9 +160,7 @@ event_args! {
         ..
 
         /// No target, only app extensions.
-        fn delivery_list(&self, _list: &mut UpdateDeliveryList) {
-
-        }
+        fn delivery_list(&self, _list: &mut UpdateDeliveryList) {}
     }
 }
 impl From<MouseClickArgs> for ClickArgs {

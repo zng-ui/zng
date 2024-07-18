@@ -189,7 +189,7 @@ fn click_counter() -> impl UiNode {
     Button! {
         on_click = hn!(t, |_| {
             count += 1;
-            let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
+            let new_txt = formatx!("Clicked {count} time{}!", if count > 1 { "s" } else { "" });
             t.set(new_txt);
         });
         child = Text!(t);
@@ -198,7 +198,8 @@ fn click_counter() -> impl UiNode {
 
 fn image() -> impl UiNode {
     Image! {
-        source = include_bytes!("../../window/res/icon-bytes.png"); size = (32, 32);
+        source = include_bytes!("../../window/res/icon-bytes.png");
+        size = (32, 32);
         tooltip = Tip!(Text!("Image reloads after respawn"));
     }
 }

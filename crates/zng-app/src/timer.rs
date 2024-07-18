@@ -66,7 +66,7 @@ struct TimerVarEntry {
 }
 
 app_local! {
-   pub(crate) static TIMERS_SV: TimersService = const { TimersService::new() };
+    pub(crate) static TIMERS_SV: TimersService = const { TimersService::new() };
 }
 
 pub(crate) struct TimersService {

@@ -158,12 +158,16 @@ fn main() {
                             img_filter(Filter::new_opacity(50.pct())),
                             img_filter(Filter::new_invert(true)),
                             img_filter(Filter::new_hue_rotate(-(90.deg()))),
-                            img_filter(Filter::new_color_matrix([
-                                2.0, 1.0, 1.0, 1.0, 0.0,
-                                0.0, 1.0, 0.0, 0.0, 0.0,
-                                0.0, 0.0, 1.0, 0.0, 0.0,
-                                0.0, 0.0, 0.0, 1.0, 0.0,
-                            ])),
+                            img_filter({
+                                #[rustfmt::skip]
+                                let custom = Filter::new_color_matrix([
+                                    2.0, 1.0, 1.0, 1.0, 0.0,
+                                    0.0, 1.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.0, 1.0, 0.0, 0.0,
+                                    0.0, 0.0, 0.0, 1.0, 0.0,
+                                ]);
+                                custom
+                            }),
                         ]
                     ),
 
@@ -417,12 +421,12 @@ fn repeat_image() -> impl UiNode {
                         child = Image! {
                             img_fit = ImageFit::None;
                             img_repeat = true;
-                            img_repeat_spacing = show_pattern.map(|&s| layout::Size::from(if s { 10 } else { 0 })).easing(300.ms(), easing::linear);
+                            img_repeat_spacing = show_pattern
+                                .map(|&s| layout::Size::from(if s { 10 } else { 0 }))
+                                .easing(300.ms(), easing::linear);
                             size = (10000, 100.pct());
                             source = "https://upload.wikimedia.org/wikipedia/commons/9/91/Turtle_seamless_pattern.jpg";
-                            mouse::on_mouse_input = hn!(
-                                show_pattern,
-                                |args: &mouse::MouseInputArgs| {
+                            mouse::on_mouse_input = hn!(show_pattern, |args: &mouse::MouseInputArgs| {
                                 show_pattern.set(matches!(args.state, mouse::ButtonState::Pressed));
                             });
                             on_error = hn!(|args: &ImgErrorArgs| {
@@ -547,7 +551,8 @@ fn center_viewport(msg: impl UiNode) -> impl UiNode {
         // the large images can take a moment to decode in debug builds, but the size
         // is already known after read, so the "loading.." message ends-up off-screen
         // because it is centered on the image.
-        layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l() - 1.vw() / s * h);
+        layout::x = merge_var!(SCROLL.horizontal_offset(), SCROLL.zoom_scale(), |&h, &s| h.0.fct_l()
+            - 1.vw() / s * h);
         layout::y = merge_var!(SCROLL.vertical_offset(), SCROLL.zoom_scale(), |&v, &s| v.0.fct_l() - 1.vh() / s * v);
         layout::scale = SCROLL.zoom_scale().map(|&fct| 1.fct() / fct);
         layout::transform_origin = 0;
@@ -579,9 +584,8 @@ impl ImgWindow {
 
             child_align = Align::CENTER;
 
-
             state = WindowState::Maximized;
-            size = (1140, 770);// restore size
+            size = (1140, 770); // restore size
 
             icon = zng::env::res("zng-logo.png");
             widget::background = Checkerboard!();

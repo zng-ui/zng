@@ -169,7 +169,7 @@ mod ansi_parse {
                 AnsiColor::Ansi256(c) => {
                     let (r, g, b) = X_TERM_256[c as usize];
                     rgb(r, g, b)
-                },
+                }
                 AnsiColor::TrueColor(r, g, b) => rgb(r, g, b),
             }
         }
@@ -399,32 +399,24 @@ mod ansi_fn {
         /// Widget function for [`TextFnArgs`].
         ///
         /// The returned widgets are layout by the [`LINE_FN_VAR`]. The default view is [`default_text_fn`].
-        pub static TEXT_FN_VAR: WidgetFn<TextFnArgs> = wgt_fn!(|args: TextFnArgs| {
-            default_text_fn(args)
-        });
+        pub static TEXT_FN_VAR: WidgetFn<TextFnArgs> = wgt_fn!(|args: TextFnArgs| { default_text_fn(args) });
 
         /// Widget function for [`LineFnArgs`].
         ///
         /// The returned widgets are layout by the [`PAGE_FN_VAR`]. The default view is [`default_line_fn`].
-        pub static LINE_FN_VAR: WidgetFn<LineFnArgs> = wgt_fn!(|args: LineFnArgs| {
-            default_line_fn(args)
-        });
+        pub static LINE_FN_VAR: WidgetFn<LineFnArgs> = wgt_fn!(|args: LineFnArgs| { default_line_fn(args) });
 
         /// Widget function for [`PageFnArgs`].
         ///
         /// The returned widgets are layout by the [`PANEL_FN_VAR`] widget. The default view is [`default_page_fn`].
-        pub static PAGE_FN_VAR: WidgetFn<PageFnArgs> = wgt_fn!(|args: PageFnArgs| {
-            default_page_fn(args)
-        });
+        pub static PAGE_FN_VAR: WidgetFn<PageFnArgs> = wgt_fn!(|args: PageFnArgs| { default_page_fn(args) });
 
         /// Widget function for [`PanelFnArgs`].
         ///
         /// The returned view is the [`AnsiText!`] child. The default is [`default_panel_fn`].
         ///
         /// [`AnsiText!`]: struct@super::AnsiText
-        pub static PANEL_FN_VAR: WidgetFn<PanelFnArgs> = wgt_fn!(|args: PanelFnArgs| {
-            default_panel_fn(args)
-        });
+        pub static PANEL_FN_VAR: WidgetFn<PanelFnArgs> = wgt_fn!(|args: PanelFnArgs| { default_panel_fn(args) });
 
         /// Duration the ANSI blink animation keeps the text visible for.
         ///

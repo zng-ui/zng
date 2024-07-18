@@ -1,8 +1,8 @@
 error[E0277]: the trait bound `(): IntoVar<LinearGradientAxis>` is not satisfied
   --> cases/widget_new/missing_field_all_multi.rs:12:31
    |
-12 |         background_gradient = { }
-   |         -------------------   ^^^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
+12 |         background_gradient = {}
+   |         -------------------   ^^ the trait `IntoVar<LinearGradientAxis>` is not implemented for `()`
    |         |
    |         required by a bound introduced by this call
    |
@@ -24,7 +24,7 @@ error[E0061]: this method takes 2 arguments but 1 argument was supplied
 9  | |         // background_gradient has two fields
 10 | |         // this is interpreted as an unnamed assign `{ }` is the value
 11 | |         // and the second value is missing
-12 | |         background_gradient = { }
+12 | |         background_gradient = {}
    | |         ^^^^^^^^^^^^^^^^^^^
 13 | |     };
    | |_____- an argument is missing
@@ -37,5 +37,5 @@ note: method defined here
 help: provide the argument
   --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
    |
-   | background_gradient({ }, /* stops */)
+   | background_gradient({}, /* stops */)
    |

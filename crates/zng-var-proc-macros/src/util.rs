@@ -92,7 +92,9 @@ macro_rules! non_user_error {
         panic!("[{}:{}] invalid non-user input: {}", file!(), line!(), $e)
     };
     ($fmt:tt, $($args:tt)+) => {
-        non_user_error! { format_args!($fmt, $($args)+) }
+        non_user_error! {
+            format_args!($fmt, $($args)+)
+        }
     }
 }
 

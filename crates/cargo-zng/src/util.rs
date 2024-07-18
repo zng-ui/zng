@@ -89,7 +89,7 @@ fn cmd_impl(line: &str, args: &[&str], env: &[(&str, &str)], silent: bool) -> io
             })
             .filter(|a| !a.is_empty()),
     );
-    cmd.args(args);
+    cmd.args(args.iter().filter(|a| !a.is_empty()));
     for (key, val) in env.iter() {
         cmd.env(key, val);
     }
@@ -207,6 +207,36 @@ pub fn manifest_path_from_package(package: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// Workspace crates Cargo.toml paths.
+pub fn workspace_manifest_paths() -> Vec<PathBuf> {
+    let metadata = match Command::new("cargo")
+        .args(["metadata", "--format-version", "1", "--no-deps"])
+        .stderr(Stdio::inherit())
+        .output()
+    {
+        Ok(m) => {
+            if !m.status.success() {
+                fatal!("cargo metadata error")
+            }
+            String::from_utf8_lossy(&m.stdout).into_owned()
+        }
+        Err(e) => fatal!("cargo metadata error, {e}"),
+    };
+
+    #[derive(Deserialize)]
+    struct Metadata {
+        packages: Vec<Package>,
+    }
+    #[derive(Debug, Deserialize)]
+    struct Package {
+        manifest_path: PathBuf,
+    }
+
+    let metadata: Metadata = serde_json::from_str(&metadata).unwrap_or_else(|e| fatal!("unexpected cargo metadata format, {e}"));
+
+    metadata.packages.into_iter().map(|p| p.manifest_path).collect()
 }
 
 /// Workspace root and dependencies of manifest_path

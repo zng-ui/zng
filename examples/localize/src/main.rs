@@ -106,7 +106,6 @@ fn window_content() -> impl UiNode {
             Text! {
                 txt = click_msg;
             },
-
             text::Text! {
                 layout::margin = (20, 0, 0, 0);
                 txt = l10n!("example-cmds", "Example Commands:");
@@ -171,13 +170,15 @@ fn locale_menu() -> impl UiNode {
                     spacing = 5;
                     layout::margin = 10;
                     toggle::selector = toggle::Selector::single_opt(selected);
-                    children = options.map(|(l, actual)| {
-                        Toggle! {
-                            text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
-                            child = Text!("{l}");
-                            value::<zng::l10n::Lang> = l.clone();
-                        }
-                    }).collect::<UiNodeVec>()
+                    children = options
+                        .map(|(l, actual)| {
+                            Toggle! {
+                                text::font_style = if actual { FontStyle::Normal } else { FontStyle::Italic };
+                                child = Text!("{l}");
+                                value::<zng::l10n::Lang> = l.clone();
+                            }
+                        })
+                        .collect::<UiNodeVec>()
                 }
             }),
         )

@@ -25,10 +25,12 @@ fn main() {
     APP.defaults().run_window(async {
         Window! {
             title = "Icon Example";
-            icon = WindowIcon::render(|| Icon! {
-                ico = icon::material::filled::req("lightbulb");
-                ico_color = colors::YELLOW;
-                drop_shadow = (0, 0), 3, colors::WHITE;
+            icon = WindowIcon::render(|| {
+                Icon! {
+                    ico = icon::material::filled::req("lightbulb");
+                    ico_color = colors::YELLOW;
+                    drop_shadow = (0, 0), 3, colors::WHITE;
+                }
             });
             child = Scroll! {
                 mode = ScrollMode::VERTICAL;
@@ -104,7 +106,7 @@ fn icons() -> impl UiNode {
             TextInput! {
                 id = "search";
                 txt = search.clone();
-                focus_shortcut = [shortcut!['S'], shortcut![CTRL+'F'], shortcut![Find]];
+                focus_shortcut = [shortcut!['S'], shortcut![CTRL + 'F'], shortcut![Find]];
                 placeholder_txt = "search icons (S)";
                 style_fn = zng::text_input::SearchStyle!();
                 layout::min_width = 40.vh_pct();

@@ -466,13 +466,17 @@ macro_rules! widget_set {
         $(#[$skip:meta])*
         $($invalid:ident)::+ = $($tt:tt)*
     ) => {
-        compile_error!{"expected `&mut <wgt>;` at the beginning"}
+        compile_error!{
+            "expected `&mut <wgt>;` at the beginning"
+        }
     };
     (
         $(#[$skip:meta])*
         when = $($invalid:tt)*
     ) => {
-        compile_error!{"expected `&mut <wgt>;` at the beginning"}
+        compile_error!{
+            "expected `&mut <wgt>;` at the beginning"
+        }
     };
     (
         $wgt_mut:ident;

@@ -868,9 +868,7 @@ pub fn deadline(deadline: impl Into<Deadline>) -> Pin<Box<dyn Future<Output = ()
 }
 
 app_local! {
-    static DEADLINE_SV: (DeadlineService, bool) = const {
-        (default_deadline, false)
-    };
+    static DEADLINE_SV: (DeadlineService, bool) = const { (default_deadline, false) };
 }
 
 type DeadlineService = fn(Deadline) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>>;

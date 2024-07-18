@@ -66,7 +66,7 @@ fn app_main() {
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 children = ui_vec![
-                    Text!{
+                    Text! {
                         align = Align::CENTER;
                         font_size = 18.pt();
                         txt = "Press a shortcut:";

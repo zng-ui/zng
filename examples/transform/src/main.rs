@@ -32,11 +32,7 @@ fn main() {
                                 direction = StackDirection::top_to_bottom();
                                 children_align = Align::TOP_LEFT;
                                 spacing = 40;
-                                children = ui_vec![
-                                    transform_stack(),
-                                    transform_order(),
-                                    cube_example(),
-                                ]
+                                children = ui_vec![transform_stack(), transform_order(), cube_example()]
                             }
                         ]
                     },
@@ -297,49 +293,60 @@ fn cube_example() -> impl UiNode {
                     id = "cube";
                     transform_style = TransformStyle::Preserve3D;
 
-                    children = (1..=6u8).map(|i| Text! {
-                        txt = i.to_txt();
-                        // size = 200;
-                        font_size = 62;
-                        font_weight = FontWeight::BOLD;
-                        txt_align = Align::CENTER;
-                        background_color = hsla((360.0 * (7.0 / i as f32)).deg(), 0.5, 0.5, 0.7);
-                        border = 2, text::FONT_COLOR_VAR.map_into();
+                    children = (1..=6u8)
+                        .map(|i| {
+                            Text! {
+                                txt = i.to_txt();
+                                // size = 200;
+                                font_size = 62;
+                                font_weight = FontWeight::BOLD;
+                                txt_align = Align::CENTER;
+                                background_color = hsla((360.0 * (7.0 / i as f32)).deg(), 0.5, 0.5, 0.7);
+                                border = 2, text::FONT_COLOR_VAR.map_into();
 
-                        transform = Transform::new_translate_z(100).then(match i {
-                            1 => Transform::new_rotate_y(0.deg()),
-                            2 => Transform::new_rotate_y(90.deg()),
-                            3 => Transform::new_rotate_y(180.deg()),
-                            4 => Transform::new_rotate_y(-90.deg()),
-                            5 => Transform::new_rotate_x(90.deg()),
-                            6 => Transform::new_rotate_x(-90.deg()),
-                            _ => unreachable!()
-                        });
-                    }.boxed())
-                    .collect::<UiNodeVec>();
+                                transform = Transform::new_translate_z(100).then(match i {
+                                    1 => Transform::new_rotate_y(0.deg()),
+                                    2 => Transform::new_rotate_y(90.deg()),
+                                    3 => Transform::new_rotate_y(180.deg()),
+                                    4 => Transform::new_rotate_y(-90.deg()),
+                                    5 => Transform::new_rotate_x(90.deg()),
+                                    6 => Transform::new_rotate_x(-90.deg()),
+                                    _ => unreachable!()
+                                });
+                            }
+                            .boxed()
+                        })
+                        .collect::<UiNodeVec>();
 
-                    transform = show.map(|&i| match i {
-                        1 => Transform::new_rotate_y(0.deg()),
-                        2 => Transform::new_rotate_y(-90.deg()),
-                        3 => Transform::new_rotate_y(-180.deg()),
-                        4 => Transform::new_rotate_y(90.deg()),
-                        5 => Transform::new_rotate_x(-90.deg()),
-                        6 => Transform::new_rotate_x(90.deg()),
-                        _ => unreachable!(),
-                    }
-                    .translate_z(-100))
-                    .easing_with(1.secs(), easing::linear, slerp_sampler)
+                    transform = show
+                        .map(|&i| {
+                            match i {
+                                1 => Transform::new_rotate_y(0.deg()),
+                                2 => Transform::new_rotate_y(-90.deg()),
+                                3 => Transform::new_rotate_y(-180.deg()),
+                                4 => Transform::new_rotate_y(90.deg()),
+                                5 => Transform::new_rotate_x(-90.deg()),
+                                6 => Transform::new_rotate_x(90.deg()),
+                                _ => unreachable!(),
+                            }
+                            .translate_z(-100)
+                        })
+                        .easing_with(1.secs(), easing::linear, slerp_sampler)
                 }
             },
             Wrap! {
                 align = Align::CENTER;
                 toggle::selector = toggle::Selector::single(show.clone());
                 spacing = 5;
-                children = (1..=6u8).map(|i| Toggle! {
-                    style_fn = toggle::RadioStyle!();
-                    value::<u8> = i;
-                    child = Text!(i.to_txt());
-                }).collect::<UiNodeVec>();
+                children = (1..=6u8)
+                    .map(|i| {
+                        Toggle! {
+                            style_fn = toggle::RadioStyle!();
+                            value::<u8> = i;
+                            child = Text!(i.to_txt());
+                        }
+                    })
+                    .collect::<UiNodeVec>();
             }
         ];
     }
@@ -362,15 +369,18 @@ fn open_touch_example() -> impl UiNode {
             } else {
                 let parent = WINDOW.id();
                 is_open.set(true);
-                WINDOWS.open_id(example_id, async_clmv!(is_open, {
-                    Window! {
-                        title = "Transform Example - Touch";
-                        state = WindowState::Maximized;
-                        parent;
-                        child = touch_example();
-                        on_close = hn_once!(|_| is_open.set(false));
-                    }
-                }));
+                WINDOWS.open_id(
+                    example_id,
+                    async_clmv!(is_open, {
+                        Window! {
+                            title = "Transform Example - Touch";
+                            state = WindowState::Maximized;
+                            parent;
+                            child = touch_example();
+                            on_close = hn_once!(|_| is_open.set(false));
+                        }
+                    }),
+                );
             }
         })
     }
@@ -402,7 +412,6 @@ fn touch_example() -> impl UiNode {
                 background_color = web_colors::DODGER_BLUE;
                 corner_radius = 10;
             },
-
             Stack! {
                 toggle::selector = toggle::Selector::bitflags(mode);
                 direction = StackDirection::top_to_bottom();

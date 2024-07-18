@@ -18,7 +18,14 @@ use zng::{
 pub fn first_and_last_window_events() {
     let app = TestApp::start();
 
-    let mut buttons = ui_vec![Button! { child = Text!("Button 0") }, Button! { child = Text!("Button 1") },];
+    let mut buttons = ui_vec![
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+    ];
 
     let root_id = WidgetId::new_unique();
     let stack_id = WidgetId::new_unique();
@@ -93,9 +100,21 @@ pub fn window_tab_cycle_index_auto() {
         let tab_ids: Vec<_> = (0..3).map(make_index).collect();
 
         let mut buttons = ui_vec![
-            Button! { id = "btn-0"; child = Text!("Button 0"); tab_index = tab_ids[0] },
-            Button! { id = "btn-1"; child = Text!("Button 1"); tab_index = tab_ids[1] },
-            Button! { id = "btn-2"; child = Text!("Button 2"); tab_index = tab_ids[2] },
+            Button! {
+                id = "btn-0";
+                child = Text!("Button 0");
+                tab_index = tab_ids[0]
+            },
+            Button! {
+                id = "btn-1";
+                child = Text!("Button 1");
+                tab_index = tab_ids[1]
+            },
+            Button! {
+                id = "btn-2";
+                child = Text!("Button 2");
+                tab_index = tab_ids[2]
+            },
         ];
         // we collect the widget_id values in the TAB navigation order.
         let mut ids: Vec<_> = (0..3).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
@@ -143,17 +162,37 @@ pub fn window_tab_cycle_and_alt_scope() {
         let tab_ids: Vec<_> = (0..5).map(make_index).collect();
 
         let mut buttons = ui_vec![
-            Button! { id = "btn-0"; child = Text!("Button 0"); tab_index = tab_ids[0] },
-            Button! { id = "btn-1"; child = Text!("Button 1"); tab_index = tab_ids[1] },
+            Button! {
+                id = "btn-0";
+                child = Text!("Button 0");
+                tab_index = tab_ids[0]
+            },
+            Button! {
+                id = "btn-1";
+                child = Text!("Button 1");
+                tab_index = tab_ids[1]
+            },
         ];
         let mut ids: Vec<_> = (0..2).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
         ids.sort_by_key(|(_, ti)| *ti);
         let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
         let mut alt_buttons = ui_vec![
-            Button! { id = "alt-0"; child = Text!("Alt 0"); tab_index = tab_ids[2] },
-            Button! { id = "alt-1"; child = Text!("Alt 1"); tab_index = tab_ids[3] },
-            Button! { id = "alt-2"; child = Text!("Alt 2"); tab_index = tab_ids[4] },
+            Button! {
+                id = "alt-0";
+                child = Text!("Alt 0");
+                tab_index = tab_ids[2]
+            },
+            Button! {
+                id = "alt-1";
+                child = Text!("Alt 1");
+                tab_index = tab_ids[3]
+            },
+            Button! {
+                id = "alt-2";
+                child = Text!("Alt 2");
+                tab_index = tab_ids[4]
+            },
         ];
         let mut alt_ids: Vec<_> = (0..3).map(|i| (alt_buttons.item_id(i), tab_ids[i + 2])).collect();
         alt_ids.sort_by_key(|(_, ti)| *ti);
@@ -247,9 +286,21 @@ fn window_tab_contained_and_continue(tab_nav: TabNav) {
         let tab_ids: Vec<_> = (0..3).map(make_index).collect();
 
         let mut buttons = ui_vec![
-            Button! { id = "btn-0"; child = Text!("Button 0"); tab_index = tab_ids[0] },
-            Button! { id = "btn-1"; child = Text!("Button 1"); tab_index = tab_ids[1] },
-            Button! { id = "btn-2"; child = Text!("Button 2"); tab_index = tab_ids[2] },
+            Button! {
+                id = "btn-0";
+                child = Text!("Button 0");
+                tab_index = tab_ids[0]
+            },
+            Button! {
+                id = "btn-1";
+                child = Text!("Button 1");
+                tab_index = tab_ids[1]
+            },
+            Button! {
+                id = "btn-2";
+                child = Text!("Button 2");
+                tab_index = tab_ids[2]
+            },
         ];
         // we collect the widget_id values in the TAB navigation order.
         let mut ids: Vec<_> = (0..3).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
@@ -302,9 +353,18 @@ fn window_tab_once_and_none(tab_nav: TabNav) {
         let tab_ids: Vec<_> = (0..3).map(make_index).collect();
 
         let mut buttons = ui_vec![
-            Button! { child = Text!("Button 0"); tab_index = tab_ids[0] },
-            Button! { child = Text!("Button 1"); tab_index = tab_ids[1] },
-            Button! { child = Text!("Button 2"); tab_index = tab_ids[2] },
+            Button! {
+                child = Text!("Button 0");
+                tab_index = tab_ids[0]
+            },
+            Button! {
+                child = Text!("Button 1");
+                tab_index = tab_ids[1]
+            },
+            Button! {
+                child = Text!("Button 2");
+                tab_index = tab_ids[2]
+            },
         ];
         // we collect the widget_id values in the TAB navigation order.
         let mut ids: Vec<_> = (0..3).map(|i| (buttons.item_id(i), tab_ids[i])).collect();
@@ -348,16 +408,28 @@ fn two_continue_scopes_or_containers_in_tab_cycle_window(focus_scope: bool) {
     let app = TestApp::start();
 
     let mut buttons_a = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids_a: Vec<_> = (0..3).map(|i| buttons_a.item_id(i)).collect();
 
     let mut buttons_b = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids_b: Vec<_> = (0..3).map(|i| buttons_b.item_id(i)).collect();
 
@@ -431,16 +503,34 @@ pub fn two_continue_scopes_with_mixed_indexes() {
     // jump back to a higher priority index without visiting all indexes.
 
     let mut buttons_a = ui_vec![
-        Button! { child = Text!("Button 0"); tab_index = 0; },
-        Button! { child = Text!("Button 2"); tab_index = 5; },
-        Button! { child = Text!("Button 1"); tab_index = 3; },
+        Button! {
+            child = Text!("Button 0");
+            tab_index = 0;
+        },
+        Button! {
+            child = Text!("Button 2");
+            tab_index = 5;
+        },
+        Button! {
+            child = Text!("Button 1");
+            tab_index = 3;
+        },
     ];
     let ids_a: Vec<_> = (0..3).map(|i| buttons_a.item_id(i)).collect();
 
     let mut buttons_b = ui_vec![
-        Button! { child = Text!("Button 3"); tab_index = 2; },
-        Button! { child = Text!("Button 4"); tab_index = 4; },
-        Button! { child = Text!("Button 5"); tab_index = 6; },
+        Button! {
+            child = Text!("Button 3");
+            tab_index = 2;
+        },
+        Button! {
+            child = Text!("Button 4");
+            tab_index = 4;
+        },
+        Button! {
+            child = Text!("Button 5");
+            tab_index = 6;
+        },
     ];
     let ids_b: Vec<_> = (0..3).map(|i| buttons_b.item_id(i)).collect();
 
@@ -507,16 +597,34 @@ pub fn two_containers_with_mixed_indexes() {
     // from on container to another.
 
     let mut buttons_a = ui_vec![
-        Button! { child = Text!("Button 0"); tab_index = 0; },
-        Button! { child = Text!("Button 2"); tab_index = 5; },
-        Button! { child = Text!("Button 1"); tab_index = 3; },
+        Button! {
+            child = Text!("Button 0");
+            tab_index = 0;
+        },
+        Button! {
+            child = Text!("Button 2");
+            tab_index = 5;
+        },
+        Button! {
+            child = Text!("Button 1");
+            tab_index = 3;
+        },
     ];
     let ids_a: Vec<_> = (0..3).map(|i| buttons_a.item_id(i)).collect();
 
     let mut buttons_b = ui_vec![
-        Button! { child = Text!("Button 3"); tab_index = 2; },
-        Button! { child = Text!("Button 4"); tab_index = 4; },
-        Button! { child = Text!("Button 5"); tab_index = 6; },
+        Button! {
+            child = Text!("Button 3");
+            tab_index = 2;
+        },
+        Button! {
+            child = Text!("Button 4");
+            tab_index = 4;
+        },
+        Button! {
+            child = Text!("Button 5");
+            tab_index = 6;
+        },
     ];
     let ids_b: Vec<_> = (0..3).map(|i| buttons_b.item_id(i)).collect();
 
@@ -567,9 +675,19 @@ pub fn tab_index_skip() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { id = "Button 0"; child = Text!("Button 0") },
-        Button! { id = "Button 1"; child = Text!("Button 1"); tab_index = TabIndex::SKIP; },
-        Button! { id = "Button 2"; child = Text!("Button 2") },
+        Button! {
+            id = "Button 0";
+            child = Text!("Button 0")
+        },
+        Button! {
+            id = "Button 1";
+            child = Text!("Button 1");
+            tab_index = TabIndex::SKIP;
+        },
+        Button! {
+            id = "Button 2";
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -595,12 +713,23 @@ pub fn tab_inner_container() {
 
     // sanity check for `tab_skip_inner_container`.
 
-    let mut inner_buttons = ui_vec![Button! { child = Text!("Button 1") }, Button! { child = Text!("Button 2") },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack!(top_to_bottom, inner_buttons),
-        Button! { child = Text!("Button 3") },
+        Button! {
+            child = Text!("Button 3")
+        },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
@@ -630,16 +759,27 @@ pub fn tab_skip_inner_container() {
     // but that the items inside will still tab navigate if focused
     // directly.
 
-    let mut inner_buttons = ui_vec![Button! { child = Text!("Button 1") }, Button! { child = Text!("Button 2") },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack! {
             direction = StackDirection::top_to_bottom();
             children = inner_buttons;
             tab_index = TabIndex::SKIP;
         },
-        Button! { child = Text!("Button 3") },
+        Button! {
+            child = Text!("Button 3")
+        },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
@@ -682,12 +822,21 @@ pub fn tab_inner_scope_continue() {
     // sanity check for `tab_skip_inner_scope_continue`.
 
     let mut inner_buttons = ui_vec![
-        Button! { id = "Button 1"; child = Text!("Button 1") },
-        Button! { id = "Button 2"; child = Text!("Button 2") },
+        Button! {
+            id = "Button 1";
+            child = Text!("Button 1")
+        },
+        Button! {
+            id = "Button 2";
+            child = Text!("Button 2")
+        },
     ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { id = "Button 0"; child = Text!("Button 0") },
+        Button! {
+            id = "Button 0";
+            child = Text!("Button 0")
+        },
         Stack! {
             id = "Scope Continue";
             direction = StackDirection::top_to_bottom();
@@ -695,7 +844,10 @@ pub fn tab_inner_scope_continue() {
             focus_scope = true;
             tab_nav = TabNav::Continue;
         },
-        Button! { id = "Button 3"; child = Text!("Button 3") },
+        Button! {
+            id = "Button 3";
+            child = Text!("Button 3")
+        },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
@@ -726,12 +878,21 @@ pub fn tab_skip_inner_scope_continue() {
     // directly.
 
     let mut inner_buttons = ui_vec![
-        Button! { id = "Button 1"; child = Text!("Button 1") },
-        Button! { id = "Button 2"; child = Text!("Button 2") },
+        Button! {
+            id = "Button 1";
+            child = Text!("Button 1")
+        },
+        Button! {
+            id = "Button 2";
+            child = Text!("Button 2")
+        },
     ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { id = "Button 0"; child = Text!("Button 0") },
+        Button! {
+            id = "Button 0";
+            child = Text!("Button 0")
+        },
         Stack! {
             id = "v_stack";
             direction = StackDirection::top_to_bottom();
@@ -740,7 +901,10 @@ pub fn tab_skip_inner_scope_continue() {
             tab_nav = TabNav::Continue;
             tab_index = TabIndex::SKIP;
         },
-        Button! { id = "Button 3"; child = Text!("Button 3") },
+        Button! {
+            id = "Button 3";
+            child = Text!("Button 3")
+        },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
@@ -782,17 +946,28 @@ pub fn tab_inner_scope_cycle() {
 
     // we expect tab navigation to enter the inner scope and get trapped in there.
 
-    let mut inner_buttons = ui_vec![Button! { child = Text!("Button 1") }, Button! { child = Text!("Button 2") },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack! {
             direction = StackDirection::top_to_bottom();
             children = inner_buttons;
             focus_scope = true;
             tab_nav = TabNav::Cycle;
         },
-        Button! { child = Text!("Button 3") },
+        Button! {
+            child = Text!("Button 3")
+        },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
@@ -827,17 +1002,28 @@ pub fn tab_inner_scope_contained() {
 
     // we expect tab navigation to enter the inner scope and get trapped in there.
 
-    let mut inner_buttons = ui_vec![Button! { child = Text!("Button 1") }, Button! { child = Text!("Button 2") },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack! {
             direction = StackDirection::top_to_bottom();
             children = inner_buttons;
             focus_scope = true;
             tab_nav = TabNav::Contained;
         },
-        Button! { child = Text!("Button 3") },
+        Button! {
+            child = Text!("Button 3")
+        },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
@@ -872,17 +1058,28 @@ pub fn tab_inner_scope_once() {
 
     // we expect tab navigation to enter the inner scope but then leave it.
 
-    let mut inner_buttons = ui_vec![Button! { child = Text!("Button 1") }, Button! { child = Text!("Button 2") },];
+    let mut inner_buttons = ui_vec![
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
+    ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack! {
             direction = StackDirection::top_to_bottom();
             children = inner_buttons;
             focus_scope = true;
             tab_nav = TabNav::Once;
         },
-        Button! { child = Text!("Button 3") },
+        Button! {
+            child = Text!("Button 3")
+        },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
@@ -912,12 +1109,21 @@ pub fn tab_inner_scope_none() {
     // we expect tab navigation to enter the inner scope and then not move.
 
     let mut inner_buttons = ui_vec![
-        Button! { id = "btn-1"; child = Text!("Button 1") },
-        Button! { id = "btn-2"; child = Text!("Button 2") },
+        Button! {
+            id = "btn-1";
+            child = Text!("Button 1")
+        },
+        Button! {
+            id = "btn-2";
+            child = Text!("Button 2")
+        },
     ];
     let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.item_id(i)).collect();
     let mut children = ui_vec![
-        Button! { id = "btn-0"; child = Text!("Button 0") },
+        Button! {
+            id = "btn-0";
+            child = Text!("Button 0")
+        },
         Stack! {
             id = "v-stack";
             direction = StackDirection::top_to_bottom();
@@ -925,7 +1131,10 @@ pub fn tab_inner_scope_none() {
             focus_scope = true;
             tab_nav = TabNav::None;
         },
-        Button! { id = "btn-3"; child = Text!("Button 3") },
+        Button! {
+            id = "btn-3";
+            child = Text!("Button 3")
+        },
     ];
     let item_ids: Vec<_> = (0..3).map(|i| children.item_id(i)).collect();
 
@@ -968,9 +1177,18 @@ pub fn tab_inner_scope_continue_to_non_focusable_siblings_focusable_child() {
                 direction = StackDirection::top_to_bottom();
                 focus_scope = true;
                 tab_nav = TabNav::Continue;
-                children = ui_vec![Button! { id = btn1; child = Text!("Btn 1"); }];
+                children = ui_vec![Button! {
+                    id = btn1;
+                    child = Text!("Btn 1");
+                }];
             },
-            Stack!(top_to_bottom, ui_vec![Button! { id = btn2; child = Text!("Btn 2"); }])
+            Stack!(
+                top_to_bottom,
+                ui_vec![Button! {
+                    id = btn2;
+                    child = Text!("Btn 2");
+                }]
+            )
         ]
     ));
 
@@ -985,10 +1203,22 @@ pub fn dont_focus_alt_when_alt_pressed_before_focusing_window() {
 
     let start_focus_id = WidgetId::new_unique();
     let buttons = ui_vec![
-        Button! { child = Text!("Button 0"); id = start_focus_id; },
-        Button! { child = Text!("Button 1"); },
+        Button! {
+            child = Text!("Button 0");
+            id = start_focus_id;
+        },
+        Button! {
+            child = Text!("Button 1");
+        },
     ];
-    let alt_buttons = ui_vec![Button! { child = Text!("Alt 0"); }, Button! { child = Text!("Alt 1"); },];
+    let alt_buttons = ui_vec![
+        Button! {
+            child = Text!("Alt 0");
+        },
+        Button! {
+            child = Text!("Alt 1");
+        },
+    ];
 
     let mut app = app.run(Stack!(
         top_to_bottom,
@@ -1018,10 +1248,22 @@ pub fn window_blur_focus() {
 
     let expected_id = WidgetId::new_unique();
     let buttons = ui_vec![
-        Button! { child = Text!("Button 0"); },
-        Button! { child = Text!("Button 1"); id = expected_id; },
+        Button! {
+            child = Text!("Button 0");
+        },
+        Button! {
+            child = Text!("Button 1");
+            id = expected_id;
+        },
     ];
-    let alt_buttons = ui_vec![Button! { child = Text!("Alt 0"); }, Button! { child = Text!("Alt 1"); },];
+    let alt_buttons = ui_vec![
+        Button! {
+            child = Text!("Alt 0");
+        },
+        Button! {
+            child = Text!("Alt 1");
+        },
+    ];
 
     let mut app = app.run(Stack!(
         top_to_bottom,
@@ -1057,7 +1299,10 @@ pub fn focused_removed_by_interactivity() {
     let interactive = var(true);
     focused_removed_test(
         app,
-        Button! { child = Text!("Button 1"); interactive = interactive.clone() },
+        Button! {
+            child = Text!("Button 1");
+            interactive = interactive.clone()
+        },
         || interactive.set(false),
     )
 }
@@ -1065,23 +1310,37 @@ pub fn focused_removed_by_interactivity() {
 pub fn focused_removed_by_collapsing() {
     let app = TestApp::start();
     let visibility = var(Visibility::Visible);
-    focused_removed_test(app, Button! { child = Text!("Button 1"); visibility = visibility.clone() }, || {
-        visibility.set(Visibility::Collapsed)
-    })
+    focused_removed_test(
+        app,
+        Button! {
+            child = Text!("Button 1");
+            visibility = visibility.clone()
+        },
+        || visibility.set(Visibility::Collapsed),
+    )
 }
 #[test]
 pub fn focused_removed_by_making_not_focusable() {
     let app = TestApp::start();
     let focusable = var(true);
-    focused_removed_test(app, Button! { child = Text!("Button 1"); focusable = focusable.clone() }, || {
-        focusable.set(false)
-    })
+    focused_removed_test(
+        app,
+        Button! {
+            child = Text!("Button 1");
+            focusable = focusable.clone()
+        },
+        || focusable.set(false),
+    )
 }
 fn focused_removed_test(app: TestAppBuilder<impl AppExtension>, button1: impl UiNode, set_var: impl FnOnce()) {
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         button1,
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1212,10 +1471,16 @@ pub fn focus_continued_after_widget_id_move() {
             if a.data().get() {
                 a.set_view(Container! {
                     id = "some_other_place";
-                    child = Button! { id; child = Text!("Button 1") };
+                    child = Button! {
+                        id;
+                        child = Text!("Button 1")
+                    };
                 });
             } else if a.view_is_nil() {
-                a.set_view(Wgt! { focusable = true; id; });
+                a.set_view(Wgt! {
+                    focusable = true;
+                    id;
+                });
             }
         }),
     ));
@@ -1309,7 +1574,7 @@ pub fn focus_goes_to_parent_after_remove() {
             child = Button! {
                 id = child_id;
                 interactive = interactive.clone();
-                child = Text!( "item 'removed'")
+                child = Text!("item 'removed'")
             }
         }]
     ));
@@ -1332,9 +1597,15 @@ pub fn directional_focus_up() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1355,9 +1626,15 @@ pub fn directional_focus_down() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1377,9 +1654,15 @@ pub fn directional_focus_left() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1400,9 +1683,15 @@ pub fn directional_focus_right() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1422,9 +1711,15 @@ pub fn directional_cycle_vertical() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1446,9 +1741,15 @@ pub fn directional_cycle_horizontal() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1470,9 +1771,15 @@ pub fn directional_contained_vertical() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1494,9 +1801,15 @@ pub fn directional_contained_horizontal() {
     let app = TestApp::start();
 
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
-        Button! { child = Text!("Button 1") },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 0")
+        },
+        Button! {
+            child = Text!("Button 1")
+        },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1519,9 +1832,15 @@ pub fn directional_none() {
         let app = TestApp::start();
 
         let mut buttons = ui_vec![
-            Button! { child = Text!("Button 0") },
-            Button! { child = Text!("Button 1") },
-            Button! { child = Text!("Button 2") },
+            Button! {
+                child = Text!("Button 0")
+            },
+            Button! {
+                child = Text!("Button 1")
+            },
+            Button! {
+                child = Text!("Button 2")
+            },
         ];
         let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1549,16 +1868,21 @@ pub fn directional_continue_up() {
 
     let start_id = WidgetId::new_unique();
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack! {
             direction = StackDirection::top_to_bottom();
             focus_scope = true;
             directional_nav = DirectionalNav::Continue;
-            children = ui_vec![
-                Button! { child = Text!("Button 1"); id = start_id; },
-            ];
+            children = ui_vec![Button! {
+                child = Text!("Button 1");
+                id = start_id;
+            }];
         },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1577,16 +1901,21 @@ pub fn directional_continue_down() {
 
     let start_id = WidgetId::new_unique();
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack! {
             direction = StackDirection::top_to_bottom();
             focus_scope = true;
             directional_nav = DirectionalNav::Continue;
-            children = ui_vec![
-                Button! { child = Text!("Button 1"); id = start_id; },
-            ];
+            children = ui_vec![Button! {
+                child = Text!("Button 1");
+                id = start_id;
+            }];
         },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1605,16 +1934,21 @@ pub fn directional_continue_left() {
 
     let start_id = WidgetId::new_unique();
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack! {
             direction = StackDirection::top_to_bottom();
             focus_scope = true;
             directional_nav = DirectionalNav::Continue;
-            children = ui_vec![
-                Button! { child = Text!("Button 1"); id = start_id; },
-            ];
+            children = ui_vec![Button! {
+                child = Text!("Button 1");
+                id = start_id;
+            }];
         },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 
@@ -1633,16 +1967,21 @@ pub fn directional_continue_right() {
 
     let start_id = WidgetId::new_unique();
     let mut buttons = ui_vec![
-        Button! { child = Text!("Button 0") },
+        Button! {
+            child = Text!("Button 0")
+        },
         Stack! {
             direction = StackDirection::top_to_bottom();
             focus_scope = true;
             directional_nav = DirectionalNav::Continue;
-            children = ui_vec![
-                Button! { child = Text!("Button 1"); id = start_id; },
-            ];
+            children = ui_vec![Button! {
+                child = Text!("Button 1");
+                id = start_id;
+            }];
         },
-        Button! { child = Text!("Button 2") },
+        Button! {
+            child = Text!("Button 2")
+        },
     ];
     let ids: Vec<_> = (0..3).map(|i| buttons.item_id(i)).collect();
 

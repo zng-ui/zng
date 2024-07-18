@@ -127,23 +127,26 @@ fn layer_n_btn(n: u32, color: color::Rgba) -> impl UiNode {
         child = Text!(label.clone());
         on_click = async_hn!(label, |_| {
             let id = WidgetId::new_unique();
-            LAYERS.insert(n, Container! {
-                id;
-                child = Text! {
-                    txt = label.clone();
-                    font_color = rgb(0.92, 0.92, 0.92);
-                    font_size = 16;
-                    font_weight = FontWeight::BOLD;
-                };
-                background_color = color.with_alpha(80.pct());
-                padding = 10;
-                margin = {
-                    let inc = n as i32 * 10;
-                    (20 + inc, 10, 0, inc - 40)
-                };
-                align = Align::TOP;
-                hit_test_mode = HitTestMode::Disabled;
-            });
+            LAYERS.insert(
+                n,
+                Container! {
+                    id;
+                    child = Text! {
+                        txt = label.clone();
+                        font_color = rgb(0.92, 0.92, 0.92);
+                        font_size = 16;
+                        font_weight = FontWeight::BOLD;
+                    };
+                    background_color = color.with_alpha(80.pct());
+                    padding = 10;
+                    margin = {
+                        let inc = n as i32 * 10;
+                        (20 + inc, 10, 0, inc - 40)
+                    };
+                    align = Align::TOP;
+                    hit_test_mode = HitTestMode::Disabled;
+                },
+            );
 
             task::deadline(2.secs()).await;
 
@@ -190,17 +193,22 @@ fn anchor_example() -> impl UiNode {
         align = Align::CENTER;
 
         mouse::on_mouse_enter = hn!(|_| {
-            LAYERS.insert_anchored(LayerIndex::ADORNER, "anchor", anchor_mode.clone(), Text! {
-                id = "anchored";
-                txt = "Example";
-                font_color = rgb(0.92, 0.92, 0.92);
-                layout::padding = 4;
-                font_weight = FontWeight::BOLD;
-                background_color = web_colors::DARK_GREEN.with_alpha(80.pct());
-                border = 1, web_colors::GREEN.darken(20.pct());
-                margin = 2;
-                hit_test_mode = HitTestMode::Disabled;
-            })
+            LAYERS.insert_anchored(
+                LayerIndex::ADORNER,
+                "anchor",
+                anchor_mode.clone(),
+                Text! {
+                    id = "anchored";
+                    txt = "Example";
+                    font_color = rgb(0.92, 0.92, 0.92);
+                    layout::padding = 4;
+                    font_weight = FontWeight::BOLD;
+                    background_color = web_colors::DARK_GREEN.with_alpha(80.pct());
+                    border = 1, web_colors::GREEN.darken(20.pct());
+                    margin = 2;
+                    hit_test_mode = HitTestMode::Disabled;
+                },
+            )
         });
         mouse::on_mouse_leave = hn!(|_| {
             LAYERS.remove("anchored");
@@ -221,17 +229,22 @@ fn transform_anchor_example() -> impl UiNode {
 
         on_click = hn!(|_| {
             if insert {
-                LAYERS.insert_anchored(LayerIndex::ADORNER, "t-anchor", AnchorMode::foreground(), Container! {
-                    id = "t-anchored";
-                    child_align = Align::TOP_LEFT;
-                    border = 1, colors::GREEN.lighten(30.pct());
-                    hit_test_mode = HitTestMode::Disabled;
-                    child = Text! {
-                        layout::y = -(2.dip() + 100.pct());
-                        txt = "example";
-                        font_weight = FontWeight::BOLD;
-                    }
-                })
+                LAYERS.insert_anchored(
+                    LayerIndex::ADORNER,
+                    "t-anchor",
+                    AnchorMode::foreground(),
+                    Container! {
+                        id = "t-anchored";
+                        child_align = Align::TOP_LEFT;
+                        border = 1, colors::GREEN.lighten(30.pct());
+                        hit_test_mode = HitTestMode::Disabled;
+                        child = Text! {
+                            layout::y = -(2.dip() + 100.pct());
+                            txt = "example";
+                            font_weight = FontWeight::BOLD;
+                        }
+                    },
+                )
             } else {
                 LAYERS.remove("t-anchored");
             }

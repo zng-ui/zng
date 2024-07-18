@@ -59,35 +59,22 @@ async fn main_window() -> window::WindowRoot {
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![
-                        state_commands(),
-                        focus_control(),
-                    ]
+                    children = ui_vec![state_commands(), focus_control()]
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![
-                        state(),
-                        visibility_example(),
-                    ];
+                    children = ui_vec![state(), visibility_example()];
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![
-                        icon_example(),
-                        background_color_example(background),
-                    ];
+                    children = ui_vec![icon_example(), background_color_example(background)];
                 },
                 Stack! {
                     direction = StackDirection::top_to_bottom();
                     spacing = 20;
-                    children = ui_vec![
-                        screenshot(),
-                        misc(),
-                        native(),
-                    ];
+                    children = ui_vec![screenshot(), misc(), native()];
                 },
             ];
         };
@@ -165,7 +152,6 @@ fn screenshot() -> impl UiNode {
                     }
                 }
 
-
                 enabled.set(true);
             });
             enabled;
@@ -188,29 +174,30 @@ fn screenshot() -> impl UiNode {
 
                 tracing::info!("taking `screenshot.png` using a new headless window ..");
                 let parent = WINDOW.id();
-                WINDOWS.open_headless(async_clmv!(enabled, {
-                    Window! {
-                        parent;
-                        size = (500, 400);
-                        background_color = web_colors::DARK_GREEN;
-                        font_size = 72;
-                        child_align = Align::CENTER;
-                        child = Text!("No Head!");
+                WINDOWS.open_headless(
+                    async_clmv!(enabled, {
+                        Window! {
+                            parent;
+                            size = (500, 400);
+                            background_color = web_colors::DARK_GREEN;
+                            font_size = 72;
+                            child_align = Align::CENTER;
+                            child = Text!("No Head!");
 
-                        frame_capture_mode = FrameCaptureMode::Next;
-                        on_frame_image_ready = async_hn_once!(|args: FrameImageReadyArgs| {
-                            tracing::info!("saving screenshot..");
-                            match args.frame_image.unwrap().save("screenshot.png").await {
-                                Ok(_) => tracing::info!("saved"),
-                                Err(e) => tracing::error!("{e}")
-                            }
-                            debug_assert_eq!(WINDOW.id(), args.window_id);
-                            WINDOW.close();
-                            enabled.set(true);
-                        });
-                    }
-                }),
-                    true
+                            frame_capture_mode = FrameCaptureMode::Next;
+                            on_frame_image_ready = async_hn_once!(|args: FrameImageReadyArgs| {
+                                tracing::info!("saving screenshot..");
+                                match args.frame_image.unwrap().save("screenshot.png").await {
+                                    Ok(_) => tracing::info!("saved"),
+                                    Err(e) => tracing::error!("{e}"),
+                                }
+                                debug_assert_eq!(WINDOW.id(), args.window_id);
+                                WINDOW.close();
+                                enabled.set(true);
+                            });
+                        }
+                    }),
+                    true,
                 );
             });
         }
@@ -369,11 +356,16 @@ fn exclusive_mode() -> impl UiNode {
                     child = Stack! {
                         toggle::selector = toggle::Selector::single(selected_opt);
                         direction = StackDirection::top_to_bottom();
-                        children = [default_opt].into_iter().chain(opts).map(|o| Toggle! {
-                            child = Text!(formatx!("{o}"));
-                            value = o;
-                        })
-                        .collect::<UiNodeVec>();
+                        children = [default_opt]
+                            .into_iter()
+                            .chain(opts)
+                            .map(|o| {
+                                Toggle! {
+                                    child = Text!(formatx!("{o}"));
+                                    value = o;
+                                }
+                            })
+                            .collect::<UiNodeVec>();
                     }
                 };
             }
@@ -583,7 +575,10 @@ fn native() -> impl UiNode {
                 tooltip = Tip!(Text!(r#"Shows a "Yes/No" message, then an "Ok" message dialogs."#));
                 dialog::native_dialogs = true;
                 on_click = async_hn!(|_| {
-                    let rsp = DIALOG.ask("Question?", "Example message. Yes -> Warn, No -> Error.").wait_rsp().await;
+                    let rsp = DIALOG
+                        .ask("Question?", "Example message. Yes -> Warn, No -> Error.")
+                        .wait_rsp()
+                        .await;
                     if rsp {
                         DIALOG.warn("Title", "Yes -> Warn Message").wait_done().await;
                     } else {
@@ -593,14 +588,14 @@ fn native() -> impl UiNode {
             },
             Button! {
                 child = Text!("File Picker");
-                tooltip = Tip!(Text!(r#"Shows a "Directory Picker", then an "Open Many Files", then a "Save File" dialogs."#));
+                tooltip = Tip!(Text!(
+                    r#"Shows a "Directory Picker", then an "Open Many Files", then a "Save File" dialogs."#
+                ));
                 dialog::native_dialogs = true;
                 on_click = async_hn!(|_| {
                     let res = DIALOG.select_folder("Select Dir", "", "").wait_rsp().await;
                     let dir = match res {
-                        dialog::FileDialogResponse::Selected(mut s) => {
-                            s.remove(0)
-                        }
+                        dialog::FileDialogResponse::Selected(mut s) => s.remove(0),
                         dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
@@ -631,16 +626,20 @@ fn native() -> impl UiNode {
                         }
                     };
 
-                    let res = DIALOG.save_file(
-                        "Save File",
-                        first_file.parent().map(|p| p.to_owned()).unwrap_or_default(),
-                        first_file.file_name().map(|p| Txt::from_str(&p.to_string_lossy())).unwrap_or_default(),
-                        filters
-                    ).wait_rsp().await;
+                    let res = DIALOG
+                        .save_file(
+                            "Save File",
+                            first_file.parent().map(|p| p.to_owned()).unwrap_or_default(),
+                            first_file
+                                .file_name()
+                                .map(|p| Txt::from_str(&p.to_string_lossy()))
+                                .unwrap_or_default(),
+                            filters,
+                        )
+                        .wait_rsp()
+                        .await;
                     let save_file = match res {
-                        dialog::FileDialogResponse::Selected(mut s) => {
-                            s.remove(0)
-                        }
+                        dialog::FileDialogResponse::Selected(mut s) => s.remove(0),
                         dialog::FileDialogResponse::Cancel => {
                             tracing::info!("canceled");
                             return;
@@ -676,20 +675,14 @@ fn confirm_close() -> impl WidgetHandler<WindowCloseRequestedArgs> {
                         style_fn = dialog::AskStyle!();
                         title = Text!("Close?");
                         content = SelectableText!("Close the window?");
-                        responses = vec![
-                            dialog::Response::cancel(),
-                            dialog::Response::close(),
-                        ]
+                        responses = vec![dialog::Response::cancel(), dialog::Response::close()]
                     }
                 } else {
                     dialog::Dialog! {
                         style_fn = dialog::AskStyle!();
                         title = Text!("Close all?");
                         content = SelectableText!("Close {} windows?", args.windows.len());
-                        responses = vec![
-                            dialog::Response::cancel(),
-                            dialog::Response::new("close", "Close All"),
-                        ]
+                        responses = vec![dialog::Response::cancel(), dialog::Response::new("close", "Close All")]
                     }
                 };
                 let r = DIALOG.custom(dlg).wait_rsp().await;
@@ -723,7 +716,8 @@ fn section(header: &'static str, items: impl UiNodeList) -> impl UiNode {
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
-        }].chain(items);
+        }]
+        .chain(items);
     }
 }
 
@@ -736,7 +730,8 @@ fn select<T: VarValue + PartialEq>(header: &'static str, selection: impl Var<T>,
             txt = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);
-        }].chain(items);
+        }]
+        .chain(items);
     }
 }
 

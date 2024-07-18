@@ -242,7 +242,10 @@ context_var! {
         // (dark, light)
         map.insert(DataNoteLevel::INFO, LightDark::new(colors::AZURE, colors::AZURE));
         map.insert(DataNoteLevel::WARN, LightDark::new(colors::ORANGE, colors::YELLOW));
-        map.insert(DataNoteLevel::ERROR, LightDark::new(colors::RED, colors::WHITE.with_alpha(20.pct()).mix_normal(colors::RED)));
+        map.insert(
+            DataNoteLevel::ERROR,
+            LightDark::new(colors::RED, colors::WHITE.with_alpha(20.pct()).mix_normal(colors::RED)),
+        );
         map
     };
 }

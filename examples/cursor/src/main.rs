@@ -22,14 +22,17 @@ fn main() {
             enabled_buttons = !window::WindowButton::MAXIMIZE;
             auto_size = true;
             padding = 20;
-            child = Stack!(top_to_bottom, ui_vec![
-                Grid! {
-                    columns = ui_vec![grid::Column!(1.lft()); 5];
-                    auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
-                    cells = demos;
-                },
-                cursor_demo(None),
-            ])
+            child = Stack!(
+                top_to_bottom,
+                ui_vec![
+                    Grid! {
+                        columns = ui_vec![grid::Column!(1.lft()); 5];
+                        auto_grow_fn = wgt_fn!(|_| grid::Row!(1.lft()));
+                        cells = demos;
+                    },
+                    cursor_demo(None),
+                ]
+            )
         }
     })
 }
@@ -38,15 +41,16 @@ fn cursor_demo(icon: Option<(CursorIcon, &'static [u8])>) -> impl UiNode {
     widgets::DemoEntry! {
         mouse::cursor = match icon {
             Some(i) => i.0.into(),
-            None => mouse::CursorSource::Hidden
+            None => mouse::CursorSource::Hidden,
         };
 
         widget::background = match icon {
-            Some((_, img)) => Image!{
+            Some((_, img)) => Image! {
                 source = img;
                 img_fit = ImageFit::None;
                 invert_color = color::COLOR_SCHEME_VAR.map(|c| (*c == color::ColorScheme::Dark).into());
-            }.boxed(),
+            }
+            .boxed(),
             None => NilUiNode.boxed(),
         };
 

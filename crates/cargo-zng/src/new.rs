@@ -105,11 +105,12 @@ pub fn run(args: NewArgs) {
         util::exit();
     }
 
-    // cargo fmt
+    // cargo zng fmt
     if Path::new(&project_name).join("Cargo.toml").exists() {
-        if let Err(e) = std::env::set_current_dir(project_name).and_then(|_| util::cmd("cargo fmt", &[], &[])) {
-            fatal!("cannot cargo fmt generated project, {e}")
+        if let Err(e) = std::env::set_current_dir(project_name) {
+            fatal!("cannot format generated project, {e}")
         }
+        crate::fmt::run(crate::fmt::FmtArgs::default());
     }
 }
 

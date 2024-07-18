@@ -377,14 +377,22 @@ impl Default for ContextCapture {
 impl_from_and_into_var! {
     fn from(capture_vars_blend_over: bool) -> ContextCapture {
         if capture_vars_blend_over {
-            ContextCapture::CaptureBlend { filter: CaptureFilter::ContextVars { exclude: ContextValueSet::new() }, over: true }
+            ContextCapture::CaptureBlend {
+                filter: CaptureFilter::ContextVars {
+                    exclude: ContextValueSet::new(),
+                },
+                over: true,
+            }
         } else {
             ContextCapture::NoCapture
         }
     }
 
     fn from(filter_over: CaptureFilter) -> ContextCapture {
-        ContextCapture::CaptureBlend { filter: filter_over, over: true }
+        ContextCapture::CaptureBlend {
+            filter: filter_over,
+            over: true,
+        }
     }
 }
 

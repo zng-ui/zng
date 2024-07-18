@@ -401,8 +401,8 @@ crate::event::event! {
 }
 
 crate::event::event_args! {
-     /// [`WIDGET_INFO_CHANGED_EVENT`] args.
-     pub struct WidgetInfoChangedArgs {
+    /// [`WIDGET_INFO_CHANGED_EVENT`] args.
+    pub struct WidgetInfoChangedArgs {
         /// Window ID.
         pub window_id: WindowId,
 

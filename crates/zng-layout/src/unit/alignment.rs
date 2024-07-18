@@ -205,15 +205,27 @@ impl Align {
 }
 impl_from_and_into_var! {
     fn from<X: Into<Factor>, Y: Into<Factor>>((x, y): (X, Y)) -> Align {
-        Align { x: x.into(), x_rtl_aware: false, y: y.into() }
+        Align {
+            x: x.into(),
+            x_rtl_aware: false,
+            y: y.into(),
+        }
     }
 
     fn from<X: Into<Factor>, Y: Into<Factor>>((x, rtl, y): (X, bool, Y)) -> Align {
-        Align { x: x.into(), x_rtl_aware: rtl, y: y.into() }
+        Align {
+            x: x.into(),
+            x_rtl_aware: rtl,
+            y: y.into(),
+        }
     }
 
     fn from(xy: Factor) -> Align {
-        Align { x: xy, x_rtl_aware: false, y: xy }
+        Align {
+            x: xy,
+            x_rtl_aware: false,
+            y: xy,
+        }
     }
 
     fn from(xy: FactorPercent) -> Align {
@@ -339,7 +351,7 @@ impl Align {
     }
 }
 impl_from_and_into_var! {
-     /// To relative length x and y.
+    /// To relative length x and y.
     fn from(alignment: Align) -> Point {
         Point {
             x: alignment.x.into(),

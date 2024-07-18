@@ -219,6 +219,7 @@ event_args! {
         pub window_id: WindowId,
         /// Error message from the view-process.
         pub error: Txt,
+
         ..
 
         /// Broadcast to all widgets.
@@ -404,7 +405,7 @@ event_args! {
 
         /// Broadcast to all widgets.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-           list.search_all();
+            list.search_all();
         }
     }
 
@@ -518,6 +519,7 @@ event_args! {
 
     /// [`RAW_FONT_CHANGED_EVENT`] arguments.
     pub struct RawFontChangedArgs {
+
         ..
 
         /// Broadcast to all widgets.
@@ -613,7 +615,7 @@ event_args! {
 
         /// Broadcast to all widgets.
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-           list.search_all();
+            list.search_all();
         }
     }
 
@@ -634,6 +636,7 @@ event_args! {
 
     /// Arguments for [`LOW_MEMORY_EVENT`].
     pub struct LowMemoryArgs {
+
         ..
 
         /// Broadcast to all widgets.

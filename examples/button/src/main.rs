@@ -39,9 +39,7 @@ fn main() {
                             light_button(),
                         ];
                     },
-
                     toggle_buttons(),
-
                     dyn_buttons(),
                     dyn_buttons_from_data(),
                 ]
@@ -57,7 +55,7 @@ fn example() -> impl UiNode {
     Button! {
         on_click = hn!(t, |_| {
             count += 1;
-            let new_txt = formatx!("Clicked {count} time{}!", if count > 1 {"s"} else {""});
+            let new_txt = formatx!("Clicked {count} time{}!", if count > 1 { "s" } else { "" });
             t.set(new_txt);
         });
         gesture::on_double_click = hn!(|_| tracing::info!("double click!"));
@@ -237,7 +235,6 @@ fn combo_box() -> impl UiNode {
     let txt = var(Txt::from_static("Combo"));
     let options = ["Combo", "Congo", "Pombo"];
     Toggle! {
-
         id = "combo";
         child = TextInput! {
             txt = txt.clone();
@@ -250,11 +247,15 @@ fn combo_box() -> impl UiNode {
             child = Stack! {
                 toggle::selector = toggle::Selector::single(txt.clone());
                 direction = StackDirection::top_to_bottom();
-                children = options.into_iter().map(|o| Toggle! {
-                    child = Text!(o);
-                    value::<Txt> = o;
-                })
-                .collect::<UiNodeVec>();
+                children = options
+                    .into_iter()
+                    .map(|o| {
+                        Toggle! {
+                            child = Text!(o);
+                            value::<Txt> = o;
+                        }
+                    })
+                    .collect::<UiNodeVec>();
             };
         })
     }
@@ -275,9 +276,12 @@ fn dyn_buttons() -> impl UiNode {
                 child = Text!("Add Button");
                 tooltip = Tip!(Text!("Add `Button!` directly"));
                 on_click = hn!(|_| {
-                    children_ref.push(dyn_button(btn, clmv!(children_ref, || {
-                        children_ref.remove(WIDGET.id());
-                    })));
+                    children_ref.push(dyn_button(
+                        btn,
+                        clmv!(children_ref, || {
+                            children_ref.remove(WIDGET.id());
+                        }),
+                    ));
 
                     if btn == 'Z' {
                         btn = 'A'

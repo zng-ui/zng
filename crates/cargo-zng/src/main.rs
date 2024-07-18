@@ -11,6 +11,7 @@
 
 #[macro_use]
 mod util;
+mod fmt;
 mod l10n;
 mod new;
 mod res;
@@ -46,6 +47,10 @@ struct Zng {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// Format code and macros
+    ///
+    /// Runs cargo fmt and formats Zng macros
+    Fmt(fmt::FmtArgs),
     /// New project from a Zng template repository.
     New(new::NewArgs),
     /// Localization text scraper
@@ -66,6 +71,7 @@ fn main() {
     let CargoCli::Zng(cli) = CargoCli::parse();
 
     match cli.command {
+        Command::Fmt(args) => fmt::run(args),
         Command::New(args) => new::run(args),
         Command::L10n(args) => l10n::run(args),
         Command::Res(args) => res::run(args),

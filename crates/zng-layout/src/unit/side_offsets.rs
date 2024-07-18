@@ -134,7 +134,7 @@ impl_from_and_into_var! {
 impl_length_comp_conversions! {
     /// (top-bottom, left-right)
     fn from(top_bottom: TB, left_right: LR) -> SideOffsets {
-        SideOffsets::new_vh(top_bottom,left_right)
+        SideOffsets::new_vh(top_bottom, left_right)
     }
 
     /// (top, right, bottom, left)

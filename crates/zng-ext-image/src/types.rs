@@ -712,7 +712,7 @@ impl_from_and_into_var! {
 
     /// Same as conversion from `&str`.
     fn from(s: String) -> ImageSource {
-       s.as_str().into()
+        s.as_str().into()
     }
     /// Same as conversion from `&str`.
     fn from(s: Txt) -> ImageSource {

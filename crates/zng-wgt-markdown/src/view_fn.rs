@@ -553,7 +553,7 @@ pub fn default_heading_fn(args: HeadingFnArgs) -> impl UiNode {
                 HeadingLevel::H3 => 1.4.em(),
                 HeadingLevel::H4 => 1.3.em(),
                 HeadingLevel::H5 => 1.2.em(),
-                HeadingLevel::H6 => 1.1.em()
+                HeadingLevel::H6 => 1.1.em(),
             };
             children = args.items;
             anchor = args.anchor;
@@ -581,7 +581,9 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
             cells = args.items;
             columns = ui_vec![
                 grid::Column!(),
-                grid::Column! { width = 1.lft() },
+                grid::Column! {
+                    width = 1.lft()
+                },
             ];
         }
         .boxed()
@@ -710,9 +712,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
             source = args.source;
             tooltip_fn;
             zng_wgt_access::label = alt_txt;
-            img_error_fn = wgt_fn!(|_| {
-                alt_items.take_on_init()
-            });
+            img_error_fn = wgt_fn!(|_| { alt_items.take_on_init() });
         }
     }
 }
