@@ -1145,7 +1145,6 @@ impl Client {
         self.send(Request::get(uri)?.build()).await
     }
 
-    
     #[doc(hidden)]
     #[deprecated = "use get_txt"]
     pub async fn get_text(&self, uri: impl TryUri) -> Result<Txt, Error> {
