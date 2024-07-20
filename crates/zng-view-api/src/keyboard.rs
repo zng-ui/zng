@@ -2007,10 +2007,11 @@ impl Key {
     /// Iterate over all values from `Alt` to `F35`.
     pub fn all_named() -> impl ExactSizeIterator<Item = Key> + DoubleEndedIterator {
         unsafe {
-            // SAFETY: this is safe because all variants from `Alt` are without associated data.
-            let s: (u16, [u8; 38]) = mem::transmute(Key::Alt);
-            let e: (u16, [u8; 38]) = mem::transmute(Key::F35);
-            (s.0..=e.0).map(|n| mem::transmute((n, [0u8; 38])))
+            // SAFETY: this is safe because all variants from `Alt` are without associated data and Key is `repr(u16)`.
+            const KEY_DATA_SIZE: usize = mem::size_of::<Key>() - mem::size_of::<u16>();
+            let s: (u16, [u8; KEY_DATA_SIZE]) = mem::transmute(Key::Alt);
+            let e: (u16, [u8; KEY_DATA_SIZE]) = mem::transmute(Key::F35);
+            (s.0..=e.0).map(|n| mem::transmute((n, [0u8; KEY_DATA_SIZE])))
         }
     }
 }
