@@ -31,8 +31,6 @@ zng-color = { path = "../zng-color", version = "0.3.4" }
 
 serde = "1.0"
 unicase = "2.7"
-font-kit = "0.13"
-harfbuzz_rs = "2.0"
 parking_lot = "0.12"
 byteorder = "1.5"
 icu_properties = "1.4"
@@ -49,6 +47,10 @@ unic-langid = "0.9"
 smallvec = { version = "1.13", features = ["const_new", "serde"] }
 hashbrown = "0.14"
 pathfinder_geometry = "0.5"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+font-kit = "0.13"
+harfbuzz_rs = "2.0"
 
 [package.metadata.docs.rs]
 all-features = true

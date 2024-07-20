@@ -1,4 +1,4 @@
-#![cfg(feature = "crash_handler")]
+#![cfg(all(feature = "crash_handler", not(wasm)))]
 
 //! Debug crash handler.
 

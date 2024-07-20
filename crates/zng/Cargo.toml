@@ -15,8 +15,12 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 default = ["ipc", "debug_default", "view_software", "crash_handler"]
 
 # Include the default view-process implementation.
+#
+# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 view = ["dep:zng-view"]
 # Include the default view-process implementation as an embedded precompiled binary.
+#
+# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
 
 # Enables HTTP tasks and web features of widgets and services.
@@ -88,6 +92,8 @@ single_instance = ["dep:zng-ext-single-instance"]
 # Allow app-process crash handler.
 #
 # Builds with this feature spawn a crash monitor-process for each app-process.
+#
+# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 crash_handler = ["zng-app/crash_handler", "zng-wgt-inspector/crash_handler"]
 
 # Instrument every widget outer-most node to trace UI methods.
@@ -163,6 +169,8 @@ view_software = ["zng-view?/software"]
 view_bundle_licenses = ["zng-view?/bundle_licenses"]
 
 # Enables IPC tasks, pre-build views and connecting to views running in another process.
+#
+# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc", "zng-task/ipc"]
 
 # Check if `zng::env::res` path is available in `init_built_res` first.
@@ -182,11 +190,6 @@ zng-task = { path = "../zng-task", version = "0.3.8" }
 zng-color = { path = "../zng-color", version = "0.3.4" }
 zng-env = { path = "../zng-env", version = "0.3.1" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.4" }
-
-# view
-zng-view-api = { path = "../zng-view-api", version = "0.6.4", default-features = false }
-zng-view = { path = "../zng-view", version = "0.4.10", default-features = false, optional = true }
-zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.10.5", optional = true }
 
 # app
 zng-app = { path = "../zng-app", version = "0.9.5", default-features = false }
@@ -241,6 +244,12 @@ zng-wgt-material-icons = { path = "../zng-wgt-material-icons", version = "0.3.5"
 zng-ext-single-instance = { path = "../zng-ext-single-instance", version = "0.3.10", optional = true }
 
 tracing = "0.1"
+
+# view
+zng-view-api = { path = "../zng-view-api", version = "0.6.4", default-features = false }
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+zng-view = { path = "../zng-view", version = "0.4.10", default-features = false, optional = true }
+zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.10.5", optional = true }
 
 [package.metadata.docs.rs]
 all-features = true

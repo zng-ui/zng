@@ -39,9 +39,11 @@ zng-app = { path = "../zng-app", version = "0.9.5" }
 
 pulldown-cmark = "0.11"
 http = "1.1"
-path-absolutize = "3.1"
+path-absolutize = { version = "3.1", features = ["use_unix_paths_on_wasm"] }
 html-escape = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 tracing = "0.1"
-open = "5.1"
 dunce = "1.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+open = "5.1"

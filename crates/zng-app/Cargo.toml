@@ -56,6 +56,8 @@ trace_widget = []
 trace_wgt_item = []
 
 # Allow app-process crash handler.
+#
+# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 crash_handler = [
     "dep:serde_json",
     "dep:breakpad-handler",
@@ -105,14 +107,16 @@ once_cell = "1.19"
 unic-langid = { version = "0.9", features = ["serde"] }
 unicase = "2.7"
 
-serde_json = { version = "1.0", optional = true }
-breakpad-handler = { version = "0.2", optional = true }
-minidump = { version = "0.22", optional = true }
-linkme = { version = "=0.3.27", optional = true }
 hashbrown = { version = "0.14", features = ["rayon"] }
 rustc-hash = "2.0"
 
 dunce = "1.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+serde_json = { version = "1.0", optional = true }
+breakpad-handler = { version = "0.2", optional = true }
+minidump = { version = "0.22", optional = true }
+linkme = { version = "=0.3.27", optional = true }
 
 [package.metadata.docs.rs]
 all-features = true

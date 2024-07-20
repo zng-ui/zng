@@ -46,6 +46,15 @@ use parking_lot::Mutex;
 #[macro_export]
 macro_rules! on_process_start {
     ($closure:expr) => {
+        $crate::__on_process_start! {$closure}
+    };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __on_process_start {
+    ($closure:expr) => {
         // expanded from:
         // #[linkme::distributed_slice(ZNG_ENV_ON_PROCESS_START)]
         // static _ON_PROCESS_START: fn...;
@@ -82,10 +91,21 @@ macro_rules! on_process_start {
     };
 }
 
+#[cfg(target_arch = "wasm32")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __on_process_start {
+    ($closure:expr) => {
+        // !!: TODO
+    };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 #[doc(hidden)]
 #[linkme::distributed_slice]
 pub static ZNG_ENV_ON_PROCESS_START: [fn(&ProcessStartArgs)];
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn process_init() -> impl Drop {
     let process_state = std::mem::replace(
         &mut *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock(),
@@ -135,6 +155,12 @@ pub(crate) fn process_init() -> impl Drop {
     MainExitHandler
 }
 
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn process_init() -> impl Drop {
+    // !!: TODO init
+    MainExitHandler
+}
+
 /// Arguments for [`on_process_start`] handlers.
 ///
 /// Empty in this release.
@@ -169,7 +195,7 @@ impl Drop for MainExitHandler {
 }
 
 type ExitHandler = Box<dyn FnOnce(&ProcessExitArgs) + Send + 'static>;
-use super::*;
+
 zng_unique_id::hot_static! {
     static ON_PROCESS_EXIT: Mutex<Vec<ExitHandler>> = Mutex::new(vec![]);
 }

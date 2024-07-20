@@ -1,4 +1,4 @@
-#![cfg(feature = "ipc")]
+#![cfg(all(feature = "ipc", not(target_arch = "wasm32")))]
 
 //! IPC tasks.
 //!
