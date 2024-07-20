@@ -4,7 +4,6 @@ use std::{
     mem, ops,
 };
 
-pub use font_kit::error::GlyphLoadingError;
 use zng_app::widget::info::InlineSegmentInfo;
 use zng_ext_l10n::{lang, Lang};
 use zng_layout::{
@@ -18,6 +17,35 @@ use crate::{
     font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, LineBreak, SegmentedText, TextSegment, WordBreak,
     HYPHENATION,
 };
+
+/// Reasons why a font might fail to load a glyph.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum GlyphLoadingError {
+    /// The font didn't contain a glyph with that ID.
+    NoSuchGlyph,
+    /// A platform function returned an error.
+    PlatformError,
+}
+impl std::error::Error for GlyphLoadingError {}
+impl fmt::Display for GlyphLoadingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use GlyphLoadingError::*;
+        match self {
+            NoSuchGlyph => write!(f, "no such glyph"),
+            PlatformError => write!(f, "platform error"),
+        }
+    }
+}
+#[cfg(not(target_arch = "wasm32"))]
+impl From<font_kit::error::GlyphLoadingError> for GlyphLoadingError {
+    fn from(value: font_kit::error::GlyphLoadingError) -> Self {
+        use GlyphLoadingError::*;
+        match value {
+            font_kit::error::GlyphLoadingError::NoSuchGlyph => NoSuchGlyph,
+            font_kit::error::GlyphLoadingError::PlatformError => PlatformError,
+        }
+    }
+}
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
@@ -3744,6 +3772,7 @@ impl Font {
             .ok_or(GlyphLoadingError::NoSuchGlyph)?
             .advance(index)
             .map(|v| euclid::Vector2D::new(v.x(), v.y()) * self.metrics().size_scale)
+            .map_err(Into::into)
     }
 
     /// Gets the amount that the given glyph should be displaced from the origin.
@@ -3753,6 +3782,7 @@ impl Font {
             .ok_or(GlyphLoadingError::NoSuchGlyph)?
             .origin(index)
             .map(|v| euclid::Vector2D::new(v.x(), v.y()) * self.metrics().size_scale)
+            .map_err(Into::into)
     }
 
     /// Calculates a [`ShapedText`].
@@ -3811,11 +3841,11 @@ impl Font {
 
         let scale = self.metrics().size_scale;
 
-        self.face().font_kit().ok_or(GlyphLoadingError::NoSuchGlyph)?.outline(
-            glyph_id,
-            hinting_options.into(),
-            &mut AdapterSink { sink, scale },
-        )
+        self.face()
+            .font_kit()
+            .ok_or(GlyphLoadingError::NoSuchGlyph)?
+            .outline(glyph_id, hinting_options.into(), &mut AdapterSink { sink, scale })
+            .map_err(Into::into)
     }
 
     /// Returns the boundaries of a glyph in pixel units.

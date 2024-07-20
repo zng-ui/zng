@@ -807,12 +807,19 @@ impl FONTS {
 
     /// Gets all font families available in the system.
     pub fn system_fonts(&self) -> Vec<FontName> {
-        font_kit::source::SystemSource::new()
-            .all_families()
-            .unwrap_or_default()
-            .into_iter()
-            .map(FontName::from)
-            .collect()
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            font_kit::source::SystemSource::new()
+                .all_families()
+                .unwrap_or_default()
+                .into_iter()
+                .map(FontName::from)
+                .collect()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            vec![]
+        }
     }
 
     /// Gets the system font anti-aliasing config as a read-only var.
@@ -823,6 +830,7 @@ impl FONTS {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
     fn from(m: font_kit::metrics::Metrics) -> Self {
         FontFaceMetrics {
@@ -870,7 +878,9 @@ struct LoadedFontFace {
     family_name: FontName,
     postscript_name: Option<String>,
     is_monospace: bool,
-    properties: font_kit::properties::Properties,
+    style: FontStyle,
+    weight: FontWeight,
+    stretch: FontStretch,
     metrics: FontFaceMetrics,
     color_palettes: ColorPalettes,
     color_glyphs: ColorGlyphs,
@@ -893,7 +903,9 @@ impl fmt::Debug for FontFace {
             .field("family_name", &self.0.family_name)
             .field("postscript_name", &self.0.postscript_name)
             .field("is_monospace", &self.0.is_monospace)
-            .field("properties", &self.0.properties)
+            .field("weight", &self.0.weight)
+            .field("style", &self.0.style)
+            .field("stretch", &self.0.stretch)
             .field("metrics", &self.0.metrics)
             .field("color_palettes.len()", &self.0.color_palettes.len())
             .field("color_glyphs.len()", &self.0.color_glyphs.len())
@@ -920,11 +932,9 @@ impl FontFace {
             family_name: FontName::from("<empty>"),
             postscript_name: None,
             is_monospace: true,
-            properties: font_kit::properties::Properties {
-                style: FontStyle::Normal.into(),
-                weight: FontWeight::NORMAL.into(),
-                stretch: FontStretch::NORMAL.into(),
-            },
+            style: FontStyle::Normal,
+            weight: FontWeight::NORMAL,
+            stretch: FontStretch::NORMAL,
             // values copied from a monospace font
             metrics: FontFaceMetrics {
                 units_per_em: 2048,
@@ -982,7 +992,9 @@ impl FontFace {
                         display_name: custom_font.name.clone(),
                         family_name: custom_font.name,
                         postscript_name: None,
-                        properties: other_font.0.properties,
+                        weight: other_font.0.weight,
+                        stretch: other_font.0.stretch,
+                        style: other_font.0.style,
                         is_monospace: other_font.0.is_monospace,
                         metrics: other_font.0.metrics.clone(),
                         m: Mutex::new(FontFaceMut {
@@ -1035,11 +1047,11 @@ impl FontFace {
             display_name: custom_font.name.clone(),
             family_name: custom_font.name,
             postscript_name: None,
-            properties: font_kit::properties::Properties {
-                style: custom_font.style.into(),
-                weight: custom_font.weight.into(),
-                stretch: custom_font.stretch.into(),
-            },
+
+            style: custom_font.style,
+            weight: custom_font.weight,
+            stretch: custom_font.stretch,
+
             is_monospace: font.is_monospace(),
             metrics: font.metrics().into(),
             color_palettes,
@@ -1111,6 +1123,8 @@ impl FontFace {
             return Err(FontLoadingError::UnknownFormat);
         }
 
+        let p = font.properties();
+
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
             face: face.to_shared(),
@@ -1118,7 +1132,9 @@ impl FontFace {
             display_name: font.full_name().into(),
             family_name: font.family_name().into(),
             postscript_name: font.postscript_name(),
-            properties: font.properties(),
+            weight: p.weight.into(),
+            stretch: p.stretch.into(),
+            style: p.style.into(),
             is_monospace: font.is_monospace(),
             metrics: metrics.into(),
             color_palettes,
@@ -1221,17 +1237,17 @@ impl FontFace {
 
     /// Font style.
     pub fn style(&self) -> FontStyle {
-        self.0.properties.style.into()
+        self.0.style
     }
 
     /// Font weight.
     pub fn weight(&self) -> FontWeight {
-        self.0.properties.weight.into()
+        self.0.weight
     }
 
     /// Font stretch.
     pub fn stretch(&self) -> FontStretch {
-        self.0.properties.stretch.into()
+        self.0.stretch
     }
 
     /// Font is monospace (fixed-width).
@@ -1776,7 +1792,9 @@ impl FontFaceLoader {
                 if let Ok(face) = done {
                     let mut fonts = FONTS_SV.write();
                     let family = fonts.loader.custom_fonts.entry(face.0.family_name.clone()).or_default();
-                    let existing = family.iter().position(|f| f.0.properties == face.0.properties);
+                    let existing = family
+                        .iter()
+                        .position(|f| f.0.weight == face.0.weight && f.0.style == face.0.style && f.0.stretch == face.0.stretch);
 
                     if let Some(i) = existing {
                         family[i] = face.clone();
