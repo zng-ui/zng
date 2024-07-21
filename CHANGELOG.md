@@ -1,6 +1,9 @@
 # Unreleased
 
 * **Breaking** Remove `0.10.5` deprecated items.
+* Fix `FONTS` matching obsolete Type1 fonts when there is an OpenType alternative.
+* **Breaking** `FONTS.system_fonts` is now returns a `ResponseVar`.
+* **Breaking** Replaced harfbuzz backend, `font::Face::harfbuzz` and `font::Font::harfbuzz` are the new accessors.
 
 # 0.10.5
 

@@ -805,14 +805,18 @@ impl FONTS {
         FONTS_SV.read().loader.custom_fonts.keys().cloned().collect()
     }
 
-    /// Gets all font families available in the system.
-    pub fn system_fonts(&self) -> Vec<FontName> {
-        font_kit::source::SystemSource::new()
-            .all_families()
-            .unwrap_or_default()
-            .into_iter()
-            .map(FontName::from)
-            .collect()
+    /// Query all font families available in the system.
+    ///
+    /// Note that the variable will only update once with the query result, this is not a live view.
+    pub fn system_fonts(&self) -> ResponseVar<Vec<FontName>> {
+        zng_task::wait_respond(|| {
+            font_kit::source::SystemSource::new()
+                .all_families()
+                .unwrap_or_default()
+                .into_iter()
+                .map(FontName::from)
+                .collect()
+        })
     }
 
     /// Gets the system font anti-aliasing config as a read-only var.
@@ -845,11 +849,11 @@ impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
 }
 
 #[derive(PartialEq, Eq, Hash)]
-struct FontInstanceKey(Px, Box<[(harfbuzz_rs::Tag, i32)]>);
+struct FontInstanceKey(Px, Box<[(ttf_parser::Tag, i32)]>);
 impl FontInstanceKey {
     /// Returns the key.
-    pub fn new(size: Px, variations: &[harfbuzz_rs::Variation]) -> Self {
-        let variations_key: Vec<_> = variations.iter().map(|p| (p.tag(), (p.value() * 1000.0) as i32)).collect();
+    pub fn new(size: Px, variations: &[rustybuzz::Variation]) -> Self {
+        let variations_key: Vec<_> = variations.iter().map(|p| (p.tag, (p.value * 1000.0) as i32)).collect();
         FontInstanceKey(size, variations_key.into_boxed_slice())
     }
 }
@@ -864,7 +868,6 @@ impl FontInstanceKey {
 pub struct FontFace(Arc<LoadedFontFace>);
 struct LoadedFontFace {
     data: FontDataRef,
-    face: harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>,
     face_index: u32,
     display_name: FontName,
     family_name: FontName,
@@ -914,7 +917,6 @@ impl FontFace {
     pub fn empty() -> Self {
         FontFace(Arc::new(LoadedFontFace {
             data: FontDataRef::from_static(&[]),
-            face: harfbuzz_rs::Face::empty().to_shared(),
             face_index: 0,
             display_name: FontName::from("<empty>"),
             family_name: FontName::from("<empty>"),
@@ -958,7 +960,7 @@ impl FontFace {
 
     async fn load_custom(custom_font: CustomFont) -> Result<Self, FontLoadingError> {
         let bytes;
-        let face_index;
+        let mut face_index;
 
         match custom_font.source {
             FontSource::File(path, index) => {
@@ -977,7 +979,6 @@ impl FontFace {
                 return match result.wait_into_rsp().await {
                     Some(other_font) => Ok(FontFace(Arc::new(LoadedFontFace {
                         data: other_font.0.data.clone(),
-                        face: harfbuzz_rs::Face::new(other_font.0.data.clone(), other_font.0.face_index).to_shared(),
                         face_index: other_font.0.face_index,
                         display_name: custom_font.name.clone(),
                         family_name: custom_font.name,
@@ -1007,12 +1008,16 @@ impl FontFace {
         }
         .load()?;
 
-        let face = harfbuzz_rs::Face::new(bytes.clone(), face_index);
-        if face.glyph_count() == 0 {
-            // Harfbuzz returns the empty face if data is not a valid font,
-            // font-kit already successfully parsed the font above so if must be
-            // a format not supported by Harfbuzz.
-            return Err(FontLoadingError::UnknownFormat);
+        if let Err(e) = ttf_parser::Face::parse(&bytes, face_index) {
+            match e {
+                // try again with font 0 (font-kit selects a high index for Ubuntu Font)
+                ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
+                e => return Err(FontLoadingError::Parse(e)),
+            }
+
+            if ttf_parser::Face::parse(&bytes, face_index).is_err() {
+                return Err(FontLoadingError::Parse(e));
+            }
         }
 
         let color_palettes = ColorPalettes::load(&font)?;
@@ -1030,7 +1035,6 @@ impl FontFace {
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
-            face: face.to_shared(),
             face_index,
             display_name: custom_font.name.clone(),
             family_name: custom_font.name,
@@ -1063,7 +1067,7 @@ impl FontFace {
         let _span = tracing::trace_span!("FontFace::load").entered();
 
         let bytes;
-        let face_index;
+        let mut face_index;
 
         match handle {
             font_kit::handle::Handle::Path { path, font_index } => {
@@ -1082,12 +1086,16 @@ impl FontFace {
         }
         .load()?;
 
-        let face = harfbuzz_rs::Face::new(bytes.clone(), face_index);
-        if face.glyph_count() == 0 {
-            // Harfbuzz returns the empty face if data is not a valid font,
-            // font-kit already successfully parsed the font above so if must be
-            // a format not supported by Harfbuzz.
-            return Err(FontLoadingError::UnknownFormat);
+        if let Err(e) = ttf_parser::Face::parse(&bytes, face_index) {
+            match e {
+                // try again with font 0 (font-kit selects a high index for Ubuntu Font)
+                ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
+                e => return Err(FontLoadingError::Parse(e)),
+            }
+
+            if ttf_parser::Face::parse(&bytes, face_index).is_err() {
+                return Err(FontLoadingError::Parse(e));
+            }
         }
 
         let color_palettes = ColorPalettes::load(&font)?;
@@ -1113,7 +1121,6 @@ impl FontFace {
 
         Ok(FontFace(Arc::new(LoadedFontFace {
             data: bytes,
-            face: face.to_shared(),
             face_index,
             display_name: font.full_name().into(),
             family_name: font.family_name().into(),
@@ -1165,15 +1172,25 @@ impl FontFace {
         key
     }
 
-    /// Reference the [`harfbuzz`](https://docs.rs/harfbuzz_rs) face.
-    pub fn harfbuzz_face(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>> {
-        &self.0.face
+    /// Loads the harfbuzz face.
+    ///
+    /// Loads from the cached [`bytes`].
+    ///
+    /// Returns `None` if [`is_empty`].
+    ///
+    /// [`is_empty`]: Self::is_empty
+    /// [`bytes`]: Self::bytes
+    pub fn harfbuzz(&self) -> Option<rustybuzz::Face> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(rustybuzz::Face::from_slice(&self.0.data.0, self.0.face_index).unwrap())
+        }
     }
 
     /// Get the [`font_kit`](https://docs.rs/font-kit) loaded in the current thread, or loads it.
     ///
-    /// Loads from the cached [`bytes`]. Unfortunately the font itself is `!Send`,
-    /// so a different instance is generated each call.
+    /// Loads from the cached [`bytes`].
     ///
     /// Returns `None` if [`is_empty`].
     ///
@@ -1327,7 +1344,6 @@ impl FontFace {
 pub struct Font(Arc<LoadedFont>);
 struct LoadedFont {
     face: FontFace,
-    font: harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>,
     size: Px,
     variations: RFontVariations,
     metrics: FontMetrics,
@@ -1367,15 +1383,8 @@ impl Font {
     }
 
     fn new(face: FontFace, size: Px, variations: RFontVariations) -> Self {
-        let ppem = size.0 as u32;
-
-        let mut font = harfbuzz_rs::Font::new(face.harfbuzz_face().clone());
-        font.set_ppem(ppem, ppem);
-        font.set_variations(&variations);
-
         Font(Arc::new(LoadedFont {
             metrics: face.metrics().sized(size),
-            font: font.to_shared(),
             face,
             size,
             variations,
@@ -1402,7 +1411,7 @@ impl Font {
             synthetic_bold: synthesis.contains(FontSynthesis::BOLD),
             ..Default::default()
         };
-        let variations = self.0.variations.iter().map(|v| (v.tag().to_bytes(), v.value())).collect();
+        let variations = self.0.variations.iter().map(|v| (v.tag.to_bytes(), v.value)).collect();
 
         let key = match renderer.add_font(font_key, self.0.size, opt, variations) {
             Ok(k) => k,
@@ -1422,9 +1431,16 @@ impl Font {
         &self.0.face
     }
 
-    /// Reference the [`harfbuzz`](https://docs.rs/harfbuzz_rs) font.
-    pub fn harfbuzz_font(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>> {
-        &self.0.font
+    /// Gets the sized harfbuzz font.
+    pub fn harfbuzz(&self) -> Option<rustybuzz::Face> {
+        let ppem = self.0.size.0 as u16;
+
+        let mut font = self.0.face.harfbuzz()?;
+
+        font.set_pixels_per_em(Some((ppem, ppem)));
+        font.set_variations(&self.0.variations);
+
+        Some(font)
     }
 
     /// Font size.
@@ -1458,11 +1474,45 @@ impl Font {
                 o as f32 * size_scale
             }
             ligature_util::LigatureCaret::GlyphContourPoint(i) => {
-                if let Some((x, _)) = self.harfbuzz_font().get_glyph_contour_point(lig, i as _) {
-                    x as f32 * self.0.metrics.size_scale
-                } else {
-                    0.0
+                if let Some(f) = self.harfbuzz() {
+                    struct Search {
+                        i: u16,
+                        s: u16,
+                        x: f32,
+                    }
+                    impl Search {
+                        fn check(&mut self, x: f32) {
+                            self.s = self.s.saturating_add(1);
+                            if self.s == self.i {
+                                self.x = x;
+                            }
+                        }
+                    }
+                    impl ttf_parser::OutlineBuilder for Search {
+                        fn move_to(&mut self, x: f32, _y: f32) {
+                            self.check(x);
+                        }
+
+                        fn line_to(&mut self, x: f32, _y: f32) {
+                            self.check(x);
+                        }
+
+                        fn quad_to(&mut self, _x1: f32, _y1: f32, x: f32, _y: f32) {
+                            self.check(x)
+                        }
+
+                        fn curve_to(&mut self, _x1: f32, _y1: f32, _x2: f32, _y2: f32, x: f32, _y: f32) {
+                            self.check(x);
+                        }
+
+                        fn close(&mut self) {}
+                    }
+                    let mut search = Search { i, s: 0, x: 0.0 };
+                    if f.outline_glyph(ttf_parser::GlyphId(lig as _), &mut search).is_some() && search.s >= search.i {
+                        return search.x * self.0.metrics.size_scale;
+                    }
                 }
+                0.0
             }
         })
     }
@@ -2338,11 +2388,6 @@ impl std::ops::Deref for FontDataRef {
         self.0.deref()
     }
 }
-impl From<FontDataRef> for harfbuzz_rs::Shared<harfbuzz_rs::Blob<'static>> {
-    fn from(d: FontDataRef) -> Self {
-        harfbuzz_rs::Blob::with_bytes_owned(d, |d| d).to_shared()
-    }
-}
 
 #[derive(Debug, Clone)]
 enum FontSource {
@@ -3179,7 +3224,7 @@ pub enum FontLoadingError {
     /// this error.
     NoSuchFontInCollection,
     /// Attempted to load a malformed or corrupted font.
-    Parse,
+    Parse(ttf_parser::FaceParsingError),
     /// Attempted to load a font from the filesystem, but there is no filesystem (e.g. in
     /// WebAssembly).
     NoFilesystem,
@@ -3199,7 +3244,7 @@ impl From<font_kit::error::FontLoadingError> for FontLoadingError {
         match ve {
             font_kit::error::FontLoadingError::UnknownFormat => Self::UnknownFormat,
             font_kit::error::FontLoadingError::NoSuchFontInCollection => Self::NoSuchFontInCollection,
-            font_kit::error::FontLoadingError::Parse => Self::Parse,
+            font_kit::error::FontLoadingError::Parse => Self::Parse(ttf_parser::FaceParsingError::MalformedFont),
             font_kit::error::FontLoadingError::NoFilesystem => Self::NoFilesystem,
             font_kit::error::FontLoadingError::Io(e) => Self::Io(Arc::new(e)),
         }
@@ -3215,8 +3260,10 @@ impl fmt::Display for FontLoadingError {
         let e = match self {
             Self::UnknownFormat => font_kit::error::FontLoadingError::UnknownFormat,
             Self::NoSuchFontInCollection => font_kit::error::FontLoadingError::NoSuchFontInCollection,
-            Self::Parse => font_kit::error::FontLoadingError::Parse,
             Self::NoFilesystem => font_kit::error::FontLoadingError::NoFilesystem,
+            Self::Parse(e) => {
+                return fmt::Display::fmt(e, f);
+            }
             Self::Io(e) => {
                 return fmt::Display::fmt(e, f);
             }
@@ -3227,6 +3274,7 @@ impl fmt::Display for FontLoadingError {
 impl std::error::Error for FontLoadingError {
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
+            FontLoadingError::Parse(e) => Some(e),
             FontLoadingError::Io(e) => Some(e),
             _ => None,
         }

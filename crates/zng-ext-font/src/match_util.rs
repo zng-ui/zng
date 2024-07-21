@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{FontName, FontStretch, FontStyle, FontWeight};
 
 pub fn best(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<font_kit::handle::Handle> {
@@ -16,7 +18,31 @@ pub fn best(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch:
             stretch: stretch.into(),
         },
     ) {
-        Ok(handle) => Some(handle),
+        Ok(mut handle) => {
+            if let font_kit::handle::Handle::Path { path, .. } = &mut handle {
+                // try replacing type1 fonts with OpenType
+                // RustyBuzz does not support type1 (neither does Harfbuzz, it is obsolete)
+                //
+                // Example case from default Ubuntu fonts:
+                // /usr/share/fonts/type1/urw-base35/Z003-MediumItalic.t1
+                // /usr/share/fonts/opentype/urw-base35/Z003-MediumItalic.otf
+                if let Ok(base) = path.strip_prefix("/usr/share/fonts/type1/") {
+                    if let Some(name) = base.file_name() {
+                        if let Some(name) = name.to_str() {
+                            if name.ends_with(".t1") {
+                                let rep = Path::new("/usr/share/fonts/opentype/").join(base.with_extension("otf"));
+                                if rep.exists() {
+                                    tracing::debug!("replaced `{name}` with .otf of same name");
+                                    *path = rep;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Some(handle)
+        }
         Err(font_kit::error::SelectionError::NotFound) => {
             tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
             None
