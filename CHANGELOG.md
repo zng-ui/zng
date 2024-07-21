@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix Emoji color palette panic (Windows 11 Emoji).
 * **Breaking** Remove `0.10.5` deprecated items.
 * Fix `FONTS` matching obsolete Type1 fonts when there is an OpenType alternative.
 * **Breaking** `FONTS.system_fonts` is now returns a `ResponseVar`.

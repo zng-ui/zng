@@ -200,7 +200,7 @@ impl ColorPalettes {
 
     fn palette_get(&self, i: usize) -> Option<ColorPalette> {
         let len = self.num_palette_entries as usize;
-        let s = len + i;
+        let s = len * i;
         let e = s + len;
 
         self.colors.get(s..e).map(|c| ColorPalette {
