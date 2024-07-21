@@ -14,7 +14,7 @@
 //! ```
 //! # use zng_task as task;
 //! # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-//! let text = task::http::get_text("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
+//! let text = task::http::get_txt("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
 //! println!("{text}!");
 //! # Ok(()) }
 //! ```
@@ -817,12 +817,6 @@ pub async fn get(uri: impl TryUri) -> Result<Response, Error> {
     default_client().get(uri).await
 }
 
-#[doc(hidden)]
-#[deprecated = "use get_txt"]
-pub async fn get_text(uri: impl TryUri) -> Result<Txt, Error> {
-    default_client().get_txt(uri).await
-}
-
 /// Send a GET request to the `uri` and read the response as a string.
 ///
 /// The [`default_client`] is used to send the request.
@@ -1143,14 +1137,6 @@ impl Client {
     /// Send a GET request to the `uri`.
     pub async fn get(&self, uri: impl TryUri) -> Result<Response, Error> {
         self.send(Request::get(uri)?.build()).await
-    }
-
-    #[doc(hidden)]
-    #[deprecated = "use get_txt"]
-    pub async fn get_text(&self, uri: impl TryUri) -> Result<Txt, Error> {
-        let mut r = self.get(uri).await?;
-        let r = r.text().await?;
-        Ok(r)
     }
 
     /// Send a GET request to the `uri` and read the response as a string.

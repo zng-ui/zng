@@ -95,7 +95,7 @@
 //!     on_click = async_hn!(enabled, msg, |_| {
 //!         enabled.set(false);
 //!
-//!         match task::http::get_text("https://httpbin.org/get").await {
+//!         match task::http::get_txt("https://httpbin.org/get").await {
 //!             Ok(r) => msg.set(r),
 //!             Err(e) => msg.set(formatx!("error: {e}")),
 //!         }
