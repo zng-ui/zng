@@ -1763,7 +1763,7 @@ trait FontListRef {
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
-        features: &[harfbuzz_rs::Feature],
+        features: &[rustybuzz::Feature],
         out: impl FnOnce(&ShapedSegmentData, &Font) -> R,
     ) -> R;
 }
@@ -1772,7 +1772,7 @@ impl FontListRef for [Font] {
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
-        features: &[harfbuzz_rs::Feature],
+        features: &[rustybuzz::Feature],
         out: impl FnOnce(&ShapedSegmentData, &Font) -> R,
     ) -> R {
         let mut out = Some(out);
@@ -1993,7 +1993,7 @@ impl ShapedTextBuilder {
         static LIG: [&[u8]; 4] = [b"liga", b"clig", b"dlig", b"hlig"];
         let ligature_enabled = fonts[0].face().has_ligatures()
             && features.iter().any(|f| {
-                let tag = f.tag().to_bytes();
+                let tag = f.tag.to_bytes();
                 LIG.iter().any(|l| *l == tag)
             });
 
@@ -3513,16 +3513,16 @@ impl WordContextKey {
             features.reserve(font_features.len() * if is_64 { 3 } else { 4 });
             for feature in font_features {
                 if is_64 {
-                    let mut h = feature.tag().0 as usize;
-                    h |= (feature.value() as usize) << 32;
+                    let mut h = feature.tag.0 as usize;
+                    h |= (feature.value as usize) << 32;
                     features.push(h);
                 } else {
-                    features.push(feature.tag().0 as usize);
-                    features.push(feature.value() as usize);
+                    features.push(feature.tag.0 as usize);
+                    features.push(feature.value as usize);
                 }
 
-                features.push(feature.start());
-                features.push(feature.end());
+                features.push(feature.start as usize);
+                features.push(feature.end as usize);
             }
         }
 
@@ -3534,17 +3534,17 @@ impl WordContextKey {
         }
     }
 
-    pub fn harfbuzz_lang(&self) -> Option<harfbuzz_rs::Language> {
+    pub fn harfbuzz_lang(&self) -> Option<rustybuzz::Language> {
         self.lang.as_str().parse().ok()
     }
 
-    pub fn harfbuzz_script(&self) -> Option<harfbuzz_rs::Tag> {
+    pub fn harfbuzz_script(&self) -> Option<rustybuzz::Script> {
         let t: u32 = self.script?.into();
         let t = t.to_le_bytes(); // Script is a TinyStr4 that uses LE
-        Some(harfbuzz_rs::Tag::from(&[t[0], t[1], t[2], t[3]]))
+        rustybuzz::Script::from_iso15924_tag(ttf_parser::Tag::from_bytes(&[t[0], t[1], t[2], t[3]]))
     }
 
-    pub fn harfbuzz_direction(&self) -> harfbuzz_rs::Direction {
+    pub fn harfbuzz_direction(&self) -> rustybuzz::Direction {
         into_harf_direction(self.direction)
     }
 
@@ -3569,69 +3569,61 @@ struct ShapedGlyph {
 }
 
 impl Font {
-    fn buffer_segment(&self, segment: &str, key: &WordContextKey) -> harfbuzz_rs::UnicodeBuffer {
-        let mut buffer = harfbuzz_rs::UnicodeBuffer::new()
-            .set_direction(key.harfbuzz_direction())
-            .set_cluster_level(harfbuzz_rs::ClusterLevel::MonotoneCharacters);
+    fn buffer_segment(&self, segment: &str, key: &WordContextKey) -> rustybuzz::UnicodeBuffer {
+        let mut buffer = rustybuzz::UnicodeBuffer::new();
+        buffer.set_direction(key.harfbuzz_direction());
+        buffer.set_cluster_level(rustybuzz::BufferClusterLevel::MonotoneCharacters);
 
         if let Some(lang) = key.harfbuzz_lang() {
-            buffer = buffer.set_language(lang);
+            buffer.set_language(lang);
         }
         if let Some(script) = key.harfbuzz_script() {
-            buffer = buffer.set_script(script);
+            buffer.set_script(script);
         }
 
-        buffer.add_str(segment)
+        buffer.push_str(segment);
+        buffer
     }
 
-    fn shape_segment_no_cache(&self, seg: &str, key: &WordContextKey, features: &[harfbuzz_rs::Feature]) -> ShapedSegmentData {
+    fn shape_segment_no_cache(&self, seg: &str, key: &WordContextKey, features: &[rustybuzz::Feature]) -> ShapedSegmentData {
+        let buffer = if let Some(font) = self.harfbuzz() {
+            let buffer = self.buffer_segment(seg, key);
+            rustybuzz::shape(&font, features, buffer)
+        } else {
+            return ShapedSegmentData {
+                glyphs: vec![],
+                x_advance: 0.0,
+                y_advance: 0.0,
+            };
+        };
+
         let size_scale = self.metrics().size_scale;
         let to_layout = |p: i32| p as f32 * size_scale;
-
-        let buffer = self.buffer_segment(seg, key);
-        let buffer = harfbuzz_rs::shape(self.harfbuzz_font(), buffer, features);
 
         let mut w_x_advance = 0.0;
         let mut w_y_advance = 0.0;
 
-        let glyphs: Vec<_> = if self.face().is_empty() {
-            let advance = self.metrics().bounds.width().0 as f32;
-            buffer
-                .get_glyph_infos()
-                .iter()
-                .map(|i| {
-                    let g = ShapedGlyph {
-                        index: 0,
-                        cluster: i.cluster,
-                        point: (w_x_advance, 0.0),
-                    };
-                    w_x_advance += advance;
-                    g
-                })
-                .collect()
-        } else {
-            buffer
-                .get_glyph_infos()
-                .iter()
-                .zip(buffer.get_glyph_positions())
-                .map(|(i, p)| {
-                    let x_offset = to_layout(p.x_offset);
-                    let y_offset = -to_layout(p.y_offset);
-                    let x_advance = to_layout(p.x_advance);
-                    let y_advance = to_layout(p.y_advance);
+        let glyphs: Vec<_> = buffer
+            .glyph_infos()
+            .iter()
+            .zip(buffer.glyph_positions())
+            .map(|(i, p)| {
+                let x_offset = to_layout(p.x_offset);
+                let y_offset = -to_layout(p.y_offset);
+                let x_advance = to_layout(p.x_advance);
+                let y_advance = to_layout(p.y_advance);
 
-                    let point = (w_x_advance + x_offset, w_y_advance + y_offset);
-                    w_x_advance += x_advance;
-                    w_y_advance += y_advance;
+                let point = (w_x_advance + x_offset, w_y_advance + y_offset);
+                w_x_advance += x_advance;
+                w_y_advance += y_advance;
 
-                    ShapedGlyph {
-                        index: i.codepoint,
-                        cluster: i.cluster,
-                        point,
-                    }
-                })
-                .collect()
-        };
+                ShapedGlyph {
+                    index: i.glyph_id,
+                    cluster: i.cluster,
+                    point,
+                }
+            })
+            .collect();
 
         ShapedSegmentData {
             glyphs,
@@ -3644,7 +3636,7 @@ impl Font {
         &self,
         seg: &str,
         word_ctx_key: &WordContextKey,
-        features: &[harfbuzz_rs::Feature],
+        features: &[rustybuzz::Feature],
         out: impl FnOnce(&ShapedSegmentData) -> R,
     ) -> R {
         if !(1..=WORD_CACHE_MAX_LEN).contains(&seg.len()) || self.face().is_empty() {
@@ -3716,7 +3708,10 @@ impl Font {
 
     /// Glyph index for the space `' '` character.
     pub fn space_index(&self) -> GlyphIndex {
-        self.0.font.get_nominal_glyph(' ').unwrap_or(0)
+        if let Some(f) = self.face().font_kit() {
+            return f.glyph_for_char(' ').unwrap_or(0);
+        }
+        0
     }
 
     /// Returns the horizontal advance of the space `' '` character.
@@ -4065,10 +4060,10 @@ pub fn f32_cmp(a: &f32, b: &f32) -> std::cmp::Ordering {
     a.partial_cmp(b).unwrap()
 }
 
-fn into_harf_direction(d: LayoutDirection) -> harfbuzz_rs::Direction {
+fn into_harf_direction(d: LayoutDirection) -> rustybuzz::Direction {
     match d {
-        LayoutDirection::LTR => harfbuzz_rs::Direction::Ltr,
-        LayoutDirection::RTL => harfbuzz_rs::Direction::Rtl,
+        LayoutDirection::LTR => rustybuzz::Direction::LeftToRight,
+        LayoutDirection::RTL => rustybuzz::Direction::RightToLeft,
     }
 }
 

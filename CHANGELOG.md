@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Replaced harfbuzz backend, `font::Face::harfbuzz` and `font::Font::harfbuzz` are the new accessors.
 
 # 0.10.5
 
