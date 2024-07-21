@@ -805,14 +805,18 @@ impl FONTS {
         FONTS_SV.read().loader.custom_fonts.keys().cloned().collect()
     }
 
-    /// Gets all font families available in the system.
-    pub fn system_fonts(&self) -> Vec<FontName> {
-        font_kit::source::SystemSource::new()
-            .all_families()
-            .unwrap_or_default()
-            .into_iter()
-            .map(FontName::from)
-            .collect()
+    /// Query all font families available in the system.
+    ///
+    /// Note that the variable will only update once with the query result, this is not a live view.
+    pub fn system_fonts(&self) -> ResponseVar<Vec<FontName>> {
+        zng_task::wait_respond(|| {
+            font_kit::source::SystemSource::new()
+                .all_families()
+                .unwrap_or_default()
+                .into_iter()
+                .map(FontName::from)
+                .collect()
+        })
     }
 
     /// Gets the system font anti-aliasing config as a read-only var.
@@ -956,7 +960,7 @@ impl FontFace {
 
     async fn load_custom(custom_font: CustomFont) -> Result<Self, FontLoadingError> {
         let bytes;
-        let face_index;
+        let mut face_index;
 
         match custom_font.source {
             FontSource::File(path, index) => {
@@ -1004,8 +1008,16 @@ impl FontFace {
         }
         .load()?;
 
-        if rustybuzz::Face::from_slice(&bytes, face_index).is_none() {
-            return Err(FontLoadingError::Parse);
+        if let Err(e) = ttf_parser::Face::parse(&bytes, face_index) {
+            match e {
+                // try again with font 0 (font-kit selects a high index for Ubuntu Font)
+                ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
+                e => return Err(FontLoadingError::Parse(e)),
+            }
+
+            if ttf_parser::Face::parse(&bytes, face_index).is_err() {
+                return Err(FontLoadingError::Parse(e));
+            }
         }
 
         let color_palettes = ColorPalettes::load(&font)?;
@@ -1055,7 +1067,7 @@ impl FontFace {
         let _span = tracing::trace_span!("FontFace::load").entered();
 
         let bytes;
-        let face_index;
+        let mut face_index;
 
         match handle {
             font_kit::handle::Handle::Path { path, font_index } => {
@@ -1074,8 +1086,16 @@ impl FontFace {
         }
         .load()?;
 
-        if rustybuzz::Face::from_slice(&bytes, face_index).is_none() {
-            return Err(FontLoadingError::Parse);
+        if let Err(e) = ttf_parser::Face::parse(&bytes, face_index) {
+            match e {
+                // try again with font 0 (font-kit selects a high index for Ubuntu Font)
+                ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
+                e => return Err(FontLoadingError::Parse(e)),
+            }
+
+            if ttf_parser::Face::parse(&bytes, face_index).is_err() {
+                return Err(FontLoadingError::Parse(e));
+            }
         }
 
         let color_palettes = ColorPalettes::load(&font)?;
@@ -3204,7 +3224,7 @@ pub enum FontLoadingError {
     /// this error.
     NoSuchFontInCollection,
     /// Attempted to load a malformed or corrupted font.
-    Parse,
+    Parse(ttf_parser::FaceParsingError),
     /// Attempted to load a font from the filesystem, but there is no filesystem (e.g. in
     /// WebAssembly).
     NoFilesystem,
@@ -3224,7 +3244,7 @@ impl From<font_kit::error::FontLoadingError> for FontLoadingError {
         match ve {
             font_kit::error::FontLoadingError::UnknownFormat => Self::UnknownFormat,
             font_kit::error::FontLoadingError::NoSuchFontInCollection => Self::NoSuchFontInCollection,
-            font_kit::error::FontLoadingError::Parse => Self::Parse,
+            font_kit::error::FontLoadingError::Parse => Self::Parse(ttf_parser::FaceParsingError::MalformedFont),
             font_kit::error::FontLoadingError::NoFilesystem => Self::NoFilesystem,
             font_kit::error::FontLoadingError::Io(e) => Self::Io(Arc::new(e)),
         }
@@ -3240,8 +3260,10 @@ impl fmt::Display for FontLoadingError {
         let e = match self {
             Self::UnknownFormat => font_kit::error::FontLoadingError::UnknownFormat,
             Self::NoSuchFontInCollection => font_kit::error::FontLoadingError::NoSuchFontInCollection,
-            Self::Parse => font_kit::error::FontLoadingError::Parse,
             Self::NoFilesystem => font_kit::error::FontLoadingError::NoFilesystem,
+            Self::Parse(e) => {
+                return fmt::Display::fmt(e, f);
+            }
             Self::Io(e) => {
                 return fmt::Display::fmt(e, f);
             }
@@ -3252,6 +3274,7 @@ impl fmt::Display for FontLoadingError {
 impl std::error::Error for FontLoadingError {
     fn cause(&self) -> Option<&dyn std::error::Error> {
         match self {
+            FontLoadingError::Parse(e) => Some(e),
             FontLoadingError::Io(e) => Some(e),
             _ => None,
         }
