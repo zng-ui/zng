@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Remove `0.10.5` deprecated items.
 
 # 0.10.5
 

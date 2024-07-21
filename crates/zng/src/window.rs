@@ -127,14 +127,6 @@ pub use zng_wgt_window::events::{
     on_window_restored, on_window_state_changed, on_window_unmaximized, on_window_unminimized,
 };
 
-#[doc(hidden)]
-#[deprecated = "use `zng::dialog`"]
-pub mod native_dialog {
-    pub use zng_view_api::dialog::{
-        FileDialog, FileDialogKind, FileDialogResponse, MsgDialog, MsgDialogButtons, MsgDialogIcon, MsgDialogResponse,
-    };
-}
-
 /// Debug inspection helpers.
 ///
 /// The properties in this module can be set on a window or widget to visualize layout and render internals.
