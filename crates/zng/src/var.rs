@@ -215,7 +215,7 @@
 //!
 //! let rsp = task::respond(async {
 //!     let url = "https://raw.githubusercontent.com/git/git-scm.com/main/MIT-LICENSE.txt";
-//!     match task::http::get_text(url).await {
+//!     match task::http::get_txt(url).await {
 //!         Ok(t) => t,
 //!         Err(e) => formatx!("{e}"),
 //!     }

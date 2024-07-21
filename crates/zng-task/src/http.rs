@@ -14,7 +14,7 @@
 //! ```
 //! # use zng_task as task;
 //! # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-//! let text = task::http::get_text("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
+//! let text = task::http::get_txt("https://httpbin.org/base64/SGVsbG8gV29ybGQ=").await?;
 //! println!("{text}!");
 //! # Ok(()) }
 //! ```
