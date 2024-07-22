@@ -12,6 +12,7 @@ use zng_wgt::{align, corner_radius, enabled, margin};
 use zng_wgt_ansi_text::AnsiText;
 use zng_wgt_button::Button;
 use zng_wgt_container::{padding, Container};
+use zng_wgt_dialog::{FileDialogFilters, FileDialogResponse, DIALOG};
 use zng_wgt_fill::background_color;
 use zng_wgt_scroll::Scroll;
 use zng_wgt_stack::Stack;
@@ -216,7 +217,10 @@ fn widget_panel(widget_path: Txt) -> impl UiNode {
     plain_panel(widget_path, "widget")
 }
 fn minidump_panel(path: PathBuf) -> impl UiNode {
-    let path_txt = path.display().to_string().trim_start_matches(r"\\?\").to_txt();
+    let path_str = path.display().to_string();
+    #[cfg(windows)]
+    let path_str = path_str.trim_start_matches(r"\\?\").replace('/', "\\");
+    let path_txt = path_str.to_txt();
     Scroll! {
         child_align = Align::TOP_START;
         background_color = colors::BLACK;
@@ -284,16 +288,21 @@ fn minidump_panel(path: PathBuf) -> impl UiNode {
 async fn open_path(enabled: ArcVar<bool>, path: PathBuf) {
     enabled.set(false);
 
-    if let Err(e) = task::wait(move || open::that(path)).await {
-        error_message(
-            l10n!(
-                "crash-handler/minidump.open-error",
-                "Failed to open minidump.\n{$error}",
-                error = e.to_string()
+    #[cfg(windows)]
+    let path = path.display().to_string().replace('/', "\\");
+
+    if let Err(e) = task::wait(move || open::that_detached(path)).await {
+        DIALOG
+            .error(
+                "",
+                l10n!(
+                    "crash-handler/minidump.open-error",
+                    "Failed to open minidump.\n{$error}",
+                    error = e.to_string()
+                ),
             )
-            .get(),
-        )
-        .await;
+            .wait_done()
+            .await;
     }
 
     enabled.set(true);
@@ -301,51 +310,56 @@ async fn open_path(enabled: ArcVar<bool>, path: PathBuf) {
 async fn save_copy(enabled: ArcVar<bool>, path: PathBuf) {
     enabled.set(false);
 
-    let mut dialog = zng_view_api::dialog::FileDialog {
-        title: l10n!("crash-handler/minidump.save-copy-title", "Save Copy").get(),
-        starting_dir: path.parent().unwrap().to_owned(),
-        // l10n-# default file name
-        starting_name: l10n!("crash-handler/minidump.save-copy-starting-name", "minidump").get(),
-        kind: zng_view_api::dialog::FileDialogKind::SaveFile,
-        ..Default::default()
-    };
-
+    let mut filters = FileDialogFilters::new();
     if let Some(ext) = path.extension() {
         // l10n-# name for the minidump file type in the save file dialog
-        dialog.push_filter(
+        filters.push_filter(
             l10n!("crash-handler/minidump.save-copy-filter-name", "Minidump").get().as_str(),
             &[ext.to_string_lossy()],
         );
     }
 
-    let r = WINDOWS.native_file_dialog(WINDOW.id(), dialog).wait_into_rsp().await;
+    let r = DIALOG
+        .save_file(
+            l10n!("crash-handler/minidump.save-copy-title", "Save Copy"),
+            path.parent().unwrap().to_owned(),
+            // l10n-# default file name
+            l10n!("crash-handler/minidump.save-copy-starting-name", "minidump"),
+            filters,
+        )
+        .wait_into_rsp()
+        .await;
 
     match r {
-        zng_view_api::dialog::FileDialogResponse::Selected(mut paths) => {
+        FileDialogResponse::Selected(mut paths) => {
             let destiny = paths.remove(0);
             if let Err(e) = task::wait(move || std::fs::copy(path, destiny)).await {
-                error_message(
+                DIALOG
+                    .error(
+                        "",
+                        l10n!(
+                            "crash-handler/minidump.save-error",
+                            "Failed so save minidump copy.\n{$error}",
+                            error = format!("[copy] {e}"),
+                        ),
+                    )
+                    .wait_done()
+                    .await;
+            }
+        }
+        FileDialogResponse::Cancel => {}
+        FileDialogResponse::Error(e) => {
+            DIALOG
+                .error(
+                    "",
                     l10n!(
                         "crash-handler/minidump.save-error",
                         "Failed so save minidump copy.\n{$error}",
-                        error = format!("[copy] {e}"),
-                    )
-                    .get(),
+                        error = format!("[dialog] {e}"),
+                    ),
                 )
-                .await;
-            }
-        }
-        zng_view_api::dialog::FileDialogResponse::Cancel => {}
-        zng_view_api::dialog::FileDialogResponse::Error(e) => {
-            error_message(
-                l10n!(
-                    "crash-handler/minidump.save-error",
-                    "Failed so save minidump copy.\n{$error}",
-                    error = format!("[dialog] {e}"),
-                )
-                .get(),
-            )
-            .await
+                .wait_done()
+                .await
         }
     }
 
@@ -356,33 +370,21 @@ async fn remove_path(enabled: ArcVar<bool>, path: PathBuf) {
 
     if let Err(e) = task::wait(move || std::fs::remove_file(path)).await {
         if e.kind() != std::io::ErrorKind::NotFound {
-            error_message(
-                l10n!(
-                    "crash-handler/minidump.remove-error",
-                    "Failed to remove minidump.\n{$error}",
-                    error = e.to_string()
+            DIALOG
+                .error(
+                    "",
+                    l10n!(
+                        "crash-handler/minidump.remove-error",
+                        "Failed to remove minidump.\n{$error}",
+                        error = e.to_string()
+                    ),
                 )
-                .get(),
-            )
-            .await;
+                .wait_into_rsp()
+                .await
         }
     }
 
     enabled.set(true);
-}
-async fn error_message(message: Txt) {
-    WINDOWS
-        .native_message_dialog(
-            WINDOW.id(),
-            zng_view_api::dialog::MsgDialog {
-                title: "Error".into(),
-                message,
-                icon: zng_view_api::dialog::MsgDialogIcon::Error,
-                ..Default::default()
-            },
-        )
-        .wait_into_rsp()
-        .await;
 }
 
 fn plain_panel(txt: Txt, config_key: &'static str) -> impl UiNode {

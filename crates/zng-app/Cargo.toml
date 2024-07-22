@@ -58,9 +58,11 @@ trace_wgt_item = []
 # Allow app-process crash handler.
 crash_handler = [
     "dep:serde_json",
-    "dep:breakpad-handler",
+    "dep:minidumper",
+    "dep:crash-handler",
     "dep:minidump",
     "dep:linkme",
+    "dep:uuid",
 ]
 
 # Enables IPC tasks and pre-build views and connecting to views running in another process.
@@ -106,9 +108,12 @@ unic-langid = { version = "0.9", features = ["serde"] }
 unicase = "2.7"
 
 serde_json = { version = "1.0", optional = true }
-breakpad-handler = { version = "0.2", optional = true }
+minidumper = { version = "0.8", optional = true }
+crash-handler = { version = "0.6", optional = true }
 minidump = { version = "0.22", optional = true }
 linkme = { version = "=0.3.27", optional = true }
+uuid = { version = "1.1", optional = true }
+
 hashbrown = { version = "0.14", features = ["rayon"] }
 rustc-hash = "2.0"
 

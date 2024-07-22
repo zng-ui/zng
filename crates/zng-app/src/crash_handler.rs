@@ -9,8 +9,10 @@ use std::{
     fmt,
     io::{BufRead, Write},
     path::{Path, PathBuf},
+    sync::{atomic::AtomicBool, Arc},
     time::SystemTime,
 };
+use zng_clone_move::clmv;
 use zng_layout::unit::TimeUnits as _;
 
 use zng_txt::{ToTxt as _, Txt};
@@ -40,12 +42,12 @@ zng_env::on_process_start!(|process_start_args| {
     }
 
     if std::env::var(APP_PROCESS) != Err(std::env::VarError::NotPresent) {
-        return crash_handler_app_process(config.dump_dir.as_deref());
+        return crash_handler_app_process(config.dump_dir.is_some());
     }
 
     match std::env::var(DIALOG_PROCESS) {
         Ok(args_file) => crash_handler_dialog_process(
-            config.dump_dir.as_deref(),
+            config.dump_dir.is_some(),
             config
                 .dialog
                 .or(config.default_dialog)
@@ -59,6 +61,7 @@ zng_env::on_process_start!(|process_start_args| {
     }
 
     crash_handler_monitor_process(
+        config.dump_dir,
         config.app_process,
         config.dialog_process,
         config.default_dialog.is_some() || config.dialog.is_some(),
@@ -77,6 +80,7 @@ pub fn restart_count() -> usize {
 
 const APP_PROCESS: &str = "ZNG_CRASH_HANDLER_APP";
 const DIALOG_PROCESS: &str = "ZNG_CRASH_HANDLER_DIALOG";
+const DUMP_CHANNEL: &str = "ZNG_MINIDUMP_CHANNEL";
 const RESPONSE_PREFIX: &str = "zng_crash_response: ";
 
 #[linkme::distributed_slice]
@@ -305,21 +309,15 @@ impl fmt::Display for CrashError {
     }
 }
 impl CrashError {
-    fn new(timestamp: SystemTime, code: Option<i32>, signal: Option<i32>, stdout: Txt, stderr: Txt, args: Box<[Txt]>) -> Self {
-        let mut minidump = None;
-
-        for line in stdout.lines().rev() {
-            if let Some(response) = line.strip_prefix(RESPONSE_PREFIX) {
-                if let Some(path) = response.strip_prefix("minidump ") {
-                    let path = PathBuf::from(path);
-                    if let Ok(p) = dunce::canonicalize(path) {
-                        minidump = Some(p);
-                    }
-                    break;
-                }
-            }
-        }
-
+    fn new(
+        timestamp: SystemTime,
+        code: Option<i32>,
+        signal: Option<i32>,
+        stdout: Txt,
+        stderr: Txt,
+        minidump: Option<PathBuf>,
+        args: Box<[Txt]>,
+    ) -> Self {
         Self {
             timestamp,
             code,
@@ -779,7 +777,12 @@ impl BacktraceFrame {
     }
 }
 
-fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: ConfigProcess, has_dialog_handler: bool) -> ! {
+fn crash_handler_monitor_process(
+    dump_dir: Option<PathBuf>,
+    mut cfg_app: ConfigProcess,
+    mut cfg_dialog: ConfigProcess,
+    has_dialog_handler: bool,
+) -> ! {
     // monitor-process:
     tracing::info!("crash monitor-process is running");
 
@@ -798,12 +801,14 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
         for cfg in &mut cfg_app {
             cfg(&mut app_process, &dialog_args);
         }
+
         match run_process(
+            dump_dir.as_deref(),
             app_process
                 .env(APP_PROCESS, format!("restart-{}", dialog_args.app_crashes.len()))
                 .args(args.iter()),
         ) {
-            Ok((status, [stdout, stderr])) => {
+            Ok((status, [stdout, stderr], dump_file)) => {
                 if status.success() {
                     let code = status.code().unwrap_or(0);
                     tracing::info!(
@@ -849,9 +854,15 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
 
                     let timestamp = SystemTime::now();
 
-                    dialog_args
-                        .app_crashes
-                        .push(CrashError::new(timestamp, code, signal, stdout.into(), stderr.into(), args.clone()));
+                    dialog_args.app_crashes.push(CrashError::new(
+                        timestamp,
+                        code,
+                        signal,
+                        stdout.into(),
+                        stderr.into(),
+                        dump_file,
+                        args.clone(),
+                    ));
 
                     // show dialog, retries once if dialog crashes too.
                     for _ in 0..2 {
@@ -898,9 +909,9 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                             for cfg in &mut cfg_dialog {
                                 cfg(&mut dialog_process, &dialog_args);
                             }
-                            run_process(dialog_process.env(DIALOG_PROCESS, &crash_file))
+                            run_process(dump_dir.as_deref(), dialog_process.env(DIALOG_PROCESS, &crash_file))
                         } else {
-                            Ok((std::process::ExitStatus::default(), [String::new(), String::new()]))
+                            Ok((std::process::ExitStatus::default(), [String::new(), String::new()], None))
                         };
 
                         for _ in 0..5 {
@@ -911,7 +922,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                         }
 
                         let response = match dialog_result {
-                            Ok((dlg_status, [dlg_stdout, dlg_stderr])) => {
+                            Ok((dlg_status, [dlg_stdout, dlg_stderr], dlg_dump_file)) => {
                                 if dlg_status.success() {
                                     dlg_stdout
                                         .lines()
@@ -954,6 +965,7 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
                                         signal,
                                         dlg_stdout.into(),
                                         dlg_stderr.into(),
+                                        dlg_dump_file,
                                         Box::new([]),
                                     );
                                     tracing::error!("crash dialog-process crashed, {dialog_crash}");
@@ -987,7 +999,49 @@ fn crash_handler_monitor_process(mut cfg_app: ConfigProcess, mut cfg_dialog: Con
         }
     }
 }
-fn run_process(command: &mut std::process::Command) -> std::io::Result<(std::process::ExitStatus, [String; 2])> {
+fn run_process(
+    dump_dir: Option<&Path>,
+    command: &mut std::process::Command,
+) -> std::io::Result<(std::process::ExitStatus, [String; 2], Option<PathBuf>)> {
+    struct DumpServer {
+        shutdown: Arc<AtomicBool>,
+        runner: std::thread::JoinHandle<Option<PathBuf>>,
+    }
+    let mut dump_server = None;
+    if let Some(dump_dir) = dump_dir {
+        match std::fs::create_dir_all(dump_dir) {
+            Ok(_) => {
+                let uuid = uuid::Uuid::new_v4();
+                let dump_file = dump_dir.join(format!("{}.dmp", uuid.simple()));
+                let dump_channel = format!("zng-crash-{}", uuid.simple());
+                match minidumper::Server::with_name(&dump_channel) {
+                    Ok(mut s) => {
+                        command.env(DUMP_CHANNEL, &dump_channel);
+                        let shutdown = Arc::new(AtomicBool::new(false));
+                        let runner = std::thread::spawn(clmv!(shutdown, || {
+                            let created_file = Arc::new(Mutex::new(None));
+                            if let Err(e) = s.run(
+                                Box::new(MinidumpServerHandler {
+                                    dump_file,
+                                    created_file: created_file.clone(),
+                                }),
+                                &shutdown,
+                                None,
+                            ) {
+                                tracing::error!("minidump server exited with error, {e}");
+                            }
+                            let r = created_file.lock().take();
+                            r
+                        }));
+                        dump_server = Some(DumpServer { shutdown, runner });
+                    }
+                    Err(e) => tracing::error!("failed to spawn minidump server, will not enable crash handling, {e}"),
+                }
+            }
+            Err(e) => tracing::error!("cannot create minidump dir, will not enable crash handling, {e}"),
+        }
+    }
+
     let mut app_process = command
         .env("RUST_BACKTRACE", "full")
         .env("CLICOLOR_FORCE", "1")
@@ -1009,7 +1063,52 @@ fn run_process(command: &mut std::process::Command) -> std::io::Result<(std::pro
         Err(p) => std::panic::resume_unwind(p),
     };
 
-    Ok((status, [stdout, stderr]))
+    let mut dump_file = None;
+    if let Some(s) = dump_server {
+        s.shutdown.store(true, atomic::Ordering::Relaxed);
+        match s.runner.join() {
+            Ok(r) => dump_file = r,
+            Err(p) => std::panic::resume_unwind(p),
+        };
+    }
+
+    Ok((status, [stdout, stderr], dump_file))
+}
+struct MinidumpServerHandler {
+    dump_file: PathBuf,
+    created_file: Arc<Mutex<Option<PathBuf>>>,
+}
+impl minidumper::ServerHandler for MinidumpServerHandler {
+    fn create_minidump_file(&self) -> Result<(std::fs::File, PathBuf), std::io::Error> {
+        let file = std::fs::File::create_new(&self.dump_file)?;
+        Ok((file, self.dump_file.clone()))
+    }
+
+    fn on_minidump_created(&self, result: Result<minidumper::MinidumpBinary, minidumper::Error>) -> minidumper::LoopAction {
+        match result {
+            Ok(b) => *self.created_file.lock() = Some(b.path),
+            Err(e) => tracing::error!("failed to write minidump file, {e}"),
+        }
+        minidumper::LoopAction::Exit
+    }
+
+    fn on_message(&self, _: u32, _: Vec<u8>) {}
+
+    fn on_client_connected(&self, num_clients: usize) -> minidumper::LoopAction {
+        if num_clients > 1 {
+            tracing::error!("expected only one minidump client, {num_clients} connected, exiting server");
+            minidumper::LoopAction::Exit
+        } else {
+            minidumper::LoopAction::Continue
+        }
+    }
+
+    fn on_client_disconnected(&self, num_clients: usize) -> minidumper::LoopAction {
+        if num_clients != 0 {
+            tracing::error!("expected only one minidump client disconnect, {num_clients} still connected");
+        }
+        minidumper::LoopAction::Exit
+    }
 }
 fn capture_and_print(mut stream: impl std::io::Read + Send + 'static, is_err: bool) -> std::thread::JoinHandle<String> {
     std::thread::spawn(move || {
@@ -1042,26 +1141,23 @@ fn capture_and_print(mut stream: impl std::io::Read + Send + 'static, is_err: bo
     })
 }
 
-fn crash_handler_app_process(dump_dir: Option<&Path>) {
+fn crash_handler_app_process(dump_enabled: bool) {
     tracing::info!("app-process is running");
 
     std::panic::set_hook(Box::new(panic_handler));
-    if let Some(dir) = dump_dir {
-        if let Err(e) = std::fs::create_dir_all(dir) {
-            tracing::error!("failed to create minidump dir, minidump may not collect on crash, {e}");
-        }
-        minidump_attach(dir);
+    if dump_enabled {
+        minidump_attach();
     }
 
-    // app-process execution happens after the `crash_handler` function returns.
+    // app-process execution happens after this.
 }
 
-fn crash_handler_dialog_process(dump_dir: Option<&Path>, dialog: CrashDialogHandler, args_file: String) -> ! {
+fn crash_handler_dialog_process(dump_enabled: bool, dialog: CrashDialogHandler, args_file: String) -> ! {
     tracing::info!("crash dialog-process is running");
 
     std::panic::set_hook(Box::new(panic_handler));
-    if let Some(dir) = dump_dir {
-        minidump_attach(dir);
+    if dump_enabled {
+        minidump_attach();
     }
 
     let mut retries = 0;
@@ -1093,18 +1189,39 @@ fn panic_handler(info: &std::panic::PanicInfo) {
     eprintln!("{panic}widget path:\n   {path}\nstack backtrace:\n{backtrace}");
 }
 
-fn minidump_attach(dump_dir: &Path) {
-    let handler = breakpad_handler::BreakpadHandler::attach(
-        dump_dir,
-        breakpad_handler::InstallOptions::BothHandlers,
-        Box::new(|minidump_path: std::path::PathBuf| {
-            println!("{RESPONSE_PREFIX}minidump {}", minidump_path.display());
-        }),
-    )
-    .unwrap();
-    *BREAKPAD_HANDLER.lock() = Some(handler);
+fn minidump_attach() {
+    let channel_name = match std::env::var(DUMP_CHANNEL) {
+        Ok(n) if !n.is_empty() => n,
+        _ => {
+            eprintln!("expected minidump channel name, this instance will not handle crashes");
+            return;
+        }
+    };
+    let client = match minidumper::Client::with_name(&channel_name) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("failed to connect minidump client, this instance will not handle crashes, {e}");
+            return;
+        }
+    };
+    struct Handler(minidumper::Client);
+    // SAFETY: on_crash does the minimal possible work
+    unsafe impl crash_handler::CrashEvent for Handler {
+        fn on_crash(&self, context: &crash_handler::CrashContext) -> crash_handler::CrashEventResult {
+            crash_handler::CrashEventResult::Handled(self.0.request_dump(context).is_ok())
+        }
+    }
+    let handler = match crash_handler::CrashHandler::attach(Box::new(Handler(client))) {
+        Ok(h) => h,
+        Err(e) => {
+            eprintln!("failed attach minidump crash handler, this instance will not handle crashes, {e}");
+            return;
+        }
+    };
+
+    *CRASH_HANDLER.lock() = Some(handler);
 }
-static BREAKPAD_HANDLER: Mutex<Option<breakpad_handler::BreakpadHandler>> = Mutex::new(None);
+static CRASH_HANDLER: Mutex<Option<crash_handler::CrashHandler>> = Mutex::new(None);
 
 #[derive(Debug)]
 struct PanicInfo {

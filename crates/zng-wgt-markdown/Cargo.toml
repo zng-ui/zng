@@ -43,5 +43,5 @@ path-absolutize = "3.1"
 html-escape = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 tracing = "0.1"
-open = "5.1"
+open = { version = "5.1", features = ["shellexecute-on-windows"] }
 dunce = "1.0"
