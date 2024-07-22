@@ -1,7 +1,8 @@
 # Unreleased
 
+* Fix crash window summary tab when there are no localization resources.
 * Replace `breakpad-handler` with `minidumper` + `crash-handler`.
-    - This removes dep on native breakpad, a common cause of compilation issues.
+    - This removes dependency on native breakpad, a common cause of compilation issues.
 * Fix large rendered window icon resize.
 * Fix Emoji color palette panic (Windows 11 Emoji).
 * **Breaking** Remove `0.10.5` deprecated items.
