@@ -809,25 +809,22 @@ impl FONTS {
     ///
     /// Note that the variable will only update once with the query result, this is not a live view.
     pub fn system_fonts(&self) -> ResponseVar<Vec<FontName>> {
-        zng_task::wait_respond(|| {
-            system_fonts_impl()
-        })
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    fn system_fonts_impl() -> Vec<FontName> {
-        font_kit::source::SystemSource::new()
-        .all_families()
-        .unwrap_or_default()
-        .into_iter()
-        .map(FontName::from)
-        .collect()
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn system_fonts_impl() -> Vec<FontName> {
-        // !!: TODO
-        vec![]
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            zng_task::wait_respond(|| {
+                font_kit::source::SystemSource::new()
+                    .all_families()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(FontName::from)
+                    .collect()
+            })
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            // !!: TODO
+            vec![]
+        }
     }
 
     /// Gets the system font anti-aliasing config as a read-only var.
