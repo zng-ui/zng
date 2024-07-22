@@ -360,7 +360,12 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                     Link::Url(u) => (u.to_string(), "url"),
                     Link::Path(p) => {
                         match dunce::canonicalize(&p) {
-                            Ok(p) => (p.display().to_string(), "path"),
+                            Ok(p) => {
+                                let p = p.display().to_string();
+                                #[cfg(windows)]
+                                let p = p.replace('/', "\\");
+                                (p, "path")
+                            },
                             Err(e) => {
                                 tracing::error!("error canonicalizing \"{}\", {e}", p.display());
                                 return;
@@ -369,7 +374,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                     }
                 };
 
-                let r = task::wait( || open::that(uri)).await;
+                let r = task::wait( || open::that_detached(uri)).await;
                 if let Err(e) = &r {
                     tracing::error!("error opening {kind}, {e}");
                 }
