@@ -27,14 +27,14 @@
 //!
 //! ```
 //! # macro_rules! include_bytes { ($tt:tt) => { &[] } }
-//! # use zng::{font::*, l10n::*};
+//! # use zng::{prelude::*, font::*, l10n::*};
 //! # fn main() { }
 //! /// set custom fallback font for the ⌫ symbol.
 //! async fn set_fallback_font() {
 //!     use zng::font::*;
 //!     let und = lang!(und);
 //!
-//!     if FONTS
+//!     let shaped_icon = FONTS
 //!         .list(
 //!             &FontNames::system_ui(&und),
 //!             FontStyle::Normal,
@@ -44,10 +44,10 @@
 //!         )
 //!         .wait_rsp()
 //!         .await
-//!         .iter()
-//!         .flat_map(|f| f.font_kit())
-//!         .all(|f| f.glyph_for_char('⌫').is_none())
-//!     {
+//!         .sized(layout::Px(11), vec![])
+//!         .shape_text(&SegmentedText::new("⌫", layout::LayoutDirection::LTR), &TextShapingArgs::default());
+//!
+//!     if shaped_icon.is_empty() || shaped_icon.glyphs().flat_map(|g| g.1).any(|g| g.index == 0) {
 //!         // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 //!
 //!         static FALLBACK: &[u8] = include_bytes!("res/calculator/notosanssymbols2-regular-subset.ttf");
@@ -163,8 +163,8 @@ pub use zng_ext_font::{
     font_features, unicode_bidi_levels, unicode_bidi_sort, BidiLevel, CaretIndex, ColorGlyph, ColorGlyphs, ColorPalette, ColorPaletteType,
     ColorPalettes, CustomFont, Font, FontChange, FontChangedArgs, FontColorPalette, FontDataRef, FontFace, FontFaceList, FontFaceMetrics,
     FontList, FontMetrics, FontName, FontNames, FontSize, FontStretch, FontStyle, FontWeight, HyphenationDataDir, HyphenationDataSource,
-    Hyphens, Justify, LayoutDirections, LetterSpacing, LineBreak, LineHeight, LineSpacing, OutlineHintingOptions, OutlineSink,
-    ParagraphSpacing, SegmentedText, SegmentedTextIter, ShapedColoredGlyphs, ShapedLine, ShapedSegment, ShapedText, TabLength,
-    TextLineThickness, TextOverflowInfo, TextSegment, TextSegmentKind, TextShapingArgs, TextTransformFn, UnderlineThickness, WhiteSpace,
-    WordBreak, WordSpacing, FONTS, FONT_CHANGED_EVENT, HYPHENATION,
+    Hyphens, Justify, LayoutDirections, LetterSpacing, LineBreak, LineHeight, LineSpacing, OutlineSink, ParagraphSpacing, SegmentedText,
+    SegmentedTextIter, ShapedColoredGlyphs, ShapedLine, ShapedSegment, ShapedText, TabLength, TextLineThickness, TextOverflowInfo,
+    TextSegment, TextSegmentKind, TextShapingArgs, TextTransformFn, UnderlineThickness, WhiteSpace, WordBreak, WordSpacing, FONTS,
+    FONT_CHANGED_EVENT, HYPHENATION,
 };
