@@ -303,7 +303,13 @@ impl fmt::Display for FluentErrors {
 fn format_fallback(file: &str, id: &str, attribute: &str, fallback: &Txt, args: Option<&fluent::FluentArgs>) -> Txt {
     let mut fallback_pattern = None;
 
-    let entry = format!("k={fallback}");
+    let mut entry = "k = ".to_owned();
+    let mut prefix = "";
+    for line in fallback.lines() {
+        entry.push_str(prefix);
+        entry.push_str(line);
+        prefix = "\n   ";
+    }
     match fluent_syntax::parser::parse_runtime(entry.as_str()) {
         Ok(mut f) => {
             if let Some(fluent_syntax::ast::Entry::Message(m)) = f.body.pop() {

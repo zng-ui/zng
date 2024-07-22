@@ -1,5 +1,14 @@
 # Unreleased
 
+* Fix crash window summary tab when there are no localization resources.
+* Replace `breakpad-handler` with `minidumper` + `crash-handler`.
+    - This removes dependency on native breakpad, a common cause of compilation issues.
+* Fix large rendered window icon resize.
+* Fix Emoji color palette panic (Windows 11 Emoji).
+* **Breaking** Remove `0.10.5` deprecated items.
+* Fix `FONTS` matching obsolete Type1 fonts when there is an OpenType alternative.
+* **Breaking** `FONTS.system_fonts` is now returns a `ResponseVar`.
+* **Breaking** Replaced harfbuzz backend, `font::Face::harfbuzz` and `font::Font::harfbuzz` are the new accessors.
 
 # 0.10.5
 

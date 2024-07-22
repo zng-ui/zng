@@ -46,4 +46,4 @@ tracing = "0.1"
 dunce = "1.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-open = "5.1"
+open = { version = "5.1", features = ["shellexecute-on-windows"] }

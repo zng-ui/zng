@@ -218,7 +218,7 @@ impl ImageCache {
 
                         if let Some(fmt) = format {
                             if size.is_none() {
-                                size = image::io::Reader::with_format(std::io::Cursor::new(&full), fmt)
+                                size = image::ImageReader::with_format(std::io::Cursor::new(&full), fmt)
                                     .into_dimensions()
                                     .ok()
                                     .map(|(w, h)| PxSize::new(Px(w as i32), Px(h as i32)));
@@ -328,8 +328,8 @@ impl ImageCache {
         };
 
         let reader = match fmt {
-            Some(fmt) => image::io::Reader::with_format(std::io::Cursor::new(data), fmt),
-            None => image::io::Reader::new(std::io::Cursor::new(data))
+            Some(fmt) => image::ImageReader::with_format(std::io::Cursor::new(data), fmt),
+            None => image::ImageReader::new(std::io::Cursor::new(data))
                 .with_guessed_format()
                 .map_err(|e| e.to_txt())?,
         };
@@ -346,7 +346,7 @@ impl ImageCache {
     fn image_decode(buf: &[u8], format: image::ImageFormat, downscale: Option<ImageDownscale>) -> image::ImageResult<image::DynamicImage> {
         let buf = std::io::Cursor::new(buf);
 
-        let mut reader = image::io::Reader::new(buf);
+        let mut reader = image::ImageReader::new(buf);
         reader.set_format(format);
         reader.no_limits();
         let mut image = reader.decode()?;
@@ -927,7 +927,7 @@ impl Image {
                 buf.chunks_exact_mut(4).for_each(|c| c.swap(0, 2));
                 let img = image::ImageBuffer::from_raw(width, height, buf).unwrap();
                 let img = image::DynamicImage::ImageRgba8(img);
-                img.resize(255, 255, image::imageops::FilterType::Lanczos3);
+                let img = img.resize(255, 255, image::imageops::FilterType::Lanczos3);
 
                 use image::GenericImageView;
                 let (width, height) = img.dimensions();
