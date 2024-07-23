@@ -4,12 +4,11 @@ use std::{
     mem, ops,
 };
 
-pub use font_kit::error::GlyphLoadingError;
 use zng_app::widget::info::InlineSegmentInfo;
 use zng_ext_l10n::{lang, Lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
-    unit::{euclid, Align, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
+    unit::{euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zng_txt::Txt;
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
@@ -3264,7 +3263,7 @@ impl<'a> ShapedSegment<'a> {
                     let continuation = self.resume.take().or_else(|| self.iter.next());
                     if let Some((font, mut glyphs_with_adv)) = continuation {
                         for (g, a) in &mut glyphs_with_adv {
-                            if let Ok(Some((ex_start, ex_end))) = font.h_line_hits(g.index, self.line_y_range) {
+                            if let Some((ex_start, ex_end)) = font.h_line_hits(g.index, self.line_y_range) {
                                 self.width += ex_start - self.padding;
                                 let r = self.line();
                                 self.x += self.width + self.padding + ex_end + self.padding;
@@ -3708,14 +3707,16 @@ impl Font {
 
     /// Glyph index for the space `' '` character.
     pub fn space_index(&self) -> GlyphIndex {
-        if let Some(f) = self.face().font_kit() {
-            return f.glyph_for_char(' ').unwrap_or(0);
-        }
-        0
+        self.shape_space().0
     }
 
     /// Returns the horizontal advance of the space `' '` character.
     pub fn space_x_advance(&self) -> Px {
+        self.shape_space().1
+    }
+
+    fn shape_space(&self) -> (GlyphIndex, Px) {
+        let mut id = 0;
         let mut adv = 0.0;
         self.shape_segment(
             " ",
@@ -3726,28 +3727,12 @@ impl Font {
                 features: Box::new([]),
             },
             &[],
-            |r| adv = r.x_advance,
+            |r| {
+                id = r.glyphs.last().map(|g| g.index).unwrap_or(0);
+                adv = r.x_advance;
+            },
         );
-
-        Px(adv as i32)
-    }
-
-    /// Gets the distance from the origin of the glyph with the given ID to the next.
-    pub fn advance(&self, index: GlyphIndex) -> Result<euclid::Vector2D<f32, Px>, GlyphLoadingError> {
-        self.face()
-            .font_kit()
-            .ok_or(GlyphLoadingError::NoSuchGlyph)?
-            .advance(index)
-            .map(|v| euclid::Vector2D::new(v.x(), v.y()) * self.metrics().size_scale)
-    }
-
-    /// Gets the amount that the given glyph should be displaced from the origin.
-    pub fn origin(&self, index: GlyphIndex) -> Result<euclid::Vector2D<f32, Px>, GlyphLoadingError> {
-        self.face()
-            .font_kit()
-            .ok_or(GlyphLoadingError::NoSuchGlyph)?
-            .origin(index)
-            .map(|v| euclid::Vector2D::new(v.x(), v.y()) * self.metrics().size_scale)
+        (id, Px(adv as _))
     }
 
     /// Calculates a [`ShapedText`].
@@ -3756,46 +3741,32 @@ impl Font {
     }
 
     /// Sends the sized vector path for a glyph to `sink`.
-    pub fn outline(
-        &self,
-        glyph_id: GlyphIndex,
-        hinting_options: OutlineHintingOptions,
-        sink: &mut impl OutlineSink,
-    ) -> Result<(), GlyphLoadingError> {
+    ///
+    /// Returns the glyph bounds if a full outline was sent to the sink.
+    pub fn outline(&self, glyph_id: GlyphIndex, sink: &mut impl OutlineSink) -> Option<PxRect> {
         struct AdapterSink<'a, S> {
             sink: &'a mut S,
             scale: f32,
         }
-        impl<'a, S> AdapterSink<'a, S> {
-            fn scale(&self, p: pathfinder_geometry::vector::Vector2F) -> euclid::Point2D<f32, Px> {
-                euclid::point2(p.x() * self.scale, p.y() * self.scale)
-            }
-        }
-        impl<'a, S: OutlineSink> font_kit::outline::OutlineSink for AdapterSink<'a, S> {
-            fn move_to(&mut self, to: pathfinder_geometry::vector::Vector2F) {
-                let to = self.scale(to);
-                self.sink.move_to(to)
+        impl<'a, S: OutlineSink> ttf_parser::OutlineBuilder for AdapterSink<'a, S> {
+            fn move_to(&mut self, x: f32, y: f32) {
+                self.sink.move_to(euclid::point2(x, y) * self.scale)
             }
 
-            fn line_to(&mut self, to: pathfinder_geometry::vector::Vector2F) {
-                let to = self.scale(to);
-                self.sink.line_to(to)
+            fn line_to(&mut self, x: f32, y: f32) {
+                self.sink.line_to(euclid::point2(x, y) * self.scale)
             }
 
-            fn quadratic_curve_to(&mut self, ctrl: pathfinder_geometry::vector::Vector2F, to: pathfinder_geometry::vector::Vector2F) {
-                let ctrl = self.scale(ctrl);
-                let to = self.scale(to);
+            fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+                let ctrl = euclid::point2(x1, y1) * self.scale;
+                let to = euclid::point2(x, y) * self.scale;
                 self.sink.quadratic_curve_to(ctrl, to)
             }
 
-            fn cubic_curve_to(
-                &mut self,
-                ctrl: pathfinder_geometry::line_segment::LineSegment2F,
-                to: pathfinder_geometry::vector::Vector2F,
-            ) {
-                let l_from = self.scale(ctrl.from());
-                let l_to = self.scale(ctrl.to());
-                let to = self.scale(to);
+            fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+                let l_from = euclid::point2(x1, y1) * self.scale;
+                let l_to = euclid::point2(x2, y2) * self.scale;
+                let to = euclid::point2(x, y) * self.scale;
                 self.sink.cubic_curve_to((l_from, l_to), to)
             }
 
@@ -3806,32 +3777,14 @@ impl Font {
 
         let scale = self.metrics().size_scale;
 
-        self.face().font_kit().ok_or(GlyphLoadingError::NoSuchGlyph)?.outline(
-            glyph_id,
-            hinting_options.into(),
-            &mut AdapterSink { sink, scale },
+        let f = self.harfbuzz()?;
+        let r = f.outline_glyph(ttf_parser::GlyphId(glyph_id as _), &mut AdapterSink { sink, scale })?;
+        Some(
+            PxRect::new(
+                PxPoint::new(Px(r.x_min as _), Px(r.y_min as _)),
+                PxSize::new(Px(r.width() as _), Px(r.height() as _)),
+            ) * Factor2d::uniform(scale),
         )
-    }
-
-    /// Returns the boundaries of a glyph in pixel units.
-    ///
-    /// The rectangle origin is the bottom-left of the bounds relative to the baseline.
-    pub fn typographic_bounds(&self, glyph_id: GlyphIndex) -> Result<euclid::Rect<f32, Px>, GlyphLoadingError> {
-        let rect = self
-            .face()
-            .font_kit()
-            .ok_or(GlyphLoadingError::NoSuchGlyph)?
-            .typographic_bounds(glyph_id)?;
-
-        let scale = self.metrics().size_scale;
-        let bounds = euclid::rect::<f32, Px>(
-            rect.origin_x() * scale,
-            rect.origin_y() * scale,
-            rect.width() * scale,
-            rect.height() * scale,
-        );
-
-        Ok(bounds)
     }
 
     /// Ray cast an horizontal line across the glyph and returns the entry and exit hits.
@@ -3840,10 +3793,10 @@ impl Font {
     /// the start and inclusive end of the horizontal line, that is, `(underline, underline + thickness)`, note
     /// that positions under the baseline are negative so a 2px underline set 1px under the baseline becomes `(-1.0, -3.0)`.
     ///
-    /// Returns `Ok(Some(x_enter, x_exit))` where the two values are x-advances, returns `None` if there is not hit, returns
-    /// an error if the glyph is not found. The first x-advance is from the left typographic border to the first hit on the outline,
+    /// Returns `Ok(Some(x_enter, x_exit))` where the two values are x-advances, returns `None` if there is no hit.
+    /// The first x-advance is from the left typographic border to the first hit on the outline,
     /// the second x-advance is from the first across the outline to the exit hit.
-    pub fn h_line_hits(&self, glyph_id: GlyphIndex, line_y_range: (f32, f32)) -> Result<Option<(f32, f32)>, GlyphLoadingError> {
+    pub fn h_line_hits(&self, glyph_id: GlyphIndex, line_y_range: (f32, f32)) -> Option<(f32, f32)> {
         // Algorithm:
         //
         // - Ignore curves, everything is direct line.
@@ -3912,48 +3865,9 @@ impl Font {
             line_y_range,
             hit: None,
         };
-        self.outline(glyph_id, OutlineHintingOptions::None, &mut sink)?;
+        self.outline(glyph_id, &mut sink)?;
 
-        Ok(sink.hit.map(|(a, b)| (a, b - a)))
-    }
-}
-
-/// Specifies how hinting (grid fitting) is to be performed (or not performed) for [`Font::outline`].
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum OutlineHintingOptions {
-    /// No hinting is performed unless absolutely necessary to assemble the glyph.
-    ///
-    /// This corresponds to what macOS and FreeType in its "no hinting" mode do.
-    None,
-
-    /// Hinting is performed only in the vertical direction. The specified point size is used for
-    /// grid fitting.
-    ///
-    /// This corresponds to what DirectWrite and FreeType in its light hinting mode do.
-    Vertical(f32),
-
-    /// Hinting is performed only in the vertical direction, and further tweaks are applied to make
-    /// subpixel anti-aliasing look better. The specified point size is used for grid fitting.
-    ///
-    /// This matches DirectWrite, GDI in its ClearType mode, and FreeType in its LCD hinting mode.
-    VerticalSubpixel(f32),
-
-    /// Hinting is performed in both horizontal and vertical directions. The specified point size
-    /// is used for grid fitting.
-    ///
-    /// This corresponds to what GDI in non-ClearType modes and FreeType in its normal hinting mode
-    /// do.
-    Full(f32),
-}
-impl From<OutlineHintingOptions> for font_kit::hinting::HintingOptions {
-    fn from(value: OutlineHintingOptions) -> Self {
-        use font_kit::hinting::HintingOptions::*;
-        match value {
-            OutlineHintingOptions::None => None,
-            OutlineHintingOptions::Vertical(s) => Vertical(s),
-            OutlineHintingOptions::VerticalSubpixel(s) => VerticalSubpixel(s),
-            OutlineHintingOptions::Full(s) => Full(s),
-        }
+        sink.hit.map(|(a, b)| (a, b - a))
     }
 }
 

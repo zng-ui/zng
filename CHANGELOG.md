@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Remove `OutlineHintingOptions` and change `outline` signature.
+* **Breaking** Remove `FontFace::font_kit`, `Font::advance`, `Font::origin` and `Font::typographic_bounds`.
 * Fix crash window summary tab when there are no localization resources.
 * Replace `breakpad-handler` with `minidumper` + `crash-handler`.
     - This removes dependency on native breakpad, a common cause of compilation issues.

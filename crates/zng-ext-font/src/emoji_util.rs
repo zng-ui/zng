@@ -71,8 +71,10 @@ impl ColorPalettes {
     }
 
     /// Load the table, if present in the font.
-    pub fn load(font_kit_font: &font_kit::font::Font) -> std::io::Result<Self> {
-        let table = match font_kit_font.load_font_table(CPAL) {
+    pub fn load(font: &ttf_parser::RawFace) -> std::io::Result<Self> {
+        // ttf_parser::Face does not expose CPAL
+
+        let table = match font.table(ttf_parser::Tag(CPAL)) {
             Some(t) => t,
             None => return Ok(Self::empty()),
         };
@@ -264,8 +266,8 @@ impl ColorGlyphs {
     }
 
     /// Load the table, if present in the font.
-    pub fn load(font_kit_font: &font_kit::font::Font) -> std::io::Result<Self> {
-        let table = match font_kit_font.load_font_table(COLR) {
+    pub fn load(font: &ttf_parser::RawFace) -> std::io::Result<Self> {
+        let table = match font.table(ttf_parser::Tag(COLR)) {
             Some(t) => t,
             None => return Ok(Self::empty()),
         };
