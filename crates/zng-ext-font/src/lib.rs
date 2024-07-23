@@ -13,14 +13,14 @@
 
 use font_features::RFontVariations;
 use hashbrown::{HashMap, HashSet};
-use std::{borrow::Cow, fmt, ops, path::PathBuf, rc::Rc, slice::SliceIndex, sync::Arc};
+use std::{borrow::Cow, fmt, ops, path::PathBuf, slice::SliceIndex, sync::Arc};
 
 #[macro_use]
 extern crate bitflags;
 
 pub mod font_features;
 
-mod match_util;
+mod query_util;
 
 mod emoji_util;
 pub use emoji_util::*;
@@ -39,9 +39,6 @@ use zng_clone_move::{async_clmv, clmv};
 
 mod hyphenation;
 pub use self::hyphenation::*;
-
-mod font_kit_cache;
-use font_kit_cache::*;
 
 mod unit;
 pub use unit::*;
@@ -809,22 +806,7 @@ impl FONTS {
     ///
     /// Note that the variable will only update once with the query result, this is not a live view.
     pub fn system_fonts(&self) -> ResponseVar<Vec<FontName>> {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            zng_task::wait_respond(|| {
-                font_kit::source::SystemSource::new()
-                    .all_families()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(FontName::from)
-                    .collect()
-            })
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            // !!: TODO
-            vec![]
-        }
+        query_util::system_all()
     }
 
     /// Gets the system font anti-aliasing config as a read-only var.
@@ -835,23 +817,25 @@ impl FONTS {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
-    fn from(m: font_kit::metrics::Metrics) -> Self {
+impl<'a> From<ttf_parser::Face<'a>> for FontFaceMetrics {
+    fn from(f: ttf_parser::Face<'a>) -> Self {
+        let underline = f
+            .underline_metrics()
+            .unwrap_or(ttf_parser::LineMetrics { position: 0, thickness: 0 });
         FontFaceMetrics {
-            units_per_em: m.units_per_em,
-            ascent: m.ascent,
-            descent: m.descent,
-            line_gap: m.line_gap,
-            underline_position: m.underline_position,
-            underline_thickness: m.underline_thickness,
-            cap_height: m.cap_height,
-            x_height: m.x_height,
+            units_per_em: f.units_per_em() as _,
+            ascent: f.ascender() as f32,
+            descent: f.descender() as f32,
+            line_gap: f.line_gap() as f32,
+            underline_position: underline.position as f32,
+            underline_thickness: underline.thickness as f32,
+            cap_height: f.capital_height().unwrap_or(0) as f32,
+            x_height: f.x_height().unwrap_or(0) as f32,
             bounds: euclid::rect(
-                m.bounding_box.origin_x(),
-                m.bounding_box.origin_y(),
-                m.bounding_box.width(),
-                m.bounding_box.height(),
+                f.global_bounding_box().x_min as f32,
+                f.global_bounding_box().x_max as f32,
+                f.global_bounding_box().width() as f32,
+                f.global_bounding_box().height() as f32,
             ),
         }
     }
@@ -880,7 +864,7 @@ struct LoadedFontFace {
     face_index: u32,
     display_name: FontName,
     family_name: FontName,
-    postscript_name: Option<String>,
+    postscript_name: Option<Txt>,
     is_monospace: bool,
     style: FontStyle,
     weight: FontWeight,
@@ -893,7 +877,6 @@ struct LoadedFontFace {
     m: Mutex<FontFaceMut>,
 }
 struct FontFaceMut {
-    font_kit: FontKitCache,
     instances: HashMap<FontInstanceKey, Font>,
     render_ids: Vec<RenderFontFace>,
     unregistered: bool,
@@ -907,8 +890,8 @@ impl fmt::Debug for FontFace {
             .field("family_name", &self.0.family_name)
             .field("postscript_name", &self.0.postscript_name)
             .field("is_monospace", &self.0.is_monospace)
-            .field("weight", &self.0.weight)
             .field("style", &self.0.style)
+            .field("weight", &self.0.weight)
             .field("stretch", &self.0.stretch)
             .field("metrics", &self.0.metrics)
             .field("color_palettes.len()", &self.0.color_palettes.len())
@@ -956,7 +939,6 @@ impl FontFace {
             has_ligatures: false,
             lig_carets: LigatureCaretList::empty(),
             m: Mutex::new(FontFaceMut {
-                font_kit: FontKitCache::default(),
                 instances: HashMap::default(),
                 render_ids: vec![],
                 unregistered: false,
@@ -994,13 +976,12 @@ impl FontFace {
                         display_name: custom_font.name.clone(),
                         family_name: custom_font.name,
                         postscript_name: None,
+                        style: other_font.0.style,
                         weight: other_font.0.weight,
                         stretch: other_font.0.stretch,
-                        style: other_font.0.style,
                         is_monospace: other_font.0.is_monospace,
                         metrics: other_font.0.metrics.clone(),
                         m: Mutex::new(FontFaceMut {
-                            font_kit: other_font.0.m.lock().font_kit.clone(),
                             instances: Default::default(),
                             render_ids: Default::default(),
                             unregistered: Default::default(),
@@ -1015,150 +996,149 @@ impl FontFace {
             }
         }
 
-        let font = font_kit::handle::Handle::Memory {
-            bytes: Arc::clone(&bytes.0),
-            font_index: face_index,
-        }
-        .load()?;
+        let ttf_face = match ttf_parser::Face::parse(&bytes, face_index) {
+            Ok(f) => f,
+            Err(e) => {
+                match e {
+                    // try again with font 0 (font-kit selects a high index for Ubuntu Font)
+                    ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
+                    e => return Err(FontLoadingError::Parse(e)),
+                }
 
-        if let Err(e) = ttf_parser::Face::parse(&bytes, face_index) {
-            match e {
-                // try again with font 0 (font-kit selects a high index for Ubuntu Font)
-                ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
-                e => return Err(FontLoadingError::Parse(e)),
+                match ttf_parser::Face::parse(&bytes, face_index) {
+                    Ok(f) => f,
+                    Err(_) => return Err(FontLoadingError::Parse(e)),
+                }
             }
+        };
 
-            if ttf_parser::Face::parse(&bytes, face_index).is_err() {
-                return Err(FontLoadingError::Parse(e));
-            }
-        }
-
-        let color_palettes = ColorPalettes::load(&font)?;
+        let color_palettes = ColorPalettes::load(ttf_face.raw_face())?;
         let color_glyphs = if color_palettes.is_empty() {
             ColorGlyphs::empty()
         } else {
-            ColorGlyphs::load(&font)?
+            ColorGlyphs::load(ttf_face.raw_face())?
         };
-        let has_ligatures = font.load_font_table(GSUB).is_some();
+        let has_ligatures = ttf_face.tables().gsub.is_some();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
         } else {
-            LigatureCaretList::load(&font)?
+            LigatureCaretList::load(ttf_face.raw_face())?
         };
 
         Ok(FontFace(Arc::new(LoadedFontFace {
-            data: bytes,
             face_index,
             display_name: custom_font.name.clone(),
             family_name: custom_font.name,
             postscript_name: None,
-
             style: custom_font.style,
             weight: custom_font.weight,
             stretch: custom_font.stretch,
-
-            is_monospace: font.is_monospace(),
-            metrics: font.metrics().into(),
+            is_monospace: ttf_face.is_monospaced(),
+            metrics: ttf_face.into(),
             color_palettes,
             color_glyphs,
             has_ligatures,
             lig_carets,
             m: Mutex::new(FontFaceMut {
-                font_kit: {
-                    let mut font_kit = FontKitCache::default();
-                    font_kit.get_or_init(move || font);
-                    font_kit
-                },
                 instances: Default::default(),
                 render_ids: Default::default(),
                 unregistered: Default::default(),
             }),
+            data: bytes,
         })))
     }
 
-    fn load(handle: font_kit::handle::Handle) -> Result<Self, FontLoadingError> {
+    fn load(bytes: FontDataRef, mut face_index: u32) -> Result<Self, FontLoadingError> {
         let _span = tracing::trace_span!("FontFace::load").entered();
 
-        let bytes;
-        let mut face_index;
+        let ttf_face = match ttf_parser::Face::parse(&bytes, face_index) {
+            Ok(f) => f,
+            Err(e) => {
+                match e {
+                    // try again with font 0 (font-kit selects a high index for Ubuntu Font)
+                    ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
+                    e => return Err(FontLoadingError::Parse(e)),
+                }
 
-        match handle {
-            font_kit::handle::Handle::Path { path, font_index } => {
-                bytes = FontDataRef(Arc::new(std::fs::read(path)?));
-                face_index = font_index;
-            }
-            font_kit::handle::Handle::Memory { bytes: arc, font_index } => {
-                bytes = FontDataRef(arc);
-                face_index = font_index;
+                match ttf_parser::Face::parse(&bytes, face_index) {
+                    Ok(f) => f,
+                    Err(_) => return Err(FontLoadingError::Parse(e)),
+                }
             }
         };
 
-        let font = font_kit::handle::Handle::Memory {
-            bytes: Arc::clone(&bytes.0),
-            font_index: face_index,
-        }
-        .load()?;
-
-        if let Err(e) = ttf_parser::Face::parse(&bytes, face_index) {
-            match e {
-                // try again with font 0 (font-kit selects a high index for Ubuntu Font)
-                ttf_parser::FaceParsingError::FaceIndexOutOfBounds => face_index = 0,
-                e => return Err(FontLoadingError::Parse(e)),
-            }
-
-            if ttf_parser::Face::parse(&bytes, face_index).is_err() {
-                return Err(FontLoadingError::Parse(e));
-            }
-        }
-
-        let color_palettes = ColorPalettes::load(&font)?;
+        let color_palettes = ColorPalettes::load(ttf_face.raw_face())?;
         let color_glyphs = if color_palettes.is_empty() {
             ColorGlyphs::empty()
         } else {
-            ColorGlyphs::load(&font)?
+            ColorGlyphs::load(ttf_face.raw_face())?
         };
 
-        let has_ligatures = font.load_font_table(GSUB).is_some();
+        let has_ligatures = ttf_face.tables().gsub.is_some();
         let lig_carets = if has_ligatures {
             LigatureCaretList::empty()
         } else {
-            LigatureCaretList::load(&font)?
+            LigatureCaretList::load(ttf_face.raw_face())?
         };
 
-        let metrics = font.metrics();
-        if metrics.units_per_em == 0 {
-            // observed this in Noto Color Emoji
-            tracing::debug!("font {:?} units_per_em 0", font.family_name());
+        let mut display_name = None;
+        let mut family_name = None;
+        let mut postscript_name = None;
+        let mut any_name = None::<String>;
+        for name in ttf_face.names() {
+            if let Some(n) = name.to_string() {
+                match name.name_id {
+                    ttf_parser::name_id::FULL_NAME => display_name = Some(n),
+                    ttf_parser::name_id::FAMILY => family_name = Some(n),
+                    ttf_parser::name_id::POST_SCRIPT_NAME => postscript_name = Some(n),
+                    _ => match &mut any_name {
+                        Some(s) => {
+                            if n.len() > s.len() {
+                                *s = n;
+                            }
+                        }
+                        None => any_name = Some(n),
+                    },
+                }
+            }
+        }
+        let display_name = FontName::new(Txt::from_str(
+            display_name
+                .as_ref()
+                .or(family_name.as_ref())
+                .or(postscript_name.as_ref())
+                .or(any_name.as_ref())
+                .unwrap(),
+        ));
+        let family_name = family_name.map(FontName::from).unwrap_or_else(|| display_name.clone());
+        let postscript_name = postscript_name.map(Txt::from);
+
+        if ttf_face.units_per_em() == 0 {
+            // observed this in Noto Color Emoji (with font_kit)
+            tracing::debug!("font {display_name:?} units_per_em 0");
             return Err(FontLoadingError::UnknownFormat);
         }
 
-        let p = font.properties();
-
         Ok(FontFace(Arc::new(LoadedFontFace {
-            data: bytes,
             face_index,
-            display_name: font.full_name().into(),
-            family_name: font.family_name().into(),
-            postscript_name: font.postscript_name(),
-            weight: p.weight.into(),
-            stretch: p.stretch.into(),
-            style: p.style.into(),
-            is_monospace: font.is_monospace(),
-            metrics: metrics.into(),
+            family_name,
+            display_name,
+            postscript_name,
+            style: ttf_face.style().into(),
+            weight: ttf_face.weight().into(),
+            stretch: ttf_face.width().into(),
+            is_monospace: ttf_face.is_monospaced(),
+            metrics: ttf_face.into(),
             color_palettes,
             color_glyphs,
             has_ligatures,
             lig_carets,
             m: Mutex::new(FontFaceMut {
-                font_kit: {
-                    let mut font_kit = FontKitCache::default();
-                    font_kit.get_or_init(move || font);
-                    font_kit
-                },
                 instances: Default::default(),
                 render_ids: Default::default(),
                 unregistered: Default::default(),
             }),
+            data: bytes,
         })))
     }
 
@@ -1202,29 +1182,6 @@ impl FontFace {
             None
         } else {
             Some(rustybuzz::Face::from_slice(&self.0.data.0, self.0.face_index).unwrap())
-        }
-    }
-
-    /// Get the [`font_kit`](https://docs.rs/font-kit) loaded in the current thread, or loads it.
-    ///
-    /// Loads from the cached [`bytes`].
-    ///
-    /// Returns `None` if [`is_empty`].
-    ///
-    /// [`is_empty`]: Self::is_empty
-    /// [`bytes`]: Self::bytes
-    pub fn font_kit(&self) -> Option<Rc<font_kit::font::Font>> {
-        if self.is_empty() {
-            None
-        } else {
-            Some(self.0.m.lock().font_kit.get_or_init(|| {
-                font_kit::handle::Handle::Memory {
-                    bytes: Arc::clone(&self.0.data.0),
-                    font_index: self.0.face_index,
-                }
-                .load()
-                .unwrap()
-            }))
         }
     }
 
@@ -2036,7 +1993,7 @@ impl FontFaceLoader {
         }
 
         let load = task::wait(clmv!(font_name, || {
-            let handle = match Self::get_system(&font_name, style, weight, stretch) {
+            let (bytes, face_index) = match Self::get_system(&font_name, style, weight, stretch) {
                 Some(h) => h,
                 None => {
                     #[cfg(debug_assertions)]
@@ -2050,7 +2007,7 @@ impl FontFaceLoader {
                     return None;
                 }
             };
-            match FontFace::load(handle) {
+            match FontFace::load(bytes, face_index) {
                 Ok(f) => Some(f),
                 Err(FontLoadingError::UnknownFormat) => None,
                 Err(e) => {
@@ -2080,9 +2037,15 @@ impl FontFaceLoader {
         result
     }
 
-    fn get_system(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<font_kit::handle::Handle> {
+    fn get_system(font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<(FontDataRef, u32)> {
         let _span = tracing::trace_span!("FontFaceLoader::get_system").entered();
-        match_util::best(font_name, style, weight, stretch)
+        match query_util::best(font_name, style, weight, stretch) {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::error!("cannot get `{font_name}` system font, {e}");
+                None
+            }
+        }
     }
 
     fn match_custom(faces: &[FontFace], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFace {
@@ -2499,34 +2462,6 @@ impl CustomFont {
     }
 }
 
-impl From<font_kit::family_name::FamilyName> for FontName {
-    fn from(family_name: font_kit::family_name::FamilyName) -> Self {
-        use font_kit::family_name::FamilyName::*;
-
-        match family_name {
-            Title(title) => FontName::new(title),
-            Serif => FontName::serif(),
-            SansSerif => FontName::sans_serif(),
-            Monospace => FontName::monospace(),
-            Cursive => FontName::cursive(),
-            Fantasy => FontName::fantasy(),
-        }
-    }
-}
-impl From<FontName> for font_kit::family_name::FamilyName {
-    fn from(font_name: FontName) -> Self {
-        use font_kit::family_name::FamilyName::*;
-        match font_name.name() {
-            "serif" => Serif,
-            "sans-serif" => SansSerif,
-            "monospace" => Monospace,
-            "cursive" => Cursive,
-            "fantasy" => Fantasy,
-            _ => Title(font_name.text.into()),
-        }
-    }
-}
-
 /// The width of a font as an approximate fraction of the normal width.
 ///
 /// Widths range from 0.5 to 2.0 inclusive, with 1.0 as the normal width.
@@ -2620,14 +2555,21 @@ impl_from_and_into_var! {
         FontStretch(fct)
     }
 }
-impl From<FontStretch> for font_kit::properties::Stretch {
-    fn from(value: FontStretch) -> Self {
-        font_kit::properties::Stretch(value.0)
-    }
-}
-impl From<font_kit::properties::Stretch> for FontStretch {
-    fn from(value: font_kit::properties::Stretch) -> Self {
-        FontStretch(value.0)
+
+impl From<ttf_parser::Width> for FontStretch {
+    fn from(value: ttf_parser::Width) -> Self {
+        use ttf_parser::Width::*;
+        match value {
+            UltraCondensed => FontStretch::ULTRA_CONDENSED,
+            ExtraCondensed => FontStretch::EXTRA_CONDENSED,
+            Condensed => FontStretch::CONDENSED,
+            SemiCondensed => FontStretch::SEMI_CONDENSED,
+            Normal => FontStretch::NORMAL,
+            SemiExpanded => FontStretch::SEMI_EXPANDED,
+            Expanded => FontStretch::EXPANDED,
+            ExtraExpanded => FontStretch::EXTRA_EXPANDED,
+            UltraExpanded => FontStretch::ULTRA_EXPANDED,
+        }
     }
 }
 
@@ -2654,19 +2596,9 @@ impl fmt::Debug for FontStyle {
         }
     }
 }
-impl From<FontStyle> for font_kit::properties::Style {
-    fn from(value: FontStyle) -> Self {
-        use font_kit::properties::Style::*;
-        match value {
-            FontStyle::Normal => Normal,
-            FontStyle::Italic => Italic,
-            FontStyle::Oblique => Oblique,
-        }
-    }
-}
-impl From<font_kit::properties::Style> for FontStyle {
-    fn from(value: font_kit::properties::Style) -> Self {
-        use font_kit::properties::Style::*;
+impl From<ttf_parser::Style> for FontStyle {
+    fn from(value: ttf_parser::Style) -> Self {
+        use ttf_parser::Style::*;
         match value {
             Normal => FontStyle::Normal,
             Italic => FontStyle::Italic,
@@ -2763,14 +2695,21 @@ impl_from_and_into_var! {
         FontWeight(weight)
     }
 }
-impl From<FontWeight> for font_kit::properties::Weight {
-    fn from(value: FontWeight) -> Self {
-        font_kit::properties::Weight(value.0)
-    }
-}
-impl From<font_kit::properties::Weight> for FontWeight {
-    fn from(value: font_kit::properties::Weight) -> Self {
-        FontWeight(value.0)
+impl From<ttf_parser::Weight> for FontWeight {
+    fn from(value: ttf_parser::Weight) -> Self {
+        use ttf_parser::Weight::*;
+        match value {
+            Thin => FontWeight::THIN,
+            ExtraLight => FontWeight::EXTRA_LIGHT,
+            Light => FontWeight::LIGHT,
+            Normal => FontWeight::NORMAL,
+            Medium => FontWeight::MEDIUM,
+            SemiBold => FontWeight::SEMIBOLD,
+            Bold => FontWeight::BOLD,
+            ExtraBold => FontWeight::EXTRA_BOLD,
+            Black => FontWeight::BLACK,
+            Other(o) => FontWeight(o as f32),
+        }
     }
 }
 
@@ -3258,17 +3197,6 @@ impl PartialEq for FontLoadingError {
         }
     }
 }
-impl From<font_kit::error::FontLoadingError> for FontLoadingError {
-    fn from(ve: font_kit::error::FontLoadingError) -> Self {
-        match ve {
-            font_kit::error::FontLoadingError::UnknownFormat => Self::UnknownFormat,
-            font_kit::error::FontLoadingError::NoSuchFontInCollection => Self::NoSuchFontInCollection,
-            font_kit::error::FontLoadingError::Parse => Self::Parse(ttf_parser::FaceParsingError::MalformedFont),
-            font_kit::error::FontLoadingError::NoFilesystem => Self::NoFilesystem,
-            font_kit::error::FontLoadingError::Io(e) => Self::Io(Arc::new(e)),
-        }
-    }
-}
 impl From<std::io::Error> for FontLoadingError {
     fn from(error: std::io::Error) -> FontLoadingError {
         Self::Io(Arc::new(error))
@@ -3276,18 +3204,13 @@ impl From<std::io::Error> for FontLoadingError {
 }
 impl fmt::Display for FontLoadingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let e = match self {
-            Self::UnknownFormat => font_kit::error::FontLoadingError::UnknownFormat,
-            Self::NoSuchFontInCollection => font_kit::error::FontLoadingError::NoSuchFontInCollection,
-            Self::NoFilesystem => font_kit::error::FontLoadingError::NoFilesystem,
-            Self::Parse(e) => {
-                return fmt::Display::fmt(e, f);
-            }
-            Self::Io(e) => {
-                return fmt::Display::fmt(e, f);
-            }
-        };
-        fmt::Display::fmt(&e, f)
+        match self {
+            Self::UnknownFormat => write!(f, "unknown format"),
+            Self::NoSuchFontInCollection => write!(f, "no such font in the collection"),
+            Self::NoFilesystem => write!(f, "no filesystem present"),
+            Self::Parse(e) => fmt::Display::fmt(e, f),
+            Self::Io(e) => fmt::Display::fmt(e, f),
+        }
     }
 }
 impl std::error::Error for FontLoadingError {

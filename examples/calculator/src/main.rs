@@ -240,7 +240,7 @@ async fn set_fallback_font() {
     use zng::font::*;
     let und = lang!(und);
 
-    if FONTS
+    let shaped_icon = FONTS
         .list(
             &FontNames::system_ui(&und),
             FontStyle::Normal,
@@ -250,10 +250,10 @@ async fn set_fallback_font() {
         )
         .wait_rsp()
         .await
-        .iter()
-        .flat_map(|f| f.font_kit())
-        .all(|f| f.glyph_for_char('⌫').is_none())
-    {
+        .sized(layout::Px(11), vec![])
+        .shape_text(&SegmentedText::new("⌫", layout::LayoutDirection::LTR), &TextShapingArgs::default());
+
+    if shaped_icon.is_empty() || shaped_icon.glyphs().flat_map(|g| g.1).any(|g| g.index == 0) {
         // OS UI and fallback fonts do not support `⌫`, load custom font that does.
 
         static FALLBACK: &[u8] = include_bytes!("../res/notosanssymbols2-regular-subset.ttf");
