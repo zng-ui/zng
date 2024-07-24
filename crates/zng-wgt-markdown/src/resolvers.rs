@@ -364,6 +364,10 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                                 let p = p.display().to_string();
                                 #[cfg(windows)]
                                 let p = p.replace('/', "\\");
+
+                                #[cfg(target_arch = "wasm32")]
+                                let p = format!("file:///{p}");
+
                                 (p, "path")
                             },
                             Err(e) => {
@@ -385,10 +389,30 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                 }
                 #[cfg(target_arch = "wasm32")]
                 {
-                    // !!: TODO, open tab
-                    tracing::error!("error opening {kind}, not supported on wasm platform");
-                    let _ = (uri, kind);
-                    status.set(Status::Err);
+                    match web_sys::window() {
+                        Some(w) => {
+                            match w.open_with_url_and_target(uri.as_str(), "_blank") {
+                                Ok(w) => match w {
+                                    Some(w) => {
+                                        let _ = w.focus();
+                                        status.set(Status::Ok);
+                                    },
+                                    None => {
+                                        tracing::error!("error opening {kind}, no new tab/window");
+                                    status.set(Status::Err);
+                                    }
+                                },
+                                Err(e) => {
+                                    tracing::error!("error opening {kind}, {e:?}");
+                                    status.set(Status::Err);
+                                }
+                            }
+                        },
+                        None => {
+                            tracing::error!("error opening {kind}, no window");
+                            status.set(Status::Err);
+                        }
+                    }
                 }
 
                 task::deadline(200.ms()).await;
