@@ -374,12 +374,23 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                     }
                 };
 
-                let r = task::wait( || open::that_detached(uri)).await;
-                if let Err(e) = &r {
-                    tracing::error!("error opening {kind}, {e}");
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let r = task::wait( || open::that_detached(uri)).await;
+                    if let Err(e) = &r {
+                        tracing::error!("error opening {kind}, {e}");
+                    }
+
+                    status.set(if r.is_ok() { Status::Ok } else { Status::Err });
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // !!: TODO, open tab
+                    tracing::error!("error opening {kind}, not supported on wasm platform");
+                    let _ = (uri, kind);
+                    status.set(Status::Err);
                 }
 
-                status.set(if r.is_ok() { Status::Ok } else { Status::Err });
                 task::deadline(200.ms()).await;
 
                 LAYERS.remove(popup_id);

@@ -3541,9 +3541,9 @@ impl WordContextKey {
             features.reserve(font_features.len() * if is_64 { 3 } else { 4 });
             for feature in font_features {
                 if is_64 {
-                    let mut h = feature.tag.0 as usize;
-                    h |= (feature.value as usize) << 32;
-                    features.push(h);
+                    let mut h = feature.tag.0 as u64;
+                    h |= (feature.value as u64) << 32;
+                    features.push(h as usize);
                 } else {
                     features.push(feature.tag.0 as usize);
                     features.push(feature.value as usize);
