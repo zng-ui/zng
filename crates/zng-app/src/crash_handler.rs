@@ -1182,6 +1182,7 @@ fn crash_handler_dialog_process(dump_enabled: bool, dialog: CrashDialogHandler, 
     .exit(0)
 }
 
+#[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
 fn panic_handler(info: &std::panic::PanicInfo) {
     let backtrace = std::backtrace::Backtrace::capture();
     let path = crate::widget::WIDGET.trace_path();
@@ -1232,6 +1233,7 @@ struct PanicInfo {
     pub column: u32,
 }
 impl PanicInfo {
+    #[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
     pub fn from_hook(info: &std::panic::PanicInfo) -> Self {
         let current_thread = std::thread::current();
         let thread = current_thread.name().unwrap_or("<unnamed>");
