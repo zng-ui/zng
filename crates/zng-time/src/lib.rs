@@ -12,17 +12,11 @@ use std::{fmt, ops, time::Duration};
 use parking_lot::RwLock;
 use zng_app_context::app_local;
 
-#[cfg(target_arch = "wasm32")]
-mod wasm_instant;
-
-/// Standard instant type.
-///
-/// This is [`std::time::Instant`] or a custom type with the same API in `cfg(target_arch = "wasm32")`.
 #[cfg(not(target_arch = "wasm32"))]
-pub type SInstant = std::time::Instant;
+use std::time::Instant;
 
 #[cfg(target_arch = "wasm32")]
-pub type SInstant = wasm_instant::Instant;
+use web_time::Instant;
 
 /// Instant service.
 pub struct INSTANT;
@@ -47,12 +41,12 @@ impl INSTANT {
     /// # Panics
     ///
     /// Panics if called in a non-app thread.
-    pub fn epoch(&self) -> SInstant {
+    pub fn epoch(&self) -> Instant {
         if let Some(t) = *EPOCH.read() {
             return t;
         }
         *EPOCH.write().get_or_insert_with(|| {
-            let mut now = SInstant::now();
+            let mut now = Instant::now();
             // some CI machines (Github Windows) fail to subtract 1 day.
             for t in [60 * 60 * 24, 60 * 60, 60 * 30, 60 * 15, 60 * 10, 60] {
                 if let Some(t) = now.checked_sub(Duration::from_secs(t)) {
@@ -240,7 +234,7 @@ impl ops::Sub for DInstant {
         self.0.saturating_sub(rhs.0)
     }
 }
-impl From<DInstant> for SInstant {
+impl From<DInstant> for Instant {
     fn from(t: DInstant) -> Self {
         INSTANT.epoch() + t.0
     }
@@ -260,7 +254,7 @@ pub enum InstantMode {
     Manual,
 }
 
-static EPOCH: RwLock<Option<SInstant>> = RwLock::new(None);
+static EPOCH: RwLock<Option<Instant>> = RwLock::new(None);
 
 app_local! {
     static INSTANT_SV: InstantService = const {

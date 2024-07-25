@@ -4,7 +4,7 @@ use std::{env, mem, time::Duration};
 use std::time::Instant;
 
 #[cfg(target_arch = "wasm32")]
-use zng_time::SInstant as Instant;
+use web_time::Instant;
 
 use parking_lot::Mutex;
 use zng_txt::Txt;

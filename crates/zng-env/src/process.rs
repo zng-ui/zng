@@ -45,18 +45,18 @@ use parking_lot::Mutex;
 /// `zng::app::on_app_start` here to register a handler to be called in the app context, if and when it starts.
 ///
 /// # Web Assembly
-/// 
+///
 /// Crates that declare `on_process_start` must have the [`wasm_bindgen`] dependency to compile for the `wasm32` target.
-/// 
+///
 /// In `Cargo.toml` add this dependency:
-/// 
+///
 /// ```toml
 /// [target.'cfg(target_arch = "wasm32")'.dependencies]
 /// wasm-bindgen = "*"
 /// ```
-/// 
+///
 /// Try to match the version used by `zng-env`.
-/// 
+///
 /// [`wasm_bindgen`]: https://crates.io/crates/wasm-bindgen
 #[macro_export]
 macro_rules! on_process_start {
