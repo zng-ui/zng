@@ -576,7 +576,7 @@ where
                     #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
                     let t = std::time::Instant::now();
                     #[cfg(all(debug_assertions, target_arch = "wasm32"))]
-                    let t = zduny_wasm_timer::Instant::now();
+                    let t = zng_time::SInstant::now();
 
                     handler.event(args);
 

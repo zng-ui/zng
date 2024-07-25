@@ -1412,7 +1412,7 @@ mod private {
 ///
 /// [`tracing`]: https://docs.rs/tracing
 pub fn print_tracing(max: tracing::Level) -> bool {
-    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::prelude::*; // !!: TODO WASM
 
     tracing_subscriber::registry()
         .with(FilterLayer(max))

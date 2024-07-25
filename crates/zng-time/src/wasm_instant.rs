@@ -35,7 +35,7 @@ impl Instant {
     }
 
     pub fn duration_since(&self, earlier: Instant) -> Duration {
-        *self - earlier
+        self.checked_duration_since(earlier).unwrap_or_default()
     }
 
     pub fn checked_duration_since(&self, earlier: Instant) -> Option<Duration> {

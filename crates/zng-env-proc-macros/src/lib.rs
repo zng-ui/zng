@@ -150,3 +150,48 @@ struct MetadataAbout {
     org: Option<String>,
     qualifier: Option<String>,
 }
+
+#[doc(hidden)]
+#[proc_macro]
+// #[cfg(target_arch = "wasm32")] // cannot do this, target_arch is the build system arch
+pub fn wasm_process_start(crate_closure: TokenStream) -> TokenStream {
+    use quote::TokenStreamExt as _;
+
+    let crate_closure = proc_macro2::TokenStream::from(crate_closure);
+    let mut crate_ = proc_macro2::TokenStream::new();
+    let mut crate_ok = false;
+    let mut closure = proc_macro2::TokenStream::new();
+
+    for tt in crate_closure {
+        if crate_ok {
+            closure.append(tt);
+        } else if matches!(&tt, proc_macro2::TokenTree::Punct(p) if p.as_char() == ',') {
+            crate_ok = true;
+        } else {
+            crate_.append(tt);
+        }
+    }
+
+    use sha2::Digest;
+    let mut start_ident = sha2::Sha256::new();
+    start_ident.update(closure.to_string().as_bytes());
+    let start_ident = format!("__zng_env_start_{:x}", start_ident.finalize());
+    let start_ident = proc_macro2::Ident::new(&start_ident, proc_macro2::Span::call_site());
+
+    quote! {
+        #[doc(hidden)]
+        #[#crate_::wasm_bindgen]
+        pub fn #start_ident() {
+            #crate_::WASM_INIT.with_borrow_mut(|v| {
+                v.push(_on_process_start);
+            })
+        }
+        fn _on_process_start(args: &#crate_::ProcessStartArgs) {
+            fn on_process_start(args: &#crate_::ProcessStartArgs, handler: impl FnOnce(&#crate_::ProcessStartArgs)) {
+                handler(args)
+            }
+            on_process_start(args, #closure)
+        }
+    }
+    .into()
+}

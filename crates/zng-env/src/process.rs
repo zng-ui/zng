@@ -43,6 +43,21 @@ use parking_lot::Mutex;
 ///
 /// This event happens on the executable process context, before any `APP` context starts, you can use
 /// `zng::app::on_app_start` here to register a handler to be called in the app context, if and when it starts.
+///
+/// # Web Assembly
+/// 
+/// Crates that declare `on_process_start` must have the [`wasm_bindgen`] dependency to compile for the `wasm32` target.
+/// 
+/// In `Cargo.toml` add this dependency:
+/// 
+/// ```toml
+/// [target.'cfg(target_arch = "wasm32")'.dependencies]
+/// wasm-bindgen = "*"
+/// ```
+/// 
+/// Try to match the version used by `zng-env`.
+/// 
+/// [`wasm_bindgen`]: https://crates.io/crates/wasm-bindgen
 #[macro_export]
 macro_rules! on_process_start {
     ($closure:expr) => {
@@ -96,25 +111,17 @@ macro_rules! __on_process_start {
 #[macro_export]
 macro_rules! __on_process_start {
     ($closure:expr) => {
-        #[doc(hidden)]
-        #[$crate::wasm_bindgen]
-        pub fn __start() {
-            $crate::WASM_INIT.with_borrow_mut(|v| {
-                v.push(_on_process_start);
-            })
-        }
-        fn _on_process_start(args: &$crate::ProcessStartArgs) {
-            fn on_process_start(args: &$crate::ProcessStartArgs, handler: impl FnOnce(&$crate::ProcessStartArgs)) {
-                handler(args)
-            }
-            on_process_start(args, $closure)
-        }
+        $crate::wasm_process_start! {$crate,$closure}
     };
 }
 
 #[doc(hidden)]
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen::prelude::wasm_bindgen;
+
+#[doc(hidden)]
+#[cfg(target_arch = "wasm32")]
+pub use zng_env_proc_macros::wasm_process_start;
 
 #[cfg(target_arch = "wasm32")]
 std::thread_local! {
@@ -198,6 +205,9 @@ pub(crate) fn process_init() -> impl Drop {
     for entry in js_sys::Object::entries(&module) {
         let entry: js_sys::Array = entry.into();
         let ident = entry.get(0).as_string().expect("expected ident at entry[0]");
+
+        web_sys::console::log_1(&ident.clone().into());
+
         if ident.starts_with("__zng_env_start_") {
             let func: js_sys::Function = entry.get(1).into();
             if let Err(e) = func.call0(&wasm_bindgen::JsValue::NULL) {
