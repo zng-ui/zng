@@ -89,7 +89,11 @@ impl<E: AppExtension> RunningApp<E> {
         if with_renderer && view_process_exe.is_none() {
             zng_env::assert_inited();
         }
+
+        #[cfg(not(target_arch = "wasm32"))]
         let view_process_exe = view_process_exe.unwrap_or_else(|| std::env::current_exe().expect("current_exe"));
+        #[cfg(target_arch = "wasm32")]
+        let view_process_exe = std::path::PathBuf::new("<wasm>");
 
         let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, view_process_env, device_events);
 

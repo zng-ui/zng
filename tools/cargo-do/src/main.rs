@@ -628,10 +628,16 @@ fn run(mut args: Vec<&str>) {
     }
 }
 
-// do run-wasm EXAMPLE
-//    Run an example in ./examples on the browser.
+// do run-wasm EXAMPLE [--no-serve]
+//    Run an example in ./examples on the browser, if the example supports it.
 fn run_wasm(mut args: Vec<&str>) {
+    let no_serve = take_flag(&mut args, &["--no-serve"]);
     let example = args.remove(0);
+
+    let src = std::path::Path::new("examples").join(example).join("src");
+    if src.exists() && !src.join("lib.rs").exists() {
+        fatal(f!("example `{example}` does not support WASM builds"));
+    }
 
     let out_dir = format!("{}/target/run-wasm/{example}", std::env::current_dir().unwrap().display());
     let _ = std::fs::remove_dir_all(&out_dir);
@@ -660,11 +666,13 @@ fn run_wasm(mut args: Vec<&str>) {
         fatal(f!("cannot write {}, {e}", index_file.display()))
     }
 
-    if let Err(e) = std::process::Command::new("basic-http-server").arg(out_dir).status() {
-        error(f!(
-            "couldn't serve example: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
-        ));
-    }
+    if !no_serve {
+        if let Err(e) = std::process::Command::new("basic-http-server").arg(out_dir).status() {
+            error(f!(
+                "couldn't serve example: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
+            ));
+        }
+    }    
 }
 
 // do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [-e, --example <example>]
