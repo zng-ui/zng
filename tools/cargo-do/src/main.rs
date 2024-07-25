@@ -672,7 +672,7 @@ fn run_wasm(mut args: Vec<&str>) {
                 "couldn't serve example: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
             ));
         }
-    }    
+    }
 }
 
 // do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [-e, --example <example>]

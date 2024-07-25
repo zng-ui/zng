@@ -69,8 +69,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:  
+          targets: wasm32-unknown-unknown
+      - name: install wasm-pack
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: wasm-pack
       - uses: Swatinem/rust-cache@v2
-      - run: cargo do build-wasm web --no-serve
+      - run: cargo do run-wasm web --no-serve
       - run: cargo clean
   doc:
     runs-on: ubuntu-latest
