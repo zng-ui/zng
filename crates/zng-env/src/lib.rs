@@ -54,6 +54,28 @@ lazy_static! {
 ///     // on_exit handlers are called here
 /// }
 /// ```
+///
+/// # Web Start
+///
+/// WebAssembly builds (`target_arch = "wasm32"`) must share the app wasm module reference by setting the custom attribute
+/// `__zng_env_init_module` on the Javascript `window` object.
+///
+/// The `init!` call **will panic** if the attribute is not found.
+///
+/// ```html
+/// <script type="module">
+/// import init, * as my_app_wasm from './my_app.js';
+/// window.__zng_env_init_module = my_app_wasm;
+/// async function main() {
+///   await init();
+/// }
+/// main();
+/// </script>
+/// ```
+///
+/// The example above imports and runs an app built using [`wasm-pack`] with `--target web` options.
+///
+/// [`wasm-pack`]: https://crates.io/crates/wasm-pack
 #[macro_export]
 macro_rules! init {
     () => {

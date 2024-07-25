@@ -1,7 +1,10 @@
-use std::{
-    env, mem,
-    time::{Duration, Instant},
-};
+use std::{env, mem, time::Duration};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+use zng_time::SInstant as Instant;
 
 use parking_lot::Mutex;
 use zng_txt::Txt;

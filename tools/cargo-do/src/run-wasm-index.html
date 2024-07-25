@@ -5,7 +5,8 @@
   </head>
   <body>
     <script type="module">
-      import init from './zng_example_${EXAMPLE}.js';
+      import init, * as m from './zng_example_${EXAMPLE}.js';
+      window.__zng_env_init_module = m;
       async function main() {
         await init();
       }

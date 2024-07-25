@@ -28,6 +28,8 @@
 //! Note that init **must be called in main**, it must be called in main to define the lifetime of the processes,
 //! this is needed to properly call [`on_process_exit`] handlers.
 //!
+//! Also see the [`init!`] section on WebAssembly for details on how to init in `"wasm32"` target builds.
+//!
 //! # Full API
 //!
 //! See [`zng_env`] for the full API.

@@ -96,8 +96,30 @@ macro_rules! __on_process_start {
 #[macro_export]
 macro_rules! __on_process_start {
     ($closure:expr) => {
-        // !!: TODO
+        #[doc(hidden)]
+        #[$crate::wasm_bindgen]
+        pub fn __start() {
+            $crate::WASM_INIT.with_borrow_mut(|v| {
+                v.push(_on_process_start);
+            })
+        }
+        fn _on_process_start(args: &$crate::ProcessStartArgs) {
+            fn on_process_start(args: &$crate::ProcessStartArgs, handler: impl FnOnce(&$crate::ProcessStartArgs)) {
+                handler(args)
+            }
+            on_process_start(args, $closure)
+        }
     };
+}
+
+#[doc(hidden)]
+#[cfg(target_arch = "wasm32")]
+pub use wasm_bindgen::prelude::wasm_bindgen;
+
+#[cfg(target_arch = "wasm32")]
+std::thread_local! {
+    #[doc(hidden)]
+    pub static WASM_INIT: std::cell::RefCell<Vec<fn(&ProcessStartArgs)>> = const { std::cell::RefCell::new(vec![]) };
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -107,6 +129,10 @@ pub static ZNG_ENV_ON_PROCESS_START: [fn(&ProcessStartArgs)];
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn process_init() -> impl Drop {
+    process_init_impl(&ZNG_ENV_ON_PROCESS_START)
+}
+
+fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
     let process_state = std::mem::replace(
         &mut *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock(),
         ProcessLifetimeState::Inited,
@@ -114,8 +140,8 @@ pub(crate) fn process_init() -> impl Drop {
     assert_eq!(process_state, ProcessLifetimeState::BeforeInit, "init!() already called");
 
     let mut yielded = vec![];
-    let mut next_handlers_count = ZNG_ENV_ON_PROCESS_START.len();
-    for h in ZNG_ENV_ON_PROCESS_START {
+    let mut next_handlers_count = handlers.len();
+    for h in handlers {
         next_handlers_count -= 1;
         let args = ProcessStartArgs {
             next_handlers_count,
@@ -157,8 +183,30 @@ pub(crate) fn process_init() -> impl Drop {
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn process_init() -> impl Drop {
-    // !!: TODO init
-    MainExitHandler
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+    let window = web_sys::window().expect("cannot 'init!', no window object");
+    let module = js_sys::Reflect::get(&window, &"__zng_env_init_module".into())
+        .expect("cannot 'init!', missing module in 'window.__zng_env_init_module'");
+
+    if module == wasm_bindgen::JsValue::undefined() || module == wasm_bindgen::JsValue::null() {
+        panic!("cannot 'init!', missing module in 'window.__zng_env_init_module'");
+    }
+
+    let module: js_sys::Object = module.into();
+
+    for entry in js_sys::Object::entries(&module) {
+        let entry: js_sys::Array = entry.into();
+        let ident = entry.get(0).as_string().expect("expected ident at entry[0]");
+        if ident.starts_with("__zng_env_start_") {
+            let func: js_sys::Function = entry.get(1).into();
+            if let Err(e) = func.call0(&wasm_bindgen::JsValue::NULL) {
+                panic!("'init!' function error, {e:?}");
+            }
+        }
+    }
+
+    process_init_impl(&WASM_INIT.with_borrow_mut(std::mem::take))
 }
 
 /// Arguments for [`on_process_start`] handlers.
