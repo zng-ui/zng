@@ -206,8 +206,6 @@ pub(crate) fn process_init() -> impl Drop {
         let entry: js_sys::Array = entry.into();
         let ident = entry.get(0).as_string().expect("expected ident at entry[0]");
 
-        web_sys::console::log_1(&ident.clone().into());
-
         if ident.starts_with("__zng_env_start_") {
             let func: js_sys::Function = entry.get(1).into();
             if let Err(e) = func.call0(&wasm_bindgen::JsValue::NULL) {

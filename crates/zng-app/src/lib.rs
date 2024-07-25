@@ -1400,23 +1400,30 @@ mod private {
     pub trait Sealed {}
 }
 
-/// Print [`tracing`] events if a subscriber is not already set.
+/// Enables [`tracing`] events printing if a subscriber is not already set.
 ///
 /// All non-fatal errors in the Zng project are logged using tracing.
 ///
 /// In debug builds this function is called automatically with level INFO on app start.
 ///
-/// See also [`test_log`] to enable panicking for errors.
+/// In `"wasm32"` builds logs to the browser console.
+///
+/// See also [`test_log`] to enable panicking on error log.
 ///
 /// See also [`print_tracing_filter`] for the filter used by this.
 ///
 /// [`tracing`]: https://docs.rs/tracing
 pub fn print_tracing(max: tracing::Level) -> bool {
-    use tracing_subscriber::prelude::*; // !!: TODO WASM
+    use tracing_subscriber::prelude::*;
+
+    let fmt_layer = tracing_subscriber::fmt::layer().without_time();
+
+    #[cfg(target_arch = "wasm32")]
+    let fmt_layer = fmt_layer.with_ansi(false).with_writer(tracing_web::MakeWebConsoleWriter::new());
 
     tracing_subscriber::registry()
         .with(FilterLayer(max))
-        .with(tracing_subscriber::fmt::layer().without_time())
+        .with(fmt_layer)
         .try_init()
         .is_ok()
 }

@@ -122,6 +122,9 @@ minidump = { version = "0.22", optional = true }
 linkme = { version = "=0.3.27", optional = true }
 uuid = { version = "1.1", optional = true }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tracing-web = "0.1"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(never)'] }
 
