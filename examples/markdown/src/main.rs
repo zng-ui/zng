@@ -30,7 +30,7 @@ fn main() {
                         let mut r: ImageSource = img.into();
                         if let ImageSource::Read(file) = &mut r {
                             if file.is_relative() {
-                                *file = zng::env::res(&file);
+                                *file = zng::env::res(file);
                             }
                         }
                         r
