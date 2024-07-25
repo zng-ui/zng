@@ -169,9 +169,9 @@ impl<D> WeakWidgetFn<D> {
 /// # Syntax
 ///
 /// * `wgt_fn!(cloned, |_args| Wgt!())` - Clone-move closure, the same syntax as [`clmv!`] you can
-/// list the cloned values before the closure.
+///   list the cloned values before the closure.
 /// * `wgt_fn!(path::to::func)` - The macro also accepts unction, the signature must receive the args and return
-/// a widget.
+///   a widget.
 /// * `wgt_fn!()` - An empty call generates the [`WidgetFn::nil()`] value.
 ///
 /// # Examples
