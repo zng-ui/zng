@@ -1,4 +1,4 @@
-//! Demonstrates a hybrid WASM and desktop app setup.
+//! Demonstrates a hybrid web and desktop app setup.
 //!
 //! Note that only a small subset of services are supported and only headless (without renderer) apps can run.
 //!

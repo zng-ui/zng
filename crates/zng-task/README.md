@@ -13,6 +13,8 @@ Enables parking_lot deadlock detection.
 #### `"ipc"`
 Enables ipc tasks.
 
+Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+
 #### `"http"`
 Enables http tasks.
 
