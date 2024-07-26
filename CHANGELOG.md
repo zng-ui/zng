@@ -14,8 +14,9 @@
 * The `"wasm-unknown-unknown"` target now compiles without error.
     - `zng::time` works.
     - `zng::env::on_process_start!` and `init!` works with a small JS setup requirement.
+    - `zng::app::print_tracing` and panics log to browser console.
     - View-process is **not implemented**, only headless without renderer apps can run on this release.
-    - Unfortunately many dependencies compile but panic during runtime so WASM support will be released gradually.
+    - Unfortunately many dependencies compile without actually supporting Wasm and panic during runtime, these will be fixed gradually.
 
 # 0.10.5
 
