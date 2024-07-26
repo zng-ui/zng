@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.10.6
+
 * **Breaking** Remove `OutlineHintingOptions` and change `Font::outline` signature.
 * **Breaking** Remove `FontFace::font_kit`, `Font::advance`, `Font::origin` and `Font::typographic_bounds`.
 * Fix crash window summary tab when there are no localization resources.
