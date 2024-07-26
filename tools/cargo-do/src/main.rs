@@ -636,7 +636,7 @@ fn run_wasm(mut args: Vec<&str>) {
 
     let src = std::path::Path::new("examples").join(example).join("src");
     if src.exists() && !src.join("lib.rs").exists() {
-        fatal(f!("example `{example}` does not support WASM builds"));
+        fatal(f!("example `{example}` does not support Wasm target"));
     }
 
     let out_dir = format!("{}/target/run-wasm/{example}", std::env::current_dir().unwrap().display());

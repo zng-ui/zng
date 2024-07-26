@@ -10,7 +10,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.10.5", features = ["view_prebuilt"] }
+zng = { version = "0.11.0", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -65,8 +65,12 @@ This crate provides 29 feature flags, 4 enabled by default.
 #### `"view"`
 Include the default view-process implementation.
 
+Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+
 #### `"view_prebuilt"`
 Include the default view-process implementation as an embedded precompiled binary.
+
+Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 
 #### `"http"`
 Enables HTTP tasks and web features of widgets and services.
@@ -122,6 +126,8 @@ the running app-process.
 Allow app-process crash handler.
 
 Builds with this feature spawn a crash monitor-process for each app-process.
+
+Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 
 *Enabled by default.*
 
@@ -184,6 +190,8 @@ Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 
 #### `"ipc"`
 Enables IPC tasks, pre-build views and connecting to views running in another process.
+
+Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 
 *Enabled by default.*
 

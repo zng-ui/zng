@@ -1,6 +1,9 @@
 # Unreleased
 
-* **Breaking** Remove `OutlineHintingOptions` and change `outline` signature.
+
+# 0.11.0
+
+* **Breaking** Remove `OutlineHintingOptions` and change `Font::outline` signature.
 * **Breaking** Remove `FontFace::font_kit`, `Font::advance`, `Font::origin` and `Font::typographic_bounds`.
 * Fix crash window summary tab when there are no localization resources.
 * Replace `breakpad-handler` with `minidumper` + `crash-handler`.
@@ -9,13 +12,14 @@
 * Fix Emoji color palette panic (Windows 11 Emoji).
 * **Breaking** Remove `0.10.5` deprecated items.
 * Fix `FONTS` matching obsolete Type1 fonts when there is an OpenType alternative.
-* **Breaking** `FONTS.system_fonts` is now returns a `ResponseVar`.
+* **Breaking** `FONTS.system_fonts` now returns a `ResponseVar`.
 * **Breaking** Replaced harfbuzz backend, `font::Face::harfbuzz` and `font::Font::harfbuzz` are the new accessors.
 * The `"wasm-unknown-unknown"` target now compiles without error.
     - `zng::time` works.
     - `zng::env::on_process_start!` and `init!` works with a small JS setup requirement.
+    - `zng::app::print_tracing` and panics log to browser console.
     - View-process is **not implemented**, only headless without renderer apps can run on this release.
-    - Unfortunately many dependencies compile but panic during runtime so WASM support will be released gradually.
+    - Unfortunately many dependencies compile without actually supporting Wasm and panic during runtime, these will be fixed gradually.
 
 # 0.10.5
 

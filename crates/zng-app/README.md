@@ -52,6 +52,8 @@ Note that this can cause very large trace files and bad performance.
 #### `"crash_handler"`
 Allow app-process crash handler.
 
+Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+
 #### `"ipc"`
 Enables IPC tasks and pre-build views and connecting to views running in another process.
 
