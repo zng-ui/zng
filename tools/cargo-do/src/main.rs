@@ -13,6 +13,7 @@ fn main() {
         "fmt" | "f" => fmt(args),
         "test" | "t" => test(args),
         "run" | "r" => run(args),
+        "run-wasm" => run_wasm(args),
         "zng" => cargo_zng(args),
         "doc" => doc(args),
         "l10n" => l10n(args),
@@ -54,6 +55,7 @@ fn install(mut args: Vec<&str>) {
         ("cargo", &["install", "cargo-about", "--locked"]),
         ("cargo", &["install", "cargo-semver-checks", "--locked"]),
         ("cargo", &["install", "basic-http-server"]),
+        ("cargo", &["install", "wasm-pack"]),
     ];
 
     if take_flag(&mut args, &["--execute"]) {
@@ -622,6 +624,53 @@ fn run(mut args: Vec<&str>) {
                 &args,
                 &[trace],
             );
+        }
+    }
+}
+
+// do run-wasm EXAMPLE [--no-serve]
+//    Run an example in ./examples on the browser, if the example supports it.
+fn run_wasm(mut args: Vec<&str>) {
+    let no_serve = take_flag(&mut args, &["--no-serve"]);
+    let example = args.remove(0);
+
+    let src = std::path::Path::new("examples").join(example).join("src");
+    if src.exists() && !src.join("lib.rs").exists() {
+        fatal(f!("example `{example}` does not support WASM builds"));
+    }
+
+    let out_dir = format!("{}/target/run-wasm/{example}", std::env::current_dir().unwrap().display());
+    let _ = std::fs::remove_dir_all(&out_dir);
+    let _ = std::fs::create_dir_all(&out_dir);
+
+    cmd_req(
+        "wasm-pack",
+        &[
+            "build",
+            "--target",
+            "web",
+            "--out-dir",
+            &out_dir,
+            "--dev",
+            "--no-pack",
+            "--no-typescript",
+            &format!("examples/{example}"),
+        ],
+        &[],
+    );
+
+    let index = include_str!("run-wasm-index.html").replace("${EXAMPLE}", &example.replace('-', "_"));
+    let out_dir = std::path::Path::new(&out_dir);
+    let index_file = out_dir.join("index.html");
+    if let Err(e) = std::fs::write(&index_file, index.as_bytes()) {
+        fatal(f!("cannot write {}, {e}", index_file.display()))
+    }
+
+    if !no_serve {
+        if let Err(e) = std::process::Command::new("basic-http-server").arg(out_dir).status() {
+            error(f!(
+                "couldn't serve example: {e}\n\nYou can install the server with the command:\ncargo install basic-http-server"
+            ));
         }
     }
 }

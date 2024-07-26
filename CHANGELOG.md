@@ -11,6 +11,11 @@
 * Fix `FONTS` matching obsolete Type1 fonts when there is an OpenType alternative.
 * **Breaking** `FONTS.system_fonts` is now returns a `ResponseVar`.
 * **Breaking** Replaced harfbuzz backend, `font::Face::harfbuzz` and `font::Font::harfbuzz` are the new accessors.
+* The `"wasm-unknown-unknown"` target now compiles without error.
+    - `zng::time` works.
+    - `zng::env::on_process_start!` and `init!` works with a small JS setup requirement.
+    - View-process is **not implemented**, only headless without renderer apps can run on this release.
+    - Unfortunately many dependencies compile but panic during runtime so WASM support will be released gradually.
 
 # 0.10.5
 

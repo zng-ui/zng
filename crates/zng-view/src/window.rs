@@ -1591,7 +1591,7 @@ impl Window {
         renderer.update();
 
         let r = renderer.render(size.to_wr_device(), 0).unwrap();
-        span.record("stats", &tracing::field::debug(&r.stats));
+        span.record("stats", tracing::field::debug(&r.stats));
 
         for (_, ext) in &mut self.renderer_exts {
             ext.redraw(&mut RedrawArgs {

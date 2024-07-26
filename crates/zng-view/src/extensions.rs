@@ -443,7 +443,7 @@ pub struct RendererInitedArgs<'a> {
     /// Note that some renderer config is set by the window and must not be set by extensions:
     ///
     /// * `set_external_image_handler` will be set by the window to the image cache, you can use `external_images` to
-    /// register external images and textures.
+    ///   register external images and textures.
     pub renderer: &'a mut webrender::Renderer,
 
     /// The API sender connected with the new renderer.

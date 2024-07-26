@@ -56,5 +56,8 @@ unic-langid = { version = "0.9", features = ["serde"] }
 dunce = "1.0"
 tracing-shared = { version = "0.1.5", default-features = false, features = ["log"] }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-time = "1.0"
+
 [package.metadata.docs.rs]
 all-features = true

@@ -162,7 +162,7 @@ impl FrameBuilder {
     /// * `renderer` - Connection to the renderer that will render the frame, is `None` in renderless mode.
     /// * `scale_factor` - Scale factor that will be used to render the frame, usually the scale factor of the screen the window is at.
     /// * `default_font_aa` - Fallback font anti-aliasing used when the default value is requested.
-    /// because WebRender does not let us change the initial clear color.
+    ///   because WebRender does not let us change the initial clear color.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         render_widgets: Arc<RenderUpdates>,

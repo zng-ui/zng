@@ -18,6 +18,35 @@ use crate::{
     HYPHENATION,
 };
 
+/// Reasons why a font might fail to load a glyph.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum GlyphLoadingError {
+    /// The font didn't contain a glyph with that ID.
+    NoSuchGlyph,
+    /// A platform function returned an error.
+    PlatformError,
+}
+impl std::error::Error for GlyphLoadingError {}
+impl fmt::Display for GlyphLoadingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use GlyphLoadingError::*;
+        match self {
+            NoSuchGlyph => write!(f, "no such glyph"),
+            PlatformError => write!(f, "platform error"),
+        }
+    }
+}
+#[cfg(not(target_arch = "wasm32"))]
+impl From<font_kit::error::GlyphLoadingError> for GlyphLoadingError {
+    fn from(value: font_kit::error::GlyphLoadingError) -> Self {
+        use GlyphLoadingError::*;
+        match value {
+            font_kit::error::GlyphLoadingError::NoSuchGlyph => NoSuchGlyph,
+            font_kit::error::GlyphLoadingError::PlatformError => PlatformError,
+        }
+    }
+}
+
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
 pub struct TextShapingArgs {
@@ -3512,9 +3541,9 @@ impl WordContextKey {
             features.reserve(font_features.len() * if is_64 { 3 } else { 4 });
             for feature in font_features {
                 if is_64 {
-                    let mut h = feature.tag.0 as usize;
-                    h |= (feature.value as usize) << 32;
-                    features.push(h);
+                    let mut h = feature.tag.0 as u64;
+                    h |= (feature.value as u64) << 32;
+                    features.push(h as usize);
                 } else {
                     features.push(feature.tag.0 as usize);
                     features.push(feature.value as usize);

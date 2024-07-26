@@ -257,7 +257,7 @@ impl WindowVars {
     ///
     /// * **Maximized**: The window is maximized in the new monitor.
     /// * **Normal**: The window is centered in the new monitor, keeping the same size, unless the
-    /// [`position`] and [`size`] where set in the same update, in that case these values are used.
+    ///   [`position`] and [`size`] where set in the same update, in that case these values are used.
     /// * **Minimized/Hidden**: The window restore position and size are defined like **Normal**.
     ///
     /// [`position`]: WindowVars::position
@@ -718,7 +718,7 @@ impl WindowVars {
     /// under these conditions:
     ///
     /// * It must be running in `run_same_process` mode. Windows kills all other processes, so in a run with `init` the app-process
-    /// will be lost. Note that this also mean that the crash handler and worker processes are also killed.
+    ///   will be lost. Note that this also mean that the crash handler and worker processes are also killed.
     /// * Must be built with `#![windows_subsystem = "windows"]` and must be running from the Windows Explorer (desktop).
     pub fn system_shutdown_warn(&self) -> ArcVar<Txt> {
         self.0.system_shutdown_warn.clone()

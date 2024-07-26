@@ -7,13 +7,16 @@
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 
-use std::{
-    fmt, ops,
-    time::{Duration, Instant},
-};
+use std::{fmt, ops, time::Duration};
 
 use parking_lot::RwLock;
 use zng_app_context::app_local;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 
 /// Instant service.
 pub struct INSTANT;

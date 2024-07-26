@@ -17,6 +17,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
 # Enables ipc tasks.
+#
+# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 ipc = [
     "dep:duct",
     "dep:serde",
@@ -78,13 +80,15 @@ async-recursion = { version = "1.1", optional = true }
 async-trait = { version = "0.1", optional = true }
 sha2 = { version = "0.10", optional = true }
 base64 = { version = "0.22", optional = true }
-fs4 = { version = "0.8", optional = true }
 remove_dir_all = { version = "0.8", optional = true }
 
-duct = { version = "0.13", optional = true }
 ipc-channel = { version = "0.18", optional = true }
 bincode = { version = "1.3", optional = true }
 dunce = "1.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+duct = { version = "0.13", optional = true }
+fs4 = { version = "0.8", optional = true }
 
 [package.metadata.docs.rs]
 all-features = true

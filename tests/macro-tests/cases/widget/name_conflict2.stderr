@@ -123,11 +123,6 @@ error[E0599]: no method named `widget_intrinsic` found for struct `TestWidget` i
   | method not found in `TestWidget`
   | method `widget_intrinsic` not found for this struct
   |
- ::: $WORKSPACE/crates/zng-app/src/widget/base.rs
-  |
-  |     fn widget_intrinsic(&mut self) {}
-  |        ---------------- the method is available for `TestWidget` here
-  |
   = help: items from traits can only be used if the trait is implemented and in scope
   = note: the following trait defines an item `widget_intrinsic`, perhaps you need to implement it:
           candidate #1: `WidgetImpl`
@@ -167,11 +162,6 @@ error[E0599]: no method named `widget_intrinsic` found for struct `TestWidget` i
 ...
 6 | #[widget($crate::TestWidget)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `TestWidget`
-  |
- ::: $WORKSPACE/crates/zng-app/src/widget/base.rs
-  |
-  |     fn widget_intrinsic(&mut self) {}
-  |        ---------------- the method is available for `TestWidget` here
   |
   = help: items from traits can only be used if the trait is implemented and in scope
   = note: the following trait defines an item `widget_intrinsic`, perhaps you need to implement it:

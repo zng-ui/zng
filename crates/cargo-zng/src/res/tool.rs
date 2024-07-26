@@ -198,7 +198,7 @@ impl Tool {
                 cmd.arg("run")
                     .arg("--quiet")
                     .arg("--manifest-path")
-                    .arg(&self.path.parent().unwrap().parent().unwrap().parent().unwrap().join("Cargo.toml"))
+                    .arg(self.path.parent().unwrap().parent().unwrap().parent().unwrap().join("Cargo.toml"))
                     .arg("--bin")
                     .arg(&self.name)
                     .arg("--");

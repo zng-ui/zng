@@ -1,4 +1,4 @@
-#![cfg(feature = "crash_handler")]
+#![cfg(all(feature = "crash_handler", not(target_arch = "wasm32")))]
 
 //! App-process crash handler.
 //!

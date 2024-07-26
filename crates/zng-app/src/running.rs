@@ -89,7 +89,11 @@ impl<E: AppExtension> RunningApp<E> {
         if with_renderer && view_process_exe.is_none() {
             zng_env::assert_inited();
         }
+
+        #[cfg(not(target_arch = "wasm32"))]
         let view_process_exe = view_process_exe.unwrap_or_else(|| std::env::current_exe().expect("current_exe"));
+        #[cfg(target_arch = "wasm32")]
+        let view_process_exe = std::path::PathBuf::from("<wasm>");
 
         let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, view_process_env, device_events);
 
@@ -1603,7 +1607,14 @@ impl<T> ReceiverExt<T> for flume::Receiver<T> {
                     }
                 } else if d > WORST_SLEEP_ERR {
                     // probably sleeps here.
+                    #[cfg(not(target_arch = "wasm32"))]
                     match self.recv_deadline(deadline.0.checked_sub(WORST_SLEEP_ERR).unwrap().into()) {
+                        Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
+                        interrupt => return interrupt,
+                    }
+
+                    #[cfg(target_arch = "wasm32")] // this actually panics because flume tries to use Instant::now
+                    match self.recv_timeout(d.checked_sub(WORST_SLEEP_ERR).unwrap_or_default()) {
                         Err(flume::RecvTimeoutError::Timeout) => continue, // continue to try_recv spin
                         interrupt => return interrupt,
                     }

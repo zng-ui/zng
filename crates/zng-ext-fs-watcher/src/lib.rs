@@ -21,12 +21,10 @@ use std::{
         atomic::{AtomicBool, AtomicU64},
         Arc,
     },
-    thread,
     time::{Duration, SystemTime},
 };
 
 use atomic::{Atomic, Ordering};
-use fs4::FileExt;
 use notify::Watcher;
 use parking_lot::Mutex;
 use path_absolutize::Absolutize;
@@ -2146,17 +2144,48 @@ impl PollInfo {
     }
 }
 
-/// Calls [`fs4::FileExt::lock_exclusive`] with a timeout.
-fn lock_exclusive(file: &impl fs4::FileExt, timeout: Duration) -> std::io::Result<()> {
+#[cfg(not(target_arch = "wasm32"))]
+use fs4::FileExt;
+
+#[cfg(target_arch = "wasm32")]
+trait FileExt {
+    fn try_lock_shared(&self) -> std::io::Result<()> {
+        not_supported()
+    }
+    fn try_lock_exclusive(&self) -> std::io::Result<()> {
+        not_supported()
+    }
+    fn unlock(&self) -> std::io::Result<()> {
+        not_supported()
+    }
+}
+#[cfg(target_arch = "wasm32")]
+impl FileExt for std::fs::File {}
+#[cfg(target_arch = "wasm32")]
+fn not_supported() -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        "operation not supported on wasm yet",
+    ))
+}
+
+/// Calls `fs4::FileExt::lock_exclusive` with a timeout.
+fn lock_exclusive(file: &impl FileExt, timeout: Duration) -> std::io::Result<()> {
     lock_timeout(file, |f| f.try_lock_exclusive(), timeout)
 }
 
-/// Calls [`fs4::FileExt::lock_shared`] with a timeout.
-fn lock_shared(file: &impl fs4::FileExt, timeout: Duration) -> std::io::Result<()> {
+/// Calls `fs4::FileExt::lock_shared` with a timeout.
+fn lock_shared(file: &impl FileExt, timeout: Duration) -> std::io::Result<()> {
     lock_timeout(file, |f| f.try_lock_shared(), timeout)
 }
 
-fn lock_timeout<F: fs4::FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Result<()>, mut timeout: Duration) -> std::io::Result<()> {
+#[cfg(target_arch = "wasm32")]
+
+fn lock_timeout<F: FileExt>(_: &F, _: impl Fn(&F) -> std::io::Result<()>, _: Duration) -> std::io::Result<()> {
+    not_supported()
+}
+#[cfg(not(target_arch = "wasm32"))]
+fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Result<()>, mut timeout: Duration) -> std::io::Result<()> {
     let mut locked_error = None;
     loop {
         match try_lock(file) {
@@ -2173,24 +2202,24 @@ fn lock_timeout<F: fs4::FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Res
                 if timeout.is_zero() {
                     return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
                 } else {
-                    thread::sleep(INTERVAL.min(timeout));
+                    std::thread::sleep(INTERVAL.min(timeout));
                 }
             }
         }
     }
 }
 
-fn unlock_ok(file: &impl fs4::FileExt) -> std::io::Result<()> {
+fn unlock_ok(file: &impl FileExt) -> std::io::Result<()> {
     if let Err(e) = file.unlock() {
-        if let Some(code) = e.raw_os_error() {
+        if let Some(_code) = e.raw_os_error() {
             #[cfg(windows)]
-            if code == 158 {
+            if _code == 158 {
                 // ERROR_NOT_LOCKED
                 return Ok(());
             }
 
             #[cfg(unix)]
-            if code == 22 {
+            if _code == 22 {
                 // EINVAL
                 return Ok(());
             }

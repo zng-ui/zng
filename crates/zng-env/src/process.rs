@@ -43,8 +43,32 @@ use parking_lot::Mutex;
 ///
 /// This event happens on the executable process context, before any `APP` context starts, you can use
 /// `zng::app::on_app_start` here to register a handler to be called in the app context, if and when it starts.
+///
+/// # Web Assembly
+///
+/// Crates that declare `on_process_start` must have the [`wasm_bindgen`] dependency to compile for the `wasm32` target.
+///
+/// In `Cargo.toml` add this dependency:
+///
+/// ```toml
+/// [target.'cfg(target_arch = "wasm32")'.dependencies]
+/// wasm-bindgen = "*"
+/// ```
+///
+/// Try to match the version used by `zng-env`.
+///
+/// [`wasm_bindgen`]: https://crates.io/crates/wasm-bindgen
 #[macro_export]
 macro_rules! on_process_start {
+    ($closure:expr) => {
+        $crate::__on_process_start! {$closure}
+    };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __on_process_start {
     ($closure:expr) => {
         // expanded from:
         // #[linkme::distributed_slice(ZNG_ENV_ON_PROCESS_START)]
@@ -82,11 +106,40 @@ macro_rules! on_process_start {
     };
 }
 
+#[cfg(target_arch = "wasm32")]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __on_process_start {
+    ($closure:expr) => {
+        $crate::wasm_process_start! {$crate,$closure}
+    };
+}
+
+#[doc(hidden)]
+#[cfg(target_arch = "wasm32")]
+pub use wasm_bindgen::prelude::wasm_bindgen;
+
+#[doc(hidden)]
+#[cfg(target_arch = "wasm32")]
+pub use zng_env_proc_macros::wasm_process_start;
+
+#[cfg(target_arch = "wasm32")]
+std::thread_local! {
+    #[doc(hidden)]
+    pub static WASM_INIT: std::cell::RefCell<Vec<fn(&ProcessStartArgs)>> = const { std::cell::RefCell::new(vec![]) };
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 #[doc(hidden)]
 #[linkme::distributed_slice]
 pub static ZNG_ENV_ON_PROCESS_START: [fn(&ProcessStartArgs)];
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn process_init() -> impl Drop {
+    process_init_impl(&ZNG_ENV_ON_PROCESS_START)
+}
+
+fn process_init_impl(handlers: &[fn(&ProcessStartArgs)]) -> MainExitHandler {
     let process_state = std::mem::replace(
         &mut *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock(),
         ProcessLifetimeState::Inited,
@@ -94,8 +147,8 @@ pub(crate) fn process_init() -> impl Drop {
     assert_eq!(process_state, ProcessLifetimeState::BeforeInit, "init!() already called");
 
     let mut yielded = vec![];
-    let mut next_handlers_count = ZNG_ENV_ON_PROCESS_START.len();
-    for h in ZNG_ENV_ON_PROCESS_START {
+    let mut next_handlers_count = handlers.len();
+    for h in handlers {
         next_handlers_count -= 1;
         let args = ProcessStartArgs {
             next_handlers_count,
@@ -135,6 +188,35 @@ pub(crate) fn process_init() -> impl Drop {
     MainExitHandler
 }
 
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn process_init() -> impl Drop {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+    let window = web_sys::window().expect("cannot 'init!', no window object");
+    let module = js_sys::Reflect::get(&window, &"__zng_env_init_module".into())
+        .expect("cannot 'init!', missing module in 'window.__zng_env_init_module'");
+
+    if module == wasm_bindgen::JsValue::undefined() || module == wasm_bindgen::JsValue::null() {
+        panic!("cannot 'init!', missing module in 'window.__zng_env_init_module'");
+    }
+
+    let module: js_sys::Object = module.into();
+
+    for entry in js_sys::Object::entries(&module) {
+        let entry: js_sys::Array = entry.into();
+        let ident = entry.get(0).as_string().expect("expected ident at entry[0]");
+
+        if ident.starts_with("__zng_env_start_") {
+            let func: js_sys::Function = entry.get(1).into();
+            if let Err(e) = func.call0(&wasm_bindgen::JsValue::NULL) {
+                panic!("'init!' function error, {e:?}");
+            }
+        }
+    }
+
+    process_init_impl(&WASM_INIT.with_borrow_mut(std::mem::take))
+}
+
 /// Arguments for [`on_process_start`] handlers.
 ///
 /// Empty in this release.
@@ -169,7 +251,7 @@ impl Drop for MainExitHandler {
 }
 
 type ExitHandler = Box<dyn FnOnce(&ProcessExitArgs) + Send + 'static>;
-use super::*;
+
 zng_unique_id::hot_static! {
     static ON_PROCESS_EXIT: Mutex<Vec<ExitHandler>> = Mutex::new(vec![]);
 }
