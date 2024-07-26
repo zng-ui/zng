@@ -1,4 +1,7 @@
 //! Glyph icon widget, properties and nodes.
+//!
+//! Note that no icons are embedded in this crate directly, you can manually create a [`GlyphIcon`]
+//! or use an icon set crate. See the `zng::icon::material` module for an example.
 
 use zng_ext_font::{font_features::FontFeatures, FontName, FontSize};
 use zng_wgt::prelude::*;
@@ -8,9 +11,6 @@ use std::fmt;
 use crate::FONT_SIZE_VAR;
 
 /// Render icons defined as glyphs in an icon font.
-///
-/// Note that no icons are embedded in this crate directly, you can manually create a [`GlyphIcon`]
-/// or use an icon set crate. See the `zng::icon::material` module for an example.
 #[widget($crate::icon::Icon {
     ($ico:expr) => {
         ico = $ico;
@@ -37,11 +37,13 @@ impl Icon {
 
             wgt.set_child(crate::node::render_text());
 
-            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", crate::node::layout_text);
+            wgt.push_intrinsic(NestGroup::CHILD_LAYOUT + 100, "layout_text", move |child| {
+                let node = crate::node::layout_text(child);
+                icon_size(node)
+            });
             wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", move |child| {
                 let node = crate::node::resolve_text(child, icon.map(|i| i.glyph.clone().into()));
                 let node = crate::font_family(node, icon.map(|i| i.font.clone().into()));
-                let node = icon_size(node);
                 let node = crate::font_features(node, icon.map_ref(|i| &i.features));
                 crate::font_color(node, ICON_COLOR_VAR)
             });
@@ -148,7 +150,7 @@ context_var! {
 
 /// Sets the icon font size.
 ///
-/// The [`FontSize::Default`] value enables auto size to fill, or if the `font_size` if cannot auto size.
+/// The [`FontSize::Default`] value enables auto size to fill, or is the `font_size` if cannot auto size.
 ///
 /// Sets the [`ICON_SIZE_VAR`] that affects all icons inside the widget.
 #[property(CONTEXT, default(ICON_SIZE_VAR), widget_impl(Icon))]
@@ -164,7 +166,7 @@ pub fn ico_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ICON_COLOR_VAR, color)
 }
 
-/// Same as `font_size`, but `Default` means the smallest available length.
+/// Set the font-size from the parent size.
 fn icon_size(child: impl UiNode) -> impl UiNode {
     match_node(child, |child, op| match op {
         UiNodeOp::Init => {

@@ -29,6 +29,7 @@ fn main() {
                 Icon! {
                     ico = icon::material::filled::req("lightbulb");
                     ico_color = colors::YELLOW;
+                    ico_size = 48;
                     drop_shadow = (0, 0), 3, colors::WHITE;
                 }
             });
