@@ -10,4 +10,6 @@ pub fn run() {
     tracing::error!("Error example!");
 
     let _web_time = INSTANT.epoch();
+
+    tracing::info!("cache: {}", zng::env::cache("WHAT").display());
 }
