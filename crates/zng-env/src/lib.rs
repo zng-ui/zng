@@ -600,9 +600,39 @@ pub fn init_cache(path: impl Into<PathBuf>) {
 pub fn clear_cache() -> io::Result<()> {
     best_effort_clear(CACHE.as_path())
 }
+#[cfg(target_arch = "wasm32")]
 fn best_effort_clear(path: &Path) -> io::Result<()> {
-    // !!: TODO clear session keys
+    if let Ok(p) = path.strip_prefix("/sessionStorage/") {
+        if let Some(w) = web_sys::window() {
+            if let Ok(Some(s)) = w.session_storage() {
+                let key_prefix = p.display().to_string();
+                if let Ok(l) = s.length() {
+                    let mut keys = vec![];
+                    for i in 0..l {
+                        if let Ok(Some(key)) = s.key(i) {
+                            if key.starts_with(&key_prefix) {
+                                keys.push(key);
+                            }
+                        }
+                    }
 
+                    for key in keys {
+                        let _ = s.remove_item(&key);
+                    }
+                }
+            }
+        }
+
+        return Ok(());
+    }
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "can only clean cache from '/sessionStorage/<prefix>/**' entries in browser Wasm",
+    ))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn best_effort_clear(path: &Path) -> io::Result<()> {
     let mut error = None;
 
     match fs::read_dir(path) {
