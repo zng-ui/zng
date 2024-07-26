@@ -25,7 +25,7 @@ zng-wgt = { path = "../zng-wgt", version = "0.4.9" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.26" }
 zng-app = { path = "../zng-app", version = "0.9.6" }
 zng-layout = { path = "../zng-layout", version = "0.2.20" }
-zng-var = { path = "../zng-var", version = "0.4.10" }
+zng-var = { path = "../zng-var", version = "0.5.0" }
 
 euclid = "0.22"
 serde = { version = "1.0", features = ["derive"] }

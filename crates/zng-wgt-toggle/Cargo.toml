@@ -26,9 +26,9 @@ zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.26" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.16" }
 zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.26" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.14" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.3.22" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.4.0" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.6" }
-zng-var = { path = "../zng-var", version = "0.4.10" }
+zng-var = { path = "../zng-var", version = "0.5.0" }
 
 parking_lot = "0.12"
 tracing = "0.1"

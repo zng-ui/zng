@@ -23,7 +23,7 @@ zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.26" }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.16" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.16" }
 zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.26" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.3.22" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.4.0" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.6" }
 zng-view-api = { path = "../zng-view-api", version = "0.6.5" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.26" }

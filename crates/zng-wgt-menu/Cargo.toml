@@ -25,7 +25,7 @@ zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.26" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.6" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.16" }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.16" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.3.22" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.4.0" }
 zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.3.16" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.26" }
 zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.26" }

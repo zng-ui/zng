@@ -31,7 +31,7 @@ zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.16" }
 zng-app = { path = "../zng-app", version = "0.9.6" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.16" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.14" }
-zng-var = { path = "../zng-var", version = "0.4.10" }
+zng-var = { path = "../zng-var", version = "0.5.0" }
 zng-color = { path = "../zng-color", version = "0.3.5" }
 
 serde = { version = "1.0", features = ["derive"] }

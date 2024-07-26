@@ -1,7 +1,7 @@
 # Unreleased
 
 
-# 0.10.6
+# 0.11.0
 
 * **Breaking** Remove `OutlineHintingOptions` and change `Font::outline` signature.
 * **Breaking** Remove `FontFace::font_kit`, `Font::advance`, `Font::origin` and `Font::typographic_bounds`.

@@ -30,4 +30,4 @@ zng-wgt-data = { path = "../zng-wgt-data", version = "0.2.26" }
 zng-app = { path = "../zng-app", version = "0.9.6" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.14" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.26" }
-zng-var = { path = "../zng-var", version = "0.4.10" }
+zng-var = { path = "../zng-var", version = "0.5.0" }
