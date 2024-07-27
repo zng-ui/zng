@@ -90,14 +90,13 @@ fn plot(easing: EasingFn) -> ImageSource {
                 ColorScheme::Dark => rgba(255, 255, 255, 0.4),
             });
 
-            #[allow(clippy::precedence)]
             children.push(
                 Text! {
                     txt = "v";
                     font_size = 12;
                     font_style = FontStyle::Italic;
                     font_color = meta_color.clone();
-                    layout::offset = (-3.dip() - 100.pct(), -3.dip());
+                    layout::offset = ((-3).dip() - 100.pct(), (-3).dip());
                 }
                 .boxed(),
             );
