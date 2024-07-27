@@ -387,8 +387,8 @@ fn find_res() -> PathBuf {
 /// * The config dir can be set by [`init_config`] before any env dir is used.
 /// * In all platforms except Wasm if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
-/// * In `cfg(target_arch = "wasm32")` builds returns `/localStorage/zng-config/` with the expectation that components will use the
-///   URI as a `localStorage` key starting with prefix `zng-config/`.
+/// * In `cfg(target_arch = "wasm32")` builds returns `/indexedDB/zng-config/` with the expectation that components will use the
+///   URI as a `indexedDB` database named `zng-config` with the rest of the path as the key.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_config/`.
 /// * In all platforms attempts [`directories::ProjectDirs::config_dir`] and panic if it fails.
 /// * If the config dir selected by the previous method contains a `"config-dir"` file it will be
@@ -500,7 +500,7 @@ lazy_static! {
 }
 #[cfg(target_arch = "wasm32")]
 fn find_config() -> PathBuf {
-    PathBuf::from("localStorage/zng-config/")
+    PathBuf::from("/indexedDB/zng-config/")
 }
 #[cfg(not(target_arch = "wasm32"))]
 fn find_config() -> PathBuf {
@@ -568,8 +568,8 @@ fn create_dir_opt(dir: PathBuf) -> PathBuf {
 /// * The cache dir can be set by [`init_cache`] before any env dir is used.
 /// * In all platforms except Wasm if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
-/// * In `cfg(target_arch = "wasm32")` builds returns `/sessionStorage/zng-cache/` with the expectation that components will use the
-///   URI as a `sessionStorage` key starting with prefix `zng-cache/`.
+/// * In `cfg(target_arch = "wasm32")` builds returns `/indexedDB/zng-cache/` with the expectation that components will use the
+///   URI as a `indexedDB` database named `zng-cache` with the rest of the path as the key.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_cache/`.
 /// * In all platforms attempts [`directories::ProjectDirs::cache_dir`] and panic if it fails.
 ///
@@ -602,32 +602,20 @@ pub fn clear_cache() -> io::Result<()> {
 }
 #[cfg(target_arch = "wasm32")]
 fn best_effort_clear(path: &Path) -> io::Result<()> {
-    if let Ok(p) = path.strip_prefix("/sessionStorage/") {
-        if let Some(w) = web_sys::window() {
-            if let Ok(Some(s)) = w.session_storage() {
-                let key_prefix = p.display().to_string();
-                if let Ok(l) = s.length() {
-                    let mut keys = vec![];
-                    for i in 0..l {
-                        if let Ok(Some(key)) = s.key(i) {
-                            if key.starts_with(&key_prefix) {
-                                keys.push(key);
-                            }
-                        }
-                    }
-
-                    for key in keys {
-                        let _ = s.remove_item(&key);
-                    }
+    if let Ok(p) = path.strip_prefix("/indexedDB/") {
+        if let Some(db_name) = p.iter().next() {
+            let db_name: &Path = db_name.as_ref();
+            if let Some(w) = web_sys::window() {
+                if let Ok(Some(db)) = w.indexed_db() {
+                    let _ = db.delete_database(&db_name.display().to_string());
                 }
             }
+            return Ok(());
         }
-
-        return Ok(());
     }
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
-        "can only clean cache from '/sessionStorage/<prefix>/**' entries in browser Wasm",
+        "can only clean cache from '/indexedDB/<db-name>/**' entries in browser Wasm",
     ))
 }
 
@@ -781,13 +769,13 @@ fn best_effort_move(from: &Path, to: &Path) -> io::Result<()> {
 }
 
 lazy_static! {
-    static ref CACHE: PathBuf = create_dir_opt(find_cache());
+    static ref CACHE: PathBuf = if cfg!(target_arch = "wasm32") {
+        PathBuf::from("/indexedDB/zng-cache/")
+    } else {
+        create_dir_opt(find_cache())
+    };
 }
 fn find_cache() -> PathBuf {
-    if cfg!(target_arch = "wasm32") {
-        return PathBuf::from("/sessionStorage/zng-cache/");
-    }
-
     let cache_dir = config("cache-dir");
     if let Ok(dir) = read_line(&cache_dir) {
         return config(dir);

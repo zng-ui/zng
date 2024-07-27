@@ -12,4 +12,6 @@ pub fn run() {
     let _web_time = INSTANT.epoch();
 
     tracing::info!("config path: {}", zng::env::config("").display());
+
+    zng::env::clear_cache().unwrap();
 }
