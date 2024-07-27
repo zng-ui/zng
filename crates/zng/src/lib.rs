@@ -883,10 +883,10 @@ mod defaults {
             #[cfg(all(feature = "view", feature = "view_prebuilt"))]
             tracing::debug!(r#"both "view" and "view_prebuilt" enabled, will use only one, indeterminate witch"#);
 
-            #[cfg(feature = "single_instance")]
+            #[cfg(all(feature = "single_instance", not(target_arch = "wasm32")))]
             let r = r.extend(zng_ext_single_instance::SingleInstanceManager::default());
 
-            #[cfg(feature = "hot_reload")]
+            #[cfg(all(feature = "hot_reload", not(target_arch = "wasm32")))]
             let r = r.extend(zng_ext_hot_reload::HotReloadManager::default());
 
             #[cfg(any(

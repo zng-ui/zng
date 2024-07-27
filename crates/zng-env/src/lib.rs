@@ -387,8 +387,6 @@ fn find_res() -> PathBuf {
 /// * The config dir can be set by [`init_config`] before any env dir is used.
 /// * In all platforms except Wasm if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
-/// * In `cfg(target_arch = "wasm32")` builds returns `/indexedDB/zng-config/` with the expectation that components will use the
-///   URI as a `indexedDB` database named `zng-config` with the rest of the path as the key.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_config/`.
 /// * In all platforms attempts [`directories::ProjectDirs::config_dir`] and panic if it fails.
 /// * If the config dir selected by the previous method contains a `"config-dir"` file it will be
@@ -498,11 +496,7 @@ fn copy_dir_all(from: &Path, to: &Path) -> io::Result<()> {
 lazy_static! {
     static ref CONFIG: PathBuf = redirect_config(original_config());
 }
-#[cfg(target_arch = "wasm32")]
-fn find_config() -> PathBuf {
-    PathBuf::from("/indexedDB/zng-config/")
-}
-#[cfg(not(target_arch = "wasm32"))]
+
 fn find_config() -> PathBuf {
     let cfg_dir = res("config-dir");
     if let Ok(dir) = read_line(&cfg_dir) {
@@ -568,8 +562,6 @@ fn create_dir_opt(dir: PathBuf) -> PathBuf {
 /// * The cache dir can be set by [`init_cache`] before any env dir is used.
 /// * In all platforms except Wasm if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
-/// * In `cfg(target_arch = "wasm32")` builds returns `/indexedDB/zng-cache/` with the expectation that components will use the
-///   URI as a `indexedDB` database named `zng-cache` with the rest of the path as the key.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_cache/`.
 /// * In all platforms attempts [`directories::ProjectDirs::cache_dir`] and panic if it fails.
 ///
@@ -600,26 +592,6 @@ pub fn init_cache(path: impl Into<PathBuf>) {
 pub fn clear_cache() -> io::Result<()> {
     best_effort_clear(CACHE.as_path())
 }
-#[cfg(target_arch = "wasm32")]
-fn best_effort_clear(path: &Path) -> io::Result<()> {
-    if let Ok(p) = path.strip_prefix("/indexedDB/") {
-        if let Some(db_name) = p.iter().next() {
-            let db_name: &Path = db_name.as_ref();
-            if let Some(w) = web_sys::window() {
-                if let Ok(Some(db)) = w.indexed_db() {
-                    let _ = db.delete_database(&db_name.display().to_string());
-                }
-            }
-            return Ok(());
-        }
-    }
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "can only clean cache from '/indexedDB/<db-name>/**' entries in browser Wasm",
-    ))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn best_effort_clear(path: &Path) -> io::Result<()> {
     let mut error = None;
 
@@ -769,11 +741,7 @@ fn best_effort_move(from: &Path, to: &Path) -> io::Result<()> {
 }
 
 lazy_static! {
-    static ref CACHE: PathBuf = if cfg!(target_arch = "wasm32") {
-        PathBuf::from("/indexedDB/zng-cache/")
-    } else {
-        create_dir_opt(find_cache())
-    };
+    static ref CACHE: PathBuf = create_dir_opt(find_cache());
 }
 fn find_cache() -> PathBuf {
     let cache_dir = config("cache-dir");

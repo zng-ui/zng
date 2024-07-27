@@ -1,7 +1,6 @@
 # Unreleased
 
 * Fix `zng::env::bin` in Wasm builds.
-* Defines documented default `zng::env` paths for Wasm builds.
 
 # 0.11.0
 
