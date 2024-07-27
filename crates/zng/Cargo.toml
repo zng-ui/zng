@@ -51,6 +51,8 @@ inspector = ["zng-app/inspector", "zng-wgt-inspector/live"]
 # Enable hot reload builds.
 #
 # Note that you must configure the target library to hot reload, see `zng::hot_reload` for details.
+#
+# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 hot_reload = ["dep:zng-ext-hot-reload"]
 
 # Use dynamic dispatch at the app-extension level.
@@ -87,6 +89,8 @@ multi_app = ["zng-app/multi_app"]
 #
 # Builds with this feature only allow one app-process, subsequent attempts to spawn the app redirect to
 # the running app-process.
+#
+# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 single_instance = ["dep:zng-ext-single-instance"]
 
 # Allow app-process crash handler.

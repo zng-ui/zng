@@ -262,24 +262,34 @@ fn fallback_name() -> Txt {
 
 /// Gets a path relative to the package binaries.
 ///
-/// In all platforms `bin("")` is `std::env::current_exe().parent()`.
+/// * In `cfg(target_arch = "wasm32")` returns `./`, as in the relative URL.
+/// * In all other platforms returns `std::env::current_exe().parent()`.
 ///
 /// # Panics
 ///
-/// Panics if [`std::env::current_exe`] returns an error.
+/// Panics if [`std::env::current_exe`] returns an error or has no parent directory.
 pub fn bin(relative_path: impl AsRef<Path>) -> PathBuf {
     BIN.join(relative_path)
 }
 lazy_static! {
-    static ref BIN: PathBuf = current_exe().parent().expect("current_exe path parent is required").to_owned();
+    static ref BIN: PathBuf = find_bin();
+}
+
+fn find_bin() -> PathBuf {
+    if cfg!(target_arch = "wasm32") {
+        PathBuf::from("./")
+    } else {
+        current_exe().parent().expect("current_exe path parent is required").to_owned()
+    }
 }
 
 /// Gets a path relative to the package resources.
 ///
 /// * The res dir can be set by [`init_res`] before any env dir is used.
-/// * In all platforms if a file `bin/current_exe_name.res-dir` is found the first non-empty and non-comment (#) line
+/// * In all platforms expect Wasm if a file `bin/current_exe_name.res-dir` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `res`.
+/// * In `cfg(target_arch = "wasm32")` returns `./res`, as in the relative URL.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
 /// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
 /// * In Android returns `bin("../res/raw")`, assumes the package is deployed as a `.apk` file.
@@ -342,6 +352,7 @@ lazy_static! {
     static ref BUILT_RES: PathBuf = PathBuf::from("target/res");
 }
 fn find_res() -> PathBuf {
+    #[cfg(not(target_arch = "wasm32"))]
     if let Ok(mut p) = std::env::current_exe() {
         p.set_extension("res-dir");
         if let Ok(dir) = read_line(&p) {
@@ -350,6 +361,8 @@ fn find_res() -> PathBuf {
     }
     if cfg!(debug_assertions) {
         PathBuf::from("res")
+    } else if cfg!(target_arch = "wasm32") {
+        PathBuf::from("./res")
     } else if cfg!(windows) {
         bin("../res")
     } else if cfg!(target_os = "macos") {
@@ -372,7 +385,7 @@ fn find_res() -> PathBuf {
 /// Gets a path relative to the user config directory for the app.
 ///
 /// * The config dir can be set by [`init_config`] before any env dir is used.
-/// * In all platforms if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
+/// * In all platforms except Wasm if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_config/`.
 /// * In all platforms attempts [`directories::ProjectDirs::config_dir`] and panic if it fails.
@@ -483,6 +496,7 @@ fn copy_dir_all(from: &Path, to: &Path) -> io::Result<()> {
 lazy_static! {
     static ref CONFIG: PathBuf = redirect_config(original_config());
 }
+
 fn find_config() -> PathBuf {
     let cfg_dir = res("config-dir");
     if let Ok(dir) = read_line(&cfg_dir) {
@@ -505,6 +519,10 @@ fn find_config() -> PathBuf {
     }
 }
 fn redirect_config(cfg: PathBuf) -> PathBuf {
+    if cfg!(target_arch = "wasm32") {
+        return cfg;
+    }
+
     if let Ok(dir) = read_line(&cfg.join("config-dir")) {
         let mut dir = PathBuf::from(dir);
         if dir.is_relative() {
@@ -542,7 +560,7 @@ fn create_dir_opt(dir: PathBuf) -> PathBuf {
 /// Gets a path relative to the cache directory for the app.
 ///
 /// * The cache dir can be set by [`init_cache`] before any env dir is used.
-/// * In all platforms if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
+/// * In all platforms except Wasm if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_cache/`.
 /// * In all platforms attempts [`directories::ProjectDirs::cache_dir`] and panic if it fails.

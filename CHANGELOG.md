@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `zng::env::bin` in Wasm builds.
 
 # 0.11.0
 
