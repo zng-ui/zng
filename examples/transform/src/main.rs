@@ -276,7 +276,6 @@ fn transform_order() -> impl UiNode {
     ])
 }
 
-#[allow(clippy::precedence)]
 fn cube_example() -> impl UiNode {
     // Based on https://codepen.io/desandro/pen/KRWjzm?editors=1100
     let show = var(1u8);
@@ -308,9 +307,9 @@ fn cube_example() -> impl UiNode {
                                     1 => Transform::new_rotate_y(0.deg()),
                                     2 => Transform::new_rotate_y(90.deg()),
                                     3 => Transform::new_rotate_y(180.deg()),
-                                    4 => Transform::new_rotate_y(-90.deg()),
+                                    4 => Transform::new_rotate_y((-90).deg()),
                                     5 => Transform::new_rotate_x(90.deg()),
-                                    6 => Transform::new_rotate_x(-90.deg()),
+                                    6 => Transform::new_rotate_x((-90).deg()),
                                     _ => unreachable!()
                                 });
                             }
@@ -322,10 +321,10 @@ fn cube_example() -> impl UiNode {
                         .map(|&i| {
                             match i {
                                 1 => Transform::new_rotate_y(0.deg()),
-                                2 => Transform::new_rotate_y(-90.deg()),
-                                3 => Transform::new_rotate_y(-180.deg()),
+                                2 => Transform::new_rotate_y((-90).deg()),
+                                3 => Transform::new_rotate_y((-180).deg()),
                                 4 => Transform::new_rotate_y(90.deg()),
-                                5 => Transform::new_rotate_x(-90.deg()),
+                                5 => Transform::new_rotate_x((-90).deg()),
                                 6 => Transform::new_rotate_x(90.deg()),
                                 _ => unreachable!(),
                             }
