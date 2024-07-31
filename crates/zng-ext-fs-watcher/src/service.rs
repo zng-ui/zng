@@ -2,10 +2,7 @@ use std::{
     collections::{hash_map, HashMap},
     io, mem,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicBool, AtomicU64},
-        Arc,
-    },
+    sync::{atomic::AtomicBool, Arc},
     time::{Duration, SystemTime},
 };
 
@@ -32,6 +29,25 @@ use crate::{
 };
 
 use zng_task as task;
+
+
+#[cfg(target_has_atomic = "64")]
+use std::sync::atomic::AtomicU64;
+
+#[cfg(not(target_has_atomic = "64"))]
+struct AtomicU64(Mutex<u64>);
+#[cfg(not(target_has_atomic = "64"))]
+impl AtomicU64 {
+    pub const fn new(u: u64) -> Self { Self(Mutex::new(u)) }
+
+    pub fn load(&self, _: Ordering) -> u64 {
+        *self.0.lock()
+    }
+
+    pub fn store(&self, _: Ordering, u: u64) {
+        *self.0.lock() = u;
+    }
+}
 
 app_local! {
     pub(crate) static WATCHER_SV: WatcherService = WatcherService::new();
