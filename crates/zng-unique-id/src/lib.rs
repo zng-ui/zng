@@ -13,10 +13,31 @@ use std::{
     hash::{BuildHasher, Hash, Hasher},
     num::{NonZeroU32, NonZeroU64},
     ops,
-    sync::atomic::{AtomicU32, AtomicU64, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use rayon::iter::{FromParallelIterator, IntoParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator};
+
+#[doc(hidden)]
+#[cfg(target_has_atomic = "64")]
+pub use std::sync::atomic::AtomicU64;
+
+#[doc(hidden)]
+#[cfg(not(target_has_atomic = "64"))]
+pub struct AtomicU64(parking_lot::Mutex<u64>);
+#[cfg(not(target_has_atomic = "64"))]
+impl AtomicU64 {
+    pub const fn new(u: u64) -> Self {
+        Self(parking_lot::Mutex::new(u))
+    }
+
+    fn fetch_add(&self, u: u64, _: Ordering) -> u64 {
+        let mut a = self.0.lock();
+        let r = *a;
+        *a += u;
+        r
+    }
+}
 
 #[cfg(feature = "named")]
 mod named;
@@ -117,7 +138,7 @@ macro_rules! unique_id_64 {
                 std::num::NonZeroU64
             }
             atomic {
-                std::sync::atomic::AtomicU64
+                $crate::AtomicU64
             }
             next_id {
                 $crate::next_id64

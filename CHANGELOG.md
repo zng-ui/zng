@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix build in platforms without `AtomicU64`.
 * Fix `zng::env::bin` in Wasm builds.
 
 # 0.11.0

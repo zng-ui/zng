@@ -11,15 +11,6 @@
 			]
 		},
 		{
-			"label": "do build --examples",
-			"type": "shell",
-			"command": "cargo do build --examples",
-			"group": "build",
-			"problemMatcher": [
-				"$rustc"
-			]
-		},
-		{
 			"label": "do check",
 			"type": "shell",
 			"command": "cargo do check",
