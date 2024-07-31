@@ -27,7 +27,9 @@ pub use std::sync::atomic::AtomicU64;
 pub struct AtomicU64(parking_lot::Mutex<u64>);
 #[cfg(not(target_has_atomic = "64"))]
 impl AtomicU64 {
-    pub const fn new(u: u64) -> Self { Self(parking_lot::Mutex::new(u)) }
+    pub const fn new(u: u64) -> Self {
+        Self(parking_lot::Mutex::new(u))
+    }
 
     fn fetch_add(&self, u: u64, _: Ordering) -> u64 {
         let mut a = self.0.lock();
