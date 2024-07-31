@@ -490,10 +490,6 @@ fn test(mut args: Vec<&str>) {
         // render tests:
 
         cmd("cargo", &["run", "--package", "render-tests", "--"], &args);
-    } else if take_flag(&mut args, &["--examples"]) {
-        // all examples
-
-        cmd_env("cargo", &[nightly, "test", "--package", "examples", "--examples"], &args, env);
     } else if let Some(examples) = take_option(&mut args, &["--example"], "<NAME>") {
         // some examples
 
@@ -812,13 +808,11 @@ fn check(args: Vec<&str>) {
     cmd("cargo", &["clippy", "--no-deps", "--tests", "--workspace", "--examples"], &args);
 }
 
-// do build, b [-e, --example] [--examples] [-t, --timings] [--release-lto] [-Z*] [<cargo-build-args>]
+// do build, b [-e, --example] [-t, --timings] [--release-lto] [-Z*] [<cargo-build-args>]
 //    Compile the main crate and its dependencies.
 // USAGE:
 //    build -e <example>
 //       Compile the example.
-//    build --examples
-//       Compile all examples.
 //    build -p <crate> -t
 //       Compile crate and report in "target/cargo-timings"
 fn build(mut args: Vec<&str>) {
@@ -860,10 +854,11 @@ fn build(mut args: Vec<&str>) {
         cargo_args.push("--timings");
     }
 
-    if take_flag(&mut args, &["-e", "--example"]) {
-        cargo_args.extend(&["--package", "examples", "--example"]);
-    } else if take_flag(&mut args, &["--examples"]) {
-        cargo_args.extend(&["--package", "examples", "--examples"]);
+    if let Some(examples) = take_option(&mut args, &["-e", "--example"], "example") {
+        for e in examples {
+            cargo_args.push("--package");
+            cargo_args.push(format!("zng-example-{e}").leak());
+        }
     }
 
     if take_flag(&mut args, &["--release-lto"]) {
