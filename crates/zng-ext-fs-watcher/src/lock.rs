@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use fs4::FileExt;
+pub use fs4::fs_std::FileExt;
 
 #[cfg(target_arch = "wasm32")]
 pub trait FileExt {

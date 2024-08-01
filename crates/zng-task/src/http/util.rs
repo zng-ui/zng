@@ -1,16 +1,20 @@
 use std::time::Duration;
 
 /// Calls [`fs4::FileExt::lock_exclusive`] with a timeout.
-pub fn lock_exclusive(file: &impl fs4::FileExt, timeout: Duration) -> std::io::Result<()> {
+pub fn lock_exclusive(file: &impl fs4::fs_std::FileExt, timeout: Duration) -> std::io::Result<()> {
     lock_timeout(file, |f| f.try_lock_exclusive(), timeout)
 }
 
 /// Calls [`fs4::FileExt::lock_shared`] with a timeout.
-pub fn lock_shared(file: &impl fs4::FileExt, timeout: Duration) -> std::io::Result<()> {
+pub fn lock_shared(file: &impl fs4::fs_std::FileExt, timeout: Duration) -> std::io::Result<()> {
     lock_timeout(file, |f| f.try_lock_shared(), timeout)
 }
 
-fn lock_timeout<F: fs4::FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Result<()>, mut timeout: Duration) -> std::io::Result<()> {
+fn lock_timeout<F: fs4::fs_std::FileExt>(
+    file: &F,
+    try_lock: impl Fn(&F) -> std::io::Result<()>,
+    mut timeout: Duration,
+) -> std::io::Result<()> {
     let mut locked_error = None;
     loop {
         match try_lock(file) {
@@ -35,7 +39,7 @@ fn lock_timeout<F: fs4::FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Res
 }
 
 /// Calls [`fs4::FileExt::unlock`] and ignores "already unlocked" errors.
-pub fn unlock_ok(file: &impl fs4::FileExt) -> std::io::Result<()> {
+pub fn unlock_ok(file: &impl fs4::fs_std::FileExt) -> std::io::Result<()> {
     if let Err(e) = file.unlock() {
         if let Some(code) = e.raw_os_error() {
             #[cfg(windows)]
