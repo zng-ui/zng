@@ -266,7 +266,7 @@ mod file_cache {
         io::{McBufErrorExt, McBufReader},
     };
     use async_trait::async_trait;
-    use fs4::FileExt;
+    use fs4::fs_std::FileExt;
     use zng_unit::TimeUnits;
 
     use super::*;
