@@ -1,5 +1,5 @@
 [package]
-name = "zng-example-web"
+name = "zng-example-multi"
 version = "0.0.0"
 publish = false
 edition = "2021"
@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-zng = { path = "../../crates/zng", features = ["view_prebuilt", "material_icons"] }
+zng = { path = "../../crates/zng", features = ["view", "material_icons"] }
 tracing = "0.1"
 
 zng-env = { path = "../../crates/zng-env" }
