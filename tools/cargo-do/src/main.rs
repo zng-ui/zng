@@ -20,6 +20,7 @@ fn main() {
         "expand" => expand(args),
         "check" | "c" => check(args),
         "build" | "b" => build(args),
+        "build-ndk" => build_ndk(args),
         "prebuild" => prebuild(args),
         "clean" => clean(args),
         "asm" => asm(args),
@@ -867,6 +868,32 @@ fn build(mut args: Vec<&str>) {
     }
 
     cmd_env("cargo", &cargo_args, &args, rust_flags);
+}
+
+// do build-ndk [-e --example]
+//    Compile an example for Android using (cargo-ndk)
+fn build_ndk(mut args: Vec<&str>) {
+    if let Some(examples) = take_option(&mut args, &["-e", "--example"], "example") {
+        for e in examples {
+            let src = std::path::Path::new("examples").join(&e).join("src");
+            if src.exists() && !src.join("lib.rs").exists() {
+                fatal(f!("example `{e}` does not support Android target"));
+            }
+
+            let example = format!("zng-example-{e}");
+            let mut rust_flags = std::env::var("RUSTFLAGS").unwrap_or_default();
+            // args required to build linkme (used by zng-env and others)
+            rust_flags.push_str(" -Clink-arg=-z -Clink-arg=nostart-stop-gc");
+            cmd_env(
+                "cargo",
+                &["ndk", "-t", "aarch64-linux-android", "-o", "target/build-ndk"],
+                &["build", "-p", &example],
+                &[("RUSTFLAGS", rust_flags.as_str())],
+            )
+        }
+    } else {
+        fatal("missing --example")
+    }
 }
 
 // do prebuild
