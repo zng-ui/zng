@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix gradient stops that mix positional stops with offset stops. 
 * Fix build in platforms without `AtomicU64`.
 * Fix `zng::env::bin` in Wasm builds.
 
