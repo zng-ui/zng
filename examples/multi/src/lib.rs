@@ -8,7 +8,7 @@ mod wasm {
 
     #[wasm_bindgen(start)]
     fn main() {
-        app::run();
+        app::run_headless();
 
         let window = web_sys::window().unwrap();
         let document = window.document().unwrap();

@@ -6,7 +6,7 @@ use std::{
     time::Instant,
 };
 
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 use std::time::Duration;
 
 use zng_txt::Txt;
@@ -29,7 +29,7 @@ pub(crate) const VIEW_MODE: &str = "ZNG_VIEW_MODE";
 ///
 /// [killed]: std::process::Child::kill
 /// [exits]: std::process::exit
-#[cfg_attr(not(feature = "ipc"), allow(unused))]
+#[cfg_attr(not(ipc), allow(unused))]
 pub struct Controller {
     process: Option<std::process::Child>,
     online: bool,
@@ -226,13 +226,13 @@ impl Controller {
             });
             None
         } else {
-            #[cfg(not(feature = "ipc"))]
+            #[cfg(not(ipc))]
             {
                 let _ = (view_process_exe, view_process_env);
                 panic!("expected only same_process mode with `ipc` feature disabled");
             }
 
-            #[cfg(feature = "ipc")]
+            #[cfg(ipc)]
             {
                 let mut process = std::process::Command::new(view_process_exe);
                 for (name, val) in view_process_env {
@@ -251,7 +251,7 @@ impl Controller {
         let (req, rsp, ev) = match init.connect() {
             Ok(r) => r,
             Err(e) => {
-                #[cfg(feature = "ipc")]
+                #[cfg(ipc)]
                 if let Some(mut p) = process {
                     if let Err(ke) = p.kill() {
                         tracing::error!(
@@ -317,12 +317,12 @@ impl Controller {
     /// If another disconnect happens during the view-process startup dialog.
     pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
         if gen == self.generation {
-            #[cfg(not(feature = "ipc"))]
+            #[cfg(not(ipc))]
             {
                 tracing::error!(target: "vp_respawn", "cannot recover in same_process mode (no ipc)");
             }
 
-            #[cfg(feature = "ipc")]
+            #[cfg(ipc)]
             {
                 self.respawn_impl(true)
             }
@@ -336,15 +336,15 @@ impl Controller {
     ///
     /// [`handle_disconnect`]: Controller::handle_disconnect
     pub fn respawn(&mut self) {
-        #[cfg(not(feature = "ipc"))]
+        #[cfg(not(ipc))]
         {
             tracing::error!(target: "vp_respawn", "cannot recover in same_process mode (no ipc)");
         }
 
-        #[cfg(feature = "ipc")]
+        #[cfg(ipc)]
         self.respawn_impl(false);
     }
-    #[cfg(feature = "ipc")]
+    #[cfg(ipc)]
     fn respawn_impl(&mut self, is_crash: bool) {
         use zng_unit::TimeUnits;
 
@@ -502,7 +502,7 @@ impl Drop for Controller {
     /// Kills the View Process, unless it is running in the same process.
     fn drop(&mut self) {
         let _ = self.exit();
-        #[cfg(feature = "ipc")]
+        #[cfg(ipc)]
         if let Some(mut process) = self.process.take() {
             if process.try_wait().is_err() {
                 std::thread::sleep(Duration::from_secs(1));

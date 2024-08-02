@@ -196,7 +196,7 @@ impl GlContextManager {
             target_os = "dragonfly",
             target_os = "freebsd",
             target_os = "openbsd",
-            target_os = "netbsd"
+            target_os = "netbsd",
         ))]
         let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(winit::platform::x11::register_xlib_error_hook));
 

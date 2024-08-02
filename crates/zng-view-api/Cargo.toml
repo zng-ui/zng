@@ -16,8 +16,7 @@ default = ["ipc"]
 
 # Enables creation of separate or pre-build view.
 #
-# When this is enabled communication with the view is (de)serialized which can add a 
-# minor cost, something like a 1ms per 3MB frame request.
+# Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32")))` builds.
 ipc = ["dep:ipc-channel"]
 
 # Implement `IntoVar<T>` for API types.
@@ -58,6 +57,9 @@ tracing-shared = { version = "0.1.5", default-features = false, features = ["log
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-time = "1.0"
+
+[build-dependencies]
+cfg_aliases = "0.2"
 
 [package.metadata.docs.rs]
 all-features = true

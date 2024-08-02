@@ -12,7 +12,6 @@ use winit::{event::ElementState, monitor::MonitorHandle};
 use zng_txt::{ToTxt, Txt};
 use zng_unit::*;
 use zng_view_api::access::AccessNodeId;
-use zng_view_api::clipboard as clipboard_api;
 use zng_view_api::keyboard::{KeyLocation, NativeKeyCode};
 use zng_view_api::window::{FrameCapture, FrameRequest, FrameUpdateRequest, ResizeDirection, WindowButton};
 use zng_view_api::{
@@ -21,6 +20,9 @@ use zng_view_api::{
     touch::{TouchForce, TouchPhase},
     window::{CursorIcon, MonitorInfo, VideoMode},
 };
+
+#[cfg(not(target_os = "android"))]
+use zng_view_api::clipboard as clipboard_api;
 
 /// Sets a window subclass that calls a raw event handler.
 ///
@@ -935,11 +937,11 @@ thread_local! {
 }
 
 /// If `true` our custom panic hook must not log anything.
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 pub(crate) fn suppress_panic() -> bool {
     SUPPRESS.get()
 }
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 pub(crate) fn set_suppressed_panic(panic: SuppressedPanic) {
     SUPPRESSED_PANIC.set(Some(panic));
 }
@@ -954,7 +956,7 @@ pub(crate) struct SuppressedPanic {
     pub backtrace: Backtrace,
 }
 impl SuppressedPanic {
-    #[cfg(feature = "ipc")]
+    #[cfg(ipc)]
     #[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
     pub fn from_hook(info: &std::panic::PanicInfo, backtrace: Backtrace) -> Self {
         let current_thread = std::thread::current();
@@ -1133,7 +1135,7 @@ pub(crate) fn wr_workers() -> Arc<rayon::ThreadPool> {
     Arc::new(worker.unwrap())
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "android")))]
 pub(crate) fn arboard_to_clip(e: arboard::Error) -> clipboard_api::ClipboardError {
     match e {
         arboard::Error::ContentNotAvailable => clipboard_api::ClipboardError::NotFound,

@@ -1721,7 +1721,18 @@ impl Window {
         already_open
     }
 
+    #[cfg(target_os = "android")]
+    pub(crate) fn message_dialog(&self, dialog: dlg_api::MsgDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
+        // !!: TODO
+        let _ = dialog;
+        let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
+            id,
+            dlg_api::MsgDialogResponse::Error(Txt::from_static("native dialogs not implemented for android")),
+        )));
+    }
+
     /// Shows a native message dialog.
+    #[cfg(not(target_os = "android"))]
     pub(crate) fn message_dialog(&self, dialog: dlg_api::MsgDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
         if self.enter_dialog(id, &event_sender) {
             return;
@@ -1768,7 +1779,18 @@ impl Window {
         });
     }
 
+    #[cfg(target_os = "android")]
+    pub(crate) fn file_dialog(&self, dialog: dlg_api::FileDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
+        // !!: TODO
+        let _ = dialog;
+        let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
+            id,
+            dlg_api::MsgDialogResponse::Error(Txt::from_static("native dialogs not implemented for android")),
+        )));
+    }
+
     /// Shows a native file dialog.
+    #[cfg(not(target_os = "android"))]
     pub(crate) fn file_dialog(&self, dialog: dlg_api::FileDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
         if self.enter_dialog(id, &event_sender) {
             return;
