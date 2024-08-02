@@ -76,7 +76,7 @@ jobs:
         with:
           crate: wasm-pack
       - uses: Swatinem/rust-cache@v2
-      - run: cargo do run-wasm web --no-serve
+      - run: cargo do run-wasm multi --no-serve
       - run: cargo clean
   doc:
     runs-on: ubuntu-latest
