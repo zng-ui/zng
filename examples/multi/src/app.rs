@@ -1,5 +1,6 @@
 use zng::prelude::*;
 
+#[allow(unused)]
 pub fn run() {
     zng::env::init!();
 

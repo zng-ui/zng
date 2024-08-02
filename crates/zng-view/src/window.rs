@@ -1,13 +1,10 @@
 use std::{
     collections::VecDeque,
-    fmt,
-    future::Future,
-    mem,
+    fmt, mem,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    thread,
 };
 
 use tracing::span::EnteredSpan;
@@ -1710,6 +1707,7 @@ impl Window {
         ApiExtensionPayload::unknown_extension(extension_id)
     }
 
+    #[cfg(not(target_os = "android"))]
     fn enter_dialog(&self, id: dlg_api::DialogId, event_sender: &AppEventSender) -> bool {
         let already_open = self.modal_dialog_active.swap(true, Ordering::Acquire);
         if already_open {
@@ -1838,21 +1836,22 @@ impl Window {
         });
     }
     /// Run dialog unblocked.
-    fn run_dialog(run: impl Future + Send + 'static) {
+    #[cfg(not(target_os = "android"))]
+    fn run_dialog(run: impl std::future::Future + Send + 'static) {
         let mut task = Box::pin(run);
-        thread::spawn(move || {
-            struct ThreadWaker(thread::Thread);
+        std::thread::spawn(move || {
+            struct ThreadWaker(std::thread::Thread);
             impl std::task::Wake for ThreadWaker {
                 fn wake(self: std::sync::Arc<Self>) {
                     self.0.unpark();
                 }
             }
-            let waker = Arc::new(ThreadWaker(thread::current())).into();
+            let waker = Arc::new(ThreadWaker(std::thread::current())).into();
             let mut cx = std::task::Context::from_waker(&waker);
             loop {
                 match task.as_mut().poll(&mut cx) {
                     std::task::Poll::Ready(_) => return,
-                    std::task::Poll::Pending => thread::park(),
+                    std::task::Poll::Pending => std::thread::park(),
                 }
             }
         });

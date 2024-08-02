@@ -35,7 +35,7 @@ mod wasm {
 #[cfg(target_os = "android")]
 mod android {
     #[no_mangle]
-    fn android_main(app: AndroidApp) {
+    fn android_main(app: zng::view_process::default::android::AndroidApp) {
         todo!("!!: ")
     }
 }

@@ -20,7 +20,7 @@ default = ["ipc", "debug_default", "view_software", "crash_handler"]
 view = ["dep:zng-view"]
 # Include the default view-process implementation as an embedded precompiled binary.
 #
-# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+# Only enabled in `cfg(not(any(target_arch = "wasm32", target_os = "android"))` builds.
 view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
 
 # Enables HTTP tasks and web features of widgets and services.

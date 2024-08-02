@@ -155,7 +155,7 @@ pub use zng_task::{doc_test, spin_on};
 #[cfg(feature = "http")]
 pub use zng_task::http;
 
-#[cfg(all(feature = "ipc", not(target_arch = "wasm32")))]
+#[cfg(all(feature = "ipc", not(any(target_arch = "wasm32", target_os = "android"))))]
 pub use zng_task::ipc;
 
 #[doc(no_inline)]
