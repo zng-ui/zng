@@ -34,8 +34,10 @@ mod wasm {
 
 #[cfg(target_os = "android")]
 mod android {
+    use super::app;
+
     #[no_mangle]
     fn android_main(app: zng::view_process::default::android::AndroidApp) {
-        todo!("!!: ")
+        zng::view_process::default::run_same_process(app, app::run);
     }
 }
