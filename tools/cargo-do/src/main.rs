@@ -871,7 +871,7 @@ fn build(mut args: Vec<&str>) {
 }
 
 // do build-ndk [-e --example]
-//    Compile an example for Android using (cargo-ndk)
+//    Compile an example for Android using cargo-ndk
 fn build_ndk(mut args: Vec<&str>) {
     if let Some(examples) = take_option(&mut args, &["-e", "--example"], "example") {
         for e in examples {

@@ -663,6 +663,223 @@ fn shf() {
     }
 }
 
+const APK_HELP: &str = r#"
+Build an Android APK from the parent folder
+
+The expected folder structure:
+
+my-app.apk/
+├── jniLibs/
+|   └── arm64-v8a
+|       └── my-app.so
+├── res/
+├── AndroidManifest.xml
+└── build.zr-apk
+
+Will be replaced with the built my-app.apk
+
+The expected build.zr-apk file content:
+
+# private keystore, if not set signs with debug keys
+sign-key = "path/to/private/keys.keystore"
+
+# don't sign and zipalign the .apk
+# this is an incomplete state that 
+# cannot be installed, but can be modified
+raw = true
+"#;
+fn apk() {
+    help(APK_HELP);
+    if std::env::var(ZR_FINAL).is_err() {
+        println!("zng-res::on-final=");
+        return;
+    }
+
+    let mut raw = false;
+    let mut sign_key = PathBuf::new();
+    for line in read_lines(&path(ZR_REQUEST)) {
+        let (ln, line) = line.unwrap_or_else(|e| fatal!("error reading .zr-apk request, {e}"));
+        if let Some((key, value)) = line.split_once('=') {
+            let key = key.trim();
+            let value = value.trim();
+            match key {
+                "raw" => match value {
+                    "true" => raw = true,
+                    "false" => {}
+                    _ => error!("unexpected value, line {ln}\n   {line}"),
+                },
+                "sign-key" => {
+                    if let Some(path) = value.strip_prefix('"').and_then(|v| v.strip_suffix('"')) {
+                        sign_key = path.into();
+                    }
+                }
+                _ => error!("unknown key, line {ln}\n   {line}"),
+            }
+        } else {
+            error!("syntax error, line {ln}\n{line}");
+        }
+    }
+
+    let apk_folder = path(ZR_REQUEST_DD);
+    if apk_folder.extension().map(|s| s.to_ascii_lowercase() != "apk").unwrap_or(true) {
+        fatal!("not inside .apk folder")
+    }
+
+    // find <sdk>/build-tools
+    let android_home = match env::var("ANDROID_HOME") {
+        Ok(h) if !h.is_empty() => h,
+        _ => fatal!("please set ANDROID_HOME to the android-sdk dir"),
+    };
+    let build_tools = Path::new(&android_home).join("build-tools/");
+    let mut best_build = None;
+    let mut best_version = semver::Version::new(0, 0, 0);
+    for dir in fs::read_dir(build_tools).unwrap_or_else(|e| fatal!("cannot read $ANDROID_HOME/build-tools/, {e}")) {
+        let dir = dir
+            .unwrap_or_else(|e| fatal!("cannot read $ANDROID_HOME/build-tools/ entry, {e}"))
+            .path();
+
+        if let Some(ver) = dir
+            .file_name()
+            .and_then(|f| f.to_str())
+            .and_then(|f| semver::Version::parse(f).ok())
+        {
+            if ver > best_version && dir.join("aapt2").exists() {
+                best_build = Some(dir);
+                best_version = ver;
+            }
+        }
+    }
+    let build_tools = match best_build {
+        Some(p) => p,
+        None => fatal!("cannot find $ANDROID_HOME/build-tools/<version>/aapt2"),
+    };
+    let aapt2_path = build_tools.join("aapt2");
+
+    // temp target dir
+    let temp_dir = apk_folder.with_extension("apk.tmp");
+    fs::create_dir(&temp_dir).unwrap_or_else(|e| fatal!("cannot create {}, {e}", temp_dir.display()));
+
+    // build resources
+    let compiled_res = temp_dir.join("compiled_res.zip");
+    let res = apk_folder.join("res");
+    if res.exists() {
+        let mut aapt2 = Command::new(&aapt2_path);
+        aapt2.arg("compile").arg("-o").arg(&compiled_res).arg(res.join("*.xml"));
+
+        if aapt2.status().map(|s| !s.success()).unwrap_or(true) {
+            fatal!("resources build failed");
+        }
+    }
+
+    // find <sdk>/platforms
+    let platforms = Path::new(&android_home).join("platforms");
+    let mut best_platform = None;
+    let mut best_version = semver::Version::new(0, 0, 0);
+    for dir in fs::read_dir(platforms).unwrap_or_else(|e| fatal!("cannot read $ANDROID_HOME/platforms/, {e}")) {
+        let dir = dir
+            .unwrap_or_else(|e| fatal!("cannot read $ANDROID_HOME/platforms/ entry, {e}"))
+            .path();
+
+        if let Some(ver) = dir
+            .file_name()
+            .and_then(|f| f.to_str())
+            .and_then(|f| f.strip_prefix("android-"))
+            .and_then(|f| semver::Version::parse(f).ok())
+        {
+            if ver > best_version && dir.join("android.jar").exists() {
+                best_platform = Some(dir);
+                best_version = ver;
+            }
+        }
+    }
+    let platform = match best_platform {
+        Some(p) => p,
+        None => fatal!("cannot find $ANDROID_HOME/platforms/<version>/android.jar"),
+    };
+
+    // link
+    let apk_path = temp_dir.join("output.apk");
+    let mut aapt2 = Command::new(&aapt2_path);
+    aapt2
+        .arg("link")
+        .arg("-o")
+        .arg(&apk_path)
+        .arg("--manifest")
+        .arg(apk_folder.join("AndroidManifest.xml"))
+        .arg("-I")
+        .arg(platform.join("android.jar"));
+    if compiled_res.exists() {
+        aapt2.arg(&compiled_res);
+    }
+    if aapt2.status().map(|s| !s.success()).unwrap_or(true) {
+        fatal!("apk linking failed");
+    }
+
+    let final_apk = if raw {
+        apk_path
+    } else {
+        // sign
+        let signed_apk_path = temp_dir.join("output-signed.apk");
+        if sign_key.as_os_str().is_empty() {
+            let dirs = directories::BaseDirs::new().unwrap_or_else(|| fatal!("cannot fine $HOME"));
+            sign_key = dirs.home_dir().join(".android/debug.keystore");
+            if !sign_key.exists() {
+                // generate debug.keystore
+                let keytool_path = build_tools.join("keytool");
+                let mut keytool = Command::new(keytool_path);
+                keytool
+                    .arg("-genkey")
+                    .arg("-v")
+                    .arg("-keystore")
+                    .arg(&sign_key)
+                    .arg("-storepass")
+                    .arg("android")
+                    .arg("-alias")
+                    .arg("androiddebugkey")
+                    .arg("-keypass")
+                    .arg("android")
+                    .arg("-keyalg")
+                    .arg("RSA")
+                    .arg("-keysize")
+                    .arg("2048")
+                    .arg("-validity")
+                    .arg("10000");
+
+                if keytool.status().map(|s| !s.success()).unwrap_or(true) {
+                    fatal!("keytool failed generating debug keys");
+                }
+            }
+        }
+        let apksigner_path = build_tools.join("apksigner");
+        let mut apksigner = Command::new(apksigner_path);
+        apksigner
+            .arg("sign")
+            .arg("--ks")
+            .arg(sign_key)
+            .arg("--out")
+            .arg(&signed_apk_path)
+            .arg(&apk_path);
+        if apksigner.status().map(|s| !s.success()).unwrap_or(true) {
+            fatal!("apksigner failed");
+        }
+
+        // align
+        let aligned_apk_path = temp_dir.join("output-aligned.apk");
+        let zipalign_path = build_tools.join("zipalign");
+        let mut zipalign = Command::new(zipalign_path);
+        zipalign.arg("-v").arg("4").arg(signed_apk_path).arg(&aligned_apk_path);
+        if zipalign.status().map(|s| !s.success()).unwrap_or(true) {
+            fatal!("zipalign failed");
+        }
+        aligned_apk_path
+    };
+
+    // finalize
+    fs::remove_dir_all(&apk_folder).unwrap_or_else(|e| fatal!("apk folder cleanup failed, {e}"));
+    fs::copy(final_apk, apk_folder).unwrap_or_else(|e| fatal!("cannot copy built apk to final place, {e}"));
+    fs::remove_dir_all(&temp_dir).unwrap_or_else(|e| fatal!("temp dir cleanup failed, {e}"));
+}
+
 fn read_line(path: &Path, expected: &str) -> io::Result<String> {
     match read_lines(path).next() {
         Some(r) => r.map(|(_, l)| l),
@@ -767,6 +984,7 @@ built_in! {
     shf,
     warn,
     fail,
+    apk,
 }
 
 pub fn run() {

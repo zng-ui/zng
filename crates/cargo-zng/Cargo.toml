@@ -39,6 +39,7 @@ is_executable = "1.0"
 anyhow = "1.0"
 dunce = "1.0"
 zng-env = { path = "../zng-env", version = "0.3.2" }
+directories = "5.0"
 
 # fmt
 regex = "1.10"
