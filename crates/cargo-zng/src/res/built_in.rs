@@ -668,24 +668,33 @@ Build an Android APK from the parent folder
 
 The expected folder structure:
 
-my-app.apk/
-├── jniLibs/
-|   └── arm64-v8a
-|       └── my-app.so
-├── res/
-├── AndroidManifest.xml
-└── build.zr-apk
+| my-app.apk/
+| ├── jniLibs/
+| |   └── arm64-v8a
+| |       └── my-app.so
+| ├── res/
+| ├── AndroidManifest.xml
+| └── build.zr-apk
 
 Will be replaced with the built my-app.apk
 
-The expected build.zr-apk file content:
+Expected build.zr-apk file content:
 
-# private keystore, if not set signs with debug keys
-sign-key = "path/to/private/keys.keystore"
+| # comment
+|
+| # sign using the debug key. Note that if ZR_APK_KEYSTORE or ZR_APK_KEY_ALIAS are not
+| # set the APK is also signed using the debug key
+| debug = true
+| # don't sign and don't zipalign the APK. This outputs an incomplete package that
+| # cannot be installed, but can be modified such as custom linking and signing
+| raw = true
 
-# don't sign and zipalign the .apk. This outputs an incomplete package that
-# cannot be installed, but can be modified such as custom linking and signing
-raw = true
+APK signing is configured using these environment variables:
+
+ZR_APK_KEYSTORE - path to the private .keystore file
+ZR_APK_KEYSTORE_PASS - keystore file password
+ZR_APK_KEY_ALIAS - key name in the keystore
+ZR_APK_KEY_PASS - key password
 "#;
 fn apk() {
     help(APK_HELP);
@@ -694,32 +703,41 @@ fn apk() {
         return;
     }
 
+    // read config
+    let mut debug = false;
     let mut raw = false;
-    let mut sign_key = PathBuf::new();
     for line in read_lines(&path(ZR_REQUEST)) {
         let (ln, line) = line.unwrap_or_else(|e| fatal!("error reading .zr-apk request, {e}"));
         if let Some((key, value)) = line.split_once('=') {
             let key = key.trim();
             let value = value.trim();
-            match key {
-                "raw" => match value {
-                    "true" => raw = true,
-                    "false" => {}
-                    _ => error!("unexpected value, line {ln}\n   {line}"),
-                },
-                "sign-key" => {
-                    if let Some(path) = value.strip_prefix('"').and_then(|v| v.strip_suffix('"')) {
-                        sign_key = path.into();
-                    }
+
+            let bool_value = || match value {
+                "true" => true,
+                "false" => false,
+                _ => {
+                    error!("unexpected value, line {ln}\n   {line}");
+                    false
                 }
+            };
+            match key {
+                "debug" => debug = bool_value(),
+                "raw" => raw = bool_value(),
                 _ => error!("unknown key, line {ln}\n   {line}"),
             }
         } else {
             error!("syntax error, line {ln}\n{line}");
         }
     }
+    let mut keystore = PathBuf::from(env::var("ZR_APK_KEYSTORE").unwrap_or_default());
+    let mut keystore_pass = env::var("ZR_APK_KEYSTORE_PASS").unwrap_or_default();
+    let mut key_alias = env::var("ZR_APK_KEY_ALIAS").unwrap_or_default();
+    let mut key_pass = env::var("ZR_APK_KEY_PASS").unwrap_or_default();
+    if keystore.as_os_str().is_empty() || key_alias.is_empty() {
+        debug = true;
+    }
 
-    let apk_folder = path(ZR_REQUEST_DD);
+    let apk_folder = path(ZR_TARGET_DD);
     if apk_folder.extension().map(|s| s.to_ascii_lowercase() != "apk").unwrap_or(true) {
         fatal!("not inside .apk folder")
     }
@@ -756,6 +774,7 @@ fn apk() {
 
     // temp target dir
     let temp_dir = apk_folder.with_extension("apk.tmp");
+    let _ = fs::remove_dir_all(&temp_dir);
     fs::create_dir(&temp_dir).unwrap_or_else(|e| fatal!("cannot create {}, {e}", temp_dir.display()));
 
     // build resources
@@ -773,7 +792,7 @@ fn apk() {
     // find <sdk>/platforms
     let platforms = Path::new(&android_home).join("platforms");
     let mut best_platform = None;
-    let mut best_version = semver::Version::new(0, 0, 0);
+    let mut best_version = 0;
     for dir in fs::read_dir(platforms).unwrap_or_else(|e| fatal!("cannot read $ANDROID_HOME/platforms/, {e}")) {
         let dir = dir
             .unwrap_or_else(|e| fatal!("cannot read $ANDROID_HOME/platforms/ entry, {e}"))
@@ -783,7 +802,7 @@ fn apk() {
             .file_name()
             .and_then(|f| f.to_str())
             .and_then(|f| f.strip_prefix("android-"))
-            .and_then(|f| semver::Version::parse(f).ok())
+            .and_then(|f| f.parse().ok())
         {
             if ver > best_version && dir.join("android.jar").exists() {
                 best_platform = Some(dir);
@@ -819,10 +838,13 @@ fn apk() {
     } else {
         // sign
         let signed_apk_path = temp_dir.join("output-signed.apk");
-        if sign_key.as_os_str().is_empty() {
+        if debug {
             let dirs = directories::BaseDirs::new().unwrap_or_else(|| fatal!("cannot fine $HOME"));
-            sign_key = dirs.home_dir().join(".android/debug.keystore");
-            if !sign_key.exists() {
+            keystore = dirs.home_dir().join(".android/debug.keystore");
+            keystore_pass = "pass:android".to_owned();
+            key_alias = "androiddebugkey".to_owned();
+            key_pass = "pass:android".to_owned();
+            if !keystore.exists() {
                 // generate debug.keystore
                 let keytool_path = build_tools.join("keytool");
                 let mut keytool = Command::new(keytool_path);
@@ -830,13 +852,13 @@ fn apk() {
                     .arg("-genkey")
                     .arg("-v")
                     .arg("-keystore")
-                    .arg(&sign_key)
+                    .arg(&keystore)
                     .arg("-storepass")
-                    .arg("android")
+                    .arg(&keystore_pass)
                     .arg("-alias")
-                    .arg("androiddebugkey")
+                    .arg(&key_alias)
                     .arg("-keypass")
-                    .arg("android")
+                    .arg(&key_pass)
                     .arg("-keyalg")
                     .arg("RSA")
                     .arg("-keysize")
@@ -854,7 +876,13 @@ fn apk() {
         apksigner
             .arg("sign")
             .arg("--ks")
-            .arg(sign_key)
+            .arg(keystore)
+            .arg("--ks-pass")
+            .arg(keystore_pass)
+            .arg("--ks-key-alias")
+            .arg(key_alias)
+            .arg("--key-pass")
+            .arg(key_pass)
             .arg("--out")
             .arg(&signed_apk_path)
             .arg(&apk_path);
@@ -875,7 +903,7 @@ fn apk() {
 
     // finalize
     fs::remove_dir_all(&apk_folder).unwrap_or_else(|e| fatal!("apk folder cleanup failed, {e}"));
-    fs::copy(final_apk, apk_folder).unwrap_or_else(|e| fatal!("cannot copy built apk to final place, {e}"));
+    fs::rename(final_apk, apk_folder).unwrap_or_else(|e| fatal!("cannot copy built apk to final place, {e}"));
     fs::remove_dir_all(&temp_dir).unwrap_or_else(|e| fatal!("temp dir cleanup failed, {e}"));
 }
 
