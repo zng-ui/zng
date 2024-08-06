@@ -899,7 +899,7 @@ fn build_apk(mut args: Vec<&str>) {
                     "-t",
                     "aarch64-linux-android",
                     "-o",
-                    apk_dir.join("jniLibs").display().to_string().as_str(),
+                    apk_dir.join("libs").display().to_string().as_str(),
                 ],
                 &["build", "-p", &example],
                 &[("RUSTFLAGS", rust_flags.as_str())],

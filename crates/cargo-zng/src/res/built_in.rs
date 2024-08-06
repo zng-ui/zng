@@ -669,7 +669,7 @@ Build an Android APK from the parent folder
 The expected folder structure:
 
 | my-app.apk/
-| ├── jniLibs/
+| ├── libs/
 | |   └── arm64-v8a
 | |       └── my-app.so
 | ├── res/
@@ -835,8 +835,8 @@ fn apk() {
 
     // add libs
     let aapt_path = build_tools.join("aapt");
-    for lib in glob::glob(apk_folder.join("jniLibs/*/*.so").display().to_string().as_str()).unwrap() {
-        let lib = lib.unwrap_or_else(|e| fatal!("error searching jniLibs, {e}"));
+    for lib in glob::glob(apk_folder.join("libs/*/*.so").display().to_string().as_str()).unwrap() {
+        let lib = lib.unwrap_or_else(|e| fatal!("error searching libs, {e}"));
 
         let mut aapt = Command::new(&aapt_path);
         aapt.arg("add");
@@ -850,6 +850,15 @@ fn apk() {
     let final_apk = if raw {
         apk_path
     } else {
+        // align
+        let aligned_apk_path = temp_dir.join("output-aligned.apk");
+        let zipalign_path = build_tools.join("zipalign");
+        let mut zipalign = Command::new(zipalign_path);
+        zipalign.arg("-v").arg("4").arg(apk_path).arg(&aligned_apk_path);
+        if zipalign.status().map(|s| !s.success()).unwrap_or(true) {
+            fatal!("zipalign failed");
+        }
+
         // sign
         let signed_apk_path = temp_dir.join("output-signed.apk");
         if debug {
@@ -886,7 +895,7 @@ fn apk() {
             }
         }
         let apksigner_path = build_tools.join("apksigner");
-        let mut apksigner = Command::new(apksigner_path);
+        let mut apksigner = Command::new(&apksigner_path);
         apksigner
             .arg("sign")
             .arg("--ks")
@@ -899,20 +908,11 @@ fn apk() {
             .arg(key_pass)
             .arg("--out")
             .arg(&signed_apk_path)
-            .arg(&apk_path);
+            .arg(&aligned_apk_path);
         if apksigner.status().map(|s| !s.success()).unwrap_or(true) {
             fatal!("apksigner failed");
         }
-
-        // align
-        let aligned_apk_path = temp_dir.join("output-aligned.apk");
-        let zipalign_path = build_tools.join("zipalign");
-        let mut zipalign = Command::new(zipalign_path);
-        zipalign.arg("-v").arg("4").arg(signed_apk_path).arg(&aligned_apk_path);
-        if zipalign.status().map(|s| !s.success()).unwrap_or(true) {
-            fatal!("zipalign failed");
-        }
-        aligned_apk_path
+        signed_apk_path
     };
 
     // finalize
