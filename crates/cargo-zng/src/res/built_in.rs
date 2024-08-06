@@ -683,9 +683,8 @@ The expected build.zr-apk file content:
 # private keystore, if not set signs with debug keys
 sign-key = "path/to/private/keys.keystore"
 
-# don't sign and zipalign the .apk
-# this is an incomplete state that 
-# cannot be installed, but can be modified
+# don't sign and zipalign the .apk. This outputs an incomplete package that
+# cannot be installed, but can be modified such as custom linking and signing
 raw = true
 "#;
 fn apk() {
