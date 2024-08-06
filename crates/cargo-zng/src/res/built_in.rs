@@ -815,7 +815,7 @@ fn apk() {
         None => fatal!("cannot find $ANDROID_HOME/platforms/<version>/android.jar"),
     };
 
-    // link
+    // make apk (link)
     let apk_path = temp_dir.join("output.apk");
     let mut aapt2 = Command::new(&aapt2_path);
     aapt2
@@ -831,6 +831,20 @@ fn apk() {
     }
     if aapt2.status().map(|s| !s.success()).unwrap_or(true) {
         fatal!("apk linking failed");
+    }
+
+    // add libs
+    let aapt_path = build_tools.join("aapt");
+    for lib in glob::glob(apk_folder.join("jniLibs/*/*.so").display().to_string().as_str()).unwrap() {
+        let lib = lib.unwrap_or_else(|e| fatal!("error searching jniLibs, {e}"));
+
+        let mut aapt = Command::new(&aapt_path);
+        aapt.arg("add");
+        aapt.arg(&apk_path);
+        aapt.arg(&lib);
+        if aapt.status().map(|s| !s.success()).unwrap_or(true) {
+            fatal!("apk linking failed");
+        }
     }
 
     let final_apk = if raw {
