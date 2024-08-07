@@ -2,8 +2,6 @@ use zng::prelude::*;
 
 #[allow(unused)]
 pub fn run() {
-    zng::env::init!();
-
     APP.defaults().run_window(async {
         Window! {
             child = Text! {
@@ -31,8 +29,6 @@ pub fn run() {
 
 #[allow(unused)]
 pub fn run_headless() {
-    zng::env::init!();
-
     let _app = APP.minimal().run_headless(false);
 
     tracing::info!("Debug tracing logs to console");

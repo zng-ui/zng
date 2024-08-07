@@ -9,5 +9,6 @@
 mod app;
 
 fn main() {
+    zng::env::init!();
     app::run();
 }
