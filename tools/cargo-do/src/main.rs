@@ -889,9 +889,11 @@ fn build_apk(mut args: Vec<&str>) {
             rust_flags.push_str(" -Clink-arg=-z -Clink-arg=nostart-stop-gc");
 
             // cargo zng res (.zr-apk)
-            let apk_dir = dunce::canonicalize(std::path::PathBuf::from(format!("target/build-apk/{example}/source.apk"))).unwrap();
+            let apk_dir = std::path::PathBuf::from(format!("target/build-apk/{example}/source.apk"));
             let _ = std::fs::remove_file(&apk_dir);
             let _ = std::fs::remove_dir_all(&apk_dir);
+            let _ = std::fs::create_dir_all(&apk_dir);
+            let apk_dir = dunce::canonicalize(apk_dir).unwrap();
             cmd_env_req(
                 "cargo",
                 &[
@@ -904,8 +906,6 @@ fn build_apk(mut args: Vec<&str>) {
                 &["build", "-p", &example],
                 &[("RUSTFLAGS", rust_flags.as_str())],
             );
-            // !!: TODO
-            assert!(std::path::Path::new("target/build-apk/zng-example-multi/source.apk/lib/arm64-v8a/libc++_shared.so").exists());
 
             let manifest = include_str!("build-apk-manifest.xml").replace("${EXAMPLE}", &example.replace('-', "_"));
 

@@ -789,6 +789,10 @@ fn apk() {
         }
     }
 
+    let manifest_path = apk_folder.join("AndroidManifest.xml");
+    let manifest = fs::read_to_string(&manifest_path).unwrap_or_else(|e| fatal!("cannot read AndroidManifest.xml, {e}"));
+    let manifest: AndroidManifest = quick_xml::de::from_str(&manifest).unwrap_or_else(|e| fatal!("error parsing AndroidManifest.xml, {e}"));
+
     // find <sdk>/platforms
     let platforms = Path::new(&android_home).join("platforms");
     let mut best_platform = None;
@@ -804,7 +808,7 @@ fn apk() {
             .and_then(|f| f.strip_prefix("android-"))
             .and_then(|f| f.parse().ok())
         {
-            if ver > best_version && dir.join("android.jar").exists() {
+            if manifest.uses_sdk.matches(ver) && ver > best_version && dir.join("android.jar").exists() {
                 best_platform = Some(dir);
                 best_version = ver;
             }
@@ -823,7 +827,7 @@ fn apk() {
         .arg("-o")
         .arg(&apk_path)
         .arg("--manifest")
-        .arg(apk_folder.join("AndroidManifest.xml"))
+        .arg(manifest_path)
         .arg("-I")
         .arg(platform.join("android.jar"));
     if compiled_res.exists() {
@@ -920,6 +924,41 @@ fn apk() {
     fs::remove_dir_all(&apk_folder).unwrap_or_else(|e| fatal!("apk folder cleanup failed, {e}"));
     fs::rename(final_apk, apk_folder).unwrap_or_else(|e| fatal!("cannot copy built apk to final place, {e}"));
     fs::remove_dir_all(&temp_dir).unwrap_or_else(|e| fatal!("temp dir cleanup failed, {e}"));
+}
+#[derive(serde::Deserialize)]
+#[serde(rename = "manifest")]
+struct AndroidManifest {
+    #[serde(rename = "uses-sdk")]
+    #[serde(default)]
+    pub uses_sdk: AndroidSdk,
+}
+#[derive(Default, serde::Deserialize)]
+#[serde(rename = "uses-sdk")]
+struct AndroidSdk {
+    #[serde(rename(serialize = "android:minSdkVersion"))]
+    pub min_sdk_version: Option<u32>,
+    #[serde(rename(serialize = "android:targetSdkVersion"))]
+    pub target_sdk_version: Option<u32>,
+    #[serde(rename(serialize = "android:maxSdkVersion"))]
+    pub max_sdk_version: Option<u32>,
+}
+impl AndroidSdk {
+    pub fn matches(&self, version: u32) -> bool {
+        if let Some(v) = self.target_sdk_version {
+            return v == version;
+        }
+        if let Some(m) = self.min_sdk_version {
+            if version < m {
+                return false;
+            }
+        }
+        if let Some(m) = self.max_sdk_version {
+            if version > m {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 fn read_line(path: &Path, expected: &str) -> io::Result<String> {
