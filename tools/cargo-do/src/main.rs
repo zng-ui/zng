@@ -889,10 +889,10 @@ fn build_apk(mut args: Vec<&str>) {
             rust_flags.push_str(" -Clink-arg=-z -Clink-arg=nostart-stop-gc");
 
             // cargo zng res (.zr-apk)
-            let apk_dir = std::path::PathBuf::from(format!("target/build-apk/{example}/source.apk"));
+            let apk_dir = dunce::canonicalize(std::path::PathBuf::from(format!("target/build-apk/{example}/source.apk"))).unwrap();
             let _ = std::fs::remove_file(&apk_dir);
             let _ = std::fs::remove_dir_all(&apk_dir);
-            cmd_env(
+            cmd_env_req(
                 "cargo",
                 &[
                     "ndk",
@@ -916,7 +916,7 @@ fn build_apk(mut args: Vec<&str>) {
             let _ = std::fs::remove_file(&target_dir);
             let _ = std::fs::remove_dir_all(&target_dir);
 
-            cmd(
+            cmd_req(
                 &cargo_zng,
                 &[
                     "zng",
