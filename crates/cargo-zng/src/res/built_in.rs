@@ -669,7 +669,7 @@ Build an Android APK from the parent folder
 The expected folder structure:
 
 | my-app.apk/
-| ├── libs/
+| ├── lib/
 | |   └── arm64-v8a
 | |       └── my-app.so
 | ├── res/
@@ -835,13 +835,14 @@ fn apk() {
 
     // add libs
     let aapt_path = build_tools.join("aapt");
-    for lib in glob::glob(apk_folder.join("libs/*/*.so").display().to_string().as_str()).unwrap() {
+    for lib in glob::glob(apk_folder.join("lib/*/*.so").display().to_string().as_str()).unwrap() {
         let lib = lib.unwrap_or_else(|e| fatal!("error searching libs, {e}"));
 
+        let lib = lib.display().to_string().replace('\\', "/");
+        let lib = &lib[lib.rfind("/lib/").unwrap() + 1..];
+
         let mut aapt = Command::new(&aapt_path);
-        aapt.arg("add");
-        aapt.arg(&apk_path);
-        aapt.arg(&lib);
+        aapt.arg("add").arg(&apk_path).arg(lib).current_dir(&apk_folder);
         if aapt.status().map(|s| !s.success()).unwrap_or(true) {
             fatal!("apk linking failed");
         }

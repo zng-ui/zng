@@ -899,11 +899,13 @@ fn build_apk(mut args: Vec<&str>) {
                     "-t",
                     "aarch64-linux-android",
                     "-o",
-                    apk_dir.join("libs").display().to_string().as_str(),
+                    apk_dir.join("lib").display().to_string().as_str(),
                 ],
                 &["build", "-p", &example],
                 &[("RUSTFLAGS", rust_flags.as_str())],
             );
+            // !!: TODO
+            assert!(std::path::Path::new("target/build-apk/zng-example-multi/source.apk/lib/arm64-v8a/libc++_shared.so").exists());
 
             let manifest = include_str!("build-apk-manifest.xml").replace("${EXAMPLE}", &example.replace('-', "_"));
 
