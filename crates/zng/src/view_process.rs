@@ -36,7 +36,7 @@
 /// # Full API
 ///
 /// See [`zng_view`] for the full API.
-#[cfg(all(feature = "view", not(target_arch = "wasm32")))]
+#[cfg(view)]
 pub mod default {
     pub use zng_view::run_same_process;
 
@@ -59,7 +59,7 @@ pub mod default {
 /// # Full API
 ///
 /// See [`zng_view_prebuilt`] and [`zng_view`] for the full API.
-#[cfg(all(feature = "view_prebuilt", not(any(target_arch = "wasm32", target_os = "android"))))]
+#[cfg(view_prebuilt)]
 pub mod prebuilt {
     pub use zng_view_prebuilt::run_same_process;
 }

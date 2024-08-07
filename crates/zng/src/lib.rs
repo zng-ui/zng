@@ -797,7 +797,7 @@ mod __prelude_wgt {
 
     pub use zng_ext_window::WidgetInfoBuilderImeArea as _;
 
-    #[cfg(feature = "hot_reload")]
+    #[cfg(hot_reload)]
     pub use crate::hot_reload::hot_node;
 }
 
@@ -880,13 +880,13 @@ mod defaults {
                 .extend(ClipboardManager::default())
                 .extend(UndoManager::default());
 
-            #[cfg(all(feature = "view", feature = "view_prebuilt"))]
+            #[cfg(all(view, view_prebuilt))]
             tracing::debug!(r#"both "view" and "view_prebuilt" enabled, will use only one, indeterminate witch"#);
 
-            #[cfg(all(feature = "single_instance", not(target_arch = "wasm32")))]
+            #[cfg(single_instance)]
             let r = r.extend(zng_ext_single_instance::SingleInstanceManager::default());
 
-            #[cfg(all(feature = "hot_reload", not(target_arch = "wasm32")))]
+            #[cfg(hot_reload)]
             let r = r.extend(zng_ext_hot_reload::HotReloadManager::default());
 
             #[cfg(any(
@@ -927,7 +927,7 @@ mod defaults {
             zng_wgt_settings::handle_settings_cmd();
             tracing::debug!("defaults init, settings set");
 
-            #[cfg(feature = "single_instance")]
+            #[cfg(single_instance)]
             {
                 crate::app::APP_INSTANCE_EVENT
                     .on_pre_event(crate::handler::app_hn!(|args: &crate::app::AppInstanceArgs, _| {

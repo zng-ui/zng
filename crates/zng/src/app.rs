@@ -427,7 +427,7 @@ pub mod raw_device_events {
     };
 }
 
-#[cfg(feature = "single_instance")]
+#[cfg(single_instance)]
 pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 
 /// App-process crash handler.
@@ -545,7 +545,7 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 /// # Full API
 ///
 /// See [`zng_app::crash_handler`] and [`zng_wgt_inspector::crash_handler`] for the full API.
-#[cfg(all(feature = "crash_handler", not(target_arch = "wasm32")))]
+#[cfg(crash_handler)]
 pub mod crash_handler {
     pub use zng_app::crash_handler::{crash_handler_config, BacktraceFrame, CrashArgs, CrashConfig, CrashError, CrashPanic};
 

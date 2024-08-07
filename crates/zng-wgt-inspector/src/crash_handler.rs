@@ -1,4 +1,4 @@
-#![cfg(all(feature = "crash_handler", not(target_arch = "wasm32")))]
+#![cfg(all(feature = "crash_handler", not(any(target_arch = "wasm32", target_os = "android"))))]
 
 //! Debug crash handler.
 
