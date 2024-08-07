@@ -38,6 +38,9 @@ mod android {
 
     #[no_mangle]
     fn android_main(app: zng::view_process::default::android::AndroidApp) {
+        if let Some(p) = app.internal_data_path() {
+            zng::env::init_config(p);
+        }
         zng::view_process::default::run_same_process(app, app::run);
     }
 }
