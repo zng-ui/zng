@@ -216,7 +216,7 @@ impl GlContextManager {
 
         let mut template = ConfigTemplateBuilder::new()
             .with_alpha_size(8)
-            .with_transparency(true)
+            .with_transparency(cfg!(not(target_os = "android")))
             .with_surface_type(ConfigSurfaceTypes::WINDOW)
             .prefer_hardware_accelerated(hardware);
         if let GlWindowCreation::Before(w) = &window {

@@ -160,7 +160,7 @@ impl Window {
         let mut winit = WindowAttributes::default()
             .with_title(cfg.title)
             .with_resizable(cfg.resizable)
-            .with_transparent(cfg.transparent)
+            .with_transparent(cfg.transparent && cfg!(not(target_os = "android")))
             .with_window_icon(cfg_icon);
 
         let mut s = cfg.state;
@@ -234,7 +234,7 @@ impl Window {
             // so that there is no white frame when it's opening.
             //
             // unless its "kiosk" mode.
-            .with_visible(cfg.kiosk || matches!(s.state, WindowState::Exclusive));
+            .with_visible(cfg!(target_os = "android") || cfg.kiosk || matches!(s.state, WindowState::Exclusive));
 
         let mut render_mode = cfg.render_mode;
         if !cfg!(feature = "software") && render_mode == RenderMode::Software {
