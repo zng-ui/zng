@@ -34,9 +34,24 @@ mod android {
 
     use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
 
-    // !!: TODO: https://docs.rs/ndk/latest/ndk/font/struct.Font.html
-    // maybe also " /system/fonts"
+    #[cfg(feature = "android_api_level_29")]
+    pub fn system_all() -> ResponseVar<Vec<FontName>> {
+        zng_task::wait_respond(|| {
+            ndk::font::SystemFontIterator::new()
+                .into_iter()
+                .flatten()
+                .filter_map(|f| {
+                    let bytes = std::fs::read(f.path()).ok()?;
+                    let bytes = FontDataRef(std::sync::Arc::new(bytes));
+                    let face_index = f.collection_index();
+                    let f = crate::FontFace::load(bytes, face_index as _).ok()?;
+                    Some(f.family_name().clone())
+                })
+                .collect()
+        })
+    }
 
+    #[cfg(not(feature = "android_api_level_29"))]
     pub fn system_all() -> ResponseVar<Vec<FontName>> {
         zng_var::response_done_var(vec![])
     }

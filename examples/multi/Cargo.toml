@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-zng = { path = "../../crates/zng", features = ["view", "android-native-activity", "material_icons"] }
+zng = { path = "../../crates/zng", features = ["view", "android_native_activity", "android_api_level_29", "material_icons"] }
 tracing = "0.1"
 
 zng-env = { path = "../../crates/zng-env" }

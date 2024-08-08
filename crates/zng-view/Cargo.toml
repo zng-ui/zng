@@ -44,12 +44,12 @@ bundle_licenses = ["zng-tp-licenses/bundle"]
 # Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
 #
 # See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
-android-game-activity = ["winit/android-game-activity"]
+android_game_activity = ["winit/android-game-activity"]
 
 # Basic Android backend that does not require Java.
 #
 # See `https://docs.rs/winit/latest/winit/platform/android/` for more details. 
-android-native-activity = ["winit/android-native-activity"]
+android_native_activity = ["winit/android-native-activity"]
 
 [lib]
 crate-type = ["lib", "cdylib"]

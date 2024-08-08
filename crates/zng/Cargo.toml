@@ -185,12 +185,17 @@ built_res = ["zng-env/built_res"]
 # Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
 #
 # See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
-android-game-activity = ["zng-view?/android-game-activity"]
+android_game_activity = ["zng-view?/android_game_activity"]
 
 # Basic Android backend that does not require Java.
 #
 # See `https://docs.rs/winit/latest/winit/platform/android/` for more details. 
-android-native-activity = ["zng-view?/android-native-activity"]
+android_native_activity = ["zng-view?/android_native_activity"]
+
+# Enable Android API level 29+ integration.
+#
+# Currently this enables better system font queries on the FONTS service.
+android_api_level_29 = ["zng-ext-font/android_api_level_29"]
 
 [dependencies]
 # foundation

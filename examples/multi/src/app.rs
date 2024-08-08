@@ -3,6 +3,9 @@ use zng::prelude::*;
 #[allow(unused)]
 pub fn run() {
     APP.defaults().run_window(async {
+        let fonts = zng::font::FONTS.system_fonts().wait_into_rsp().await;
+        tracing::info!("!!: FONTS: {fonts:?}");
+
         let count = var(0u32);
         Window! {
             child = Button! {
