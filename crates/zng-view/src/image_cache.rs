@@ -1336,12 +1336,16 @@ mod capture {
             scale_factor: Factor,
             mask: Option<ImageMaskMode>,
         ) -> ImageLoadedData {
+            let format = match gl.get_type() {
+                gleam::gl::GlType::Gl => gleam::gl::BGRA,
+                gleam::gl::GlType::Gles => gleam::gl::RGBA,
+            };
             let pixels_flipped = gl.read_pixels(
                 rect.origin.x.0,
                 rect.origin.y.0,
                 rect.size.width.0,
                 rect.size.height.0,
-                gleam::gl::BGRA,
+                format,
                 gleam::gl::UNSIGNED_BYTE,
             );
             let mut buf = vec![0u8; pixels_flipped.len()];
@@ -1352,8 +1356,10 @@ mod capture {
             }
 
             if let Some(mask) = mask {
-                for bgra in buf.chunks_exact_mut(4) {
-                    bgra.swap(0, 3);
+                if format == gleam::gl::BGRA {
+                    for bgra in buf.chunks_exact_mut(4) {
+                        bgra.swap(0, 3);
+                    }
                 }
                 let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(
                     image::DynamicImage::ImageRgba8(
@@ -1379,6 +1385,12 @@ mod capture {
                     pixels,
                 }
             } else {
+                if format == gleam::gl::RGBA {
+                    for rgba in buf.chunks_exact_mut(4) {
+                        rgba.swap(0, 3);
+                    }
+                }
+
                 let is_opaque = buf.chunks_exact(4).all(|bgra| bgra[3] == 255);
 
                 let data = IpcBytes::from_vec(buf);

@@ -4,10 +4,10 @@ use std::{fmt, ops::Deref, time::Duration};
 
 use crate::{AnyResult, Event, Request, Response};
 
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 use ipc_channel::ipc::{channel, IpcOneShotServer, IpcReceiver, IpcSender};
 
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 use flume::unbounded as channel;
 
 use parking_lot::Mutex;
@@ -19,22 +19,22 @@ pub(crate) type IpcResult<T> = std::result::Result<T, Disconnected>;
 /// Bytes sender.
 ///
 /// Use [`bytes_channel`] to create.
-#[cfg_attr(feature = "ipc", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(ipc, derive(serde::Serialize, serde::Deserialize))]
 pub struct IpcBytesSender {
-    #[cfg(feature = "ipc")]
+    #[cfg(ipc)]
     sender: ipc_channel::ipc::IpcBytesSender,
-    #[cfg(not(feature = "ipc"))]
+    #[cfg(not(ipc))]
     sender: flume::Sender<Vec<u8>>,
 }
 impl IpcBytesSender {
     /// Send a byte package.
     pub fn send(&self, bytes: Vec<u8>) -> IpcResult<()> {
-        #[cfg(feature = "ipc")]
+        #[cfg(ipc)]
         {
             self.sender.send(&bytes).map_err(handle_io_error)
         }
 
-        #[cfg(not(feature = "ipc"))]
+        #[cfg(not(ipc))]
         self.sender.send(bytes).map_err(handle_send_error)
     }
 }
@@ -47,11 +47,11 @@ impl fmt::Debug for IpcBytesSender {
 /// Bytes receiver.
 ///
 /// Use [`bytes_channel`] to create.
-#[cfg_attr(feature = "ipc", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(ipc, derive(serde::Serialize, serde::Deserialize))]
 pub struct IpcBytesReceiver {
-    #[cfg(feature = "ipc")]
+    #[cfg(ipc)]
     recv: ipc_channel::ipc::IpcBytesReceiver,
-    #[cfg(not(feature = "ipc"))]
+    #[cfg(not(ipc))]
     recv: flume::Receiver<Vec<u8>>,
 }
 impl IpcBytesReceiver {
@@ -67,20 +67,20 @@ impl fmt::Debug for IpcBytesReceiver {
 }
 
 /// Create a bytes channel.
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 pub fn bytes_channel() -> (IpcBytesSender, IpcBytesReceiver) {
     let (sender, recv) = ipc_channel::ipc::bytes_channel().unwrap();
     (IpcBytesSender { sender }, IpcBytesReceiver { recv })
 }
 
 /// Create a bytes channel.
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 pub fn bytes_channel() -> (IpcBytesSender, IpcBytesReceiver) {
     let (sender, recv) = flume::unbounded();
     (IpcBytesSender { sender }, IpcBytesReceiver { recv })
 }
 
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 mod arc_bytes {
     pub fn serialize<S>(bytes: &std::sync::Arc<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -104,21 +104,21 @@ mod arc_bytes {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct IpcBytes {
     // `IpcSharedMemory` cannot have zero length, we use `None` in this case.
-    #[cfg(feature = "ipc")]
+    #[cfg(ipc)]
     bytes: Option<ipc_channel::ipc::IpcSharedMemory>,
     // `IpcSharedMemory` only clones a pointer.
-    #[cfg(not(feature = "ipc"))]
+    #[cfg(not(ipc))]
     #[serde(with = "arc_bytes")]
     bytes: std::sync::Arc<Vec<u8>>,
 }
 /// Pointer equal.
 impl PartialEq for IpcBytes {
-    #[cfg(not(feature = "ipc"))]
+    #[cfg(not(ipc))]
     fn eq(&self, other: &Self) -> bool {
         std::sync::Arc::ptr_eq(&self.bytes, &other.bytes)
     }
 
-    #[cfg(feature = "ipc")]
+    #[cfg(ipc)]
     fn eq(&self, other: &Self) -> bool {
         match (&self.bytes, &other.bytes) {
             (None, None) => true,
@@ -131,7 +131,7 @@ impl IpcBytes {
     /// Copy the `bytes` to a new shared memory allocation.
     pub fn from_slice(bytes: &[u8]) -> Self {
         IpcBytes {
-            #[cfg(feature = "ipc")]
+            #[cfg(ipc)]
             bytes: {
                 if bytes.is_empty() {
                     None
@@ -139,7 +139,7 @@ impl IpcBytes {
                     Some(ipc_channel::ipc::IpcSharedMemory::from_bytes(bytes))
                 }
             },
-            #[cfg(not(feature = "ipc"))]
+            #[cfg(not(ipc))]
             bytes: std::sync::Arc::new(bytes.to_vec()),
         }
     }
@@ -147,12 +147,12 @@ impl IpcBytes {
     /// If the `"ipc"` feature is enabled copy the bytes to a new shared memory region, if not
     /// just wraps the `bytes` in a shared pointer.
     pub fn from_vec(bytes: Vec<u8>) -> Self {
-        #[cfg(feature = "ipc")]
+        #[cfg(ipc)]
         {
             Self::from_slice(&bytes)
         }
 
-        #[cfg(not(feature = "ipc"))]
+        #[cfg(not(ipc))]
         IpcBytes {
             bytes: std::sync::Arc::new(bytes),
         }
@@ -162,11 +162,11 @@ impl IpcBytes {
     ///
     /// If the `"ipc"` feature is not enabled and `self` is the only reference this operation is zero-cost.
     pub fn to_vec(self) -> Vec<u8> {
-        #[cfg(feature = "ipc")]
+        #[cfg(ipc)]
         {
             self.bytes.map(|s| s.to_vec()).unwrap_or_default()
         }
-        #[cfg(not(feature = "ipc"))]
+        #[cfg(not(ipc))]
         {
             match std::sync::Arc::try_unwrap(self.bytes) {
                 Ok(d) => d,
@@ -176,13 +176,13 @@ impl IpcBytes {
     }
 
     /// Returns the underlying shared memory reference, if the bytes are not zero-length.
-    #[cfg(feature = "ipc")]
+    #[cfg(ipc)]
     pub fn ipc_shared_memory(&self) -> Option<ipc_channel::ipc::IpcSharedMemory> {
         self.bytes.clone()
     }
 
     /// Returns the underlying shared reference.
-    #[cfg(not(feature = "ipc"))]
+    #[cfg(not(ipc))]
     pub fn arc(&self) -> std::sync::Arc<Vec<u8>> {
         self.bytes.clone()
     }
@@ -191,10 +191,10 @@ impl Deref for IpcBytes {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        #[cfg(feature = "ipc")]
+        #[cfg(ipc)]
         return if let Some(bytes) = &self.bytes { bytes } else { &[] };
 
-        #[cfg(not(feature = "ipc"))]
+        #[cfg(not(ipc))]
         &self.bytes
     }
 }
@@ -204,9 +204,9 @@ impl fmt::Debug for IpcBytes {
     }
 }
 
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 type IpcSender<T> = flume::Sender<T>;
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 type IpcReceiver<T> = flume::Receiver<T>;
 
 /// Channel disconnected error.
@@ -220,12 +220,12 @@ impl fmt::Display for Disconnected {
 impl std::error::Error for Disconnected {}
 
 /// Call `new`, then spawn the view-process using the `name` then call `connect`.
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 pub(crate) struct AppInit {
     server: IpcOneShotServer<AppInitMsg>,
     name: Txt,
 }
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 impl AppInit {
     pub fn new() -> Self {
         let (server, name) = IpcOneShotServer::new().expect("failed to create init channel");
@@ -266,7 +266,7 @@ impl AppInit {
 }
 
 /// Start the view-process server and waits for `(request, response, event)`.
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 pub fn connect_view_process(server_name: Txt) -> IpcResult<ViewChannels> {
     let _s = tracing::trace_span!("connect_view_process").entered();
 
@@ -295,7 +295,7 @@ pub fn connect_view_process(server_name: Txt) -> IpcResult<ViewChannels> {
 /// )
 type AppInitMsg = (IpcSender<Request>, IpcSender<(IpcSender<Response>, IpcSender<Event>)>);
 
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 pub(crate) struct AppInit {
     // (
     //    RequestSender,
@@ -306,7 +306,7 @@ pub(crate) struct AppInit {
     init: flume::Receiver<AppInitMsg>,
     name: Txt,
 }
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 mod name_map {
     use std::{
         collections::HashMap,
@@ -333,7 +333,7 @@ mod name_map {
         }
     }
 }
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 impl AppInit {
     pub fn new() -> Self {
         use std::sync::atomic::{AtomicU32, Ordering};
@@ -372,7 +372,7 @@ impl AppInit {
 }
 
 /// Start the view-process server and waits for `(request, response, event)`.
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 pub fn connect_view_process(server_name: Txt) -> IpcResult<ViewChannels> {
     let app_init_sender = name_map::get().lock().unwrap().remove(&server_name).unwrap();
 
@@ -473,7 +473,7 @@ impl EventReceiver {
     }
 }
 
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 fn handle_recv_error(e: ipc_channel::ipc::IpcError) -> Disconnected {
     match e {
         ipc_channel::ipc::IpcError::Disconnected => Disconnected,
@@ -483,14 +483,14 @@ fn handle_recv_error(e: ipc_channel::ipc::IpcError) -> Disconnected {
         }
     }
 }
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 fn handle_recv_error(e: flume::RecvError) -> Disconnected {
     match e {
         flume::RecvError::Disconnected => Disconnected,
     }
 }
 
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 #[allow(clippy::boxed_local)]
 fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
     match *e {
@@ -514,12 +514,12 @@ fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
     }
 }
 
-#[cfg(not(feature = "ipc"))]
+#[cfg(not(ipc))]
 fn handle_send_error<T>(_: flume::SendError<T>) -> Disconnected {
     Disconnected
 }
 
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 fn handle_io_error(e: std::io::Error) -> Disconnected {
     match e.kind() {
         std::io::ErrorKind::BrokenPipe => Disconnected,
@@ -527,7 +527,7 @@ fn handle_io_error(e: std::io::Error) -> Disconnected {
     }
 }
 
-#[cfg(all(test, feature = "ipc"))]
+#[cfg(all(test, ipc))]
 mod tests {
     use std::thread;
 

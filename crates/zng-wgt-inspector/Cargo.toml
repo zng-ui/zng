@@ -18,6 +18,8 @@ debug_default = []
 # Compiles the interactive inspector.
 live = []
 # Compiles the debug crash handler.
+#
+# Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 crash_handler = ["zng-app/crash_handler", "dep:open"]
 
 [dependencies]

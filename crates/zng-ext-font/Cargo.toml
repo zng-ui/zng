@@ -50,7 +50,7 @@ smallvec = { version = "1.13", features = ["const_new", "serde"] }
 hashbrown = "0.14"
 pathfinder_geometry = "0.5"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 font-kit = "0.14"
 
 [package.metadata.docs.rs]

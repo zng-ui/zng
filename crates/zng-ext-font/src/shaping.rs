@@ -36,16 +36,6 @@ impl fmt::Display for GlyphLoadingError {
         }
     }
 }
-#[cfg(not(target_arch = "wasm32"))]
-impl From<font_kit::error::GlyphLoadingError> for GlyphLoadingError {
-    fn from(value: font_kit::error::GlyphLoadingError) -> Self {
-        use GlyphLoadingError::*;
-        match value {
-            font_kit::error::GlyphLoadingError::NoSuchGlyph => NoSuchGlyph,
-            font_kit::error::GlyphLoadingError::PlatformError => PlatformError,
-        }
-    }
-}
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]

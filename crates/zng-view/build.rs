@@ -1,6 +1,11 @@
 // #![allow(unexpected_cfgs)]
 
 fn main() {
+    cfg_aliases::cfg_aliases! {
+        android: { target_os = "android" },
+        ipc: { all(feature = "ipc", not(android)) },
+    }
+
     tp_licenses();
 }
 

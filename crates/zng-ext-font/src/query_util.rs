@@ -1,8 +1,11 @@
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 pub use desktop::*;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm::*;
+
+#[cfg(target_os = "android")]
+pub use android::*;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm {
@@ -25,13 +28,37 @@ mod wasm {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(target_os = "android")]
+mod android {
+    use zng_var::ResponseVar;
+
+    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
+
+    // !!: TODO: https://docs.rs/ndk/latest/ndk/font/struct.Font.html
+    // maybe also " /system/fonts"
+
+    pub fn system_all() -> ResponseVar<Vec<FontName>> {
+        zng_var::response_done_var(vec![])
+    }
+
+    pub fn best(
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
+        let _ = (font_name, style, weight, stretch);
+        Err(FontLoadingError::NoFilesystem)
+    }
+}
+
+#[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 mod desktop {
     use std::{borrow::Cow, path::Path, sync::Arc};
 
     use zng_var::ResponseVar;
 
-    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
+    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight, GlyphLoadingError};
 
     pub fn system_all() -> ResponseVar<Vec<FontName>> {
         zng_task::wait_respond(|| {
@@ -238,6 +265,16 @@ mod desktop {
     impl From<FontWeight> for font_kit::properties::Weight {
         fn from(value: FontWeight) -> Self {
             font_kit::properties::Weight(value.0)
+        }
+    }
+
+    impl From<font_kit::error::GlyphLoadingError> for GlyphLoadingError {
+        fn from(value: font_kit::error::GlyphLoadingError) -> Self {
+            use GlyphLoadingError::*;
+            match value {
+                font_kit::error::GlyphLoadingError::NoSuchGlyph => NoSuchGlyph,
+                font_kit::error::GlyphLoadingError::PlatformError => PlatformError,
+            }
         }
     }
 }
