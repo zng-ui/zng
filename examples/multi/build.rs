@@ -18,6 +18,8 @@ fn android() {
 
         let output_path = Path::new(&output_path).join(env::var("CARGO_NDK_ANDROID_TARGET").unwrap());
         let _ = fs::create_dir_all(&output_path);
-        std::fs::copy(lib_path, output_path.join("libc++_shared.so")).unwrap();
+        let output_path = output_path.join("libc++_shared.so");
+        std::fs::copy(lib_path, &output_path).unwrap();
+        println!("cargo:rerun-if-changed={}", output_path.display());
     }
 }
