@@ -39,9 +39,8 @@ mod android {
 
     #[no_mangle]
     fn android_main(app: zng::view_process::default::android::AndroidApp) {
-        zng::app::print_tracing(tracing::Level::INFO);
-
         zng::env::init!();
+        zng::app::print_tracing(tracing::Level::INFO);
 
         if let Some(p) = app.internal_data_path() {
             zng::env::init_config(p);

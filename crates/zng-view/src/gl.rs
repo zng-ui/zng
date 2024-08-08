@@ -682,23 +682,26 @@ pub(crate) fn warmup() {}
 
 // check if equal or newer then 3.1
 fn check_wr_gl_version(gl: &dyn gl::Gl) -> Result<(), String> {
-    let version = gl.get_string(gl::VERSION);
-
-    // versions can be "3.1" or "3.1.0" or "3.3 some text"
-    // we take the major and optionally minor versions.
-    let ver: Vec<_> = version.split(['.', ' ']).take(2).filter_map(|n| n.parse::<u8>().ok()).collect();
-
-    let supported = if ver[0] == 3 {
-        ver.get(1).copied().unwrap_or(0) >= 1
-    } else {
-        ver[0] > 3
+    let mut version = [0; 2];
+    // SAFETY: API available in all impls
+    unsafe {
+        gl.get_integer_v(gl::MAJOR_VERSION, &mut version[..1]);
+        gl.get_integer_v(gl::MAJOR_VERSION, &mut version[1..]);
     };
 
-    if supported {
-        Ok(())
-    } else {
-        Err(format!("webrender requires OpenGL 3.1 or newer, found {version}"))
+    if version[0] >= 3 {
+        let min_minor = match gl.get_type() {
+            gl::GlType::Gl => 1,
+            gl::GlType::Gles => 0,
+        };
+        if version[1] >= min_minor {
+            return Ok(());
+        }
     }
+    Err(format!(
+        "webrender requires OpenGL >=3.1 or OpenGL ES >=3.0, found {}",
+        gl.get_string(gl::VERSION)
+    ))
 }
 
 /// Glutin, SWGL config to attempt.
