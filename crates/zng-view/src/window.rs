@@ -358,6 +358,12 @@ impl Window {
             // extensions expect this to be set.
             workers: Some(crate::util::wr_workers()),
 
+            // rendering is broken on Android emulators with unoptimized shaders.
+            // see: https://github.com/servo/servo/pull/31727
+            // webrender issue: https://bugzilla.mozilla.org/show_bug.cgi?id=1887337
+            #[cfg(target_os = "android")]
+            use_optimized_shaders: true,
+
             //panic_on_gl_error: true,
             ..Default::default()
         };
