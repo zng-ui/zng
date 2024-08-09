@@ -31,6 +31,7 @@ pub fn run() {
                     count.set(c);
                 });
             };
+            color_scheme = color::ColorScheme::Dark;
             widget::background_gradient = {
                 axis: 180.deg(),
                 stops: color::gradient::stops![
