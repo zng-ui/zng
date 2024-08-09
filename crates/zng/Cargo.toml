@@ -192,11 +192,6 @@ android_game_activity = ["zng-view?/android_game_activity"]
 # See `https://docs.rs/winit/latest/winit/platform/android/` for more details. 
 android_native_activity = ["zng-view?/android_native_activity"]
 
-# Enable Android API level 29+ integration.
-#
-# Currently this enables better system font queries on the FONTS service.
-android_api_level_29 = ["zng-ext-font/android_api_level_29"]
-
 [dependencies]
 # foundation
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }

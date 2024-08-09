@@ -1,5 +1,10 @@
 # Unreleased
 
+* Implement system fonts query for Android.
+* Implement conversions from `FontStyle`, `FontWeight` and  `FontStretch` to the `ttf-parser` equivalent types.
+* Implement `PartialOrd, Ord` for `FontName`.
+* Implemented Android `run_same_process` entry point.
+* Fixed Android build errors.
 * Fix gradient stops that mix positional stops with offset stops. 
 * Fix build in platforms without `AtomicU64`.
 * Fix `zng::env::bin` in Wasm builds.

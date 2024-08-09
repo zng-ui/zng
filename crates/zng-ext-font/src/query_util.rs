@@ -7,66 +7,6 @@ pub use wasm::*;
 #[cfg(target_os = "android")]
 pub use android::*;
 
-#[cfg(target_arch = "wasm32")]
-mod wasm {
-    use zng_var::ResponseVar;
-
-    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
-
-    pub fn system_all() -> ResponseVar<Vec<FontName>> {
-        zng_var::response_done_var(vec![])
-    }
-
-    pub fn best(
-        font_name: &FontName,
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
-        let _ = (font_name, style, weight, stretch);
-        Err(FontLoadingError::NoFilesystem)
-    }
-}
-
-#[cfg(target_os = "android")]
-mod android {
-    use zng_var::ResponseVar;
-
-    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
-
-    #[cfg(feature = "android_api_level_29")]
-    pub fn system_all() -> ResponseVar<Vec<FontName>> {
-        zng_task::wait_respond(|| {
-            ndk::font::SystemFontIterator::new()
-                .into_iter()
-                .flatten()
-                .filter_map(|f| {
-                    let bytes = std::fs::read(f.path()).ok()?;
-                    let bytes = FontDataRef(std::sync::Arc::new(bytes));
-                    let face_index = f.collection_index();
-                    let f = crate::FontFace::load(bytes, face_index as _).ok()?;
-                    Some(f.family_name().clone())
-                })
-                .collect()
-        })
-    }
-
-    #[cfg(not(feature = "android_api_level_29"))]
-    pub fn system_all() -> ResponseVar<Vec<FontName>> {
-        zng_var::response_done_var(vec![])
-    }
-
-    pub fn best(
-        font_name: &FontName,
-        style: FontStyle,
-        weight: FontWeight,
-        stretch: FontStretch,
-    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
-        let _ = (font_name, style, weight, stretch);
-        Err(FontLoadingError::NoFilesystem)
-    }
-}
-
 #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 mod desktop {
     use std::{borrow::Cow, path::Path, sync::Arc};
@@ -255,7 +195,7 @@ mod desktop {
                 "monospace" => Monospace,
                 "cursive" => Cursive,
                 "fantasy" => Fantasy,
-                _ => Title(font_name.text.into()),
+                _ => Title(font_name.txt.into()),
             }
         }
     }
@@ -290,6 +230,297 @@ mod desktop {
                 font_kit::error::GlyphLoadingError::NoSuchGlyph => NoSuchGlyph,
                 font_kit::error::GlyphLoadingError::PlatformError => PlatformError,
             }
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+mod wasm {
+    use zng_var::ResponseVar;
+
+    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
+
+    pub fn system_all() -> ResponseVar<Vec<FontName>> {
+        zng_var::response_done_var(vec![])
+    }
+
+    pub fn best(
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
+        let _ = (font_name, style, weight, stretch);
+        Err(FontLoadingError::NoFilesystem)
+    }
+}
+
+#[cfg(target_os = "android")]
+mod android {
+    // font-kit does not cross compile for Android because of a dependency,
+    // so we reimplement/copy some of their code here.
+
+    use std::{path::PathBuf, sync::Arc};
+
+    use zng_var::ResponseVar;
+
+    use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight};
+
+    pub fn system_all() -> ResponseVar<Vec<FontName>> {
+        zng_task::wait_respond(|| {
+            let mut prev = None;
+            cached_system_all()
+                .iter()
+                .flat_map(|(k, _)| {
+                    if prev == Some(k) {
+                        None
+                    } else {
+                        prev = Some(k);
+                        Some(k)
+                    }
+                })
+                .cloned()
+                .collect()
+        })
+    }
+
+    fn cached_system_all() -> parking_lot::MappedRwLockReadGuard<'static, Vec<(FontName, PathBuf)>> {
+        let lock = SYSTEM_ALL.read();
+        if !lock.is_empty() {
+            return lock;
+        }
+
+        drop(lock);
+        let mut lock = SYSTEM_ALL.write();
+        if lock.is_empty() {
+            for entry in ["/system/fonts/", "/system/font/", "/data/fonts/", "/system/product/fonts/"]
+                .iter()
+                .flat_map(std::fs::read_dir)
+                .flatten()
+                .flatten()
+            {
+                let entry = entry.path();
+                let ext = entry.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
+                if ["ttf", "otf"].contains(&ext.as_str()) && entry.is_file() {
+                    if let Ok(bytes) = std::fs::read(&entry) {
+                        match crate::FontFace::load(FontDataRef(Arc::new(bytes)), 0) {
+                            Ok(f) => {
+                                lock.push((f.family_name().clone(), entry));
+                            }
+                            Err(e) => tracing::error!("error parsing '{}', {e}", entry.display()),
+                        }
+                    }
+                }
+            }
+            lock.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        drop(lock);
+        SYSTEM_ALL.read()
+    }
+
+    pub fn best(
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+    ) -> Result<Option<(FontDataRef, u32)>, FontLoadingError> {
+        let lock = cached_system_all();
+        let lock = &*lock;
+
+        let mut start_i = match lock.binary_search_by(|a| a.0.cmp(font_name)) {
+            Ok(i) => i,
+            Err(_) => return Ok(None),
+        };
+        while start_i > 0 && &lock[start_i - 1].0 == font_name {
+            start_i -= 1
+        }
+        let mut end_i = start_i;
+        while end_i + 1 < lock.len() && &lock[end_i + 1].0 == font_name {
+            end_i += 1
+        }
+
+        let family_len = end_i - start_i;
+        let mut options = Vec::with_capacity(family_len);
+        let mut candidates = Vec::with_capacity(family_len);
+
+        for (_, path) in &lock[start_i..=end_i] {
+            if let Ok(bytes) = std::fs::read(path) {
+                if let Ok(f) = ttf_parser::Face::parse(&bytes, 0) {
+                    candidates.push(matching::Properties {
+                        style: f.style(),
+                        weight: f.weight(),
+                        stretch: f.width(),
+                    });
+                    options.push(bytes);
+                }
+            }
+        }
+
+        match matching::find_best_match(
+            &candidates,
+            &matching::Properties {
+                style: style.into(),
+                weight: weight.into(),
+                stretch: stretch.into(),
+            },
+        ) {
+            Ok(i) => {
+                let bytes = options.swap_remove(i);
+                Ok(Some((FontDataRef(Arc::new(bytes)), 0)))
+            }
+            Err(FontLoadingError::NoSuchFontInCollection) => {
+                tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
+                Ok(None)
+            }
+            Err(e) => Err(FontLoadingError::Io(Arc::new(std::io::Error::new(std::io::ErrorKind::Other, e)))),
+        }
+    }
+
+    zng_app_context::app_local! {
+        static SYSTEM_ALL: Vec<(FontName, PathBuf)> = vec![];
+    }
+
+    mod matching {
+        // font-kit/src/matching.rs
+        //
+        // Copyright © 2018 The Pathfinder Project Developers.
+        //
+        // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+        // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+        // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+        // option. This file may not be copied, modified, or distributed
+        // except according to those terms.
+
+        //! Determines the closest font matching a description per the CSS Fonts Level 3 specification.
+
+        use ttf_parser::{Style, Weight, Width as Stretch};
+
+        use crate::FontLoadingError;
+
+        pub struct Properties {
+            pub style: Style,
+            pub weight: Weight,
+            pub stretch: Stretch,
+        }
+
+        /// This follows CSS Fonts Level 3 § 5.2 [1].
+        ///
+        /// https://drafts.csswg.org/css-fonts-3/#font-style-matching
+        pub fn find_best_match(candidates: &[Properties], query: &Properties) -> Result<usize, FontLoadingError> {
+            // Step 4.
+            let mut matching_set: Vec<usize> = (0..candidates.len()).collect();
+            if matching_set.is_empty() {
+                return Err(FontLoadingError::NoSuchFontInCollection);
+            }
+
+            // Step 4a (`font-stretch`).
+            let matching_stretch = if matching_set.iter().any(|&index| candidates[index].stretch == query.stretch) {
+                // Exact match.
+                query.stretch
+            } else if query.stretch <= Stretch::Normal {
+                // Closest width, first checking narrower values and then wider values.
+                match matching_set
+                    .iter()
+                    .filter(|&&index| candidates[index].stretch < query.stretch)
+                    .min_by_key(|&&index| query.stretch.to_number() - candidates[index].stretch.to_number())
+                {
+                    Some(&matching_index) => candidates[matching_index].stretch,
+                    None => {
+                        let matching_index = *matching_set
+                            .iter()
+                            .min_by_key(|&&index| candidates[index].stretch.to_number() - query.stretch.to_number())
+                            .unwrap();
+                        candidates[matching_index].stretch
+                    }
+                }
+            } else {
+                // Closest width, first checking wider values and then narrower values.
+                match matching_set
+                    .iter()
+                    .filter(|&&index| candidates[index].stretch > query.stretch)
+                    .min_by_key(|&&index| candidates[index].stretch.to_number() - query.stretch.to_number())
+                {
+                    Some(&matching_index) => candidates[matching_index].stretch,
+                    None => {
+                        let matching_index = *matching_set
+                            .iter()
+                            .min_by_key(|&&index| query.stretch.to_number() - candidates[index].stretch.to_number())
+                            .unwrap();
+                        candidates[matching_index].stretch
+                    }
+                }
+            };
+            matching_set.retain(|&index| candidates[index].stretch == matching_stretch);
+
+            // Step 4b (`font-style`).
+            let style_preference = match query.style {
+                Style::Italic => [Style::Italic, Style::Oblique, Style::Normal],
+                Style::Oblique => [Style::Oblique, Style::Italic, Style::Normal],
+                Style::Normal => [Style::Normal, Style::Oblique, Style::Italic],
+            };
+            let matching_style = *style_preference
+                .iter()
+                .find(|&query_style| matching_set.iter().any(|&index| candidates[index].style == *query_style))
+                .unwrap();
+            matching_set.retain(|&index| candidates[index].style == matching_style);
+
+            // Step 4c (`font-weight`).
+            //
+            // The spec doesn't say what to do if the weight is between 400 and 500 exclusive, so we
+            // just use 450 as the cutoff.
+            let matching_weight = if matching_set.iter().any(|&index| candidates[index].weight == query.weight) {
+                query.weight
+            } else if query.weight.to_number() >= 400
+                && query.weight.to_number() < 450
+                && matching_set.iter().any(|&index| candidates[index].weight == Weight::from(500))
+            {
+                // Check 500 first.
+                Weight::from(500)
+            } else if query.weight.to_number() >= 450
+                && query.weight.to_number() <= 500
+                && matching_set.iter().any(|&index| candidates[index].weight.to_number() == 400)
+            {
+                // Check 400 first.
+                Weight::from(400)
+            } else if query.weight.to_number() <= 500 {
+                // Closest weight, first checking thinner values and then fatter ones.
+                match matching_set
+                    .iter()
+                    .filter(|&&index| candidates[index].weight.to_number() <= query.weight.to_number())
+                    .min_by_key(|&&index| query.weight.to_number() - candidates[index].weight.to_number())
+                {
+                    Some(&matching_index) => candidates[matching_index].weight,
+                    None => {
+                        let matching_index = *matching_set
+                            .iter()
+                            .min_by_key(|&&index| candidates[index].weight.to_number() - query.weight.to_number())
+                            .unwrap();
+                        candidates[matching_index].weight
+                    }
+                }
+            } else {
+                // Closest weight, first checking fatter values and then thinner ones.
+                match matching_set
+                    .iter()
+                    .filter(|&&index| candidates[index].weight.to_number() >= query.weight.to_number())
+                    .min_by_key(|&&index| candidates[index].weight.to_number() - query.weight.to_number())
+                {
+                    Some(&matching_index) => candidates[matching_index].weight,
+                    None => {
+                        let matching_index = *matching_set
+                            .iter()
+                            .min_by_key(|&&index| query.weight.to_number() - candidates[index].weight.to_number())
+                            .unwrap();
+                        candidates[matching_index].weight
+                    }
+                }
+            };
+            matching_set.retain(|&index| candidates[index].weight == matching_weight);
+
+            // Step 4d concerns `font-size`, but fonts in `font-kit` are unsized, so we ignore that.
+
+            // Return the result.
+            matching_set.into_iter().next().ok_or(FontLoadingError::NoSuchFontInCollection)
         }
     }
 }
