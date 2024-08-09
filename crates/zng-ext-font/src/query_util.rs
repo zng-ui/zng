@@ -260,7 +260,7 @@ mod android {
     // font-kit does not cross compile for Android because of a dependency,
     // so we reimplement/copy some of their code here.
 
-    use std::{path::PathBuf, sync::Arc};
+    use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
     use zng_var::ResponseVar;
 
@@ -327,9 +327,23 @@ mod android {
         let lock = cached_system_all();
         let lock = &*lock;
 
+        // special names
+        // source: https://android.googlesource.com/platform/frameworks/base/+/master/data/fonts/fonts.xml
+        let font_name = match font_name.name() {
+            "sans-serif" => Cow::Owned(FontName::new("Noto Sans")),
+            "serif" | "fantasy" => Cow::Owned(FontName::new("Noto Serif")),
+            "cursive" => Cow::Owned(FontName::new("Dancing Script")),
+            "monospace" => Cow::Owned(FontName::new("Droid Sans Mono")),
+            _ => Cow::Borrowed(font_name),
+        };
+        let font_name = &*font_name;
+
         let mut start_i = match lock.binary_search_by(|a| a.0.cmp(font_name)) {
             Ok(i) => i,
-            Err(_) => return Ok(None),
+            Err(_) => {
+                tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
+                return Ok(None);
+            }
         };
         while start_i > 0 && &lock[start_i - 1].0 == font_name {
             start_i -= 1
