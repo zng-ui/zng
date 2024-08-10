@@ -1,5 +1,9 @@
 # Unreleased
 
+* `VIEW_PROCESS_INITED_EVENT` now notifies a "respawn" on resume after suspension.
+* **Breaking** Add `Event::Suspended`.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api`.
+* Add `ViewExtension::suspended/resumed`.
 * Implement system fonts query for Android.
 * Implement conversions from `FontStyle`, `FontWeight` and  `FontStretch` to the `ttf-parser` equivalent types.
 * Implement `PartialOrd, Ord` for `FontName`.

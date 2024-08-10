@@ -332,8 +332,6 @@ fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
 
 /// The backend implementation.
 pub(crate) struct App {
-    started: bool,
-
     headless: bool,
 
     exts: ViewExtensions,
@@ -348,7 +346,7 @@ pub(crate) struct App {
     event_sender: ipc::EventSender,
     image_cache: ImageCache,
 
-    gen: ViewProcessGen,
+    generation: ViewProcessGen,
     device_events: bool,
 
     windows: Vec<Window>,
@@ -384,13 +382,14 @@ pub(crate) struct App {
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
+    app_state: AppState,
     exited: bool,
 }
 impl fmt::Debug for App {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HeadlessBackend")
-            .field("started", &self.started)
-            .field("gen", &self.gen)
+            .field("app_state", &self.app_state)
+            .field("generation", &self.generation)
             .field("device_events", &self.device_events)
             .field("windows", &self.windows)
             .field("surfaces", &self.surfaces)
@@ -398,7 +397,29 @@ impl fmt::Debug for App {
     }
 }
 impl winit::application::ApplicationHandler<AppEvent> for App {
-    fn resumed(&mut self, _: &ActiveEventLoop) {}
+    fn resumed(&mut self, _: &ActiveEventLoop) {
+        if let AppState::Suspended = self.app_state {
+            self.exts.resumed();
+            self.generation = self.generation.next();
+            let available_monitors = self.available_monitors();
+            self.notify(Event::Inited(Inited {
+                generation: self.generation,
+                is_respawn: true,
+                available_monitors,
+                multi_click_config: config::multi_click_config(),
+                key_repeat_config: config::key_repeat_config(),
+                touch_config: config::touch_config(),
+                font_aa: config::font_aa(),
+                animations_config: config::animations_config(),
+                locale_config: config::locale_config(),
+                colors_config: config::colors_config(),
+                extensions: self.exts.api_extensions(),
+            }));
+        } else {
+            self.exts.init(&self.app_sender);
+        }
+        self.app_state = AppState::Resumed;
+    }
 
     fn window_event(&mut self, winit_loop: &ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.window_id() == window_id) {
@@ -643,7 +664,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     let key = util::winit_key_to_key(event.key_without_modifiers());
                     let key_modified = util::winit_key_to_key(event.logical_key);
                     #[cfg(target_os = "android")]
-                    let key = key_modified.clone(); // !!: TODO
+                    let key = key_modified.clone();
                     let key_code = util::winit_physical_key_to_key_code(event.physical_key);
                     let key_location = util::winit_key_location_to_zng(event.location);
                     let d_id = self.device_id(device_id);
@@ -967,7 +988,12 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
     }
 
     fn suspended(&mut self, _: &ActiveEventLoop) {
-        unimplemented!()
+        self.app_state = AppState::Suspended;
+        self.windows.clear();
+        self.surfaces.clear();
+        self.image_cache.clear();
+        self.exts.suspended();
+        self.notify(Event::Suspended)
     }
 
     fn exiting(&mut self, event_loop: &ActiveEventLoop) {
@@ -993,6 +1019,13 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         winit_loop_guard.unset(&mut self.winit_loop);
     }
 }
+#[derive(Debug, Clone, Copy)]
+enum AppState {
+    PreInitSuspended,
+    Resumed,
+    Suspended,
+}
+
 struct IdleTrace(Option<tracing::span::EnteredSpan>);
 impl IdleTrace {
     pub fn enter(&mut self) {
@@ -1071,6 +1104,7 @@ impl App {
             fn resumed(&mut self, winit_loop: &ActiveEventLoop) {
                 let mut winit_loop_guard = self.app.winit_loop.set(winit_loop);
 
+                self.app.resumed(winit_loop);
                 self.app.start_receiving(self.request_receiver.take().unwrap());
 
                 'app_loop: while !self.app.exited {
@@ -1140,6 +1174,10 @@ impl App {
             }
 
             fn window_event(&mut self, _: &ActiveEventLoop, _: winit::window::WindowId, _: WindowEvent) {}
+
+            fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+                self.app.suspended(event_loop);
+            }
         }
     }
 
@@ -1186,16 +1224,14 @@ impl App {
         response_sender: ipc::ResponseSender,
         event_sender: ipc::EventSender,
         request_recv: flume::Receiver<RequestEvent>,
-        mut ext: ViewExtensions,
+        mut exts: ViewExtensions,
     ) -> Self {
-        ext.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
-        ext.init(&app_sender);
+        exts.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
         let mut idle = IdleTrace(None);
         idle.enter();
         App {
             headless: false,
-            started: false,
-            exts: ext,
+            exts,
             idle,
             gl_manager: GlContextManager::default(),
             image_cache: ImageCache::new(app_sender.clone()),
@@ -1204,7 +1240,7 @@ impl App {
             response_sender,
             event_sender,
             winit_loop: util::WinitEventLoop::default(),
-            gen: ViewProcessGen::INVALID,
+            generation: ViewProcessGen::INVALID,
             device_events: false,
             windows: vec![],
             surfaces: vec![],
@@ -1216,6 +1252,7 @@ impl App {
             resize_frame_wait_id_gen: FrameWaitId::INVALID,
             coalescing_event: None,
             cursor_entered_expect_move: Vec::with_capacity(1),
+            app_state: AppState::PreInitSuspended,
             exited: false,
             #[cfg(windows)]
             skip_ralt: false,
@@ -1463,9 +1500,7 @@ impl App {
     }
 
     fn assert_started(&self) {
-        if !self.started {
-            panic!("not started")
-        }
+        assert!(matches!(self.app_state, AppState::Resumed));
     }
 
     fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
@@ -1537,7 +1572,7 @@ impl App {
     fn open_headless_impl(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
         self.assert_started();
         let surf = Surface::open(
-            self.gen,
+            self.generation,
             config,
             &self.winit_loop,
             &mut self.gl_manager,
@@ -1565,14 +1600,11 @@ impl App {
 
 impl Api for App {
     fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
-        if self.started {
-            panic!("already started");
-        }
         if self.exited {
             panic!("cannot restart exited");
         }
-        self.started = true;
-        self.gen = gen;
+
+        self.generation = gen;
         self.device_events = device_events;
         self.headless = headless;
 
@@ -1596,7 +1628,6 @@ impl Api for App {
 
     fn exit(&mut self) {
         self.assert_started();
-        self.started = false;
         self.exited = true;
         if let Some(t) = self.config_listener_exit.take() {
             t();
@@ -1643,7 +1674,7 @@ impl Api for App {
 
             let id = config.id;
             let win = Window::open(
-                self.gen,
+                self.generation,
                 config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
                 config
                     .cursor_image

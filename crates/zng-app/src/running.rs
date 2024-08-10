@@ -499,7 +499,9 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Others
-            Event::Inited(zng_view_api::Inited { .. }) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
+            Event::Inited(zng_view_api::Inited { .. }) | Event::Suspended | Event::Disconnected(_) | Event::FrameRendered(_) => {
+                unreachable!()
+            } // handled before coalesce.
         }
     }
 
@@ -597,6 +599,9 @@ impl<E: AppExtension> RunningApp<E> {
                         extensions,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
+                }
+                zng_view_api::Event::Suspended => {
+                    // !!: TODO
                 }
                 zng_view_api::Event::Disconnected(gen) => {
                     // update ViewProcess immediately.

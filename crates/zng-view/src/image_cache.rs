@@ -847,6 +847,10 @@ impl ImageCache {
     pub(crate) fn on_low_memory(&mut self) {
         // app-process controls this cache
     }
+
+    pub(crate) fn clear(&mut self) {
+        self.images.clear();
+    }
 }
 
 /// (pixels, size, ppi, is_opaque, is_mask)
