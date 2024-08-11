@@ -361,6 +361,10 @@ impl VIEW_PROCESS {
         me.process.handle_inited(gen);
     }
 
+    pub(super) fn handle_suspended(&self) {
+        self.write().process.handle_suspended();
+    }
+
     pub(crate) fn on_headless_opened(
         &self,
         id: WindowId,

@@ -289,11 +289,18 @@ impl Controller {
 
     /// Handle an [`Event::Inited`].
     ///
-    /// Set the online flag.
+    /// Set the online flag to `true` if `gen` matches.
     pub fn handle_inited(&mut self, gen: ViewProcessGen) {
         if gen == self.generation {
             self.online = true;
         }
+    }
+
+    /// Handle an [`Event::Suspended`].
+    ///
+    /// Set the online flat to `false`.
+    pub fn handle_suspended(&mut self) {
+        self.online = false;
     }
 
     /// Handle an [`Event::Disconnected`].

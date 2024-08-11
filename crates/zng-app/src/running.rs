@@ -602,6 +602,7 @@ impl<E: AppExtension> RunningApp<E> {
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
                 }
                 zng_view_api::Event::Suspended => {
+                    VIEW_PROCESS.handle_suspended();
                     let args = crate::view_process::ViewProcessSuspendedArgs::now();
                     self.notify_event(VIEW_PROCESS_SUSPENDED_EVENT.new_update(args), observer);
                     APP_PROCESS_SV.read().is_suspended.set(true);
