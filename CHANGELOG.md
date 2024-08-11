@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `APP.is_suspended` var.
+* Add `VIEW_PROCESS_SUSPENDED_EVENT`.
 * `VIEW_PROCESS_INITED_EVENT` now notifies a "respawn" on resume after suspension.
 * **Breaking** Add `Event::Suspended`.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.

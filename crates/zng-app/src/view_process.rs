@@ -562,6 +562,8 @@ event_args! {
 
         /// If this is not the first time a view-process was inited. If `true`
         /// all resources created in a previous generation must be rebuilt.
+        ///
+        /// This can happen after a view-process crash or app suspension.
         pub is_respawn: bool,
 
         /// Monitors list.
