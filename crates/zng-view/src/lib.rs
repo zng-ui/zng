@@ -397,8 +397,10 @@ impl fmt::Debug for App {
     }
 }
 impl winit::application::ApplicationHandler<AppEvent> for App {
-    fn resumed(&mut self, _: &ActiveEventLoop) {
+    fn resumed(&mut self, winit_loop: &ActiveEventLoop) {
         if let AppState::Suspended = self.app_state {
+            let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+
             self.exts.resumed();
             self.generation = self.generation.next();
             let available_monitors = self.available_monitors();
@@ -415,6 +417,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 colors_config: config::colors_config(),
                 extensions: self.exts.api_extensions(),
             }));
+
+            winit_loop_guard.unset(&mut self.winit_loop);
         } else {
             self.exts.init(&self.app_sender);
         }
@@ -1499,12 +1503,13 @@ impl App {
         }
     }
 
-    fn assert_started(&self) {
+    #[track_caller]
+    fn assert_resumed(&self) {
         assert!(matches!(self.app_state, AppState::Resumed));
     }
 
     fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
-        self.assert_started();
+        self.assert_resumed();
         self.windows.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
             tracing::error!("headed window `{id:?}` not found, will return fallback result");
             not_found()
@@ -1533,8 +1538,6 @@ impl App {
 
     fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)> {
         let _span = tracing::trace_span!("available_monitors").entered();
-
-        self.assert_started();
 
         let primary = self.winit_loop.primary_monitor();
         self.winit_loop
@@ -1570,7 +1573,7 @@ impl Drop for App {
 }
 impl App {
     fn open_headless_impl(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
-        self.assert_started();
+        self.assert_resumed();
         let surf = Surface::open(
             self.generation,
             config,
@@ -1627,7 +1630,7 @@ impl Api for App {
     }
 
     fn exit(&mut self) {
-        self.assert_started();
+        self.assert_resumed();
         self.exited = true;
         if let Some(t) = self.config_listener_exit.take() {
             t();
@@ -1670,7 +1673,7 @@ impl Api for App {
 
             self.notify(Event::WindowOpened(id, msg));
         } else {
-            self.assert_started();
+            self.assert_resumed();
 
             let id = config.id;
             let win = Window::open(
@@ -1714,7 +1717,7 @@ impl Api for App {
     fn close(&mut self, id: WindowId) {
         let _s = tracing::debug_span!("close_window", ?id);
 
-        self.assert_started();
+        self.assert_resumed();
         if let Some(i) = self.windows.iter().position(|w| w.id() == id) {
             let _ = self.windows.swap_remove(i);
         }
@@ -1769,7 +1772,7 @@ impl Api for App {
     }
 
     fn set_headless_size(&mut self, renderer: WindowId, size: DipSize, scale_factor: Factor) {
-        self.assert_started();
+        self.assert_resumed();
         if let Some(surf) = self.surfaces.iter_mut().find(|s| s.id() == renderer) {
             surf.set_size(size, scale_factor)
         }

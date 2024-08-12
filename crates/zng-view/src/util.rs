@@ -1593,7 +1593,7 @@ pub(crate) fn frame_update_render_reasons(update: &FrameUpdateRequest) -> wr::Re
     reasons
 }
 
-#[must_use = "call .unset before drop"]
+#[must_use = "call unset before drop"]
 pub(crate) struct WinitEventLoop(*const ActiveEventLoop);
 impl WinitEventLoop {
     pub fn set<'l>(&mut self, winit_loop: &'l ActiveEventLoop) -> WinitEventLoopGuard<'l> {
