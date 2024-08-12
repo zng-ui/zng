@@ -901,7 +901,9 @@ fn apk() {
                     .arg("-validity")
                     .arg("10000")
                     .arg("-dname")
-                    .arg("CN=Android Debug,O=Android,C=US");
+                    .arg("CN=Android Debug,O=Android,C=US")
+                    .arg("-storetype")
+                    .arg("pkcs12");
 
                 match keytool.status() {
                     Ok(s) => {

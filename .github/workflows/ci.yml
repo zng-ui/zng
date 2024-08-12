@@ -96,9 +96,21 @@ jobs:
   check-android-windows:
     runs-on: windows-latest
     needs: [check-windows]
-    # env:
-    #   CC: 'clang-cl'
-    #   CXX: 'clang-cl'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:  
+          targets: aarch64-linux-android
+      - name: install cargo-ndk
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-ndk
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo do build-apk multi
+      - run: cargo clean
+  check-android-macos:
+    runs-on: macos-latest
+    needs: [check-macos]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -249,6 +261,7 @@ jobs:
       check-wasm, 
       check-android,
       check-android-windows,
+      check-android-macos,
       doc, 
       test-ubuntu, 
       test-windows, 
