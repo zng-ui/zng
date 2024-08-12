@@ -870,9 +870,10 @@ fn build(mut args: Vec<&str>) {
     cmd_env("cargo", &cargo_args, &args, rust_flags);
 }
 
-// do build-apk <EXAMPLE>
+// do build-apk <EXAMPLE> [--release-lto]
 //    Compile an example for Android using cargo-ndk and cargo zng res (.zr-apk)
 fn build_apk(mut args: Vec<&str>) {
+    let release_lto = take_flag(&mut args, &["--release-lto"]);
     let e = match args.pop() {
         Some(e) => e,
         None => fatal("missing example"),
@@ -897,6 +898,11 @@ fn build_apk(mut args: Vec<&str>) {
     let _ = std::fs::remove_dir_all(&apk_dir);
     let _ = std::fs::create_dir_all(&apk_dir);
     let apk_dir = dunce::canonicalize(apk_dir).unwrap();
+    let mut build_args = vec!["build", "-p", &example];
+    if release_lto {
+        build_args.push("--profile");
+        build_args.push("release-lto");
+    }
     cmd_env_req(
         "cargo",
         &[
@@ -906,7 +912,7 @@ fn build_apk(mut args: Vec<&str>) {
             "-o",
             apk_dir.join("lib").display().to_string().as_str(),
         ],
-        &["build", "-p", &example],
+        &build_args,
         &[("RUSTFLAGS", rust_flags.as_str())],
     );
 

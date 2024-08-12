@@ -78,6 +78,39 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo do run-wasm multi --no-serve
       - run: cargo clean
+  check-android:
+    runs-on: ubuntu-latest
+    needs: [check-ubuntu]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:  
+          targets: aarch64-linux-android
+      - name: install cargo-ndk
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-ndk
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo do build-apk multi
+      - run: cargo clean
+  check-android-windows:
+    runs-on: windows-latest
+    needs: [check-windows]
+    env:
+      CC: 'clang-cl'
+      CXX: 'clang-cl'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:  
+          targets: aarch64-linux-android
+      - name: install cargo-ndk
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-ndk
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo do build-apk multi
+      - run: cargo clean
   doc:
     runs-on: ubuntu-latest
     needs: [check-ubuntu]
@@ -211,6 +244,20 @@ jobs:
 
   test-all:
     runs-on: ubuntu-latest
-    needs: [check-release, check-wasm, doc, test-ubuntu, test-windows, test-macos, test-doc, test-macro, test-render-ubuntu, test-render-windows, test-render-macos]
+    needs: [
+      check-release, 
+      check-wasm, 
+      check-android,
+      check-android-windows,
+      doc, 
+      test-ubuntu, 
+      test-windows, 
+      test-macos, 
+      test-doc, 
+      test-macro, 
+      test-render-ubuntu, 
+      test-render-windows, 
+      test-render-macos
+    ]
     steps:
       - run: exit 0
