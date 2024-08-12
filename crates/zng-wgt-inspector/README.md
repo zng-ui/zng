@@ -18,6 +18,8 @@ Compiles the interactive inspector.
 #### `"crash_handler"`
 Compiles the debug crash handler.
 
+Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+
 <!--do doc --readme #SECTION-END-->
 
 

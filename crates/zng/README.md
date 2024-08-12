@@ -60,17 +60,17 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 29 feature flags, 4 enabled by default.
+This crate provides 31 feature flags, 4 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
 
-Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+Only enables in `not(target_arch = "wasm32")` builds.
 
 #### `"view_prebuilt"`
 Include the default view-process implementation as an embedded precompiled binary.
 
-Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 
 #### `"http"`
 Enables HTTP tasks and web features of widgets and services.
@@ -93,6 +93,8 @@ extend windows to be inspected on Ctrl+Shift+I.
 Enable hot reload builds.
 
 Note that you must configure the target library to hot reload, see `zng::hot_reload` for details.
+
+Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 
 #### `"dyn_app_extension"`
 Use dynamic dispatch at the app-extension level.
@@ -122,12 +124,14 @@ Enables single app-process instance mode.
 Builds with this feature only allow one app-process, subsequent attempts to spawn the app redirect to
 the running app-process.
 
+Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+
 #### `"crash_handler"`
 Allow app-process crash handler.
 
 Builds with this feature spawn a crash monitor-process for each app-process.
 
-Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 
 *Enabled by default.*
 
@@ -191,7 +195,7 @@ Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 #### `"ipc"`
 Enables IPC tasks, pre-build views and connecting to views running in another process.
 
-Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+Only enables in `not(any(target_os = "android", target_arch = "wasm32"))` builds.
 
 *Enabled by default.*
 
@@ -199,6 +203,16 @@ Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
 Check if `zng::env::res` path is available in `init_built_res` first.
 
 Enabled by default in debug builds.
+
+#### `"android_game_activity"`
+Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
+
+See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
+
+#### `"android_native_activity"`
+Basic Android backend that does not require Java.
+
+See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
 
 <!--do doc --readme #SECTION-END-->
 

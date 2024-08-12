@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement Android suspend/resume cycle using the existing "respawn" API.
 * Add `APP.is_suspended` var.
 * Add `VIEW_PROCESS_SUSPENDED_EVENT`.
 * `VIEW_PROCESS_INITED_EVENT` now notifies a "respawn" on resume after suspension.

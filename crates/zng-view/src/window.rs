@@ -1727,7 +1727,6 @@ impl Window {
 
     #[cfg(target_os = "android")]
     pub(crate) fn message_dialog(&self, dialog: dlg_api::MsgDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
-        // !!: TODO
         let _ = dialog;
         let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
             id,
@@ -1785,7 +1784,6 @@ impl Window {
 
     #[cfg(target_os = "android")]
     pub(crate) fn file_dialog(&self, dialog: dlg_api::FileDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
-        // !!: TODO
         let _ = dialog;
         let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
             id,
