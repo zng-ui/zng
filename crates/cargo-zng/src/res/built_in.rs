@@ -875,7 +875,7 @@ fn apk() {
             if !keystore.exists() {
                 // generate debug.keystore
                 let keytool_path = build_tools.join("keytool");
-                let mut keytool = Command::new(keytool_path);
+                let mut keytool = Command::new(&keytool_path);
                 keytool
                     .arg("-genkey")
                     .arg("-v")
@@ -894,8 +894,13 @@ fn apk() {
                     .arg("-validity")
                     .arg("10000");
 
-                if keytool.status().map(|s| !s.success()).unwrap_or(true) {
-                    fatal!("keytool failed generating debug keys");
+                match keytool.status() {
+                    Ok(s) => {
+                        if !s.success() {
+                            fatal!("keytool failed generating debug keys");
+                        }
+                    }
+                    Err(e) => fatal!("cannot run '{}', {e}", keytool_path.display()),
                 }
             }
         }
