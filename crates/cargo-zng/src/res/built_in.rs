@@ -869,12 +869,13 @@ fn apk() {
         if debug {
             let dirs = directories::BaseDirs::new().unwrap_or_else(|| fatal!("cannot fine $HOME"));
             keystore = dirs.home_dir().join(".android/debug.keystore");
-            keystore_pass = "pass:android".to_owned();
+            keystore_pass = "android".to_owned();
             key_alias = "androiddebugkey".to_owned();
-            key_pass = "pass:android".to_owned();
+            key_pass = "android".to_owned();
             if !keystore.exists() {
                 // generate debug.keystore
-                let keytool_path = build_tools.join("keytool");
+                let _ = fs::create_dir_all(keystore.parent().unwrap());
+                let keytool_path = Path::new(&env::var("JAVA_HOME").expect("please set JAVA_HOME")).join("bin/keytool");
                 let mut keytool = Command::new(&keytool_path);
                 keytool
                     .arg("-genkey")
@@ -892,7 +893,9 @@ fn apk() {
                     .arg("-keysize")
                     .arg("2048")
                     .arg("-validity")
-                    .arg("10000");
+                    .arg("10000")
+                    .arg("-dname")
+                    .arg("CN=Android Debug,O=Android,C=US");
 
                 match keytool.status() {
                     Ok(s) => {
@@ -911,11 +914,11 @@ fn apk() {
             .arg("--ks")
             .arg(keystore)
             .arg("--ks-pass")
-            .arg(keystore_pass)
+            .arg(format!("pass:{keystore_pass}"))
             .arg("--ks-key-alias")
             .arg(key_alias)
             .arg("--key-pass")
-            .arg(key_pass)
+            .arg(format!("pass:{key_pass}"))
             .arg("--out")
             .arg(&signed_apk_path)
             .arg(&aligned_apk_path);
