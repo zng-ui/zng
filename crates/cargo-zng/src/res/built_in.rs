@@ -750,6 +750,12 @@ fn apk() {
     let build_tools = Path::new(&android_home).join("build-tools/");
     let mut best_build = None;
     let mut best_version = semver::Version::new(0, 0, 0);
+
+    #[cfg(not(windows))]
+    const AAPT2_NAME: &str = "aapt2";
+    #[cfg(windows)]
+    const AAPT2_NAME: &str = "aapt2.exe";
+
     for dir in fs::read_dir(build_tools).unwrap_or_else(|e| fatal!("cannot read $ANDROID_HOME/build-tools/, {e}")) {
         let dir = dir
             .unwrap_or_else(|e| fatal!("cannot read $ANDROID_HOME/build-tools/ entry, {e}"))
@@ -760,7 +766,7 @@ fn apk() {
             .and_then(|f| f.to_str())
             .and_then(|f| semver::Version::parse(f).ok())
         {
-            if ver > best_version && dir.join("aapt2").exists() {
+            if ver > best_version && dir.join(AAPT2_NAME).exists() {
                 best_build = Some(dir);
                 best_version = ver;
             }
@@ -768,9 +774,9 @@ fn apk() {
     }
     let build_tools = match best_build {
         Some(p) => p,
-        None => fatal!("cannot find $ANDROID_HOME/build-tools/<version>/aapt2"),
+        None => fatal!("cannot find $ANDROID_HOME/build-tools/<version>/{AAPT2_NAME}"),
     };
-    let aapt2_path = build_tools.join("aapt2");
+    let aapt2_path = build_tools.join(AAPT2_NAME);
 
     // temp target dir
     let temp_dir = apk_folder.with_extension("apk.tmp");
@@ -907,7 +913,13 @@ fn apk() {
                 }
             }
         }
-        let apksigner_path = build_tools.join("apksigner");
+
+        #[cfg(not(windows))]
+        const APKSIGNER_NAME: &str = "apksigner";
+        #[cfg(windows)]
+        const APKSIGNER_NAME: &str = "apksigner.exe";
+
+        let apksigner_path = build_tools.join(APKSIGNER_NAME);
         let mut apksigner = Command::new(&apksigner_path);
         apksigner
             .arg("sign")

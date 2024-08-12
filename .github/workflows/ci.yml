@@ -96,9 +96,9 @@ jobs:
   check-android-windows:
     runs-on: windows-latest
     needs: [check-windows]
-    env:
-      CC: 'clang-cl'
-      CXX: 'clang-cl'
+    # env:
+    #   CC: 'clang-cl'
+    #   CXX: 'clang-cl'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
