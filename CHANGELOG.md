@@ -1,5 +1,17 @@
 # Unreleased
 
+* Implement Android suspend/resume cycle using the existing "respawn" API.
+* Add `APP.is_suspended` var.
+* Add `VIEW_PROCESS_SUSPENDED_EVENT`.
+* `VIEW_PROCESS_INITED_EVENT` now notifies a "respawn" on resume after suspension.
+* **Breaking** Add `Event::Suspended`.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api`.
+* Add `ViewExtension::suspended/resumed`.
+* Implement system fonts query for Android.
+* Implement conversions from `FontStyle`, `FontWeight` and  `FontStretch` to the `ttf-parser` equivalent types.
+* Implement `PartialOrd, Ord` for `FontName`.
+* Implemented Android `run_same_process` entry point.
+* Fixed Android build errors.
 * Fix gradient stops that mix positional stops with offset stops. 
 * Fix build in platforms without `AtomicU64`.
 * Fix `zng::env::bin` in Wasm builds.

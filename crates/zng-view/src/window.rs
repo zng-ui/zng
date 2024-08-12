@@ -1,13 +1,10 @@
 use std::{
     collections::VecDeque,
-    fmt,
-    future::Future,
-    mem,
+    fmt, mem,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    thread,
 };
 
 use tracing::span::EnteredSpan;
@@ -163,7 +160,7 @@ impl Window {
         let mut winit = WindowAttributes::default()
             .with_title(cfg.title)
             .with_resizable(cfg.resizable)
-            .with_transparent(cfg.transparent)
+            .with_transparent(cfg.transparent && cfg!(not(target_os = "android")))
             .with_window_icon(cfg_icon);
 
         let mut s = cfg.state;
@@ -237,7 +234,7 @@ impl Window {
             // so that there is no white frame when it's opening.
             //
             // unless its "kiosk" mode.
-            .with_visible(cfg.kiosk || matches!(s.state, WindowState::Exclusive));
+            .with_visible(cfg!(target_os = "android") || cfg.kiosk || matches!(s.state, WindowState::Exclusive));
 
         let mut render_mode = cfg.render_mode;
         if !cfg!(feature = "software") && render_mode == RenderMode::Software {
@@ -360,6 +357,12 @@ impl Window {
 
             // extensions expect this to be set.
             workers: Some(crate::util::wr_workers()),
+
+            // rendering is broken on Android emulators with unoptimized shaders.
+            // see: https://github.com/servo/servo/pull/31727
+            // webrender issue: https://bugzilla.mozilla.org/show_bug.cgi?id=1887337
+            #[cfg(target_os = "android")]
+            use_optimized_shaders: true,
 
             //panic_on_gl_error: true,
             ..Default::default()
@@ -1710,6 +1713,7 @@ impl Window {
         ApiExtensionPayload::unknown_extension(extension_id)
     }
 
+    #[cfg(not(target_os = "android"))]
     fn enter_dialog(&self, id: dlg_api::DialogId, event_sender: &AppEventSender) -> bool {
         let already_open = self.modal_dialog_active.swap(true, Ordering::Acquire);
         if already_open {
@@ -1721,7 +1725,17 @@ impl Window {
         already_open
     }
 
+    #[cfg(target_os = "android")]
+    pub(crate) fn message_dialog(&self, dialog: dlg_api::MsgDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
+        let _ = dialog;
+        let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
+            id,
+            dlg_api::MsgDialogResponse::Error(Txt::from_static("native dialogs not implemented for android")),
+        )));
+    }
+
     /// Shows a native message dialog.
+    #[cfg(not(target_os = "android"))]
     pub(crate) fn message_dialog(&self, dialog: dlg_api::MsgDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
         if self.enter_dialog(id, &event_sender) {
             return;
@@ -1768,7 +1782,17 @@ impl Window {
         });
     }
 
+    #[cfg(target_os = "android")]
+    pub(crate) fn file_dialog(&self, dialog: dlg_api::FileDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
+        let _ = dialog;
+        let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(
+            id,
+            dlg_api::MsgDialogResponse::Error(Txt::from_static("native dialogs not implemented for android")),
+        )));
+    }
+
     /// Shows a native file dialog.
+    #[cfg(not(target_os = "android"))]
     pub(crate) fn file_dialog(&self, dialog: dlg_api::FileDialog, id: dlg_api::DialogId, event_sender: AppEventSender) {
         if self.enter_dialog(id, &event_sender) {
             return;
@@ -1816,21 +1840,22 @@ impl Window {
         });
     }
     /// Run dialog unblocked.
-    fn run_dialog(run: impl Future + Send + 'static) {
+    #[cfg(not(target_os = "android"))]
+    fn run_dialog(run: impl std::future::Future + Send + 'static) {
         let mut task = Box::pin(run);
-        thread::spawn(move || {
-            struct ThreadWaker(thread::Thread);
+        std::thread::spawn(move || {
+            struct ThreadWaker(std::thread::Thread);
             impl std::task::Wake for ThreadWaker {
                 fn wake(self: std::sync::Arc<Self>) {
                     self.0.unpark();
                 }
             }
-            let waker = Arc::new(ThreadWaker(thread::current())).into();
+            let waker = Arc::new(ThreadWaker(std::thread::current())).into();
             let mut cx = std::task::Context::from_waker(&waker);
             loop {
                 match task.as_mut().poll(&mut cx) {
                     std::task::Poll::Ready(_) => return,
-                    std::task::Poll::Pending => thread::park(),
+                    std::task::Poll::Pending => std::thread::park(),
                 }
             }
         });

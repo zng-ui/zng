@@ -1,4 +1,4 @@
-error: unexpected token
+error: unexpected token, expected `}`
  --> cases/widget_new/unknown_special_value_in_when.rs:8:25
   |
 8 |             margin = foo!;

@@ -1408,6 +1408,8 @@ mod private {
 ///
 /// In `"wasm32"` builds logs to the browser console.
 ///
+/// In `"android"` builds logs to logcat.
+///
 /// See also [`test_log`] to enable panicking on error log.
 ///
 /// See also [`print_tracing_filter`] for the filter used by this.
@@ -1416,16 +1418,22 @@ mod private {
 pub fn print_tracing(max: tracing::Level) -> bool {
     use tracing_subscriber::prelude::*;
 
-    let fmt_layer = tracing_subscriber::fmt::layer().without_time();
+    let layers = tracing_subscriber::registry().with(FilterLayer(max));
 
-    #[cfg(target_arch = "wasm32")]
-    let fmt_layer = fmt_layer.with_ansi(false).with_writer(tracing_web::MakeWebConsoleWriter::new());
+    #[cfg(target_os = "android")]
+    let layers = layers.with(tracing_android::layer(&zng_env::about().pkg_name).unwrap());
 
-    tracing_subscriber::registry()
-        .with(FilterLayer(max))
-        .with(fmt_layer)
-        .try_init()
-        .is_ok()
+    #[cfg(not(target_os = "android"))]
+    let layers = {
+        let fmt_layer = tracing_subscriber::fmt::layer().without_time();
+
+        #[cfg(target_arch = "wasm32")]
+        let fmt_layer = fmt_layer.with_ansi(false).with_writer(tracing_web::MakeWebConsoleWriter::new());
+
+        layers.with(fmt_layer)
+    };
+
+    layers.try_init().is_ok()
 }
 
 struct FilterLayer(tracing::Level);

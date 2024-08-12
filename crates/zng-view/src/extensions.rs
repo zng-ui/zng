@@ -53,6 +53,28 @@ pub trait ViewExtension: Send + Any {
 
     /// System warning low memory, release unused memory, caches.
     fn low_memory(&mut self) {}
+
+    /// App is being suspended, all graphic resources must be dropped.
+    ///
+    /// Android and iOS apps can be suspended without fully exiting, all graphic resources must be dropped on suspension, and
+    /// any persistent state must be flushed because the app will process will exit if the user does not return to the app.
+    ///
+    /// Note that [`window`] and [`renderer`] resources are managed by the app and will be dropped automatically, this
+    /// callback only needs to drop custom graphic resources.
+    ///
+    /// [`window`]: Self::window
+    /// [`renderer`]: Self::renderer
+    fn suspended(&mut self) {}
+
+    /// App resumed from a suspended state.
+    ///
+    /// Expect [`window`] and [`renderer`] requests to recrate previous instances.
+    ///
+    /// Note that this is not called on init, only after a suspension.
+    ///
+    /// [`window`]: Self::window
+    /// [`renderer`]: Self::renderer
+    fn resumed(&mut self) {}
 }
 
 /// Represents a view extension associated with a headed window instance.
@@ -825,6 +847,18 @@ impl ViewExtensions {
     pub(crate) fn on_low_memory(&mut self) {
         for ext in self.exts.iter_mut() {
             ext.low_memory();
+        }
+    }
+
+    pub(crate) fn suspended(&mut self) {
+        for ext in self.exts.iter_mut() {
+            ext.suspended();
+        }
+    }
+
+    pub(crate) fn resumed(&mut self) {
+        for ext in self.exts.iter_mut() {
+            ext.resumed();
         }
     }
 

@@ -204,6 +204,27 @@ cargo do run markdown
 
 Demonstrates the `Markdown!` widget.
 
+### `multi`
+
+<img alt='multi screenshot' src='./multi/res/screenshot.png' width='300'>
+
+Source: [multi/src](./multi/src)
+
+```console
+cargo do run multi
+```
+
+Demonstrates a web, mobile and desktop app setup.
+
+Use `cargo do run multi` to run on the desktop.
+
+Use `cargo do build-apk multi` to build a package and Android Studio "Profile or Debug APK" to run on a device.
+
+Use `cargo do run-wasm multi` to run on the browser.
+
+Note that web support is very limited, only a small subset of services are supported and
+only headless (without renderer) apps can run.
+
 ### `respawn`
 
 <img alt='respawn screenshot' src='./respawn/res/screenshot.png' width='300'>
@@ -263,20 +284,6 @@ cargo do run transform
 ```
 
 Demonstrates 2D and 3D transforms, touch transforms.
-
-### `web`
-
-Source: [web/src](./web/src)
-
-```console
-cargo do run web
-```
-
-Demonstrates a hybrid web and desktop app setup.
-
-Note that only a small subset of services are supported and only headless (without renderer) apps can run.
-
-Use `cargo do run-wasm web` to run on the browser and `cargo do run web` to run standalone.
 
 ### `window`
 

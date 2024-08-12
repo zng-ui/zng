@@ -18,6 +18,8 @@ default = ["ipc", "software"]
 #
 # If this is enabled all communication with the view is serialized/deserialized, 
 # even in same-process mode.
+#
+# Only enables in `cfg(not(target_os = "android"))` builds.
 ipc = ["zng-view-api/ipc"]
 
 # Enables software renderer fallback.
@@ -38,6 +40,16 @@ bundle_licenses = ["zng-tp-licenses/bundle"]
 #
 # Removed for now because there is no way to exclude this feature from test runs that use --all-features
 # avif = ["image/avif", "image/avif-native"]
+
+# Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
+#
+# See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
+android_game_activity = ["winit/android-game-activity"]
+
+# Basic Android backend that does not require Java.
+#
+# See `https://docs.rs/winit/latest/winit/platform/android/` for more details. 
+android_native_activity = ["winit/android-native-activity"]
 
 [lib]
 crate-type = ["lib", "cdylib"]
@@ -91,9 +103,11 @@ serde = "1.0"
 accesskit = "0.16"
 accesskit_winit = "0.22"
 # rfd
-[target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd")))'.dependencies.rfd]
+## cfg(not(linux, android))
+[target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "android")))'.dependencies.rfd]
 version = "0.14"
 default-features = false
+## cfg(linux)
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies.rfd]
 version = "0.14"
 default-features = false
@@ -123,8 +137,9 @@ features = ["Foundation_Collections", "System_UserProfile", "UI_ViewManagement"]
 [target.'cfg(windows)'.dependencies]
 clipboard-win = { version = "5.0", features = ["std"] }
 
-[target.'cfg(not(windows))'.dependencies]
+[target.'cfg(not(any(windows, target_os = "android")))'.dependencies]
 arboard = "3.3"
+[target.'cfg(not(windows))'.dependencies]
 sys-locale = "0.3"
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
@@ -144,6 +159,7 @@ features = ["NSString"]
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.7", features = [
     "build",
 ] }
+cfg_aliases = "0.2"
 
 [package.metadata.docs.rs]
 all-features = true

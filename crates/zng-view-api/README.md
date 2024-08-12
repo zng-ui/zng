@@ -10,8 +10,7 @@ This crate provides 2 feature flags, 1 enabled by default.
 #### `"ipc"`
 Enables creation of separate or pre-build view.
 
-When this is enabled communication with the view is (de)serialized which can add a
-minor cost, something like a 1ms per 3MB frame request.
+Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32")))` builds.
 
 *Enabled by default.*
 

@@ -16,11 +16,11 @@ default = ["ipc", "debug_default", "view_software", "crash_handler"]
 
 # Include the default view-process implementation.
 #
-# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+# Only enables in `not(target_arch = "wasm32")` builds.
 view = ["dep:zng-view"]
 # Include the default view-process implementation as an embedded precompiled binary.
 #
-# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+# Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
 
 # Enables HTTP tasks and web features of widgets and services.
@@ -52,7 +52,7 @@ inspector = ["zng-app/inspector", "zng-wgt-inspector/live"]
 #
 # Note that you must configure the target library to hot reload, see `zng::hot_reload` for details.
 #
-# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+# Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 hot_reload = ["dep:zng-ext-hot-reload"]
 
 # Use dynamic dispatch at the app-extension level.
@@ -90,14 +90,14 @@ multi_app = ["zng-app/multi_app"]
 # Builds with this feature only allow one app-process, subsequent attempts to spawn the app redirect to
 # the running app-process.
 #
-# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+# Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 single_instance = ["dep:zng-ext-single-instance"]
 
 # Allow app-process crash handler.
 #
 # Builds with this feature spawn a crash monitor-process for each app-process.
 #
-# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+# Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
 crash_handler = ["zng-app/crash_handler", "zng-wgt-inspector/crash_handler"]
 
 # Instrument every widget outer-most node to trace UI methods.
@@ -174,13 +174,23 @@ view_bundle_licenses = ["zng-view?/bundle_licenses"]
 
 # Enables IPC tasks, pre-build views and connecting to views running in another process.
 #
-# Only enabled in `cfg(not(target_arch = "wasm32"))` builds.
+# Only enables in `not(any(target_os = "android", target_arch = "wasm32"))` builds.
 ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc", "zng-task/ipc"]
 
 # Check if `zng::env::res` path is available in `init_built_res` first.
 #
 # Enabled by default in debug builds.
 built_res = ["zng-env/built_res"]
+
+# Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
+#
+# See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
+android_game_activity = ["zng-view?/android_game_activity"]
+
+# Basic Android backend that does not require Java.
+#
+# See `https://docs.rs/winit/latest/winit/platform/android/` for more details. 
+android_native_activity = ["zng-view?/android_native_activity"]
 
 [dependencies]
 # foundation
@@ -251,9 +261,15 @@ tracing = "0.1"
 
 # view
 zng-view-api = { path = "../zng-view-api", version = "0.6.5", default-features = false }
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 zng-view = { path = "../zng-view", version = "0.4.11", default-features = false, optional = true }
+
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.11.0", optional = true }
+
+[build-dependencies]
+cfg_aliases = "0.2"
 
 [package.metadata.docs.rs]
 all-features = true

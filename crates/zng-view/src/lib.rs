@@ -105,8 +105,13 @@ use winit::{
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     keyboard::ModifiersState,
     monitor::MonitorHandle,
-    platform::modifier_supplement::KeyEventExtModifierSupplement,
 };
+
+#[cfg(not(target_os = "android"))]
+use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
+
+#[cfg(target_os = "android")]
+use winit::platform::android::EventLoopBuilderExtAndroid;
 
 mod config;
 mod display_list;
@@ -119,6 +124,8 @@ mod window;
 use surface::*;
 
 pub mod extensions;
+
+pub mod platform;
 
 /// Webrender build used in the view-process.
 #[doc(no_inline)]
@@ -151,7 +158,7 @@ use zng_view_api::{
 
 use rustc_hash::FxHashMap;
 
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 zng_env::on_process_start!(|_| {
     if std::env::var("ZNG_VIEW_NO_INIT_START").is_err() {
         view_process_main();
@@ -165,7 +172,7 @@ zng_env::on_process_start!(|_| {
 ///
 /// You can also disable start on init by setting the `ZNG_VIEW_NO_INIT_START` environment variable. In this
 /// case you must manually call this function.
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 pub fn view_process_main() {
     let config = match ViewConfig::from_env() {
         Some(c) => c,
@@ -190,7 +197,7 @@ pub fn view_process_main() {
     zng_env::exit(0)
 }
 
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 #[doc(hidden)]
 #[no_mangle]
 pub extern "C" fn extern_view_process_main() {
@@ -214,12 +221,29 @@ pub extern "C" fn extern_view_process_main() {
 /// the panics to the main thread, this causes the app to stop responding while still receiving
 /// event signals, causing the operating system to not detect that the app is frozen. It is recommended
 /// that you build with `panic=abort` or use [`std::panic::set_hook`] to detect these background panics.
-pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
-    run_same_process_extended(run_app, ViewExtensions::new)
+///
+/// # Android
+///
+/// In Android builds this function takes an `AndroidApp` instance as the first argument, the instance is provided
+/// by the Android entry point, `fn android_main`.
+pub fn run_same_process(
+    #[cfg(target_os = "android")] android_app: platform::android::activity::AndroidApp,
+    run_app: impl FnOnce() + Send + 'static,
+) {
+    run_same_process_extended(
+        #[cfg(target_os = "android")]
+        android_app,
+        run_app,
+        ViewExtensions::new,
+    )
 }
 
 /// Like [`run_same_process`] but with custom API extensions.
-pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
+pub fn run_same_process_extended(
+    #[cfg(target_os = "android")] android_app: platform::android::activity::AndroidApp,
+    run_app: impl FnOnce() + Send + 'static,
+    ext: fn() -> ViewExtensions,
+) {
     let app_thread = thread::Builder::new()
         .name("app".to_owned())
         .spawn(move || {
@@ -246,9 +270,19 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
     let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app in same process");
 
     if config.headless {
-        App::run_headless(c, ext());
+        App::run_headless(
+            #[cfg(target_os = "android")]
+            android_app,
+            c,
+            ext(),
+        );
     } else {
-        App::run_headed(c, ext());
+        App::run_headed(
+            #[cfg(target_os = "android")]
+            android_app,
+            c,
+            ext(),
+        );
     }
 
     if let Err(p) = app_thread.join() {
@@ -256,7 +290,7 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
     }
 }
 
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 #[doc(hidden)]
 #[no_mangle]
 pub extern "C" fn extern_run_same_process(patch: &StaticPatch, run_app: extern "C" fn()) {
@@ -271,17 +305,17 @@ pub extern "C" fn extern_run_same_process(patch: &StaticPatch, run_app: extern "
     #[allow(clippy::redundant_closure)]
     run_same_process(move || run_app())
 }
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 #[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
 fn init_abort(info: &std::panic::PanicInfo) {
     panic_hook(info, "note: aborting to respawn");
 }
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 #[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
 fn ffi_abort(info: &std::panic::PanicInfo) {
     panic_hook(info, "note: aborting to avoid unwind across FFI");
 }
-#[cfg(feature = "ipc")]
+#[cfg(ipc)]
 #[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
 fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
     // see `default_hook` in https://doc.rust-lang.org/src/std/panicking.rs.html#182
@@ -298,8 +332,6 @@ fn panic_hook(info: &std::panic::PanicInfo, details: &str) {
 
 /// The backend implementation.
 pub(crate) struct App {
-    started: bool,
-
     headless: bool,
 
     exts: ViewExtensions,
@@ -314,7 +346,7 @@ pub(crate) struct App {
     event_sender: ipc::EventSender,
     image_cache: ImageCache,
 
-    gen: ViewProcessGen,
+    generation: ViewProcessGen,
     device_events: bool,
 
     windows: Vec<Window>,
@@ -345,18 +377,19 @@ pub(crate) struct App {
     pending_modifiers_update: Option<ModifiersState>,
     pending_modifiers_focus_clear: bool,
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "android")))]
     arboard: Option<arboard::Clipboard>,
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
+    app_state: AppState,
     exited: bool,
 }
 impl fmt::Debug for App {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HeadlessBackend")
-            .field("started", &self.started)
-            .field("gen", &self.gen)
+            .field("app_state", &self.app_state)
+            .field("generation", &self.generation)
             .field("device_events", &self.device_events)
             .field("windows", &self.windows)
             .field("surfaces", &self.surfaces)
@@ -364,7 +397,33 @@ impl fmt::Debug for App {
     }
 }
 impl winit::application::ApplicationHandler<AppEvent> for App {
-    fn resumed(&mut self, _: &ActiveEventLoop) {}
+    fn resumed(&mut self, winit_loop: &ActiveEventLoop) {
+        if let AppState::Suspended = self.app_state {
+            let mut winit_loop_guard = self.winit_loop.set(winit_loop);
+
+            self.exts.resumed();
+            self.generation = self.generation.next();
+            let available_monitors = self.available_monitors();
+            self.notify(Event::Inited(Inited {
+                generation: self.generation,
+                is_respawn: true,
+                available_monitors,
+                multi_click_config: config::multi_click_config(),
+                key_repeat_config: config::key_repeat_config(),
+                touch_config: config::touch_config(),
+                font_aa: config::font_aa(),
+                animations_config: config::animations_config(),
+                locale_config: config::locale_config(),
+                colors_config: config::colors_config(),
+                extensions: self.exts.api_extensions(),
+            }));
+
+            winit_loop_guard.unset(&mut self.winit_loop);
+        } else {
+            self.exts.init(&self.app_sender);
+        }
+        self.app_state = AppState::Resumed;
+    }
 
     fn window_event(&mut self, winit_loop: &ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
         let i = if let Some((i, _)) = self.windows.iter_mut().enumerate().find(|(_, w)| w.window_id() == window_id) {
@@ -605,8 +664,11 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     }
 
                     let state = util::element_state_to_key_state(event.state);
+                    #[cfg(not(target_os = "android"))]
                     let key = util::winit_key_to_key(event.key_without_modifiers());
                     let key_modified = util::winit_key_to_key(event.logical_key);
+                    #[cfg(target_os = "android")]
+                    let key = key_modified.clone();
                     let key_code = util::winit_physical_key_to_key_code(event.physical_key);
                     let key_location = util::winit_key_location_to_zng(event.location);
                     let d_id = self.device_id(device_id);
@@ -930,7 +992,12 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
     }
 
     fn suspended(&mut self, _: &ActiveEventLoop) {
-        unimplemented!()
+        self.app_state = AppState::Suspended;
+        self.windows.clear();
+        self.surfaces.clear();
+        self.image_cache.clear();
+        self.exts.suspended();
+        self.notify(Event::Suspended)
     }
 
     fn exiting(&mut self, event_loop: &ActiveEventLoop) {
@@ -956,6 +1023,13 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         winit_loop_guard.unset(&mut self.winit_loop);
     }
 }
+#[derive(Debug, Clone, Copy)]
+enum AppState {
+    PreInitSuspended,
+    Resumed,
+    Suspended,
+}
+
 struct IdleTrace(Option<tracing::span::EnteredSpan>);
 impl IdleTrace {
     pub fn enter(&mut self) {
@@ -980,7 +1054,11 @@ impl App {
         }
     }
 
-    pub fn run_headless(ipc: ipc::ViewChannels, ext: ViewExtensions) {
+    pub fn run_headless(
+        #[cfg(target_os = "android")] android_app: platform::android::activity::AndroidApp,
+        ipc: ipc::ViewChannels,
+        ext: ViewExtensions,
+    ) {
         tracing::info!("running headless view-process");
 
         gl::warmup();
@@ -997,7 +1075,10 @@ impl App {
         app.headless = true;
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
-        let event_loop = EventLoop::new().unwrap();
+        #[cfg(not(target_os = "android"))]
+        let event_loop = EventLoop::builder().build().unwrap();
+        #[cfg(target_os = "android")]
+        let event_loop = EventLoop::builder().with_android_app(android_app).build().unwrap();
         drop(winit_span);
 
         let mut app = HeadlessApp {
@@ -1027,6 +1108,7 @@ impl App {
             fn resumed(&mut self, winit_loop: &ActiveEventLoop) {
                 let mut winit_loop_guard = self.app.winit_loop.set(winit_loop);
 
+                self.app.resumed(winit_loop);
                 self.app.start_receiving(self.request_receiver.take().unwrap());
 
                 'app_loop: while !self.app.exited {
@@ -1096,16 +1178,27 @@ impl App {
             }
 
             fn window_event(&mut self, _: &ActiveEventLoop, _: winit::window::WindowId, _: WindowEvent) {}
+
+            fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+                self.app.suspended(event_loop);
+            }
         }
     }
 
-    pub fn run_headed(ipc: ipc::ViewChannels, ext: ViewExtensions) {
+    pub fn run_headed(
+        #[cfg(target_os = "android")] android_app: platform::android::activity::AndroidApp,
+        ipc: ipc::ViewChannels,
+        ext: ViewExtensions,
+    ) {
         tracing::info!("running headed view-process");
 
         gl::warmup();
 
         let winit_span = tracing::trace_span!("winit::EventLoop::new").entered();
+        #[cfg(not(target_os = "android"))]
         let event_loop = EventLoop::with_user_event().build().unwrap();
+        #[cfg(target_os = "android")]
+        let event_loop = EventLoop::with_user_event().with_android_app(android_app).build().unwrap();
         drop(winit_span);
         let app_sender = event_loop.create_proxy();
 
@@ -1135,16 +1228,14 @@ impl App {
         response_sender: ipc::ResponseSender,
         event_sender: ipc::EventSender,
         request_recv: flume::Receiver<RequestEvent>,
-        mut ext: ViewExtensions,
+        mut exts: ViewExtensions,
     ) -> Self {
-        ext.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
-        ext.init(&app_sender);
+        exts.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
         let mut idle = IdleTrace(None);
         idle.enter();
         App {
             headless: false,
-            started: false,
-            exts: ext,
+            exts,
             idle,
             gl_manager: GlContextManager::default(),
             image_cache: ImageCache::new(app_sender.clone()),
@@ -1153,7 +1244,7 @@ impl App {
             response_sender,
             event_sender,
             winit_loop: util::WinitEventLoop::default(),
-            gen: ViewProcessGen::INVALID,
+            generation: ViewProcessGen::INVALID,
             device_events: false,
             windows: vec![],
             surfaces: vec![],
@@ -1165,6 +1256,7 @@ impl App {
             resize_frame_wait_id_gen: FrameWaitId::INVALID,
             coalescing_event: None,
             cursor_entered_expect_move: Vec::with_capacity(1),
+            app_state: AppState::PreInitSuspended,
             exited: false,
             #[cfg(windows)]
             skip_ralt: false,
@@ -1173,7 +1265,7 @@ impl App {
             pending_modifiers_focus_clear: false,
             config_listener_exit: None,
 
-            #[cfg(not(windows))]
+            #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
         }
     }
@@ -1411,14 +1503,13 @@ impl App {
         }
     }
 
-    fn assert_started(&self) {
-        if !self.started {
-            panic!("not started")
-        }
+    #[track_caller]
+    fn assert_resumed(&self) {
+        assert!(matches!(self.app_state, AppState::Resumed));
     }
 
     fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
-        self.assert_started();
+        self.assert_resumed();
         self.windows.iter_mut().find(|w| w.id() == id).map(action).unwrap_or_else(|| {
             tracing::error!("headed window `{id:?}` not found, will return fallback result");
             not_found()
@@ -1447,8 +1538,6 @@ impl App {
 
     fn available_monitors(&mut self) -> Vec<(MonitorId, MonitorInfo)> {
         let _span = tracing::trace_span!("available_monitors").entered();
-
-        self.assert_started();
 
         let primary = self.winit_loop.primary_monitor();
         self.winit_loop
@@ -1484,9 +1573,9 @@ impl Drop for App {
 }
 impl App {
     fn open_headless_impl(&mut self, config: HeadlessRequest) -> HeadlessOpenData {
-        self.assert_started();
+        self.assert_resumed();
         let surf = Surface::open(
-            self.gen,
+            self.generation,
             config,
             &self.winit_loop,
             &mut self.gl_manager,
@@ -1500,7 +1589,7 @@ impl App {
         HeadlessOpenData { render_mode }
     }
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "android")))]
     fn arboard(&mut self) -> Result<&mut arboard::Clipboard, clipboard::ClipboardError> {
         if self.arboard.is_none() {
             match arboard::Clipboard::new() {
@@ -1514,14 +1603,11 @@ impl App {
 
 impl Api for App {
     fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
-        if self.started {
-            panic!("already started");
-        }
         if self.exited {
             panic!("cannot restart exited");
         }
-        self.started = true;
-        self.gen = gen;
+
+        self.generation = gen;
         self.device_events = device_events;
         self.headless = headless;
 
@@ -1544,8 +1630,7 @@ impl Api for App {
     }
 
     fn exit(&mut self) {
-        self.assert_started();
-        self.started = false;
+        self.assert_resumed();
         self.exited = true;
         if let Some(t) = self.config_listener_exit.take() {
             t();
@@ -1588,11 +1673,11 @@ impl Api for App {
 
             self.notify(Event::WindowOpened(id, msg));
         } else {
-            self.assert_started();
+            self.assert_resumed();
 
             let id = config.id;
             let win = Window::open(
-                self.gen,
+                self.generation,
                 config.icon.and_then(|i| self.image_cache.get(i)).and_then(|i| i.icon()),
                 config
                     .cursor_image
@@ -1632,7 +1717,7 @@ impl Api for App {
     fn close(&mut self, id: WindowId) {
         let _s = tracing::debug_span!("close_window", ?id);
 
-        self.assert_started();
+        self.assert_resumed();
         if let Some(i) = self.windows.iter().position(|w| w.id() == id) {
             let _ = self.windows.swap_remove(i);
         }
@@ -1687,7 +1772,7 @@ impl Api for App {
     }
 
     fn set_headless_size(&mut self, renderer: WindowId, size: DipSize, scale_factor: Factor) {
-        self.assert_started();
+        self.assert_resumed();
         if let Some(surf) = self.surfaces.iter_mut().find(|s| s.id() == renderer) {
             surf.set_size(size, scale_factor)
         }
@@ -1935,7 +2020,7 @@ impl Api for App {
         }
     }
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "android")))]
     fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
         match data_type {
             clipboard::ClipboardType::Text => self
@@ -1966,7 +2051,7 @@ impl Api for App {
         }
     }
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "android")))]
     fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
         match data {
             clipboard::ClipboardData::Text(t) => self.arboard()?.set_text(t).map_err(util::arboard_to_clip),
@@ -1992,6 +2077,22 @@ impl Api for App {
             clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
         }
+    }
+
+    #[cfg(target_os = "android")]
+    fn read_clipboard(&mut self, data_type: clipboard::ClipboardType) -> Result<clipboard::ClipboardData, clipboard::ClipboardError> {
+        let _ = data_type;
+        Err(clipboard::ClipboardError::Other(Txt::from_static(
+            "clipboard not implemented for Android",
+        )))
+    }
+
+    #[cfg(target_os = "android")]
+    fn write_clipboard(&mut self, data: clipboard::ClipboardData) -> Result<(), clipboard::ClipboardError> {
+        let _ = data;
+        Err(clipboard::ClipboardError::Other(Txt::from_static(
+            "clipboard not implemented for Android",
+        )))
     }
 
     fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt) {
@@ -2144,3 +2245,6 @@ impl RenderNotifier for WrNotifier {
         let _ = self.sender.frame_ready(self.id, msg);
     }
 }
+
+#[cfg(target_arch = "wasm32")]
+compile_error!("zng-view does not support Wasm");

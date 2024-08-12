@@ -78,18 +78,18 @@ use zng_view_api::{config::FontAntiAliasing, ViewProcessOffline};
 /// Font family names are case-insensitive. `"Arial"` and `"ARIAL"` are equal and have the same hash.
 #[derive(Clone)]
 pub struct FontName {
-    text: Txt,
+    txt: Txt,
     is_ascii: bool,
 }
 impl fmt::Debug for FontName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             f.debug_struct("FontName")
-                .field("text", &self.text)
+                .field("txt", &self.txt)
                 .field("is_ascii", &self.is_ascii)
                 .finish()
         } else {
-            write!(f, "{:?}", self.text)
+            write!(f, "{:?}", self.txt)
         }
     }
 }
@@ -109,6 +109,20 @@ impl std::hash::Hash for FontName {
         std::hash::Hash::hash(&self.unicase(), state)
     }
 }
+impl Ord for FontName {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self == other {
+            // case insensitive eq
+            return std::cmp::Ordering::Equal;
+        }
+        self.txt.cmp(&other.txt)
+    }
+}
+impl PartialOrd for FontName {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 impl FontName {
     fn unicase(&self) -> unicase::UniCase<&str> {
         if self.is_ascii {
@@ -121,7 +135,7 @@ impl FontName {
     /// New font name from `&'static str`.
     pub const fn from_static(name: &'static str) -> Self {
         FontName {
-            text: Txt::from_static(name),
+            txt: Txt::from_static(name),
             is_ascii: {
                 // str::is_ascii is not const
                 let name_bytes = name.as_bytes();
@@ -148,10 +162,10 @@ impl FontName {
     ///
     /// [`Txt`]: zng_txt::Txt
     pub fn new(name: impl Into<Txt>) -> Self {
-        let text = name.into();
+        let txt = name.into();
         FontName {
-            is_ascii: text.is_ascii(),
-            text,
+            is_ascii: txt.is_ascii(),
+            txt,
         }
     }
 
@@ -194,14 +208,14 @@ impl FontName {
 
     /// Reference the font name string.
     pub fn name(&self) -> &str {
-        &self.text
+        &self.txt
     }
 
     /// Unwraps into a [`Txt`].
     ///
     /// [`Txt`]: zng_txt::Txt
     pub fn into_text(self) -> Txt {
-        self.text
+        self.txt
     }
 }
 impl_from_and_into_var! {
@@ -227,12 +241,12 @@ impl std::ops::Deref for FontName {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        self.text.deref()
+        self.txt.deref()
     }
 }
 impl AsRef<str> for FontName {
     fn as_ref(&self) -> &str {
-        self.text.as_ref()
+        self.txt.as_ref()
     }
 }
 impl serde::Serialize for FontName {
@@ -240,7 +254,7 @@ impl serde::Serialize for FontName {
     where
         S: serde::Serializer,
     {
-        self.text.serialize(serializer)
+        self.txt.serialize(serializer)
     }
 }
 impl<'de> serde::Deserialize<'de> for FontName {
@@ -2555,7 +2569,6 @@ impl_from_and_into_var! {
         FontStretch(fct)
     }
 }
-
 impl From<ttf_parser::Width> for FontStretch {
     fn from(value: ttf_parser::Width) -> Self {
         use ttf_parser::Width::*;
@@ -2569,6 +2582,29 @@ impl From<ttf_parser::Width> for FontStretch {
             Expanded => FontStretch::EXPANDED,
             ExtraExpanded => FontStretch::EXTRA_EXPANDED,
             UltraExpanded => FontStretch::ULTRA_EXPANDED,
+        }
+    }
+}
+impl From<FontStretch> for ttf_parser::Width {
+    fn from(value: FontStretch) -> Self {
+        if value <= FontStretch::ULTRA_CONDENSED {
+            ttf_parser::Width::UltraCondensed
+        } else if value <= FontStretch::EXTRA_CONDENSED {
+            ttf_parser::Width::ExtraCondensed
+        } else if value <= FontStretch::CONDENSED {
+            ttf_parser::Width::Condensed
+        } else if value <= FontStretch::SEMI_CONDENSED {
+            ttf_parser::Width::SemiCondensed
+        } else if value <= FontStretch::NORMAL {
+            ttf_parser::Width::Normal
+        } else if value <= FontStretch::SEMI_EXPANDED {
+            ttf_parser::Width::SemiExpanded
+        } else if value <= FontStretch::EXPANDED {
+            ttf_parser::Width::Expanded
+        } else if value <= FontStretch::EXTRA_EXPANDED {
+            ttf_parser::Width::ExtraExpanded
+        } else {
+            ttf_parser::Width::UltraExpanded
         }
     }
 }
@@ -2603,6 +2639,16 @@ impl From<ttf_parser::Style> for FontStyle {
             Normal => FontStyle::Normal,
             Italic => FontStyle::Italic,
             Oblique => FontStyle::Oblique,
+        }
+    }
+}
+
+impl From<FontStyle> for ttf_parser::Style {
+    fn from(value: FontStyle) -> Self {
+        match value {
+            FontStyle::Normal => Self::Normal,
+            FontStyle::Italic => Self::Italic,
+            FontStyle::Oblique => Self::Oblique,
         }
     }
 }
@@ -2710,6 +2756,11 @@ impl From<ttf_parser::Weight> for FontWeight {
             Black => FontWeight::BLACK,
             Other(o) => FontWeight(o as f32),
         }
+    }
+}
+impl From<FontWeight> for ttf_parser::Weight {
+    fn from(value: FontWeight) -> Self {
+        ttf_parser::Weight::from(value.0 as u16)
     }
 }
 

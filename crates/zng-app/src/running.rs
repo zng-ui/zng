@@ -13,7 +13,7 @@ use zng_app_context::{app_local, AppScope};
 use zng_task::DEADLINE_APP;
 use zng_time::{InstantMode, INSTANT_APP};
 use zng_txt::Txt;
-use zng_var::{response_var, ArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
+use zng_var::{response_var, ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
 
 use crate::{
     event::{
@@ -499,7 +499,9 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // Others
-            Event::Inited(zng_view_api::Inited { .. }) | Event::Disconnected(_) | Event::FrameRendered(_) => unreachable!(), // handled before coalesce.
+            Event::Inited(zng_view_api::Inited { .. }) | Event::Suspended | Event::Disconnected(_) | Event::FrameRendered(_) => {
+                unreachable!()
+            } // handled before coalesce.
         }
     }
 
@@ -572,6 +574,7 @@ impl<E: AppExtension> RunningApp<E> {
                     // notify immediately.
                     if is_respawn {
                         VIEW_PROCESS.on_respawned(generation);
+                        APP_PROCESS_SV.read().is_suspended.set(false);
                     }
 
                     VIEW_PROCESS.handle_inited(generation, extensions.clone());
@@ -597,6 +600,12 @@ impl<E: AppExtension> RunningApp<E> {
                         extensions,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
+                }
+                zng_view_api::Event::Suspended => {
+                    VIEW_PROCESS.handle_suspended();
+                    let args = crate::view_process::ViewProcessSuspendedArgs::now();
+                    self.notify_event(VIEW_PROCESS_SUSPENDED_EVENT.new_update(args), observer);
+                    APP_PROCESS_SV.read().is_suspended.set(true);
                 }
                 zng_view_api::Event::Disconnected(gen) => {
                     // update ViewProcess immediately.
@@ -1086,6 +1095,17 @@ impl APP {
     pub fn exit(&self) -> ResponseVar<ExitCancelled> {
         APP_PROCESS_SV.write().exit()
     }
+
+    /// Gets a variable that tracks if the app is suspended by the operating system.
+    ///
+    /// Suspended apps cannot create graphics contexts and are likely to be killed if the user does not
+    /// return. Operations that persist data should flush on suspension.
+    ///
+    /// App suspension is controlled by the view-process, the [`VIEW_PROCESS_SUSPENDED_EVENT`] notifies
+    /// on suspension and the [`VIEW_PROCESS_INITED_EVENT`] notifies a "respawn" on resume.
+    pub fn is_suspended(&self) -> ReadOnlyArcVar<bool> {
+        APP_PROCESS_SV.read().is_suspended.read_only()
+    }
 }
 
 /// App time control.
@@ -1326,6 +1346,7 @@ app_local! {
         extensions: None,
         device_events: false,
         pause_time_for_updates: zng_var::var(true),
+        is_suspended: zng_var::var(false),
     };
 }
 
@@ -1334,6 +1355,7 @@ pub(super) struct AppProcessService {
     extensions: Option<Arc<AppExtensionsInfo>>,
     pub(super) device_events: bool,
     pause_time_for_updates: ArcVar<bool>,
+    is_suspended: ArcVar<bool>,
 }
 impl AppProcessService {
     pub(super) fn take_requests(&mut self) -> Option<ResponderVar<ExitCancelled>> {
@@ -1578,8 +1600,8 @@ event! {
     /// Cancellable event raised when app process exit is requested.
     ///
     /// App exit can be requested using the [`APP`] service or the [`EXIT_CMD`], some extensions
-    /// also request exit if some conditions are met, `WindowManager` requests it after the last window
-    /// is closed for example.
+    /// also request exit if some conditions are met, for example, `WindowManager` requests it after the last window
+    /// is closed.
     ///
     /// Requesting `propagation().stop()` on this event cancels the exit.
     pub static EXIT_REQUESTED_EVENT: ExitRequestedArgs;

@@ -361,6 +361,10 @@ impl VIEW_PROCESS {
         me.process.handle_inited(gen);
     }
 
+    pub(super) fn handle_suspended(&self) {
+        self.write().process.handle_suspended();
+    }
+
     pub(crate) fn on_headless_opened(
         &self,
         id: WindowId,
@@ -562,6 +566,8 @@ event_args! {
 
         /// If this is not the first time a view-process was inited. If `true`
         /// all resources created in a previous generation must be rebuilt.
+        ///
+        /// This can happen after a view-process crash or app suspension.
         pub is_respawn: bool,
 
         /// Monitors list.
@@ -600,11 +606,27 @@ event_args! {
             list.search_all()
         }
     }
+
+    /// Arguments for the [`VIEW_PROCESS_SUSPENDED_EVENT`].
+    pub struct ViewProcessSuspendedArgs {
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
 }
 
 event! {
-    /// View Process finished initializing and is now online.
+    /// View-Process finished initializing and is now online.
     pub static VIEW_PROCESS_INITED_EVENT: ViewProcessInitedArgs;
+    /// View-Process suspended, all resources dropped.
+    ///
+    /// The view-process will only be available if the app resumes. On resume [`VIEW_PROCESS_INITED_EVENT`]
+    /// notify a view-process respawn.
+    pub static VIEW_PROCESS_SUSPENDED_EVENT: ViewProcessSuspendedArgs;
 }
 
 /// Information about a successfully opened window.

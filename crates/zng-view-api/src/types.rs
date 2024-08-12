@@ -160,6 +160,8 @@ pub enum Ime {
 pub enum Event {
     /// View-process inited.
     Inited(Inited),
+    /// View-process suspended.
+    Suspended,
 
     /// The event channel disconnected, probably because the view-process crashed.
     ///
