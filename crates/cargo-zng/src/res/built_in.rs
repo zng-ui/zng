@@ -919,7 +919,7 @@ fn apk() {
         #[cfg(not(windows))]
         const APKSIGNER_NAME: &str = "apksigner";
         #[cfg(windows)]
-        const APKSIGNER_NAME: &str = "apksigner.exe";
+        const APKSIGNER_NAME: &str = "apksigner.bat";
 
         let apksigner_path = build_tools.join(APKSIGNER_NAME);
         let mut apksigner = Command::new(&apksigner_path);
@@ -936,8 +936,14 @@ fn apk() {
             .arg("--out")
             .arg(&signed_apk_path)
             .arg(&aligned_apk_path);
-        if apksigner.status().map(|s| !s.success()).unwrap_or(true) {
-            fatal!("apksigner failed");
+
+        match apksigner.status() {
+            Ok(s) => {
+                if !s.success() {
+                    fatal!("apksigner failed")
+                }
+            }
+            Err(e) => fatal!("cannot run '{}', {e}", apksigner_path.display()),
         }
         signed_apk_path
     };
