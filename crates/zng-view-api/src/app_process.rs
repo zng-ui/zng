@@ -20,6 +20,13 @@ pub(crate) const VIEW_VERSION: &str = "ZNG_VIEW_VERSION";
 pub(crate) const VIEW_SERVER: &str = "ZNG_VIEW_SERVER";
 pub(crate) const VIEW_MODE: &str = "ZNG_VIEW_MODE";
 
+#[derive(Clone, Copy)]
+enum ViewState {
+    Offline,
+    Online,
+    Suspended,
+}
+
 /// View Process controller, used in the App Process.
 ///
 /// # Exit
@@ -32,7 +39,7 @@ pub(crate) const VIEW_MODE: &str = "ZNG_VIEW_MODE";
 #[cfg_attr(not(ipc), allow(unused))]
 pub struct Controller {
     process: Option<std::process::Child>,
-    online: bool,
+    view_state: ViewState,
     generation: ViewProcessGen,
     is_respawn: bool,
     view_process_exe: PathBuf,
@@ -107,7 +114,7 @@ impl Controller {
 
         let mut c = Controller {
             same_process: process.is_none(),
-            online: false,
+            view_state: ViewState::Offline,
             process,
             view_process_exe,
             view_process_env,
@@ -136,7 +143,7 @@ impl Controller {
 
     /// View-process is connected and ready to respond.
     pub fn online(&self) -> bool {
-        self.online
+        matches!(self.view_state, ViewState::Online)
     }
 
     /// View-process generation.
@@ -160,7 +167,7 @@ impl Controller {
     }
 
     fn offline_err(&self) -> Result<(), ViewProcessOffline> {
-        if self.online {
+        if self.online() {
             Ok(())
         } else {
             Err(ViewProcessOffline)
@@ -289,10 +296,20 @@ impl Controller {
 
     /// Handle an [`Event::Inited`].
     ///
-    /// Set the online flag to `true` if `gen` matches.
+    /// Set the online flag to `true`.
     pub fn handle_inited(&mut self, gen: ViewProcessGen) {
-        if gen == self.generation {
-            self.online = true;
+        match self.view_state {
+            ViewState::Offline => {
+                if self.generation == gen {
+                    // crash respawn already sets gen
+                    self.view_state = ViewState::Online;
+                }
+            }
+            ViewState::Suspended => {
+                self.generation = gen;
+                self.view_state = ViewState::Online;
+            }
+            ViewState::Online => {}
         }
     }
 
@@ -300,7 +317,7 @@ impl Controller {
     ///
     /// Set the online flat to `false`.
     pub fn handle_suspended(&mut self) {
-        self.online = false;
+        self.view_state = ViewState::Suspended;
     }
 
     /// Handle an [`Event::Disconnected`].
@@ -355,7 +372,7 @@ impl Controller {
     fn respawn_impl(&mut self, is_crash: bool) {
         use zng_unit::TimeUnits;
 
-        self.online = false;
+        self.view_state = ViewState::Offline;
         self.is_respawn = true;
 
         let mut process = if let Some(p) = self.process.take() {
