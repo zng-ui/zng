@@ -99,6 +99,29 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
+  check-android:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
+          - os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        with:  
+          targets: aarch64-linux-android
+      - name: install cargo-ndk
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-ndk
+      - run: cargo do build-apk multi
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
 
   prebuild-ubuntu:
     strategy:
@@ -479,7 +502,7 @@ jobs:
 
   tag:
     runs-on: ubuntu-latest
-    needs: [test-ubuntu, test-windows, test-macos, test-cargo-publish, doc-ubuntu]
+    needs: [test-ubuntu, test-windows, test-macos, test-cargo-publish, doc-ubuntu, check-android]
     if: ${{ github.event.inputs.cancel_tag != 'true' && github.event.ref == 'refs/heads/release' }}
     permissions:
       contents: write
