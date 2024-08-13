@@ -1675,6 +1675,12 @@ impl Api for App {
         } else {
             self.assert_resumed();
 
+            #[cfg(target_os = "android")]
+            if !self.windows.is_empty() {
+                tracing::error!("android can only have one window");
+                return;
+            }
+
             let id = config.id;
             let win = Window::open(
                 self.generation,
