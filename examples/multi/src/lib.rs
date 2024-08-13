@@ -8,6 +8,8 @@ mod wasm {
 
     #[wasm_bindgen(start)]
     fn main() {
+        // Wasm requires a Javascript attribute in the "window" object, see the
+        // zng::env::init! docs for more details.
         zng::env::init!();
         app::run_headless();
 
@@ -36,17 +38,16 @@ mod wasm {
 #[cfg(target_os = "android")]
 mod android {
     use super::app;
+    use zng::view_process::default::*;
 
     #[no_mangle]
-    fn android_main(app: zng::view_process::default::android::AndroidApp) {
+    fn android_main(app: android::AndroidApp) {
         zng::env::init!();
+        android::init_android_app(app);
+
         zng::app::print_tracing(tracing::Level::INFO);
-
-        if let Some(p) = app.internal_data_path() {
-            zng::env::init_config(p);
-        }
-
         tracing::info!("Hello Android!");
-        zng::view_process::default::run_same_process(app, app::run);
+
+        run_same_process(app::run);
     }
 }

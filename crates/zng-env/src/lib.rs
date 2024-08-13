@@ -75,7 +75,27 @@ lazy_static! {
 ///
 /// The example above imports and runs an app built using [`wasm-pack`] with `--target web` options.
 ///
+/// # Android Start
+///
+/// Android builds (`target_os = "android"`) receive an `AndroidApp` instance from the `android_main`. This type
+/// is tightly coupled with the view-process implementation and so it is defined by the `zng-view` crate. In builds
+/// feature `"view"` you must call `zng::view_process::default::android::init_android_app` just after `init!`.
+///
+/// ```
+/// # macro_rules! demo { () => {
+/// #[no_mangle]
+/// fn android_main(app: zng::view_process::default::android::AndroidApp) {
+///     zng::env::init!();
+///     zng::view_process::default::android::init_android_app(app);
+///     // zng::view_process::default::run_same_process(..);
+/// }
+/// # }}
+/// ```
+/// 
+/// See the [multi example] for more details on how to support Android and other platforms.
+///
 /// [`wasm-pack`]: https://crates.io/crates/wasm-pack
+/// [multi example]: https://github.com/zng-ui/zng/tree/main/examples#multi
 #[macro_export]
 macro_rules! init {
     () => {
