@@ -31,7 +31,7 @@ zng-color = { path = "../zng-color", version = "0.3.5" }
 
 serde = "1.0"
 unicase = "2.7"
-rustybuzz = "0.17"
+rustybuzz = "0.18"
 ttf-parser = "0.24"
 parking_lot = "0.12"
 byteorder = "1.5"
