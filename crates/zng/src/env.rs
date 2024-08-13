@@ -39,5 +39,8 @@ pub use zng_env::{
     on_process_start, res, About, ProcessExitArgs, ProcessStartArgs,
 };
 
+#[cfg(target_os = "android")]
+pub use zng_env::android_external;
+
 #[cfg(any(debug_assertions, feature = "built_res"))]
 pub use zng_env::init_built_res;

@@ -282,7 +282,7 @@ fn fallback_name() -> Txt {
 
 /// Gets a path relative to the package binaries.
 ///
-/// * In `cfg(target_arch = "wasm32")` returns `./`, as in the relative URL.
+/// * In Wasm returns `./`, as in the relative URL.
 /// * In all other platforms returns `std::env::current_exe().parent()`.
 ///
 /// # Panics
@@ -306,10 +306,10 @@ fn find_bin() -> PathBuf {
 /// Gets a path relative to the package resources.
 ///
 /// * The res dir can be set by [`init_res`] before any env dir is used.
-/// * In all platforms expect Wasm if a file `bin/current_exe_name.res-dir` is found the first non-empty and non-comment (#) line
+/// * In Linux, macOS and Windows if a file `bin/current_exe_name.res-dir` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `res`.
-/// * In `cfg(target_arch = "wasm32")` returns `./res`, as in the relative URL.
+/// * In Wasm returns `./res`, as in the relative URL.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
 /// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
 /// * In Android returns `bin("../res/raw")`, assumes the package is deployed as a `.apk` file.
@@ -405,7 +405,8 @@ fn find_res() -> PathBuf {
 /// Gets a path relative to the user config directory for the app.
 ///
 /// * The config dir can be set by [`init_config`] before any env dir is used.
-/// * In all platforms except Wasm if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
+/// * In Android returns `android_internal("config")`.
+/// * In Linux, macOS and Windows if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_config/`.
 /// * In all platforms attempts [`directories::ProjectDirs::config_dir`] and panic if it fails.
@@ -517,6 +518,11 @@ lazy_static! {
     static ref CONFIG: PathBuf = redirect_config(original_config());
 }
 
+#[cfg(target_os = "android")]
+fn find_config() -> PathBuf {
+    android_internal("config")
+}
+#[cfg(not(target_os = "android"))]
 fn find_config() -> PathBuf {
     let cfg_dir = res("config-dir");
     if let Ok(dir) = read_line(&cfg_dir) {
@@ -580,7 +586,8 @@ fn create_dir_opt(dir: PathBuf) -> PathBuf {
 /// Gets a path relative to the cache directory for the app.
 ///
 /// * The cache dir can be set by [`init_cache`] before any env dir is used.
-/// * In all platforms except Wasm if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
+/// * In Android returns `android_internal("cache")`.
+/// * In Linux, macOS and Windows if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_cache/`.
 /// * In all platforms attempts [`directories::ProjectDirs::cache_dir`] and panic if it fails.
@@ -763,6 +770,11 @@ fn best_effort_move(from: &Path, to: &Path) -> io::Result<()> {
 lazy_static! {
     static ref CACHE: PathBuf = create_dir_opt(find_cache());
 }
+#[cfg(target_os = "android")]
+fn find_cache() -> PathBuf {
+    android_internal("cache")
+}
+#[cfg(not(target_os = "android"))]
 fn find_cache() -> PathBuf {
     let cache_dir = config("cache-dir");
     if let Ok(dir) = read_line(&cache_dir) {
@@ -801,6 +813,40 @@ fn read_line(path: &Path) -> io::Result<String> {
     }
     Err(io::Error::new(io::ErrorKind::UnexpectedEof, "no uncommented line"))
 }
+
+#[cfg(target_os = "android")]
+mod android {
+    use super::*;
+
+    lazy_static! {
+        static ref ANDROID_PATHS: [PathBuf; 2] = [PathBuf::new(), PathBuf::new()];
+    }
+
+    /// Initialize the Android app paths.
+    ///
+    /// This is called by `init_android_app` provided by view-process implementers.
+    pub fn init_android_paths(internal: PathBuf, external: PathBuf) {
+        if lazy_static_init(&ANDROID_PATHS, [internal, external]).is_err() {
+            panic!("cannot `init_android_paths`, already inited")
+        }
+    }
+
+    /// Gets a path relative to the internal storage reserved for the app.
+    ///
+    /// Prefer using [`config`] or [`cache`] over this directly.
+    pub fn android_internal(relative_path: impl AsRef<Path>) -> PathBuf {
+        ANDROID_PATHS[0].join(relative_path)
+    }
+
+    /// Gets a path relative to the external storage reserved for the app.
+    ///
+    /// This directory is user accessible.
+    pub fn android_external(relative_path: impl AsRef<Path>) -> PathBuf {
+        ANDROID_PATHS[1].join(relative_path)
+    }
+}
+#[cfg(target_os = "android")]
+pub use android::*;
 
 #[cfg(test)]
 mod tests {

@@ -11,14 +11,14 @@ pub mod android {
     #[cfg(target_os = "android")]
     static ANDROID_APP: parking_lot::RwLock<Option<activity::AndroidApp>> = parking_lot::RwLock::new(None);
 
-    /// Sets the [`android_app`] instance for this process and the Android config paths.
+    /// Sets the [`android_app`] instance for this process and the Android paths.
     ///
     /// This must be called just after `zng::env::init!` and before `run_same_process*`.
     #[cfg(target_os = "android")]
     pub fn init_android_app(app: activity::AndroidApp) {
-        if let Some(p) = app.internal_data_path() {
-            zng_env::init_config(p);
-        }
+        let internal = app.internal_data_path().unwrap_or_default();
+        let external = app.external_data_path().unwrap_or_default();
+        zng_env::init_android_paths(internal, external);
         *ANDROID_APP.write() = Some(app);
     }
 
