@@ -91,7 +91,7 @@ lazy_static! {
 /// }
 /// # }}
 /// ```
-/// 
+///
 /// See the [multi example] for more details on how to support Android and other platforms.
 ///
 /// [`wasm-pack`]: https://crates.io/crates/wasm-pack

@@ -226,12 +226,7 @@ pub extern "C" fn extern_view_process_main() {
 ///
 /// In Android builds this function requires [`platform::android::init_android_app`] must be called before this call.
 pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
-    run_same_process_extended(
-        #[cfg(target_os = "android")]
-        android_app,
-        run_app,
-        ViewExtensions::new,
-    )
+    run_same_process_extended(run_app, ViewExtensions::new)
 }
 
 /// Like [`run_same_process`] but with custom API extensions.

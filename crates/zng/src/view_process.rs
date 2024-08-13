@@ -46,7 +46,7 @@ pub mod default {
     ///
     /// See [`winit::platform::android`](https://docs.rs/winit/latest/winit/platform/android/) for more details
     /// on how to select a backend "Activity".
-    /// 
+    ///
     /// See [`zng::env::init!`] for more details about running Android apps.
     ///
     /// # Full API
