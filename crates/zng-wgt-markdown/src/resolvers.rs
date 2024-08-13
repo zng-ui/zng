@@ -1,5 +1,5 @@
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use zng_wgt::{prelude::*, *};
@@ -152,10 +152,9 @@ impl LinkResolver {
                 let is_not_uri = url.parse::<Uri>().is_err();
 
                 if is_not_uri {
-                    if let Ok(path) = url.parse::<PathBuf>() {
-                        if let Ok(path) = base.join(path).absolutize() {
-                            return path.display().to_txt();
-                        }
+                    let path = Path::new(url);
+                    if let Ok(path) = base.join(path).absolutize() {
+                        return path.display().to_txt();
                     }
                 }
             }
@@ -274,10 +273,8 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
 
     let link = if let Ok(url) = args.url.parse() {
         Link::Url(url)
-    } else if let Ok(path) = args.url.parse() {
-        Link::Path(path)
     } else {
-        return false;
+        Link::Path(PathBuf::from(args.url.as_str()))
     };
 
     let popup_id = WidgetId::new_unique();
