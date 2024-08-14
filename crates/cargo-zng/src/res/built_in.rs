@@ -700,7 +700,7 @@ Expected build.zr-apk file content:
 | # cannot be installed, but can be modified such as custom linking and signing.
 | raw = true
 |
-| # Don't tar assets. By default `assets/res` are packed as `assets/res.tar.gz`
+| # Don't tar assets. By default `assets/res` are packed as `assets/res.tar`
 | # for use with `android_install_res`.
 | tar-assets-res = false
 
@@ -804,9 +804,9 @@ fn apk() {
     let assets = apk_folder.join("assets");
     let assets_res = assets.join("res");
     if tar_assets && assets_res.exists() {
-        let tar_path = assets.join("res.tar.gz");
+        let tar_path = assets.join("res.tar");
         let r = Command::new("tar")
-            .arg("-czf")
+            .arg("-cf")
             .arg(&tar_path)
             .arg("res")
             .current_dir(&assets)

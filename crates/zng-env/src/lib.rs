@@ -306,13 +306,12 @@ fn find_bin() -> PathBuf {
 /// Gets a path relative to the package resources.
 ///
 /// * The res dir can be set by [`init_res`] before any env dir is used.
+/// * In Android returns `android_internal("res")`, assumes the package assets are extracted to this directory.
 /// * In Linux, macOS and Windows if a file `bin/current_exe_name.res-dir` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `res`.
 /// * In Wasm returns `./res`, as in the relative URL.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
-/// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
-/// * In Android returns `android_internal("res")`, assumes the package assets are extracted to this directory.
 /// * In all other Unix systems returns `bin("../share/current_exe_name")`, assumes the package is deployed
 ///   using a Debian package.
 /// * In Windows returns `bin("../res")`. Note that there is no Windows standard, make sure to install
@@ -334,7 +333,7 @@ fn find_bin() -> PathBuf {
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
     res_impl(relative_path.as_ref())
 }
-#[cfg(any(debug_assertions, feature = "built_res"))]
+#[cfg(any(debug_assertions, feature = "built_res", not(any(target_os = "android", target_arch = "wasm32"))))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     let built = BUILT_RES.join(relative_path);
     if built.exists() {
@@ -343,14 +342,14 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 
     RES.join(relative_path)
 }
-#[cfg(not(any(debug_assertions, feature = "built_res")))]
+#[cfg(not(any(debug_assertions, feature = "built_res", not(any(target_os = "android", target_arch = "wasm32")))))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     RES.join(relative_path)
 }
 
 /// Helper function for adapting Android assets to the cross-platform [`res`] API.
 ///
-/// To implement Android resource extraction, bundle the resources as tarball that is itself bundled in `assets/res.tar.gz` inside the APK.
+/// To implement Android resource extraction, bundle the resources in a tar that is itself bundled in `assets/res.tar` inside the APK.
 /// On startup, call this function, it handles resources extraction and versioning.
 ///
 /// # Examples
@@ -360,8 +359,8 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 /// #[no_mangle]
 /// fn android_main(app: zng::view_process::default::android::AndroidApp) {
 ///     zng::env::init!();
-///     zng::env::android_install_res(|| app.asset_manager().open(c"res.tar.gz"));
-///     zng::view_process::default::android::init_android_app(app);
+///     zng::view_process::default::android::init_android_app(app.clone());
+///     zng::env::android_install_res(|| app.asset_manager().open(c"res.tar"));
 ///     // zng::view_process::default::run_same_process(..);
 /// }
 /// # }}
@@ -372,6 +371,9 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 ///
 /// The resources are installed in the [`res`] directory, if the tar archive has only a root dir named `res` it is stripped.
 /// This function assumes that it is the only app component that writes to this directory.
+/// 
+/// Note that the tar file is not compressed, because the APK already compresses it. The `cargo zng res` tool `.zr-apk`
+/// tar resources by default, simply place the resources in `/assets/res/`.
 pub fn android_install_res<Asset: std::io::Read>(open_res: impl FnOnce() -> Option<Asset>) {
     #[cfg(target_os = "android")]
     {
@@ -440,6 +442,11 @@ lazy_static! {
     #[cfg(any(debug_assertions, feature="built_res"))]
     static ref BUILT_RES: PathBuf = PathBuf::from("target/res");
 }
+#[cfg(target_os = "android")]
+fn find_res() -> PathBuf {
+    android_internal("res")
+}
+#[cfg(not(target_os = "android"))]
 fn find_res() -> PathBuf {
     #[cfg(not(target_arch = "wasm32"))]
     if let Ok(mut p) = std::env::current_exe() {
@@ -456,10 +463,6 @@ fn find_res() -> PathBuf {
         bin("../res")
     } else if cfg!(target_os = "macos") {
         bin("../Resources")
-    } else if cfg!(target_os = "ios") {
-        bin("")
-    } else if cfg!(target_os = "android") {
-        bin("res/raw")
     } else if cfg!(target_family = "unix") {
         let c = current_exe();
         bin(format!("../share/{}", c.file_name().unwrap().to_string_lossy()))

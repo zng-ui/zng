@@ -179,7 +179,7 @@ ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc", "zng-task/ipc"]
 
 # Check if `zng::env::res` path is available in `init_built_res` first.
 #
-# Enabled by default in debug builds.
+# Enabled by default in debug builds, ignored in Android and Wasm.
 built_res = ["zng-env/built_res"]
 
 # Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
