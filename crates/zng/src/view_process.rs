@@ -8,12 +8,12 @@
 //! // use zng::view_process::prebuilt as view_process;
 //!
 //! fn main() {
+//!     zng::env::init!();
 //!     // single_process();
 //!     // multi_process();
 //! }
 //!
 //! fn multi_process() {
-//!     zng::env::init!();
 //!     app();
 //! }
 //!
@@ -30,6 +30,8 @@
 //! ```
 //!
 //! See the [`app`](crate::app) module documentation for more details about view-processes.
+//!
+//! See [`zng::env::init!`] for more details about running Android apps.
 
 /// Default view-process implementation.
 ///
@@ -40,17 +42,19 @@
 pub mod default {
     pub use zng_view::run_same_process;
 
-    /// Android backend required types.
+    /// Android init types.
     ///
     /// See [`winit::platform::android`](https://docs.rs/winit/latest/winit/platform/android/) for more details
     /// on how to select a backend "Activity".
+    ///
+    /// See [`zng::env::init!`] for more details about running Android apps.
     ///
     /// # Full API
     ///
     /// See [`zng_view::platform::android`] for the full API.
     #[cfg(target_os = "android")]
     pub mod android {
-        pub use zng_view::platform::android::activity::AndroidApp;
+        pub use zng_view::platform::android::{activity::AndroidApp, init_android_app};
     }
 }
 

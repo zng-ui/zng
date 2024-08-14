@@ -224,26 +224,13 @@ pub extern "C" fn extern_view_process_main() {
 ///
 /// # Android
 ///
-/// In Android builds this function takes an `AndroidApp` instance as the first argument, the instance is provided
-/// by the Android entry point, `fn android_main`.
-pub fn run_same_process(
-    #[cfg(target_os = "android")] android_app: platform::android::activity::AndroidApp,
-    run_app: impl FnOnce() + Send + 'static,
-) {
-    run_same_process_extended(
-        #[cfg(target_os = "android")]
-        android_app,
-        run_app,
-        ViewExtensions::new,
-    )
+/// In Android builds this function requires `android::init_android_app` must be called before this call.
+pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
+    run_same_process_extended(run_app, ViewExtensions::new)
 }
 
 /// Like [`run_same_process`] but with custom API extensions.
-pub fn run_same_process_extended(
-    #[cfg(target_os = "android")] android_app: platform::android::activity::AndroidApp,
-    run_app: impl FnOnce() + Send + 'static,
-    ext: fn() -> ViewExtensions,
-) {
+pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
     let app_thread = thread::Builder::new()
         .name("app".to_owned())
         .spawn(move || {
@@ -270,19 +257,9 @@ pub fn run_same_process_extended(
     let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app in same process");
 
     if config.headless {
-        App::run_headless(
-            #[cfg(target_os = "android")]
-            android_app,
-            c,
-            ext(),
-        );
+        App::run_headless(c, ext());
     } else {
-        App::run_headed(
-            #[cfg(target_os = "android")]
-            android_app,
-            c,
-            ext(),
-        );
+        App::run_headed(c, ext());
     }
 
     if let Err(p) = app_thread.join() {
@@ -1054,11 +1031,7 @@ impl App {
         }
     }
 
-    pub fn run_headless(
-        #[cfg(target_os = "android")] android_app: platform::android::activity::AndroidApp,
-        ipc: ipc::ViewChannels,
-        ext: ViewExtensions,
-    ) {
+    pub fn run_headless(ipc: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headless view-process");
 
         gl::warmup();
@@ -1078,7 +1051,10 @@ impl App {
         #[cfg(not(target_os = "android"))]
         let event_loop = EventLoop::builder().build().unwrap();
         #[cfg(target_os = "android")]
-        let event_loop = EventLoop::builder().with_android_app(android_app).build().unwrap();
+        let event_loop = EventLoop::builder()
+            .with_android_app(platform::android::android_app())
+            .build()
+            .unwrap();
         drop(winit_span);
 
         let mut app = HeadlessApp {
@@ -1185,11 +1161,7 @@ impl App {
         }
     }
 
-    pub fn run_headed(
-        #[cfg(target_os = "android")] android_app: platform::android::activity::AndroidApp,
-        ipc: ipc::ViewChannels,
-        ext: ViewExtensions,
-    ) {
+    pub fn run_headed(ipc: ipc::ViewChannels, ext: ViewExtensions) {
         tracing::info!("running headed view-process");
 
         gl::warmup();
@@ -1198,7 +1170,10 @@ impl App {
         #[cfg(not(target_os = "android"))]
         let event_loop = EventLoop::with_user_event().build().unwrap();
         #[cfg(target_os = "android")]
-        let event_loop = EventLoop::with_user_event().with_android_app(android_app).build().unwrap();
+        let event_loop = EventLoop::with_user_event()
+            .with_android_app(platform::android::android_app())
+            .build()
+            .unwrap();
         drop(winit_span);
         let app_sender = event_loop.create_proxy();
 

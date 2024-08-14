@@ -75,7 +75,27 @@ lazy_static! {
 ///
 /// The example above imports and runs an app built using [`wasm-pack`] with `--target web` options.
 ///
+/// # Android Start
+///
+/// Android builds (`target_os = "android"`) receive an `AndroidApp` instance from the `android_main`. This type
+/// is tightly coupled with the view-process implementation and so it is defined by the `zng-view` crate. In builds
+/// feature `"view"` you must call `zng::view_process::default::android::init_android_app` just after `init!`.
+///
+/// ```
+/// # macro_rules! demo { () => {
+/// #[no_mangle]
+/// fn android_main(app: zng::view_process::default::android::AndroidApp) {
+///     zng::env::init!();
+///     zng::view_process::default::android::init_android_app(app);
+///     // zng::view_process::default::run_same_process(..);
+/// }
+/// # }}
+/// ```
+///
+/// See the [multi example] for more details on how to support Android and other platforms.
+///
 /// [`wasm-pack`]: https://crates.io/crates/wasm-pack
+/// [multi example]: https://github.com/zng-ui/zng/tree/main/examples#multi
 #[macro_export]
 macro_rules! init {
     () => {
@@ -262,7 +282,7 @@ fn fallback_name() -> Txt {
 
 /// Gets a path relative to the package binaries.
 ///
-/// * In `cfg(target_arch = "wasm32")` returns `./`, as in the relative URL.
+/// * In Wasm returns `./`, as in the relative URL.
 /// * In all other platforms returns `std::env::current_exe().parent()`.
 ///
 /// # Panics
@@ -286,13 +306,12 @@ fn find_bin() -> PathBuf {
 /// Gets a path relative to the package resources.
 ///
 /// * The res dir can be set by [`init_res`] before any env dir is used.
-/// * In all platforms expect Wasm if a file `bin/current_exe_name.res-dir` is found the first non-empty and non-comment (#) line
+/// * In Android returns `android_internal("res")`, assumes the package assets are extracted to this directory.
+/// * In Linux, macOS and Windows if a file `bin/current_exe_name.res-dir` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `res`.
-/// * In `cfg(target_arch = "wasm32")` returns `./res`, as in the relative URL.
+/// * In Wasm returns `./res`, as in the relative URL.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
-/// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
-/// * In Android returns `bin("../res/raw")`, assumes the package is deployed as a `.apk` file.
 /// * In all other Unix systems returns `bin("../share/current_exe_name")`, assumes the package is deployed
 ///   using a Debian package.
 /// * In Windows returns `bin("../res")`. Note that there is no Windows standard, make sure to install
@@ -305,10 +324,19 @@ fn find_bin() -> PathBuf {
 /// included in version control.
 ///
 /// Note that the built resources must be packaged with the other res at the same relative location, so that release builds can find them.
+///
+/// # Android
+///
+/// Unfortunately Android does not provide file system access to the bundled resources, you must use the `ndk::asset::AssetManager` to
+/// request files that are decompressed on demand from the APK file. We recommend extracting all cross-platform assets once on startup
+/// to avoid having to implement special Android handling for each resource usage. See [`android_install_res`] for more details.
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
     res_impl(relative_path.as_ref())
 }
-#[cfg(any(debug_assertions, feature = "built_res"))]
+#[cfg(all(
+    any(debug_assertions, feature = "built_res"),
+    not(any(target_os = "android", target_arch = "wasm32")),
+))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     let built = BUILT_RES.join(relative_path);
     if built.exists() {
@@ -317,9 +345,80 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 
     RES.join(relative_path)
 }
-#[cfg(not(any(debug_assertions, feature = "built_res")))]
+#[cfg(not(all(
+    any(debug_assertions, feature = "built_res"),
+    not(any(target_os = "android", target_arch = "wasm32")),
+)))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     RES.join(relative_path)
+}
+
+/// Helper function for adapting Android assets to the cross-platform [`res`] API.
+///
+/// To implement Android resource extraction, bundle the resources in a tar that is itself bundled in `assets/res.tar` inside the APK.
+/// On startup, call this function, it handles resources extraction and versioning.
+///
+/// # Examples
+///
+/// ```
+/// # macro_rules! demo { () => {
+/// #[no_mangle]
+/// fn android_main(app: zng::view_process::default::android::AndroidApp) {
+///     zng::env::init!();
+///     zng::view_process::default::android::init_android_app(app.clone());
+///     zng::env::android_install_res(|| app.asset_manager().open(c"res.tar"));
+///     // zng::view_process::default::run_same_process(..);
+/// }
+/// # }}
+/// ```
+///
+/// The `open_res` closure is only called if this is the first instance of the current app version on the device, or if the user
+/// cleared all app data.
+///
+/// The resources are installed in the [`res`] directory, if the tar archive has only a root dir named `res` it is stripped.
+/// This function assumes that it is the only app component that writes to this directory.
+///
+/// Note that the tar file is not compressed, because the APK already compresses it. The `cargo zng res` tool `.zr-apk`
+/// tar resources by default, simply place the resources in `/assets/res/`.
+pub fn android_install_res<Asset: std::io::Read>(open_res: impl FnOnce() -> Option<Asset>) {
+    #[cfg(target_os = "android")]
+    {
+        let version = res(format!(".zng-env.res.{}", about().version));
+        if !version.exists() {
+            if let Some(res) = open_res() {
+                if let Err(e) = install_res(version, res) {
+                    tracing::error!("res install failed, {e}");
+                }
+            }
+        }
+    }
+    // cfg not applied to function so it shows on docs
+    #[cfg(not(target_os = "android"))]
+    let _ = open_res;
+}
+#[cfg(target_os = "android")]
+fn install_res(version: PathBuf, res: impl std::io::Read) -> std::io::Result<()> {
+    let res_path = version.parent().unwrap();
+    let _ = fs::remove_dir_all(res_path);
+    fs::create_dir(res_path)?;
+
+    let mut res = tar::Archive::new(res);
+    res.unpack(res_path)?;
+
+    // rename res/res to res if it is the only entry in res
+    let mut needs_pop = false;
+    for (i, entry) in fs::read_dir(&res_path)?.take(2).enumerate() {
+        needs_pop = i == 0 && entry?.file_name() == "res";
+    }
+    if needs_pop {
+        let tmp = res_path.parent().unwrap().join("res-tmp");
+        fs::rename(res_path.join("res"), &tmp)?;
+        fs::rename(tmp, res_path)?;
+    }
+
+    fs::File::create(&version)?;
+
+    Ok(())
 }
 
 /// Sets a custom [`res`] path.
@@ -351,6 +450,11 @@ lazy_static! {
     #[cfg(any(debug_assertions, feature="built_res"))]
     static ref BUILT_RES: PathBuf = PathBuf::from("target/res");
 }
+#[cfg(target_os = "android")]
+fn find_res() -> PathBuf {
+    android_internal("res")
+}
+#[cfg(not(target_os = "android"))]
 fn find_res() -> PathBuf {
     #[cfg(not(target_arch = "wasm32"))]
     if let Ok(mut p) = std::env::current_exe() {
@@ -367,10 +471,6 @@ fn find_res() -> PathBuf {
         bin("../res")
     } else if cfg!(target_os = "macos") {
         bin("../Resources")
-    } else if cfg!(target_os = "ios") {
-        bin("")
-    } else if cfg!(target_os = "android") {
-        bin("res/raw")
     } else if cfg!(target_family = "unix") {
         let c = current_exe();
         bin(format!("../share/{}", c.file_name().unwrap().to_string_lossy()))
@@ -385,7 +485,8 @@ fn find_res() -> PathBuf {
 /// Gets a path relative to the user config directory for the app.
 ///
 /// * The config dir can be set by [`init_config`] before any env dir is used.
-/// * In all platforms except Wasm if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
+/// * In Android returns `android_internal("config")`.
+/// * In Linux, macOS and Windows if a file in `res("config-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_config/`.
 /// * In all platforms attempts [`directories::ProjectDirs::config_dir`] and panic if it fails.
@@ -497,6 +598,11 @@ lazy_static! {
     static ref CONFIG: PathBuf = redirect_config(original_config());
 }
 
+#[cfg(target_os = "android")]
+fn find_config() -> PathBuf {
+    android_internal("config")
+}
+#[cfg(not(target_os = "android"))]
 fn find_config() -> PathBuf {
     let cfg_dir = res("config-dir");
     if let Ok(dir) = read_line(&cfg_dir) {
@@ -560,7 +666,8 @@ fn create_dir_opt(dir: PathBuf) -> PathBuf {
 /// Gets a path relative to the cache directory for the app.
 ///
 /// * The cache dir can be set by [`init_cache`] before any env dir is used.
-/// * In all platforms except Wasm if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
+/// * In Android returns `android_internal("cache")`.
+/// * In Linux, macOS and Windows if a file `config("cache-dir")` is found the first non-empty and non-comment (#) line
 ///   defines the res path.
 /// * In `cfg(debug_assertions)` builds returns `target/tmp/dev_cache/`.
 /// * In all platforms attempts [`directories::ProjectDirs::cache_dir`] and panic if it fails.
@@ -743,6 +850,11 @@ fn best_effort_move(from: &Path, to: &Path) -> io::Result<()> {
 lazy_static! {
     static ref CACHE: PathBuf = create_dir_opt(find_cache());
 }
+#[cfg(target_os = "android")]
+fn find_cache() -> PathBuf {
+    android_internal("cache")
+}
+#[cfg(not(target_os = "android"))]
 fn find_cache() -> PathBuf {
     let cache_dir = config("cache-dir");
     if let Ok(dir) = read_line(&cache_dir) {
@@ -781,6 +893,40 @@ fn read_line(path: &Path) -> io::Result<String> {
     }
     Err(io::Error::new(io::ErrorKind::UnexpectedEof, "no uncommented line"))
 }
+
+#[cfg(target_os = "android")]
+mod android {
+    use super::*;
+
+    lazy_static! {
+        static ref ANDROID_PATHS: [PathBuf; 2] = [PathBuf::new(), PathBuf::new()];
+    }
+
+    /// Initialize the Android app paths.
+    ///
+    /// This is called by `init_android_app` provided by view-process implementers.
+    pub fn init_android_paths(internal: PathBuf, external: PathBuf) {
+        if lazy_static_init(&ANDROID_PATHS, [internal, external]).is_err() {
+            panic!("cannot `init_android_paths`, already inited")
+        }
+    }
+
+    /// Gets a path relative to the internal storage reserved for the app.
+    ///
+    /// Prefer using [`config`] or [`cache`] over this directly.
+    pub fn android_internal(relative_path: impl AsRef<Path>) -> PathBuf {
+        ANDROID_PATHS[0].join(relative_path)
+    }
+
+    /// Gets a path relative to the external storage reserved for the app.
+    ///
+    /// This directory is user accessible.
+    pub fn android_external(relative_path: impl AsRef<Path>) -> PathBuf {
+        ANDROID_PATHS[1].join(relative_path)
+    }
+}
+#[cfg(target_os = "android")]
+pub use android::*;
 
 #[cfg(test)]
 mod tests {

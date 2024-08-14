@@ -155,6 +155,9 @@ features = ["NSEvent", "NSAppearance", "NSColor", "NSColorSpace"]
 version = "0.2.2"
 features = ["NSString"]
 
+[target.'cfg(target_os = "android")'.dependencies]
+parking_lot = "0.12"
+
 [build-dependencies]
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.7", features = [
     "build",

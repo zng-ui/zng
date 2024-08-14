@@ -1,5 +1,9 @@
 # Unreleased
 
+* Add `zng::env::android_install_res` helper.
+* Add `zng::env::android_external`.
+* Add `zng_env::android_internal`.
+* Add `zng::view_process::default::android`.
 * Implement Android suspend/resume cycle using the existing "respawn" API.
 * Add `APP.is_suspended` var.
 * Add `VIEW_PROCESS_SUSPENDED_EVENT`.
@@ -10,6 +14,7 @@
 * Implement system fonts query for Android.
 * Implement conversions from `FontStyle`, `FontWeight` and  `FontStretch` to the `ttf-parser` equivalent types.
 * Implement `PartialOrd, Ord` for `FontName`.
+* Add `zng_view::platform`.
 * Implemented Android `run_same_process` entry point.
 * Fixed Android build errors.
 * Fix gradient stops that mix positional stops with offset stops. 

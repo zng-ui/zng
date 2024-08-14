@@ -212,6 +212,8 @@ fn glob() {
         s
     };
 
+    let mut any = false;
+
     'apply: for source in selection {
         if source.is_dir() {
             let filters_root = source.parent().map(Path::to_owned).unwrap_or_default();
@@ -227,6 +229,7 @@ fn glob() {
                 }
                 let target = target.join(match_source);
 
+                any = true;
                 if source.is_dir() {
                     fs::create_dir_all(&target).unwrap_or_else(|e| fatal!("cannot create dir `{}`, {e}", source.display()));
                 } else {
@@ -248,11 +251,16 @@ fn glob() {
             }
             let target = target.join(source_name.as_ref());
 
+            any = true;
             fs::copy(&source, &target).unwrap_or_else(|e| fatal!("cannot copy `{}` to `{}`, {e}", source.display(), target.display()));
             println!("{}", display_path(&target));
         } else if source.is_symlink() {
             symlink_warn(&source);
         }
+    }
+
+    if !any {
+        println!("no match")
     }
 }
 
@@ -672,7 +680,11 @@ The expected folder structure:
 | ├── lib/
 | |   └── arm64-v8a
 | |       └── my-app.so
+| ├── assets/
+| |   └── res
+| |       └── zng-res.txt
 | ├── res/
+| |   └── android-res
 | ├── AndroidManifest.xml
 | └── build.zr-apk
 
@@ -680,14 +692,17 @@ Will be replaced with the built my-app.apk
 
 Expected build.zr-apk file content:
 
-| # comment
-|
-| # sign using the debug key. Note that if ZR_APK_KEYSTORE or ZR_APK_KEY_ALIAS are not
-| # set the APK is also signed using the debug key
+| # Sign using the debug key. Note that if ZR_APK_KEYSTORE or ZR_APK_KEY_ALIAS are not
+| # set the APK is also signed using the debug key.
 | debug = true
-| # don't sign and don't zipalign the APK. This outputs an incomplete package that
-| # cannot be installed, but can be modified such as custom linking and signing
+|
+| # Don't sign and don't zipalign the APK. This outputs an incomplete package that
+| # cannot be installed, but can be modified such as custom linking and signing.
 | raw = true
+|
+| # Don't tar assets. By default `assets/res` are packed as `assets/res.tar`
+| # for use with `android_install_res`.
+| tar-assets-res = false
 
 APK signing is configured using these environment variables:
 
@@ -706,6 +721,7 @@ fn apk() {
     // read config
     let mut debug = false;
     let mut raw = false;
+    let mut tar_assets = true;
     for line in read_lines(&path(ZR_REQUEST)) {
         let (ln, line) = line.unwrap_or_else(|e| fatal!("error reading .zr-apk request, {e}"));
         if let Some((key, value)) = line.split_once('=') {
@@ -723,6 +739,7 @@ fn apk() {
             match key {
                 "debug" => debug = bool_value(),
                 "raw" => raw = bool_value(),
+                "tar-assets" => tar_assets = bool_value(),
                 _ => error!("unknown key, line {ln}\n   {line}"),
             }
         } else {
@@ -783,12 +800,36 @@ fn apk() {
     let _ = fs::remove_dir_all(&temp_dir);
     fs::create_dir(&temp_dir).unwrap_or_else(|e| fatal!("cannot create {}, {e}", temp_dir.display()));
 
+    // tar assets
+    let assets = apk_folder.join("assets");
+    let assets_res = assets.join("res");
+    if tar_assets && assets_res.exists() {
+        let tar_path = assets.join("res.tar");
+        let r = Command::new("tar")
+            .arg("-cf")
+            .arg(&tar_path)
+            .arg("res")
+            .current_dir(&assets)
+            .status();
+        match r {
+            Ok(s) => {
+                if !s.success() {
+                    fatal!("tar failed")
+                }
+            }
+            Err(e) => fatal!("cannot run 'tar', {e}"),
+        }
+        if let Err(e) = fs::remove_dir_all(&assets_res) {
+            fatal!("failed tar-assets-res cleanup, {e}")
+        }
+    }
+
     // build resources
     let compiled_res = temp_dir.join("compiled_res.zip");
     let res = apk_folder.join("res");
     if res.exists() {
         let mut aapt2 = Command::new(&aapt2_path);
-        aapt2.arg("compile").arg("-o").arg(&compiled_res).arg(res.join("*.xml"));
+        aapt2.arg("compile").arg("-o").arg(&compiled_res).arg("--dir").arg(res);
 
         if aapt2.status().map(|s| !s.success()).unwrap_or(true) {
             fatal!("resources build failed");
@@ -838,6 +879,9 @@ fn apk() {
         .arg(platform.join("android.jar"));
     if compiled_res.exists() {
         aapt2.arg(&compiled_res);
+    }
+    if assets.exists() {
+        aapt2.arg("-A").arg(&assets);
     }
     if aapt2.status().map(|s| !s.success()).unwrap_or(true) {
         fatal!("apk linking failed");

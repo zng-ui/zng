@@ -12,6 +12,9 @@
 mod app;
 
 fn main() {
+    // usually resources are packed to a default dir using `cargo zng res --pack`
+    zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
+
     zng::env::init!();
     app::run();
 }

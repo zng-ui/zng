@@ -28,7 +28,7 @@
 //! Note that init **must be called in main**, it must be called in main to define the lifetime of the processes,
 //! this is needed to properly call [`on_process_exit`] handlers.
 //!
-//! Also see the [`init!`] section on WebAssembly for details on how to init in `"wasm32"` target builds.
+//! Also see [`init!`] docs for details init in `"wasm32"` and `"android"` target builds.
 //!
 //! # Full API
 //!
@@ -38,6 +38,9 @@ pub use zng_env::{
     about, bin, cache, clear_cache, config, exit, init, init_cache, init_config, init_res, migrate_cache, migrate_config, on_process_exit,
     on_process_start, res, About, ProcessExitArgs, ProcessStartArgs,
 };
+
+#[cfg(target_os = "android")]
+pub use zng_env::{android_external, android_install_res};
 
 #[cfg(any(debug_assertions, feature = "built_res"))]
 pub use zng_env::init_built_res;
