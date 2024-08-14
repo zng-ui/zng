@@ -9,6 +9,6 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 #### `"built_res"`
 Check if `res` path is available in `init_built_res` first.
 
-Enabled by default in debug builds.
+Enabled by default in debug builds, ignored in Android and Wasm.
 
 <!--do doc --readme #SECTION-END-->

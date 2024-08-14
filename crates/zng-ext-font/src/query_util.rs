@@ -330,7 +330,7 @@ mod android {
         // special names
         // source: https://android.googlesource.com/platform/frameworks/base/+/master/data/fonts/fonts.xml
         let font_name = match font_name.name() {
-            "sans-serif" => Cow::Owned(FontName::new("Noto Sans")),
+            "sans-serif" => Cow::Owned(FontName::new("Roboto")),
             "serif" | "fantasy" => Cow::Owned(FontName::new("Noto Serif")),
             "cursive" => Cow::Owned(FontName::new("Dancing Script")),
             "monospace" => Cow::Owned(FontName::new("Droid Sans Mono")),
