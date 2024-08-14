@@ -202,7 +202,7 @@ Only enables in `not(any(target_os = "android", target_arch = "wasm32"))` builds
 #### `"built_res"`
 Check if `zng::env::res` path is available in `init_built_res` first.
 
-Enabled by default in debug builds.
+Enabled by default in debug builds, ignored in Android and Wasm.
 
 #### `"android_game_activity"`
 Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
