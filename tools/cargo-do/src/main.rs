@@ -928,7 +928,7 @@ fn build_apk(mut args: Vec<&str>) {
         let apk_assets = apk_assets.join("copy.zr-glob");
         std::fs::write(
             apk_assets,
-            format!("{}\n!screenshot.png", dunce::canonicalize(example_res).unwrap().display()).as_bytes(),
+            format!("{}\n!:*/screenshot.png", dunce::canonicalize(example_res).unwrap().display()).as_bytes(),
         )
         .unwrap();
     }

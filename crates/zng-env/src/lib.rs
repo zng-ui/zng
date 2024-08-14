@@ -370,7 +370,8 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 /// The `open_res` closure is only called if this is the first instance of the current app version on the device, or if the user
 /// cleared all app data.
 ///
-/// The resources are installed in the [`res`] directory. This function assumes that it is the only app component that writes to this directory.
+/// The resources are installed in the [`res`] directory, if the tar archive has only a root dir named `res` it is stripped.
+/// This function assumes that it is the only app component that writes to this directory.
 pub fn android_install_res<Asset: std::io::Read>(open_res: impl FnOnce() -> Option<Asset>) {
     #[cfg(target_os = "android")]
     {
@@ -396,7 +397,16 @@ fn install_res(version: PathBuf, res: impl std::io::Read) -> std::io::Result<()>
     let res = flate2::read::GzDecoder::new(res);
     let mut res = tar::Archive::new(res);
     res.unpack(res_path)?;
-    fs::File::create(version)?;
+    fs::File::create(&version)?;
+
+    // rename res/res to res if it is the only entry in res
+    let mut needs_pop = false;
+    for (i, entry) in fs::read_dir(&res_path)?.take(2).enumerate() {
+        needs_pop = i == 0 && entry?.file_name() == "res";
+    }
+    if needs_pop {
+        fs::rename(res_path.join("res"), res_path)?
+    }
 
     Ok(())
 }

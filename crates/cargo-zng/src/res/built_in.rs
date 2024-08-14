@@ -212,6 +212,8 @@ fn glob() {
         s
     };
 
+    let mut any = false;
+
     'apply: for source in selection {
         if source.is_dir() {
             let filters_root = source.parent().map(Path::to_owned).unwrap_or_default();
@@ -227,6 +229,7 @@ fn glob() {
                 }
                 let target = target.join(match_source);
 
+                any = true;
                 if source.is_dir() {
                     fs::create_dir_all(&target).unwrap_or_else(|e| fatal!("cannot create dir `{}`, {e}", source.display()));
                 } else {
@@ -248,11 +251,16 @@ fn glob() {
             }
             let target = target.join(source_name.as_ref());
 
+            any = true;
             fs::copy(&source, &target).unwrap_or_else(|e| fatal!("cannot copy `{}` to `{}`, {e}", source.display(), target.display()));
             println!("{}", display_path(&target));
         } else if source.is_symlink() {
             symlink_warn(&source);
         }
+    }
+
+    if !any {
+        println!("no match")
     }
 }
 
@@ -673,7 +681,8 @@ The expected folder structure:
 | |   └── arm64-v8a
 | |       └── my-app.so
 | ├── assets/
-| |   └── my-res.txt
+| |   └── res
+| |       └── zng-res.txt
 | ├── res/
 | |   └── android-res
 | ├── AndroidManifest.xml
@@ -691,9 +700,9 @@ Expected build.zr-apk file content:
 | # cannot be installed, but can be modified such as custom linking and signing.
 | raw = true
 |
-| # Don't tar assets. By default assets are packed to `assets/res.tar.gz`
+| # Don't tar assets. By default `assets/res` are packed as `assets/res.tar.gz`
 | # for use with `android_install_res`.
-| tar-assets = false
+| tar-assets-res = false
 
 APK signing is configured using these environment variables:
 
@@ -792,20 +801,26 @@ fn apk() {
     fs::create_dir(&temp_dir).unwrap_or_else(|e| fatal!("cannot create {}, {e}", temp_dir.display()));
 
     // tar assets
-    let mut assets = apk_folder.join("assets");
-    if tar_assets && assets.exists() {
-        let r = (|| -> io::Result<()> {
-            let assets_tar = temp_dir.join("assets/res.tar.gz");
-            let _ = fs::create_dir_all(assets_tar.parent().unwrap());
-            let tar_gz = fs::File::create(&assets_tar)?;
-            let enc = flate2::write::GzEncoder::new(tar_gz, flate2::Compression::default());
-            let mut tar = tar::Builder::new(enc);
-            tar.append_dir_all("", &assets)?;
-            assets = assets_tar.parent().unwrap().to_owned();
-            Ok(())
-        })();
-        if let Err(e) = r {
-            fatal!("tar assets failed, {e}");
+    let assets = apk_folder.join("assets");
+    let assets_res = assets.join("res");
+    if tar_assets && assets_res.exists() {
+        let tar_path = assets.join("res.tar.gz");
+        let r = Command::new("tar")
+            .arg("-czf")
+            .arg(&tar_path)
+            .arg("res")
+            .current_dir(&assets)
+            .status();
+        match r {
+            Ok(s) => {
+                if !s.success() {
+                    fatal!("tar failed")
+                }
+            }
+            Err(e) => fatal!("cannot run 'tar', {e}"),
+        }
+        if let Err(e) = fs::remove_dir_all(&assets_res) {
+            fatal!("failed tar-assets-res cleanup, {e}")
         }
     }
 
