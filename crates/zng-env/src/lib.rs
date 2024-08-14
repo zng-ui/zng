@@ -371,7 +371,7 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 ///
 /// The resources are installed in the [`res`] directory, if the tar archive has only a root dir named `res` it is stripped.
 /// This function assumes that it is the only app component that writes to this directory.
-/// 
+///
 /// Note that the tar file is not compressed, because the APK already compresses it. The `cargo zng res` tool `.zr-apk`
 /// tar resources by default, simply place the resources in `/assets/res/`.
 pub fn android_install_res<Asset: std::io::Read>(open_res: impl FnOnce() -> Option<Asset>) {
@@ -396,10 +396,8 @@ fn install_res(version: PathBuf, res: impl std::io::Read) -> std::io::Result<()>
     let _ = fs::remove_dir_all(res_path);
     fs::create_dir(res_path)?;
 
-    let res = flate2::read::GzDecoder::new(res);
     let mut res = tar::Archive::new(res);
     res.unpack(res_path)?;
-    fs::File::create(&version)?;
 
     // rename res/res to res if it is the only entry in res
     let mut needs_pop = false;
@@ -407,8 +405,12 @@ fn install_res(version: PathBuf, res: impl std::io::Read) -> std::io::Result<()>
         needs_pop = i == 0 && entry?.file_name() == "res";
     }
     if needs_pop {
-        fs::rename(res_path.join("res"), res_path)?
+        let tmp = res_path.parent().unwrap().join("res-tmp");
+        fs::rename(res_path.join("res"), &tmp)?;
+        fs::rename(tmp, res_path)?;
     }
+
+    fs::File::create(&version)?;
 
     Ok(())
 }

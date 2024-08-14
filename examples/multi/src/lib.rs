@@ -49,7 +49,7 @@ mod android {
 
         android::init_android_app(app.clone());
         // ./res packed by `cargo do build-apk` using `cargo zng res --pack`
-        zng::env::android_install_res(|| app.asset_manager().open(c"res.tar.gz"));
+        zng::env::android_install_res(|| app.asset_manager().open(c"res.tar"));
 
         run_same_process(app::run);
     }

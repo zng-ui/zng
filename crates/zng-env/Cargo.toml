@@ -30,7 +30,6 @@ zng-unique-id = { path = "../zng-unique-id", version = "0.4.4" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 
 [target.'cfg(target_os = "android")'.dependencies]
-flate2 = "1.0"
 tar = "0.4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
