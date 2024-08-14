@@ -40,7 +40,7 @@ pub use zng_env::{
 };
 
 #[cfg(target_os = "android")]
-pub use zng_env::android_external;
+pub use zng_env::{android_external, android_install_res};
 
 #[cfg(any(debug_assertions, feature = "built_res"))]
 pub use zng_env::init_built_res;

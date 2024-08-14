@@ -48,6 +48,7 @@ mod android {
         zng::app::print_tracing(tracing::Level::INFO);
         tracing::info!("Hello Android!");
 
+        zng::env::android_install_res(|| app.asset_manager().open("res.tar.gz"));
         run_same_process(app::run);
     }
 }

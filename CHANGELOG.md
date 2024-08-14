@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `zng::env::android_install_res` helper.
+* Add `zng::env::android_external`.
+* Add `zng_env::android_internal`.
 * Add `zng::view_process::default::android`.
 * Implement Android suspend/resume cycle using the existing "respawn" API.
 * Add `APP.is_suspended` var.

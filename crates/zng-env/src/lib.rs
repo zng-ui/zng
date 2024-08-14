@@ -312,7 +312,7 @@ fn find_bin() -> PathBuf {
 /// * In Wasm returns `./res`, as in the relative URL.
 /// * In macOS returns `bin("../Resources")`, assumes the package is deployed using a desktop `.app` folder.
 /// * In iOS returns `bin("")`, assumes the package is deployed as a mobile `.app` folder.
-/// * In Android returns `bin("../res/raw")`, assumes the package is deployed as a `.apk` file.
+/// * In Android returns `android_internal("res")`, assumes the package assets are extracted to this directory.
 /// * In all other Unix systems returns `bin("../share/current_exe_name")`, assumes the package is deployed
 ///   using a Debian package.
 /// * In Windows returns `bin("../res")`. Note that there is no Windows standard, make sure to install
@@ -325,6 +325,12 @@ fn find_bin() -> PathBuf {
 /// included in version control.
 ///
 /// Note that the built resources must be packaged with the other res at the same relative location, so that release builds can find them.
+///
+/// # Android
+///
+/// Unfortunately Android does not provide file system access to the bundled resources, you must use the `ndk::asset::AssetManager` to
+/// request files that are decompressed on demand from the APK file. We recommend extracting all cross-platform assets once on startup
+/// to avoid having to implement special Android handling for each resource usage. See [`android_install_res`] for more details.
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
     res_impl(relative_path.as_ref())
 }
@@ -340,6 +346,59 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 #[cfg(not(any(debug_assertions, feature = "built_res")))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     RES.join(relative_path)
+}
+
+/// Helper function for adapting Android assets to the cross-platform [`res`] API.
+///
+/// To implement Android resource extraction, bundle the resources as tarball that is itself bundled in `assets/res.tar.gz` inside the APK.
+/// On startup, call this function, it handles resources extraction and versioning.
+///
+/// # Examples
+///
+/// ```
+/// # macro_rules! demo { () => {
+/// #[no_mangle]
+/// fn android_main(app: zng::view_process::default::android::AndroidApp) {
+///     zng::env::init!();
+///     zng::env::android_install_res(|| app.asset_manager().open("res.tar.gz"));
+///     zng::view_process::default::android::init_android_app(app);
+///     // zng::view_process::default::run_same_process(..);
+/// }
+/// # }}
+/// ```
+///
+/// The `open_res` closure is only called if this is the first instance of the current app version on the device, or if the user
+/// cleared all app data.
+///
+/// The resources are installed in the [`res`] directory. This function assumes that it is the only app component that writes to this directory.
+pub fn android_install_res<Asset: std::io::Read>(open_res: impl FnOnce() -> Option<Asset>) {
+    #[cfg(target_os = "android")]
+    {
+        let version = res(format!(".zng-env.res.{}", about().version));
+        if !version.exists() {
+            if let Some(res) = open_res() {
+                if let Err(e) = install_res(version, res) {
+                    tracing::error!("res install failed, {e}");
+                }
+            }
+        }
+    }
+    // cfg not applied to function so it shows on docs
+    #[cfg(not(target_os = "android"))]
+    let _ = open_res;
+}
+#[cfg(target_os = "android")]
+fn install_res(version: PathBuf, res: impl std::io::Read) -> std::io::Result<()> {
+    let res_path = version.parent().unwrap();
+    let _ = fs::remove_dir_all(res_path);
+    fs::create_dir(res_path)?;
+
+    let res = flate2::read::GzDecoder::new(res);
+    let mut res = tar::Archive::new(res);
+    res.unpack(res_path)?;
+    fs::File::create(version)?;
+
+    Ok(())
 }
 
 /// Sets a custom [`res`] path.
