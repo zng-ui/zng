@@ -333,7 +333,10 @@ fn find_bin() -> PathBuf {
 pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
     res_impl(relative_path.as_ref())
 }
-#[cfg(any(debug_assertions, feature = "built_res", not(any(target_os = "android", target_arch = "wasm32"))))]
+#[cfg(all(
+    any(debug_assertions, feature = "built_res"),
+    not(any(target_os = "android", target_arch = "wasm32")),
+))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     let built = BUILT_RES.join(relative_path);
     if built.exists() {
@@ -342,7 +345,10 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 
     RES.join(relative_path)
 }
-#[cfg(not(any(debug_assertions, feature = "built_res", not(any(target_os = "android", target_arch = "wasm32")))))]
+#[cfg(not(all(
+    any(debug_assertions, feature = "built_res"),
+    not(any(target_os = "android", target_arch = "wasm32")),
+)))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     RES.join(relative_path)
 }
