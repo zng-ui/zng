@@ -43,12 +43,15 @@ mod android {
     #[no_mangle]
     fn android_main(app: android::AndroidApp) {
         zng::env::init!();
-        android::init_android_app(app);
 
         zng::app::print_tracing(tracing::Level::INFO);
         tracing::info!("Hello Android!");
 
-        zng::env::android_install_res(|| app.asset_manager().open("res.tar.gz"));
+        // ./res packed by `cargo do build-apk` using `cargo zng res --pack`
+        zng::env::android_install_res(|| app.asset_manager().open(c"res.tar.gz"));
+
+        android::init_android_app(app);
+
         run_same_process(app::run);
     }
 }

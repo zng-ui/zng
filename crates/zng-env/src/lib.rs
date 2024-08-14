@@ -360,7 +360,7 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 /// #[no_mangle]
 /// fn android_main(app: zng::view_process::default::android::AndroidApp) {
 ///     zng::env::init!();
-///     zng::env::android_install_res(|| app.asset_manager().open("res.tar.gz"));
+///     zng::env::android_install_res(|| app.asset_manager().open(c"res.tar.gz"));
 ///     zng::view_process::default::android::init_android_app(app);
 ///     // zng::view_process::default::run_same_process(..);
 /// }

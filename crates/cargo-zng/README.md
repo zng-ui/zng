@@ -481,7 +481,7 @@ $ cargo zng res --tools
 .zr-apk @ cargo-zng
   Build an Android APK from the parent folder
 
-call 'cargo zng res --help tool' to read full help from a tool
+call 'cargo zng res --tool tool' to read full help from a tool
 ```
 
 The expanded help for each:
