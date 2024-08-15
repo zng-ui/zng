@@ -18,6 +18,7 @@ you only need to install some packages:
     - Enable the `"android_native_activity"` feature.
     - Set `crate-type = ["cdylib"]`, add a `lib.rs` file with the [`android_main`] function.
     - Call `init_android_app`, [`android_install_res`] and [`run_same_process`] to run, multi-process is not supported.
+    - Program the [Build Script](#build-script) to copy and link the `libc++_shared.so` library.
 
 * Build Setup:
     - Append `RUSTFLAGS` with `-Clink-arg=-z -Clink-arg=nostart-stop-gc`.
@@ -47,3 +48,36 @@ for help on how to sign the APK.
 [`android_main`]: https://zng-ui.github.io/doc/zng/env/macro.init.html#android-start
 [`android_install_res`]: https://zng-ui.github.io/doc/zng_env/fn.android_install_res.html
 [`run_same_process`]: https://zng-ui.github.io/doc/zng/view_process/default/fn.run_same_process.html
+
+## Build Script
+
+Building requires linking to Android's `c++_shared` library. You can configure the crate's `build.rs` script
+to copy and link using this code:
+
+```rust
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
+
+fn main() {
+    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" {
+        android();
+    }
+}
+
+fn android() {
+    println!("cargo:rustc-link-lib=c++_shared");
+
+    if let Ok(output_path) = env::var("CARGO_NDK_OUTPUT_PATH") {
+        let sysroot_libs_path = PathBuf::from(env::var_os("CARGO_NDK_SYSROOT_LIBS_PATH").unwrap());
+        let lib_path = sysroot_libs_path.join("libc++_shared.so");
+
+        let output_path = Path::new(&output_path).join(env::var("CARGO_NDK_ANDROID_TARGET").unwrap());
+        let _ = fs::create_dir_all(&output_path);
+        let output_path = output_path.join("libc++_shared.so");
+        std::fs::copy(lib_path, &output_path).unwrap();
+        println!("cargo:rerun-if-changed={}", output_path.display());
+    }
+}
+```
