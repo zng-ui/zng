@@ -81,7 +81,7 @@ The Cargo features of each crate are documented in the README file for that crat
 
 ## Requirements
 
-On Windows:
+##### On Windows:
 
 * To build with `"view"` and `"view_software"` feature:
     - Env vars `CC` and `CXX` must be set to "clang-cl".
@@ -89,7 +89,7 @@ On Windows:
 
 [Visual Studio installer]: https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170
 
-On Linux:
+##### On Linux:
 
 * Packages needed to build:
     - `pkg-config`
@@ -101,56 +101,29 @@ On Linux:
 * Packages needed to build with `"view_prebuilt"` feature:
     - `curl`
 
-On macOS:
+##### On macOS:
 
 * To build with `"crash_handler"` feature, enabled by default:
     - XCode 14 or newer.
 
-On Android:
+##### On Android:
 
-Cross compile for Android requires some setup. The project [default template] provides most of this setup for you, 
+Cross compilation for Android requires some setup. The project [default template] provides most of this setup, 
 you only need to install some packages:
 
 * Build dependencies:
-    - Install Android Studio or the Android Command-Line Tools, use the Studio UI or the command-line to install:
+    - Install Android Studio or the Android Command-Line Tools, use the Studio UI or the `sdkmanager` tool to install:
         - Android SDK Build Tools.
         - NDK.
         - Android SDK Platform Tools.
+    - Set the `ANDROID_HOME` and `ANDROID_NDK_HOME` environment variables.
     - Install [cargo-ndk].
-    - Install one or more Rust targets for Android, we test `aarch64-linux-android`.
+    - Install one or more Rust targets for Android, we test using `aarch64-linux-android`.
     - If you are using the [default template] or just want to build the example you are done.
 
-* Crate setup:
-    - Enable the `"view"` feature as prebuilt is not supported for Android.
-    - Enable the `"android_native_activity"` feature.
-    - Set `crate-type = ["cdylib"]`, add a `lib.rs` file with the `android_main` function.
-    - Call `init_android_app`, `android_install_res` and use `run_same_process` to run, multi-process is not supported.
+See [android-setup.md] for the full Android Setup description.
 
-* Build Setup:
-    - Append `RUSTFLAGS` with `-Clink-arg=-z -Clink-arg=nostart-stop-gc`.
-    - Use `cargo ndk` to wrap your build call.
-    - If you just want the built binary you are done.
-
-* Build APK Setup:
-    - Create a staging folder, `app.apk/`.
-    - Add a `AndroidManifest.xml` file.
-        - Declare the activity: `android:name="android.app.NativeActivity"`.
-        - Declare events support: `android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"`.
-        - See [test example].
-    - Copy binary to `app.apk/lib/<platform>/<binary>.so`.
-    - Copy resources to `app.apk/assets/res/`.
-    - Create a `app.apk/build.zr-apk` file and call use `cargo zng res --pack ..` to build.
-
-Android cross compilation is tested for macOS, Ubuntu and Windows, see the "check-android*" jobs in [ci.yml],
-the [multi](examples/multi/) example and the [build-apk] task in the `do` tool. Also see `cargo zng res --tool apk`
-for help on how to sign the APK.
-
-[ci.yml]: .github/workflows/ci.ym.
-[multi]: examples/multi/
-[build-apk]: https://github.com/search?q=repo%3Azng-ui%2Fzng%20fn%20build_apk(&type=code
-[default template]: https://github.com/zng-ui/zng-template
-[cargo-ndk]: https://crates.io/crates/cargo-ndk
-[test example]: https://github.com/zng-ui/zng/blob/main/tools/cargo-do/src/build-apk-manifest.xml
+[Android.md]: tools/android-setup.md
 
 ## Examples
 
