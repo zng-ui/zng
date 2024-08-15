@@ -969,12 +969,21 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
     }
 
     fn suspended(&mut self, _: &ActiveEventLoop) {
+        #[cfg(target_os = "android")]
+        if let Some(w) = &self.windows.first() {
+            self.notify(Event::FocusChanged {
+                prev: Some(w.id()),
+                new: None,
+            });
+        }
+
         self.app_state = AppState::Suspended;
         self.windows.clear();
         self.surfaces.clear();
         self.image_cache.clear();
         self.exts.suspended();
-        self.notify(Event::Suspended)
+
+        self.notify(Event::Suspended);
     }
 
     fn exiting(&mut self, event_loop: &ActiveEventLoop) {
@@ -1683,6 +1692,10 @@ impl Api for App {
             self.windows.push(win);
 
             self.notify(Event::WindowOpened(id, msg));
+
+            // winit does not notify focus for Android window
+            #[cfg(target_os = "android")]
+            self.notify(Event::FocusChanged { prev: None, new: Some(id) });
         }
     }
 
