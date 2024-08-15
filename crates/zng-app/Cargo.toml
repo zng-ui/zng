@@ -88,7 +88,7 @@ zng-time = { path = "../zng-time", version = "0.2.18" }
 zng-var = { path = "../zng-var", version = "0.5.1" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 zng-task = { path = "../zng-task", version = "0.4.1" }
-zng-view-api = { path = "../zng-view-api", version = "0.6.6", features = [
+zng-view-api = { path = "../zng-view-api", version = "0.7.0", features = [
     "var",
 ] }
 zng-state-map = { path = "../zng-state-map", version = "0.3.4" }

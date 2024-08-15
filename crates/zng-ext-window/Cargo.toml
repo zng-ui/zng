@@ -26,7 +26,7 @@ zng-var = { path = "../zng-var", version = "0.5.1" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 zng-layout = { path = "../zng-layout", version = "0.2.21" }
 zng-state-map = { path = "../zng-state-map", version = "0.3.4" }
-zng-view-api = { path = "../zng-view-api", version = "0.6.6" }
+zng-view-api = { path = "../zng-view-api", version = "0.7.0" }
 zng-task = { path = "../zng-task", version = "0.4.1" }
 zng-ext-image = { path = "../zng-ext-image", version = "0.2.27" }
 zng-color = { path = "../zng-color", version = "0.3.6" }

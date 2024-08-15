@@ -32,7 +32,7 @@ zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.27" }
 zng-ext-image = { path = "../zng-ext-image", version = "0.2.27" }
 zng-ext-config = { path = "../zng-ext-config", version = "0.3.7", default-features = false }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.7" }
-zng-view-api = { path = "../zng-view-api", version = "0.6.6" }
+zng-view-api = { path = "../zng-view-api", version = "0.7.0" }
 zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.1.3" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.17" }
 zng-wgt-window = { path = "../zng-wgt-window", version = "0.5.7" }
