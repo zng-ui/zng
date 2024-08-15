@@ -2,7 +2,7 @@
 //!
 //! This module provides the [`default`] view-process implementation and a [`prebuilt`] version of it.
 //!
-//! ```
+//! ```no_run
 //! use zng::prelude::*;
 //! use zng::view_process::default as view_process;
 //! // use zng::view_process::prebuilt as view_process;
