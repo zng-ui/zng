@@ -17,7 +17,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.11.0", features = ["view_prebuilt"] }
+zng = { version = "0.11.1", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -112,7 +112,8 @@ Cross compilation for Android requires some setup. The project [default template
 you only need to install some packages:
 
 * Build dependencies:
-    - Install Android Studio or the Android Command-Line Tools, use the Studio UI or the `sdkmanager` tool to install:
+    - Install Android Studio or the Android Command-Line Tools, use the `sdkmanager` tool 
+      or the "Android Studio Settings / Android SDK" UI to install:
         - Android SDK Build Tools.
         - NDK.
         - Android SDK Platform Tools.
@@ -121,9 +122,10 @@ you only need to install some packages:
     - Install one or more Rust targets for Android, we test using `aarch64-linux-android`.
     - If you are using the [default template] or just want to build the example you are done.
 
-See [android-setup.md] for the full Android Setup description.
+See [Android Setup] for more help on how to setup the crate and build script.
 
-[Android.md]: tools/android-setup.md
+[cargo-ndk]: https://crates.io/crates/cargo-ndk
+[Android Setup]: tools/android-setup.md
 
 ## Examples
 
