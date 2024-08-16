@@ -227,9 +227,18 @@ fn assert_dir_eq(expected: &Path, actual: &Path) {
     }
 }
 
+fn rust_flags_allow_warnings() -> String {
+    let mut flags = std::env::var("RUSTFLAGS").unwrap_or_default();
+    for f in ["-Dwarnings", "--deny=warnings", "-D warnings", "--deny warnings"] {
+        flags = flags.replace(f, "");
+    }
+    flags
+}
+
 fn zng_res<S: AsRef<OsStr>>(args: &[S], tool_dir: &Path, metadata: &Path, pack: bool) -> Result<StdioStr, (io::Error, StdioStr)> {
     zng(
         |cmd| {
+            cmd.env("RUSTFLAGS", rust_flags_allow_warnings());
             cmd.arg("res");
             if pack {
                 cmd.arg("--pack");
