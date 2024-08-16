@@ -20,7 +20,7 @@ use std::{
     any::{type_name, TypeId},
     collections::HashMap,
     fmt,
-    future::Future,
+    future::{Future, IntoFuture},
     ops,
     path::PathBuf,
     sync::Arc,
@@ -711,7 +711,7 @@ impl HeadlessApp {
     /// Execute the async `task` in the UI thread, updating the app until it finishes or the app shuts-down.
     ///
     /// Returns the task result if the app has not shut-down.
-    pub fn run_task<R, T>(&mut self, task: T) -> Option<R>
+    pub fn run_task<R, T>(&mut self, task: impl IntoFuture<IntoFuture=T>) -> Option<R>
     where
         R: 'static,
         T: Future<Output = R> + Send + Sync + 'static,
@@ -1376,7 +1376,8 @@ impl<E: AppExtension> AppExtended<E> {
     ///
     /// The `start` task runs in a [`UiTask`] in the app context, note that it only needs to start the app, usually
     /// by opening a window, the app will keep running after `start` is finished.
-    pub fn run(self, start: impl Future<Output = ()> + Send + 'static) {
+    pub fn run<F: Future<Output = ()> + Send + 'static>(self, start: impl IntoFuture<IntoFuture=F>) {
+        let start = start.into_future();
         #[cfg(feature = "dyn_closure")]
         let start = Box::pin(start);
         self.run_impl(start)

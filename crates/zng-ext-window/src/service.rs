@@ -1,4 +1,4 @@
-use std::{any::Any, future::Future, mem, sync::Arc};
+use std::{any::Any, future::{Future, IntoFuture}, mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -304,7 +304,7 @@ impl WINDOWS {
     /// [loaded]: Self::is_loaded
     /// [`UiTask`]: zng_task::UiTask
     /// [`WINDOW`]: zng_app::window::WINDOW
-    pub fn open(&self, new_window: impl Future<Output = WindowRoot> + Send + 'static) -> ResponseVar<WindowId> {
+    pub fn open<F: Future<Output = WindowRoot> + Send + 'static>(&self, new_window: impl IntoFuture<IntoFuture = F>) -> ResponseVar<WindowId> {
         WINDOWS_SV
             .write()
             .open_impl(WindowId::new_unique(), UiTask::new(None, new_window), None)
@@ -315,10 +315,10 @@ impl WINDOWS {
     /// # Panics
     ///
     /// If the `window_id` is already assigned to an open or opening window.
-    pub fn open_id(
+    pub fn open_id<F: Future<Output = WindowRoot> + Send + 'static>(
         &self,
         window_id: impl Into<WindowId>,
-        new_window: impl Future<Output = WindowRoot> + Send + 'static,
+        new_window: impl IntoFuture<IntoFuture = F>,
     ) -> ResponseVar<WindowId> {
         let window_id = window_id.into();
         self.assert_id_unused(window_id);
@@ -333,9 +333,9 @@ impl WINDOWS {
     /// creates headless windows even in a headed app.
     ///
     /// [`open`]: WINDOWS::open
-    pub fn open_headless(
+    pub fn open_headless<F: Future<Output = WindowRoot> + Send + 'static>(
         &self,
-        new_window: impl Future<Output = WindowRoot> + Send + 'static,
+        new_window: impl IntoFuture<IntoFuture = F>,
         with_renderer: bool,
     ) -> ResponseVar<WindowId> {
         WINDOWS_SV.write().open_impl(
@@ -354,10 +354,10 @@ impl WINDOWS {
     /// # Panics
     ///
     /// If the `window_id` is already assigned to an open or opening window.
-    pub fn open_headless_id(
+    pub fn open_headless_id<F: Future<Output = WindowRoot> + Send + 'static>(
         &self,
         window_id: impl Into<WindowId>,
-        new_window: impl Future<Output = WindowRoot> + Send + 'static,
+        new_window: impl IntoFuture<IntoFuture = F>,
         with_renderer: bool,
     ) -> ResponseVar<WindowId> {
         let window_id = window_id.into();
