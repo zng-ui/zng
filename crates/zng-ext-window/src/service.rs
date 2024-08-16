@@ -1,4 +1,9 @@
-use std::{any::Any, future::{Future, IntoFuture}, mem, sync::Arc};
+use std::{
+    any::Any,
+    future::{Future, IntoFuture},
+    mem,
+    sync::Arc,
+};
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -304,7 +309,10 @@ impl WINDOWS {
     /// [loaded]: Self::is_loaded
     /// [`UiTask`]: zng_task::UiTask
     /// [`WINDOW`]: zng_app::window::WINDOW
-    pub fn open<F: Future<Output = WindowRoot> + Send + 'static>(&self, new_window: impl IntoFuture<IntoFuture = F>) -> ResponseVar<WindowId> {
+    pub fn open<F: Future<Output = WindowRoot> + Send + 'static>(
+        &self,
+        new_window: impl IntoFuture<IntoFuture = F>,
+    ) -> ResponseVar<WindowId> {
         WINDOWS_SV
             .write()
             .open_impl(WindowId::new_unique(), UiTask::new(None, new_window), None)

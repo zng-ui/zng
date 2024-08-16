@@ -1326,10 +1326,7 @@ mod response {
                 r
             });
 
-            let ab = app
-                .run_task(async { task::with_deadline(ab, 20.secs()).await })
-                .unwrap()
-                .unwrap();
+            let ab = app.run_task(async { task::with_deadline(ab, 20.secs()).await }).unwrap().unwrap();
 
             assert_eq!(ab, "ab");
         }
