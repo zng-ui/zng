@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement `IntoFuture for ResponseVar<T>`.
 
 # 0.11.1
 
