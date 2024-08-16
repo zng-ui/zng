@@ -1,5 +1,6 @@
 # Unreleased
 
+* Remove `.zr-apk` requirement of extension on the folder name.
 
 # 0.11.1
 
