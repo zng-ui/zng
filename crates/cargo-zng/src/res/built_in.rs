@@ -672,11 +672,11 @@ fn shf() {
 }
 
 const APK_HELP: &str = r#"
-Build an Android APK from the parent folder
+Build an Android APK from a staging directory
 
-The expected folder structure:
+The expected file system layout:
 
-| my-app.apk/
+| apk/
 | ├── lib/
 | |   └── arm64-v8a
 | |       └── my-app.so
@@ -685,13 +685,17 @@ The expected folder structure:
 | |       └── zng-res.txt
 | ├── res/
 | |   └── android-res
-| ├── AndroidManifest.xml
-| └── build.zr-apk
+| └── AndroidManifest.xml
+| my-app.zr-apk
 
-Will be replaced with the built my-app.apk
+Both 'apk/' and 'my-app.zr-apk' will be replaced with the built my-app.apk
 
-Expected build.zr-apk file content:
+Expected .zr-apk file content:
 
+| # Relative path to the staging directory. If not set uses ./apk if it exists
+| # or the parent dir .. if it is named something.apk
+| apk-dir = ./apk
+|
 | # Sign using the debug key. Note that if ZR_APK_KEYSTORE or ZR_APK_KEY_ALIAS are not
 | # set the APK is also signed using the debug key.
 | debug = true
@@ -719,6 +723,7 @@ fn apk() {
     }
 
     // read config
+    let mut apk_dir = String::new();
     let mut debug = false;
     let mut raw = false;
     let mut tar_assets = true;
@@ -737,6 +742,7 @@ fn apk() {
                 }
             };
             match key {
+                "apk-dir" => apk_dir = value.to_owned(),
                 "debug" => debug = bool_value(),
                 "raw" => raw = bool_value(),
                 "tar-assets" => tar_assets = bool_value(),
@@ -754,7 +760,26 @@ fn apk() {
         debug = true;
     }
 
-    let apk_folder = path(ZR_TARGET_DD);
+    let mut apk_folder = path(ZR_TARGET_DD);
+    let output_file;
+    if apk_dir.is_empty() {
+        let apk = apk_folder.join("apk");
+        if apk.exists() {
+            apk_folder = apk;
+            output_file = path(ZR_TARGET).with_extension("apk");
+        } else if apk_folder.extension().map(|e| e.to_ascii_lowercase() == "apk").unwrap_or(false) {
+            output_file = apk_folder.clone();
+        } else {
+            fatal!("missing ./apk")
+        }
+    } else {
+        apk_folder = apk_folder.join(apk_dir);
+        if !apk_folder.is_dir() {
+            fatal!("{} not found or not a directory", apk_folder.display());
+        }
+        output_file = path(ZR_TARGET).with_extension("apk");
+    }
+    let apk_folder = apk_folder;
 
     // find <sdk>/build-tools
     let android_home = match env::var("ANDROID_HOME") {
@@ -991,8 +1016,9 @@ fn apk() {
 
     // finalize
     fs::remove_dir_all(&apk_folder).unwrap_or_else(|e| fatal!("apk folder cleanup failed, {e}"));
-    fs::rename(final_apk, apk_folder).unwrap_or_else(|e| fatal!("cannot copy built apk to final place, {e}"));
+    fs::rename(final_apk, output_file).unwrap_or_else(|e| fatal!("cannot copy built apk to final place, {e}"));
     fs::remove_dir_all(&temp_dir).unwrap_or_else(|e| fatal!("temp dir cleanup failed, {e}"));
+    let _ = fs::remove_file(path(ZR_TARGET));
 }
 #[derive(serde::Deserialize)]
 #[serde(rename = "manifest")]
