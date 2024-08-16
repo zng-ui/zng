@@ -13,10 +13,22 @@ use serde::Deserialize;
 /// Print warning message.
 macro_rules! warn {
     ($($format_args:tt)*) => {
-        {
+        if $crate::util::deny_warnings() {
+            error!($($format_args)*);
+        }else {
             eprintln!("{} {}", $crate::util::WARN_PREFIX, format_args!($($format_args)*));
         }
     };
+}
+
+pub fn deny_warnings() -> bool {
+    std::env::var("RUSTFLAGS")
+        .map(|f| {
+            ["--deny=warnings", "-Dwarnings", "-D warnings", "--deny warnings"]
+                .iter()
+                .any(|d| f.contains(d))
+        })
+        .unwrap_or(false)
 }
 
 /// Print error message and flags the current process as failed.
