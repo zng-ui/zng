@@ -11,7 +11,7 @@
 
 use std::{
     fmt,
-    future::Future,
+    future::{Future, IntoFuture},
     hash::Hash,
     mem, panic,
     pin::Pin,
@@ -126,19 +126,19 @@ pub use ui::*;
 /// [`rayon`]: https://docs.rs/rayon
 /// [`LocalContext`]: zng_app_context::LocalContext
 /// [`response_var`]: zng_var::response_var
-pub fn spawn<F>(task: F)
+pub fn spawn<F>(task: impl IntoFuture<IntoFuture = F>)
 where
     F: Future<Output = ()> + Send + 'static,
 {
     Arc::new(RayonTask {
         ctx: LocalContext::capture(),
-        fut: Mutex::new(Some(Box::pin(task))),
+        fut: Mutex::new(Some(Box::pin(task.into_future()))),
     })
     .poll()
 }
 
 /// Polls the `task` once immediately on the calling thread, if the `task` is pending, continues execution in [`spawn`].
-pub fn poll_spawn<F>(task: F)
+pub fn poll_spawn<F>(task: impl IntoFuture<IntoFuture = F>)
 where
     F: Future<Output = ()> + Send + 'static,
 {
@@ -176,7 +176,7 @@ where
     }
 
     Arc::new(PollRayonTask {
-        fut: Mutex::new(Some((Box::pin(task), None))),
+        fut: Mutex::new(Some((Box::pin(task.into_future()), None))),
     })
     .poll()
 }
@@ -387,7 +387,7 @@ impl<'a, 'scope: 'a> ScopeCtx<'a, 'scope> {
 /// [`Waker`]: std::task::Waker
 /// [`rayon`]: https://docs.rs/rayon
 /// [`LocalContext`]: zng_app_context::LocalContext
-pub async fn run<R, T>(task: T) -> R
+pub async fn run<R, T>(task: impl IntoFuture<IntoFuture = T>) -> R
 where
     R: Send + 'static,
     T: Future<Output = R> + Send + 'static,
@@ -411,7 +411,7 @@ where
 /// if this function returns an error.
 ///
 /// [unwind safety validation]: std::panic::UnwindSafe
-pub async fn run_catch<R, T>(task: T) -> PanicResult<R>
+pub async fn run_catch<R, T>(task: impl IntoFuture<IntoFuture = T>) -> PanicResult<R>
 where
     R: Send + 'static,
     T: Future<Output = R> + Send + 'static,
@@ -467,7 +467,7 @@ where
 
     Arc::new(RayonCatchTask {
         ctx: LocalContext::capture(),
-        fut: Mutex::new(Some(Box::pin(task))),
+        fut: Mutex::new(Some(Box::pin(task.into_future()))),
         sender: sender.into(),
     })
     .poll();
@@ -583,7 +583,7 @@ where
 
 /// Polls the `task` once immediately on the calling thread, if the `task` is ready returns the response already set,
 /// if the `task` is pending continues execution like [`respond`].
-pub fn poll_respond<R, F>(task: F) -> ResponseVar<R>
+pub fn poll_respond<R, F>(task: impl IntoFuture<IntoFuture = F>) -> ResponseVar<R>
 where
     R: VarValue,
     F: Future<Output = R> + Send + 'static,
@@ -592,7 +592,7 @@ where
         Quick(Option<R>),
         Response(zng_var::ResponderVar<R>),
     }
-
+    let task = task.into_future();
     let q = Arc::new(Mutex::new(QuickResponse::Quick(None)));
     poll_spawn(zng_clone_move::async_clmv!(q, {
         let rsp = task.await;
@@ -762,11 +762,11 @@ where
 /// ```
 ///
 /// [`futures-lite`]: https://docs.rs/futures-lite/
-pub fn block_on<F>(task: F) -> F::Output
+pub fn block_on<F>(task: impl IntoFuture<IntoFuture = F>) -> F::Output
 where
     F: Future,
 {
-    futures_lite::future::block_on(task)
+    futures_lite::future::block_on(task.into_future())
 }
 
 /// Continuous poll the `task` until if finishes.
@@ -774,13 +774,13 @@ where
 /// This function is useful for implementing some async tests only, futures don't expect to be polled
 /// continuously. This function is only available in test builds.
 #[cfg(any(test, doc, feature = "test_util"))]
-pub fn spin_on<F>(task: F) -> F::Output
+pub fn spin_on<F>(task: impl IntoFuture<IntoFuture = F>) -> F::Output
 where
     F: Future,
 {
     use std::pin::pin;
 
-    let mut task = pin!(task);
+    let mut task = pin!(task.into_future());
     block_on(future_fn(|cx| match task.as_mut().poll(cx) {
         Poll::Ready(r) => Poll::Ready(r),
         Poll::Pending => {
@@ -795,7 +795,7 @@ where
 /// If `spin` is `true` the [`spin_on`] executor is used with a timeout of 500 milliseconds.
 /// IF `spin` is `false` the [`block_on`] executor is used with a timeout of 5 seconds.
 #[cfg(any(test, doc, feature = "test_util"))]
-pub fn doc_test<F>(spin: bool, task: F) -> F::Output
+pub fn doc_test<F>(spin: bool, task: impl IntoFuture<IntoFuture = F>) -> F::Output
 where
     F: Future,
 {
@@ -952,7 +952,10 @@ impl std::error::Error for DeadlineError {}
 /// Add a [`deadline`] to a future.
 ///
 /// Returns the `fut` output or [`DeadlineError`] if the deadline elapses first.
-pub async fn with_deadline<O, F: Future<Output = O>>(fut: F, deadline: impl Into<Deadline>) -> Result<F::Output, DeadlineError> {
+pub async fn with_deadline<O, F: Future<Output = O>>(
+    fut: impl IntoFuture<IntoFuture = F>,
+    deadline: impl Into<Deadline>,
+) -> Result<F::Output, DeadlineError> {
     let deadline = deadline.into();
     any!(async { Ok(fut.await) }, async {
         self::deadline(deadline).await;
