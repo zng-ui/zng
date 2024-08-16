@@ -133,6 +133,8 @@ fn copy() {
         fs::copy(source, &target).unwrap_or_else(|e| fatal!("{e}"));
     } else if source.is_symlink() {
         symlink_warn(&source);
+    } else {
+        warn!("cannot copy '{}', not found", source.display());
     }
 }
 
@@ -260,7 +262,7 @@ fn glob() {
     }
 
     if !any {
-        println!("no match")
+        warn!("no match")
     }
 }
 

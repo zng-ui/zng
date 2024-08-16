@@ -1,5 +1,6 @@
 # Unreleased
 
+* Warn when `.zr-copy` does not find the directory or file.
 * Refactor `.zr-apk` to not require to be inside the staging dir.
 * Refactor `Impl Future` parameters into `impl IntoFuture`. 
 * Implement `IntoFuture for ResponseVar<T>`.
