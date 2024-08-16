@@ -755,9 +755,6 @@ fn apk() {
     }
 
     let apk_folder = path(ZR_TARGET_DD);
-    if apk_folder.extension().map(|s| s.to_ascii_lowercase() != "apk").unwrap_or(true) {
-        fatal!("not inside .apk folder")
-    }
 
     // find <sdk>/build-tools
     let android_home = match env::var("ANDROID_HOME") {
