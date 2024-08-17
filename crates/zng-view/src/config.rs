@@ -12,6 +12,11 @@ mod macos;
 #[cfg(target_os = "macos")]
 use macos as platform;
 
+#[cfg(target_os = "android")]
+mod android;
+#[cfg(target_os = "android")]
+use android as platform;
+
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -37,7 +42,8 @@ mod other;
     target_os = "dragonfly",
     target_os = "freebsd",
     target_os = "netbsd",
-    target_os = "openbsd"
+    target_os = "openbsd",
+    target_os = "android",
 )))]
 use other as platform;
 
