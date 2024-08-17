@@ -64,7 +64,6 @@ pub fn colors_config() -> ColorsConfig {
     ColorsConfig { scheme, accent }
 }
 
-#[cfg(not(windows))]
 pub fn locale_config() -> zng_view_api::config::LocaleConfig {
     super::other::locale_config()
 }
