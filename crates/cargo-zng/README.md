@@ -479,7 +479,7 @@ $ cargo zng res --tools
   Print an error message and fail the build
 
 .zr-apk @ cargo-zng
-  Build an Android APK from the parent folder
+  Build an Android APK from a staging directory
 
 call 'cargo zng res --help tool' to read full help from a tool
 ```
