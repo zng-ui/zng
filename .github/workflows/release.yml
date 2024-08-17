@@ -114,7 +114,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_checks != 'true' }}
         with:  
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android, armv7-linux-androideabi
       - name: install cargo-ndk
         if: ${{ github.event.inputs.skip_checks != 'true' }}
         uses: baptiste0928/cargo-install@v3

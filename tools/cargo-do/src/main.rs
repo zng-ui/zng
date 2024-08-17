@@ -903,18 +903,28 @@ fn build_apk(mut args: Vec<&str>) {
         build_args.push("--profile");
         build_args.push("release-lto");
     }
-    cmd_env_req(
-        "cargo",
-        &[
-            "ndk",
-            "-t",
-            "aarch64-linux-android",
-            "-o",
-            apk_dir.join("lib").display().to_string().as_str(),
-        ],
-        &build_args,
-        &[("RUSTFLAGS", rust_flags.as_str())],
-    );
+
+    // cargo ndk with all installed Android targets
+    let apk_lib_dir = apk_dir.join("lib").display().to_string();
+    let mut ndk_args = vec!["ndk", "-o", apk_lib_dir.as_str()];
+
+    let installed_targets = std::process::Command::new("rustup")
+        .arg("target")
+        .arg("list")
+        .arg("--installed")
+        .output()
+        .expect("cannot get installed targets");
+    let installed_targets = String::from_utf8_lossy(&installed_targets.stdout);
+    let mut any = false;
+    for line in installed_targets.lines() {
+        if line.contains("-android") {
+            any = true;
+            ndk_args.extend_from_slice(&["--target", line]);
+        }
+    }
+    assert!(any, "no android target installed, rustup target add aarch64-linux-android");
+
+    cmd_env_req("cargo", &ndk_args, &build_args, &[("RUSTFLAGS", rust_flags.as_str())]);
 
     let manifest = include_str!("build-apk-manifest.xml").replace("${EXAMPLE}", &example.replace('-', "_"));
 
