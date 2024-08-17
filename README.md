@@ -81,7 +81,7 @@ The Cargo features of each crate are documented in the README file for that crat
 
 ## Requirements
 
-On Windows:
+##### On Windows:
 
 * To build with `"view"` and `"view_software"` feature:
     - Env vars `CC` and `CXX` must be set to "clang-cl".
@@ -89,7 +89,7 @@ On Windows:
 
 [Visual Studio installer]: https://learn.microsoft.com/en-us/cpp/build/clang-support-msbuild?view=msvc-170
 
-On Linux:
+##### On Linux:
 
 * Packages needed to build:
     - `pkg-config`
@@ -101,10 +101,31 @@ On Linux:
 * Packages needed to build with `"view_prebuilt"` feature:
     - `curl`
 
-On macOS:
+##### On macOS:
 
 * To build with `"crash_handler"` feature, enabled by default:
     - XCode 14 or newer.
+
+##### On Android:
+
+Cross compilation for Android requires some setup. The project [default template] provides most of this setup, 
+you only need to install some packages:
+
+* Build dependencies:
+    - Install Android Studio or the Android Command-Line Tools, use the `sdkmanager` tool 
+      or the "Android Studio Settings / Android SDK" UI to install:
+        - Android SDK Build Tools.
+        - NDK.
+        - Android SDK Platform Tools.
+    - Set the `ANDROID_HOME` and `ANDROID_NDK_HOME` environment variables.
+    - Install [cargo-ndk].
+    - Install one or more Rust targets for Android, we test using `aarch64-linux-android`.
+    - If you are using the [default template] or just want to build the example you are done.
+
+See [Android Setup] for more help on how to setup the crate and build script.
+
+[cargo-ndk]: https://crates.io/crates/cargo-ndk
+[Android Setup]: tools/android-setup.md
 
 ## Examples
 
