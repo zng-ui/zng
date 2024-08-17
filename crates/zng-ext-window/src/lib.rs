@@ -31,7 +31,7 @@ pub use vars::*;
 mod service;
 pub use service::*;
 
-use std::future::Future;
+use std::future::{Future, IntoFuture};
 use zng_app::{
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates},
     view_process::raw_events::{RawWindowFocusArgs, RAW_WINDOW_FOCUS_EVENT},
@@ -158,15 +158,16 @@ pub trait AppRunWindowExt {
     /// ```
     ///
     /// [`WINDOW`]: zng_app::window::WINDOW
-    fn run_window<F>(self, new_window: F)
+    fn run_window<F>(self, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Future<Output = WindowRoot> + Send + 'static;
 }
 impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
-    fn run_window<F>(self, new_window: F)
+    fn run_window<F>(self, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
+        let new_window = new_window.into_future();
         self.run(async move {
             WINDOWS.open(new_window);
         })
@@ -187,7 +188,7 @@ pub trait HeadlessAppWindowExt {
     ///
     /// [`WINDOW`]: zng_app::window::WINDOW
     /// [`WindowId`]: zng_app::window::WindowId
-    fn open_window<F>(&mut self, new_window: F) -> WindowId
+    fn open_window<F>(&mut self, new_window: impl IntoFuture<IntoFuture = F>) -> WindowId
     where
         F: Future<Output = WindowRoot> + Send + 'static;
 
@@ -207,18 +208,18 @@ pub trait HeadlessAppWindowExt {
     fn close_window(&mut self, window_id: WindowId) -> bool;
 
     /// Open a new headless window and update the app until the window closes.
-    fn run_window<F>(&mut self, new_window: F)
+    fn run_window<F>(&mut self, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Send + Future<Output = WindowRoot> + 'static;
 
     /// Open a new headless window and update the app until the window closes or 60 seconds elapse.
     #[cfg(any(test, doc, feature = "test_util"))]
-    fn doc_test_window<F>(&mut self, new_window: F)
+    fn doc_test_window<F>(&mut self, new_window: impl IntoFuture<IntoFuture = F>)
     where
-        F: Send + Future<Output = WindowRoot> + 'static;
+        F: Future<Output = WindowRoot> + 'static + Send;
 }
 impl HeadlessAppWindowExt for HeadlessApp {
-    fn open_window<F>(&mut self, new_window: F) -> WindowId
+    fn open_window<F>(&mut self, new_window: impl IntoFuture<IntoFuture = F>) -> WindowId
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
@@ -294,7 +295,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
         closed
     }
 
-    fn run_window<F>(&mut self, new_window: F)
+    fn run_window<F>(&mut self, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {
@@ -307,7 +308,7 @@ impl HeadlessAppWindowExt for HeadlessApp {
     }
 
     #[cfg(any(test, doc, feature = "test_util"))]
-    fn doc_test_window<F>(&mut self, new_window: F)
+    fn doc_test_window<F>(&mut self, new_window: impl IntoFuture<IntoFuture = F>)
     where
         F: Future<Output = WindowRoot> + Send + 'static,
     {

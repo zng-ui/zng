@@ -1321,15 +1321,12 @@ mod response {
             let ab = task::respond(async {
                 let mut r = String::new();
                 for v in [a, b] {
-                    r.push(v.wait_into_rsp().await);
+                    r.push(v.await);
                 }
                 r
             });
 
-            let ab = app
-                .run_task(async { task::with_deadline(ab.wait_into_rsp(), 20.secs()).await })
-                .unwrap()
-                .unwrap();
+            let ab = app.run_task(async { task::with_deadline(ab, 20.secs()).await }).unwrap().unwrap();
 
             assert_eq!(ab, "ab");
         }

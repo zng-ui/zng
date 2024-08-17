@@ -2,7 +2,7 @@
 
 use std::{
     fmt,
-    future::Future,
+    future::{Future, IntoFuture},
     mem,
     pin::Pin,
     task::{Poll, Waker},
@@ -41,12 +41,12 @@ impl<R> UiTask<R> {
     /// New task with already build event-loop waker.
     ///
     /// App crate provides an integrated `UiTaskWidget::new` that creates the waker for widgets.
-    pub fn new_raw<F>(event_loop_waker: Waker, task: F) -> Self
+    pub fn new_raw<F>(event_loop_waker: Waker, task: impl IntoFuture<IntoFuture = F>) -> Self
     where
         F: Future<Output = R> + Send + 'static,
     {
         UiTask(UiTaskState::Pending {
-            future: Box::pin(task),
+            future: Box::pin(task.into_future()),
             event_loop_waker,
             #[cfg(debug_assertions)]
             last_update: None,

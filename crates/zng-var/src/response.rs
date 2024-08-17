@@ -1,3 +1,5 @@
+use std::future::IntoFuture;
+
 use super::*;
 
 /// New paired [`ResponderVar`] and [`ResponseVar`] in the waiting state.
@@ -119,6 +121,8 @@ impl<T: VarValue> ResponseVar<T> {
     /// Returns a future that awaits until a response is received and then returns it.
     ///
     /// Will clone the value if the variable is shared.
+    ///
+    /// Note that `ResponseVar<T>` implements [`IntoFuture`] so you can also just `.await` the variable.
     pub async fn wait_into_rsp(self) -> T {
         self.wait_done().await;
         self.into_rsp().unwrap()
@@ -170,6 +174,16 @@ impl<T: VarValue> ResponseVar<T> {
             Response::Waiting => Response::Waiting,
             Response::Done(t) => Response::Done(map(t)),
         })
+    }
+}
+impl<T: VarValue> IntoFuture for ResponseVar<T> {
+    type Output = T;
+
+    // refactor after 'impl_trait_in_assoc_type' is stable
+    type IntoFuture = std::pin::Pin<Box<dyn Future<Output = T> + Send + Sync>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        Box::pin(self.wait_into_rsp())
     }
 }
 
