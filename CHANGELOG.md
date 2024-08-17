@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement initial `ColorScheme` for Android.
 * Support `RUSTFLAGS` "deny warnings" in cargo zng.
 * Warn when `.zr-copy` does not find the directory or file.
 * Refactor `.zr-apk` to not require to be inside the staging dir.

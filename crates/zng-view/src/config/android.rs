@@ -1,7 +1,4 @@
 use crate::platform::android;
-use objc2_app_kit::*;
-use objc2_foundation::*;
-use zng_unit::{Rgba, TimeUnits as _};
 use zng_view_api::config::{AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
 
 pub fn font_aa() -> FontAntiAliasing {
@@ -28,12 +25,12 @@ pub fn colors_config() -> ColorsConfig {
     use ndk::configuration::UiModeNight;
     ColorsConfig {
         scheme: match android::android_app().config().ui_mode_night() {
-            UiModeNight::Any => ColorScheme::default(),
             UiModeNight::Yes => ColorScheme::Dark,
             UiModeNight::No => ColorScheme::Light,
-        }
+            _ => ColorScheme::default(),
+        },
         // accent:
-        ..ColorsConfig::default(),
+        ..ColorsConfig::default()
     }
 }
 
