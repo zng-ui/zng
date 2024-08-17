@@ -11,7 +11,7 @@
         android:debuggable="true">
         <activity android:name="android.app.NativeActivity"
             android:label="${EXAMPLE}"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode">
             <meta-data android:name="android.app.lib_name"
                 android:value="${EXAMPLE}" />
             <intent-filter>
