@@ -168,6 +168,9 @@ zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.7", features = [
 ] }
 cfg_aliases = "0.2"
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("avif"))', 'cfg(zng_view_image_has_avif)'] }
+
 [package.metadata.docs.rs]
 all-features = true
 targets = [

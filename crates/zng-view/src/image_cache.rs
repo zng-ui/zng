@@ -16,7 +16,6 @@ use zng_view_api::{
 use crate::{AppEvent, AppEventSender};
 use rustc_hash::FxHashMap;
 
-#[allow(unexpected_cfgs)]
 pub(crate) const ENCODERS: &[&str] = &[
     "png",
     "jpg",
@@ -35,7 +34,6 @@ pub(crate) const ENCODERS: &[&str] = &[
     "ff",
     "farbfeld",
 ];
-#[allow(unexpected_cfgs)]
 pub(crate) const DECODERS: &[&str] = &[
     "png",
     "jpg",
