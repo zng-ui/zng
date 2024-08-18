@@ -126,7 +126,7 @@ See [Android Setup] for more help on how to setup the crate and build script.
 [cargo-ndk]: https://crates.io/crates/cargo-ndk
 [Android Setup]: docs/android-setup.md
 
-##### For Avif Support
+##### For Avif Support:
 
 Avif image format support is tricky to build, if you need AVIF and are building with `"view"` feature see [Avif Setup].
 

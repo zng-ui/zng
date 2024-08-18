@@ -67,7 +67,7 @@ cargo build --features avif
 
 ### On Windows:
 
-Install Python 3 using the latest installer <https://www.python.org/downloads/>.
+Install Python 3 using the latest installer at <https://www.python.org/downloads/>.
 
 Install pip:
 
@@ -83,7 +83,7 @@ pip install -U wheel setuptools
 pip install -U meson ninja
 ```
 
-Install NASM using the latest installer <https://www.nasm.us/pub/nasm/releasebuilds/>.
+Install NASM using the latest installer at <https://www.nasm.us/pub/nasm/releasebuilds/>.
 
 Clone and build pkg-config and dav1d:
 
