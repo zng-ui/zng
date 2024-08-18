@@ -69,12 +69,6 @@ fn android() {
 
     if let Ok(output_path) = env::var("CARGO_NDK_OUTPUT_PATH") {
         let output_path = PathBuf::from(output_path);
-        // cargo ndk can set incorrect relative paths, absolutize --output-dir
-        assert!(
-            output_path.exists(),
-            "--output-dir {} not found, use absolute path",
-            output_path.display()
-        );
 
         let sysroot_libs_path = PathBuf::from(env::var_os("CARGO_NDK_SYSROOT_LIBS_PATH").unwrap());
         let lib_path = sysroot_libs_path.join("libc++_shared.so");

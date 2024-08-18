@@ -103,10 +103,9 @@ The Cargo features of each crate are documented in the README file for that crat
 
 ##### On macOS:
 
-* To build with `"crash_handler"` feature, enabled by default:
-    - XCode 14 or newer.
+* No special requirements, we assume XCode 14 or newer and may depend on it in future releases.
 
-##### On Android:
+##### For Android:
 
 Cross compilation for Android requires some setup. The project [default template] provides most of this setup, 
 you only need to install some packages:
@@ -125,7 +124,15 @@ you only need to install some packages:
 See [Android Setup] for more help on how to setup the crate and build script.
 
 [cargo-ndk]: https://crates.io/crates/cargo-ndk
-[Android Setup]: tools/android-setup.md
+[Android Setup]: docs/android-setup.md
+
+##### For Avif Support:
+
+Avif image format support is tricky to build, if you need AVIF and are building with `"view"` feature see [Avif Setup].
+
+Avif support is already included in the prebuilt view-process.
+
+[Avif Setup]: docs/avif-setup.md
 
 ## Examples
 

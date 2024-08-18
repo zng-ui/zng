@@ -46,9 +46,9 @@ Snippets for most Zng macros are also provided, see [`zng.code-snippets`].
 
 [todo]: https://github.com/zng-ui/zng/issues?q=is%3Aissue+is%3Aopen+label%3Atodo
 [new discussion]: https://github.com/zng-ui/zng/discussions/new?category=general
-[`examples`]: examples#adding-an-example
-[`crates`]: crates#readme
-[`tools`]: tools#readme
-[`tests`]: tests#readme
+[`examples`]: ../examples#adding-an-example
+[`crates`]: ../crates#readme
+[`tools`]: ../tools#readme
+[`tests`]: ../tests#readme
 
-[`zng.code-snippets`]: .vscode/zng.code-snippets
+[`zng.code-snippets`]: ../.vscode/zng.code-snippets

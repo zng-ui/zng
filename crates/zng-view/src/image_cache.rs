@@ -16,13 +16,12 @@ use zng_view_api::{
 use crate::{AppEvent, AppEventSender};
 use rustc_hash::FxHashMap;
 
-#[allow(unexpected_cfgs)]
 pub(crate) const ENCODERS: &[&str] = &[
     "png",
     "jpg",
     "jpeg",
     "webp",
-    #[cfg(feature = "avif")]
+    #[cfg(any(feature = "avif", zng_view_image_has_avif))]
     "avif",
     "gif",
     "ico",
@@ -35,13 +34,12 @@ pub(crate) const ENCODERS: &[&str] = &[
     "ff",
     "farbfeld",
 ];
-#[allow(unexpected_cfgs)]
 pub(crate) const DECODERS: &[&str] = &[
     "png",
     "jpg",
     "jpeg",
     "webp",
-    #[cfg(feature = "avif")]
+    #[cfg(any(feature = "avif", zng_view_image_has_avif))]
     "avif",
     "gif",
     "ico",
