@@ -360,7 +360,7 @@ pub fn list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListFnArgs>>) -
 
 /// Widget function that converts [`DefListArgs`] to widgets.
 ///
-/// Sets the [`DEFINITION_LIST_FN_VAR`].
+/// Sets the [`DEF_LIST_FN_VAR`].
 #[property(CONTEXT, default(DEF_LIST_FN_VAR), widget_impl(Markdown))]
 pub fn def_list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<DefListArgs>>) -> impl UiNode {
     with_context_var(child, DEF_LIST_FN_VAR, wgt_fn)
