@@ -140,6 +140,26 @@ pub struct ListItemFnArgs {
     pub blocks: UiNodeVec,
 }
 
+/// Arguments for a markdown definition list.
+pub struct DefListArgs {
+    /// List items.
+    ///
+    /// Each two items are the title and definition.
+    pub items: UiNodeVec,
+}
+
+/// Arguments for a markdown definition list item title.
+pub struct DefListItemTitleArgs {
+    /// Inline items of the title.
+    pub items: UiNodeVec,
+}
+
+/// Arguments for a markdown definition list item description.
+pub struct DefListItemDefinitionArgs {
+    /// Inline items of the description.
+    pub items: UiNodeVec,
+}
+
 /// Arguments for a markdown image view.
 pub struct ImageFnArgs {
     /// Image, resolved by the [`image_resolver`].
@@ -248,6 +268,15 @@ context_var! {
     /// Widget function for a markdown list item content.
     pub static LIST_ITEM_FN_VAR: WidgetFn<ListItemFnArgs> = WidgetFn::new(default_list_item_fn);
 
+    /// Widget function for a markdown definition list.
+    pub static DEF_LIST_FN_VAR: WidgetFn<DefListArgs> = WidgetFn::new(default_def_list_fn);
+
+    /// Widget function for a markdown definition list item title.
+    pub static DEF_LIST_ITEM_TITLE_FN_VAR: WidgetFn<DefListItemTitleArgs> = WidgetFn::new(default_def_list_item_title_fn);
+
+    /// Widget function for a markdown definition list item description.
+    pub static DEF_LIST_ITEM_DEFINITION_FN_VAR: WidgetFn<DefListItemDefinitionArgs> = WidgetFn::new(default_def_list_item_definition_fn);
+
     /// Widget function for a markdown image.
     pub static IMAGE_FN_VAR: WidgetFn<ImageFnArgs> = WidgetFn::new(default_image_fn);
 
@@ -327,6 +356,30 @@ pub fn heading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<HeadingFnArg
 #[property(CONTEXT, default(LIST_FN_VAR), widget_impl(Markdown))]
 pub fn list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ListFnArgs>>) -> impl UiNode {
     with_context_var(child, LIST_FN_VAR, wgt_fn)
+}
+
+/// Widget function that converts [`DefListArgs`] to widgets.
+///
+/// Sets the [`DEFINITION_LIST_FN_VAR`].
+#[property(CONTEXT, default(DEF_LIST_FN_VAR), widget_impl(Markdown))]
+pub fn def_list_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<DefListArgs>>) -> impl UiNode {
+    with_context_var(child, DEF_LIST_FN_VAR, wgt_fn)
+}
+
+/// Widget function that converts [`DefListItemTitleArgs`] to widgets.
+///
+/// Sets the [`DEF_LIST_ITEM_TITLE_FN_VAR`].
+#[property(CONTEXT, default(DEF_LIST_ITEM_TITLE_FN_VAR), widget_impl(Markdown))]
+pub fn def_list_item_title_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<DefListItemTitleArgs>>) -> impl UiNode {
+    with_context_var(child, DEF_LIST_ITEM_TITLE_FN_VAR, wgt_fn)
+}
+
+/// Widget function that converts [`DefListItemDefinitionArgs`] to widgets.
+///
+/// Sets the [`DEF_LIST_ITEM_DEFINITION_FN_VAR`].
+#[property(CONTEXT, default(DEF_LIST_ITEM_DEFINITION_FN_VAR), widget_impl(Markdown))]
+pub fn def_list_item_definition_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<DefListItemDefinitionArgs>>) -> impl UiNode {
+    with_context_var(child, DEF_LIST_ITEM_DEFINITION_FN_VAR, wgt_fn)
 }
 
 /// Widget function that converts [`ListItemBulletFnArgs`] to widgets.
@@ -590,6 +643,61 @@ pub fn default_list_fn(args: ListFnArgs) -> impl UiNode {
     }
 }
 
+/// Default definition list view.
+///
+/// Is a simple vertical [`Stack!`].
+///
+/// [`Stack!`]: struct@Stack
+pub fn default_def_list_fn(args: DefListArgs) -> impl UiNode {
+    if args.items.is_empty() {
+        NilUiNode.boxed()
+    } else {
+        Stack! {
+            access_role = AccessRole::List;
+            direction = StackDirection::top_to_bottom();
+            spacing = PARAGRAPH_SPACING_VAR;
+            children = args.items;
+        }
+        .boxed()
+    }
+}
+
+/// Default definition list item title view.
+///
+/// Is a [`Wrap!`] with bold text.
+///
+/// [`Wrap!`]: struct@Wrap
+pub fn default_def_list_item_title_fn(args: DefListItemTitleArgs) -> impl UiNode {
+    if args.items.is_empty() {
+        NilUiNode.boxed()
+    } else {
+        Wrap! {
+            access_role = AccessRole::Term;
+            children = args.items;
+            font_weight = FontWeight::BOLD;
+        }
+        .boxed()
+    }
+}
+
+/// Default definition list item description view.
+///
+/// Is a [`Wrap!`].
+///
+/// [`Wrap!`]: struct@Wrap
+pub fn default_def_list_item_definition_fn(args: DefListItemDefinitionArgs) -> impl UiNode {
+    if args.items.is_empty() {
+        NilUiNode.boxed()
+    } else {
+        Wrap! {
+            access_role = AccessRole::Definition;
+            children = args.items;
+            margin = (0, 2.em());
+        }
+        .boxed()
+    }
+}
+
 /// Default list item bullet, check mark or number view.
 ///
 /// See [`LIST_ITEM_BULLET_FN_VAR`] for more details.
@@ -701,7 +809,7 @@ pub fn default_image_fn(args: ImageFnArgs) -> impl UiNode {
         let alt_items = if alt_items.len() == 1 {
             alt_items.remove(0)
         } else {
-            zng_wgt_wrap::Wrap! {
+            Wrap! {
                 children = alt_items;
             }
             .boxed()

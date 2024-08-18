@@ -156,6 +156,7 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
     let heading_view = HEADING_FN_VAR.get();
     let paragraph_view = PARAGRAPH_FN_VAR.get();
     let list_view = LIST_FN_VAR.get();
+    let definition_list_view = DEF_LIST_FN_VAR.get();
     let list_item_bullet_view = LIST_ITEM_BULLET_FN_VAR.get();
     let list_item_view = LIST_ITEM_FN_VAR.get();
     let image_view = IMAGE_FN_VAR.get();
@@ -163,6 +164,8 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
     let block_quote_view = BLOCK_QUOTE_FN_VAR.get();
     let footnote_ref_view = FOOTNOTE_REF_FN_VAR.get();
     let footnote_def_view = FOOTNOTE_DEF_FN_VAR.get();
+    let def_list_item_title_view = DEF_LIST_ITEM_TITLE_FN_VAR.get();
+    let def_list_item_definition_view = DEF_LIST_ITEM_DEFINITION_FN_VAR.get();
     let table_view = TABLE_FN_VAR.get();
     let table_cell_view = TABLE_CELL_FN_VAR.get();
 
@@ -228,7 +231,18 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                         item_checked: None,
                     });
                 }
-                Tag::Item => {
+                Tag::DefinitionList => {
+                    (strong, emphasis, strikethrough) = (0, 0, 0);
+                    last_txt_end = '\0';
+                    list_info.push(ListInfo {
+                        block_start: blocks.len(),
+                        inline_start: inlines.len(),
+                        first_num: None,
+                        item_num: None,
+                        item_checked: None,
+                    });
+                }
+                Tag::Item | Tag::DefinitionListTitle | Tag::DefinitionListDefinition => {
                     (strong, emphasis, strikethrough) = (0, 0, 0);
                     last_txt_end = '\0';
                     if let Some(list) = list_info.last_mut() {
@@ -310,7 +324,7 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                         }));
                     }
                 }
-                TagEnd::BlockQuote => {
+                TagEnd::BlockQuote(_) => {
                     if let Some(start) = block_quote_start.pop() {
                         let items: UiNodeVec = blocks.drain(start..).collect();
                         if !items.is_empty() {
@@ -343,6 +357,13 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                         }));
                     }
                 }
+                TagEnd::DefinitionList => {
+                    if list_info.pop().is_some() {
+                        blocks.push(definition_list_view(DefListArgs {
+                            items: mem::take(&mut list_items).into(),
+                        }));
+                    }
+                }
                 TagEnd::Item => {
                     let depth = list_info.len().saturating_sub(1);
                     if let Some(list) = list_info.last_mut() {
@@ -365,6 +386,20 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                             bullet: bullet_args,
                             items: inlines.drain(list.inline_start..).collect(),
                             blocks: blocks.drain(list.block_start..).collect(),
+                        }));
+                    }
+                }
+                TagEnd::DefinitionListTitle => {
+                    if let Some(list) = list_info.last_mut() {
+                        list_items.push(def_list_item_title_view(DefListItemTitleArgs {
+                            items: inlines.drain(list.inline_start..).collect(),
+                        }));
+                    }
+                }
+                TagEnd::DefinitionListDefinition => {
+                    if let Some(list) = list_info.last_mut() {
+                        list_items.push(def_list_item_definition_view(DefListItemDefinitionArgs {
+                            items: inlines.drain(list.inline_start..).collect(),
                         }));
                     }
                 }

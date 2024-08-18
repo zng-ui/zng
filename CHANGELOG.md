@@ -1,5 +1,6 @@
 # Unreleased
 
+* `Markdown!` now supports definition lists.
 
 # 0.11.2
 
