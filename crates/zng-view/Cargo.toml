@@ -39,6 +39,8 @@ bundle_licenses = ["zng-tp-licenses/bundle"]
 # Note that this enables the `dav1d` dependency that is not trivial to build.
 #
 # Removed for now because there is no way to exclude this feature from test runs that use --all-features
+#
+# Also see `docs/avif-setup.md` for a guide on how to depend on zng-view with avif.
 # avif = ["image/avif", "image/avif-native"]
 
 # Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.

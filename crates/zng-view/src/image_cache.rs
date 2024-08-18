@@ -22,7 +22,7 @@ pub(crate) const ENCODERS: &[&str] = &[
     "jpg",
     "jpeg",
     "webp",
-    #[cfg(feature = "avif")]
+    #[cfg(any(feature = "avif", zng_view_image_has_avif))]
     "avif",
     "gif",
     "ico",
@@ -41,7 +41,7 @@ pub(crate) const DECODERS: &[&str] = &[
     "jpg",
     "jpeg",
     "webp",
-    #[cfg(feature = "avif")]
+    #[cfg(any(feature = "avif", zng_view_image_has_avif))]
     "avif",
     "gif",
     "ico",

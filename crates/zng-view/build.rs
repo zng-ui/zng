@@ -24,9 +24,9 @@ fn tp_licenses() {
 #[allow(unexpected_cfgs)]
 #[cfg(feature = "bundle_licenses")]
 fn avif_licenses(l: &mut Vec<zng_tp_licenses::LicenseUsed>) {
-    #[cfg(not(feature = "avif"))]
+    #[cfg(not(any(feature = "avif", zng_view_image_has_avif)))]
     let _ = l;
-    #[cfg(feature = "avif")]
+    #[cfg(any(feature = "avif", zng_view_image_has_avif))]
     {
         use zng_tp_licenses::*;
 
