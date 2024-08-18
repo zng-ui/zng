@@ -39,6 +39,15 @@ Nested lists:
         * Item 1.1.1
             * Item 1.1.1.1
 
+Definition lists:
+
+Term 1
+: Definition of "Term 1".
+: Second line.
+
+Term 2
+: Definition of *Term 2*.  
+
 ### Images
 
 Image from local file:
