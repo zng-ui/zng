@@ -114,8 +114,6 @@ pub(crate) struct Window {
 
     ime_area: Option<DipRect>,
     #[cfg(windows)]
-    ime_open: bool,
-    #[cfg(windows)]
     has_shutdown_warn: bool,
 
     cursor: Option<CursorIcon>,
@@ -463,8 +461,6 @@ impl Window {
             render_mode,
             access: Some(access),
             ime_area: cfg.ime_area,
-            #[cfg(windows)]
-            ime_open: false,
             #[cfg(windows)]
             has_shutdown_warn: false,
             cursor: None,
@@ -1901,11 +1897,6 @@ impl Window {
         for (_, ext) in &mut self.renderer_exts {
             ext.low_memory();
         }
-    }
-
-    #[cfg(windows)]
-    pub(crate) fn set_ime_open(&mut self, open: bool) {
-        self.ime_open = open;
     }
 
     pub(crate) fn set_ime_area(&mut self, area: Option<DipRect>) {

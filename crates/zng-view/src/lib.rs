@@ -847,14 +847,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                         let ime = Ime::Commit(s.into());
                         self.notify(Event::Ime { window: id, ime });
                     }
-                    winit::event::Ime::Enabled => {
-                        #[cfg(windows)]
-                        self.windows[i].set_ime_open(true);
-                    }
-                    winit::event::Ime::Disabled => {
-                        #[cfg(windows)]
-                        self.windows[i].set_ime_open(false);
-                    }
+                    winit::event::Ime::Enabled => {}
+                    winit::event::Ime::Disabled => {}
                 }
             }
             WindowEvent::ThemeChanged(_) => {}
