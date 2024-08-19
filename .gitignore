@@ -11,7 +11,7 @@ dump*.*
 wip
 cargo-timing*
 large-image.*
-examples/test
+examples/test*
 TODO/_local.md
 crates/zng-view-prebuilt/lib/zng_view.*
 crates/zng-view-prebuilt/lib/libzng_view.*
