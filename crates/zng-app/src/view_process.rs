@@ -846,6 +846,8 @@ impl ViewWindow {
     }
 
     /// Enable or disable IME by setting a cursor area.
+    ///
+    /// In mobile platforms also shows the software keyboard for `Some(_)` and hides it for `None`.
     pub fn set_ime_area(&self, area: Option<DipRect>) -> Result<()> {
         self.0.call(|id, p| p.set_ime_area(id, area))
     }

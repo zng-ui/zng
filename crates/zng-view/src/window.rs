@@ -1904,6 +1904,9 @@ impl Window {
             if self.ime_area != Some(a) {
                 if self.ime_area.is_none() {
                     self.window.set_ime_allowed(true);
+
+                    #[cfg(target_os = "android")]
+                    self.toggle_mobile_keyboard(true);
                 }
 
                 self.ime_area = Some(a);
@@ -1912,6 +1915,18 @@ impl Window {
         } else if self.ime_area.is_some() {
             self.window.set_ime_allowed(false);
             self.ime_area = None;
+
+            #[cfg(target_os = "android")]
+            self.toggle_mobile_keyboard(false);
+        }
+    }
+    #[cfg(target_os = "android")]
+    fn toggle_mobile_keyboard(&self, visible: bool) {
+        let app = crate::platform::android::android_app();
+        if visible {
+            app.show_soft_input(false);
+        } else {
+            app.hide_soft_input(false);
         }
     }
 
