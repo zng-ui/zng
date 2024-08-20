@@ -1,4 +1,5 @@
 use crate::platform::android;
+use zng_unit::Rgba;
 use zng_view_api::config::{AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
 
 pub fn font_aa() -> FontAntiAliasing {
@@ -23,14 +24,17 @@ pub fn touch_config() -> TouchConfig {
 
 pub fn colors_config() -> ColorsConfig {
     use ndk::configuration::UiModeNight;
+    let scheme = match android::android_app().config().ui_mode_night() {
+        UiModeNight::Yes => ColorScheme::Dark,
+        UiModeNight::No => ColorScheme::Light,
+        _ => ColorScheme::default(),
+    };
     ColorsConfig {
-        scheme: match android::android_app().config().ui_mode_night() {
-            UiModeNight::Yes => ColorScheme::Dark,
-            UiModeNight::No => ColorScheme::Light,
-            _ => ColorScheme::default(),
+        accent: match scheme {
+            ColorScheme::Light => Rgba::new(3, 218, 197, 255),
+            ColorScheme::Dark => Rgba::new(187, 134, 252, 255),
         },
-        // accent:
-        ..ColorsConfig::default()
+        scheme,
     }
 }
 
