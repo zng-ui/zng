@@ -64,7 +64,12 @@ impl Window {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            focus_scope_behavior = FocusScopeOnFocus::LastFocused;
+            focus_scope_behavior = if cfg!(any(target_os = "android", target_os = "ios")) {
+                // users tap the main background to dismiss `TextInput!` soft keyboard
+                FocusScopeOnFocus::Widget
+            } else {
+                FocusScopeOnFocus::LastFocused
+            };
             config_block_window_load = true;
             save_state = SaveState::enabled();
         }

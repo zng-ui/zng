@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implemented keyboard support for Android (no IME).
 * Add `--cfg=zng_view_image_has_avif` for `zng-view` to support building AVIF.
     - See [docs/avif-setup.md] for more details.
 * `Markdown!` now supports definition lists.
