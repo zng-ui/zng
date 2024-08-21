@@ -14,6 +14,7 @@ pub fn run() {
     app.run_window(async {
         let count = CONFIG.get("count", 0u32);
         Window! {
+            private_content = true;
             child = Button! {
                 style_fn = zng::button::LightStyle!();
                 child_align = Align::TOP;

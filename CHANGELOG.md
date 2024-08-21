@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `private_content` window property and `WindowVars::private_content`.
+* **Breaking** Add view API for hinting `private_content`.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 * Add `WindowVars::safe_padding` and implement it for Android.
 * **Breaking** Add `WindowOpenData::safe_padding` and `WindowChanged::safe_padding` to the view API.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.

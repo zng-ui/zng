@@ -809,6 +809,14 @@ impl ViewWindow {
         self.0.call(|id, p| p.set_focus_indicator(id, indicator))
     }
 
+    /// Defines if the window content should not be visible in external screenshots or screen casts.
+    ///
+    /// Note that this is a system dependent hint that is not implemented on all platforms. The main view-process
+    /// implementation only supports this on Android.
+    pub fn set_private_content(&self, is_private: bool) -> Result<()> {
+        self.0.call(|id, p| p.set_private_content(id, is_private))
+    }
+
     /// Moves the window with the left mouse button until the button is released.
     ///
     /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.

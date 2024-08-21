@@ -499,6 +499,12 @@ impl HeadedCtrl {
             });
         }
 
+        if let Some(p) = self.vars.private_content().get_new() {
+            self.update_gen(move |view| {
+                let _: Ignore = view.set_private_content(p);
+            });
+        }
+
         if let Some(m) = &self.monitor {
             if let Some(fct) = m.scale_factor().get_new() {
                 self.vars.0.scale_factor.set(fct);
@@ -1160,6 +1166,7 @@ impl HeadedCtrl {
                 Some(area)
             }),
             system_shutdown_warn: self.vars.system_shutdown_warn().get(),
+            private_content: self.vars.private_content().get(),
 
             extensions: WINDOWS.take_view_extensions_init(window_id),
         };
@@ -1288,6 +1295,7 @@ impl HeadedCtrl {
                 Some(area)
             }),
             system_shutdown_warn: self.vars.system_shutdown_warn().get(),
+            private_content: self.vars.private_content().get(),
 
             extensions: WINDOWS.take_view_extensions_init(window_id),
         };

@@ -421,6 +421,12 @@ pub struct WindowRequest {
 
     /// System shutdown warning associated with the window.
     pub system_shutdown_warn: Txt,
+
+    /// If the window content should not be visible on external screenshots and screen casts.
+    ///
+    /// Note that this is just a hint that is not implemented in every system. The main view-process implementation
+    /// only supports this on the Android platform.
+    pub private_content: bool,
 }
 impl WindowRequest {
     /// Corrects invalid values if [`kiosk`] is `true`.

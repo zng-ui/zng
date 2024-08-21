@@ -95,6 +95,8 @@ set_properties! {
     frame_capture_mode: FrameCaptureMode,
 
     enabled_buttons: WindowButton,
+
+    private_content: bool,
 }
 
 macro_rules! map_properties {
