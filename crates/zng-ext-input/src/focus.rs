@@ -438,9 +438,13 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let mut focus = FOCUS_SV.write();
-            focus.pending_highlight = false;
-            let args = focus.fulfill_request(request, false);
-            self.notify(&mut focus, args);
+            if !matches!(&focus.request, PendingFocusRequest::Update(_)) {
+                focus.request = PendingFocusRequest::None;
+                focus.pending_highlight = false;
+                focus.pending_window_focus = None;
+                let args = focus.fulfill_request(request, false);
+                self.notify(&mut focus, args);
+            }
         }
     }
 
