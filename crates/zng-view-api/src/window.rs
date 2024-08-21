@@ -10,7 +10,7 @@ use crate::{
     display_list::{DisplayList, FrameValueUpdate},
     image::{ImageId, ImageLoadedData, ImageMaskMode},
 };
-use zng_unit::{Dip, DipPoint, DipRect, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform, Rgba};
+use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx as _, Factor, Px, PxPoint, PxSize, PxToDip, PxTransform, Rgba};
 
 crate::declare_id! {
     /// Window ID in channel.
@@ -215,6 +215,13 @@ pub struct WindowOpenData {
 
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
+
+    /// Padding that must be applied to the window content so that it stays clear of screen obstructions
+    /// such as a camera notch cutout.
+    /// 
+    /// Note that the *unsafe* area must still be rendered as it may be partially visible, just don't place nay
+    /// interactive or important content outside of this padding.
+    pub safe_padding: DipSideOffsets,
 }
 
 /// Information about a successfully opened headless surface.
