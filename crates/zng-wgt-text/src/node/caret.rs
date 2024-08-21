@@ -16,7 +16,7 @@ use zng_app::{
 use zng_app_context::{context_local, LocalContext};
 use zng_color::colors;
 use zng_ext_input::{
-    focus::FOCUS_CHANGED_EVENT,
+    focus::{FOCUS, FOCUS_CHANGED_EVENT},
     mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
     touch::{TOUCH_INPUT_EVENT, TOUCH_MOVE_EVENT},
@@ -391,6 +391,7 @@ fn interactive_caret_node(
             visual.event(update);
 
             if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+                FOCUS.focus_widget(parent_id, false);
                 if args.is_touch_start() {
                     let wgt_info = WIDGET.info();
                     move_start_to_spot = wgt_info
@@ -424,6 +425,8 @@ fn interactive_caret_node(
                     }
                 }
             } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+                // keep focus on the text input, a click outside the are can move focus to window
+                FOCUS.focus_widget(parent_id, false);
                 if !args.is_click && args.is_mouse_down() && args.is_primary() {
                     let wgt_info = WIDGET.info();
                     move_start_to_spot = wgt_info
