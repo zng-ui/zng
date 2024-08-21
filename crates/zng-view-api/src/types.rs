@@ -699,6 +699,10 @@ impl Event {
                     change.size = n_change.size;
                 }
 
+                if n_change.safe_padding.is_some() {
+                    change.safe_padding = n_change.safe_padding;
+                }
+
                 change.frame_wait_id = n_change.frame_wait_id;
             }
             // window focus changed.

@@ -205,6 +205,7 @@ impl<E: AppExtension> RunningApp<E> {
                     c.position,
                     monitor_id,
                     c.size,
+                    c.safe_padding,
                     c.cause,
                     c.frame_wait_id,
                 );

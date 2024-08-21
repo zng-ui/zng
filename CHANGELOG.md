@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `WindowVars::safe_padding` and implement it for Android.
+* **Breaking** Add `WindowOpenData::safe_padding` and `WindowChanged::safe_padding` to the view API.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 * Fix text input moving caret on focus.
 * Fix interactive caret touch causing loss of focus on the text input.
 * Implemented keyboard support for Android (no IME).

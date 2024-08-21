@@ -138,7 +138,7 @@ pub use gleam;
 use webrender::api::*;
 use window::Window;
 use zng_txt::Txt;
-use zng_unit::{Dip, DipPoint, DipRect, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
+use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
@@ -1648,6 +1648,7 @@ impl Api for App {
                 position: (PxPoint::zero(), DipPoint::zero()),
                 size: config.state.restore_rect.size,
                 scale_factor: Factor(1.0),
+                safe_padding: DipSideOffsets::zero(),
                 state: WindowStateAll {
                     state: WindowState::Fullscreen,
                     global_position: PxPoint::zero(),
@@ -1691,6 +1692,7 @@ impl Api for App {
                 scale_factor: win.scale_factor(),
                 render_mode: win.render_mode(),
                 state: win.state(),
+                safe_padding: win.safe_padding(),
             };
 
             self.windows.push(win);

@@ -642,6 +642,10 @@ impl HeadedCtrl {
                     }
                 }
 
+                if let Some(padding) = args.safe_padding {
+                    self.vars.0.safe_padding.set(padding);
+                }
+
                 if let Some(id) = args.frame_wait_id {
                     self.resize_wait_id = Some(id);
 
@@ -716,6 +720,7 @@ impl HeadedCtrl {
                 self.vars.0.global_position.set(args.data.position.0);
                 self.vars.0.actual_position.set(args.data.position.1);
                 self.vars.0.actual_size.set(args.data.size);
+                self.vars.0.safe_padding.set(args.data.safe_padding);
                 self.vars.0.actual_monitor.set(args.data.monitor);
                 self.vars.0.scale_factor.set(args.data.scale_factor);
 
