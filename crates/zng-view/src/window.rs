@@ -19,7 +19,7 @@ use winit::{
     window::{CustomCursor, Fullscreen, Icon, Window as GWindow, WindowAttributes},
 };
 use zng_txt::{ToTxt, Txt};
-use zng_unit::{DipPoint, DipRect, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
+use zng_unit::{DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
@@ -1661,6 +1661,49 @@ impl Window {
 
     pub fn size(&self) -> DipSize {
         self.window.inner_size().to_logical(self.window.scale_factor()).to_dip()
+    }
+
+    pub fn safe_padding(&self) -> DipSideOffsets {
+        #[cfg(target_os = "android")]
+        match self.try_get_insets() {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("cannot get insets, {e}");
+                DipSideOffsets::zero()
+            }
+        }
+
+        #[cfg(not(target_os = "android"))]
+        {
+            DipSideOffsets::zero()
+        }
+    }
+    #[cfg(target_os = "android")]
+    fn try_get_insets(&self) -> jni::errors::Result<DipSideOffsets> {
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm() as _) }?;
+
+        let activity = unsafe { jni::objects::JObject::from_raw(ctx.context() as _) };
+        let mut env = vm.attach_current_thread()?;
+
+        let jni_window = env.call_method(&activity, "getWindow", "()Landroid/view/Window;", &[])?.l()?;
+
+        let view = env.call_method(jni_window, "getDecorView", "()Landroid/view/View;", &[])?.l()?;
+
+        let insets = env
+            .call_method(view, "getRootWindowInsets", "()Landroid/view/WindowInsets;", &[])?
+            .l()?;
+        let cutout = env
+            .call_method(insets, "getDisplayCutout", "()Landroid/view/DisplayCutout;", &[])?
+            .l()?;
+        let top = env.call_method(&cutout, "getSafeInsetTop", "()I", &[])?.i()? as i32;
+        let right = env.call_method(&cutout, "getSafeInsetRight", "()I", &[])?.i()? as i32;
+        let bottom = env.call_method(&cutout, "getSafeInsetBottom", "()I", &[])?.i()? as i32;
+        let left = env.call_method(&cutout, "getSafeInsetLeft", "()I", &[])?.i()? as i32;
+
+        let offsets = zng_unit::PxSideOffsets::new(Px(top), Px(right), Px(bottom), Px(left));
+
+        Ok(offsets.to_dip(self.scale_factor()))
     }
 
     pub fn scale_factor(&self) -> Factor {

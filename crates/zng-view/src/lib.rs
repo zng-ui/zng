@@ -1692,7 +1692,7 @@ impl Api for App {
                 scale_factor: win.scale_factor(),
                 render_mode: win.render_mode(),
                 state: win.state(),
-                safe_padding: DipSideOffsets::zero(), // !!: TODO android
+                safe_padding: win.safe_padding(),
             };
 
             self.windows.push(win);
