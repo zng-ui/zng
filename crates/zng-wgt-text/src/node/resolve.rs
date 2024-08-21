@@ -470,7 +470,7 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
         }
 
         let auto_select = AUTO_SELECTION_VAR.get();
-        if auto_select != AutoSelection::DISABLED && TEXT_SELECTABLE_VAR.get() {
+        if auto_select != AutoSelection::DISABLED && caret.selection_index.is_some() && TEXT_SELECTABLE_VAR.get() {
             if auto_select.contains(AutoSelection::CLEAR_ON_BLUR) && args.is_blur(widget.id()) {
                 // deselect if the widget is not the ALT return focus and is not the parent scope return focus.
 

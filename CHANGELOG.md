@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix text input moving caret on focus.
 * Fix interactive caret touch causing loss of focus on the text input.
 * Implemented keyboard support for Android (no IME).
 * Add `--cfg=zng_view_image_has_avif` for `zng-view` to support building AVIF.
