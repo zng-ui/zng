@@ -1,5 +1,6 @@
 use std::{fmt, ops};
 
+use zng_unit::DipSideOffsets;
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::{impl_length_comp_conversions, Factor, FactorPercent, FactorSideOffsets, Layout1d, LayoutMask, Length, PxSideOffsets};
@@ -127,6 +128,11 @@ impl_from_and_into_var! {
 
     /// From exact lengths.
     fn from(offsets: PxSideOffsets) -> SideOffsets {
+        SideOffsets::new(offsets.top, offsets.right, offsets.bottom, offsets.left)
+    }
+
+    // From exact lengths.
+    fn from(offsets: DipSideOffsets) -> SideOffsets {
         SideOffsets::new(offsets.top, offsets.right, offsets.bottom, offsets.left)
     }
 }

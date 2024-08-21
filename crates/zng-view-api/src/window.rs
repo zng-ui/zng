@@ -218,7 +218,7 @@ pub struct WindowOpenData {
 
     /// Padding that must be applied to the window content so that it stays clear of screen obstructions
     /// such as a camera notch cutout.
-    /// 
+    ///
     /// Note that the *unsafe* area must still be rendered as it may be partially visible, just don't place nay
     /// interactive or important content outside of this padding.
     pub safe_padding: DipSideOffsets,
@@ -882,6 +882,9 @@ pub struct WindowChanged {
     /// The window new size, is `None` if the window size did not change.
     pub size: Option<DipSize>,
 
+    /// The window new safe padding, is `None` if the did not change.
+    pub safe_padding: Option<DipSideOffsets>,
+
     /// If the view-process is blocking the event loop for a time waiting for a frame for the new `size` this
     /// ID must be send with the frame to signal that it is the frame for the new size.
     ///
@@ -906,6 +909,7 @@ impl WindowChanged {
             position: Some((global_position, position)),
             monitor: None,
             size: None,
+            safe_padding: None,
             frame_wait_id: None,
             cause,
         }
@@ -919,6 +923,7 @@ impl WindowChanged {
             position: None,
             monitor: Some(monitor),
             size: None,
+            safe_padding: None,
             frame_wait_id: None,
             cause,
         }
@@ -932,6 +937,7 @@ impl WindowChanged {
             position: None,
             monitor: None,
             size: Some(size),
+            safe_padding: None,
             frame_wait_id,
             cause,
         }
@@ -945,6 +951,7 @@ impl WindowChanged {
             position: None,
             monitor: None,
             size: None,
+            safe_padding: None,
             frame_wait_id: None,
             cause,
         }

@@ -1,7 +1,7 @@
 # Unreleased
 
-* Add window safe padding !!: TODO.
-* **Breaking** Add `WindowOpenData::safe_padding` to the view API.
+* Add `WindowVars::safe_padding`.
+* **Breaking** Add `WindowOpenData::safe_padding` and `WindowChanged::safe_padding` to the view API.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 * Fix text input moving caret on focus.
 * Fix interactive caret touch causing loss of focus on the text input.

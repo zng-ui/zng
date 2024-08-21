@@ -11,9 +11,10 @@
 
 use zng_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zng_ext_window::{
-    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
-    WindowOpenArgs, WindowRoot,
+    FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseArgs,
+    WindowCloseRequestedArgs, WindowOpenArgs, WindowRoot,
 };
+use zng_var::types::ContextualizedVar;
 use zng_wgt::prelude::*;
 use zng_wgt_fill::background_color;
 use zng_wgt_input::focus::{
@@ -72,6 +73,8 @@ impl Window {
             };
             config_block_window_load = true;
             save_state = SaveState::enabled();
+
+            padding = ContextualizedVar::new(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
         }
 
         self.widget_builder().push_build_action(|wgt| {

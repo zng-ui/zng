@@ -16,7 +16,7 @@
 
 use std::path::PathBuf;
 
-use zng_layout::unit::{DipPoint, DipSize, Factor, PxPoint, PxRect};
+use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint, PxRect};
 use zng_txt::Txt;
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
@@ -151,6 +151,9 @@ event_args! {
 
         /// New window size if it was resized.
         pub size: Option<DipSize>,
+
+        /// New window safe padding.
+        pub safe_padding: Option<DipSideOffsets>,
 
         /// If the app or operating system caused the change.
         pub cause: EventCause,

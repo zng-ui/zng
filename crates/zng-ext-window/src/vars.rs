@@ -6,7 +6,9 @@ use zng_app::{
 };
 use zng_color::LightDark;
 use zng_ext_image::Img;
-use zng_layout::unit::{Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size};
+use zng_layout::unit::{
+    Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
+};
 use zng_state_map::{static_id, StateId};
 use zng_txt::Txt;
 use zng_unique_id::IdSet;
@@ -45,6 +47,7 @@ pub(super) struct WindowVarsData {
     pub(super) global_position: ArcVar<PxPoint>,
     pub(super) actual_monitor: ArcVar<Option<MonitorId>>,
     pub(super) actual_size: ArcVar<DipSize>,
+    pub(super) safe_padding: ArcVar<DipSideOffsets>,
 
     pub(super) scale_factor: ArcVar<Factor>,
 
@@ -114,6 +117,7 @@ impl WindowVars {
             global_position: var(PxPoint::zero()),
             actual_monitor: var(None),
             actual_size: var(DipSize::zero()),
+            safe_padding: var(DipSideOffsets::zero()),
 
             scale_factor: var(primary_scale_factor),
 
@@ -404,6 +408,15 @@ impl WindowVars {
             PxSize::new(size.width.to_px(*factor), size.height.to_px(*factor))
         })
         .boxed()
+    }
+
+    /// Padding that must be applied to the window content so that it stays clear of screen obstructions
+    /// such as a camera notch cutout.
+    ///
+    /// Note that the *unsafe* area must still be rendered as it may be partially visible, just don't place nay
+    /// interactive or important content outside of this padding.
+    pub fn safe_padding(&self) -> ReadOnlyArcVar<DipSideOffsets> {
+        self.0.safe_padding.read_only()
     }
 
     /// Window width and height on the screen when the window is [`Normal`].
