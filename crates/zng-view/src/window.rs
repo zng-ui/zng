@@ -114,8 +114,6 @@ pub(crate) struct Window {
 
     ime_area: Option<DipRect>,
     #[cfg(windows)]
-    ime_open: bool,
-    #[cfg(windows)]
     has_shutdown_warn: bool,
 
     cursor: Option<CursorIcon>,
@@ -463,8 +461,6 @@ impl Window {
             render_mode,
             access: Some(access),
             ime_area: cfg.ime_area,
-            #[cfg(windows)]
-            ime_open: false,
             #[cfg(windows)]
             has_shutdown_warn: false,
             cursor: None,
@@ -1903,16 +1899,14 @@ impl Window {
         }
     }
 
-    #[cfg(windows)]
-    pub(crate) fn set_ime_open(&mut self, open: bool) {
-        self.ime_open = open;
-    }
-
     pub(crate) fn set_ime_area(&mut self, area: Option<DipRect>) {
         if let Some(a) = area {
             if self.ime_area != Some(a) {
                 if self.ime_area.is_none() {
                     self.window.set_ime_allowed(true);
+
+                    #[cfg(target_os = "android")]
+                    self.set_mobile_keyboard_vis(true);
                 }
 
                 self.ime_area = Some(a);
@@ -1921,7 +1915,74 @@ impl Window {
         } else if self.ime_area.is_some() {
             self.window.set_ime_allowed(false);
             self.ime_area = None;
+
+            #[cfg(target_os = "android")]
+            self.set_mobile_keyboard_vis(false);
         }
+    }
+    #[cfg(target_os = "android")]
+    fn set_mobile_keyboard_vis(&self, visible: bool) {
+        // this does not work
+        //
+        // let app = crate::platform::android::android_app();
+        // if visible {
+        //     app.show_soft_input(false);
+        // } else {
+        //     app.hide_soft_input(false);
+        // }
+
+        if let Err(e) = self.try_show_hide_soft_keyboard(visible) {
+            tracing::error!("cannot {} mobile keyboard, {e}", if visible { "show" } else { "hide" });
+        }
+    }
+    #[cfg(target_os = "android")]
+    fn try_show_hide_soft_keyboard(&self, show: bool) -> jni::errors::Result<()> {
+        use jni::objects::JValue;
+
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm() as _) }?;
+
+        let activity = unsafe { jni::objects::JObject::from_raw(ctx.context() as _) };
+        let mut env = vm.attach_current_thread()?;
+
+        let class_ctx = env.find_class("android/content/Context")?;
+        let ims = env.get_static_field(class_ctx, "INPUT_METHOD_SERVICE", "Ljava/lang/String;")?;
+
+        let im_manager = env
+            .call_method(
+                &activity,
+                "getSystemService",
+                "(Ljava/lang/String;)Ljava/lang/Object;",
+                &[ims.borrow()],
+            )?
+            .l()?;
+
+        let jni_window = env.call_method(&activity, "getWindow", "()Landroid/view/Window;", &[])?.l()?;
+
+        let view = env.call_method(jni_window, "getDecorView", "()Landroid/view/View;", &[])?.l()?;
+
+        if show {
+            env.call_method(&view, "requestFocus", "()Z", &[])?;
+
+            env.call_method(
+                im_manager,
+                "showSoftInput",
+                "(Landroid/view/View;I)Z",
+                &[JValue::Object(&view), 0i32.into()],
+            )?;
+        } else {
+            let window_token = env.call_method(view, "getWindowToken", "()Landroid/os/IBinder;", &[])?.l()?;
+            let jvalue_window_token = jni::objects::JValueGen::Object(&window_token);
+
+            env.call_method(
+                im_manager,
+                "hideSoftInputFromWindow",
+                "(Landroid/os/IBinder;I)Z",
+                &[jvalue_window_token, 0i32.into()],
+            )?;
+        }
+
+        Ok(())
     }
 
     #[cfg(windows)]

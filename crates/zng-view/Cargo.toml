@@ -161,6 +161,8 @@ features = ["NSString"]
 parking_lot = "0.12"
 # matches winit -> android-activity
 ndk = { version = "0.9.0", default-features = false }
+ndk-context = "0.1.1"
+jni = "0.21"
 
 [build-dependencies]
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.7", features = [

@@ -671,9 +671,19 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             key_code,
                             key_location,
                             state,
+                            text: match event.text {
+                                Some(s) => Txt::from_str(s.as_str()),
+                                #[cfg(target_os = "android")]
+                                None => match (state, &key) {
+                                    (KeyState::Pressed, Key::Char(c)) => Txt::from(*c),
+                                    (KeyState::Pressed, Key::Str(s)) => s.clone(),
+                                    _ => Txt::default(),
+                                },
+                                #[cfg(not(target_os = "android"))]
+                                None => Txt::default(),
+                            },
                             key,
                             key_modified,
-                            text: event.text.map(|s| Txt::from_str(s.as_str())).unwrap_or_default(),
                         });
                     }
                 }
@@ -847,14 +857,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                         let ime = Ime::Commit(s.into());
                         self.notify(Event::Ime { window: id, ime });
                     }
-                    winit::event::Ime::Enabled => {
-                        #[cfg(windows)]
-                        self.windows[i].set_ime_open(true);
-                    }
-                    winit::event::Ime::Disabled => {
-                        #[cfg(windows)]
-                        self.windows[i].set_ime_open(false);
-                    }
+                    winit::event::Ime::Enabled => {}
+                    winit::event::Ime::Disabled => {}
                 }
             }
             WindowEvent::ThemeChanged(_) => {}
@@ -1695,7 +1699,10 @@ impl Api for App {
 
             // winit does not notify focus for Android window
             #[cfg(target_os = "android")]
-            self.notify(Event::FocusChanged { prev: None, new: Some(id) });
+            {
+                self.windows.last_mut().unwrap().focused_changed(&mut true);
+                self.notify(Event::FocusChanged { prev: None, new: Some(id) });
+            }
         }
     }
 

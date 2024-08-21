@@ -501,6 +501,8 @@ declare_api! {
     pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;
 
     /// Enable or disable IME by setting a cursor area.
+    ///
+    /// In mobile platforms also shows the software keyboard for `Some(_)` and hides it for `None`.
     pub fn set_ime_area(&mut self, id: WindowId, area: Option<DipRect>);
 
     /// Attempt to set a system wide shutdown warning associated with the window.
