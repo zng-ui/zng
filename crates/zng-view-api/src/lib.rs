@@ -517,12 +517,6 @@ declare_api! {
     /// Set to an empty text to remove the warning.
     pub fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt);
 
-    /// Defines if the window content should not be visible in external screenshots or screen casts.
-    ///
-    /// Note that this is a system dependent hint that is not implemented on all platforms. The main view-process
-    /// implementation only supports this on Android.
-    pub fn set_private_content(&mut self, id: WindowId, is_private: bool);
-
     /// Licenses that may be required to be displayed in the app about screen.
     ///
     /// This is specially important for prebuilt view users, as the tools that scrap licenses

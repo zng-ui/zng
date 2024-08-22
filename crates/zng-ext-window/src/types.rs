@@ -44,6 +44,7 @@ pub struct WindowRoot {
     pub(super) render_mode: Option<RenderMode>,
     pub(super) headless_monitor: HeadlessMonitor,
     pub(super) start_focused: bool,
+    pub(super) private_content: bool,
     pub(super) child: BoxedUiNode,
 }
 impl WindowRoot {
@@ -77,8 +78,17 @@ impl WindowRoot {
             render_mode,
             headless_monitor,
             start_focused,
+            private_content: false,
             child: root.boxed(),
         }
+    }
+
+    /// * `private_content` -
+    ///
+    /// This function will be removed on the next breaking release and the flag added to `new`.
+    pub fn with_private_content(mut self, is_private: bool) -> Self {
+        self.private_content = is_private;
+        self
     }
 
     /// New window from a `child` node that becomes the child of the window root widget.

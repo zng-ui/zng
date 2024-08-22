@@ -154,6 +154,21 @@ impl Window {
 
         let window_scope = tracing::trace_span!("glutin").entered();
 
+        if cfg.private_content {
+            #[cfg(target_os = "android")]
+            {
+                use crate::platform::android::activity::WindowManagerFlags;
+
+                let app = crate::platform::android::android_app();
+                app.set_window_flags(WindowManagerFlags::SECURE, WindowManagerFlags::empty());
+            }
+
+            #[cfg(not(target_os = "android"))]
+            {
+                tracing::warn!("private content not implemented on {}", std::env::consts::OS);
+            }
+        }
+
         // create window and OpenGL context
         let mut winit = WindowAttributes::default()
             .with_title(cfg.title)
@@ -522,10 +537,6 @@ impl Window {
         if win.state.state == WindowState::Normal && cfg.default_position {
             // system position.
             win.state.restore_rect.origin = (win.state.global_position - monitor_offset).to_dip(win.scale_factor());
-        }
-
-        if cfg.private_content {
-            win.set_private_content(true);
         }
 
         win
@@ -2059,27 +2070,6 @@ impl Window {
     pub(crate) fn set_system_shutdown_warn(&mut self, reason: Txt) {
         if !reason.is_empty() {
             tracing::warn!("system shutdown warn not implemented on {}", std::env::consts::OS);
-        }
-    }
-
-    #[cfg(target_os = "android")]
-    pub(crate) fn set_private_content(&mut self, is_private: bool) {
-        use crate::platform::android::activity::WindowManagerFlags;
-
-        tracing::info!("!!: set_private_content: {is_private}");
-
-        let app = crate::platform::android::android_app();
-        if is_private {
-            app.set_window_flags(WindowManagerFlags::SECURE, WindowManagerFlags::empty());
-        } else {
-            app.set_window_flags(WindowManagerFlags::empty(), WindowManagerFlags::SECURE);
-        }
-    }
-
-    #[cfg(not(target_os = "android"))]
-    pub(crate) fn set_private_content(&mut self, is_private: bool) {
-        if is_private {
-            tracing::warn!("private content not implemented on {}", std::env::consts::OS);
         }
     }
 }

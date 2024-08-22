@@ -91,6 +91,7 @@ struct HeadedCtrl {
     start_focused: bool,
     kiosk: Option<WindowState>, // Some(enforced_fullscreen)
     transparent: bool,
+    private_content: bool,
     render_mode: Option<RenderMode>,
 
     // current state.
@@ -121,6 +122,7 @@ impl HeadedCtrl {
             kiosk: if content.kiosk { Some(WindowState::Fullscreen) } else { None },
             transparent: content.transparent,
             render_mode: content.render_mode,
+            private_content: content.private_content,
 
             content: ContentCtrl::new(vars.clone(), commands, content),
             vars: vars.clone(),
@@ -496,12 +498,6 @@ impl HeadedCtrl {
         if let Some(mode) = self.vars.frame_capture_mode().get_new() {
             self.update_gen(move |view| {
                 let _: Ignore = view.set_capture_mode(matches!(mode, FrameCaptureMode::All));
-            });
-        }
-
-        if let Some(p) = self.vars.private_content().get_new() {
-            self.update_gen(move |view| {
-                let _: Ignore = view.set_private_content(p);
             });
         }
 
@@ -1166,7 +1162,7 @@ impl HeadedCtrl {
                 Some(area)
             }),
             system_shutdown_warn: self.vars.system_shutdown_warn().get(),
-            private_content: self.vars.private_content().get(),
+            private_content: self.private_content,
 
             extensions: WINDOWS.take_view_extensions_init(window_id),
         };
@@ -1295,7 +1291,7 @@ impl HeadedCtrl {
                 Some(area)
             }),
             system_shutdown_warn: self.vars.system_shutdown_warn().get(),
-            private_content: self.vars.private_content().get(),
+            private_content: self.private_content,
 
             extensions: WINDOWS.take_view_extensions_init(window_id),
         };

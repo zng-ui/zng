@@ -1906,10 +1906,6 @@ impl Api for App {
         self.with_window(id, |w| w.set_capture_mode(enabled), || ())
     }
 
-    fn set_private_content(&mut self, id: WindowId, is_private: bool) {
-        self.with_window(id, |w| w.set_private_content(is_private), || ())
-    }
-
     fn frame_image(&mut self, id: WindowId, mask: Option<ImageMaskMode>) -> ImageId {
         with_window_or_surface!(self, id, |w| w.frame_image(&mut self.image_cache, mask), || ImageId::INVALID)
     }

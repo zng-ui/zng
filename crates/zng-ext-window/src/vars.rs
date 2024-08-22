@@ -81,8 +81,6 @@ pub(super) struct WindowVarsData {
 
     pub(super) access_enabled: ArcVar<AccessEnabled>,
     system_shutdown_warn: ArcVar<Txt>,
-
-    private_content: ArcVar<bool>,
 }
 
 /// Variables that configure the opening or open window.
@@ -162,8 +160,6 @@ impl WindowVars {
 
             access_enabled: var(AccessEnabled::empty()),
             system_shutdown_warn: var(Txt::from("")),
-
-            private_content: var(false),
         });
         Self(vars)
     }
@@ -739,14 +735,6 @@ impl WindowVars {
     /// * Must be built with `#![windows_subsystem = "windows"]` and must be running from the Windows Explorer (desktop).
     pub fn system_shutdown_warn(&self) -> ArcVar<Txt> {
         self.0.system_shutdown_warn.clone()
-    }
-
-    /// Defines if the window content should not be visible in external screenshots or screen casts.
-    ///
-    /// Note that this is a system dependent hint that is not implemented on all platforms. The main view-process
-    /// implementation only supports this on Android.
-    pub fn private_content(&self) -> ArcVar<bool> {
-        self.0.private_content.clone()
     }
 }
 impl PartialEq for WindowVars {

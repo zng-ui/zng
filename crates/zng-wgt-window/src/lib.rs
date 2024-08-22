@@ -87,6 +87,7 @@ impl Window {
     /// [`WindowRoot`]: zng_ext_window::WindowRoot
     pub fn widget_build(&mut self) -> WindowRoot {
         let mut wgt = self.widget_take();
+        let private_content = wgt.capture_value_or_default(property_id!(Self::private_content));
         WindowRoot::new(
             wgt.capture_value_or_else(property_id!(Self::id), WidgetId::new_unique),
             wgt.capture_value_or_default::<StartPosition>(property_id!(Self::start_position)),
@@ -97,6 +98,7 @@ impl Window {
             wgt.capture_value_or_default(property_id!(Self::start_focused)),
             wgt.build(),
         )
+        .with_private_content(private_content)
     }
 }
 
@@ -122,6 +124,13 @@ pub fn start_focused(enabled: impl IntoValue<bool>) {}
 /// app itself from accidentally exiting fullscreen.
 #[property(CONTEXT, capture, widget_impl(Window))]
 pub fn kiosk(kiosk: impl IntoValue<bool>) {}
+
+/// Defines if the window content should not be visible in external screenshots or screen casts.
+///
+/// Note that this is a system dependent hint that is not implemented on all platforms. The main view-process
+/// implementation only supports this on Android.
+#[property(CONTEXT, capture, widget_impl(Window))]
+pub fn private_content(is_private: impl IntoValue<bool>) {}
 
 /// If semi-transparent content is see-through, mixing with the operating system pixels behind the window.
 ///
