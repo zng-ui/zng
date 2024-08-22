@@ -22,7 +22,7 @@ pub fn run() {
                     txt_align = Align::CENTER;
                     layout::padding = 40;
                     font_family = "fantasy";
-                    font_size = 2.em();
+                    font_size = 22.pt();
                     font_weight = FontWeight::BOLD;
                     font_style = FontStyle::Italic;
 
