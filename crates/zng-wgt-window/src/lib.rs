@@ -46,7 +46,7 @@ impl Window {
             self;
 
             // set the root font size
-            font_size = FONT_SIZE_VAR;
+            font_size = FONT_SIZE_VAR.boxed();
 
             // optimization, actualize mapping context-vars early, see `context_var!` docs.
             zng_wgt_text::font_palette = zng_wgt_text::FONT_PALETTE_VAR;
@@ -65,16 +65,17 @@ impl Window {
             focus_scope = true;
             tab_nav = TabNav::Cycle;
             directional_nav = DirectionalNav::Cycle;
-            focus_scope_behavior = if cfg!(any(target_os = "android", target_os = "ios")) {
-                // users tap the main background to dismiss `TextInput!` soft keyboard
-                FocusScopeOnFocus::Widget
-            } else {
-                FocusScopeOnFocus::LastFocused
-            };
+            focus_scope_behavior = FocusScopeOnFocus::LastFocused;
             config_block_window_load = true;
             save_state = SaveState::enabled();
 
             padding = ContextualizedVar::new(|| WINDOW.vars().safe_padding().map(|p| SideOffsets::from(*p)));
+
+            when #is_mobile {
+                // users tap the main background to dismiss `TextInput!` soft keyboard
+                focus_scope_behavior = FocusScopeOnFocus::Widget;
+                font_size = FONT_SIZE_VAR.map(|f| f.clone() * 1.5.fct()).boxed();
+            }
         }
 
         self.widget_builder().push_build_action(|wgt| {
