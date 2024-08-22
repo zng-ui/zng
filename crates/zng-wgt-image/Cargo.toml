@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-image"
-version = "0.3.18"
+version = "0.3.19"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,12 +12,12 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.4.11" }
-zng-app = { path = "../zng-app", version = "0.9.8" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.28" }
-zng-ext-image = { path = "../zng-ext-image", version = "0.2.28" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.3.18" }
-zng-wgt-window = { path = "../zng-wgt-window", version = "0.5.8" }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.18" }
+zng-wgt = { path = "../zng-wgt", version = "0.4.12" }
+zng-app = { path = "../zng-app", version = "0.9.9" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.29" }
+zng-ext-image = { path = "../zng-ext-image", version = "0.2.29" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.3.19" }
+zng-wgt-window = { path = "../zng-wgt-window", version = "0.5.9" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.19" }
 
 serde = { version = "1.0", features = ["derive"] }

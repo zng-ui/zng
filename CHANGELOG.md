@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.11.3
+
 * Add `IS_MOBILE_VAR`, `is_mobile` and `force_mobile` context var and properties.
 * Add `WindowVars::safe_padding` and implement it for Android.
 * **Breaking** Add `WindowOpenData::safe_padding` and `WindowChanged::safe_padding` to the view API.
