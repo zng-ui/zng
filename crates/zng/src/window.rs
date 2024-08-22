@@ -116,7 +116,7 @@ pub mod cmd {
     pub use zng_wgt_inspector::INSPECT_CMD;
 }
 
-pub use zng_wgt_window::{BlockWindowLoad, Window, IS_MOBILE_VAR, is_mobile};
+pub use zng_wgt_window::{is_mobile, BlockWindowLoad, Window, IS_MOBILE_VAR};
 
 pub use zng_wgt_window::events::{
     on_frame_image_ready, on_ime, on_pre_frame_image_ready, on_pre_ime, on_pre_window_changed, on_pre_window_close_requested,

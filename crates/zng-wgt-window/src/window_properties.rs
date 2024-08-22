@@ -465,13 +465,13 @@ pub fn config_block_window_load(child: impl UiNode, enabled: impl IntoValue<Bloc
 
 context_var! {
     /// Variable that indicates the context should use mobile UI themes.
-    /// 
+    ///
     /// This is `true` by default in Android and iOS builds. It can also be set using [`force_mobile`](fn@force_mobile).
     pub static IS_MOBILE_VAR: bool = cfg!(any(target_os = "android", target_os = "ios"));
 }
 
 /// Requests mobile UI themes in desktop builds.
-/// 
+///
 /// This property sets the [`IS_MOBILE_VAR`].
 #[property(CONTEXT, default(IS_MOBILE_VAR), widget_impl(Window))]
 pub fn force_mobile(child: impl UiNode, is_mobile: impl IntoVar<bool>) -> impl UiNode {
