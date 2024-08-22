@@ -25,7 +25,7 @@ zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.19" }
 zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.29" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.4.3" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.9" }
-zng-view-api = { path = "../zng-view-api", version = "0.7.2" }
+zng-view-api = { path = "../zng-view-api", version = "0.8.0" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.29" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.17" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.19" }
