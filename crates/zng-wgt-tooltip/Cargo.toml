@@ -19,5 +19,5 @@ zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.9" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.29" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.9" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.19" }
-zng-app = { path = "../zng-app", version = "0.9.9" }
+zng-app = { path = "../zng-app", version = "0.10.0" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.17" }
