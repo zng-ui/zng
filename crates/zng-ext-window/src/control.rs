@@ -8,7 +8,7 @@ use zng_app::{
     event::{AnyEventArgs, CommandHandle},
     render::{FrameBuilder, FrameUpdate},
     timer::TIMERS,
-    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
+    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdateDeliveryList, WidgetUpdates, UPDATES},
     view_process::{
         raw_events::{
             RawWindowFocusArgs, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT,
@@ -2264,6 +2264,7 @@ enum WindowCtrlMode {
     Headed(HeadedCtrl),
     Headless(HeadlessCtrl),
     HeadlessWithRenderer(HeadlessWithRendererCtrl),
+    Nested(NestedCtrl),
 }
 impl WindowCtrl {
     pub fn new(vars: &WindowVars, commands: WindowCommands, mode: WindowMode, content: WindowRoot) -> Self {
@@ -2281,6 +2282,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.update(update_widgets),
             WindowCtrlMode::Headless(c) => c.update(update_widgets),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.update(update_widgets),
+            WindowCtrlMode::Nested(c) => c.update(update_widgets),
         }
     }
 
@@ -2290,6 +2292,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.info(info_widgets),
             WindowCtrlMode::Headless(c) => c.info(info_widgets),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.info(info_widgets),
+            WindowCtrlMode::Nested(c) => c.info(info_widgets),
         }
     }
 
@@ -2298,6 +2301,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.pre_event(update),
             WindowCtrlMode::Headless(c) => c.pre_event(update),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.pre_event(update),
+            WindowCtrlMode::Nested(c) => c.pre_event(update),
         }
     }
 
@@ -2306,6 +2310,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.ui_event(update),
             WindowCtrlMode::Headless(c) => c.ui_event(update),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.ui_event(update),
+            WindowCtrlMode::Nested(c) => c.ui_event(update),
         }
     }
 
@@ -2314,6 +2319,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.layout(layout_widgets),
             WindowCtrlMode::Headless(c) => c.layout(layout_widgets),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.layout(layout_widgets),
+            WindowCtrlMode::Nested(c) => c.layout(layout_widgets),
         }
     }
 
@@ -2322,6 +2328,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.render(render_widgets, render_update_widgets),
             WindowCtrlMode::Headless(c) => c.render(render_widgets, render_update_widgets),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.render(render_widgets, render_update_widgets),
+            WindowCtrlMode::Nested(c) => c.render(render_widgets, render_update_widgets),
         }
     }
 
@@ -2330,6 +2337,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.focus(),
             WindowCtrlMode::Headless(c) => c.focus(),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.focus(),
+            WindowCtrlMode::Nested(c) => c.focus(),
         }
     }
 
@@ -2338,6 +2346,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.bring_to_top(),
             WindowCtrlMode::Headless(c) => c.bring_to_top(),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.bring_to_top(),
+            WindowCtrlMode::Nested(c) => c.bring_to_top(),
         }
     }
 
@@ -2346,6 +2355,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.close(),
             WindowCtrlMode::Headless(c) => c.close(),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.close(),
+            WindowCtrlMode::Nested(c) => c.close(),
         }
     }
 
@@ -2354,6 +2364,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.view_task(task),
             WindowCtrlMode::Headless(c) => c.view_task(task),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.view_task(task),
+            WindowCtrlMode::Nested(c) => c.view_task(task),
         }
     }
 }
@@ -2368,3 +2379,117 @@ fn default_size(scale_factor: Factor) -> PxSize {
 
 /// Respawned error is ok here, because we recreate the window/surface on respawn.
 type Ignore = Result<(), ViewProcessOffline>;
+
+enum HostedOp {
+    Update(WidgetUpdates),
+}
+
+/// Implementer of an endpoint to an `WindowRoot` being used as an widget.
+///
+/// * `WINDOWS` requests targeting the window are converted to events send to the `WindowRoot`.
+///     - No, they must call the WindowRoot directly, the WindowHostNode only gets size and frame.
+/// * The widgets on the client `WindowRoot` see what parent `WINDOW`?
+///     - They need to see a different window, the primary reason for this feature is seamless support multiple windows in Android.
+///     - Only one window can be focused, if we simulate a window the parent window must be active when the child is focused without
+///       breaking the FOCUS service.
+/// * Host widget should be identifiable on info tree, but the hosted window gets their own info tree.
+/// * Window is sized with host node constraints.
+/// * !!: TODO
+struct NestedCtrl {
+    vars: WindowVars,
+    content: ContentCtrl,
+    actual_parent: Option<WindowId>,
+    /// actual_color_scheme and scale_factor binding.
+    var_bindings: VarHandles,
+    host: (WindowId, WidgetId),
+}
+impl NestedCtrl {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot, host: (WindowId, WidgetId)) -> Self {
+        Self {
+            vars: vars.clone(),
+            content: ContentCtrl::new(vars.clone(), commands, content),
+            actual_parent: None,
+            var_bindings: VarHandles::dummy(),
+            host
+        }
+    }
+
+    fn update(&mut self, update_widgets: &WidgetUpdates) {
+        self.content.update(update_widgets)
+    }
+
+    fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
+        self.content.info(info_widgets)
+    }
+
+    fn pre_event(&mut self, update: &EventUpdate) {
+        self.content.pre_event(update)
+    }
+
+    fn ui_event(&mut self, update: &EventUpdate) {
+        self.content.ui_event(update)
+    }
+
+    fn layout(&self, layout_widgets: Arc<LayoutUpdates>) {
+        // self.content.layout(layout_widgets, scale_factor, screen_ppi, min_size, max_size, size, root_font_size, skip_auto_size)
+    }
+
+    fn render(&self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
+        // self.content.render(renderer, scale_factor, wait_id, render_widgets, render_update_widgets)
+    }
+
+    fn focus(&self) {
+        todo!()
+    }
+
+    fn bring_to_top(&self) {
+        todo!()
+    }
+
+    fn close(&mut self) {
+        self.content.close()
+    }
+
+    fn view_task(&self, task: Box<dyn FnOnce(Option<&ViewWindow>)>) {
+        task(None)
+    }
+}
+
+/// UI node that presents a [`WindowRoot`] as embedded content.
+pub struct WindowHostNode {
+    window_id: WindowId,
+}
+impl WindowHostNode {}
+impl UiNode for WindowHostNode {
+    fn init(&mut self) {
+        // !!: TODO "open" window
+    }
+
+    fn deinit(&mut self) {
+        // !!: TODO close window
+    }
+
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        todo!("!!: TAG")
+    }
+
+    fn event(&mut self, _: &EventUpdate) {}
+
+    fn update(&mut self, _: &WidgetUpdates) {}
+
+    fn measure(&mut self, wm: &mut zng_wgt::prelude::WidgetMeasure) -> PxSize {
+        todo!()
+    }
+
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        todo!()
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        todo!()
+    }
+
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        todo!()
+    }
+}
