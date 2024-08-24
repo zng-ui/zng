@@ -2,11 +2,13 @@
 
 use std::{mem, sync::Arc};
 
+use parking_lot::Mutex;
 use zng_app::{
     access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
     app_hn_once,
     event::{AnyEventArgs, CommandHandle},
     render::{FrameBuilder, FrameUpdate},
+    static_id,
     timer::TIMERS,
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdateDeliveryList, WidgetUpdates, UPDATES},
     view_process::{
@@ -17,7 +19,7 @@ use zng_app::{
         ViewHeadless, ViewRenderer, ViewWindow, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
     widget::{
-        info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetPath},
+        info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath},
         node::{BoxedUiNode, UiNode},
         VarLayout, WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
     },
@@ -34,6 +36,7 @@ use zng_layout::{
         PxSize, PxToDip, PxVector, TimeUnits,
     },
 };
+use zng_state_map::StateId;
 use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
 use zng_view_api::{
     config::{ColorScheme, FontAntiAliasing},
@@ -43,6 +46,7 @@ use zng_view_api::{
     },
     Ime, ViewProcessOffline,
 };
+use zng_wgt::prelude::WidgetInfo;
 
 use crate::{
     cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
@@ -2380,8 +2384,10 @@ fn default_size(scale_factor: Factor) -> PxSize {
 /// Respawned error is ok here, because we recreate the window/surface on respawn.
 type Ignore = Result<(), ViewProcessOffline>;
 
-enum HostedOp {
-    Update(WidgetUpdates),
+struct NestedContentCtrl {
+    content: ContentCtrl,
+    pending_layout: Option<Arc<LayoutUpdates>>,
+    pending_render: Option<[Arc<RenderUpdates>; 2]>,
 }
 
 /// Implementer of an endpoint to an `WindowRoot` being used as an widget.
@@ -2394,60 +2400,78 @@ enum HostedOp {
 ///       breaking the FOCUS service.
 /// * Host widget should be identifiable on info tree, but the hosted window gets their own info tree.
 /// * Window is sized with host node constraints.
+/// * Looks like render (and maybe layout) needs to run on the host and the other UI methods on the window control
+///     - Downsides: need to filter out context, maybe not possible for FrameBuilder either, need to peek the ControlCtrl in a lock.
+///     - Upsides: One pass layout, don't need to implement display list nesting on the view API.
 /// * !!: TODO
 struct NestedCtrl {
     vars: WindowVars,
-    content: ContentCtrl,
+    c: Arc<Mutex<NestedContentCtrl>>,
     actual_parent: Option<WindowId>,
     /// actual_color_scheme and scale_factor binding.
     var_bindings: VarHandles,
-    host: (WindowId, WidgetId),
+    host: WidgetPath,
 }
 impl NestedCtrl {
-    pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot, host: (WindowId, WidgetId)) -> Self {
+    pub fn new(vars: &WindowVars, commands: WindowCommands, content: WindowRoot, host: WidgetPath) -> Self {
         Self {
             vars: vars.clone(),
-            content: ContentCtrl::new(vars.clone(), commands, content),
+            c: Arc::new(Mutex::new(NestedContentCtrl {
+                content: ContentCtrl::new(vars.clone(), commands, content),
+                pending_layout: None,
+                pending_render: None,
+            })),
             actual_parent: None,
             var_bindings: VarHandles::dummy(),
-            host
+            host,
         }
     }
 
     fn update(&mut self, update_widgets: &WidgetUpdates) {
-        self.content.update(update_widgets)
+        self.c.lock().content.update(update_widgets)
     }
 
     fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
-        self.content.info(info_widgets)
+        self.c.lock().content.info(info_widgets)
     }
 
     fn pre_event(&mut self, update: &EventUpdate) {
-        self.content.pre_event(update)
+        self.c.lock().content.pre_event(update)
     }
 
     fn ui_event(&mut self, update: &EventUpdate) {
-        self.content.ui_event(update)
+        self.c.lock().content.ui_event(update)
     }
 
     fn layout(&self, layout_widgets: Arc<LayoutUpdates>) {
-        // self.content.layout(layout_widgets, scale_factor, screen_ppi, min_size, max_size, size, root_font_size, skip_auto_size)
+        if layout_widgets.delivery_list().enter_window(WINDOW.id()) {
+            self.c.lock().pending_layout = Some(layout_widgets);
+            UPDATES.layout(self.host.widget_id());
+        }
     }
 
     fn render(&self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
-        // self.content.render(renderer, scale_factor, wait_id, render_widgets, render_update_widgets)
+        let id = WINDOW.id();
+        if render_widgets.delivery_list().enter_window(id) || render_update_widgets.delivery_list().enter_window(id) {
+            self.c.lock().pending_render = Some([render_widgets, render_update_widgets]);
+            UPDATES.render(self.host.widget_id());
+        }
     }
 
     fn focus(&self) {
-        todo!()
+        self.bring_to_top();
+        // !!: TODO, we only track a single window as having the focus, now we have this
     }
 
     fn bring_to_top(&self) {
-        todo!()
+        let _ = WINDOWS.bring_to_top(self.host.window_id());
     }
 
     fn close(&mut self) {
-        self.content.close()
+        let mut c = self.c.lock();
+        c.content.close();
+        c.pending_layout = None;
+        c.pending_render = None;
     }
 
     fn view_task(&self, task: Box<dyn FnOnce(Option<&ViewWindow>)>) {
@@ -2456,40 +2480,113 @@ impl NestedCtrl {
 }
 
 /// UI node that presents a [`WindowRoot`] as embedded content.
-pub struct WindowHostNode {
+pub struct NestedWindowNode {
     window_id: WindowId,
+    c: Arc<Mutex<NestedContentCtrl>>,
 }
-impl WindowHostNode {}
-impl UiNode for WindowHostNode {
+impl NestedWindowNode {}
+impl UiNode for NestedWindowNode {
     fn init(&mut self) {
         // !!: TODO "open" window
+
+        // init handled by // NestedCtrl::update
     }
 
     fn deinit(&mut self) {
-        // !!: TODO close window
+        // !!: TODO force close window
+        // deinit handled by NestedCtrl::close
     }
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        todo!("!!: TAG")
+        info.set_meta(*NESTED_WINDOW_INFO_ID, self.window_id);
     }
 
-    fn event(&mut self, _: &EventUpdate) {}
+    fn event(&mut self, _: &EventUpdate) {
+        // event handled by NestedCtrl::ui_event
+    }
 
-    fn update(&mut self, _: &WidgetUpdates) {}
+    fn update(&mut self, _: &WidgetUpdates) {
+        // update handled by NestedCtrl::update
+    }
 
-    fn measure(&mut self, wm: &mut zng_wgt::prelude::WidgetMeasure) -> PxSize {
-        todo!()
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        let mut c = self.c.lock();
+        let auto_size = c.content.vars.auto_size().get();
+        let constraints = LAYOUT.constraints();
+
+        let metrics = LayoutMetrics::new(LAYOUT.scale_factor(), constraints.fill_size(), LAYOUT.root_font_size())
+            .with_screen_ppi(LAYOUT.screen_ppi())
+            .with_direction(DIRECTION_VAR.get());
+        LAYOUT.with_root_context(c.content.layout_pass, metrics, || {
+            let mut root_cons = LAYOUT.constraints();
+
+            let min_size = c.content.vars.min_size().layout().max(root_cons.min_size());
+            let max_size = c.content.vars.max_size().layout().min(root_cons.max_size().unwrap_or(PxSize::splat(Px::MAX)));
+
+            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);
+            }
+            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                root_cons.y = PxConstraints::new_range(min_size.height, max_size.height);
+            }
+            LAYOUT.with_constraints(root_cons, || {
+                // !!: TODO context
+                // WidgetLayout::with_root_widget(layout_widgets, |wl| self.root.layout(wl))
+                c.content.root.measure(wm)
+            })
+        })
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        let mut c = self.c.lock();
         todo!()
     }
 
     fn render(&mut self, frame: &mut FrameBuilder) {
-        todo!()
+        let mut c = self.c.lock();
+        if let Some([render_widgets, render_update_widgets]) = c.pending_render.take() {
+            frame.with_nested_window(
+                render_widgets,
+                render_update_widgets,
+                c.content.root_ctx.id(),
+                &c.content.root_ctx.bounds(),
+                &WINDOW.info(),
+                FontAntiAliasing::Default,
+                |frame| {
+                    // !!: TODO window root and widget context
+                    c.content.root.render(frame);
+                },
+            );
+            c.content
+                .render(renderer, scale_factor, wait_id, render_widgets, render_update_widgets)
+        } else {
+            // !!: TODO, manually reuse?
+        }
     }
 
     fn render_update(&mut self, update: &mut FrameUpdate) {
+        let mut c = self.c.lock();
         todo!()
+    }
+}
+
+static_id! {
+    static ref NESTED_WINDOW_INFO_ID: StateId<WindowId>;
+}
+
+/// Extension methods for widget info about a node that hosts a nested window.
+pub trait NestedWindowWidgetInfoExt {
+    /// Gets the hosted window ID if the widget hosts a nested window.
+    fn nested_window(&self) -> Option<WindowId>;
+
+    /// Gets the hosted window info tree if the widget hosts a nested window that is open.
+    fn nested_window_tree(&self) -> Option<WidgetInfoTree> {
+        WINDOWS.widget_tree(self.nested_window()?).ok()
+    }
+}
+
+impl NestedWindowWidgetInfoExt for WidgetInfo {
+    fn nested_window(&self) -> Option<WindowId> {
+        self.meta().get_clone(*NESTED_WINDOW_INFO_ID)
     }
 }

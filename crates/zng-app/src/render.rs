@@ -1790,7 +1790,7 @@ impl FrameBuilder {
 
     /// Create a new display list builder that can be built in parallel and merged back onto this one using [`parallel_fold`].
     ///
-    /// Note that split list must be folded before any open reference frames, stacking contexts or clips are closed in this list.
+    /// Note that split list must be folded before any current open reference frames, stacking contexts or clips are closed in this list.
     ///
     /// [`parallel_fold`]: Self::parallel_fold
     pub fn parallel_split(&self) -> ParallelBuilder<Self> {
@@ -1845,6 +1845,64 @@ impl FrameBuilder {
 
         self.widget_count += split.widget_count;
         self.debug_dot_overlays.extend(split.debug_dot_overlays);
+    }
+
+    /// Calls `render` to render a separate window on this frame.
+    ///
+    /// Usually this is provided by the window implementation when the `FrameBuilder` is first instantiated, this method
+    /// replaces the requests only for the `render` call.
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_nested_window(
+        &mut self,
+        render_widgets: Arc<RenderUpdates>,
+        render_update_widgets: Arc<RenderUpdates>,
+
+        root_id: WidgetId,
+        root_bounds: &WidgetBoundsInfo,
+        info_tree: &WidgetInfoTree,
+        default_font_aa: FontAntiAliasing,
+
+        render: impl FnOnce(&mut Self),
+    ) {
+        // similar to parallel_split, but without parent context
+        let mut nested = Self::new(
+            render_widgets,
+            render_update_widgets,
+            self.frame_id,
+            root_id,
+            root_bounds,
+            info_tree,
+            self.renderer.clone(),
+            self.scale_factor,
+            default_font_aa,
+        );
+        nested.display_list = self.display_list.parallel_split();
+        nested.hit_clips = self.hit_clips.parallel_split();
+        nested.widget_count_offsets = self.widget_count_offsets.parallel_split();
+
+        render(&mut nested);
+
+        // finalize nested window
+        info_tree.root().bounds_info().set_rendered(
+            Some(WidgetRenderInfo {
+                visible: nested.visible,
+                parent_perspective: nested.perspective,
+                seg_id: 0,
+                back: 0,
+                front: nested.widget_count,
+            }),
+            info_tree,
+        );
+
+        // fold nested window into host window
+        self.hit_clips.parallel_fold(nested.hit_clips);
+        self.display_list.parallel_fold(nested.display_list);
+
+        self.widget_count_offsets
+            .parallel_fold(nested.widget_count_offsets, self.widget_count);
+
+        self.widget_count += nested.widget_count;
+        self.debug_dot_overlays.extend(nested.debug_dot_overlays);
     }
 
     /// Finalizes the build.
