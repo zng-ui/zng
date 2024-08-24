@@ -68,6 +68,7 @@ pub(super) struct WindowsService {
     default_render_mode: ArcVar<RenderMode>,
     parallel: ArcVar<ParallelWin>,
     root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>>>, // Mutex for +Sync only.
+    open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut crate::OpenNestedHandlerArgs) + Send>>>,
 
     windows: IdMap<WindowId, AppWindow>,
     windows_info: IdMap<WindowId, AppWindowInfo>,
@@ -96,6 +97,7 @@ impl WindowsService {
             exit_on_last_close: var(true),
             default_render_mode: var(RenderMode::default()),
             root_extenders: Mutex::new(vec![]),
+            open_nested_handlers: Mutex::new(vec![]),
             parallel: var(ParallelWin::default()),
             windows: IdMap::default(),
             windows_info: IdMap::default(),
@@ -698,6 +700,15 @@ impl WINDOWS {
             .push(Box::new(move |a| extender(a).boxed()))
     }
 
+    /// Register the closure `handler` to be called for every new window starting on the next update.
+    ///
+    /// The closure can use the args to inspect the new window context and optionally convert the request to a [`NestedWindowNode`].
+    /// Nested windows can be manipulated using the `WINDOWS` API just like other windows, but are layout and rendered inside another window.
+    /// This is primarily used mobile platforms that only support one real window.
+    pub fn register_open_nested_handler<H>(&self, handler: impl FnMut(&mut crate::OpenNestedHandlerArgs) + Send + 'static) {
+        WINDOWS_SV.write().open_nested_handlers.get_mut().push(Box::new(handler))
+    }
+
     /// Add a view-process extension payload to the window request for the view-process.
     ///
     /// This will only work if called on the first [`UiNode::init`] and at most the first [`UiNode::layout`] of the window.
@@ -1129,12 +1140,16 @@ impl WINDOWS {
                     let mut wns = WINDOWS_SV.write();
                     let loading = wns.open_loading.remove(&window_id).unwrap();
                     let mut root_extenders = mem::take(&mut wns.root_extenders);
+                    let mut open_nested_handlers = mem::take(&mut wns.open_nested_handlers);
                     drop(wns);
-                    let (window, info, responder) = task.finish(loading, &mut root_extenders.get_mut()[..]);
+                    let (window, info, responder) =
+                        task.finish(loading, &mut root_extenders.get_mut()[..], &mut open_nested_handlers.get_mut()[..]);
 
                     let mut wns = WINDOWS_SV.write();
                     root_extenders.get_mut().append(wns.root_extenders.get_mut());
+                    open_nested_handlers.get_mut().append(wns.open_nested_handlers.get_mut());
                     wns.root_extenders = root_extenders;
+                    wns.open_nested_handlers = open_nested_handlers;
 
                     if wns.windows.insert(window_id, window).is_some() {
                         // id conflict resolved on request.
@@ -1480,6 +1495,7 @@ impl AppWindowTask {
         self,
         loading: WindowLoading,
         extenders: &mut [Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>],
+        open_nested_handlers: &mut [Box<dyn FnMut(&mut crate::OpenNestedHandlerArgs) + Send>],
     ) -> (AppWindow, AppWindowInfo, ResponderVar<WindowId>) {
         let mut window = self.task.into_inner().into_result().unwrap_or_else(|_| panic!());
         let mut ctx = self.ctx;
@@ -1513,6 +1529,7 @@ impl AppWindowTask {
 
         let commands = WindowCommands::new(id);
 
+        // !!: TODO open_nested_handlers
         let root_id = window.id;
         let ctrl = WindowCtrl::new(&vars, commands, mode, window);
 

@@ -1,6 +1,10 @@
 //! This module implements Management of window content and synchronization of WindowVars and View-Process.
 
-use std::{mem, sync::Arc};
+use std::{
+    future::{Future, IntoFuture},
+    mem,
+    sync::Arc,
+};
 
 use parking_lot::Mutex;
 use zng_app::{
@@ -10,7 +14,7 @@ use zng_app::{
     render::{FrameBuilder, FrameUpdate},
     static_id,
     timer::TIMERS,
-    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdateDeliveryList, WidgetUpdates, UPDATES},
+    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
     view_process::{
         raw_events::{
             RawWindowFocusArgs, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT,
@@ -23,9 +27,10 @@ use zng_app::{
         node::{BoxedUiNode, UiNode},
         VarLayout, WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
     },
-    window::{WindowId, WindowMode, WINDOW},
+    window::{WindowCtx, WindowId, WindowMode, WINDOW},
     Deadline,
 };
+use zng_app_context::{app_local, LocalContext};
 use zng_clone_move::clmv;
 use zng_color::{colors, LightDark, Rgba};
 use zng_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
@@ -37,7 +42,7 @@ use zng_layout::{
     },
 };
 use zng_state_map::StateId;
-use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
+use zng_var::{AnyVar, ReadOnlyArcVar, ResponseVar, Var, VarHandle, VarHandles};
 use zng_view_api::{
     config::{ColorScheme, FontAntiAliasing},
     window::{
@@ -2388,6 +2393,7 @@ struct NestedContentCtrl {
     content: ContentCtrl,
     pending_layout: Option<Arc<LayoutUpdates>>,
     pending_render: Option<[Arc<RenderUpdates>; 2]>,
+    ctx: WindowCtx,
 }
 
 /// Implementer of an endpoint to an `WindowRoot` being used as an widget.
@@ -2420,6 +2426,7 @@ impl NestedCtrl {
                 content: ContentCtrl::new(vars.clone(), commands, content),
                 pending_layout: None,
                 pending_render: None,
+                ctx: todo!(),
             })),
             actual_parent: None,
             var_bindings: VarHandles::dummy(),
@@ -2481,13 +2488,13 @@ impl NestedCtrl {
 
 /// UI node that presents a [`WindowRoot`] as embedded content.
 pub struct NestedWindowNode {
-    window_id: WindowId,
     c: Arc<Mutex<NestedContentCtrl>>,
 }
-impl NestedWindowNode {}
 impl UiNode for NestedWindowNode {
     fn init(&mut self) {
-        // !!: TODO "open" window
+        // !!: TODO "open" window?
+        // !!: not exactly, can't request open from here because windows can only open once (the Future is consumed)
+        // !!: this widget needs to be like a "WindowSlot".
 
         // init handled by // NestedCtrl::update
     }
@@ -2498,7 +2505,7 @@ impl UiNode for NestedWindowNode {
     }
 
     fn info(&mut self, info: &mut WidgetInfoBuilder) {
-        info.set_meta(*NESTED_WINDOW_INFO_ID, self.window_id);
+        info.set_meta(*NESTED_WINDOW_INFO_ID, self.c.lock().ctx.id());
     }
 
     fn event(&mut self, _: &EventUpdate) {
@@ -2511,54 +2518,87 @@ impl UiNode for NestedWindowNode {
 
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
         let mut c = self.c.lock();
+        let c = &mut *c;
         let auto_size = c.content.vars.auto_size().get();
         let constraints = LAYOUT.constraints();
 
         let metrics = LayoutMetrics::new(LAYOUT.scale_factor(), constraints.fill_size(), LAYOUT.root_font_size())
             .with_screen_ppi(LAYOUT.screen_ppi())
             .with_direction(DIRECTION_VAR.get());
-        LAYOUT.with_root_context(c.content.layout_pass, metrics, || {
-            let mut root_cons = LAYOUT.constraints();
 
-            let min_size = c.content.vars.min_size().layout().max(root_cons.min_size());
-            let max_size = c.content.vars.max_size().layout().min(root_cons.max_size().unwrap_or(PxSize::splat(Px::MAX)));
+        LocalContext::new().with_context(|| {
+            WINDOW.with_context(&mut c.ctx, || {
+                WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
+                    LAYOUT.with_root_context(c.content.layout_pass, metrics, || {
+                        let mut root_cons = LAYOUT.constraints();
 
-            if auto_size.contains(AutoSize::CONTENT_WIDTH) {
-                root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);
-            }
-            if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
-                root_cons.y = PxConstraints::new_range(min_size.height, max_size.height);
-            }
-            LAYOUT.with_constraints(root_cons, || {
-                // !!: TODO context
-                // WidgetLayout::with_root_widget(layout_widgets, |wl| self.root.layout(wl))
-                c.content.root.measure(wm)
+                        let min_size = c.content.vars.min_size().layout().max(root_cons.min_size());
+                        let max_size = c
+                            .content
+                            .vars
+                            .max_size()
+                            .layout()
+                            .min(root_cons.max_size().unwrap_or(PxSize::splat(Px::MAX)));
+                        let pref_size = c.content.vars.size().layout().clamp(min_size, max_size);
+
+                        if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                            root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);
+                        } else {
+                            root_cons.x = PxConstraints::new_exact(pref_size.width);
+                        }
+                        if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                            root_cons.y = PxConstraints::new_range(min_size.height, max_size.height);
+                        } else {
+                            root_cons.y = PxConstraints::new_exact(pref_size.height);
+                        }
+
+                        if auto_size.is_empty() {
+                            pref_size
+                        } else {
+                            // !!: TODO measure equivalent of WidgetLayout::with_root_widget(layout_widgets, |wl| self.root.layout(wl))
+                            LAYOUT.with_constraints(root_cons, || c.content.root.measure(wm))
+                        }
+                    })
+                })
             })
         })
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
         let mut c = self.c.lock();
-        todo!()
+        let c = &mut *c;
+        LocalContext::new().with_context(|| {
+            WINDOW.with_context(&mut c.ctx, || {
+                WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || todo!())
+            })
+        })
     }
 
     fn render(&mut self, frame: &mut FrameBuilder) {
         let mut c = self.c.lock();
+        let c = &mut *c;
         if let Some([render_widgets, render_update_widgets]) = c.pending_render.take() {
-            frame.with_nested_window(
-                render_widgets,
-                render_update_widgets,
-                c.content.root_ctx.id(),
-                &c.content.root_ctx.bounds(),
-                &WINDOW.info(),
-                FontAntiAliasing::Default,
-                |frame| {
-                    // !!: TODO window root and widget context
-                    c.content.root.render(frame);
-                },
-            );
-            c.content
-                .render(renderer, scale_factor, wait_id, render_widgets, render_update_widgets)
+            LocalContext::new().with_context(|| {
+                WINDOW.with_context(&mut c.ctx, || {
+                    let root_id = c.content.root_ctx.id();
+                    let root_bounds = c.content.root_ctx.bounds();
+                    WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
+                        frame.with_nested_window(
+                            render_widgets,
+                            render_update_widgets,
+                            root_id,
+                            &root_bounds,
+                            &WINDOW.info(),
+                            FontAntiAliasing::Default,
+                            |frame| {
+                                c.content.root.render(frame);
+                            },
+                        );
+                        // c.content
+                        //     .render(renderer, scale_factor, wait_id, render_widgets, render_update_widgets)
+                    })
+                })
+            })
         } else {
             // !!: TODO, manually reuse?
         }
@@ -2566,7 +2606,12 @@ impl UiNode for NestedWindowNode {
 
     fn render_update(&mut self, update: &mut FrameUpdate) {
         let mut c = self.c.lock();
-        todo!()
+        let c = &mut *c;
+        LocalContext::new().with_context(|| {
+            WINDOW.with_context(&mut c.ctx, || {
+                WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || todo!())
+            })
+        })
     }
 }
 
@@ -2588,5 +2633,33 @@ pub trait NestedWindowWidgetInfoExt {
 impl NestedWindowWidgetInfoExt for WidgetInfo {
     fn nested_window(&self) -> Option<WindowId> {
         self.meta().get_clone(*NESTED_WINDOW_INFO_ID)
+    }
+}
+
+/// Arguments for the [`WINDOWS.register_open_nested_handler`] handler.
+///
+/// [`WINDOWS.register_open_nested_handler`]: WINDOWS::register_open_nested_handler
+pub struct OpenNestedHandlerArgs {
+    c: Option<(WindowCtx, WindowVars, WindowCommands, WindowRoot)>,
+}
+impl OpenNestedHandlerArgs {
+    /// New window context.
+    pub fn ctx(&self) -> &WindowCtx {
+        &self.c.as_ref().unwrap().0
+    }
+
+    /// Instantiate a node that layouts and renders the window content.
+    ///
+    /// Note that the window will notify *open* like normal, but it will only be visible on this node.
+    pub fn nest(&mut self) -> NestedWindowNode {
+        let (ctx, vars, commands, window) = self.c.take().expect("already nesting");
+        NestedWindowNode {
+            c: Arc::new(Mutex::new(NestedContentCtrl {
+                content: ContentCtrl::new(vars, commands, window),
+                pending_layout: None,
+                pending_render: None,
+                ctx,
+            })),
+        }
     }
 }
