@@ -1529,9 +1529,20 @@ impl AppWindowTask {
 
         let commands = WindowCommands::new(id);
 
-        // !!: TODO open_nested_handlers
         let root_id = window.id;
-        let ctrl = WindowCtrl::new(&vars, commands, mode, window);
+
+        let mut args = crate::OpenNestedHandlerArgs::new(ctx, vars.clone(), commands, window);
+        for h in open_nested_handlers {
+            h(&mut args);
+            if args.has_nested() {
+                break;
+            }
+        }
+
+        let (ctx, ctrl) = match args.take_normal() {
+            Ok((ctx, vars, commands, window)) => (ctx, WindowCtrl::new(&vars, commands, mode, window)),
+            Err((ctx, node)) => (ctx, WindowCtrl::new_nested(node)),
+        };
 
         let window = AppWindow {
             ctrl: Mutex::new(ctrl),

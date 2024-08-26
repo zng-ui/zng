@@ -1282,6 +1282,13 @@ impl WidgetCtx {
     pub fn with_state<R>(&mut self, f: impl FnOnce(&mut OwnedStateMap<WIDGET>) -> R) -> R {
         f(&mut self.0.as_mut().unwrap().state.write())
     }
+
+    /// Clone a reference to the widget context.
+    ///
+    /// This must be used only if the widget implementation is split.
+    pub fn share(&mut self) -> Self {
+        Self(self.0.clone())
+    }
 }
 
 pub(crate) struct WidgetCtxData {

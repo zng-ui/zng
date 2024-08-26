@@ -1847,10 +1847,7 @@ impl FrameBuilder {
         self.debug_dot_overlays.extend(split.debug_dot_overlays);
     }
 
-    /// Calls `render` to render a separate window on this frame.
-    ///
-    /// Usually this is provided by the window implementation when the `FrameBuilder` is first instantiated, this method
-    /// replaces the requests only for the `render` call.
+    /// Calls `render` to render a separate nested window on this frame.
     #[allow(clippy::too_many_arguments)]
     pub fn with_nested_window(
         &mut self,
@@ -2690,6 +2687,39 @@ impl FrameUpdate {
         if let Some(c) = self.clear_color.take() {
             self.clear_color = Some(c);
         }
+    }
+
+    /// Calls `update` to render update a separate nested window on this frame.
+    pub fn with_nested_window(
+        &mut self,
+        render_update_widgets: Arc<RenderUpdates>,
+        root_id: WidgetId,
+        root_bounds: WidgetBoundsInfo,
+        update: impl FnOnce(&mut Self),
+    ) {
+        let mut nested = Self::new(
+            render_update_widgets,
+            self.frame_id,
+            root_id,
+            root_bounds,
+            None,
+            self.current_clear_color,
+        );
+
+        update(&mut nested);
+
+        // fold
+        fn take_or_append<T>(t: &mut Vec<T>, s: &mut Vec<T>) {
+            if t.is_empty() {
+                *t = mem::take(s);
+            } else {
+                t.append(s)
+            }
+        }
+        take_or_append(&mut self.transforms, &mut nested.transforms);
+        take_or_append(&mut self.floats, &mut nested.floats);
+        take_or_append(&mut self.colors, &mut nested.colors);
+        take_or_append(&mut self.extensions, &mut nested.extensions);
     }
 
     /// Finalize the update.
