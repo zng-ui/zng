@@ -349,7 +349,7 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
     static NAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)\w+\s+=\s+(\{)").unwrap());
     static NAMED_MARKER: &str = "__A_ ";
 
-    static UNNAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)\w+\s+=\s+([^\(\{]+?)(?:;|}$)").unwrap());
+    static UNNAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)\w+\s+=\s+([^\(\{\n\)]+?)(?:;|}$)").unwrap());
     static UNNAMED_RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)__a_\((.+?)\)").unwrap());
 
     if !reverse {
@@ -364,7 +364,15 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
             let cap = caps.get(1).unwrap();
             let cap_str = cap.as_str().trim();
             fn more_than_one_expr(code: &str) -> bool {
-                let stream: TokenStream = code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{code}"));
+                let stream: TokenStream = match code.parse() {
+                    Ok(s) => s,
+                    Err(_e) => {
+                        #[cfg(debug_assertions)]
+                        panic!("{_e}\ncode:\n{code}");
+                        #[cfg(not(debug_assertions))]
+                        return false
+                    },
+                };
                 for tt in stream {
                     if let TokenTree::Punct(p) = tt {
                         if p.as_char() == ',' {
