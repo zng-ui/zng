@@ -10,7 +10,7 @@ fn main() {
         // only background_gradient gets highlighted here because generics..
         background_gradient = {
             axis: 0.deg(),
-            stops: true
+            stops: true,
         }
     };
 }
