@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `LAYERS_INSERT_CMD` for inserting layer widgets from outside the window context.
+* Add `LAYERS_REMOVE_CMD` for removing layer widgets from outside the window context.
 
 # 0.11.3
 

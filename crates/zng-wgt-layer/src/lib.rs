@@ -30,6 +30,35 @@ struct LayersCtx {
     items: EditableUiNodeListRef,
 }
 
+command! {
+    /// Insert a layer widget on the scoped window.
+    ///
+    /// # Params
+    ///
+    /// The parameter must be a tuple with the `LAYERS` service inputs:
+    ///
+    /// * `(LayerIndex, WidgetFn<()>)` - Calls the widget function in the window context, then calls [`LAYERS.insert`].
+    /// * `(LayerIndex, WidgetId, AnchorMode, WidgetFn<()>)` - Calls the widget function in the window context,
+    ///    then calls [`LAYERS.insert_anchored`].
+    ///
+    /// If the parameter type does not match any of the above a debug trace is logged.
+    ///
+    /// [`LAYERS.insert`]: LAYERS::insert
+    /// [`LAYERS.insert_anchored`]: LAYERS::insert_anchored
+    pub static LAYERS_INSERT_CMD;
+
+    /// Remove a layer widget on the scoped window.
+    ///
+    /// # Params
+    ///
+    /// * `WidgetId` - Calls [`LAYERS.remove`].
+    ///
+    /// If the parameter type does not match any of the above a debug trace is logged.
+    ///
+    /// [`LAYERS.remove`]: LAYERS::remove
+    pub static LAYERS_REMOVE_CMD;
+}
+
 /// Windows layers.
 ///
 /// The window layers is a z-order stacking panel that fills the window content area, widgets can be inserted
@@ -1471,6 +1500,9 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
     let sorting_layers = SortingList::new(layers, sort);
     let children = ui_vec![child].chain(sorting_layers);
 
+    let mut _insert_handle = CommandHandle::dummy();
+    let mut _remove_handle = CommandHandle::dummy();
+
     match_node_list(children, move |c, op| match op {
         UiNodeOp::Init => {
             WINDOW.with_state_mut(|mut s| {
@@ -1482,6 +1514,32 @@ pub fn layers_node(child: impl UiNode) -> impl UiNode {
                     }
                 }
             });
+            _insert_handle = LAYERS_INSERT_CMD.scoped(WINDOW.id()).subscribe(true);
+            _remove_handle = LAYERS_REMOVE_CMD.scoped(WINDOW.id()).subscribe(true);
+        }
+        UiNodeOp::Deinit => {
+            _insert_handle = CommandHandle::dummy();
+            _remove_handle = CommandHandle::dummy();
+        }
+        UiNodeOp::Event { update } => {
+            c.event_all(update);
+            if let Some(args) = LAYERS_INSERT_CMD.scoped(WINDOW.id()).on_unhandled(update) {
+                if let Some((layer, widget)) = args.param::<(LayerIndex, WidgetFn<()>)>() {
+                    LAYERS.insert(*layer, widget(()));
+                    args.propagation().stop();
+                } else if let Some((layer, anchor, mode, widget)) = args.param::<(LayerIndex, WidgetId, AnchorMode, WidgetFn<()>)>() {
+                    LAYERS.insert_anchored(*layer, *anchor, mode.clone(), widget(()));
+                    args.propagation().stop();
+                } else {
+                    tracing::debug!("ignoring LAYERS_INSERT_CMD, unknown param type");
+                }
+            } else if let Some(args) = LAYERS_REMOVE_CMD.scoped(WINDOW.id()).on_unhandled(update) {
+                if let Some(id) = args.param::<WidgetId>() {
+                    LAYERS.remove(*id);
+                } else {
+                    tracing::debug!("ignoring LAYERS_REMOVE_CMD, unknown param type");
+                }
+            }
         }
         UiNodeOp::Update { updates } => {
             let mut changed = false;

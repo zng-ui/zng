@@ -705,7 +705,9 @@ impl WINDOWS {
     /// The closure can use the args to inspect the new window context and optionally convert the request to a [`NestedWindowNode`].
     /// Nested windows can be manipulated using the `WINDOWS` API just like other windows, but are layout and rendered inside another window.
     /// This is primarily used mobile platforms that only support one real window.
-    pub fn register_open_nested_handler<H>(&self, handler: impl FnMut(&mut crate::OpenNestedHandlerArgs) + Send + 'static) {
+    ///
+    /// [`NestedWindowNode`]: crate::NestedWindowNode
+    pub fn register_open_nested_handler(&self, handler: impl FnMut(&mut crate::OpenNestedHandlerArgs) + Send + 'static) {
         WINDOWS_SV.write().open_nested_handlers.get_mut().push(Box::new(handler))
     }
 
