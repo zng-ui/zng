@@ -260,6 +260,12 @@ fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
     if !is_event_args {
         replaced_code = replace_widget_when(group_code, false);
         is_widget = matches!(&replaced_code, Cow::Owned(_));
+
+        let tmp = replace_widget_prop(&replaced_code, false);
+        if let Cow::Owned(tmp) = tmp {
+            is_widget = true;
+            replaced_code = Cow::Owned(tmp);
+        }
     }
 
     let mut is_expr_var = false;
@@ -273,7 +279,9 @@ fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
     let code = if is_event_args {
         replace_event_args(&code, true)
     } else if is_widget {
-        replace_widget_when(&code, true)
+        let code = replace_widget_when(&code, true);
+        let code = replace_widget_prop(&code, true).into_owned();
+        Cow::Owned(code)
     } else if is_expr_var {
         replace_expr_var(&code, true)
     } else {
@@ -333,6 +341,55 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<str> {
         })
     } else {
         RGX_REV.replace_all(code, "\n$1..\n\n")
+    }
+}
+// replace `prop = 1, 2;` with `prop = (1, 2);`
+// AND replace `prop = { a: 1, b: 2, };` with `prop = __A_ { a: 1, b: 2, }`
+fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
+    static NAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)\w+\s+=\s+(\{)").unwrap());
+    static NAMED_MARKER: &str = "__A_ ";
+
+    static UNNAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)\w+\s+=\s+(.+?)(?:;|})").unwrap());
+    static UNNAMED_RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)__a_\((.+)\)").unwrap());
+
+    if !reverse {
+        let named_rpl = NAMED_RGX.replace_all(code, |caps: &regex::Captures| {
+            format!(
+                "{}{NAMED_MARKER} {{",
+                &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start()],
+            )
+        });
+        let mut has_unnamed = false;
+        let unnamed_rpl = UNNAMED_RGX.replace_all(&named_rpl, |caps: &regex::Captures| {
+            let cap = caps.get(1).unwrap();
+            let cap_str = cap.as_str().trim();
+            if cap_str.contains(",") && (!cap_str.starts_with("(") || !cap_str.ends_with(")")) {
+                has_unnamed = true;
+
+                format!(
+                    "{}__a_({cap_str}){}",
+                    &caps[0][..cap.start() - caps.get(0).unwrap().start()],
+                    &caps[0][cap.end() - caps.get(0).unwrap().start()..],
+                )
+            } else {
+                caps.get(0).unwrap().as_str().to_owned()
+            }
+        });
+        if has_unnamed {
+            Cow::Owned(unnamed_rpl.into_owned())
+        } else {
+            named_rpl
+        }
+    } else {
+        let code = UNNAMED_RGX_REV.replace_all(code, |caps: &regex::Captures| {
+            format!(
+                "{}{}{}",
+                &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start() - "__a_(".len()],
+                caps.get(1).unwrap().as_str(),
+                &caps[0][caps.get(1).unwrap().end() + ")".len() - caps.get(0).unwrap().start()..]
+            )
+        });
+        Cow::Owned(code.replace(NAMED_MARKER, ""))
     }
 }
 // replace `when <expr> { <properties> }` with `for cargo_zng_fmt_when in <expr> { <properties> }`
