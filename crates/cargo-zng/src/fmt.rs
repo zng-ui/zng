@@ -349,7 +349,7 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
     static NAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)\w+\s+=\s+(\{)").unwrap());
     static NAMED_MARKER: &str = "__A_ ";
 
-    static UNNAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)\w+\s+=\s+(.+?)(?:;|})").unwrap());
+    static UNNAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)\w+\s+=\s+([^\(\{]+?)(?:;|}$)").unwrap());
     static UNNAMED_RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)__a_\((.+)\)").unwrap());
 
     if !reverse {
@@ -363,7 +363,18 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
         let unnamed_rpl = UNNAMED_RGX.replace_all(&named_rpl, |caps: &regex::Captures| {
             let cap = caps.get(1).unwrap();
             let cap_str = cap.as_str().trim();
-            if cap_str.contains(",") && (!cap_str.starts_with("(") || !cap_str.ends_with(")")) {
+            fn more_than_one_expr(code: &str) -> bool {
+                let stream: TokenStream = code.parse().unwrap_or_else(|e| panic!("{e}\ncode:\n{code}"));
+                for tt in stream {
+                    if let TokenTree::Punct(p) = tt {
+                        if p.as_char() == ',' {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+            if cap_str.contains(",") && more_than_one_expr(cap_str) {
                 has_unnamed = true;
 
                 format!(
