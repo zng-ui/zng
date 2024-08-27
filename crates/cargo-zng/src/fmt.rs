@@ -370,8 +370,8 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
                         #[cfg(debug_assertions)]
                         panic!("{_e}\ncode:\n{code}");
                         #[cfg(not(debug_assertions))]
-                        return false
-                    },
+                        return false;
+                    }
                 };
                 for tt in stream {
                     if let TokenTree::Punct(p) = tt {

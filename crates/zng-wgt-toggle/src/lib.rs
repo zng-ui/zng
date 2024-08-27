@@ -1047,7 +1047,8 @@ impl ComboStyle {
 
             click_mode = ClickMode::press();
 
-            zng_wgt_button::style_fn = Style! { // button in child.
+            zng_wgt_button::style_fn = Style! {
+                // button in child.
                 click_mode = ClickMode::default();
                 corner_radius = (4, 0, 0, 4);
             };
