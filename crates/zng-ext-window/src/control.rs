@@ -2589,11 +2589,16 @@ impl UiNode for NestedWindowNode {
     }
 
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        self.layout_impl(true, |r| r.measure(wm))
+        self.layout_impl(true, |r| wm.with_widget(|wm| r.measure(wm)))
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        self.layout_impl(false, |r| r.layout(wl))
+        let size = self.layout_impl(false, |r| wl.with_widget(|wl| r.layout(wl)));
+        let c = self.c.lock();
+        let factor = LAYOUT.scale_factor();
+        c.content.vars.0.scale_factor.set(factor);
+        c.content.vars.0.actual_size.set(size.to_dip(factor));
+        size
     }
 
     fn render(&mut self, frame: &mut FrameBuilder) {

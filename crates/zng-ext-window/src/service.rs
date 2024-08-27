@@ -1297,7 +1297,8 @@ impl WINDOWS {
                 *layout_widgets = w;
             }
             Err(_) => {
-                tracing::error!("layout_widgets not released by window")
+                // expected in nested windows
+                tracing::debug!("layout_widgets not released by window")
             }
         }
     }
@@ -1330,7 +1331,8 @@ impl WINDOWS {
                 *render_widgets = w;
             }
             Err(_) => {
-                tracing::error!("render_widgets not released by window")
+                // expected in nested windows
+                tracing::debug!("render_widgets not released by window")
             }
         }
         match Arc::try_unwrap(render_update_widgets_arc) {
@@ -1338,7 +1340,8 @@ impl WINDOWS {
                 *render_update_widgets = w;
             }
             Err(_) => {
-                tracing::error!("render_update_widgets not released by window")
+                // expected in nested windows
+                tracing::debug!("render_update_widgets not released by window")
             }
         }
     }
