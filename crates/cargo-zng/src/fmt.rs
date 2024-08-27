@@ -350,7 +350,7 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
     static NAMED_MARKER: &str = "__A_ ";
 
     static UNNAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)\w+\s+=\s+([^\(\{]+?)(?:;|}$)").unwrap());
-    static UNNAMED_RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)__a_\((.+)\)").unwrap());
+    static UNNAMED_RGX_REV: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?ms)__a_\((.+?)\)").unwrap());
 
     if !reverse {
         let named_rpl = NAMED_RGX.replace_all(code, |caps: &regex::Captures| {
