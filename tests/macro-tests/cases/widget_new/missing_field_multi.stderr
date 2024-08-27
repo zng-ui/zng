@@ -6,11 +6,9 @@ error[E0061]: this method takes 2 arguments but 1 argument was supplied
 10 | |         // background_gradient has two fields
 11 | |         // the error highlights the property
 12 | |         // in a struct initializer the struct name is highlighted
-13 | |         background_gradient = {
+13 | |         background_gradient = { axis: 0.deg() }
    | |         ^^^^^^^^^^^^^^^^^^^
-14 | |             axis: 0.deg(),
-15 | |         }
-16 | |     };
+14 | |     };
    | |_____- an argument is missing
    |
 note: method defined here

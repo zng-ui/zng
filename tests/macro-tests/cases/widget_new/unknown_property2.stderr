@@ -1,13 +1,13 @@
 error[E0599]: no method named `unknown_` found for mutable reference `&mut Wgt` in the current scope
  --> cases/widget_new/unknown_property2.rs:6:9
   |
-6 |         unknown = {
+6 |         unknown = { value: 0 };
   |         ^^^^^^^ method not found in `&mut Wgt`
 
 error[E0599]: no method named `unknown__` found for mutable reference `&mut Wgt` in the current scope
  --> cases/widget_new/unknown_property2.rs:6:9
   |
-6 |         unknown = {
+6 |         unknown = { value: 0 };
   |         ^^^^^^^
   |
 help: there is a method `owns_` with a similar name, but with different arguments
