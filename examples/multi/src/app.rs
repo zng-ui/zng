@@ -25,21 +25,18 @@ pub fn run() {
                     font_size = 22.pt();
                     font_weight = FontWeight::BOLD;
                     font_style = FontStyle::Italic;
-
                 };
                 on_click = hn!(count, |_| {
                     let c = count.get().wrapping_add(1);
                     tracing::info!("Clicked {c} times!");
                     count.set(c);
                 });
-                context_menu = ContextMenu!(ui_vec![
-                    Button! {
-                        child = Text!("Reset");
-                        on_click = hn!(|_| {
-                            count.set(0u32);
-                        });
-                    }
-                ]);
+                context_menu = ContextMenu!(ui_vec![Button! {
+                    child = Text!("Reset");
+                    on_click = hn!(|_| {
+                        count.set(0u32);
+                    });
+                }]);
             };
             color_scheme = color::ColorScheme::Dark;
             widget::background_gradient = {

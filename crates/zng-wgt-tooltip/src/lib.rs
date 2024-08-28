@@ -565,7 +565,7 @@ impl DefaultStyle {
             zng_wgt_text::font_size = 10.pt();
             border = {
                 widths: 1.px(),
-                sides: colors::BASE_COLOR_VAR.shade_into(1)
+                sides: colors::BASE_COLOR_VAR.shade_into(1),
             };
         }
     }
