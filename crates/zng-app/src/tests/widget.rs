@@ -775,14 +775,14 @@ pub fn when_property_member_default() {
     let _app = APP.minimal().run_headless(false);
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
-           util::duo_members = "a", "b";
-           util::live_trace = "";
-           when {
-               assert_eq!(*#util::duo_members, "a");
-               true
-           } {
-               util::live_trace = "true";
-           }
+            util::duo_members = "a", "b";
+            util::live_trace = "";
+            when {
+                assert_eq!(*#util::duo_members, "a");
+                true
+            } {
+                util::live_trace = "true";
+            }
         };
         wgt.init();
 
@@ -795,15 +795,15 @@ pub fn when_property_member_index() {
     let _app = APP.minimal().run_headless(false);
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
-           util::duo_members = "a", "b";
-           util::live_trace = "";
-           when {
-               assert_eq!(*#util::duo_members.0, "a");
-               assert_eq!(*#util::duo_members.1, "b");
-               true
-           } {
-               util::live_trace = "true";
-           }
+            util::duo_members = "a", "b";
+            util::live_trace = "";
+            when {
+                assert_eq!(*#util::duo_members.0, "a");
+                assert_eq!(*#util::duo_members.1, "b");
+                true
+            } {
+                util::live_trace = "true";
+            }
         };
 
         wgt.init();
@@ -816,15 +816,15 @@ pub fn when_property_member_named() {
     let _app = APP.minimal().run_headless(false);
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
-           util::duo_members = "a", "b";
-           util::live_trace = "";
-           when {
-               assert_eq!(*#util::duo_members.member_a, "a");
-               assert_eq!(*#util::duo_members.member_b, "b");
-               true
-           } {
-               util::live_trace = "true";
-           }
+            util::duo_members = "a", "b";
+            util::live_trace = "";
+            when {
+                assert_eq!(*#util::duo_members.member_a, "a");
+                assert_eq!(*#util::duo_members.member_b, "b");
+                true
+            } {
+                util::live_trace = "true";
+            }
         };
 
         wgt.init();
@@ -837,14 +837,14 @@ pub fn when_property_member_default_method() {
     let _app = APP.minimal().run_headless(false);
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
-           util::duo_members = "a", "b";
-           util::live_trace = "";
-           when {
-               assert_eq!(#util::duo_members.len(), 1);
-               true
-           } {
-               util::live_trace = "true";
-           }
+            util::duo_members = "a", "b";
+            util::live_trace = "";
+            when {
+                assert_eq!(#util::duo_members.len(), 1);
+                true
+            } {
+                util::live_trace = "true";
+            }
         };
         wgt.init();
         assert!(util::traced(&mut wgt, "true"));
@@ -856,14 +856,14 @@ pub fn when_property_member_indexed_method() {
     let _app = APP.minimal().run_headless(false);
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
         let mut wgt = EmptyWgt! {
-           util::duo_members = "a", "b";
-           util::live_trace = "";
-           when {
-               assert_eq!(#util::duo_members.0.len(), 1);
-               true
-           } {
-               util::live_trace = "true";
-           }
+            util::duo_members = "a", "b";
+            util::live_trace = "";
+            when {
+                assert_eq!(#util::duo_members.0.len(), 1);
+                true
+            } {
+                util::live_trace = "true";
+            }
         };
         wgt.init();
 

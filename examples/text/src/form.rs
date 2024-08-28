@@ -49,7 +49,9 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
             spacing = (5, 10);
             padding = 20;
 
-            label::style_fn = Style! { text::txt_align = Align::END; };
+            label::style_fn = Style! {
+                text::txt_align = Align::END;
+            };
             text_input::style_fn = style_fn!(|_| text_input::FieldStyle!());
 
             cells = ui_vec![
@@ -63,7 +65,6 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     txt = var_from("my-crate");
                     max_chars_count = 50;
                 },
-
                 Label! {
                     grid::cell::row = 1;
                     txt = "Authors";
@@ -75,7 +76,6 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     id = "field-authors";
                     txt = var_from("John Doe");
                 },
-
                 Label! {
                     grid::cell::row = 2;
                     txt = "Version";
@@ -89,7 +89,6 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                     text_input::field_help = "help text";
                     // txt_parse_on_stop = true;
                 },
-
                 Label! {
                     grid::cell::row = 3;
                     txt = "Password";
@@ -122,8 +121,7 @@ fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
                         font_weight = FontWeight::BOLD;
                         child = Text!("Validate");
                         on_click = hn!(|_| {
-                            zng::text::cmd::PARSE_CMD
-                                .notify_descendants(&WINDOW.info().get("form").unwrap());
+                            zng::text::cmd::PARSE_CMD.notify_descendants(&WINDOW.info().get("form").unwrap());
                         });
                     }
                 ]

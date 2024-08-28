@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
   --> cases/widget_new/incorrect_arg_type4.rs:13:20
    |
-13 |             stops: true
+13 |             stops: true,
    |             -----  ^^^^ the trait `IntoVar<GradientStops>` is not implemented for `bool`
    |             |
    |             required by a bound introduced by this call

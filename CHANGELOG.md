@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `cargo zng fmt` of widgets with multi value property assigns.
 
 # 0.11.3
 
