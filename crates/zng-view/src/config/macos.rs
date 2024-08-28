@@ -30,6 +30,11 @@ pub fn touch_config() -> TouchConfig {
 }
 
 pub fn colors_config() -> ColorsConfig {
+    if macos_major_version() < 11 {
+        tracing::warn!("color scheme and accent only implemented for macOS >=11");
+        return ColorsConfig::default();
+    }
+
     let appearance = unsafe { NSAppearance::currentDrawingAppearance() };
 
     // source: winit
@@ -70,4 +75,29 @@ pub fn locale_config() -> zng_view_api::config::LocaleConfig {
 
 pub fn spawn_listener(l: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
     super::other::spawn_listener(l)
+}
+
+fn macos_major_version() -> u32 {
+    let output = match std::process::Command::new("sw_vers").arg("-productVersion").output() {
+        Ok(o) => o,
+        Err(e) => {
+            tracing::error!("cannot retrieve macos version, {e}");
+            return 0;
+        }
+    };
+
+    if output.status.success() {
+        let ver = String::from_utf8_lossy(&output.stdout);
+        match ver.trim().split('.').next().unwrap_or("").parse() {
+            Ok(v) => v,
+            Err(_) => {
+                tracing::error!("cannot parse macos version {ver:?}");
+                0
+            }
+        }
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr);
+        tracing::error!("cannot retrieve macos version, {}", err.trim());
+        0
+    }
 }
