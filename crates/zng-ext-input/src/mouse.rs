@@ -25,7 +25,7 @@ use zng_app::{
     AppExtension, DInstant, INSTANT,
 };
 use zng_app_context::app_local;
-use zng_ext_window::WINDOWS;
+use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
 use zng_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint};
 use zng_state_map::{state_map, static_id, StateId};
 use zng_var::{impl_from_and_into_var, types::ArcCowVar, var, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var};
@@ -920,7 +920,7 @@ impl MouseManager {
             }));
 
             // mouse_move data
-            let frame_info = match WINDOWS.widget_tree(window_id) {
+            let mut frame_info = match WINDOWS.widget_tree(window_id) {
                 Ok(f) => f,
                 Err(_) => {
                     // window not found
@@ -942,18 +942,32 @@ impl MouseManager {
                 }
             };
 
-            let pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor()));
-            self.pos_hits = Some(pos_hits.clone());
+            let mut pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor()));
 
             let target = if let Some(t) = pos_hits.target() {
-                frame_info.get(t.widget_id).map(|w| w.interaction_path()).unwrap_or_else(|| {
+                if let Some(w) = frame_info.get(t.widget_id) {
+                    if let Some(f) = w.nested_window_tree() {
+                        // nested window hit
+                        frame_info = f;
+                        pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor()));
+                        pos_hits
+                            .target()
+                            .and_then(|h| frame_info.get(h.widget_id))
+                            .map(|w| w.interaction_path())
+                            .unwrap_or_else(|| frame_info.root().interaction_path())
+                    } else {
+                        w.interaction_path()
+                    }
+                } else {
                     tracing::error!("hits target `{}` not found", t.widget_id);
                     frame_info.root().interaction_path()
-                })
+                }
             } else {
                 frame_info.root().interaction_path()
             }
             .unblocked();
+
+            self.pos_hits = Some(pos_hits.clone());
 
             let capture = POINTER_CAPTURE.current_capture_value();
 
@@ -962,7 +976,7 @@ impl MouseManager {
                 MOUSE_SV.read().hovered.set(target.clone());
                 let prev_target = mem::replace(&mut self.hovered, target.clone());
                 let args = MouseHoverArgs::now(
-                    window_id,
+                    frame_info.window_id(),
                     device_id,
                     position,
                     pos_hits.clone(),
@@ -979,7 +993,7 @@ impl MouseManager {
             // mouse_move
             if let Some(target) = target {
                 let args = MouseMoveArgs::now(
-                    window_id,
+                    frame_info.window_id(),
                     device_id,
                     self.modifiers,
                     coalesced_pos,

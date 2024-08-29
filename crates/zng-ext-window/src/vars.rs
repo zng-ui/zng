@@ -65,6 +65,7 @@ pub(super) struct WindowVarsData {
     taskbar_visible: ArcVar<bool>,
 
     parent: ArcVar<Option<WindowId>>,
+    pub(super) is_nesting: ArcVar<bool>,
     modal: ArcVar<bool>,
     pub(super) children: ArcVar<IdSet<WindowId>>,
 
@@ -144,6 +145,7 @@ impl WindowVars {
             taskbar_visible: var(true),
 
             parent: var(None),
+            is_nesting: var(false),
             modal: var(false),
             children: var(IdSet::default()),
 
@@ -582,6 +584,13 @@ impl WindowVars {
     /// [`accent_color`]: Self::accent_color
     pub fn parent(&self) -> ArcVar<Option<WindowId>> {
         self.0.parent.clone()
+    }
+
+    /// Gets if the window is nested on the [`parent`] window.
+    ///
+    /// Nesting windows are presented as an widget, similar to an "iframe".
+    pub fn is_nesting(&self) -> ReadOnlyArcVar<bool> {
+        self.0.is_nesting.read_only()
     }
 
     /// Defines the [`parent`](Self::parent) connection.

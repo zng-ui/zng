@@ -711,6 +711,16 @@ impl WINDOWS {
         WINDOWS_SV.write().open_nested_handlers.get_mut().push(Box::new(handler))
     }
 
+    /// Gets the parent actual window that hosts `maybe_nested` if it is open and nested.
+    pub fn nested_parent(&self, maybe_nested: impl Into<WindowId>) -> Option<WindowId> {
+        let vars = self.vars(maybe_nested.into()).ok()?;
+        if vars.is_nesting().get() {
+            vars.parent().get()
+        } else {
+            None
+        }
+    }
+
     /// Add a view-process extension payload to the window request for the view-process.
     ///
     /// This will only work if called on the first [`UiNode::init`] and at most the first [`UiNode::layout`] of the window.

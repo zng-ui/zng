@@ -1349,7 +1349,10 @@ impl FocusService {
                 if let Some(widget) = FocusInfoTree::new(info, self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get())
                     .get(focused.path.widget_id())
                 {
-                    if widget.is_scope() {
+                    if let Some(nested) = widget.nested_window() {
+                        tracing::debug!("focus nested window {nested:?}");
+                        let _ = WINDOWS.focus(nested);
+                    } else if widget.is_scope() {
                         let last_focused = |id| self.return_focused.get(&id).map(|p| p.as_path());
                         if let Some(widget) = widget.on_focus_scope_move(last_focused, is_tab_cycle_reentry, reverse) {
                             self.enabled_nav = widget.enabled_nav_with_frame();

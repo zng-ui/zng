@@ -1885,11 +1885,7 @@ impl HeadlessSimulator {
     }
 
     pub fn focus(&mut self) {
-        let mut prev = None;
-        if let Some(id) = WINDOWS.focused_window_id() {
-            prev = Some(id);
-        }
-        let args = RawWindowFocusArgs::now(prev, Some(WINDOW.id()));
+        let args = RawWindowFocusArgs::now(WINDOWS.focused_window_id(), Some(WINDOW.id()));
         RAW_WINDOW_FOCUS_EVENT.notify(args);
     }
 
@@ -2469,7 +2465,9 @@ impl NestedCtrl {
 
     fn focus(&self) {
         self.bring_to_top();
-        // !!: TODO, we only track a single window as having the focus, now we have this
+        // many services track window focus with this event.
+        let args = RawWindowFocusArgs::now(WINDOWS.focused_window_id(), Some(WINDOW.id()));
+        RAW_WINDOW_FOCUS_EVENT.notify(args);
     }
 
     fn bring_to_top(&self) {
@@ -2552,6 +2550,7 @@ impl UiNode for NestedWindowNode {
         let mut c = self.c.lock();
         let parent_id = WINDOW.id();
         c.content.vars.parent().set(parent_id);
+        c.content.vars.0.is_nesting.set(true);
         c.host = Some((parent_id, WIDGET.id()));
         // init handled by // NestedCtrl::update
     }
