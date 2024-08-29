@@ -103,7 +103,8 @@ The Cargo features of each crate are documented in the README file for that crat
 
 ##### On macOS:
 
-* No special requirements, we assume XCode 14 or newer and may depend on it in future releases.
+* TO build with `"view_prebuilt"` feature:
+    - macOS 11 or newer.
 
 ##### For Android:
 

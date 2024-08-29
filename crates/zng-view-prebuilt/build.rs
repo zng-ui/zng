@@ -46,6 +46,11 @@ fn main() {
         if !lib.exists() {
             let lib_tar = out_dir.join(format!("{file}.tar.gz"));
 
+            #[cfg(target_os = "macos")]
+            if macos_major_version() < 11 {
+                panic!("prebuilt download is only supported on macOS 11 or newer");
+            }
+
             let url = format!("https://github.com/zng-ui/zng/releases/download/v{version}/{file}.tar.gz");
             let r = std::process::Command::new("curl")
                 .arg("--location")
@@ -121,5 +126,31 @@ fn main() {
     } else {
         // exit with error also flags rerun
         panic!("view prebuilt not embedded, missing '{file}'");
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn macos_major_version() -> u32 {
+    let output = match std::process::Command::new("sw_vers").arg("-productVersion").output() {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("cannot retrieve macos version, {e}");
+            return 0;
+        }
+    };
+
+    if output.status.success() {
+        let ver = String::from_utf8_lossy(&output.stdout);
+        match ver.trim().split('.').next().unwrap_or("").parse() {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!("cannot parse macos version {ver:?}");
+                0
+            }
+        }
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr);
+        eprintln!("cannot retrieve macos version, {}", err.trim());
+        0
     }
 }
