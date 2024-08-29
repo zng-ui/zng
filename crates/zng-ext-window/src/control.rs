@@ -2592,7 +2592,14 @@ impl UiNode for NestedWindowNode {
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        let size = self.layout_impl(false, |r| wl.with_widget(|wl| r.layout(wl)));
+        let pending = self.c.lock().pending_layout.take();
+        let size = self.layout_impl(false, |r| {
+            if let Some(p) = pending {
+                wl.with_layout_updates(p, |wl| wl.with_widget(|wl| r.layout(wl)))
+            } else {
+                wl.with_widget(|wl| r.layout(wl))
+            }
+        });
         let c = self.c.lock();
         let factor = LAYOUT.scale_factor();
         c.content.vars.0.scale_factor.set(factor);
@@ -2626,7 +2633,7 @@ impl UiNode for NestedWindowNode {
                             },
                         );
                         // !!: TODO: review what content.render does
-                        // cut screen capture
+                        // !!: cut screen capture
                     })
                 })
             })

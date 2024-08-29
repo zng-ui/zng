@@ -1614,6 +1614,16 @@ impl WidgetLayout {
         let metrics = LAYOUT.metrics().with_inline_constraints(Some(constraints));
         LAYOUT.with_context(metrics, || child.layout(self))
     }
+    
+    /// Call `layout` with a different set of `layout_updates`.
+    /// 
+    /// This is usually managed by the window implementer, nested windows can use this to override the updates.
+    pub fn with_layout_updates(&mut self, layout_updates: Arc<LayoutUpdates>, layout: impl FnOnce(&mut WidgetLayout) ->PxSize) -> PxSize {
+        let parent_layout_widgets = mem::replace(&mut self.layout_widgets, layout_updates);
+        let r = layout(self);
+        self.layout_widgets = parent_layout_widgets;
+        r
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
