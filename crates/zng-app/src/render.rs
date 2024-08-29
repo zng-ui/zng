@@ -1894,7 +1894,8 @@ impl FrameBuilder {
             nested.frame_id,
             nested.scale_factor,
             Some(
-                nested.renderer
+                nested
+                    .renderer
                     .as_ref()
                     .and_then(|r| r.generation().ok())
                     .unwrap_or(ViewProcessGen::INVALID),
