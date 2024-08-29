@@ -949,6 +949,15 @@ mod defaults {
                 tracing::debug!("defaults init, single_instance set");
             }
         }
+
+        fn deinit(&mut self) {
+            // ensure zng_view_prebuilt is linked, macOS system linker can "optimize" the entire
+            // crate away because it is only referenced by `linkme` in `on_process_start!`
+            #[cfg(all(view_prebuilt, any(target_os = "macos", target_os = "ios")))]
+            if std::env::var("=").is_ok() {
+                crate::view_process::prebuilt::run_same_process(|| unreachable!());
+            }
+        }
     }
 }
 

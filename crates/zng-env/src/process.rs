@@ -57,7 +57,17 @@ use parking_lot::Mutex;
 ///
 /// Try to match the version used by `zng-env`.
 ///
+/// # Linker Optimizer Issues
+///
+/// The macOS system linker can "optimize" away crates that are only referenced via this macro, that is, a crate dependency
+/// that is not otherwise directly addressed by code. To workaround this issue you can add a bogus reference to the crate code, something
+/// that is not trivial to optimize away. Unfortunately this code must be added on the dependent crate, or on an intermediary dependency,
+/// if your crate is at risk of being used this way please document this issue.
+///
+/// See [`zng#437`] for an example of how to fix this issue.
+///
 /// [`wasm_bindgen`]: https://crates.io/crates/wasm-bindgen
+/// [`zng#437`]: https://github.com/zng-ui/zng/pull/437
 #[macro_export]
 macro_rules! on_process_start {
     ($closure:expr) => {

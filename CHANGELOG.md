@@ -2,6 +2,8 @@
 
 * Add `LAYERS_INSERT_CMD` for inserting layer widgets from outside the window context.
 * Add `LAYERS_REMOVE_CMD` for removing layer widgets from outside the window context.
+* Define oldest supported macOS prebuilt. Only supported >=11, now this is documented.
+* Fix `"view_prebuilt"` linking on macOS.
 * Fix panic on old macOS (<11). Color scheme and accent is only supported >=11.
 * Fix `cargo zng fmt` of widgets with multi value property assigns.
 
