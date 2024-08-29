@@ -1890,6 +1890,17 @@ impl FrameBuilder {
             }),
             info_tree,
         );
+        info_tree.after_render(
+            nested.frame_id,
+            nested.scale_factor,
+            Some(
+                nested.renderer
+                    .as_ref()
+                    .and_then(|r| r.generation().ok())
+                    .unwrap_or(ViewProcessGen::INVALID),
+            ),
+            Some(nested.widget_count_offsets.clone()),
+        );
 
         // fold nested window into host window
         self.hit_clips.parallel_fold(nested.hit_clips);

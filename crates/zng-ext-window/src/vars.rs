@@ -589,6 +589,8 @@ impl WindowVars {
     /// Gets if the window is nested on the [`parent`] window.
     ///
     /// Nesting windows are presented as an widget, similar to an "iframe".
+    ///
+    /// [`parent`]: Self::parent
     pub fn is_nesting(&self) -> ReadOnlyArcVar<bool> {
         self.0.is_nesting.read_only()
     }

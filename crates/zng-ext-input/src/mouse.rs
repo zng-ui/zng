@@ -949,7 +949,10 @@ impl MouseManager {
                     if let Some(f) = w.nested_window_tree() {
                         // nested window hit
                         frame_info = f;
-                        pos_hits = frame_info.root().hit_test(position.to_px(frame_info.scale_factor()));
+                        let factor = frame_info.scale_factor();
+                        let pos = position.to_px(factor);
+                        let pos = w.inner_transform().inverse().and_then(|t| t.transform_point(pos)).unwrap_or(pos);
+                        pos_hits = frame_info.root().hit_test(pos);
                         pos_hits
                             .target()
                             .and_then(|h| frame_info.get(h.widget_id))
