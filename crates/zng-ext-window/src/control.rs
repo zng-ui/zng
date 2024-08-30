@@ -2633,12 +2633,9 @@ impl UiNode for NestedWindowNode {
                             },
                         );
                         // !!: TODO: review what content.render does
-                        // !!: cut screen capture
                     })
                 })
             })
-        } else {
-            // !!: TODO, manually reuse?
         }
     }
 

@@ -189,6 +189,7 @@ impl WindowsService {
                     Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only(),
                 }
             } else {
+                // !!: TODO implement for nested (cut)
                 var(Img::dummy(Some(formatx!("window `{window_id}` is headless without renderer")))).read_only()
             }
         } else {
@@ -704,9 +705,14 @@ impl WINDOWS {
     ///
     /// The closure can use the args to inspect the new window context and optionally convert the request to a [`NestedWindowNode`].
     /// Nested windows can be manipulated using the `WINDOWS` API just like other windows, but are layout and rendered inside another window.
-    /// This is primarily used mobile platforms that only support one real window.
+    ///
+    /// This is primarily an adapter for mobile platforms that only support one real window, it accelerates cross platform support from
+    /// projects originally desktop only. Note that this API is not recommended for implementing features such as *window docking* or
+    /// *tabbing*, you probably need to model *tabs* as objects that can outlive their host windows and use [`ArcNode`]
+    /// to transfer the content between host windows.
     ///
     /// [`NestedWindowNode`]: crate::NestedWindowNode
+    /// [`ArcNode`]: zng_app::widget::node::ArcNode
     pub fn register_open_nested_handler(&self, handler: impl FnMut(&mut crate::OpenNestedHandlerArgs) + Send + 'static) {
         WINDOWS_SV.write().open_nested_handlers.get_mut().push(Box::new(handler))
     }

@@ -1,5 +1,10 @@
 # Unreleased
 
+* Implement window nesting, primarily as an adapter for mobile platforms.
+    - Add `WINDOWS.register_open_nested_handler`.
+    - Add `WindowVars::is_nesting`.
+    - Add `nested_window` and `nested_window_tree` helper methods for `WidgetInfo` and focus info.
+    - Add default nesting handler on platforms that only support one window (Android).
 * Add `LAYERS_INSERT_CMD` for inserting layer widgets from outside the window context.
 * Add `LAYERS_REMOVE_CMD` for removing layer widgets from outside the window context.
 * Define oldest supported macOS prebuilt. Only supported >=11, now this is documented.
