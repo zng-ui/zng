@@ -247,7 +247,7 @@ impl PointerCaptureManager {
     fn set_capture(&mut self, cap: &mut PointerCaptureService, target: InteractionPath, mode: CaptureMode) {
         let new = target.enabled().map(|target| CaptureInfo { target, mode });
         if new.is_none() {
-                    self.unset_capture(cap);
+            self.unset_capture(cap);
             return;
         }
         if new != self.capture {
