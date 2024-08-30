@@ -2753,7 +2753,7 @@ impl OpenNestedHandlerArgs {
     }
 
     pub(crate) fn has_nested(&self) -> bool {
-        matches!(&self.c, OpenNestedHandlerArgsValue::Normal { .. })
+        matches!(&self.c, OpenNestedHandlerArgsValue::Nested { .. })
     }
 
     pub(crate) fn take_normal(

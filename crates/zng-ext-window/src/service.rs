@@ -1547,7 +1547,7 @@ impl AppWindowTask {
         let root_id = window.id;
 
         let mut args = crate::OpenNestedHandlerArgs::new(ctx, vars.clone(), commands, window);
-        for h in open_nested_handlers {
+        for h in open_nested_handlers.iter_mut().rev() {
             h(&mut args);
             if args.has_nested() {
                 break;
