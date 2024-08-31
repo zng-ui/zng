@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix hang opening a popup from another closing popup.
 * Define oldest supported macOS prebuilt. Only supported >=11, now this is documented.
 * Fix `"view_prebuilt"` linking on macOS.
 * Fix panic on old macOS (<11). Color scheme and accent is only supported >=11.
