@@ -1451,6 +1451,7 @@ impl WidgetLayout {
     ///
     /// [`Collapsed`]: Visibility::Collapsed
     pub fn collapse(&mut self) {
+        WIDGET.take_update(UpdateFlags::LAYOUT);
         let tree = WINDOW.info();
         let id = WIDGET.id();
         if let Some(w) = tree.get(id) {

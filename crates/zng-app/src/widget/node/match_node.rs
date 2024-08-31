@@ -4,7 +4,7 @@ use zng_layout::unit::PxSize;
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
-    update::{EventUpdate, WidgetUpdates},
+    update::{EventUpdate, UpdateFlags, WidgetUpdates},
     widget::{
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
         ui_node, WidgetUpdateMode,
@@ -750,6 +750,18 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
 
             if !mem::take(&mut self.child.0.delegated) {
                 self.child.0.child.info(info);
+            } else {
+                #[cfg(debug_assertions)]
+                if self
+                    .child
+                    .0
+                    .child
+                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.pending_update().contains(UpdateFlags::INFO))
+                    .unwrap_or(false)
+                {
+                    // this is likely an error, but a child widget could have requested info again
+                    tracing::warn!(target: "match_widget-pending", "pending info build after info delegated");
+                }
             }
         }
 
@@ -815,6 +827,17 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
 
                 self.child.0.child.layout(wl)
             } else {
+                #[cfg(debug_assertions)]
+                if self
+                    .child
+                    .0
+                    .child
+                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.pending_update().contains(UpdateFlags::LAYOUT))
+                    .unwrap_or(false)
+                {
+                    // this is likely an error, but a child widget could have requested layout again,
+                    tracing::warn!(target: "match_widget-pending", "pending layout after layout delegated");
+                }
                 size
             }
         }
@@ -826,6 +849,18 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
 
             if !mem::take(&mut self.child.0.delegated) {
                 self.child.0.child.render(frame);
+            } else {
+                #[cfg(debug_assertions)]
+                if self
+                    .child
+                    .0
+                    .child
+                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.pending_update().contains(UpdateFlags::RENDER))
+                    .unwrap_or(false)
+                {
+                    // this is likely an error, but a child widget could have requested render again,
+                    tracing::warn!(target: "match_widget-pending", "pending render after render delegated");
+                }
             }
         }
 
@@ -836,6 +871,20 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
 
             if !mem::take(&mut self.child.0.delegated) {
                 self.child.0.child.render_update(update);
+            } else {
+                #[cfg(debug_assertions)]
+                if self
+                    .child
+                    .0
+                    .child
+                    .with_context(WidgetUpdateMode::Ignore, || {
+                        WIDGET.pending_update().contains(UpdateFlags::RENDER_UPDATE)
+                    })
+                    .unwrap_or(false)
+                {
+                    // this is likely an error, but a child widget could have requested render_update again,
+                    tracing::warn!(target: "match_widget-pending", "pending render_update after render_update delegated");
+                }
             }
         }
     }
