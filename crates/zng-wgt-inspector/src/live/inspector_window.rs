@@ -15,6 +15,7 @@ use zng_var::animation::easing;
 use zng_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
 use zng_wgt_button::Button;
 use zng_wgt_container::{child_align, padding, Container};
+use zng_wgt_dialog::{FileDialogFilters, DIALOG};
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::opacity;
 use zng_wgt_input::{focus::focus_shortcut, gesture::click_shortcut, is_hovered};
@@ -229,7 +230,7 @@ fn menu(
                                         // not async_hn here because menu is dropped on click
                                         task::spawn(async_clmv!(screenshot_idle, {
                                             screenshot_idle.set(false);
-                                            save_screenshot(inspected().unwrap(), WINDOW.id()).await;
+                                            save_screenshot(inspected().unwrap()).await;
                                             screenshot_idle.set(true);
                                         }));
                                     });
@@ -241,7 +242,7 @@ fn menu(
                                     on_click = hn!(screenshot_idle, |_| {
                                         task::spawn(async_clmv!(screenshot_idle, {
                                             screenshot_idle.set(false);
-                                            copy_screenshot(inspected().unwrap(), WINDOW.id()).await;
+                                            copy_screenshot(inspected().unwrap()).await;
                                             screenshot_idle.set(true);
                                         }));
                                     });
@@ -682,30 +683,30 @@ fn wgt_filter(filter: &str, wgt_ty: Option<WidgetType>, wgt_id: WidgetId) -> boo
     false
 }
 
-async fn save_screenshot(inspected: WindowId, inspector: WindowId) {
+async fn save_screenshot(inspected: WindowId) {
     let frame = WINDOWS.frame_image(inspected, None);
 
-    let mut dlg = zng_view_api::dialog::FileDialog {
-        title: l10n!("inspector/screenshot.save-dlg-title", "Save Screenshot").get(),
-        kind: zng_view_api::dialog::FileDialogKind::SaveFile,
-        starting_name: l10n!("inspector/screenshot.save-dlg-starting-name", "screenshot.png").get(),
-        ..Default::default()
-    };
+    let mut filters = FileDialogFilters::new();
     let encoders = zng_ext_image::IMAGES.available_encoders();
     for enc in &encoders {
-        dlg.push_filter(&enc.to_uppercase(), &[enc]);
+        filters.push_filter(&enc.to_uppercase(), &[enc]);
     }
-    dlg.push_filter(
+    filters.push_filter(
         l10n!("inspector/screenshot.save-dlg-filter", "Image Files").get().as_str(),
         &encoders,
     );
 
-    let r = WINDOWS.native_file_dialog(inspector, dlg).wait_rsp().await;
-    let path = match r {
+    let r = DIALOG.save_file(
+        l10n!("inspector/screenshot.save-dlg-title", "Save Screenshot"),
+        "",
+        l10n!("inspector/screenshot.save-dlg-starting-name", "screenshot.png"),
+        filters,
+    );
+    let path = match r.await {
         zng_view_api::dialog::FileDialogResponse::Selected(mut p) => p.remove(0),
         zng_view_api::dialog::FileDialogResponse::Cancel => return,
         zng_view_api::dialog::FileDialogResponse::Error(e) => {
-            screenshot_error(e, inspector).await;
+            screenshot_error(e).await;
             return;
         }
     };
@@ -714,7 +715,7 @@ async fn save_screenshot(inspected: WindowId, inspector: WindowId) {
     let frame = frame.get();
 
     if let Some(e) = frame.error() {
-        screenshot_error(e, inspector).await;
+        screenshot_error(e).await;
     } else {
         let r = frame.save(path).await;
         if let Err(e) = r {
@@ -725,21 +726,20 @@ async fn save_screenshot(inspected: WindowId, inspector: WindowId) {
                     error = e.to_string()
                 )
                 .get(),
-                inspector,
             )
             .await;
         }
     }
 }
 
-async fn copy_screenshot(inspected: WindowId, inspector: WindowId) {
+async fn copy_screenshot(inspected: WindowId) {
     let frame = WINDOWS.frame_image(inspected, None);
 
     frame.wait_value(|f| !f.is_loading()).await;
     let frame = frame.get();
 
     if let Some(e) = frame.error() {
-        screenshot_error(e, inspector).await;
+        screenshot_error(e).await;
     } else {
         let r = zng_ext_clipboard::CLIPBOARD.set_image(frame).wait_rsp().await;
         if let Err(e) = r {
@@ -750,22 +750,14 @@ async fn copy_screenshot(inspected: WindowId, inspector: WindowId) {
                     error = e.to_string()
                 )
                 .get(),
-                inspector,
             )
             .await;
         }
     }
 }
 
-async fn screenshot_error(e: Txt, inspector: WindowId) {
-    let r = WINDOWS.native_message_dialog(
-        inspector,
-        zng_view_api::dialog::MsgDialog {
-            title: l10n!("inspector/screenshot.error-dlg-title", "Screenshot Error").get(),
-            message: e,
-            icon: zng_view_api::dialog::MsgDialogIcon::Error,
-            ..Default::default()
-        },
-    );
-    r.wait_done().await;
+async fn screenshot_error(e: Txt) {
+    DIALOG
+        .error(l10n!("inspector/screenshot.error-dlg-title", "Screenshot Error"), e)
+        .await;
 }

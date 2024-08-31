@@ -666,7 +666,9 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                 type_name: visit_str(|v| event.record(v), "type_name"),
             },
             "request" => UpdateAction::Update,
+            "info" => UpdateAction::Info,
             "layout" => UpdateAction::Layout,
+            "render" => UpdateAction::Render,
             "custom" => UpdateAction::Custom {
                 tag: visit_str(|v| event.record(v), "tag"),
             },
@@ -790,11 +792,29 @@ impl UpdatesTrace {
         }
     }
 
+    /// Log a direct info rebuild request.
+    pub fn log_info() {
+        if Self::is_tracing() {
+            tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+                kind = "info"
+            });
+        }
+    }
+
     /// Log a direct layout request.
     pub fn log_layout() {
         if Self::is_tracing() {
             tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
                 kind = "layout"
+            });
+        }
+    }
+
+    /// Log a direct render request.
+    pub fn log_render() {
+        if Self::is_tracing() {
+            tracing::event!(target: UpdatesTrace::UPDATES_TARGET, tracing::Level::TRACE, {
+                kind = "render"
             });
         }
     }
@@ -917,8 +937,10 @@ impl fmt::Display for UpdateTrace {
 }
 #[derive(Debug, PartialEq, Eq, Hash)]
 enum UpdateAction {
+    Info,
     Update,
     Layout,
+    Render,
     Var { type_name: String },
     Event { type_name: String },
     Custom { tag: String },
@@ -926,8 +948,10 @@ enum UpdateAction {
 impl fmt::Display for UpdateAction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            UpdateAction::Info => write!(f, "info"),
             UpdateAction::Update => write!(f, "update"),
             UpdateAction::Layout => write!(f, "layout"),
+            UpdateAction::Render => write!(f, "render"),
             UpdateAction::Var { type_name } => write!(f, "update var of type {type_name}"),
             UpdateAction::Event { type_name } => write!(f, "update event {type_name}"),
             UpdateAction::Custom { tag } => write!(f, "{tag}"),
@@ -1206,6 +1230,7 @@ impl UPDATES {
     ///
     /// After the current update cycle ends a new update will happen that requests an info rebuild that includes the `target` widget.
     pub fn update_info(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+        UpdatesTrace::log_info();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::INFO);
         u.send_awake();
@@ -1217,6 +1242,7 @@ impl UPDATES {
 
     /// Schedules an info rebuild for the window only.
     pub fn update_info_window(&self, target: WindowId) -> &Self {
+        UpdatesTrace::log_info();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::INFO);
         u.send_awake();
@@ -1255,6 +1281,7 @@ impl UPDATES {
     ///
     /// If no `target` is provided only the app extensions receive a render request.
     pub fn render(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+        UpdatesTrace::log_render();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::RENDER);
         u.send_awake();
@@ -1266,6 +1293,7 @@ impl UPDATES {
 
     /// Schedules a new frame for the window only.
     pub fn render_window(&self, target: WindowId) -> &Self {
+        UpdatesTrace::log_render();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::RENDER);
         u.send_awake();
@@ -1279,6 +1307,7 @@ impl UPDATES {
     /// includes the `target` widget marked for render update only. Note that if a full render was requested for another widget
     /// on the same window this request is upgraded to a full frame render.
     pub fn render_update(&self, target: impl Into<Option<WidgetId>>) -> &Self {
+        UpdatesTrace::log_render();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::RENDER_UPDATE);
         u.send_awake();
@@ -1290,6 +1319,7 @@ impl UPDATES {
 
     /// Schedules a render update for the window only.
     pub fn render_update_window(&self, target: WindowId) -> &Self {
+        UpdatesTrace::log_render();
         let mut u = UPDATES_SV.write();
         u.update_ext.insert(UpdateFlags::RENDER_UPDATE);
         u.send_awake();
@@ -1563,7 +1593,7 @@ impl UpdatesService {
 /// Updates that must be reacted by an app owner.
 ///
 /// This type is public only for testing, it is the return type for test methods of [`WINDOW`].
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct ContextUpdates {
     /// Events to notify.
     ///
@@ -1618,6 +1648,56 @@ pub struct ContextUpdates {
     ///
     /// When this is not empty [`render`](Self::render) is `true`.
     pub render_update_widgets: RenderUpdates,
+}
+
+impl fmt::Debug for ContextUpdates {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            f.debug_struct("ContextUpdates")
+                .field("update", &self.update)
+                .field("info", &self.info)
+                .field("layout", &self.layout)
+                .field("render", &self.render)
+                .field("events", &self.events)
+                .field("update_widgets", &self.update_widgets)
+                .field("info_widgets", &self.info_widgets)
+                .field("layout_widgets", &self.layout_widgets)
+                .field("render_widgets", &self.render_widgets)
+                .field("render_update_widgets", &self.render_update_widgets)
+                .finish()
+        } else {
+            write!(f, "ContextUpdates: ")?;
+            let mut sep = "";
+            if !self.events.is_empty() {
+                write!(f, "{sep}events[")?;
+                for e in &self.events {
+                    write!(f, "{sep}{}", e.event.name())?;
+                    sep = ", ";
+                }
+                write!(f, "]")?;
+            }
+            if self.update {
+                write!(f, "{sep}update")?;
+                sep = ", ";
+            }
+            if self.info {
+                write!(f, "{sep}info")?;
+                sep = ", ";
+            }
+            if self.layout {
+                write!(f, "{sep}layout")?;
+                sep = ", ";
+            }
+            if self.render {
+                write!(f, "{sep}render")?;
+                sep = ", ";
+            }
+            if sep.is_empty() {
+                write!(f, "<none>")?;
+            }
+            Ok(())
+        }
+    }
 }
 impl ContextUpdates {
     /// If has events, update, layout or render was requested.
