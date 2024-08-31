@@ -7,6 +7,7 @@
     - Add default nesting handler on platforms that only support one window (Android).
 * Add `LAYERS_INSERT_CMD` for inserting layer widgets from outside the window context.
 * Add `LAYERS_REMOVE_CMD` for removing layer widgets from outside the window context.
+* Fix hang opening a popup from another closing popup.
 * Define oldest supported macOS prebuilt. Only supported >=11, now this is documented.
 * Fix `"view_prebuilt"` linking on macOS.
 * Fix panic on old macOS (<11). Color scheme and accent is only supported >=11.

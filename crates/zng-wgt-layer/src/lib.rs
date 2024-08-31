@@ -164,9 +164,9 @@ impl LAYERS {
     /// with the `anchor` widget top-left. The `mode` is a value of [`AnchorMode`] that defines if the `widget` will
     /// receive the full transform or just the offset.
     ///
-    /// If the `anchor` widget is not found the `widget` is not rendered (visibility `Collapsed`). If the `widget`
+    /// If the `anchor` widget is not found the `widget` is anchored to the window root. If the `widget`
     /// is not a full widget after init it is immediately deinited and removed. If you don't
-    /// know the widget is use [`insert_anchored_node`] instead.
+    /// know the widget ID use [`insert_anchored_node`] instead to receive the ID so the layer can be removed.
     ///
     /// [`insert_anchored_node`]: Self::insert_anchored_node
     pub fn insert_anchored(
@@ -204,6 +204,12 @@ impl LAYERS {
 
         let widget = with_anchor_id(widget, anchor.clone().boxed());
 
+        fn get_anchor_info(anchor: WidgetId) -> (WidgetBoundsInfo, WidgetBorderInfo) {
+            let tree = WINDOW.info();
+            let w = tree.get(anchor).unwrap_or_else(|| tree.root());
+            (w.bounds_info(), w.border_info())
+        }
+
         let widget = match_widget(widget.boxed(), move |widget, op| match op {
             UiNodeOp::Init => {
                 widget.init();
@@ -217,10 +223,7 @@ impl LAYERS {
                 widget.with_context(WidgetUpdateMode::Bubble, || {
                     WIDGET.sub_var(&anchor).sub_var(&mode);
 
-                    let tree = WINDOW.info();
-                    if let Some(w) = tree.get(anchor.get()) {
-                        anchor_info = Some((w.bounds_info(), w.border_info()));
-                    }
+                    anchor_info = Some(get_anchor_info(anchor.get()));
 
                     interactivity = mode.with(|m| m.interactivity);
                     _info_changed_handle = Some(WIDGET_INFO_CHANGED_EVENT.subscribe(WIDGET.id()));
@@ -267,14 +270,14 @@ impl LAYERS {
             UiNodeOp::Event { update } => {
                 if let Some(args) = WIDGET_INFO_CHANGED_EVENT.on(update) {
                     if args.window_id == WINDOW.id() {
-                        anchor_info = WINDOW.info().get(anchor.get()).map(|w| (w.bounds_info(), w.border_info()));
+                        anchor_info = Some(get_anchor_info(anchor.get()));
                     }
                 }
             }
             UiNodeOp::Update { .. } => {
                 widget.with_context(WidgetUpdateMode::Bubble, || {
                     if let Some(anchor) = anchor.get_new() {
-                        anchor_info = WINDOW.info().get(anchor).map(|w| (w.bounds_info(), w.border_info()));
+                        anchor_info = Some(get_anchor_info(anchor));
                         if mode.with(|m| m.interactivity) {
                             WIDGET.update_info();
                         }
@@ -592,6 +595,8 @@ impl LAYERS {
                             _ => widget.render(frame),
                         }
                     }
+                } else {
+                    widget.render(frame);
                 }
             }
             UiNodeOp::RenderUpdate { update } => {
