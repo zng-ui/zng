@@ -4,7 +4,7 @@ use zng_layout::unit::PxSize;
 
 use crate::{
     render::{FrameBuilder, FrameUpdate},
-    update::{EventUpdate, UpdateFlags, WidgetUpdates},
+    update::{EventUpdate, WidgetUpdates},
     widget::{
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
         ui_node, WidgetUpdateMode,
@@ -756,7 +756,9 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     .child
                     .0
                     .child
-                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.pending_update().contains(UpdateFlags::INFO))
+                    .with_context(WidgetUpdateMode::Ignore, || {
+                        WIDGET.pending_update().contains(crate::update::UpdateFlags::INFO)
+                    })
                     .unwrap_or(false)
                 {
                     // this is likely an error, but a child widget could have requested info again
@@ -832,7 +834,9 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     .child
                     .0
                     .child
-                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.pending_update().contains(UpdateFlags::LAYOUT))
+                    .with_context(WidgetUpdateMode::Ignore, || {
+                        WIDGET.pending_update().contains(crate::update::UpdateFlags::LAYOUT)
+                    })
                     .unwrap_or(false)
                 {
                     // this is likely an error, but a child widget could have requested layout again,
@@ -855,7 +859,9 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     .child
                     .0
                     .child
-                    .with_context(WidgetUpdateMode::Ignore, || WIDGET.pending_update().contains(UpdateFlags::RENDER))
+                    .with_context(WidgetUpdateMode::Ignore, || {
+                        WIDGET.pending_update().contains(crate::update::UpdateFlags::RENDER)
+                    })
                     .unwrap_or(false)
                 {
                     // this is likely an error, but a child widget could have requested render again,
@@ -878,7 +884,7 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     .0
                     .child
                     .with_context(WidgetUpdateMode::Ignore, || {
-                        WIDGET.pending_update().contains(UpdateFlags::RENDER_UPDATE)
+                        WIDGET.pending_update().contains(crate::update::UpdateFlags::RENDER_UPDATE)
                     })
                     .unwrap_or(false)
                 {
