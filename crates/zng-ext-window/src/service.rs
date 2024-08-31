@@ -189,7 +189,6 @@ impl WindowsService {
                     Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only(),
                 }
             } else {
-                // !!: TODO implement for nested (cut)
                 var(Img::dummy(Some(formatx!("window `{window_id}` is headless without renderer")))).read_only()
             }
         } else {
@@ -486,9 +485,18 @@ impl WINDOWS {
     ///
     /// [image error]: zng_ext_image::Img::error
     pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskMode>) -> ImageVar {
-        WINDOWS_SV
-            .write()
-            .frame_image_impl(window_id.into(), move |vr| vr.frame_image(mask))
+        let window_id = window_id.into();
+        if let Some((win, wgt)) = self.nest_parent(window_id) {
+            if let Ok(tree) = self.widget_tree(win) {
+                if let Some(wgt) = tree.get(wgt) {
+                    return WINDOWS_SV
+                        .write()
+                        .frame_image_impl(win, |vr| vr.frame_image_rect(wgt.inner_bounds(), mask));
+                }
+            }
+            tracing::error!("did not find nest parent {win:?}//.../{wgt:?}, will capture parent window frame")
+        }
+        WINDOWS_SV.write().frame_image_impl(window_id, move |vr| vr.frame_image(mask))
     }
 
     /// Generate an image from a rectangular selection of the current rendered frame of the window.
@@ -498,10 +506,22 @@ impl WINDOWS {
     /// If the window is not found the error is reported in the image error.
     ///
     /// [image error]: zng_ext_image::Img::error
-    pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
-        WINDOWS_SV
-            .write()
-            .frame_image_impl(window_id.into(), |vr| vr.frame_image_rect(rect, mask))
+    pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, mut rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
+        let mut window_id = window_id.into();
+        if let Some((win, wgt)) = self.nest_parent(window_id) {
+            if let Ok(tree) = self.widget_tree(win) {
+                if let Some(wgt) = tree.get(wgt) {
+                    window_id = win;
+                    let bounds = wgt.inner_bounds();
+                    rect.origin += bounds.origin.to_vector();
+                    rect = rect.intersection(&bounds).unwrap_or_default();
+                }
+            }
+            if window_id != win {
+                tracing::error!("did not find nest parent {win:?}//.../{wgt:?}, will capture parent window frame")
+            }
+        }
+        WINDOWS_SV.write().frame_image_impl(window_id, |vr| vr.frame_image_rect(rect, mask))
     }
 
     /// Returns a shared reference the variables that control the window.
@@ -717,14 +737,12 @@ impl WINDOWS {
         WINDOWS_SV.write().open_nested_handlers.get_mut().push(Box::new(handler))
     }
 
-    /// Gets the parent actual window that hosts `maybe_nested` if it is open and nested.
-    pub fn nested_parent(&self, maybe_nested: impl Into<WindowId>) -> Option<WindowId> {
+    /// Gets the parent actual window and widget that hosts `maybe_nested` if it is open and nested.
+    pub fn nest_parent(&self, maybe_nested: impl Into<WindowId>) -> Option<(WindowId, WidgetId)> {
         let vars = self.vars(maybe_nested.into()).ok()?;
-        if vars.is_nesting().get() {
-            vars.parent().get()
-        } else {
-            None
-        }
+        let nest = vars.nest_parent().get()?;
+        let parent = vars.parent().get()?;
+        Some((parent, nest))
     }
 
     /// Add a view-process extension payload to the window request for the view-process.

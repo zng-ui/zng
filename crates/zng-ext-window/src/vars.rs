@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use zng_app::{
-    widget::info::access::AccessEnabled,
+    widget::{info::access::AccessEnabled, WidgetId},
     window::{MonitorId, WindowId, WINDOW},
 };
 use zng_color::LightDark;
@@ -65,7 +65,7 @@ pub(super) struct WindowVarsData {
     taskbar_visible: ArcVar<bool>,
 
     parent: ArcVar<Option<WindowId>>,
-    pub(super) is_nesting: ArcVar<bool>,
+    pub(super) nest_parent: ArcVar<Option<WidgetId>>,
     modal: ArcVar<bool>,
     pub(super) children: ArcVar<IdSet<WindowId>>,
 
@@ -145,7 +145,7 @@ impl WindowVars {
             taskbar_visible: var(true),
 
             parent: var(None),
-            is_nesting: var(false),
+            nest_parent: var(None),
             modal: var(false),
             children: var(IdSet::default()),
 
@@ -586,13 +586,13 @@ impl WindowVars {
         self.0.parent.clone()
     }
 
-    /// Gets if the window is nested on the [`parent`] window.
+    /// Gets the widget in [`parent`] that hosts the window, if it is nesting.
     ///
     /// Nesting windows are presented as an widget, similar to an "iframe".
     ///
     /// [`parent`]: Self::parent
-    pub fn is_nesting(&self) -> ReadOnlyArcVar<bool> {
-        self.0.is_nesting.read_only()
+    pub fn nest_parent(&self) -> ReadOnlyArcVar<Option<WidgetId>> {
+        self.0.nest_parent.read_only()
     }
 
     /// Defines the [`parent`](Self::parent) connection.

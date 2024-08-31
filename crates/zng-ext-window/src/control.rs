@@ -2391,6 +2391,7 @@ pub(crate) struct NestedContentCtrl {
     pending_render: Option<[Arc<RenderUpdates>; 2]>,
     ctx: WindowCtx,
     host: Option<(WindowId, WidgetId)>,
+    pending_frame_capture: FrameCapture,
 }
 
 /// Implementer of an endpoint to an `WindowRoot` being used as an widget.
@@ -2433,7 +2434,23 @@ impl NestedCtrl {
     }
 
     fn pre_event(&mut self, update: &EventUpdate) {
-        self.c.lock().content.pre_event(update)
+        if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
+            let mut c = self.c.lock();
+            let c = &mut *c;
+            if let Some((win, _)) = c.host {
+                if args.window_id == win {
+                    let image = match mem::take(&mut c.pending_frame_capture) {
+                        FrameCapture::None => None,
+                        FrameCapture::Full => Some(WINDOWS.frame_image(win, None).get()),
+                        FrameCapture::Mask(m) => Some(WINDOWS.frame_image(win, Some(m)).get()),
+                    };
+                    let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), win, args.frame_id, image);
+                    FRAME_IMAGE_READY_EVENT.notify(args);
+                }
+            }
+        } else {
+            self.c.lock().content.pre_event(update)
+        }
     }
 
     fn ui_event(&mut self, update: &EventUpdate) {
@@ -2550,8 +2567,9 @@ impl UiNode for NestedWindowNode {
         let mut c = self.c.lock();
         let parent_id = WINDOW.id();
         c.content.vars.parent().set(parent_id);
-        c.content.vars.0.is_nesting.set(true);
-        c.host = Some((parent_id, WIDGET.id()));
+        let nest_parent = WIDGET.id();
+        c.content.vars.0.nest_parent.set(nest_parent);
+        c.host = Some((parent_id, nest_parent));
         // init handled by // NestedCtrl::update
     }
 
@@ -2632,8 +2650,8 @@ impl UiNode for NestedWindowNode {
                                 c.content.root.render(frame);
                             },
                         );
-                        // !!: TODO: review what content.render does
-                    })
+                    });
+                    c.pending_frame_capture = c.content.take_frame_capture();
                 })
             })
         }
@@ -2738,6 +2756,7 @@ impl OpenNestedHandlerArgs {
                         content: ContentCtrl::new(vars, commands, window),
                         pending_layout: None,
                         pending_render: None,
+                        pending_frame_capture: FrameCapture::None,
                         ctx: ctx.share(),
                         host: None,
                     })),

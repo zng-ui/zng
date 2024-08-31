@@ -121,8 +121,8 @@ impl AppExtension for PointerCaptureManager {
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.remove_window(args.window_id);
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
-            let actual_prev = args.prev_focus.map(|id| WINDOWS.nested_parent(id).unwrap_or(id));
-            let actual_new = args.new_focus.map(|id| WINDOWS.nested_parent(id).unwrap_or(id));
+            let actual_prev = args.prev_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
+            let actual_new = args.new_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
 
             if actual_prev == actual_new {
                 // can happen when focus moves from parent to nested, or malformed event
@@ -149,7 +149,7 @@ impl AppExtension for PointerCaptureManager {
                     Ok(mut f) => {
                         if !f {
                             // nested windows can take two updates to receive focus
-                            if let Some(parent) = WINDOWS.nested_parent(current.target.window_id()) {
+                            if let Some(parent) = WINDOWS.nest_parent(current.target.window_id()).map(|(p, _)| p) {
                                 f = WINDOWS.is_focused(parent) == Ok(true);
                             }
                         }

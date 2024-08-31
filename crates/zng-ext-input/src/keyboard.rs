@@ -444,7 +444,7 @@ impl KeyboardService {
 
         // notify events
         if let Some(target) = focused {
-            if target.window_id() == args.window_id || WINDOWS.nested_parent(target.window_id()) == Some(args.window_id) {
+            if target.window_id() == args.window_id || WINDOWS.nest_parent(target.window_id()).map(|(p, _)| p) == Some(args.window_id) {
                 let args = KeyInputArgs::now(
                     target.window_id(),
                     args.device_id,
