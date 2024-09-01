@@ -110,7 +110,7 @@ impl WindowVars {
             position: var(Point::default()),
             monitor: var(MonitorQuery::default()),
             video_mode: var(VideoMode::default()),
-            size: var(Size::new(800, 600)),
+            size: var(Size::default()),
 
             font_size: var(11.pt()),
 

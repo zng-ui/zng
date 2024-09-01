@@ -2525,7 +2525,8 @@ impl NestedWindowNode {
         let auto_size = c.content.vars.auto_size().get();
         let constraints = LAYOUT.constraints();
 
-        let metrics = LayoutMetrics::new(LAYOUT.scale_factor(), constraints.fill_size(), LAYOUT.root_font_size())
+        let metrics = LayoutMetrics::new(LAYOUT.scale_factor(), PxSize::splat(Px::MAX), LAYOUT.root_font_size())
+            .with_constraints(constraints)
             .with_screen_ppi(LAYOUT.screen_ppi())
             .with_direction(DIRECTION_VAR.get());
 
@@ -2535,14 +2536,21 @@ impl NestedWindowNode {
                     LAYOUT.with_root_context(c.content.layout_pass, metrics, || {
                         let mut root_cons = LAYOUT.constraints();
 
-                        let min_size = c.content.vars.min_size().layout().max(root_cons.min_size());
-                        let max_size = c
-                            .content
-                            .vars
-                            .max_size()
-                            .layout()
-                            .min(root_cons.max_size().unwrap_or(PxSize::splat(Px::MAX)));
-                        let pref_size = c.content.vars.size().layout().clamp(min_size, max_size);
+                        // equivalent of with_fill_metrics used by `max_size` property
+                        let dft = root_cons.fill_size();
+                        let (min_size, max_size, pref_size) =
+                            LAYOUT.with_constraints(root_cons.with_fill_vector(root_cons.is_bounded()), || {
+                                let max = c.content.vars.max_size().layout_dft(dft);
+                                (
+                                    c.content.vars.min_size().layout(),
+                                    max,
+                                    c.content.vars.size().layout_dft(max),
+                                )
+                            });
+
+                        let min_size = min_size.max(root_cons.min_size());
+                        let max_size = max_size.min(root_cons.max_size_or(PxSize::splat(Px::MAX)));
+                        let pref_size = pref_size.clamp(min_size, max_size);
 
                         if auto_size.contains(AutoSize::CONTENT_WIDTH) {
                             root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);

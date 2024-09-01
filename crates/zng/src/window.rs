@@ -174,9 +174,9 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
         layer::LAYERS_INSERT_CMD.scoped(host_win_id).notify_param((
             layer::LayerIndex::TOP_MOST,
             wgt_fn!(|_: ()| {
-                Container! {
-                    id = host_wgt_id;
+                let frame = Container! {
                     layout::margin = 10;
+                    layout::align = Align::CENTER;
                     widget::modal = true;
                     color::filter::drop_shadow = {
                         offset: 4,
@@ -211,6 +211,12 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                         spacing: 5,
                     };
                     child = node.lock().take().into_widget();
+                };
+                Container! {
+                    id = host_wgt_id;
+                    child = frame;
+                    widget::background_color = colors::BLACK.with_alpha(20.pct());
+                    layout::padding = WINDOWS.vars(host_win_id).unwrap().safe_padding().map_into();
                 }
             }),
         ));
