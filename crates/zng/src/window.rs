@@ -141,3 +141,87 @@ pub use zng_wgt_window::events::{
 pub mod inspector {
     pub use zng_wgt_inspector::debug::{show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode};
 }
+
+/// Default handler registered in mobile platforms.
+///
+/// This is registered on app init for platforms that only support one window, it intercepts headed window open requests after the
+/// first and opens them as a nested modal layer on the main window.
+///
+/// See [`WINDOWS::register_open_nested_handler`] for more details.
+pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedHandlerArgs) {
+    use crate::prelude::*;
+
+    if !matches!(args.ctx().mode(), WindowMode::Headed) {
+        return;
+    }
+
+    let open: Vec<_> = WINDOWS
+        .widget_trees()
+        .into_iter()
+        .filter(|w| WINDOWS.mode(w.window_id()) == Ok(window::WindowMode::Headed) && WINDOWS.nest_parent(w.window_id()).is_none())
+        .take(2)
+        .collect();
+
+    if open.len() == 1 {
+        let id = args.ctx().id();
+        let vars = args.vars();
+        let icon = vars.icon();
+        let title = vars.title();
+        let node = task::parking_lot::Mutex::new(Some(args.nest()));
+
+        let host_win_id = open[0].window_id();
+        let host_wgt_id = WidgetId::new_unique();
+        layer::LAYERS_INSERT_CMD.scoped(host_win_id).notify_param((
+            layer::LayerIndex::TOP_MOST,
+            wgt_fn!(|_: ()| {
+                Container! {
+                    id = host_wgt_id;
+                    layout::margin = 10;
+                    widget::modal = true;
+                    color::filter::drop_shadow = {
+                        offset: 4,
+                        blur_radius: 6,
+                        color: colors::BLACK.with_alpha(50.pct()),
+                    };
+                    widget::background_color = light_dark(rgb(0.95, 0.95, 0.95), rgb(0.05, 0.05, 0.05));
+                    widget::corner_radius = 4;
+                    layout::padding = 5;
+                    child_top = {
+                        node: Container! {
+                            child_start = Image! {
+                                layout::size = 24;
+                                source = icon.map(|i| match i {
+                                    WindowIcon::Image(s) => s.clone(),
+                                    WindowIcon::Default => ImageSource::flood(layout::PxSize::zero(), rgba(0, 0, 0, 0), None),
+                                });
+                            }, 4;
+                            child = Text! {
+                                txt = title.clone();
+                                txt_align = Align::CENTER;
+                                font_weight = FontWeight::BOLD;
+                            };
+                            child_end = Button! {
+                                style_fn = zng::button::LightStyle!();
+                                child = ICONS.get_or("close", || Text!("x"));
+                                on_click = hn!(|_| {
+                                    let _ = WINDOWS.close(id);
+                                });
+                            }, 4;
+                        },
+                        spacing: 5,
+                    };
+                    child = node.lock().take().into_widget();
+                }
+            }),
+        ));
+
+        window::WINDOW_CLOSE_EVENT
+            .on_pre_event(app_hn!(|args: &window::WindowCloseArgs, ev: &dyn zng::handler::AppWeakHandle| {
+                if args.windows.contains(&id) {
+                    ev.unsubscribe();
+                    layer::LAYERS_REMOVE_CMD.scoped(host_win_id).notify_param(host_wgt_id);
+                }
+            }))
+            .perm();
+    }
+}

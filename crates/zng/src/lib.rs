@@ -919,6 +919,12 @@ mod defaults {
             });
             tracing::debug!("defaults init, root_extender set");
 
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            {
+                zng_ext_window::WINDOWS.register_open_nested_handler(crate::window::default_mobile_nested_open_handler);
+                tracing::debug!("defaults init, open_nested_handler set");
+            }
+
             // setup OPEN_LICENSES_CMD handler
             crate::third_party::setup_default_view();
             tracing::debug!("defaults init, third_party set");

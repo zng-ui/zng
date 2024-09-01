@@ -51,9 +51,9 @@ use zng_wgt::prelude::WidgetInfo;
 
 use crate::{
     cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    AutoSize, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea, WindowChangedArgs,
-    WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
-    WINDOW_FOCUS,
+    AutoSize, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WINDOW_Ext, WidgetInfoImeArea,
+    WindowChangedArgs, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
+    WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
 };
 
 struct ImageResources {
@@ -2498,6 +2498,10 @@ impl NestedCtrl {
         c.content.close();
         c.pending_layout = None;
         c.pending_render = None;
+        if let Some((_, wgt_id)) = &c.host {
+            // NestedWindowNode collapses on close
+            UPDATES.layout(*wgt_id);
+        }
     }
 
     fn view_task(&self, task: Box<dyn FnOnce(Option<&ViewWindow>)>) {
@@ -2735,9 +2739,18 @@ impl OpenNestedHandlerArgs {
     /// New window context.
     pub fn ctx(&self) -> &WindowCtx {
         match &self.c {
-            OpenNestedHandlerArgsValue::Normal { ctx, .. } => ctx,
-            _ => panic!("already nesting"),
+            OpenNestedHandlerArgsValue::Normal { ctx, .. } | OpenNestedHandlerArgsValue::Nested { ctx, .. } => ctx,
+            OpenNestedHandlerArgsValue::TempNone => unreachable!(),
         }
+    }
+
+    /// Window vars.
+    pub fn vars(&mut self) -> WindowVars {
+        let ctx = match &mut self.c {
+            OpenNestedHandlerArgsValue::Normal { ctx, .. } | OpenNestedHandlerArgsValue::Nested { ctx, .. } => ctx,
+            OpenNestedHandlerArgsValue::TempNone => unreachable!(),
+        };
+        WINDOW.with_context(ctx, || WINDOW.vars())
     }
 
     /// Instantiate a node that layouts and renders the window content.
