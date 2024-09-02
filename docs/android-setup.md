@@ -84,3 +84,15 @@ fn android() {
     println!("cargo:rerun-if-env-changed=CARGO_NDK_ANDROID_TARGET");
 }
 ```
+
+## Backtraces
+
+To log backtraces you must ensure:
+
+* `android:extractNativeLibs="true"` is set on the Android manifest XML (in the `application` element).
+* Symbols must not be stripped, use `--no-strip` with  `cargo do build-apk` or with `cargo ndk`.
+* Use the [`backtrace`] crate to collect the backtraces, there is a bug on Rust's `std` backtrace (see [rust#121033]).
+  If you are debugging a panic you have to add a `println!("{:?}", backtrace::Backtrace::new())` just before the panic code.
+
+[`backtrace`]: https://crates.io/crates/backtrace
+[rust#121033]: https://github.com/rust-lang/rust/issues/121033
