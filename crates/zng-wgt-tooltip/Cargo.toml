@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-tooltip"
-version = "0.4.9"
+version = "0.4.10"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,12 +12,12 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.4.12" }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.19" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.29" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.9" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.29" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.9" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.19" }
-zng-app = { path = "../zng-app", version = "0.10.0" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.17" }
+zng-wgt = { path = "../zng-wgt", version = "0.4.13" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.20" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.30" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.10" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.30" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.10" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.20" }
+zng-app = { path = "../zng-app", version = "0.10.1" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.18" }

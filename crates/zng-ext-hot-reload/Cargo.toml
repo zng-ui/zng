@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-hot-reload"
-version = "0.1.18"
+version = "0.1.19"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -17,13 +17,13 @@ zng-ext-hot-reload-proc-macros = { path = "../zng-ext-hot-reload-proc-macros", v
 # the `static` dyn patching `linkme` register is implemented on this crate
 # so it is available across the entire workspace.
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.5", features = ["hot_reload"] }
-zng-env = { path = "../zng-env", version = "0.3.3" }
-zng-app-context = { path = "../zng-app-context", version = "0.5.6" }
-zng-app = { path = "../zng-app", version = "0.10.0" }
-zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.29" }
+zng-env = { path = "../zng-env", version = "0.3.4" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.7" }
+zng-app = { path = "../zng-app", version = "0.10.1" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.30" }
 zng-unit = { path = "../zng-unit", version = "0.2.7" }
-zng-var = { path = "../zng-var", version = "0.5.2" }
-zng-task = { path = "../zng-task", version = "0.4.2" }
+zng-var = { path = "../zng-var", version = "0.5.3" }
+zng-task = { path = "../zng-task", version = "0.4.3" }
 zng-txt = { path = "../zng-txt", version = "0.2.7" }
 
 libloading = "0.8"
