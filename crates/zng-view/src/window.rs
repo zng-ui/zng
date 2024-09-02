@@ -927,11 +927,16 @@ impl Window {
 
     /// Steal input focus.
     #[cfg(not(windows))]
-    pub fn focus(&mut self) {
+    pub fn focus(&mut self) -> zng_view_api::FocusResult {
         if self.waiting_first_frame {
             self.steal_init_focus = true;
         } else if !self.modal_dialog_active() {
             self.window.focus_window();
+        }
+        if self.window.has_focus() {
+            zng_view_api::FocusResult::AlreadyFocused
+        } else {
+            zng_view_api::FocusResult::Requested
         }
     }
 
@@ -940,8 +945,8 @@ impl Window {
     /// Returns if the next `RAlt` press and release key inputs must be ignored.
     #[cfg(windows)]
     #[must_use]
-    pub fn focus(&mut self) -> bool {
-        if self.waiting_first_frame {
+    pub fn focus(&mut self) -> (zng_view_api::FocusResult, bool) {
+        let skip_ralt = if self.waiting_first_frame {
             self.steal_init_focus = true;
             false
         } else if !self.modal_dialog_active() && !self.windows_is_foreground() {
@@ -950,7 +955,13 @@ impl Window {
             self.windows_is_foreground()
         } else {
             false
-        }
+        };
+        let r = if self.window.has_focus() {
+            zng_view_api::FocusResult::AlreadyFocused
+        } else {
+            zng_view_api::FocusResult::Requested
+        };
+        (skip_ralt, r)
     }
 
     /// Gets the current Maximized status as early as possible.

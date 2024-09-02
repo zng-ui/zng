@@ -33,7 +33,7 @@ use zng_view_api::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
         ResizeDirection, VideoMode, WindowButton, WindowRequest, WindowStateAll,
     },
-    Event, ViewProcessGen, ViewProcessOffline,
+    Event, FocusResult, ViewProcessGen, ViewProcessOffline,
 };
 
 use zng_view_api::{
@@ -799,7 +799,7 @@ impl ViewWindow {
     /// Brings the window to the front and sets input focus.
     ///
     /// This request can steal focus from other apps disrupting the user, be careful with it.
-    pub fn focus(&self) -> Result<()> {
+    pub fn focus(&self) -> Result<FocusResult> {
         self.0.call(|id, p| p.focus(id))
     }
 

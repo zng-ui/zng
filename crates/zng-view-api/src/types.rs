@@ -1008,6 +1008,16 @@ pub enum BorderStyle {
     Outset = 9,
 }
 
+/// Result of a focus request.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum FocusResult {
+    /// Focus was requested, an [`Event::FocusChanged`] will be send if the operating system gives focus to the window.
+    Requested,
+    /// Window is already focused.
+    AlreadyFocused,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
