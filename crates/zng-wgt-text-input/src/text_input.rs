@@ -266,12 +266,16 @@ pub fn placeholder(child: impl UiNode, placeholder: impl UiNode) -> impl UiNode 
                 c.delegated();
                 if txt_is_empty.as_ref().unwrap().get() {
                     c.render(frame);
+                } else {
+                    frame.hide(|frame| c.render(frame));
                 }
             }
             UiNodeOp::RenderUpdate { update } => {
                 c.delegated();
                 if txt_is_empty.as_ref().unwrap().get() {
                     c.render_update(update);
+                } else {
+                    update.hidden(|update| c.render_update(update));
                 }
             }
             _ => {}
