@@ -24,7 +24,7 @@ use zng_app::{
     AppExtension,
 };
 use zng_app_context::app_local;
-use zng_ext_window::WINDOWS;
+use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
 use zng_layout::unit::{DipPoint, DipToPx};
 use zng_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var};
 use zng_view_api::{
@@ -121,7 +121,15 @@ impl AppExtension for PointerCaptureManager {
         } else if let Some(args) = RAW_WINDOW_CLOSE_EVENT.on(update) {
             self.remove_window(args.window_id);
         } else if let Some(args) = RAW_WINDOW_FOCUS_EVENT.on(update) {
-            if let Some(w) = args.prev_focus {
+            let actual_prev = args.prev_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
+            let actual_new = args.new_focus.map(|id| WINDOWS.nest_parent(id).map(|(p, _)| p).unwrap_or(id));
+
+            if actual_prev == actual_new {
+                // can happen when focus moves from parent to nested, or malformed event
+                return;
+            }
+
+            if let Some(w) = actual_prev {
                 self.remove_window(w);
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
@@ -137,7 +145,19 @@ impl AppExtension for PointerCaptureManager {
         if let Some(current) = &self.capture {
             let mut cap = POINTER_CAPTURE_SV.write();
             if let Some((widget_id, mode)) = cap.capture_request.take() {
-                if let Ok(true) = WINDOWS.is_focused(current.target.window_id()) {
+                let is_win_focused = match WINDOWS.is_focused(current.target.window_id()) {
+                    Ok(mut f) => {
+                        if !f {
+                            // nested windows can take two updates to receive focus
+                            if let Some(parent) = WINDOWS.nest_parent(current.target.window_id()).map(|(p, _)| p) {
+                                f = WINDOWS.is_focused(parent) == Ok(true);
+                            }
+                        }
+                        f
+                    }
+                    Err(_) => false,
+                };
+                if is_win_focused {
                     // current window pressed
                     if let Some(widget) = WINDOWS.widget_tree(current.target.window_id()).unwrap().get(widget_id) {
                         // request valid
@@ -167,13 +187,28 @@ impl PointerCaptureManager {
     }
 
     fn on_first_down(&mut self, window_id: WindowId, point: DipPoint) {
-        if let Ok(info) = WINDOWS.widget_tree(window_id) {
+        if let Ok(mut info) = WINDOWS.widget_tree(window_id) {
             let mut cap = POINTER_CAPTURE_SV.write();
             cap.release_requested = false;
 
+            let mut point = point.to_px(info.scale_factor());
+
+            // hit-test for nested window
+            if let Some(t) = info.root().hit_test(point).target() {
+                if let Some(w) = info.get(t.widget_id) {
+                    if let Some(t) = w.nested_window_tree() {
+                        info = t;
+                        point = w
+                            .inner_transform()
+                            .inverse()
+                            .and_then(|t| t.transform_point(point))
+                            .unwrap_or(point);
+                    }
+                }
+            }
+
             if let Some((widget_id, mode)) = cap.capture_request.take() {
                 if let Some(w_info) = info.get(widget_id) {
-                    let point = point.to_px(info.scale_factor());
                     if w_info.hit_test(point).contains(widget_id) {
                         // capture for widget
                         self.set_capture(&mut cap, w_info.interaction_path(), mode);
@@ -181,6 +216,7 @@ impl PointerCaptureManager {
                     }
                 }
             }
+
             // default capture
             self.set_capture(&mut cap, info.root().interaction_path(), CaptureMode::Window);
         }

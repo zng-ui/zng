@@ -2,11 +2,13 @@
 
 use std::{mem, sync::Arc};
 
+use parking_lot::Mutex;
 use zng_app::{
     access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
     app_hn_once,
     event::{AnyEventArgs, CommandHandle},
     render::{FrameBuilder, FrameUpdate},
+    static_id,
     timer::TIMERS,
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
     view_process::{
@@ -17,13 +19,14 @@ use zng_app::{
         ViewHeadless, ViewRenderer, ViewWindow, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
     widget::{
-        info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetPath},
+        info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath},
         node::{BoxedUiNode, UiNode},
         VarLayout, WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
     },
-    window::{WindowId, WindowMode, WINDOW},
+    window::{WindowCtx, WindowId, WindowMode, WINDOW},
     Deadline,
 };
+use zng_app_context::LocalContext;
 use zng_clone_move::clmv;
 use zng_color::{colors, LightDark, Rgba};
 use zng_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
@@ -34,6 +37,7 @@ use zng_layout::{
         PxSize, PxToDip, PxVector, TimeUnits,
     },
 };
+use zng_state_map::StateId;
 use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
 use zng_view_api::{
     config::{ColorScheme, FontAntiAliasing},
@@ -43,12 +47,13 @@ use zng_view_api::{
     },
     Ime, ViewProcessOffline,
 };
+use zng_wgt::prelude::WidgetInfo;
 
 use crate::{
     cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    AutoSize, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WidgetInfoImeArea, WindowChangedArgs,
-    WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT,
-    WINDOW_FOCUS,
+    AutoSize, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WINDOW_Ext, WidgetInfoImeArea,
+    WindowChangedArgs, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
+    WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
 };
 
 struct ImageResources {
@@ -1880,11 +1885,7 @@ impl HeadlessSimulator {
     }
 
     pub fn focus(&mut self) {
-        let mut prev = None;
-        if let Some(id) = WINDOWS.focused_window_id() {
-            prev = Some(id);
-        }
-        let args = RawWindowFocusArgs::now(prev, Some(WINDOW.id()));
+        let args = RawWindowFocusArgs::now(WINDOWS.focused_window_id(), Some(WINDOW.id()));
         RAW_WINDOW_FOCUS_EVENT.notify(args);
     }
 
@@ -2264,6 +2265,7 @@ enum WindowCtrlMode {
     Headed(HeadedCtrl),
     Headless(HeadlessCtrl),
     HeadlessWithRenderer(HeadlessWithRendererCtrl),
+    Nested(NestedCtrl),
 }
 impl WindowCtrl {
     pub fn new(vars: &WindowVars, commands: WindowCommands, mode: WindowMode, content: WindowRoot) -> Self {
@@ -2276,11 +2278,16 @@ impl WindowCtrl {
         })
     }
 
+    pub fn new_nested(c: Arc<Mutex<NestedContentCtrl>>) -> Self {
+        WindowCtrl(WindowCtrlMode::Nested(NestedCtrl::new(c)))
+    }
+
     pub fn update(&mut self, update_widgets: &WidgetUpdates) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.update(update_widgets),
             WindowCtrlMode::Headless(c) => c.update(update_widgets),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.update(update_widgets),
+            WindowCtrlMode::Nested(c) => c.update(update_widgets),
         }
     }
 
@@ -2290,6 +2297,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.info(info_widgets),
             WindowCtrlMode::Headless(c) => c.info(info_widgets),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.info(info_widgets),
+            WindowCtrlMode::Nested(c) => c.info(info_widgets),
         }
     }
 
@@ -2298,6 +2306,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.pre_event(update),
             WindowCtrlMode::Headless(c) => c.pre_event(update),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.pre_event(update),
+            WindowCtrlMode::Nested(c) => c.pre_event(update),
         }
     }
 
@@ -2306,6 +2315,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.ui_event(update),
             WindowCtrlMode::Headless(c) => c.ui_event(update),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.ui_event(update),
+            WindowCtrlMode::Nested(c) => c.ui_event(update),
         }
     }
 
@@ -2314,6 +2324,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.layout(layout_widgets),
             WindowCtrlMode::Headless(c) => c.layout(layout_widgets),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.layout(layout_widgets),
+            WindowCtrlMode::Nested(c) => c.layout(layout_widgets),
         }
     }
 
@@ -2322,6 +2333,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.render(render_widgets, render_update_widgets),
             WindowCtrlMode::Headless(c) => c.render(render_widgets, render_update_widgets),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.render(render_widgets, render_update_widgets),
+            WindowCtrlMode::Nested(c) => c.render(render_widgets, render_update_widgets),
         }
     }
 
@@ -2330,6 +2342,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.focus(),
             WindowCtrlMode::Headless(c) => c.focus(),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.focus(),
+            WindowCtrlMode::Nested(c) => c.focus(),
         }
     }
 
@@ -2338,6 +2351,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.bring_to_top(),
             WindowCtrlMode::Headless(c) => c.bring_to_top(),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.bring_to_top(),
+            WindowCtrlMode::Nested(c) => c.bring_to_top(),
         }
     }
 
@@ -2346,6 +2360,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.close(),
             WindowCtrlMode::Headless(c) => c.close(),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.close(),
+            WindowCtrlMode::Nested(c) => c.close(),
         }
     }
 
@@ -2354,6 +2369,7 @@ impl WindowCtrl {
             WindowCtrlMode::Headed(c) => c.view_task(task),
             WindowCtrlMode::Headless(c) => c.view_task(task),
             WindowCtrlMode::HeadlessWithRenderer(c) => c.view_task(task),
+            WindowCtrlMode::Nested(c) => c.view_task(task),
         }
     }
 }
@@ -2368,3 +2384,423 @@ fn default_size(scale_factor: Factor) -> PxSize {
 
 /// Respawned error is ok here, because we recreate the window/surface on respawn.
 type Ignore = Result<(), ViewProcessOffline>;
+
+pub(crate) struct NestedContentCtrl {
+    content: ContentCtrl,
+    pending_layout: Option<Arc<LayoutUpdates>>,
+    pending_render: Option<[Arc<RenderUpdates>; 2]>,
+    ctx: WindowCtx,
+    host: Option<(WindowId, WidgetId)>,
+    pending_frame_capture: FrameCapture,
+}
+
+/// Implementer of an endpoint to an `WindowRoot` being used as an widget.
+struct NestedCtrl {
+    c: Arc<Mutex<NestedContentCtrl>>,
+    actual_parent: Option<WindowId>,
+    // actual_color_scheme and scale_factor binding.
+    var_bindings: VarHandles,
+}
+impl NestedCtrl {
+    pub fn new(c: Arc<Mutex<NestedContentCtrl>>) -> Self {
+        Self {
+            c,
+            actual_parent: None,
+            var_bindings: VarHandles::dummy(),
+        }
+    }
+
+    fn update(&mut self, update_widgets: &WidgetUpdates) {
+        let mut c = self.c.lock();
+        c.content.update(update_widgets);
+
+        let vars = &c.content.vars;
+
+        if update_parent(&mut self.actual_parent, vars) || self.var_bindings.is_dummy() {
+            let m_scale_factor = if let Some(p) = self.actual_parent.and_then(|p| WINDOWS.vars(p).ok()) {
+                p.actual_monitor()
+                    .get()
+                    .and_then(|m| MONITORS.monitor(m))
+                    .map(|m| m.scale_factor().get())
+            } else {
+                None
+            };
+            self.var_bindings = update_headless_vars(m_scale_factor, vars);
+        }
+    }
+
+    fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
+        self.c.lock().content.info(info_widgets)
+    }
+
+    fn pre_event(&mut self, update: &EventUpdate) {
+        if let Some(args) = RAW_FRAME_RENDERED_EVENT.on(update) {
+            let mut c = self.c.lock();
+            let c = &mut *c;
+            if let Some((win, _)) = c.host {
+                if args.window_id == win {
+                    let image = match mem::take(&mut c.pending_frame_capture) {
+                        FrameCapture::None => None,
+                        FrameCapture::Full => Some(WINDOWS.frame_image(win, None).get()),
+                        FrameCapture::Mask(m) => Some(WINDOWS.frame_image(win, Some(m)).get()),
+                    };
+                    let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), win, args.frame_id, image);
+                    FRAME_IMAGE_READY_EVENT.notify(args);
+                }
+            }
+        } else {
+            self.c.lock().content.pre_event(update)
+        }
+    }
+
+    fn ui_event(&mut self, update: &EventUpdate) {
+        self.c.lock().content.ui_event(update)
+    }
+
+    fn layout(&self, layout_widgets: Arc<LayoutUpdates>) {
+        if layout_widgets.delivery_list().enter_window(WINDOW.id()) {
+            let mut c = self.c.lock();
+            let c = &mut *c;
+            if let Some((_, wgt_id)) = &c.host {
+                c.pending_layout = Some(layout_widgets);
+                UPDATES.layout(*wgt_id);
+            }
+        }
+    }
+
+    fn render(&self, render_widgets: Arc<RenderUpdates>, render_update_widgets: Arc<RenderUpdates>) {
+        let id = WINDOW.id();
+        if render_widgets.delivery_list().enter_window(id) || render_update_widgets.delivery_list().enter_window(id) {
+            let mut c = self.c.lock();
+            let c = &mut *c;
+            if let Some((_, wgt_id)) = &c.host {
+                c.pending_render = Some([render_widgets, render_update_widgets]);
+                UPDATES.render(*wgt_id);
+            }
+        }
+    }
+
+    fn focus(&self) {
+        self.bring_to_top();
+        // many services track window focus with this event.
+        let args = RawWindowFocusArgs::now(WINDOWS.focused_window_id(), Some(WINDOW.id()));
+        RAW_WINDOW_FOCUS_EVENT.notify(args);
+    }
+
+    fn bring_to_top(&self) {
+        if let Some((win_id, _)) = &self.c.lock().host {
+            let _ = WINDOWS.bring_to_top(*win_id);
+        }
+    }
+
+    fn close(&mut self) {
+        let mut c = self.c.lock();
+        c.content.close();
+        c.pending_layout = None;
+        c.pending_render = None;
+        if let Some((_, wgt_id)) = &c.host {
+            // NestedWindowNode collapses on close
+            UPDATES.layout(*wgt_id);
+        }
+    }
+
+    fn view_task(&self, task: Box<dyn FnOnce(Option<&ViewWindow>)>) {
+        task(None)
+    }
+}
+
+/// UI node that presents a [`WindowRoot`] as embedded content.
+pub struct NestedWindowNode {
+    c: Arc<Mutex<NestedContentCtrl>>,
+}
+impl NestedWindowNode {
+    fn layout_impl(&mut self, is_measure: bool, measure_layout: impl FnOnce(&mut BoxedUiNode) -> PxSize) -> PxSize {
+        let mut c = self.c.lock();
+        let c = &mut *c;
+
+        if !c.content.vars.0.is_open.get() {
+            return PxSize::zero();
+        }
+
+        let auto_size = c.content.vars.auto_size().get();
+        let constraints = LAYOUT.constraints();
+
+        let metrics = LayoutMetrics::new(LAYOUT.scale_factor(), PxSize::splat(Px::MAX), LAYOUT.root_font_size())
+            .with_constraints(constraints)
+            .with_screen_ppi(LAYOUT.screen_ppi())
+            .with_direction(DIRECTION_VAR.get());
+
+        LocalContext::new().with_context(|| {
+            WINDOW.with_context(&mut c.ctx, || {
+                WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
+                    LAYOUT.with_root_context(c.content.layout_pass, metrics, || {
+                        let mut root_cons = LAYOUT.constraints();
+
+                        // equivalent of with_fill_metrics used by `max_size` property
+                        let dft = root_cons.fill_size();
+                        let (min_size, max_size, pref_size) =
+                            LAYOUT.with_constraints(root_cons.with_fill_vector(root_cons.is_bounded()), || {
+                                let max = c.content.vars.max_size().layout_dft(dft);
+                                (c.content.vars.min_size().layout(), max, c.content.vars.size().layout_dft(max))
+                            });
+
+                        let min_size = min_size.max(root_cons.min_size());
+                        let max_size = max_size.min(root_cons.max_size_or(PxSize::splat(Px::MAX)));
+                        let pref_size = pref_size.clamp(min_size, max_size);
+
+                        if auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                            root_cons.x = PxConstraints::new_range(min_size.width, max_size.width);
+                        } else {
+                            root_cons.x = PxConstraints::new_exact(pref_size.width);
+                        }
+                        if auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                            root_cons.y = PxConstraints::new_range(min_size.height, max_size.height);
+                        } else {
+                            root_cons.y = PxConstraints::new_exact(pref_size.height);
+                        }
+
+                        if auto_size.is_empty() && is_measure {
+                            pref_size
+                        } else {
+                            LAYOUT.with_constraints(root_cons, || measure_layout(&mut c.content.root))
+                        }
+                    })
+                })
+            })
+        })
+    }
+}
+impl UiNode for NestedWindowNode {
+    fn init(&mut self) {
+        let mut c = self.c.lock();
+        let parent_id = WINDOW.id();
+        c.content.vars.parent().set(parent_id);
+        let nest_parent = WIDGET.id();
+        c.content.vars.0.nest_parent.set(nest_parent);
+        c.host = Some((parent_id, nest_parent));
+        // init handled by // NestedCtrl::update
+    }
+
+    fn deinit(&mut self) {
+        // this can be a parent reinit or node move, if not inited after 100ms close the window.
+        let mut c = self.c.lock();
+        c.host = None;
+        let c = &self.c;
+        TIMERS
+            .on_deadline(
+                100.ms(),
+                app_hn_once!(c, |_| {
+                    let c = c.lock();
+                    if c.host.is_none() {
+                        let _ = WINDOWS.close(c.ctx.id());
+                    }
+                }),
+            )
+            .perm();
+
+        // deinit handled by NestedCtrl::close
+    }
+
+    fn info(&mut self, info: &mut WidgetInfoBuilder) {
+        info.set_meta(*NESTED_WINDOW_INFO_ID, self.c.lock().ctx.id());
+    }
+
+    fn event(&mut self, _: &EventUpdate) {
+        // event handled by NestedCtrl::ui_event
+    }
+
+    fn update(&mut self, _: &WidgetUpdates) {
+        // update handled by NestedCtrl::update
+    }
+
+    fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
+        self.layout_impl(true, |r| wm.with_widget(|wm| r.measure(wm)))
+    }
+
+    fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
+        let pending = self.c.lock().pending_layout.take();
+        let size = self.layout_impl(false, |r| {
+            if let Some(p) = pending {
+                wl.with_layout_updates(p, |wl| wl.with_widget(|wl| r.layout(wl)))
+            } else {
+                wl.with_widget(|wl| r.layout(wl))
+            }
+        });
+        let c = self.c.lock();
+        let factor = LAYOUT.scale_factor();
+        c.content.vars.0.scale_factor.set(factor);
+        c.content.vars.0.actual_size.set(size.to_dip(factor));
+        size
+    }
+
+    fn render(&mut self, frame: &mut FrameBuilder) {
+        let mut c = self.c.lock();
+        let c = &mut *c;
+
+        if !c.content.vars.0.is_open.get() {
+            return;
+        }
+
+        if let Some([render_widgets, render_update_widgets]) = c.pending_render.take() {
+            LocalContext::new().with_context(|| {
+                WINDOW.with_context(&mut c.ctx, || {
+                    let root_id = c.content.root_ctx.id();
+                    let root_bounds = c.content.root_ctx.bounds();
+                    WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
+                        frame.with_nested_window(
+                            render_widgets,
+                            render_update_widgets,
+                            root_id,
+                            &root_bounds,
+                            &WINDOW.info(),
+                            FontAntiAliasing::Default,
+                            |frame| {
+                                c.content.root.render(frame);
+                            },
+                        );
+                    });
+                    c.pending_frame_capture = c.content.take_frame_capture();
+                })
+            })
+        }
+    }
+
+    fn render_update(&mut self, update: &mut FrameUpdate) {
+        let mut c = self.c.lock();
+        let c = &mut *c;
+
+        if !c.content.vars.0.is_open.get() {
+            return;
+        }
+
+        if let Some([_, render_update_widgets]) = c.pending_render.take() {
+            LocalContext::new().with_context(|| {
+                WINDOW.with_context(&mut c.ctx, || {
+                    WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
+                        update.with_nested_window(render_update_widgets, WIDGET.id(), WIDGET.bounds(), |update| {
+                            c.content.root.render_update(update);
+                        })
+                    })
+                })
+            })
+        }
+    }
+}
+
+static_id! {
+    static ref NESTED_WINDOW_INFO_ID: StateId<WindowId>;
+}
+
+/// Extension methods for widget info about a node that hosts a nested window.
+pub trait NestedWindowWidgetInfoExt {
+    /// Gets the hosted window ID if the widget hosts a nested window.
+    fn nested_window(&self) -> Option<WindowId>;
+
+    /// Gets the hosted window info tree if the widget hosts a nested window that is open.
+    fn nested_window_tree(&self) -> Option<WidgetInfoTree> {
+        WINDOWS.widget_tree(self.nested_window()?).ok()
+    }
+}
+
+impl NestedWindowWidgetInfoExt for WidgetInfo {
+    fn nested_window(&self) -> Option<WindowId> {
+        self.meta().get_clone(*NESTED_WINDOW_INFO_ID)
+    }
+}
+
+enum OpenNestedHandlerArgsValue {
+    Normal {
+        ctx: WindowCtx,
+        vars: WindowVars,
+        commands: WindowCommands,
+        window: WindowRoot,
+    },
+    Nested {
+        ctx: WindowCtx,
+        node: Arc<Mutex<NestedContentCtrl>>,
+    },
+    TempNone,
+}
+
+/// Arguments for the [`WINDOWS.register_open_nested_handler`] handler.
+///
+/// [`WINDOWS.register_open_nested_handler`]: WINDOWS::register_open_nested_handler
+pub struct OpenNestedHandlerArgs {
+    c: OpenNestedHandlerArgsValue,
+}
+impl OpenNestedHandlerArgs {
+    pub(crate) fn new(ctx: WindowCtx, vars: WindowVars, commands: WindowCommands, window: WindowRoot) -> Self {
+        Self {
+            c: OpenNestedHandlerArgsValue::Normal {
+                ctx,
+                vars,
+                commands,
+                window,
+            },
+        }
+    }
+
+    /// New window context.
+    pub fn ctx(&self) -> &WindowCtx {
+        match &self.c {
+            OpenNestedHandlerArgsValue::Normal { ctx, .. } | OpenNestedHandlerArgsValue::Nested { ctx, .. } => ctx,
+            OpenNestedHandlerArgsValue::TempNone => unreachable!(),
+        }
+    }
+
+    /// Window vars.
+    pub fn vars(&mut self) -> WindowVars {
+        let ctx = match &mut self.c {
+            OpenNestedHandlerArgsValue::Normal { ctx, .. } | OpenNestedHandlerArgsValue::Nested { ctx, .. } => ctx,
+            OpenNestedHandlerArgsValue::TempNone => unreachable!(),
+        };
+        WINDOW.with_context(ctx, || WINDOW.vars())
+    }
+
+    /// Instantiate a node that layouts and renders the window content.
+    ///
+    /// Note that the window will notify *open* like normal, but it will only be visible on this node.
+    pub fn nest(&mut self) -> NestedWindowNode {
+        match mem::replace(&mut self.c, OpenNestedHandlerArgsValue::TempNone) {
+            OpenNestedHandlerArgsValue::Normal {
+                mut ctx,
+                vars,
+                commands,
+                window,
+            } => {
+                let node = NestedWindowNode {
+                    c: Arc::new(Mutex::new(NestedContentCtrl {
+                        content: ContentCtrl::new(vars, commands, window),
+                        pending_layout: None,
+                        pending_render: None,
+                        pending_frame_capture: FrameCapture::None,
+                        ctx: ctx.share(),
+                        host: None,
+                    })),
+                };
+                self.c = OpenNestedHandlerArgsValue::Nested { ctx, node: node.c.clone() };
+                node
+            }
+            _ => panic!("already nesting"),
+        }
+    }
+
+    pub(crate) fn has_nested(&self) -> bool {
+        matches!(&self.c, OpenNestedHandlerArgsValue::Nested { .. })
+    }
+
+    pub(crate) fn take_normal(
+        self,
+    ) -> Result<(WindowCtx, WindowVars, WindowCommands, WindowRoot), (WindowCtx, Arc<Mutex<NestedContentCtrl>>)> {
+        match self.c {
+            OpenNestedHandlerArgsValue::Normal {
+                ctx,
+                vars,
+                commands,
+                window,
+            } => Ok((ctx, vars, commands, window)),
+            OpenNestedHandlerArgsValue::Nested { ctx, node } => Err((ctx, node)),
+            OpenNestedHandlerArgsValue::TempNone => unreachable!(),
+        }
+    }
+}

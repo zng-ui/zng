@@ -20,6 +20,7 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 use zng_clone_move::clmv;
+use zng_ext_window::WINDOWS;
 use zng_layout::unit::{Factor, FactorUnits};
 use zng_txt::Txt;
 use zng_var::{types::ArcCowVar, var, var_default, ArcVar, ReadOnlyArcVar, Var};
@@ -443,9 +444,9 @@ impl KeyboardService {
 
         // notify events
         if let Some(target) = focused {
-            if target.window_id() == args.window_id {
+            if target.window_id() == args.window_id || WINDOWS.nest_parent(target.window_id()).map(|(p, _)| p) == Some(args.window_id) {
                 let args = KeyInputArgs::now(
-                    args.window_id,
+                    target.window_id(),
                     args.device_id,
                     args.key_code,
                     args.key_location,

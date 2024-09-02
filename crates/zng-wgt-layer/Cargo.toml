@@ -25,3 +25,4 @@ zng-ext-input = { path = "../zng-ext-input", version = "0.5.17" }
 
 parking_lot = "0.12"
 serde = { version = "1.0", features = ["derive"] }
+tracing = "0.1"

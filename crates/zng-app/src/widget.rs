@@ -29,7 +29,7 @@ use zng_view_api::display_list::ReuseRange;
 use crate::{
     event::{Event, EventArgs, EventHandle, EventHandles},
     handler::{app_hn, app_hn_once, AppHandler, AppHandlerArgs},
-    update::{LayoutUpdates, RenderUpdates, UpdateFlags, UpdateOp, UPDATES},
+    update::{LayoutUpdates, RenderUpdates, UpdateFlags, UpdateOp, UpdatesTrace, UPDATES},
     window::WINDOW,
 };
 
@@ -771,6 +771,7 @@ impl WIDGET {
     ///
     /// After the current update the app-extensions, parent window and widgets will update again.
     pub fn update(&self) -> &Self {
+        UpdatesTrace::log_update();
         self.update_impl(UpdateFlags::UPDATE)
     }
 
@@ -778,6 +779,7 @@ impl WIDGET {
     ///
     /// After all requested updates apply the parent window and widgets will re-build the info tree.
     pub fn update_info(&self) -> &Self {
+        UpdatesTrace::log_info();
         self.update_impl(UpdateFlags::INFO)
     }
 
@@ -785,6 +787,7 @@ impl WIDGET {
     ///
     /// After all requested updates apply the parent window and widgets will re-layout.
     pub fn layout(&self) -> &Self {
+        UpdatesTrace::log_layout();
         self.update_impl(UpdateFlags::LAYOUT)
     }
 
@@ -796,6 +799,7 @@ impl WIDGET {
     ///
     /// [`render_update`]: Self::render_update
     pub fn render(&self) -> &Self {
+        UpdatesTrace::log_render();
         self.update_impl(UpdateFlags::RENDER)
     }
 
@@ -807,6 +811,7 @@ impl WIDGET {
     ///
     /// [`render`]: Self::render
     pub fn render_update(&self) -> &Self {
+        UpdatesTrace::log_render();
         self.update_impl(UpdateFlags::RENDER_UPDATE)
     }
 
@@ -1281,6 +1286,13 @@ impl WidgetCtx {
     /// Call `f` with an exclusive lock to the widget state.
     pub fn with_state<R>(&mut self, f: impl FnOnce(&mut OwnedStateMap<WIDGET>) -> R) -> R {
         f(&mut self.0.as_mut().unwrap().state.write())
+    }
+
+    /// Clone a reference to the widget context.
+    ///
+    /// This must be used only if the widget implementation is split.
+    pub fn share(&mut self) -> Self {
+        Self(self.0.clone())
     }
 }
 

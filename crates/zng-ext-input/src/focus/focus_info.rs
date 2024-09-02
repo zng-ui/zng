@@ -3,10 +3,14 @@ use std::sync::atomic::Ordering::Relaxed;
 
 use atomic::Atomic;
 use parking_lot::Mutex;
-use zng_app::widget::{
-    info::{TreeFilter, Visibility, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
-    WidgetId,
+use zng_app::{
+    widget::{
+        info::{TreeFilter, Visibility, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
+        WidgetId,
+    },
+    window::WindowId,
 };
+use zng_ext_window::NestedWindowWidgetInfoExt;
 use zng_layout::unit::{DistanceKey, Orientation2D, Px, PxBox, PxPoint, PxRect, PxSize};
 use zng_state_map::{static_id, StateId};
 use zng_unique_id::IdSet;
@@ -678,6 +682,20 @@ impl WidgetFocusInfo {
         self.focus_info().is_alt_scope()
     }
 
+    /// Gets the nested window ID, if this widget hosts a nested window.
+    ///
+    /// Nested window hosts always focus the nested window on focus.
+    pub fn nested_window(&self) -> Option<WindowId> {
+        self.info.nested_window()
+    }
+
+    /// Gets the nested window focus tree, if this widget hosts a nested window.
+    pub fn nested_window_tree(&self) -> Option<FocusInfoTree> {
+        self.info
+            .nested_window_tree()
+            .map(|t| FocusInfoTree::new(t, self.focus_disabled_widgets(), self.focus_hidden_widgets()))
+    }
+
     fn mode_allows_focus(&self) -> bool {
         let int = self.info.interactivity();
         if self.mode.contains(FocusMode::DISABLED) {
@@ -723,6 +741,16 @@ impl WidgetFocusInfo {
         if self.mode_allows_focus() {
             if let Some(builder) = self.info.meta().get(*FOCUS_INFO_ID) {
                 return builder.build();
+            } else if self.info.nested_window().is_some() {
+                // service will actually focus nested window
+                return FocusInfo::FocusScope {
+                    tab_index: TabIndex::AUTO,
+                    skip_directional: false,
+                    tab_nav: TabNav::Contained,
+                    directional_nav: DirectionalNav::Contained,
+                    on_focus: FocusScopeOnFocus::FirstDescendant,
+                    alt: false,
+                };
             }
         }
         FocusInfo::NotFocusable
@@ -817,7 +845,7 @@ impl WidgetFocusInfo {
         }
     }
     fn inner_alt_scope(&self) -> Option<WidgetFocusInfo> {
-        let inner_alt = self.info.meta().get(*FOCUS_INFO_ID).unwrap().inner_alt.load(Relaxed);
+        let inner_alt = self.info.meta().get(*FOCUS_INFO_ID)?.inner_alt.load(Relaxed);
         if let Some(id) = inner_alt {
             if let Some(wgt) = self.info.tree().get(id) {
                 let wgt = wgt.into_focus_info(self.focus_disabled_widgets(), self.focus_hidden_widgets());
@@ -1999,6 +2027,9 @@ impl FocusInfoData {
 /// [`directional_nav`](Self::directional_nav) and did not set [`scope`](Self::scope) to `false`.
 ///
 /// The widget is *focusable* if it set [`focusable`](Self::focusable) to `true` **or** if it set the [`tab_index`](Self::tab_index).
+///
+/// The widget is a *focus scope* if it sets [`nested_window`](NestedWindowWidgetInfoExt::nested_window), but the focus will always move inside
+/// the nested window.
 ///
 /// The widget is not focusable if it did not set any of the members mentioned.
 ///

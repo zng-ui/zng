@@ -68,6 +68,7 @@ pub(super) struct WindowsService {
     default_render_mode: ArcVar<RenderMode>,
     parallel: ArcVar<ParallelWin>,
     root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>>>, // Mutex for +Sync only.
+    open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut crate::OpenNestedHandlerArgs) + Send>>>,
 
     windows: IdMap<WindowId, AppWindow>,
     windows_info: IdMap<WindowId, AppWindowInfo>,
@@ -96,6 +97,7 @@ impl WindowsService {
             exit_on_last_close: var(true),
             default_render_mode: var(RenderMode::default()),
             root_extenders: Mutex::new(vec![]),
+            open_nested_handlers: Mutex::new(vec![]),
             parallel: var(ParallelWin::default()),
             windows: IdMap::default(),
             windows_info: IdMap::default(),
@@ -483,9 +485,18 @@ impl WINDOWS {
     ///
     /// [image error]: zng_ext_image::Img::error
     pub fn frame_image(&self, window_id: impl Into<WindowId>, mask: Option<ImageMaskMode>) -> ImageVar {
-        WINDOWS_SV
-            .write()
-            .frame_image_impl(window_id.into(), move |vr| vr.frame_image(mask))
+        let window_id = window_id.into();
+        if let Some((win, wgt)) = self.nest_parent(window_id) {
+            if let Ok(tree) = self.widget_tree(win) {
+                if let Some(wgt) = tree.get(wgt) {
+                    return WINDOWS_SV
+                        .write()
+                        .frame_image_impl(win, |vr| vr.frame_image_rect(wgt.inner_bounds(), mask));
+                }
+            }
+            tracing::error!("did not find nest parent {win:?}//.../{wgt:?}, will capture parent window frame")
+        }
+        WINDOWS_SV.write().frame_image_impl(window_id, move |vr| vr.frame_image(mask))
     }
 
     /// Generate an image from a rectangular selection of the current rendered frame of the window.
@@ -495,10 +506,22 @@ impl WINDOWS {
     /// If the window is not found the error is reported in the image error.
     ///
     /// [image error]: zng_ext_image::Img::error
-    pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
-        WINDOWS_SV
-            .write()
-            .frame_image_impl(window_id.into(), |vr| vr.frame_image_rect(rect, mask))
+    pub fn frame_image_rect(&self, window_id: impl Into<WindowId>, mut rect: PxRect, mask: Option<ImageMaskMode>) -> ImageVar {
+        let mut window_id = window_id.into();
+        if let Some((win, wgt)) = self.nest_parent(window_id) {
+            if let Ok(tree) = self.widget_tree(win) {
+                if let Some(wgt) = tree.get(wgt) {
+                    window_id = win;
+                    let bounds = wgt.inner_bounds();
+                    rect.origin += bounds.origin.to_vector();
+                    rect = rect.intersection(&bounds).unwrap_or_default();
+                }
+            }
+            if window_id != win {
+                tracing::error!("did not find nest parent {win:?}//.../{wgt:?}, will capture parent window frame")
+            }
+        }
+        WINDOWS_SV.write().frame_image_impl(window_id, |vr| vr.frame_image_rect(rect, mask))
     }
 
     /// Returns a shared reference the variables that control the window.
@@ -696,6 +719,30 @@ impl WINDOWS {
             .root_extenders
             .get_mut()
             .push(Box::new(move |a| extender(a).boxed()))
+    }
+
+    /// Register the closure `handler` to be called for every new window starting on the next update.
+    ///
+    /// The closure can use the args to inspect the new window context and optionally convert the request to a [`NestedWindowNode`].
+    /// Nested windows can be manipulated using the `WINDOWS` API just like other windows, but are layout and rendered inside another window.
+    ///
+    /// This is primarily an adapter for mobile platforms that only support one real window, it accelerates cross platform support from
+    /// projects originally desktop only. Note that this API is not recommended for implementing features such as *window docking* or
+    /// *tabbing*, you probably need to model *tabs* as objects that can outlive their host windows and use [`ArcNode`]
+    /// to transfer the content between host windows.
+    ///
+    /// [`NestedWindowNode`]: crate::NestedWindowNode
+    /// [`ArcNode`]: zng_app::widget::node::ArcNode
+    pub fn register_open_nested_handler(&self, handler: impl FnMut(&mut crate::OpenNestedHandlerArgs) + Send + 'static) {
+        WINDOWS_SV.write().open_nested_handlers.get_mut().push(Box::new(handler))
+    }
+
+    /// Gets the parent actual window and widget that hosts `maybe_nested` if it is open and nested.
+    pub fn nest_parent(&self, maybe_nested: impl Into<WindowId>) -> Option<(WindowId, WidgetId)> {
+        let vars = self.vars(maybe_nested.into()).ok()?;
+        let nest = vars.nest_parent().get()?;
+        let parent = vars.parent().get()?;
+        Some((parent, nest))
     }
 
     /// Add a view-process extension payload to the window request for the view-process.
@@ -1129,12 +1176,16 @@ impl WINDOWS {
                     let mut wns = WINDOWS_SV.write();
                     let loading = wns.open_loading.remove(&window_id).unwrap();
                     let mut root_extenders = mem::take(&mut wns.root_extenders);
+                    let mut open_nested_handlers = mem::take(&mut wns.open_nested_handlers);
                     drop(wns);
-                    let (window, info, responder) = task.finish(loading, &mut root_extenders.get_mut()[..]);
+                    let (window, info, responder) =
+                        task.finish(loading, &mut root_extenders.get_mut()[..], &mut open_nested_handlers.get_mut()[..]);
 
                     let mut wns = WINDOWS_SV.write();
                     root_extenders.get_mut().append(wns.root_extenders.get_mut());
+                    open_nested_handlers.get_mut().append(wns.open_nested_handlers.get_mut());
                     wns.root_extenders = root_extenders;
+                    wns.open_nested_handlers = open_nested_handlers;
 
                     if wns.windows.insert(window_id, window).is_some() {
                         // id conflict resolved on request.
@@ -1280,7 +1331,8 @@ impl WINDOWS {
                 *layout_widgets = w;
             }
             Err(_) => {
-                tracing::error!("layout_widgets not released by window")
+                // expected in nested windows
+                tracing::debug!("layout_widgets not released by window")
             }
         }
     }
@@ -1313,7 +1365,8 @@ impl WINDOWS {
                 *render_widgets = w;
             }
             Err(_) => {
-                tracing::error!("render_widgets not released by window")
+                // expected in nested windows
+                tracing::debug!("render_widgets not released by window")
             }
         }
         match Arc::try_unwrap(render_update_widgets_arc) {
@@ -1321,7 +1374,8 @@ impl WINDOWS {
                 *render_update_widgets = w;
             }
             Err(_) => {
-                tracing::error!("render_update_widgets not released by window")
+                // expected in nested windows
+                tracing::debug!("render_update_widgets not released by window")
             }
         }
     }
@@ -1480,6 +1534,7 @@ impl AppWindowTask {
         self,
         loading: WindowLoading,
         extenders: &mut [Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>],
+        open_nested_handlers: &mut [Box<dyn FnMut(&mut crate::OpenNestedHandlerArgs) + Send>],
     ) -> (AppWindow, AppWindowInfo, ResponderVar<WindowId>) {
         let mut window = self.task.into_inner().into_result().unwrap_or_else(|_| panic!());
         let mut ctx = self.ctx;
@@ -1514,7 +1569,19 @@ impl AppWindowTask {
         let commands = WindowCommands::new(id);
 
         let root_id = window.id;
-        let ctrl = WindowCtrl::new(&vars, commands, mode, window);
+
+        let mut args = crate::OpenNestedHandlerArgs::new(ctx, vars.clone(), commands, window);
+        for h in open_nested_handlers.iter_mut().rev() {
+            h(&mut args);
+            if args.has_nested() {
+                break;
+            }
+        }
+
+        let (ctx, ctrl) = match args.take_normal() {
+            Ok((ctx, vars, commands, window)) => (ctx, WindowCtrl::new(&vars, commands, mode, window)),
+            Err((ctx, node)) => (ctx, WindowCtrl::new_nested(node)),
+        };
 
         let window = AppWindow {
             ctrl: Mutex::new(ctrl),

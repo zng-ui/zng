@@ -15,6 +15,7 @@
 extern crate bitflags;
 
 mod control;
+pub use control::{NestedWindowNode, NestedWindowWidgetInfoExt, OpenNestedHandlerArgs};
 
 mod ime;
 pub use ime::*;
