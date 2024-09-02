@@ -872,7 +872,7 @@ fn build(mut args: Vec<&str>) {
 
 // do build-apk <EXAMPLE> [--release-lto] [--no-strip]
 //    Compile an example for Android using cargo-ndk and cargo zng res (.zr-apk)
-// 
+//
 // USAGE
 //    build-apk multi --no-strip
 //        Build 'multi' example with debug symbols to target/build-apk/multi.apk
