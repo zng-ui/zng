@@ -1797,7 +1797,7 @@ impl Api for App {
     fn focus(&mut self, id: WindowId) -> FocusResult {
         #[cfg(windows)]
         {
-            let (s, r) = self.with_window(id, |w| w.focus(), || (false, FocusResult::Requested));
+            let (r, s) = self.with_window(id, |w| w.focus(), || (false, FocusResult::Requested));
             self.skip_ralt = s;
             r
         }

@@ -961,7 +961,7 @@ impl Window {
         } else {
             zng_view_api::FocusResult::Requested
         };
-        (skip_ralt, r)
+        (r, skip_ralt)
     }
 
     /// Gets the current Maximized status as early as possible.
