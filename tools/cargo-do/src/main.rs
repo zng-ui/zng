@@ -870,10 +870,15 @@ fn build(mut args: Vec<&str>) {
     cmd_env("cargo", &cargo_args, &args, rust_flags);
 }
 
-// do build-apk <EXAMPLE> [--release-lto]
+// do build-apk <EXAMPLE> [--release-lto] [--no-strip]
 //    Compile an example for Android using cargo-ndk and cargo zng res (.zr-apk)
+//
+// USAGE
+//    build-apk multi --no-strip
+//        Build 'multi' example with debug symbols to target/build-apk/multi.apk
 fn build_apk(mut args: Vec<&str>) {
     let release_lto = take_flag(&mut args, &["--release-lto"]);
+    let no_strip = take_flag(&mut args, &["--no-strip"]);
     let e = match args.pop() {
         Some(e) => e,
         None => fatal("missing example"),
@@ -907,6 +912,9 @@ fn build_apk(mut args: Vec<&str>) {
     // cargo ndk with all installed Android targets
     let apk_lib_dir = apk_dir.join("lib").display().to_string();
     let mut ndk_args = vec!["ndk", "-o", apk_lib_dir.as_str()];
+    if no_strip {
+        ndk_args.push("--no-strip");
+    }
 
     let installed_targets = std::process::Command::new("rustup")
         .arg("target")

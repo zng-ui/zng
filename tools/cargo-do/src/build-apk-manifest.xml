@@ -8,7 +8,8 @@
 
     <application android:label="${EXAMPLE}"
         android:hasCode="false"
-        android:debuggable="true">
+        android:debuggable="true"
+        android:extractNativeLibs="true">
         <activity android:name="android.app.NativeActivity"
             android:label="${EXAMPLE}"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode">
