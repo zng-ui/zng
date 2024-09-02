@@ -1543,7 +1543,7 @@ pub use context_local_impl_single as context_local_impl;
 /// Defines a [`LocalContext::capture_filtered`] filter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CaptureFilter {
-    /// Don't capture any.
+    /// Don't capture anything, equivalent of [`LocalContext::new`].
     None,
 
     /// Capture all [`context_local!`] values and [`TracingDispatcherContext`].
@@ -1578,6 +1578,13 @@ impl CaptureFilter {
         Self::ContextLocals {
             exclude: ContextValueSet::new(),
         }
+    }
+
+    /// Only capture the [`app_local!`] and [`TracingDispatcherContext`].
+    pub fn app_only() -> Self {
+        let mut set = ContextValueSet::new();
+        set.insert_app();
+        Self::Include(set)
     }
 }
 
@@ -1650,6 +1657,13 @@ impl ContextValueSet {
         for o in other.0.iter() {
             self.0.remove(o);
         }
+    }
+
+    /// Insert the [`app_local!`] ID and [`TracingDispatcherContext`].
+    pub fn insert_app(&mut self) -> bool {
+        let inserted_app = self.0.insert(AppId::local_id());
+        static TRACING: TracingDispatcherContext = TracingDispatcherContext;
+        self.insert(&TRACING) || inserted_app
     }
 }
 impl fmt::Debug for ContextValueSet {

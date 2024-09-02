@@ -2530,7 +2530,8 @@ impl NestedWindowNode {
             .with_screen_ppi(LAYOUT.screen_ppi())
             .with_direction(DIRECTION_VAR.get());
 
-        LocalContext::new().with_context(|| {
+        // only the same app_local!, APP.id
+        LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only()).with_context(|| {
             WINDOW.with_context(&mut c.ctx, || {
                 WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
                     LAYOUT.with_root_context(c.content.layout_pass, metrics, || {
@@ -2642,7 +2643,8 @@ impl UiNode for NestedWindowNode {
         }
 
         if let Some([render_widgets, render_update_widgets]) = c.pending_render.take() {
-            LocalContext::new().with_context(|| {
+            // only the same app_local!, APP.id
+            LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only()).with_context(|| {
                 WINDOW.with_context(&mut c.ctx, || {
                     let root_id = c.content.root_ctx.id();
                     let root_bounds = c.content.root_ctx.bounds();
@@ -2674,7 +2676,8 @@ impl UiNode for NestedWindowNode {
         }
 
         if let Some([_, render_update_widgets]) = c.pending_render.take() {
-            LocalContext::new().with_context(|| {
+            // only the same app_local!, APP.id
+            LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only()).with_context(|| {
                 WINDOW.with_context(&mut c.ctx, || {
                     WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
                         update.with_nested_window(render_update_widgets, WIDGET.id(), WIDGET.bounds(), |update| {
