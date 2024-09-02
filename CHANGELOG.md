@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix app context in nested windows.
+* Add `CaptureFilter::app_only` and `ContextValueSet::insert_app`.
 
 # 0.11.4
 
