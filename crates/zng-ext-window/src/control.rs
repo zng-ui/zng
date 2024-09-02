@@ -2541,11 +2541,7 @@ impl NestedWindowNode {
                         let (min_size, max_size, pref_size) =
                             LAYOUT.with_constraints(root_cons.with_fill_vector(root_cons.is_bounded()), || {
                                 let max = c.content.vars.max_size().layout_dft(dft);
-                                (
-                                    c.content.vars.min_size().layout(),
-                                    max,
-                                    c.content.vars.size().layout_dft(max),
-                                )
+                                (c.content.vars.min_size().layout(), max, c.content.vars.size().layout_dft(max))
                             });
 
                         let min_size = min_size.max(root_cons.min_size());
