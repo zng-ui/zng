@@ -112,7 +112,7 @@ fn window_content() -> impl UiNode {
                 font_weight = FontWeight::SEMIBOLD;
             },
             Wrap! {
-                children = test_cmds.into_iter().map(|c| Button!(c)).collect::<UiNodeVec>();
+                children = test_cmds.into_iter().map(|c| Button!(c)).collect::<UiVec>();
                 spacing = 4;
                 zng::button::style_fn = Style! {
                     layout::padding = 2;
@@ -178,7 +178,7 @@ fn locale_menu() -> impl UiNode {
                                 value::<zng::l10n::Lang> = l.clone();
                             }
                         })
-                        .collect::<UiNodeVec>()
+                        .collect::<UiVec>()
                 }
             }),
         )

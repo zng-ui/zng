@@ -365,7 +365,7 @@ fn exclusive_mode() -> impl UiNode {
                                     value = o;
                                 }
                             })
-                            .collect::<UiNodeVec>();
+                            .collect::<UiVec>();
                     }
                 };
             }

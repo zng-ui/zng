@@ -21,13 +21,13 @@
 //!         width = length.clone();
 //!         widget::background_color = color.with_alpha(10.pct());
 //!     })
-//!     .collect::<UiNodeVec>();
+//!     .collect::<UiVec>();
 //!
 //!     rows = length_color.iter().map(|(length, color)| grid::Row! {
 //!         height = length.clone();
 //!         widget::background_color = color.with_alpha(10.pct());
 //!     })
-//!     .collect::<UiNodeVec>();
+//!     .collect::<UiVec>();
 //!
 //!     cells = (0..3).flat_map(|col| (0..3usize).map(move |row| Text! {
 //!         grid::cell::at = (col, row);
@@ -40,7 +40,7 @@
 //!             widget::border = 1, colors::AZURE;
 //!         }
 //!     }))
-//!     .collect::<UiNodeVec>();
+//!     .collect::<UiVec>();
 //! };
 //! # ;
 //! ```
@@ -73,7 +73,7 @@
 //!             widget::border = 1, colors::AZURE;
 //!         }
 //!     }))
-//!     .collect::<UiNodeVec>();
+//!     .collect::<UiVec>();
 //! }
 //! # ;
 //! ```

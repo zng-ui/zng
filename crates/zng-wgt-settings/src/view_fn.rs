@@ -1,7 +1,7 @@
 use zng_app::{
     static_id,
     widget::{
-        node::{BoxedUiNode, UiNode, UiNodeVec},
+        node::{BoxedUiNode, UiNode, UiVec},
         property,
     },
 };
@@ -252,7 +252,7 @@ pub struct CategoryHeaderArgs {
 /// The selected category variable is in [`SETTINGS.editor_selected_category`](SettingsCtxExt::editor_selected_category).
 pub struct CategoriesListArgs {
     /// The item views.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a widget function that makes a setting container.
@@ -270,7 +270,7 @@ pub struct SettingsArgs {
     /// The category header.
     pub header: BoxedUiNode,
     /// The items.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a search box widget.

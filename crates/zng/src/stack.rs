@@ -32,7 +32,7 @@
 //!         child = Text!(label);
 //!         value::<StackDirection> = direction;
 //!     })
-//!     .collect::<UiNodeVec>();
+//!     .collect::<UiVec>();
 //! }
 //! # ;
 //! ```

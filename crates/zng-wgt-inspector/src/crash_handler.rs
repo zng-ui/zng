@@ -102,7 +102,7 @@ fn panels(error: &CrashError) -> impl UiNode {
             children = options.iter().map(|p| Toggle! {
                 child = Text!(p.title());
                 value = *p;
-            }).collect::<UiNodeVec>();
+            }).collect::<UiVec>();
             toggle::style_fn = Style! {
                 padding = (2, 4);
                 corner_radius = 2;

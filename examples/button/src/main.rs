@@ -255,7 +255,7 @@ fn combo_box() -> impl UiNode {
                             value::<Txt> = o;
                         }
                     })
-                    .collect::<UiNodeVec>();
+                    .collect::<UiVec>();
             };
         })
     }

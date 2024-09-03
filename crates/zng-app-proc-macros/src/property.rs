@@ -182,7 +182,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             #core::widget::node::NilUiNode,
                         }),
                         InputKind::UiNodeList => default.extend(quote! {
-                            #core::widget::node::UiNodeVec::new(),
+                            #core::widget::node::UiVec::new(),
                         }),
                         InputKind::WidgetHandler if !has_generics => default.extend(quote! {
                             #core::handler::hn!(|_| {}),

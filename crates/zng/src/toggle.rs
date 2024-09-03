@@ -168,7 +168,7 @@
 //!                 child = Text!(o);
 //!                 value::<Txt> = o;
 //!             })
-//!             .collect::<UiNodeVec>();
+//!             .collect::<UiVec>();
 //!         };
 //!     })
 //! }

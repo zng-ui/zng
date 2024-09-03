@@ -18,7 +18,7 @@ use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
 use super::*;
 
-/// Creates an [`UiNodeVec`] containing the arguments.
+/// Creates an [`UiVec`] containing the arguments.
 ///  
 /// Note that the items can be node type, `ui_vec!` automatically calls [`UiNode::boxed`] for each item.
 ///
@@ -49,11 +49,11 @@ use super::*;
 /// generate the nodes.
 #[macro_export]
 macro_rules! ui_vec {
-    () => { $crate::widget::node::UiNodeVec::new() };
+    () => { $crate::widget::node::UiVec::new() };
     ($node:expr; $n:expr) => {
         {
             let mut n: usize = $n;
-            let mut vec = $crate::widget::node::UiNodeVec::with_capacity(n);
+            let mut vec = $crate::widget::node::UiVec::with_capacity(n);
             while n > 0 {
                 vec.push($node);
                 n -= 1;
@@ -119,7 +119,7 @@ macro_rules! ui_vec_items {
         match { }
         result { $($r:tt)* }
     ) => {
-        $crate::widget::node::UiNodeVec(std::vec![
+        $crate::widget::node::UiVec(std::vec![
             $($r)*
         ])
     };
@@ -231,12 +231,16 @@ impl UiNodeList for Vec<BoxedUiNode> {
     }
 }
 
+#[doc(hidden)]
+#[deprecated = "renamed to `UiVec`"]
+pub type UiNodeVec = UiVec;
+
 /// Vec of boxed UI nodes.
 ///
 /// This is a thin wrapper around `Vec<BoxedUiNode>` that adds helper methods for pushing widgets without needing to box.
 #[derive(Default)]
-pub struct UiNodeVec(pub Vec<BoxedUiNode>);
-impl UiNodeVec {
+pub struct UiVec(pub Vec<BoxedUiNode>);
+impl UiVec {
     /// New default.
     pub fn new() -> Self {
         Self::default()
@@ -263,34 +267,34 @@ impl UiNodeVec {
         self.0.insert(index, node.boxed())
     }
 }
-impl ops::Deref for UiNodeVec {
+impl ops::Deref for UiVec {
     type Target = Vec<BoxedUiNode>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl ops::DerefMut for UiNodeVec {
+impl ops::DerefMut for UiVec {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
-impl From<Vec<BoxedUiNode>> for UiNodeVec {
+impl From<Vec<BoxedUiNode>> for UiVec {
     fn from(vec: Vec<BoxedUiNode>) -> Self {
         Self(vec)
     }
 }
-impl From<UiNodeVec> for Vec<BoxedUiNode> {
-    fn from(vec: UiNodeVec) -> Self {
+impl From<UiVec> for Vec<BoxedUiNode> {
+    fn from(vec: UiVec) -> Self {
         vec.0
     }
 }
-impl<U: UiNode> FromIterator<U> for UiNodeVec {
+impl<U: UiNode> FromIterator<U> for UiVec {
     fn from_iter<T: IntoIterator<Item = U>>(iter: T) -> Self {
         Self(Vec::from_iter(iter.into_iter().map(UiNode::boxed)))
     }
 }
-impl IntoIterator for UiNodeVec {
+impl IntoIterator for UiVec {
     type Item = BoxedUiNode;
 
     type IntoIter = std::vec::IntoIter<BoxedUiNode>;
@@ -300,7 +304,7 @@ impl IntoIterator for UiNodeVec {
     }
 }
 
-impl UiNodeList for UiNodeVec {
+impl UiNodeList for UiVec {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
     where
         F: FnOnce(&mut BoxedUiNode) -> R,

@@ -574,7 +574,7 @@ mod __prelude {
         shortcut::{shortcut, CommandShortcutExt as _},
         widget::{
             easing,
-            node::{ui_vec, UiNode, UiNodeList, UiNodeListChain as _, UiNodeVec},
+            node::{ui_vec, UiNode, UiNodeList, UiNodeListChain as _, UiVec},
             AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WidgetId, WIDGET,
         },
         window::{WindowId, WINDOW},
@@ -743,7 +743,7 @@ mod __prelude_wgt {
             node::{
                 match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, ArcNode, ArcNodeList, BoxedUiNode,
                 BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList, UiNode,
-                UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiNodeVec, ZIndex, SORTING_LIST,
+                UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiVec, ZIndex, SORTING_LIST,
             },
             property, ui_node, widget, widget_impl, widget_mixin, widget_set, AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _,
             WidgetId, WidgetUpdateMode, WIDGET,
