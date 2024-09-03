@@ -918,7 +918,7 @@ impl FsChangesArgs {
     }
 
     /// Iterate over all changes that affects paths that are equal to `path` or inside it.
-    pub fn changes_for_path<'a>(&'a self, path: &'a Path) -> impl Iterator<Item = &FsChange> + 'a {
+    pub fn changes_for_path<'a>(&'a self, path: &'a Path) -> impl Iterator<Item = &'a FsChange> + 'a {
         self.changes.iter().filter(move |c| c.is_for_path(path))
     }
 
@@ -929,7 +929,7 @@ impl FsChangesArgs {
     }
 
     /// Iterate over all change events that affects paths that are equal to `path` or inside it.
-    pub fn events_for_path<'a>(&'a self, path: &'a Path) -> impl Iterator<Item = &fs_event::Event> + 'a {
+    pub fn events_for_path<'a>(&'a self, path: &'a Path) -> impl Iterator<Item = &'a fs_event::Event> + 'a {
         self.events().filter(move |ev| ev.paths.iter().any(|p| p.starts_with(path)))
     }
 }
