@@ -45,7 +45,7 @@ use zng_view_api::{
         EventCause, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, RenderMode, WindowRequest,
         WindowState, WindowStateAll,
     },
-    Ime, ViewProcessOffline,
+    FocusResult, Ime, ViewProcessOffline,
 };
 use zng_wgt::prelude::WidgetInfo;
 
@@ -1359,7 +1359,15 @@ impl HeadedCtrl {
 
     pub fn focus(&mut self) {
         self.update_gen(|view| {
-            let _ = view.focus();
+            let r = view.focus();
+            if let Ok(FocusResult::AlreadyFocused) = r {
+                let prev = WINDOWS.focused_window_id();
+                let new = Some(WINDOW.id());
+                if prev != new {
+                    // probably prev is a nested window
+                    RAW_WINDOW_FOCUS_EVENT.notify(RawWindowFocusArgs::now(prev, new));
+                }
+            }
         });
     }
 

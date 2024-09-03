@@ -344,7 +344,7 @@ declare_api! {
     /// window is not visible, minimized or already focused.
     ///
     /// This request can steal focus from other apps disrupting the user, be careful with it.
-    pub fn focus(&mut self, id: WindowId);
+    pub fn focus(&mut self, id: WindowId) -> FocusResult;
 
     /// Moves the window with the left mouse button until the button is released.
     ///

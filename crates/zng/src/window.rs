@@ -203,7 +203,8 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                             child_end = Button! {
                                 style_fn = zng::button::LightStyle!();
                                 child = ICONS.get_or("close", || Text!("x"));
-                                on_click = hn!(|_| {
+                                on_click = hn!(|args: &gesture::ClickArgs| {
+                                    args.propagation().stop();
                                     let _ = WINDOWS.close(id);
                                 });
                             }, 4;

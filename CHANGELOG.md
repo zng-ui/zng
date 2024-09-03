@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix focus not returning to main window after nested window closes.
+* **Breaking** View API focus now returns a new `FocusResult`.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api` and `zng-app`.
 * Fix app context in nested windows.
 * Add `CaptureFilter::app_only` and `ContextValueSet::insert_app`.
 
