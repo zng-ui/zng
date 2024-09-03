@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix nested window render update flickering.
 * Fix focus not returning to main window after nested window closes.
 * **Breaking** View API focus now returns a new `FocusResult`.
     - Note that this is only a breaking change for direct dependents of `zng-view-api` and `zng-app`.
