@@ -212,7 +212,7 @@ impl DefaultStyle {
                                 DialogButtonArgs { response: r, is_last: i == last },
                                 BUTTON_FN_VAR
                             ).boxed())
-                            .collect::<UiNodeVec>()
+                            .collect::<UiVec>()
                     };
                 }
             })), 0;

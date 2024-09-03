@@ -7,7 +7,7 @@ use crate::{
     ui_vec,
     widget::{
         base::PARALLEL_VAR,
-        node::{PanelList, UiNode, UiNodeList, UiNodeVec},
+        node::{PanelList, UiNode, UiNodeList, UiVec},
         WidgetUpdateMode,
     },
     window::WINDOW,
@@ -67,7 +67,7 @@ pub fn nested_par_each_ctx() {
                     ];
                 }
             })
-            .collect::<UiNodeVec>();
+            .collect::<UiVec>();
     };
 
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {
@@ -91,7 +91,7 @@ pub fn par_each_ctx() {
                     }
                 ]
             })
-            .collect::<UiNodeVec>();
+            .collect::<UiVec>();
     };
 
     WINDOW.with_test_context(WidgetUpdateMode::Bubble, || {

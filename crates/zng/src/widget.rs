@@ -217,7 +217,7 @@ pub mod node {
         AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList, EditableUiNodeListRef,
         FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver, PanelList, PanelListData,
         PanelListRange, SortingList, UiNode, UiNodeList, UiNodeListChain, UiNodeListChainImpl, UiNodeListObserver, UiNodeOp,
-        UiNodeOpMethod, UiNodeVec, WeakNode, WeakNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder, SORTING_LIST, Z_INDEX,
+        UiNodeOpMethod, UiVec, WeakNode, WeakNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder, SORTING_LIST, Z_INDEX,
     };
 
     pub use zng_wgt::node::{

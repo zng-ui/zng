@@ -182,7 +182,7 @@ fn settings_view_fn() -> impl UiNode {
         editor_state.map_ref(|r| &r.as_ref().unwrap().categories),
         wgt_fn!(|categories: Vec<Category>| {
             let cat_fn = CATEGORY_ITEM_FN_VAR.get();
-            let categories: UiNodeVec = categories
+            let categories: UiVec = categories
                 .into_iter()
                 .enumerate()
                 .map(|(i, c)| cat_fn(CategoryItemArgs { index: i, category: c }))
@@ -202,7 +202,7 @@ fn settings_view_fn() -> impl UiNode {
             } = state.unwrap();
             let setting_fn = SETTING_FN_VAR.get();
 
-            let settings: UiNodeVec = selected_settings
+            let settings: UiVec = selected_settings
                 .into_iter()
                 .enumerate()
                 .map(|(i, s)| {
