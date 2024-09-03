@@ -1875,7 +1875,8 @@ impl FrameBuilder {
         );
         nested.display_list = self.display_list.parallel_split();
         nested.hit_clips = self.hit_clips.parallel_split();
-        nested.widget_count_offsets = self.widget_count_offsets.parallel_split();
+        // not this, different info tree for the nested window
+        // nested.widget_count_offsets = self.widget_count_offsets.parallel_split();
 
         render(&mut nested);
 
@@ -1907,8 +1908,8 @@ impl FrameBuilder {
         self.hit_clips.parallel_fold(nested.hit_clips);
         self.display_list.parallel_fold(nested.display_list);
 
-        self.widget_count_offsets
-            .parallel_fold(nested.widget_count_offsets, self.widget_count);
+        // self.widget_count_offsets
+        //     .parallel_fold(nested.widget_count_offsets, self.widget_count);
 
         self.widget_count += nested.widget_count;
         self.debug_dot_overlays.extend(nested.debug_dot_overlays);
