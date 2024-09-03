@@ -472,7 +472,7 @@ impl<T: Send + Sync + 'static> AppLocalOption<T> {
         }
     }
 
-    fn read_impl(&'static self, read: RwLockReadGuard<'static, Option<T>>) -> MappedRwLockReadGuard<T> {
+    fn read_impl(&'static self, read: RwLockReadGuard<'static, Option<T>>) -> MappedRwLockReadGuard<'static, T> {
         if read.is_some() {
             return RwLockReadGuard::map(read, |v| v.as_ref().unwrap());
         }
@@ -492,7 +492,7 @@ impl<T: Send + Sync + 'static> AppLocalOption<T> {
         RwLockReadGuard::map(read, |v| v.as_ref().unwrap())
     }
 
-    fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Option<T>>) -> MappedRwLockWriteGuard<T> {
+    fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Option<T>>) -> MappedRwLockWriteGuard<'static, T> {
         if write.is_some() {
             return RwLockWriteGuard::map(write, |v| v.as_mut().unwrap());
         }
@@ -538,7 +538,7 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
         }
     }
 
-    fn read_impl(&'static self, read: RwLockReadGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockReadGuard<T> {
+    fn read_impl(&'static self, read: RwLockReadGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockReadGuard<'static, T> {
         let id = LocalContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
 
         if let Some(i) = read.iter().position(|(s, _)| *s == id) {
@@ -563,7 +563,7 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
         RwLockReadGuard::map(read, |v| &v[i].1)
     }
 
-    fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockWriteGuard<T> {
+    fn write_impl(&'static self, mut write: RwLockWriteGuard<'static, Vec<(AppId, T)>>) -> MappedRwLockWriteGuard<'static, T> {
         let id = LocalContext::current_app().expect("no app running, `app_local` can only be accessed inside apps");
 
         if let Some(i) = write.iter().position(|(s, _)| *s == id) {
@@ -581,60 +581,60 @@ impl<T: Send + Sync + 'static> AppLocalVec<T> {
 }
 #[doc(hidden)]
 pub trait AppLocalImpl<T: Send + Sync + 'static>: Send + Sync + 'static {
-    fn read(&'static self) -> MappedRwLockReadGuard<T>;
-    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>>;
-    fn write(&'static self) -> MappedRwLockWriteGuard<T>;
-    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>>;
+    fn read(&'static self) -> MappedRwLockReadGuard<'static, T>;
+    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>>;
+    fn write(&'static self) -> MappedRwLockWriteGuard<'static, T>;
+    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>>;
 }
 
 impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalVec<T> {
-    fn read(&'static self) -> MappedRwLockReadGuard<T> {
+    fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
         self.read_impl(self.value.read_recursive())
     }
 
-    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
         Some(self.read_impl(self.value.try_read_recursive()?))
     }
 
-    fn write(&'static self) -> MappedRwLockWriteGuard<T> {
+    fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
         self.write_impl(self.value.write())
     }
 
-    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
         Some(self.write_impl(self.value.try_write()?))
     }
 }
 impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalOption<T> {
-    fn read(&'static self) -> MappedRwLockReadGuard<T> {
+    fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
         self.read_impl(self.value.read_recursive())
     }
 
-    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
         Some(self.read_impl(self.value.try_read_recursive()?))
     }
 
-    fn write(&'static self) -> MappedRwLockWriteGuard<T> {
+    fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
         self.write_impl(self.value.write())
     }
 
-    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
         Some(self.write_impl(self.value.try_write()?))
     }
 }
 impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalConst<T> {
-    fn read(&'static self) -> MappedRwLockReadGuard<T> {
+    fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
         RwLockReadGuard::map(self.value.read(), |l| l)
     }
 
-    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+    fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
         Some(RwLockReadGuard::map(self.value.try_read()?, |l| l))
     }
 
-    fn write(&'static self) -> MappedRwLockWriteGuard<T> {
+    fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
         RwLockWriteGuard::map(self.value.write(), |l| l)
     }
 
-    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+    fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
         Some(RwLockWriteGuard::map(self.value.try_write()?, |l| l))
     }
 }
@@ -664,7 +664,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
-    pub fn read(&'static self) -> MappedRwLockReadGuard<T> {
+    pub fn read(&'static self) -> MappedRwLockReadGuard<'static, T> {
         (self.inner)().read()
     }
 
@@ -678,7 +678,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
-    pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<T>> {
+    pub fn try_read(&'static self) -> Option<MappedRwLockReadGuard<'static, T>> {
         (self.inner)().try_read()
     }
 
@@ -690,7 +690,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     ///
     /// Panics if no app is running in `"multi_app"` builds.
     #[inline]
-    pub fn write(&'static self) -> MappedRwLockWriteGuard<T> {
+    pub fn write(&'static self) -> MappedRwLockWriteGuard<'static, T> {
         (self.inner)().write()
     }
 
@@ -703,7 +703,7 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
     /// # Panics
     ///
     /// Panics if no app is running in `"multi_app"` builds.
-    pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<T>> {
+    pub fn try_write(&'static self) -> Option<MappedRwLockWriteGuard<'static, T>> {
         (self.inner)().try_write()
     }
 
@@ -749,26 +749,26 @@ impl<T: Send + Sync + 'static> AppLocal<T> {
 
     /// Create a read lock and `map` it to a sub-value.
     #[inline]
-    pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuard<O> {
+    pub fn read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> MappedRwLockReadGuard<'static, O> {
         MappedRwLockReadGuard::map(self.read(), map)
     }
 
     /// Try to create a read lock and `map` it to a sub-value.
     #[inline]
-    pub fn try_read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<O>> {
+    pub fn try_read_map<O>(&'static self, map: impl FnOnce(&T) -> &O) -> Option<MappedRwLockReadGuard<'static, O>> {
         let lock = self.try_read()?;
         Some(MappedRwLockReadGuard::map(lock, map))
     }
 
     /// Create a write lock and `map` it to a sub-value.
     #[inline]
-    pub fn write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuard<O> {
+    pub fn write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> MappedRwLockWriteGuard<'static, O> {
         MappedRwLockWriteGuard::map(self.write(), map)
     }
 
     /// Try to create a write lock and `map` it to a sub-value.
     #[inline]
-    pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRwLockWriteGuard<O>> {
+    pub fn try_write_map<O>(&'static self, map: impl FnOnce(&mut T) -> &mut O) -> Option<MappedRwLockWriteGuard<'static, O>> {
         let lock = self.try_write()?;
         Some(MappedRwLockWriteGuard::map(lock, map))
     }
