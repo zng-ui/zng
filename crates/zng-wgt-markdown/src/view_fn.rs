@@ -54,7 +54,7 @@ pub struct LinkFnArgs {
     pub title: Txt,
 
     /// Inline items.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown inlined code text view.
@@ -86,7 +86,7 @@ pub struct ParagraphFnArgs {
     /// Zero-sized index of the paragraph.
     pub index: u32,
     /// Inline items.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown heading view.
@@ -98,7 +98,7 @@ pub struct HeadingFnArgs {
     pub anchor: Txt,
 
     /// Inline items.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown list view.
@@ -112,7 +112,7 @@ pub struct ListFnArgs {
     /// List items.
     ///
     /// Each two items are the bullet or number followed by the item.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown list item bullet, check mark or number.
@@ -134,10 +134,10 @@ pub struct ListItemFnArgs {
     pub bullet: ListItemBulletFnArgs,
 
     /// Inline items of the list item.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 
     /// Inner block items, paragraphs and nested lists.
-    pub blocks: UiNodeVec,
+    pub blocks: UiVec,
 }
 
 /// Arguments for a markdown definition list.
@@ -145,19 +145,19 @@ pub struct DefListArgs {
     /// List items.
     ///
     /// Each two items are the title and definition.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown definition list item title.
 pub struct DefListItemTitleArgs {
     /// Inline items of the title.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown definition list item description.
 pub struct DefListItemDefinitionArgs {
     /// Inline items of the description.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown image view.
@@ -169,7 +169,7 @@ pub struct ImageFnArgs {
     /// Image title, usually displayed as a tooltip.
     pub title: Txt,
     /// Items to display when the image does not load and for screen readers.
-    pub alt_items: UiNodeVec,
+    pub alt_items: UiVec,
     /// Alt items in text form.
     pub alt_txt: Txt,
 }
@@ -189,7 +189,7 @@ pub struct BlockQuoteFnArgs {
     pub level: u32,
 
     /// Block items.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown footnote reference view.
@@ -205,7 +205,7 @@ pub struct FootnoteDefFnArgs {
     /// Identifier label.
     pub label: Txt,
     /// Block items.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown table view.
@@ -215,7 +215,7 @@ pub struct TableFnArgs {
     /// Column definitions with align.
     pub columns: Vec<Align>,
     /// Cell items.
-    pub cells: UiNodeVec,
+    pub cells: UiVec,
 }
 
 /// Arguments for a markdown table cell view.
@@ -229,7 +229,7 @@ pub struct TableCellFnArgs {
     pub col_align: Align,
 
     /// Inline items.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 /// Arguments for a markdown panel.
@@ -237,7 +237,7 @@ pub struct TableCellFnArgs {
 /// See [`PANEL_FN_VAR`] for more details.
 pub struct PanelFnArgs {
     /// Block items.
-    pub items: UiNodeVec,
+    pub items: UiVec,
 }
 
 context_var! {
@@ -887,7 +887,7 @@ pub fn default_table_fn(args: TableFnArgs) -> impl UiNode {
                 }
             }
         });
-        columns = std::iter::repeat_with(|| grid::Column!{}.boxed()).take(args.columns.len()).collect::<UiNodeVec>();
+        columns = std::iter::repeat_with(|| grid::Column!{}.boxed()).take(args.columns.len()).collect::<UiVec>();
         cells = args.cells;
     }
 }

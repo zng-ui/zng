@@ -315,7 +315,7 @@ fn cube_example() -> impl UiNode {
                             }
                             .boxed()
                         })
-                        .collect::<UiNodeVec>();
+                        .collect::<UiVec>();
 
                     transform = show
                         .map(|&i| {
@@ -345,7 +345,7 @@ fn cube_example() -> impl UiNode {
                             child = Text!(i.to_txt());
                         }
                     })
-                    .collect::<UiNodeVec>();
+                    .collect::<UiVec>();
             }
         ];
     }

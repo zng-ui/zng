@@ -26,7 +26,7 @@ pub async fn bw_rgb(render_mode: RenderMode, scale_factor: Factor) {
                             layout::size = (5, 10);
                         }
                     })
-                    .collect::<UiNodeVec>()
+                    .collect::<UiVec>()
             }
         }),
     );

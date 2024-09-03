@@ -167,7 +167,7 @@ pub fn default_undo_stack_fn(args: UndoStackArgs) -> impl UiNode {
     let entry = UNDO_ENTRY_FN_VAR.get();
 
     let timestamps;
-    let children: UiNodeVec;
+    let children: UiVec;
 
     if GROUP_BY_UNDO_INTERVAL_VAR.get() {
         let mut ts = vec![];

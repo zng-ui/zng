@@ -223,7 +223,7 @@ fn default_view() -> impl UiNode {
                         a.set_view(Stack! {
                             toggle::selector = toggle::Selector::single(selected.clone());
                             direction = StackDirection::top_to_bottom();
-                            children = licenses.into_iter().map(default_item_view).collect::<UiNodeVec>();
+                            children = licenses.into_iter().map(default_item_view).collect::<UiVec>();
                         })
                     });
                 };

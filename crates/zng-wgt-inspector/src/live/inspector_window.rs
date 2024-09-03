@@ -375,7 +375,7 @@ fn tree_item_view(wgt: InspectedWidget, filter: impl Var<Txt>, parent_desc_filte
         };
 
         child_bottom = presenter(wgt.children(), wgt_fn!(descendants_pass_filter, |children: Vec<InspectedWidget>| {
-            let children: UiNodeVec = children.into_iter().map(|c| {
+            let children: UiVec = children.into_iter().map(|c| {
                 tree_item_view(c, filter.clone(), descendants_pass_filter.clone())
             }).collect();
             if children.is_empty() {
@@ -469,8 +469,8 @@ fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
 
 fn inspector_info_view(info: InspectedInfo) -> impl UiNode {
     let mut current_group = None;
-    let mut group_items = UiNodeVec::new();
-    let mut out = UiNodeVec::new();
+    let mut group_items = UiVec::new();
+    let mut out = UiVec::new();
 
     for item in info.items.iter() {
         match item {
@@ -513,7 +513,7 @@ fn inspector_info_view(info: InspectedInfo) -> impl UiNode {
     }
 }
 
-fn nest_group_view(group: NestGroup, mut items: UiNodeVec) -> impl UiNode {
+fn nest_group_view(group: NestGroup, mut items: UiVec) -> impl UiNode {
     items.insert(
         0,
         Text! {
@@ -601,7 +601,7 @@ fn intrinsic_view(name: &'static str) -> impl UiNode {
 }
 
 fn info_watchers(wgt: &InspectedWidget) -> impl UiNode {
-    let mut children = UiNodeVec::new();
+    let mut children = UiVec::new();
     children.push(Text! {
         txt = "interactivity: ";
     });

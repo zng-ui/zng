@@ -326,7 +326,7 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                 }
                 TagEnd::BlockQuote(_) => {
                     if let Some(start) = block_quote_start.pop() {
-                        let items: UiNodeVec = blocks.drain(start..).collect();
+                        let items: UiVec = blocks.drain(start..).collect();
                         if !items.is_empty() {
                             blocks.push(block_quote_view(BlockQuoteFnArgs {
                                 level: block_quote_start.len() as u32,
