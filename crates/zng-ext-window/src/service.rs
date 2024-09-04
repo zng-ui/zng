@@ -941,6 +941,14 @@ impl WINDOWS {
                     if window.is_focused {
                         window.is_focused = false;
                         prev = Some(prev_focus);
+                    } else if args.new_focus.is_none() {
+                        if let Some(focused) = wns.windows_info.values_mut().find(|w| w.is_focused) {
+                            if focused.vars.nest_parent().get().is_some() && focused.vars.parent().get() == Some(prev_focus) {
+                                // focus is in nested window of the system window that lost app focus.
+                                focused.is_focused = false;
+                                prev = Some(focused.id);
+                            }
+                        }
                     }
                 }
             }
