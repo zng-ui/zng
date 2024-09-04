@@ -316,10 +316,7 @@ fn command_handler(child: impl UiNode) -> impl UiNode {
 
 /// Set a [`SETTINGS_CMD`] handler that shows the settings window.
 pub fn handle_settings_cmd() {
-    use zng_app::{
-        event::AnyEventArgs as _,
-        window::WINDOW,
-    };
+    use zng_app::{event::AnyEventArgs as _, window::WINDOW};
 
     SETTINGS_CMD
         .on_event(
