@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add missing `zng::event::AppCommandArgs`, command app level event handling is part of the surface API.
+* Fix nested window render update flickering.
 * *Deprecated* Renamed `UiNodeVec` to `UiVec`, old name is now a deprecated type alias.
 * Fix focus not returning to main window after nested window closes.
 * **Breaking** View API focus now returns a new `FocusResult`.
