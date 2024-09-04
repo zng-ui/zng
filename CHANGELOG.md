@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix context menu not opening in nested windows.
 * Fix context menus of child and parent opening at the same time.
 * Add missing `zng::event::AppCommandArgs`, command app level event handling is part of the surface API.
 * Fix nested window render update flickering.
