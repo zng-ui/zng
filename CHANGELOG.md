@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `AnyEventArgs::backtrace` for tracking event args sources.
 * Fix focus not clearing from nested window when parent window loses focus on the system.
 * Fix context menus of child and parent opening at the same time.
 * Add missing `zng::event::AppCommandArgs`, command app level event handling is part of the surface API.
