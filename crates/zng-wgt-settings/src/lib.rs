@@ -316,12 +316,8 @@ fn command_handler(child: impl UiNode) -> impl UiNode {
 
 /// Set a [`SETTINGS_CMD`] handler that shows the settings window.
 pub fn handle_settings_cmd() {
-    use zng_app::{
-        event::AnyEventArgs as _,
-        window::{WindowId, WINDOW},
-    };
+    use zng_app::{event::AnyEventArgs as _, window::WINDOW};
 
-    let id = WindowId::named("zng-config-settings-default");
     SETTINGS_CMD
         .on_event(
             true,
@@ -334,7 +330,7 @@ pub fn handle_settings_cmd() {
 
                 let parent = WINDOWS.focused_window_id();
 
-                let new_window = WINDOWS.focus_or_open(id, async move {
+                let new_window = WINDOWS.focus_or_open("zng-config-settings-default", async move {
                     if let Some(p) = parent {
                         if let Ok(p) = WINDOWS.vars(p) {
                             let v = WINDOW.vars();

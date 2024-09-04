@@ -2650,29 +2650,28 @@ impl UiNode for NestedWindowNode {
             return;
         }
 
-        if let Some([render_widgets, render_update_widgets]) = c.pending_render.take() {
-            // only the same app_local!, APP.id
-            LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only()).with_context(|| {
-                WINDOW.with_context(&mut c.ctx, || {
-                    let root_id = c.content.root_ctx.id();
-                    let root_bounds = c.content.root_ctx.bounds();
-                    WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
-                        frame.with_nested_window(
-                            render_widgets,
-                            render_update_widgets,
-                            root_id,
-                            &root_bounds,
-                            &WINDOW.info(),
-                            FontAntiAliasing::Default,
-                            |frame| {
-                                c.content.root.render(frame);
-                            },
-                        );
-                    });
-                    c.pending_frame_capture = c.content.take_frame_capture();
-                })
+        let [render_widgets, render_update_widgets] = c.pending_render.take().unwrap_or_default();
+        // only the same app_local!, APP.id
+        LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only()).with_context(|| {
+            WINDOW.with_context(&mut c.ctx, || {
+                let root_id = c.content.root_ctx.id();
+                let root_bounds = c.content.root_ctx.bounds();
+                WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
+                    frame.with_nested_window(
+                        render_widgets,
+                        render_update_widgets,
+                        root_id,
+                        &root_bounds,
+                        &WINDOW.info(),
+                        FontAntiAliasing::Default,
+                        |frame| {
+                            c.content.root.render(frame);
+                        },
+                    );
+                });
+                c.pending_frame_capture = c.content.take_frame_capture();
             })
-        }
+        })
     }
 
     fn render_update(&mut self, update: &mut FrameUpdate) {
@@ -2683,18 +2682,17 @@ impl UiNode for NestedWindowNode {
             return;
         }
 
-        if let Some([_, render_update_widgets]) = c.pending_render.take() {
-            // only the same app_local!, APP.id
-            LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only()).with_context(|| {
-                WINDOW.with_context(&mut c.ctx, || {
-                    WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
-                        update.with_nested_window(render_update_widgets, WIDGET.id(), WIDGET.bounds(), |update| {
-                            c.content.root.render_update(update);
-                        })
+        let [_, render_update_widgets] = c.pending_render.take().unwrap_or_default();
+        // only the same app_local!, APP.id
+        LocalContext::capture_filtered(zng_app_context::CaptureFilter::app_only()).with_context(|| {
+            WINDOW.with_context(&mut c.ctx, || {
+                WIDGET.with_context(&mut c.content.root_ctx, WidgetUpdateMode::Bubble, || {
+                    update.with_nested_window(render_update_widgets, WIDGET.id(), WIDGET.bounds(), |update| {
+                        c.content.root.render_update(update);
                     })
                 })
             })
-        }
+        })
     }
 }
 
