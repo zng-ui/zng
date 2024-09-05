@@ -398,7 +398,6 @@ impl AppExtension for FocusManager {
             if args.is_mouse_down() {
                 // click
                 request = Some(FocusRequest::direct_or_exit(args.target.widget_id(), true, false));
-                println!("!!: MOUSE INPUT FOCUS REQUEST FOR {:?}", args.target);
             }
         } else if let Some(args) = TOUCH_INPUT_EVENT.on(update) {
             if args.is_touch_start() {

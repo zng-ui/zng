@@ -181,7 +181,13 @@ impl fmt::Debug for InteractionPath {
 }
 impl fmt::Display for InteractionPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_path())
+        write!(f, "{}//", self.window_id)?;
+        let mut sep = "";
+        for (w, i) in self.zip() {
+            write!(f, "{sep}{w}{{{i:?}}}")?;
+            sep = "/";
+        }
+        Ok(())
     }
 }
 impl InteractionPath {

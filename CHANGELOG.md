@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `MOUSE.position` not tracking nested windows.
 * Fix context menu not opening in nested windows.
 * Add `AnyEventArgs::backtrace` for tracking event args sources.
 * Fix focus not clearing from nested window when parent window loses focus on the system.
