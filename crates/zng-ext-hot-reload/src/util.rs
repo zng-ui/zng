@@ -3,8 +3,7 @@ use std::fmt;
 use zng_txt::{ToTxt, Txt};
 
 // format panic, code copied from `zng::crash_handler`
-#[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
-pub fn crash_handler(info: &std::panic::PanicInfo) {
+pub fn crash_handler(info: &std::panic::PanicHookInfo) {
     let backtrace = std::backtrace::Backtrace::capture();
     let panic = PanicInfo::from_hook(info);
     eprintln!("{panic}stack backtrace:\n{backtrace}");
@@ -19,8 +18,7 @@ struct PanicInfo {
     pub column: u32,
 }
 impl PanicInfo {
-    #[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
-    pub fn from_hook(info: &std::panic::PanicInfo) -> Self {
+    pub fn from_hook(info: &std::panic::PanicHookInfo) -> Self {
         let current_thread = std::thread::current();
         let thread = current_thread.name().unwrap_or("<unnamed>");
         let msg = Self::payload(info.payload());

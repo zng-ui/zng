@@ -29,7 +29,6 @@ fn main() {
                     image_resolver = markdown::ImageResolver::new(|img| {
                         let mut r: ImageSource = img.into();
                         if let ImageSource::Read(file) = &mut r {
-                            #[allow(clippy::needless_borrows_for_generic_args)] // false positive
                             if file.is_relative() {
                                 *file = zng::env::res(&file);
                             }
