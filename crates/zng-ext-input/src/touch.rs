@@ -22,8 +22,10 @@ use zng_app::{
 };
 
 use zng_app_context::app_local;
-use zng_ext_window::WINDOWS;
-use zng_layout::unit::{euclid, AngleRadian, Dip, DipPoint, DipToPx, DipVector, Factor, Px, PxPoint, PxTransform, PxVector, TimeUnits};
+use zng_ext_window::{NestedWindowWidgetInfoExt as _, WINDOWS};
+use zng_layout::unit::{
+    euclid, AngleRadian, Dip, DipPoint, DipToPx, DipVector, Factor, Px, PxPoint, PxToDip, PxTransform, PxVector, TimeUnits,
+};
 use zng_var::{impl_from_and_into_var, types::ArcCowVar, var, ArcVar, ReadOnlyArcVar, Var};
 pub use zng_view_api::{
     config::TouchConfig,
@@ -1269,12 +1271,29 @@ impl AppExtension for TouchManager {
 impl TouchManager {
     fn on_input(&mut self, args: &RawTouchArgs, update: &TouchUpdate) {
         if let Ok(w) = WINDOWS.widget_tree(args.window_id) {
-            let hits = w.root().hit_test(update.position.to_px(w.scale_factor()));
-            let target = hits
+            let mut hits = w.root().hit_test(update.position.to_px(w.scale_factor()));
+            let mut target = hits
                 .target()
                 .and_then(|t| w.get(t.widget_id))
                 .map(|t| t.interaction_path())
                 .unwrap_or_else(|| w.root().interaction_path());
+            let mut position = update.position;
+
+            // hit-test for nested windows
+            if let Some(wgt) = w.get(target.widget_id()) {
+                if let Some(w) = wgt.nested_window_tree() {
+                    let f = w.scale_factor();
+                    let p = update.position.to_px(f);
+                    let p = wgt.inner_transform().inverse().and_then(|t| t.transform_point(p)).unwrap_or(p);
+                    position = p.to_dip(f);
+                    hits = w.root().hit_test(p);
+                    target = hits
+                        .target()
+                        .and_then(|t| w.get(t.widget_id))
+                        .map(|t| t.interaction_path())
+                        .unwrap_or_else(|| w.root().interaction_path());
+                }
+            }
 
             let target = match target.unblocked() {
                 Some(t) => t,
@@ -1292,7 +1311,7 @@ impl TouchManager {
                             touch_propagation: handle.clone(),
                             target: target.clone(),
                             device_id: args.device_id,
-                            position: update.position,
+                            position,
                             force: update.force,
                             hits: hits.clone(),
                             velocity_samples: vec![], // skip input (will only have velocity after 4 moves)
@@ -1323,7 +1342,7 @@ impl TouchManager {
             match update.phase {
                 TouchPhase::Start => {
                     let pos_info = TouchPosition {
-                        window_id: args.window_id,
+                        window_id: hits.window_id(),
                         touch: update.touch,
                         position: update.position,
                         start_time: args.timestamp,
@@ -1348,7 +1367,7 @@ impl TouchManager {
             }
 
             let args = TouchInputArgs::now(
-                args.window_id,
+                hits.window_id(),
                 args.device_id,
                 update.touch,
                 gesture_handle,
