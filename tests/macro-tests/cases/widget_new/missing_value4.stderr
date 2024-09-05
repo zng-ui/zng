@@ -15,7 +15,7 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 13 | |                     margin = 0;
 14 | |         enabled = true;
 15 | |     };
-   | |_____- an argument is missing
+   | |_____- argument #1 is missing
    |
 note: method defined here
   --> $WORKSPACE/crates/zng-wgt-input/src/misc.rs
