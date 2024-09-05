@@ -957,8 +957,7 @@ pub(crate) struct SuppressedPanic {
 }
 impl SuppressedPanic {
     #[cfg(ipc)]
-    #[allow(deprecated)] // std::panic::PanicInfo is deprecated on nightly (>=1.81)
-    pub fn from_hook(info: &std::panic::PanicInfo, backtrace: Backtrace) -> Self {
+    pub fn from_hook(info: &std::panic::PanicHookInfo, backtrace: Backtrace) -> Self {
         let current_thread = std::thread::current();
         let thread = current_thread.name().unwrap_or("<unnamed>");
         let msg = Self::payload(info.payload());
