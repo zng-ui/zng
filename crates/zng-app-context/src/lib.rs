@@ -1688,6 +1688,7 @@ impl<F: FnOnce()> Drop for RunOnDrop<F> {
     }
 }
 
+#[allow(clippy::manual_unwrap_or)] // false positive, already fixed for Rust 1.82
 fn panic_str<'s>(payload: &'s Box<dyn std::any::Any + Send + 'static>) -> &'s str {
     if let Some(s) = payload.downcast_ref::<&str>() {
         s
