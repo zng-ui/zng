@@ -330,7 +330,7 @@ fn lerp_rgba_linear(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
 }
 
 /// API for app implementers to replace the transitionable implementation for foreign types.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct TRANSITIONABLE_APP;
 impl TRANSITIONABLE_APP {
     /// Replace the [`Rgba`] lerp implementation.

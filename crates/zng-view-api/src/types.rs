@@ -565,7 +565,7 @@ pub enum Event {
 }
 impl Event {
     /// Change `self` to incorporate `other` or returns `other` if both events cannot be coalesced.
-    #[allow(clippy::result_large_err)]
+    #[expect(clippy::result_large_err)]
     pub fn coalesce(&mut self, other: Event) -> Result<(), Event> {
         use Event::*;
 

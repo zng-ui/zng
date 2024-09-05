@@ -432,7 +432,7 @@ impl BuildArgs {
 }
 
 /// Hot reload service.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct HOT_RELOAD;
 impl HOT_RELOAD {
     /// Hot reload status, libs that are rebuilding, errors.
@@ -498,7 +498,7 @@ app_local! {
 struct HotReloadService {
     libs: Vec<HotLib>,
     // mutex for Sync only
-    #[allow(clippy::type_complexity)]
+    #[expect(clippy::type_complexity)]
     rebuilders: Mutex<Vec<Box<dyn FnMut(BuildArgs) -> Option<RebuildVar> + Send + 'static>>>,
 
     status: ArcVar<Vec<HotStatus>>,

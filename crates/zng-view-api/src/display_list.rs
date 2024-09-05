@@ -238,7 +238,7 @@ impl DisplayListBuilder {
     }
 
     /// Push a normal border.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_border(
         &mut self,
         bounds: PxRect,
@@ -258,7 +258,6 @@ impl DisplayListBuilder {
     }
 
     /// Push a nine-patch border.
-    #[allow(clippy::too_many_arguments)]
     pub fn push_nine_patch_border(
         &mut self,
         bounds: PxRect,
@@ -297,7 +296,7 @@ impl DisplayListBuilder {
     }
 
     /// Push an image.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_image(
         &mut self,
         clip_rect: PxRect,
@@ -333,7 +332,7 @@ impl DisplayListBuilder {
     }
 
     /// Push a linear gradient rectangle.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_linear_gradient(
         &mut self,
         clip_rect: PxRect,
@@ -358,7 +357,7 @@ impl DisplayListBuilder {
     }
 
     /// Push a radial gradient rectangle.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_radial_gradient(
         &mut self,
         clip_rect: PxRect,
@@ -387,7 +386,7 @@ impl DisplayListBuilder {
     }
 
     /// Push a conic gradient rectangle.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_conic_gradient(
         &mut self,
         clip_rect: PxRect,

@@ -572,7 +572,7 @@ impl UiNodeList for UiNodeListChainImpl {
 }
 
 /// Represents the contextual parent [`SortingList`] during an update.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct SORTING_LIST;
 impl SORTING_LIST {
     /// If the current call has a parent sorting list.
@@ -794,7 +794,7 @@ context_local! {
 }
 
 /// Access to widget z-index in a parent [`PanelList`].
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct Z_INDEX;
 impl Z_INDEX {
     fn with(&self, panel_id: WidgetId, action: impl FnOnce()) -> bool {

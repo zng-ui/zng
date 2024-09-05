@@ -85,7 +85,6 @@
 //! # Crate
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
-#![allow(clippy::needless_doctest_main)]
 #![doc(test(no_crate_inject))]
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
@@ -279,7 +278,7 @@ pub extern "C" fn extern_run_same_process(patch: &StaticPatch, run_app: extern "
         patch.install();
     }
 
-    #[allow(clippy::redundant_closure)]
+    #[expect(clippy::redundant_closure)] // false positive
     run_same_process(move || run_app())
 }
 #[cfg(ipc)]
@@ -2175,7 +2174,6 @@ pub(crate) enum AppEvent {
 /// These *events* are detached from [`AppEvent`] so that we can continue receiving requests while
 /// the main loop is blocked in a resize operation.
 #[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
 enum RequestEvent {
     /// A request from the [`Api`].
     Request(Request),

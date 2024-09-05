@@ -197,7 +197,7 @@ impl About {
     }
 
     #[doc(hidden)]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn macro_new(
         pkg_name: &'static str,
         pkg_authors: &[&'static str],

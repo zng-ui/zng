@@ -1067,8 +1067,8 @@ pub fn get_instance_handle() -> isize {
 pub mod taskbar_com {
     // copied from winit
 
-    #![allow(non_snake_case)]
-    #![allow(non_upper_case_globals)]
+    #![expect(non_snake_case)]
+    #![expect(non_upper_case_globals)]
 
     use std::ffi::c_void;
 

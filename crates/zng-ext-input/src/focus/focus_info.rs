@@ -258,7 +258,7 @@ pub struct FocusRequest {
 }
 
 impl FocusRequest {
-    #[allow(missing_docs)]
+    /// New request from target and highlight.
     pub fn new(target: FocusTarget, highlight: bool) -> Self {
         Self {
             target,

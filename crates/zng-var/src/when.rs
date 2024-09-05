@@ -110,7 +110,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
     fn build_impl(mut self) -> ArcWhenVar<T> {
         self.conditions.shrink_to_fit();
         for (c, v) in self.conditions.iter_mut() {
-            #[allow(unreachable_code)]
+            #[expect(unreachable_code)]
             fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
                 types::ContextualizedVar::<T>::new(|| LocalVar(unreachable!())).boxed()
             }

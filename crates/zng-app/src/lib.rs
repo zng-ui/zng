@@ -12,7 +12,7 @@
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 #![recursion_limit = "256"]
 // suppress nag about very simple boxed closure signatures.
-#![allow(clippy::type_complexity)]
+#![expect(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 

@@ -3,7 +3,7 @@ use syn::{parse::Parse, parse_macro_input, LitInt, Path, Token};
 
 struct Input {
     crate_: Path,
-    #[allow(unused)]
+    #[expect(unused)]
     comma: Token![,],
     hex: TokenStream,
 }

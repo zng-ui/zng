@@ -351,7 +351,6 @@ pub enum MonitorQuery {
     /// If the closure returns `None` the `ParentOrPrimary` query is used, if there is any.
     ///
     /// You can use the [`MONITORS`] service in the query closure to select a monitor.
-    #[allow(clippy::type_complexity)]
     Query(Arc<dyn Fn() -> Option<MonitorInfo> + Send + Sync>),
 }
 impl MonitorQuery {

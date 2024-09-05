@@ -288,7 +288,7 @@ pub fn is_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 #[property(EVENT)]
 pub fn is_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    #[allow(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
+    #[expect(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
     let mut touches_started = HashSet::new();
     event_state(child, state, false, TOUCHED_EVENT, move |args| {
         if args.is_touch_enter_enabled() {
@@ -356,7 +356,7 @@ pub fn is_cap_touched(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiN
 /// [`ENABLED`]: Interactivity::ENABLED
 #[property(EVENT)]
 pub fn is_cap_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    #[allow(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
+    #[expect(clippy::mutable_key_type)] // EventPropagationHandle compares pointers, not value
     let mut touches_started = HashSet::new();
     event_state2(
         child,

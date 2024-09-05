@@ -754,7 +754,6 @@ impl CommandArgs {
     /// lower priority handlers, but if the handler is disabled the command primary action is not run.
     ///
     /// Returns the `handler` result if it was called.
-    #[allow(unused)]
     pub fn handle_enabled<F, R>(&self, local_handle: &CommandHandle, handler: F) -> Option<R>
     where
         F: FnOnce(&Self) -> R,

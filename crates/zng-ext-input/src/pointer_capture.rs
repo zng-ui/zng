@@ -284,7 +284,7 @@ impl PointerCaptureManager {
 /// # Provider
 ///
 /// This service is provided by the [`PointerCaptureManager`] extension.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct POINTER_CAPTURE;
 impl POINTER_CAPTURE {
     /// Variable that gets the current capture target and mode.

@@ -10,7 +10,7 @@
 #![warn(missing_docs)]
 #![recursion_limit = "256"]
 // suppress nag about very simple boxed closure signatures.
-#![allow(clippy::type_complexity)]
+#![expect(clippy::type_complexity)]
 
 use std::{
     any::Any,

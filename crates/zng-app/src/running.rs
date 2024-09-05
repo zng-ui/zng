@@ -517,7 +517,6 @@ impl<E: AppExtension> RunningApp<E> {
     }
 
     pub(crate) fn run_headed(mut self) {
-        #[allow(clippy::let_unit_value)]
         let mut observer = ();
         #[cfg(feature = "dyn_app_extension")]
         let mut observer = observer.as_dyn();
@@ -1197,7 +1196,6 @@ impl fmt::Display for ExitCancelled {
 }
 
 struct AppIntrinsic {
-    #[allow(dead_code)]
     exit_handle: CommandHandle,
     pending_exit: Option<PendingExit>,
 }
@@ -1388,7 +1386,7 @@ impl AppProcessService {
 
 /// App events.
 #[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 pub(crate) enum AppEvent {
     /// Event from the View Process.
     ViewEvent(zng_view_api::Event),

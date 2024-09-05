@@ -1720,7 +1720,7 @@ impl WindowLoading {
 /// Extensions methods for [`WINDOW`] contexts of windows open by [`WINDOWS`].
 ///
 /// [`WINDOW`]: zng_app::window::WINDOW
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub trait WINDOW_Ext {
     /// Clone a reference to the variables that get and set window properties.
     fn vars(&self) -> super::WindowVars {
@@ -1880,7 +1880,7 @@ impl ImageRenderWindowsService for WINDOWS {
 }
 
 /// Window focused widget hook.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct WINDOW_FOCUS;
 impl WINDOW_FOCUS {
     /// Setup a var that is controlled by the focus service and tracks the focused widget.

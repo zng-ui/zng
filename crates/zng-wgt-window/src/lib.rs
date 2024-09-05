@@ -25,8 +25,6 @@ use zng_wgt_text::{font_color, lang, FONT_SIZE_VAR};
 pub mod events;
 mod window_properties;
 
-#[allow(clippy::useless_attribute)] // not useless
-#[allow(ambiguous_glob_reexports)] // we override `font_size`.
 pub use self::window_properties::*;
 
 /// A window container.

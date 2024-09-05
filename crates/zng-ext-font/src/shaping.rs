@@ -635,7 +635,7 @@ impl ShapedText {
     ///
     /// The general process of shaping text is to generate a shaped-text without align during *measure*, and then reuse
     /// this shaped text every layout that does not invalidate any property that affects the text wrap.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn reshape_lines(
         &mut self,
         constraints: PxConstraints2d,

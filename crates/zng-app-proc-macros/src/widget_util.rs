@@ -118,7 +118,7 @@ pub(crate) fn split_path_generics(mut path: Path) -> Result<(Path, TokenStream)>
 
 pub struct PropertyField {
     pub ident: Ident,
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub colon: Token![:],
     pub expr: TokenStream,
 }
@@ -152,11 +152,11 @@ impl Parse for PropertyField {
 // Value assigned in a [`PropertyAssign`].
 pub enum PropertyValue {
     /// `unset!`.
-    Special(Ident, #[allow(dead_code)] Token![!]),
+    Special(Ident, #[expect(dead_code)] Token![!]),
     /// `arg0, arg1,`
     Unnamed(TokenStream),
     /// `{ field0: true, field1: false, }`
-    Named(#[allow(dead_code)] syn::token::Brace, Punctuated<PropertyField, Token![,]>),
+    Named(#[expect(dead_code)] syn::token::Brace, Punctuated<PropertyField, Token![,]>),
 }
 impl Parse for PropertyValue {
     fn parse(input: parse::ParseStream) -> syn::Result<Self> {
@@ -254,11 +254,11 @@ pub mod keyword {
 
 pub struct WgtWhen {
     pub attrs: Attributes,
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub when: keyword::when,
     pub condition_expr: TokenStream,
     pub condition_expr_str: String,
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub brace_token: syn::token::Brace,
     pub assigns: Vec<WgtProperty>,
 }

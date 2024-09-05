@@ -49,7 +49,7 @@ use self::raw_device_events::DeviceId;
 use super::{AppId, APP};
 
 /// Connection to the running view-process for the context app.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct VIEW_PROCESS;
 struct ViewProcessService {
     process: zng_view_api::Controller,

@@ -7,7 +7,7 @@
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 // suppress nag about very simple boxed closure signatures.
-#![allow(clippy::type_complexity)]
+#![expect(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
@@ -805,7 +805,7 @@ impl<T: fmt::Debug + std::any::Any + Send + Sync> FsChangeNote for T {
 /// [`WATCHER.annotate`]: WATCHER::annotate
 #[derive(Clone)]
 #[must_use = "the note is removed when the handle is dropped"]
-pub struct FsChangeNoteHandle(#[allow(dead_code)] Arc<Arc<dyn FsChangeNote>>);
+pub struct FsChangeNoteHandle(#[expect(dead_code)] Arc<Arc<dyn FsChangeNote>>);
 
 /// Annotation for file watcher events and var update tags.
 ///

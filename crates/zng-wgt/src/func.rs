@@ -234,7 +234,6 @@ macro_rules! wgt_fn {
 /// service to instantiate widgets for each item.
 ///
 /// The main crate registers some common editors.
-#[allow(non_camel_case_types)]
 pub struct EDITORS;
 impl EDITORS {
     /// Register an `editor` handler.

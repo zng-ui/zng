@@ -123,7 +123,6 @@ where
     where
         F: FnMut(&WidgetFocusInfo) -> w_iter::TreeFilter,
     {
-        #[allow(clippy::filter_next)]
         self.tree_filter(filter).next()
     }
 

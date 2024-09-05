@@ -9,7 +9,7 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 // suppress nag about very simple boxed closure signatures.
-#![allow(clippy::type_complexity)]
+#![expect(clippy::type_complexity)]
 
 #[macro_use]
 extern crate bitflags;

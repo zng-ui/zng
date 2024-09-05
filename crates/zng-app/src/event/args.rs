@@ -225,7 +225,6 @@ macro_rules! __event_args {
             /// # Panics
             ///
             /// Panics if the arguments are invalid.
-            #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn new(
                 timestamp: impl Into<$crate::DInstant>,
@@ -266,7 +265,6 @@ macro_rules! __event_args {
             /// # Panics
             ///
             /// Panics if the arguments are invalid.
-            #[track_caller]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new($crate::INSTANT.now(), $crate::event::EventPropagationHandle::new(), $($arg),*)

@@ -210,7 +210,7 @@ impl IMAGES {
 }
 
 /// Images render window hook.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct IMAGES_WINDOW;
 impl IMAGES_WINDOW {
     /// Sets the windows service used to manage the headless windows used to render images.
@@ -331,7 +331,7 @@ static_id! {
 /// Controls properties of the render window used by [`IMAGES.render`].
 ///
 /// [`IMAGES.render`]: IMAGES::render
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct IMAGE_RENDER;
 impl IMAGE_RENDER {
     /// If the current context is an [`IMAGES.render`] closure, window or widget.

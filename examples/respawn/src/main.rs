@@ -159,7 +159,7 @@ fn app_crash(crash_name: &'static str) -> impl UiNode {
                 "panic" => panic!("Test app-process crash!"),
                 "access violation" => {
                     // SAFETY: deliberate access violation
-                    #[allow(deref_nullptr)]
+                    #[expect(deref_nullptr)]
                     unsafe {
                         *std::ptr::null_mut() = true;
                     }

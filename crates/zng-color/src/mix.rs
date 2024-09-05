@@ -426,7 +426,7 @@ impl_mix! {
         Luminosity => |[fgh, _fgs, _fbl], [bgh, bgs, _bgl]| [bgh, bgs, fgh],
     }
 }
-#[allow(clippy::derivable_impls)] // macro generated enum
+#[expect(clippy::derivable_impls)] // macro generated enum
 impl Default for MixBlendMode {
     fn default() -> Self {
         MixBlendMode::Normal

@@ -105,7 +105,6 @@ pub(super) struct FocusCommands {
     exit_handle: CommandHandle,
     enter_handle: CommandHandle,
 
-    #[allow(dead_code)]
     focus_handle: CommandHandle,
 }
 impl FocusCommands {

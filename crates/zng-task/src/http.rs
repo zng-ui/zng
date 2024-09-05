@@ -1,6 +1,6 @@
 #![cfg(feature = "http")]
 // suppress nag about very simple boxed closure signatures.
-#![allow(clippy::type_complexity)]
+#![expect(clippy::type_complexity)]
 
 //! HTTP client.
 //!

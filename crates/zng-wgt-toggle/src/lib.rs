@@ -1175,7 +1175,6 @@ pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> i
     })
 }
 
-#[allow(non_snake_case)]
 fn combomark_visual() -> impl UiNode {
     let dropdown = ICONS.get_or(
         ["toggle.dropdown", "material/rounded/keyboard-arrow-down", "keyboard-arrow-down"],

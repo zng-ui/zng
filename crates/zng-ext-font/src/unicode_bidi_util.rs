@@ -162,7 +162,7 @@ pub(super) fn explicit_compute(
                 } else {
                     last_level.new_explicit_next_ltr()
                 };
-                #[allow(clippy::unnecessary_unwrap)]
+
                 if new_level.is_ok() && overflow_isolate_count == 0 && overflow_embedding_count == 0 {
                     let new_level = new_level.unwrap();
                     stack.push(
@@ -387,7 +387,7 @@ struct Status {
 }
 
 #[derive(PartialEq)]
-#[allow(clippy::upper_case_acronyms)]
+#[expect(clippy::upper_case_acronyms)]
 enum OverrideStatus {
     Neutral,
     RTL,
@@ -994,7 +994,7 @@ fn identify_bracket_pairs(
 /// Neutral or Isolate formatting character (B, S, WS, ON, FSI, LRI, RLI, PDI)
 ///
 /// <http://www.unicode.org/reports/tr9/#NI>
-#[allow(non_snake_case)]
+#[expect(non_snake_case)]
 fn is_NI(class: BidiClass) -> bool {
     use BidiClass::*;
     matches!(class, B | S | WS | ON | FSI | LRI | RLI | PDI)
