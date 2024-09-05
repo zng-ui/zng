@@ -919,12 +919,6 @@ impl MouseManager {
 
             self.pos = position;
 
-            MOUSE_SV.read().position.set(self.pos_window.map(|id| MousePosition {
-                window_id: id,
-                position,
-                timestamp: INSTANT.now(),
-            }));
-
             // mouse_move data
             let mut frame_info = match WINDOWS.widget_tree(window_id) {
                 Ok(f) => f,
@@ -976,6 +970,12 @@ impl MouseManager {
                 frame_info.root().interaction_path()
             }
             .unblocked();
+
+            MOUSE_SV.read().position.set(Some(MousePosition {
+                window_id: frame_info.window_id(),
+                position,
+                timestamp: INSTANT.now(),
+            }));
 
             self.hits = Some(pos_hits.clone());
 

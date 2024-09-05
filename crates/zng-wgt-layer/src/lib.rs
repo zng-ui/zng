@@ -512,8 +512,8 @@ impl LAYERS {
                             }
 
                             *final_size = layer_size;
-                            return;
                         }
+                        return;
                     }
                 }
 
