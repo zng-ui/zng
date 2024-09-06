@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    backtrace::Backtrace,
     fmt,
     sync::{
         atomic::{AtomicBool, Ordering::Relaxed},
@@ -50,12 +49,6 @@ pub trait AnyEventArgs: fmt::Debug + Send + Sync + Any {
     /// Cloned arguments share the same handle, some arguments may also share the handle
     /// of another event if they share the same cause.
     fn propagation(&self) -> &EventPropagationHandle;
-
-    /// Args instantiation backtrace.
-    fn backtrace(&self) -> &Backtrace {
-        static NONE: Backtrace = Backtrace::disabled();
-        &NONE
-    }
 }
 
 /// Event propagation handle associated with one or multiple [`EventArgs`].
@@ -119,8 +112,7 @@ impl std::hash::Hash for EventPropagationHandle {
 ///
 /// The macro expansion implements the [`EventArgs`] and [`AnyEventArgs`] traits for the new structs, it generates a public `timestamp`
 /// member and a `new` and `now` associated functions. The `new` function instantiates args with custom timestamp and propagation handle,
-/// the `now` function provides the timestamp and propagation handle and is the primary way to instantiate args. The functions also capture
-/// the args backtrace.
+/// the `now` function provides the timestamp and propagation handle and is the primary way to instantiate args.
 ///
 /// # Examples
 ///
@@ -232,7 +224,6 @@ macro_rules! __event_args {
                 $($arg : impl Into<$arg_ty>),*
             ) -> Self {
                 let args = $Args {
-                    event_args_backtrace: std::sync::Arc::new(std::backtrace::Backtrace::capture()),
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
                     propagation_handle,
@@ -251,7 +242,6 @@ macro_rules! __event_args {
                 $($arg : impl Into<$arg_ty>),*
             ) -> Result<Self, $ValidationError> {
                 let args = $Args {
-                    event_args_backtrace: std::sync::Arc::new(std::backtrace::Backtrace::capture()),
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
                     propagation_handle,
@@ -323,7 +313,6 @@ macro_rules! __event_args {
                 $($arg : impl Into<$arg_ty>),*
             ) -> Self {
                 $Args {
-                    event_args_backtrace: std::sync::Arc::new(std::backtrace::Backtrace::capture()),
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
                     propagation_handle,
@@ -357,7 +346,6 @@ macro_rules! __event_args {
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
 
             propagation_handle: $crate::event::EventPropagationHandle,
-            event_args_backtrace: std::sync::Arc<std::backtrace::Backtrace>,
         }
         impl $crate::event::EventArgs for $Args {
         }
@@ -384,10 +372,6 @@ macro_rules! __event_args {
 
             fn propagation(&self) -> &$crate::event::EventPropagationHandle {
                 &self.propagation_handle
-            }
-
-            fn backtrace(&self) -> &std::backtrace::Backtrace {
-                &self.event_args_backtrace
             }
         }
     };
