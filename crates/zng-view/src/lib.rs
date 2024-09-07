@@ -1659,7 +1659,7 @@ impl Api for App {
 
             self.notify(Event::WindowOpened(id, msg));
         } else {
-            self.assert_resumed(); // !!: TODO, this happens on Android from time to time
+            self.assert_resumed();
 
             #[cfg(target_os = "android")]
             if !self.windows.is_empty() {
