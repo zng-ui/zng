@@ -35,7 +35,7 @@ zng-ext-input = { path = "../zng-ext-input", version = "0.5.19" }
 zng-ext-image = { path = "../zng-ext-image", version = "0.2.31" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.4.5" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.31" }
-zng-app = { path = "../zng-app", version = "0.10.2" }
+zng-app = { path = "../zng-app", version = "0.11.0" }
 
 pulldown-cmark = "0.12"
 http = "1.1"

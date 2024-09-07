@@ -14,7 +14,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.4.14" }
 zng-app-context = { path = "../zng-app-context", version = "0.5.8" }
-zng-app = { path = "../zng-app", version = "0.10.2" }
+zng-app = { path = "../zng-app", version = "0.11.0" }
 zng-color = { path = "../zng-color", version = "0.3.10" }
 zng-layout = { path = "../zng-layout", version = "0.2.25" }
 zng-wgt-data = { path = "../zng-wgt-data", version = "0.2.31" }
@@ -25,7 +25,7 @@ zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.21" }
 zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.31" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.4.5" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.11" }
-zng-view-api = { path = "../zng-view-api", version = "0.8.2" }
+zng-view-api = { path = "../zng-view-api", version = "0.9.0" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.31" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.19" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.21" }

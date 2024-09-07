@@ -24,7 +24,7 @@ crash_handler = ["zng-app/crash_handler", "dep:open"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.4.14" }
-zng-app = { path = "../zng-app", version = "0.10.2" }
+zng-app = { path = "../zng-app", version = "0.11.0" }
 zng-env = { path = "../zng-env", version = "0.3.4" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.19" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.4.5" }
@@ -32,7 +32,7 @@ zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.31" }
 zng-ext-image = { path = "../zng-ext-image", version = "0.2.31" }
 zng-ext-config = { path = "../zng-ext-config", version = "0.3.11", default-features = false }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.11" }
-zng-view-api = { path = "../zng-view-api", version = "0.8.2" }
+zng-view-api = { path = "../zng-view-api", version = "0.9.0" }
 zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.1.7" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.21" }
 zng-wgt-window = { path = "../zng-wgt-window", version = "0.5.11" }

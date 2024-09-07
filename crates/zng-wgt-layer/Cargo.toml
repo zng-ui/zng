@@ -19,7 +19,7 @@ zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.31" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.31" }
 zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.31" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.21" }
-zng-app = { path = "../zng-app", version = "0.10.2" }
+zng-app = { path = "../zng-app", version = "0.11.0" }
 zng-var = { path = "../zng-var", version = "0.5.4" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.19" }
 
