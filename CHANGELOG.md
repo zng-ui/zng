@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix touch event targeting in nested windows.
 * Fix `MOUSE.position` not tracking nested windows.
 * Fix context menu not opening in nested windows.
 * Fix focus not clearing from nested window when parent window loses focus on the system.

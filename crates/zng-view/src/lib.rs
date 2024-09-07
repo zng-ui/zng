@@ -1009,7 +1009,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         winit_loop_guard.unset(&mut self.winit_loop);
     }
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AppState {
     PreInitSuspended,
     Resumed,
@@ -1489,7 +1489,7 @@ impl App {
 
     #[track_caller]
     fn assert_resumed(&self) {
-        assert!(matches!(self.app_state, AppState::Resumed));
+        assert_eq!(self.app_state, AppState::Resumed);
     }
 
     fn with_window<R>(&mut self, id: WindowId, action: impl FnOnce(&mut Window) -> R, not_found: impl FnOnce() -> R) -> R {
@@ -1658,7 +1658,7 @@ impl Api for App {
 
             self.notify(Event::WindowOpened(id, msg));
         } else {
-            self.assert_resumed();
+            self.assert_resumed(); // !!: TODO, this happens on Android from time to time
 
             #[cfg(target_os = "android")]
             if !self.windows.is_empty() {
