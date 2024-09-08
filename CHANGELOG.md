@@ -1,5 +1,10 @@
 # Unreleased
 
+
+# 0.11.5
+
+* Monitor query now falls back to largest screen when there is no primary monitor.
+* Fix monitor query not updating for new window before first layout. Fixes window size in Ubuntu without GPU.
 * Fix touch event targeting in nested windows.
 * Fix `MOUSE.position` not tracking nested windows.
 * Fix context menu not opening in nested windows.

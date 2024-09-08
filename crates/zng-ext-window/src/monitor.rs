@@ -7,7 +7,7 @@ use zng_app::view_process::raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHA
 use zng_app::view_process::VIEW_PROCESS_INITED_EVENT;
 use zng_app::window::{MonitorId, WindowId, WINDOW};
 use zng_app_context::app_local;
-use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, PxPoint, PxRect, PxSize, PxToDip};
+use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, Px, PxPoint, PxRect, PxSize, PxToDip};
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::IdMap;
 use zng_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var, VarValue};
@@ -354,6 +354,18 @@ pub enum MonitorQuery {
     #[allow(clippy::type_complexity)]
     Query(Arc<dyn Fn() -> Option<MonitorInfo> + Send + Sync>),
 }
+impl std::fmt::Debug for MonitorQuery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            write!(f, "MonitorQuery::")?;
+        }
+        match self {
+            Self::ParentOrPrimary => write!(f, "ParentOrPrimary"),
+            Self::Primary => write!(f, "Primary"),
+            Self::Query(_) => write!(f, "Query(_)"),
+        }
+    }
+}
 impl MonitorQuery {
     /// New query.
     pub fn new(query: impl Fn() -> Option<MonitorInfo> + Send + Sync + 'static) -> Self {
@@ -372,14 +384,27 @@ impl MonitorQuery {
         }
     }
 
-    /// Runs the query. Falls back to `Primary` or [`MonitorInfo::fallback`].
+    /// Runs the query. Falls back to `Primary`, or the largest or [`MonitorInfo::fallback`].
     pub fn select_fallback(&self) -> MonitorInfo {
         match self {
             MonitorQuery::ParentOrPrimary => Self::parent_or_primary_query(WINDOW.id()),
             MonitorQuery::Primary => Self::primary_query(),
             MonitorQuery::Query(q) => q().or_else(Self::primary_query),
         }
-        .unwrap_or_else(MonitorInfo::fallback)
+        .unwrap_or_else(Self::fallback)
+    }
+
+    fn fallback() -> MonitorInfo {
+        let mut best = MonitorInfo::fallback();
+        let mut best_area = Px(0);
+        for m in MONITORS.available_monitors() {
+            let m_area = m.px_rect().area();
+            if m_area > best_area {
+                best = m;
+                best_area = m_area;
+            }
+        }
+        best
     }
 
     fn parent_or_primary_query(win_id: WindowId) -> Option<MonitorInfo> {
@@ -403,11 +428,6 @@ impl PartialEq for MonitorQuery {
     /// Returns `true` only if both are [`MonitorQuery::Primary`].
     fn eq(&self, other: &Self) -> bool {
         matches!((self, other), (Self::Primary, Self::Primary))
-    }
-}
-impl fmt::Debug for MonitorQuery {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "MonitorQuery(Arc<..>)")
     }
 }
 
