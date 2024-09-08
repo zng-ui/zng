@@ -175,27 +175,28 @@ impl HeadedCtrl {
             }
         }
 
+        if let Some(query) = self.vars.monitor().get_new() {
+            if self.monitor.is_none() {
+                let monitor = query.select_fallback();
+                let scale_factor = monitor.scale_factor().get();
+                self.vars.0.scale_factor.set(scale_factor);
+                self.monitor = Some(monitor);
+                UPDATES.layout_window(WINDOW.id());
+            } else if let Some(new) = query.select() {
+                let current = self.vars.0.actual_monitor.get();
+                if Some(new.id()) != current {
+                    let scale_factor = new.scale_factor().get();
+                    self.vars.0.scale_factor.set(scale_factor);
+                    self.vars.0.actual_monitor.set(new.id());
+                    self.monitor = Some(new);
+                    UPDATES.layout_window(WINDOW.id());
+                }
+            }
+        }
         if let Some(prev_state) = self.state.clone() {
             debug_assert!(self.window.is_some() || self.waiting_view || self.respawned);
 
             let mut new_state = prev_state.clone();
-
-            if let Some(query) = self.vars.monitor().get_new() {
-                if self.monitor.is_none() {
-                    let monitor = query.select_fallback();
-                    let scale_factor = monitor.scale_factor().get();
-                    self.vars.0.scale_factor.set(scale_factor);
-                    self.monitor = Some(monitor);
-                } else if let Some(new) = query.select() {
-                    let current = self.vars.0.actual_monitor.get();
-                    if Some(new.id()) != current {
-                        let scale_factor = new.scale_factor().get();
-                        self.vars.0.scale_factor.set(scale_factor);
-                        self.vars.0.actual_monitor.set(new.id());
-                        self.monitor = Some(new);
-                    }
-                }
-            }
 
             if let Some(mut chrome) = self.vars.chrome().get_new() {
                 if self.kiosk.is_some() && !chrome {
