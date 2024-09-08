@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-input"
-version = "0.5.19"
+version = "0.5.20"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -22,7 +22,7 @@ zng-layout = { path = "../zng-layout", version = "0.2.25" }
 zng-handle = { path = "../zng-handle", version = "0.2.5" }
 zng-state-map = { path = "../zng-state-map", version = "0.3.4" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.5" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.3.21" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.3.22" }
 
 tracing = "0.1"
 parking_lot = "0.12"

@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.11.6
+
 * Fix breaking change in 0.11.5, `UiNodeVec` is only deprecated, but was removed from preludes and re-exports.
 
 # 0.11.5
