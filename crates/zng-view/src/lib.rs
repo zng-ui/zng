@@ -11,8 +11,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = "0.11.4"
-//! zng-view = "0.4.15"
+//! zng = "0.11.6"
+//! zng-view = "0.4.16"
 //! ```
 //!
 //! Then call `zng::env::init` before any other code in `main` to setup a view-process that uses
@@ -1658,7 +1658,7 @@ impl Api for App {
 
             self.notify(Event::WindowOpened(id, msg));
         } else {
-            self.assert_resumed(); // !!: TODO, this happens on Android from time to time
+            self.assert_resumed();
 
             #[cfg(target_os = "android")]
             if !self.windows.is_empty() {

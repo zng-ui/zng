@@ -1259,7 +1259,11 @@ fn publish(mut args: Vec<&str>) {
         }
 
         if crates.is_empty() {
-            fatal("missing at least one crate name");
+            if diff_crates {
+                fatal("no changes in main since last version tag");
+            } else {
+                fatal("missing at least one crate name or --diff");
+            }
         }
         if let Some(c) = crates.iter().find(|c| c.starts_with('-')) {
             fatal(f!("expected only crate names, found {:?}", c));
