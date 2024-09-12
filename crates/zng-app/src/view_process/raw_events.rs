@@ -20,7 +20,9 @@ use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint, PxRec
 use zng_txt::Txt;
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
+    config::{
+        AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
+    },
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
@@ -622,6 +624,19 @@ event_args! {
         }
     }
 
+    /// Arguments for the [`RAW_CHROME_CONFIG_CHANGED_EVENT`].
+    pub struct RawChromeConfigChangedArgs {
+        /// New config.
+        pub config: ChromeConfig,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all();
+        }
+    }
+
     /// Arguments for the [`RAW_EXTENSION_EVENT`].
     pub struct RawExtensionEventArgs {
         /// Id of the sender extension.
@@ -738,6 +753,9 @@ event! {
 
     /// Color scheme or accent color preference changed for a window.
     pub static RAW_COLORS_CONFIG_CHANGED_EVENT: RawColorsConfigChangedArgs;
+
+    /// System window chrome config changed.
+    pub static RAW_CHROME_CONFIG_CHANGED_EVENT: RawChromeConfigChangedArgs;
 
     /// Change in system font anti-aliasing config.
     pub static RAW_FONT_AA_CHANGED_EVENT: RawFontAaChangedArgs;

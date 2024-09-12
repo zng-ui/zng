@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add better custom chrome for GNOME+Wayland. !!: TODO
+* **Breaking** Add `ChromeConfig` and related events to the view API.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 
 # 0.11.6
 
