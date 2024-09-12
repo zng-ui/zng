@@ -14,8 +14,8 @@ use zng_app::{
     view_process::{
         self,
         raw_events::{
-            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_WINDOW_CLOSE_EVENT,
-            RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT,
+            RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT,
+            RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT,
         },
         ViewImage, ViewRenderer, ViewWindowOrHeadless, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
@@ -40,12 +40,12 @@ use zng_task::{
 use zng_txt::{formatx, Txt};
 use zng_unique_id::{IdMap, IdSet};
 use zng_var::{
-    impl_from_and_into_var, response_done_var, response_var, types::WeakArcVar, var, AnyWeakVar, ArcVar, BoxedVar, LocalVar, ResponderVar,
-    ResponseVar, Var, WeakVar,
+    impl_from_and_into_var, response_done_var, response_var, types::WeakArcVar, var, AnyWeakVar, ArcVar, BoxedVar, LocalVar,
+    ReadOnlyArcVar, ResponderVar, ResponseVar, Var, WeakVar,
 };
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
-    config::ColorsConfig,
+    config::{ChromeConfig, ColorsConfig},
     image::ImageMaskMode,
     window::{RenderMode, WindowState},
     ViewProcessOffline,
@@ -67,6 +67,7 @@ pub(super) struct WindowsService {
     exit_on_last_close: ArcVar<bool>,
     default_render_mode: ArcVar<RenderMode>,
     parallel: ArcVar<ParallelWin>,
+    system_chrome: ArcVar<ChromeConfig>,
     root_extenders: Mutex<Vec<Box<dyn FnMut(WindowRootExtenderArgs) -> BoxedUiNode + Send>>>, // Mutex for +Sync only.
     open_nested_handlers: Mutex<Vec<Box<dyn FnMut(&mut crate::OpenNestedHandlerArgs) + Send>>>,
 
@@ -98,6 +99,7 @@ impl WindowsService {
             default_render_mode: var(RenderMode::default()),
             root_extenders: Mutex::new(vec![]),
             open_nested_handlers: Mutex::new(vec![]),
+            system_chrome: var(ChromeConfig::default()),
             parallel: var(ParallelWin::default()),
             windows: IdMap::default(),
             windows_info: IdMap::default(),
@@ -721,6 +723,17 @@ impl WINDOWS {
             .push(Box::new(move |a| extender(a).boxed()))
     }
 
+    /// Variable that tracks the OS window manager configuration for the window chrome.
+    ///
+    /// The chrome (also known as window decorations) defines the title bar, window buttons and window border. Some
+    /// window managers don't provide a native chrome, you can use this config with the [`WindowVars::chrome`] setting
+    /// in a [`register_root_extender`] to provide a custom fallback chrome.
+    ///
+    /// [`register_root_extender`]: Self::register_root_extender
+    pub fn system_chrome(&self) -> ReadOnlyArcVar<ChromeConfig> {
+        WINDOWS_SV.read().system_chrome.read_only()
+    }
+
     /// Register the closure `handler` to be called for every new window starting on the next update.
     ///
     /// The closure can use the args to inspect the new window context and optionally convert the request to a [`NestedWindowNode`].
@@ -987,8 +1000,17 @@ impl WINDOWS {
             }
         } else if let Some(args) = RAW_COLORS_CONFIG_CHANGED_EVENT.on(update) {
             WINDOWS_SV.write().latest_colors_cfg = args.config;
+        } else if let Some(args) = RAW_CHROME_CONFIG_CHANGED_EVENT.on(update) {
+            WINDOWS_SV.read().system_chrome.set(dbg!(args.config));
+            // !!: TODO
+            //
+            // * Something that can be used in a `WINDOWS.register_root_extender`.
+            // * `WINDOWS.system_chrome`.
+            // * How to offer only a fallback in the main crate?
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            WINDOWS_SV.write().latest_colors_cfg = args.colors_config;
+            let mut wns = WINDOWS_SV.write();
+            wns.latest_colors_cfg = args.colors_config;
+            wns.system_chrome.set(dbg!(args.chrome_config));
 
             // we skipped request fulfillment until this event.
             UPDATES.update(None);

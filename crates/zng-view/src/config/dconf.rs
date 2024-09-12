@@ -97,10 +97,14 @@ pub fn locale_config() -> LocaleConfig {
 
 pub fn chrome_config() -> ChromeConfig {
     let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok();
-    let is_gnome = std::env::var("XDG_CURRENT_DESKTOP").map_or(false, |val| val.contains("GNOME"));
+    // VSCode/Electron, it changes XDG_CURRENT_DESKTOP to "Unity" and sets ORIGINAL_XDG_CURRENT_DESKTOP,
+    // so running from VSCode gets the wrong value.
+    let is_gnome = std::env::var("ORIGINAL_XDG_CURRENT_DESKTOP")
+        .or_else(|_| std::env::var("XDG_CURRENT_DESKTOP"))
+        .map_or(false, |val| val.contains("GNOME"));
     ChromeConfig {
         pref_custom: is_gnome,
-        provided: is_wayland,
+        provided: !(is_wayland && is_gnome),
     }
 }
 
