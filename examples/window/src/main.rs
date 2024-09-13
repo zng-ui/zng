@@ -395,7 +395,7 @@ fn visibility_example() -> impl UiNode {
 }
 
 fn custom_chrome(title: impl Var<Txt>) -> impl UiNode {
-    let vars = WINDOW.vars();
+    let vars = WINDOW.vars(); // !!: TODO, integrate this with the custom window
 
     let can_move = vars.state().map(|s| matches!(s, WindowState::Normal | WindowState::Maximized));
     let title = Text! {

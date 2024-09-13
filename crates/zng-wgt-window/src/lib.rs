@@ -29,6 +29,8 @@ mod window_properties;
 #[allow(ambiguous_glob_reexports)] // we override `font_size`.
 pub use self::window_properties::*;
 
+pub mod custom_chrome;
+
 /// A window container.
 ///
 /// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zng_ext_window::WINDOWS) service

@@ -929,6 +929,11 @@ mod defaults {
                 tracing::debug!("defaults init, open_nested_handler set");
             }
 
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                zng_ext_window::WINDOWS.register_root_extender(crate::window::custom_chrome::fallback_window_chrome);
+            }
+
             // setup OPEN_LICENSES_CMD handler
             crate::third_party::setup_default_view();
             tracing::debug!("defaults init, third_party set");

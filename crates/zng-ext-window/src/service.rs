@@ -1001,16 +1001,11 @@ impl WINDOWS {
         } else if let Some(args) = RAW_COLORS_CONFIG_CHANGED_EVENT.on(update) {
             WINDOWS_SV.write().latest_colors_cfg = args.config;
         } else if let Some(args) = RAW_CHROME_CONFIG_CHANGED_EVENT.on(update) {
-            WINDOWS_SV.read().system_chrome.set(dbg!(args.config));
-            // !!: TODO
-            //
-            // * Something that can be used in a `WINDOWS.register_root_extender`.
-            // * `WINDOWS.system_chrome`.
-            // * How to offer only a fallback in the main crate?
+            WINDOWS_SV.read().system_chrome.set(args.config);
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let mut wns = WINDOWS_SV.write();
             wns.latest_colors_cfg = args.colors_config;
-            wns.system_chrome.set(dbg!(args.chrome_config));
+            wns.system_chrome.set(args.chrome_config);
 
             // we skipped request fulfillment until this event.
             UPDATES.update(None);

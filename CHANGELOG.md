@@ -1,6 +1,13 @@
 # Unreleased
 
-* Add better custom chrome for GNOME+Wayland. !!: TODO
+* Add better custom chrome for GNOME+Wayland.
+     !!: TODO    
+     * `WINDOWS.system_chrome`. DONE
+     * Something that can be used in a `WINDOWS.register_root_extender`.
+      - Have a `WindowChrome!` widget in zng-wgt-window.
+      - How to offer only a fallback in the main crate?
+        - Have WindowChrome! set a window state.
+
 * **Breaking** Add `ChromeConfig` and related events to the view API.
     - Note that this is only a breaking change for direct dependents of `zng-view-api`.
 
