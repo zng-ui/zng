@@ -47,7 +47,7 @@ pub fn locale_config() -> zng_view_api::config::LocaleConfig {
 
 pub fn chrome_config() -> ChromeConfig {
     ChromeConfig {
-        pref_custom: false,
+        prefer_custom: false,
         provided: false,
     }
 }
