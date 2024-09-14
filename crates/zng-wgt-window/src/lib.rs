@@ -78,7 +78,7 @@ impl Window {
             }
 
             when #needs_fallback_chrome {
-                
+
             }
         }
 

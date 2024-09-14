@@ -201,13 +201,13 @@ pub struct ChromeConfig {
 
     /// If the Window manager provides a chrome.
     ///
-    /// When this is `false` the view-process implementation may provide just a very basic fallback chrome, 
+    /// When this is `false` the view-process implementation may provide just a very basic fallback chrome,
     /// if the app-process still requests system chrome.
     pub provided: bool,
 }
 impl ChromeConfig {
     /// If system prefers custom and does not provide chrome.
-    /// 
+    ///
     /// Note that a chromeless window is not forbidden if this is `true`.
     pub fn needs_custom(&self) -> bool {
         self.prefer_custom && !self.provided
