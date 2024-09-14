@@ -32,6 +32,7 @@ zng-var = { path = "../zng-var", version = "0.5.4" }
 zng-color = { path = "../zng-color", version = "0.3.10" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.32" }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.22" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.32" }
 
 serde = { version = "1.0", features = ["derive"] }
 paste = "1.0"

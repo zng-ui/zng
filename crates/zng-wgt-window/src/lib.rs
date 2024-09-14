@@ -9,6 +9,9 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
+// used by fallback_chrome
+zng_wgt::enable_widget_macros!();
+
 use zng_ext_input::focus::{DirectionalNav, FocusScopeOnFocus, TabNav};
 use zng_ext_window::{
     FrameImageReadyArgs, HeadlessMonitor, RenderMode, StartPosition, WINDOW_Ext as _, WindowChangedArgs, WindowCloseArgs,
@@ -28,6 +31,9 @@ mod window_properties;
 #[allow(clippy::useless_attribute)] // not useless
 #[allow(ambiguous_glob_reexports)] // we override `font_size`.
 pub use self::window_properties::*;
+
+mod fallback_chrome;
+pub use fallback_chrome::fallback_chrome;
 
 /// A window container.
 ///
@@ -78,7 +84,23 @@ impl Window {
             }
 
             when #needs_fallback_chrome {
-
+                custom_chrome_adorner_fn = wgt_fn!(|_| {
+                    fallback_chrome()
+                });
+                padding = ContextualizedVar::new(|| {
+                    let vars = WINDOW.vars();
+                    expr_var! {
+                        let title_padding = SideOffsets::new(28, 0, 0, 0);
+                        let chrome_padding = if matches!(#{vars.state()}, zng_ext_window::WindowState::Maximized) {
+                            title_padding
+                        } else {
+                            title_padding + SideOffsets::new_all(5)
+                        };
+                        // safe_padding is 0 in GNOME+Wayland, but better be safe :D
+                        let safe_padding = SideOffsets::from(*#{vars.safe_padding()});
+                        chrome_padding + safe_padding
+                    }
+                });
             }
         }
 

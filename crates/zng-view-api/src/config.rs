@@ -210,7 +210,9 @@ impl ChromeConfig {
     ///
     /// Note that a chromeless window is not forbidden if this is `true`.
     pub fn needs_custom(&self) -> bool {
-        self.prefer_custom && !self.provided
+        // !!!: TODO
+        // self.prefer_custom && !self.provided
+        true
     }
 }
 impl Default for ChromeConfig {

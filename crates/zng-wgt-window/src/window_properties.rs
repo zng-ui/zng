@@ -8,6 +8,7 @@ use zng_ext_window::{
 use zng_wgt::prelude::*;
 
 use serde::{Deserialize, Serialize};
+use zng_wgt_layer::adorner_fn;
 
 use super::Window;
 
@@ -489,7 +490,7 @@ pub fn is_mobile(child: impl UiNode, is_mobile: impl IntoVar<bool>) -> impl UiNo
 /// [`chrome`]: fn@chrome
 /// [`state`]: fn@state
 /// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
-#[property(EVENT, widget_impl(Window))]
+#[property(EVENT, default(state_var()), widget_impl(Window))]
 pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> impl UiNode {
     zng_wgt::node::bind_state_init(
         child,
@@ -509,7 +510,18 @@ pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> i
 ///
 /// [`chrome`]: fn@chrome
 /// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
-#[property(EVENT, widget_impl(Window))]
+#[property(EVENT, default(state_var()), widget_impl(Window))]
 pub fn prefer_custom_chrome(child: impl UiNode, prefer: impl IntoVar<bool>) -> impl UiNode {
     zng_wgt::node::bind_state(child, WINDOWS.system_chrome().map(|c| c.prefer_custom), prefer)
+}
+
+/// Adorner property specific for custom chrome overlays.
+///
+/// This property behaves exactly like [`adorner_fn`]. Using it instead of adorner frees the adorner property
+/// for other usage in the window instance or in derived window types.
+///
+/// [`adorner_fn`]: fn@adorner_fn
+#[property(FILL, default(WidgetFn::nil()), widget_impl(Window))]
+pub fn custom_chrome_adorner_fn(child: impl UiNode, custom_chrome: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    adorner_fn(child, custom_chrome)
 }
