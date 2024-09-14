@@ -5,7 +5,7 @@
 ## Commands
 
 LOCALIZED_FILE_CMD =
-    .info = Localized in a named file 'msg'.
+    .info = Localized in a named file 'msg'
     .name = Localized File
 
 ## Example Section

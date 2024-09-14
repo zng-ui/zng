@@ -6,9 +6,9 @@ window =
 example-cmds = Exemplos de Comandos:
 
 LOCALIZED_CMD =
-    .info = Localizado no arquivo padrão.
+    .info = Localizado no arquivo padrão
     .name = Localizado
 
 PRIVATE_LOCALIZED_CMD =
-    .info = Comando privado, texto de localização público.
+    .info = Comando privado, texto de localização público
     .name = Privado

@@ -17,7 +17,7 @@ command! {
     pub static FOCUS_NEXT_CMD = {
         l10n!: true,
         name: "Focus Next",
-        info: "Focus next focusable.",
+        info: "Focus next focusable",
         shortcut: shortcut!(Tab),
     };
 
@@ -25,7 +25,7 @@ command! {
     pub static FOCUS_PREV_CMD = {
         l10n!: true,
         name: "Focus Previous",
-        info: "Focus previous focusable.",
+        info: "Focus previous focusable",
         shortcut: shortcut!(SHIFT+Tab),
     };
 
@@ -33,7 +33,7 @@ command! {
     pub static FOCUS_ALT_CMD = {
         l10n!: true,
         name: "Focus Alt",
-        info: "Focus alt scope.",
+        info: "Focus alt scope",
         shortcut: shortcut!(Alt),
     };
 
@@ -41,7 +41,7 @@ command! {
     pub static FOCUS_ENTER_CMD = {
         l10n!: true,
         name: "Focus Enter",
-        info: "Focus child focusable.",
+        info: "Focus child focusable",
         shortcut: [shortcut!(Enter), shortcut!(ALT+Enter)],
     };
 
@@ -49,7 +49,7 @@ command! {
     pub static FOCUS_EXIT_CMD = {
         l10n!: true,
         name: "Focus Exit",
-        info: "Focus parent focusable, or return focus.",
+        info: "Focus parent focusable, or return focus",
         shortcut: [shortcut!(Escape), shortcut!(ALT+Escape)],
     };
 
@@ -57,7 +57,7 @@ command! {
     pub static FOCUS_UP_CMD = {
         l10n!: true,
         name: "Focus Up",
-        info: "Focus closest focusable up.",
+        info: "Focus closest focusable up",
         shortcut: [shortcut!(ArrowUp), shortcut!(ALT+ArrowUp)],
     };
 
@@ -65,7 +65,7 @@ command! {
     pub static FOCUS_DOWN_CMD = {
         l10n!: true,
         name: "Focus Down",
-        info: "Focus closest focusable down.",
+        info: "Focus closest focusable down",
         shortcut: [shortcut!(ArrowDown), shortcut!(ALT+ArrowDown)],
     };
 
@@ -73,7 +73,7 @@ command! {
     pub static FOCUS_LEFT_CMD = {
         l10n!: true,
         name: "Focus Left",
-        info: "Focus closest focusable left.",
+        info: "Focus closest focusable left",
         shortcut: [shortcut!(ArrowLeft), shortcut!(ALT+ArrowLeft)],
     };
 
@@ -81,7 +81,7 @@ command! {
     pub static FOCUS_RIGHT_CMD = {
         l10n!: true,
         name: "Focus Right",
-        info: "Focus closest focusable right.",
+        info: "Focus closest focusable right",
         shortcut: [shortcut!(ArrowRight), shortcut!(ALT+ArrowRight)],
     };
 

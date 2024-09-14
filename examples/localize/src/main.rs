@@ -199,13 +199,13 @@ zng::event::command! {
     pub static LOCALIZED_CMD = {
         l10n!: true,
         name: "Localized",
-        info: "Localized in the default file.",
+        info: "Localized in the default file",
     };
 
     static PRIVATE_LOCALIZED_CMD = {
         l10n!: true,
         name: "Private",
-        info: "Private command, public localization text.",
+        info: "Private command, public localization text",
     };
 
     pub static L10N_FALSE_CMD = {
@@ -216,6 +216,6 @@ zng::event::command! {
     pub static LOCALIZED_FILE_CMD = {
         l10n!: "msg",
         name: "Localized File",
-        info: "Localized in a named file 'msg'."
+        info: "Localized in a named file 'msg'"
     };
 }
