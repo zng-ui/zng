@@ -1,9 +1,6 @@
 # Unreleased
 
 * Add better custom chrome for GNOME+Wayland.
-     !!: TODO    
-     * Use `needs_fallback_chrome` and custom chrome interaction code from window example.
-
 * Add `zng::widget::node::bind_state_init` helper.
 * Add `Window::needs_fallback_chrome` and `Window::prefer_custom_chrome` property.
 * **Breaking** Add `ChromeConfig` and related events to the view API.

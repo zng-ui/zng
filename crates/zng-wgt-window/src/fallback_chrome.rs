@@ -1,9 +1,11 @@
 use zng_ext_input::mouse::*;
 use zng_ext_window::{cmd::*, *};
 use zng_wgt::{prelude::*, *};
+use zng_wgt_button::Button;
 use zng_wgt_container::*;
 use zng_wgt_fill::*;
 use zng_wgt_input::{mouse::*, *};
+use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_text::Text;
 
 /// Custom window chrome adorner used when the window manager does not provide one.
@@ -12,6 +14,7 @@ use zng_wgt_text::Text;
 pub fn fallback_chrome() -> impl UiNode {
     let vars = WINDOW.vars();
     let can_move = vars.state().map(|s| matches!(s, WindowState::Normal | WindowState::Maximized));
+    let win_id = WINDOW.id();
     let title = Text! {
         txt = vars.title();
         align = Align::FILL_TOP;
@@ -19,17 +22,71 @@ pub fn fallback_chrome() -> impl UiNode {
         zng_wgt_size_offset::height = 28;
         txt_align = Align::CENTER;
 
+        child_right = Stack! {
+            direction = StackDirection::left_to_right();
+            zng_wgt_button::style_fn = zng_wgt_button::LightStyle! {
+                corner_radius = 0;
+                zng_wgt_button::cmd_child_fn = wgt_fn!(|cmd: Command| {
+                    presenter((), cmd.icon().map(move |ico| wgt_fn!(ico, |_| {
+                        let ico = ico(());
+                        if ico.is_nil() {
+                            // fallback to Unicode symbol
+                            let cmd = cmd.scoped(zng_app::event::CommandScope::App);
+                            let (symbol, size) = if cmd == RESTORE_CMD {
+                                ("🗗", 9)
+                            } else if cmd == MINIMIZE_CMD {
+                                ("🗕", 9)
+                            } else if cmd == MAXIMIZE_CMD {
+                                ("🗖", 9)
+                            } else if cmd == CLOSE_CMD {
+                                ("🗙", 14)
+                            } else {
+                                unreachable!("{cmd:?} what")
+                            };
+                            Text! {
+                                font_family = "Noto Sans Symbols 2";
+                                font_size = size.pt();
+                                txt = symbol;
+                            }.boxed()
+                        } else {
+                            ico
+                        }
+                    })))
+                });
+            };
+            children = ui_vec![
+                Button! {
+                    cmd = MINIMIZE_CMD.scoped(win_id);
+                },
+                Button! {
+                    cmd = MAXIMIZE_CMD.scoped(win_id);
+                    when #is_disabled {
+                        visibility = false;
+                    }
+                },
+                Button! {
+                    cmd = RESTORE_CMD.scoped(win_id);
+                    when #is_disabled {
+                        visibility = false;
+                    }
+                },
+                Button! {
+                    cmd = CLOSE_CMD.scoped(win_id);
+                },
+            ];
+        }, 0;
+
         when *#{can_move.clone()} {
             cursor = CursorIcon::Move;
         }
         mouse::on_mouse_down = hn!(|args: &MouseInputArgs| {
-            if args.is_primary() && can_move.get() {
+            if args.is_primary() && can_move.get() && args.target.widget_id() == WIDGET.id() {
                 DRAG_MOVE_RESIZE_CMD.scoped(WINDOW.id()).notify();
             }
         });
 
         gesture::on_context_click = hn!(|args: &gesture::ClickArgs| {
-            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized) {
+            if matches!(WINDOW.vars().state().get(), WindowState::Normal | WindowState::Maximized) && args.target.widget_id() == WIDGET.id() {
                 if let Some(p) = args.position() {
                     OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).notify_param(p);
                 }

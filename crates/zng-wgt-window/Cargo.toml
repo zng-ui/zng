@@ -32,7 +32,11 @@ zng-var = { path = "../zng-var", version = "0.5.4" }
 zng-color = { path = "../zng-color", version = "0.3.10" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.32" }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.22" }
+
+# used only by fallback_chrome
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.32" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.22" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.12" }
 
 serde = { version = "1.0", features = ["derive"] }
 paste = "1.0"
