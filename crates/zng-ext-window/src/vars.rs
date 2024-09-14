@@ -180,6 +180,12 @@ impl WindowVars {
     /// The window chrome is the non-client area of the window, usually a border with resize handles and a title bar.
     ///
     /// The default value is `true`.
+    /// 
+    /// Note that if the [`WINDOWS.system_chrome`] reports the windowing system prefers a custom chrome **and** does not
+    /// provide one the system chrome is not requested, even if this is `true`. Window widget implementers can use this to
+    /// detect when a fallback chrome must be provided.
+    /// 
+    /// [`WINDOWS.system_chrome`]: crate::WINDOWS::system_chrome
     pub fn chrome(&self) -> ArcVar<bool> {
         self.0.chrome.clone()
     }

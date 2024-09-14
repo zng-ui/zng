@@ -486,7 +486,7 @@ pub struct WindowStateAll {
 
     /// If the system provided outer-border and title-bar is visible.
     ///
-    /// This is also called the "decoration" or "chrome" of the window.
+    /// This is also called the "decoration" or "chrome" of the window. Note that the system may prefer 
     pub chrome_visible: bool,
 }
 impl WindowStateAll {

@@ -198,13 +198,15 @@ impl HeadedCtrl {
 
             let mut new_state = prev_state.clone();
 
-            if let Some(mut chrome) = self.vars.chrome().get_new() {
+            if self.vars.chrome().is_new() || WINDOWS.system_chrome().is_new() {
+                let mut chrome = self.vars.chrome().get();
+
                 if self.kiosk.is_some() && !chrome {
                     tracing::error!("window in `kiosk` mode can not show chrome");
                     chrome = false;
                 }
 
-                new_state.chrome_visible = chrome;
+                new_state.chrome_visible = chrome && !WINDOWS.system_chrome().get().needs_custom();
             }
 
             if let Some(mut req_state) = self.vars.state().get_new() {
@@ -1125,7 +1127,7 @@ impl HeadedCtrl {
             restore_state: WindowState::Normal,
             min_size: min_size.to_dip(scale_factor),
             max_size: max_size.to_dip(scale_factor),
-            chrome_visible: self.vars.chrome().get(),
+            chrome_visible: self.vars.chrome().get() && !WINDOWS.system_chrome().get().needs_custom(),
         };
 
         let window_id = WINDOW.id();

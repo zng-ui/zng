@@ -29,8 +29,6 @@ mod window_properties;
 #[allow(ambiguous_glob_reexports)] // we override `font_size`.
 pub use self::window_properties::*;
 
-pub mod custom_chrome;
-
 /// A window container.
 ///
 /// The instance type is [`WindowRoot`], it can be given to the [`WINDOWS`](zng_ext_window::WINDOWS) service
@@ -77,6 +75,10 @@ impl Window {
                 // users tap the main background to dismiss `TextInput!` soft keyboard
                 focus_scope_behavior = FocusScopeOnFocus::Widget;
                 font_size = FONT_SIZE_VAR.map(|f| f.clone() * 1.5.fct()).boxed();
+            }
+
+            when #needs_fallback_chrome {
+                
             }
         }
 

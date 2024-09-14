@@ -197,17 +197,26 @@ pub struct ChromeConfig {
     /// Window manager prefers that the window renders a custom chrome.
     ///
     /// This is also called "Client-Side Decorations", it is `true` in GNOME+Wayland.
-    pub pref_custom: bool,
+    pub prefer_custom: bool,
 
     /// If the Window manager provides a chrome.
     ///
-    /// When this is `false` the view-process implementation may provide just a basic chrome if the window requests it.
+    /// When this is `false` the view-process implementation may provide just a very basic fallback chrome, 
+    /// if the app-process still requests system chrome.
     pub provided: bool,
+}
+impl ChromeConfig {
+    /// If system prefers custom and does not provide chrome.
+    /// 
+    /// Note that a chromeless window is not forbidden if this is `true`.
+    pub fn needs_custom(&self) -> bool {
+        self.prefer_custom && !self.provided
+    }
 }
 impl Default for ChromeConfig {
     fn default() -> Self {
         Self {
-            pref_custom: false,
+            prefer_custom: false,
             provided: true,
         }
     }

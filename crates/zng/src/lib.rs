@@ -794,7 +794,7 @@ mod __prelude_wgt {
     };
 
     pub use zng_wgt::node::{
-        bind_state, border_node, command_property, event_property, event_state, event_state2, event_state3, event_state4, fill_node,
+        bind_state, bind_state_init, border_node, command_property, event_property, event_state, event_state2, event_state3, event_state4, fill_node,
         list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
         with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
@@ -927,11 +927,6 @@ mod defaults {
             {
                 zng_ext_window::WINDOWS.register_open_nested_handler(crate::window::default_mobile_nested_open_handler);
                 tracing::debug!("defaults init, open_nested_handler set");
-            }
-
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            {
-                zng_ext_window::WINDOWS.register_root_extender(crate::window::custom_chrome::fallback_window_chrome);
             }
 
             // setup OPEN_LICENSES_CMD handler

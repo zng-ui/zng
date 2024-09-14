@@ -1326,6 +1326,33 @@ pub fn bind_state<T: VarValue>(child: impl UiNode, source: impl IntoVar<T>, stat
     })
 }
 
+/// Helper for declaring state properties that are controlled by a variable.
+///
+/// On init the `state` closure is called to provide a variable, the variable is set to `source` and bound to it, 
+/// you can use this to create state properties that map from a context variable or to create composite properties 
+/// that merge other state properties.
+pub fn bind_state_init<T, V>(child: impl UiNode, source: impl Fn() -> V + Send + 'static, state: impl IntoVar<T>) -> impl UiNode where T: VarValue, V: Var<T> {
+    let state = state.into_var();
+    let mut _source_var = None;
+    let mut _binding = VarHandle::dummy();
+
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            validate_getter_var(&state);
+            let source = source();
+            let _ = state.set_from(&source);
+            _binding = source.bind(&state);
+            _source_var = Some(source);
+
+        }
+        UiNodeOp::Deinit => {
+            _binding = VarHandle::dummy();
+            _source_var = None;
+        }
+        _ => {}
+    })
+}
+
 /// Helper for declaring state properties that are controlled by values in the widget state map.
 ///
 /// The `predicate` closure is called with the widget state on init and every update, if the returned value changes the `state`

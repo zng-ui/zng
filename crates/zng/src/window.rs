@@ -142,29 +142,6 @@ pub mod inspector {
     pub use zng_wgt_inspector::debug::{show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode};
 }
 
-/// Widgets for building custom window chrome (window decorations).
-pub mod custom_chrome {
-    use zng_wgt::prelude::BoxedUiNode;
-    pub use zng_wgt_window::custom_chrome::{WindowChrome, WindowChromeThumb};
-
-    /// Provides a fallback window chrome if required by operating system.
-    ///
-    /// This handler is registered bu default on [`WINDOWS.register_root_extender`] in desktop operating systems.
-    ///
-    /// [`WINDOWS.register_root_extender`]: zng_ext_window::WINDOWS::register_root_extender
-    pub fn fallback_window_chrome(args: zng_ext_window::WindowRootExtenderArgs) -> BoxedUiNode {
-        use crate::prelude::*;
-
-        let cfg = WINDOWS.system_chrome().get();
-        if cfg.pref_custom && !cfg.provided && !cfg!(any(target_os = "android", target_os = "ios")) {
-            WINDOW.vars().chrome().set(false);
-            WindowChrome!(args.root).boxed()
-        } else {
-            args.root
-        }
-    }
-}
-
 /// Default handler registered in mobile platforms.
 ///
 /// This is registered on app init for platforms that only support one window, it intercepts headed window open requests after the

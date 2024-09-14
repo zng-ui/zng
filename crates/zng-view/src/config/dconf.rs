@@ -103,7 +103,7 @@ pub fn chrome_config() -> ChromeConfig {
         .or_else(|_| std::env::var("XDG_CURRENT_DESKTOP"))
         .map_or(false, |val| val.contains("GNOME"));
     ChromeConfig {
-        pref_custom: is_gnome,
+        prefer_custom: is_gnome,
         provided: !(is_wayland && is_gnome),
     }
 }
