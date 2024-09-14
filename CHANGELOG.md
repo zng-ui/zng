@@ -1,5 +1,6 @@
 # Unreleased
 
+* Remove end punctuation from command `info` fields
 
 # 0.11.6
 
