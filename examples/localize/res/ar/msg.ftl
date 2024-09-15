@@ -6,5 +6,5 @@ click-count = {$n ->
 }
 
 LOCALIZED_FILE_CMD =
-    .info = مترجم في ملف مسمى 'msg'.
+    .info = مترجم في ملف مسمى 'msg'
     .name = ملف مترجم

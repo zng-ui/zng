@@ -454,6 +454,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawColorsConfigChangedArgs::now(cfg);
                 self.notify_event(RAW_COLORS_CONFIG_CHANGED_EVENT.new_update(args), observer);
             }
+            Event::ChromeConfigChanged(cfg) => {
+                let args = RawChromeConfigChangedArgs::now(cfg);
+                self.notify_event(RAW_CHROME_CONFIG_CHANGED_EVENT.new_update(args), observer);
+            }
 
             // `device_events`
             Event::DeviceAdded(d_id) => {
@@ -569,6 +573,7 @@ impl<E: AppExtension> RunningApp<E> {
                     animations_config,
                     locale_config,
                     colors_config,
+                    chrome_config,
                     extensions,
                 }) => {
                     // notify immediately.
@@ -597,6 +602,7 @@ impl<E: AppExtension> RunningApp<E> {
                         animations_config,
                         locale_config,
                         colors_config,
+                        chrome_config,
                         extensions,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
@@ -1179,7 +1185,7 @@ command! {
     pub static EXIT_CMD = {
         l10n!: true,
         name: "Exit",
-        info: "Close all windows and exit.",
+        info: "Close all windows and exit",
         shortcut: shortcut!(Exit),
     };
 }

@@ -56,7 +56,7 @@ use super::*;
 ///     /// Represents the **foo** action.
 ///     pub static FOO_CMD = {
 ///         name: "Foo!",
-///         info: "Does the foo thing.",
+///         info: "Does the foo thing",
 ///         shortcut: shortcut![CTRL+'F'],
 ///     };
 /// }
@@ -92,7 +92,7 @@ use super::*;
 ///     pub static FOO_CMD = {
 ///         l10n!: true,
 ///         name: "Foo!",
-///         info: "Does the foo thing.",
+///         info: "Does the foo thing",
 ///     };
 /// }
 /// ```

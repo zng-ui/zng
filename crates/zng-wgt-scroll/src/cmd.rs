@@ -22,7 +22,7 @@ command! {
     pub static SCROLL_UP_CMD = {
         l10n!: true,
         name: "Scroll Up",
-        info: "Scroll Up by one scroll unit.",
+        info: "Scroll Up by one scroll unit",
         shortcut: shortcut!(ArrowUp),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -38,7 +38,7 @@ command! {
     pub static SCROLL_DOWN_CMD = {
         l10n!: true,
         name: "Scroll Down",
-        info: "Scroll Down by one scroll unit.",
+        info: "Scroll Down by one scroll unit",
         shortcut: shortcut!(ArrowDown),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -54,7 +54,7 @@ command! {
     pub static SCROLL_LEFT_CMD = {
         l10n!: true,
         name: "Scroll Left",
-        info: "Scroll Left by one scroll unit.",
+        info: "Scroll Left by one scroll unit",
         shortcut: shortcut!(ArrowLeft),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -70,7 +70,7 @@ command! {
     pub static SCROLL_RIGHT_CMD = {
         l10n!: true,
         name: "Scroll Right",
-        info: "Scroll Right by one scroll unit.",
+        info: "Scroll Right by one scroll unit",
         shortcut: shortcut!(ArrowRight),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -90,7 +90,7 @@ command! {
     pub static PAGE_UP_CMD = {
         l10n!: true,
         name: "Page Up",
-        info: "Scroll Up by one page unit.",
+        info: "Scroll Up by one page unit",
         shortcut: shortcut!(PageUp),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -106,7 +106,7 @@ command! {
     pub static PAGE_DOWN_CMD = {
         l10n!: true,
         name: "Page Down",
-        info: "Scroll down by one page unit.",
+        info: "Scroll down by one page unit",
         shortcut: shortcut!(PageDown),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -122,7 +122,7 @@ command! {
     pub static PAGE_LEFT_CMD = {
         l10n!: true,
         name: "Page Left",
-        info: "Scroll Left by one page unit.",
+        info: "Scroll Left by one page unit",
         shortcut: shortcut!(SHIFT+PageUp),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -138,7 +138,7 @@ command! {
     pub static PAGE_RIGHT_CMD = {
         l10n!: true,
         name: "Page Right",
-        info: "Scroll Right by one page unit.",
+        info: "Scroll Right by one page unit",
         shortcut: shortcut!(SHIFT+PageDown),
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -147,7 +147,7 @@ command! {
     pub static SCROLL_TO_TOP_CMD = {
         l10n!: true,
         name: "Scroll to Top",
-        info: "Scroll up to the content top.",
+        info: "Scroll up to the content top",
         shortcut: [shortcut!(Home), shortcut!(CTRL+Home)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
         icon: wgt_fn!(|_| ICONS.get(["scroll-top", "vertical-align-top"])),
@@ -167,7 +167,7 @@ command! {
     pub static SCROLL_TO_LEFTMOST_CMD = {
         l10n!: true,
         name: "Scroll to Leftmost",
-        info: "Scroll left to the content left edge.",
+        info: "Scroll left to the content left edge",
         shortcut: [shortcut!(SHIFT+Home), shortcut!(CTRL|SHIFT+Home)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };
@@ -176,7 +176,7 @@ command! {
     pub static SCROLL_TO_RIGHTMOST_CMD = {
         l10n!: true,
         name: "Scroll to Rightmost",
-        info: "Scroll right to the content right edge.",
+        info: "Scroll right to the content right edge",
         shortcut: [shortcut!(SHIFT+End), shortcut!(CTRL|SHIFT+End)],
         shortcut_filter: ShortcutFilter::FOCUSED | ShortcutFilter::CMD_ENABLED,
     };

@@ -388,6 +388,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 animations_config: config::animations_config(),
                 locale_config: config::locale_config(),
                 colors_config: config::colors_config(),
+                chrome_config: config::chrome_config(),
                 extensions: self.exts.api_extensions(),
             }));
 
@@ -1609,6 +1610,7 @@ impl Api for App {
             animations_config: config::animations_config(),
             locale_config: config::locale_config(),
             colors_config: config::colors_config(),
+            chrome_config: config::chrome_config(),
             extensions: self.exts.api_extensions(),
         }));
     }

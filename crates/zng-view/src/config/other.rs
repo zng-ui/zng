@@ -1,6 +1,8 @@
 #![allow(unused)]
 
-use zng_view_api::config::{AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
+use zng_view_api::config::{
+    AnimationsConfig, ChromeConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig,
+};
 
 pub fn font_aa() -> FontAntiAliasing {
     warn("font_aa");
@@ -30,6 +32,11 @@ pub fn touch_config() -> TouchConfig {
 pub fn colors_config() -> ColorsConfig {
     warn("colors_config");
     ColorsConfig::default()
+}
+
+pub fn chrome_config() -> ChromeConfig {
+    warn("chrome_config");
+    ChromeConfig::default()
 }
 
 #[cfg(not(windows))]

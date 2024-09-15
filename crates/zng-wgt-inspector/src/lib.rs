@@ -24,7 +24,7 @@ command! {
     pub static INSPECT_CMD = {
         l10n!: "inspector",
         name: "Debug Inspector",
-        info: "Inspect the window.",
+        info: "Inspect the window",
         shortcut: [shortcut!(CTRL|SHIFT+'I'), shortcut!(F12)],
         icon: wgt_fn!(|_| ICONS.get(["inspector", "screen-search-desktop"])),
     };

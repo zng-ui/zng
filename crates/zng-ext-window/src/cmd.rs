@@ -19,25 +19,25 @@ command! {
     pub static CLOSE_CMD = {
         l10n!: true,
         name: "Close",
-        info: "Close the window.",
+        info: "Close the window",
         shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+'W')],
-        icon: wgt_fn!(|_| ICONS.get("close")),
+        icon: wgt_fn!(|_| ICONS.get(["window-close", "close"])),
     };
 
     /// Represents the window **minimize** action.
     pub static MINIMIZE_CMD = {
         l10n!: true,
         name: "Minimize",
-        info: "Minimize the window.",
-        icon: wgt_fn!(|_| ICONS.get("minimize")),
+        info: "Minimize the window",
+        icon: wgt_fn!(|_| ICONS.get(["window-minimize"])),
     };
 
     /// Represents the window **maximize** action.
     pub static MAXIMIZE_CMD = {
         l10n!: true,
         name: "Maximize",
-        info: "Maximize the window.",
-        icon: wgt_fn!(|_| ICONS.get("maximize")),
+        info: "Maximize the window",
+        icon: wgt_fn!(|_| ICONS.get(["window-maximize"])),
     };
 
     /// Represents the window **toggle fullscreen** action.
@@ -49,7 +49,7 @@ command! {
     pub static FULLSCREEN_CMD = {
         l10n!: true,
         name: "Fullscreen",
-        info: "Toggle fullscreen mode on the window.",
+        info: "Toggle fullscreen mode on the window",
         shortcut: {
             let a = if cfg!(target_os = "macos") {
                 shortcut!(CTRL|SHIFT+'F')
@@ -58,7 +58,7 @@ command! {
             };
             [a, shortcut!(ZoomToggle)]
         },
-        icon: wgt_fn!(|_| ICONS.get("fullscreen")),
+        icon: wgt_fn!(|_| ICONS.get(["window-windowed-fullscreen", "window-fullscreen", "fullscreen"])),
     };
 
     /// Represents the window **toggle fullscreen** action.
@@ -70,8 +70,8 @@ command! {
     pub static EXCLUSIVE_FULLSCREEN_CMD = {
         l10n!: true,
         name: "Exclusive Fullscreen",
-        info: "Toggle exclusive fullscreen mode on the window.",
-        icon: wgt_fn!(|_| ICONS.get("fullscreen")),
+        info: "Toggle exclusive fullscreen mode on the window",
+        icon: wgt_fn!(|_| ICONS.get(["window-exclusive-fullscreen", "window-fullscreen", "fullscreen"])),
     };
 
     /// Represents the window **restore** action.
@@ -80,8 +80,8 @@ command! {
     pub static RESTORE_CMD = {
         l10n!: true,
         name: "Restore",
-        info: "Restores the window to its previous non-minimized state or normal state.",
-        icon: wgt_fn!(|_| ICONS.get("restore")),
+        info: "Restores the window to its previous non-minimized state or normal state",
+        icon: wgt_fn!(|_| ICONS.get(["window-restore"])),
     };
 
     /// Represents the **close IME** action.
