@@ -365,7 +365,7 @@ pub trait AsyncBlobRasterizer: Send + Any {
 
 /// Arguments for [`BlobExtension::prepare_resources`].
 pub struct BlobPrepareArgs<'a> {
-    #[allow(missing_docs)]
+    /// Webrender services.
     pub services: &'a dyn webrender::api::BlobImageResources,
     /// Requests targeting any of the blob extensions. Each extension must
     /// inspect the requests to find the ones targeting it.
@@ -381,9 +381,9 @@ pub struct BlobAddArgs {
     /// Encoded data.
     pub data: std::sync::Arc<webrender::api::BlobImageData>,
 
-    #[allow(missing_docs)]
+    /// Webrender value.
     pub visible_rect: webrender::api::units::DeviceIntRect,
-    #[allow(missing_docs)]
+    /// Webrender value.
     pub tile_size: webrender::api::TileSize,
 }
 
@@ -395,9 +395,9 @@ pub struct BlobUpdateArgs {
     pub key: webrender::api::BlobImageKey,
     /// Encoded data.
     pub data: std::sync::Arc<webrender::api::BlobImageData>,
-    #[allow(missing_docs)]
+    /// Webrender value.
     pub visible_rect: webrender::api::units::DeviceIntRect,
-    #[allow(missing_docs)]
+    /// Webrender value.
     pub dirty_rect: webrender::api::units::BlobDirtyRect,
 }
 

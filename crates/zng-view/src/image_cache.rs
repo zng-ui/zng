@@ -1257,7 +1257,6 @@ mod capture {
 
     impl ImageCache {
         /// Create frame_image for an `Api::frame_image` request.
-        #[allow(clippy::too_many_arguments)]
         pub fn frame_image(
             &mut self,
             gl: &dyn gleam::gl::Gl,

@@ -1177,7 +1177,6 @@ impl FocusService {
     }
 
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
     fn focus_direct(
         &mut self,
         widget_id: WidgetId,

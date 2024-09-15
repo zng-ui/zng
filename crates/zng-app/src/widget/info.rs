@@ -241,7 +241,7 @@ impl WidgetInfoTree {
     /// Total number of widgets in the tree.
     ///
     /// Is never zero, every tree has at least the root widget.
-    #[allow(clippy::len_without_is_empty)]
+    #[expect(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.0.lookup.len()
     }

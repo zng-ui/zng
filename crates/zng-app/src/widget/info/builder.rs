@@ -1595,7 +1595,6 @@ impl WidgetLayout {
     /// Returns the child final size.
     ///
     /// [`InlineConstraintsLayout`]: zng_layout::context::InlineConstraintsLayout
-    #[allow(clippy::too_many_arguments)]
     pub fn layout_inline(
         &mut self,
         first: PxRect,

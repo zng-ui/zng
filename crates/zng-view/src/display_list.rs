@@ -269,7 +269,7 @@ impl DisplayListCache {
         r
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn reuse(
         &self,
         frame_id: FrameId,
@@ -339,7 +339,7 @@ impl DisplayListCache {
 
     /// Apply updates, returns the webrender update if the renderer can also be updated and there are any updates,
     /// or returns a new frame if a new frame must be rendered.
-    #[allow(clippy::result_large_err)] // both are large
+    #[expect(clippy::result_large_err)] // both are large
     pub fn update(
         &mut self,
         ext: &mut dyn DisplayListExtension,

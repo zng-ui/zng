@@ -228,7 +228,7 @@ impl fmt::Display for BuildError {
             BuildError::Command { status, err } => {
                 write!(f, "build command failed")?;
                 let mut sep = "\n";
-                #[allow(unused_assignments)]
+                #[allow(unused_assignments)] // depends on cfg
                 if let Some(c) = status.code() {
                     write!(f, "{sep}exit code: {c:#x}")?;
                     sep = ", ";

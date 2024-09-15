@@ -16,7 +16,7 @@ pub use zng_app_proc_macros::easing;
 type EasingFn = Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>;
 
 #[doc(hidden)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub trait easing_property: Send + Sync + Clone + Copy {
     fn easing_property_unset(self);
     fn easing_property(self, duration: Duration, easing: EasingFn) -> Vec<Box<dyn AnyPropertyBuildAction>>;
@@ -24,7 +24,7 @@ pub trait easing_property: Send + Sync + Clone + Copy {
 }
 
 #[doc(hidden)]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 #[diagnostic::on_unimplemented(note = "property type must be `Transitionable` to support `#[easing]`")]
 pub trait easing_property_input_Transitionable: Any + Send {
     fn easing(self, duration: Duration, easing: EasingFn, when_conditions_data: &[Option<Arc<dyn Any + Send + Sync>>]) -> Self;

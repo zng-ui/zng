@@ -629,7 +629,7 @@ impl fmt::Debug for GradientStops {
         }
     }
 }
-#[allow(clippy::len_without_is_empty)] // cannot be empty
+#[expect(clippy::len_without_is_empty)] // cannot be empty
 impl GradientStops {
     /// Gradients stops with two colors from `start` to `end`.
     pub fn new(start: impl Into<Rgba>, end: impl Into<Rgba>) -> Self {

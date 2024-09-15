@@ -65,13 +65,13 @@ pub enum MsgDialogButtons {
 /// Response to a message dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MsgDialogResponse {
-    #[allow(missing_docs)]
+    /// Message received or approved.
     Ok,
-    #[allow(missing_docs)]
+    /// Question approved.
     Yes,
-    #[allow(missing_docs)]
+    /// Question denied.
     No,
-    #[allow(missing_docs)]
+    /// Message denied.
     Cancel,
     /// Failed to show the message.
     ///

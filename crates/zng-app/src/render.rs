@@ -163,7 +163,7 @@ impl FrameBuilder {
     /// * `scale_factor` - Scale factor that will be used to render the frame, usually the scale factor of the screen the window is at.
     /// * `default_font_aa` - Fallback font anti-aliasing used when the default value is requested.
     ///   because WebRender does not let us change the initial clear color.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         render_widgets: Arc<RenderUpdates>,
         render_update_widgets: Arc<RenderUpdates>,
@@ -232,7 +232,7 @@ impl FrameBuilder {
     }
 
     /// [`new`](Self::new) with only the inputs required for renderless mode.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new_renderless(
         render_widgets: Arc<RenderUpdates>,
         render_update_widgets: Arc<RenderUpdates>,
@@ -1270,7 +1270,7 @@ impl FrameBuilder {
     }
 
     /// Push a nine-patch border with image source.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_border_image(
         &mut self,
         bounds: PxRect,
@@ -1298,7 +1298,7 @@ impl FrameBuilder {
     }
 
     /// Push a nine-patch border with linear gradient source.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_border_linear_gradient(
         &mut self,
         bounds: PxRect,
@@ -1337,7 +1337,7 @@ impl FrameBuilder {
     }
 
     /// Push a nine-patch border with radial gradient source.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_border_radial_gradient(
         &mut self,
         bounds: PxRect,
@@ -1380,7 +1380,7 @@ impl FrameBuilder {
     }
 
     /// Push a nine-patch border with conic gradient source.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_border_conic_gradient(
         &mut self,
         bounds: PxRect,
@@ -1517,7 +1517,7 @@ impl FrameBuilder {
     ///
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_linear_gradient(
         &mut self,
         clip_rect: PxRect,
@@ -1566,7 +1566,7 @@ impl FrameBuilder {
     ///
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_radial_gradient(
         &mut self,
         clip_rect: PxRect,
@@ -1615,7 +1615,7 @@ impl FrameBuilder {
     ///
     /// The gradient `stops` must be normalized, first stop at 0.0 and last stop at 1.0, this
     /// is asserted in debug builds.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn push_conic_gradient(
         &mut self,
         clip_rect: PxRect,
@@ -1848,7 +1848,7 @@ impl FrameBuilder {
     }
 
     /// Calls `render` to render a separate nested window on this frame.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn with_nested_window(
         &mut self,
         render_widgets: Arc<RenderUpdates>,

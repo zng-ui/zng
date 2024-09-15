@@ -818,7 +818,7 @@ fn crash_handler_monitor_process(
                     zng_env::exit(code);
                 } else {
                     let code = status.code();
-                    #[allow(unused_mut)]
+                    #[allow(unused_mut)] // Windows has no signal
                     let mut signal = None::<i32>;
 
                     #[cfg(windows)]
@@ -932,7 +932,7 @@ fn crash_handler_monitor_process(
                                         .to_owned()
                                 } else {
                                     let code = dlg_status.code();
-                                    #[allow(unused_mut)]
+                                    #[allow(unused_mut)] // Windows has no signal
                                     let mut signal = None::<i32>;
 
                                     #[cfg(windows)]

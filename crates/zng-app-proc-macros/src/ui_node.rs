@@ -472,7 +472,6 @@ fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow:
 }
 
 /// Parsed macro arguments.
-#[allow(clippy::large_enum_variant)]
 enum Args {
     /// No arguments. Impl is for a leaf in the Ui tree.
     NoDelegate,

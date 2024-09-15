@@ -56,7 +56,7 @@ impl zng_app::AppExtension for MaterialIconsManager {
 
         ICONS.register(wgt_fn!(|args: IconRequestArgs| {
             if let Some(strong_key) = args.name().strip_prefix("material/") {
-                #[allow(clippy::type_complexity)]
+                #[expect(clippy::type_complexity)]
                 let sets: &[(&str, fn(&str) -> Option<GlyphIcon>)] = &[
                     #[cfg(feature = "outlined")]
                     ("outlined/", outlined::get),

@@ -69,7 +69,7 @@ impl INSTANT {
 }
 
 /// App control of the [`INSTANT`] service in an app context.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct INSTANT_APP;
 impl INSTANT_APP {
     /// Set how the app controls the time.

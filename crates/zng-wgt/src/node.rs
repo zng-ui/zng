@@ -1068,7 +1068,7 @@ pub fn event_state<A: EventArgs, S: VarValue>(
 ///
 /// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
 /// provides a new value the `state` variable is set.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn event_state2<A0, A1, S0, S1, S>(
     child: impl UiNode,
     state: impl IntoVar<S>,
@@ -1136,7 +1136,7 @@ where
 ///
 /// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
 /// provides a new value the `state` variable is set.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn event_state3<A0, A1, A2, S0, S1, S2, S>(
     child: impl UiNode,
     state: impl IntoVar<S>,
@@ -1216,7 +1216,7 @@ where
 ///
 /// When the `event#` is received `on_event#` is called, if it provides a new value `merge` is called, if merge
 /// provides a new value the `state` variable is set.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn event_state4<A0, A1, A2, A3, S0, S1, S2, S3, S>(
     child: impl UiNode,
     state: impl IntoVar<S>,

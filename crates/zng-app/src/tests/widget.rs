@@ -383,9 +383,9 @@ impl CfgPropertyWgt {
             never_trace = "never-trace";
 
             // suppress warning.
-            #[allow(non_snake_case)]
+            #[expect(non_snake_case)]
             always_trace = {
-                #[allow(clippy::needless_late_init)]
+                #[expect(clippy::needless_late_init)]
                 let weird___name;
                 weird___name = "always-trace";
                 weird___name
@@ -426,9 +426,9 @@ pub fn user_cfg_property() {
             never_trace = "never-trace";
 
             // suppress warning.
-            #[allow(non_snake_case)]
+            #[expect(non_snake_case)]
             always_trace = {
-                #[allow(clippy::needless_late_init)]
+                #[expect(clippy::needless_late_init)]
                 let weird___name;
                 weird___name = "always-trace";
                 weird___name
@@ -454,10 +454,10 @@ impl CfgWhenWgt {
             util::live_trace = "trace";
 
             // suppress warning in all assigns.
-            #[allow(non_snake_case)]
+            #[expect(non_snake_case)]
             when *#util::is_state {
                 util::live_trace = {
-                    #[allow(clippy::needless_late_init)]
+                    #[expect(clippy::needless_late_init)]
                     let weird___name;
                     weird___name = "is_state";
                     weird___name
@@ -507,8 +507,8 @@ pub fn user_cfg_when() {
 
             when *#util::is_state {
                 util::live_trace = {
-                    #[allow(non_snake_case)]
-                    #[allow(clippy::needless_late_init)]
+                    #[expect(non_snake_case)]
+                    #[expect(clippy::needless_late_init)]
                     let weird___name;
                     weird___name = "is_state";
                     weird___name
@@ -1081,7 +1081,7 @@ pub fn name_collision_wgt_when() {
 * macro_rules! generated widget
 */
 
-#[allow(dead_code)] // weird interaction with macro_rules!.
+#[allow(dead_code)]
 mod macro_rules_generated {
     use zng_app_proc_macros::{property, widget};
     use zng_layout::unit::SideOffsets;
@@ -1396,7 +1396,7 @@ pub mod util {
 
     /// A capture_only property.
     #[property(CONTEXT)]
-    #[allow(unreachable_code)]
+    #[expect(unreachable_code)]
     pub fn capture_only_trace(_child: impl UiNode, trace: impl IntoValue<&'static str>) -> impl UiNode {
         let _ = trace;
         panic!("capture-only property");

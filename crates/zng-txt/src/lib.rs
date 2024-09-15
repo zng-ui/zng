@@ -138,7 +138,7 @@ impl Txt {
     /// consider using [`from_string`] instead.
     ///
     /// [`from_string`]: Self::from_string
-    #[allow(clippy::should_implement_trait)] // have implemented trait, this one is infallible.
+    #[expect(clippy::should_implement_trait)] // have implemented trait, this one is infallible.
     pub fn from_str(s: &str) -> Txt {
         if s.is_empty() {
             Self::from_static("")

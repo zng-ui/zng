@@ -534,7 +534,7 @@ impl MatrixDecomposed3D {
             scale.1 *= -1.0;
             scale.2 *= -1.0;
 
-            #[allow(clippy::needless_range_loop)]
+            #[expect(clippy::needless_range_loop)]
             for i in 0..3 {
                 row[i][0] *= -1.0;
                 row[i][1] *= -1.0;

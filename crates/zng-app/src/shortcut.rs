@@ -170,7 +170,7 @@ impl std::hash::Hash for KeyGesture {
     }
 }
 impl KeyGesture {
-    #[allow(missing_docs)]
+    /// New from modifiers and key.
     pub fn new(modifiers: ModifiersState, key: GestureKey) -> Self {
         KeyGesture { modifiers, key }
     }
@@ -508,7 +508,7 @@ pub struct ParseError {
     pub error: String,
 }
 impl ParseError {
-    #[allow(missing_docs)]
+    /// New from any error message.
     pub fn new(error: impl ToString) -> Self {
         ParseError { error: error.to_string() }
     }

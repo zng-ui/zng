@@ -59,7 +59,6 @@ impl L10nService {
         self.app_lang.clone()
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn localized_message(
         &mut self,
         langs: Langs,

@@ -146,7 +146,7 @@
 //!
 //! ```
 //! # use zng::var::*;
-//! #[allow(non_camel_case_types)]
+//! #[expect(non_camel_case_types)]
 //! pub struct SCREAMING_CASE;
 //! impl SCREAMING_CASE {
 //!     pub fn state(&self) -> impl Var<bool> {
@@ -476,7 +476,7 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 ///                         child = Text!("Crash (access violation)");
 ///                         on_click = hn_once!(|_| {
 ///                             // SAFETY: deliberate access violation
-///                             #[allow(deref_nullptr)]
+///                             #[expect(deref_nullptr)]
 ///                             unsafe {
 ///                                 *std::ptr::null_mut() = true;
 ///                             }

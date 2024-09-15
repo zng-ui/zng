@@ -127,6 +127,6 @@ pub const CURSORS: &[(CursorIcon, &[u8])] = &[
 ];
 
 // (label, cursor_img, fallback)
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 pub const CURSOR_IMGS: &[(&str, (&[u8], i32, i32), CursorIcon)] =
     &[("custom", (include_bytes!("../../image/res/RGBA8.png"), 4, 6), CursorIcon::Default)];

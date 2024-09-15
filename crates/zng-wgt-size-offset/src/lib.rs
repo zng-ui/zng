@@ -790,7 +790,7 @@ pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNod
 /// [`width`]: fn@width
 /// [`height`]: fn@height
 /// [`Length::Leftover`]: zng_wgt::prelude::Length::Leftover
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct WIDGET_SIZE;
 impl WIDGET_SIZE {
     /// Set the width state.
