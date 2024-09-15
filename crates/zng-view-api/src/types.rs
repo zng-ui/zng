@@ -3,7 +3,9 @@
 use crate::{
     access::{AccessCmd, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
-    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig},
+    config::{
+        AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
+    },
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     image::{ImageId, ImageLoadedData, ImagePpi},
     ipc::IpcBytes,
@@ -133,6 +135,8 @@ pub struct Inited {
     pub locale_config: LocaleConfig,
     /// System preferred color scheme and colors.
     pub colors_config: ColorsConfig,
+    /// Window chrome (decorations) preference.
+    pub chrome_config: ChromeConfig,
     /// API extensions implemented by the view-process.
     ///
     /// The extension IDs will stay valid for the duration of the view-process.
@@ -467,6 +471,8 @@ pub enum Event {
     LocaleChanged(LocaleConfig),
     /// System color scheme or colors changed.
     ColorsConfigChanged(ColorsConfig),
+    /// System window chrome (decorations) preference changed.
+    ChromeConfigChanged(ChromeConfig),
 
     /* Raw device events */
     /// Device added or installed.

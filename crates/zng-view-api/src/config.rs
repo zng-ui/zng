@@ -190,3 +190,34 @@ impl Default for ColorsConfig {
 zng_var::impl_from_and_into_var! {
     fn from(some: ColorScheme) -> Option<ColorScheme>;
 }
+
+/// Window chrome (decorations) preference.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChromeConfig {
+    /// Window manager prefers that the window renders a custom chrome.
+    ///
+    /// This is also called "Client-Side Decorations", it is `true` in GNOME+Wayland.
+    pub prefer_custom: bool,
+
+    /// If the Window manager provides a chrome.
+    ///
+    /// When this is `false` the view-process implementation may provide just a very basic fallback chrome,
+    /// if the app-process still requests system chrome.
+    pub provided: bool,
+}
+impl ChromeConfig {
+    /// If system prefers custom and does not provide chrome.
+    ///
+    /// Note that a chromeless window is not forbidden if this is `true`.
+    pub fn needs_custom(&self) -> bool {
+        self.prefer_custom && !self.provided
+    }
+}
+impl Default for ChromeConfig {
+    fn default() -> Self {
+        Self {
+            prefer_custom: false,
+            provided: true,
+        }
+    }
+}

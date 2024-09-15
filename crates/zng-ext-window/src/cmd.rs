@@ -21,7 +21,7 @@ command! {
         name: "Close",
         info: "Close the window",
         shortcut: [shortcut!(ALT+F4), shortcut!(CTRL+'W')],
-        icon: wgt_fn!(|_| ICONS.get("close")),
+        icon: wgt_fn!(|_| ICONS.get(["window-close", "close"])),
     };
 
     /// Represents the window **minimize** action.
@@ -29,7 +29,7 @@ command! {
         l10n!: true,
         name: "Minimize",
         info: "Minimize the window",
-        icon: wgt_fn!(|_| ICONS.get("minimize")),
+        icon: wgt_fn!(|_| ICONS.get(["window-minimize"])),
     };
 
     /// Represents the window **maximize** action.
@@ -37,7 +37,7 @@ command! {
         l10n!: true,
         name: "Maximize",
         info: "Maximize the window",
-        icon: wgt_fn!(|_| ICONS.get("maximize")),
+        icon: wgt_fn!(|_| ICONS.get(["window-maximize"])),
     };
 
     /// Represents the window **toggle fullscreen** action.
@@ -58,7 +58,7 @@ command! {
             };
             [a, shortcut!(ZoomToggle)]
         },
-        icon: wgt_fn!(|_| ICONS.get("fullscreen")),
+        icon: wgt_fn!(|_| ICONS.get(["window-windowed-fullscreen", "window-fullscreen", "fullscreen"])),
     };
 
     /// Represents the window **toggle fullscreen** action.
@@ -71,7 +71,7 @@ command! {
         l10n!: true,
         name: "Exclusive Fullscreen",
         info: "Toggle exclusive fullscreen mode on the window",
-        icon: wgt_fn!(|_| ICONS.get("fullscreen")),
+        icon: wgt_fn!(|_| ICONS.get(["window-exclusive-fullscreen", "window-fullscreen", "fullscreen"])),
     };
 
     /// Represents the window **restore** action.
@@ -81,7 +81,7 @@ command! {
         l10n!: true,
         name: "Restore",
         info: "Restores the window to its previous non-minimized state or normal state",
-        icon: wgt_fn!(|_| ICONS.get("restore")),
+        icon: wgt_fn!(|_| ICONS.get(["window-restore"])),
     };
 
     /// Represents the **close IME** action.

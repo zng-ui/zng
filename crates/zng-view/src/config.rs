@@ -1,5 +1,5 @@
 use zng_view_api::config::{
-    AnimationsConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
+    AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
 };
 
 #[cfg(windows)]
@@ -73,6 +73,10 @@ pub fn colors_config() -> ColorsConfig {
 
 pub fn locale_config() -> LocaleConfig {
     platform::locale_config()
+}
+
+pub fn chrome_config() -> ChromeConfig {
+    platform::chrome_config()
 }
 
 /// Return handle must be called on exit.

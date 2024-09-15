@@ -221,8 +221,8 @@ pub mod node {
     };
 
     pub use zng_wgt::node::{
-        bind_state, border_node, event_state, event_state2, event_state3, event_state4, fill_node, interactive_node, list_presenter,
-        presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
+        bind_state, bind_state_init, border_node, event_state, event_state2, event_state3, event_state4, fill_node, interactive_node,
+        list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
         with_context_local_init, with_context_var, with_context_var_init, with_index_len_node, with_index_node, with_rev_index_node,
         with_widget_state, with_widget_state_modify,
     };
@@ -780,6 +780,9 @@ pub use zng_app::widget::easing;
 /// with a read-write variable that is used in the when condition. The property attribute generates defaults automatically
 /// based on the prefix, the default is `var(T::default())`, this can be overwritten just by setting the default,
 /// it is not possible to declare a getter property without default.
+///
+/// Note that if a property is used in `when` condition without being set and without default value the when block is discarded on
+/// widget build. If you are implementing a getter property that is not named using the prefixes listed above you must set `default(var(T::default())`.
 ///
 /// # Generics
 ///
