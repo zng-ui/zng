@@ -291,10 +291,10 @@ impl GlContextManager {
             return Err("no OpenGL or GLES3 available".into());
         };
 
+        check_wr_gl_version(&*gl)?;
+
         #[cfg(debug_assertions)]
         let gl = gl::ErrorCheckingGl::wrap(gl.clone());
-
-        check_wr_gl_version(&*gl)?;
 
         let mut context = GlContext {
             id,
@@ -446,10 +446,10 @@ impl GlContextManager {
             return Err("no OpenGL or GLES3 available".into());
         };
 
+        check_wr_gl_version(&*gl)?;
+
         #[cfg(debug_assertions)]
         let gl = gl::ErrorCheckingGl::wrap(gl.clone());
-
-        check_wr_gl_version(&*gl)?;
 
         let mut context = GlContext {
             id,
@@ -683,13 +683,15 @@ pub(crate) fn warmup() {}
 // check if equal or newer then 3.1
 fn check_wr_gl_version(gl: &dyn gl::Gl) -> Result<(), String> {
     let mut version = [0; 2];
-    // SAFETY: API available in all impls
+    let is_2_or_1;
+    // SAFETY: get_integer_v API available in all impls
     unsafe {
         gl.get_integer_v(gl::MAJOR_VERSION, &mut version[..1]);
-        gl.get_integer_v(gl::MAJOR_VERSION, &mut version[1..]);
+        is_2_or_1 = gl.get_error() == gl::INVALID_ENUM; // MAJOR_VERSION is only 3.0 and above
+        gl.get_integer_v(gl::MINOR_VERSION, &mut version[1..]);
     };
 
-    if version[0] >= 3 {
+    if !is_2_or_1 && version[0] >= 3 {
         let min_minor = match gl.get_type() {
             gl::GlType::Gl => 1,
             gl::GlType::Gles => 0,

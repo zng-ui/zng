@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix OpenGL version check.
 * Fix window receiving a cursor move event while cursor is not over (on x11).
 * Remove end punctuation from command `info` fields
 * Add better custom chrome for GNOME+Wayland.
