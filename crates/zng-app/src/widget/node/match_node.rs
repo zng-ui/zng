@@ -56,7 +56,7 @@ pub enum UiNodeOp<'a> {
     /// [`WIDGET.update_info`]: crate::widget::WIDGET::update_info
     /// [`WIDGET.info`]: crate::widget::WIDGET::info
     Info {
-        #[allow(missing_docs)]
+        /// Info builder.
         info: &'a mut WidgetInfoBuilder,
     },
     /// The [`UiNode::event`].
@@ -76,7 +76,7 @@ pub enum UiNodeOp<'a> {
     /// [`Init`]: Self::Init
     /// [`Event::on`]: crate::event::Event::on
     Event {
-        #[allow(missing_docs)]
+        /// Event update args and targets.
         update: &'a EventUpdate,
     },
     /// The [`UiNode::update`].
@@ -94,7 +94,7 @@ pub enum UiNodeOp<'a> {
     /// [`Init`]: Self::Init
     /// [`Var::get_new`]: zng_var::Var::get_new
     Update {
-        #[allow(missing_docs)]
+        /// Update targets
         updates: &'a WidgetUpdates,
     },
     /// The [`UiNode::measure`].
@@ -114,9 +114,9 @@ pub enum UiNodeOp<'a> {
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
     /// [`PxSize`]: zng_layout::unit::PxSize
     Measure {
-        #[allow(missing_docs)]
+        /// Measure pass state.
         wm: &'a mut WidgetMeasure,
-        #[allow(missing_docs)]
+        /// Return value, the widget's desired size after measure.
         desired_size: &'a mut PxSize,
     },
     /// The [`UiNode::layout`].
@@ -141,9 +141,9 @@ pub enum UiNodeOp<'a> {
     /// [`LAYOUT`]: zng_layout::context::LAYOUT
     /// [`PxSize`]: zng_layout::unit::PxSize
     Layout {
-        #[allow(missing_docs)]
+        /// Layout pass state.
         wl: &'a mut WidgetLayout,
-        #[allow(missing_docs)]
+        /// Return value, the widget's final size after layout.
         final_size: &'a mut PxSize,
     },
     /// The [`UiNode::render`].
@@ -156,7 +156,7 @@ pub enum UiNodeOp<'a> {
     /// Only widgets and ancestors that requested render receive this call, other widgets reuse the display items and transforms
     /// from the last frame.
     Render {
-        #[allow(missing_docs)]
+        /// Frame builder.
         frame: &'a mut FrameBuilder,
     },
     /// The [`UiNode::render_update`].
@@ -171,7 +171,7 @@ pub enum UiNodeOp<'a> {
     ///
     /// [`FrameValue<T>`]: crate::render::FrameValue
     RenderUpdate {
-        #[allow(missing_docs)]
+        /// Fame updater.
         update: &'a mut FrameUpdate,
     },
 }

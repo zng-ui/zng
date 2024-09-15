@@ -302,7 +302,7 @@ impl VARS {
 }
 
 /// VARS APP integration.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct VARS_APP;
 impl VARS_APP {
     /// Register a closure called when [`apply_updates`] should be called because there are changes pending.

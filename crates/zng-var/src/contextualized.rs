@@ -76,7 +76,7 @@ pub struct ContextualizedVar<T> {
     actual: ActualLock![T],
 }
 
-#[allow(clippy::extra_unused_type_parameters)]
+#[expect(clippy::extra_unused_type_parameters)]
 fn borrow_init_impl<'a, T>(
     actual: &'a ActualLock![T],
     init: &ActualInit![T],

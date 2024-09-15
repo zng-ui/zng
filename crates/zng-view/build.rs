@@ -10,7 +10,6 @@ fn main() {
 fn tp_licenses() {
     #[cfg(feature = "bundle_licenses")]
     {
-        #[allow(unused_mut)]
         let mut licenses = zng_tp_licenses::collect_cargo_about("../../.cargo/about.toml");
 
         avif_licenses(&mut licenses);

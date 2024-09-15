@@ -58,7 +58,7 @@ impl WindowRoot {
     /// * `headless_monitor` - "Monitor" configuration used in [headless mode](zng_app::window::WindowMode::is_headless).
     /// * `start_focused` - If the window is forced to be the foreground keyboard focus after opening.
     /// * `root` - The root widget's outermost `CONTEXT` node, the window uses this and the `root_id` to form the root widget.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         root_id: WidgetId,
         start_position: StartPosition,
@@ -90,7 +90,7 @@ impl WindowRoot {
     /// See [`new`] for other parameters.
     ///
     /// [`new`]: Self::new
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new_container(
         root_id: WidgetId,
         start_position: StartPosition,

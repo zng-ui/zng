@@ -138,7 +138,7 @@ impl fmt::Debug for Window {
     }
 }
 impl Window {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn open(
         gen: ViewProcessGen,
         cfg_icon: Option<Icon>,

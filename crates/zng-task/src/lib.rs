@@ -882,7 +882,7 @@ fn default_deadline(deadline: Deadline) -> Pin<Box<dyn Future<Output = ()> + Sen
 }
 
 /// Deadline APP integration.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct DEADLINE_APP;
 
 impl DEADLINE_APP {

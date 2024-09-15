@@ -376,7 +376,7 @@ pub trait UiNode: Any + Send {
 }
 
 /// See [`UiNode::into_widget`]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 #[widget($crate::widget::node::into_widget)]
 struct into_widget(crate::widget::base::WidgetBase);
 #[zng_app_proc_macros::property(CHILD, capture, widget_impl(into_widget))]

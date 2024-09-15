@@ -2563,7 +2563,7 @@ impl WidgetBuilding {
                         inspector_items.push(crate::widget::inspector::InstanceItem::Property { args, captured });
                     }
                 }
-                #[allow(unused_variables)]
+                #[allow(unused_variables)] // depends on cfg
                 WidgetItem::Intrinsic { new, name } => {
                     node = new(node);
                     #[cfg(feature = "trace_wgt_item")]

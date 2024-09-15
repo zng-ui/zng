@@ -318,7 +318,6 @@ impl GlContextManager {
         Ok((window, context))
     }
 
-    #[allow(unreachable_code)]
     fn create_headed_swgl(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -474,7 +473,6 @@ impl GlContextManager {
         Ok(context)
     }
 
-    #[allow(unreachable_code)]
     fn create_headless_swgl(&mut self, id: WindowId) -> Result<GlContext, Box<dyn Error>> {
         #[cfg(not(feature = "software"))]
         {
@@ -540,13 +538,15 @@ impl fmt::Debug for GlContext {
 }
 impl GlContext {
     /// If the context is backed by SWGL.
-    #[allow(unreachable_code)]
     pub(crate) fn is_software(&self) -> bool {
         #[cfg(feature = "software")]
         {
-            return matches!(&self.backend, GlBackend::Swgl { .. });
+            matches!(&self.backend, GlBackend::Swgl { .. })
         }
-        false
+        #[cfg(not(feature = "software"))]
+        {
+            false
+        }
     }
 
     pub fn is_current(&self) -> bool {
@@ -906,7 +906,6 @@ mod blit {
         };
         use x11_dl::xlib::{GCGraphicsExposures, TrueColor, XGCValues, XVisualInfo, Xlib, ZPixmap, _XDisplay};
 
-        #[allow(clippy::large_enum_variant)]
         pub enum XLibOrWaylandBlit {
             XLib { xlib: Xlib, display: *mut _XDisplay, window: u64 },
             Wayland { surface: *const WlSurface, data: WaylandData },

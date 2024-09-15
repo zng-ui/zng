@@ -446,7 +446,7 @@ impl num_traits::ToPrimitive for Dip {
 }
 impl num_traits::NumCast for Dip {
     fn from<T: num_traits::ToPrimitive>(n: T) -> Option<Self> {
-        #[allow(clippy::manual_map)]
+        #[expect(clippy::manual_map)]
         if let Some(n) = n.to_f32() {
             Some(Dip::new_f32(n))
         } else if let Some(n) = n.to_i32() {

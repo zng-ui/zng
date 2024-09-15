@@ -7,7 +7,7 @@
 //!
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 // suppress nag about very simple boxed closure signatures.
-#![allow(clippy::type_complexity)]
+#![expect(clippy::type_complexity)]
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
@@ -1637,7 +1637,7 @@ pub struct FontList {
     requested_weight: FontWeight,
     requested_stretch: FontStretch,
 }
-#[allow(clippy::len_without_is_empty)] // cannot be empty.
+#[expect(clippy::len_without_is_empty)] // cannot be empty.
 impl FontList {
     /// The font that best matches the requested properties.
     pub fn best(&self) -> &Font {
@@ -2364,7 +2364,6 @@ impl GenericFonts {
 
 /// Reference to in memory font data.
 #[derive(Clone)]
-#[allow(clippy::rc_buffer)]
 pub struct FontDataRef(pub Arc<Vec<u8>>);
 impl FontDataRef {
     /// Copy bytes from embedded font.

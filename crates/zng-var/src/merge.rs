@@ -57,7 +57,7 @@ impl<T: VarValue, V: Var<T>> ArcMergeVarInput<T, V> {
         ArcMergeVarInput(PhantomData)
     }
 
-    #[allow(clippy::borrowed_box)]
+    #[expect(clippy::borrowed_box)]
     pub fn get<'v>(&self, value: &'v Box<dyn AnyVarValue>) -> &'v T {
         (**value).as_any().downcast_ref::<T>().unwrap()
     }
@@ -83,7 +83,7 @@ pub struct WeakMergeVar<T: VarValue>(Weak<Data<T>>);
 
 impl<T: VarValue> ArcMergeVar<T> {
     #[doc(hidden)]
-    #[allow(clippy::new_ret_no_self)]
+    #[expect(clippy::new_ret_no_self)]
     pub fn new(inputs: Box<[BoxedAnyVar]>, merge: impl FnMut(&[Box<dyn AnyVarValue>]) -> T + Send + 'static) -> BoxedVar<T> {
         if inputs.iter().any(|v| v.is_contextual()) {
             let merge = Arc::new(Mutex::new(merge));
@@ -511,7 +511,7 @@ pub struct MergeVarInputs<'a, I: VarValue> {
 }
 impl<'a, I: VarValue> MergeVarInputs<'a, I> {
     /// Number of inputs.
-    #[allow(clippy::len_without_is_empty)]
+    #[expect(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inputs.len()
     }

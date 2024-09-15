@@ -2089,7 +2089,7 @@ impl ContentCtrl {
     }
 
     /// Layout content if there was a pending request, returns `Some(final_size)`.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn layout(
         &mut self,
         layout_widgets: Arc<LayoutUpdates>,

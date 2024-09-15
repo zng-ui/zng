@@ -120,7 +120,7 @@ impl EVENTS {
 }
 
 /// EVENTS L10N integration.
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub struct EVENTS_L10N;
 impl EVENTS_L10N {
     pub(crate) fn init_meta_l10n(&self, file: [&'static str; 3], cmd: Command, meta_name: &'static str, txt: CommandMetaVar<Txt>) {

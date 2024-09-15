@@ -302,7 +302,6 @@ pub(crate) struct AppInit {
     //    Workaround-sender-for-response-channel,
     //    EventReceiver,
     // )
-    #[allow(clippy::type_complexity)]
     init: flume::Receiver<AppInitMsg>,
     name: Txt,
 }
@@ -491,7 +490,7 @@ fn handle_recv_error(e: flume::RecvError) -> Disconnected {
 }
 
 #[cfg(ipc)]
-#[allow(clippy::boxed_local)]
+#[expect(clippy::boxed_local)]
 fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
     match *e {
         ipc_channel::ErrorKind::Io(e) => {

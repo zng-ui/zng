@@ -34,7 +34,7 @@ pub fn parse_braces<'a>(input: &syn::parse::ParseBuffer<'a>) -> syn::Result<(syn
 }
 
 /// Returns `true` if the proc-macro is running in one of the rust-analyzer proc-macro servers.
-#[allow(unexpected_cfgs)] // rust_analyzer exists: https://github.com/rust-lang/rust-analyzer/pull/15528
+#[expect(unexpected_cfgs)] // rust_analyzer exists: https://github.com/rust-lang/rust-analyzer/pull/15528
 pub fn is_rust_analyzer() -> bool {
     cfg!(rust_analyzer)
 }
@@ -277,7 +277,7 @@ macro_rules! non_user_braced {
 }
 
 /// Does a `parenthesized!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
-#[allow(unused)]
+#[allow(unused)] // depends on cfg
 macro_rules! non_user_parenthesized {
     ($input:expr) => {
         non_user_group! { parenthesized, $input }
@@ -358,7 +358,7 @@ impl Attributes {
                     inline = Some(attr);
                 } else if ident == "cfg" {
                     cfg = Some(attr);
-                } else if ident == "allow" || ident == "warn" || ident == "deny" || ident == "forbid" {
+                } else if ident == "allow" || ident == "expect" || ident == "warn" || ident == "deny" || ident == "forbid" {
                     lints.push(attr);
                 } else {
                     others.push(attr);
@@ -718,7 +718,7 @@ impl ErrorRecoverable for syn::Error {
 // This is useful for debugging say the widget macros but only for a widget.
 //
 // Use [`enable_trace!`] and [`trace!`].
-#[allow(unused)]
+#[allow(unused)] // depends on cfg
 #[cfg(debug_assertions)]
 pub mod debug_trace {
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -739,7 +739,7 @@ pub mod debug_trace {
     }
 }
 
-#[allow(unused)]
+#[allow(unused)] // depends on cfg
 #[cfg(debug_assertions)]
 macro_rules! enable_trace {
     () => {
@@ -749,7 +749,7 @@ macro_rules! enable_trace {
         $crate::util::debug_trace::enable($bool_expr);
     };
 }
-#[allow(unused)]
+#[allow(unused)] // depends on cfg
 #[cfg(debug_assertions)]
 macro_rules! trace {
     ($msg:tt) => {

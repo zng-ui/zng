@@ -1986,7 +1986,7 @@ impl Key {
     }
 
     /// Gets the named key, or `Char` or `Str`.
-    #[allow(clippy::should_implement_trait)]
+    #[expect(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         let mut n = s.chars();
         if let Some(c) = n.next() {
