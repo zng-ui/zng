@@ -27,7 +27,7 @@ zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.3.23" }
 zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.3.23" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.33" }
 zng-wgt-data = { path = "../zng-wgt-data", version = "0.2.33" }
-zng-app = { path = "../zng-app", version = "0.11.1" }
+zng-app = { path = "../zng-app", version = "0.12.0" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.21" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.33" }
 zng-var = { path = "../zng-var", version = "0.5.5" }

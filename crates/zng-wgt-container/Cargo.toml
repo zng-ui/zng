@@ -13,6 +13,6 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.4.16" }
-zng-app = { path = "../zng-app", version = "0.11.1" }
+zng-app = { path = "../zng-app", version = "0.12.0" }
 
 serde = { version = "1.0", features = ["derive"] }

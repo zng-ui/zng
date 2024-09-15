@@ -19,7 +19,7 @@ zng-ext-hot-reload-proc-macros = { path = "../zng-ext-hot-reload-proc-macros", v
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.6", features = ["hot_reload"] }
 zng-env = { path = "../zng-env", version = "0.3.5" }
 zng-app-context = { path = "../zng-app-context", version = "0.5.9" }
-zng-app = { path = "../zng-app", version = "0.11.1" }
+zng-app = { path = "../zng-app", version = "0.12.0" }
 zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.32" }
 zng-unit = { path = "../zng-unit", version = "0.2.8" }
 zng-var = { path = "../zng-var", version = "0.5.5" }
