@@ -557,6 +557,11 @@ impl Window {
 
     /// Returns `true` if the cursor actually moved.
     pub fn cursor_moved(&mut self, pos: DipPoint, device: DeviceId) -> bool {
+        if !self.cursor_over {
+            // this can happen on X11
+            return false;
+        }
+
         let moved = self.cursor_pos != pos || self.cursor_device != device;
 
         if moved {
