@@ -4,5 +4,5 @@ click-count = {$n ->
 }
 
 LOCALIZED_FILE_CMD =
-    .info = Localizado em um arquivo nomeado 'msg'.
+    .info = Localizado em um arquivo nomeado 'msg'
     .name = Arquivo Localizado

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Remove end punctuation from command `info` fields
 * Add better custom chrome for GNOME+Wayland.
 * Add `zng::widget::node::bind_state_init` helper.
 * Add `Window::needs_fallback_chrome` and `Window::prefer_custom_chrome` property.

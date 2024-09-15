@@ -8,9 +8,9 @@ window =
 example-cmds = أوامر المثال:
 
 LOCALIZED_CMD =
-    .info = مترجم في الملف الافتراضي.
+    .info = مترجم في الملف الافتراضي
     .name = مترجم
 
 PRIVATE_LOCALIZED_CMD =
-    .info = أمر خاص، نص الترجمة العامة.
+    .info = أمر خاص، نص الترجمة العامة
     .name = خاص

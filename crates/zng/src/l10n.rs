@@ -110,7 +110,7 @@
 //!     pub static FOO_CMD = {
 //!         l10n!: true,
 //!         name: "Foo!",
-//!         info: "Does the foo thing.",
+//!         info: "Does the foo thing",
 //!     };
 //! }
 //! ```

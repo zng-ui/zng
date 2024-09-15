@@ -14,11 +14,11 @@ window =
 ## Commands
 
 LOCALIZED_CMD =
-    .info = Localized in the default file.
+    .info = Localized in the default file
     .name = Localized
 
 PRIVATE_LOCALIZED_CMD =
-    .info = Private command, public localization text.
+    .info = Private command, public localization text
     .name = Private
 
 ## Example Section

@@ -1,5 +1,5 @@
 INSPECT_CMD =
-    .info = Inspect the window.
+    .info = Inspect the window
     .name = Debug Inspector
 
 ## Inspector Window (always en-US)

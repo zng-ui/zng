@@ -1,3 +1,3 @@
 INSPECT_CMD =
-    .info = Inspecionar a janela.
+    .info = Inspecionar a janela
     .name = Inspetor de Depuração
