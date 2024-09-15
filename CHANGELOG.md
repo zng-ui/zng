@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix window receiving a cursor move event while cursor is not over (on x11).
 * Remove end punctuation from command `info` fields
 * Add better custom chrome for GNOME+Wayland.
 * Add `zng::widget::node::bind_state_init` helper.
