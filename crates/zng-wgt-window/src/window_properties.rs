@@ -3,11 +3,12 @@ use std::time::Duration;
 use zng_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, ConfigValue, CONFIG};
 use zng_ext_window::{
     AutoSize, FrameCaptureMode, MonitorQuery, WINDOW_Ext as _, WindowButton, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
-    MONITORS, WINDOW_LOAD_EVENT,
+    MONITORS, WINDOWS, WINDOW_LOAD_EVENT,
 };
 use zng_wgt::prelude::*;
 
 use serde::{Deserialize, Serialize};
+use zng_wgt_layer::adorner_fn;
 
 use super::Window;
 
@@ -482,4 +483,45 @@ pub fn force_mobile(child: impl UiNode, is_mobile: impl IntoVar<bool>) -> impl U
 #[property(EVENT, widget_impl(Window))]
 pub fn is_mobile(child: impl UiNode, is_mobile: impl IntoVar<bool>) -> impl UiNode {
     zng_wgt::node::bind_state(child, IS_MOBILE_VAR, is_mobile)
+}
+
+/// Gets if [`chrome`] is `true`, [`state`] is not fullscreen but [`WINDOWS.system_chrome`] reports the system does not provide window decorations.
+///
+/// [`chrome`]: fn@chrome
+/// [`state`]: fn@state
+/// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
+#[property(EVENT, default(state_var()), widget_impl(Window))]
+pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> impl UiNode {
+    zng_wgt::node::bind_state_init(
+        child,
+        || {
+            let vars = WINDOW.vars();
+            expr_var! {
+                *#{vars.chrome()} && #{WINDOWS.system_chrome()}.needs_custom() && !#{vars.state()}.is_fullscreen()
+            }
+        },
+        needs,
+    )
+}
+
+/// Gets if [`WINDOWS.system_chrome`] prefers custom chrome.
+///
+/// Note that you must set [`chrome`] to `false` when using this to provide a custom chrome.
+///
+/// [`chrome`]: fn@chrome
+/// [`WINDOWS.system_chrome`]: WINDOWS::system_chrome
+#[property(EVENT, default(state_var()), widget_impl(Window))]
+pub fn prefer_custom_chrome(child: impl UiNode, prefer: impl IntoVar<bool>) -> impl UiNode {
+    zng_wgt::node::bind_state(child, WINDOWS.system_chrome().map(|c| c.prefer_custom), prefer)
+}
+
+/// Adorner property specific for custom chrome overlays.
+///
+/// This property behaves exactly like [`adorner_fn`]. Using it instead of adorner frees the adorner property
+/// for other usage in the window instance or in derived window types.
+///
+/// [`adorner_fn`]: fn@adorner_fn
+#[property(FILL, default(WidgetFn::nil()), widget_impl(Window))]
+pub fn custom_chrome_adorner_fn(child: impl UiNode, custom_chrome: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
+    adorner_fn(child, custom_chrome)
 }

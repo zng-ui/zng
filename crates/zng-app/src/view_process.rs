@@ -24,7 +24,7 @@ use zng_var::ResponderVar;
 use zng_view_api::{
     self,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
-    config::{AnimationsConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
+    config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     font::FontOptions,
     image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
@@ -593,6 +593,9 @@ event_args! {
 
         /// System preferred color scheme and accent color.
         pub colors_config: ColorsConfig,
+
+        /// System window chrome preferences.
+        pub chrome_config: ChromeConfig,
 
         /// API extensions implemented by the view-process.
         ///

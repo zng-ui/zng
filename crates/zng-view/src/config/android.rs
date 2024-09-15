@@ -1,6 +1,8 @@
 use crate::platform::android;
 use zng_unit::Rgba;
-use zng_view_api::config::{AnimationsConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig};
+use zng_view_api::config::{
+    AnimationsConfig, ChromeConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, MultiClickConfig, TouchConfig,
+};
 
 pub fn font_aa() -> FontAntiAliasing {
     super::other::font_aa()
@@ -41,6 +43,13 @@ pub fn colors_config() -> ColorsConfig {
 pub fn locale_config() -> zng_view_api::config::LocaleConfig {
     // sys_locale
     super::other::locale_config()
+}
+
+pub fn chrome_config() -> ChromeConfig {
+    ChromeConfig {
+        prefer_custom: false,
+        provided: false,
+    }
 }
 
 pub fn spawn_listener(l: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
