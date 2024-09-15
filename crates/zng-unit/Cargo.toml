@@ -1,6 +1,6 @@
 [package]
 name = "zng-unit"
-version = "0.2.7"
+version = "0.2.8"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"

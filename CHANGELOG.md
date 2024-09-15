@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.11.7
+
 * Fix OpenGL version check.
 * Fix window receiving a cursor move event while cursor is not over (on x11).
 * Remove end punctuation from command `info` fields
@@ -7,7 +10,7 @@
 * Add `zng::widget::node::bind_state_init` helper.
 * Add `Window::needs_fallback_chrome` and `Window::prefer_custom_chrome` property.
 * **Breaking** Add `ChromeConfig` and related events to the view API.
-    - Note that this is only a breaking change for direct dependents of `zng-view-api`.
+    - Note that this is only a breaking change for direct dependents of `zng-view-api` and `zng-app`.
 
 # 0.11.6
 
