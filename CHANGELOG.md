@@ -1,5 +1,6 @@
 # Unreleased
 
+* Don't show keyboard shortcuts in mobile menus.
 * Fix incorrect `TouchInputArgs::position` in nested windows.
 
 # 0.11.7
