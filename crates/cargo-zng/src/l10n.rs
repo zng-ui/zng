@@ -52,6 +52,12 @@ pub struct L10nArgs {
     #[arg(long, action)]
     no_local: bool,
 
+    /// Don't scrap the target package.
+    ///
+    /// Use with --package or --manifest-path to only scrap dependencies.
+    #[arg(long, action)]
+    no_pkg: bool,
+
     /// Custom l10n macro names, comma separated
     #[arg(short, long, default_value = "")]
     macros: String,
@@ -120,45 +126,48 @@ pub fn run(mut args: L10nArgs) {
             fatal!("--output is required for --input")
         }
 
-        if args.check {
-            println!(r#"checking "{input}".."#);
-        } else {
-            println!(r#"scraping "{input}".."#);
-        }
+        // scrap the target package
+        if !args.no_pkg {
+            if args.check {
+                println!(r#"checking "{input}".."#);
+            } else {
+                println!(r#"scraping "{input}".."#);
+            }
 
-        let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
-        // let args = ();
+            let custom_macro_names: Vec<&str> = args.macros.split(',').map(|n| n.trim()).collect();
+            // let args = ();
 
-        let mut template = scraper::scrape_fluent_text(&input, &custom_macro_names);
-        if !args.check {
-            match template.entries.len() {
-                0 => println!("did not find any entry"),
-                1 => println!("found 1 entry"),
-                n => println!("found {n} entries"),
+            let mut template = scraper::scrape_fluent_text(&input, &custom_macro_names);
+            if !args.check {
+                match template.entries.len() {
+                    0 => println!("did not find any entry"),
+                    1 => println!("found 1 entry"),
+                    n => println!("found {n} entries"),
+                }
+            }
+
+            if !template.entries.is_empty() || !template.notes.is_empty() {
+                if let Err(e) = util::check_or_create_dir_all(args.check, &output) {
+                    fatal!("cannot create dir `{output}`, {e}");
+                }
+
+                template.sort();
+
+                let r = template.write(|file, contents| {
+                    let mut output = PathBuf::from(&output);
+                    output.push("template");
+                    util::check_or_create_dir_all(args.check, &output)?;
+                    output.push(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
+                    util::check_or_write(args.check, output, contents)
+                });
+                if let Err(e) = r {
+                    fatal!("error writing template files, {e}");
+                }
             }
         }
 
-        if !template.entries.is_empty() || !template.notes.is_empty() {
-            if let Err(e) = util::check_or_create_dir_all(args.check, &output) {
-                fatal!("cannot create dir `{output}`, {e}");
-            }
-
-            template.sort();
-
-            let r = template.write(|file, contents| {
-                let mut output = PathBuf::from(&output);
-                output.push("template");
-                util::check_or_create_dir_all(args.check, &output)?;
-                output.push(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
-                util::check_or_write(args.check, output, contents)
-            });
-            if let Err(e) = r {
-                fatal!("error writing template files, {e}");
-            }
-        }
-
+        // collect dependencies
         let mut local = vec![];
-
         if !args.no_deps {
             let mut count = 0;
             let (workspace_root, deps) = util::dependencies(&args.manifest_path);
@@ -316,6 +325,7 @@ pub fn run(mut args: L10nArgs) {
             println!("found {count} dependencies with localization");
         }
 
+        // scrap local dependencies
         if !args.no_local {
             for dep in local {
                 run(L10nArgs {
@@ -325,6 +335,7 @@ pub fn run(mut args: L10nArgs) {
                     manifest_path: dep.manifest_path.display().to_string(),
                     no_deps: true,
                     no_local: true,
+                    no_pkg: false,
                     macros: args.macros.clone(),
                     pseudo: String::new(),
                     pseudo_m: String::new(),
