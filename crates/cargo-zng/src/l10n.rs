@@ -62,6 +62,14 @@ pub struct L10nArgs {
     #[arg(long, action)]
     clean_deps: bool,
 
+    /// Remove all previously scraped resources before scraping.
+    #[arg(long, action)]
+    clean_template: bool,
+
+    /// Same as --clean-deps --clean-template
+    #[arg(long, action)]
+    clean: bool,
+
     /// Custom l10n macro names, comma separated
     #[arg(short, long, default_value = "")]
     macros: String,
@@ -125,6 +133,15 @@ pub fn run(mut args: L10nArgs) {
         }
     }
 
+    if args.check {
+        args.clean = false;
+        args.clean_deps = false;
+        args.clean_template = false;
+    } else if args.clean {
+        args.clean_deps = true;
+        args.clean_template = true;
+    }
+
     if !input.is_empty() {
         if output.is_empty() {
             fatal!("--output is required for --input")
@@ -160,6 +177,13 @@ pub fn run(mut args: L10nArgs) {
                 let r = template.write(|file, contents| {
                     let mut output = PathBuf::from(&output);
                     output.push("template");
+
+                    if args.clean_template {
+                        debug_assert!(!args.check);
+                        if let Err(e) = fs::remove_dir_all(&output) {
+                            error!("cannot remove `{}`, {e}", output.display());
+                        }
+                    }
                     util::check_or_create_dir_all(args.check, &output)?;
                     output.push(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
                     util::check_or_write(args.check, output, contents)
@@ -348,6 +372,8 @@ pub fn run(mut args: L10nArgs) {
                     no_local: true,
                     no_pkg: false,
                     clean_deps: false,
+                    clean_template: false,
+                    clean: false,
                     macros: args.macros.clone(),
                     pseudo: String::new(),
                     pseudo_m: String::new(),

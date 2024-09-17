@@ -277,6 +277,15 @@ Options:
 
           Use with --package or --manifest-path to only scrap dependencies.
 
+      --clean-deps
+          Remove all previously copied dependency localization files
+
+      --clean-template
+          Remove all previously scraped resources before scraping
+
+      --clean
+          Same as --clean-deps --clean-template
+
   -m, --macros <MACROS>
           Custom l10n macro names, comma separated
 
