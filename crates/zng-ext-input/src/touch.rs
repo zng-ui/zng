@@ -1344,7 +1344,7 @@ impl TouchManager {
                     let pos_info = TouchPosition {
                         window_id: hits.window_id(),
                         touch: update.touch,
-                        position: update.position,
+                        position,
                         start_time: args.timestamp,
                         update_time: args.timestamp,
                     };
@@ -1371,7 +1371,7 @@ impl TouchManager {
                 args.device_id,
                 update.touch,
                 gesture_handle,
-                update.position,
+                position,
                 update.force,
                 velocity,
                 update.phase,
@@ -1827,6 +1827,7 @@ impl TapGesture {
                         return;
                     };
 
+                    
                     match tree.get(p.target) {
                         Some(t) => {
                             if !t.hit_test(args.position.to_px(tree.scale_factor())).contains(p.target) {
