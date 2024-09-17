@@ -35,3 +35,4 @@ zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.3.23" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.12" }
 zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.3.23" }
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.4.13" }
+zng-wgt-window = { path = "../zng-wgt-window", version = "0.5.13" }
