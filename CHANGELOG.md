@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix incorrect `TouchInputArgs::position` in nested windows.
 
 # 0.11.7
 
