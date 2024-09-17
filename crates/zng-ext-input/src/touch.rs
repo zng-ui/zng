@@ -1827,7 +1827,6 @@ impl TapGesture {
                         return;
                     };
 
-                    
                     match tree.get(p.target) {
                         Some(t) => {
                             if !t.hit_test(args.position.to_px(tree.scale_factor())).contains(p.target) {
