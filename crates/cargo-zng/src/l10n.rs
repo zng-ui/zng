@@ -58,6 +58,10 @@ pub struct L10nArgs {
     #[arg(long, action)]
     no_pkg: bool,
 
+    /// Remove all previously copied dependency localization files.
+    #[arg(long, action)]
+    clean_deps: bool,
+
     /// Custom l10n macro names, comma separated
     #[arg(short, long, default_value = "")]
     macros: String,
@@ -195,6 +199,13 @@ pub fn run(mut args: L10nArgs) {
                 let mut l10n_dir = |lang: Option<&std::ffi::OsStr>| {
                     any = true;
                     let dir = l10n_dir.join(lang.unwrap()).join("deps");
+
+                    if args.clean_deps {
+                        if let Err(e) = std::fs::remove_dir_all(&dir) {
+                            error!("cannot remove `{}`, {e}", dir.display());
+                        }
+                    }
+
                     let ignore_file = dir.join(".gitignore");
 
                     if !ignore_file.exists() {
@@ -217,7 +228,7 @@ pub fn run(mut args: L10nArgs) {
                             if !args.package.is_empty() {
                                 writeln!(
                                     &mut ignore,
-                                    "# Call `cargo zng l10n --package {}{custom_output}` to update",
+                                    "# Call `cargo zng l10n --package {}{custom_output} --no-pkg --no-local --clean-deps` to update",
                                     args.package
                                 )
                                 .unwrap();
@@ -226,7 +237,7 @@ pub fn run(mut args: L10nArgs) {
                                 let path = path.strip_prefix(std::env::current_dir().unwrap()).unwrap_or(path);
                                 writeln!(
                                     &mut ignore,
-                                    "# Call `cargo zng l10n --manifest-path \"{}\"` to update",
+                                    "# Call `cargo zng l10n --manifest-path \"{}\" --no-pkg --no-local --clean-deps` to update",
                                     path.display()
                                 )
                                 .unwrap();
@@ -336,6 +347,7 @@ pub fn run(mut args: L10nArgs) {
                     no_deps: true,
                     no_local: true,
                     no_pkg: false,
+                    clean_deps: false,
                     macros: args.macros.clone(),
                     pseudo: String::new(),
                     pseudo_m: String::new(),

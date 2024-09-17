@@ -272,6 +272,11 @@ Options:
 
           Use with --package or --manifest-path to not scrap local dependencies.
 
+      --no-pkg
+          Don't scrap the target package.
+
+          Use with --package or --manifest-path to only scrap dependencies.
+
   -m, --macros <MACROS>
           Custom l10n macro names, comma separated
 

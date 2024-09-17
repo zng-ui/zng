@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `cargo zng l10n --clean-deps` to remove previously copied localization before new copy.
 * Add `cargo zng l10n --no-pkg` to skip scraping the target package, only copy localization from dependencies.
 * Don't show keyboard shortcuts in mobile menus.
 * Fix incorrect `TouchInputArgs::position` in nested windows.
