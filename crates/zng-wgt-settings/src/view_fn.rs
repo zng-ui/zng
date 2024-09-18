@@ -39,6 +39,8 @@ context_var! {
     pub static SETTINGS_FN_VAR: WidgetFn<SettingsArgs> = WidgetFn::new(default_settings_fn);
     /// Settings search area.
     pub static SETTINGS_SEARCH_FN_VAR: WidgetFn<SettingsSearchArgs> = WidgetFn::new(default_settings_search_fn);
+    /// Editor layout.
+    pub static PANEL_FN_VAR: WidgetFn<PanelArgs> = WidgetFn::new(default_panel_fn);
 }
 
 /// Widget function that converts [`CategoryItemArgs`] to a category item on a category list.
@@ -91,6 +93,12 @@ pub fn settings_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<SettingsArg
 #[property(CONTEXT, default(SETTINGS_SEARCH_FN_VAR), widget_impl(SettingsEditor))]
 pub fn settings_search_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<SettingsSearchArgs>>) -> impl UiNode {
     with_context_var(child, SETTINGS_SEARCH_FN_VAR, wgt_fn)
+}
+
+/// Widget that defines the editor layout, bringing together the other component widgets.
+#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(SettingsEditor))]
+pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelArgs>>) -> impl UiNode {
+    with_context_var(child, PANEL_FN_VAR, wgt_fn)
 }
 
 /// Default category item view.
@@ -233,6 +241,21 @@ pub fn default_settings_search_fn(_: SettingsSearchArgs) -> impl UiNode {
     }
 }
 
+/// Default editor layout.
+pub fn default_panel_fn(args: PanelArgs) -> impl UiNode {
+    Container! {
+        child_top = args.search, 0;
+        child = Container! {
+            child_start = args.categories, 0;
+            child = args.settings;
+
+            // when *#is_mobile {
+
+            // }
+        };
+    }
+}
+
 /// Arguments for a widget function that makes a category item for a categories list.
 pub struct CategoryItemArgs {
     /// Index on the list.
@@ -277,6 +300,16 @@ pub struct SettingsArgs {
 ///
 /// The search variable is in [`SETTINGS.editor_search`](SettingsCtxExt::editor_search).
 pub struct SettingsSearchArgs {}
+
+/// Arguments for the entire settings editor layout.
+pub struct PanelArgs {
+    /// Search box widget.
+    pub search: BoxedUiNode,
+    /// Categories widget.
+    pub categories: BoxedUiNode,
+    /// Settings widget.
+    pub settings: BoxedUiNode,
+}
 
 /// Extends [`SettingBuilder`] to set custom editor metadata.
 pub trait SettingBuilderEditorExt {

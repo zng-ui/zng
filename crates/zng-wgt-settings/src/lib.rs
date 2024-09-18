@@ -12,7 +12,6 @@ use zng_ext_input::focus::FOCUS;
 use zng_ext_l10n::l10n;
 use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
 use zng_wgt::prelude::*;
-use zng_wgt_container::Container;
 use zng_wgt_input::cmd::SETTINGS_CMD;
 use zng_wgt_window::{save_state_node, SaveState, Window};
 
@@ -51,7 +50,8 @@ pub fn settings_editor_node() -> impl UiNode {
                 .sub_var(&SETTINGS_SEARCH_FN_VAR)
                 .sub_var(&CATEGORIES_LIST_FN_VAR)
                 .sub_var(&CATEGORY_HEADER_FN_VAR)
-                .sub_var(&CATEGORY_ITEM_FN_VAR);
+                .sub_var(&CATEGORY_ITEM_FN_VAR)
+                .sub_var(&PANEL_FN_VAR);
             *c.child() = settings_view_fn().boxed();
         }
         UiNodeOp::Deinit => {
@@ -59,7 +59,8 @@ pub fn settings_editor_node() -> impl UiNode {
             *c.child() = NilUiNode.boxed();
         }
         UiNodeOp::Update { .. } => {
-            if SETTINGS_FN_VAR.is_new()
+            if PANEL_FN_VAR.is_new()
+                || SETTINGS_FN_VAR.is_new()
                 || SETTING_FN_VAR.is_new()
                 || SETTINGS_SEARCH_FN_VAR.is_new()
                 || CATEGORIES_LIST_FN_VAR.is_new()
@@ -174,7 +175,7 @@ fn editor_state() -> BoxedVar<Option<SettingsEditorState>> {
 }
 
 fn settings_view_fn() -> impl UiNode {
-    let search_box = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {});
+    let search = SETTINGS_SEARCH_FN_VAR.get()(SettingsSearchArgs {});
 
     let editor_state = SETTINGS.editor_state().actual_var();
 
@@ -190,7 +191,8 @@ fn settings_view_fn() -> impl UiNode {
 
             CATEGORIES_LIST_FN_VAR.get()(CategoriesListArgs { items: categories })
         }),
-    );
+    )
+    .boxed();
 
     let settings = presenter(
         editor_state,
@@ -219,15 +221,14 @@ fn settings_view_fn() -> impl UiNode {
 
             SETTINGS_FN_VAR.get()(SettingsArgs { header, items: settings })
         }),
-    );
+    )
+    .boxed();
 
-    Container! {
-        child_top = search_box, 0;
-        child = Container! {
-            child_start = categories, 0;
-            child = settings
-        };
-    }
+    PANEL_FN_VAR.get()(PanelArgs {
+        search,
+        categories,
+        settings,
+    })
 }
 
 /// Save and restore settings search and selected category.

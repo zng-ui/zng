@@ -1,5 +1,9 @@
 # Unreleased
 
+* **Breaking** Move `IS_MOBILE_VAR` to `zng-wgt` and `zng::widget`.
+* **Breaking** Move `is_mobile` and `force_mobile` to `zng-wgt` and `zng::widget`.
+    - These properties are no longer strongly associated with `Window`.
+* Add `SettingsEditor::panel_fn` for customizing the full editor layout.
 * Add `cargo zng l10n --clean`.
     - Add `cargo zng l10n --clean-deps` to remove previously copied localization before new copy.
     - Add `cargo zng l10n --clean-template` to remove previously scraped files.
