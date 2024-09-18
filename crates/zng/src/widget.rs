@@ -226,9 +226,6 @@ pub mod node {
         with_context_local_init, with_context_var, with_context_var_init, with_index_len_node, with_index_node, with_rev_index_node,
         with_widget_state, with_widget_state_modify,
     };
-
-    #[allow(deprecated)]
-    pub use zng_app::widget::node::UiNodeVec;
 }
 
 /// Expands a struct to a widget struct and macro.

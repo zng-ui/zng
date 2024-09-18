@@ -468,7 +468,7 @@ mod _impl {
                 let frame_id = win.frame_id.load(Relaxed);
                 win.frame_id.store(frame_id.next_update(), Relaxed);
 
-                let f = FrameUpdate::new(Arc::default(), frame_id, wgt.id, wgt.bounds.lock().clone(), None, colors::BLACK);
+                let f = FrameUpdate::new(Arc::default(), frame_id, wgt.id, wgt.bounds.lock().clone(), colors::BLACK);
                 f
             };
 

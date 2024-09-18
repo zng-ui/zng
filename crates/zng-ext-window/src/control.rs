@@ -2217,7 +2217,6 @@ impl ContentCtrl {
                 self.frame_id,
                 self.root_ctx.id(),
                 self.root_ctx.bounds(),
-                renderer.as_ref(),
                 self.clear_color,
             );
 

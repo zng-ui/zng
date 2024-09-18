@@ -2228,17 +2228,15 @@ impl FrameUpdate {
     /// * `render_update_widgets` - External update requests.
     /// * `frame_id` - Id of the new frame.
     /// * `root_id` - Id of the window root widget.
-    /// * `renderer` - Reference to the renderer that will update.
+    /// * `root_bounds` - Bounds info of the window root widget.
     /// * `clear_color` - The current clear color.
     pub fn new(
         render_update_widgets: Arc<RenderUpdates>,
         frame_id: FrameId,
         root_id: WidgetId,
         root_bounds: WidgetBoundsInfo,
-        renderer: Option<&ViewRenderer>,
         clear_color: Rgba,
     ) -> Self {
-        let _ = renderer;
         FrameUpdate {
             render_update_widgets,
             widget_id: root_id,
@@ -2710,14 +2708,7 @@ impl FrameUpdate {
         root_bounds: WidgetBoundsInfo,
         update: impl FnOnce(&mut Self),
     ) {
-        let mut nested = Self::new(
-            render_update_widgets,
-            self.frame_id,
-            root_id,
-            root_bounds,
-            None,
-            self.current_clear_color,
-        );
+        let mut nested = Self::new(render_update_widgets, self.frame_id, root_id, root_bounds, self.current_clear_color);
 
         update(&mut nested);
 
