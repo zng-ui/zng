@@ -1,5 +1,7 @@
 # Unreleased
 
+* Remove previous deprecated `UiNodeVec`.
+* Remove unused renderer param in `FrameUpdate::new`.
 
 # 0.11.8
 
