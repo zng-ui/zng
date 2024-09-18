@@ -1,5 +1,8 @@
 # Unreleased
 
+* Remove previous deprecated `UiNodeVec`.
+* Remove unused renderer param in `FrameUpdate::new`.
+
 * Add `cargo zng l10n --clean`.
     - Add `cargo zng l10n --clean-deps` to remove previously copied localization before new copy.
     - Add `cargo zng l10n --clean-template` to remove previously scraped files.

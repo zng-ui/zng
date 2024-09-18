@@ -231,10 +231,6 @@ impl UiNodeList for Vec<BoxedUiNode> {
     }
 }
 
-#[doc(hidden)]
-#[deprecated = "renamed to `UiVec`"]
-pub type UiNodeVec = UiVec;
-
 /// Vec of boxed UI nodes.
 ///
 /// This is a thin wrapper around `Vec<BoxedUiNode>` that adds helper methods for pushing widgets without needing to box.

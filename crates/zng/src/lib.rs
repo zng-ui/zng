@@ -568,8 +568,6 @@ mod __prelude {
         AsyncBufRead as _, AsyncRead as _, AsyncReadExt as _, AsyncSeek as _, AsyncSeekExt as _, AsyncWrite as _, AsyncWriteExt as _,
     };
 
-    #[allow(deprecated)]
-    pub use zng_app::widget::node::UiNodeVec;
     pub use zng_app::{
         event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, CommandParam, EventArgs as _},
         handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
@@ -723,8 +721,6 @@ pub mod prelude_wgt {
     pub use crate::__prelude_wgt::*;
 }
 mod __prelude_wgt {
-    #[allow(deprecated)]
-    pub use zng_app::widget::node::UiNodeVec;
     pub use zng_app::{
         event::{
             command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam,

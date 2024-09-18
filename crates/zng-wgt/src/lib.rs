@@ -28,8 +28,6 @@ pub mod prelude {
     pub use crate::__prelude::*;
 }
 mod __prelude {
-    #[allow(deprecated)]
-    pub use zng_app::widget::node::UiNodeVec;
     pub use zng_app::{
         event::{
             command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event,
