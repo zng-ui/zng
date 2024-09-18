@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-layer"
-version = "0.3.23"
+version = "0.3.24"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -15,13 +15,13 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 zng-wgt = { path = "../zng-wgt", version = "0.4.16" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.13" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.23" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.33" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.34" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.33" }
 zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.33" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.23" }
 zng-app = { path = "../zng-app", version = "0.12.0" }
 zng-var = { path = "../zng-var", version = "0.5.5" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.21" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.22" }
 
 parking_lot = "0.12"
 serde = { version = "1.0", features = ["derive"] }
