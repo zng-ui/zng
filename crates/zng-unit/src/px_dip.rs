@@ -249,6 +249,16 @@ impl std::iter::Sum for Px {
         iter.fold(Px(0), |a, b| a + b)
     }
 }
+impl PartialEq<i32> for Px {
+    fn eq(&self, other: &i32) -> bool {
+        *self == Px(*other)
+    }
+}
+impl PartialOrd<i32> for Px {
+    fn partial_cmp(&self, other: &i32) -> Option<cmp::Ordering> {
+        self.partial_cmp(&Px(*other))
+    }
+}
 
 /// Device independent pixel.
 ///
@@ -515,6 +525,26 @@ impl num_traits::Num for Dip {
 
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         num_traits::Num::from_str_radix(str, radix).map(Dip::new)
+    }
+}
+impl PartialEq<i32> for Dip {
+    fn eq(&self, other: &i32) -> bool {
+        *self == Dip::new(*other)
+    }
+}
+impl PartialOrd<i32> for Dip {
+    fn partial_cmp(&self, other: &i32) -> Option<cmp::Ordering> {
+        self.partial_cmp(&Dip::new(*other))
+    }
+}
+impl PartialEq<f32> for Dip {
+    fn eq(&self, other: &f32) -> bool {
+        *self == Dip::new_f32(*other)
+    }
+}
+impl PartialOrd<f32> for Dip {
+    fn partial_cmp(&self, other: &f32) -> Option<cmp::Ordering> {
+        self.partial_cmp(&Dip::new_f32(*other))
     }
 }
 

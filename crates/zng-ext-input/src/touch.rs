@@ -649,7 +649,7 @@ impl TouchInputArgs {
 
     fn inertia(velocity: Dip, friction: Dip) -> (Dip, Duration) {
         let cfg = TOUCH.touch_config().get();
-        let signal = if velocity >= Dip::new(0) { Dip::new(1) } else { Dip::new(-1) };
+        let signal = if velocity >= 0 { 1.0 } else { -1.0 };
         let velocity = velocity.abs();
 
         if velocity < cfg.min_fling_velocity {
@@ -1036,7 +1036,7 @@ impl TouchTransformArgs {
         let cfg = TOUCH.touch_config().get();
         let min_fling_velocity = cfg.min_fling_velocity.to_px(self.scale_factor);
 
-        let signal = if velocity >= Px(0) { Px(1) } else { Px(-1) };
+        let signal = if velocity >= 0 { 1.0 } else { -1.0 };
         let velocity = velocity.abs();
 
         if velocity < min_fling_velocity {

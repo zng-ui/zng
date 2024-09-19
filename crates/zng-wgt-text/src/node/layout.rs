@@ -519,15 +519,14 @@ impl LayoutTextFinal {
             })
         };
 
-        if !self.pending.contains(PendingLayout::OVERLINE) && (ctx.overline_thickness == Px(0)) != (overline == Px(0)) {
+        if !self.pending.contains(PendingLayout::OVERLINE) && (ctx.overline_thickness == 0) != (overline == 0) {
             self.pending.insert(PendingLayout::OVERLINE);
         }
-        if !self.pending.contains(PendingLayout::STRIKETHROUGH) && (ctx.strikethrough_thickness == Px(0)) != (strikethrough == Px(0)) {
+        if !self.pending.contains(PendingLayout::STRIKETHROUGH) && (ctx.strikethrough_thickness == 0) != (strikethrough == 0) {
             self.pending.insert(PendingLayout::STRIKETHROUGH);
         }
         if !self.pending.contains(PendingLayout::UNDERLINE)
-            && ((ctx.underline_thickness == Px(0)) != (underline == Px(0))
-                || (ctx.ime_underline_thickness != Px(0)) != (ime_underline != Px(0)))
+            && ((ctx.underline_thickness == 0) != (underline == 0) || (ctx.ime_underline_thickness != 0) != (ime_underline != 0))
         {
             self.pending.insert(PendingLayout::UNDERLINE);
         }

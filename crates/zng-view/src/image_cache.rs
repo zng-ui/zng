@@ -985,7 +985,7 @@ impl Image {
             ImageData::NativeTexture { .. } => unreachable!(),
         };
 
-        if size.width <= Px(0) || size.height <= Px(0) {
+        if size.width <= 0 || size.height <= 0 {
             return Err(image::ImageError::IoError(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "cannot encode zero sized image",

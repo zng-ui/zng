@@ -17,6 +17,7 @@ use zng_wgt_filter::opacity;
 use zng_wgt_markdown::Markdown;
 use zng_wgt_rule_line::{hr::Hr, vr::Vr};
 use zng_wgt_scroll::{Scroll, ScrollMode};
+use zng_wgt_size_offset::actual_width;
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_style::Style;
 use zng_wgt_text::Text;
@@ -249,9 +250,10 @@ pub fn default_panel_fn(args: PanelArgs) -> impl UiNode {
             child_start = args.categories, 0;
             child = args.settings;
 
-            // when *#is_mobile {
-
-            // }
+            // !!: TODO, collapse but accessible categories (combo box?) Also TODO Dip comparison with integers
+            when *#actual_width <= 400 {
+                child_start = NilUiNode, 0;
+            }
         };
     }
 }

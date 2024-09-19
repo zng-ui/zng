@@ -176,11 +176,11 @@ fn icon_size(child: impl UiNode) -> impl UiNode {
             let font_size = ICON_SIZE_VAR.get();
             let s = LAYOUT.constraints().fill_size();
             let mut default_size = s.width.min(s.height);
-            if default_size == Px(0) {
+            if default_size == 0 {
                 default_size = FONT_SIZE_VAR.layout_x();
             }
             let font_size_px = font_size.layout_dft_x(default_size);
-            *desired_size = if font_size_px >= Px(0) {
+            *desired_size = if font_size_px >= 0 {
                 LAYOUT.with_font_size(font_size_px, || child.measure(wm))
             } else {
                 tracing::error!("invalid icon font size {font_size:?} => {font_size_px:?}");
@@ -191,11 +191,11 @@ fn icon_size(child: impl UiNode) -> impl UiNode {
             let font_size = ICON_SIZE_VAR.get();
             let s = LAYOUT.constraints().fill_size();
             let mut default_size = s.width.min(s.height);
-            if default_size == Px(0) {
+            if default_size == 0 {
                 default_size = FONT_SIZE_VAR.layout_x();
             }
             let font_size_px = font_size.layout_dft_x(default_size);
-            *final_size = if font_size_px >= Px(0) {
+            *final_size = if font_size_px >= 0 {
                 LAYOUT.with_font_size(font_size_px, || child.layout(wl))
             } else {
                 tracing::error!("invalid icon font size {font_size:?} => {font_size_px:?}");

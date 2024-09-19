@@ -353,7 +353,7 @@ impl SCROLL {
 
         let max_scroll = content - viewport;
 
-        if max_scroll <= Px(0) {
+        if max_scroll <= 0 {
             return;
         }
 
@@ -384,7 +384,7 @@ impl SCROLL {
         let velocity = velocity.to_px(WINDOW.info().scale_factor());
 
         fn scroll(dimension: usize, velocity: Px, max_scroll: Px, offset_var: &ContextVar<Factor>) {
-            if velocity == Px(0) {
+            if velocity == 0 {
                 SCROLL_CONFIG.get().auto[dimension].lock().clone().stop();
             } else {
                 let mut travel = max_scroll * offset_var.get();
@@ -426,7 +426,7 @@ impl SCROLL {
         let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
 
         let max_scroll = content - viewport;
-        if max_scroll <= Px(0) {
+        if max_scroll <= 0 {
             return;
         }
 
@@ -539,7 +539,7 @@ impl SCROLL {
         let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
 
         let max_scroll = content - viewport;
-        if max_scroll <= Px(0) {
+        if max_scroll <= 0 {
             return;
         }
 
