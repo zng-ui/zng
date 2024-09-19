@@ -14,6 +14,7 @@ use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
 use zng_wgt::prelude::*;
 use zng_wgt_input::cmd::SETTINGS_CMD;
 use zng_wgt_window::{save_state_node, SaveState, Window};
+use zng_wgt_size_offset::actual_width;
 
 /// Settings editor widget.
 #[widget($crate::SettingsEditor)]
@@ -25,6 +26,11 @@ impl SettingsEditor {
             save_state = SaveState::enabled();
             zng_wgt_fill::background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
             zng_wgt_container::padding = 10;
+
+            when *#actual_width <= 400 && *#actual_width > 1 {
+                panel_fn = WidgetFn::new(default_panel_mobile_fn);
+                categories_list_fn = WidgetFn::new(default_categories_list_mobile_fn);
+            }
         }
         self.widget_builder().push_build_action(|wgt| {
             wgt.set_child(settings_editor_node());

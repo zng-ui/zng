@@ -17,7 +17,6 @@ use zng_wgt_filter::opacity;
 use zng_wgt_markdown::Markdown;
 use zng_wgt_rule_line::{hr::Hr, vr::Vr};
 use zng_wgt_scroll::{Scroll, ScrollMode};
-use zng_wgt_size_offset::actual_width;
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_style::Style;
 use zng_wgt_text::Text;
@@ -123,38 +122,61 @@ pub fn default_category_header_fn(args: CategoryHeaderArgs) -> impl UiNode {
     }
 }
 
-/// Default categories list view.
+/// Default categories list view on `actual_width > 400`.
 ///
 /// See [`CATEGORIES_LIST_FN_VAR`] for more details.
 pub fn default_categories_list_fn(args: CategoriesListArgs) -> impl UiNode {
     Container! {
-        child = Scroll! {
-            mode = ScrollMode::VERTICAL;
-            child_align = Align::FILL_TOP;
-            padding = (10, 20);
-            child = Stack! {
-                zng_wgt_toggle::selector = Selector::single(SETTINGS.editor_selected_category());
-                direction = StackDirection::top_to_bottom();
-                children = args.items;
-                zng_wgt_toggle::style_fn = Style! {
-                    replace = true;
-                    opacity = 70.pct();
-                    zng_wgt_size_offset::height = 2.em();
-                    zng_wgt_container::child_align = Align::START;
-                    zng_wgt_input::cursor = zng_wgt_input::CursorIcon::Pointer;
-
-                    when *#zng_wgt_input::is_cap_hovered {
-                        zng_wgt_text::font_weight = FontWeight::MEDIUM;
-                    }
-
-                    when *#zng_wgt_toggle::is_checked {
-                        zng_wgt_text::font_weight = FontWeight::BOLD;
-                        opacity = 100.pct();
-                    }
-                };
-            };
-        };
+        child = categories_list(args.items.boxed());
         child_end = Vr!(zng_wgt::margin = 0), 0;
+    }
+}
+fn categories_list(items: BoxedUiNodeList) -> impl UiNode {
+    let list = Stack! {
+        zng_wgt_toggle::selector = Selector::single(SETTINGS.editor_selected_category());
+        direction = StackDirection::top_to_bottom();
+        children = items;
+        zng_wgt_toggle::style_fn = Style! {
+            replace = true;
+            opacity = 70.pct();
+            zng_wgt_size_offset::height = 2.em();
+            zng_wgt_container::child_align = Align::START;
+            zng_wgt_input::cursor = zng_wgt_input::CursorIcon::Pointer;
+
+            when *#zng_wgt_input::is_cap_hovered {
+                zng_wgt_text::font_weight = FontWeight::MEDIUM;
+            }
+
+            when *#zng_wgt_toggle::is_checked {
+                zng_wgt_text::font_weight = FontWeight::BOLD;
+                opacity = 100.pct();
+            }
+        };
+    };
+    Scroll! {
+        mode = ScrollMode::VERTICAL;
+        child_align = Align::FILL_TOP;
+        padding = (10, 20);
+        child = list;
+    }
+}
+
+/// Default categories list view on `actual_width <= 400`.
+pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> impl UiNode {
+    let items = ArcNodeList::new(args.items);
+    Toggle! {
+        zng_wgt::margin = 4;
+        style_fn = zng_wgt_toggle::ComboStyle!();
+        child = Text! {
+            txt = SETTINGS
+                .editor_state()
+                .flat_map(|e| e.as_ref().unwrap().selected_cat.name().clone());
+            font_weight = FontWeight::BOLD;
+            zng_wgt_container::padding = 5;
+        };
+        checked_popup = wgt_fn!(|_| zng_wgt_layer::popup::Popup! {
+            child = categories_list(items.take_on_init().boxed());
+        });
     }
 }
 
@@ -242,18 +264,24 @@ pub fn default_settings_search_fn(_: SettingsSearchArgs) -> impl UiNode {
     }
 }
 
-/// Default editor layout.
+/// Default editor layout on `actual_width > 400`.
 pub fn default_panel_fn(args: PanelArgs) -> impl UiNode {
     Container! {
         child_top = args.search, 0;
         child = Container! {
             child_start = args.categories, 0;
             child = args.settings;
+        };
+    }
+}
 
-            // !!: TODO, collapse but accessible categories (combo box?) Also TODO Dip comparison with integers
-            when *#actual_width <= 400 {
-                child_start = NilUiNode, 0;
-            }
+/// Default editor layout on `actual_width <= 400`.
+pub fn default_panel_mobile_fn(args: PanelArgs) -> impl UiNode {
+    Container! {
+        child_top = args.search, 0;
+        child = Container! {
+            child_top = args.categories, 0;
+            child = args.settings;
         };
     }
 }
