@@ -39,6 +39,8 @@ context_var! {
     pub static SETTINGS_FN_VAR: WidgetFn<SettingsArgs> = WidgetFn::new(default_settings_fn);
     /// Settings search area.
     pub static SETTINGS_SEARCH_FN_VAR: WidgetFn<SettingsSearchArgs> = WidgetFn::new(default_settings_search_fn);
+    /// Editor layout.
+    pub static PANEL_FN_VAR: WidgetFn<PanelArgs> = WidgetFn::new(default_panel_fn);
 }
 
 /// Widget function that converts [`CategoryItemArgs`] to a category item on a category list.
@@ -93,6 +95,12 @@ pub fn settings_search_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<Sett
     with_context_var(child, SETTINGS_SEARCH_FN_VAR, wgt_fn)
 }
 
+/// Widget that defines the editor layout, bringing together the other component widgets.
+#[property(CONTEXT, default(PANEL_FN_VAR), widget_impl(SettingsEditor))]
+pub fn panel_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<PanelArgs>>) -> impl UiNode {
+    with_context_var(child, PANEL_FN_VAR, wgt_fn)
+}
+
 /// Default category item view.
 ///
 /// See [`CATEGORY_ITEM_FN_VAR`] for more details.
@@ -114,38 +122,61 @@ pub fn default_category_header_fn(args: CategoryHeaderArgs) -> impl UiNode {
     }
 }
 
-/// Default categories list view.
+/// Default categories list view on `actual_width > 400`.
 ///
 /// See [`CATEGORIES_LIST_FN_VAR`] for more details.
 pub fn default_categories_list_fn(args: CategoriesListArgs) -> impl UiNode {
     Container! {
-        child = Scroll! {
-            mode = ScrollMode::VERTICAL;
-            child_align = Align::FILL_TOP;
-            padding = (10, 20);
-            child = Stack! {
-                zng_wgt_toggle::selector = Selector::single(SETTINGS.editor_selected_category());
-                direction = StackDirection::top_to_bottom();
-                children = args.items;
-                zng_wgt_toggle::style_fn = Style! {
-                    replace = true;
-                    opacity = 70.pct();
-                    zng_wgt_size_offset::height = 2.em();
-                    zng_wgt_container::child_align = Align::START;
-                    zng_wgt_input::cursor = zng_wgt_input::CursorIcon::Pointer;
-
-                    when *#zng_wgt_input::is_cap_hovered {
-                        zng_wgt_text::font_weight = FontWeight::MEDIUM;
-                    }
-
-                    when *#zng_wgt_toggle::is_checked {
-                        zng_wgt_text::font_weight = FontWeight::BOLD;
-                        opacity = 100.pct();
-                    }
-                };
-            };
-        };
+        child = categories_list(args.items.boxed());
         child_end = Vr!(zng_wgt::margin = 0), 0;
+    }
+}
+fn categories_list(items: BoxedUiNodeList) -> impl UiNode {
+    let list = Stack! {
+        zng_wgt_toggle::selector = Selector::single(SETTINGS.editor_selected_category());
+        direction = StackDirection::top_to_bottom();
+        children = items;
+        zng_wgt_toggle::style_fn = Style! {
+            replace = true;
+            opacity = 70.pct();
+            zng_wgt_size_offset::height = 2.em();
+            zng_wgt_container::child_align = Align::START;
+            zng_wgt_input::cursor = zng_wgt_input::CursorIcon::Pointer;
+
+            when *#zng_wgt_input::is_cap_hovered {
+                zng_wgt_text::font_weight = FontWeight::MEDIUM;
+            }
+
+            when *#zng_wgt_toggle::is_checked {
+                zng_wgt_text::font_weight = FontWeight::BOLD;
+                opacity = 100.pct();
+            }
+        };
+    };
+    Scroll! {
+        mode = ScrollMode::VERTICAL;
+        child_align = Align::FILL_TOP;
+        padding = (10, 20);
+        child = list;
+    }
+}
+
+/// Default categories list view on `actual_width <= 400`.
+pub fn default_categories_list_mobile_fn(args: CategoriesListArgs) -> impl UiNode {
+    let items = ArcNodeList::new(args.items);
+    Toggle! {
+        zng_wgt::margin = 4;
+        style_fn = zng_wgt_toggle::ComboStyle!();
+        child = Text! {
+            txt = SETTINGS
+                .editor_state()
+                .flat_map(|e| e.as_ref().unwrap().selected_cat.name().clone());
+            font_weight = FontWeight::BOLD;
+            zng_wgt_container::padding = 5;
+        };
+        checked_popup = wgt_fn!(|_| zng_wgt_layer::popup::Popup! {
+            child = categories_list(items.take_on_init().boxed());
+        });
     }
 }
 
@@ -233,6 +264,28 @@ pub fn default_settings_search_fn(_: SettingsSearchArgs) -> impl UiNode {
     }
 }
 
+/// Default editor layout on `actual_width > 400`.
+pub fn default_panel_fn(args: PanelArgs) -> impl UiNode {
+    Container! {
+        child_top = args.search, 0;
+        child = Container! {
+            child_start = args.categories, 0;
+            child = args.settings;
+        };
+    }
+}
+
+/// Default editor layout on `actual_width <= 400`.
+pub fn default_panel_mobile_fn(args: PanelArgs) -> impl UiNode {
+    Container! {
+        child_top = args.search, 0;
+        child = Container! {
+            child_top = args.categories, 0;
+            child = args.settings;
+        };
+    }
+}
+
 /// Arguments for a widget function that makes a category item for a categories list.
 pub struct CategoryItemArgs {
     /// Index on the list.
@@ -277,6 +330,16 @@ pub struct SettingsArgs {
 ///
 /// The search variable is in [`SETTINGS.editor_search`](SettingsCtxExt::editor_search).
 pub struct SettingsSearchArgs {}
+
+/// Arguments for the entire settings editor layout.
+pub struct PanelArgs {
+    /// Search box widget.
+    pub search: BoxedUiNode,
+    /// Categories widget.
+    pub categories: BoxedUiNode,
+    /// Settings widget.
+    pub settings: BoxedUiNode,
+}
 
 /// Extends [`SettingBuilder`] to set custom editor metadata.
 pub trait SettingBuilderEditorExt {

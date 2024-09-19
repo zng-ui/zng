@@ -172,7 +172,7 @@ pub fn child_insert(
                 let insert_size = children.with_node(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || wm.measure_block(n))
                 });
-                if insert_size.width == Px(0) {
+                if insert_size.width == 0 {
                     spacing = Px(0);
                 }
                 let child_size = children.with_node(0, |n| {
@@ -188,13 +188,13 @@ pub fn child_insert(
                 let insert_size = children.with_node(1, |n| {
                     LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || wm.measure_block(n))
                 });
-                if insert_size.height == Px(0) {
+                if insert_size.height == 0 {
                     spacing = Px(0);
                 }
                 let child_size = children.with_node(0, |n| {
                     LAYOUT.with_constraints(c.with_less_y(insert_size.height + spacing), || wm.measure_block(n))
                 });
-                if child_size.height == Px(0) {
+                if child_size.height == 0 {
                     spacing = Px(0);
                 }
                 PxSize::new(
@@ -225,7 +225,7 @@ pub fn child_insert(
                         let insert_size = children.with_node(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_x(false), || n.measure(wm))
                         });
-                        if insert_size.width == Px(0) {
+                        if insert_size.width == 0 {
                             spacing = Px(0);
                         }
                         let child_size = children.with_node(0, |n| {
@@ -246,7 +246,7 @@ pub fn child_insert(
                             || n.layout(wl),
                         )
                     });
-                    if insert_size.width == Px(0) {
+                    if insert_size.width == 0 {
                         spacing = Px(0);
                     }
                     let child_size = children.with_node(0, |n| {
@@ -259,7 +259,7 @@ pub fn child_insert(
                             || n.layout(wl),
                         )
                     });
-                    if child_size.width == Px(0) {
+                    if child_size.width == 0 {
                         spacing = Px(0);
                     }
 
@@ -295,7 +295,7 @@ pub fn child_insert(
                         let insert_size = children.with_node(1, |n| {
                             LAYOUT.with_constraints(c.with_new_min(Px(0), Px(0)).with_fill_y(false), || n.measure(wm))
                         });
-                        if insert_size.height == Px(0) {
+                        if insert_size.height == 0 {
                             spacing = Px(0);
                         }
                         let child_size = children.with_node(0, |n| {
@@ -316,7 +316,7 @@ pub fn child_insert(
                             || n.layout(wl),
                         )
                     });
-                    if insert_size.height == Px(0) {
+                    if insert_size.height == 0 {
                         spacing = Px(0);
                     }
                     let child_size = children.with_node(0, |n| {

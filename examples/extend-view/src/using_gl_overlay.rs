@@ -155,11 +155,7 @@ pub mod view_side {
                 gl.clear(gl::COLOR_BUFFER_BIT);
             }
             for task in &self.tasks {
-                if task.cursor.x >= Px(0)
-                    && task.cursor.y < task.area.width()
-                    && task.cursor.y >= Px(0)
-                    && task.cursor.y < task.area.height()
-                {
+                if task.cursor.x >= 0 && task.cursor.y < task.area.width() && task.cursor.y >= 0 && task.cursor.y < task.area.height() {
                     let r = task.cursor.x.0 as f32 / task.area.width().0 as f32;
                     let b = task.cursor.y.0 as f32 / task.area.height().0 as f32;
 

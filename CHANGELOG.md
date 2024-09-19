@@ -1,5 +1,11 @@
 # Unreleased
 
+* Implement alternate `SettingsEditor!` layout for narrow width (mobile).
+* Implement equality and comparison for `Dip` and `Px` to `i32` (and `f32` for `Dip`).
+* **Breaking** Move `IS_MOBILE_VAR` to `zng-wgt` and `zng::widget`.
+* **Breaking** Move `is_mobile` and `force_mobile` to `zng-wgt` and `zng::widget`.
+    - These properties are no longer strongly associated with `Window`.
+* Add `SettingsEditor::panel_fn` for customizing the full editor layout.
 * Remove previous deprecated `UiNodeVec`.
 * Remove unused renderer param in `FrameUpdate::new`.
 

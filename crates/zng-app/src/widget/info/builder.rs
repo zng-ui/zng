@@ -750,7 +750,7 @@ impl WidgetInlineInfo {
         let mut needs_sort = false;
 
         for seg in segs {
-            if seg.width <= Px(0) {
+            if seg.width <= 0 {
                 continue;
             }
 
