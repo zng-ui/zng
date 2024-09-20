@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix fill align in `Scroll!` dimensions that do not scroll.
 * Implement alternate `SettingsEditor!` layout for narrow width (mobile).
 * Implement equality and comparison for `Dip` and `Px` to `i32` (and `f32` for `Dip`).
 * **Breaking** Move `IS_MOBILE_VAR` to `zng-wgt` and `zng::widget`.
