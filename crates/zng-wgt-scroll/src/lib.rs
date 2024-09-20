@@ -211,8 +211,10 @@ fn scroll_node(
             };
         }
         UiNodeOp::Layout { wl, final_size } => {
+            let constraints = LAYOUT.constraints();
+
             // scrollbars
-            let c = LAYOUT.constraints().with_new_min(Px(0), Px(0));
+            let c = constraints.with_new_min(Px(0), Px(0));
             {
                 joiner.width = LAYOUT.with_constraints(c.with_fill(false, true), || {
                     children.with_node(1, |n| n.measure(&mut wl.to_measure(None))).width
@@ -234,7 +236,7 @@ fn scroll_node(
             scroll_info.set_joiner_size(joiner);
 
             // viewport
-            let mut vp = LAYOUT.with_constraints(c.with_less_size(joiner), || children.with_node(0, |n| n.layout(wl)));
+            let mut vp = LAYOUT.with_constraints(constraints.with_less_size(joiner), || children.with_node(0, |n| n.layout(wl)));
 
             // collapse scrollbars if they take more the 1/3 of the total area.
             if vp.width < joiner.width * 3.0.fct() {
