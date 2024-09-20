@@ -140,6 +140,7 @@
 
 use crate::prelude::*;
 pub use zng_app::third_party::{License, LicenseUsed, User, UserLicense, LICENSES, OPEN_LICENSES_CMD};
+use zng_wgt_container::ChildInsert;
 
 pub(crate) fn setup_default_view() {
     let id = WindowId::named("zng-third_party-default");
@@ -194,41 +195,56 @@ fn default_view() -> impl UiNode {
     let selected = var(licenses[0].clone());
     let search = var(Txt::from(""));
 
-    Container! {
-        child_start = Container! {
-            widget::background_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
+    let actual_width = var(zng_layout::unit::Dip::new(0));
+    let alternate_layout = actual_width.map(|&w| w <= 500 && w > 1);
 
-            // search
-            child_top = TextInput! {
-                txt = search.clone();
-                style_fn = zng_wgt_text_input::SearchStyle!();
-                zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
-                placeholder_txt = l10n!("search.placeholder", "search licenses ({$shortcut})", shortcut="Ctrl+F");
-            }, 0;
-            // list
-            child = Scroll! {
-                mode = zng::scroll::ScrollMode::VERTICAL;
-                child_align = Align::FILL;
-                child = DataView! {
-                    layout::min_width = 100;
-                    layout::sticky_width = true;
-                    view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
-                        let search = a.data().get();
-                        let licenses = if search.is_empty() {
-                            licenses.clone()
-                        } else {
-                            licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
-                        };
+    let selector = Container! {
+        widget::background_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
 
-                        a.set_view(Stack! {
-                            toggle::selector = toggle::Selector::single(selected.clone());
-                            direction = StackDirection::top_to_bottom();
-                            children = licenses.into_iter().map(default_item_view).collect::<UiVec>();
-                        })
-                    });
-                };
-            };
+        // search
+        child_top = TextInput! {
+            txt = search.clone();
+            style_fn = zng_wgt_text_input::SearchStyle!();
+            zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
+            placeholder_txt = l10n!("search.placeholder", "search licenses ({$shortcut})", shortcut="Ctrl+F");
         }, 0;
+        // list
+        child = Scroll! {
+            mode = zng::scroll::ScrollMode::VERTICAL;
+            child_align = Align::FILL;
+            child = DataView! {
+                layout::min_width = 100;
+                layout::sticky_width = true;
+                view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
+                    let search = a.data().get();
+                    let licenses = if search.is_empty() {
+                        licenses.clone()
+                    } else {
+                        licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
+                    };
+
+                    a.set_view(Stack! {
+                        toggle::selector = toggle::Selector::single(selected.clone());
+                        direction = StackDirection::top_to_bottom();
+                        children = licenses.into_iter().map(default_item_view).collect::<UiVec>();
+                    })
+                });
+            };
+            when *#{alternate_layout.clone()} {
+                layout::max_height = 200; // placed on top in small width screens
+                layout::sticky_width = false; // reset sticky width
+            }
+        };
+    };
+
+    Container! {
+        layout::actual_width;
+
+        child_insert = {
+            placement: alternate_layout.map(|&y| if y { ChildInsert::Top } else { ChildInsert::Start }),
+            node: selector,
+            spacing: 0,
+        };
         // selected
         child = Scroll! {
             mode = zng::scroll::ScrollMode::VERTICAL;
