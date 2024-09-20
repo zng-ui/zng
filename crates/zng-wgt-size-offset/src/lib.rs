@@ -683,29 +683,38 @@ pub fn baseline(child: impl UiNode, baseline: impl IntoVar<Length>) -> impl UiNo
 #[property(SIZE, default(false))]
 pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
     let sticky = sticky.into_var();
+    let mut sticky_after_layout = false;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_layout(&sticky);
+            WIDGET.sub_var(&sticky);
+        }
+        UiNodeOp::Deinit => {
+            sticky_after_layout = false;
+        }
+        UiNodeOp::Update { .. } => {
+            if sticky.is_new() {
+                sticky_after_layout = false;
+            }
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            if !sticky.get() {
-                return;
+            if sticky_after_layout && sticky.get() {
+                let min = WIDGET.bounds().inner_size().width;
+                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || wm.measure_block(child));
+                size.width = size.width.max(min);
+                *desired_size = size;
             }
-
-            let min = WIDGET.bounds().inner_size().width;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || wm.measure_block(child));
-            size.width = size.width.max(min);
-            *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            if !sticky.get() {
-                return;
+            let sticky = sticky.get();
+            if sticky_after_layout && sticky {
+                let min = WIDGET.bounds().inner_size().width;
+                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || child.layout(wl));
+                size.width = size.width.max(min);
+                *final_size = size;
             }
 
-            let min = WIDGET.bounds().inner_size().width;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || child.layout(wl));
-            size.width = size.width.max(min);
-            *final_size = size;
+            // only enable after the `WIDGET.bounds().inner_size()` updates
+            sticky_after_layout = sticky;
         }
         _ => {}
     })
@@ -718,29 +727,38 @@ pub fn sticky_width(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNo
 #[property(SIZE, default(false))]
 pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
     let sticky = sticky.into_var();
+    let mut sticky_after_layout = false;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_layout(&sticky);
+            WIDGET.sub_var(&sticky);
+        }
+        UiNodeOp::Deinit => {
+            sticky_after_layout = false;
+        }
+        UiNodeOp::Update { .. } => {
+            if sticky.is_new() {
+                sticky_after_layout = false;
+            }
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            if !sticky.get() {
-                return;
+            if sticky_after_layout && sticky.get() {
+                let min = WIDGET.bounds().inner_size().height;
+                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_y(min), || wm.measure_block(child));
+                size.height = size.height.max(min);
+                *desired_size = size;
             }
-
-            let min = WIDGET.bounds().inner_size().height;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || wm.measure_block(child));
-            size.height = size.height.max(min);
-            *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            if !sticky.get() {
-                return;
+            let sticky = sticky.get();
+            if sticky_after_layout && sticky {
+                let min = WIDGET.bounds().inner_size().height;
+                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_y(min), || child.layout(wl));
+                size.height = size.height.max(min);
+                *final_size = size;
             }
 
-            let min = WIDGET.bounds().inner_size().height;
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_x(min), || child.layout(wl));
-            size.height = size.height.max(min);
-            *final_size = size;
+            // only enable after the `WIDGET.bounds().inner_size()` updates
+            sticky_after_layout = sticky;
         }
         _ => {}
     })
@@ -753,29 +771,38 @@ pub fn sticky_height(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiN
 #[property(SIZE, default(false))]
 pub fn sticky_size(child: impl UiNode, sticky: impl IntoVar<bool>) -> impl UiNode {
     let sticky = sticky.into_var();
+    let mut sticky_after_layout = false;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_layout(&sticky);
+            WIDGET.sub_var(&sticky);
+        }
+        UiNodeOp::Deinit => {
+            sticky_after_layout = false;
+        }
+        UiNodeOp::Update { .. } => {
+            if sticky.is_new() {
+                sticky_after_layout = false;
+            }
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            if !sticky.get() {
-                return;
+            if sticky_after_layout && sticky.get() {
+                let min = WIDGET.bounds().inner_size();
+                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || wm.measure_block(child));
+                size = size.max(min);
+                *desired_size = size;
             }
-
-            let min = WIDGET.bounds().inner_size();
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || wm.measure_block(child));
-            size = size.max(min);
-            *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            if !sticky.get() {
-                return;
+            let sticky = sticky.get();
+            if sticky_after_layout && sticky {
+                let min = WIDGET.bounds().inner_size();
+                let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || child.layout(wl));
+                size = size.max(min);
+                *final_size = size;
             }
 
-            let min = WIDGET.bounds().inner_size();
-            let mut size = LAYOUT.with_constraints(LAYOUT.constraints().with_min_size(min), || child.layout(wl));
-            size = size.max(min);
-            *final_size = size;
+            // only enable after the `WIDGET.bounds().inner_size()` updates
+            sticky_after_layout = sticky;
         }
         _ => {}
     })
