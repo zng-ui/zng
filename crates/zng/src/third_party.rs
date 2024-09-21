@@ -233,7 +233,7 @@ fn default_view() -> impl UiNode {
                     })
                 });
             };
-            when dbg!(*#{alternate_layout.clone()}) {
+            when *#{alternate_layout.clone()} {
                 layout::max_height = 100; // placed on top in small width screens
                 layout::sticky_width = false; // reset sticky width
             }
