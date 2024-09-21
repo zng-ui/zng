@@ -216,7 +216,7 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
 ///
 /// You can use the [`max_width`](fn@max_width) and [`max_height`](fn@max_height) properties to only
 /// set the maximum size of one dimension.
-#[property(SIZE-1)]
+#[property(SIZE-1,  default(PxSize::splat(Px::MAX)))]
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
     let max_size = max_size.into_var();
     match_node(child, move |child, op| match op {
@@ -253,7 +253,7 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
 /// # `max_size`
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
-#[property(SIZE-1)]
+#[property(SIZE-1, default(Px::MAX))]
 pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
     let max_width = max_width.into_var();
     match_node(child, move |child, op| match op {
@@ -295,7 +295,7 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
 /// # `max_size`
 ///
 /// You can set both `max_width` and `max_height` at the same time using the [`max_size`](fn@max_size) property.
-#[property(SIZE-1)]
+#[property(SIZE-1, default(Px::MAX))]
 pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
     let max_height = max_height.into_var();
     match_node(child, move |child, op| match op {

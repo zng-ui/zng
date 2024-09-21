@@ -177,20 +177,22 @@ pub(crate) fn setup_default_view() {
 fn default_view() -> impl UiNode {
     let mut licenses = LICENSES.user_licenses();
     if licenses.is_empty() {
-        licenses.push(UserLicense {
-            user: User {
-                // l10n-# "user" is the package that uses the license
-                name: l10n!("license-none.user-name", "<none>").get(),
-                version: "".into(),
-                url: "".into(),
-            },
-            license: License {
-                id: l10n!("license-none.id", "<none>").get(),
-                // l10n-# License name
-                name: l10n!("license-none.name", "No license data").get(),
-                text: "".into(),
-            },
-        });
+        for _ in 0..100 {
+            licenses.push(UserLicense {
+                user: User {
+                    // l10n-# "user" is the package that uses the license
+                    name: l10n!("license-none.user-name", "<none>").get(),
+                    version: "".into(),
+                    url: "".into(),
+                },
+                license: License {
+                    id: l10n!("license-none.id", "<none>").get(),
+                    // l10n-# License name
+                    name: l10n!("license-none.name", "No license data").get(),
+                    text: "".into(),
+                },
+            });
+        }
     }
     let selected = var(licenses[0].clone());
     let search = var(Txt::from(""));
@@ -232,7 +234,7 @@ fn default_view() -> impl UiNode {
                 });
             };
             when *#{alternate_layout.clone()} {
-                layout::max_height = 200; // placed on top in small width screens
+                layout::max_height = 100; // placed on top in small width screens
                 layout::sticky_width = false; // reset sticky width
             }
         };
