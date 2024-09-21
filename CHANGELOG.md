@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.12.0
+
 * Log warning when property is not used because it has no default value.
 * Define default `max_size`, `max_width` and `max_height` so these properties can now be only set by when conditions.
 * Fix `sticky_size`, `sticky_width` and `sticky_height` properties when dynamically disabled and re-enabled.
@@ -11,8 +14,8 @@
 * **Breaking** Move `is_mobile` and `force_mobile` to `zng-wgt` and `zng::widget`.
     - These properties are no longer strongly associated with `Window`.
 * Add `SettingsEditor::panel_fn` for customizing the full editor layout.
-* Remove previous deprecated `UiNodeVec`.
-* Remove unused renderer param in `FrameUpdate::new`.
+* **Breaking** Remove previous deprecated `UiNodeVec`.
+* **Breaking** Remove unused renderer param in `FrameUpdate::new`.
 
 # 0.11.8
 
