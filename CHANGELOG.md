@@ -1,7 +1,7 @@
 # Unreleased
 
 
-# 0.11.9
+# 0.12.0
 
 * Log warning when property is not used because it has no default value.
 * Define default `max_size`, `max_width` and `max_height` so these properties can now be only set by when conditions.

@@ -23,8 +23,8 @@ live = []
 crash_handler = ["zng-app/crash_handler", "dep:open"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.4.17" }
-zng-app = { path = "../zng-app", version = "0.12.1" }
+zng-wgt = { path = "../zng-wgt", version = "0.5.0" }
+zng-app = { path = "../zng-app", version = "0.13.0" }
 zng-env = { path = "../zng-env", version = "0.3.5" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.5.23" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.4.7" }
@@ -35,7 +35,7 @@ zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.13" }
 zng-view-api = { path = "../zng-view-api", version = "0.10.1" }
 zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.1.11" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.24" }
-zng-wgt-window = { path = "../zng-wgt-window", version = "0.5.15" }
+zng-wgt-window = { path = "../zng-wgt-window", version = "0.6.0" }
 zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.15" }
 zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.3.25" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.34" }

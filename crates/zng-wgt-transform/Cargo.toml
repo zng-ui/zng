@@ -12,6 +12,6 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.4.17" }
+zng-wgt = { path = "../zng-wgt", version = "0.5.0" }
 
 euclid = "0.22"

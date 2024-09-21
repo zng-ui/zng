@@ -1,6 +1,6 @@
 [package]
 name = "zng"
-version = "0.11.9"
+version = "0.12.0"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -206,7 +206,7 @@ zng-env = { path = "../zng-env", version = "0.3.5" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.6" }
 
 # app
-zng-app = { path = "../zng-app", version = "0.12.1", default-features = false }
+zng-app = { path = "../zng-app", version = "0.13.0", default-features = false }
 zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.2.33" }
 zng-ext-config = { path = "../zng-ext-config", version = "0.3.13", default-features = false }
 zng-ext-font = { path = "../zng-ext-font", version = "0.4.7" }
@@ -219,7 +219,7 @@ zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.35" }
 zng-ext-hot-reload = { path = "../zng-ext-hot-reload", version = "0.1.22", optional = true }
 
 # widgets
-zng-wgt = { path = "../zng-wgt", version = "0.4.17" }
+zng-wgt = { path = "../zng-wgt", version = "0.5.0" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.34" }
 zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.34" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.35" }
@@ -232,7 +232,7 @@ zng-wgt-data-view = { path = "../zng-wgt-data-view", version = "0.3.24" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.34" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.24" }
 zng-wgt-checkerboard = { path = "../zng-wgt-checkerboard", version = "0.3.24" }
-zng-wgt-window = { path = "../zng-wgt-window", version = "0.5.15" }
+zng-wgt-window = { path = "../zng-wgt-window", version = "0.6.0" }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.25" }
 zng-wgt-undo-history = { path = "../zng-wgt-undo-history", version = "0.3.25" }
 zng-wgt-image = { path = "../zng-wgt-image", version = "0.3.25" }
@@ -266,7 +266,7 @@ zng-view-api = { path = "../zng-view-api", version = "0.10.1", default-features 
 zng-view = { path = "../zng-view", version = "0.4.18", default-features = false, optional = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
-zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.11.9", optional = true }
+zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.12.0", optional = true }
 
 [build-dependencies]
 cfg_aliases = "0.2"
