@@ -2339,7 +2339,10 @@ impl WidgetBuilding {
                         },
                     });
                 } else {
-                    tracing::warn!("property `{}` ignored, it is only set in `when` block and has no default value", assign.property().name);
+                    tracing::warn!(
+                        "property `{}` ignored, it is only set in `when` block and has no default value",
+                        assign.property().name
+                    );
                     continue;
                 }
 
