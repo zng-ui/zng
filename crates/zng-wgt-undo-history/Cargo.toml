@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-undo-history"
-version = "0.3.24"
+version = "0.3.25"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,16 +12,16 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.4.16" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.14" }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.14" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.13" }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.24" }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.23" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.23" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.33" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.33" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.34" }
-zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.34" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.22" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.12" }
+zng-wgt = { path = "../zng-wgt", version = "0.4.17" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.15" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.15" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.14" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.25" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.24" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.24" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.34" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.34" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.35" }
+zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.35" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.23" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.13" }

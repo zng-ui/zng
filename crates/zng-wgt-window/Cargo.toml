@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-window"
-version = "0.5.14"
+version = "0.5.15"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -19,24 +19,24 @@ debug_default = ["zng-wgt/debug_default"]
 dyn_closure = ["zng-wgt/dyn_closure"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.4.16" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.13" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.33" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.14" }
-zng-app = { path = "../zng-app", version = "0.12.0" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.3.23" }
-zng-ext-config = { path = "../zng-ext-config", version = "0.3.12", default-features = false }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.22" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.12" }
-zng-var = { path = "../zng-var", version = "0.5.5" }
-zng-color = { path = "../zng-color", version = "0.3.11" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.34" }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.24" }
+zng-wgt = { path = "../zng-wgt", version = "0.4.17" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.14" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.34" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.15" }
+zng-app = { path = "../zng-app", version = "0.12.1" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.3.24" }
+zng-ext-config = { path = "../zng-ext-config", version = "0.3.13", default-features = false }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.23" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.13" }
+zng-var = { path = "../zng-var", version = "0.5.6" }
+zng-color = { path = "../zng-color", version = "0.3.12" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.35" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.25" }
 
 # used only by fallback_chrome
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.33" }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.23" }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.14" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.34" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.24" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.15" }
 
 serde = { version = "1.0", features = ["derive"] }
 paste = "1.0"
