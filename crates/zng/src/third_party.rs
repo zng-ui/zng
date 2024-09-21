@@ -210,11 +210,12 @@ fn default_view() -> impl UiNode {
         }, 0;
         // list
         child = Scroll! {
+            id = "scrol";
+            layout::min_width = 100;
+            layout::sticky_width = true;
             mode = zng::scroll::ScrollMode::VERTICAL;
             child_align = Align::FILL;
             child = DataView! {
-                layout::min_width = 100;
-                layout::sticky_width = true;
                 view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
                     let search = a.data().get();
                     let licenses = if search.is_empty() {

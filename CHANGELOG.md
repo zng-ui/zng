@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `sticky_size`, `sticky_width` and `sticky_height` properties when dynamically disabled and re-enabled.
+* Fix `sticky_height` using *x* constraint.
 * Fix fill align in `Scroll!` dimensions that do not scroll.
 * Implement alternate `SettingsEditor!` layout for narrow width (mobile).
 * Implement equality and comparison for `Dip` and `Px` to `i32` (and `f32` for `Dip`).
