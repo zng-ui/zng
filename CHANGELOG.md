@@ -1,5 +1,6 @@
 # Unreleased
 
+* Define default `max_size`, `max_width` and `max_height` so these properties can now be only set by when conditions.
 * Fix `sticky_size`, `sticky_width` and `sticky_height` properties when dynamically disabled and re-enabled.
 * Fix `sticky_height` using *x* constraint.
 * Fix fill align in `Scroll!` dimensions that do not scroll.
