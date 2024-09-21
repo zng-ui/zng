@@ -177,22 +177,20 @@ pub(crate) fn setup_default_view() {
 fn default_view() -> impl UiNode {
     let mut licenses = LICENSES.user_licenses();
     if licenses.is_empty() {
-        for _ in 0..100 {
-            licenses.push(UserLicense {
-                user: User {
-                    // l10n-# "user" is the package that uses the license
-                    name: l10n!("license-none.user-name", "<none>").get(),
-                    version: "".into(),
-                    url: "".into(),
-                },
-                license: License {
-                    id: l10n!("license-none.id", "<none>").get(),
-                    // l10n-# License name
-                    name: l10n!("license-none.name", "No license data").get(),
-                    text: "".into(),
-                },
-            });
-        }
+        licenses.push(UserLicense {
+            user: User {
+                // l10n-# "user" is the package that uses the license
+                name: l10n!("license-none.user-name", "<none>").get(),
+                version: "".into(),
+                url: "".into(),
+            },
+            license: License {
+                id: l10n!("license-none.id", "<none>").get(),
+                // l10n-# License name
+                name: l10n!("license-none.name", "No license data").get(),
+                text: "".into(),
+            },
+        });
     }
     let selected = var(licenses[0].clone());
     let search = var(Txt::from(""));
