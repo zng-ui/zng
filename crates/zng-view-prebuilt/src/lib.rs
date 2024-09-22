@@ -13,7 +13,8 @@
 
 use core::fmt;
 use libloading::*;
-use std::{env, io, path::PathBuf};
+use parking_lot::Mutex;
+use std::{env, io, mem, path::PathBuf};
 use zng_view_api::StaticPatch;
 
 zng_env::on_process_start!(|_| {
@@ -216,33 +217,31 @@ impl ViewLib {
     }
     fn run_same_process_impl(self, run_app: Box<dyn FnOnce() + Send>) -> ! {
         let patch = StaticPatch::capture();
-        unsafe {
-            use std::sync::atomic::{AtomicU8, Ordering};
 
-            static STATE: AtomicU8 = AtomicU8::new(ST_NONE);
-            const ST_NONE: u8 = 0;
-            const ST_SOME: u8 = 1;
-            const ST_TAKEN: u8 = 2;
-
-            static mut RUN: Option<Box<dyn FnOnce() + Send>> = None;
-
-            if STATE.swap(ST_SOME, Ordering::SeqCst) != ST_NONE {
-                panic!("expected only one call to `run_same_process`");
-            }
-
-            RUN = Some(run_app);
-
-            extern "C" fn run() {
-                if STATE.swap(ST_TAKEN, Ordering::SeqCst) != ST_SOME {
-                    panic!("expected only one call to `run_app` closure");
-                }
-
-                let run_app = unsafe { RUN.take() }.unwrap();
-                run_app();
-            }
-
-            (self.run_same_process_fn)(&patch, run)
+        enum Run {
+            Waiting,
+            Set(Box<dyn FnOnce() + Send>),
+            Taken,
         }
+        static RUN: Mutex<Run> = Mutex::new(Run::Waiting);
+
+        match mem::replace(&mut *RUN.lock(), Run::Set(Box::new(run_app))) {
+            Run::Waiting => {}
+            _ => panic!("expected only one call to `run_same_process`"),
+        };
+
+        extern "C" fn run() {
+            match mem::replace(&mut *RUN.lock(), Run::Taken) {
+                Run::Set(run_app) => run_app(),
+                _ => unreachable!(),
+            }
+        }
+
+        // SAFETY: we need to trust a compatible library is loaded at this point
+        unsafe {
+            (self.run_same_process_fn)(&patch, run);
+        }
+
         // exit the process to ensure all threads are stopped
         zng_env::exit(0)
     }
