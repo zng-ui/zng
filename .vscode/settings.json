@@ -25,9 +25,6 @@
         "*.ttf": "${capture}.codepoints",
     },
     "rust-analyzer.runnables.command": "cargo do rust_analyzer_run",
-    "rust-analyzer.diagnostics.disabled": [
-        "non_snake_case" // false positive in when expr with generated #[allow(non_snake_case)]
-    ],
     "files.associations": {
         "*.zr-sh": "shellscript",
         "*.zr-shf": "shellscript",
