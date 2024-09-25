@@ -906,7 +906,9 @@ fn build_apk(mut args: Vec<&str>) {
     let mut build_args = vec!["build", "-p", &example];
     if release_lto {
         build_args.push("--profile");
-        build_args.push("release-lto");
+        // build_args.push("release-lto");
+        // LTO causes miscompilation (see https://github.com/zng-ui/zng-template/issues/16)
+        build_args.push("release");
     }
 
     // cargo ndk with all installed Android targets
