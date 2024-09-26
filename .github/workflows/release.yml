@@ -149,9 +149,9 @@ jobs:
       - name: install dav1d python deps
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
         run: |
-          pip install -U pip
-          pip install -U wheel setuptools
-          pip install -U meson ninja
+          pip install -U pip --break-system-packages
+          pip install -U wheel setuptools --break-system-packages
+          pip install -U meson ninja --break-system-packages
       - name: build dav1d
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
         env:
@@ -220,9 +220,9 @@ jobs:
       - name: install dav1d python deps
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-pc-windows-msvc' }}
         run: |
-          pip install -U pip
-          pip install -U wheel setuptools
-          pip install -U meson ninja
+          pip install -U pip --break-system-packages
+          pip install -U wheel setuptools --break-system-packages
+          pip install -U meson ninja --break-system-packages
       - name: setup dav1d env
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: bash
@@ -296,9 +296,9 @@ jobs:
       - name: install dav1d python deps
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         run: |
-          pip install -U pip
-          pip install -U wheel setuptools
-          pip install -U meson ninja
+          pip install -U pip --break-system-packages
+          pip install -U wheel setuptools --break-system-packages
+          pip install -U meson ninja --break-system-packages
       - name: build dav1d
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         env:
