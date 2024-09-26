@@ -44,6 +44,8 @@ jobs:
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_checks != 'true' }}
+      - run: sudo apt install libfontconfig1-dev
+        if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do version --verbose
         if: ${{ github.event.inputs.skip_checks != 'true' }}
       - run: cargo do fmt --check
@@ -147,9 +149,9 @@ jobs:
       - name: install dav1d python deps
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
         run: |
-          pip install -U pip
-          pip install -U wheel setuptools
-          pip install -U meson ninja
+          pip install -U pip --break-system-packages
+          pip install -U wheel setuptools --break-system-packages
+          pip install -U meson ninja --break-system-packages
       - name: build dav1d
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
         env:
@@ -218,9 +220,9 @@ jobs:
       - name: install dav1d python deps
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-pc-windows-msvc' }}
         run: |
-          pip install -U pip
-          pip install -U wheel setuptools
-          pip install -U meson ninja
+          pip install -U pip --break-system-packages
+          pip install -U wheel setuptools --break-system-packages
+          pip install -U meson ninja --break-system-packages
       - name: setup dav1d env
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: bash
@@ -294,9 +296,9 @@ jobs:
       - name: install dav1d python deps
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         run: |
-          pip install -U pip
-          pip install -U wheel setuptools
-          pip install -U meson ninja
+          pip install -U pip --break-system-packages
+          pip install -U wheel setuptools --break-system-packages
+          pip install -U meson ninja --break-system-packages
       - name: build dav1d
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         env:
@@ -337,6 +339,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_doc != 'true' }}
+      - run: sudo apt install libfontconfig1-dev
+        if: ${{ github.event.inputs.skip_doc != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_doc != 'true' }}
       - run: cargo do latest_release_changes release-changes.md
@@ -368,6 +372,8 @@ jobs:
         with:
           tool: cargo-nextest
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - run: sudo apt install libfontconfig1-dev
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
@@ -495,6 +501,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' }}
+      - run: sudo apt install libfontconfig1-dev
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: cargo do publish --test
@@ -620,6 +628,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_crates != 'true' }}
       - uses: actions/checkout@v4
+        if: ${{ github.event.inputs.skip_crates != 'true' }}
+      - run: sudo apt install libfontconfig1-dev
         if: ${{ github.event.inputs.skip_crates != 'true' }}
       - run: cargo do publish --execute ${{ github.run_attempt > 1 && '--no-burst' || '' }}
         if: ${{ github.event.inputs.skip_crates != 'true' }}
