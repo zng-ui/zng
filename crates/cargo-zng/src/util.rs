@@ -398,7 +398,6 @@ pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>, 
     let from = from.as_ref();
     let to = to.as_ref();
     if check {
-
         if !to.is_file() {
             fatal!("expected `{}` file", to.display());
         }
