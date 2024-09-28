@@ -501,6 +501,7 @@ impl PxToWr for FontOptions {
                     wr::FontInstanceFlags::empty()
                 },
                 synthetic_italics: wr::SyntheticItalics::from_degrees(if self.synthetic_oblique { 14.0 } else { 0.0 }),
+                _padding: 0,
             })
         }
     }

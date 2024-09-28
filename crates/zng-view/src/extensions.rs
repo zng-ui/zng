@@ -411,6 +411,9 @@ pub struct BlobRasterizerArgs<'a> {
     /// high priority work being enqueued behind it.
     pub low_priority: bool,
 
+    /// A pool of blob tile buffers to mitigate the overhead of allocating and deallocating blob tiles.
+    pub tile_pool: &'a mut webrender::api::BlobTilePool,
+
     /// Rasterization responses.
     ///
     /// Note that `requests` and `responses` are shared by all blob rasterizers, each rasterizer
@@ -1103,12 +1106,18 @@ impl BlobImageHandler for BlobExtensionsImgHandler {
 
 struct BlockExtensionsImgRasterizer(Vec<Box<dyn AsyncBlobRasterizer>>);
 impl AsyncBlobImageRasterizer for BlockExtensionsImgRasterizer {
-    fn rasterize(&mut self, requests: &[BlobImageParams], low_priority: bool) -> Vec<(BlobImageRequest, BlobImageResult)> {
+    fn rasterize(
+        &mut self,
+        requests: &[BlobImageParams],
+        low_priority: bool,
+        tile_pool: &mut crate::BlobTilePool,
+    ) -> Vec<(BlobImageRequest, BlobImageResult)> {
         let mut responses = vec![];
         for r in &mut self.0 {
             r.rasterize(&mut BlobRasterizerArgs {
                 requests,
                 low_priority,
+                tile_pool,
                 responses: &mut responses,
             })
         }

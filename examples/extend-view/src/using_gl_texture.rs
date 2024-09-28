@@ -120,6 +120,7 @@ pub mod view_side {
                     id: external_id,
                     channel_index: 0,
                     image_type: ExternalImageType::TextureHandle(zng_view::webrender::api::ImageBufferKind::Texture2D),
+                    normalized_uvs: false,
                 }),
                 None,
             );

@@ -37,6 +37,7 @@ To update these crates:
 
 * Merge from upstream <https://github.com/servo/webrender>.
 * Manually increment the minor version of each crate that changed.
+* Manually copy new shaders from webrender to swgl (publish does not allow files from outside the crate dir so we duplicate these).
 * We depend on `zng-webrender`, `zng-swgl` and all local dependencies of these crates. As of last publish these are:
 
 ```
