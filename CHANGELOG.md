@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix panic trying to use font index on macOS.
 * Fix default UI font in Apple systems.
 * **Breaking** Update webrender dependency.
     - Note that this is only a breaking change for direct dependents of `zng-view` extensions API.

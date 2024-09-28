@@ -198,6 +198,14 @@ impl Surface {
     }
 
     pub fn add_font_face(&mut self, font: Vec<u8>, index: u32) -> FontFaceId {
+        #[cfg(target_os = "macos")]
+        let index = {
+            if index != 0 {
+                tracing::error!("webrender does not support font index on macOS, ignoring `{index}` will use `0`");
+            }
+            0
+        };
+
         let key = self.api.generate_font_key();
         let mut txn = webrender::Transaction::new();
         txn.add_raw_font(key, font, index);
