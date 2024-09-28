@@ -4,23 +4,23 @@ use fluent_syntax::ast::*;
 
 use crate::util;
 
-pub fn pseudo(dir: &str, check: bool) {
-    fluent_pseudo_impl(dir, "pseudo", false, false, check)
+pub fn pseudo(dir: &str, check: bool, verbose: bool) {
+    fluent_pseudo_impl(dir, "pseudo", false, false, check, verbose)
 }
 
-pub fn pseudo_mirr(dir: &str, check: bool) {
-    fluent_pseudo_impl(dir, "pseudo-mirr", true, false, check)
+pub fn pseudo_mirr(dir: &str, check: bool, verbose: bool) {
+    fluent_pseudo_impl(dir, "pseudo-mirr", true, false, check, verbose)
 }
 
-pub fn pseudo_wide(dir: &str, check: bool) {
-    fluent_pseudo_impl(dir, "pseudo-wide", false, true, check)
+pub fn pseudo_wide(dir: &str, check: bool, verbose: bool) {
+    fluent_pseudo_impl(dir, "pseudo-wide", false, true, check, verbose)
 }
 
-fn fluent_pseudo_impl(dir: &str, to_name: &str, flipped: bool, elongate: bool, check: bool) {
-    pseudo_impl(dir, to_name, &|s| fluent_pseudo::transform(s, flipped, elongate), check)
+fn fluent_pseudo_impl(dir: &str, to_name: &str, flipped: bool, elongate: bool, check: bool, verbose: bool) {
+    pseudo_impl(dir, to_name, &|s| fluent_pseudo::transform(s, flipped, elongate), check, verbose)
 }
 
-fn pseudo_impl(dir: &str, to_name: &str, transform: &impl Fn(&str) -> Cow<str>, check: bool) {
+fn pseudo_impl(dir: &str, to_name: &str, transform: &impl Fn(&str) -> Cow<str>, check: bool, verbose: bool) {
     let dir = Path::new(dir);
     let to_dir = dir.with_file_name(to_name);
 
@@ -29,17 +29,17 @@ fn pseudo_impl(dir: &str, to_name: &str, transform: &impl Fn(&str) -> Cow<str>, 
         let path = entry.path();
         if path.is_file() && path.extension().map(|e| e == "ftl").unwrap_or(false) {
             let _ = util::check_or_create_dir(check, &to_dir);
-            generate(&path, &to_dir.join(path.file_name().unwrap()), transform, check);
+            generate(&path, &to_dir.join(path.file_name().unwrap()), transform, check, verbose);
         }
     }
 
     let unnamed = dir.with_extension("ftl");
     if unnamed.exists() {
-        generate(&unnamed, &to_dir.with_extension("ftl"), transform, check);
+        generate(&unnamed, &to_dir.with_extension("ftl"), transform, check, verbose);
     }
 }
 
-fn generate(from: &Path, to: &Path, transform: &impl Fn(&str) -> Cow<str>, check: bool) {
+fn generate(from: &Path, to: &Path, transform: &impl Fn(&str) -> Cow<str>, check: bool, verbose: bool) {
     let source = match fs::read_to_string(from) {
         Ok(s) => s,
         Err(e) => {
@@ -70,7 +70,7 @@ fn generate(from: &Path, to: &Path, transform: &impl Fn(&str) -> Cow<str>, check
         }
     }
 
-    if let Err(e) = util::check_or_write(check, to, output.as_bytes()) {
+    if let Err(e) = util::check_or_write(check, to, output.as_bytes(), verbose) {
         error!("cannot write `{}`, {e}", to.display());
     } else {
         println!("  generated {}", to.display());

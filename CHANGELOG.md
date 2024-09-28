@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `--clean-deps` in `cargo zng l10n`.
+* Implement `--verbose` for `cargo zng l10n`.
 
 # 0.12.0
 

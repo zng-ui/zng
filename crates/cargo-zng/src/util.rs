@@ -366,10 +366,10 @@ pub fn check_or_create_dir_all(check: bool, path: impl AsRef<Path>) -> io::Resul
     }
 }
 
-pub fn check_or_write(check: bool, path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
+pub fn check_or_write(check: bool, path: impl AsRef<Path>, contents: impl AsRef<[u8]>, verbose: bool) -> io::Result<()> {
+    let path = path.as_ref();
+    let contents = contents.as_ref();
     if check {
-        let path = path.as_ref();
-        let contents = contents.as_ref();
         if !path.is_file() {
             fatal!("expected `{}` file", path.display());
         }
@@ -381,19 +381,23 @@ pub fn check_or_write(check: bool, path: impl AsRef<Path>, contents: impl AsRef<
 
         if bytes != contents {
             fatal!("file `{}` contents changed", path.display());
+        } else if verbose {
+            println!("file `{}` contents did not change", path.display());
         }
 
         Ok(())
     } else {
+        if verbose {
+            println!("writing `{}`", path.display());
+        }
         fs::write(path, contents)
     }
 }
 
-pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<u64> {
+pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>, verbose: bool) -> io::Result<u64> {
+    let from = from.as_ref();
+    let to = to.as_ref();
     if check {
-        let from = from.as_ref();
-        let to = to.as_ref();
-
         if !to.is_file() {
             fatal!("expected `{}` file", to.display());
         }
@@ -411,10 +415,15 @@ pub fn check_or_copy(check: bool, from: impl AsRef<Path>, to: impl AsRef<Path>) 
 
         if bytes[0] != bytes[1] {
             fatal!("file `{}` contents changed", to.display());
+        } else if verbose {
+            println!("file `{}` contents did not change", to.display());
         }
 
         Ok(bytes[1].len() as u64)
     } else {
+        if verbose {
+            println!("copying\n  from: `{}`\n    to: `{}`", from.display(), to.display());
+        }
         fs::copy(from, to)
     }
 }

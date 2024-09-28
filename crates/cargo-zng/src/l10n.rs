@@ -91,9 +91,16 @@ pub struct L10nArgs {
     /// Only verify that the generated files are the same
     #[arg(long, action)]
     check: bool,
+
+    /// Use verbose output.
+    #[arg(short, long, action)]
+    verbose: bool,
 }
 
-pub fn run(mut args: L10nArgs) {
+pub fn run(args: L10nArgs) {
+    run_impl(args, false);
+}
+fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
     if !args.package.is_empty() && !args.manifest_path.is_empty() {
         fatal!("only one of --package --manifest-path must be set")
     }
@@ -142,6 +149,13 @@ pub fn run(mut args: L10nArgs) {
         args.clean_template = true;
     }
 
+    if args.verbose && !is_local_scrap_recursion {
+        println!(
+            "input: `{input}`\noutput: `{output}`\nclean_deps: {}\nclean_template: {}",
+            args.clean_deps, args.clean_template
+        );
+    }
+
     if !input.is_empty() {
         if output.is_empty() {
             fatal!("--output is required for --input")
@@ -180,16 +194,35 @@ pub fn run(mut args: L10nArgs) {
 
                     if args.clean_template {
                         debug_assert!(!args.check);
+                        if args.verbose {
+                            println!("removing `{}` to clean template", output.display());
+                        }
                         if let Err(e) = fs::remove_dir_all(&output) {
                             error!("cannot remove `{}`, {e}", output.display());
                         }
                     }
                     util::check_or_create_dir_all(args.check, &output)?;
                     output.push(format!("{}.ftl", if file.is_empty() { "_" } else { file }));
-                    util::check_or_write(args.check, output, contents)
+                    util::check_or_write(args.check, output, contents, args.verbose)
                 });
                 if let Err(e) = r {
                     fatal!("error writing template files, {e}");
+                }
+            }
+        }
+
+        // cleanup dependencies
+        let l10n_dir = Path::new(&output);
+        if args.clean_deps {
+            for entry in glob::glob(&format!("{}/*/deps", l10n_dir.display()))
+                .unwrap_or_else(|e| fatal!("cannot cleanup deps in `{}`, {e}", l10n_dir.display()))
+            {
+                let dir = entry.unwrap_or_else(|e| fatal!("cannot cleanup deps, {e}"));
+                if args.verbose {
+                    println!("removing `{}` to clean deps", dir.display());
+                }
+                if let Err(e) = std::fs::remove_dir_all(&dir) {
+                    error!("cannot remove `{}`, {e}", dir.display());
                 }
             }
         }
@@ -218,17 +251,10 @@ pub fn run(mut args: L10nArgs) {
 
                 let mut any = false;
 
-                let l10n_dir = Path::new(&output);
                 // get l10n_dir/{lang}/deps/dep.name/dep.version/
                 let mut l10n_dir = |lang: Option<&std::ffi::OsStr>| {
                     any = true;
                     let dir = l10n_dir.join(lang.unwrap()).join("deps");
-
-                    if args.clean_deps {
-                        if let Err(e) = std::fs::remove_dir_all(&dir) {
-                            error!("cannot remove `{}`, {e}", dir.display());
-                        }
-                    }
 
                     let ignore_file = dir.join(".gitignore");
 
@@ -325,7 +351,7 @@ pub fn run(mut args: L10nArgs) {
                             } else if lang_entry.is_file() && lang_entry.extension().map(|e| e == "ftl").unwrap_or(false) {
                                 let _ = util::check_or_create_dir_all(args.check, &output_dir);
                                 let to = output_dir.join(lang_entry.file_name().unwrap());
-                                if let Err(e) = util::check_or_copy(args.check, &lang_entry, &to) {
+                                if let Err(e) = util::check_or_copy(args.check, &lang_entry, &to, args.verbose) {
                                     error!("cannot copy `{}` to `{}`, {e}", lang_entry.display(), to.display());
                                     continue;
                                 }
@@ -348,7 +374,7 @@ pub fn run(mut args: L10nArgs) {
                         let entry = entry.unwrap_or_else(|e| fatal!("cannot read `{}` entry, {e}", deps.display()));
                         let target = target.join(entry.strip_prefix(&deps).unwrap());
                         if !target.exists() && entry.is_file() {
-                            if let Err(e) = util::check_or_copy(args.check, &entry, &target) {
+                            if let Err(e) = util::check_or_copy(args.check, &entry, &target, args.verbose) {
                                 error!("cannot copy `{}` to `{}`, {e}", entry.display(), target.display());
                             }
                         }
@@ -363,34 +389,38 @@ pub fn run(mut args: L10nArgs) {
         // scrap local dependencies
         if !args.no_local {
             for dep in local {
-                run(L10nArgs {
-                    input: String::new(),
-                    output: output.clone(),
-                    package: String::new(),
-                    manifest_path: dep.manifest_path.display().to_string(),
-                    no_deps: true,
-                    no_local: true,
-                    no_pkg: false,
-                    clean_deps: false,
-                    clean_template: false,
-                    clean: false,
-                    macros: args.macros.clone(),
-                    pseudo: String::new(),
-                    pseudo_m: String::new(),
-                    pseudo_w: String::new(),
-                    check: args.check,
-                })
+                run_impl(
+                    L10nArgs {
+                        input: String::new(),
+                        output: output.clone(),
+                        package: String::new(),
+                        manifest_path: dep.manifest_path.display().to_string(),
+                        no_deps: true,
+                        no_local: true,
+                        no_pkg: false,
+                        clean_deps: false,
+                        clean_template: false,
+                        clean: false,
+                        macros: args.macros.clone(),
+                        pseudo: String::new(),
+                        pseudo_m: String::new(),
+                        pseudo_w: String::new(),
+                        check: args.check,
+                        verbose: args.verbose,
+                    },
+                    true,
+                )
             }
         }
     }
 
     if !args.pseudo.is_empty() {
-        pseudo::pseudo(&args.pseudo, args.check);
+        pseudo::pseudo(&args.pseudo, args.check, args.verbose);
     }
     if !args.pseudo_m.is_empty() {
-        pseudo::pseudo_mirr(&args.pseudo_m, args.check);
+        pseudo::pseudo_mirr(&args.pseudo_m, args.check, args.verbose);
     }
     if !args.pseudo_w.is_empty() {
-        pseudo::pseudo_wide(&args.pseudo_w, args.check);
+        pseudo::pseudo_wide(&args.pseudo_w, args.check, args.verbose);
     }
 }
