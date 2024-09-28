@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Update webrender dependency.
+    - Note that this is only a breaking change for direct dependents of `zng-view` extensions API.
 * Fix `--clean-deps` in `cargo zng l10n`.
 * Implement `--verbose` for `cargo zng l10n`.
 
