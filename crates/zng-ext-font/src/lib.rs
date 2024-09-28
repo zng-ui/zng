@@ -326,14 +326,14 @@ impl FontNames {
         // source: VSCode
 
         if lang!("zh-Hans").matches(lang, true, false) {
-            ["SF Pro", "PingFang SC", "Hiragino Sans GB", "Apple Color Emoji", "sans-serif"].into()
+            ["San Francisco", "PingFang SC", "Hiragino Sans GB", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!("zh-Hant").matches(lang, true, false) {
-            ["SF Pro", "PingFang TC", "Apple Color Emoji", "sans-serif"].into()
+            ["San Francisco", "PingFang TC", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!(ja).matches(lang, true, false) {
-            ["SF Pro", "Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into()
+            ["San Francisco", "Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!(ko).matches(lang, true, false) {
             [
-                "SF Pro",
+                "San Francisco",
                 "Nanum Gothic",
                 "Apple SD Gothic Neo",
                 "AppleGothic",
@@ -342,7 +342,7 @@ impl FontNames {
             ]
             .into()
         } else {
-            ["SF Pro", "Apple Color Emoji", "sans-serif"].into()
+            ["San Francisco", "Neue Helvetica", "Lucida Grande", "Apple Color Emoji", "sans-serif"].into()
         }
     }
 
