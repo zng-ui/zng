@@ -1170,6 +1170,7 @@ mod external {
                 id: self.external_id(),
                 channel_index: 0,
                 image_type: ExternalImageType::Buffer,
+                normalized_uvs: false,
             })
         }
     }

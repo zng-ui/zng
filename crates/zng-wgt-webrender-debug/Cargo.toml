@@ -17,7 +17,7 @@ zng-wgt = { path = "../zng-wgt", version = "0.5.0" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.3.24" }
 zng-view-api = { path = "../zng-view-api", version = "0.10.1" }
 
-webrender-api = { package = "zng-webrender-api", version = "0.63.0" }
+webrender-api = { package = "zng-webrender-api", version = "0.64.0" }
 serde = "1.0"
 bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
 tracing = "0.1"
