@@ -326,14 +326,7 @@ impl FontNames {
         // source: VSCode
 
         if lang!("zh-Hans").matches(lang, true, false) {
-            [
-                "SF Pro",
-                "PingFang SC",
-                "Hiragino Sans GB",
-                "Apple Color Emoji",
-                "sans-serif",
-            ]
-            .into()
+            ["SF Pro", "PingFang SC", "Hiragino Sans GB", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!("zh-Hant").matches(lang, true, false) {
             ["SF Pro", "PingFang TC", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!(ja).matches(lang, true, false) {
