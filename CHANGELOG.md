@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix default UI font in Apple systems.
 * Fix `--clean-deps` in `cargo zng l10n`.
 * Implement `--verbose` for `cargo zng l10n`.
 
