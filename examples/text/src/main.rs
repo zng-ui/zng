@@ -280,6 +280,7 @@ fn defaults() -> impl UiNode {
                 Text! {
                     txt = font_name;
                     font_family;
+                    layout::max_width = 200;
                 }
             ];
         }

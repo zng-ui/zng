@@ -334,9 +334,9 @@ impl FontNames {
             ]
             .into()
         } else if lang!("zh-Hant").matches(lang, true, false) {
-            ["San Francisco", "PingFang TC", "Apple Color Emoji", "sans-serif"].into()
+            ["PingFang TC", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!(ja).matches(lang, true, false) {
-            ["San Francisco", "Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into()
+            ["Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!(ko).matches(lang, true, false) {
             [
                 "Nanum Gothic",
