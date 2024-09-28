@@ -327,7 +327,6 @@ impl FontNames {
 
         if lang!("zh-Hans").matches(lang, true, false) {
             [
-                "San Francisco",
                 "PingFang SC",
                 "Hiragino Sans GB",
                 "Apple Color Emoji",
@@ -340,7 +339,6 @@ impl FontNames {
             ["San Francisco", "Hiragino Kaku Gothic Pro", "Apple Color Emoji", "sans-serif"].into()
         } else if lang!(ko).matches(lang, true, false) {
             [
-                "San Francisco",
                 "Nanum Gothic",
                 "Apple SD Gothic Neo",
                 "AppleGothic",
@@ -350,7 +348,6 @@ impl FontNames {
             .into()
         } else {
             [
-                "San Francisco",
                 "Neue Helvetica",
                 "Lucida Grande",
                 "Apple Color Emoji",
