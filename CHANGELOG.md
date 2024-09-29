@@ -1,5 +1,6 @@
 # Unreleased
 
+* Localize settings search box placeholder text.
 
 # 0.12.1
 
