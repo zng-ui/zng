@@ -10,6 +10,7 @@ use zng_ext_config::{
     ConfigKey,
 };
 use zng_ext_font::FontWeight;
+use zng_ext_l10n::l10n;
 use zng_var::{ContextInitHandle, ReadOnlyContextVar};
 use zng_wgt::{node::with_context_var, prelude::*, Wgt, WidgetFn, EDITORS, ICONS};
 use zng_wgt_container::Container;
@@ -258,7 +259,7 @@ pub fn default_settings_search_fn(_: SettingsSearchArgs) -> impl UiNode {
             txt = SETTINGS.editor_search();
             style_fn = zng_wgt_text_input::SearchStyle!();
             zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
-            placeholder_txt = "search settings (Ctrl+F)";
+            placeholder_txt = l10n!("search.placeholder", "search settings ({$shortcut})", shortcut = "Ctrl+F");
         };
         child_bottom = Hr!(zng_wgt::margin = (10, 10, 0, 10)), 0;
     }
