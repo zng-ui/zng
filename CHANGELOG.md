@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.12.1
+
 * Fix panic trying to use font index on macOS.
 * Fix default UI font in Apple systems.
 * **Breaking** Update webrender dependency.
