@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-text"
-version = "0.4.15"
+version = "0.4.16"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -23,7 +23,7 @@ zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.34" }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.25" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.25" }
 zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.35" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.4.7" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.4.8" }
 zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.13" }
 zng-view-api = { path = "../zng-view-api", version = "0.10.1" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.34" }

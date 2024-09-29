@@ -313,6 +313,9 @@ Options:
       --check
           Only verify that the generated files are the same
 
+  -v, --verbose
+          Use verbose output
+
   -h, --help
           Print help (see a summary with '-h')
 

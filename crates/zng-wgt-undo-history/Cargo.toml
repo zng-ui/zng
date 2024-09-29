@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-undo-history"
-version = "0.3.25"
+version = "0.3.26"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -13,8 +13,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.5.0" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.15" }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.15" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.16" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.16" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.14" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.25" }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.24" }
