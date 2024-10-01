@@ -1,4 +1,10 @@
-use std::{cmp::Ordering, fmt::Write as _, fs, path::Path, process::Stdio};
+use std::{
+    cmp::Ordering,
+    fmt::Write as _,
+    fs,
+    path::{Path, PathBuf},
+    process::Stdio,
+};
 
 use crate::util::workspace_dir;
 
@@ -20,12 +26,18 @@ pub fn find_about(metadata: Option<&Path>, verbose: bool) -> zng_env::About {
         println!("workspace `{}`", workspace_manifest.display())
     }
 
-    for manifest in glob::glob("**/Cargo.toml").unwrap_or_else(|e| fatal!("cannot search metadata, {e}")) {
+    for manifest in glob::glob(&format!(
+        "{}/**/Cargo.toml",
+        workspace_manifest.display().to_string().replace("\\", "/").trim_end_matches('/')
+    ))
+    .unwrap_or_else(|e| fatal!("cannot search metadata, {e}"))
+    {
         let manifest = manifest.unwrap_or_else(|e| fatal!("error searching metadata, {e}"));
-        let manifest_dir = match manifest.parent() {
-            Some(p) => p,
-            None => continue,
-        };
+        let _empty = PathBuf::new();
+        let manifest_dir = manifest.parent().unwrap_or(&_empty);
+        if manifest_dir.as_os_str().is_empty() {
+            continue;
+        }
 
         let output = std::process::Command::new("cargo")
             .arg("locate-project")
@@ -34,20 +46,32 @@ pub fn find_about(metadata: Option<&Path>, verbose: bool) -> zng_env::About {
             .current_dir(manifest_dir)
             .stderr(Stdio::inherit())
             .output()
-            .unwrap_or_else(|e| fatal!("cannot locate workspace, {e}"));
+            .unwrap_or_else(|e| fatal!("cannot locate workspace in `{}`, {e}", manifest_dir.display()));
         if !output.status.success() {
             continue;
         }
         let w2 = Path::new(std::str::from_utf8(&output.stdout).unwrap().trim()).parent().unwrap();
         if w2 != workspace_manifest {
             if verbose {
-                println!("skip `{}` cause it is not a workspace member", manifest.display())
+                println!("skip `{}`, not a workspace member", manifest.display())
             }
             continue;
         }
 
         let cargo_toml = fs::read_to_string(&manifest).unwrap_or_else(|e| fatal!("cannot read `{}`, {e}", manifest.display()));
-        let about = zng_env::About::parse_manifest(&cargo_toml).unwrap_or_else(|e| fatal!("cannot parse `{}`, {e}", manifest.display()));
+        let about = match zng_env::About::parse_manifest(&cargo_toml) {
+            Ok(a) => a,
+            Err(e) => {
+                if e.message().contains("missing field `package`") {
+                    if verbose {
+                        println!("skip `{}`, no package metadata", manifest.display());
+                    }
+                } else {
+                    error!("cannot parse `{}`, {e}", manifest.display());
+                }
+                continue;
+            }
+        };
 
         if about.has_about || manifest_dir.join("src/main.rs").exists() {
             options.push(about);
