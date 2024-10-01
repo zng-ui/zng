@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `cargo zng res` not getting explicit metadata from lib crates.
+* Implement `--verbose` for `cargo zng res`.
 * Localize settings search box placeholder text.
 
 # 0.12.1
