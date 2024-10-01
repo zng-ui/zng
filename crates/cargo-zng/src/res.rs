@@ -65,6 +65,10 @@ pub struct ResArgs {
     /// Writes the metadata extracted the workspace or --metadata
     #[arg(long, action)]
     metadata_dump: bool,
+
+    /// Use verbose output.
+    #[arg(short, long, action)]
+    verbose: bool,
 }
 
 fn canonicalize(path: &Path) -> PathBuf {
@@ -83,7 +87,7 @@ pub(crate) fn run(mut args: ResArgs) {
     }
 
     if args.metadata_dump {
-        let about = about::find_about(args.metadata.as_deref());
+        let about = about::find_about(args.metadata.as_deref(), args.verbose);
         crate::res::tool::visit_about_vars(&about, |key, value| {
             println!("{key}={value}");
         });
@@ -113,7 +117,7 @@ pub(crate) fn run(mut args: ResArgs) {
         fatal!("cannot build res to same dir");
     }
 
-    let about = about::find_about(args.metadata.as_deref());
+    let about = about::find_about(args.metadata.as_deref(), args.verbose);
 
     // tool request paths are relative to the workspace root
     if let Some(p) = util::workspace_dir() {
@@ -121,7 +125,7 @@ pub(crate) fn run(mut args: ResArgs) {
             fatal!("cannot change dir, {e}");
         }
     } else {
-        warn!("source is not in a Cargo workspace, tools will run using source as root");
+        warn!("source is not in a cargo workspace, tools will run using source as root");
         if let Err(e) = std::env::set_current_dir(&args.source) {
             fatal!("cannot change dir, {e}");
         }
@@ -144,7 +148,7 @@ pub(crate) fn run(mut args: ResArgs) {
 }
 
 fn build(args: &ResArgs, about: About) -> anyhow::Result<()> {
-    let tools = Tools::capture(&args.tool_dir, args.tool_cache.clone(), about)?;
+    let tools = Tools::capture(&args.tool_dir, args.tool_cache.clone(), about, args.verbose)?;
     source_to_target_pass(args, &tools, &args.source, &args.target)?;
 
     let mut passes = 0;
