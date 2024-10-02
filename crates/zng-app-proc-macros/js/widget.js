@@ -7,11 +7,12 @@
 
     // * `doc` - The document, can be this.document or a fetched doc.
     // * `propertiesSet` - Tracks property name overrides.
-    // * `inherits` - Array of `{ link, page }`, link is HTML str of the parent link, .
+    // * `inherits` - Array of `{ link, page }`, link is HTML str of the parent link.
     // * `fetchUrls` - Set of fetch URLs, used to avoid infinite recursion.
     async function refactorDocument(doc, propertiesSet, inherits, fetchUrls) {
         refactorSections(doc, propertiesSet, fetchUrls);
         refactorSidebar(doc, propertiesSet);
+        // fetch inherit docs and refactorDocument
         await fetchInherits(doc, propertiesSet, inherits, fetchUrls);
     }
 
@@ -205,15 +206,19 @@
                     throw page.statusText;
                 }
                 var parser = new DOMParser();
+                if (page.redirected) {
+                    url = page.url;
+                }
                 page = parser.parseFromString(await page.text(), 'text/html');
 
                 let refresh = page.head.querySelector("meta[http-equiv='refresh']");
                 if (refresh != null && refresh.content.startsWith('0;URL=')) {
-                    let url = refresh.content.replace('0;URL=', '');
+                    url = refresh.content.replace('0;URL=', '');
                     page = await fetch(url, { redirect: 'follow' });
                     if (!page.ok) {
                         throw page.statusText;
                     }
+                    url = page.url;
                     var parser = new DOMParser();
                     page = parser.parseFromString(await page.text(), 'text/html');
                 }

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix doc links in inherited properties fetched from redirected original pages.
 * Fix `cargo zng res` not getting explicit metadata from lib crates.
 * Implement `--verbose` for `cargo zng res`.
 * Localize settings search box placeholder text.
