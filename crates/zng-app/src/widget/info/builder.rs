@@ -301,16 +301,22 @@ impl WidgetInfoBuilder {
         let generation;
         let widget_count_offsets;
         let spatial_bounds;
+        let transform_changed_subs;
+        let visibility_changed_subs;
 
         if let Some(t) = &previous_tree {
             let t = t.0.frame.read();
             generation = t.stats.generation.wrapping_add(1);
             widget_count_offsets = t.widget_count_offsets.clone();
             spatial_bounds = t.spatial_bounds;
+            transform_changed_subs = t.transform_changed_subs.clone();
+            visibility_changed_subs = t.visibility_changed_subs.clone();
         } else {
             generation = 0;
             widget_count_offsets = ParallelSegmentOffsets::default();
             spatial_bounds = PxBox::zero();
+            transform_changed_subs = IdMap::new();
+            visibility_changed_subs = IdMap::new();
         }
 
         let mut lookup = IdMap::new();
@@ -342,8 +348,8 @@ impl WidgetInfoBuilder {
                 scale_factor: self.scale_factor,
                 spatial_bounds,
                 widget_count_offsets,
-                transform_changed_subs: IdMap::new(),
-                visibility_changed_subs: IdMap::new(),
+                transform_changed_subs,
+                visibility_changed_subs,
                 view_process_gen: ViewProcessGen::INVALID,
             }),
 
