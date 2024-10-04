@@ -601,6 +601,49 @@ impl InteractivityChangedArgs {
     }
 }
 
+impl VisibilityChangedArgs {
+    /// Gets the previous and new visibility for the widget, if it has changed.
+    pub fn change(&self, widget_id: WidgetId) -> Option<(Visibility, Visibility)> {
+        let prev = *self.changed.get(&widget_id)?;
+        let new = self.tree.get(widget_id)?.visibility();
+        Some((prev, new))
+    }
+
+    /// Gets the previous visibility of the widget, if it has changed.
+    pub fn prev_vis(&self, widget_id: WidgetId) -> Option<Visibility> {
+        self.changed.get(&widget_id).copied()
+    }
+
+    /// Gets the new visibility of the widget, if it has changed.
+    pub fn new_vis(&self, widget_id: WidgetId) -> Option<Visibility> {
+        self.change(widget_id).map(|(_, n)| n)
+    }
+
+    /// Widget was visible or hidden, now is collapsed.
+    pub fn is_collapse(&self, widget_id: WidgetId) -> bool {
+        matches!(
+            self.change(widget_id),
+            Some((Visibility::Visible | Visibility::Hidden, Visibility::Collapsed))
+        )
+    }
+
+    /// Widget was visible or collapsed, now is hidden.
+    pub fn is_hide(&self, widget_id: WidgetId) -> bool {
+        matches!(
+            self.change(widget_id),
+            Some((Visibility::Visible | Visibility::Collapsed, Visibility::Hidden))
+        )
+    }
+
+    /// Widget was not hidden or collapsed, now is visible.
+    pub fn is_show(&self, widget_id: WidgetId) -> bool {
+        matches!(
+            self.change(widget_id),
+            Some((Visibility::Hidden | Visibility::Collapsed, Visibility::Visible))
+        )
+    }
+}
+
 /// Info about the input inline connecting rows of the widget.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct WidgetInlineMeasure {
