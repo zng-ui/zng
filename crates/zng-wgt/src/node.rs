@@ -689,8 +689,8 @@ macro_rules! __command_property {
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
-            cmd: $cmd_init:expr,
-            enabled: $enabled_var:expr,
+            cmd { $cmd_init:expr }
+            enabled { $enabled_var:expr }
             widget_impl { $($widget_impl:tt)* }
         }
     ) => { $crate::node::paste! {
@@ -735,16 +735,16 @@ macro_rules! __command_property {
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
-            cmd: $cmd_init:expr,
-            enabled: $enabled_var:expr,
-            widget_impl: $Wgt:ty,
+            cmd { $cmd_init:expr }
+            enabled { $enabled_var:expr }
+            widget_impl_ty { $Wgt:ty } 
         }
     ) => {
         $crate::__command_property! {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
-                cmd: $cmd_init,
-                enabled: $enabled_var,
+                cmd { $cmd_init }
+                enabled { $enabled_var }
                 widget_impl { , widget_impl($Wgt) }
             }
         }
@@ -753,15 +753,32 @@ macro_rules! __command_property {
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
-            cmd: $cmd_init:expr,
-            enabled: $enabled_var:expr,
+            cmd { $cmd_init:expr }
+            widget_impl_ty { $Wgt:ty } 
         }
     ) => {
         $crate::__command_property! {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
-                cmd: $cmd_init,
-                enabled: $enabled_var,
+                cmd { $cmd_init }
+                enabled { $crate::node::zng_app::var::LocalVar(true) }
+                widget_impl { , widget_impl($Wgt) }
+            }
+        }
+    };
+
+    (
+        $(#[$on_cmd_attrs:meta])*
+        $vis:vis fn $command:ident {
+            cmd { $cmd_init:expr }
+            enabled { $enabled_var:expr }
+        }
+    ) => {
+        $crate::__command_property! {
+            $(#[$on_cmd_attrs])*
+            $vis fn $command {
+                cmd { $cmd_init }
+                enabled { $enabled_var }
                 widget_impl { }
             }
         }
@@ -770,15 +787,15 @@ macro_rules! __command_property {
     (
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
-            cmd: $cmd_init:expr,
+            cmd { $cmd_init:expr }
         }
     ) => {
         $crate::__command_property! {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
-                cmd: $cmd_init,
-                enabled: $crate::node::zng_app::var::LocalVar(true),
-                widget_impl {  }
+                cmd { $cmd_init }
+                enabled { $crate::node::zng_app::var::LocalVar(true) }
+                widget_impl { }
             }
         }
     };
@@ -871,9 +888,9 @@ macro_rules! command_property {
         $crate::__command_property! {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
-                cmd: $cmd_init,
-                $(enabled: $enabled_var,)?
-                $(widget_impl: $Wgt:ty)?
+                cmd { $cmd_init }
+                $( enabled { $enabled_var } )?
+                $( widget_impl_ty { $Wgt } )?
             }
         }
     )+};
