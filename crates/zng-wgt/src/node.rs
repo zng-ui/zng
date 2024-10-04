@@ -737,7 +737,7 @@ macro_rules! __command_property {
         $vis:vis fn $command:ident {
             cmd { $cmd_init:expr }
             enabled { $enabled_var:expr }
-            widget_impl_ty { $Wgt:ty } 
+            widget_impl_ty { $Wgt:ty }
         }
     ) => {
         $crate::__command_property! {
@@ -754,7 +754,7 @@ macro_rules! __command_property {
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
             cmd { $cmd_init:expr }
-            widget_impl_ty { $Wgt:ty } 
+            widget_impl_ty { $Wgt:ty }
         }
     ) => {
         $crate::__command_property! {
