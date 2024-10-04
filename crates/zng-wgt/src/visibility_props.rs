@@ -184,4 +184,33 @@ event_property! {
         args: info::TransformChangedArgs,
         filter: |a| a.offset(WIDGET.id()).unwrap_or_default() != PxVector::zero(),
     }
+
+    /// Widget visibility changed.
+    pub fn visibility_changed {
+        event: info::VISIBILITY_CHANGED_EVENT,
+        args: info::VisibilityChangedArgs,
+    }
+
+    /// Widget visibility changed to collapsed.
+    pub fn collapse {
+        event: info::VISIBILITY_CHANGED_EVENT,
+        args: info::VisibilityChangedArgs,
+        filter: |a| a.is_collapse(WIDGET.id()),
+    }
+
+    /// Widget visibility changed to hidden.
+    pub fn hide {
+        event: info::VISIBILITY_CHANGED_EVENT,
+        args: info::VisibilityChangedArgs,
+        filter: |a| a.is_hide(WIDGET.id()),
+    }
+
+    /// Widget visibility changed to visible.
+    ///
+    /// Note that widgets are **already marked visible** before the first render so this event does not fire on init.
+    pub fn show {
+        event: info::VISIBILITY_CHANGED_EVENT,
+        args: info::VisibilityChangedArgs,
+        filter: |a| a.is_show(WIDGET.id()),
+    }
 }

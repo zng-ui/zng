@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix visibility and transform events losing track of a widget after info rebuild.
+* Add visibility changed event properties, `on_visibility_changed`, `on_show`, `on_collapse` and others.
+* Add `VisibilityChangedArgs` helper methods for tracking changes for a specific widget.
 * Fix doc links in inherited properties fetched from redirected original pages.
 * Fix `cargo zng res` not getting explicit metadata from lib crates.
 * Implement `--verbose` for `cargo zng res`.

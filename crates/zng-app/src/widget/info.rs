@@ -329,11 +329,13 @@ impl WidgetInfoTree {
 
             TRANSFORM_CHANGED_EVENT.notify(TransformChangedArgs::now(self.clone(), changes));
         }
+        drop(frame); // wgt.visibility can read frame
 
         let mut changes = IdMap::new();
         VISIBILITY_CHANGED_EVENT.visit_subscribers(|wid| {
             if let Some(wgt) = self.get(wid) {
                 let visibility = wgt.visibility();
+                let mut frame = self.0.frame.write();
                 match frame.visibility_changed_subs.entry(wid) {
                     IdEntry::Occupied(mut e) => {
                         let prev = e.insert(visibility);
@@ -348,8 +350,10 @@ impl WidgetInfoTree {
             }
         });
         if !changes.is_empty() {
-            if (frame.visibility_changed_subs.len() - changes.len()) > 500 {
-                frame
+            if (self.0.frame.read().visibility_changed_subs.len() - changes.len()) > 500 {
+                self.0
+                    .frame
+                    .write()
                     .visibility_changed_subs
                     .retain(|k, _| VISIBILITY_CHANGED_EVENT.is_subscriber(*k));
             }

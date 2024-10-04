@@ -301,16 +301,22 @@ impl WidgetInfoBuilder {
         let generation;
         let widget_count_offsets;
         let spatial_bounds;
+        let transform_changed_subs;
+        let visibility_changed_subs;
 
         if let Some(t) = &previous_tree {
             let t = t.0.frame.read();
             generation = t.stats.generation.wrapping_add(1);
             widget_count_offsets = t.widget_count_offsets.clone();
             spatial_bounds = t.spatial_bounds;
+            transform_changed_subs = t.transform_changed_subs.clone();
+            visibility_changed_subs = t.visibility_changed_subs.clone();
         } else {
             generation = 0;
             widget_count_offsets = ParallelSegmentOffsets::default();
             spatial_bounds = PxBox::zero();
+            transform_changed_subs = IdMap::new();
+            visibility_changed_subs = IdMap::new();
         }
 
         let mut lookup = IdMap::new();
@@ -342,8 +348,8 @@ impl WidgetInfoBuilder {
                 scale_factor: self.scale_factor,
                 spatial_bounds,
                 widget_count_offsets,
-                transform_changed_subs: IdMap::new(),
-                visibility_changed_subs: IdMap::new(),
+                transform_changed_subs,
+                visibility_changed_subs,
                 view_process_gen: ViewProcessGen::INVALID,
             }),
 
@@ -598,6 +604,49 @@ impl InteractivityChangedArgs {
     /// update by default if the widget is new.
     pub fn is_new(&self, widget_id: WidgetId) -> bool {
         !self.prev_tree.contains(widget_id) && self.tree.contains(widget_id)
+    }
+}
+
+impl VisibilityChangedArgs {
+    /// Gets the previous and new visibility for the widget, if it has changed.
+    pub fn change(&self, widget_id: WidgetId) -> Option<(Visibility, Visibility)> {
+        let prev = *self.changed.get(&widget_id)?;
+        let new = self.tree.get(widget_id)?.visibility();
+        Some((prev, new))
+    }
+
+    /// Gets the previous visibility of the widget, if it has changed.
+    pub fn prev_vis(&self, widget_id: WidgetId) -> Option<Visibility> {
+        self.changed.get(&widget_id).copied()
+    }
+
+    /// Gets the new visibility of the widget, if it has changed.
+    pub fn new_vis(&self, widget_id: WidgetId) -> Option<Visibility> {
+        self.change(widget_id).map(|(_, n)| n)
+    }
+
+    /// Widget was visible or hidden, now is collapsed.
+    pub fn is_collapse(&self, widget_id: WidgetId) -> bool {
+        matches!(
+            self.change(widget_id),
+            Some((Visibility::Visible | Visibility::Hidden, Visibility::Collapsed))
+        )
+    }
+
+    /// Widget was visible or collapsed, now is hidden.
+    pub fn is_hide(&self, widget_id: WidgetId) -> bool {
+        matches!(
+            self.change(widget_id),
+            Some((Visibility::Visible | Visibility::Collapsed, Visibility::Hidden))
+        )
+    }
+
+    /// Widget was not hidden or collapsed, now is visible.
+    pub fn is_show(&self, widget_id: WidgetId) -> bool {
+        matches!(
+            self.change(widget_id),
+            Some((Visibility::Hidden | Visibility::Collapsed, Visibility::Visible))
+        )
     }
 }
 
