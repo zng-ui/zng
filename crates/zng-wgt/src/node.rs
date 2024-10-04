@@ -292,10 +292,11 @@ macro_rules! event_property {
         $(#[$on_event_attrs:meta])*
         $vis:vis fn $event:ident {
             event: $EVENT:path,
-            args: $Args:path,
-            $(filter: $filter:expr,)?
-            $(widget_impl: $Wgt:ty,)?
-            $(with: $with:expr,)?
+            args: $Args:path
+            $(, filter: $filter:expr)?
+            $(, widget_impl: $Wgt:ty)?
+            $(, with: $with:expr)?
+            $(,)?
         }
     )+) => {$(
         $crate::__event_property! {
