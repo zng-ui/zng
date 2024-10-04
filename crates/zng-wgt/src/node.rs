@@ -836,20 +836,22 @@ macro_rules! __command_property {
 ///
 /// ```
 /// # fn main() { }
-/// # use zng_app::{event::*, widget::{node::UiNode, widget_mixin}};
 /// # use zng_wgt::node::*;
-/// # event_args! { pub struct KeyInputArgs { .. fn delivery_list(&self, _l: &mut UpdateDeliveryList) {} } }
-/// # event! { pub static KEY_INPUT_EVENT: KeyInputArgs; }
-/// # fn some_node(child: impl UiNode) -> impl UiNode { child }
-/// /// Keyboard events.
+/// # use zng_app::{event::*, widget::*};
+/// # use zng_app::var::*;
+/// # use zng_wgt::node::*;
+/// # command! {
+/// #   pub static PASTE_CMD;
+/// # }
+/// /// Clipboard handler.
 /// #[widget_mixin]
-/// pub struct KeyboardMix<P>(P);
+/// pub struct ClipboardMix<P>(P);
 ///
-/// event_property! {
-///     pub fn key_input {
-///         event: KEY_INPUT_EVENT,
-///         args: KeyInputArgs,
-///         widget_impl: KeyboardMix<P>,
+/// command_property! {
+///     /// Paste command property docs.
+///     pub fn paste {
+///         cmd: PASTE_CMD.scoped(WIDGET.id()),
+///         widget_impl: ClipboardMix<P>,
 ///     }
 /// }
 /// ```
