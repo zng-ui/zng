@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.12.2
+
 * Add `widget_impl:` directive for `command_property!`.
 * Allow missing trailing comma in `event_property!`.
 * Fix visibility and transform events losing track of a widget after info rebuild.

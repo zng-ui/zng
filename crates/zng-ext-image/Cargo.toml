@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-image"
-version = "0.2.33"
+version = "0.2.34"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -19,7 +19,7 @@ http = ["zng-task/http"]
 zng-app-context = { path = "../zng-app-context", version = "0.5.9" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.6" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
-zng-app = { path = "../zng-app", version = "0.13.0" }
+zng-app = { path = "../zng-app", version = "0.13.1" }
 zng-view-api = { path = "../zng-view-api", version = "0.10.1" }
 zng-txt = { path = "../zng-txt", version = "0.2.8" }
 zng-var = { path = "../zng-var", version = "0.5.6" }
