@@ -389,6 +389,9 @@ Options:
       --metadata-dump
           Writes the metadata extracted the workspace or --metadata
 
+  -v, --verbose
+          Use verbose output
+
   -h, --help
           Print help (see a summary with '-h')
 
