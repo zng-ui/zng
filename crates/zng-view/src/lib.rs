@@ -73,10 +73,12 @@
 //!
 //! # API Extensions
 //!
-//! This implementation of the view API provides one extension:
+//! This implementation of the view API provides these extensions:
 //!
 //! * `"zng-view.webrender_debug"`: `{ flags: DebugFlags, profiler_ui: String }`, sets Webrender debug flags.
 //!     - The `zng-wgt-webrender-debug` implements a property that uses this extension.
+//! * `"zng-view.prefer_angle": bool`, on Windows, prefer ANGLE(EGL) over WGL if the `libEGL.dll` and `libGLESv2.dll` 
+//!    libraries can by dynamically loaded.
 //!
 //! You can also inject your own extensions, see the [`extensions`] module for more details.
 //!
@@ -1216,6 +1218,10 @@ impl App {
         mut exts: ViewExtensions,
     ) -> Self {
         exts.renderer("zng-view.webrender_debug", extensions::RendererDebugExt::new);
+        #[cfg(windows)]
+        {
+            exts.window("zng-view.prefer_angle", extensions::PreferAngleExt::new);
+        }
         let mut idle = IdleTrace(None);
         idle.enter();
         App {

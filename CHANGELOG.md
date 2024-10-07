@@ -1,5 +1,8 @@
 # Unreleased
 
+* **Breaking** Add `as_any` casting method for `RendererExtension` and `WindowExtension`.
+    - Note that this is only a breaking change for direct dependents of `zng-view` extensions API.
+* Add `"zng-view.prefer_angle"` window extension to support enabling ANGLE EGL over WGL on Windows.
 
 # 0.12.2
 

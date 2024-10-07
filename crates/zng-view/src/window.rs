@@ -240,11 +240,19 @@ impl Window {
             render_mode = RenderMode::Integrated;
         }
 
+        #[cfg(windows)]
+        let mut prefer_egl = false;
+
         for (id, ext) in &mut window_exts {
             ext.configure(&mut WindowConfigArgs {
                 config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, p)| p),
                 window: &mut winit,
             });
+
+            #[cfg(windows)]
+            if let Some(ext) = ext.as_any().downcast_ref::<crate::extensions::PreferAngleExt>() {
+                prefer_egl = ext.prefer_egl;
+            }
         }
 
         let (winit_window, mut context) = gl_manager.create_headed(id, winit, winit_loop, render_mode, &event_sender);
