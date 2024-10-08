@@ -19,7 +19,7 @@ use crate::{
     display_list::{display_list_to_webrender, DisplayListCache},
     extensions::{
         self, BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
-        RendererDeinitedArgs, RendererExtension, RendererInitedArgs,
+        RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowConfigArgs, WindowExtension,
     },
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
@@ -66,12 +66,28 @@ impl Surface {
         cfg: HeadlessRequest,
         winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
+        mut window_exts: Vec<(ApiExtensionId, Box<dyn WindowExtension>)>,
         mut renderer_exts: Vec<(ApiExtensionId, Box<dyn RendererExtension>)>,
         event_sender: AppEventSender,
     ) -> Self {
         let id = cfg.id;
 
-        let prefer_egl = false; // !!: TODO extensions
+        #[cfg(windows)]
+        let mut prefer_egl = false;
+        #[cfg(not(windows))]
+        let prefer_egl = false;
+
+        for (id, ext) in &mut window_exts {
+            ext.configure(&mut WindowConfigArgs {
+                config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, p)| p),
+                window: None,
+            });
+
+            #[cfg(windows)]
+            if let Some(ext) = ext.as_any().downcast_ref::<crate::extensions::PreferAngleExt>() {
+                prefer_egl = ext.prefer_egl;
+            }
+        }
 
         let mut context = gl_manager.create_headless(id, winit_loop, cfg.render_mode, &event_sender, prefer_egl);
 

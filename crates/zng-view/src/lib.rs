@@ -1578,6 +1578,7 @@ impl App {
             config,
             &self.winit_loop,
             &mut self.gl_manager,
+            self.exts.new_window(),
             self.exts.new_renderer(),
             self.app_sender.clone(),
         );

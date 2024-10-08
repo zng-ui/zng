@@ -441,7 +441,7 @@ pub struct WindowConfigArgs<'a> {
     pub config: Option<&'a ApiExtensionPayload>,
 
     /// Window attributes that will be used to build the headed window.
-    pub window: &'a mut winit::window::WindowAttributes,
+    pub window: Option<&'a mut winit::window::WindowAttributes>,
 }
 
 /// Arguments for [`RendererExtension::configure`]

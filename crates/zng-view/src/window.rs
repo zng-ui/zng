@@ -248,7 +248,7 @@ impl Window {
         for (id, ext) in &mut window_exts {
             ext.configure(&mut WindowConfigArgs {
                 config: cfg.extensions.iter().find(|(k, _)| k == id).map(|(_, p)| p),
-                window: &mut winit,
+                window: Some(&mut winit),
             });
 
             #[cfg(windows)]
