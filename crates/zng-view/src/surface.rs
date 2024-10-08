@@ -71,7 +71,9 @@ impl Surface {
     ) -> Self {
         let id = cfg.id;
 
-        let mut context = gl_manager.create_headless(id, winit_loop, cfg.render_mode, &event_sender);
+        let prefer_egl = false; // !!: TODO extensions
+
+        let mut context = gl_manager.create_headless(id, winit_loop, cfg.render_mode, &event_sender, prefer_egl);
 
         let size = cfg.size.to_px(cfg.scale_factor);
         context.resize(size.to_winit());

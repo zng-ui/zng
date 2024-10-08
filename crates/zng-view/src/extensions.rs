@@ -77,7 +77,7 @@ pub trait ViewExtension: Send + Any {
     fn resumed(&mut self) {}
 }
 
-/// Represents a view extension associated with a headed window instance.
+/// Represents a view extension associated with a headed or headless window instance.
 pub trait WindowExtension: Any {
     /// Edit attributes for the new window.
     fn configure(&mut self, args: &mut WindowConfigArgs) {
@@ -110,6 +110,12 @@ pub trait WindowExtension: Any {
     fn window_deinited(&mut self, args: &mut WindowDeinitedArgs) {
         let _ = args;
     }
+
+    /// Cast to `&dyn Any`.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Cast to `&mut dyn Any`.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 /// Represents a view extension associated with a renderer instance.
@@ -177,6 +183,12 @@ pub trait RendererExtension: Any {
     fn renderer_deinited(&mut self, args: &mut RendererDeinitedArgs) {
         let _ = args;
     }
+
+    /// Cast to `&dyn Any`.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Cast to `&mut dyn Any`.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 /// Arguments for [`RendererExtension::render_start`] and [`RendererExtension::render_end`].
@@ -871,6 +883,40 @@ impl ViewExtensions {
     }
 }
 
+#[cfg(windows)]
+pub(crate) struct PreferAngleExt {
+    pub(crate) prefer_egl: bool,
+}
+#[cfg(windows)]
+impl PreferAngleExt {
+    pub(crate) fn new(_: ApiExtensionId) -> Self {
+        Self { prefer_egl: false }
+    }
+}
+#[cfg(windows)]
+impl WindowExtension for PreferAngleExt {
+    fn is_init_only(&self) -> bool {
+        true
+    }
+
+    fn configure(&mut self, args: &mut WindowConfigArgs) {
+        if let Some(cfg) = args.config {
+            match cfg.deserialize::<bool>() {
+                Ok(y) => self.prefer_egl = y,
+                Err(e) => tracing::error!("invalid arg for 'zng-view.prefer_angle', {e}"),
+            }
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
 /// Sets renderer debug flags.
 ///
 /// This is a test case of the extensions API.
@@ -911,6 +957,14 @@ impl RendererExtension for RendererDebugExt {
             }
             Err(e) => ApiExtensionPayload::invalid_request(self.id, e),
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
