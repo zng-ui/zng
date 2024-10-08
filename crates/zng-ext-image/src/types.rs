@@ -50,7 +50,9 @@ pub trait ImageCacheProxy: Send + Sync {
     }
 
     /// Called when the cache is cleaned or purged.
-    fn clear(&mut self, purge: bool);
+    fn clear(&mut self, purge: bool) {
+        let _ = purge;
+    }
 }
 
 /// Result of an [`ImageCacheProxy`] *get* redirect.
@@ -495,7 +497,7 @@ pub enum ImageSource {
     /// The closure is set by the image widget user, the args is set by the image widget.
     Render(RenderFn, Option<ImageRenderArgs>),
 
-    /// Already loaded image.
+    /// Already resolved (loaded or loading) image.
     ///
     /// The image is passed-through, not cached.
     Image(ImageVar),

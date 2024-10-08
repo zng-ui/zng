@@ -13,8 +13,16 @@
 !!: TODO
 
 * Verify how proxy can let service handlers (down)loading.
-* Allow resize, size picking (render images don't handle this either? Same image can be used in multiple sizes).
-* Add test image in example.
+    - It can't, also proxy loads are blocking and not async on service.
+        - This must be fixed.
+    - Lets refactor to retry proxies after (down)load.
+* Add method for proxies to say what supported formats they accept.
+    - Currently download default "accepts" only uses the view-process support.
+* Allow size picking, how do render images handle this?
+    - Do we need a breaking `ImageSource::RenderRaw`?
+        - Its ideal? No `Image!::source` is a var, users can just map to image.
+    - Render does not have any API for this either, but it can easily be bound to the image actual size or something.
+
 * Update example screenshot.
 
 */

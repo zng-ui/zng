@@ -77,7 +77,7 @@ fn main() {
                                         img("RGBA16.png"),
                                     ]
                                 }
-                          },
+                            },
 
                             sub_title("Web"),
                             Image! {
@@ -112,7 +112,11 @@ fn main() {
                                     font_weight = FontWeight::BOLD;
                                     size = (200, 120);
                                 });
-                            }
+                            },
+                            sub_title("SVG"),
+                            Image! {
+                                source = zng::env::res("SVG_Logo.svg");
+                            },
                         ]
                     ),
 
