@@ -10,7 +10,12 @@ use zng::{color::filter::hue_rotate, layout::size, prelude::*};
 
 fn main() {
     zng::env::init!();
-    app_main();
+
+    // same process to see view logs
+    zng::view_process::default::run_same_process(app_main);
+
+    // extensions also work in multi process
+    // app_main();
 }
 
 mod get_window_handle;

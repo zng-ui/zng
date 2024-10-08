@@ -231,6 +231,8 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) {
 }
 
 /// Like [`run_same_process`] but with custom API extensions.
+///
+/// Note that any linked [`view_process_extension!`] extensions are also run, after `ext`.
 pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: fn() -> ViewExtensions) {
     let app_thread = thread::Builder::new()
         .name("app".to_owned())
@@ -257,10 +259,15 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
 
     let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app in same process");
 
+    let mut ext = ext();
+    for e in extensions::VIEW_EXTENSIONS {
+        e(&mut ext);
+    }
+
     if config.headless {
-        App::run_headless(c, ext());
+        App::run_headless(c, ext);
     } else {
-        App::run_headed(c, ext());
+        App::run_headed(c, ext);
     }
 
     if let Err(p) = app_thread.join() {

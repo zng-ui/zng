@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `view_process_extension!` not running in same-process mode.
 * **Breaking** Add `as_any` casting method for `RendererExtension` and `WindowExtension`.
     - Note that this is only a breaking change for direct dependents of `zng-view` extensions API.
 * Add `"zng-view.prefer_angle"` window extension to support enabling ANGLE EGL over WGL on Windows.
