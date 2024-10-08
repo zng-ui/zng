@@ -1,4 +1,4 @@
-//! Demonstrates the `zng-view` extension API and render extensions API.
+//! Demonstrates the `zng-view` extension API and the provided renderer debug and ANGLE extensions.
 
 use zng::{color::filter::hue_rotate, layout::size, prelude::*};
 // use zng_wgt_webrender_debug as wr;

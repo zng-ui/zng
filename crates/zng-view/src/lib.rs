@@ -78,7 +78,7 @@
 //! * `"zng-view.webrender_debug"`: `{ flags: DebugFlags, profiler_ui: String }`, sets Webrender debug flags.
 //!     - The `zng-wgt-webrender-debug` implements a property that uses this extension.
 //! * `"zng-view.prefer_angle": bool`, on Windows, prefer ANGLE(EGL) over WGL if the `libEGL.dll` and `libGLESv2.dll`
-//!    libraries can by dynamically loaded.
+//!    libraries can by dynamically loaded. The `extend-view` example demonstrates this extension.
 //!
 //! You can also inject your own extensions, see the [`extensions`] module for more details.
 //!
@@ -122,6 +122,7 @@ mod px_wr;
 mod surface;
 mod util;
 mod window;
+
 use surface::*;
 
 pub mod extensions;
