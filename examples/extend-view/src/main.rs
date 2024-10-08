@@ -18,13 +18,19 @@ mod using_blob;
 mod using_display_items;
 mod using_gl_overlay;
 mod using_gl_texture;
+mod prefer_angle;
 
 fn app_main() {
     APP.defaults().run_window(async {
         Window! {
+            // property uses the built-in "zng-view.webrender_debug" extension to draw renderer debug info.
+            // 
             // wr::renderer_debug = {
             //     wr::DebugFlags::TEXTURE_CACHE_DBG | wr::DebugFlags::TEXTURE_CACHE_DBG_CLEAR_EVICTED
             // };
+
+            // example property that uses built-in extension.
+            prefer_angle::use_angle_egl = true;
 
             title = "Extend-View Example";
             width = 900;
