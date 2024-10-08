@@ -69,6 +69,7 @@ impl GlContextManager {
         winit_loop: &ActiveEventLoop,
         render_mode: RenderMode,
         sender: &AppEventSender,
+        prefer_egl: bool,
     ) -> (winit::window::Window, GlContext) {
         let mut errors = vec![];
 
@@ -85,8 +86,8 @@ impl GlContextManager {
             };
 
             let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
-                RenderMode::Dedicated => self.create_headed_glutin(winit_loop, id, window, config.hardware_acceleration),
-                RenderMode::Integrated => self.create_headed_glutin(winit_loop, id, window, Some(false)),
+                RenderMode::Dedicated => self.create_headed_glutin(winit_loop, id, window, config.hardware_acceleration, prefer_egl),
+                RenderMode::Integrated => self.create_headed_glutin(winit_loop, id, window, Some(false), prefer_egl),
                 RenderMode::Software => self.create_headed_swgl(winit_loop, id, window),
             }));
 
@@ -130,6 +131,7 @@ impl GlContextManager {
         winit_loop: &ActiveEventLoop,
         render_mode: RenderMode,
         sender: &AppEventSender,
+        prefer_egl: bool,
     ) -> GlContext {
         let mut errors = vec![];
 
@@ -140,8 +142,8 @@ impl GlContextManager {
             }
 
             let r = util::catch_suppress(std::panic::AssertUnwindSafe(|| match config.mode {
-                RenderMode::Dedicated => self.create_headless_glutin(id, winit_loop, config.hardware_acceleration),
-                RenderMode::Integrated => self.create_headless_glutin(id, winit_loop, Some(false)),
+                RenderMode::Dedicated => self.create_headless_glutin(id, winit_loop, config.hardware_acceleration, prefer_egl),
+                RenderMode::Integrated => self.create_headless_glutin(id, winit_loop, Some(false), prefer_egl),
                 RenderMode::Software => self.create_headless_swgl(id),
             }));
 
@@ -184,6 +186,7 @@ impl GlContextManager {
         id: WindowId,
         window: GlWindowCreation,
         hardware: Option<bool>,
+        prefer_egl: bool,
     ) -> Result<(winit::window::Window, GlContext), Box<dyn Error>> {
         #[cfg(windows)]
         let display_pref = {
@@ -191,7 +194,11 @@ impl GlContextManager {
                 GlWindowCreation::Before(w) => w.window_handle().unwrap().as_raw(),
                 GlWindowCreation::After(_) => unreachable!(),
             });
-            DisplayApiPreference::WglThenEgl(handle)
+            if prefer_egl {
+                DisplayApiPreference::EglThenWgl(handle)
+            } else {
+                DisplayApiPreference::WglThenEgl(handle)
+            }
         };
 
         #[cfg(any(
@@ -368,6 +375,7 @@ impl GlContextManager {
         id: WindowId,
         winit_loop: &ActiveEventLoop,
         hardware: Option<bool>,
+        prefer_egl: bool,
     ) -> Result<GlContext, Box<dyn Error>> {
         let hidden_window = winit::window::WindowAttributes::default()
             .with_transparent(true)
@@ -380,7 +388,11 @@ impl GlContextManager {
         let window_handle = hidden_window.window_handle().unwrap().as_raw();
 
         #[cfg(windows)]
-        let display_pref = DisplayApiPreference::WglThenEgl(Some(window_handle));
+        let display_pref = if prefer_egl {
+            DisplayApiPreference::EglThenWgl(Some(window_handle))
+        } else {
+            DisplayApiPreference::WglThenEgl(Some(window_handle))
+        };
 
         #[cfg(any(
             target_os = "linux",

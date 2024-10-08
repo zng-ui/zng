@@ -242,6 +242,8 @@ impl Window {
 
         #[cfg(windows)]
         let mut prefer_egl = false;
+        #[cfg(not(windows))]
+        let prefer_egl = false;
 
         for (id, ext) in &mut window_exts {
             ext.configure(&mut WindowConfigArgs {
@@ -255,7 +257,7 @@ impl Window {
             }
         }
 
-        let (winit_window, mut context) = gl_manager.create_headed(id, winit, winit_loop, render_mode, &event_sender);
+        let (winit_window, mut context) = gl_manager.create_headed(id, winit, winit_loop, render_mode, &event_sender, prefer_egl);
 
         render_mode = context.render_mode();
 

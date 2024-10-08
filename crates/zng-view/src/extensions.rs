@@ -77,7 +77,7 @@ pub trait ViewExtension: Send + Any {
     fn resumed(&mut self) {}
 }
 
-/// Represents a view extension associated with a headed window instance.
+/// Represents a view extension associated with a headed or headless window instance.
 pub trait WindowExtension: Any {
     /// Edit attributes for the new window.
     fn configure(&mut self, args: &mut WindowConfigArgs) {
@@ -911,7 +911,7 @@ impl WindowExtension for PreferAngleExt {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
@@ -958,11 +958,11 @@ impl RendererExtension for RendererDebugExt {
             Err(e) => ApiExtensionPayload::invalid_request(self.id, e),
         }
     }
-    
+
     fn as_any(&self) -> &dyn Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
