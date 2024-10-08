@@ -492,7 +492,21 @@ impl ImagesService {
 
         let key = source.hash128(downscale, mask).unwrap();
         for proxy in &mut self.proxies {
+            if proxy.is_data_proxy() && !matches!(source, ImageSource::Data(_, _, _) | ImageSource::Static(_, _, _)) {
+                continue;
+            }
+
             let r = proxy.get(&key, &source, mode, downscale, mask);
+            // !!: TODO, get async? How? Image needs to be returned immediately.
+            // !!: Return a var that gets updated later?
+            // !!: Always do this if there are proxies?
+            // !!: No. Lets just do `Read` and `Download` first? Them proxies.
+            //     - No. Some proxies could want to operate like changing the url of a download.
+            //     - Let the proxy decide?
+            //       - Yes. Return a `ProxyGetResult::RequestData`.
+            //       - Or a method that indicates that the proxy only handles data.
+            //         - Yes, this is best.
+            // !!: Proxies can do the trick of returning an image var that is late bound to a second request.
             match r {
                 ProxyGetResult::None => continue,
                 ProxyGetResult::Cache(source, mode, downscale, mask) => {
@@ -672,15 +686,12 @@ impl ImagesService {
         if self.download_accept.is_empty() {
             if VIEW_PROCESS.is_available() {
                 let mut r = String::new();
-                let mut decoders = VIEW_PROCESS.image_decoders().unwrap_or_default().into_iter();
-                if let Some(fmt) = decoders.next() {
+                let mut sep = "";
+                for fmt in VIEW_PROCESS.image_decoders().unwrap_or_default() {
+                    r.push_str(sep);
                     r.push_str("image/");
                     r.push_str(&fmt);
-                    for fmt in decoders {
-                        r.push_str(",image/");
-                        r.push_str(&fmt);
-                    }
-                    self.download_accept = r.into();
+                    sep = ",";
                 }
             }
             if self.download_accept.is_empty() {

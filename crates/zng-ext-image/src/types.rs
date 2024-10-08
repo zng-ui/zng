@@ -53,6 +53,24 @@ pub trait ImageCacheProxy: Send + Sync {
     fn clear(&mut self, purge: bool) {
         let _ = purge;
     }
+
+    /// If this proxy only handles [`Data`] and [`Static`].
+    ///
+    /// When this is `true` the [`get`] call is delayed to after [`Read`] and [`Download`] have loaded the data
+    /// and is skipped for [`Render`] and [`Image`].
+    ///
+    /// This is `false` by default.
+    ///
+    /// [`get`]: ImageCacheProxy::get
+    /// [`Data`]: ImageSource::Data
+    /// [`Static`]: ImageSource::Static
+    /// [`Read`]: ImageSource::Read
+    /// [`Download`]: ImageSource::Download
+    /// [`Render`]: ImageSource::Render
+    /// [`Image`]: ImageSource::Image
+    fn is_data_proxy(&self) -> bool {
+        false
+    }
 }
 
 /// Result of an [`ImageCacheProxy`] *get* redirect.
