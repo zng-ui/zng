@@ -10,15 +10,10 @@ use zng::{color::filter::hue_rotate, layout::size, prelude::*};
 
 fn main() {
     zng::env::init!();
-
-    // same process to see view logs
-    zng::view_process::default::run_same_process(app_main);
-
-    // extensions also work in multi process
-    // app_main();
+    app_main();
 }
 
-mod get_window_handle;
+mod get_info;
 mod using_blob;
 mod using_display_items;
 mod using_gl_overlay;
@@ -35,8 +30,11 @@ fn app_main() {
             width = 900;
 
             on_frame_image_ready = hn_once!(|_| {
-                let h = get_window_handle::app_side::get_window_handle(WINDOW.id()).unwrap();
+                let h = get_info::app_side::window_handle(WINDOW.id()).unwrap();
                 tracing::info!("RAW-WINDOW-HANDLE: {h}");
+
+                let i = get_info::app_side::gl_version(WINDOW.id()).unwrap();
+                tracing::info!("OPEN-GL: {i}")
             });
 
             child = Stack! {
