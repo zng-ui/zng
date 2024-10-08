@@ -37,7 +37,7 @@
 ///
 /// # Full API
 ///
-/// See [`zng_view`] for the full API.
+/// See [`zng_view`] for the full API including view API extensions such as enabling ANGLE backend on Windows.
 #[cfg(view)]
 pub mod default {
     pub use zng_view::run_same_process;

@@ -86,15 +86,13 @@ Demonstrates each `CursorIcon`, tooltip anchored to cursor.
 
 ### `extend-view`
 
-<img alt='extend-view screenshot' src='./extend-view/res/screenshot.png' width='300'>
-
 Source: [extend-view/src](./extend-view/src)
 
 ```console
 cargo do run extend-view
 ```
 
-Demonstrates the `zng-view` extension API and render extensions API.
+Demonstrates the `zng-view` extension API and the provided renderer debug and ANGLE extensions.
 
 ### `focus`
 
