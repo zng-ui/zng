@@ -208,13 +208,22 @@ impl GlContextManager {
             target_os = "openbsd",
             target_os = "netbsd",
         ))]
-        let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(winit::platform::x11::register_xlib_error_hook));
+        let display_pref = {
+            let handle = Box::new(winit::platform::x11::register_xlib_error_hook);
+            if prefer_egl {
+                DisplayApiPreference::EglThenGlx(handle)
+            } else {
+                DisplayApiPreference::GlxThenEgl(handle)
+            }
+        };
 
         #[cfg(target_os = "android")]
         let display_pref = DisplayApiPreference::Egl;
 
         #[cfg(target_os = "macos")]
         let display_pref = DisplayApiPreference::Cgl;
+
+        let _ = prefer_egl;
 
         let display_handle = match &window {
             GlWindowCreation::Before(w) => w.display_handle().unwrap().as_raw(),
@@ -401,13 +410,22 @@ impl GlContextManager {
             target_os = "openbsd",
             target_os = "netbsd"
         ))]
-        let display_pref = DisplayApiPreference::GlxThenEgl(Box::new(winit::platform::x11::register_xlib_error_hook));
+        let display_pref = {
+            let handle = Box::new(winit::platform::x11::register_xlib_error_hook);
+            if prefer_egl {
+                DisplayApiPreference::EglThenGlx(handle)
+            } else {
+                DisplayApiPreference::GlxThenEgl(handle)
+            }
+        };
 
         #[cfg(target_os = "android")]
         let display_pref = DisplayApiPreference::Egl;
 
         #[cfg(target_os = "macos")]
         let display_pref = DisplayApiPreference::Cgl;
+
+        let _ = prefer_egl;
 
         // SAFETY: we are trusting the `raw_display_handle` from winit here.
         let display = unsafe { Display::new(display_handle, display_pref) }?;
