@@ -115,8 +115,8 @@ fn main() {
                             },
                             sub_title("SVG"),
                             Image! {
-                                source = zng::env::res("SVG_Logo.svg");
-                                size = (200, 120);
+                                source = zng::env::res("Ghostscript_Tiger.svg");
+                                size = (200, 150);
                             },
                         ]
                     ),
