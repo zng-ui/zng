@@ -1,5 +1,9 @@
 # Unreleased
 
+* Add `IMAGES.image_task` to load async image sources.
+* Implement support for SVG images.
+    - Add `zng-ext-svg`.
+    - Add non default `"svg"` feature on the `zng` crate.
 * Fix `view_process_extension!` not running in same-process mode.
 * **Breaking** `WindowExtension` now also instantiated for headless surfaces.
     - Note that this is only a breaking change for direct dependents of `zng-view` extensions API.

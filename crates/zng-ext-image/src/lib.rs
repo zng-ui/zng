@@ -11,7 +11,7 @@
 
 use std::{
     env,
-    future::Future,
+    future::{Future, IntoFuture},
     mem,
     path::{Path, PathBuf},
     sync::{
@@ -32,7 +32,7 @@ use zng_app::{
     AppExtension,
 };
 use zng_app_context::app_local;
-use zng_clone_move::clmv;
+use zng_clone_move::{async_clmv, clmv};
 use zng_task as task;
 
 mod types;
@@ -212,12 +212,24 @@ impl AppExtension for ImageManager {
         let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
 
-        for t in mem::take(&mut images.loading) {
+        'loading_tasks: for t in mem::take(&mut images.loading) {
             t.task.lock().update();
             match t.task.into_inner().into_result() {
                 Ok(d) => {
                     match d.r {
                         Ok(data) => {
+                            if let Some((key, mode)) = &t.is_data_proxy_source {
+                                for proxy in &mut images.proxies {
+                                    if proxy.is_data_proxy() {
+                                        if let Some(replaced) = proxy.data(key, &data, &d.format, *mode, t.downscale, t.mask) {
+                                            replaced.set_bind(&t.image).perm();
+                                            t.image.hold(replaced).perm();
+                                            continue 'loading_tasks;
+                                        }
+                                    }
+                                }
+                            }
+
                             if VIEW_PROCESS.is_available() {
                                 // success and we have a view-process.
                                 match VIEW_PROCESS.add_image(ImageRequest {
@@ -280,6 +292,7 @@ impl AppExtension for ImageManager {
                         max_decoded_len: t.max_decoded_len,
                         downscale: t.downscale,
                         mask: t.mask,
+                        is_data_proxy_source: t.is_data_proxy_source,
                     });
                 }
             }
@@ -302,6 +315,7 @@ struct ImageLoadingTask {
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
     mask: Option<ImageMaskMode>,
+    is_data_proxy_source: Option<(ImageHash, ImageCacheMode)>,
 }
 
 struct ImageDecodingTask {
@@ -440,18 +454,22 @@ impl ImagesService {
         }
     }
 
-    fn proxy_then_remove(&mut self, key: &ImageHash, purge: bool) -> bool {
-        for proxy in &mut self.proxies {
+    fn proxy_then_remove(mut proxies: Vec<Box<dyn ImageCacheProxy>>, key: &ImageHash, purge: bool) -> bool {
+        for proxy in &mut proxies {
             let r = proxy.remove(key, purge);
             match r {
                 ProxyRemoveResult::None => continue,
-                ProxyRemoveResult::Remove(r, p) => return self.proxied_remove(&r, p),
-                ProxyRemoveResult::Removed => return true,
+                ProxyRemoveResult::Remove(r, p) => return IMAGES_SV.write().proxied_remove(proxies, &r, p),
+                ProxyRemoveResult::Removed => {
+                    IMAGES_SV.write().proxies.append(&mut proxies);
+                    return true;
+                }
             }
         }
-        self.proxied_remove(key, purge)
+        IMAGES_SV.write().proxied_remove(proxies, key, purge)
     }
-    fn proxied_remove(&mut self, key: &ImageHash, purge: bool) -> bool {
+    fn proxied_remove(&mut self, mut proxies: Vec<Box<dyn ImageCacheProxy>>, key: &ImageHash, purge: bool) -> bool {
+        self.proxies.append(&mut proxies);
         if purge || self.cache.get(key).map(|v| v.image.strong_count() > 1).unwrap_or(false) {
             self.cache.remove(key).is_some()
         } else {
@@ -460,7 +478,7 @@ impl ImagesService {
     }
 
     fn proxy_then_get(
-        &mut self,
+        mut proxies: Vec<Box<dyn ImageCacheProxy>>,
         source: ImageSource,
         mode: ImageCacheMode,
         limits: ImageLimits,
@@ -473,6 +491,7 @@ impl ImagesService {
                 if !limits.allow_path.allows(&path) {
                     let error = formatx!("limits filter blocked `{}`", path.display());
                     tracing::error!("{error}");
+                    IMAGES_SV.write().proxies.append(&mut proxies);
                     return var(Img::dummy(Some(error))).read_only();
                 }
                 ImageSource::Read(path)
@@ -482,29 +501,50 @@ impl ImagesService {
                 if !limits.allow_uri.allows(&uri) {
                     let error = formatx!("limits filter blocked `{uri}`");
                     tracing::error!("{error}");
+                    IMAGES_SV.write().proxies.append(&mut proxies);
                     return var(Img::dummy(Some(error))).read_only();
                 }
                 ImageSource::Download(uri, accepts)
             }
-            ImageSource::Image(r) => return r,
+            ImageSource::Image(r) => {
+                IMAGES_SV.write().proxies.append(&mut proxies);
+                return r;
+            }
             source => source,
         };
 
         let key = source.hash128(downscale, mask).unwrap();
-        for proxy in &mut self.proxies {
+        for proxy in &mut proxies {
+            if proxy.is_data_proxy() && !matches!(source, ImageSource::Data(_, _, _) | ImageSource::Static(_, _, _)) {
+                continue;
+            }
+
             let r = proxy.get(&key, &source, mode, downscale, mask);
             match r {
                 ProxyGetResult::None => continue,
                 ProxyGetResult::Cache(source, mode, downscale, mask) => {
-                    return self.proxied_get(source.hash128(downscale, mask).unwrap(), source, mode, limits, downscale, mask)
+                    return IMAGES_SV.write().proxied_get(
+                        proxies,
+                        source.hash128(downscale, mask).unwrap(),
+                        source,
+                        mode,
+                        limits,
+                        downscale,
+                        mask,
+                    )
                 }
-                ProxyGetResult::Image(img) => return img,
+                ProxyGetResult::Image(img) => {
+                    IMAGES_SV.write().proxies.append(&mut proxies);
+                    return img;
+                }
             }
         }
-        self.proxied_get(key, source, mode, limits, downscale, mask)
+        IMAGES_SV.write().proxied_get(proxies, key, source, mode, limits, downscale, mask)
     }
+    #[allow(clippy::too_many_arguments)]
     fn proxied_get(
         &mut self,
+        mut proxies: Vec<Box<dyn ImageCacheProxy>>,
         key: ImageHash,
         source: ImageSource,
         mode: ImageCacheMode,
@@ -512,6 +552,7 @@ impl ImagesService {
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
     ) -> ImageVar {
+        self.proxies.append(&mut proxies);
         match mode {
             ImageCacheMode::Cache => {
                 if let Some(v) = self.cache.get(&key) {
@@ -554,6 +595,7 @@ impl ImagesService {
                 limits.max_decoded_len,
                 downscale,
                 mask,
+                true,
                 task::run(async move {
                     let mut r = ImageData {
                         format: path
@@ -604,6 +646,7 @@ impl ImagesService {
                     limits.max_decoded_len,
                     downscale,
                     mask,
+                    true,
                     task::run(async move {
                         let mut r = ImageData {
                             format: ImageDataFormat::Unknown,
@@ -649,14 +692,14 @@ impl ImagesService {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(bytes)),
                 };
-                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, async { r })
+                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(&bytes)),
                 };
-                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, async { r })
+                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }
             ImageSource::Render(rfn, args) => {
                 let img = self.new_cache_image(key, mode, limits.max_decoded_len, downscale, mask);
@@ -672,15 +715,12 @@ impl ImagesService {
         if self.download_accept.is_empty() {
             if VIEW_PROCESS.is_available() {
                 let mut r = String::new();
-                let mut decoders = VIEW_PROCESS.image_decoders().unwrap_or_default().into_iter();
-                if let Some(fmt) = decoders.next() {
+                let mut sep = "";
+                for fmt in VIEW_PROCESS.image_decoders().unwrap_or_default() {
+                    r.push_str(sep);
                     r.push_str("image/");
                     r.push_str(&fmt);
-                    for fmt in decoders {
-                        r.push_str(",image/");
-                        r.push_str(&fmt);
-                    }
-                    self.download_accept = r.into();
+                    sep = ",";
                 }
             }
             if self.download_accept.is_empty() {
@@ -744,6 +784,7 @@ impl ImagesService {
     }
 
     /// The `fetch_bytes` future is polled in the UI thread, use `task::run` for futures that poll a lot.
+    #[allow(clippy::too_many_arguments)]
     fn load_task(
         &mut self,
         key: ImageHash,
@@ -751,6 +792,7 @@ impl ImagesService {
         max_decoded_len: ByteLength,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
+        is_data_proxy_source: bool,
         fetch_bytes: impl Future<Output = ImageData> + Send + 'static,
     ) -> ImageVar {
         let img = self.new_cache_image(key, mode, max_decoded_len, downscale, mask);
@@ -762,6 +804,7 @@ impl ImagesService {
             max_decoded_len,
             downscale,
             mask,
+            is_data_proxy_source: if is_data_proxy_source { Some((key, mode)) } else { None },
         });
         zng_app::update::UPDATES.update(None);
 
@@ -877,9 +920,39 @@ impl IMAGES {
         mask: Option<ImageMaskMode>,
     ) -> ImageVar {
         let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
-        IMAGES_SV
-            .write()
-            .proxy_then_get(source.into(), cache_mode.into(), limits, downscale, mask)
+        let proxies = mem::take(&mut IMAGES_SV.write().proxies);
+        ImagesService::proxy_then_get(proxies, source.into(), cache_mode.into(), limits, downscale, mask)
+    }
+
+    /// Await for an image source, then get or load the image.
+    ///
+    /// If `limits` is `None` the [`IMAGES.limits`] is used.
+    ///
+    /// This method returns immediately with a loading [`ImageVar`], when `source` is ready it
+    /// is used to get the actual [`ImageVar`] and binds it to the returned image.
+    ///
+    /// [`IMAGES.limits`]: IMAGES::limits
+    pub fn image_task<F>(
+        &self,
+        source: impl IntoFuture<IntoFuture = F>,
+        cache_mode: impl Into<ImageCacheMode>,
+        limits: Option<ImageLimits>,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskMode>,
+    ) -> ImageVar
+    where
+        F: Future<Output = ImageSource> + Send + 'static,
+    {
+        let cache_mode = cache_mode.into();
+        let source = source.into_future();
+        let img = var(Img::new_none(None));
+        task::spawn(async_clmv!(img, {
+            let source = source.await;
+            let actual_img = IMAGES.image(source, cache_mode, limits, downscale, mask);
+            actual_img.set_bind(&img).perm();
+            img.hold(actual_img).perm();
+        }));
+        img.read_only()
     }
 
     /// Associate the `image` with the `key` in the cache.
@@ -897,7 +970,7 @@ impl IMAGES {
     ///
     /// Returns `true` if the image was removed.
     pub fn clean(&self, key: ImageHash) -> bool {
-        IMAGES_SV.write().proxy_then_remove(&key, false)
+        ImagesService::proxy_then_remove(mem::take(&mut IMAGES_SV.write().proxies), &key, false)
     }
 
     /// Remove the image from the cache, even if it is still referenced outside of the cache.
@@ -907,7 +980,7 @@ impl IMAGES {
     ///
     /// Returns `true` if the image was cached.
     pub fn purge(&self, key: &ImageHash) -> bool {
-        IMAGES_SV.write().proxy_then_remove(key, true)
+        ImagesService::proxy_then_remove(mem::take(&mut IMAGES_SV.write().proxies), key, true)
     }
 
     /// Gets the cache key of an image.

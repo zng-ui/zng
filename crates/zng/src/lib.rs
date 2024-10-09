@@ -855,6 +855,7 @@ mod defaults {
         /// * [`SingleInstanceManager`] if the `"single_instance"` feature is enabled.
         /// * [`HotReloadManager`] if the `"hot_reload"` feature is enabled.
         /// * [`MaterialIconsManager`] if any `"material_icons*"` feature is enabled.
+        /// * [`SvgManager`] if the `"svg"` feature is enabled.
         ///
         /// [`MaterialIconsManager`]: zng_wgt_material_icons::MaterialIconsManager
         /// [`SingleInstanceManager`]: zng_ext_single_instance::SingleInstanceManager
@@ -862,6 +863,7 @@ mod defaults {
         /// [`ConfigManager`]: zng_ext_config::ConfigManager
         /// [`L10nManager`]: zng_ext_l10n::L10nManager
         /// [`FontManager`]: zng_ext_font::FontManager
+        /// [`SvgManager`]: zng_ext_svg::SvgManager
         pub fn defaults(&self) -> DefaultsAppExtended![] {
             let r = self
                 .minimal()
@@ -896,6 +898,9 @@ mod defaults {
                 feature = "material_icons_sharp",
             ))]
             let r = r.extend(zng_wgt_material_icons::MaterialIconsManager);
+
+            #[cfg(feature = "svg")]
+            let r = r.extend(zng_ext_svg::SvgManager::default());
 
             r.extend(DefaultsInit {})
         }
