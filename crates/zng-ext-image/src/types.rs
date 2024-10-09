@@ -28,6 +28,9 @@ pub use zng_view_api::image::{ImageDataFormat, ImageDownscale, ImageMaskMode, Im
 ///
 /// Implementers can intercept cache requests and redirect to another cache request or returns an image directly.
 ///
+/// The methods on this API are synchronous, implementers that do any potential slow processing must output
+/// a *loading* [`ImageVar`] immediately and update it with the finished pixels when ready.
+///
 /// [`IMAGES`]: super::IMAGES
 pub trait ImageCacheProxy: Send + Sync {
     /// Intercept a get request.
@@ -39,8 +42,37 @@ pub trait ImageCacheProxy: Send + Sync {
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
     ) -> ProxyGetResult {
-        let _ = (key, source, mode, downscale, mask);
-        ProxyGetResult::None
+        let r = match source {
+            ImageSource::Static(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask),
+            ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask),
+            _ => return ProxyGetResult::None,
+        };
+        match r {
+            Some(img) => ProxyGetResult::Image(img),
+            None => ProxyGetResult::None,
+        }
+    }
+
+    /// Intercept a [`Data`] or [`Static`] request.
+    ///
+    /// If [`is_data_proxy`] also intercept the [`Read`] or [`Download`] data.
+    ///
+    /// [`Data`]: ImageSource::Data
+    /// [`Static`]: ImageSource::Static
+    /// [`is_data_proxy`]: ImageCacheProxy::is_data_proxy
+    /// [`Read`]: ImageSource::Read
+    /// [`Download`]: ImageSource::Download
+    fn data(
+        &mut self,
+        key: &ImageHash,
+        data: &[u8],
+        image_format: &ImageDataFormat,
+        mode: ImageCacheMode,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskMode>,
+    ) -> Option<ImageVar> {
+        let _ = (key, data, image_format, mode, downscale, mask);
+        None
     }
 
     /// Intercept a remove request.
@@ -54,7 +86,7 @@ pub trait ImageCacheProxy: Send + Sync {
         let _ = purge;
     }
 
-    /// If this proxy only handles [`Data`] and [`Static`].
+    /// If this proxy only handles [`Data`] and [`Static`] sources.
     ///
     /// When this is `true` the [`get`] call is delayed to after [`Read`] and [`Download`] have loaded the data
     /// and is skipped for [`Render`] and [`Image`].

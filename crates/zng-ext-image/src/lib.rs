@@ -212,12 +212,24 @@ impl AppExtension for ImageManager {
         let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
 
-        for t in mem::take(&mut images.loading) {
+        'loading_tasks: for t in mem::take(&mut images.loading) {
             t.task.lock().update();
             match t.task.into_inner().into_result() {
                 Ok(d) => {
                     match d.r {
                         Ok(data) => {
+                            if let Some((key, mode)) = &t.is_data_proxy_source {
+                                for proxy in &mut images.proxies {
+                                    if proxy.is_data_proxy() {
+                                        if let Some(replaced) = proxy.data(key, &data, &d.format, *mode, t.downscale, t.mask) {
+                                            replaced.set_bind(&t.image).perm();
+                                            t.image.hold(replaced).perm();
+                                            continue 'loading_tasks;
+                                        }
+                                    }
+                                }
+                            }
+
                             if VIEW_PROCESS.is_available() {
                                 // success and we have a view-process.
                                 match VIEW_PROCESS.add_image(ImageRequest {
@@ -280,6 +292,7 @@ impl AppExtension for ImageManager {
                         max_decoded_len: t.max_decoded_len,
                         downscale: t.downscale,
                         mask: t.mask,
+                        is_data_proxy_source: t.is_data_proxy_source,
                     });
                 }
             }
@@ -302,6 +315,7 @@ struct ImageLoadingTask {
     max_decoded_len: ByteLength,
     downscale: Option<ImageDownscale>,
     mask: Option<ImageMaskMode>,
+    is_data_proxy_source: Option<(ImageHash, ImageCacheMode)>,
 }
 
 struct ImageDecodingTask {
@@ -497,16 +511,6 @@ impl ImagesService {
             }
 
             let r = proxy.get(&key, &source, mode, downscale, mask);
-            // !!: TODO, get async? How? Image needs to be returned immediately.
-            // !!: Return a var that gets updated later?
-            // !!: Always do this if there are proxies?
-            // !!: No. Lets just do `Read` and `Download` first? Them proxies.
-            //     - No. Some proxies could want to operate like changing the url of a download.
-            //     - Let the proxy decide?
-            //       - Yes. Return a `ProxyGetResult::RequestData`.
-            //       - Or a method that indicates that the proxy only handles data.
-            //         - Yes, this is best.
-            // !!: Proxies can do the trick of returning an image var that is late bound to a second request.
             match r {
                 ProxyGetResult::None => continue,
                 ProxyGetResult::Cache(source, mode, downscale, mask) => {
@@ -568,6 +572,7 @@ impl ImagesService {
                 limits.max_decoded_len,
                 downscale,
                 mask,
+                true,
                 task::run(async move {
                     let mut r = ImageData {
                         format: path
@@ -618,6 +623,7 @@ impl ImagesService {
                     limits.max_decoded_len,
                     downscale,
                     mask,
+                    true,
                     task::run(async move {
                         let mut r = ImageData {
                             format: ImageDataFormat::Unknown,
@@ -663,14 +669,14 @@ impl ImagesService {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(bytes)),
                 };
-                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, async { r })
+                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }
             ImageSource::Data(_, bytes, fmt) => {
                 let r = ImageData {
                     format: fmt,
                     r: Ok(IpcBytes::from_slice(&bytes)),
                 };
-                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, async { r })
+                self.load_task(key, mode, limits.max_decoded_len, downscale, mask, false, async { r })
             }
             ImageSource::Render(rfn, args) => {
                 let img = self.new_cache_image(key, mode, limits.max_decoded_len, downscale, mask);
@@ -755,6 +761,7 @@ impl ImagesService {
     }
 
     /// The `fetch_bytes` future is polled in the UI thread, use `task::run` for futures that poll a lot.
+    #[allow(clippy::too_many_arguments)]
     fn load_task(
         &mut self,
         key: ImageHash,
@@ -762,6 +769,7 @@ impl ImagesService {
         max_decoded_len: ByteLength,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
+        is_data_proxy_source: bool,
         fetch_bytes: impl Future<Output = ImageData> + Send + 'static,
     ) -> ImageVar {
         let img = self.new_cache_image(key, mode, max_decoded_len, downscale, mask);
@@ -773,6 +781,7 @@ impl ImagesService {
             max_decoded_len,
             downscale,
             mask,
+            is_data_proxy_source: if is_data_proxy_source { Some((key, mode)) } else { None },
         });
         zng_app::update::UPDATES.update(None);
 

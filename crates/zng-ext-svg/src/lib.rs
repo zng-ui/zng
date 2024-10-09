@@ -52,23 +52,6 @@ impl AppExtension for SvgManager {
 pub struct SvgRenderCache {}
 
 impl SvgRenderCache {
-    fn get_data(
-        &mut self,
-        key: &ImageHash,
-        data: &[u8],
-        format: &ImageDataFormat,
-        mode: ImageCacheMode,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
-    ) -> ProxyGetResult {
-        match format {
-            ImageDataFormat::FileExtension(txt) if txt == "svg" => self.load(key, data, true, mode, downscale, mask),
-            ImageDataFormat::MimeType(txt) if txt == "image/svg+xml" => self.load(key, data, true, mode, downscale, mask),
-            ImageDataFormat::Unknown => self.load(key, data, false, mode, downscale, mask),
-            _ => ProxyGetResult::None,
-        }
-    }
-
     fn load(
         &mut self,
         key: &ImageHash,
@@ -77,7 +60,7 @@ impl SvgRenderCache {
         mode: ImageCacheMode,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
-    ) -> ProxyGetResult {
+    ) -> Option<ImageVar> {
         let options = resvg::usvg::Options::default();
         match resvg::usvg::Tree::from_data(data, &options) {
             Ok(tree) => {
@@ -96,12 +79,14 @@ impl SvgRenderCache {
                 resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap.as_mut());
                 let size = PxSize::new(Px(pixmap.width() as _), Px(pixmap.height() as _));
 
+                // !!: TODO, async decode/render
+
                 let mut data = pixmap.take();
                 for pixel in data.chunks_exact_mut(4) {
                     pixel.swap(0, 2);
                 }
 
-                ProxyGetResult::Cache(
+                Some(IMAGES.image(
                     ImageSource::Data(
                         *key,
                         Arc::new(data),
@@ -112,40 +97,46 @@ impl SvgRenderCache {
                     ),
                     mode,
                     None,
+                    downscale,
                     mask,
-                )
+                ))
             }
             Err(e) => {
                 if known_type_svg {
                     Self::error(formatx!("{e}"))
                 } else {
                     tracing::debug!("cannot parse image of unknown format as svg, {e}");
-                    ProxyGetResult::None
+                    None
                 }
             }
         }
     }
 
-    fn error(error: Txt) -> ProxyGetResult {
-        ProxyGetResult::Image(var(Img::dummy(Some(error))).read_only())
+    fn error(error: Txt) -> Option<ImageVar> {
+        Some(var(Img::dummy(Some(error))).read_only())
     }
 }
 
 impl ImageCacheProxy for SvgRenderCache {
-    fn get(
+    fn data(
         &mut self,
         key: &ImageHash,
-        source: &ImageSource,
+        data: &[u8],
+        format: &ImageDataFormat,
         mode: ImageCacheMode,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
-    ) -> ProxyGetResult {
-        match source {
-            ImageSource::Static(_, d, f) => self.get_data(key, d, f, mode, downscale, mask),
-            ImageSource::Data(_, d, f) => self.get_data(key, d, f, mode, downscale, mask),
-            // let IMAGES handle Read/Download
-            _ => ProxyGetResult::None,
+    ) -> Option<ImageVar> {
+        match format {
+            ImageDataFormat::FileExtension(txt) if txt == "svg" => self.load(key, data, true, mode, downscale, mask),
+            ImageDataFormat::MimeType(txt) if txt == "image/svg+xml" => self.load(key, data, true, mode, downscale, mask),
+            ImageDataFormat::Unknown => self.load(key, data, false, mode, downscale, mask),
+            _ => None,
         }
+    }
+
+    fn is_data_proxy(&self) -> bool {
+        true
     }
 
     fn clear(&mut self, _: bool) {}
