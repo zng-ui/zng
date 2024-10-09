@@ -9,31 +9,13 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-/*
-!!: TODO
-
-* Verify how proxy can let service handlers (down)loading.
-    - It can't, also proxy loads are blocking and not async on service.
-        - This must be fixed.
-    - Lets refactor to retry proxies after (down)load.
-* Add method for proxies to say what supported formats they accept.
-    - Currently download default "accepts" only uses the view-process support.
-* Allow size picking, how do render images handle this?
-    - Do we need a breaking `ImageSource::RenderRaw`?
-        - Its ideal? No `Image!::source` is a var, users can just map to image.
-    - Render does not have any API for this either, but it can easily be bound to the image actual size or something.
-
-* Update example screenshot.
-
-*/
-
 use std::sync::Arc;
 
 use zng_app::AppExtension;
 use zng_ext_image::*;
 use zng_txt::{formatx, Txt};
 use zng_unit::{Px, PxSize};
-use zng_var::{var, Var};
+// use zng_var::Var; !!: TODO bind return var?
 
 /// Application extension that installs SVG handling.
 ///
@@ -50,73 +32,6 @@ impl AppExtension for SvgManager {
 /// Image cache proxy that handlers SVG requests.
 #[derive(Default)]
 pub struct SvgRenderCache {}
-
-impl SvgRenderCache {
-    fn load(
-        &mut self,
-        key: &ImageHash,
-        data: &[u8],
-        known_type_svg: bool,
-        mode: ImageCacheMode,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
-    ) -> Option<ImageVar> {
-        let options = resvg::usvg::Options::default();
-        match resvg::usvg::Tree::from_data(data, &options) {
-            Ok(tree) => {
-                let mut size = tree.size().to_int_size();
-                if let Some(d) = downscale {
-                    let s = d.resize_dimensions(PxSize::new(Px(size.width() as _), Px(size.height() as _)));
-                    match resvg::tiny_skia::IntSize::from_wh(s.width.0 as _, s.height.0 as _) {
-                        Some(s) => size = s,
-                        None => tracing::error!("cannot resize svg to zero size"),
-                    }
-                }
-                let mut pixmap = match resvg::tiny_skia::Pixmap::new(size.width(), size.height()) {
-                    Some(p) => p,
-                    None => return Self::error(formatx!("can't allocate pixmap for {:?} svg", size)),
-                };
-                resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap.as_mut());
-                let size = PxSize::new(Px(pixmap.width() as _), Px(pixmap.height() as _));
-
-                // !!: TODO, async decode/render
-
-                let mut data = pixmap.take();
-                for pixel in data.chunks_exact_mut(4) {
-                    pixel.swap(0, 2);
-                }
-
-                Some(IMAGES.image(
-                    ImageSource::Data(
-                        *key,
-                        Arc::new(data),
-                        ImageDataFormat::Bgra8 {
-                            size,
-                            ppi: Some(ImagePpi::splat(options.dpi)),
-                        },
-                    ),
-                    mode,
-                    None,
-                    downscale,
-                    mask,
-                ))
-            }
-            Err(e) => {
-                if known_type_svg {
-                    Self::error(formatx!("{e}"))
-                } else {
-                    tracing::debug!("cannot parse image of unknown format as svg, {e}");
-                    None
-                }
-            }
-        }
-    }
-
-    fn error(error: Txt) -> Option<ImageVar> {
-        Some(var(Img::dummy(Some(error))).read_only())
-    }
-}
-
 impl ImageCacheProxy for SvgRenderCache {
     fn data(
         &mut self,
@@ -127,17 +42,98 @@ impl ImageCacheProxy for SvgRenderCache {
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
     ) -> Option<ImageVar> {
-        match format {
-            ImageDataFormat::FileExtension(txt) if txt == "svg" => self.load(key, data, true, mode, downscale, mask),
-            ImageDataFormat::MimeType(txt) if txt == "image/svg+xml" => self.load(key, data, true, mode, downscale, mask),
-            ImageDataFormat::Unknown => self.load(key, data, false, mode, downscale, mask),
-            _ => None,
-        }
+        let data = match format {
+            ImageDataFormat::FileExtension(txt) if txt == "svg" || txt == "svgz" => SvgData::Raw(data.to_vec()),
+            ImageDataFormat::MimeType(txt) if txt == "image/svg+xml" => SvgData::Raw(data.to_vec()),
+            ImageDataFormat::Unknown => SvgData::Str(svg_data_from_unknown(data)?),
+            _ => return None,
+        };
+
+        // !!: TODO, new loading ImageVar, cache it and spawn `load`
+        // !!: there is no way to make a loading ImageVar from here, just in the IMAGES service.
+        let _cache = key;
+        // zng_task::spawn(async {
+
+        // });
+
+        Some(load(data, mode, downscale, mask))
     }
 
     fn is_data_proxy(&self) -> bool {
         true
     }
+}
 
-    fn clear(&mut self, _: bool) {}
+enum SvgData {
+    Raw(Vec<u8>),
+    Str(String),
+}
+fn load(data: SvgData, mode: ImageCacheMode, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageVar {
+    let options = resvg::usvg::Options::default();
+
+    let tree = match data {
+        SvgData::Raw(data) => resvg::usvg::Tree::from_data(&data, &options),
+        SvgData::Str(data) => resvg::usvg::Tree::from_str(&data, &options),
+    };
+    match tree {
+        Ok(tree) => {
+            let mut size = tree.size().to_int_size();
+            if let Some(d) = downscale {
+                let s = d.resize_dimensions(PxSize::new(Px(size.width() as _), Px(size.height() as _)));
+                match resvg::tiny_skia::IntSize::from_wh(s.width.0 as _, s.height.0 as _) {
+                    Some(s) => size = s,
+                    None => tracing::error!("cannot resize svg to zero size"),
+                }
+            }
+            let mut pixmap = match resvg::tiny_skia::Pixmap::new(size.width(), size.height()) {
+                Some(p) => p,
+                None => return error(formatx!("can't allocate pixmap for {:?} svg", size)),
+            };
+            resvg::render(&tree, resvg::tiny_skia::Transform::identity(), &mut pixmap.as_mut());
+            let size = PxSize::new(Px(pixmap.width() as _), Px(pixmap.height() as _));
+
+            let mut data = pixmap.take();
+            for pixel in data.chunks_exact_mut(4) {
+                pixel.swap(0, 2);
+            }
+
+            IMAGES.image(
+                ImageSource::Data(
+                    ImageHash::compute(&data),
+                    Arc::new(data),
+                    ImageDataFormat::Bgra8 {
+                        size,
+                        ppi: Some(ImagePpi::splat(options.dpi)),
+                    },
+                ),
+                mode,
+                None,
+                downscale,
+                mask,
+            )
+        }
+        Err(e) => error(formatx!("{e}")),
+    }
+}
+
+fn error(error: Txt) -> ImageVar {
+    IMAGES.dummy(Some(error))
+}
+
+fn svg_data_from_unknown(data: &[u8]) -> Option<String> {
+    if data.starts_with(&[0x1f, 0x8b]) {
+        // gzip magic number
+        let data = resvg::usvg::decompress_svgz(data).ok()?;
+        uncompressed_data_is_svg(&data)
+    } else {
+        uncompressed_data_is_svg(data)
+    }
+}
+fn uncompressed_data_is_svg(data: &[u8]) -> Option<String> {
+    let s = std::str::from_utf8(data).ok()?;
+    if s.contains("http://www.w3.org/2000/svg") {
+        Some(s.to_owned())
+    } else {
+        None
+    }
 }
