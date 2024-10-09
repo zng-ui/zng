@@ -15,7 +15,6 @@ use zng_app::AppExtension;
 use zng_ext_image::*;
 use zng_txt::{formatx, Txt};
 use zng_unit::{Px, PxSize};
-// use zng_var::Var; !!: TODO bind return var?
 
 /// Application extension that installs SVG handling.
 ///
@@ -35,7 +34,7 @@ pub struct SvgRenderCache {}
 impl ImageCacheProxy for SvgRenderCache {
     fn data(
         &mut self,
-        key: &ImageHash,
+        _key: &ImageHash, // !!: TODO review this
         data: &[u8],
         format: &ImageDataFormat,
         mode: ImageCacheMode,
@@ -49,14 +48,7 @@ impl ImageCacheProxy for SvgRenderCache {
             _ => return None,
         };
 
-        // !!: TODO, new loading ImageVar, cache it and spawn `load`
-        // !!: there is no way to make a loading ImageVar from here, just in the IMAGES service.
-        let _cache = key;
-        // zng_task::spawn(async {
-
-        // });
-
-        Some(load(data, mode, downscale, mask))
+        Some(IMAGES.image_task(async move { load(data, downscale) }, mode, None, None, mask))
     }
 
     fn is_data_proxy(&self) -> bool {
@@ -68,7 +60,7 @@ enum SvgData {
     Raw(Vec<u8>),
     Str(String),
 }
-fn load(data: SvgData, mode: ImageCacheMode, downscale: Option<ImageDownscale>, mask: Option<ImageMaskMode>) -> ImageVar {
+fn load(data: SvgData, downscale: Option<ImageDownscale>) -> ImageSource {
     let options = resvg::usvg::Options::default();
 
     let tree = match data {
@@ -97,27 +89,21 @@ fn load(data: SvgData, mode: ImageCacheMode, downscale: Option<ImageDownscale>, 
                 pixel.swap(0, 2);
             }
 
-            IMAGES.image(
-                ImageSource::Data(
-                    ImageHash::compute(&data),
-                    Arc::new(data),
-                    ImageDataFormat::Bgra8 {
-                        size,
-                        ppi: Some(ImagePpi::splat(options.dpi)),
-                    },
-                ),
-                mode,
-                None,
-                downscale,
-                mask,
+            ImageSource::Data(
+                ImageHash::compute(&data),
+                Arc::new(data),
+                ImageDataFormat::Bgra8 {
+                    size,
+                    ppi: Some(ImagePpi::splat(options.dpi)),
+                },
             )
         }
         Err(e) => error(formatx!("{e}")),
     }
 }
 
-fn error(error: Txt) -> ImageVar {
-    IMAGES.dummy(Some(error))
+fn error(error: Txt) -> ImageSource {
+    ImageSource::Image(IMAGES.dummy(Some(error)))
 }
 
 fn svg_data_from_unknown(data: &[u8]) -> Option<String> {

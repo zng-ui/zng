@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `IMAGES.image_task` to load async image sources.
 * Implement support for SVG images.
     - Add `zng-ext-svg`.
     - Add non default `"svg"` feature on the `zng` crate.

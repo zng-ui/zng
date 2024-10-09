@@ -11,7 +11,7 @@
 
 use std::{
     env,
-    future::Future,
+    future::{Future, IntoFuture},
     mem,
     path::{Path, PathBuf},
     sync::{
@@ -454,18 +454,22 @@ impl ImagesService {
         }
     }
 
-    fn proxy_then_remove(&mut self, key: &ImageHash, purge: bool) -> bool {
-        for proxy in &mut self.proxies {
+    fn proxy_then_remove(mut proxies: Vec<Box<dyn ImageCacheProxy>>, key: &ImageHash, purge: bool) -> bool {
+        for proxy in &mut proxies {
             let r = proxy.remove(key, purge);
             match r {
                 ProxyRemoveResult::None => continue,
-                ProxyRemoveResult::Remove(r, p) => return self.proxied_remove(&r, p),
-                ProxyRemoveResult::Removed => return true,
+                ProxyRemoveResult::Remove(r, p) => return IMAGES_SV.write().proxied_remove(proxies, &r, p),
+                ProxyRemoveResult::Removed => {
+                    IMAGES_SV.write().proxies = proxies;
+                    return true;
+                }
             }
         }
-        self.proxied_remove(key, purge)
+        IMAGES_SV.write().proxied_remove(proxies, key, purge)
     }
-    fn proxied_remove(&mut self, key: &ImageHash, purge: bool) -> bool {
+    fn proxied_remove(&mut self, proxies: Vec<Box<dyn ImageCacheProxy>>, key: &ImageHash, purge: bool) -> bool {
+        self.proxies = proxies;
         if purge || self.cache.get(key).map(|v| v.image.strong_count() > 1).unwrap_or(false) {
             self.cache.remove(key).is_some()
         } else {
@@ -473,8 +477,19 @@ impl ImagesService {
         }
     }
 
-    fn proxy_then_get(
+    fn await_then(
         &mut self,
+        source: UiTask<ImageSource>,
+        mode: ImageCacheMode,
+        limits: ImageLimits,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskMode>,
+    ) -> ImageVar {
+        todo!()
+    }
+
+    fn proxy_then_get(
+        mut proxies: Vec<Box<dyn ImageCacheProxy>>,
         source: ImageSource,
         mode: ImageCacheMode,
         limits: ImageLimits,
@@ -505,7 +520,7 @@ impl ImagesService {
         };
 
         let key = source.hash128(downscale, mask).unwrap();
-        for proxy in &mut self.proxies {
+        for proxy in &mut proxies {
             if proxy.is_data_proxy() && !matches!(source, ImageSource::Data(_, _, _) | ImageSource::Static(_, _, _)) {
                 continue;
             }
@@ -514,15 +529,25 @@ impl ImagesService {
             match r {
                 ProxyGetResult::None => continue,
                 ProxyGetResult::Cache(source, mode, downscale, mask) => {
-                    return self.proxied_get(source.hash128(downscale, mask).unwrap(), source, mode, limits, downscale, mask)
+                    return IMAGES_SV.write().proxied_get(
+                        proxies,
+                        source.hash128(downscale, mask).unwrap(),
+                        source,
+                        mode,
+                        limits,
+                        downscale,
+                        mask,
+                    )
                 }
                 ProxyGetResult::Image(img) => return img,
             }
         }
-        self.proxied_get(key, source, mode, limits, downscale, mask)
+        IMAGES_SV.write().proxied_get(proxies, key, source, mode, limits, downscale, mask)
     }
+    #[allow(clippy::too_many_arguments)]
     fn proxied_get(
         &mut self,
+        proxies: Vec<Box<dyn ImageCacheProxy>>,
         key: ImageHash,
         source: ImageSource,
         mode: ImageCacheMode,
@@ -530,6 +555,7 @@ impl ImagesService {
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
     ) -> ImageVar {
+        self.proxies = proxies;
         match mode {
             ImageCacheMode::Cache => {
                 if let Some(v) = self.cache.get(&key) {
@@ -897,9 +923,33 @@ impl IMAGES {
         mask: Option<ImageMaskMode>,
     ) -> ImageVar {
         let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
+        let proxies = mem::take(&mut IMAGES_SV.write().proxies);
+        ImagesService::proxy_then_get(proxies, source.into(), cache_mode.into(), limits, downscale, mask)
+    }
+
+    /// Await for an image source, then get or load the image.
+    ///
+    /// If `limits` is `None` the [`IMAGES.limits`] is used.
+    ///
+    /// This method returns immediately with a loading [`ImageVar`], when `source` is ready it is used to get the actual [`ImageVar`] and
+    /// binds it to the returned image.
+    ///
+    /// [`IMAGES.limits`]: IMAGES::limits
+    pub fn image_task<F>(
+        &self,
+        source: impl IntoFuture<IntoFuture = F>,
+        cache_mode: impl Into<ImageCacheMode>,
+        limits: Option<ImageLimits>,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskMode>,
+    ) -> ImageVar
+    where
+        F: Future<Output = ImageSource> + Send + 'static,
+    {
+        let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
         IMAGES_SV
             .write()
-            .proxy_then_get(source.into(), cache_mode.into(), limits, downscale, mask)
+            .await_then(UiTask::new(None, source), cache_mode.into(), limits, downscale, mask)
     }
 
     /// Associate the `image` with the `key` in the cache.
@@ -917,7 +967,7 @@ impl IMAGES {
     ///
     /// Returns `true` if the image was removed.
     pub fn clean(&self, key: ImageHash) -> bool {
-        IMAGES_SV.write().proxy_then_remove(&key, false)
+        ImagesService::proxy_then_remove(mem::take(&mut IMAGES_SV.write().proxies), &key, false)
     }
 
     /// Remove the image from the cache, even if it is still referenced outside of the cache.
@@ -927,7 +977,7 @@ impl IMAGES {
     ///
     /// Returns `true` if the image was cached.
     pub fn purge(&self, key: &ImageHash) -> bool {
-        IMAGES_SV.write().proxy_then_remove(key, true)
+        ImagesService::proxy_then_remove(mem::take(&mut IMAGES_SV.write().proxies), key, true)
     }
 
     /// Gets the cache key of an image.
