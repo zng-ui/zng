@@ -32,7 +32,7 @@ use zng_app::{
     AppExtension,
 };
 use zng_app_context::app_local;
-use zng_clone_move::clmv;
+use zng_clone_move::{async_clmv, clmv};
 use zng_task as task;
 
 mod types;
@@ -475,17 +475,6 @@ impl ImagesService {
         } else {
             false
         }
-    }
-
-    fn await_then(
-        &mut self,
-        source: UiTask<ImageSource>,
-        mode: ImageCacheMode,
-        limits: ImageLimits,
-        downscale: Option<ImageDownscale>,
-        mask: Option<ImageMaskMode>,
-    ) -> ImageVar {
-        todo!()
     }
 
     fn proxy_then_get(
@@ -931,8 +920,8 @@ impl IMAGES {
     ///
     /// If `limits` is `None` the [`IMAGES.limits`] is used.
     ///
-    /// This method returns immediately with a loading [`ImageVar`], when `source` is ready it is used to get the actual [`ImageVar`] and
-    /// binds it to the returned image.
+    /// This method returns immediately with a loading [`ImageVar`], when `source` is ready it
+    /// is used to get the actual [`ImageVar`] and binds it to the returned image.
     ///
     /// [`IMAGES.limits`]: IMAGES::limits
     pub fn image_task<F>(
@@ -946,10 +935,16 @@ impl IMAGES {
     where
         F: Future<Output = ImageSource> + Send + 'static,
     {
-        let limits = limits.unwrap_or_else(|| IMAGES_SV.read().limits.get());
-        IMAGES_SV
-            .write()
-            .await_then(UiTask::new(None, source), cache_mode.into(), limits, downscale, mask)
+        let cache_mode = cache_mode.into();
+        let source = source.into_future();
+        let img = var(Img::new_none(None));
+        task::spawn(async_clmv!(img, {
+            let source = source.await;
+            let actual_img = IMAGES.image(source, cache_mode, limits, downscale, mask);
+            actual_img.set_bind(&img).perm();
+            img.hold(actual_img).perm();
+        }));
+        img.read_only()
     }
 
     /// Associate the `image` with the `key` in the cache.
