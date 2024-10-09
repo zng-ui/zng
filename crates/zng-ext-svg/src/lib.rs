@@ -34,7 +34,7 @@ pub struct SvgRenderCache {}
 impl ImageCacheProxy for SvgRenderCache {
     fn data(
         &mut self,
-        _key: &ImageHash, // !!: TODO review this
+        _: &ImageHash,
         data: &[u8],
         format: &ImageDataFormat,
         mode: ImageCacheMode,

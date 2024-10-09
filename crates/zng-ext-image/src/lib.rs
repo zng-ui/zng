@@ -461,15 +461,15 @@ impl ImagesService {
                 ProxyRemoveResult::None => continue,
                 ProxyRemoveResult::Remove(r, p) => return IMAGES_SV.write().proxied_remove(proxies, &r, p),
                 ProxyRemoveResult::Removed => {
-                    IMAGES_SV.write().proxies = proxies;
+                    IMAGES_SV.write().proxies.append(&mut proxies);
                     return true;
                 }
             }
         }
         IMAGES_SV.write().proxied_remove(proxies, key, purge)
     }
-    fn proxied_remove(&mut self, proxies: Vec<Box<dyn ImageCacheProxy>>, key: &ImageHash, purge: bool) -> bool {
-        self.proxies = proxies;
+    fn proxied_remove(&mut self, mut proxies: Vec<Box<dyn ImageCacheProxy>>, key: &ImageHash, purge: bool) -> bool {
+        self.proxies.append(&mut proxies);
         if purge || self.cache.get(key).map(|v| v.image.strong_count() > 1).unwrap_or(false) {
             self.cache.remove(key).is_some()
         } else {
@@ -491,6 +491,7 @@ impl ImagesService {
                 if !limits.allow_path.allows(&path) {
                     let error = formatx!("limits filter blocked `{}`", path.display());
                     tracing::error!("{error}");
+                    IMAGES_SV.write().proxies.append(&mut proxies);
                     return var(Img::dummy(Some(error))).read_only();
                 }
                 ImageSource::Read(path)
@@ -500,11 +501,15 @@ impl ImagesService {
                 if !limits.allow_uri.allows(&uri) {
                     let error = formatx!("limits filter blocked `{uri}`");
                     tracing::error!("{error}");
+                    IMAGES_SV.write().proxies.append(&mut proxies);
                     return var(Img::dummy(Some(error))).read_only();
                 }
                 ImageSource::Download(uri, accepts)
             }
-            ImageSource::Image(r) => return r,
+            ImageSource::Image(r) => {
+                IMAGES_SV.write().proxies.append(&mut proxies);
+                return r;
+            }
             source => source,
         };
 
@@ -528,7 +533,10 @@ impl ImagesService {
                         mask,
                     )
                 }
-                ProxyGetResult::Image(img) => return img,
+                ProxyGetResult::Image(img) => {
+                    IMAGES_SV.write().proxies.append(&mut proxies);
+                    return img;
+                }
             }
         }
         IMAGES_SV.write().proxied_get(proxies, key, source, mode, limits, downscale, mask)
@@ -536,7 +544,7 @@ impl ImagesService {
     #[allow(clippy::too_many_arguments)]
     fn proxied_get(
         &mut self,
-        proxies: Vec<Box<dyn ImageCacheProxy>>,
+        mut proxies: Vec<Box<dyn ImageCacheProxy>>,
         key: ImageHash,
         source: ImageSource,
         mode: ImageCacheMode,
@@ -544,7 +552,7 @@ impl ImagesService {
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
     ) -> ImageVar {
-        self.proxies = proxies;
+        self.proxies.append(&mut proxies);
         match mode {
             ImageCacheMode::Cache => {
                 if let Some(v) = self.cache.get(&key) {

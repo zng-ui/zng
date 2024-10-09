@@ -116,6 +116,7 @@ fn main() {
                             sub_title("SVG"),
                             Image! {
                                 source = zng::env::res("SVG_Logo.svg");
+                                size = (200, 120);
                             },
                         ]
                     ),
