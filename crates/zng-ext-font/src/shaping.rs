@@ -332,7 +332,15 @@ pub struct ShapedText {
     mid_size: PxSize,
     last_line: PxRect,
 
-    has_colored_glyphs: bool,
+    has_emoji_kinds: EmojiKind,
+}
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct EmojiKind: u8 {
+        const COLORED = 0b001;
+        const RASTER = 0b010;
+        const SVG = 0b100;
+    }
 }
 
 /// Represents normal and colored glyphs in [`ShapedText::colored_glyphs`].
@@ -385,7 +393,17 @@ impl ShapedText {
 
     /// If the shaped text has any Emoji glyph associated with a font that has color palettes.
     pub fn has_colored_glyphs(&self) -> bool {
-        self.has_colored_glyphs
+        self.has_emoji_kinds.contains(EmojiKind::COLORED)
+    }
+
+    /// If the shaped text has any Emoji glyph associated with a pixel image.
+    pub fn has_raster_images(&self) -> bool {
+        self.has_emoji_kinds.contains(EmojiKind::RASTER)
+    }
+
+    /// If the shaped text has any Emoji glyph associated with a SVG image.
+    pub fn has_svg_images(&self) -> bool {
+        self.has_emoji_kinds.contains(EmojiKind::SVG)
     }
 
     /// Glyphs by font and palette color.
@@ -1029,7 +1047,7 @@ impl ShapedText {
             is_inlined: false,
             mid_size: PxSize::zero(),
             last_line: PxRect::zero(),
-            has_colored_glyphs: false,
+            has_emoji_kinds: EmojiKind::empty(),
         }
     }
 
@@ -1873,7 +1891,7 @@ impl ShapedTextBuilder {
                 mid_clear: Px(0),
                 mid_size: PxSize::zero(),
                 last_line: PxRect::zero(),
-                has_colored_glyphs: false,
+                has_emoji_kinds: EmojiKind::empty(),
             },
 
             line_height: 0.0,
@@ -2174,8 +2192,16 @@ impl ShapedTextBuilder {
                     self.push_text_seg(seg, info);
                 }
 
-                if matches!(info.kind, TextSegmentKind::Emoji) && !font.face().color_glyphs().is_empty() {
-                    self.out.has_colored_glyphs = true;
+                if matches!(info.kind, TextSegmentKind::Emoji) {
+                    if !font.face().color_glyphs().is_empty() {
+                        self.out.has_emoji_kinds.set(EmojiKind::COLORED, true);
+                    }
+                    if font.face().has_raster_images() {
+                        self.out.has_emoji_kinds.set(EmojiKind::RASTER, true);
+                    }
+                    if font.face().has_svg_images() {
+                        self.out.has_emoji_kinds.set(EmojiKind::SVG, true);
+                    }
                 }
 
                 self.push_font(font);
