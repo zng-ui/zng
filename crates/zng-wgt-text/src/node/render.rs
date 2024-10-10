@@ -295,7 +295,8 @@ pub fn render_text() -> impl UiNode {
             frame.push_reuse(&mut reuse, |frame| {
                 if t.shaped_text.has_raster_images() || (cfg!(feature = "svg") && t.shaped_text.has_svg_images()) {
                     println!("!!: TODO, IMAGE FONT");
-                } else if t.shaped_text.has_colored_glyphs() || t.overflow_suffix.as_ref().map(|o| o.has_colored_glyphs()).unwrap_or(false) {
+                } else if t.shaped_text.has_colored_glyphs() || t.overflow_suffix.as_ref().map(|o| o.has_colored_glyphs()).unwrap_or(false)
+                {
                     let palette_query = FONT_PALETTE_VAR.get();
                     FONT_PALETTE_COLORS_VAR.with(|palette_colors| {
                         let mut push_font_glyphs = |font: &Font, glyphs, offset: Option<euclid::Vector2D<f32, Px>>| {
