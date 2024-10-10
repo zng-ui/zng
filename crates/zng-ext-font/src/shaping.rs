@@ -5,12 +5,14 @@ use std::{
 };
 
 use zng_app::widget::info::InlineSegmentInfo;
+use zng_ext_image::ImageVar;
 use zng_ext_l10n::{lang, Lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
     unit::{euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zng_txt::Txt;
+use zng_var::AnyVar;
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
@@ -301,6 +303,7 @@ pub struct ShapedText {
     segments: GlyphSegmentVec,
     lines: LineRangeVec,
     fonts: FontRangeVec,
+    images: Vec<(u32, GlyphImage)>,
 
     line_height: Px,
     line_spacing: Px,
@@ -332,14 +335,22 @@ pub struct ShapedText {
     mid_size: PxSize,
     last_line: PxRect,
 
-    has_emoji_kinds: EmojiKind,
+    has_colored_glyphs: bool,
 }
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    struct EmojiKind: u8 {
-        const COLORED = 0b001;
-        const RASTER = 0b010;
-        const SVG = 0b100;
+
+#[derive(Clone)]
+struct GlyphImage {
+    img: ImageVar,
+}
+impl PartialEq for GlyphImage {
+    fn eq(&self, other: &Self) -> bool {
+        self.img.var_ptr() == other.img.var_ptr()
+    }
+}
+impl Eq for GlyphImage {}
+impl fmt::Debug for GlyphImage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GlyphImage").finish_non_exhaustive()
     }
 }
 
@@ -358,6 +369,16 @@ pub enum ShapedColoredGlyphs<'a> {
 
         /// The colored glyph components.
         glyphs: super::ColorGlyph<'a>,
+    },
+}
+
+/// Represents normal and image glyphs in [`ShapedText::image_glyphs`].
+pub enum ShapedImageGlyphs<'a> {
+    /// Sequence of not image glyphs.
+    Normal(&'a [GlyphInstance]),
+    /// Image glyph.
+    Image {
+        // bytes: &
     },
 }
 
@@ -393,17 +414,12 @@ impl ShapedText {
 
     /// If the shaped text has any Emoji glyph associated with a font that has color palettes.
     pub fn has_colored_glyphs(&self) -> bool {
-        self.has_emoji_kinds.contains(EmojiKind::COLORED)
+        self.has_colored_glyphs
     }
 
     /// If the shaped text has any Emoji glyph associated with a pixel image.
-    pub fn has_raster_images(&self) -> bool {
-        self.has_emoji_kinds.contains(EmojiKind::RASTER)
-    }
-
-    /// If the shaped text has any Emoji glyph associated with a SVG image.
-    pub fn has_svg_images(&self) -> bool {
-        self.has_emoji_kinds.contains(EmojiKind::SVG)
+    pub fn has_images(&self) -> bool {
+        !self.images.is_empty()
     }
 
     /// Glyphs by font and palette color.
@@ -1025,6 +1041,7 @@ impl ShapedText {
                 font: self.fonts.font(0).clone(),
                 end: 0,
             }]),
+            images: vec![],
             orig_line_height: self.orig_line_height,
             orig_line_spacing: self.orig_line_spacing,
             orig_first_line: PxSize::zero(),
@@ -1047,7 +1064,7 @@ impl ShapedText {
             is_inlined: false,
             mid_size: PxSize::zero(),
             last_line: PxRect::zero(),
-            has_emoji_kinds: EmojiKind::empty(),
+            has_colored_glyphs: false,
         }
     }
 
@@ -1891,7 +1908,8 @@ impl ShapedTextBuilder {
                 mid_clear: Px(0),
                 mid_size: PxSize::zero(),
                 last_line: PxRect::zero(),
-                has_emoji_kinds: EmojiKind::empty(),
+                has_colored_glyphs: false,
+                images: vec![],
             },
 
             line_height: 0.0,
@@ -2194,13 +2212,11 @@ impl ShapedTextBuilder {
 
                 if matches!(info.kind, TextSegmentKind::Emoji) {
                     if !font.face().color_glyphs().is_empty() {
-                        self.out.has_emoji_kinds.set(EmojiKind::COLORED, true);
+                        self.out.has_colored_glyphs = true;
                     }
-                    if font.face().has_raster_images() {
-                        self.out.has_emoji_kinds.set(EmojiKind::RASTER, true);
-                    }
-                    if font.face().has_svg_images() {
-                        self.out.has_emoji_kinds.set(EmojiKind::SVG, true);
+                    if font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()) {
+                        let _ttf = font.face().ttf();
+                        println!("!!: TODO SEARCH IMAGE");
                     }
                 }
 

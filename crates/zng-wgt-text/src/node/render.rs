@@ -293,7 +293,7 @@ pub fn render_text() -> impl UiNode {
             t.render_info.scale_factor = frame.scale_factor();
 
             frame.push_reuse(&mut reuse, |frame| {
-                if t.shaped_text.has_raster_images() || (cfg!(feature = "svg") && t.shaped_text.has_svg_images()) {
+                if t.shaped_text.has_images() {
                     println!("!!: TODO, IMAGE FONT");
                 } else if t.shaped_text.has_colored_glyphs() || t.overflow_suffix.as_ref().map(|o| o.has_colored_glyphs()).unwrap_or(false)
                 {
