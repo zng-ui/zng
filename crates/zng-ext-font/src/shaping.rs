@@ -5,12 +5,14 @@ use std::{
 };
 
 use zng_app::widget::info::InlineSegmentInfo;
+use zng_ext_image::ImageVar;
 use zng_ext_l10n::{lang, Lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
     unit::{euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zng_txt::Txt;
+use zng_var::AnyVar;
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
@@ -301,6 +303,7 @@ pub struct ShapedText {
     segments: GlyphSegmentVec,
     lines: LineRangeVec,
     fonts: FontRangeVec,
+    images: Vec<(u32, GlyphImage)>,
 
     line_height: Px,
     line_spacing: Px,
@@ -335,6 +338,22 @@ pub struct ShapedText {
     has_colored_glyphs: bool,
 }
 
+#[derive(Clone)]
+struct GlyphImage {
+    img: ImageVar,
+}
+impl PartialEq for GlyphImage {
+    fn eq(&self, other: &Self) -> bool {
+        self.img.var_ptr() == other.img.var_ptr()
+    }
+}
+impl Eq for GlyphImage {}
+impl fmt::Debug for GlyphImage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GlyphImage").finish_non_exhaustive()
+    }
+}
+
 /// Represents normal and colored glyphs in [`ShapedText::colored_glyphs`].
 pub enum ShapedColoredGlyphs<'a> {
     /// Sequence of not colored glyphs, use the base color to fill.
@@ -350,6 +369,16 @@ pub enum ShapedColoredGlyphs<'a> {
 
         /// The colored glyph components.
         glyphs: super::ColorGlyph<'a>,
+    },
+}
+
+/// Represents normal and image glyphs in [`ShapedText::image_glyphs`].
+pub enum ShapedImageGlyphs<'a> {
+    /// Sequence of not image glyphs.
+    Normal(&'a [GlyphInstance]),
+    /// Image glyph.
+    Image {
+        // bytes: &
     },
 }
 
@@ -386,6 +415,11 @@ impl ShapedText {
     /// If the shaped text has any Emoji glyph associated with a font that has color palettes.
     pub fn has_colored_glyphs(&self) -> bool {
         self.has_colored_glyphs
+    }
+
+    /// If the shaped text has any Emoji glyph associated with a pixel image.
+    pub fn has_images(&self) -> bool {
+        !self.images.is_empty()
     }
 
     /// Glyphs by font and palette color.
@@ -1007,6 +1041,7 @@ impl ShapedText {
                 font: self.fonts.font(0).clone(),
                 end: 0,
             }]),
+            images: vec![],
             orig_line_height: self.orig_line_height,
             orig_line_spacing: self.orig_line_spacing,
             orig_first_line: PxSize::zero(),
@@ -1874,6 +1909,7 @@ impl ShapedTextBuilder {
                 mid_size: PxSize::zero(),
                 last_line: PxRect::zero(),
                 has_colored_glyphs: false,
+                images: vec![],
             },
 
             line_height: 0.0,
@@ -2174,8 +2210,14 @@ impl ShapedTextBuilder {
                     self.push_text_seg(seg, info);
                 }
 
-                if matches!(info.kind, TextSegmentKind::Emoji) && !font.face().color_glyphs().is_empty() {
-                    self.out.has_colored_glyphs = true;
+                if matches!(info.kind, TextSegmentKind::Emoji) {
+                    if !font.face().color_glyphs().is_empty() {
+                        self.out.has_colored_glyphs = true;
+                    }
+                    if font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()) {
+                        let _ttf = font.face().ttf();
+                        println!("!!: TODO SEARCH IMAGE");
+                    }
                 }
 
                 self.push_font(font);

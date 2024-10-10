@@ -39,8 +39,8 @@ debug_default = [
     "zng-wgt-window/debug_default",
 ]
 
-# Enable SVG images support.
-svg = ["zng-ext-svg"]
+# Enable SVG images, emoji support.
+svg = ["zng-ext-svg", "zng-ext-font/svg"]
 
 # Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
 #

@@ -34,7 +34,7 @@ pub struct SvgRenderCache {}
 impl ImageCacheProxy for SvgRenderCache {
     fn data(
         &mut self,
-        _: &ImageHash,
+        _: &ImageHash, // !!: TODO implement cache, otherwise we alway render svg requests, just to get a hash of the render.
         data: &[u8],
         format: &ImageDataFormat,
         mode: ImageCacheMode,

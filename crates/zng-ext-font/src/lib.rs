@@ -871,16 +871,24 @@ struct LoadedFontFace {
     display_name: FontName,
     family_name: FontName,
     postscript_name: Option<Txt>,
-    is_monospace: bool,
     style: FontStyle,
     weight: FontWeight,
     stretch: FontStretch,
     metrics: FontFaceMetrics,
     color_palettes: ColorPalettes,
     color_glyphs: ColorGlyphs,
-    has_ligatures: bool,
     lig_carets: LigatureCaretList,
+    flags: FontFaceFlags,
     m: Mutex<FontFaceMut>,
+}
+bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    struct FontFaceFlags: u8 {
+        const IS_MONOSPACE =      0b0000_0001;
+        const HAS_LIGATURES =     0b0000_0010;
+        const HAS_RASTER_IMAGES = 0b0000_0100;
+        const HAS_SVG_IMAGES =    0b0000_1000;
+    }
 }
 struct FontFaceMut {
     instances: HashMap<FontInstanceKey, Font>,
@@ -895,7 +903,7 @@ impl fmt::Debug for FontFace {
             .field("display_name", &self.0.display_name)
             .field("family_name", &self.0.family_name)
             .field("postscript_name", &self.0.postscript_name)
-            .field("is_monospace", &self.0.is_monospace)
+            .field("flags", &self.0.flags)
             .field("style", &self.0.style)
             .field("weight", &self.0.weight)
             .field("stretch", &self.0.stretch)
@@ -923,7 +931,7 @@ impl FontFace {
             display_name: FontName::from("<empty>"),
             family_name: FontName::from("<empty>"),
             postscript_name: None,
-            is_monospace: true,
+            flags: FontFaceFlags::IS_MONOSPACE,
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
             stretch: FontStretch::NORMAL,
@@ -942,7 +950,6 @@ impl FontFace {
             },
             color_palettes: ColorPalettes::empty(),
             color_glyphs: ColorGlyphs::empty(),
-            has_ligatures: false,
             lig_carets: LigatureCaretList::empty(),
             m: Mutex::new(FontFaceMut {
                 instances: HashMap::default(),
@@ -985,7 +992,6 @@ impl FontFace {
                         style: other_font.0.style,
                         weight: other_font.0.weight,
                         stretch: other_font.0.stretch,
-                        is_monospace: other_font.0.is_monospace,
                         metrics: other_font.0.metrics.clone(),
                         m: Mutex::new(FontFaceMut {
                             instances: Default::default(),
@@ -994,8 +1000,8 @@ impl FontFace {
                         }),
                         color_palettes: other_font.0.color_palettes.clone(),
                         color_glyphs: other_font.0.color_glyphs.clone(),
-                        has_ligatures: other_font.0.has_ligatures,
                         lig_carets: other_font.0.lig_carets.clone(),
+                        flags: other_font.0.flags,
                     }))),
                     None => Err(FontLoadingError::NoSuchFontInCollection),
                 };
@@ -1031,6 +1037,18 @@ impl FontFace {
             LigatureCaretList::load(ttf_face.raw_face())?
         };
 
+        // all tables used by `ttf_parser::Face::glyph_raster_image`
+        let has_raster_images = {
+            let t = ttf_face.tables();
+            t.sbix.is_some() || t.bdat.is_some() || t.ebdt.is_some() || t.cbdt.is_some()
+        };
+
+        let mut flags = FontFaceFlags::empty();
+        flags.set(FontFaceFlags::IS_MONOSPACE, ttf_face.is_monospaced());
+        flags.set(FontFaceFlags::HAS_LIGATURES, has_ligatures);
+        flags.set(FontFaceFlags::HAS_RASTER_IMAGES, has_raster_images);
+        flags.set(FontFaceFlags::HAS_SVG_IMAGES, ttf_face.tables().svg.is_some());
+
         Ok(FontFace(Arc::new(LoadedFontFace {
             face_index,
             display_name: custom_font.name.clone(),
@@ -1039,11 +1057,9 @@ impl FontFace {
             style: custom_font.style,
             weight: custom_font.weight,
             stretch: custom_font.stretch,
-            is_monospace: ttf_face.is_monospaced(),
             metrics: ttf_face.into(),
             color_palettes,
             color_glyphs,
-            has_ligatures,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1051,6 +1067,7 @@ impl FontFace {
                 unregistered: Default::default(),
             }),
             data: bytes,
+            flags,
         })))
     }
 
@@ -1125,6 +1142,18 @@ impl FontFace {
             return Err(FontLoadingError::UnknownFormat);
         }
 
+        // all tables used by `ttf_parser::Face::glyph_raster_image`
+        let has_raster_images = {
+            let t = ttf_face.tables();
+            t.sbix.is_some() || t.bdat.is_some() || t.ebdt.is_some() || t.cbdt.is_some()
+        };
+
+        let mut flags = FontFaceFlags::empty();
+        flags.set(FontFaceFlags::IS_MONOSPACE, ttf_face.is_monospaced());
+        flags.set(FontFaceFlags::HAS_LIGATURES, has_ligatures);
+        flags.set(FontFaceFlags::HAS_RASTER_IMAGES, has_raster_images);
+        flags.set(FontFaceFlags::HAS_SVG_IMAGES, ttf_face.tables().svg.is_some());
+
         Ok(FontFace(Arc::new(LoadedFontFace {
             face_index,
             family_name,
@@ -1133,11 +1162,9 @@ impl FontFace {
             style: ttf_face.style().into(),
             weight: ttf_face.weight().into(),
             stretch: ttf_face.width().into(),
-            is_monospace: ttf_face.is_monospaced(),
             metrics: ttf_face.into(),
             color_palettes,
             color_glyphs,
-            has_ligatures,
             lig_carets,
             m: Mutex::new(FontFaceMut {
                 instances: Default::default(),
@@ -1145,6 +1172,7 @@ impl FontFace {
                 unregistered: Default::default(),
             }),
             data: bytes,
+            flags,
         })))
     }
 
@@ -1177,7 +1205,7 @@ impl FontFace {
 
     /// Loads the harfbuzz face.
     ///
-    /// Loads from the cached [`bytes`].
+    /// Loads from in memory [`bytes`].
     ///
     /// Returns `None` if [`is_empty`].
     ///
@@ -1191,9 +1219,29 @@ impl FontFace {
         }
     }
 
+    /// Loads the full TTF face.
+    ///
+    /// Loads from in memory [`bytes`].
+    ///
+    /// Returns `None` if [`is_empty`].
+    ///
+    /// [`is_empty`]: Self::is_empty
+    /// [`bytes`]: Self::bytes
+    pub fn ttf(&self) -> Option<ttf_parser::Face> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(ttf_parser::Face::parse(&self.0.data.0, self.0.face_index).unwrap())
+        }
+    }
+
     /// Reference the font file bytes.
     pub fn bytes(&self) -> &FontDataRef {
         &self.0.data
+    }
+    /// Index of the font face in the [font file](Self::bytes).
+    pub fn index(&self) -> u32 {
+        self.0.face_index
     }
 
     /// Font full name.
@@ -1209,11 +1257,6 @@ impl FontFace {
     /// Font globally unique name.
     pub fn postscript_name(&self) -> Option<&str> {
         self.0.postscript_name.as_deref()
-    }
-
-    /// Index of the font face in the [font file](Self::bytes).
-    pub fn index(&self) -> u32 {
-        self.0.face_index
     }
 
     /// Font style.
@@ -1233,7 +1276,7 @@ impl FontFace {
 
     /// Font is monospace (fixed-width).
     pub fn is_monospace(&self) -> bool {
-        self.0.is_monospace
+        self.0.flags.contains(FontFaceFlags::IS_MONOSPACE)
     }
 
     /// Font metrics in font units.
@@ -1303,7 +1346,7 @@ impl FontFace {
 
     /// If the font provides glyph substitutions.
     pub fn has_ligatures(&self) -> bool {
-        self.0.has_ligatures
+        self.0.flags.contains(FontFaceFlags::HAS_LIGATURES)
     }
 
     /// If this font provides custom positioned carets for some or all ligature glyphs.
@@ -1312,6 +1355,16 @@ impl FontFace {
     /// it always returns empty.
     pub fn has_ligature_caret_offsets(&self) -> bool {
         !self.0.lig_carets.is_empty()
+    }
+
+    /// If this font has bitmap images associated with some glyphs.
+    pub fn has_raster_images(&self) -> bool {
+        self.0.flags.contains(FontFaceFlags::HAS_RASTER_IMAGES)
+    }
+
+    /// If this font has SVG images associated with some glyphs.
+    pub fn has_svg_images(&self) -> bool {
+        self.0.flags.contains(FontFaceFlags::HAS_SVG_IMAGES)
     }
 }
 
