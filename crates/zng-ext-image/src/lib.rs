@@ -208,20 +208,21 @@ impl AppExtension for ImageManager {
         // update loading tasks:
 
         let mut images = IMAGES_SV.write();
-        let images = &mut *images;
-        let decoding = &mut images.decoding;
         let mut loading = Vec::with_capacity(images.loading.len());
+        let loading_tasks = mem::take(&mut images.loading);
+        let mut proxies = mem::take(&mut images.proxies);
+        drop(images); // proxies can use IMAGES
 
-        'loading_tasks: for t in mem::take(&mut images.loading) {
+        'loading_tasks: for t in loading_tasks {
             t.task.lock().update();
             match t.task.into_inner().into_result() {
                 Ok(d) => {
                     match d.r {
                         Ok(data) => {
                             if let Some((key, mode)) = &t.is_data_proxy_source {
-                                for proxy in &mut images.proxies {
+                                for proxy in &mut proxies {
                                     if proxy.is_data_proxy() {
-                                        if let Some(replaced) = proxy.data(key, &data, &d.format, *mode, t.downscale, t.mask) {
+                                        if let Some(replaced) = proxy.data(key, &data, &d.format, *mode, t.downscale, t.mask, true) {
                                             replaced.set_bind(&t.image).perm();
                                             t.image.hold(replaced).perm();
                                             continue 'loading_tasks;
@@ -251,7 +252,7 @@ impl AppExtension for ImageManager {
                                         // will recover in ViewProcessInitedEvent
                                     }
                                 }
-                                decoding.push(ImageDecodingTask {
+                                IMAGES_SV.write().decoding.push(ImageDecodingTask {
                                     format: d.format,
                                     data,
                                     image: t.image,
@@ -278,7 +279,7 @@ impl AppExtension for ImageManager {
 
                             // flag error for user retry
                             if let Some(k) = &t.image.with(|img| img.cache_key) {
-                                if let Some(e) = images.cache.get(k) {
+                                if let Some(e) = IMAGES_SV.read().cache.get(k) {
                                     e.error.store(true, Ordering::Relaxed);
                                 }
                             }
@@ -297,7 +298,9 @@ impl AppExtension for ImageManager {
                 }
             }
         }
+        let mut images = IMAGES_SV.write();
         images.loading = loading;
+        images.proxies = proxies;
     }
 
     fn update(&mut self) {
@@ -931,11 +934,14 @@ impl IMAGES {
     /// This method returns immediately with a loading [`ImageVar`], when `source` is ready it
     /// is used to get the actual [`ImageVar`] and binds it to the returned image.
     ///
+    /// Note that the `cache_mode` always applies to the inner image, and only to the return image if `cache_key` is set.
+    ///
     /// [`IMAGES.limits`]: IMAGES::limits
     pub fn image_task<F>(
         &self,
         source: impl IntoFuture<IntoFuture = F>,
         cache_mode: impl Into<ImageCacheMode>,
+        cache_key: Option<ImageHash>,
         limits: Option<ImageLimits>,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
@@ -944,8 +950,28 @@ impl IMAGES {
         F: Future<Output = ImageSource> + Send + 'static,
     {
         let cache_mode = cache_mode.into();
+
+        if let Some(key) = cache_key {
+            match cache_mode {
+                ImageCacheMode::Cache => {
+                    if let Some(v) = IMAGES_SV.read().cache.get(&key) {
+                        return v.image.read_only();
+                    }
+                }
+                ImageCacheMode::Retry => {
+                    if let Some(e) = IMAGES_SV.read().cache.get(&key) {
+                        if !e.error.load(Ordering::Relaxed) {
+                            return e.image.read_only();
+                        }
+                    }
+                }
+                ImageCacheMode::Ignore | ImageCacheMode::Reload => {}
+            }
+        }
+
         let source = source.into_future();
-        let img = var(Img::new_none(None));
+        let img = var(Img::new_none(cache_key));
+
         task::spawn(async_clmv!(img, {
             let source = source.await;
             let actual_img = IMAGES.image(source, cache_mode, limits, downscale, mask);

@@ -43,8 +43,8 @@ pub trait ImageCacheProxy: Send + Sync {
         mask: Option<ImageMaskMode>,
     ) -> ProxyGetResult {
         let r = match source {
-            ImageSource::Static(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask),
-            ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask),
+            ImageSource::Static(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
+            ImageSource::Data(_, data, image_format) => self.data(key, data, image_format, mode, downscale, mask, false),
             _ => return ProxyGetResult::None,
         };
         match r {
@@ -57,11 +57,16 @@ pub trait ImageCacheProxy: Send + Sync {
     ///
     /// If [`is_data_proxy`] also intercept the [`Read`] or [`Download`] data.
     ///
+    /// If `is_loaded` is `true` the data was read or downloaded and the return var will be bound to an existing var that may already be cached.
+    /// If it is `false` the data was already loaded on the source and the return var will be returned directly, without caching.
+    ///
+    ///
     /// [`Data`]: ImageSource::Data
     /// [`Static`]: ImageSource::Static
     /// [`is_data_proxy`]: ImageCacheProxy::is_data_proxy
     /// [`Read`]: ImageSource::Read
     /// [`Download`]: ImageSource::Download
+    #[allow(clippy::too_many_arguments)]
     fn data(
         &mut self,
         key: &ImageHash,
@@ -70,8 +75,9 @@ pub trait ImageCacheProxy: Send + Sync {
         mode: ImageCacheMode,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
+        is_loaded: bool,
     ) -> Option<ImageVar> {
-        let _ = (key, data, image_format, mode, downscale, mask);
+        let _ = (key, data, image_format, mode, downscale, mask, is_loaded);
         None
     }
 

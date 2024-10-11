@@ -34,12 +34,13 @@ pub struct SvgRenderCache {}
 impl ImageCacheProxy for SvgRenderCache {
     fn data(
         &mut self,
-        _: &ImageHash,
+        key: &ImageHash,
         data: &[u8],
         format: &ImageDataFormat,
         mode: ImageCacheMode,
         downscale: Option<ImageDownscale>,
         mask: Option<ImageMaskMode>,
+        is_loaded: bool,
     ) -> Option<ImageVar> {
         let data = match format {
             ImageDataFormat::FileExtension(txt) if txt == "svg" || txt == "svgz" => SvgData::Raw(data.to_vec()),
@@ -47,8 +48,12 @@ impl ImageCacheProxy for SvgRenderCache {
             ImageDataFormat::Unknown => SvgData::Str(svg_data_from_unknown(data)?),
             _ => return None,
         };
-
-        Some(IMAGES.image_task(async move { load(data, downscale) }, mode, None, None, mask))
+        let key = if is_loaded {
+            None // already cached, return image is internal
+        } else {
+            Some(*key)
+        };
+        Some(IMAGES.image_task(async move { load(data, downscale) }, mode, key, None, None, mask))
     }
 
     fn is_data_proxy(&self) -> bool {
