@@ -5,7 +5,7 @@ use std::{
 };
 
 use zng_app::widget::info::InlineSegmentInfo;
-use zng_ext_image::ImageVar;
+use zng_ext_image::{ImageVar, IMAGES};
 use zng_ext_l10n::{lang, Lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
@@ -2215,8 +2215,18 @@ impl ShapedTextBuilder {
                         self.out.has_colored_glyphs = true;
                     }
                     if font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()) {
-                        let _ttf = font.face().ttf();
-                        println!("!!: TODO SEARCH IMAGE");
+                        if let Some(ttf) = font.face().ttf() {
+                            for g in shaped_seg.glyphs.iter() {
+                                let id = ttf_parser::GlyphId(g.index as _);
+                                if let Some(_img) = ttf.glyph_raster_image(id, 96) {
+                                    let _ = IMAGES; // !!: TODO
+                                } else if cfg!(feature = "svg") {
+                                    if let Some(_img) = ttf.glyph_svg_image(id) {
+                                        let _ = IMAGES;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
