@@ -10,7 +10,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.12.2", features = ["view_prebuilt"] }
+zng = { version = "0.12.3", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 31 feature flags, 4 enabled by default.
+This crate provides 32 feature flags, 4 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -79,6 +79,9 @@ Enables HTTP tasks and web features of widgets and services.
 Enable the `"dyn_*"`, `"inspector"` features in debug builds.
 
 *Enabled by default.*
+
+#### `"svg"`
+Enable SVG images support.
 
 #### `"dyn_node"`
 Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.

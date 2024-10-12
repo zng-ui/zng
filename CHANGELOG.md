@@ -1,8 +1,12 @@
-# Unreleased
+# Unrelease
 
 * Implement support for raster and svg emojis.
 * Add `FontFace::ttf` to quickly access the full parsed TTF data.
 * Add `has_raster_images` and `has_svg_images` method to `FontFace` and `ShapedText`.
+
+# 0.12.3
+
+* Fix close button icon in Wayland instances without any close icon available
 * Add `IMAGES.image_task` to load async image sources.
 * Implement support for SVG images.
     - Add `zng-ext-svg`.
