@@ -32,20 +32,21 @@ pub fn fallback_chrome() -> impl UiNode {
                         if ico.is_nil() {
                             // fallback to Unicode symbol
                             let cmd = cmd.scoped(zng_app::event::CommandScope::App);
-                            let (symbol, size) = if cmd == RESTORE_CMD {
-                                ("🗗", 9)
+                            let (symbol, size, padding_top) = if cmd == RESTORE_CMD {
+                                ("🗗", 9, 0)
                             } else if cmd == MINIMIZE_CMD {
-                                ("🗕", 9)
+                                ("🗕", 9, 0)
                             } else if cmd == MAXIMIZE_CMD {
-                                ("🗖", 9)
+                                ("🗖", 9, 0)
                             } else if cmd == CLOSE_CMD {
-                                ("🗙", 14)
+                                ("🗙", 12, -5)
                             } else {
                                 unreachable!("{cmd:?} what")
                             };
                             Text! {
                                 font_family = "Noto Sans Symbols 2";
                                 font_size = size.pt();
+                                padding = (padding_top, 0, 0, 0);
                                 txt = symbol;
                             }.boxed()
                         } else {
