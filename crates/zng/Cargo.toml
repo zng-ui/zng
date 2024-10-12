@@ -267,7 +267,7 @@ tracing = "0.1"
 zng-view-api = { path = "../zng-view-api", version = "0.10.1", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-zng-view = { path = "../zng-view", version = "0.5.1", default-features = false, optional = true }
+zng-view = { path = "../zng-view", version = "0.6.0", default-features = false, optional = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
 zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.12.3", optional = true }
