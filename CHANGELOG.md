@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix close button icon in Wayland instances without any close icon available.
 * Add `IMAGES.image_task` to load async image sources.
 * Implement support for SVG images.
     - Add `zng-ext-svg`.
