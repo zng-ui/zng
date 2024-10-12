@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-rule-line"
-version = "0.3.27"
+version = "0.3.28"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -14,4 +14,4 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.5.1" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.35" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.17" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.18" }

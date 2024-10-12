@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-scroll"
-version = "0.4.26"
+version = "0.4.27"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -26,11 +26,11 @@ zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.35" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.35" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.35" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.15" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.36" }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.26" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.37" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.27" }
 zng-app = { path = "../zng-app", version = "0.13.1" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.3.25" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.24" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.3.26" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.25" }
 zng-var = { path = "../zng-var", version = "0.5.6" }
 zng-color = { path = "../zng-color", version = "0.3.12" }
 
