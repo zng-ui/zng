@@ -1,4 +1,4 @@
-# Unrelease
+# Unreleased
 
 * Implement support for raster and svg emojis.
 * Add `FontFace::ttf` to quickly access the full parsed TTF data.
