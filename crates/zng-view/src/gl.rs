@@ -624,6 +624,7 @@ impl GlContext {
                 let h = size.height.max(1);
                 context.init_default_framebuffer(0, 0, w as i32, h as i32, 0, std::ptr::null_mut());
                 if let Some((_, surface)) = blit {
+                    println!("!!: HERE {:?}", (w, h));
                     surface.resize(NonZeroU32::new(w).unwrap(), NonZeroU32::new(h).unwrap()).unwrap();
                 }
             }
@@ -672,6 +673,7 @@ impl GlContext {
                     assert!(stride == w * 4);
                     let frame = unsafe { std::slice::from_raw_parts(data_ptr as *const u8, w as usize * h as usize * 4) };
 
+                    println!("!!: HERE!");
                     let mut buffer = blit_surface.buffer_mut().unwrap();
                     for (argb, bgra) in buffer.iter_mut().zip(frame.chunks_exact(4)) {
                         let blue = bgra[0] as u32;
@@ -679,6 +681,8 @@ impl GlContext {
                         let red = bgra[2] as u32;
                         *argb = blue | (green << 8) | (red << 16);
                     }
+
+                    buffer.present().unwrap();
                 }
             }
             GlBackend::Dropped => unreachable!(),
