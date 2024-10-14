@@ -351,16 +351,16 @@ impl GlContextManager {
 
         #[cfg(feature = "software")]
         {
-            if !blit::Impl::supported() {
-                return Err("zng-view does not fully implement headed \"software\" backend on target OS (missing blit)".into());
-            }
-
             let window = match window {
                 GlWindowCreation::Before(w) => w,
                 GlWindowCreation::After(w) => event_loop.create_window(w)?,
             };
 
-            let blit = blit::Impl::new(&window);
+            // SAFETY: softbuffer context is managed like gl context, it is dropped before the window is dropped.
+            let static_window_ref = unsafe { mem::transmute::<&winit::window::Window, &'static winit::window::Window>(&window) };
+            let blit_context = softbuffer::Context::new(static_window_ref)?;
+            let blit_surface = softbuffer::Surface::new(&blit_context, static_window_ref)?;
+
             let context = swgl::Context::create();
             let gl = Rc::new(context);
 
@@ -371,7 +371,10 @@ impl GlContextManager {
             let context = GlContext {
                 id,
                 current: self.current.clone(),
-                backend: GlBackend::Swgl { context, blit: Some(blit) },
+                backend: GlBackend::Swgl {
+                    context,
+                    blit: Some((blit_context, blit_surface)),
+                },
                 gl,
                 render_mode: RenderMode::Software,
             };
@@ -544,7 +547,10 @@ enum GlBackend {
     Swgl {
         context: swgl::Context,
         // is None for headless.
-        blit: Option<blit::Impl>,
+        blit: Option<(
+            softbuffer::Context<&'static winit::window::Window>,
+            softbuffer::Surface<&'static winit::window::Window, &'static winit::window::Window>,
+        )>,
     },
 
     Dropped,
@@ -597,7 +603,7 @@ impl GlContext {
     pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
         assert!(self.is_current());
 
-        match &self.backend {
+        match &mut self.backend {
             GlBackend::Glutin {
                 context,
                 surface,
@@ -612,9 +618,14 @@ impl GlContext {
                 }
             }
             #[cfg(feature = "software")]
-            GlBackend::Swgl { context, .. } => {
+            GlBackend::Swgl { context, blit } => {
                 // NULL means SWGL manages the buffer, it also retains the buffer if the size did not change.
-                context.init_default_framebuffer(0, 0, size.width.max(1) as i32, size.height.max(1) as i32, 0, std::ptr::null_mut());
+                let w = size.width.max(1);
+                let h = size.height.max(1);
+                context.init_default_framebuffer(0, 0, w as i32, h as i32, 0, std::ptr::null_mut());
+                if let Some((_, surface)) = blit {
+                    surface.resize(NonZeroU32::new(w).unwrap(), NonZeroU32::new(h).unwrap()).unwrap();
+                }
             }
             GlBackend::Dropped => unreachable!(),
         }
@@ -649,7 +660,7 @@ impl GlContext {
             }
             #[cfg(feature = "software")]
             GlBackend::Swgl { context, blit } => {
-                if let Some(headed) = blit {
+                if let Some((_, blit_surface)) = blit {
                     gl::Gl::finish(context);
                     let (data_ptr, w, h, stride) = context.get_color_buffer(0, true);
 
@@ -661,7 +672,13 @@ impl GlContext {
                     assert!(stride == w * 4);
                     let frame = unsafe { std::slice::from_raw_parts(data_ptr as *const u8, w as usize * h as usize * 4) };
 
-                    headed.blit(w, h, frame);
+                    let mut buffer = blit_surface.buffer_mut().unwrap();
+                    for (argb, bgra) in buffer.iter_mut().zip(frame.chunks_exact(4)) {
+                        let blue = bgra[0] as u32;
+                        let green = bgra[1] as u32;
+                        let red = bgra[2] as u32;
+                        *argb = blue | (green << 8) | (red << 16);
+                    }
                 }
             }
             GlBackend::Dropped => unreachable!(),
@@ -790,360 +807,6 @@ impl TryConfig {
                 RenderMode::Dedicated => unreachable!(),
             },
             None => "Dedicated (generic)",
-        }
-    }
-}
-
-#[cfg(feature = "software")]
-mod blit {
-    /// Bottom-top BGRA8.
-    pub type Bgra8 = [u8];
-
-    #[cfg(not(any(
-        windows,
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-    )))]
-    pub type Impl = NotImplementedBlit;
-
-    #[cfg(windows)]
-    pub type Impl = windows_blit::GdiBlit;
-
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-    ))]
-    pub type Impl = linux_blit::XLibOrWaylandBlit;
-
-    #[allow(unused)]
-    pub struct NotImplementedBlit {}
-    #[allow(unused)]
-    impl NotImplementedBlit {
-        pub fn new(_window: &winit::window::Window) -> Self {
-            NotImplementedBlit {}
-        }
-
-        pub fn supported() -> bool {
-            false
-        }
-
-        pub fn blit(&mut self, _width: i32, _height: i32, _frame: &Bgra8) {
-            panic!("Software blit not implemented on this OS");
-        }
-    }
-
-    #[cfg(windows)]
-    mod windows_blit {
-        use raw_window_handle::HasWindowHandle as _;
-        use windows_sys::Win32::Foundation::HWND;
-        use windows_sys::Win32::Graphics::Gdi::*;
-
-        pub struct GdiBlit {
-            hwnd: HWND,
-        }
-
-        impl GdiBlit {
-            pub fn new(window: &winit::window::Window) -> Self {
-                match window.window_handle().unwrap().as_raw() {
-                    raw_window_handle::RawWindowHandle::Win32(h) => GdiBlit { hwnd: h.hwnd.get() as _ },
-                    _ => unreachable!(),
-                }
-            }
-
-            pub fn supported() -> bool {
-                true
-            }
-
-            pub fn blit(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
-                // SAFETY: its a simple operation, and we try to cleanup before panic.
-                unsafe { self.blit_unsafe(width, height, frame) }
-            }
-
-            unsafe fn blit_unsafe(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
-                // not BeginPaint because winit calls DefWindowProcW?
-
-                let hdc = GetDC(self.hwnd);
-
-                let mem_dc = CreateCompatibleDC(hdc);
-                let mem_bm = CreateCompatibleBitmap(hdc, width, height);
-
-                let bmi = BITMAPINFO {
-                    bmiHeader: BITMAPINFOHEADER {
-                        biSize: std::mem::size_of::<BITMAPINFO>() as u32,
-                        biWidth: width,
-                        biHeight: height,
-                        biPlanes: 1,
-                        biBitCount: 32,
-                        biCompression: 0,
-                        biSizeImage: 0,
-                        biXPelsPerMeter: 0,
-                        biYPelsPerMeter: 0,
-                        biClrUsed: 0,
-                        biClrImportant: 0,
-                    },
-                    bmiColors: [RGBQUAD {
-                        rgbBlue: 0,
-                        rgbGreen: 0,
-                        rgbRed: 0,
-                        rgbReserved: 0,
-                    }],
-                };
-                let old_bm = SelectObject(mem_dc, mem_bm);
-
-                StretchDIBits(
-                    mem_dc,
-                    0,
-                    0,
-                    width,
-                    height,
-                    0,
-                    0,
-                    width,
-                    height,
-                    frame.as_ptr() as *const _,
-                    &bmi as *const _,
-                    0,
-                    SRCCOPY,
-                );
-                BitBlt(hdc, 0, 0, width, height, mem_dc, 0, 0, SRCCOPY);
-
-                SelectObject(mem_dc, old_bm);
-                ReleaseDC(self.hwnd, hdc);
-            }
-        }
-    }
-
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-    ))]
-    mod linux_blit {
-        use std::{
-            fs::File,
-            io::{Seek, Write},
-            os::fd::AsFd,
-        };
-
-        use raw_window_handle::{RawWindowHandle, *};
-        use wayland_client::protocol::{
-            wl_display::WlDisplay,
-            wl_shm::{self, WlShm},
-            wl_surface::WlSurface,
-        };
-        use x11_dl::xlib::{GCGraphicsExposures, TrueColor, XGCValues, XVisualInfo, Xlib, ZPixmap, _XDisplay};
-
-        pub enum XLibOrWaylandBlit {
-            XLib { xlib: Xlib, display: *mut _XDisplay, window: u64 },
-            Wayland { surface: *const WlSurface, data: WaylandData },
-        }
-
-        pub struct WaylandData {
-            pool: wayland_client::protocol::wl_shm_pool::WlShmPool,
-            buf: wayland_client::protocol::wl_buffer::WlBuffer,
-            file: File,
-            width: u32,
-            height: u32,
-            file_size: u32,
-        }
-
-        struct WaylandNoOp;
-        impl wayland_client::Dispatch<wayland_client::protocol::wl_registry::WlRegistry, ()> for WaylandNoOp {
-            fn event(
-                _: &mut Self,
-                _: &wayland_client::protocol::wl_registry::WlRegistry,
-                _: wayland_client::protocol::wl_registry::Event,
-                _: &(),
-                _: &wayland_client::Connection,
-                _: &wayland_client::QueueHandle<WaylandNoOp>,
-            ) {
-            }
-        }
-        impl wayland_client::Dispatch<wayland_client::protocol::wl_buffer::WlBuffer, ()> for WaylandNoOp {
-            fn event(
-                _: &mut Self,
-                _: &wayland_client::protocol::wl_buffer::WlBuffer,
-                _: wayland_client::protocol::wl_buffer::Event,
-                _: &(),
-                _: &wayland_client::Connection,
-                _: &wayland_client::QueueHandle<WaylandNoOp>,
-            ) {
-            }
-        }
-        impl wayland_client::Dispatch<wayland_client::protocol::wl_shm::WlShm, ()> for WaylandNoOp {
-            fn event(
-                _: &mut Self,
-                _: &wayland_client::protocol::wl_shm::WlShm,
-                _: wayland_client::protocol::wl_shm::Event,
-                _: &(),
-                _: &wayland_client::Connection,
-                _: &wayland_client::QueueHandle<WaylandNoOp>,
-            ) {
-            }
-        }
-        impl wayland_client::Dispatch<wayland_client::protocol::wl_shm_pool::WlShmPool, ()> for WaylandNoOp {
-            fn event(
-                _: &mut Self,
-                _: &wayland_client::protocol::wl_shm_pool::WlShmPool,
-                _: wayland_client::protocol::wl_shm_pool::Event,
-                _: &(),
-                _: &wayland_client::Connection,
-                _: &wayland_client::QueueHandle<WaylandNoOp>,
-            ) {
-            }
-        }
-
-        impl XLibOrWaylandBlit {
-            pub fn new(window: &winit::window::Window) -> Self {
-                if let (RawDisplayHandle::Xlib(d), RawWindowHandle::Xlib(w)) =
-                    (window.display_handle().unwrap().as_raw(), window.window_handle().unwrap().as_raw())
-                {
-                    Self::XLib {
-                        xlib: Xlib::open().unwrap(),
-                        display: d.display.unwrap().as_ptr() as _,
-                        window: w.window as _,
-                    }
-                } else if let (RawDisplayHandle::Wayland(d), RawWindowHandle::Wayland(w)) =
-                    (window.display_handle().unwrap().as_raw(), window.window_handle().unwrap().as_raw())
-                {
-                    let conn = wayland_client::Connection::connect_to_env().unwrap();
-
-                    let event_queue = conn.new_event_queue::<WaylandNoOp>();
-                    let qhandle = event_queue.handle();
-
-                    let display: *const WlDisplay = d.display.as_ptr() as _;
-                    let display = unsafe { &*display };
-                    let shm: WlShm = display.get_registry(&qhandle, ()).bind(1, 0, &qhandle, ());
-                    let file = tempfile::tempfile().expect("cannot create file for wayland blit");
-                    let size = window.inner_size();
-                    let file_size = size.width * size.height * 4;
-                    let pool = shm.create_pool(file.as_fd(), file_size as _, &qhandle, ());
-
-                    let buf = pool.create_buffer(
-                        0,
-                        size.width as _,
-                        size.height as _,
-                        (size.width * 4) as _,
-                        wl_shm::Format::Bgra8888,
-                        &qhandle,
-                        (),
-                    );
-
-                    Self::Wayland {
-                        surface: w.surface.as_ptr() as _,
-                        data: WaylandData {
-                            pool,
-                            buf,
-                            file,
-                            width: size.width,
-                            height: size.height,
-                            file_size,
-                        },
-                    }
-                } else {
-                    panic!("window does not use XLib nor Wayland");
-                }
-            }
-
-            pub fn supported() -> bool {
-                true
-            }
-
-            pub fn blit(&mut self, width: i32, height: i32, frame: &super::Bgra8) {
-                match self {
-                    XLibOrWaylandBlit::XLib { xlib, display, window } => unsafe {
-                        Self::xlib_blit(xlib, *display, *window, width as _, height as _, frame)
-                    },
-                    XLibOrWaylandBlit::Wayland { surface, data } => unsafe { Self::wayland_blit(&**surface, data, width, height, frame) },
-                }
-            }
-
-            unsafe fn xlib_blit(xlib: &Xlib, display: *mut _XDisplay, window: u64, width: u32, height: u32, frame: &super::Bgra8) {
-                let screen = (xlib.XDefaultScreen)(display);
-
-                let mut info: XVisualInfo = std::mem::zeroed();
-                if (xlib.XMatchVisualInfo)(display, screen, 32, TrueColor, &mut info) == 0 {
-                    panic!("no compatible xlib visual")
-                }
-
-                let mut top_down_frame = Vec::with_capacity(frame.len());
-                let line_len = width as usize * 4;
-                for line in frame.chunks_exact(line_len).rev() {
-                    top_down_frame.extend_from_slice(line);
-                }
-                let frame = top_down_frame.as_ptr();
-
-                let mut opts: XGCValues = std::mem::zeroed();
-                opts.graphics_exposures = 0;
-                let ctx = (xlib.XCreateGC)(display, window, GCGraphicsExposures as _, &mut opts);
-
-                let img = (xlib.XCreateImage)(
-                    display,
-                    info.visual,
-                    32,
-                    ZPixmap,
-                    0,
-                    frame as _,
-                    width as _,
-                    height as _,
-                    8,
-                    line_len as i32,
-                );
-
-                (xlib.XPutImage)(display, window, ctx, img, 0, 0, 0, 0, width, height);
-
-                (xlib.XFreeGC)(display, ctx);
-                // (xlib.XDestroyImage)(img);
-            }
-
-            unsafe fn wayland_blit(surface: &WlSurface, data: &mut WaylandData, width: i32, height: i32, frame: &super::Bgra8) {
-                data.file.rewind().unwrap();
-                data.file.write_all(frame).unwrap();
-                data.file.flush().unwrap();
-
-                let width = width as u32;
-                let height = height as u32;
-
-                if width != data.width || height != data.height {
-                    let new_file_size = width * height * 4;
-                    if new_file_size > data.file_size {
-                        data.file_size = new_file_size;
-                        data.pool.resize(data.file_size as i32);
-                    }
-
-                    data.width = width;
-                    data.height = height;
-
-                    data.buf.destroy();
-
-                    let conn = wayland_client::Connection::connect_to_env().unwrap();
-
-                    let event_queue = conn.new_event_queue::<WaylandNoOp>();
-                    let qhandle = event_queue.handle();
-
-                    data.buf = data.pool.create_buffer(
-                        0,
-                        width as i32,
-                        height as i32,
-                        (width * 4) as i32,
-                        wl_shm::Format::Bgra8888,
-                        &qhandle,
-                        (),
-                    );
-
-                    surface.attach(Some(&data.buf), 0, 0);
-                }
-
-                surface.commit();
-            }
         }
     }
 }
