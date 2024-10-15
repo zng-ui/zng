@@ -9,7 +9,7 @@ use zng_app::{
     },
 };
 use zng_color::Rgba;
-use zng_ext_font::{Font, ShapedColoredGlyphs};
+use zng_ext_font::{Font, ShapedColoredGlyphs, ShapedImageGlyphs};
 use zng_ext_input::focus::FOCUS_CHANGED_EVENT;
 use zng_layout::{
     context::LAYOUT,
@@ -294,7 +294,58 @@ pub fn render_text() -> impl UiNode {
 
             frame.push_reuse(&mut reuse, |frame| {
                 if t.shaped_text.has_images() {
-                    println!("!!: TODO, IMAGE FONT");
+                    let mut push_img_glyphs = |font: &Font, glyphs, offset: Option<euclid::Vector2D<f32, Px>>| match glyphs {
+                        ShapedImageGlyphs::Normal(glyphs) => {
+                            if let Some(offset) = offset {
+                                let mut glyphs = glyphs.to_vec();
+                                for g in &mut glyphs {
+                                    g.point.x += offset.x;
+                                    g.point.y += offset.y;
+                                }
+                                frame.push_text(clip, &glyphs, font, color_value, r.synthesis, aa);
+                            } else {
+                                frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
+                            }
+                        }
+                        ShapedImageGlyphs::Image { point, img, .. } => {
+                            let is_loading = img.img().with(|i| {
+                                if i.is_loaded() {
+                                    let size = img.size().unwrap_or_else(|| i.size());
+                                    let clip = PxRect::new(clip.origin + point.cast::<Px>().to_vector(), size);
+                                    println!("!!: PUSH IMAGE {clip:?}");
+                                    frame.push_image(clip, size, size, PxSize::zero(), i, zng_view_api::ImageRendering::Auto);
+                                }
+                                i.is_loading()
+                            });
+                            if is_loading {
+                                println!("!!: TODO ONLY SUBSCRIBE ONCE");
+                                img.img().subscribe(UpdateOp::Render, WIDGET.id()).perm();
+                            }
+                        }
+                    };
+
+                    match (&t.overflow, TEXT_OVERFLOW_VAR.get(), TEXT_EDITABLE_VAR.get()) {
+                        (Some(o), TextOverflow::Truncate(_), false) => {
+                            for glyphs in &o.included_glyphs {
+                                for (font, glyphs) in t.shaped_text.image_glyphs_slice(glyphs.clone()) {
+                                    push_img_glyphs(font, glyphs, None)
+                                }
+                            }
+
+                            if let Some(suf) = &t.overflow_suffix {
+                                let suf_offset = o.suffix_origin.to_vector().cast_unit();
+                                for (font, glyphs) in suf.image_glyphs() {
+                                    push_img_glyphs(font, glyphs, Some(suf_offset))
+                                }
+                            }
+                        }
+                        _ => {
+                            // no overflow truncating
+                            for (font, glyphs) in t.shaped_text.image_glyphs() {
+                                push_img_glyphs(font, glyphs, None)
+                            }
+                        }
+                    }
                 } else if t.shaped_text.has_colored_glyphs() || t.overflow_suffix.as_ref().map(|o| o.has_colored_glyphs()).unwrap_or(false)
                 {
                     let palette_query = FONT_PALETTE_VAR.get();
