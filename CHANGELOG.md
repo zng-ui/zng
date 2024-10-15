@@ -3,6 +3,8 @@
 * Implement support for raster and svg emojis.
 * Add `FontFace::ttf` to quickly access the full parsed TTF data.
 * Add `has_raster_images` and `has_svg_images` method to `FontFace` and `ShapedText`.
+* Add software render in macOS.
+* Fix software render in Wayland.
 
 # 0.12.3
 

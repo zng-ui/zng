@@ -25,7 +25,7 @@ ipc = ["zng-view-api/ipc"]
 # Enables software renderer fallback.
 #
 # If enabled and a native OpenGL 3.2 driver is not available the `swgl` software renderer is used.
-software = ["dep:swgl"]
+software = ["dep:swgl", "dep:softbuffer"]
 
 # Bundle third party licenses.
 #
@@ -163,6 +163,9 @@ parking_lot = "0.12"
 ndk = { version = "0.9.0", default-features = false }
 ndk-context = "0.1.1"
 jni = "0.21"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+softbuffer = { version = "0.4", optional = true }
 
 [build-dependencies]
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.8", features = [
