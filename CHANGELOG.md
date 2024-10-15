@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add software render in macOS.
 * Fix software render in Wayland.
 
 # 0.12.3
