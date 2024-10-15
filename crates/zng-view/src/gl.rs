@@ -349,7 +349,13 @@ impl GlContextManager {
             return Err("zng-view not build with \"software\" backend".into());
         }
 
-        #[cfg(feature = "software")]
+        #[cfg(target_os = "android")]
+        {
+            let _ = (id, window);
+            return Err("software blit not implemented for Android".into());
+        }
+
+        #[cfg(all(feature = "software", not(target_os = "android")))]
         {
             let window = match window {
                 GlWindowCreation::Before(w) => w,

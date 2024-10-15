@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix software render in Wayland.
 
 # 0.12.3
 
