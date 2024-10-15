@@ -553,10 +553,13 @@ enum GlBackend {
     Swgl {
         context: swgl::Context,
         // is None for headless.
+        #[cfg(not(target_os = "android"))]
         blit: Option<(
             softbuffer::Context<&'static winit::window::Window>,
             softbuffer::Surface<&'static winit::window::Window, &'static winit::window::Window>,
         )>,
+        #[cfg(target_os = "android")]
+        blit: Option<((), ())>,
     },
 
     Dropped,
@@ -629,9 +632,14 @@ impl GlContext {
                 let w = size.width.max(1);
                 let h = size.height.max(1);
                 context.init_default_framebuffer(0, 0, w as i32, h as i32, 0, std::ptr::null_mut());
+
+                #[cfg(not(target_os = "android"))]
                 if let Some((_, surface)) = blit {
                     surface.resize(NonZeroU32::new(w).unwrap(), NonZeroU32::new(h).unwrap()).unwrap();
                 }
+
+                #[cfg(target_os = "android")]
+                let _ = blit;
             }
             GlBackend::Dropped => unreachable!(),
         }
@@ -666,6 +674,10 @@ impl GlContext {
             }
             #[cfg(feature = "software")]
             GlBackend::Swgl { context, blit } => {
+                #[cfg(target_os = "android")]
+                let _ = (context, blit);
+
+                #[cfg(not(target_os = "android"))]
                 if let Some((_, blit_surface)) = blit {
                     gl::Gl::finish(context);
                     let (data_ptr, w, h, stride) = context.get_color_buffer(0, true);
@@ -684,7 +696,8 @@ impl GlContext {
                         let blue = bgra[0] as u32;
                         let green = bgra[1] as u32;
                         let red = bgra[2] as u32;
-                        *argb = blue | (green << 8) | (red << 16);
+                        let alpha = bgra[3] as u32;
+                        *argb = blue | (green << 8) | (red << 16) | (alpha << 24);
                     }
 
                     buffer.present().unwrap();
