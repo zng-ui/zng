@@ -1477,6 +1477,8 @@ impl Font {
     }
 
     /// Font size.
+    ///
+    /// This is also the *pixels-per-em* value.
     pub fn size(&self) -> Px {
         self.0.size
     }
