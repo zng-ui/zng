@@ -345,13 +345,13 @@ impl GlContextManager {
     ) -> Result<(winit::window::Window, GlContext), Box<dyn Error>> {
         #[cfg(not(feature = "software"))]
         {
-            let _ = (id, window);
+            let _ = (id, window, event_loop);
             return Err("zng-view not build with \"software\" backend".into());
         }
 
         #[cfg(target_os = "android")]
         {
-            let _ = (id, window);
+            let _ = (id, window, event_loop);
             return Err("software blit not implemented for Android".into());
         }
 
