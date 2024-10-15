@@ -304,7 +304,7 @@ pub struct ShapedText {
     segments: GlyphSegmentVec,
     lines: LineRangeVec,
     fonts: FontRangeVec,
-    // map of `glyphs` index and image.
+    // sorted map of `glyphs` index -> image.
     images: Vec<(u32, GlyphImage)>,
 
     line_height: Px,
@@ -465,9 +465,25 @@ impl ShapedText {
         }
     }
 
-    /// !!: TODO
-    pub fn image_glyphs(&self) {
-        todo!()
+    /// Glyphs by font and associated image.
+    pub fn image_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedImageGlyphs)> {
+        ImageGlyphsIter {
+            glyphs: self.glyphs(),
+            glyphs_i: 0,
+            images: &self.images,
+            maybe_img: None,
+        }
+    }
+
+    /// Glyphs in a range by font and associated image.
+    pub fn image_glyphs_slice(&self, range: impl ops::RangeBounds<usize>) -> impl Iterator<Item = (&Font, ShapedImageGlyphs)> {
+        let range = IndexRange::from_bounds(range);
+        ImageGlyphsIter {
+            glyphs_i: range.start() as _,
+            glyphs: self.glyphs_slice_impl(range),
+            images: &self.images,
+            maybe_img: None,
+        }
     }
 
     /// Glyphs by font in the range.
@@ -1740,6 +1756,68 @@ impl ShapedText {
         }
 
         out_lines
+    }
+}
+
+struct ImageGlyphsIter<'a, G>
+where
+    G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
+{
+    glyphs: G,
+    glyphs_i: u32,
+    images: &'a [(u32, GlyphImage)],
+    maybe_img: Option<(&'a Font, &'a [GlyphInstance])>,
+}
+impl<'a, G> Iterator for ImageGlyphsIter<'a, G>
+where
+    G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
+{
+    type Item = (&'a Font, ShapedImageGlyphs<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some((font, glyphs)) = &mut self.maybe_img {
+                while self.images.first().map(|(i, _)| *i < self.glyphs_i).unwrap_or(false) {
+                    self.images = &self.images[1..];
+                }
+                if let Some((i, img)) = self.images.first() {
+                    if *i == self.glyphs_i {
+                        self.glyphs_i += 1;
+                        let r = (
+                            *font,
+                            ShapedImageGlyphs::Image {
+                                point: glyphs[0].point,
+                                base_glyph: glyphs[0].index,
+                                img,
+                            },
+                        );
+                        *glyphs = &glyphs[1..];
+                        if glyphs.is_empty() {
+                            self.maybe_img = None;
+                        }
+                        return Some(r);
+                    } else {
+                        let normal = &glyphs[..glyphs.len().min(*i as _)];
+                        self.glyphs_i += normal.len() as u32;
+
+                        *glyphs = &glyphs[normal.len()..];
+                        let r = (*font, ShapedImageGlyphs::Normal(normal));
+
+                        if glyphs.is_empty() {
+                            self.maybe_img = None;
+                        }
+                        return Some(r);
+                    }
+                } else {
+                    let r = (*font, ShapedImageGlyphs::Normal(glyphs));
+                    return Some(r);
+                }
+            } else if let Some(seq) = self.glyphs.next() {
+                self.maybe_img = Some(seq);
+            } else {
+                return None;
+            }
+        }
     }
 }
 
