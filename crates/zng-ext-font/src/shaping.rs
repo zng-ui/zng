@@ -13,7 +13,7 @@ use zng_layout::{
     unit::{euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zng_txt::Txt;
-use zng_var::AnyVar;
+use zng_var::{AnyVar, Var as _};
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
@@ -291,6 +291,19 @@ impl FontRangeVec {
     }
 }
 
+#[derive(Clone)]
+struct GlyphImage(ImageVar);
+impl PartialEq for GlyphImage {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.var_ptr() == other.0.var_ptr()
+    }
+}
+impl fmt::Debug for GlyphImage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "GlyphImage(_)")
+    }
+}
+
 /// Output of [text layout].
 ///
 /// [text layout]: Font::shape_text
@@ -340,40 +353,6 @@ pub struct ShapedText {
     has_colored_glyphs: bool,
 }
 
-/// Image var associated with a glyph.
-#[derive(Clone)]
-pub struct GlyphImage {
-    img: ImageVar,
-    // 0 size means use img size
-    size: PxSize,
-}
-impl GlyphImage {
-    /// The image var, loading or loaded.
-    pub fn img(&self) -> &ImageVar {
-        &self.img
-    }
-
-    /// Size override to use for the image.
-    pub fn size(&self) -> Option<PxSize> {
-        if self.size.is_empty() {
-            None
-        } else {
-            Some(self.size)
-        }
-    }
-}
-impl PartialEq for GlyphImage {
-    fn eq(&self, other: &Self) -> bool {
-        self.img.var_ptr() == other.img.var_ptr()
-    }
-}
-impl Eq for GlyphImage {}
-impl fmt::Debug for GlyphImage {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("GlyphImage").finish_non_exhaustive()
-    }
-}
-
 /// Represents normal and colored glyphs in [`ShapedText::colored_glyphs`].
 pub enum ShapedColoredGlyphs<'a> {
     /// Sequence of not colored glyphs, use the base color to fill.
@@ -398,14 +377,16 @@ pub enum ShapedImageGlyphs<'a> {
     Normal(&'a [GlyphInstance]),
     /// Image glyph.
     Image {
-        /// Point origin of the image.
-        point: euclid::Point2D<f32, Px>,
+        /// Origin and size of the image in the shaped text.
+        ///
+        /// The size is empty is the image has not loaded yet.
+        rect: euclid::Rect<f32, Px>,
         /// The glyph that is replaced by `img`.
         ///
         /// Must be used as fallback if the `img` cannot be rendered.
         base_glyph: GlyphIndex,
         /// The image.
-        img: &'a GlyphImage,
+        img: &'a ImageVar,
     },
 }
 
@@ -1783,12 +1764,14 @@ where
                 if let Some((i, img)) = self.images.first() {
                     if *i == self.glyphs_i {
                         self.glyphs_i += 1;
+                        let size = img.0.with(|i| i.size()).cast::<f32>();
+                        let scale = font.size().0 as f32 / size.width.max(size.height);
                         let r = (
                             *font,
                             ShapedImageGlyphs::Image {
-                                point: glyphs[0].point,
+                                rect: euclid::Rect::new(glyphs[0].point, size * scale),
                                 base_glyph: glyphs[0].index,
-                                img,
+                                img: &img.0,
                             },
                         );
                         *glyphs = &glyphs[1..];
@@ -2531,27 +2514,20 @@ impl ShapedTextBuilder {
                 (bgra, bgra_fmt)
             }
         };
-        self.push_glyph_img(glyphs_i, ImageSource::from_data(Arc::new(data), fmt), Some(size));
+        self.push_glyph_img(glyphs_i, ImageSource::from_data(Arc::new(data), fmt));
     }
 
     fn push_glyph_svg(&mut self, glyphs_i: u32, img: ttf_parser::svg::SvgDocument) {
         self.push_glyph_img(
             glyphs_i,
             ImageSource::from_data(Arc::new(img.data.to_vec()), ImageDataFormat::from("svg")),
-            None,
         );
     }
 
-    fn push_glyph_img(&mut self, glyphs_i: u32, source: ImageSource, size: Option<PxSize>) {
+    fn push_glyph_img(&mut self, glyphs_i: u32, source: ImageSource) {
         let img = IMAGES.cache(source);
 
-        self.out.images.push((
-            glyphs_i,
-            GlyphImage {
-                img,
-                size: size.unwrap_or_default(),
-            },
-        ));
+        self.out.images.push((glyphs_i, GlyphImage(img)));
     }
 
     fn push_last_line(&mut self, text: &SegmentedText) {

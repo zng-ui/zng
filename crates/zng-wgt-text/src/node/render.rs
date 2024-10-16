@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use zng_app::{
-    render::{FontSynthesis, FrameValueKey},
+    render::{FontSynthesis, FrameValueKey, ReferenceFrameId},
     widget::{
         border::{LineOrientation, LineStyle},
         node::{match_node, match_node_leaf, UiNode, UiNodeOp},
@@ -226,6 +226,7 @@ pub fn render_text() -> impl UiNode {
     let mut reuse = None;
     let mut rendered = None;
     let mut color_key = None;
+    let image_spatial_id = SpatialFrameId::new_unique();
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
@@ -307,19 +308,32 @@ pub fn render_text() -> impl UiNode {
                                 frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
                             }
                         }
-                        ShapedImageGlyphs::Image { point, img, .. } => {
-                            let is_loading = img.img().with(|i| {
+                        ShapedImageGlyphs::Image { rect, img, base_glyph } => {
+                            let is_loading = img.with(|i| {
                                 if i.is_loaded() {
-                                    let size = img.size().unwrap_or_else(|| i.size());
-                                    let clip = PxRect::new(clip.origin + point.cast::<Px>().to_vector(), size);
-                                    println!("!!: PUSH IMAGE {clip:?}");
-                                    frame.push_image(clip, size, size, PxSize::zero(), i, zng_view_api::ImageRendering::Auto);
+                                    frame.push_reference_frame(
+                                        ReferenceFrameId::from_unique_child(image_spatial_id, base_glyph),
+                                        FrameValue::Value(PxTransform::translation(rect.origin.x, rect.origin.y)),
+                                        true,
+                                        true,
+                                        |frame| {
+                                            let size = rect.size.cast::<Px>();
+                                            frame.push_image(
+                                                PxRect::from_size(size),
+                                                size,
+                                                size,
+                                                PxSize::zero(),
+                                                i,
+                                                zng_view_api::ImageRendering::Pixelated,
+                                            );
+                                        },
+                                    );
                                 }
                                 i.is_loading()
                             });
                             if is_loading {
                                 println!("!!: TODO ONLY SUBSCRIBE ONCE");
-                                img.img().subscribe(UpdateOp::Render, WIDGET.id()).perm();
+                                img.subscribe(UpdateOp::Render, WIDGET.id()).perm();
                             }
                         }
                     };
