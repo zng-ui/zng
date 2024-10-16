@@ -762,7 +762,7 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     .unwrap_or(false)
                 {
                     // this is likely an error, but a child widget could have requested info again
-                    tracing::warn!(target: "match_widget-pending", "pending info build after info delegated");
+                    tracing::warn!(target: "match_widget-pending", "pending info build after info delegated in {:?}", WIDGET.id());
                 }
             }
         }
@@ -803,7 +803,7 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                 if size != PxSize::zero() {
                     // this is an error because the child will be measured if the return size is zero,
                     // flagging delegated ensure consistent behavior.
-                    tracing::error!("measure changed size without flagging delegated");
+                    tracing::error!("measure changed size without flagging delegated in {:?}", WIDGET.id());
                     return size;
                 }
 
@@ -823,7 +823,7 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                 if size != PxSize::zero() {
                     // this is an error because the child will be layout if the return size is zero,
                     // flagging delegated ensure consistent behavior.
-                    tracing::error!("layout changed size without flagging delegated");
+                    tracing::error!("layout changed size without flagging delegated in {:?}", WIDGET.id());
                     return size;
                 }
 
@@ -840,7 +840,7 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     .unwrap_or(false)
                 {
                     // this is likely an error, but a child widget could have requested layout again,
-                    tracing::warn!(target: "match_widget-pending", "pending layout after layout delegated");
+                    tracing::warn!(target: "match_widget-pending", "pending layout after layout delegated in {:?}", WIDGET.id());
                 }
                 size
             }
@@ -865,7 +865,7 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     .unwrap_or(false)
                 {
                     // this is likely an error, but a child widget could have requested render again,
-                    tracing::warn!(target: "match_widget-pending", "pending render after render delegated");
+                    tracing::warn!(target: "match_widget-pending", "pending render after render delegated in {:?}", WIDGET.id());
                 }
             }
         }
@@ -889,7 +889,7 @@ pub fn match_widget<W: UiNode>(child: W, closure: impl FnMut(&mut MatchWidgetChi
                     .unwrap_or(false)
                 {
                     // this is likely an error, but a child widget could have requested render_update again,
-                    tracing::warn!(target: "match_widget-pending", "pending render_update after render_update delegated");
+                    tracing::warn!(target: "match_widget-pending", "pending render_update after render_update delegated in {:?}", WIDGET.id());
                 }
             }
         }
