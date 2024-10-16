@@ -1764,13 +1764,13 @@ where
                 if let Some((i, img)) = self.images.first() {
                     if *i == self.glyphs_i {
                         self.glyphs_i += 1;
-                        let size = img.0.with(|i| i.size()).cast::<f32>();
+                        let mut size = img.0.with(|i| i.size()).cast::<f32>();
                         let scale = font.size().0 as f32 / size.width.max(size.height);
-                        // !!: TODO vertical position is not right here yet
+                        size *= scale;
                         let r = (
                             *font,
                             ShapedImageGlyphs::Image {
-                                rect: euclid::Rect::new(glyphs[0].point, size * scale),
+                                rect: euclid::Rect::new(glyphs[0].point - euclid::vec2(0.0, size.height), size),
                                 base_glyph: glyphs[0].index,
                                 img: &img.0,
                             },
