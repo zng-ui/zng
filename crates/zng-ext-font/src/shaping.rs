@@ -1766,6 +1766,7 @@ where
                         self.glyphs_i += 1;
                         let size = img.0.with(|i| i.size()).cast::<f32>();
                         let scale = font.size().0 as f32 / size.width.max(size.height);
+                        // !!: TODO vertical position is not right here yet
                         let r = (
                             *font,
                             ShapedImageGlyphs::Image {

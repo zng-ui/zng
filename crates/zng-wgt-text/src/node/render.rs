@@ -344,6 +344,7 @@ pub fn render_text() -> impl UiNode {
                                 i.is_loading()
                             });
                             if is_loading {
+                                has_loading_images = true;
                                 let id = WIDGET.id();
                                 img.hook(move |args| {
                                     if args.value().is_loaded() {
