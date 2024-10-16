@@ -1915,6 +1915,16 @@ impl FrameBuilder {
         self.debug_dot_overlays.extend(nested.debug_dot_overlays);
     }
 
+    /// External render requests for this frame.
+    pub fn render_widgets(&self) -> &Arc<RenderUpdates> {
+        &self.render_widgets
+    }
+
+    /// External render update requests for this frame.
+    pub fn render_update_widgets(&self) -> &Arc<RenderUpdates> {
+        &self.render_update_widgets
+    }
+
     /// Finalizes the build.
     pub fn finalize(self, info_tree: &WidgetInfoTree) -> BuiltFrame {
         info_tree.root().bounds_info().set_rendered(

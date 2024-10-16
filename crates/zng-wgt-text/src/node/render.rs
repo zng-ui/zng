@@ -227,6 +227,7 @@ pub fn render_text() -> impl UiNode {
     let mut rendered = None;
     let mut color_key = None;
     let image_spatial_id = SpatialFrameId::new_unique();
+    let mut has_loading_images = false;
 
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
@@ -244,6 +245,7 @@ pub fn render_text() -> impl UiNode {
             color_key = None;
             reuse = None;
             rendered = None;
+            has_loading_images = false;
         }
         UiNodeOp::Update { .. } => {
             if FONT_PALETTE_VAR.is_new() || FONT_PALETTE_COLORS_VAR.is_new() {
@@ -293,8 +295,17 @@ pub fn render_text() -> impl UiNode {
             t.render_info.transform = *frame.transform();
             t.render_info.scale_factor = frame.scale_factor();
 
+            if std::mem::take(&mut has_loading_images)
+                && reuse.is_some()
+                && frame.render_widgets().delivery_list().enter_widget(WIDGET.id())
+            {
+                // loading emoji images request render on load
+                reuse = None;
+            }
+
             frame.push_reuse(&mut reuse, |frame| {
                 if t.shaped_text.has_images() {
+                    let mut img_count = 0;
                     let mut push_img_glyphs = |font: &Font, glyphs, offset: Option<euclid::Vector2D<f32, Px>>| match glyphs {
                         ShapedImageGlyphs::Normal(glyphs) => {
                             if let Some(offset) = offset {
@@ -308,11 +319,11 @@ pub fn render_text() -> impl UiNode {
                                 frame.push_text(clip, glyphs, font, color_value, r.synthesis, aa);
                             }
                         }
-                        ShapedImageGlyphs::Image { rect, img, base_glyph } => {
+                        ShapedImageGlyphs::Image { rect, img, .. } => {
                             let is_loading = img.with(|i| {
                                 if i.is_loaded() {
                                     frame.push_reference_frame(
-                                        ReferenceFrameId::from_unique_child(image_spatial_id, base_glyph),
+                                        ReferenceFrameId::from_unique_child(image_spatial_id, img_count),
                                         FrameValue::Value(PxTransform::translation(rect.origin.x, rect.origin.y)),
                                         true,
                                         true,
@@ -328,6 +339,7 @@ pub fn render_text() -> impl UiNode {
                                             );
                                         },
                                     );
+                                    img_count = img_count.wrapping_add(1);
                                 }
                                 i.is_loading()
                             });
