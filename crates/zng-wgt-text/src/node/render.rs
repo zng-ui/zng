@@ -332,8 +332,14 @@ pub fn render_text() -> impl UiNode {
                                 i.is_loading()
                             });
                             if is_loading {
-                                println!("!!: TODO ONLY SUBSCRIBE ONCE");
-                                img.subscribe(UpdateOp::Render, WIDGET.id()).perm();
+                                let id = WIDGET.id();
+                                img.hook(move |args| {
+                                    if args.value().is_loaded() {
+                                        UPDATES.render(id);
+                                    }
+                                    args.value().is_loading()
+                                })
+                                .perm();
                             }
                         }
                     };
