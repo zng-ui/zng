@@ -1419,11 +1419,13 @@ impl AppEventSender {
         (Self(sender), receiver)
     }
 
+    #[allow(clippy::result_large_err)] // error does not move far up the stack
     fn send_app_event(&self, event: AppEvent) -> Result<(), AppDisconnected<AppEvent>> {
         self.0.send(event)?;
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     fn send_view_event(&self, event: zng_view_api::Event) -> Result<(), AppDisconnected<AppEvent>> {
         self.0.send(AppEvent::ViewEvent(event))?;
         Ok(())

@@ -1172,13 +1172,10 @@ impl HeadedCtrl {
             extensions: WINDOWS.take_view_extensions_init(window_id),
         };
 
-        match VIEW_PROCESS.open_window(request) {
-            Ok(()) => {
-                self.state = Some(state);
-                self.waiting_view = true;
-            }
-            Err(ViewProcessOffline) => {} //respawn
-        };
+        if let Ok(()) = VIEW_PROCESS.open_window(request) {
+            self.state = Some(state);
+            self.waiting_view = true;
+        } // else respawn
     }
 
     /// Layout for already open window.
@@ -1300,9 +1297,8 @@ impl HeadedCtrl {
             extensions: WINDOWS.take_view_extensions_init(window_id),
         };
 
-        match VIEW_PROCESS.open_window(request) {
-            Ok(()) => self.waiting_view = true,
-            Err(ViewProcessOffline) => {} // respawn.
+        if let Ok(()) = VIEW_PROCESS.open_window(request) {
+            self.waiting_view = true
         }
     }
 
@@ -1649,9 +1645,8 @@ impl HeadlessWithRendererCtrl {
                 extensions: WINDOWS.take_view_extensions_init(window_id),
             });
 
-            match r {
-                Ok(()) => self.waiting_view = true,
-                Err(ViewProcessOffline) => {} // respawn
+            if let Ok(()) = r {
+                self.waiting_view = true
             }
         }
 

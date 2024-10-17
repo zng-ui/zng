@@ -3151,7 +3151,7 @@ impl WhiteSpace {
             WhiteSpace::Preserve => Cow::Borrowed(text),
             WhiteSpace::Merge => {
                 let is_white_space = |c: char| c.is_whitespace() && !"\n\r\u{85}".contains(c);
-                let t = text.trim_matches(&is_white_space);
+                let t = text.trim_matches(is_white_space);
 
                 let mut prev_space = false;
                 for c in t.chars() {
