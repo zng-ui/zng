@@ -2,15 +2,18 @@ use std::{
     cmp, fmt,
     hash::{BuildHasher, Hash},
     mem, ops,
+    sync::Arc,
 };
 
 use zng_app::widget::info::InlineSegmentInfo;
+use zng_ext_image::{ImageDataFormat, ImageSource, ImageVar, IMAGES};
 use zng_ext_l10n::{lang, Lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
     unit::{euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zng_txt::Txt;
+use zng_var::{AnyVar, Var as _};
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
@@ -288,6 +291,19 @@ impl FontRangeVec {
     }
 }
 
+#[derive(Clone)]
+struct GlyphImage(ImageVar);
+impl PartialEq for GlyphImage {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.var_ptr() == other.0.var_ptr()
+    }
+}
+impl fmt::Debug for GlyphImage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "GlyphImage(_)")
+    }
+}
+
 /// Output of [text layout].
 ///
 /// [text layout]: Font::shape_text
@@ -301,6 +317,8 @@ pub struct ShapedText {
     segments: GlyphSegmentVec,
     lines: LineRangeVec,
     fonts: FontRangeVec,
+    // sorted map of `glyphs` index -> image.
+    images: Vec<(u32, GlyphImage)>,
 
     line_height: Px,
     line_spacing: Px,
@@ -353,6 +371,25 @@ pub enum ShapedColoredGlyphs<'a> {
     },
 }
 
+/// Represents normal and image glyphs in [`ShapedText::image_glyphs`].
+pub enum ShapedImageGlyphs<'a> {
+    /// Sequence of not image glyphs.
+    Normal(&'a [GlyphInstance]),
+    /// Image glyph.
+    Image {
+        /// Origin and size of the image in the shaped text.
+        ///
+        /// The size is empty is the image has not loaded yet.
+        rect: euclid::Rect<f32, Px>,
+        /// The glyph that is replaced by `img`.
+        ///
+        /// Must be used as fallback if the `img` cannot be rendered.
+        base_glyph: GlyphIndex,
+        /// The image.
+        img: &'a ImageVar,
+    },
+}
+
 impl ShapedText {
     /// New empty text.
     pub fn new(font: &Font) -> Self {
@@ -388,6 +425,11 @@ impl ShapedText {
         self.has_colored_glyphs
     }
 
+    /// If the shaped text has any Emoji glyph associated with a pixel image.
+    pub fn has_images(&self) -> bool {
+        !self.images.is_empty()
+    }
+
     /// Glyphs by font and palette color.
     pub fn colored_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedColoredGlyphs)> {
         ColoredGlyphsIter {
@@ -401,6 +443,27 @@ impl ShapedText {
         ColoredGlyphsIter {
             glyphs: self.glyphs_slice_impl(IndexRange::from_bounds(range)),
             maybe_colored: None,
+        }
+    }
+
+    /// Glyphs by font and associated image.
+    pub fn image_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedImageGlyphs)> {
+        ImageGlyphsIter {
+            glyphs: self.glyphs(),
+            glyphs_i: 0,
+            images: &self.images,
+            maybe_img: None,
+        }
+    }
+
+    /// Glyphs in a range by font and associated image.
+    pub fn image_glyphs_slice(&self, range: impl ops::RangeBounds<usize>) -> impl Iterator<Item = (&Font, ShapedImageGlyphs)> {
+        let range = IndexRange::from_bounds(range);
+        ImageGlyphsIter {
+            glyphs_i: range.start() as _,
+            glyphs: self.glyphs_slice_impl(range),
+            images: &self.images,
+            maybe_img: None,
         }
     }
 
@@ -1007,6 +1070,7 @@ impl ShapedText {
                 font: self.fonts.font(0).clone(),
                 end: 0,
             }]),
+            images: vec![],
             orig_line_height: self.orig_line_height,
             orig_line_spacing: self.orig_line_spacing,
             orig_first_line: PxSize::zero(),
@@ -1676,6 +1740,71 @@ impl ShapedText {
     }
 }
 
+struct ImageGlyphsIter<'a, G>
+where
+    G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
+{
+    glyphs: G,
+    glyphs_i: u32,
+    images: &'a [(u32, GlyphImage)],
+    maybe_img: Option<(&'a Font, &'a [GlyphInstance])>,
+}
+impl<'a, G> Iterator for ImageGlyphsIter<'a, G>
+where
+    G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
+{
+    type Item = (&'a Font, ShapedImageGlyphs<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some((font, glyphs)) = &mut self.maybe_img {
+                while self.images.first().map(|(i, _)| *i < self.glyphs_i).unwrap_or(false) {
+                    self.images = &self.images[1..];
+                }
+                if let Some((i, img)) = self.images.first() {
+                    if *i == self.glyphs_i {
+                        self.glyphs_i += 1;
+                        let mut size = img.0.with(|i| i.size()).cast::<f32>();
+                        let scale = font.size().0 as f32 / size.width.max(size.height);
+                        size *= scale;
+                        let r = (
+                            *font,
+                            ShapedImageGlyphs::Image {
+                                rect: euclid::Rect::new(glyphs[0].point - euclid::vec2(0.0, size.height), size),
+                                base_glyph: glyphs[0].index,
+                                img: &img.0,
+                            },
+                        );
+                        *glyphs = &glyphs[1..];
+                        if glyphs.is_empty() {
+                            self.maybe_img = None;
+                        }
+                        return Some(r);
+                    } else {
+                        let normal = &glyphs[..glyphs.len().min(*i as _)];
+                        self.glyphs_i += normal.len() as u32;
+
+                        *glyphs = &glyphs[normal.len()..];
+                        let r = (*font, ShapedImageGlyphs::Normal(normal));
+
+                        if glyphs.is_empty() {
+                            self.maybe_img = None;
+                        }
+                        return Some(r);
+                    }
+                } else {
+                    let r = (*font, ShapedImageGlyphs::Normal(glyphs));
+                    return Some(r);
+                }
+            } else if let Some(seq) = self.glyphs.next() {
+                self.maybe_img = Some(seq);
+            } else {
+                return None;
+            }
+        }
+    }
+}
+
 struct ColoredGlyphsIter<'a, G>
 where
     G: Iterator<Item = (&'a Font, &'a [GlyphInstance])> + 'a,
@@ -1874,6 +2003,7 @@ impl ShapedTextBuilder {
                 mid_size: PxSize::zero(),
                 last_line: PxRect::zero(),
                 has_colored_glyphs: false,
+                images: vec![],
             },
 
             line_height: 0.0,
@@ -2174,8 +2304,26 @@ impl ShapedTextBuilder {
                     self.push_text_seg(seg, info);
                 }
 
-                if matches!(info.kind, TextSegmentKind::Emoji) && !font.face().color_glyphs().is_empty() {
-                    self.out.has_colored_glyphs = true;
+                if matches!(info.kind, TextSegmentKind::Emoji) {
+                    if !font.face().color_glyphs().is_empty() {
+                        self.out.has_colored_glyphs = true;
+                    }
+                    if font.face().has_raster_images() || (cfg!(feature = "svg") && font.face().has_svg_images()) {
+                        if let Some(ttf) = font.face().ttf() {
+                            for (i, g) in shaped_seg.glyphs.iter().enumerate() {
+                                let id = ttf_parser::GlyphId(g.index as _);
+                                let ppm = font.size().0 as u16;
+                                let glyphs_i = self.out.glyphs.len() - shaped_seg.glyphs.len() + i;
+                                if let Some(img) = ttf.glyph_raster_image(id, ppm) {
+                                    self.push_glyph_raster(glyphs_i as _, img);
+                                } else if cfg!(feature = "svg") {
+                                    if let Some(img) = ttf.glyph_svg_image(id) {
+                                        self.push_glyph_svg(glyphs_i as _, img);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 self.push_font(font);
@@ -2226,6 +2374,161 @@ impl ShapedTextBuilder {
         } else {
             self.push_text_seg(seg, info)
         }
+    }
+
+    fn push_glyph_raster(&mut self, glyphs_i: u32, img: ttf_parser::RasterGlyphImage) {
+        use ttf_parser::RasterImageFormat;
+        let size = PxSize::new(Px(img.width as _), Px(img.height as _));
+        let bgra_fmt = ImageDataFormat::Bgra8 { size, ppi: None };
+        let bgra_len = img.width as usize * img.height as usize * 4;
+        let (data, fmt) = match img.format {
+            RasterImageFormat::PNG => (img.data.to_vec(), ImageDataFormat::from("png")),
+            RasterImageFormat::BitmapMono => {
+                // row aligned 1-bitmap
+                let mut bgra = Vec::with_capacity(bgra_len);
+                let bytes_per_row = (img.width as usize + 7) / 8;
+                for y in 0..img.height as usize {
+                    let row_start = y * bytes_per_row;
+                    for x in 0..img.width as usize {
+                        let byte_index = row_start + x / 8;
+                        let bit_index = 7 - (x % 8);
+                        let bit = (img.data[byte_index] >> bit_index) & 1;
+                        let color = if bit == 1 { [0, 0, 0, 255] } else { [255, 255, 255, 255] };
+                        bgra.extend_from_slice(&color);
+                    }
+                }
+                (bgra, bgra_fmt)
+            }
+            RasterImageFormat::BitmapMonoPacked => {
+                // packed 1-bitmap
+                let mut bgra = Vec::with_capacity(bgra_len);
+                for &c8 in img.data {
+                    for bit in 0..8 {
+                        let color = if (c8 >> (7 - bit)) & 1 == 1 {
+                            [0, 0, 0, 255]
+                        } else {
+                            [255, 255, 255, 255]
+                        };
+                        bgra.extend_from_slice(&color);
+                        if bgra.len() == bgra_len {
+                            break;
+                        }
+                    }
+                }
+                (bgra, bgra_fmt)
+            }
+            RasterImageFormat::BitmapGray2 => {
+                // row aligned 2-bitmap
+                let mut bgra = Vec::with_capacity(bgra_len);
+                let bytes_per_row = (img.width as usize + 3) / 4;
+                for y in 0..img.height as usize {
+                    let row_start = y * bytes_per_row;
+                    for x in 0..img.width as usize {
+                        let byte_index = row_start + x / 4;
+                        let shift = (3 - (x % 4)) * 2;
+                        let gray = (img.data[byte_index] >> shift) & 0b11;
+                        let color = match gray {
+                            0b00 => [0, 0, 0, 255],       // Black
+                            0b01 => [85, 85, 85, 255],    // Dark gray
+                            0b10 => [170, 170, 170, 255], // Light gray
+                            0b11 => [255, 255, 255, 255], // White
+                            _ => unreachable!(),
+                        };
+                        bgra.extend_from_slice(&color);
+                    }
+                }
+                (bgra, bgra_fmt)
+            }
+            RasterImageFormat::BitmapGray2Packed => {
+                // packed 2-bitmap
+                let mut bgra = Vec::with_capacity(bgra_len);
+                for &c4 in img.data {
+                    for i in 0..4 {
+                        let gray = (c4 >> (7 - i * 2)) & 0b11;
+                        let color = match gray {
+                            0b00 => [0, 0, 0, 255],       // Black
+                            0b01 => [85, 85, 85, 255],    // Dark gray
+                            0b10 => [170, 170, 170, 255], // Light gray
+                            0b11 => [255, 255, 255, 255], // White
+                            _ => unreachable!(),
+                        };
+                        bgra.extend_from_slice(&color);
+                        if bgra.len() == bgra_len {
+                            break;
+                        }
+                    }
+                }
+                (bgra, bgra_fmt)
+            }
+            RasterImageFormat::BitmapGray4 => {
+                // row aligned 4-bitmap
+                let mut bgra = Vec::with_capacity(bgra_len);
+                let bytes_per_row = (img.width as usize + 1) / 2;
+                for y in 0..img.height as usize {
+                    let row_start = y * bytes_per_row;
+                    for x in 0..img.width as usize {
+                        let byte_index = row_start + x / 2;
+                        let shift = if x % 2 == 0 { 4 } else { 0 };
+                        let gray = (img.data[byte_index] >> shift) & 0b1111;
+                        let g = gray * 17;
+                        bgra.extend_from_slice(&[g, g, g, 255]);
+                    }
+                }
+                (bgra, bgra_fmt)
+            }
+            RasterImageFormat::BitmapGray4Packed => {
+                let mut bgra = Vec::with_capacity(bgra_len);
+                for &c2 in img.data {
+                    for i in 0..2 {
+                        let gray = (c2 >> (7 - i * 4)) & 0b1111;
+                        let g = gray * 17;
+                        bgra.extend_from_slice(&[g, g, g, 255]);
+                        if bgra.len() == bgra_len {
+                            break;
+                        }
+                    }
+                }
+                (bgra, bgra_fmt)
+            }
+            RasterImageFormat::BitmapGray8 => {
+                let mut bgra = Vec::with_capacity(bgra_len);
+                for &c in img.data {
+                    bgra.extend_from_slice(&[c, c, c, 255]);
+                }
+                (bgra, bgra_fmt)
+            }
+            RasterImageFormat::BitmapPremulBgra32 => {
+                let mut bgra = img.data.to_vec();
+                for c in bgra.chunks_exact_mut(4) {
+                    let (b, g, r, a) = (c[0], c[1], c[2], c[3]);
+                    let unp = if a == 255 {
+                        [b, g, r]
+                    } else {
+                        [
+                            (b as u32 * 255 / a as u32) as u8,
+                            (g as u32 * 255 / a as u32) as u8,
+                            (r as u32 * 255 / a as u32) as u8,
+                        ]
+                    };
+                    c.copy_from_slice(&unp);
+                }
+                (bgra, bgra_fmt)
+            }
+        };
+        self.push_glyph_img(glyphs_i, ImageSource::from_data(Arc::new(data), fmt));
+    }
+
+    fn push_glyph_svg(&mut self, glyphs_i: u32, img: ttf_parser::svg::SvgDocument) {
+        self.push_glyph_img(
+            glyphs_i,
+            ImageSource::from_data(Arc::new(img.data.to_vec()), ImageDataFormat::from("svg")),
+        );
+    }
+
+    fn push_glyph_img(&mut self, glyphs_i: u32, source: ImageSource) {
+        let img = IMAGES.cache(source);
+
+        self.out.images.push((glyphs_i, GlyphImage(img)));
     }
 
     fn push_last_line(&mut self, text: &SegmentedText) {

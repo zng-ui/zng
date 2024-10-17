@@ -17,6 +17,12 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # See the `hyphenation` for more details.
 hyphenation_embed_all = ["hyphenation/embed_all"]
 
+# Enable support for SVG image glyphs.
+#
+# This feature signals that the `IMAGES` service supports SVG. The app must ensure that this is so by
+# using `zng-ext-svg` or another SVG extension.
+svg = []
+
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
 zng-app-context = { path = "../zng-app-context", version = "0.5.9" }
@@ -28,6 +34,7 @@ zng-var = { path = "../zng-var", version = "0.5.6" }
 zng-task = { path = "../zng-task", version = "0.4.6" }
 zng-layout = { path = "../zng-layout", version = "0.2.27" }
 zng-color = { path = "../zng-color", version = "0.3.12" }
+zng-ext-image = { path = "../zng-ext-image", version = "0.2.34" }
 
 serde = "1.0"
 unicase = "2.7"
