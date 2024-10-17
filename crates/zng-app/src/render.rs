@@ -2736,6 +2736,11 @@ impl FrameUpdate {
         take_or_append(&mut self.extensions, &mut nested.extensions);
     }
 
+    /// External render update requests for this frame.
+    pub fn render_update_widgets(&self) -> &Arc<RenderUpdates> {
+        &self.render_update_widgets
+    }
+
     /// Finalize the update.
     ///
     /// Returns the property updates and the new clear color if any was set.

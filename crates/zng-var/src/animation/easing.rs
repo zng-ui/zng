@@ -180,7 +180,6 @@ impl fmt::Debug for EasingFn {
 }
 impl EasingFn {
     /// Create a closure that calls the easing function.
-    #[expect(clippy::redundant_closure)] // false positive
     pub fn ease_fn(&self) -> impl Fn(EasingTime) -> EasingStep + Send + Sync + 'static {
         let me = self.clone();
         move |t| me(t)

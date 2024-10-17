@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `FrameBuilder::render_widgets` and `render_update_widgets` to `FrameBuilder` and `FrameUpdate` to inspect external render requests.
 * Implement support for raster and svg emojis.
 * Add `FontFace::ttf` to quickly access the full parsed TTF data.
 * Add `has_raster_images` and `has_svg_images` method to `FontFace` and `ShapedText`.

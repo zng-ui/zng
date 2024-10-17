@@ -1,5 +1,4 @@
 /// Converts a [`std::panic::catch_unwind`] payload to a str.
-#[expect(clippy::manual_unwrap_or)] // false positive, already fixed for Rust 1.82
 pub fn panic_str<'s>(payload: &'s Box<dyn std::any::Any + Send + 'static>) -> &'s str {
     if let Some(s) = payload.downcast_ref::<&str>() {
         s
