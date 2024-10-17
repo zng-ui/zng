@@ -594,6 +594,9 @@ impl LAYERS {
                             }
                             _ => widget.render(frame),
                         }
+                    } else {
+                        // anchor not visible, call render to properly hide or collapse (if collapsed during layout)
+                        frame.hide(|frame| widget.render(frame))
                     }
                 } else {
                     widget.render(frame);
