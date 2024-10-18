@@ -118,6 +118,7 @@ mod config;
 mod display_list;
 mod gl;
 mod image_cache;
+mod low_memory;
 mod px_wr;
 mod surface;
 mod util;
@@ -362,6 +363,9 @@ pub(crate) struct App {
 
     #[cfg(not(any(windows, target_os = "android")))]
     arboard: Option<arboard::Clipboard>,
+
+    #[cfg(windows)]
+    low_memory_check: low_memory::Check,
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
@@ -885,8 +889,13 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         winit_loop_guard.unset(&mut self.winit_loop);
     }
 
-    fn new_events(&mut self, _: &ActiveEventLoop, _: winit::event::StartCause) {
+    fn new_events(&mut self, _: &ActiveEventLoop, _cause: winit::event::StartCause) {
         self.idle.exit();
+
+        #[cfg(windows)]
+        if let winit::event::StartCause::ResumeTimeReached { .. } = _cause {
+            if self.low_memory_check.notify() {}
+        }
     }
 
     fn user_event(&mut self, winit_loop: &ActiveEventLoop, ev: AppEvent) {
@@ -1271,6 +1280,8 @@ impl App {
 
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
+            #[cfg(windows)]
+            low_memory_check: low_memory::Check::new(),
         }
     }
 

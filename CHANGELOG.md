@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement `LOW_MEMORY_EVENT` on Windows.
 * Fix window not updating state after restore in Wayland.
 * Add `FrameBuilder::render_widgets` and `render_update_widgets` to `FrameBuilder` and `FrameUpdate` to inspect external render requests.
 * Implement support for raster and svg emojis.
