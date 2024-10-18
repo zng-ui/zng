@@ -624,6 +624,11 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 if self.windows[i].focused_changed(&mut focused) {
                     if focused {
                         self.notify(Event::FocusChanged { prev: None, new: Some(id) });
+
+                        // some platforms (Wayland) don't change size on minimize/restore, so we check here too.
+                        if let Some(state) = self.windows[i].state_change() {
+                            self.notify(Event::WindowChanged(WindowChanged::state_changed(id, state, EventCause::System)));
+                        }
                     } else {
                         self.pending_modifiers_focus_clear = true;
                         self.notify(Event::FocusChanged { prev: Some(id), new: None });
