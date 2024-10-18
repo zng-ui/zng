@@ -1569,13 +1569,13 @@ impl App {
             .collect()
     }
 
-    fn update_memory_monitor(&mut self, winit_loop: &ActiveEventLoop) {
+    fn update_memory_monitor(&mut self, _winit_loop: &ActiveEventLoop) {
         #[cfg(windows)]
         if let Some(m) = &mut self.low_memory_monitor {
             if m.notify() {
-                winit::application::ApplicationHandler::memory_warning(self, winit_loop);
+                winit::application::ApplicationHandler::memory_warning(self, _winit_loop);
             }
-            winit_loop.set_control_flow(winit::event_loop::ControlFlow::wait_duration(Duration::from_secs(5)));
+            _winit_loop.set_control_flow(winit::event_loop::ControlFlow::wait_duration(Duration::from_secs(5)));
         }
     }
 }
