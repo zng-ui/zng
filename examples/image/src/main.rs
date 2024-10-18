@@ -203,6 +203,7 @@ fn main() {
                                     large_image(),
                                     repeat_image(),
                                     open_or_paste_image(),
+                                    exif_rotated(),
                                 ]
                             )
                         ];
@@ -516,6 +517,44 @@ fn open_or_paste_image() -> impl UiNode {
                             }
                         ])
                     };
+                }
+            });
+        });
+    }
+}
+
+fn exif_rotated() -> impl UiNode {
+    Button! {
+        child = Text!("Exif Rotated");
+        on_click = hn!(|_| {
+            WINDOWS.open(async {
+                fn example(file: &'static str) -> impl UiNode {
+                    Image! {
+                        zng::container::child_top = Text!{
+                            txt = file;
+                            txt_align = Align::CENTER;
+                            font_weight = FontWeight::BOLD;
+                        }, 0;
+                        source = zng::env::res(file);
+                    }
+                }
+                Window! {
+                    title = "Exif Rotated";
+                    child_align = Align::TOP;
+                    child_top = Text! {
+                        txt = "all arrows must point up";
+                        txt_align = Align::CENTER;
+                        font_size = 2.em();
+                        margin = 20;
+                    }, 0;
+                    child = Stack!(
+                        left_to_right,
+                        10,
+                        ui_vec![
+                            example("exif rotated.jpg"),
+                            example("exif rotated.tif"),
+                        ]
+                    )
                 }
             });
         });
