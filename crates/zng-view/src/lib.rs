@@ -118,6 +118,7 @@ mod config;
 mod display_list;
 mod gl;
 mod image_cache;
+mod low_memory;
 mod px_wr;
 mod surface;
 mod util;
@@ -363,6 +364,9 @@ pub(crate) struct App {
     #[cfg(not(any(windows, target_os = "android")))]
     arboard: Option<arboard::Clipboard>,
 
+    #[cfg(windows)]
+    low_memory_monitor: Option<low_memory::LowMemoryMonitor>,
+
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
     app_state: AppState,
@@ -407,6 +411,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             self.exts.init(&self.app_sender);
         }
         self.app_state = AppState::Resumed;
+
+        self.update_memory_monitor(winit_loop);
     }
 
     fn window_event(&mut self, winit_loop: &ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
@@ -885,8 +891,13 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         winit_loop_guard.unset(&mut self.winit_loop);
     }
 
-    fn new_events(&mut self, _: &ActiveEventLoop, _: winit::event::StartCause) {
+    fn new_events(&mut self, _winit_loop: &ActiveEventLoop, _cause: winit::event::StartCause) {
         self.idle.exit();
+
+        #[cfg(windows)]
+        if let winit::event::StartCause::ResumeTimeReached { .. } = _cause {
+            self.update_memory_monitor(_winit_loop);
+        }
     }
 
     fn user_event(&mut self, winit_loop: &ActiveEventLoop, ev: AppEvent) {
@@ -1271,6 +1282,8 @@ impl App {
 
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
+            #[cfg(windows)]
+            low_memory_monitor: low_memory::LowMemoryMonitor::new(),
         }
     }
 
@@ -1554,6 +1567,17 @@ impl App {
                 (id, info)
             })
             .collect()
+    }
+
+    fn update_memory_monitor(&mut self, _winit_loop: &ActiveEventLoop) {
+        #[cfg(windows)]
+        if let Some(m) = &mut self.low_memory_monitor {
+            if m.notify() {
+                use winit::application::ApplicationHandler as _;
+                self.memory_warning(_winit_loop);
+            }
+            _winit_loop.set_control_flow(winit::event_loop::ControlFlow::wait_duration(Duration::from_secs(5)));
+        }
     }
 }
 macro_rules! with_window_or_surface {
