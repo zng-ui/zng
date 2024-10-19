@@ -1573,7 +1573,8 @@ impl App {
         #[cfg(windows)]
         if let Some(m) = &mut self.low_memory_monitor {
             if m.notify() {
-                winit::application::ApplicationHandler::memory_warning(self, _winit_loop);
+                use winit::application::ApplicationHandler as _;
+                self.memory_warning(_winit_loop);
             }
             _winit_loop.set_control_flow(winit::event_loop::ControlFlow::wait_duration(Duration::from_secs(5)));
         }

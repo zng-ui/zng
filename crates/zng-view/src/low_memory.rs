@@ -39,7 +39,7 @@ mod windows {
             }
             if self.is_low != is_low.as_bool() {
                 self.is_low = is_low.as_bool();
-                return true;
+                return self.is_low;
             }
             false
         }
