@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-stack"
-version = "0.3.25"
+version = "0.3.26"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -21,11 +21,11 @@ debug_default = []
 dyn_closure = []
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.5.1" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.35" }
-zng-app = { path = "../zng-app", version = "0.13.1" }
-zng-layout = { path = "../zng-layout", version = "0.2.27" }
-zng-var = { path = "../zng-var", version = "0.5.6" }
+zng-wgt = { path = "../zng-wgt", version = "0.5.2" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.36" }
+zng-app = { path = "../zng-app", version = "0.13.2" }
+zng-layout = { path = "../zng-layout", version = "0.2.28" }
+zng-var = { path = "../zng-var", version = "0.5.7" }
 
 euclid = "0.22"
 serde = { version = "1.0", features = ["derive"] }

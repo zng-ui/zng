@@ -1,8 +1,11 @@
 # Unreleased
 
+
+# 0.12.4
+
 * Export `LOW_MEMORY_EVENT` on the surface API in `zng::app`.
-* Fix `LOW_MEMORY_EVENT` not notifying on Android.
-* Implement `LOW_MEMORY_EVENT` on Windows.
+* Fix `LOW_MEMORY_EVENT` not notifying in Android.
+* Implement `LOW_MEMORY_EVENT` in Windows.
 * Fix window not updating state after restore in Wayland.
 * Add `FrameBuilder::render_widgets` and `render_update_widgets` to `FrameBuilder` and `FrameUpdate` to inspect external render requests.
 * Implement support for raster and svg emojis.

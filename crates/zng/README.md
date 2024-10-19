@@ -10,7 +10,7 @@ First add `zng` to your `Cargo.toml`, or call `cargo add zng -F view_prebuilt`:
 
 ```toml
 [dependencies]
-zng = { version = "0.12.3", features = ["view_prebuilt"] }
+zng = { version = "0.12.4", features = ["view_prebuilt"] }
 ```
 
 Then create your first window:
@@ -81,7 +81,7 @@ Enable the `"dyn_*"`, `"inspector"` features in debug builds.
 *Enabled by default.*
 
 #### `"svg"`
-Enable SVG images support.
+Enable SVG images, emoji support.
 
 #### `"dyn_node"`
 Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
