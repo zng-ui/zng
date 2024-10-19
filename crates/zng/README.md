@@ -81,7 +81,7 @@ Enable the `"dyn_*"`, `"inspector"` features in debug builds.
 *Enabled by default.*
 
 #### `"svg"`
-Enable SVG images support.
+Enable SVG images, emoji support.
 
 #### `"dyn_node"`
 Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
