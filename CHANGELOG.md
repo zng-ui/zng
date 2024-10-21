@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix layers anchored to the root widget never rendering in some windows.
 
 # 0.12.4
 
