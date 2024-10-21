@@ -18,6 +18,7 @@ use zng_ext_input::mouse::MOUSE;
 use zng_ext_input::touch::TOUCH;
 use zng_ext_window::WINDOW_Ext as _;
 use zng_var::{animation, ContextInitHandle, ReadOnlyContextVar};
+use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -596,7 +597,13 @@ impl LAYERS {
                         }
                     } else {
                         // anchor not visible, call render to properly hide or collapse (if collapsed during layout)
-                        frame.hide(|frame| widget.render(frame))
+                        frame.hide(|frame| widget.render(frame));
+
+                        if frame.frame_id() == FrameId::first() && anchor.get() == WIDGET.id() {
+                            // anchor is the root widget, the only widget that is not done rendering before the layers
+                            // if only the first frame is rendered the layer can remain hidden, so ensure a second frame renders.
+                            WIDGET.render();
+                        }
                     }
                 } else {
                     widget.render(frame);
