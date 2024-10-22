@@ -68,7 +68,7 @@ fn scrape_file(rs_file: PathBuf, custom_macro_names: &[&str]) -> FluentTemplate 
     // skip UTF-8 BOM
     let file = file.strip_prefix('\u{feff}').unwrap_or(file.as_str());
     // skip shebang line
-    let file = if file.starts_with("#!") {
+    let file = if file.starts_with("#!") && !file.starts_with("#![") {
         &file[file.find('\n').unwrap_or(file.len())..]
     } else {
         file
