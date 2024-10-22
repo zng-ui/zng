@@ -130,7 +130,7 @@ fn custom_fmt(rs_file: &Path, check: bool) -> io::Result<()> {
     // skip UTF-8 BOM
     let file_code = file.strip_prefix('\u{feff}').unwrap_or(file.as_str());
     // skip shebang line
-    let file_code = if file_code.starts_with("#!") {
+    let file_code = if file_code.starts_with("#!") && !file_code.starts_with("#![") {
         &file_code[file_code.find('\n').unwrap_or(file_code.len())..]
     } else {
         file_code
