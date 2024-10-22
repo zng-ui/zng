@@ -5,8 +5,9 @@ publish = false
 edition = "2021"
 
 [lib]
-# required by Android and Wasm builds
-crate-type = ["cdylib"]
+# "cdylib" required by Android and Wasm builds
+# "staticlib" required by iOS builds
+crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 # feature "view" is required to support Android and Wasm as the prebuilt view-process only supports desktop platforms.

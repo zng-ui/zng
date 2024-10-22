@@ -6,7 +6,7 @@
 //!
 //! Use `cargo do run-wasm multi` to run on the browser.
 //!
-//! Note that web support is very limited, only a small subset of services are supported and
+//! Note that WASM and iOS support is very limited, only a small subset of services are supported and
 //! only headless (without renderer) apps can run.
 
 mod app;
