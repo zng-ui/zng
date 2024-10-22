@@ -335,7 +335,7 @@ pub fn res(relative_path: impl AsRef<Path>) -> PathBuf {
 }
 #[cfg(all(
     any(debug_assertions, feature = "built_res"),
-    not(any(target_os = "android", target_arch = "wasm32")),
+    not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")),
 ))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     let built = BUILT_RES.join(relative_path);
@@ -347,7 +347,7 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 }
 #[cfg(not(all(
     any(debug_assertions, feature = "built_res"),
-    not(any(target_os = "android", target_arch = "wasm32")),
+    not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")),
 )))]
 fn res_impl(relative_path: &Path) -> PathBuf {
     RES.join(relative_path)
