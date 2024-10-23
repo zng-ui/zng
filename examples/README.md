@@ -220,8 +220,11 @@ Use `cargo do build-apk multi` to build a package and Android Studio "Profile or
 
 Use `cargo do run-wasm multi` to run on the browser.
 
-Note that web support is very limited, only a small subset of services are supported and
-only headless (without renderer) apps can run.
+Use `cargo do build-ios multi` to build library for XCode iOS project.
+
+Note that WASM support is very limited, only a small subset of services are supported and
+only headless (without renderer) apps can run. Also note that iOS does not build yet, support is planed after
+Glutin implements it (or some other ANGLE based crate).
 
 ### `respawn`
 
