@@ -54,3 +54,18 @@ mod android {
         run_same_process(app::run);
     }
 }
+
+#[cfg(target_os = "ios")]
+mod ios {
+    use zng::view_process::default::{run_same_process, *};
+
+    #[no_mangle]
+    pub extern "C" fn ios_main() {
+        zng::env::init!();
+
+        zng::app::print_tracing(tracing::Level::INFO);
+        tracing::info!("Hello iOS!");
+
+        run_same_process(app::run);
+    }
+}

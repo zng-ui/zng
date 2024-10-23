@@ -18,7 +18,7 @@ deadlock_detection = ["parking_lot/deadlock_detection"]
 
 # Enables ipc tasks.
 #
-# Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32")))` builds.
+# Only enables in `cfg(not(any(target_os = "android", target_arch = "wasm32", target_os = "ios")))` builds.
 ipc = [
     "dep:duct",
     "dep:serde",

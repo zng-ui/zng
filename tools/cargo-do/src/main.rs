@@ -21,6 +21,7 @@ fn main() {
         "check" | "c" => check(args),
         "build" | "b" => build(args),
         "build-apk" => build_apk(args),
+        "build-ios" => build_ios(args),
         "prebuild" => prebuild(args),
         "clean" => clean(args),
         "asm" => asm(args),
@@ -973,6 +974,17 @@ fn build_apk(mut args: Vec<&str>) {
 
     // cleanup
     let _ = std::fs::remove_dir_all(apk_dir.parent().unwrap());
+}
+
+// do build-ios <EXAMPLE>
+fn build_ios(mut args: Vec<&str>) {
+    let e = match args.pop() {
+        Some(e) => e,
+        None => fatal("missing example"),
+    };
+    let example = format!("zng-example-{e}");
+
+    cmd_req("cargo", &["lipo", "--package", &example], &args);
 }
 
 // do prebuild

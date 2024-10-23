@@ -70,7 +70,7 @@ Only enables in `not(target_arch = "wasm32")` builds.
 #### `"view_prebuilt"`
 Include the default view-process implementation as an embedded precompiled binary.
 
-Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
 
 #### `"http"`
 Enables HTTP tasks and web features of widgets and services.
@@ -97,7 +97,7 @@ Enable hot reload builds.
 
 Note that you must configure the target library to hot reload, see `zng::hot_reload` for details.
 
-Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
 
 #### `"dyn_app_extension"`
 Use dynamic dispatch at the app-extension level.
@@ -127,7 +127,7 @@ Enables single app-process instance mode.
 Builds with this feature only allow one app-process, subsequent attempts to spawn the app redirect to
 the running app-process.
 
-Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
 
 #### `"crash_handler"`
 Allow app-process crash handler.
@@ -198,7 +198,7 @@ Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 #### `"ipc"`
 Enables IPC tasks, pre-build views and connecting to views running in another process.
 
-Only enables in `not(any(target_os = "android", target_arch = "wasm32"))` builds.
+Only enables in `not(any(target_os = "android", target_arch = "wasm32", target_os = "ios"))` builds.
 
 *Enabled by default.*
 

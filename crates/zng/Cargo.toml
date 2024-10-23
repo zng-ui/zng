@@ -20,7 +20,7 @@ default = ["ipc", "debug_default", "view_software", "crash_handler"]
 view = ["dep:zng-view"]
 # Include the default view-process implementation as an embedded precompiled binary.
 #
-# Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+# Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
 view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
 
 # Enables HTTP tasks and web features of widgets and services.
@@ -55,7 +55,7 @@ inspector = ["zng-app/inspector", "zng-wgt-inspector/live"]
 #
 # Note that you must configure the target library to hot reload, see `zng::hot_reload` for details.
 #
-# Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+# Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
 hot_reload = ["dep:zng-ext-hot-reload"]
 
 # Use dynamic dispatch at the app-extension level.
@@ -93,7 +93,7 @@ multi_app = ["zng-app/multi_app"]
 # Builds with this feature only allow one app-process, subsequent attempts to spawn the app redirect to
 # the running app-process.
 #
-# Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+# Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
 single_instance = ["dep:zng-ext-single-instance"]
 
 # Allow app-process crash handler.
@@ -177,7 +177,7 @@ view_bundle_licenses = ["zng-view?/bundle_licenses"]
 
 # Enables IPC tasks, pre-build views and connecting to views running in another process.
 #
-# Only enables in `not(any(target_os = "android", target_arch = "wasm32"))` builds.
+# Only enables in `not(any(target_os = "android", target_arch = "wasm32", target_os = "ios"))` builds.
 ipc = ["zng-app/ipc", "zng-view-api/ipc", "zng-view?/ipc", "zng-task/ipc"]
 
 # Check if `zng::env::res` path is available in `init_built_res` first.
@@ -269,7 +269,7 @@ zng-view-api = { path = "../zng-view-api", version = "0.10.2", default-features 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 zng-view = { path = "../zng-view", version = "0.6.1", default-features = false, optional = true }
 
-[target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "android", target_os = "ios")))'.dependencies]
 zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.12.4", optional = true }
 
 [build-dependencies]
