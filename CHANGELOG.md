@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.12.5
+
 * Fix `cargo zng fmt` and `cargo zng l10n` on files that start with `#!`.
 * Fix layers anchored to the root widget never rendering in some windows.
 
