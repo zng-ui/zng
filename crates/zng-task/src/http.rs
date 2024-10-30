@@ -25,6 +25,7 @@ mod cache;
 mod util;
 
 pub use cache::*;
+use zng_var::impl_from_and_into_var;
 
 use std::convert::TryFrom;
 use std::error::Error as StdError;
@@ -32,6 +33,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fmt, mem};
+
+use crate::TaskStatus;
 
 use super::io::AsyncRead;
 
@@ -44,7 +47,7 @@ use futures_lite::io::{AsyncReadExt, BufReader};
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
-use zng_txt::Txt;
+use zng_txt::{formatx, Txt};
 use zng_unit::*;
 
 /// Marker trait for types that try-to-convert to [`Uri`].
@@ -1077,6 +1080,27 @@ impl fmt::Display for Metrics {
 
         Ok(())
     }
+}
+impl_from_and_into_var! {
+    fn from(metrics: Metrics) -> TaskStatus {
+        fn transfer_status((n, total): (ByteLength, ByteLength), speed: ByteLength) -> TaskStatus {
+            TaskStatus::completed_of(n.0, total.0).with_message(formatx!("{n}|{total} - {speed}/s"))
+        }
+        if metrics.download_progress.1 > 0.bytes() {
+            transfer_status(metrics.download_progress, metrics.download_speed)
+        } else if metrics.upload_progress.1 > 0.bytes() {
+            transfer_status(metrics.upload_progress, metrics.upload_speed)
+        } else {
+            TaskStatus::indeterminate()
+        }
+        .with_meta_mut(|mut m| {
+            m.set(*METRICS_ID, metrics);
+        })
+    }
+}
+zng_state_map::static_id! {
+    /// Metrics in a [`TaskStatus::with_meta`] metadata.
+    pub static ref METRICS_ID: zng_state_map::StateId<Metrics>;
 }
 
 /// HTTP client.
