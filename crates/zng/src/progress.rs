@@ -20,6 +20,8 @@
 //! });
 //! ```
 //!
+//! [`task::Progress`]: zng::task::Progress
+//!
 //! # Full API
 //!
 //! See [`zng_wgt_progress`] and [`zng_task::Progress`] for the full widget API.
