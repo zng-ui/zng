@@ -11,7 +11,7 @@ use zng_var::impl_from_and_into_var;
 #[derive(Clone)]
 pub struct Progress {
     factor: Factor,
-    message: Txt,
+    msg: Txt,
     meta: Arc<RwLock<OwnedStateMap<Progress>>>,
 }
 impl Progress {
@@ -39,8 +39,8 @@ impl Progress {
     }
 
     /// Set the display message about the task status update.
-    pub fn with_message(mut self, msg: impl Into<Txt>) -> Self {
-        self.message = msg.into();
+    pub fn with_msg(mut self, msg: impl Into<Txt>) -> Self {
+        self.msg = msg.into();
         self
     }
 
@@ -110,8 +110,8 @@ impl Progress {
     }
 
     /// Display text about the task status update.
-    pub fn message(&self) -> Txt {
-        self.message.clone()
+    pub fn msg(&self) -> Txt {
+        self.msg.clone()
     }
 
     /// Borrow the custom status metadata for reading.
@@ -152,7 +152,7 @@ impl Progress {
     fn new(value: Factor) -> Self {
         Self {
             factor: Self::normalize_factor(value),
-            message: Txt::from_static(""),
+            msg: Txt::from_static(""),
             meta: Arc::new(RwLock::new(OwnedStateMap::new())),
         }
     }
@@ -161,14 +161,14 @@ impl fmt::Debug for Progress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaskStatus")
             .field("factor", &self.factor)
-            .field("message", &self.message)
+            .field("message", &self.msg)
             .finish_non_exhaustive()
     }
 }
 impl fmt::Display for Progress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if !self.message.is_empty() {
-            write!(f, "{}", self.message)?;
+        if !self.msg.is_empty() {
+            write!(f, "{}", self.msg)?;
             if !self.is_indeterminate() {
                 write!(f, " ({})", self.factor.pct())
             } else {
@@ -183,7 +183,7 @@ impl fmt::Display for Progress {
 }
 impl PartialEq for Progress {
     fn eq(&self, other: &Self) -> bool {
-        self.factor == other.factor && self.message == other.message && {
+        self.factor == other.factor && self.msg == other.msg && {
             let a = self.meta.read();
             let b = other.meta.read();
             let a = a.borrow();
@@ -216,10 +216,10 @@ impl_from_and_into_var! {
         Progress::from_n_of(n_total.0, n_total.1)
     }
     fn from(indeterminate_message: Txt) -> Progress {
-        Progress::indeterminate().with_message(indeterminate_message)
+        Progress::indeterminate().with_msg(indeterminate_message)
     }
     fn from(indeterminate_message: &'static str) -> Progress {
-        Progress::indeterminate().with_message(indeterminate_message)
+        Progress::indeterminate().with_msg(indeterminate_message)
     }
     fn from(indeterminate_or_completed: bool) -> Progress {
         match indeterminate_or_completed {

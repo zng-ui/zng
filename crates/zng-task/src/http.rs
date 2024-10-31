@@ -1095,7 +1095,7 @@ impl_from_and_into_var! {
                 status = status.and_fct(u_status.fct());
             }
         }
-        status.with_message(formatx!("{metrics}")).with_meta_mut(|mut m| {
+        status.with_msg(formatx!("{metrics}")).with_meta_mut(|mut m| {
             m.set(*METRICS_ID, metrics);
         })
     }
