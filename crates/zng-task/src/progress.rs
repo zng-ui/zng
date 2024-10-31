@@ -27,22 +27,15 @@ impl Progress {
 
     /// New with a factor of completion.
     ///
-    /// The `factor` is clamped to the `0..=1` range.
-    pub fn from_factor(factor: impl Into<Factor>) -> Self {
-        Self::new(factor.into().clamp(0.0, 1.0))
-    }
-
-    fn new(value: Factor) -> Self {
-        Self {
-            factor: value,
-            message: Txt::from_static(""),
-            meta: Arc::new(RwLock::new(OwnedStateMap::new())),
-        }
+    /// The `factor` must be in the `0..=1` range, with a rounding error of `0.001`, values outside this range
+    /// are converted to indeterminate.
+    pub fn from_fct(factor: impl Into<Factor>) -> Self {
+        Self::new(factor.into())
     }
 
     /// New with completed `n` of `total`.
     pub fn from_n_of(n: usize, total: usize) -> Self {
-        Self::from_factor(total as f32 / n as f32)
+        Self::new(Self::normalize_n_of(n, total))
     }
 
     /// Set the display message about the task status update.
@@ -52,37 +45,57 @@ impl Progress {
     }
 
     /// Set custom status metadata for writing.
+    ///
+    /// Note that metadata is shared between all clones of `self`.
     pub fn with_meta_mut(self, meta: impl FnOnce(StateMapMut<Progress>)) -> Self {
         meta(self.meta.write().borrow_mut());
         self
     }
 
-    /// Combine the factor completed [`value`] with another `factor`.
+    /// Combine the factor completed [`fct`] with another `factor`.
     ///
-    /// The `factor` is clamped to the `0..=1` range.
-    ///
-    /// [`value`]: Self::value
-    pub fn and_factor(mut self, factor: impl Into<Factor>) -> Self {
-        let factor = factor.into().clamp(0.0, 1.0);
+    /// [`fct`]: Self::fct
+    pub fn and_fct(mut self, factor: impl Into<Factor>) -> Self {
         if self.is_indeterminate() {
-            self.factor = factor;
+            return self;
+        }
+        let factor = Self::normalize_factor(factor.into());
+        if factor < 0.fct() {
+            // indeterminate
+            self.factor = -1.fct();
         } else {
             self.factor = (self.factor + factor) / 2.fct();
         }
         self
     }
 
-    /// Combine the factor completed [`value`] with another factor computed from `n` of `total`.
+    /// Combine the factor completed [`fct`] with another factor computed from `n` of `total`.
     ///
-    /// [`value`]: Self::value
+    /// [`fct`]: Self::fct
     pub fn and_n_of(self, n: usize, total: usize) -> Self {
-        self.and_factor(n.min(total) as f32 / total as f32)
+        self.and_fct(Self::normalize_n_of(n, total))
+    }
+
+    /// Replace the [`fct`] value with a new `factor`.
+    ///
+    /// [`fct`]: Self::fct
+    pub fn with_fct(mut self, factor: impl Into<Factor>) -> Self {
+        self.factor = Self::normalize_factor(factor.into());
+        self
+    }
+
+    /// Replace the [`fct`] value with a new factor computed from `n` of `total`.
+    ///
+    /// [`fct`]: Self::fct
+    pub fn with_n_of(mut self, n: usize, total: usize) -> Self {
+        self.factor = Self::normalize_n_of(n, total);
+        self
     }
 
     /// Factor completed.
     ///
     /// Is `-1.fct()` for indeterminate, otherwise is a value in the `0..=1` range, `1.fct()` indicates task completion.
-    pub fn factor(&self) -> Factor {
+    pub fn fct(&self) -> Factor {
         self.factor
     }
 
@@ -93,7 +106,7 @@ impl Progress {
 
     /// Task has completed.
     pub fn is_completed(&self) -> bool {
-        self.factor() >= 1.fct()
+        self.fct() >= 1.fct()
     }
 
     /// Display text about the task status update.
@@ -104,6 +117,44 @@ impl Progress {
     /// Borrow the custom status metadata for reading.
     pub fn with_meta<T>(&self, visitor: impl FnOnce(StateMapRef<Progress>) -> T) -> T {
         visitor(self.meta.read().borrow())
+    }
+
+    fn normalize_factor(mut value: Factor) -> Factor {
+        if value.0 < 0.0 {
+            if value.0 > -0.001 {
+                value.0 = 0.0;
+            } else {
+                // too wrong, indeterminate
+                value.0 = -1.0;
+            }
+        } else if value.0 > 1.0 {
+            if value.0 < 1.001 {
+                value.0 = 1.0;
+            } else {
+                value.0 = -1.0;
+            }
+        } else if !value.0.is_finite() {
+            value.0 = -1.0;
+        }
+        value
+    }
+
+    fn normalize_n_of(n: usize, total: usize) -> Factor {
+        if n > total {
+            -1.fct() // invalid, indeterminate
+        } else if total == 0 {
+            1.fct() // 0 of 0, complete
+        } else {
+            Self::normalize_factor(Factor(n as f32 / total as f32))
+        }
+    }
+
+    fn new(value: Factor) -> Self {
+        Self {
+            factor: Self::normalize_factor(value),
+            message: Txt::from_static(""),
+            meta: Arc::new(RwLock::new(OwnedStateMap::new())),
+        }
     }
 }
 impl fmt::Debug for Progress {
@@ -144,22 +195,22 @@ impl PartialEq for Progress {
 impl Eq for Progress {}
 impl_from_and_into_var! {
     fn from(completed: Factor) -> Progress {
-        Progress::from_factor(completed)
+        Progress::from_fct(completed)
     }
     fn from(completed: FactorPercent) -> Progress {
-        Progress::from_factor(completed)
+        Progress::from_fct(completed)
     }
     fn from(completed: f32) -> Progress {
-        Progress::from_factor(completed)
+        Progress::from_fct(completed)
     }
     fn from(status: Progress) -> Factor {
-        status.factor()
+        status.fct()
     }
     fn from(status: Progress) -> FactorPercent {
-        status.factor().pct()
+        status.fct().pct()
     }
     fn from(status: Progress) -> f32 {
-        status.factor().0
+        status.fct().0
     }
     fn from(n_total: (usize, usize)) -> Progress {
         Progress::from_n_of(n_total.0, n_total.1)
@@ -173,7 +224,66 @@ impl_from_and_into_var! {
     fn from(indeterminate_or_completed: bool) -> Progress {
         match indeterminate_or_completed {
             false => Progress::indeterminate(),
-            true => Progress::from_factor(true),
+            true => Progress::from_fct(true),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fct_n1() {
+        let p = Progress::from_fct(-1.fct());
+        assert_eq!(p, Progress::indeterminate());
+    }
+
+    #[test]
+    fn fct_2() {
+        let p = Progress::from_fct(2.fct());
+        assert_eq!(p, Progress::indeterminate());
+    }
+
+    #[test]
+    fn fct_05() {
+        let p = Progress::from_fct(0.5.fct());
+        assert_eq!(p, Progress::from(0.5.fct()));
+    }
+
+    #[test]
+    fn fct_0() {
+        let p = Progress::from_fct(0.fct());
+        assert_eq!(p, Progress::from(0.fct()));
+    }
+
+    #[test]
+    fn fct_1() {
+        let p = Progress::from_fct(1.fct());
+        assert_eq!(p, Progress::from(1.fct()));
+    }
+
+    #[test]
+    fn zero_of_zero() {
+        let p = Progress::from_n_of(0, 0);
+        assert_eq!(p, Progress::completed());
+    }
+
+    #[test]
+    fn ten_of_ten() {
+        let p = Progress::from_n_of(10, 10);
+        assert_eq!(p, Progress::completed());
+    }
+
+    #[test]
+    fn ten_of_one() {
+        let p = Progress::from_n_of(10, 1);
+        assert_eq!(p, Progress::indeterminate());
+    }
+
+    #[test]
+    fn five_of_ten() {
+        let p = Progress::from_n_of(5, 10);
+        assert_eq!(p, Progress::from(50.pct()));
     }
 }

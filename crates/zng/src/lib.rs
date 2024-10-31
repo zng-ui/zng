@@ -514,6 +514,7 @@ pub mod mouse;
 pub mod panel;
 pub mod pointer_capture;
 pub mod popup;
+pub mod progress;
 pub mod render;
 pub mod rule_line;
 pub mod scroll;

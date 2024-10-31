@@ -1092,7 +1092,7 @@ impl_from_and_into_var! {
             if status.is_indeterminate() {
                 status = u_status;
             } else {
-                status = status.and_factor(u_status.factor());
+                status = status.and_fct(u_status.fct());
             }
         }
         status.with_message(formatx!("{metrics}")).with_meta_mut(|mut m| {

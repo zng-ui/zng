@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng::task::Progress` value type for reporting a task progress status.
+* Add `zng::progress` with `ProgressView` widget for displaying a task progress status.
 
 # 0.12.5
 
