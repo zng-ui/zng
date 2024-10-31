@@ -13,8 +13,8 @@
 //! // on the controller/view-model
 //! task::spawn(move async {
 //!     for n in 0..=10 {
-//!         p.set(task::Progress::from_n_of(n, 10).with_message(formatx!("sleeping {n} of 10")));
 //!         task::deadline(500.ms()).await;
+//!         p.set(task::Progress::from_n_of(n, 10).with_message(formatx!("sleeping {n} of 10")));
 //!     }
 //!     p.set(task::Progress:completed().with_message("done sleeping"));
 //! });

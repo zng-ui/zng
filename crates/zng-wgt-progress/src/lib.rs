@@ -11,7 +11,7 @@
 
 zng_wgt::enable_widget_macros!();
 
-use zng_wgt::prelude::*;
+use zng_wgt::{prelude::*, visibility};
 use zng_wgt_container::{child_out_bottom, Container};
 use zng_wgt_fill::background_color;
 use zng_wgt_size_offset::{height, width, x};
@@ -50,6 +50,22 @@ pub fn progress(child: impl UiNode, progress: impl IntoVar<Progress>) -> impl Ui
     with_context_var(child, PROGRESS_VAR, progress)
 }
 
+/// Collapse visibility when [`Progress::is_complete`].
+#[property(CONTEXT, default(false), widget_impl(ProgressView))]
+pub fn collapse_complete(child: impl UiNode, collapse: impl IntoVar<bool>) -> impl UiNode {
+    let collapse = collapse.into_var();
+    visibility(
+        child,
+        expr_var! {
+            if #{PROGRESS_VAR}.is_complete() && *#{collapse} {
+                Visibility::Collapsed
+            } else {
+                Visibility::Visible
+            }
+        },
+    )
+}
+
 /// Progress view default style (progress bar with message text).
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -59,13 +75,15 @@ impl DefaultStyle {
             self;
 
             zng_wgt_fill::background = Container! {
-                height = 8;
+                height = 5;
                 clip_to_bounds = true;
                 child_align = Align::FILL_START;
                 child = zng_wgt::Wgt! {
                     background_color = colors::ACCENT_COLOR_VAR.rgba();
 
+                    #[easing(200.ms())]
                     width = PROGRESS_VAR.map(|p| Length::from(p.fct()));
+
                     when *#{PROGRESS_VAR.map(|p| p.is_indeterminate())} {
                         width = 10.pct();
                         x = 10; // !!:TODO animate
@@ -77,7 +95,7 @@ impl DefaultStyle {
                 txt = PROGRESS_VAR.map(|p| p.msg());
                 zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
                 zng_wgt::align = Align::CENTER;
-            }, 4;
+            }, 6;
         }
     }
 }

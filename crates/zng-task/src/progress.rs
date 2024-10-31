@@ -21,7 +21,7 @@ impl Progress {
     }
 
     /// New completed.
-    pub fn completed() -> Self {
+    pub fn complete() -> Self {
         Self::new(1.fct())
     }
 
@@ -105,7 +105,7 @@ impl Progress {
     }
 
     /// Task has completed.
-    pub fn is_completed(&self) -> bool {
+    pub fn is_complete(&self) -> bool {
         self.fct() >= 1.fct()
     }
 
@@ -266,13 +266,13 @@ mod tests {
     #[test]
     fn zero_of_zero() {
         let p = Progress::from_n_of(0, 0);
-        assert_eq!(p, Progress::completed());
+        assert_eq!(p, Progress::complete());
     }
 
     #[test]
     fn ten_of_ten() {
         let p = Progress::from_n_of(10, 10);
-        assert_eq!(p, Progress::completed());
+        assert_eq!(p, Progress::complete());
     }
 
     #[test]
