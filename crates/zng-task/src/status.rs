@@ -4,7 +4,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use zng_state_map::{OwnedStateMap, StateMapMut, StateMapRef};
 use zng_txt::Txt;
-use zng_unit::{Factor, FactorPercent};
+use zng_unit::{Factor, FactorPercent, FactorUnits as _};
 use zng_var::impl_from_and_into_var;
 
 /// Status update about a task progress.
@@ -24,7 +24,7 @@ impl TaskStatus {
     }
 
     /// New with a factor of completion.
-    pub fn completed(factor: impl Into<Factor>) -> Self {
+    pub fn from_value(factor: impl Into<Factor>) -> Self {
         Self::new(Some(factor.into().clamp(0.0, 1.0)))
     }
 
@@ -37,8 +37,8 @@ impl TaskStatus {
     }
 
     /// New with completed `n` of `total`.
-    pub fn completed_of(n: usize, total: usize) -> Self {
-        Self::completed(total as f32 / n as f32)
+    pub fn from_value_of(n: usize, total: usize) -> Self {
+        Self::from_value(total as f32 / n as f32)
     }
 
     /// Set the display message about the task status update.
@@ -51,6 +51,25 @@ impl TaskStatus {
     pub fn with_meta_mut(self, meta: impl FnOnce(StateMapMut<TaskStatus>)) -> Self {
         meta(self.meta.write().borrow_mut());
         self
+    }
+
+    /// Combine the factor completed [`value`] with another `factor`.
+    ///
+    /// [`value`]: Self::value
+    pub fn and_value(mut self, factor: impl Into<Factor>) -> Self {
+        let factor = factor.into();
+        match self.value {
+            Some(value) => self.value = Some((value + factor) / 2.fct()),
+            None => self.value = Some(factor),
+        }
+        self
+    }
+
+    /// Combine the factor completed [`value`] with another factor computed from `n` of `total`.
+    ///
+    /// [`value`]: Self::value
+    pub fn and_value_of(self, n: usize, total: usize) -> Self {
+        self.and_value(total as f32 / n as f32)
     }
 
     /// Factor completed.
@@ -113,13 +132,13 @@ impl PartialEq for TaskStatus {
 impl Eq for TaskStatus {}
 impl_from_and_into_var! {
     fn from(completed: Factor) -> TaskStatus {
-        TaskStatus::completed(completed)
+        TaskStatus::from_value(completed)
     }
     fn from(completed: FactorPercent) -> TaskStatus {
-        TaskStatus::completed(completed)
+        TaskStatus::from_value(completed)
     }
     fn from(completed: f32) -> TaskStatus {
-        TaskStatus::completed(completed)
+        TaskStatus::from_value(completed)
     }
     fn from(status: TaskStatus) -> Factor {
         status.value()
@@ -131,7 +150,7 @@ impl_from_and_into_var! {
         status.value().0
     }
     fn from(n_total: (usize, usize)) -> TaskStatus {
-        TaskStatus::completed_of(n_total.0, n_total.1)
+        TaskStatus::from_value_of(n_total.0, n_total.1)
     }
     fn from(indeterminate_message: Txt) -> TaskStatus {
         TaskStatus::indeterminate().with_message(indeterminate_message)
@@ -142,7 +161,7 @@ impl_from_and_into_var! {
     fn from(indeterminate_or_completed: bool) -> TaskStatus {
         match indeterminate_or_completed {
             false => TaskStatus::indeterminate(),
-            true => TaskStatus::completed(true),
+            true => TaskStatus::from_value(true),
         }
     }
 }

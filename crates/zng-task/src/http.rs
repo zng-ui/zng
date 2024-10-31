@@ -1046,7 +1046,7 @@ impl fmt::Display for Metrics {
         if self.upload_progress.0 != self.upload_progress.1 {
             write!(
                 f,
-                "upload: {} of {}, {}/s",
+                "↑ {} - {}, {}/s",
                 self.upload_progress.0, self.upload_progress.1, self.upload_speed
             )?;
             ws = true;
@@ -1054,7 +1054,7 @@ impl fmt::Display for Metrics {
         if self.download_progress.0 != self.download_progress.1 {
             write!(
                 f,
-                "{}download: {} of {}, {}/s",
+                "{}↓ {} - {}, {}/s",
                 if ws { "\n" } else { "" },
                 self.download_progress.0,
                 self.download_progress.1,
@@ -1065,16 +1065,16 @@ impl fmt::Display for Metrics {
 
         if !ws {
             if self.upload_progress.1.bytes() > 0 {
-                write!(f, "uploaded: {}", self.upload_progress.1)?;
+                write!(f, "↑ {}", self.upload_progress.1)?;
                 ws = true;
             }
             if self.download_progress.1.bytes() > 0 {
-                write!(f, "{}downloaded: {}", if ws { "\n" } else { "" }, self.download_progress.1)?;
+                write!(f, "{}↓ {}", if ws { "\n" } else { "" }, self.download_progress.1)?;
                 ws = true;
             }
 
             if ws {
-                write!(f, "\ntotal time: {:?}", self.total_time)?;
+                write!(f, "\n{:?}", self.total_time)?;
             }
         }
 
@@ -1083,17 +1083,19 @@ impl fmt::Display for Metrics {
 }
 impl_from_and_into_var! {
     fn from(metrics: Metrics) -> TaskStatus {
-        fn transfer_status((n, total): (ByteLength, ByteLength), speed: ByteLength) -> TaskStatus {
-            TaskStatus::completed_of(n.0, total.0).with_message(formatx!("{n}|{total} - {speed}/s"))
-        }
+        let mut status = TaskStatus::indeterminate();
         if metrics.download_progress.1 > 0.bytes() {
-            transfer_status(metrics.download_progress, metrics.download_speed)
-        } else if metrics.upload_progress.1 > 0.bytes() {
-            transfer_status(metrics.upload_progress, metrics.upload_speed)
-        } else {
-            TaskStatus::indeterminate()
+            status = TaskStatus::from_value_of(metrics.download_progress.0 .0, metrics.download_progress.1 .0);
         }
-        .with_meta_mut(|mut m| {
+        if metrics.upload_progress.1 > 0.bytes() {
+            let u_status = TaskStatus::from_value_of(metrics.upload_progress.0 .0, metrics.upload_progress.1 .0);
+            if status.is_indeterminate() {
+                status = u_status;
+            } else {
+                status = status.and_value(u_status.value());
+            }
+        }
+        status.with_message(formatx!("{metrics}")).with_meta_mut(|mut m| {
             m.set(*METRICS_ID, metrics);
         })
     }
