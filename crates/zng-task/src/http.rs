@@ -1101,7 +1101,7 @@ impl_from_and_into_var! {
     }
 }
 zng_state_map::static_id! {
-    /// Metrics in a [`TaskStatus::with_meta`] metadata.
+    /// Metrics in a [`Progress::with_meta`] metadata.
     pub static ref METRICS_ID: zng_state_map::StateId<Metrics>;
 }
 

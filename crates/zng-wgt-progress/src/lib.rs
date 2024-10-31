@@ -12,6 +12,9 @@
 zng_wgt::enable_widget_macros!();
 
 use zng_wgt::prelude::*;
+use zng_wgt_container::{child, child_out_bottom, Container};
+use zng_wgt_fill::background_color;
+use zng_wgt_size_offset::{height, width, x};
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 
 pub use zng_task::Progress;
@@ -43,17 +46,35 @@ context_var! {
 ///
 /// This property sets the [`PROGRESS_VAR`].
 #[property(CONTEXT, default(PROGRESS_VAR), widget_impl(ProgressView))]
-fn progress(child: impl UiNode, progress: impl IntoVar<Progress>) -> impl UiNode {
+pub fn progress(child: impl UiNode, progress: impl IntoVar<Progress>) -> impl UiNode {
     with_context_var(child, PROGRESS_VAR, progress)
 }
 
-/// Progress default style.
+/// Progress view default style (progress bar with message text).
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+
+            child = Container! {
+                height = 8;
+                child = zng_wgt::Wgt! {
+                    background_color = colors::ACCENT_COLOR_VAR.rgba();
+
+                    width = PROGRESS_VAR.map(|p| Length::from(p.fct()));
+                    when *#{PROGRESS_VAR.map(|p| p.is_indeterminate())} {
+                        width = 12;
+                        x = 10; // !!:TODO animate
+                    }
+                };
+            };
+
+            child_out_bottom = zng_wgt_text::Text! {
+                txt = PROGRESS_VAR.map(|p| p.message());
+                zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.message().is_empty()));
+            }, 4;
         }
     }
 }
