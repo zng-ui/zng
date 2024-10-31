@@ -61,8 +61,8 @@ pub use rayon_ctx::*;
 
 pub use ui::*;
 
-mod status;
-pub use status::*;
+mod progress;
+pub use progress::*;
 
 /// Spawn a parallel async task, this function is not blocking and the `task` starts executing immediately.
 ///

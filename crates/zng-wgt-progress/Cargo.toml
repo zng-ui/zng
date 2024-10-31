@@ -17,5 +17,6 @@ zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.20" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.4.11" }
 zng-layout = { path = "../zng-layout", version = "0.2.29" }
 zng-app = { path = "../zng-app", version = "0.13.3" }
+zng-task = { path = "../zng-task", version = "0.4.8" }
 
 tracing = "0.1"

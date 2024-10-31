@@ -12,9 +12,9 @@
 use zng_wgt::prelude::*;
 
 /// Progress indicator widget.
-#[widget($crate::Progress {
+#[widget($crate::ProgressBar {
     ($status:expr) => {
         status = $value;
     };
 })]
-pub struct Progress(WidgetBase);
+pub struct ProgressBar(WidgetBase);

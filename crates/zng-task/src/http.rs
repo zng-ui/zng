@@ -34,7 +34,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::{fmt, mem};
 
-use crate::TaskStatus;
+use crate::Progress;
 
 use super::io::AsyncRead;
 
@@ -1082,17 +1082,17 @@ impl fmt::Display for Metrics {
     }
 }
 impl_from_and_into_var! {
-    fn from(metrics: Metrics) -> TaskStatus {
-        let mut status = TaskStatus::indeterminate();
+    fn from(metrics: Metrics) -> Progress {
+        let mut status = Progress::indeterminate();
         if metrics.download_progress.1 > 0.bytes() {
-            status = TaskStatus::from_value_of(metrics.download_progress.0 .0, metrics.download_progress.1 .0);
+            status = Progress::from_n_of(metrics.download_progress.0 .0, metrics.download_progress.1 .0);
         }
         if metrics.upload_progress.1 > 0.bytes() {
-            let u_status = TaskStatus::from_value_of(metrics.upload_progress.0 .0, metrics.upload_progress.1 .0);
+            let u_status = Progress::from_n_of(metrics.upload_progress.0 .0, metrics.upload_progress.1 .0);
             if status.is_indeterminate() {
                 status = u_status;
             } else {
-                status = status.and_value(u_status.value());
+                status = status.and_factor(u_status.factor());
             }
         }
         status.with_message(formatx!("{metrics}")).with_meta_mut(|mut m| {

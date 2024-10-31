@@ -13,7 +13,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{McWaker, TaskStatus};
+use crate::{McWaker, Progress};
 
 #[doc(no_inline)]
 pub use futures_lite::io::{
@@ -200,17 +200,17 @@ impl fmt::Display for Metrics {
     }
 }
 impl_from_and_into_var! {
-    fn from(metrics: Metrics) -> TaskStatus {
-        let mut status = TaskStatus::indeterminate();
+    fn from(metrics: Metrics) -> Progress {
+        let mut status = Progress::indeterminate();
         if metrics.read_progress.1 > 0.bytes() {
-            status = TaskStatus::from_value_of(metrics.read_progress.0 .0, metrics.read_progress.1 .0);
+            status = Progress::from_n_of(metrics.read_progress.0 .0, metrics.read_progress.1 .0);
         }
         if metrics.write_progress.1 > 0.bytes() {
-            let w_status = TaskStatus::from_value_of(metrics.write_progress.0 .0, metrics.write_progress.1 .0);
+            let w_status = Progress::from_n_of(metrics.write_progress.0 .0, metrics.write_progress.1 .0);
             if status.is_indeterminate() {
                 status = w_status;
             } else {
-                status = status.and_value(w_status.value());
+                status = status.and_factor(w_status.factor());
             }
         }
         status.with_message(formatx!("{metrics}")).with_meta_mut(|mut m| {
