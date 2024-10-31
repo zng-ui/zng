@@ -20,17 +20,17 @@ pub struct TaskStatus {
 impl TaskStatus {
     /// New indeterminate.
     pub fn indeterminate() -> Self {
-        Self {
-            value: None,
-            message: Txt::from_static(""),
-            meta: Arc::new(RwLock::new(OwnedStateMap::new())),
-        }
+        Self::new(None)
     }
 
     /// New with a factor of completion.
     pub fn completed(factor: impl Into<Factor>) -> Self {
+        Self::new(Some(factor.into().clamp(0.0, 1.0)))
+    }
+
+    fn new(value: Option<Factor>) -> Self {
         Self {
-            value: Some(factor.into()),
+            value,
             message: Txt::from_static(""),
             meta: Arc::new(RwLock::new(OwnedStateMap::new())),
         }
@@ -138,5 +138,11 @@ impl_from_and_into_var! {
     }
     fn from(indeterminate_message: &'static str) -> TaskStatus {
         TaskStatus::indeterminate().with_message(indeterminate_message)
+    }
+    fn from(indeterminate_or_completed: bool) -> TaskStatus {
+        match indeterminate_or_completed {
+            false => TaskStatus::indeterminate(),
+            true => TaskStatus::completed(true),
+        }
     }
 }
