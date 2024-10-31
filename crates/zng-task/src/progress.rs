@@ -26,7 +26,7 @@ impl Progress {
     }
 
     /// New with a factor of completion.
-    /// 
+    ///
     /// The `factor` is clamped to the `0..=1` range.
     pub fn from_factor(factor: impl Into<Factor>) -> Self {
         Self::new(factor.into().clamp(0.0, 1.0))
