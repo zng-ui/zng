@@ -132,6 +132,14 @@ pub fn on_complete(child: impl UiNode, handler: impl WidgetHandler<Progress>) ->
     )
 }
 
+/// Getter property that is `true` when progress is indeterminate.
+///
+/// This event works in any context that sets [`PROGRESS_VAR`].
+#[property(EVENT, widget_impl(ProgressView))]
+pub fn is_indeterminate(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    bind_state(child, PROGRESS_VAR.map(|p| p.is_indeterminate()), state)
+}
+
 /// Progress view default style (progress bar with message text).
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -165,6 +173,18 @@ impl DefaultStyle {
                 zng_wgt::visibility = PROGRESS_VAR.map(|p| Visibility::from(!p.msg().is_empty()));
                 zng_wgt::align = Align::CENTER;
             }, 6;
+        }
+    }
+}
+
+/// Progress view style that is only the progress bar, no message text.
+#[widget($crate::SimpleBarStyle)]
+pub struct SimpleBarStyle(DefaultStyle);
+impl SimpleBarStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            child_out_bottom = unset!;
         }
     }
 }
