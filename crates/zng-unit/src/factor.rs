@@ -765,7 +765,8 @@ impl fmt::Debug for FactorPercent {
 }
 impl fmt::Display for FactorPercent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}%", self.0)
+        // round by 2 decimal places, without printing `.00`
+        write!(f, "{}%", (self.0 * 100.0).round() / 100.0)
     }
 }
 

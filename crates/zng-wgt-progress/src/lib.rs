@@ -67,28 +67,53 @@ pub fn collapse_complete(child: impl UiNode, collapse: impl IntoVar<bool>) -> im
     )
 }
 
-/// Event raised for each progress update.
+/// Event raised for each progress update, and once after info init.
 ///
 /// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]
 pub fn on_progress(child: impl UiNode, mut handler: impl WidgetHandler<Progress>) -> impl UiNode {
+    // copied from `on_info_init`
+    enum State {
+        WaitInfo,
+        InfoInited,
+        Done,
+    }
+    let mut state = State::WaitInfo;
+
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&PROGRESS_VAR);
+            state = State::WaitInfo;
+        }
+        UiNodeOp::Info { .. } => {
+            if let State::WaitInfo = &state {
+                state = State::InfoInited;
+                WIDGET.update();
+            }
         }
         UiNodeOp::Update { updates } => {
             c.update(updates);
-            if PROGRESS_VAR.is_new() {
-                PROGRESS_VAR.with(|u| handler.event(u));
-            } else {
-                handler.update();
+
+            match state {
+                State::Done => {
+                    if PROGRESS_VAR.is_new() {
+                        PROGRESS_VAR.with(|u| handler.event(u));
+                    } else {
+                        handler.update();
+                    }
+                }
+                State::InfoInited => {
+                    PROGRESS_VAR.with(|u| handler.event(u));
+                    state = State::Done;
+                }
+                State::WaitInfo => {}
             }
         }
         _ => {}
     })
 }
 
-/// Event raised when progress updates to a complete state.
+/// Event raised when progress updates to a complete state or inits completed.
 ///
 /// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix display print of `FactorPercent` not rounding.
 * `ChildInsert::{Over, Under}` now allows insert to affect layout size, like other inserts.
     - Use `background` and `foreground` properties as *layout passive* alternatives for `child_under` and `child_over`.
 * Add `zng::container::child`.
