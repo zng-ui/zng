@@ -11,6 +11,7 @@
 
 zng_wgt::enable_widget_macros!();
 
+use zng_app::handler::FilterWidgetHandler;
 use zng_wgt::{base_color, prelude::*, visibility};
 use zng_wgt_container::{child_out_bottom, Container};
 use zng_wgt_fill::background_color;
@@ -66,6 +67,42 @@ pub fn collapse_complete(child: impl UiNode, collapse: impl IntoVar<bool>) -> im
     )
 }
 
+/// Event raised for each progress update.
+#[property(EVENT, widget_impl(ProgressView))]
+pub fn on_progress(child: impl UiNode, mut handler: impl WidgetHandler<Progress>) -> impl UiNode {
+    match_node(child, move |c, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&PROGRESS_VAR);
+        }
+        UiNodeOp::Update { updates } => {
+            c.update(updates);
+            if PROGRESS_VAR.is_new() {
+                PROGRESS_VAR.with(|u| handler.event(u));
+            } else {
+                handler.update();
+            }
+        }
+        _ => {}
+    })
+}
+
+/// Event raised when progress updates to a complete state.
+#[property(EVENT, widget_impl(ProgressView))]
+pub fn on_completed(child: impl UiNode, handler: impl WidgetHandler<Progress>) -> impl UiNode {
+    let mut is_complete = false;
+    on_progress(
+        child,
+        FilterWidgetHandler::new(handler, move |u| {
+            let complete = u.is_complete();
+            if complete != is_complete {
+                is_complete = complete;
+                return is_complete;
+            }
+            false
+        }),
+    )
+}
+
 /// Progress view default style (progress bar with message text).
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
@@ -89,7 +126,7 @@ impl DefaultStyle {
 
                     when *#{PROGRESS_VAR.map(|p| p.is_indeterminate())} {
                         width = 10.pct();
-                        x = 10; // !!:TODO animate
+                        x = 10; // !!:TODO animate, we need a var that starts animating only when actually indeterminate
                     }
                 };
             };
