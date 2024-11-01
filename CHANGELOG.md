@@ -1,5 +1,10 @@
 # Unreleased
 
+* `ChildInsert::{Over, Under}` now allows insert to affect layout size, like other inserts.
+    - Use `background` and `foreground` properties as *layout passive* alternatives for `child_under` and `child_over`.
+* Add `zng::container::child`.
+* **Breaking** `zng_wgt_container::child` can now be used as a standalone property that behaves the same as `child_under`.
+    - Note that this is only a breaking change for direct dependents of `zng-wgt-container`.
 * Fix warning on `flood` with 0 area.
 * Add `zng::task::Progress` value type for reporting a task progress status.
 * Add `zng::progress` with `ProgressView` widget for displaying a task progress status.

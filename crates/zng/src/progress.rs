@@ -16,7 +16,7 @@
 //!         task::deadline(500.ms()).await;
 //!         p.set(task::Progress::from_n_of(n, 10).with_message(formatx!("sleeping {n} of 10")));
 //!     }
-//!     p.set(task::Progress:completed().with_message("done sleeping"));
+//!     p.set(task::Progress:complete().with_message("done sleeping"));
 //! });
 //! ```
 //!

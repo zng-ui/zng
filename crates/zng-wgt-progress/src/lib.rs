@@ -11,7 +11,7 @@
 
 zng_wgt::enable_widget_macros!();
 
-use zng_wgt::{prelude::*, visibility};
+use zng_wgt::{base_color, prelude::*, visibility};
 use zng_wgt_container::{child_out_bottom, Container};
 use zng_wgt_fill::background_color;
 use zng_wgt_size_offset::{height, width, x};
@@ -73,9 +73,12 @@ impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
 
-            zng_wgt_fill::background = Container! {
+            zng_wgt_container::child = Container! {
                 height = 5;
+                background_color = colors::BASE_COLOR_VAR.rgba();
+
                 clip_to_bounds = true;
                 child_align = Align::FILL_START;
                 child = zng_wgt::Wgt! {
