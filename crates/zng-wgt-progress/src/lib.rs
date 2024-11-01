@@ -68,6 +68,8 @@ pub fn collapse_complete(child: impl UiNode, collapse: impl IntoVar<bool>) -> im
 }
 
 /// Event raised for each progress update.
+///
+/// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]
 pub fn on_progress(child: impl UiNode, mut handler: impl WidgetHandler<Progress>) -> impl UiNode {
     match_node(child, move |c, op| match op {
@@ -87,8 +89,10 @@ pub fn on_progress(child: impl UiNode, mut handler: impl WidgetHandler<Progress>
 }
 
 /// Event raised when progress updates to a complete state.
+///
+/// This event works in any context that sets [`PROGRESS_VAR`].
 #[property(EVENT, widget_impl(ProgressView))]
-pub fn on_completed(child: impl UiNode, handler: impl WidgetHandler<Progress>) -> impl UiNode {
+pub fn on_complete(child: impl UiNode, handler: impl WidgetHandler<Progress>) -> impl UiNode {
     let mut is_complete = false;
     on_progress(
         child,
