@@ -11,7 +11,7 @@
 //! let view = zng::progress::ProgressView!(p.clone());
 //!
 //! // on the controller/view-model
-//! task::spawn(move async {
+//! task::spawn(async move {
 //!     for n in 0..=10 {
 //!         task::deadline(500.ms()).await;
 //!         p.set(task::Progress::from_n_of(n, 10).with_message(formatx!("sleeping {n} of 10")));
