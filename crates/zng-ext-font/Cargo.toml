@@ -54,7 +54,7 @@ unicode-linebreak = "0.1"
 unicode-segmentation = "1.11"
 unic-langid = "0.9"
 smallvec = { version = "1.13", features = ["const_new", "serde"] }
-hashbrown = "0.14"
+hashbrown = "0.15"
 pathfinder_geometry = "0.5"
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
