@@ -498,9 +498,19 @@ pub fn prefer_custom_chrome(child: impl UiNode, prefer: impl IntoVar<bool>) -> i
 ///
 /// This property behaves exactly like [`adorner_fn`]. Using it instead of adorner frees the adorner property
 /// for other usage in the window instance or in derived window types.
+/// 
+/// Note that you can also set the `custom_chrome_padding_fn` to ensure that the content is not hidden behind the adorner.
 ///
 /// [`adorner_fn`]: fn@adorner_fn
 #[property(FILL, default(WidgetFn::nil()), widget_impl(Window))]
 pub fn custom_chrome_adorner_fn(child: impl UiNode, custom_chrome: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     adorner_fn(child, custom_chrome)
+}
+
+/// Extra padding for window content in windows that display a [`custom_chrome_adorner_fn`].
+/// 
+/// [`custom_chrome_adorner_fn`]: fn@custom_chrome_adorner_fn 
+#[property(CHILD_LAYOUT, default(0), widget_impl(Window))]
+pub fn custom_chrome_padding_fn(child: impl UiNode, padding: impl IntoVar<SideOffsets>) -> impl UiNode {
+    zng_wgt_container::padding(child, padding)
 }
