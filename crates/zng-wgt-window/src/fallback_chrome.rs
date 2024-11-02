@@ -143,6 +143,8 @@ pub fn fallback_chrome() -> impl UiNode {
     let cursor = var(CursorSource::Hidden);
 
     Container! {
+        exclude_text_context = true;
+
         hit_test_mode = HitTestMode::Detailed;
 
         child = title;
@@ -165,4 +167,25 @@ pub fn fallback_chrome() -> impl UiNode {
             });
         }
     }
+}
+
+#[property(WIDGET)]
+fn exclude_text_context(child: impl UiNode, exclude: impl IntoValue<bool>) -> impl UiNode {
+    assert!(exclude.into());
+
+    // exclude all text context vars set on the window
+    let excluded_set = {
+        let mut c = ContextValueSet::new();
+        Text::context_vars_set(&mut c);
+        c
+    };
+    let child = match_node(child, move |c, op| {
+        let mut filtered = LocalContext::capture_filtered(CaptureFilter::Exclude(excluded_set.clone()));
+        filtered.with_context(|| {
+            c.op(op);
+        });
+    });
+
+    // override layout font size
+    zng_wgt_text::font_size(child, 16)
 }
