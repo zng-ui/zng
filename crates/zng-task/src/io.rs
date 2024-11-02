@@ -13,7 +13,7 @@ use std::{
     time::Duration,
 };
 
-use crate::McWaker;
+use crate::{McWaker, Progress};
 
 #[doc(no_inline)]
 pub use futures_lite::io::{
@@ -23,7 +23,9 @@ pub use futures_lite::io::{
 use parking_lot::Mutex;
 use std::io::{Error, Result};
 use zng_time::{DInstant, INSTANT};
+use zng_txt::formatx;
 use zng_unit::{ByteLength, ByteUnits};
+use zng_var::impl_from_and_into_var;
 
 /// Measure read/write of an async task.
 ///
@@ -174,36 +176,52 @@ impl Metrics {
 impl fmt::Display for Metrics {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut w = false;
-        if self.read_progress.0 > 0.bytes() {
+        if self.read_progress.1 > 0.bytes() {
             w = true;
             if self.read_progress.0 != self.read_progress.1 {
-                write!(
-                    f,
-                    "read: {} of {}, {}/s",
-                    self.read_progress.0, self.read_progress.1, self.read_speed
-                )?;
+                write!(f, "↓ {}-{}, {}/s", self.read_progress.0, self.read_progress.1, self.read_speed)?;
                 w = true;
             } else {
-                write!(f, "read {} in {:?}", self.read_progress.0, self.total_time)?;
+                write!(f, "↓ {} . {:?}", self.read_progress.0, self.total_time)?;
             }
         }
-        if self.write_progress.0 > 0.bytes() {
+        if self.write_progress.1 > 0.bytes() {
             if w {
                 writeln!(f)?;
             }
             if self.write_progress.0 != self.write_progress.1 {
-                write!(
-                    f,
-                    "write: {} of {}, {}/s",
-                    self.write_progress.0, self.write_progress.1, self.write_speed
-                )?;
+                write!(f, "↑ {} - {}, {}/s", self.write_progress.0, self.write_progress.1, self.write_speed)?;
             } else {
-                write!(f, "written {} in {:?}", self.read_progress.0, self.total_time)?;
+                write!(f, "↑ {} . {:?}", self.write_progress.0, self.total_time)?;
             }
         }
 
         Ok(())
     }
+}
+impl_from_and_into_var! {
+    fn from(metrics: Metrics) -> Progress {
+        let mut status = Progress::indeterminate();
+        if metrics.read_progress.1 > 0.bytes() {
+            status = Progress::from_n_of(metrics.read_progress.0 .0, metrics.read_progress.1 .0);
+        }
+        if metrics.write_progress.1 > 0.bytes() {
+            let w_status = Progress::from_n_of(metrics.write_progress.0 .0, metrics.write_progress.1 .0);
+            if status.is_indeterminate() {
+                status = w_status;
+            } else {
+                status = status.and_fct(w_status.fct());
+            }
+        }
+        status.with_msg(formatx!("{metrics}")).with_meta_mut(|mut m| {
+            m.set(*METRICS_ID, metrics);
+        })
+    }
+}
+
+zng_state_map::static_id! {
+    /// Metrics in a [`Progress::with_meta`] metadata.
+    pub static ref METRICS_ID: zng_state_map::StateId<Metrics>;
 }
 
 /// Extension methods for [`std::io::Error`] to be used with errors returned by [`McBufReader`].

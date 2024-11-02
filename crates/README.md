@@ -114,6 +114,7 @@ or for custom properties that deeply integrate with a widget.
 - `zng-wgt-ansi-text`
 - `zng-wgt-tooltip`
 - `zng-wgt-markdown`
+- `zng-wgt-progress`
 - `zng-wgt-material-icons`
 - `zng-wgt-webrender-debug`
 

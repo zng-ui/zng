@@ -25,6 +25,7 @@ mod cache;
 mod util;
 
 pub use cache::*;
+use zng_var::impl_from_and_into_var;
 
 use std::convert::TryFrom;
 use std::error::Error as StdError;
@@ -32,6 +33,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fmt, mem};
+
+use crate::Progress;
 
 use super::io::AsyncRead;
 
@@ -44,7 +47,7 @@ use futures_lite::io::{AsyncReadExt, BufReader};
 use isahc::{AsyncReadResponseExt, ResponseExt};
 use parking_lot::{const_mutex, Mutex};
 
-use zng_txt::Txt;
+use zng_txt::{formatx, Txt};
 use zng_unit::*;
 
 /// Marker trait for types that try-to-convert to [`Uri`].
@@ -1043,7 +1046,7 @@ impl fmt::Display for Metrics {
         if self.upload_progress.0 != self.upload_progress.1 {
             write!(
                 f,
-                "upload: {} of {}, {}/s",
+                "↑ {} - {}, {}/s",
                 self.upload_progress.0, self.upload_progress.1, self.upload_speed
             )?;
             ws = true;
@@ -1051,7 +1054,7 @@ impl fmt::Display for Metrics {
         if self.download_progress.0 != self.download_progress.1 {
             write!(
                 f,
-                "{}download: {} of {}, {}/s",
+                "{}↓ {} - {}, {}/s",
                 if ws { "\n" } else { "" },
                 self.download_progress.0,
                 self.download_progress.1,
@@ -1062,21 +1065,44 @@ impl fmt::Display for Metrics {
 
         if !ws {
             if self.upload_progress.1.bytes() > 0 {
-                write!(f, "uploaded: {}", self.upload_progress.1)?;
+                write!(f, "↑ {}", self.upload_progress.1)?;
                 ws = true;
             }
             if self.download_progress.1.bytes() > 0 {
-                write!(f, "{}downloaded: {}", if ws { "\n" } else { "" }, self.download_progress.1)?;
+                write!(f, "{}↓ {}", if ws { "\n" } else { "" }, self.download_progress.1)?;
                 ws = true;
             }
 
             if ws {
-                write!(f, "\ntotal time: {:?}", self.total_time)?;
+                write!(f, "\n{:?}", self.total_time)?;
             }
         }
 
         Ok(())
     }
+}
+impl_from_and_into_var! {
+    fn from(metrics: Metrics) -> Progress {
+        let mut status = Progress::indeterminate();
+        if metrics.download_progress.1 > 0.bytes() {
+            status = Progress::from_n_of(metrics.download_progress.0 .0, metrics.download_progress.1 .0);
+        }
+        if metrics.upload_progress.1 > 0.bytes() {
+            let u_status = Progress::from_n_of(metrics.upload_progress.0 .0, metrics.upload_progress.1 .0);
+            if status.is_indeterminate() {
+                status = u_status;
+            } else {
+                status = status.and_fct(u_status.fct());
+            }
+        }
+        status.with_msg(formatx!("{metrics}")).with_meta_mut(|mut m| {
+            m.set(*METRICS_ID, metrics);
+        })
+    }
+}
+zng_state_map::static_id! {
+    /// Metrics in a [`Progress::with_meta`] metadata.
+    pub static ref METRICS_ID: zng_state_map::StateId<Metrics>;
 }
 
 /// HTTP client.
