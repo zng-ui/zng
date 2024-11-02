@@ -145,6 +145,9 @@ pub fn is_indeterminate(child: impl UiNode, state: impl IntoVar<bool>) -> impl U
 pub struct DefaultStyle(Style);
 impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
+        let indeterminate_x = var(Length::from(0));
+        let mut indeterminate_animation = None;
+        let indeterminate_width = 10.pct();
         widget_set! {
             self;
             base_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
@@ -161,9 +164,28 @@ impl DefaultStyle {
                     #[easing(200.ms())]
                     width = PROGRESS_VAR.map(|p| Length::from(p.fct()));
 
+                    on_progress = hn!(indeterminate_x, |p: &Progress| {
+                        if p.is_indeterminate() {
+                            // only animates when actually indeterminate
+                            if indeterminate_animation.is_none() {
+                                let h = indeterminate_x.sequence(move |i| {
+                                    use zng_var::animation::easing;
+                                    i.set_ease(
+                                        -indeterminate_width,
+                                        100.pct(),
+                                        1.5.secs(),
+                                        |t| easing::ease_out(easing::quad, t),
+                                    )
+                                });
+                                indeterminate_animation = Some(h);
+                            }
+                        } else {
+                            indeterminate_animation = None;
+                        }
+                    });
                     when *#{PROGRESS_VAR.map(|p| p.is_indeterminate())} {
-                        width = 10.pct();
-                        x = 10; // !!:TODO animate, we need a var that starts animating only when actually indeterminate
+                        width = indeterminate_width;
+                        x = indeterminate_x;
                     }
                 };
             };

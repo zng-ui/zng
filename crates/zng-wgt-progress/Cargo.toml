@@ -22,5 +22,6 @@ zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.27" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.17" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.37" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.37" }
+zng-var = { path = "../zng-var", version = "0.5.8" }
 
 tracing = "0.1"
