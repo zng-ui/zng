@@ -1176,7 +1176,7 @@ pub(crate) fn accesskit_to_event(
         window: window_id,
         target,
         command: match request.action {
-            Action::Default => AccessCmd::Click(true),
+            Action::Click => AccessCmd::Click(true),
             Action::ShowContextMenu => AccessCmd::Click(false),
             Action::Focus => AccessCmd::Focus(true),
             Action::SetSequentialFocusNavigationStartingPoint => AccessCmd::FocusNavOrigin,
@@ -1266,7 +1266,7 @@ fn access_node_to_kit(
 ) -> accesskit::NodeId {
     let node_id = access_id_to_kit(node.id);
     let node_role = node.role.map(access_role_to_kit).unwrap_or(accesskit::Role::Unknown);
-    let mut builder = accesskit::NodeBuilder::new(node_role);
+    let mut builder = accesskit::Node::new(node_role);
 
     // add bounds and transform
     if !node.size.is_empty() {
@@ -1283,25 +1283,18 @@ fn access_node_to_kit(
         builder.set_bounds(bounds);
     }
 
-    // action that will be performed on click.
-    let mut default_verb = None;
-
     // add actions
     for cmd in &node.commands {
         use zng_view_api::access::AccessCmdName::*;
 
         match cmd {
             Click => {
-                builder.add_action(accesskit::Action::Default);
+                builder.add_action(accesskit::Action::Click);
                 builder.add_action(accesskit::Action::ShowContextMenu);
-                default_verb = Some(accesskit::DefaultActionVerb::Click);
             }
             Focus => {
                 builder.add_action(accesskit::Action::Focus);
                 builder.add_action(accesskit::Action::Blur);
-                if default_verb.is_none() {
-                    default_verb = Some(accesskit::DefaultActionVerb::Focus);
-                }
             }
             SetExpanded => {
                 builder.add_action(accesskit::Action::Expand);
@@ -1338,10 +1331,6 @@ fn access_node_to_kit(
             }
             _ => {}
         }
-    }
-
-    if let Some(v) = default_verb {
-        builder.set_default_action_verb(v);
     }
 
     // add state
@@ -1390,7 +1379,7 @@ fn access_node_to_kit(
                     builder.set_invalid(accesskit::Invalid::True)
                 }
             }
-            Label(s) => builder.set_name(s.clone().into_owned().into_boxed_str()),
+            Label(s) => builder.set_label(s.clone().into_owned().into_boxed_str()),
             Level(n) => builder.set_level(n.get() as usize),
             Modal => builder.set_modal(),
             MultiSelectable => builder.set_multiselectable(),
@@ -1481,7 +1470,7 @@ fn access_node_to_kit(
         }
     }
 
-    let node = builder.build();
+    let node = builder;
     output.push((node_id, node));
     node_id
 }
