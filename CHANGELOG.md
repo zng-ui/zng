@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix window text properties affecting the Wayland fallback chrome text.
 * Fix `swgl` build error.
 * Changed how relative lengths are computed in `offset`, `x` and `y`, now uses the maximum bounded length from constraint, the same as `size` properties.
 * Fix display print of `FactorPercent` not rounding.
