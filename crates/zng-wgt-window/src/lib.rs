@@ -85,7 +85,7 @@ impl Window {
                 custom_chrome_adorner_fn = wgt_fn!(|_| {
                     fallback_chrome()
                 });
-                padding = ContextualizedVar::new(|| {
+                custom_chrome_padding_fn = ContextualizedVar::new(|| {
                     let vars = WINDOW.vars();
                     expr_var! {
                         let title_padding = SideOffsets::new(28, 0, 0, 0);
