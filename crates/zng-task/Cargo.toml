@@ -25,7 +25,6 @@ ipc = [
     "dep:ipc-channel",
     "dep:bincode",
     "dep:zng-unique-id",
-    "dep:zng-txt",
 ]
 
 # Enables http tasks.
@@ -36,7 +35,6 @@ http = [
     "dep:http-cache-semantics",
     "dep:http-serde",
     "dep:once_cell",
-    "dep:zng-txt",
     "dep:async-recursion",
     "dep:async-trait",
     "dep:sha2",
@@ -56,9 +54,10 @@ zng-app-context = { path = "../zng-app-context", version = "0.5.11" }
 zng-time = { path = "../zng-time", version = "0.2.23" }
 zng-var = { path = "../zng-var", version = "0.5.8" }
 zng-env = { path = "../zng-env", version = "0.3.6" }
+zng-txt = { path = "../zng-txt", version = "0.2.8" }
+zng-state-map = { path = "../zng-state-map", version = "0.3.6" }
 
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.6", default-features = false, optional = true }
-zng-txt = { path = "../zng-txt", version = "0.2.8", optional = true }
 
 tracing = "0.1"
 pretty-type-name = "1.0"

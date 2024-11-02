@@ -13,7 +13,7 @@ use zng_wgt::prelude::*;
 
 /// Widget layout offset.
 ///
-/// Relative values are computed of the parent fill size or the widget's size, whichever is greater.
+/// Relative values are computed from the constraints maximum bounded size.
 ///
 /// # `x` and `y`
 ///
@@ -39,7 +39,7 @@ pub fn offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNode {
 
 /// Offset on the ***x*** axis.
 ///
-/// Relative values are computed of the parent fill width or the widget's width, whichever is greater.
+/// Relative values are computed from the constraints maximum bounded width.
 ///
 /// # `offset`
 ///
@@ -53,9 +53,8 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
         }
         UiNodeOp::Layout { wl, final_size } => {
             let size = child.layout(wl);
-            let x = LAYOUT.with_constraints(PxConstraints2d::new_exact_size(LAYOUT.constraints().fill_size().max(size)), || {
-                x.layout_x()
-            });
+
+            let x = with_fill_metrics(LAYOUT.constraints(), |_| x.layout_x());
             wl.translate(PxVector::new(x, Px(0)));
             *final_size = size;
         }
@@ -65,7 +64,7 @@ pub fn x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 
 /// Offset on the ***y*** axis.
 ///
-/// Relative values are computed of the parent fill height or the widget's height, whichever is greater.
+/// Relative values are computed from the constraints maximum bounded height.
 ///
 /// # `offset`
 ///

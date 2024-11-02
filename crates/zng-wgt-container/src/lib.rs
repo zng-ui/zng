@@ -35,13 +35,18 @@ impl Container {
     }
 }
 
-/// The content.
+/// The widget's child.
 ///
 /// Can be any type that implements [`UiNode`], any widget.
 ///
+/// In `Container!` derived widgets or similar this property is captured and used as the actual child, in other widgets
+/// this property is an alias for [`child_under`](fn@child_under).
+///
 /// [`UiNode`]: zng_app::widget::node::UiNode
-#[property(CHILD, capture, default(FillUiNode), widget_impl(Container))]
-pub fn child(child: impl UiNode) {}
+#[property(CHILD, default(FillUiNode), widget_impl(Container))]
+pub fn child(widget_child: impl UiNode, child: impl UiNode) -> impl UiNode {
+    child_under(widget_child, child)
+}
 
 /// Margin space around the content of a widget.
 ///
@@ -350,10 +355,8 @@ pub fn child_insert(
                 }
                 ChildInsert::Over | ChildInsert::Under => {
                     let child_size = children.with_node(0, |n| n.layout(wl));
-                    children.with_node(1, |n| {
-                        LAYOUT.with_constraints(PxConstraints2d::new_exact_size(child_size), || n.layout(wl));
-                    });
-                    child_size
+                    let insert_size = children.with_node(1, |n| n.layout(wl));
+                    child_size.max(insert_size)
                 }
                 ChildInsert::Start | ChildInsert::End => unreachable!(), // already resolved
             };
