@@ -38,8 +38,8 @@ zng-ext-image = { path = "../zng-ext-image", version = "0.2.37" }
 
 serde = "1.0"
 unicase = "2.7"
-rustybuzz = "0.18"
-ttf-parser = "0.24"
+rustybuzz = "0.20"
+ttf-parser = "0.25"
 parking_lot = "0.12"
 byteorder = "1.5"
 icu_properties = "1.4"
@@ -54,7 +54,7 @@ unicode-linebreak = "0.1"
 unicode-segmentation = "1.11"
 unic-langid = "0.9"
 smallvec = { version = "1.13", features = ["const_new", "serde"] }
-hashbrown = "0.14"
+hashbrown = "0.15"
 pathfinder_geometry = "0.5"
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
