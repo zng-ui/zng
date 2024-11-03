@@ -20,7 +20,7 @@ zng-ext-font = { path = "../zng-ext-font", version = "0.4.12" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.21" }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.28" }
 zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.3.31" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.18" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.4.0" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.30" }
 zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.4.21" }
 zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.21" }

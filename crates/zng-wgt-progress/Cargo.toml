@@ -19,7 +19,7 @@ zng-layout = { path = "../zng-layout", version = "0.2.30" }
 zng-app = { path = "../zng-app", version = "0.13.4" }
 zng-task = { path = "../zng-task", version = "0.4.9" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.28" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.18" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.4.0" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.38" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.38" }
 zng-var = { path = "../zng-var", version = "0.5.9" }

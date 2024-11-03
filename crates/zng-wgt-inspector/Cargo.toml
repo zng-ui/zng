@@ -43,7 +43,7 @@ zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.38" }
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.4.21" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.21" }
 zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.4.21" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.18" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.4.0" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.40" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.30" }
 zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.3.31" }

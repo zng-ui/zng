@@ -16,7 +16,7 @@ zng-var = { path = "../zng-var", version = "0.5.9" }
 zng-app = { path = "../zng-app", version = "0.13.4" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.4.12" }
 zng-wgt = { path = "../zng-wgt", version = "0.5.4" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.18" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.4.0" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.28" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.40" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.38" }
