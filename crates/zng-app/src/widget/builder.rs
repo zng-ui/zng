@@ -2549,6 +2549,18 @@ impl WidgetBuilding {
             match item {
                 WidgetItem::Property { args, captured, .. } => {
                     if !captured {
+                        #[cfg(debug_assertions)]
+                        {
+                            let p = args.property();
+                            if p.capture {
+                                tracing::error!(
+                                    "capture only property `{}` is not captured in `{}!`, it will have no effect",
+                                    p.name,
+                                    self.widget_type.name()
+                                );
+                            }
+                        }
+
                         node = args.instantiate(node);
 
                         #[cfg(feature = "trace_wgt_item")]
