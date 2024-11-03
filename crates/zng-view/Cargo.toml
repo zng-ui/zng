@@ -57,9 +57,8 @@ android_native_activity = ["winit/android-native-activity"]
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-webrender = { package = "zng-webrender", version = "0.64.0" }
-swgl = { package = "zng-swgl", version = "0.3.0", optional = true }
-cc = "=1.1.31" # temporary fix
+webrender = { package = "zng-webrender", version = "0.64.1" }
+swgl = { package = "zng-swgl", version = "0.3.1", optional = true }
 
 zng-view-api = { path = "../zng-view-api", version = "0.10.3", default-features = false }
 zng-unit = { path = "../zng-unit", version = "0.2.9" }
