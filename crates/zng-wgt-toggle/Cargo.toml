@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-toggle"
-version = "0.3.30"
+version = "0.3.31"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,23 +12,23 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.5.3" }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.20" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.17" }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.29" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.39" }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.29" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.37" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.37" }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.37" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.20" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.37" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.27" }
-zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.37" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.27" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.4.11" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.16" }
-zng-var = { path = "../zng-var", version = "0.5.8" }
+zng-wgt = { path = "../zng-wgt", version = "0.5.4" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.21" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.3.18" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.3.30" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.40" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.30" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.2.38" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.38" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.2.38" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.21" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.38" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.28" }
+zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.38" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.28" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.4.12" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.17" }
+zng-var = { path = "../zng-var", version = "0.5.9" }
 
 parking_lot = "0.12"
 tracing = "0.1"
