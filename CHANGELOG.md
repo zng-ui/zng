@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.12.6
+
 * Add debug validation of capture only property use in widgets that don't capture it.
 * Fix Wayland custom chrome breaking window padding.
 * Fix window text properties affecting the Wayland fallback chrome text.
