@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix headless rendering in Wayland. Property `needs_fallback_chrome` now is `false` for headless windows.
 
 # 0.12.7
 
