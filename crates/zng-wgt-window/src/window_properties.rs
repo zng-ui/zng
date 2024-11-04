@@ -464,7 +464,8 @@ pub fn config_block_window_load(child: impl UiNode, enabled: impl IntoValue<Bloc
     })
 }
 
-/// Gets if [`chrome`] is `true`, [`state`] is not fullscreen but [`WINDOWS.system_chrome`] reports the system does not provide window decorations.
+/// Gets if is not headless, [`chrome`] is `true`, [`state`] is not fullscreen but [`WINDOWS.system_chrome`]
+/// reports the system does not provide window decorations.
 ///
 /// [`chrome`]: fn@chrome
 /// [`state`]: fn@state
@@ -474,9 +475,14 @@ pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> i
     zng_wgt::node::bind_state_init(
         child,
         || {
-            let vars = WINDOW.vars();
-            expr_var! {
-                *#{vars.chrome()} && #{WINDOWS.system_chrome()}.needs_custom() && !#{vars.state()}.is_fullscreen()
+            if WINDOW.mode().is_headless() {
+                LocalVar(false).boxed()
+            } else {
+                let vars = WINDOW.vars();
+                expr_var! {
+                    *#{vars.chrome()} && #{WINDOWS.system_chrome()}.needs_custom() && !#{vars.state()}.is_fullscreen()
+                }
+                .boxed()
             }
         },
         needs,
