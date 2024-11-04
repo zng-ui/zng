@@ -1,6 +1,10 @@
 # Unreleased
 
 
+# 0.12.7
+
+* Revert `fs4` dependency upgrade to fix build. It was yanked.
+
 # 0.12.6
 
 * Add debug validation of capture only property use in widgets that don't capture it.
