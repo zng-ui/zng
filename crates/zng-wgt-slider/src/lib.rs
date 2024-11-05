@@ -11,7 +11,9 @@
 
 zng_wgt::enable_widget_macros!();
 
-use std::{any::Any, ops::Range, sync::Arc};
+pub mod thumb;
+
+use std::{any::Any, fmt, ops::Range, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar};
@@ -42,7 +44,7 @@ pub struct DefaultStyle(Style);
 trait SelectorImpl: Send {
     fn selection(&self) -> BoxedAnyVar;
     fn set(&mut self, nearest: Factor, to: Factor);
-    fn thumbs(&self) -> Vec<Thumb>;
+    fn thumbs(&self) -> Vec<ThumbValue>;
     fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor>;
     #[allow(clippy::wrong_self_convention)]
     fn from_offset(&self, offset: Factor) -> Box<dyn Any>;
@@ -63,7 +65,18 @@ impl<T, Tf: Fn(&T) -> Factor + Send, Ff: Fn(Factor) -> T + Send> OffsetConvert<T
 }
 
 /// Defines the values and ranges selected by a slider.
+#[derive(Clone)]
 pub struct Selector(Arc<Mutex<dyn SelectorImpl>>);
+impl fmt::Debug for Selector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Selector(_)")
+    }
+}
+impl PartialEq for Selector {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 impl Selector {
     /// New with a single value thumb of type `T`.
     ///
@@ -92,8 +105,8 @@ impl Selector {
                 let _ = self.selection.set(self.to_from.from(to));
             }
 
-            fn thumbs(&self) -> Vec<Thumb> {
-                vec![Thumb {
+            fn thumbs(&self) -> Vec<ThumbValue> {
+                vec![ThumbValue {
                     offset: self.selection_fct,
                     n_of: (0, 0),
                 }]
@@ -153,13 +166,13 @@ impl Selector {
                 let _ = self.selection.set(start..end);
             }
 
-            fn thumbs(&self) -> Vec<Thumb> {
+            fn thumbs(&self) -> Vec<ThumbValue> {
                 vec![
-                    Thumb {
+                    ThumbValue {
                         offset: self.selection_fct[0],
                         n_of: (0, 2),
                     },
-                    Thumb {
+                    ThumbValue {
                         offset: self.selection_fct[1],
                         n_of: (1, 2),
                     },
@@ -222,12 +235,12 @@ impl Selector {
                 }
             }
 
-            fn thumbs(&self) -> Vec<Thumb> {
+            fn thumbs(&self) -> Vec<ThumbValue> {
                 let len = self.selection_fct.len().min(u16::MAX as usize) as u16;
                 self.selection_fct
                     .iter()
                     .enumerate()
-                    .map(|(i, &f)| Thumb {
+                    .map(|(i, &f)| ThumbValue {
                         offset: f,
                         n_of: (i.min(u16::MAX as usize) as u16, len),
                     })
@@ -272,7 +285,7 @@ impl Selector {
     }
 
     /// Gets the value thumbs.
-    pub fn thumbs(&self) -> Vec<Thumb> {
+    pub fn thumbs(&self) -> Vec<ThumbValue> {
         self.0.lock().thumbs()
     }
 
@@ -293,11 +306,11 @@ impl Selector {
 
 /// Represents a selector thumb in a slider.
 #[derive(Clone, Debug, PartialEq, Copy)]
-pub struct Thumb {
+pub struct ThumbValue {
     offset: Factor,
     n_of: (u16, u16),
 }
-impl Thumb {
+impl ThumbValue {
     /// Thumb offset.
     pub fn offset(&self) -> Factor {
         self.offset
@@ -318,5 +331,37 @@ impl Thumb {
     /// Is last thumb (largest offset).
     pub fn is_last(&self) -> bool {
         self.n_of.0 == self.n_of.1
+    }
+}
+
+context_local! {
+    /// Contextual [`Selector`].
+    pub static SELECTOR: Selector = Selector::nil();
+}
+context_var! {
+    /// Contextual thumb function.
+    pub static THUMB_FN_VAR: WidgetFn<ThumbArgs> = wgt_fn!(|a: ThumbArgs| thumb::Thumb!(a.thumb()));
+}
+
+/// Sets the slider selector that defines the values, ranges that are selected.
+#[property(CONTEXT, default(Selector::nil()), widget_impl(Slider))]
+pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl UiNode {
+    with_context_local(child, &SELECTOR, selector)
+}
+
+/// Widget function that converts [`ThumbArgs`] to widgets.
+#[property(CONTEXT, default(THUMB_FN_VAR))]
+pub fn thumb_fn(child: impl UiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) -> impl UiNode {
+    with_context_var(child, THUMB_FN_VAR, thumb)
+}
+
+/// Arguments for a slider thumb widget generator.
+pub struct ThumbArgs {
+    thumb: ArcVar<ThumbValue>,
+}
+impl ThumbArgs {
+    /// Variable with the thumb value that must be represented by the widget.
+    pub fn thumb(&self) -> ReadOnlyArcVar<ThumbValue> {
+        self.thumb.read_only()
     }
 }
