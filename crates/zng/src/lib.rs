@@ -519,6 +519,7 @@ pub mod render;
 pub mod rule_line;
 pub mod scroll;
 pub mod selectable;
+pub mod slider;
 pub mod stack;
 pub mod state_map;
 pub mod style;
@@ -537,7 +538,6 @@ pub mod view_process;
 pub mod widget;
 pub mod window;
 pub mod wrap;
-pub mod slider;
 
 /// Start and manage an app process.
 pub struct APP;
