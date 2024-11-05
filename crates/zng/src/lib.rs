@@ -537,6 +537,7 @@ pub mod view_process;
 pub mod widget;
 pub mod window;
 pub mod wrap;
+pub mod slider;
 
 /// Start and manage an app process.
 pub struct APP;

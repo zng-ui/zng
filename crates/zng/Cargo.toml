@@ -258,6 +258,7 @@ zng-wgt-inspector = { path = "../zng-wgt-inspector", version = "0.2.43" }
 zng-wgt-settings = { path = "../zng-wgt-settings", version = "0.1.23" }
 zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.1.18" }
 zng-wgt-progress = { path = "../zng-wgt-progress", version = "0.1.2" }
+zng-wgt-slider = { path = "../zng-wgt-slider", version = "0.1.0" }
 
 zng-wgt-material-icons = { path = "../zng-wgt-material-icons", version = "0.3.22", default-features = false, optional = true }
 zng-ext-single-instance = { path = "../zng-ext-single-instance", version = "0.3.23", optional = true }
