@@ -5,7 +5,7 @@ use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 
-use crate::ThumbValue;
+use crate::{SliderDirection, ThumbValue, WidgetInfoExt as _, SLIDER_DIRECTION_VAR};
 
 /// Slider thumb widget.
 #[widget($crate::thumb::Thumb {
@@ -18,14 +18,13 @@ impl Thumb {
     fn widget_intrinsic(&mut self) {
         self.style_intrinsic(STYLE_FN_VAR, property_id!(self::style_fn));
 
-        self.widget_builder().push_build_action(|wgt| {
-            match wgt.capture_var::<ThumbValue>(property_id!(Self::value)) {
+        self.widget_builder()
+            .push_build_action(|wgt| match wgt.capture_var::<ThumbValue>(property_id!(Self::value)) {
                 Some(v) => {
-                    wgt.push_intrinsic(NestGroup::LAYOUT, "layout", move |c| thumb_layout_node(c, v));
-                },
+                    wgt.push_intrinsic(NestGroup::LAYOUT, "event-layout", move |c| thumb_event_layout_node(c, v));
+                }
                 None => tracing::error!("missing required `slider::Thumb::value` property"),
-            }
-        });
+            });
 
         widget_set! {
             self;
@@ -45,8 +44,11 @@ pub struct DefaultStyle(Style);
 pub fn value(thumb: impl IntoVar<ThumbValue>) {}
 
 /// Main thumb implementation.
-pub fn thumb_layout_node(child: impl UiNode, value: impl IntoVar<ThumbValue>) -> impl UiNode {
+///
+/// Handles mouse and touch drag, applies the thumb offset as translation on layout.
+fn thumb_event_layout_node(child: impl UiNode, value: impl IntoVar<ThumbValue>) -> impl UiNode {
     let value = value.into_var();
+    let mut layout_direction = LayoutDirection::LTR;
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var_layout(&value).sub_event(&MOUSE_MOVE_EVENT);
@@ -56,27 +58,63 @@ pub fn thumb_layout_node(child: impl UiNode, value: impl IntoVar<ThumbValue>) ->
             if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
                 if let Some(c) = &args.capture {
                     if c.target.widget_id() == WIDGET.id() {
+                        let thumb_info = WIDGET.info();
+                        let track_info = match thumb_info.slider_track() {
+                            Some(i) => i,
+                            None => {
+                                tracing::error!("slider::Thumb is not inside a slider_track");
+                                return;
+                            }
+                        };
                         args.propagation().stop();
 
+                        let track_bounds = track_info.inner_bounds();
+                        let track_orientation = SLIDER_DIRECTION_VAR.get();
+
+                        let (track_min, track_max) = match track_orientation.layout(layout_direction) {
+                            SliderDirection::LeftToRight => (track_bounds.min_x(), track_bounds.max_x()),
+                            SliderDirection::RightToLeft => (track_bounds.max_x(), track_bounds.min_x()),
+                            SliderDirection::BottomToTop => (track_bounds.max_y(), track_bounds.min_y()),
+                            SliderDirection::TopToBottom => (track_bounds.min_y(), track_bounds.max_y()),
+                            _ => unreachable!(),
+                        };
+                        let cursor = if track_orientation.is_horizontal() {
+                            args.position.x.to_px(track_info.tree().scale_factor())
+                        } else {
+                            args.position.y.to_px(track_info.tree().scale_factor())
+                        };
+                        let new_offset = (cursor - track_min).0 as f32 / (track_max - track_min).abs().0 as f32;
+
                         let selector = crate::SELECTOR.get();
-                        let thumb_info = WIDGET.info();
-                        let prev_l = thumb_info.inner_bounds().origin.x;
-                        let next_l = args.position.x;
-                        // !!: TODO 
-                        // * compute new offset
-                        //    - need to know the slider parent.
-                        //    - what if the slider parent has padding? Need to know the exact track rectangle.
-                        //    - need to know the slider orientation.
-                        // * what happens when there is more then one thumb in the same exact spot?
-                        let value = value.get();
-                        selector.set(value.offset(), 0.fct());
+                        // !!: TODO, handle multiple thumbs in same offset, needs to consistently only move
+                        selector.set(value.get().offset(), new_offset.fct().clamp_range());
                     }
                 }
             }
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
+            layout_direction = LAYOUT.direction();
 
+            // max if bounded, otherwise min.
+            let c = LAYOUT.constraints();
+            let track_size = c.with_fill_vector(c.is_bounded()).fill_size();
+            let track_orientation = SLIDER_DIRECTION_VAR.get();
+            let offset = value.get().offset;
+
+            let offset = match track_orientation.layout(layout_direction) {
+                SliderDirection::LeftToRight => track_size.width * offset,
+                SliderDirection::RightToLeft => track_size.width - (track_size.width * offset),
+                SliderDirection::BottomToTop => track_size.height - (track_size.height * offset),
+                SliderDirection::TopToBottom => track_size.height * offset,
+                _ => unreachable!(),
+            };
+            let offset = if track_orientation.is_horizontal() {
+                PxVector::new(offset, Px(0))
+            } else {
+                PxVector::new(Px(0), offset)
+            };
+            wl.translate(offset);
         }
         _ => {}
     })

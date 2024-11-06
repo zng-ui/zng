@@ -40,6 +40,13 @@ impl_style_fn!(Slider);
 /// Default slider style.
 #[widget($crate::DefaultStyle)]
 pub struct DefaultStyle(Style);
+impl DefaultStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+        }
+    }
+}
 
 trait SelectorImpl: Send {
     fn selection(&self) -> BoxedAnyVar;
@@ -364,4 +371,178 @@ impl ThumbArgs {
     pub fn thumb(&self) -> ReadOnlyArcVar<ThumbValue> {
         self.thumb.read_only()
     }
+}
+
+/// Slider extension methods for widget info.
+pub trait WidgetInfoExt {
+    /// Widget inner bounds define the slider range length.
+    fn is_slider_track(&self) -> bool;
+
+    /// Find the nearest ancestor that is a slider track.
+    fn slider_track(&self) -> Option<WidgetInfo>;
+}
+impl WidgetInfoExt for WidgetInfo {
+    fn is_slider_track(&self) -> bool {
+        self.meta().flagged(*IS_SLIDER_ID)
+    }
+
+    fn slider_track(&self) -> Option<WidgetInfo> {
+        self.self_and_ancestors().find(|w| w.is_slider_track())
+    }
+}
+
+static_id! {
+    static ref IS_SLIDER_ID: StateId<()>;
+}
+
+/// Slider orientation and direction.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SliderDirection {
+    /// Horizontal. Minimum at start, maximum at end.
+    ///
+    /// Start is left in LTR contexts and right in RTL contexts.
+    StartToEnd,
+    /// Horizontal. Minimum at end, maximum at start.
+    ///
+    /// Start is left in LTR contexts and right in RTL contexts.
+    EndToStart,
+    /// Horizontal. Minimum at left, maximum at right.
+    LeftToRight,
+    /// Horizontal. Minimum at right, maximum at left.
+    RightToLeft,
+    /// Vertical. Minimum at bottom, maximum at top.
+    BottomToTop,
+    /// Vertical. Minimum at top, maximum at bottom.
+    TopToBottom,
+}
+impl SliderDirection {
+    /// Slider track is vertical.
+    pub fn is_vertical(&self) -> bool {
+        matches!(self, Self::BottomToTop | Self::TopToBottom)
+    }
+
+    /// Slider track is horizontal.
+    pub fn is_horizontal(&self) -> bool {
+        !self.is_vertical()
+    }
+
+    /// Convert start/end to left/right in the given `direction` context.
+    pub fn layout(&self, direction: LayoutDirection) -> Self {
+        match *self {
+            SliderDirection::StartToEnd => {
+                if direction.is_ltr() {
+                    Self::LeftToRight
+                } else {
+                    Self::RightToLeft
+                }
+            }
+            SliderDirection::EndToStart => {
+                if direction.is_ltr() {
+                    Self::RightToLeft
+                } else {
+                    Self::LeftToRight
+                }
+            }
+            s => s,
+        }
+    }
+}
+impl fmt::Debug for SliderDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if f.alternate() {
+            write!(f, "SliderDirection::")?;
+        }
+        match self {
+            Self::StartToEnd => write!(f, "StartToEnd"),
+            Self::EndToStart => write!(f, "EndToStart"),
+            Self::LeftToRight => write!(f, "LeftToRight"),
+            Self::RightToLeft => write!(f, "RightToLeft"),
+            Self::BottomToTop => write!(f, "BottomToTop"),
+            Self::TopToBottom => write!(f, "TopToBottom"),
+        }
+    }
+}
+
+context_var! {
+    /// Orientation and direction of the parent slider.
+    pub static SLIDER_DIRECTION_VAR: SliderDirection = SliderDirection::StartToEnd;
+}
+
+/// Defines the orientation and direction of the slider track.
+///
+/// This property sets the [`SLIDER_DIRECTION_VAR`].
+#[property(CONTEXT, default(SLIDER_DIRECTION_VAR), widget_impl(Slider))]
+fn direction(child: impl UiNode, direction: impl IntoVar<SliderDirection>) -> impl UiNode {
+    with_context_var(child, SLIDER_DIRECTION_VAR, direction)
+}
+
+/// Slider track container widget.
+///
+/// The slider track widget is an special container that generates thumb widgets for the slider. The widget
+/// inner bounds define the track area/range.
+#[widget($crate::SliderTrack)]
+pub struct SliderTrack(WidgetBase);
+impl SliderTrack {
+    fn widget_intrinsic(&mut self) {
+        self.widget_builder().push_build_action(|wgt| {
+            wgt.set_child(slider_track_node());
+        })
+    }
+}
+
+fn slider_track_node() -> impl UiNode {
+    let mut thumbs = ui_vec![];
+    let mut thumb_vars = vec![];
+    match_node_leaf(move |op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_var(&THUMB_FN_VAR);
+
+            thumb_vars = SELECTOR.get().thumbs().into_iter().map(zng_var::var).collect();
+            thumbs.reserve(thumb_vars.len());
+
+            let thumb_fn = THUMB_FN_VAR.get();
+            for v in &thumb_vars {
+                thumbs.push(thumb_fn(ThumbArgs { thumb: v.clone() }))
+            }
+
+            thumbs.init_all();
+        }
+        UiNodeOp::Deinit => {
+            thumbs.deinit_all();
+            thumbs = ui_vec![];
+            thumb_vars = vec![];
+        }
+        UiNodeOp::Info { info } => {
+            info.flag_meta(*IS_SLIDER_ID);
+            thumbs.info_all(info);
+        }
+        UiNodeOp::Measure { desired_size, .. } => {
+            *desired_size = LAYOUT.constraints().fill_size();
+        }
+        UiNodeOp::Layout { final_size, wl } => {
+            *final_size = LAYOUT.constraints().fill_size();
+            let _ = thumbs.layout_each(wl, |_, n, wl| n.layout(wl), |_, _| PxSize::zero());
+        }
+        UiNodeOp::Update { updates } => {
+            if let Some(thumb_fn) = THUMB_FN_VAR.get_new() {
+                thumbs.deinit_all();
+                thumb_vars.clear();
+                thumbs.clear();
+
+                for value in SELECTOR.get().thumbs() {
+                    let var = zng_var::var(value);
+                    let thumb = thumb_fn(ThumbArgs { thumb: var.clone() });
+                    thumb_vars.push(var);
+                    thumbs.push(thumb);
+                }
+
+                thumbs.init_all();
+
+                WIDGET.update_info().layout().render();
+            } else {
+                thumbs.update_all(updates, &mut ());
+            }
+        }
+        op => thumbs.op(op),
+    })
 }
