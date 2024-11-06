@@ -15,6 +15,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 zng-wgt = { path = "../zng-wgt", version = "0.5.5" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.29" }
 zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.41" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.29" }
 zng-var = { path = "../zng-var", version = "0.5.9" }
 
 parking_lot = "0.12"
