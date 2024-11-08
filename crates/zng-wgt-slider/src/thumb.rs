@@ -38,6 +38,18 @@ impl_style_fn!(Thumb);
 /// Default slider style.
 #[widget($crate::thumb::DefaultStyle)]
 pub struct DefaultStyle(Style);
+impl DefaultStyle {
+    fn widget_intrinsic(&mut self) {
+        widget_set! {
+            self;
+            zng_wgt::border = 3, LightDark::new(colors::BLACK, colors::WHITE).rgba_into();
+            zng_wgt_size_offset::force_size = 10 + 3 + 3;
+            zng_wgt_size_offset::offset = (-3 -10/2, -3 -5/2); // track is 5 height
+            zng_wgt::corner_radius = 17;
+            zng_wgt_fill::background_color = colors::ACCENT_COLOR_VAR.rgba();
+        }
+    }
+}
 
 /// Value represented by the thumb.
 #[property(CONTEXT, capture, widget_impl(Thumb))]

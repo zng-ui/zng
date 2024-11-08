@@ -15,6 +15,7 @@ pub mod thumb;
 
 use std::{any::Any, fmt, ops::Range, sync::Arc};
 
+use colors::ACCENT_COLOR_VAR;
 use parking_lot::Mutex;
 use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar};
 use zng_wgt::prelude::*;
@@ -44,6 +45,11 @@ impl DefaultStyle {
     fn widget_intrinsic(&mut self) {
         widget_set! {
             self;
+            zng_wgt_container::child = SliderTrack! {
+                zng_wgt_size_offset::height = 5;
+                zng_wgt::corner_radius = 5;
+                zng_wgt_fill::background_color = ACCENT_COLOR_VAR.rgba();
+            };
         }
     }
 }
