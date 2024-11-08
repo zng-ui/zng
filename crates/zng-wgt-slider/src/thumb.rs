@@ -100,6 +100,7 @@ fn thumb_event_layout_node(child: impl UiNode, value: impl IntoVar<ThumbValue>) 
                         let selector = crate::SELECTOR.get();
                         // !!: TODO, handle multiple thumbs in same offset, needs to consistently only move
                         selector.set(value.get().offset(), new_offset.fct().clamp_range());
+                        WIDGET.update();
                     }
                 }
             }

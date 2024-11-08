@@ -583,6 +583,36 @@ fn slider_track_node() -> impl UiNode {
                 WIDGET.update_info().layout().render();
             } else {
                 thumbs.update_all(updates, &mut ());
+
+                // sync views and vars with updated SELECTOR thumbs
+
+                let mut thumb_values = SELECTOR.get().thumbs();
+                match thumb_values.len().cmp(&thumb_vars.len()) {
+                    std::cmp::Ordering::Less => {
+                        // now has less thumbs
+                        for mut drop in thumbs.drain(thumb_values.len()..) {
+                            drop.deinit();
+                        }
+                        thumb_vars.truncate(thumbs.len());
+                    }
+                    std::cmp::Ordering::Greater => {
+                        // now has more thumbs
+                        let thumb_fn = THUMB_FN_VAR.get();
+                        for value in thumb_values.drain(thumbs.len()..) {
+                            let var = zng_var::var(value);
+                            let mut thumb = thumb_fn(ThumbArgs { thumb: var.clone() });
+                            thumb.init();
+                            thumb_vars.push(var);
+                            thumbs.push(thumb);
+                        }
+                    }
+                    std::cmp::Ordering::Equal => {}
+                }
+
+                // reuse thumbs
+                for (var, value) in thumb_vars.iter().zip(thumb_values) {
+                    var.set(value);
+                }
             }
         }
         op => thumbs.op(op),
