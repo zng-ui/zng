@@ -519,6 +519,7 @@ pub mod render;
 pub mod rule_line;
 pub mod scroll;
 pub mod selectable;
+pub mod slider;
 pub mod stack;
 pub mod state_map;
 pub mod style;

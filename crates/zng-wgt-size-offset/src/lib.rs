@@ -343,7 +343,7 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
 /// [`height`]: fn@height
 /// [`force_size`]: fn@force_size
 /// [`align`]: fn@zng_wgt::align
-#[property(SIZE)]
+#[property(SIZE, default(Size::default()))]
 pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     let size = size.into_var();
     match_node(child, move |child, op| match op {
@@ -399,7 +399,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// [`min_width`]: fn@min_width
 /// [`max_width`]: fn@max_width
 /// [`force_width`]: fn@force_width
-#[property(SIZE)]
+#[property(SIZE, default(Length::Default))]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     let width = width.into_var();
     match_node(child, move |child, op| match op {
@@ -454,7 +454,7 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
 /// [`min_height`]: fn@min_height
 /// [`max_height`]: fn@max_height
 /// [`force_height`]: fn@force_height
-#[property(SIZE)]
+#[property(SIZE, default(Length::Default))]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     let height = height.into_var();
     match_node(child, move |child, op| match op {
@@ -507,7 +507,7 @@ pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
 ///
 /// [`force_width`]: fn@force_width
 /// [`force_height`]: fn@force_height
-#[property(SIZE)]
+#[property(SIZE, default(Size::default()))]
 pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     let size = size.into_var();
     match_node(child, move |child, op| match op {
@@ -551,7 +551,7 @@ pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
 /// # `force_size`
 ///
 /// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@force_size) property.
-#[property(SIZE)]
+#[property(SIZE, default(Length::Default))]
 pub fn force_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     let width = width.into_var();
     match_node(child, move |child, op| match op {
@@ -598,7 +598,7 @@ pub fn force_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNo
 /// # `force_size`
 ///
 /// You can set both `force_width` and `force_height` at the same time using the [`force_size`](fn@force_size) property.
-#[property(SIZE)]
+#[property(SIZE, default(Length::Default))]
 pub fn force_height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     let height = height.into_var();
     match_node(child, move |child, op| match op {
