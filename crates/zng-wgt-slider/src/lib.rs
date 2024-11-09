@@ -49,9 +49,9 @@ impl DefaultStyle {
                 zng_wgt_size_offset::height = 5;
                 zng_wgt::corner_radius = 5;
                 zng_wgt_fill::background_color = ACCENT_COLOR_VAR.rgba();
+                zng_wgt::margin = 3; // thumb overflow
             };
             zng_wgt_container::child_align = Align::FILL_X;
-            zng_wgt_size_offset::min_height = 16; // thumb clearance
         }
     }
 }
@@ -754,5 +754,53 @@ mod tests {
     #[test]
     fn selector_value_length() {
         selector_value_t(20.px(), 200.px());
+    }
+
+    #[test]
+    fn selector_value_set() {
+        let s = Selector::value(var(10u8), 0, 100);
+        s.set(10.pct(), 20.pct());
+        assert_eq!(s.thumbs()[0].offset, 0.2.fct());
+    }
+
+    #[test]
+    fn selector_range_set() {
+        let s = Selector::range(10u8..20u8, 0, 100);
+        // less then first
+        s.set(0.pct(), 5.pct());
+        assert_eq!(s.thumbs()[0].offset, 0.05.fct());
+        assert_eq!(s.thumbs()[1].offset, 0.2.fct());
+
+        // more then last
+        s.set(25.pct(), 30.pct());
+        assert_eq!(s.thumbs()[0].offset, 0.05.fct());
+        assert_eq!(s.thumbs()[1].offset, 0.3.fct());
+
+        // nearest first
+        s.set(6.pct(), 7.pct());
+        assert_eq!(s.thumbs()[0].offset, 0.07.fct());
+        assert_eq!(s.thumbs()[1].offset, 0.3.fct());
+
+        // invert
+        s.set(7.pct(), 40.pct());
+        assert_eq!(s.thumbs()[0].offset, 0.3.fct());
+        assert_eq!(s.thumbs()[1].offset, 0.4.fct());
+    }
+
+    #[test]
+    fn selector_range_set_eq() {
+        let s = Selector::range(10u8..10, 0, 100);
+        assert_eq!(s.thumbs()[0].offset, 0.1.fct());
+        assert_eq!(s.thumbs()[1].offset, 0.1.fct());
+
+        // only the last must move
+        s.set(10.pct(), 20.pct());
+        assert_eq!(s.thumbs()[0].offset, 0.1.fct());
+        assert_eq!(s.thumbs()[1].offset, 0.2.fct());
+
+        let s = Selector::range(10u8..10, 0, 100);
+        s.set(5.pct(), 5.pct());
+        assert_eq!(s.thumbs()[0].offset, 0.05.fct());
+        assert_eq!(s.thumbs()[1].offset, 0.1.fct());
     }
 }

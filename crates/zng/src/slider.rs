@@ -3,8 +3,15 @@
 //! This widget allows selecting a value or range by dragging a selector thumb over a range line.
 //!
 //! ```
-//! // !!: TODO
+//! # use zng::prelude::*;
+//! let value = var(0u8);
+//! # let _ =
+//! zng::slider::Slider! {
+//!     selector = zng::slider::Selector::value(value.clone(), 0, 100);
+//! }
 //! ```
+//!
+//! The example above creates a a slider with a single thumb that selects a `u8` value in the `0..=100` range.
 //!
 //! # Full API
 //!

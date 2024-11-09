@@ -48,8 +48,11 @@ impl DefaultStyle {
             zng_wgt::corner_radius = 16;
             zng_wgt_fill::background_color = colors::ACCENT_COLOR_VAR.rgba();
 
-            when *#zng_wgt_input::is_hovered {
-                zng_wgt_transform::scale = 110.pct(); // !!: TODO fix this
+            #[easing(150.ms())]
+            zng_wgt_transform::scale = 100.pct();
+            when *#zng_wgt_input::is_cap_hovered {
+                #[easing(0.ms())]
+                zng_wgt_transform::scale = 120.pct();
             }
         }
     }
@@ -102,7 +105,6 @@ fn thumb_event_layout_node(child: impl UiNode, value: impl IntoVar<ThumbValue>) 
                         let new_offset = (cursor - track_min).0 as f32 / (track_max - track_min).abs().0 as f32;
 
                         let selector = crate::SELECTOR.get();
-                        // !!: TODO, handle multiple thumbs in same offset, needs to consistently only move
                         selector.set(value.get().offset(), new_offset.fct().clamp_range());
                         WIDGET.update();
                     }
