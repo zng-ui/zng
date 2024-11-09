@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.12.8
+
 * Properties `size` and related now have a default value allowing conditional assign.
 * Add `zng::slider` with `Slider` widget.
 * Fix `force_size` returning the parent's constraint min size.
