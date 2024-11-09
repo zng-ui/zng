@@ -46,10 +46,16 @@ impl DefaultStyle {
         widget_set! {
             self;
             zng_wgt_container::child = SliderTrack! {
-                zng_wgt_size_offset::height = 5;
                 zng_wgt::corner_radius = 5;
                 zng_wgt_fill::background_color = ACCENT_COLOR_VAR.rgba();
                 zng_wgt::margin = 3; // thumb overflow
+
+                when #{SLIDER_DIRECTION_VAR}.is_horizontal() {
+                    zng_wgt_size_offset::height = 5;
+                }
+                when #{SLIDER_DIRECTION_VAR}.is_vertical() {
+                    zng_wgt_size_offset::width = 5;
+                }
             };
             zng_wgt_container::child_align = Align::FILL_X;
         }
@@ -84,7 +90,7 @@ impl<T, Tf: Fn(&T) -> Factor + Send, Ff: Fn(Factor) -> T + Send> OffsetConvert<T
 /// # Implementing
 ///
 /// This trait is implemented for all primitive type and Zng layout types, if a type does not you
-/// can declare custom conversions using [`Selector::single`].
+/// can declare custom conversions using [`Selector::value`].
 pub trait SelectorValue: VarValue {
     /// Make the selector.
     fn to_selector(value: BoxedVar<Self>, min: Self, max: Self) -> Selector;
@@ -173,9 +179,9 @@ impl Selector {
 
     /// New with two values thumbs that define a range of type `T`.
     ///
-    /// The conversion closure have the same constraints as [`single`].
+    /// The conversion closure have the same constraints as [`value_with`].
     ///
-    /// [`single`]: Self::single
+    /// [`value_with`]: Self::value_with
     pub fn range_with<T>(
         range: impl IntoVar<std::ops::Range<T>>,
         to_offset: impl Fn(&T) -> Factor + Send + 'static,
@@ -250,9 +256,9 @@ impl Selector {
 
     /// New with many value thumbs of type `T`.
     ///
-    /// The conversion closure have the same constraints as [`single`].
+    /// The conversion closure have the same constraints as [`value_with`].
     ///
-    /// [`single`]: Self::single
+    /// [`value_with`]: Self::value_with
     pub fn many_with<T>(
         many: impl IntoVar<Vec<T>>,
         to_offset: impl Fn(&T) -> Factor + Send + 'static,

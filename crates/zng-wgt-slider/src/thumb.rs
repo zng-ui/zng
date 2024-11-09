@@ -44,9 +44,15 @@ impl DefaultStyle {
             self;
             zng_wgt::border = 3, LightDark::new(colors::BLACK, colors::WHITE).rgba_into();
             zng_wgt_size_offset::force_size = 10 + 3 + 3;
-            zng_wgt_size_offset::offset = (-3 -10/2, -3 -5/2); // track is 5 height
             zng_wgt::corner_radius = 16;
             zng_wgt_fill::background_color = colors::ACCENT_COLOR_VAR.rgba();
+
+            when #{crate::SLIDER_DIRECTION_VAR}.is_horizontal() {
+                zng_wgt_size_offset::offset = (-3 -10/2, -3 -5/2); // track is 5 height
+            }
+            when #{crate::SLIDER_DIRECTION_VAR}.is_vertical() {
+                zng_wgt_size_offset::offset = (-3 -5/2, -3 -10/2);
+            }
 
             #[easing(150.ms())]
             zng_wgt_transform::scale = 100.pct();

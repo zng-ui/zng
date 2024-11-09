@@ -1,5 +1,6 @@
 # Unreleased
 
+* Properties `size` and related now have a default value allowing conditional assign.
 * Add `zng::slider` with `Slider` widget.
 * Fix `force_size` returning the parent's constraint min size.
 * Fix hit-test in rounded rectangles with too large corner radius.
