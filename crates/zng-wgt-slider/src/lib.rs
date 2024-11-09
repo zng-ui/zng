@@ -50,6 +50,8 @@ impl DefaultStyle {
                 zng_wgt::corner_radius = 5;
                 zng_wgt_fill::background_color = ACCENT_COLOR_VAR.rgba();
             };
+            zng_wgt_container::child_align = Align::FILL_X;
+            zng_wgt_size_offset::min_height = 16; // thumb clearance
         }
     }
 }

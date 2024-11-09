@@ -20,6 +20,7 @@ zng-ext-input = { path = "../zng-ext-input", version = "0.5.29" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.4.1" }
 zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.39" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.39" }
+zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.39" }
 
 parking_lot = "0.12"
 tracing = "0.1"
