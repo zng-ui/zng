@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-undo-history"
-version = "0.3.32"
+version = "0.3.33"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,16 +12,16 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.5.5" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.22" }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.22" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.4.1" }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.31" }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.29" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.29" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.39" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.39" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.41" }
-zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.41" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.29" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.18" }
+zng-wgt = { path = "../zng-wgt", version = "0.5.6" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.4.23" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.4.23" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.4.2" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.4.32" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.3.30" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.3.30" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.40" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.2.40" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.2.42" }
+zng-ext-undo = { path = "../zng-ext-undo", version = "0.2.42" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.30" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.5.19" }
