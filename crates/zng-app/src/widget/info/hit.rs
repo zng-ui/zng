@@ -25,10 +25,11 @@ impl HitTestClips {
         self.items.push(HitTestItem::Clip(HitTestPrimitive::Rect(clip_rect), clip_out));
     }
 
-    pub fn push_rounded_rect(&mut self, rect: PxBox, radii: PxCornerRadius) {
+    pub fn push_rounded_rect(&mut self, rect: PxBox, mut radii: PxCornerRadius) {
         if radii == PxCornerRadius::zero() {
             self.push_rect(rect);
         } else {
+            ensure_no_corner_overlap(&mut radii, rect.size());
             self.items.push(HitTestItem::Hit(HitTestPrimitive::RoundedRect(rect, radii)));
         }
     }
