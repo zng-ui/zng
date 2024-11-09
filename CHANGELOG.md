@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `force_size` returning the parent's constraint min size.
+* Fix hit-test in rounded rectangles with too large corner radius.
 * Fix headless rendering in Wayland. Property `needs_fallback_chrome` now is `false` for headless windows.
 
 # 0.12.7
