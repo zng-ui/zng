@@ -706,7 +706,7 @@ mod tests {
     use super::*;
 
     fn selector_value_t<T: SelectorValue>(min: T, max: T) {
-        let s = Selector::value(var(min.clone()), min.clone(), max.clone());
+        let s = Selector::value(min.clone(), min.clone(), max.clone());
         assert_eq!(s.to_offset(&min), Some(0.fct()));
         assert_eq!(s.to_offset(&max), Some(1.fct()));
         assert_eq!(s.from_offset(0.fct()), Some(min));
@@ -758,7 +758,7 @@ mod tests {
 
     #[test]
     fn selector_value_set() {
-        let s = Selector::value(var(10u8), 0, 100);
+        let s = Selector::value(10u8, 0, 100);
         s.set(10.pct(), 20.pct());
         assert_eq!(s.thumbs()[0].offset, 0.2.fct());
     }
