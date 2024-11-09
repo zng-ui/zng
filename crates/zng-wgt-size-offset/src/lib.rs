@@ -525,16 +525,16 @@ pub fn force_size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
         }
         UiNodeOp::Measure { wm, desired_size } => {
             child.delegated();
-            let parent_constraints = LAYOUT.constraints();
-            let size = with_fill_metrics(parent_constraints.with_new_min(Px(0), Px(0)), |d| size.layout_dft(d));
+            let c = LAYOUT.constraints().with_new_min(Px(0), Px(0)).with_fill(false, false);
+            let size = with_fill_metrics(c, |d| size.layout_dft(d));
             wm.measure_block(&mut NilUiNode);
-            *desired_size = Align::TOP_LEFT.measure(size, parent_constraints);
+            *desired_size = Align::TOP_LEFT.measure(size, c);
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let size = with_fill_metrics(parent_constraints.with_new_min(Px(0), Px(0)), |d| size.layout_dft(d));
+            let c = LAYOUT.constraints().with_new_min(Px(0), Px(0)).with_fill(false, false);
+            let size = with_fill_metrics(c, |d| size.layout_dft(d));
             LAYOUT.with_constraints(PxConstraints2d::new_exact_size(size), || child.layout(wl));
-            *final_size = Align::TOP_LEFT.measure(size, parent_constraints);
+            *final_size = Align::TOP_LEFT.measure(size, c);
         }
         _ => {}
     })
@@ -568,21 +568,19 @@ pub fn force_width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNo
             });
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min_x(Px(0));
+            let c = LAYOUT.constraints().with_new_min_x(Px(0)).with_fill_x(false);
 
-            let width = with_fill_metrics(constraints, |d| width.layout_dft_x(d.width));
-            let mut size = LAYOUT.with_constraints(constraints.with_unbounded_x().with_exact_x(width), || wm.measure_block(child));
-            size.width = Align::TOP_LEFT.measure_x(width, parent_constraints.x);
+            let width = with_fill_metrics(c, |d| width.layout_dft_x(d.width));
+            let mut size = LAYOUT.with_constraints(c.with_unbounded_x().with_exact_x(width), || wm.measure_block(child));
+            size.width = Align::TOP_LEFT.measure_x(width, c.x);
             *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min_x(Px(0));
+            let c = LAYOUT.constraints().with_new_min_x(Px(0)).with_fill_x(false);
 
-            let width = with_fill_metrics(constraints, |d| width.layout_dft_x(d.width));
-            let mut size = LAYOUT.with_constraints(constraints.with_unbounded_x().with_exact_x(width), || child.layout(wl));
-            size.width = Align::TOP_LEFT.measure_x(width, parent_constraints.x);
+            let width = with_fill_metrics(c, |d| width.layout_dft_x(d.width));
+            let mut size = LAYOUT.with_constraints(c.with_unbounded_x().with_exact_x(width), || child.layout(wl));
+            size.width = Align::TOP_LEFT.measure_x(width, c.x);
             *final_size = size;
         }
         _ => {}
@@ -618,21 +616,19 @@ pub fn force_height(child: impl UiNode, height: impl IntoVar<Length>) -> impl Ui
             });
         }
         UiNodeOp::Measure { wm, desired_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min_y(Px(0));
+            let c = LAYOUT.constraints().with_new_min_y(Px(0)).with_fill_y(false);
 
-            let height = with_fill_metrics(constraints, |d| height.layout_dft_y(d.height));
-            let mut size = LAYOUT.with_constraints(constraints.with_unbounded_y().with_exact_y(height), || wm.measure_block(child));
-            size.height = Align::TOP_LEFT.measure_y(height, parent_constraints.y);
+            let height = with_fill_metrics(c, |d| height.layout_dft_y(d.height));
+            let mut size = LAYOUT.with_constraints(c.with_unbounded_y().with_exact_y(height), || wm.measure_block(child));
+            size.height = Align::TOP_LEFT.measure_y(height, c.y);
             *desired_size = size;
         }
         UiNodeOp::Layout { wl, final_size } => {
-            let parent_constraints = LAYOUT.constraints();
-            let constraints = parent_constraints.with_new_min_y(Px(0));
+            let c = LAYOUT.constraints().with_new_min_y(Px(0)).with_fill_y(false);
 
-            let height = with_fill_metrics(constraints, |d| height.layout_dft_y(d.height));
-            let mut size = LAYOUT.with_constraints(constraints.with_unbounded_y().with_exact_y(height), || child.layout(wl));
-            size.height = Align::TOP_LEFT.measure_y(height, parent_constraints.y);
+            let height = with_fill_metrics(c, |d| height.layout_dft_y(d.height));
+            let mut size = LAYOUT.with_constraints(c.with_unbounded_y().with_exact_y(height), || child.layout(wl));
+            size.height = Align::TOP_LEFT.measure_y(height, c.y);
             *final_size = size;
         }
         _ => {}
