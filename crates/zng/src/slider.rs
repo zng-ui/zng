@@ -4,6 +4,7 @@
 //!
 //! ```
 //! # use zng::prelude::*;
+//! # let _scope = APP.defaults();
 //! let value = var(0u8);
 //! # let _ =
 //! zng::slider::Slider! {
