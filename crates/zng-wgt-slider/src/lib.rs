@@ -48,7 +48,7 @@ impl DefaultStyle {
             zng_wgt_container::child = SliderTrack! {
                 zng_wgt::corner_radius = 5;
                 zng_wgt_fill::background_color = ACCENT_COLOR_VAR.rgba();
-                zng_wgt::margin = 3; // thumb overflow
+                zng_wgt::margin = 8; // thumb overflow
 
                 when #{SLIDER_DIRECTION_VAR}.is_horizontal() {
                     zng_wgt_size_offset::height = 5;
