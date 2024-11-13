@@ -11,6 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cargo generate-lockfile
-      - uses: rustsec/audit-check@v2.0.0
+      - name: install cargo-audit
+        uses: baptiste0928/cargo-install@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          crate: cargo-audit
+      - run: cargo audit --deny warnings
