@@ -479,7 +479,7 @@ impl ops::DerefMut for WatchFile {
 }
 impl Drop for WatchFile {
     fn drop(&mut self) {
-        let _ = self.0.unlock();
+        let _ = FileExt::unlock(&self.0);
     }
 }
 
@@ -740,18 +740,18 @@ impl WriteFile {
         self.cleaned = true;
 
         if let Some(tmp) = self.temp_file.take() {
-            let _ = tmp.unlock();
+            let _ = FileExt::unlock(&tmp);
         }
         if let Err(e) = fs::remove_file(&self.temp_path) {
             tracing::debug!("failed to cleanup temp file, {e}")
         }
 
         if let Some(file) = self.actual_file.take() {
-            let _ = file.unlock();
+            let _ = FileExt::unlock(&file);
         }
 
         let transaction = self.transaction_lock.take().unwrap();
-        let _ = transaction.unlock();
+        let _ = FileExt::unlock(&transaction);
         let _ = fs::remove_file(&self.transaction_path);
     }
 }
