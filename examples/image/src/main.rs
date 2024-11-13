@@ -542,7 +542,7 @@ fn exif_rotated() -> impl UiNode {
                     title = "Exif Rotated";
                     child_align = Align::TOP;
                     child_top = Text! {
-                        txt = "all arrows must point up";
+                        txt = "all arrows must point right";
                         txt_align = Align::CENTER;
                         font_size = 2.em();
                         margin = 20;
