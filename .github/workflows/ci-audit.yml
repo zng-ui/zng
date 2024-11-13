@@ -15,4 +15,9 @@ jobs:
         uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-audit
-      - run: cargo audit --deny warnings
+      # IGNORED:
+      #   https://rustsec.org/advisories/RUSTSEC-2024-0384
+      #
+      #  Unmaintained dependency used only in WASM builds (by isahc). 
+      #  Not a problem because WASM support is not implemented yet.
+      - run: cargo audit --deny warnings --ignore RUSTSEC-2024-0384
