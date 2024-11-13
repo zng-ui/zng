@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix EXIF orientation not applying to images.
 
 # 0.12.8
 

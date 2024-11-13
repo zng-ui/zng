@@ -1,5 +1,6 @@
-use std::{fmt, sync::Arc};
+use std::{fmt, mem, sync::Arc};
 
+use image::ImageDecoder;
 use webrender::api::{ImageDescriptor, ImageDescriptorFlags, ImageFormat};
 use winit::{
     event_loop::ActiveEventLoop,
@@ -124,7 +125,7 @@ impl ImageCache {
                     }
                 }
                 fmt => match Self::get_format_and_size(&fmt, &data[..]) {
-                    Ok((fmt, mut size)) => {
+                    Ok((fmt, mut size, orientation)) => {
                         let decoded_len = size.width.0 as u64 * size.height.0 as u64 * 4;
                         if decoded_len > max_decoded_len {
                             Err(formatx!(
@@ -140,7 +141,7 @@ impl ImageCache {
                                 ppi: None,
                                 is_mask: false,
                             }));
-                            match Self::image_decode(&data[..], fmt, downscale) {
+                            match Self::image_decode(&data[..], fmt, downscale, orientation) {
                                 Ok(img) => Ok(Self::convert_decoded(img, mask)),
                                 Err(e) => Err(e.to_txt()),
                             }
@@ -188,6 +189,7 @@ impl ImageCache {
             let mut size = None;
             let mut ppi = None;
             let mut is_encoded = true;
+            let mut orientation = image::metadata::Orientation::NoTransforms;
 
             let mut format = match format {
                 ImageDataFormat::Bgra8 { size: s, ppi: p } => {
@@ -216,10 +218,19 @@ impl ImageCache {
 
                         if let Some(fmt) = format {
                             if size.is_none() {
-                                size = image::ImageReader::with_format(std::io::Cursor::new(&full), fmt)
-                                    .into_dimensions()
-                                    .ok()
-                                    .map(|(w, h)| PxSize::new(Px(w as i32), Px(h as i32)));
+                                if let Ok(mut d) = image::ImageReader::with_format(std::io::Cursor::new(&full), fmt).into_decoder() {
+                                    use image::metadata::Orientation::*;
+
+                                    let (mut w, mut h) = d.dimensions();
+                                    orientation = d.orientation().unwrap_or(NoTransforms);
+
+                                    if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
+                                        mem::swap(&mut w, &mut h)
+                                    }
+
+                                    size = Some(PxSize::new(Px(w as i32), Px(h as i32)));
+                                }
+
                                 if let Some(s) = size {
                                     let decoded_len = s.width.0 as u64 * s.height.0 as u64 * 4;
                                     if decoded_len > max_decoded_len {
@@ -243,7 +254,7 @@ impl ImageCache {
             }
 
             if let Some(fmt) = format {
-                match Self::image_decode(&full[..], fmt, downscale) {
+                match Self::image_decode(&full[..], fmt, downscale, orientation) {
                     Ok(img) => {
                         let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(img, mask);
                         let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
@@ -316,7 +327,7 @@ impl ImageCache {
         let _ = self.app_sender.send(AppEvent::Notify(Event::ImageLoaded(data)));
     }
 
-    fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize), Txt> {
+    fn get_format_and_size(fmt: &ImageDataFormat, data: &[u8]) -> Result<(image::ImageFormat, PxSize, image::metadata::Orientation), Txt> {
         let fmt = match fmt {
             ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
             ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
@@ -334,20 +345,36 @@ impl ImageCache {
 
         match reader.format() {
             Some(fmt) => {
-                let (w, h) = reader.into_dimensions().map_err(|e| e.to_string())?;
-                Ok((fmt, PxSize::new(Px(w as i32), Px(h as i32))))
+                use image::metadata::Orientation::*;
+
+                let mut decoder = reader.into_decoder().map_err(|e| e.to_string())?;
+                let (mut w, mut h) = decoder.dimensions();
+                let orientation = decoder.orientation().unwrap_or(NoTransforms);
+
+                if matches!(orientation, Rotate90 | Rotate270 | Rotate90FlipH | Rotate270FlipH) {
+                    mem::swap(&mut w, &mut h)
+                }
+
+                Ok((fmt, PxSize::new(Px(w as i32), Px(h as i32)), orientation))
             }
             None => Err(Txt::from_static("unknown format")),
         }
     }
 
-    fn image_decode(buf: &[u8], format: image::ImageFormat, downscale: Option<ImageDownscale>) -> image::ImageResult<image::DynamicImage> {
+    fn image_decode(
+        buf: &[u8],
+        format: image::ImageFormat,
+        downscale: Option<ImageDownscale>,
+        orientation: image::metadata::Orientation,
+    ) -> image::ImageResult<image::DynamicImage> {
         let buf = std::io::Cursor::new(buf);
 
         let mut reader = image::ImageReader::new(buf);
         reader.set_format(format);
         reader.no_limits();
         let mut image = reader.decode()?;
+
+        image.apply_orientation(orientation);
 
         if let Some(s) = downscale {
             let (img_w, img_h) = (image.width(), image.height());
