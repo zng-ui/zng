@@ -363,7 +363,7 @@ mod file_cache {
                         let entry = entry.path();
                         if entry.is_dir() {
                             if let Ok(lock) = File::open(entry.join(CacheEntry::LOCK)) {
-                                if lock.try_lock_shared().is_ok() {
+                                if FileExt::try_lock_shared(&lock).is_ok() {
                                     CacheEntry::try_delete_locked_dir(&entry, &lock);
                                 }
                             }
