@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-input"
-version = "0.2.42"
+version = "0.2.43"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,11 +12,11 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.5.6" }
-zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.40" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.40" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.5.30" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.3.31" }
-zng-app = { path = "../zng-app", version = "0.13.6" }
+zng-wgt = { path = "../zng-wgt", version = "0.5.7" }
+zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.2.41" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.2.41" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.5.31" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.3.32" }
+zng-app = { path = "../zng-app", version = "0.13.7" }
 zng-view-api = { path = "../zng-view-api", version = "0.10.4" }
-zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.41" }
+zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.2.42" }
