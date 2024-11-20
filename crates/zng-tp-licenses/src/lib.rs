@@ -142,6 +142,14 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
         .arg("json")
         .arg("--all-features");
 
+    // cargo about returns an error on stdout redirect in PowerShell
+    #[cfg(windows)]
+    let temp_file = tempfile::NamedTempFile::new().expect("cannot crate temp file for windows output");
+    #[cfg(windows)]
+    {
+        cargo_about.arg("--output-file").arg(temp_file.path());
+    }
+
     if !about_cfg_path.is_empty() {
         cargo_about.arg("-c").arg(about_cfg_path);
     }
@@ -154,6 +162,9 @@ pub fn collect_cargo_about(about_cfg_path: &str) -> Vec<LicenseUsed> {
         output.status
     );
 
+    #[cfg(windows)]
+    let json = std::fs::read_to_string(temp_file.path()).expect("cannot read temp file with windows output");
+    #[cfg(not(windows))]
     let json = String::from_utf8(output.stdout).unwrap();
 
     parse_cargo_about(&json).expect("error parsing `cargo about` output")
