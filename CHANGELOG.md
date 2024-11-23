@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.12.10
+
 * Fix `zng_tp_licenses::collect_cargo_about` call in Powershell.
 
 # 0.12.9
