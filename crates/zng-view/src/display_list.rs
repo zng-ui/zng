@@ -641,6 +641,7 @@ fn display_item_to_webrender(
             bounds,
             widths,
             fill,
+            slice,
             repeat_horizontal,
             repeat_vertical,
         } => {
@@ -713,7 +714,7 @@ fn display_item_to_webrender(
                     source,
                     width: bounds.width().0,
                     height: bounds.height().0,
-                    slice: widths.to_wr_device(),
+                    slice: slice.to_wr_device(),
                     fill: *fill,
                     repeat_horizontal: repeat_horizontal.to_wr(),
                     repeat_vertical: repeat_vertical.to_wr(),

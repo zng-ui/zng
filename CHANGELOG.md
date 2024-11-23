@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Add missing `slice` input in 9-patch border rendering methods in `FrameBuilder` and `DisplayListBuilder`.
 * Fix `zng_tp_licenses::collect_cargo_about` call in Powershell.
 
 # 0.12.9

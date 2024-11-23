@@ -853,9 +853,10 @@ pub struct ReferenceFrameId(pub u64, pub u64);
 ///
 /// Defines how the edges and middle region of a nine-patch border is filled.
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize, Default)]
 pub enum RepeatMode {
     /// The source image's edge regions are stretched to fill the gap between each border.
+    #[default]
     Stretch,
     /// The source image's edge regions are tiled (repeated) to fill the gap between each
     /// border. Tiles may be clipped to achieve the proper fit.
@@ -867,12 +868,22 @@ pub enum RepeatMode {
     /// border. Extra space will be distributed in between tiles to achieve the proper fit.
     Space,
 }
+/// Converts `true` to `Repeat` and `false` to the default `Stretch`.
+impl From<bool> for RepeatMode {
+    fn from(value: bool) -> Self {
+        match value {
+            true => RepeatMode::Repeat,
+            false => RepeatMode::Stretch,
+        }
+    }
+}
 
 /// Color mix blend mode.
 #[allow(missing_docs)]
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Default)]
 pub enum MixBlendMode {
+    #[default]
     Normal = 0,
     Multiply = 1,
     Screen = 2,

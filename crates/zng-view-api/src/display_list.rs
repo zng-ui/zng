@@ -258,11 +258,13 @@ impl DisplayListBuilder {
     }
 
     /// Push a nine-patch border.
+    #[expect(clippy::too_many_arguments)]
     pub fn push_nine_patch_border(
         &mut self,
         bounds: PxRect,
         source: NinePatchSource,
         widths: PxSideOffsets,
+        slice: PxSideOffsets,
         fill: bool,
         repeat_horizontal: RepeatMode,
         repeat_vertical: RepeatMode,
@@ -271,6 +273,7 @@ impl DisplayListBuilder {
             bounds,
             source,
             widths,
+            slice,
             fill,
             repeat_horizontal,
             repeat_vertical,
@@ -830,6 +833,7 @@ pub enum DisplayItem {
         bounds: PxRect,
         source: NinePatchSource,
         widths: PxSideOffsets,
+        slice: PxSideOffsets,
         fill: bool,
         repeat_horizontal: RepeatMode,
         repeat_vertical: RepeatMode,

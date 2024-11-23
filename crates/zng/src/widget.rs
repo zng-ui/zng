@@ -59,6 +59,8 @@ pub use zng_wgt::{
     OnNodeOpArgs, WeakWidgetFn, Wgt, WidgetFn, EDITORS, IS_MOBILE_VAR,
 };
 
+pub use zng_wgt_image::border::{border_img, border_img_repeat, border_img_fill, BorderRepeats};
+
 pub use zng_wgt_fill::{
     background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground, foreground_color,
     foreground_conic, foreground_fn, foreground_gradient, foreground_highlight, foreground_radial,
