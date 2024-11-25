@@ -1002,6 +1002,13 @@ impl PathFilter {
         // not `BlockAll` so this can still be composed using `or`.
         Self::custom(|_| false)
     }
+
+    /// Allow any file inside the [`zng::env::res`] directory or sub-directories.
+    ///
+    /// [`zng::env::res`]: zng_env::res
+    pub fn allow_res() -> Self {
+        Self::allow_dir(zng_env::res(""))
+    }
 }
 
 /// Represents a [`ImageSource::Download`] path request filter.
@@ -1104,12 +1111,12 @@ impl ImageLimits {
 impl Default for ImageLimits {
     /// 100 megabytes encoded and 4096 megabytes decoded (BMP max).
     ///
-    /// Allows only paths in the executable directory, blocks all downloads.
+    /// Allows only paths in `zng::env::res`, blocks all downloads.
     fn default() -> Self {
         Self {
             max_encoded_len: 100.megabytes(),
             max_decoded_len: 4096.megabytes(),
-            allow_path: PathFilter::allow_exe_dir(),
+            allow_path: PathFilter::allow_res(),
             #[cfg(feature = "http")]
             allow_uri: UriFilter::BlockAll,
         }

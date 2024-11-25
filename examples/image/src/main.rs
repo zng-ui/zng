@@ -27,7 +27,7 @@ fn main() {
 
     APP.defaults().run_window(async {
         // by default all "ImageSource::Download" requests are blocked and "ImageSource::Read"
-        // is limited to only the exe dir. The limits can be set globally in here and overridden 
+        // is limited to only the `zng::env::res`. The limits can be set globally in here and overridden 
         // for each image with the "img_limits" property.
         IMAGES.limits().modify(|l| {
             let l = l.to_mut();

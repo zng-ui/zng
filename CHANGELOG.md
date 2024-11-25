@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `border_img` and other related properties and types.
+* **Breaking** Changed default image filter to only allow images in `zng::env::res`, replacing the current exe dir filter.
 * **Breaking** Add missing `slice` input in 9-patch border rendering methods in `FrameBuilder` and `DisplayListBuilder`.
 
 # 0.12.10

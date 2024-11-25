@@ -11,6 +11,11 @@ use crate::{IMAGE_CACHE_VAR, IMAGE_LIMITS_VAR, IMAGE_RENDERING_VAR};
 /// 9-patch image border.
 ///
 /// The `source` image is sliced by `slices` and projected onto `widths` in the widget layout.
+///
+/// See also [`border_img_repeat`] and [`border_img_fill`].
+///
+/// [`border_img_repeat`]: fn@border_img_repeat
+/// [`border_img_fill`]: fn@border_img_fill
 #[property(BORDER)]
 pub fn border_img(
     child: impl UiNode,
@@ -24,6 +29,7 @@ pub fn border_img(
 
     let mut img = var(Img::dummy(None)).read_only();
     let mut _img_sub = VarHandle::dummy();
+    let mut slices_img_size = PxSize::zero();
     let mut slices_px = PxSideOffsets::zero();
 
     border_node(
@@ -51,7 +57,7 @@ pub fn border_img(
                     *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
                 }
                 img = IMAGES.image(source, mode, limits, None, None);
-                _img_sub = img.subscribe(UpdateOp::Render, WIDGET.id());
+                _img_sub = img.subscribe(UpdateOp::Update, WIDGET.id());
             }
             UiNodeOp::Deinit => {
                 img = var(Img::dummy(None)).read_only();
@@ -93,12 +99,35 @@ pub fn border_img(
                         };
                     }
                 }
+
+                if img.is_new() {
+                    let img = img.get();
+                    if img.is_loaded() {
+                        let s = img.size();
+                        if s != slices_img_size {
+                            slices_img_size = s;
+                            WIDGET.layout();
+                        }
+                    }
+                    WIDGET.render();
+                }
             }
             UiNodeOp::Measure { desired_size, .. } => {
                 *desired_size = LAYOUT.constraints().fill_size();
             }
             UiNodeOp::Layout { final_size, .. } => {
                 *final_size = LAYOUT.constraints().fill_size();
+
+                let metrics = LAYOUT
+                    .metrics()
+                    .with_constraints(PxConstraints2d::new_exact_size(slices_img_size))
+                    .with_scale_factor(1.fct());
+                let s = LAYOUT.with_context(metrics, || slices.layout());
+                println!("!!: {s:?}");
+                if s != slices_px {
+                    slices_px = s;
+                    WIDGET.render();
+                }
             }
             UiNodeOp::Render { frame } => {
                 let img = img.get();
@@ -109,6 +138,7 @@ pub fn border_img(
                         frame.push_border_image(
                             rect,
                             offsets,
+                            slices_px,
                             BORDER_IMG_FILL_VAR.get(),
                             repeats.top_bottom,
                             repeats.left_right,

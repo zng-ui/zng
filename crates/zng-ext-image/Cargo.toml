@@ -27,6 +27,7 @@ zng-task = { path = "../zng-task", version = "0.4.11" }
 zng-layout = { path = "../zng-layout", version = "0.2.30" }
 zng-color = { path = "../zng-color", version = "0.3.16" }
 zng-state-map = { path = "../zng-state-map", version = "0.3.7" }
+zng-env = { path = "../zng-env", version = "0.3.7" }
 
 serde = "1.0"
 once_cell = "1.19"

@@ -8,6 +8,7 @@ use zng::{
 mod widgets;
 
 fn main() {
+    zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
 
     APP.defaults().run_window(async {
@@ -43,6 +44,24 @@ fn main() {
                                 border_align = 100.pct();
                                 child = Text!("border_align = 100.pct();");
                             },
+                            Button! {
+                                child = Text!("border_img");
+                                on_click = hn!(|_| {
+                                    WINDOWS.focus_or_open("border_img-win", async {
+                                        Window! {
+                                            title = "border_img";
+                                            child = Container! {
+                                                layout::margin = 20;
+                                                widget::border_img = {
+                                                    widths: 15,
+                                                    source: zng::env::res("border.png"),
+                                                    slices: (100.0 / 3.0).pct(),
+                                                };
+                                            }
+                                        }
+                                    });
+                                })
+                            }
                         ]
                     },
                     Stack! {
