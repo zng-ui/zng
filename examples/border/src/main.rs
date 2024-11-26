@@ -8,8 +8,14 @@ use zng::{
 mod widgets;
 
 fn main() {
+    zng::env::init_res(concat!(env!("CARGO_MANIFEST_DIR"), "/res"));
     zng::env::init!();
 
+    // zng::view_process::default::run_same_process(app_main);
+    app_main();
+}
+
+fn app_main() {
     APP.defaults().run_window(async {
         Window! {
             title = "Border Example";
@@ -43,6 +49,18 @@ fn main() {
                                 border_align = 100.pct();
                                 child = Text!("border_align = 100.pct();");
                             },
+                            Button! {
+                                child = Text!("border_img");
+                                on_click = hn!(|_| on_border_img());
+                                zng::color::base_color = web_colors::GREEN.darken(40.pct());
+                                zng::mouse::cursor = zng::mouse::CursorIcon::Pointer;
+
+                                widget::border_img = {
+                                    widths: 5,
+                                    source: zng::env::res("border.png"),
+                                    slices: (100.0 / 3.0).pct(),
+                                }
+                            }
                         ]
                     },
                     Stack! {
@@ -74,6 +92,55 @@ fn main() {
             };
         }
     })
+}
+
+fn on_border_img() {
+    WINDOWS.focus_or_open("border_img-win", async {
+        let fill = var(false);
+        let repeat = var(zng::widget::RepeatMode::default());
+        Window! {
+            title = "border_img";
+            child = Container! {
+                widget::border_img = {
+                    widths: 15,
+                    source: zng::env::res("border.png"),
+                    slices: (100.0 / 3.0).pct(),
+                };
+                widget::border_img_fill = fill.clone();
+                widget::border_img_repeat = repeat.map_into();
+
+                layout::margin = 20;
+                padding = 20;
+                child = Stack!(top_to_bottom, ui_vec![
+                    Toggle! {
+                        checked = fill;
+                        style_fn = toggle::CheckStyle!();
+                        child = Text!("border_img_fill = true;");
+                    },
+                    Text!(txt = "border_img_repeat = "; layout::margin = (25, 0, 0, 0)),
+                    Stack! {
+                        direction = StackDirection::top_to_bottom();
+                        spacing = 5;
+                        toggle::selector = toggle::Selector::single(repeat);
+                        layout::margin = (0, 0, 0, 50);
+                        children = {
+                            use zng::widget::RepeatMode::*;
+                            [
+                                Stretch,
+                                Repeat,
+                                Round,
+                                Space, // not implemented by zng-view yet
+                            ].into_iter().map(|m| Toggle! {
+                                value::<zng::widget::RepeatMode> = m;
+                                child = Text!("{m:?};");
+                                style_fn = toggle::RadioStyle!();
+                            }).collect::<UiVec>()
+                        }
+                    }
+                ])
+            }
+        }
+    });
 }
 
 fn clip_to_bounds_demo() -> impl UiNode {

@@ -1,5 +1,10 @@
 # Unreleased
 
+* Add `border_img` and other related properties and types.
+* **Breaking** Moved `zng::render::RepeatMode` to `zng::widget`.
+* **Breaking** Add `zng_app::render::Img::size` for the renderer image interface trait.
+* **Breaking** Changed default image filter to only allow images in `zng::env::res`, replacing the current exe dir filter.
+* **Breaking** Add missing inputs in 9-patch border rendering methods in `FrameBuilder` and `DisplayListBuilder`.
 
 # 0.12.10
 

@@ -640,9 +640,11 @@ fn display_item_to_webrender(
             source,
             bounds,
             widths,
+            img_size,
             fill,
-            repeat_horizontal,
-            repeat_vertical,
+            slice,
+            mut repeat_horizontal,
+            mut repeat_vertical,
         } => {
             let wr_bounds = bounds.to_wr();
             let clip = sc.clip_chain_id(wr_list);
@@ -700,6 +702,21 @@ fn display_item_to_webrender(
                 }
             };
 
+            // webrender does not implement RepeatMode::Space
+            let mut space_mode = false;
+            if matches!(repeat_horizontal, zng_view_api::RepeatMode::Space) {
+                repeat_horizontal = zng_view_api::RepeatMode::Repeat;
+                space_mode = true;
+            }
+            if matches!(repeat_vertical, zng_view_api::RepeatMode::Space) {
+                repeat_vertical = zng_view_api::RepeatMode::Repeat;
+                space_mode = true;
+            }
+
+            if space_mode {
+                tracing::warn!("`RepeatMode::Space` not implemented, will use `RepeatMode::Repeat`");
+            }
+
             wr_list.push_border(
                 &wr::CommonItemProperties {
                     clip_rect: wr_bounds,
@@ -711,9 +728,9 @@ fn display_item_to_webrender(
                 widths.to_wr(),
                 wr::BorderDetails::NinePatch(wr::NinePatchBorder {
                     source,
-                    width: bounds.width().0,
-                    height: bounds.height().0,
-                    slice: widths.to_wr_device(),
+                    width: img_size.width.0,
+                    height: img_size.height.0,
+                    slice: slice.to_wr_device(),
                     fill: *fill,
                     repeat_horizontal: repeat_horizontal.to_wr(),
                     repeat_vertical: repeat_vertical.to_wr(),

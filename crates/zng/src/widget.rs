@@ -47,6 +47,8 @@ pub use zng_app::widget::border::{
 pub use zng_app::widget::info::Visibility;
 pub use zng_app::widget::node::ZIndex;
 
+pub use zng_app::render::RepeatMode;
+
 pub use zng_wgt::{
     auto_hide, border, border_align, border_over, clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline,
     interactive, is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_inited, is_mobile, is_visible, modal,
@@ -58,6 +60,8 @@ pub use zng_wgt::{
     on_vis_disable, on_vis_enable, on_vis_enabled_changed, on_visibility_changed, parallel, visibility, wgt_fn, z_index, EditorRequestArgs,
     OnNodeOpArgs, WeakWidgetFn, Wgt, WidgetFn, EDITORS, IS_MOBILE_VAR,
 };
+
+pub use zng_wgt_image::border::{border_img, border_img_fill, border_img_repeat, BorderRepeats};
 
 pub use zng_wgt_fill::{
     background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground, foreground_color,
