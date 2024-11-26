@@ -1187,7 +1187,7 @@ macro_rules! view_process_extension {
     ($closure:expr) => {
         // expanded from:
         // #[linkme::distributed_slice(VIEW_EXTENSIONS)]
-        // static _VIEW_EXTENSIONS = fn...;
+        // static _VIEW_EXTENSIONS: fn(&FooArgs) = foo;
         // so that users don't need to depend on linkme just to call this macro.
         #[used]
         #[cfg_attr(
@@ -1198,16 +1198,21 @@ macro_rules! view_process_extension {
                 target_os = "fuchsia",
                 target_os = "psp"
             ),
-            link_section = "linkme_VIEW_EXTENSIONS"
+            unsafe(link_section = "linkme_VIEW_EXTENSIONS")
         )]
         #[cfg_attr(
             any(target_os = "macos", target_os = "ios", target_os = "tvos"),
-            link_section = "__DATA,__linkmeTbhLJz52,regular,no_dead_strip"
+            unsafe(link_section = "__DATA,__linkmeTbhLJz52,regular,no_dead_strip")
         )]
-        #[cfg_attr(target_os = "windows", link_section = ".linkme_VIEW_EXTENSIONS$b")]
-        #[cfg_attr(target_os = "illumos", link_section = "set_linkme_VIEW_EXTENSIONS")]
-        #[cfg_attr(target_os = "freebsd", link_section = "linkme_VIEW_EXTENSIONS")]
-        #[cfg_attr(any(target_os = "freebsd", target_os = "openbsd"), link_section = "linkme_VIEW_EXTENSIONS")]
+        #[cfg_attr(
+            any(target_os = "uefi", target_os = "windows"),
+            unsafe(link_section = ".linkme_VIEW_EXTENSIONS$b")
+        )]
+        #[cfg_attr(target_os = "illumos", unsafe(link_section = "set_linkme_VIEW_EXTENSIONS"))]
+        #[cfg_attr(
+            any(target_os = "freebsd", target_os = "openbsd"),
+            unsafe(link_section = "linkme_VIEW_EXTENSIONS")
+        )]
         #[doc(hidden)]
         static _VIEW_EXTENSIONS: fn(&mut $crate::extensions::ViewExtensions) = _view_extensions;
         #[doc(hidden)]

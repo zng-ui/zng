@@ -82,7 +82,7 @@ macro_rules! __on_process_start {
     ($closure:expr) => {
         // expanded from:
         // #[linkme::distributed_slice(ZNG_ENV_ON_PROCESS_START)]
-        // static _ON_PROCESS_START: fn...;
+        // static _ON_PROCESS_START: fn(&FooArgs) = _foo;
         // so that users don't need to depend on linkme just to call this macro.
         #[used]
         #[cfg_attr(
@@ -93,17 +93,20 @@ macro_rules! __on_process_start {
                 target_os = "fuchsia",
                 target_os = "psp"
             ),
-            link_section = "linkme_ZNG_ENV_ON_PROCESS_START"
+            unsafe(link_section = "linkme_ZNG_ENV_ON_PROCESS_START")
         )]
         #[cfg_attr(
             any(target_os = "macos", target_os = "ios", target_os = "tvos"),
-            link_section = "__DATA,__linkme7nCnSSdn,regular,no_dead_strip"
+            unsafe(link_section = "__DATA,__linkme7nCnSSdn,regular,no_dead_strip")
         )]
-        #[cfg_attr(target_os = "windows", link_section = ".linkme_ZNG_ENV_ON_PROCESS_START$b")]
-        #[cfg_attr(target_os = "illumos", link_section = "set_linkme_ZNG_ENV_ON_PROCESS_START")]
+        #[cfg_attr(
+            any(target_os = "uefi", target_os = "windows"),
+            unsafe(link_section = ".linkme_ZNG_ENV_ON_PROCESS_START$b")
+        )]
+        #[cfg_attr(target_os = "illumos", unsafe(link_section = "set_linkme_ZNG_ENV_ON_PROCESS_START"))]
         #[cfg_attr(
             any(target_os = "freebsd", target_os = "openbsd"),
-            link_section = "linkme_ZNG_ENV_ON_PROCESS_START"
+            unsafe(link_section = "linkme_ZNG_ENV_ON_PROCESS_START")
         )]
         #[doc(hidden)]
         static _ON_PROCESS_START: fn(&$crate::ProcessStartArgs) = _on_process_start;
