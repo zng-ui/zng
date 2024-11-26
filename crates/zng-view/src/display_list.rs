@@ -2,7 +2,7 @@ use std::{cell::Cell, mem};
 
 use rustc_hash::FxHashMap;
 use webrender::api as wr;
-use zng_unit::{PxCornerRadius, PxRect, PxTransform, Rgba};
+use zng_unit::{Px, PxCornerRadius, PxRect, PxTransform, Rgba};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     display_list::{DisplayItem, DisplayList, FilterOp, FrameValue, FrameValueId, FrameValueUpdate, NinePatchSource, SegmentId},
@@ -638,15 +638,14 @@ fn display_item_to_webrender(
         }
         DisplayItem::NinePatchBorder {
             source,
-            bounds,
-            widths,
+            mut bounds,
+            mut widths,
             img_size,
             fill,
             slice,
-            mut repeat_horizontal,
-            mut repeat_vertical,
+            repeat_horizontal,
+            repeat_vertical,
         } => {
-            let wr_bounds = bounds.to_wr();
             let clip = sc.clip_chain_id(wr_list);
 
             let source = match source {
@@ -702,20 +701,30 @@ fn display_item_to_webrender(
                 }
             };
 
-            // webrender does not implement RepeatMode::Space
-            let mut space_mode = false;
-            if matches!(repeat_horizontal, zng_view_api::RepeatMode::Space) {
-                repeat_horizontal = zng_view_api::RepeatMode::Repeat;
-                space_mode = true;
-            }
-            if matches!(repeat_vertical, zng_view_api::RepeatMode::Space) {
-                repeat_vertical = zng_view_api::RepeatMode::Repeat;
-                space_mode = true;
+            // webrender does not implement RepeatMode::Space, so we hide the space lines (and corners) and do a manual repeat
+            let actual_bounds = bounds;
+            let actual_widths = widths;
+            let mut render_corners = false;
+            if let wr::NinePatchBorderSource::Image(image_key, rendering) = source {
+                if matches!(repeat_horizontal, zng_view_api::RepeatMode::Space) {
+                    bounds.origin.y += widths.top;
+                    bounds.size.height -= widths.vertical();
+                    widths.top = Px(0);
+                    widths.bottom = Px(0);
+
+                    render_corners = true;
+                }
+                if matches!(repeat_vertical, zng_view_api::RepeatMode::Space) {
+                    bounds.origin.x += widths.left;
+                    bounds.size.width -= widths.horizontal();
+                    widths.left = Px(0);
+                    widths.right = Px(0);
+
+                    render_corners = true;
+                }
             }
 
-            if space_mode {
-                tracing::warn!("`RepeatMode::Space` not implemented, will use `RepeatMode::Repeat`");
-            }
+            let wr_bounds = bounds.to_wr();
 
             wr_list.push_border(
                 &wr::CommonItemProperties {
@@ -736,6 +745,64 @@ fn display_item_to_webrender(
                     repeat_vertical: repeat_vertical.to_wr(),
                 }),
             );
+
+            // if we rendered RepeatMode::Space
+            if render_corners {
+                let wr::NinePatchBorderSource::Image(key, rendering) = source else {
+                    unreachable!()
+                };
+
+                use wr::euclid::rect as r;
+
+                for (bounds, slice) in [
+                    (
+                        r::<_, Px>(Px(0), Px(0), actual_widths.left, actual_widths.top),
+                        r::<_, Px>(Px(0), Px(0), slice.left, slice.top),
+                    ),
+                    (
+                        r(actual_bounds.width() - actual_widths.right, Px(0), actual_widths.right, actual_widths.top),
+                        r(img_size.width - slice.right, Px(0), slice.right, slice.top),
+                    ),
+                    (
+                        r(
+                            actual_bounds.width() - actual_widths.right,
+                            actual_bounds.height() - actual_widths.bottom,
+                            actual_widths.right,
+                            actual_widths.bottom,
+                        ),
+                        r(
+                            img_size.width - slice.right,
+                            img_size.height - slice.bottom,
+                            slice.right,
+                            slice.bottom,
+                        ),
+                    ),
+                    (
+                        r(Px(0), actual_bounds.height() - actual_widths.bottom, actual_widths.left, actual_widths.bottom),
+                        r(Px(0), img_size.height - slice.bottom, slice.left, slice.bottom),
+                    ),
+                ] {
+                    let clip_id = sc.clip_chain_id(wr_list);
+
+                    // !!: TODO
+                    // * resize image to map slice to bounds size
+                    // * create reference frames to move image to right place
+
+                    wr_list.push_image(
+                        &wr::CommonItemProperties {
+                            clip_rect: bounds.to_wr(),
+                            clip_chain_id: clip_id,
+                            spatial_id: sc.spatial_id(),
+                            flags: sc.primitive_flags(),
+                        },
+                        PxRect::from_size(*img_size).to_wr(),
+                        rendering,
+                        wr::AlphaType::Alpha,
+                        key,
+                        wr::ColorF::WHITE,
+                    );
+                }
+            }
         }
 
         DisplayItem::Image {
