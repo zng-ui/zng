@@ -129,7 +129,7 @@ fn on_border_img() {
                                 Stretch,
                                 Repeat,
                                 Round,
-                                Space,
+                                Space, // not implemented by zng-view yet
                             ].into_iter().map(|m| Toggle! {
                                 value::<zng::widget::RepeatMode> = m;
                                 child = Text!("{m:?};");

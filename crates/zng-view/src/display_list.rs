@@ -643,8 +643,8 @@ fn display_item_to_webrender(
             img_size,
             fill,
             slice,
-            repeat_horizontal,
-            repeat_vertical,
+            mut repeat_horizontal,
+            mut repeat_vertical,
         } => {
             let wr_bounds = bounds.to_wr();
             let clip = sc.clip_chain_id(wr_list);
@@ -701,6 +701,21 @@ fn display_item_to_webrender(
                     })
                 }
             };
+
+            // webrender does not implement RepeatMode::Space
+            let mut space_mode = false;
+            if matches!(repeat_horizontal, zng_view_api::RepeatMode::Space) {
+                repeat_horizontal = zng_view_api::RepeatMode::Repeat;
+                space_mode = true;
+            }
+            if matches!(repeat_vertical, zng_view_api::RepeatMode::Space) {
+                repeat_vertical = zng_view_api::RepeatMode::Repeat;
+                space_mode = true;
+            }
+
+            if space_mode {
+                tracing::warn!("`RepeatMode::Space` not implemented, will use `RepeatMode::Repeat`");
+            }
 
             wr_list.push_border(
                 &wr::CommonItemProperties {
