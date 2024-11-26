@@ -96,6 +96,10 @@ static CRASH_CONFIG: [fn(&mut CrashConfig)];
 #[macro_export]
 macro_rules! crash_handler_config {
     ($closure:expr) => {
+        // expanded from:
+        // #[linkme::distributed_slice(CRASH_CONFIG)]
+        // static _CRASH_CONFIG: fn(&FooArgs) = _foo;
+        // so that users don't need to depend on linkme just to call this macro.
         #[used]
         #[cfg_attr(
             any(
@@ -105,15 +109,21 @@ macro_rules! crash_handler_config {
                 target_os = "fuchsia",
                 target_os = "psp"
             ),
-            link_section = "linkme_CRASH_CONFIG"
+            unsafe(link_section = "linkme_CRASH_CONFIG")
         )]
         #[cfg_attr(
             any(target_os = "macos", target_os = "ios", target_os = "tvos"),
-            link_section = "__DATA,__linkmeK3uV0Fq0,regular,no_dead_strip"
+            unsafe(link_section = "__DATA,__linkmeK3uV0Fq0,regular,no_dead_strip")
         )]
-        #[cfg_attr(target_os = "windows", link_section = ".linkme_CRASH_CONFIG$b")]
-        #[cfg_attr(target_os = "illumos", link_section = "set_linkme_CRASH_CONFIG")]
-        #[cfg_attr(target_os = "freebsd", link_section = "linkme_CRASH_CONFIG")]
+        #[cfg_attr(
+            any(target_os = "uefi", target_os = "windows"),
+            unsafe(link_section = ".linkme_CRASH_CONFIG$b")
+        )]
+        #[cfg_attr(target_os = "illumos", unsafe(link_section = "set_linkme_CRASH_CONFIG"))]
+        #[cfg_attr(
+            any(target_os = "freebsd", target_os = "openbsd"),
+            unsafe(link_section = "linkme_CRASH_CONFIG")
+        )]
         #[doc(hidden)]
         static _CRASH_CONFIG: fn(&mut $crate::crash_handler::CrashConfig) = _crash_config;
         #[doc(hidden)]
