@@ -58,6 +58,11 @@ pub fn border_img(
                 }
                 img = IMAGES.image(source, mode, limits, None, None);
                 _img_sub = img.subscribe(UpdateOp::Update, WIDGET.id());
+
+                let img = img.get();
+                if img.is_loaded() {
+                    slices_img_size = img.size();
+                }
             }
             UiNodeOp::Deinit => {
                 img = var(Img::dummy(None)).read_only();
@@ -123,7 +128,6 @@ pub fn border_img(
                     .with_constraints(PxConstraints2d::new_exact_size(slices_img_size))
                     .with_scale_factor(1.fct());
                 let s = LAYOUT.with_context(metrics, || slices.layout());
-                println!("!!: {s:?}");
                 if s != slices_px {
                     slices_px = s;
                     WIDGET.render();

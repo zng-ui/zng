@@ -397,6 +397,10 @@ impl zng_app::render::Img for Img {
             ImageTextureId::INVALID
         }
     }
+
+    fn size(&self) -> PxSize {
+        self.size()
+    }
 }
 
 struct RenderImage {

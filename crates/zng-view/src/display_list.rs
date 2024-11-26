@@ -640,6 +640,7 @@ fn display_item_to_webrender(
             source,
             bounds,
             widths,
+            img_size,
             fill,
             slice,
             repeat_horizontal,
@@ -712,8 +713,8 @@ fn display_item_to_webrender(
                 widths.to_wr(),
                 wr::BorderDetails::NinePatch(wr::NinePatchBorder {
                     source,
-                    width: bounds.width().0,
-                    height: bounds.height().0,
+                    width: img_size.width.0,
+                    height: img_size.height.0,
                     slice: slice.to_wr_device(),
                     fill: *fill,
                     repeat_horizontal: repeat_horizontal.to_wr(),

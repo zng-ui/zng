@@ -47,6 +47,8 @@ pub use zng_app::widget::border::{
 pub use zng_app::widget::info::Visibility;
 pub use zng_app::widget::node::ZIndex;
 
+pub use zng_app::render::RepeatMode;
+
 pub use zng_wgt::{
     auto_hide, border, border_align, border_over, clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline,
     interactive, is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_inited, is_mobile, is_visible, modal,

@@ -74,6 +74,9 @@ pub trait Img {
     fn alpha_type(&self) -> zng_view_api::AlphaType {
         zng_view_api::AlphaType::PremultipliedAlpha
     }
+
+    /// Image pixel size.
+    fn size(&self) -> PxSize;
 }
 
 macro_rules! expect_inner {
@@ -1291,6 +1294,7 @@ impl FrameBuilder {
                 bounds,
                 NinePatchSource::Image { image_id, rendering },
                 widths,
+                image.size(),
                 slice,
                 fill,
                 repeat_horizontal,
@@ -1332,6 +1336,7 @@ impl FrameBuilder {
                     stops: stops.to_vec().into_boxed_slice(),
                 },
                 widths,
+                bounds.size,
                 slice,
                 fill,
                 repeat_horizontal,
@@ -1377,6 +1382,7 @@ impl FrameBuilder {
                     stops: stops.to_vec().into_boxed_slice(),
                 },
                 widths,
+                bounds.size,
                 slice,
                 fill,
                 repeat_horizontal,
@@ -1422,6 +1428,7 @@ impl FrameBuilder {
                     stops: stops.to_vec().into_boxed_slice(),
                 },
                 widths,
+                bounds.size,
                 slice,
                 fill,
                 repeat_horizontal,
