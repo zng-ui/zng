@@ -845,7 +845,7 @@ impl fmt::Debug for TransformStyle {
 
 /// Identifies a reference frame.
 ///
-/// This ID is mostly defined by the app process. IDs that set the most significant 
+/// This ID is mostly defined by the app process. IDs that set the most significant
 /// bit of the second part (`id.1 & (1 << 63) != 0`) are reserved for the view process.
 #[derive(Default, Debug, Clone, Copy, serde::Deserialize, Eq, Hash, PartialEq, serde::Serialize)]
 pub struct ReferenceFrameId(pub u64, pub u64);
