@@ -960,7 +960,7 @@ fn nine_patch_border_to_webrender(
                     r::<_, Px>(
                         actual_widths.left,
                         Px(0),
-                        bounds.width() - actual_widths.horizontal(),
+                        actual_bounds.width() - actual_widths.horizontal(),
                         actual_widths.top,
                     ),
                     r::<_, Px>(slice.left, Px(0), img_size.width - slice.horizontal(), slice.top),
@@ -970,7 +970,7 @@ fn nine_patch_border_to_webrender(
                     r(
                         actual_widths.left,
                         actual_bounds.height() - actual_widths.bottom,
-                        bounds.width() - actual_widths.horizontal(),
+                        actual_bounds.width() - actual_widths.horizontal(),
                         actual_widths.bottom,
                     ),
                     r(
@@ -1040,6 +1040,86 @@ fn nine_patch_border_to_webrender(
             widths.left = Px(0);
             widths.right = Px(0);
             render_corners = true;
+
+            for (bounds, slice) in [
+                // left
+                (
+                    r::<_, Px>(
+                        Px(0),
+                        actual_widths.top,
+                        actual_widths.left,
+                        actual_bounds.height() - actual_widths.vertical(),
+                    ),
+                    r::<_, Px>(Px(0), slice.top, slice.left, img_size.height - slice.vertical()),
+                ),
+                // right
+                (
+                    r(
+                        actual_bounds.width() - actual_widths.right,
+                        actual_widths.top,
+                        actual_widths.right,
+                        actual_bounds.height() - actual_widths.vertical(),
+                    ),
+                    r(
+                        img_size.width - slice.right,
+                        slice.left,
+                        slice.right,
+                        img_size.height - slice.vertical(),
+                    ),
+                ),
+            ] {
+                let scale = Factor(bounds.width().0 as f32 / slice.width().0 as f32);
+
+                let size = PxRect::from_size(img_size * scale).to_wr();
+                let clip = slice * scale;
+
+                let offset_x = (bounds.origin.x - clip.origin.x).0 as f32;
+                let mut offset_y = (bounds.origin.y - clip.origin.y).0 as f32;
+
+                let bounds_height = bounds.height().0 as f32;
+                let clip = clip.to_wr();
+                let n = (bounds_height / clip.height()).floor();
+                let space = bounds_height - clip.height() * n;
+                let space = space / (n + 1.0);
+
+                offset_y += space;
+                let advance = clip.height() + space;
+                for _ in 0..n as u32 {
+                    let spatial_id = wr_list.push_reference_frame(
+                        wr::units::LayoutPoint::zero(),
+                        sc.spatial_id(),
+                        wr::TransformStyle::Flat,
+                        wr::PropertyBinding::Value(wr::units::LayoutTransform::translation(offset_x, offset_y, 0.0)),
+                        wr::ReferenceFrameKind::Transform {
+                            is_2d_scale_translation: true,
+                            should_snap: false,
+                            paired_with_perspective: false,
+                        },
+                        sc.next_view_process_frame_id().to_wr(),
+                    );
+                    sc.push_spatial(spatial_id);
+
+                    let clip_id = sc.clip_chain_id(wr_list);
+                    wr_list.push_image(
+                        &wr::CommonItemProperties {
+                            clip_rect: clip,
+                            clip_chain_id: clip_id,
+                            spatial_id: sc.spatial_id(),
+                            flags: sc.primitive_flags(),
+                        },
+                        size,
+                        rendering,
+                        wr::AlphaType::Alpha,
+                        image_key,
+                        wr::ColorF::WHITE,
+                    );
+
+                    wr_list.pop_reference_frame();
+                    sc.pop_spatial();
+
+                    offset_y += advance;
+                }
+            }
         }
     }
 
