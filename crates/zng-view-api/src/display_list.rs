@@ -146,6 +146,8 @@ impl DisplayListBuilder {
         transform_style: TransformStyle,
         is_2d_scale_translation: bool,
     ) {
+        debug_assert!(key.is_app_generated());
+
         self.space_len += 1;
         self.list.push(DisplayItem::PushReferenceFrame {
             id: key,

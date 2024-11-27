@@ -8,7 +8,7 @@ use zng_view_api::{
     display_list::{DisplayItem, DisplayList, FilterOp, FrameValue, FrameValueId, FrameValueUpdate, NinePatchSource, SegmentId},
     font::{GlyphIndex, GlyphInstance},
     window::FrameId,
-    GradientStop,
+    GradientStop, ReferenceFrameId,
 };
 
 use crate::px_wr::PxToWr;
@@ -117,6 +117,7 @@ pub struct SpaceAndClip {
     clip_stack: Vec<wr::ClipId>,
     clip_chain_stack: Vec<(wr::ClipChainId, usize)>,
     prim_flags: wr::PrimitiveFlags,
+    view_process_frame_id: u64,
 }
 impl SpaceAndClip {
     pub(crate) fn new(pipeline_id: wr::PipelineId) -> Self {
@@ -126,6 +127,7 @@ impl SpaceAndClip {
             clip_stack: vec![],
             clip_chain_stack: vec![],
             prim_flags: wr::PrimitiveFlags::IS_BACKFACE_VISIBLE,
+            view_process_frame_id: 0,
         }
     }
 
@@ -189,6 +191,12 @@ impl SpaceAndClip {
     /// Set the `IS_BACKFACE_VISIBLE` flag to the next items.
     pub fn set_backface_visibility(&mut self, visible: bool) {
         self.prim_flags.set(wr::PrimitiveFlags::IS_BACKFACE_VISIBLE, visible);
+    }
+
+    /// Generate a reference frame ID, unique on this list.
+    pub fn next_view_process_frame_id(&mut self) -> ReferenceFrameId {
+        self.view_process_frame_id = self.view_process_frame_id.wrapping_add(1);
+        ReferenceFrameId(self.view_process_frame_id, 1 << 63)
     }
 
     pub(crate) fn clear(&mut self, pipeline_id: wr::PipelineId) {
@@ -711,16 +719,17 @@ fn display_item_to_webrender(
                     bounds.size.height -= widths.vertical();
                     widths.top = Px(0);
                     widths.bottom = Px(0);
-
                     render_corners = true;
+
+                    
                 }
                 if matches!(repeat_vertical, zng_view_api::RepeatMode::Space) {
                     bounds.origin.x += widths.left;
                     bounds.size.width -= widths.horizontal();
                     widths.left = Px(0);
                     widths.right = Px(0);
-
                     render_corners = true;
+
                 }
             }
 
@@ -755,14 +764,22 @@ fn display_item_to_webrender(
                 use wr::euclid::rect as r;
 
                 for (bounds, slice) in [
+                    // top-left
                     (
                         r::<_, Px>(Px(0), Px(0), actual_widths.left, actual_widths.top),
                         r::<_, Px>(Px(0), Px(0), slice.left, slice.top),
                     ),
+                    // top-right
                     (
-                        r(actual_bounds.width() - actual_widths.right, Px(0), actual_widths.right, actual_widths.top),
+                        r(
+                            actual_bounds.width() - actual_widths.right,
+                            Px(0),
+                            actual_widths.right,
+                            actual_widths.top,
+                        ),
                         r(img_size.width - slice.right, Px(0), slice.right, slice.top),
                     ),
+                    // bottom-right
                     (
                         r(
                             actual_bounds.width() - actual_widths.right,
@@ -777,30 +794,61 @@ fn display_item_to_webrender(
                             slice.bottom,
                         ),
                     ),
+                    // bottom-left
                     (
-                        r(Px(0), actual_bounds.height() - actual_widths.bottom, actual_widths.left, actual_widths.bottom),
+                        r(
+                            Px(0),
+                            actual_bounds.height() - actual_widths.bottom,
+                            actual_widths.left,
+                            actual_widths.bottom,
+                        ),
                         r(Px(0), img_size.height - slice.bottom, slice.left, slice.bottom),
                     ),
                 ] {
                     let clip_id = sc.clip_chain_id(wr_list);
 
-                    // !!: TODO
-                    // * resize image to map slice to bounds size
-                    // * create reference frames to move image to right place
+                    let scale_x = bounds.size.width.0 as f32 / slice.size.width.0 as f32;
+                    let scale_y = bounds.size.height.0 as f32 / slice.size.height.0 as f32;
+
+                    let mut size = *img_size;
+                    size.width *= scale_x;
+                    size.height *= scale_y;
+                    
+                    let mut clip = slice;
+                    clip.origin.x *= scale_x;                    
+                    clip.origin.y *= scale_y;                    
+                    clip.size.width *= scale_x;
+                    clip.size.height *= scale_y;
+
+                    let offset_x = bounds.origin.x - clip.origin.x;
+                    let offset_y = bounds.origin.y - clip.origin.y;
+
+                    let spatial_id = wr_list.push_reference_frame(
+                        wr::units::LayoutPoint::zero(),
+                        sc.spatial_id(),
+                        wr::TransformStyle::Flat,
+                        wr::PropertyBinding::Value(wr::units::LayoutTransform::translation(offset_x.0 as _, offset_y.0 as _, 0.0)),
+                        wr::ReferenceFrameKind::Transform { is_2d_scale_translation: true, should_snap: false, paired_with_perspective: false },
+                        sc.next_view_process_frame_id().to_wr(),
+                    );
+                    sc.push_spatial(spatial_id);
 
                     wr_list.push_image(
                         &wr::CommonItemProperties {
-                            clip_rect: bounds.to_wr(),
+                            clip_rect: clip.to_wr(),
                             clip_chain_id: clip_id,
                             spatial_id: sc.spatial_id(),
                             flags: sc.primitive_flags(),
                         },
-                        PxRect::from_size(*img_size).to_wr(),
+                        PxRect::from_size(size).to_wr(),
                         rendering,
                         wr::AlphaType::Alpha,
                         key,
                         wr::ColorF::WHITE,
                     );
+
+                    wr_list.pop_reference_frame();
+                    sc.pop_spatial();
                 }
             }
         }
