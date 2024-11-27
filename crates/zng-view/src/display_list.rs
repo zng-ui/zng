@@ -2,7 +2,7 @@ use std::{cell::Cell, mem};
 
 use rustc_hash::FxHashMap;
 use webrender::api as wr;
-use zng_unit::{Px, PxCornerRadius, PxRect, PxTransform, Rgba};
+use zng_unit::{Factor, Px, PxCornerRadius, PxRect, PxTransform, Rgba};
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     display_list::{DisplayItem, DisplayList, FilterOp, FrameValue, FrameValueId, FrameValueUpdate, NinePatchSource, SegmentId},
@@ -714,6 +714,8 @@ fn display_item_to_webrender(
             let actual_widths = widths;
             let mut render_corners = false;
             if let wr::NinePatchBorderSource::Image(image_key, rendering) = source {
+                use wr::euclid::rect as r;
+
                 if matches!(repeat_horizontal, zng_view_api::RepeatMode::Space) {
                     bounds.origin.y += widths.top;
                     bounds.size.height -= widths.vertical();
@@ -721,7 +723,65 @@ fn display_item_to_webrender(
                     widths.bottom = Px(0);
                     render_corners = true;
 
-                    
+                    for (bounds, slice) in [
+                        // top
+                        (
+                            r::<_, Px>(actual_widths.left, Px(0), bounds.width(), actual_widths.top),
+                            r::<_, Px>(slice.left, Px(0), img_size.width - slice.horizontal(), slice.top),
+                        ),
+                        // bottom
+                        (
+                            r(actual_widths.left, actual_bounds.height() - actual_widths.bottom, bounds.width(), actual_widths.bottom),
+                            r(
+                                slice.left,
+                                img_size.height - slice.bottom,
+                                img_size.width - slice.horizontal(),
+                                slice.bottom,
+                            ),
+                        ),
+                    ] {
+                        let scale = Factor(bounds.height().0 as f32 / slice.height().0 as f32);
+
+                        let size = *img_size * scale;
+                        let clip = slice * scale;
+
+                        let offset_x = bounds.origin.x - clip.origin.x;
+                        let offset_y = bounds.origin.y - clip.origin.y;
+
+                        // !!: TODO repeat
+
+                        let spatial_id = wr_list.push_reference_frame(
+                            wr::units::LayoutPoint::zero(),
+                            sc.spatial_id(),
+                            wr::TransformStyle::Flat,
+                            wr::PropertyBinding::Value(wr::units::LayoutTransform::translation(offset_x.0 as _, offset_y.0 as _, 0.0)),
+                            wr::ReferenceFrameKind::Transform {
+                                is_2d_scale_translation: true,
+                                should_snap: false,
+                                paired_with_perspective: false,
+                            },
+                            sc.next_view_process_frame_id().to_wr(),
+                        );
+                        sc.push_spatial(spatial_id);
+                        
+                        let clip_id = sc.clip_chain_id(wr_list);
+                        wr_list.push_image(
+                            &wr::CommonItemProperties {
+                                clip_rect: clip.to_wr(),
+                                clip_chain_id: clip_id,
+                                spatial_id: sc.spatial_id(),
+                                flags: sc.primitive_flags(),
+                            },
+                            PxRect::from_size(size).to_wr(),
+                            rendering,
+                            wr::AlphaType::Alpha,
+                            image_key,
+                            wr::ColorF::WHITE,
+                        );
+
+                        wr_list.pop_reference_frame();
+                        sc.pop_spatial();
+                    }
                 }
                 if matches!(repeat_vertical, zng_view_api::RepeatMode::Space) {
                     bounds.origin.x += widths.left;
@@ -729,7 +789,6 @@ fn display_item_to_webrender(
                     widths.left = Px(0);
                     widths.right = Px(0);
                     render_corners = true;
-
                 }
             }
 
@@ -757,7 +816,7 @@ fn display_item_to_webrender(
 
             // if we rendered RepeatMode::Space
             if render_corners {
-                let wr::NinePatchBorderSource::Image(key, rendering) = source else {
+                let wr::NinePatchBorderSource::Image(image_key, rendering) = source else {
                     unreachable!()
                 };
 
@@ -805,8 +864,7 @@ fn display_item_to_webrender(
                         r(Px(0), img_size.height - slice.bottom, slice.left, slice.bottom),
                     ),
                 ] {
-                    let clip_id = sc.clip_chain_id(wr_list);
-
+                    
                     let scale_x = bounds.size.width.0 as f32 / slice.size.width.0 as f32;
                     let scale_y = bounds.size.height.0 as f32 / slice.size.height.0 as f32;
 
@@ -815,24 +873,29 @@ fn display_item_to_webrender(
                     size.height *= scale_y;
                     
                     let mut clip = slice;
-                    clip.origin.x *= scale_x;                    
-                    clip.origin.y *= scale_y;                    
+                    clip.origin.x *= scale_x;
+                    clip.origin.y *= scale_y;
                     clip.size.width *= scale_x;
                     clip.size.height *= scale_y;
-
+                    
                     let offset_x = bounds.origin.x - clip.origin.x;
                     let offset_y = bounds.origin.y - clip.origin.y;
-
+                    
                     let spatial_id = wr_list.push_reference_frame(
                         wr::units::LayoutPoint::zero(),
                         sc.spatial_id(),
                         wr::TransformStyle::Flat,
                         wr::PropertyBinding::Value(wr::units::LayoutTransform::translation(offset_x.0 as _, offset_y.0 as _, 0.0)),
-                        wr::ReferenceFrameKind::Transform { is_2d_scale_translation: true, should_snap: false, paired_with_perspective: false },
+                        wr::ReferenceFrameKind::Transform {
+                            is_2d_scale_translation: true,
+                            should_snap: false,
+                            paired_with_perspective: false,
+                        },
                         sc.next_view_process_frame_id().to_wr(),
                     );
                     sc.push_spatial(spatial_id);
-
+                    
+                    let clip_id = sc.clip_chain_id(wr_list);
                     wr_list.push_image(
                         &wr::CommonItemProperties {
                             clip_rect: clip.to_wr(),
@@ -843,7 +906,7 @@ fn display_item_to_webrender(
                         PxRect::from_size(size).to_wr(),
                         rendering,
                         wr::AlphaType::Alpha,
-                        key,
+                        image_key,
                         wr::ColorF::WHITE,
                     );
 
