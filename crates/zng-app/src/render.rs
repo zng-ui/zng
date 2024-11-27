@@ -2813,9 +2813,10 @@ enum ReferenceFrameIdInner {
     FrameValueIndex(FrameValueKey<PxTransform>, u32),
 }
 impl ReferenceFrameIdInner {
-    const UNIQUE: u64 = 1 << 63;
-    const WIDGET: u64 = 1 << 62;
-    const FRAME_VALUE: u64 = 1 << 61;
+    const _RESERVED: u64 = 1 << 63; // view process
+    const UNIQUE: u64 = 1 << 62;
+    const WIDGET: u64 = 1 << 61;
+    const FRAME_VALUE: u64 = 1 << 60;
 }
 impl From<ReferenceFrameIdInner> for RenderReferenceFrameId {
     fn from(value: ReferenceFrameIdInner) -> Self {

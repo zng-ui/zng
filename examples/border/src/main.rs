@@ -97,17 +97,19 @@ fn app_main() {
 fn on_border_img() {
     WINDOWS.focus_or_open("border_img-win", async {
         let fill = var(false);
-        let repeat = var(zng::widget::RepeatMode::default());
+        let repeat = var(zng::widget::BorderRepeats::default());
         Window! {
             title = "border_img";
             child = Container! {
                 widget::border_img = {
                     widths: 15,
-                    source: zng::env::res("border.png"),
+                    source: zng::env::res("border-test.png"),
                     slices: (100.0 / 3.0).pct(),
                 };
                 widget::border_img_fill = fill.clone();
                 widget::border_img_repeat = repeat.map_into();
+
+                widget::foreground_highlight = -15, 15, colors::RED.with_alpha(30.pct());
 
                 layout::margin = 20;
                 padding = 20;
@@ -126,13 +128,15 @@ fn on_border_img() {
                         children = {
                             use zng::widget::RepeatMode::*;
                             [
-                                Stretch,
-                                Repeat,
-                                Round,
-                                Space, // not implemented by zng-view yet
+                                (Stretch, Stretch),
+                                (Repeat, Repeat),
+                                (Round, Round),
+                                (Space, Space),
+                                (Stretch, Space),
+                                (Space, Stretch),
                             ].into_iter().map(|m| Toggle! {
-                                value::<zng::widget::RepeatMode> = m;
-                                child = Text!("{m:?};");
+                                value::<zng::widget::BorderRepeats> = m;
+                                child = if m.0 == m.1 { Text!("{:?};", m.0) } else { Text!("{m:?};") };
                                 style_fn = toggle::RadioStyle!();
                             }).collect::<UiVec>()
                         }

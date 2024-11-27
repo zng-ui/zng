@@ -1,5 +1,6 @@
 # Unreleased
 
+* The view API `ReferenceFrameId` type now reserves some IDs for the view process.
 * Add `border_img` and other related properties and types.
 * **Breaking** Moved `zng::render::RepeatMode` to `zng::widget`.
 * **Breaking** Add `zng_app::render::Img::size` for the renderer image interface trait.
