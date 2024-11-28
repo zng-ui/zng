@@ -308,9 +308,7 @@ pub(crate) struct AppInit {
 #[cfg(not(ipc))]
 mod name_map {
     use std::{
-        collections::HashMap,
-        mem::MaybeUninit,
-        sync::{Mutex, Once},
+        sync::{OnceLock, Mutex}, collections::HashMap,
     };
 
     use zng_txt::Txt;
@@ -320,16 +318,8 @@ mod name_map {
     type Map = Mutex<HashMap<Txt, flume::Sender<AppInitMsg>>>;
 
     pub fn get() -> &'static Map {
-        static mut MAP: MaybeUninit<Map> = MaybeUninit::uninit();
-        static ONCE: Once = Once::new();
-
-        unsafe {
-            ONCE.call_once(|| {
-                let singleton = Mutex::new(HashMap::default());
-                MAP.write(singleton);
-            });
-            MAP.assume_init_ref()
-        }
+        static MAP: OnceLock<Map> = OnceLock::new();
+        MAP.get_or_init(Map::default)
     }
 }
 #[cfg(not(ipc))]
