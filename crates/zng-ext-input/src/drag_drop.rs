@@ -33,5 +33,14 @@ impl AppExtension for DragDropManager {
 }
 
 /// Drag & drop service.
+/// 
+/// # Support
+/// 
+/// The default view-process implementer uses `winit` that has only limited support drag&drop:
+/// 
+/// * Only file path drop.
+/// * No support in Linux/Wayland, you can work around by calling `std::env::remove_var("WAYLAND_DISPLAY");` before `zng::env::init!()` in
+/// your main function, this enables XWayland that has support for the basic file path drop.
+
 #[allow(non_camel_case_types)]
 pub struct DRAG_DROP;
