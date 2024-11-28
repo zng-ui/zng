@@ -18,3 +18,4 @@ pub mod keyboard;
 pub mod mouse;
 pub mod pointer_capture;
 pub mod touch;
+pub mod drag_drop;
