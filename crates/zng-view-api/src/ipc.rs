@@ -308,7 +308,8 @@ pub(crate) struct AppInit {
 #[cfg(not(ipc))]
 mod name_map {
     use std::{
-        sync::{OnceLock, Mutex}, collections::HashMap,
+        collections::HashMap,
+        sync::{Mutex, OnceLock},
     };
 
     use zng_txt::Txt;
