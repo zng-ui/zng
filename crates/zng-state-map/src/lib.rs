@@ -66,13 +66,13 @@ impl<T: StateValue> fmt::Debug for StateId<T> {
 ///
 /// The `U` parameter is tag type that represents the map's *context*.
 pub struct StateMapRef<'a, U>(&'a state_map::StateMap, PhantomData<U>);
-impl<'a, U> Clone for StateMapRef<'a, U> {
+impl<U> Clone for StateMapRef<'_, U> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<'a, U> Copy for StateMapRef<'a, U> {}
-impl<'a, U> fmt::Debug for StateMapRef<'a, U> {
+impl<U> Copy for StateMapRef<'_, U> {}
+impl<U> fmt::Debug for StateMapRef<'_, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -135,7 +135,7 @@ impl<'a, U> StateMapRef<'a, U> {
 ///
 /// The `U` parameter is tag type that represents the map's *context*.
 pub struct StateMapMut<'a, U>(&'a mut state_map::StateMap, PhantomData<U>);
-impl<'a, U> fmt::Debug for StateMapMut<'a, U> {
+impl<U> fmt::Debug for StateMapMut<'_, U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "StateMapMut<{}>({} entries);", std::any::type_name::<U>(), self.0.len())
     }
@@ -406,7 +406,7 @@ pub mod state_map {
             *self.entry.remove().downcast().unwrap()
         }
     }
-    impl<'a, T: StateValue + fmt::Debug> fmt::Debug for OccupiedStateMapEntry<'a, T> {
+    impl<T: StateValue + fmt::Debug> fmt::Debug for OccupiedStateMapEntry<'_, T> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             let id = StateId::<T>::from_raw(*self.entry.key());
             f.debug_struct("OccupiedStateMapEntry")
@@ -429,7 +429,7 @@ pub mod state_map {
             self.entry.insert(Box::new(value.into())).downcast_mut().unwrap()
         }
     }
-    impl<'a, T: StateValue + fmt::Debug> fmt::Debug for VacantStateMapEntry<'a, T> {
+    impl<T: StateValue + fmt::Debug> fmt::Debug for VacantStateMapEntry<'_, T> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             let id = StateId::<T>::from_raw(*self.entry.key());
             f.debug_struct("VacantStateMapEntry").field("key", &id).finish_non_exhaustive()
@@ -484,7 +484,7 @@ pub mod state_map {
             self.or_insert_with(Default::default)
         }
     }
-    impl<'a, T: StateValue + fmt::Debug> fmt::Debug for StateMapEntry<'a, T> {
+    impl<T: StateValue + fmt::Debug> fmt::Debug for StateMapEntry<'_, T> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             match self {
                 Self::Occupied(arg0) => f.debug_tuple("Occupied").field(arg0).finish(),

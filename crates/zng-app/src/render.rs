@@ -1981,7 +1981,7 @@ pub struct ClipBuilder<'a> {
     render_count: usize,
     hit_test_count: usize,
 }
-impl<'a> ClipBuilder<'a> {
+impl ClipBuilder<'_> {
     /// Pushes the `clip_rect`.
     ///
     /// If `clip_out` is `true` only pixels outside the rect are visible. If `hit_test` is `true` the hit-test shapes
@@ -2032,7 +2032,7 @@ pub struct HitTestClipBuilder<'a> {
     hit_clips: &'a mut HitTestClips,
     count: usize,
 }
-impl<'a> HitTestClipBuilder<'a> {
+impl HitTestClipBuilder<'_> {
     /// Push a clip `rect`.
     ///
     /// If `clip_out` is `true` only hits outside the rect are valid.
@@ -2065,7 +2065,7 @@ pub struct HitTestBuilder<'a> {
     hit_clips: &'a mut HitTestClips,
     is_hit_testable: bool,
 }
-impl<'a> HitTestBuilder<'a> {
+impl HitTestBuilder<'_> {
     /// If the widget is hit-testable, if this is `false` all hit-test push methods are ignored.
     pub fn is_hit_testable(&self) -> bool {
         self.is_hit_testable

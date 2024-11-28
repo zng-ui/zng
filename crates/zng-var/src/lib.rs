@@ -117,7 +117,7 @@ pub mod types {
         pub(super) var: &'a V,
         pub(super) _t: PhantomData<fn() -> T>,
     }
-    impl<'a, T: VarValue, V: Var<T>> fmt::Debug for VarDebug<'a, T, V> {
+    impl<T: VarValue, V: Var<T>> fmt::Debug for VarDebug<'_, T, V> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             self.var.with(|t| fmt::Debug::fmt(t, f))
         }
@@ -130,7 +130,7 @@ pub mod types {
         pub(super) var: &'a V,
         pub(super) _t: PhantomData<fn() -> T>,
     }
-    impl<'a, T: VarValue + fmt::Display, V: Var<T>> fmt::Display for VarDisplay<'a, T, V> {
+    impl<T: VarValue + fmt::Display, V: Var<T>> fmt::Display for VarDisplay<'_, T, V> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             self.var.with(|t| fmt::Display::fmt(t, f))
         }
@@ -723,12 +723,12 @@ impl<'a> VarPtr<'a> {
         }
     }
 }
-impl<'a> PartialEq for VarPtr<'a> {
+impl PartialEq for VarPtr<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.eq == other.eq
     }
 }
-impl<'a> fmt::Debug for VarPtr<'a> {
+impl fmt::Debug for VarPtr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             f.debug_tuple("VarPtr").field(&self.eq).finish()
@@ -928,14 +928,14 @@ impl<'a, T: VarValue> VarModify<'a, T> {
         (false, None, false, vec![], self.custom_importance)
     }
 }
-impl<'a, T: VarValue> ops::Deref for VarModify<'a, T> {
+impl<T: VarValue> ops::Deref for VarModify<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         self.as_ref()
     }
 }
-impl<'a, T: VarValue> std::convert::AsRef<T> for VarModify<'a, T> {
+impl<T: VarValue> std::convert::AsRef<T> for VarModify<'_, T> {
     fn as_ref(&self) -> &T {
         &self.value
     }

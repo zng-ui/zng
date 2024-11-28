@@ -284,7 +284,7 @@ pub trait InspectWidgetPattern {
     fn matches(&self, info: &InspectorInfo) -> bool;
 }
 /// Matches if the [`WidgetType::path`] ends with the string.
-impl<'s> InspectWidgetPattern for &'s str {
+impl InspectWidgetPattern for &str {
     fn matches(&self, info: &InspectorInfo) -> bool {
         info.builder.widget_type().path.ends_with(self)
     }
@@ -308,7 +308,7 @@ pub trait InspectPropertyPattern {
 /// Matches if the [`PropertyInfo::name`] exactly.
 ///
 /// [`PropertyInfo::name`]: crate::widget::builder::PropertyInfo::name
-impl<'s> InspectPropertyPattern for &'s str {
+impl InspectPropertyPattern for &str {
     fn matches(&self, args: &dyn PropertyArgs, _: bool) -> bool {
         args.property().name == *self
     }

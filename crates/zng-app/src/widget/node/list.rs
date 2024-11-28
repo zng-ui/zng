@@ -1042,7 +1042,7 @@ impl UiNodeListObserver for bool {
 ///
 /// This type is useful for implementing [`UiNodeList`] that are composed of other lists.
 pub struct OffsetUiListObserver<'o>(pub usize, pub &'o mut dyn UiNodeListObserver);
-impl<'o> UiNodeListObserver for OffsetUiListObserver<'o> {
+impl UiNodeListObserver for OffsetUiListObserver<'_> {
     fn is_reset_only(&self) -> bool {
         self.1.is_reset_only()
     }
@@ -2645,7 +2645,7 @@ where
     data: &'d mut Vec<Mutex<D>>,
     observer: &'d mut dyn UiNodeListObserver,
 }
-impl<'d, D> UiNodeListObserver for PanelObserver<'d, D>
+impl<D> UiNodeListObserver for PanelObserver<'_, D>
 where
     D: PanelListData,
 {

@@ -34,7 +34,7 @@ use zng_time::Deadline;
 use zng_var::{response_done_var, response_var, AnyVar, ResponseVar, VarValue};
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 #[doc(no_inline)]
 pub use rayon;

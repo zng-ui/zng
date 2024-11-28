@@ -22,7 +22,6 @@ pub type ResponderVar<T> = ArcVar<Response<T>>;
 /// Variable used to listen to a one time signal that an async operation has completed.
 ///
 /// Use [`response_var`] or [`response_done_var`] to init.
-
 pub type ResponseVar<T> = types::ReadOnlyVar<Response<T>, ArcVar<Response<T>>>;
 /// Raw value in a [`ResponseVar`].
 #[derive(Clone, Copy, PartialEq)]

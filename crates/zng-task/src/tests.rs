@@ -12,14 +12,14 @@ where
 }
 
 #[test]
-pub fn any_one() {
+fn any_one() {
     let r = async_test(async { any!(async { true }).await });
 
     assert!(r);
 }
 
 #[test]
-pub fn any_nine() {
+fn any_nine() {
     let one_s = 1.secs();
     let r = async_test(async {
         any!(
@@ -64,7 +64,7 @@ pub fn any_nine() {
 }
 
 #[test]
-pub fn run_wake_immediately() {
+fn run_wake_immediately() {
     async_test(async {
         run(async {
             yield_now().await;
@@ -74,7 +74,7 @@ pub fn run_wake_immediately() {
 }
 
 #[test]
-pub fn run_panic_handling() {
+fn run_panic_handling() {
     async_test(async {
         let r = run_catch(async {
             run(async {
@@ -90,7 +90,7 @@ pub fn run_panic_handling() {
 }
 
 #[test]
-pub fn run_panic_handling_parallel() {
+fn run_panic_handling_parallel() {
     async_test(async {
         let r = run_catch(async {
             run(async {

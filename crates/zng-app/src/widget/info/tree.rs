@@ -103,12 +103,12 @@ pub(super) struct NodeRef<'a, T> {
     tree: &'a Tree<T>,
     id: NodeId,
 }
-impl<'a, T> Clone for NodeRef<'a, T> {
+impl<T> Clone for NodeRef<'_, T> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<'a, T> Copy for NodeRef<'a, T> {}
+impl<T> Copy for NodeRef<'_, T> {}
 impl<'a, T> NodeRef<'a, T> {
     pub fn id(&self) -> NodeId {
         self.id
@@ -185,7 +185,7 @@ impl<'a, T> NodeRef<'a, T> {
         &self.tree.nodes[self.id.get()].value
     }
 }
-impl<'a, T> PartialEq for NodeRef<'a, T> {
+impl<T> PartialEq for NodeRef<'_, T> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
@@ -195,7 +195,7 @@ pub(super) struct NodeMut<'a, T> {
     tree: &'a mut Tree<T>,
     id: NodeId,
 }
-impl<'a, T> NodeMut<'a, T> {
+impl<T> NodeMut<'_, T> {
     pub fn id(&self) -> NodeId {
         self.id
     }

@@ -255,7 +255,7 @@ impl<S: Into<Factor2d>> ops::Mul<S> for StackDirection {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a StackDirection {
+impl<S: Into<Factor2d>> ops::Mul<S> for &StackDirection {
     type Output = StackDirection;
 
     fn mul(self, rhs: S) -> Self::Output {
@@ -277,7 +277,7 @@ impl<S: Into<Factor2d>> ops::Div<S> for StackDirection {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a StackDirection {
+impl<S: Into<Factor2d>> ops::Div<S> for &StackDirection {
     type Output = StackDirection;
 
     fn div(self, rhs: S) -> Self::Output {
