@@ -811,7 +811,7 @@ mod defaults {
     use zng_ext_fs_watcher::FsWatcherManager;
     use zng_ext_image::ImageManager;
     use zng_ext_input::{
-        focus::FocusManager, gesture::GestureManager, keyboard::KeyboardManager, mouse::MouseManager,
+        drag_drop::DragDropManager, focus::FocusManager, gesture::GestureManager, keyboard::KeyboardManager, mouse::MouseManager,
         pointer_capture::PointerCaptureManager, touch::TouchManager,
     };
     use zng_ext_l10n::L10nManager;
@@ -851,6 +851,7 @@ mod defaults {
         /// * [`WindowManager`]
         /// * [`FontManager`]
         /// * [`FocusManager`]
+        /// * [`DragDropManager`]
         /// * [`ImageManager`]
         /// * [`ClipboardManager`]
         /// * [`UndoManager`]
@@ -880,6 +881,7 @@ mod defaults {
                 .extend(WindowManager::default())
                 .extend(FontManager::default())
                 .extend(FocusManager::default())
+                .extend(DragDropManager::default())
                 .extend(ImageManager::default())
                 .extend(ClipboardManager::default())
                 .extend(UndoManager::default());

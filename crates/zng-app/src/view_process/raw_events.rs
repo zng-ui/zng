@@ -14,8 +14,6 @@
 //! [`notify`]: crate::event::Event::notify
 //! [`DeviceId`]: crate::view_process::raw_device_events::DeviceId
 
-use std::path::PathBuf;
-
 use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint, PxRect};
 use zng_txt::Txt;
 use zng_view_api::{
@@ -27,7 +25,7 @@ use zng_view_api::{
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
     window::{EventCause, FrameId, FrameWaitId, HeadlessOpenData, MonitorInfo, WindowStateAll},
-    AxisId, Ime,
+    AxisId, DragDropData, Ime,
 };
 
 use crate::{
@@ -259,29 +257,15 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_DROPPED_FILE_EVENT`].
-    pub struct RawDroppedFileArgs {
-        /// Window where it was dropped.
-        pub window_id: WindowId,
-
-        /// Path to file that was dropped.
-        pub file: PathBuf,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
-        }
-    }
-
-    /// Arguments for the [`RAW_HOVERED_FILE_EVENT`].
-    pub struct RawHoveredFileArgs {
+    /// Arguments for the [`RAW_DRAG_HOVERED_EVENT`].
+    pub struct RawDragHoveredArgs {
         /// Window where it was dragged over.
         pub window_id: WindowId,
 
-        /// Path to file that was dragged over the window.
-        pub file: PathBuf,
+        /// Data type.
+        pub mime: Txt,
+        /// Data payload.
+        pub data: DragDropData,
 
         ..
 
@@ -291,12 +275,26 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_HOVERED_FILE_CANCELLED_EVENT`].
-    ///
-    /// The file is the one that was last [hovered] into the window.
-    ///
-    /// [hovered]: RAW_HOVERED_FILE_EVENT
-    pub struct RawHoveredFileCancelledArgs {
+    /// Arguments for the [`RAW_DRAG_DROPPED_EVENT`].
+    pub struct RawDragDroppedArgs {
+        /// Window where it was dropped.
+        pub window_id: WindowId,
+
+        /// Data type.
+        pub mime: Txt,
+        /// Data payload.
+        pub data: DragDropData,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_DRAG_CANCELLED_EVENT`].
+    pub struct RawDragCancelledArgs {
         /// Window where the file was previously dragged over.
         pub window_id: WindowId,
 
@@ -704,18 +702,14 @@ event! {
     /// A window was destroyed.
     pub static RAW_WINDOW_CLOSE_EVENT: RawWindowCloseArgs;
 
-    /// A file was drag-dropped on a window.
-    pub static RAW_DROPPED_FILE_EVENT: RawDroppedFileArgs;
+    /// Data was dragged over a window.
+    pub static RAW_DRAG_HOVERED_EVENT: RawDragHoveredArgs;
 
-    /// A file was dragged over a window.
-    ///
-    /// If the file is dropped [`RAW_DROPPED_FILE_EVENT`] will raise.
-    pub static RAW_HOVERED_FILE_EVENT: RawHoveredFileArgs;
+    /// Data was drag-dropped on a window.
+    pub static RAW_DRAG_DROPPED_EVENT: RawDragDroppedArgs;
 
-    /// A dragging file was moved away from the window or the operation was cancelled.
-    ///
-    /// The file is the last one that emitted a [`RAW_HOVERED_FILE_EVENT`].
-    pub static RAW_HOVERED_FILE_CANCELLED_EVENT: RawHoveredFileCancelledArgs;
+    /// Data was dragged away from the window or the operation was cancelled.
+    pub static RAW_DRAG_CANCELLED_EVENT: RawDragCancelledArgs;
 
     /// Mouse pointer moved over a window.
     pub static RAW_MOUSE_MOVED_EVENT: RawMouseMovedArgs;

@@ -614,17 +614,25 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.windows.remove(i);
                 self.notify(Event::WindowClosed(id));
             }
-            WindowEvent::DroppedFile(file) => {
-                linux_modal_dialog_bail!();
-                self.notify(Event::DroppedFile { window: id, file })
-            }
             WindowEvent::HoveredFile(file) => {
                 linux_modal_dialog_bail!();
-                self.notify(Event::HoveredFile { window: id, file })
+                self.notify(Event::DragHovered {
+                    window: id,
+                    mime: Txt::default(),
+                    data: DragDropData::Path(file),
+                });
+            }
+            WindowEvent::DroppedFile(file) => {
+                linux_modal_dialog_bail!();
+                self.notify(Event::DragDropped {
+                    window: id,
+                    mime: Txt::default(),
+                    data: DragDropData::Path(file),
+                });
             }
             WindowEvent::HoveredFileCancelled => {
                 linux_modal_dialog_bail!();
-                self.notify(Event::HoveredFileCancelled(id))
+                self.notify(Event::DragCancelled { window: id });
             }
             WindowEvent::Focused(mut focused) => {
                 if self.windows[i].focused_changed(&mut focused) {

@@ -205,28 +205,29 @@ pub enum Event {
     /// [`EventCause`]: crate::window::EventCause
     WindowChanged(WindowChanged),
 
-    /// A file has been dropped into the window.
-    ///
-    /// When the user drops multiple files at once, this event will be emitted for each file separately.
-    DroppedFile {
+    /// A drag&drop gesture started dragging over the window.
+    DragHovered {
+        /// Window that was hovered.
+        window: WindowId,
+        /// Data type.
+        mime: Txt,
+        /// Data payload.
+        data: DragDropData,
+    },
+    /// A drag&drop gesture finished over the window.
+    DragDropped {
         /// Window that received the file drop.
         window: WindowId,
-        /// Path to the file that was dropped.
-        file: PathBuf,
+        /// Data type.
+        mime: Txt,
+        /// Data payload.
+        data: DragDropData,
     },
-    /// A file is being hovered over the window.
-    ///
-    /// When the user hovers multiple files at once, this event will be emitted for each file separately.
-    HoveredFile {
-        /// Window that was hovered by drag-drop.
+    /// A drag&drop gesture stopped hovering the window without dropping.
+    DragCancelled {
+        /// Window that was previous hovered.
         window: WindowId,
-        /// Path to the file being dragged.
-        file: PathBuf,
     },
-    /// A file was hovered, but has exited the window.
-    ///
-    /// There will be a single event triggered even if multiple files were hovered.
-    HoveredFileCancelled(WindowId),
 
     /// App window(s) focus changed.
     FocusChanged {
@@ -1040,6 +1041,36 @@ pub enum FocusResult {
     Requested,
     /// Window is already focused.
     AlreadyFocused,
+}
+
+/// Drag&drop data payload.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum DragDropData {
+    /// Text encoded data.
+    ///
+    /// This can be plain text or any markup format.
+    Text(Txt),
+    /// File or directory path.
+    Path(PathBuf),
+    /// Binary data.
+    ///
+    /// This can be an image for example.
+    Binary(IpcBytes),
+}
+impl fmt::Debug for DragDropData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Text(arg0) => {
+                if arg0.len() > 20 {
+                    write!(f, "Text({:?} {} bytes)", &arg0[..20], arg0.len())
+                } else {
+                    write!(f, "Text({arg0:?})")
+                }
+            }
+            Self::Path(arg0) => write!(f, "Path({})", arg0.display()),
+            Self::Binary(arg0) => write!(f, "Binary({} bytes)", arg0.len()),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -211,17 +211,17 @@ impl<E: AppExtension> RunningApp<E> {
                 );
                 self.notify_event(RAW_WINDOW_CHANGED_EVENT.new_update(args), observer);
             }
-            Event::DroppedFile { window: w_id, file } => {
-                let args = RawDroppedFileArgs::now(window_id(w_id), file);
-                self.notify_event(RAW_DROPPED_FILE_EVENT.new_update(args), observer);
+            Event::DragHovered { window, mime, data } => {
+                let args = RawDragHoveredArgs::now(window_id(window), mime, data);
+                self.notify_event(RAW_DRAG_HOVERED_EVENT.new_update(args), observer);
             }
-            Event::HoveredFile { window: w_id, file } => {
-                let args = RawHoveredFileArgs::now(window_id(w_id), file);
-                self.notify_event(RAW_HOVERED_FILE_EVENT.new_update(args), observer);
+            Event::DragDropped { window, mime, data } => {
+                let args = RawDragDroppedArgs::now(window_id(window), mime, data);
+                self.notify_event(RAW_DRAG_DROPPED_EVENT.new_update(args), observer);
             }
-            Event::HoveredFileCancelled(w_id) => {
-                let args = RawHoveredFileCancelledArgs::now(window_id(w_id));
-                self.notify_event(RAW_HOVERED_FILE_CANCELLED_EVENT.new_update(args), observer);
+            Event::DragCancelled { window } => {
+                let args = RawDragCancelledArgs::now(window_id(window));
+                self.notify_event(RAW_DRAG_CANCELLED_EVENT.new_update(args), observer);
             }
             Event::FocusChanged { prev, new } => {
                 let args = RawWindowFocusArgs::now(prev.map(window_id), new.map(window_id));
