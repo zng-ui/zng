@@ -332,7 +332,7 @@ pub fn colors_config() -> ColorsConfig {
         type ShouldAppsUseDarkMode = unsafe extern "system" fn() -> bool;
         const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: PCSTR = 132 as PCSTR;
 
-        let module = unsafe { LoadLibraryA("uxtheme.dll\0".as_ptr()) };
+        let module = unsafe { LoadLibraryA(c"uxtheme.dll".as_ptr()) };
 
         if module == 0 {
             return false;
