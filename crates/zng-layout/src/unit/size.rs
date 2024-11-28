@@ -190,7 +190,7 @@ impl<S: Into<Factor2d>> ops::Mul<S> for Size {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Size {
+impl<S: Into<Factor2d>> ops::Mul<S> for &Size {
     type Output = Size;
 
     fn mul(self, rhs: S) -> Self::Output {
@@ -212,7 +212,7 @@ impl<S: Into<Factor2d>> ops::Div<S> for Size {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Size {
+impl<S: Into<Factor2d>> ops::Div<S> for &Size {
     type Output = Size;
 
     fn div(self, rhs: S) -> Self::Output {

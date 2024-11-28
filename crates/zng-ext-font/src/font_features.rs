@@ -448,7 +448,7 @@ font_features! {
 
 /// Represents a feature in a [`FontFeatures`] configuration.
 pub struct FontFeature<'a>(hash_map::Entry<'a, FontFeatureName, u32>);
-impl<'a> FontFeature<'a> {
+impl FontFeature<'_> {
     /// Gets the OpenType name of the feature.
     pub fn name(&self) -> FontFeatureName {
         *self.0.key()
@@ -522,7 +522,7 @@ impl<'a> FontFeature<'a> {
         }
     }
 }
-impl<'a> fmt::Debug for FontFeature<'a> {
+impl fmt::Debug for FontFeature<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "b\"{}\": {:?}", self.name(), self.state())
     }
@@ -533,7 +533,7 @@ pub struct FontFeatureSet<'a> {
     features: &'a mut FontFeaturesMap,
     names: &'static [FontFeatureName],
 }
-impl<'a> FontFeatureSet<'a> {
+impl FontFeatureSet<'_> {
     /// Gets the OpenType name of the features.
     pub fn names(&self) -> &'static [FontFeatureName] {
         self.names
@@ -605,7 +605,7 @@ impl<'a> FontFeatureSet<'a> {
         }
     }
 }
-impl<'a> fmt::Debug for FontFeatureSet<'a> {
+impl fmt::Debug for FontFeatureSet<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}: {:?}", self.names, self.state())
     }
@@ -617,7 +617,7 @@ pub struct FontFeatureExclusiveSet<'a, S: FontFeatureExclusiveSetState> {
     features: &'a mut FontFeaturesMap,
     _t: PhantomData<S>,
 }
-impl<'a, S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'a, S> {
+impl<S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'_, S> {
     /// Gets the OpenType names of all the features affected.
     pub fn names(&self) -> &'static [FontFeatureName] {
         S::names()
@@ -677,7 +677,7 @@ impl<'a, S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'a, S> {
         prev
     }
 }
-impl<'a, S: FontFeatureExclusiveSetState + fmt::Debug> fmt::Debug for FontFeatureExclusiveSet<'a, S> {
+impl<S: FontFeatureExclusiveSetState + fmt::Debug> fmt::Debug for FontFeatureExclusiveSet<'_, S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.state(), f)
     }
@@ -689,7 +689,7 @@ pub struct FontFeatureExclusiveSets<'a, S: FontFeatureExclusiveSetsState> {
     features: &'a mut FontFeaturesMap,
     _t: PhantomData<S>,
 }
-impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
+impl<S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'_, S> {
     /// Gets the OpenType names of all the features affected.
     pub fn names(&self) -> &'static [&'static [FontFeatureName]] {
         S::names()
@@ -781,7 +781,7 @@ impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
         prev
     }
 }
-impl<'a, S: FontFeatureExclusiveSetsState + fmt::Debug> fmt::Debug for FontFeatureExclusiveSets<'a, S> {
+impl<S: FontFeatureExclusiveSetsState + fmt::Debug> fmt::Debug for FontFeatureExclusiveSets<'_, S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.state(), f)
     }

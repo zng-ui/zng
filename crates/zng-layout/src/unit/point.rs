@@ -197,14 +197,14 @@ impl<V: Into<Vector>> ops::Add<V> for Point {
         self
     }
 }
-impl<'a, 'b> ops::Add<&'a Vector> for &'b Point {
+impl<'a> ops::Add<&'a Vector> for &Point {
     type Output = Point;
 
     fn add(self, rhs: &'a Vector) -> Self::Output {
         self.clone() + rhs.clone()
     }
 }
-impl<'a, 'b> ops::Add<&'a Size> for &'b Point {
+impl<'a> ops::Add<&'a Size> for &Point {
     type Output = Point;
 
     fn add(self, rhs: &'a Size) -> Self::Output {
@@ -236,14 +236,14 @@ impl<V: Into<Vector>> ops::Sub<V> for Point {
         self
     }
 }
-impl<'a, 'b> ops::Sub<&'a Vector> for &'b Point {
+impl<'a> ops::Sub<&'a Vector> for &Point {
     type Output = Point;
 
     fn sub(self, rhs: &'a Vector) -> Self::Output {
         self.clone() - rhs.clone()
     }
 }
-impl<'a, 'b> ops::Sub<&'a Size> for &'b Point {
+impl<'a> ops::Sub<&'a Size> for &Point {
     type Output = Point;
 
     fn sub(self, rhs: &'a Size) -> Self::Output {
@@ -275,7 +275,7 @@ impl<S: Into<Factor2d>> ops::Mul<S> for Point {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Point {
+impl<S: Into<Factor2d>> ops::Mul<S> for &Point {
     type Output = Point;
 
     fn mul(self, rhs: S) -> Self::Output {
@@ -297,7 +297,7 @@ impl<S: Into<Factor2d>> ops::Div<S> for Point {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Point {
+impl<S: Into<Factor2d>> ops::Div<S> for &Point {
     type Output = Point;
 
     fn div(self, rhs: S) -> Self::Output {
@@ -319,7 +319,7 @@ impl ops::Neg for Point {
     }
 }
 
-impl<'a> ops::Neg for &'a Point {
+impl ops::Neg for &Point {
     type Output = Point;
 
     fn neg(self) -> Self::Output {

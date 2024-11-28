@@ -964,7 +964,7 @@ fn visit_str(record: impl FnOnce(&mut dyn tracing::field::Visit), name: &str) ->
         name: &'a str,
         result: String,
     }
-    impl<'a> tracing::field::Visit for Visitor<'a> {
+    impl tracing::field::Visit for Visitor<'_> {
         fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
             if field.name() == self.name {
                 self.result = format!("{value:?}");
@@ -989,7 +989,7 @@ fn visit_u64(record: impl FnOnce(&mut dyn tracing::field::Visit), name: &str) ->
         name: &'a str,
         result: Option<u64>,
     }
-    impl<'a> tracing::field::Visit for Visitor<'a> {
+    impl tracing::field::Visit for Visitor<'_> {
         fn record_debug(&mut self, _field: &tracing::field::Field, _value: &dyn std::fmt::Debug) {}
         fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
             if field.name() == self.name {

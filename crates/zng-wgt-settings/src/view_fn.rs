@@ -372,7 +372,7 @@ static_id! {
     static ref SETTING_KEY_ID: StateId<ConfigKey>;
 }
 
-impl<'a> SettingBuilderEditorExt for SettingBuilder<'a> {
+impl SettingBuilderEditorExt for SettingBuilder<'_> {
     fn editor_fn(&mut self, editor: WidgetFn<Setting>) -> &mut Self {
         self.set(*CUSTOM_EDITOR_ID, editor)
     }

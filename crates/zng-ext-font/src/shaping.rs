@@ -2886,7 +2886,7 @@ pub struct ShapedLine<'a> {
     index: usize,
     width: Px,
 }
-impl<'a> fmt::Debug for ShapedLine<'a> {
+impl fmt::Debug for ShapedLine<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ShapedLine")
             .field("seg_range", &self.seg_range)
@@ -3310,7 +3310,7 @@ pub struct ShapedSegment<'a> {
     line_index: usize,
     index: usize,
 }
-impl<'a> fmt::Debug for ShapedSegment<'a> {
+impl fmt::Debug for ShapedSegment<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ShapedSegment")
             .field("line_index", &self.line_index)
@@ -3560,7 +3560,7 @@ impl<'a> ShapedSegment<'a> {
             x: f32,
             width: f32,
         }
-        impl<'a, I, J> UnderlineSkipGlyphs<'a, I, J> {
+        impl<I, J> UnderlineSkipGlyphs<'_, I, J> {
             fn line(&self) -> Option<(PxPoint, Px)> {
                 fn f32_to_px(px: f32) -> Px {
                     Px(px.round() as i32)
@@ -4070,7 +4070,7 @@ impl Font {
             sink: &'a mut S,
             scale: f32,
         }
-        impl<'a, S: OutlineSink> ttf_parser::OutlineBuilder for AdapterSink<'a, S> {
+        impl<S: OutlineSink> ttf_parser::OutlineBuilder for AdapterSink<'_, S> {
             fn move_to(&mut self, x: f32, y: f32) {
                 self.sink.move_to(euclid::point2(x, y) * self.scale)
             }

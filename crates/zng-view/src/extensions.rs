@@ -984,7 +984,7 @@ pub(crate) struct DisplayListExtAdapter<'a> {
     pub frame_id: zng_view_api::window::FrameId,
 }
 
-impl<'a> DisplayListExtension for DisplayListExtAdapter<'a> {
+impl DisplayListExtension for DisplayListExtAdapter<'_> {
     fn display_list_start(&mut self, args: &mut DisplayExtensionArgs) {
         for (_, ext) in self.extensions.iter_mut() {
             ext.render_start(&mut RenderArgs {

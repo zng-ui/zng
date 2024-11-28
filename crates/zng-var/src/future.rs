@@ -44,7 +44,7 @@ impl<'a, V: AnyVar> WaitUpdateFut<'a, V> {
         }
     }
 }
-impl<'a, V: AnyVar> Future for WaitUpdateFut<'a, V> {
+impl<V: AnyVar> Future for WaitUpdateFut<'_, V> {
     type Output = VarUpdateId;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
@@ -65,7 +65,7 @@ impl<'a, V: AnyVar> WaitIsNotAnimatingFut<'a, V> {
         }
     }
 }
-impl<'a, V: AnyVar> Future for WaitIsNotAnimatingFut<'a, V> {
+impl<V: AnyVar> Future for WaitIsNotAnimatingFut<'_, V> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {

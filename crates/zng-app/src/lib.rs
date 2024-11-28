@@ -894,7 +894,7 @@ impl<O: AppEventObserver> AppEventObserverDyn for O {
         self.render(render_widgets, render_update_widgets)
     }
 }
-impl<'a> AppEventObserver for DynAppEventObserver<'a> {
+impl AppEventObserver for DynAppEventObserver<'_> {
     fn raw_event(&mut self, ev: &zng_view_api::Event) {
         self.0.raw_event_dyn(ev)
     }
@@ -1451,7 +1451,7 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for FilterLayer {
     fn on_event(&self, event: &tracing::Event<'_>, _ctx: tracing_subscriber::layer::Context<'_, S>) {
         if event.metadata().level() == &tracing::Level::ERROR && APP.is_running() && TEST_LOG.get() {
             struct MsgCollector<'a>(&'a mut String);
-            impl<'a> tracing::field::Visit for MsgCollector<'a> {
+            impl tracing::field::Visit for MsgCollector<'_> {
                 fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
                     use std::fmt::Write;
                     write!(self.0, "\n  {} = {:?}", field.name(), value).unwrap();

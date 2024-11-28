@@ -370,7 +370,6 @@ pub fn hash32(n: u32) -> u32 {
     z.0
 }
 #[doc(hidden)]
-
 pub fn un_hash32(z: u32) -> u32 {
     use std::num::Wrapping as W;
 
@@ -392,7 +391,6 @@ pub fn splitmix64(n: u64) -> u64 {
     z.0
 }
 #[doc(hidden)]
-
 pub fn un_splitmix64(z: u64) -> u64 {
     use std::num::Wrapping as W;
 

@@ -35,7 +35,7 @@ impl WidgetInfoBuilder {
 pub struct WidgetAccessInfoBuilder<'a> {
     pub(super) builder: &'a mut WidgetInfoBuilder,
 }
-impl<'a> WidgetAccessInfoBuilder<'a> {
+impl WidgetAccessInfoBuilder<'_> {
     fn with_access(&mut self, f: impl FnOnce(&mut AccessInfo)) {
         self.builder.with_meta(move |mut m| f(m.entry(*ACCESS_INFO_ID).or_default()))
     }

@@ -1610,13 +1610,13 @@ pub(crate) struct WinitEventLoopGuard<'l> {
     defused: bool,
     _loop_lifetime: PhantomData<&'l ActiveEventLoop>,
 }
-impl<'l> WinitEventLoopGuard<'l> {
+impl WinitEventLoopGuard<'_> {
     pub fn unset(&mut self, l: &mut WinitEventLoop) {
         self.defused = true;
         l.0 = std::ptr::null();
     }
 }
-impl<'l> Drop for WinitEventLoopGuard<'l> {
+impl Drop for WinitEventLoopGuard<'_> {
     fn drop(&mut self) {
         if !self.defused {
             let msg = "unsafe pointer to winit ActiveEventLoop not cleared";

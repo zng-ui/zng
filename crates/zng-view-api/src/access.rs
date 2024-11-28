@@ -843,7 +843,7 @@ pub struct AccessNodeRef<'a> {
     tree: &'a AccessTree,
     index: usize,
 }
-impl<'a> AccessNodeRef<'a> {
+impl AccessNodeRef<'_> {
     /// Iterate over `self` and all descendant nodes.
     pub fn self_and_descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
         let range = self.index..(self.index + self.descendants_len as usize);
@@ -888,7 +888,7 @@ impl<'a> AccessNodeRef<'a> {
                 (self.count, Some(self.count))
             }
         }
-        impl<'a> ExactSizeIterator for ChildrenIter<'a> {}
+        impl ExactSizeIterator for ChildrenIter<'_> {}
         ChildrenIter {
             tree: self.tree,
             count: self.children_len as usize,
@@ -896,7 +896,7 @@ impl<'a> AccessNodeRef<'a> {
         }
     }
 }
-impl<'a> ops::Deref for AccessNodeRef<'a> {
+impl ops::Deref for AccessNodeRef<'_> {
     type Target = AccessNode;
 
     fn deref(&self) -> &Self::Target {

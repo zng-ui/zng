@@ -1073,7 +1073,7 @@ pub struct CommandMeta<'a> {
     meta: StateMapMut<'a, CommandMetaState>,
     scope: Option<StateMapMut<'a, CommandMetaState>>,
 }
-impl<'a> CommandMeta<'a> {
+impl CommandMeta<'_> {
     /// Clone a meta value identified by a [`StateId`].
     ///
     /// If the key is not set in the app, insert it using `init` to produce a value.

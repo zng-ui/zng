@@ -158,7 +158,7 @@ impl<S: Into<Factor2d>> ops::Mul<S> for Rect {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Rect {
+impl<S: Into<Factor2d>> ops::Mul<S> for &Rect {
     type Output = Rect;
 
     fn mul(self, rhs: S) -> Self::Output {
@@ -180,7 +180,7 @@ impl<S: Into<Factor2d>> ops::Div<S> for Rect {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Rect {
+impl<S: Into<Factor2d>> ops::Div<S> for &Rect {
     type Output = Rect;
 
     fn div(self, rhs: S) -> Self::Output {

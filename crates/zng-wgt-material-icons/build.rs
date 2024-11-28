@@ -88,7 +88,7 @@ fn generate(codepoints: &str, mod_name: &str) -> Result<[String; 2], Box<dyn Err
         }
     }
     let map = format!(
-        "/// Map of name to icon codepoint.\n\n\npub static MAP: phf::Map<&'static str, char> = {};",
+        "/// Map of name to icon codepoint.\npub static MAP: phf::Map<&'static str, char> = {};",
         map.build()
     );
 

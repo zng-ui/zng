@@ -509,7 +509,7 @@ pub struct MergeVarInputs<'a, I: VarValue> {
     inputs: &'a [Box<dyn AnyVarValue>],
     _type: PhantomData<&'a I>,
 }
-impl<'a, I: VarValue> MergeVarInputs<'a, I> {
+impl<I: VarValue> MergeVarInputs<'_, I> {
     /// Number of inputs.
     #[expect(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
@@ -521,7 +521,7 @@ impl<'a, I: VarValue> MergeVarInputs<'a, I> {
         (0..self.len()).map(move |i| &self[i])
     }
 }
-impl<'a, I: VarValue> ops::Index<usize> for MergeVarInputs<'a, I> {
+impl<I: VarValue> ops::Index<usize> for MergeVarInputs<'_, I> {
     type Output = I;
 
     fn index(&self, index: usize) -> &Self::Output {

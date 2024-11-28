@@ -460,7 +460,7 @@ pub struct SettingsBuilder<'a> {
     settings: Vec<Setting>,
     filter: &'a mut dyn FnMut(&ConfigKey, &CategoryId) -> bool,
 }
-impl<'c> SettingsBuilder<'c> {
+impl SettingsBuilder<'_> {
     /// Calls `builder` for the key and category if it is not filtered by the view query.
     ///
     /// If the setting is already present the builder overrides only the metadata set.
@@ -521,7 +521,7 @@ pub struct SettingBuilder<'a> {
     value: Option<(BoxedAnyVar, TypeId)>,
     reset: Option<Arc<dyn SettingReset>>,
 }
-impl<'a> SettingBuilder<'a> {
+impl SettingBuilder<'_> {
     /// The config edited by this setting.
     pub fn key(&self) -> &ConfigKey {
         &self.config_key
@@ -604,7 +604,7 @@ impl<'a> SettingBuilder<'a> {
         self
     }
 }
-impl<'a> Drop for SettingBuilder<'a> {
+impl Drop for SettingBuilder<'_> {
     fn drop(&mut self) {
         let (cfg, cfg_type) = self
             .value
@@ -632,7 +632,7 @@ pub struct CategoriesBuilder<'f> {
     categories: Vec<Category>,
     filter: &'f mut dyn FnMut(&CategoryId) -> bool,
 }
-impl<'f> CategoriesBuilder<'f> {
+impl CategoriesBuilder<'_> {
     /// Calls `builder` for the id if it is not filtered by the view query.
     ///
     /// If the category is already present the builder overrides only the metadata set.
@@ -680,7 +680,7 @@ pub struct CategoryBuilder<'a> {
     name: Option<BoxedVar<Txt>>,
     meta: OwnedStateMap<Category>,
 }
-impl<'a> CategoryBuilder<'a> {
+impl CategoryBuilder<'_> {
     /// Unique ID.
     pub fn id(&self) -> &CategoryId {
         &self.category_id
@@ -717,7 +717,7 @@ impl<'a> CategoryBuilder<'a> {
         self.meta.borrow_mut()
     }
 }
-impl<'a> Drop for CategoryBuilder<'a> {
+impl Drop for CategoryBuilder<'_> {
     fn drop(&mut self) {
         self.categories.push(Category {
             id: mem::take(&mut self.category_id),

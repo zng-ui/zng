@@ -185,7 +185,7 @@ impl ops::Add for Vector {
         self
     }
 }
-impl<'a, 'b> ops::Add<&'a Vector> for &'b Vector {
+impl<'a> ops::Add<&'a Vector> for &Vector {
     type Output = Vector;
 
     fn add(self, rhs: &'a Vector) -> Self::Output {
@@ -206,7 +206,7 @@ impl ops::Sub for Vector {
         self
     }
 }
-impl<'a, 'b> ops::Sub<&'a Vector> for &'b Vector {
+impl<'a> ops::Sub<&'a Vector> for &Vector {
     type Output = Vector;
 
     fn sub(self, rhs: &'a Vector) -> Self::Output {
@@ -227,7 +227,7 @@ impl<S: Into<Factor2d>> ops::Mul<S> for Vector {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Vector {
+impl<S: Into<Factor2d>> ops::Mul<S> for &Vector {
     type Output = Vector;
 
     fn mul(self, rhs: S) -> Self::Output {
@@ -250,7 +250,7 @@ impl<S: Into<Factor2d>> ops::Div<S> for Vector {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Vector {
+impl<S: Into<Factor2d>> ops::Div<S> for &Vector {
     type Output = Vector;
 
     fn div(self, rhs: S) -> Self::Output {
@@ -271,7 +271,7 @@ impl ops::Neg for Vector {
         Vector { x: -self.x, y: -self.y }
     }
 }
-impl<'a> ops::Neg for &'a Vector {
+impl ops::Neg for &Vector {
     type Output = Vector;
 
     fn neg(self) -> Self::Output {
