@@ -189,7 +189,7 @@ impl<S: Into<FactorSideOffsets>> ops::Mul<S> for SideOffsets {
         self
     }
 }
-impl<'a, S: Into<FactorSideOffsets>> ops::Mul<S> for &'a SideOffsets {
+impl<S: Into<FactorSideOffsets>> ops::Mul<S> for &SideOffsets {
     type Output = SideOffsets;
 
     fn mul(self, rhs: S) -> Self::Output {
@@ -213,7 +213,7 @@ impl<S: Into<FactorSideOffsets>> ops::Div<S> for SideOffsets {
         self
     }
 }
-impl<'a, S: Into<FactorSideOffsets>> ops::Div<S> for &'a SideOffsets {
+impl<S: Into<FactorSideOffsets>> ops::Div<S> for &SideOffsets {
     type Output = SideOffsets;
 
     fn div(self, rhs: S) -> Self::Output {

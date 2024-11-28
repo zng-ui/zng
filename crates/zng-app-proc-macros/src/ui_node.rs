@@ -570,7 +570,7 @@ impl<'a> DelegateValidator<'a> {
         }
     }
 }
-impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
+impl<'ast> Visit<'ast> for DelegateValidator<'_> {
     fn visit_expr_method_call(&mut self, i: &'ast ExprMethodCall) {
         if (&i.method == self.ident && i.args.len() as u8 == self.args_count)
             || i.method == self.list_variant

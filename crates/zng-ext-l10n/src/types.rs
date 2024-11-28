@@ -364,7 +364,7 @@ pub struct Langs(pub Vec<Lang>);
 impl fmt::Debug for Langs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         struct DisplayLangs<'a>(&'a [Lang]);
-        impl<'a> fmt::Debug for DisplayLangs<'a> {
+        impl fmt::Debug for DisplayLangs<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 f.debug_list().entries(self.0.iter()).finish()
             }

@@ -104,7 +104,7 @@ impl<S: Into<Factor2d>> ops::Mul<S> for GridSpacing {
         }
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a GridSpacing {
+impl<S: Into<Factor2d>> ops::Mul<S> for &GridSpacing {
     type Output = GridSpacing;
 
     fn mul(self, rhs: S) -> Self::Output {
@@ -133,7 +133,7 @@ impl<S: Into<Factor2d>> ops::Div<S> for GridSpacing {
         }
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a GridSpacing {
+impl<S: Into<Factor2d>> ops::Div<S> for &GridSpacing {
     type Output = GridSpacing;
 
     fn div(self, rhs: S) -> Self::Output {

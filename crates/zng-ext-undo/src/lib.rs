@@ -480,7 +480,7 @@ impl UndoStackInfo {
                 }
             }
         }
-        impl<'a> DoubleEndedIterator for Iter<'a> {
+        impl DoubleEndedIterator for Iter<'_> {
             fn next_back(&mut self) -> Option<Self::Item> {
                 if self.stack.is_empty() {
                     None
@@ -698,7 +698,7 @@ pub enum UndoFullOp<'r> {
         merged: &'r mut bool,
     },
 }
-impl<'r> fmt::Debug for UndoFullOp<'r> {
+impl fmt::Debug for UndoFullOp<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Init { .. } => f.debug_struct("Init").finish_non_exhaustive(),

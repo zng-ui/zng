@@ -200,7 +200,7 @@ impl<S: Into<Factor2d>> ops::Mul<S> for Line {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Mul<S> for &'a Line {
+impl<S: Into<Factor2d>> ops::Mul<S> for &Line {
     type Output = Line;
 
     fn mul(self, rhs: S) -> Self::Output {
@@ -222,7 +222,7 @@ impl<S: Into<Factor2d>> ops::Div<S> for Line {
         self
     }
 }
-impl<'a, S: Into<Factor2d>> ops::Div<S> for &'a Line {
+impl<S: Into<Factor2d>> ops::Div<S> for &Line {
     type Output = Line;
 
     fn div(self, rhs: S) -> Self::Output {

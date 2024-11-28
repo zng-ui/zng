@@ -901,6 +901,7 @@ mod tests {
         task::block_on(task::with_deadline(test, 5.secs())).unwrap()
     }
 
+    /// Assert vector equality with better error message.
     #[macro_export]
     macro_rules! assert_vec_eq {
         ($a:expr, $b: expr) => {

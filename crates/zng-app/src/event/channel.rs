@@ -265,7 +265,7 @@ impl<'a, M> From<flume::r#async::RecvFut<'a, M>> for RecvFut<'a, M> {
         Self(f)
     }
 }
-impl<'a, M> Future for RecvFut<'a, M> {
+impl<M> Future for RecvFut<'_, M> {
     type Output = Result<M, AppDisconnected<()>>;
 
     fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {

@@ -1449,7 +1449,7 @@ pub struct WhenInfo {
 impl fmt::Debug for WhenInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         struct DebugBuildActions<'a>(&'a WhenInfo);
-        impl<'a> fmt::Debug for DebugBuildActions<'a> {
+        impl fmt::Debug for DebugBuildActions<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 f.debug_list().entries(self.0.build_action_data.iter().map(|(k, _)| k)).finish()
             }
@@ -1469,7 +1469,7 @@ impl Clone for Box<dyn PropertyArgs> {
         PropertyArgs::clone_boxed(&**self)
     }
 }
-impl<'a> fmt::Debug for &'a dyn PropertyArgs {
+impl fmt::Debug for &dyn PropertyArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("dyn PropertyArgs")
             .field("property", &self.property())
@@ -1577,7 +1577,7 @@ impl Clone for WidgetBuilder {
 impl fmt::Debug for WidgetBuilder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         struct PropertiesDebug<'a>(&'a WidgetBuilderProperties);
-        impl<'a> fmt::Debug for PropertiesDebug<'a> {
+        impl fmt::Debug for PropertiesDebug<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 f.debug_list().entries(self.0.properties()).finish()
             }

@@ -91,7 +91,7 @@ pub fn test_log() {
 
         fn event(&self, event: &Event<'_>) {
             struct MsgCollector<'a>(&'a mut String);
-            impl<'a> field::Visit for MsgCollector<'a> {
+            impl field::Visit for MsgCollector<'_> {
                 fn record_debug(&mut self, field: &field::Field, value: &dyn fmt::Debug) {
                     use std::fmt::Write;
                     write!(self.0, "\n  {} = {:?}", field.name(), value).unwrap();

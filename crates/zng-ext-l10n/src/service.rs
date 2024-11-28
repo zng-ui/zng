@@ -365,7 +365,7 @@ struct DisplayKey<'a> {
     id: &'a str,
     attribute: &'a str,
 }
-impl<'a> fmt::Display for DisplayKey<'a> {
+impl fmt::Display for DisplayKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.file.is_empty() {
             write!(f, "{}/", self.file)?

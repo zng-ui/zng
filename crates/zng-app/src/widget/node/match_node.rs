@@ -175,7 +175,7 @@ pub enum UiNodeOp<'a> {
         update: &'a mut FrameUpdate,
     },
 }
-impl<'a> UiNodeOp<'a> {
+impl UiNodeOp<'_> {
     /// Gets the operation without the associated data.
     pub fn mtd(&self) -> UiNodeOpMethod {
         match self {
@@ -206,7 +206,7 @@ impl<'a> UiNodeOp<'a> {
         }
     }
 }
-impl<'a> fmt::Debug for UiNodeOp<'a> {
+impl fmt::Debug for UiNodeOp<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Event { update } => f.debug_struct("Event").field("update", update).finish(),
