@@ -8,7 +8,10 @@ use zng_app::{
     static_id,
     update::{EventUpdate, UPDATES},
     view_process::raw_events::{RAW_DRAG_CANCELLED_EVENT, RAW_DRAG_DROPPED_EVENT, RAW_DRAG_HOVERED_EVENT},
-    widget::info::{InteractionPath, WidgetInfo},
+    widget::{
+        info::{InteractionPath, WidgetInfo, WidgetInfoBuilder},
+        WidgetId, WIDGET,
+    },
     AppExtension,
 };
 use zng_app_context::app_local;
@@ -228,13 +231,24 @@ impl WeakDragHandle {
 }
 
 /// [`WidgetInfo`] extensions for drag & drop service.
-pub trait WidgetDragDropExt {
+pub trait WidgetInfoDragDropExt {
     /// If this widget can be dragged and dropped.
     fn is_draggable(&self) -> bool;
 }
-impl WidgetDragDropExt for WidgetInfo {
+impl WidgetInfoDragDropExt for WidgetInfo {
     fn is_draggable(&self) -> bool {
         self.meta().flagged(*IS_DRAGGABLE_ID)
+    }
+}
+
+/// [`WidgetInfoBuilder`] extensions for drag & drop service.
+pub trait WidgetInfoBuilderDragDropExt {
+    /// Flag the widget as draggable.
+    fn draggable(&mut self);
+}
+impl WidgetInfoBuilderDragDropExt for WidgetInfoBuilder {
+    fn draggable(&mut self) {
+        self.flag_meta(*IS_DRAGGABLE_ID);
     }
 }
 
@@ -344,4 +358,134 @@ event! {
 
     /// Drag&drop gesture started from the draggable widget has ended.
     pub static DRAG_END_EVENT: DragEndArgs;
+}
+
+impl DropArgs {
+    /// If the `widget_id` is in the [`target`] is enabled.
+    ///
+    /// [`target`]: Self::target
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
+    }
+
+    /// If the `widget_id` is in the [`target`] is disabled.
+    ///
+    /// [`target`]: Self::target
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+    }
+}
+
+impl DragHoverArgs {
+    /// Returns `true` if the [`WIDGET`] was not hovered, but now is.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    pub fn is_drag_enter(&self) -> bool {
+        !self.was_over() && self.is_over()
+    }
+
+    /// Returns `true` if the [`WIDGET`] was hovered, but now isn't.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    pub fn is_drag_leave(&self) -> bool {
+        self.was_over() && !self.is_over()
+    }
+
+    /// Returns `true` if the [`WIDGET`] is in [`prev_target`].
+    ///
+    /// [`prev_target`]: Self::prev_target
+    /// [`prev_capture`]: Self::prev_capture
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    pub fn was_over(&self) -> bool {
+        if let Some(t) = &self.prev_target {
+            return t.contains(WIDGET.id());
+        }
+
+        false
+    }
+
+    /// Returns `true` if the [`WIDGET`] is in [`target`].
+    ///
+    /// [`target`]: Self::target
+    /// [`capture`]: Self::capture
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    pub fn is_over(&self) -> bool {
+        if let Some(t) = &self.target {
+            return t.contains(WIDGET.id());
+        }
+
+        false
+    }
+
+    /// Returns `true` if the widget was enabled in [`prev_target`].
+    ///
+    /// [`prev_target`]: Self::prev_target
+    pub fn was_enabled(&self, widget_id: WidgetId) -> bool {
+        self.prev_target
+            .as_ref()
+            .and_then(|t| t.interactivity_of(widget_id))
+            .map(|itr| itr.is_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget was disabled in [`prev_target`].
+    ///
+    /// [`prev_target`]: Self::prev_target
+    pub fn was_disabled(&self, widget_id: WidgetId) -> bool {
+        self.prev_target
+            .as_ref()
+            .and_then(|t| t.interactivity_of(widget_id))
+            .map(|itr| itr.is_disabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget is enabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        self.target
+            .as_ref()
+            .and_then(|t| t.interactivity_of(widget_id))
+            .map(|itr| itr.is_enabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the widget is disabled in [`target`].
+    ///
+    /// [`target`]: Self::target
+    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
+        self.target
+            .as_ref()
+            .and_then(|t| t.interactivity_of(widget_id))
+            .map(|itr| itr.is_disabled())
+            .unwrap_or(false)
+    }
+
+    /// Returns `true` if the [`WIDGET`] was not hovered or was disabled, but now is hovered and enabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    pub fn is_drag_enter_enabled(&self) -> bool {
+        (!self.was_over() || self.was_disabled(WIDGET.id())) && self.is_over() && self.is_enabled(WIDGET.id())
+    }
+
+    /// Returns `true` if the [`WIDGET`] was hovered and enabled, but now is not hovered or is disabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    pub fn is_drag_leave_enabled(&self) -> bool {
+        self.was_over() && self.was_enabled(WIDGET.id()) && (!self.is_over() || self.is_disabled(WIDGET.id()))
+    }
+
+    /// Returns `true` if the [`WIDGET`] was not hovered or was enabled, but now is hovered and disabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    pub fn is_drag_enter_disabled(&self) -> bool {
+        (!self.was_over() || self.was_enabled(WIDGET.id())) && self.is_over() && self.is_disabled(WIDGET.id())
+    }
+
+    /// Returns `true` if the [`WIDGET`] was hovered and disabled, but now is not hovered or is enabled.
+    ///
+    /// [`WIDGET`]: zng_app::widget::WIDGET
+    pub fn is_drag_leave_disabled(&self) -> bool {
+        self.was_over() && self.was_disabled(WIDGET.id()) && (!self.is_over() || self.is_enabled(WIDGET.id()))
+    }
 }

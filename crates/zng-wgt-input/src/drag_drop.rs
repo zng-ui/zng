@@ -1,7 +1,8 @@
 //! Drag& drop properties, event properties.
 
 use zng_ext_input::drag_drop::{
-    DragEndArgs, DragHoverArgs, DragStartArgs, DropArgs, DRAG_END_EVENT, DRAG_HOVER_EVENT, DRAG_START_EVENT, DROP_EVENT,
+    DragEndArgs, DragHoverArgs, DragStartArgs, DropArgs, WidgetInfoBuilderDragDropExt as _, DRAG_END_EVENT, DRAG_HOVER_EVENT,
+    DRAG_START_EVENT, DROP_EVENT,
 };
 use zng_wgt::prelude::*;
 
@@ -20,13 +21,14 @@ pub fn draggable(child: impl UiNode, input: impl IntoVar<bool>) -> impl UiNode {
             WIDGET.sub_var_info(&input);
         }
         UiNodeOp::Info { info } => {
-            // !!: TODO
+            if input.get() {
+                info.draggable();
+            }
         }
         _ => {}
     })
 }
 
-// !!: TODO filter like mouse.rs
 event_property! {
     /// Draggable widget started dragging.
     ///
@@ -49,10 +51,25 @@ event_property! {
         event: DRAG_HOVER_EVENT,
         args: DragHoverArgs,
     }
+    /// Drag&drop operation entered the widget area.
+    pub fn drag_enter {
+        event: DRAG_HOVER_EVENT,
+        args: DragHoverArgs,
+        filter: |args| args.is_drag_enter_enabled(),
+    }
+
+    /// Mouse is no longer over the widget or any descendant widget, the widget is enabled and cursor capture allows it.
+    pub fn drag_leave {
+        event: DRAG_HOVER_EVENT,
+        args: DragHoverArgs,
+        filter: |args| args.is_drag_leave_enabled(),
+    }
+
 
     /// Drag&drop operation finished over the widget.
     pub fn drop {
         event: DROP_EVENT,
         args: DropArgs,
+        filter: |args| args.is_enabled(WIDGET.id()),
     }
 }

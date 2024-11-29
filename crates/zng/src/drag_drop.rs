@@ -39,5 +39,6 @@ pub use zng_ext_input::drag_drop::{
 };
 
 pub use zng_wgt_input::drag_drop::{
-    draggable, on_drag_end, on_drag_hover, on_drag_start, on_drop, on_pre_drag_end, on_pre_drag_hover, on_pre_drag_start, on_pre_drop,
+    draggable, on_drag_end, on_drag_enter, on_drag_hover, on_drag_leave, on_drag_start, on_drop, on_pre_drag_end, on_pre_drag_enter,
+    on_pre_drag_hover, on_pre_drag_leave, on_pre_drag_start, on_pre_drop,
 };
