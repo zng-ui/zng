@@ -1771,7 +1771,7 @@ impl OnUpdateHandle {
 
     /// If another handle has called [`perm`](Self::perm).
     ///
-    /// If `true` the var binding will stay active until the app exits, unless [`unsubscribe`](Self::unsubscribe) is called.
+    /// If `true` the handler will stay active until the app exits, unless [`unsubscribe`](Self::unsubscribe) is called.
     pub fn is_permanent(&self) -> bool {
         self.0.is_permanent()
     }

@@ -492,6 +492,7 @@ pub mod container;
 pub mod data_context;
 pub mod data_view;
 pub mod dialog;
+pub mod drag_drop;
 pub mod env;
 pub mod event;
 pub mod focus;
