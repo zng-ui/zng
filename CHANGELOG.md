@@ -1,6 +1,7 @@
 # Unreleased
 
 * Implemented drag&drop.
+* **Breaking** `Event::visit_subscribers` and `Command::visit_scopes` visitor closures now must return `ControlFlow`.
 * **Breaking** Refactored drag&drop in the view API to be general purpose.
 * The view API `ReferenceFrameId` type now reserves some IDs for the view process.
 * Add `border_img` and other related properties and types.

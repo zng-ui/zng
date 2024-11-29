@@ -304,7 +304,7 @@ impl WidgetInfoTree {
         }
 
         let mut changes = IdMap::new();
-        TRANSFORM_CHANGED_EVENT.visit_subscribers(|wid| {
+        TRANSFORM_CHANGED_EVENT.visit_subscribers::<()>(|wid| {
             if let Some(wgt) = self.get(wid) {
                 let transform = wgt.inner_transform();
                 match frame.transform_changed_subs.entry(wid) {
@@ -319,6 +319,7 @@ impl WidgetInfoTree {
                     }
                 }
             }
+            ops::ControlFlow::Continue(())
         });
         if !changes.is_empty() {
             if (frame.transform_changed_subs.len() - changes.len()) > 500 {
@@ -332,7 +333,7 @@ impl WidgetInfoTree {
         drop(frame); // wgt.visibility can read frame
 
         let mut changes = IdMap::new();
-        VISIBILITY_CHANGED_EVENT.visit_subscribers(|wid| {
+        VISIBILITY_CHANGED_EVENT.visit_subscribers::<()>(|wid| {
             if let Some(wgt) = self.get(wid) {
                 let visibility = wgt.visibility();
                 let mut frame = self.0.frame.write();
@@ -348,6 +349,7 @@ impl WidgetInfoTree {
                     }
                 }
             }
+            ops::ControlFlow::Continue(())
         });
         if !changes.is_empty() {
             if (self.0.frame.read().visibility_changed_subs.len() - changes.len()) > 500 {

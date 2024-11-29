@@ -1,7 +1,7 @@
 //! Drag & drop gesture events and service.
 
 use core::fmt;
-use std::mem;
+use std::{mem, ops::ControlFlow};
 
 use zng_app::{
     event::{event, event_args, AnyEventArgs},
@@ -22,7 +22,7 @@ use zng_txt::Txt;
 use zng_var::{var, ArcVar, ReadOnlyArcVar, Var};
 use zng_view_api::mouse::ButtonState;
 
-use crate::mouse::MOUSE_INPUT_EVENT;
+use crate::mouse::{MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT};
 
 /// System wide drag&drop data payload.
 pub type SystemDragDropData = zng_view_api::DragDropData;
@@ -91,6 +91,31 @@ impl AppExtension for DragDropManager {
                 handle.perm();
                 DRAG_DROP_SV.write().app_dragging.push((owner, DragDropData::Widget(wgt)));
                 DRAG_DROP.update_var();
+            }
+        } else if DROP_EVENT.has_subscribers() {
+            if let Some(args) = MOUSE_HOVERED_EVENT.on_unhandled(update) {
+                let mut prev_target = None;
+                let mut target = None;
+                fn check_target(path: &Option<InteractionPath>, out: &mut Option<InteractionPath>) {
+                    if let Some(path) = path {
+                        if let Some(true) = DROP_EVENT.visit_subscribers(|id| {
+                            if path.as_path().widgets_path().contains(&id) {
+                                ControlFlow::Break(true)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        }) {
+                            *out = Some(path.clone());
+                        }
+                    }
+                }
+                check_target(&args.prev_target, &mut prev_target);
+                check_target(&args.target, &mut target);
+
+                if prev_target.is_some() || target.is_some() {
+                    let args = DragHoveredArgs::now(prev_target, target);
+                    DRAG_HOVERED_EVENT.notify(args);
+                }
             }
         }
     }
@@ -298,7 +323,7 @@ event_args! {
     }
 
     /// Arguments for [`DRAG_HOVER_EVENT`].
-    pub struct DragHoverArgs {
+    pub struct DragHoveredArgs {
         /// Previous hovered target.
         pub prev_target: Option<InteractionPath>,
         /// New hovered target.
@@ -347,7 +372,7 @@ event! {
     /// Drag&drop action finished over some widget.
     pub static DROP_EVENT: DropArgs;
     /// Drag&drop enter or exit a widget.
-    pub static DRAG_HOVER_EVENT: DragHoverArgs;
+    pub static DRAG_HOVERED_EVENT: DragHoveredArgs;
     /// Drag&drop started dragging a draggable widget.
     ///
     /// If the event propagation is not stopped the widget will be dragged by default. Handlers can stop and call [`DRAG_DROP.drag`]
@@ -376,7 +401,7 @@ impl DropArgs {
     }
 }
 
-impl DragHoverArgs {
+impl DragHoveredArgs {
     /// Returns `true` if the [`WIDGET`] was not hovered, but now is.
     ///
     /// [`WIDGET`]: zng_app::widget::WIDGET
