@@ -80,17 +80,24 @@ impl AppExtension for DragDropManager {
                         args.propagation().stop();
                         let args = DragStartArgs::now(wgt.interaction_path());
                         DRAG_START_EVENT.notify(args);
+                        DRAG_DROP_SV.write().can_drag = true;
                     }
                 }
             }
-        } else if let Some(args) = DRAG_START_EVENT.on_unhandled(update) {
-            args.propagation_handle.stop();
+        } else if let Some(args) = DRAG_START_EVENT.on(update) {
+            let mut sv = DRAG_DROP_SV.write();
+            sv.can_drag = false;
 
-            if let Some(wgt) = WINDOWS.widget_info(args.target.widget_id()) {
-                let (owner, handle) = DragHandle::new();
-                handle.perm();
-                DRAG_DROP_SV.write().app_dragging.push((owner, DragDropData::Widget(wgt)));
-                DRAG_DROP.update_var();
+            if !args.propagation_handle.is_stopped() {
+                args.propagation_handle.stop();
+
+                if let Some(wgt) = WINDOWS.widget_info(args.target.widget_id()) {
+                    let (owner, handle) = DragHandle::new();
+                    handle.perm();
+                    sv.app_dragging.push((owner, DragDropData::Widget(wgt)));
+                    drop(sv);
+                    DRAG_DROP.update_var();
+                }
             }
         } else if DROP_EVENT.has_subscribers() {
             if let Some(args) = MOUSE_HOVERED_EVENT.on_unhandled(update) {
