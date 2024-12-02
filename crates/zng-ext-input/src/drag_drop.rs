@@ -183,7 +183,7 @@ impl DRAG_DROP {
 
     /// Start dragging `data`.
     ///
-    /// This method will only work if a [`DRAG_EVENT`] has just started. Handlers of draggable widgets
+    /// This method will only work if a [`DRAG_START_EVENT`] is notifying. Handlers of draggable widgets
     /// can stop propagation of the event to provide custom drag data, set here.
     pub fn drag(&self, data: DragDropData) -> DragHandle {
         let mut sv = DRAG_DROP_SV.write();
@@ -363,7 +363,7 @@ event_args! {
         }
     }
 
-    /// Arguments for [`DRAG_HOVER_EVENT`].
+    /// Arguments for [`DRAG_HOVERED_EVENT`].
     pub struct DragHoveredArgs {
         /// Previous hovered target.
         pub prev_target: Option<InteractionPath>,
