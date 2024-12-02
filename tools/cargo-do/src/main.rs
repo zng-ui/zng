@@ -385,6 +385,7 @@ fn l10n(mut args: Vec<&str>) {
 //            [-m, --macro <file-path-pattern>]
 //            [--nextest]
 //            [--render [--save] [FILTER]]
+//            [--published]
 //            <cargo-test-args>
 //
 //    Run all tests in root workspace and macro tests.
@@ -409,6 +410,8 @@ fn l10n(mut args: Vec<&str>) {
 //        Run all unit, integration, doc, render, and macro tests.
 //     test --nextest
 //        Run all unit and integration using 'nextest'; doc and macro tests using 'test'.
+//     test --published
+//        Test if latest published release of `zng` did not break previous release.
 fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
     let env = &[("RUST_BACKTRACE", "full")];
@@ -500,6 +503,18 @@ fn test(mut args: Vec<&str>) {
             e_args.extend(&["--example", e]);
         }
         cmd_env("cargo", &e_args, &args, env);
+    } else if take_flag(&mut args, &["--published"]) {
+        let latest = util::crates_io_latest("zng");
+        let minor = latest.split('.').skip(1).next().unwrap();
+        let minor: u32 = minor.parse().unwrap();
+        let prev = minor - 1;
+        let dir = std::env::temp_dir().join("zng-do-test-published");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::env::set_current_dir(dir).unwrap();
+        cmd("cargo", &["new", "--bin", "test-prev"], &[]);
+        std::env::set_current_dir("test-prev").unwrap();
+        cmd("cargo", &["add", &format!("zng@0.{prev}")], &[]);
+        cmd("cargo", &["build"], &[]);
     } else {
         // other, mostly handled by cargo.
 
