@@ -14,6 +14,8 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
     * This includes `Cargo.toml` version changes that must be reviewed manually.
     * You can use `do publish --diff` to get a list of crates and files that changed.
     * You can use `cargo semver-checks` to find breaking changes.
+        - **Warning** This tool does not find all breaking changes, specially it does not detect usage
+          of dependency types in the public API when that dependency was upgraded.
     * You can use `do publish --bump` to set the versions, update Cargo.toml doc examples and close the changelog.
     * Note that if setting manually the `zng-view-prebuilt` needs to have the same version as `zng`.
 
@@ -27,6 +29,11 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
         - And make a GitHub release with the prebuilt libraries.
     * If GitHub release and docs update:
         - It will publish to crates.io using `do publish --execute`.
+
+4. Test previous breaking version.
+   * Make a test crate that depends on the previous minor version of `zng`.
+   * If it does not build a breaking change in the public API was introduced.
+   * Unfortunately there is no "staging" for publish so you might need to yank all the affected crates.
 
 ## Webrender
 
