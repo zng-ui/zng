@@ -360,4 +360,4 @@ Done.
 
 ## Local Example
 
-You can create a local "example" for manual testing in `/examples/test/`. This dir is gitignored.
+You can create a local "example" for manual testing in `/examples/test*`. This dir is gitignored.

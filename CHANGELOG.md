@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add missing `zng::var::OnVarArgs`.
 * Implemented drag&drop.
 * **Breaking** `Event::visit_subscribers` and `Command::visit_scopes` visitor closures now must return `ControlFlow`.
 * **Breaking** Refactored drag&drop in the view API to be general purpose.

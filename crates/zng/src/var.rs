@@ -323,7 +323,7 @@ pub use zng_var::{
     VarValue, WeakVar, VARS,
 };
 
-pub use zng_app::widget::{AnyVarSubscribe, VarLayout, VarSubscribe};
+pub use zng_app::widget::{AnyVarSubscribe, OnVarArgs, VarLayout, VarSubscribe};
 
 /// Var animation types and functions.
 pub mod animation {
