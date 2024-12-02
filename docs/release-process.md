@@ -30,10 +30,10 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
     * If GitHub release and docs update:
         - It will publish to crates.io using `do publish --execute`.
 
-4. Test previous breaking version.
-   * Make a test crate that depends on the previous minor version of `zng`.
-   * If it does not build a breaking change in the public API was introduced.
-   * Unfortunately there is no "staging" for publish so you might need to yank all the affected crates.
+4. Tests after publish
+   * Make a test crate that depends on the previous minor version of `zng`, it must still build.
+      You can use `cargo do test --published` to automatically do this.
+   * Update and test the template project (`zng-template`) repository.
 
 ## Webrender
 
