@@ -210,8 +210,6 @@ pub enum Event {
     DragHovered {
         /// Window that is hovered.
         window: WindowId,
-        /// Data type.
-        mime: Txt,
         /// Data payload.
         data: DragDropData,
         /// Allowed effects.
@@ -230,8 +228,6 @@ pub enum Event {
     DragDropped {
         /// Window that received the file drop.
         window: WindowId,
-        /// Data type.
-        mime: Txt,
         /// Data payload.
         data: DragDropData,
     },
@@ -904,9 +900,10 @@ pub enum RepeatMode {
     /// border. Extra space will be distributed in between tiles to achieve the proper fit.
     Space,
 }
-/// Converts `true` to `Repeat` and `false` to the default `Stretch`.
-impl From<bool> for RepeatMode {
-    fn from(value: bool) -> Self {
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    /// Converts `true` to `Repeat` and `false` to the default `Stretch`.
+    fn from(value: bool) -> RepeatMode {
         match value {
             true => RepeatMode::Repeat,
             false => RepeatMode::Stretch,
@@ -1076,28 +1073,56 @@ pub enum FocusResult {
 pub enum DragDropData {
     /// Text encoded data.
     ///
-    /// This can be plain text or any markup format.
-    Text(Txt),
+    /// This can be HTML or JSON for example.
+    Text {
+        /// MIME type of the data.
+        ///
+        /// Plain text is `"text/plain"`.
+        format: Txt,
+        /// Data.
+        data: Txt,
+    },
     /// File or directory path.
     Path(PathBuf),
-    /// Binary data.
+    /// Binary encoded data.
     ///
     /// This can be an image for example.
-    Binary(IpcBytes),
+    Binary {
+        /// MIME type of the data.
+        format: Txt,
+        /// Data.
+        data: IpcBytes,
+    },
 }
 impl fmt::Debug for DragDropData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Text(arg0) => {
-                if arg0.len() > 20 {
-                    write!(f, "Text({:?} {} bytes)", &arg0[..20], arg0.len())
-                } else {
-                    write!(f, "Text({arg0:?})")
-                }
-            }
-            Self::Path(arg0) => write!(f, "Path({})", arg0.display()),
-            Self::Binary(arg0) => write!(f, "Binary({} bytes)", arg0.len()),
+            Self::Text { format, data } => write!(f, "Text {{ format: {:?}, data: {} bytes }}", format, data.len()),
+            Self::Path(data) => write!(f, "Path({})", data.display()),
+            Self::Binary { format, data } => write!(f, "Binary {{ format: {:?}, data: {} bytes }}", format, data.len()),
         }
+    }
+}
+
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    fn from(plain: Txt) -> DragDropData {
+        DragDropData::Text {
+            format: "text/plain".into(),
+            data: plain,
+        }
+    }
+
+    fn from(plain: String) -> DragDropData {
+        Txt::from(plain).into()
+    }
+
+    fn from(plain: &'static str) -> DragDropData {
+        Txt::from(plain).into()
+    }
+
+    fn from(path: PathBuf) -> DragDropData {
+        DragDropData::Path(path)
     }
 }
 

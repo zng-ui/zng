@@ -211,13 +211,8 @@ impl<E: AppExtension> RunningApp<E> {
                 );
                 self.notify_event(RAW_WINDOW_CHANGED_EVENT.new_update(args), observer);
             }
-            Event::DragHovered {
-                window,
-                mime,
-                data,
-                effects,
-            } => {
-                let args = RawDragHoveredArgs::now(window_id(window), mime, data, effects);
+            Event::DragHovered { window, data, effects } => {
+                let args = RawDragHoveredArgs::now(window_id(window), data, effects);
                 self.notify_event(RAW_DRAG_HOVERED_EVENT.new_update(args), observer);
             }
             Event::DragMoved {
@@ -228,8 +223,8 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawDragMovedArgs::now(window_id(window), coalesced_pos, position);
                 self.notify_event(RAW_DRAG_MOVED_EVENT.new_update(args), observer);
             }
-            Event::DragDropped { window, mime, data } => {
-                let args = RawDragDroppedArgs::now(window_id(window), mime, data);
+            Event::DragDropped { window, data } => {
+                let args = RawDragDroppedArgs::now(window_id(window), data);
                 self.notify_event(RAW_DRAG_DROPPED_EVENT.new_update(args), observer);
             }
             Event::DragCancelled { window } => {

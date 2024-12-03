@@ -618,7 +618,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 linux_modal_dialog_bail!();
                 self.notify(Event::DragHovered {
                     window: id,
-                    mime: Txt::default(),
                     data: DragDropData::Path(file),
                     effects: DragDropEffect::all(),
                 });
@@ -627,7 +626,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 linux_modal_dialog_bail!();
                 self.notify(Event::DragDropped {
                     window: id,
-                    mime: Txt::default(),
                     data: DragDropData::Path(file),
                 });
             }

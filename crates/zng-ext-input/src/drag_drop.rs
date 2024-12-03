@@ -1,6 +1,5 @@
 //! Drag & drop gesture events and service.
 
-use core::fmt;
 use std::mem;
 
 use zng_app::{
@@ -18,16 +17,13 @@ use zng_app_context::app_local;
 use zng_ext_window::WINDOWS;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_state_map::StateId;
-use zng_txt::Txt;
+use zng_txt::{formatx, Txt};
 use zng_var::{var, ArcVar, ReadOnlyArcVar, Var};
 use zng_view_api::mouse::ButtonState;
 
 use crate::{mouse::MOUSE_INPUT_EVENT, touch::TOUCH_INPUT_EVENT};
 
-/// System wide drag&drop data payload.
-pub type SystemDragDropData = zng_view_api::DragDropData;
-
-pub use zng_view_api::DragDropEffect;
+pub use zng_view_api::{DragDropData, DragDropEffect};
 
 /// Application extension that provides drag&drop events and service.
 ///
@@ -50,26 +46,17 @@ impl AppExtension for DragDropManager {
             // system drop
             let mut sv = DRAG_DROP_SV.write();
             let len = sv.system_dragging.len();
-            sv.system_dragging.retain(|d| match d {
-                DragDropData::System { mime, data } => mime != &args.mime && data != &args.data,
-                DragDropData::Widget(_) => unreachable!(),
-            });
+            sv.system_dragging.retain(|d| d != &args.data);
             update_sv = len != sv.system_dragging.len();
 
             // view-process can notify multiple drops in sequence, so we only notify DROP_EVENT
             // on he next update
-            sv.pending_drop.push(DragDropData::System {
-                mime: args.mime.clone(),
-                data: args.data.clone(),
-            });
+            sv.pending_drop.push(args.data.clone());
             UPDATES.update(None);
         } else if let Some(args) = RAW_DRAG_HOVERED_EVENT.on(update) {
             // system drag hover window
             update_sv = true;
-            DRAG_DROP_SV.write().system_dragging.push(DragDropData::System {
-                mime: args.mime.clone(),
-                data: args.data.clone(),
-            });
+            DRAG_DROP_SV.write().system_dragging.push(args.data.clone());
         } else if let Some(_args) = RAW_DRAG_MOVED_EVENT.on(update) {
             // TODO
         } else if let Some(_args) = RAW_DRAG_CANCELLED_EVENT.on(update) {
@@ -108,14 +95,13 @@ impl AppExtension for DragDropManager {
                 // draggable did not cancel default
                 args.propagation_handle.stop();
 
-                if let Some(wgt) = WINDOWS.widget_info(args.target.widget_id()) {
-                    // default, drag the widget info
-                    let (owner, handle) = DragHandle::new();
-                    handle.perm();
-                    sv.app_dragging.push((owner, DragDropData::Widget(wgt), DragDropEffect::all()));
-                    drop(sv);
-                    DRAG_DROP.update_var();
-                }
+                // default, drag the widget info
+                let (owner, handle) = DragHandle::new();
+                handle.perm();
+                sv.app_dragging
+                    .push((owner, encode_widget_id(args.target.widget_id()), DragDropEffect::all()));
+                drop(sv);
+                DRAG_DROP.update_var();
             }
         }
     }
@@ -293,31 +279,6 @@ static_id! {
     static ref IS_DRAGGABLE_ID: StateId<()>;
 }
 
-/// Drag&drop gesture payload.
-#[derive(Clone, PartialEq)]
-pub enum DragDropData {
-    /// Another widget in the app.
-    Widget(WidgetInfo),
-    /// System wide data.
-    System {
-        /// Data type.
-        mime: Txt,
-        /// Data payload.
-        data: SystemDragDropData,
-    },
-}
-impl fmt::Debug for DragDropData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "DragDropData::")?;
-        }
-        match self {
-            Self::Widget(arg0) => f.debug_tuple("Widget").field(&arg0.path()).finish(),
-            Self::System { mime, data } => f.debug_struct("System").field("mime", mime).field("data", data).finish(),
-        }
-    }
-}
-
 event_args! {
     /// Arguments for [`DROP_EVENT`].
     pub struct DropArgs {
@@ -370,20 +331,37 @@ event_args! {
         /// Draggable widget that was dragging.
         pub target: InteractionPath,
 
-        /// If the drag was dropped on a valid drop target.
-        pub was_dropped: bool,
+        /// Effect applied by the drop target on the data.
+        ///
+        /// Is empty or a single flag.
+        pub applied: DragDropEffect,
 
         ..
 
         fn delivery_list(&self, list: &mut UpdateDeliveryList) {
             list.insert_wgt(&self.target);
         }
+
+        /// The `applied` field can only be empty or only have a single flag set.
+        fn validate(&self) -> Result<(), Txt> {
+            if self.applied.is_empty()
+                && [DragDropEffect::COPY, DragDropEffect::MOVE, DragDropEffect::LINK]
+                    .into_iter()
+                    .filter(|&f| self.applied.contains(f))
+                    .take(2)
+                    .count()
+                    > 1
+            {
+                return Err("only one or none `DragDropEffect` can be applied".into());
+            }
+            Ok(())
+        }
     }
 }
 event! {
-    /// Drag&drop action finished over some widget.
+    /// Drag&drop action finished over some drop target widget.
     pub static DROP_EVENT: DropArgs;
-    /// Drag&drop enter or exit a widget.
+    /// Drag&drop enter or exit a drop target widget.
     ///
     /// Only widgets that subscribe to [`DROP_EVENT`] receive this event.
     pub static DRAG_HOVERED_EVENT: DragHoveredArgs;
@@ -534,4 +512,46 @@ impl DragHoveredArgs {
     pub fn is_drag_leave_disabled(&self) -> bool {
         self.was_over() && self.was_disabled(WIDGET.id()) && (!self.is_over() || self.is_enabled(WIDGET.id()))
     }
+}
+
+impl DragEndArgs {
+    /// Data was dropped on a valid target.
+    pub fn was_dropped(&self) -> bool {
+        !self.applied.is_empty()
+    }
+
+    /// Stopped dragging without dropping on a valid drop target.
+    pub fn was_canceled(&self) -> bool {
+        self.applied.is_empty()
+    }
+}
+
+/// Encode an widget ID for drag&drop data.
+pub fn encode_widget_id(id: WidgetId) -> DragDropData {
+    DragDropData::Text {
+        format: formatx!("zng/{}", APP_GUID.read().simple()),
+        data: formatx!("wgt-{}", id.get()),
+    }
+}
+
+/// Decode an widget ID from drag&drop data.
+///
+/// The ID will only decode if it was encoded by the same app instance.
+pub fn decode_widget_id(data: &DragDropData) -> Option<WidgetId> {
+    if let DragDropData::Text { format, data } = data {
+        if let Some(guid) = format.strip_prefix("zng/") {
+            if let Some(id) = data.strip_prefix("wgt-") {
+                if guid == APP_GUID.read().simple().to_string() {
+                    if let Ok(id) = id.parse::<u64>() {
+                        return Some(WidgetId::from_raw(id));
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+app_local! {
+    static APP_GUID: uuid::Uuid = uuid::Uuid::new_v4();
 }

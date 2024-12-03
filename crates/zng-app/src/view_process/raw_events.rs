@@ -262,8 +262,6 @@ event_args! {
         /// Window where it was dragged over.
         pub window_id: WindowId,
 
-        /// Data type.
-        pub mime: Txt,
         /// Data payload.
         pub data: DragDropData,
         /// Allowed effects.
@@ -303,8 +301,6 @@ event_args! {
         /// Window where it was dropped.
         pub window_id: WindowId,
 
-        /// Data type.
-        pub mime: Txt,
         /// Data payload.
         pub data: DragDropData,
 

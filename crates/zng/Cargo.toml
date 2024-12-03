@@ -266,7 +266,7 @@ zng-ext-single-instance = { path = "../zng-ext-single-instance", version = "0.3.
 tracing = "0.1"
 
 # view
-zng-view-api = { path = "../zng-view-api", version = "0.10.5", default-features = false }
+zng-view-api = { path = "../zng-view-api", version = "0.10.5", default-features = false, features = ["var"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 zng-view = { path = "../zng-view", version = "0.6.5", default-features = false, optional = true }
