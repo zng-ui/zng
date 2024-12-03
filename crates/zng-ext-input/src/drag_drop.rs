@@ -1,13 +1,13 @@
 //! Drag & drop gesture events and service.
 
 use core::fmt;
-use std::{mem, ops::ControlFlow};
+use std::mem;
 
 use zng_app::{
     event::{event, event_args, AnyEventArgs},
     static_id,
     update::{EventUpdate, UPDATES},
-    view_process::raw_events::{RAW_DRAG_CANCELLED_EVENT, RAW_DRAG_DROPPED_EVENT, RAW_DRAG_HOVERED_EVENT},
+    view_process::raw_events::{RAW_DRAG_CANCELLED_EVENT, RAW_DRAG_DROPPED_EVENT, RAW_DRAG_HOVERED_EVENT, RAW_DRAG_MOVED_EVENT},
     widget::{
         info::{InteractionPath, WidgetInfo, WidgetInfoBuilder},
         WidgetId, WIDGET,
@@ -22,10 +22,12 @@ use zng_txt::Txt;
 use zng_var::{var, ArcVar, ReadOnlyArcVar, Var};
 use zng_view_api::mouse::ButtonState;
 
-use crate::mouse::{MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT};
+use crate::{mouse::MOUSE_INPUT_EVENT, touch::TOUCH_INPUT_EVENT};
 
 /// System wide drag&drop data payload.
 pub type SystemDragDropData = zng_view_api::DragDropData;
+
+pub use zng_view_api::DragDropEffect;
 
 /// Application extension that provides drag&drop events and service.
 ///
@@ -68,6 +70,8 @@ impl AppExtension for DragDropManager {
                 mime: args.mime.clone(),
                 data: args.data.clone(),
             });
+        } else if let Some(_args) = RAW_DRAG_MOVED_EVENT.on(update) {
+            // TODO
         } else if let Some(_args) = RAW_DRAG_CANCELLED_EVENT.on(update) {
             // system drag cancelled of dragged out of all app windows
             let mut sv = DRAG_DROP_SV.write();
@@ -93,6 +97,8 @@ impl AppExtension for DragDropManager {
                     }
                 }
             }
+        } else if let Some(_args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+            // !! TODO
         } else if let Some(args) = DRAG_START_EVENT.on(update) {
             // finished notifying draggable drag start
             let mut sv = DRAG_DROP_SV.write();
@@ -106,42 +112,12 @@ impl AppExtension for DragDropManager {
                     // default, drag the widget info
                     let (owner, handle) = DragHandle::new();
                     handle.perm();
-                    sv.app_dragging.push((owner, DragDropData::Widget(wgt)));
+                    sv.app_dragging.push((owner, DragDropData::Widget(wgt), DragDropEffect::all()));
                     drop(sv);
                     DRAG_DROP.update_var();
                 }
             }
-        } else if DRAG_DROP.has_data() && DROP_EVENT.has_subscribers() {
-            // notify DRAG_HOVERED, only for drop handlers
-            if let Some(args) = MOUSE_HOVERED_EVENT.on_unhandled(update) {
-                let mut prev_target = None;
-                let mut target = None;
-
-                // check path has drop subscribers
-                fn check_target(path: &Option<InteractionPath>, out: &mut Option<InteractionPath>) {
-                    if let Some(path) = path {
-                        if let Some(true) = DROP_EVENT.visit_subscribers(|id| {
-                            if path.as_path().widgets_path().contains(&id) {
-                                ControlFlow::Break(true)
-                            } else {
-                                ControlFlow::Continue(())
-                            }
-                        }) {
-                            *out = Some(path.clone());
-                        }
-                    }
-                }
-                check_target(&args.prev_target, &mut prev_target);
-                check_target(&args.target, &mut target);
-
-                if prev_target.is_some() || target.is_some() {
-                    DRAG_DROP_SV.write().hovered = target.clone();
-                    let args = DragHoveredArgs::now(prev_target, target);
-                    DRAG_HOVERED_EVENT.notify(args);
-                }
-            }
         }
-        // !!: TODO touch events
     }
 
     fn update_preview(&mut self) {
@@ -149,7 +125,7 @@ impl AppExtension for DragDropManager {
 
         // fulfill drag requests
         let mut requests = mem::take(&mut sv.pending_drag);
-        requests.retain(|(h, _)| !h.is_dropped());
+        requests.retain(|(h, _, _)| !h.is_dropped());
         if !requests.is_empty() {
             sv.app_dragging.extend(requests);
             DRAG_DROP.update_var();
@@ -185,29 +161,24 @@ impl DRAG_DROP {
     ///
     /// This method will only work if a [`DRAG_START_EVENT`] is notifying. Handlers of draggable widgets
     /// can stop propagation of the event to provide custom drag data, set here.
-    pub fn drag(&self, data: DragDropData) -> DragHandle {
+    pub fn drag(&self, data: DragDropData, allowed_effects: DragDropEffect) -> DragHandle {
         let mut sv = DRAG_DROP_SV.write();
-        if !sv.can_drag {
+        if !sv.can_drag || allowed_effects.is_empty() {
             return DragHandle::dummy();
         }
 
         let (owner, handle) = DragHandle::new();
-        sv.pending_drag.push((owner, data));
+        sv.pending_drag.push((owner, data, allowed_effects));
         UPDATES.update(None);
         handle
     }
 
     fn update_var(&self) {
         let mut sv = DRAG_DROP_SV.write();
-        sv.app_dragging.retain(|(h, _)| !h.is_dropped());
+        sv.app_dragging.retain(|(h, _, _)| !h.is_dropped());
         let mut data = sv.system_dragging.clone();
-        data.extend(sv.app_dragging.iter().map(|(_, d)| d.clone()));
+        data.extend(sv.app_dragging.iter().map(|(_, d, _)| d.clone()));
         sv.data.set(data);
-    }
-
-    fn has_data(&self) -> bool {
-        let sv = DRAG_DROP_SV.read();
-        !sv.system_dragging.is_empty() || !sv.app_dragging.is_empty()
     }
 }
 
@@ -225,10 +196,10 @@ app_local! {
 struct DragDropService {
     data: ArcVar<Vec<DragDropData>>,
     can_drag: bool,
-    pending_drag: Vec<(HandleOwner<()>, DragDropData)>,
+    pending_drag: Vec<(HandleOwner<()>, DragDropData, DragDropEffect)>,
 
     system_dragging: Vec<DragDropData>,
-    app_dragging: Vec<(HandleOwner<()>, DragDropData)>,
+    app_dragging: Vec<(HandleOwner<()>, DragDropData, DragDropEffect)>,
 
     hovered: Option<InteractionPath>,
     pending_drop: Vec<DragDropData>,

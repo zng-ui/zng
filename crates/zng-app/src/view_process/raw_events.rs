@@ -25,7 +25,7 @@ use zng_view_api::{
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
     window::{EventCause, FrameId, FrameWaitId, HeadlessOpenData, MonitorInfo, WindowStateAll},
-    AxisId, DragDropData, Ime,
+    AxisId, DragDropData, DragDropEffect, Ime,
 };
 
 use crate::{
@@ -266,6 +266,29 @@ event_args! {
         pub mime: Txt,
         /// Data payload.
         pub data: DragDropData,
+        /// Allowed effects.
+        pub effects: DragDropEffect,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_DRAG_MOVED_EVENT`].
+    pub struct RawDragMovedArgs {
+        /// Window that is hovered by drag&drop.
+        pub window_id: WindowId,
+
+        /// Cursor positions in between the previous event and this one.
+        ///
+        /// Drag move events can be coalesced, i.e. multiple moves packed into a single event.
+        pub coalesced_pos: Vec<DipPoint>,
+
+        /// Position of the cursor over the window, (0, 0) is the top-left.
+        pub position: DipPoint,
 
         ..
 
@@ -704,6 +727,9 @@ event! {
 
     /// Data was dragged over a window.
     pub static RAW_DRAG_HOVERED_EVENT: RawDragHoveredArgs;
+
+    /// Data dragging over the window has moved.
+    pub static RAW_DRAG_MOVED_EVENT: RawDragMovedArgs;
 
     /// Data was drag-dropped on a window.
     pub static RAW_DRAG_DROPPED_EVENT: RawDragDroppedArgs;

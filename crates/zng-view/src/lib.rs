@@ -620,6 +620,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     window: id,
                     mime: Txt::default(),
                     data: DragDropData::Path(file),
+                    effects: DragDropEffect::all(),
                 });
             }
             WindowEvent::DroppedFile(file) => {

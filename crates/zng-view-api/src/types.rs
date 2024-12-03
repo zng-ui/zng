@@ -14,6 +14,7 @@ use crate::{
     touch::{TouchPhase, TouchUpdate},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
+use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use std::{fmt, path::PathBuf};
 use zng_txt::Txt;
@@ -207,12 +208,23 @@ pub enum Event {
 
     /// A drag&drop gesture started dragging over the window.
     DragHovered {
-        /// Window that was hovered.
+        /// Window that is hovered.
         window: WindowId,
         /// Data type.
         mime: Txt,
         /// Data payload.
         data: DragDropData,
+        /// Allowed effects.
+        effects: DragDropEffect,
+    },
+    /// A drag&drop gesture moved over the window.
+    DragMoved {
+        /// Window that is hovered.
+        window: WindowId,
+        /// Cursor positions in between the previous event and this one.
+        coalesced_pos: Vec<DipPoint>,
+        /// Cursor position, relative to the window top-left in device independent pixels.
+        position: DipPoint,
     },
     /// A drag&drop gesture finished over the window.
     DragDropped {
@@ -591,6 +603,22 @@ impl Event {
                     position: n_pos,
                 },
             ) if *window == n_window && *device == n_device => {
+                coalesced_pos.push(*position);
+                coalesced_pos.extend(n_coal_pos);
+                *position = n_pos;
+            }
+            (
+                DragMoved {
+                    window,
+                    coalesced_pos,
+                    position,
+                },
+                DragMoved {
+                    window: n_window,
+                    coalesced_pos: n_coal_pos,
+                    position: n_pos,
+                },
+            ) if *window == n_window => {
                 coalesced_pos.push(*position);
                 coalesced_pos.extend(n_coal_pos);
                 *position = n_pos;
@@ -1070,6 +1098,19 @@ impl fmt::Debug for DragDropData {
             Self::Path(arg0) => write!(f, "Path({})", arg0.display()),
             Self::Binary(arg0) => write!(f, "Binary({} bytes)", arg0.len()),
         }
+    }
+}
+
+bitflags! {
+    /// Drag&drop drop effect on the data source.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    pub struct DragDropEffect: u8 {
+        /// Indicates that the dragged data will be copied from its present location to the drop location.
+        const COPY = 0b001;
+        /// Indicates that the dragged data will be moved from its present location to the drop location.
+        const MOVE = 0b010;
+        /// Indicates that some form of relationship or connection will be created between the source and drop locations.
+        const LINK = 0b100;
     }
 }
 
