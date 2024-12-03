@@ -2092,7 +2092,21 @@ impl Window {
     }
 
     pub(crate) fn raw_cursor_pos(&self) -> Option<DipPoint> {
-        // !!: TODO
+        #[cfg(windows)]
+        unsafe {
+            let mut pt = windows::Win32::Foundation::POINT::default();
+            if windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut pt).is_ok() {
+                let cursor_pos = PxPoint::new(Px(pt.x), Px(pt.y));
+                let win_pos = self.window.inner_position().unwrap_or_default().to_px();
+                let pos = cursor_pos - win_pos.to_vector();
+                if pos.x >= Px(0) && pos.y >= Px(0) {
+                    let size = self.window.inner_size().to_px();
+                    if pos.x <= size.width && pos.y <= size.height {
+                        return Some(pos.to_dip(self.scale_factor()));
+                    }
+                }
+            }
+        }
         None
     }
 }

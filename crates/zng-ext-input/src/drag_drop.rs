@@ -57,8 +57,9 @@ impl AppExtension for DragDropManager {
             // system drag hover window
             update_sv = true;
             DRAG_DROP_SV.write().system_dragging.push(args.data.clone());
-        } else if let Some(_args) = RAW_DRAG_MOVED_EVENT.on(update) {
+        } else if let Some(args) = RAW_DRAG_MOVED_EVENT.on(update) {
             // TODO
+            println!("!!: {:?}", args.position);
         } else if let Some(_args) = RAW_DRAG_CANCELLED_EVENT.on(update) {
             // system drag cancelled of dragged out of all app windows
             let mut sv = DRAG_DROP_SV.write();
