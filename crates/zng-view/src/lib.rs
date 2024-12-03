@@ -370,6 +370,7 @@ pub(crate) struct App {
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
     app_state: AppState,
+    drag_drop_hovered: Option<WindowId>,
     exited: bool,
 }
 impl fmt::Debug for App {
@@ -616,6 +617,14 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             }
             WindowEvent::HoveredFile(file) => {
                 linux_modal_dialog_bail!();
+
+                // winit does not provide mouse move events during drag/drop,
+                // so we enable device events to get mouse move, and use native APIs to get
+                // the cursor position on the window.
+                if !self.device_events {
+                    winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Always);
+                }
+                self.drag_drop_hovered = Some(id);
                 self.notify(Event::DragHovered {
                     window: id,
                     data: DragDropData::Path(file),
@@ -624,6 +633,12 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             }
             WindowEvent::DroppedFile(file) => {
                 linux_modal_dialog_bail!();
+
+                self.drag_drop_hovered = None;
+                if !self.device_events {
+                    winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Never);
+                }
+
                 self.notify(Event::DragDropped {
                     window: id,
                     data: DragDropData::Path(file),
@@ -631,6 +646,12 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             }
             WindowEvent::HoveredFileCancelled => {
                 linux_modal_dialog_bail!();
+
+                self.drag_drop_hovered = None;
+                if !self.device_events {
+                    winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Never);
+                }
+
                 self.notify(Event::DragCancelled { window: id });
             }
             WindowEvent::Focused(mut focused) => {
@@ -955,7 +976,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
             let d_id = self.device_id(device_id);
-            match event {
+            match &event {
                 DeviceEvent::Added => self.notify(Event::DeviceAdded(d_id)),
                 DeviceEvent::Removed => self.notify(Event::DeviceRemoved(d_id)),
                 DeviceEvent::MouseMotion { delta } => self.notify(Event::DeviceMouseMotion {
@@ -964,17 +985,17 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 }),
                 DeviceEvent::MouseWheel { delta } => self.notify(Event::DeviceMouseWheel {
                     device: d_id,
-                    delta: util::winit_mouse_wheel_delta_to_zng(delta),
+                    delta: util::winit_mouse_wheel_delta_to_zng(*delta),
                 }),
                 DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion {
                     device: d_id,
-                    axis: AxisId(axis),
-                    value,
+                    axis: AxisId(*axis),
+                    value: *value,
                 }),
                 DeviceEvent::Button { button, state } => self.notify(Event::DeviceButton {
                     device: d_id,
-                    button: ButtonId(button),
-                    state: util::element_state_to_button_state(state),
+                    button: ButtonId(*button),
+                    state: util::element_state_to_button_state(*state),
                 }),
                 DeviceEvent::Key(k) => self.notify(Event::DeviceKey {
                     device: d_id,
@@ -984,6 +1005,19 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             }
 
             winit_loop_guard.unset(&mut self.winit_loop);
+        }
+        if let Some(id) = self.drag_drop_hovered {
+            if let DeviceEvent::MouseMotion { .. } = &event {
+                if let Some(win) = self.windows.iter().find(|w| w.id() == id) {
+                    if let Some(pos) = win.raw_cursor_pos() {
+                        self.notify(Event::DragMoved {
+                            window: id,
+                            coalesced_pos: vec![],
+                            position: pos,
+                        });
+                    }
+                }
+            }
         }
     }
 
@@ -1286,6 +1320,7 @@ impl App {
             pending_modifiers_update: None,
             pending_modifiers_focus_clear: false,
             config_listener_exit: None,
+            drag_drop_hovered: None,
 
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,

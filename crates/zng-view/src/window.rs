@@ -2090,6 +2090,11 @@ impl Window {
             tracing::warn!("system shutdown warn not implemented on {}", std::env::consts::OS);
         }
     }
+
+    pub(crate) fn raw_cursor_pos(&self) -> Option<DipPoint> {
+        // !!: TODO
+        None
+    }
 }
 impl Drop for Window {
     fn drop(&mut self) {
