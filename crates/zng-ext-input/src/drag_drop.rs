@@ -61,7 +61,20 @@ impl AppExtension for DragDropManager {
 
             // view-process can notify multiple drops in sequence, so we only notify DROP_EVENT
             // on he next update
-            sv.pending_drop.push(args.data.clone());
+            if self.pos_window == Some(args.window_id) {
+                if let Some(hovered) = &self.hovered {
+                    match &mut sv.pending_drop {
+                        Some((target, data)) => {
+                            if target != hovered {
+                                tracing::error!("drop sequence across different hovered")
+                            } else {
+                                data.push(args.data.clone());
+                            }
+                        }
+                        None => sv.pending_drop = Some((hovered.clone(), vec![args.data.clone()])),
+                    }
+                }
+            }
             UPDATES.update(None);
         } else if let Some(args) = RAW_DRAG_HOVERED_EVENT.on(update) {
             // system drag hover window
@@ -213,16 +226,11 @@ impl AppExtension for DragDropManager {
         }
 
         // fulfill drop requests
-        let requests = mem::take(&mut sv.pending_drop);
-        if let Some(target) = self.hovered.take() {
+        if let Some((target, data)) = sv.pending_drop.take() {
             let window_id = self.pos_window.take().unwrap();
-            DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(
-                Some(target.clone()),
-                None,
-                self.pos,
-                self.hits.take().unwrap_or_else(|| HitTestInfo::no_hits(window_id)),
-            ));
-            DROP_EVENT.notify(DropArgs::now(target, requests));
+            let hits = self.hits.take().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
+            DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(Some(target.clone()), None, self.pos, hits.clone()));
+            DROP_EVENT.notify(DropArgs::now(target, data, self.pos, hits));
         }
     }
 }
@@ -276,7 +284,7 @@ app_local! {
         pending_drag: vec![],
         system_dragging: vec![],
         app_dragging: vec![],
-        pending_drop: vec![],
+        pending_drop: None,
     };
 }
 struct DragDropService {
@@ -287,7 +295,7 @@ struct DragDropService {
     system_dragging: Vec<DragDropData>,
     app_dragging: Vec<(HandleOwner<()>, DragDropData, DragDropEffect)>,
 
-    pending_drop: Vec<DragDropData>,
+    pending_drop: Option<(InteractionPath, Vec<DragDropData>)>,
 }
 
 /// Represents dragging data.
@@ -383,9 +391,12 @@ event_args! {
     pub struct DropArgs {
         /// Hovered target of the drag&drop gesture.
         pub target: InteractionPath,
-
         /// Drag&drop data payload.
         pub data: Vec<DragDropData>,
+        /// Position of the cursor in the window's content area.
+        pub position: DipPoint,
+        /// Hit-test result for the cursor point in the window.
+        pub hits: HitTestInfo,
 
         ..
 
@@ -402,7 +413,7 @@ event_args! {
         pub target: Option<InteractionPath>,
         /// Position of the cursor in the window's content area.
         pub position: DipPoint,
-        /// Hit-test result for the mouse point in the window.
+        /// Hit-test result for the cursor point in the window.
         pub hits: HitTestInfo,
 
         ..
