@@ -2108,58 +2108,6 @@ impl Window {
                 }
             }
         }
-
-        #[cfg(any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "openbsd",
-            target_os = "netbsd",
-        ))]
-        {
-            use raw_window_handle::*;
-            use x11_dl::xlib::*;
-            if let Ok(display) = self.window.display_handle() {
-                if let RawDisplayHandle::Xlib(display) = display.as_raw() {
-                    if let Some(display) = display.display {
-                        let RawWindowHandle::Xlib(window_id) = self.window.window_handle().unwrap().as_raw() else {
-                            unreachable!()
-                        };
-                        if let Ok(xlib) = Xlib::open() {
-                            let display = display.as_ptr() as *mut Display;
-
-                            let mut root_return = 0;
-                            let mut child_return = 0;
-                            let mut root_x = 0;
-                            let mut root_y = 0;
-                            let mut win_x = 0;
-                            let mut win_y = 0;
-                            let mut mask_return = 0;
-
-                            // SAFETY: normal call
-                            let result = unsafe {
-                                (xlib.XQueryPointer)(
-                                    display,
-                                    window_id.window,
-                                    &mut root_return,
-                                    &mut child_return,
-                                    &mut root_x,
-                                    &mut root_y,
-                                    &mut win_x,
-                                    &mut win_y,
-                                    &mut mask_return,
-                                )
-                            };
-                            if result != 0 {
-                                let pt = PxPoint::new(Px(win_x), Px(win_y));
-                                return Some(pt.to_dip(self.scale_factor()));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         None
     }
 }
