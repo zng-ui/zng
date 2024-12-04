@@ -639,6 +639,15 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Never);
                 }
 
+                // some systems (x11) don't receive even device mouse move
+                if let Some(position) = self.windows[i].drag_drop_cursor_pos() {
+                    self.notify(Event::DragMoved {
+                        window: id,
+                        coalesced_pos: vec![],
+                        position,
+                    });
+                }
+
                 self.notify(Event::DragDropped {
                     window: id,
                     data: DragDropData::Path(file),
@@ -1009,7 +1018,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         if let Some(id) = self.drag_drop_hovered {
             if let DeviceEvent::MouseMotion { .. } = &event {
                 if let Some(win) = self.windows.iter().find(|w| w.id() == id) {
-                    if let Some(pos) = win.raw_cursor_pos() {
+                    if let Some(pos) = win.drag_drop_cursor_pos() {
                         self.notify(Event::DragMoved {
                             window: id,
                             coalesced_pos: vec![],

@@ -2091,11 +2091,12 @@ impl Window {
         }
     }
 
-    pub(crate) fn raw_cursor_pos(&self) -> Option<DipPoint> {
+    pub(crate) fn drag_drop_cursor_pos(&self) -> Option<DipPoint> {
         #[cfg(windows)]
-        unsafe {
+        {
             let mut pt = windows::Win32::Foundation::POINT::default();
-            if windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut pt).is_ok() {
+            // SAFETY: normal call
+            if unsafe { windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut pt) }.is_ok() {
                 let cursor_pos = PxPoint::new(Px(pt.x), Px(pt.y));
                 let win_pos = self.window.inner_position().unwrap_or_default().to_px();
                 let pos = cursor_pos - win_pos.to_vector();
@@ -2107,6 +2108,58 @@ impl Window {
                 }
             }
         }
+
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "openbsd",
+            target_os = "netbsd",
+        ))]
+        {
+            use raw_window_handle::*;
+            use x11_dl::xlib::*;
+            if let Ok(display) = self.window.display_handle() {
+                if let RawDisplayHandle::Xlib(display) = display.as_raw() {
+                    if let Some(display) = display.display {
+                        let RawWindowHandle::Xlib(window_id) = self.window.window_handle().unwrap().as_raw() else {
+                            unreachable!()
+                        };
+                        if let Ok(xlib) = Xlib::open() {
+                            let display = display.as_ptr() as *mut Display;
+
+                            let mut root_return = 0;
+                            let mut child_return = 0;
+                            let mut root_x = 0;
+                            let mut root_y = 0;
+                            let mut win_x = 0;
+                            let mut win_y = 0;
+                            let mut mask_return = 0;
+
+                            // SAFETY: normal call
+                            let result = unsafe {
+                                (xlib.XQueryPointer)(
+                                    display,
+                                    window_id.window,
+                                    &mut root_return,
+                                    &mut child_return,
+                                    &mut root_x,
+                                    &mut root_y,
+                                    &mut win_x,
+                                    &mut win_y,
+                                    &mut mask_return,
+                                )
+                            };
+                            if result != 0 {
+                                let pt = PxPoint::new(Px(win_x), Px(win_y));
+                                return Some(pt.to_dip(self.scale_factor()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         None
     }
 }
