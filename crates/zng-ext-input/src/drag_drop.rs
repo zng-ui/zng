@@ -444,7 +444,7 @@ event_args! {
         /// Hit-test result for the cursor point in the window.
         pub hits: HitTestInfo,
 
-        /// Full path to the top-most hit in [`hits`](MouseMoveArgs::hits).
+        /// Full path to the top-most hit in [`hits`](DragMoveArgs::hits).
         pub target: InteractionPath,
 
         ..

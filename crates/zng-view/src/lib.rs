@@ -92,7 +92,9 @@
 #![warn(unused_extern_crates)]
 
 use std::{
-    fmt, mem, thread,
+    fmt, mem,
+    path::PathBuf,
+    thread,
     time::{Duration, Instant},
 };
 
@@ -370,7 +372,8 @@ pub(crate) struct App {
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
     app_state: AppState,
-    drag_drop_hovered: Option<WindowId>,
+    drag_drop_hovered: Option<(WindowId, DipPoint)>,
+    drag_drop_next_move: Option<(Instant, PathBuf)>,
     exited: bool,
 }
 impl fmt::Debug for App {
@@ -624,7 +627,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 if !self.device_events {
                     winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Always);
                 }
-                self.drag_drop_hovered = Some(id);
+                self.drag_drop_hovered = Some((id, DipPoint::splat(Dip::new(-1000))));
                 self.notify(Event::DragHovered {
                     window: id,
                     data: DragDropData::Path(file),
@@ -634,10 +637,11 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             WindowEvent::DroppedFile(file) => {
                 linux_modal_dialog_bail!();
 
-                self.drag_drop_hovered = None;
                 if !self.device_events {
                     winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Never);
                 }
+
+                let mut delay_to_next_move = true;
 
                 // some systems (x11) don't receive even device mouse move
                 if let Some(position) = self.windows[i].drag_drop_cursor_pos() {
@@ -646,12 +650,19 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                         coalesced_pos: vec![],
                         position,
                     });
+                    delay_to_next_move = false;
+                } else if let Some((_, pos)) = self.drag_drop_hovered {
+                    delay_to_next_move = pos.x < Dip::new(0);
                 }
 
-                self.notify(Event::DragDropped {
-                    window: id,
-                    data: DragDropData::Path(file),
-                });
+                if delay_to_next_move {
+                    self.drag_drop_next_move = Some((Instant::now(), file));
+                } else {
+                    self.notify(Event::DragDropped {
+                        window: id,
+                        data: DragDropData::Path(file),
+                    });
+                }
             }
             WindowEvent::HoveredFileCancelled => {
                 linux_modal_dialog_bail!();
@@ -661,7 +672,10 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Never);
                 }
 
-                self.notify(Event::DragCancelled { window: id });
+                if self.drag_drop_next_move.is_none() {
+                    // x11 sends a cancelled after drop
+                    self.notify(Event::DragCancelled { window: id });
+                }
             }
             WindowEvent::Focused(mut focused) => {
                 if self.windows[i].focused_changed(&mut focused) {
@@ -769,6 +783,21 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                         coalesced_pos: vec![],
                         position: p,
                     });
+                }
+
+                if let Some((drop_moment, file)) = self.drag_drop_next_move.take() {
+                    if drop_moment.elapsed() < Duration::from_millis(300) {
+                        let window_id = self.windows[i].id();
+                        self.notify(Event::DragMoved {
+                            window: window_id,
+                            coalesced_pos: vec![],
+                            position: p,
+                        });
+                        self.notify(Event::DragDropped {
+                            window: window_id,
+                            data: DragDropData::Path(file),
+                        });
+                    }
                 }
             }
             WindowEvent::CursorEntered { device_id } => {
@@ -1015,15 +1044,20 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
             winit_loop_guard.unset(&mut self.winit_loop);
         }
-        if let Some(id) = self.drag_drop_hovered {
+
+        if let Some((id, pos)) = &mut self.drag_drop_hovered {
             if let DeviceEvent::MouseMotion { .. } = &event {
-                if let Some(win) = self.windows.iter().find(|w| w.id() == id) {
-                    if let Some(pos) = win.drag_drop_cursor_pos() {
-                        self.notify(Event::DragMoved {
-                            window: id,
-                            coalesced_pos: vec![],
-                            position: pos,
-                        });
+                if let Some(win) = self.windows.iter().find(|w| w.id() == *id) {
+                    if let Some(new_pos) = win.drag_drop_cursor_pos() {
+                        if *pos != new_pos {
+                            *pos = new_pos;
+                            let event = Event::DragMoved {
+                                window: *id,
+                                coalesced_pos: vec![],
+                                position: *pos,
+                            };
+                            self.notify(event);
+                        }
                     }
                 }
             }
@@ -1330,6 +1364,7 @@ impl App {
             pending_modifiers_focus_clear: false,
             config_listener_exit: None,
             drag_drop_hovered: None,
+            drag_drop_next_move: None,
 
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
