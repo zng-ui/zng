@@ -21,11 +21,12 @@ use zng_view_api::{
     config::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
+    drag_drop::{DragDropData, DragDropEffect},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
     window::{EventCause, FrameId, FrameWaitId, HeadlessOpenData, MonitorInfo, WindowStateAll},
-    AxisId, DragDropData, DragDropEffect, Ime,
+    AxisId, DragDropId, Ime,
 };
 
 use crate::{
@@ -316,6 +317,27 @@ event_args! {
     pub struct RawDragCancelledArgs {
         /// Window where the file was previously dragged over.
         pub window_id: WindowId,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_APP_DRAG_ENDED_EVENT`].
+    pub struct RawAppDragEndedArgs {
+        /// Window that started the drag operation.
+        pub window_id: WindowId,
+
+        /// ID of the drag & drop operation.
+        pub id: DragDropId,
+
+        /// Effect applied to the data by the drop target.
+        ///
+        /// Is a single flag if the data was dropped in a valid drop target, or is empty if was canceled.
+        pub applied: DragDropEffect,
 
         ..
 
@@ -732,6 +754,9 @@ event! {
 
     /// Data was dragged away from the window or the operation was cancelled.
     pub static RAW_DRAG_CANCELLED_EVENT: RawDragCancelledArgs;
+
+    /// Drag & drop operation started by the app has dropped or was cancelled.
+    pub static RAW_APP_DRAG_ENDED_EVENT: RawAppDragEndedArgs;
 
     /// Mouse pointer moved over a window.
     pub static RAW_MOUSE_MOVED_EVENT: RawMouseMovedArgs;

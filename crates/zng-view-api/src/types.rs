@@ -7,6 +7,7 @@ use crate::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
+    drag_drop::{DragDropData, DragDropEffect},
     image::{ImageId, ImageLoadedData, ImagePpi},
     ipc::IpcBytes,
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
@@ -14,9 +15,8 @@ use crate::{
     touch::{TouchPhase, TouchUpdate},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
-use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::PathBuf};
+use std::fmt;
 use zng_txt::Txt;
 use zng_unit::{DipPoint, PxRect, PxSize, Rgba};
 
@@ -106,6 +106,11 @@ declare_id! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct AxisId(pub u32);
+
+/// Identifier for a drag drop operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DragDropId(pub u32);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// View process is online.
@@ -235,6 +240,17 @@ pub enum Event {
     DragCancelled {
         /// Window that was previous hovered.
         window: WindowId,
+    },
+    /// A drag started by the app was dropped or canceled.
+    AppDragEnded {
+        /// Window that started the drag.
+        window: WindowId,
+        /// Drag ID.
+        drag: DragDropId,
+        /// Effect applied to the data by the drop target.
+        ///
+        /// Is a single flag if the data was dropped in a valid drop target, or is empty if was canceled.
+        applied: DragDropEffect,
     },
 
     /// App window(s) focus changed.
@@ -1066,77 +1082,6 @@ pub enum FocusResult {
     Requested,
     /// Window is already focused.
     AlreadyFocused,
-}
-
-/// Drag&drop data payload.
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum DragDropData {
-    /// Text encoded data.
-    ///
-    /// This can be HTML or JSON for example.
-    Text {
-        /// MIME type of the data.
-        ///
-        /// Plain text is `"text/plain"`.
-        format: Txt,
-        /// Data.
-        data: Txt,
-    },
-    /// File or directory path.
-    Path(PathBuf),
-    /// Binary encoded data.
-    ///
-    /// This can be an image for example.
-    Binary {
-        /// MIME type of the data.
-        format: Txt,
-        /// Data.
-        data: IpcBytes,
-    },
-}
-impl fmt::Debug for DragDropData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Text { format, data } => write!(f, "Text {{ format: {:?}, data: {} bytes }}", format, data.len()),
-            Self::Path(data) => write!(f, "Path({})", data.display()),
-            Self::Binary { format, data } => write!(f, "Binary {{ format: {:?}, data: {} bytes }}", format, data.len()),
-        }
-    }
-}
-
-#[cfg(feature = "var")]
-zng_var::impl_from_and_into_var! {
-    fn from(plain: Txt) -> DragDropData {
-        DragDropData::Text {
-            format: "text/plain".into(),
-            data: plain,
-        }
-    }
-
-    fn from(plain: String) -> DragDropData {
-        Txt::from(plain).into()
-    }
-
-    fn from(plain: &'static str) -> DragDropData {
-        Txt::from(plain).into()
-    }
-
-    fn from(path: PathBuf) -> DragDropData {
-        DragDropData::Path(path)
-    }
-}
-
-bitflags! {
-    /// Drag&drop drop effect on the data source.
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-    pub struct DragDropEffect: u8 {
-        /// Indicates that the dragged data will be copied from its present location to the drop location.
-        const COPY = 0b001;
-        /// Indicates that the dragged data will be moved from its present location to the drop location.
-        const MOVE = 0b010;
-        /// Indicates that some form of relationship or connection will be created between the source and drop locations.
-        const LINK = 0b100;
-    }
 }
 
 #[cfg(test)]

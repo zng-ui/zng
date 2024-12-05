@@ -25,7 +25,7 @@ use zng_view_api::mouse::ButtonState;
 
 use crate::{mouse::MOUSE_INPUT_EVENT, touch::TOUCH_INPUT_EVENT};
 
-pub use zng_view_api::{DragDropData, DragDropEffect};
+pub use zng_view_api::drag_drop::{DragDropData, DragDropEffect};
 
 /// Application extension that provides drag&drop events and service.
 ///

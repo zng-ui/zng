@@ -147,6 +147,7 @@ use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPo
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
+    drag_drop::*,
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageRequest, ImageTextureId},
     ipc::{IpcBytes, IpcBytesReceiver},
@@ -2226,6 +2227,15 @@ impl Api for App {
         Err(clipboard::ClipboardError::Other(Txt::from_static(
             "clipboard not implemented for Android",
         )))
+    }
+
+    fn start_drag_drop(&mut self, id: WindowId, data: DragDropData, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
+        let _ = (id, data, allowed_effects); // !!: TODO
+        Err(DragDropError::NotSupported)
+    }
+
+    fn cancel_drag_drop(&mut self, id: WindowId, drag_id: DragDropId) {
+        let _ = (id, drag_id); // !!: TODO
     }
 
     fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt) {

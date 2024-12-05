@@ -231,6 +231,10 @@ impl<E: AppExtension> RunningApp<E> {
                 let args = RawDragCancelledArgs::now(window_id(window));
                 self.notify_event(RAW_DRAG_CANCELLED_EVENT.new_update(args), observer);
             }
+            Event::AppDragEnded { window, drag, applied } => {
+                let args = RawAppDragEndedArgs::now(window_id(window), drag, applied);
+                self.notify_event(RAW_APP_DRAG_ENDED_EVENT.new_update(args), observer);
+            }
             Event::FocusChanged { prev, new } => {
                 let args = RawWindowFocusArgs::now(prev.map(window_id), new.map(window_id));
                 self.notify_event(RAW_WINDOW_FOCUS_EVENT.new_update(args), observer);

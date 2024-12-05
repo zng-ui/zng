@@ -22,6 +22,7 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
+use drag_drop::{DragDropData, DragDropEffect, DragDropError};
 #[cfg(ipc)]
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +36,7 @@ pub mod clipboard;
 pub mod config;
 pub mod dialog;
 pub mod display_list;
+pub mod drag_drop;
 pub mod font;
 pub mod image;
 pub mod ipc;
@@ -499,6 +501,17 @@ declare_api! {
 
     /// Set the clipboard content.
     pub fn write_clipboard(&mut self, data: ClipboardData) -> Result<(), ClipboardError>;
+
+    /// Start a drag and drop operation, if the window is pressed.
+    pub fn start_drag_drop(
+        &mut self,
+        id: WindowId,
+        data: DragDropData,
+        allowed_effects: DragDropEffect,
+    ) -> Result<DragDropId, DragDropError>;
+
+    /// Cancel a drag and drop operation.
+    pub fn cancel_drag_drop(&mut self, id: WindowId, drag_id: DragDropId);
 
     /// Enable or disable IME by setting a cursor area.
     ///
