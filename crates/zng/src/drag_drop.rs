@@ -7,8 +7,8 @@
 //! # let _scope = APP.defaults();
 //! use zng::drag_drop::*;
 //!
-//! # let _ =
 //! let data = var::<Vec<DragDropData>>(vec![]);
+//! # let _ =
 //! Window! {
 //!     padding = 20;
 //!     child = Container! {
