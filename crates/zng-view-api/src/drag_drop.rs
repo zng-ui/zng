@@ -82,7 +82,7 @@ bitflags! {
 /// Error for drag start or cancel error.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum DragDropError {
-    /// View-process implementer does not support dragging the data type.
+    /// View-process implementer does not support any of the provided data types.
     NotSupported,
     /// Cannot start dragging.
     CannotStart(Txt),

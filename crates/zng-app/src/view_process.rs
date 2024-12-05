@@ -834,7 +834,7 @@ impl ViewWindow {
     /// [`RAW_APP_DRAG_ENDED_EVENT`]: raw_events::RAW_APP_DRAG_ENDED_EVENT
     pub fn start_drag_drop(
         &self,
-        data: DragDropData,
+        data: Vec<DragDropData>,
         allowed_effects: DragDropEffect,
     ) -> Result<std::result::Result<DragDropId, DragDropError>> {
         self.0.call(|id, p| p.start_drag_drop(id, data, allowed_effects))

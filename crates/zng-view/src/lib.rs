@@ -2229,13 +2229,18 @@ impl Api for App {
         )))
     }
 
-    fn start_drag_drop(&mut self, id: WindowId, data: DragDropData, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
-        let _ = (id, data, allowed_effects); // !!: TODO
+    fn start_drag_drop(
+        &mut self,
+        id: WindowId,
+        data: Vec<DragDropData>,
+        allowed_effects: DragDropEffect,
+    ) -> Result<DragDropId, DragDropError> {
+        let _ = (id, data, allowed_effects); // TODO
         Err(DragDropError::NotSupported)
     }
 
     fn cancel_drag_drop(&mut self, id: WindowId, drag_id: DragDropId) {
-        let _ = (id, drag_id); // !!: TODO
+        let _ = (id, drag_id);
     }
 
     fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt) {

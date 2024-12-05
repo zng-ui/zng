@@ -39,12 +39,12 @@
 //!
 //! Drag&drop depends on the view-process backend, the default view-process (`zng-view`) is currently very limited:
 //!
+//! * No drag start from the app.
 //! * Only file path drops.
 //! * No support in Wayland, you can work around by calling `std::env::remove_var("WAYLAND_DISPLAY");` before `zng::env::init!()` in
 //!   your main function, this enables XWayland that has support for the basic file path drop.
 //! * In X11 and macOS there is no cursor position notification on hover, just on drop, `DRAG_HOVERED_EVENT` and `DRAG_MOVE_EVENT`
 //!   based event properties will only fire once for the widget that is about to receive a drop.
-//! * No drag !!: TODO
 //!
 //! # Full API
 //!

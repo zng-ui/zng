@@ -6,7 +6,9 @@ use zng_app::{
     event::{event, event_args, AnyEventArgs},
     static_id,
     update::{EventUpdate, UPDATES},
-    view_process::raw_events::{RAW_DRAG_CANCELLED_EVENT, RAW_DRAG_DROPPED_EVENT, RAW_DRAG_HOVERED_EVENT, RAW_DRAG_MOVED_EVENT},
+    view_process::raw_events::{
+        RAW_APP_DRAG_ENDED_EVENT, RAW_DRAG_CANCELLED_EVENT, RAW_DRAG_DROPPED_EVENT, RAW_DRAG_HOVERED_EVENT, RAW_DRAG_MOVED_EVENT,
+    },
     widget::{
         info::{HitTestInfo, InteractionPath, WidgetInfo, WidgetInfoBuilder},
         WidgetId, WIDGET,
@@ -21,7 +23,7 @@ use zng_layout::unit::{DipPoint, DipToPx as _, PxToDip as _};
 use zng_state_map::StateId;
 use zng_txt::{formatx, Txt};
 use zng_var::{var, ArcVar, ReadOnlyArcVar, Var};
-use zng_view_api::mouse::ButtonState;
+use zng_view_api::{mouse::ButtonState, touch::TouchPhase, DragDropId};
 
 use crate::{mouse::MOUSE_INPUT_EVENT, touch::TOUCH_INPUT_EVENT};
 
@@ -178,6 +180,25 @@ impl AppExtension for DragDropManager {
                     self.hits.take().unwrap_or_else(|| HitTestInfo::no_hits(args.window_id)),
                 ));
             }
+        } else if let Some(args) = RAW_APP_DRAG_ENDED_EVENT.on(update) {
+            let mut sv = DRAG_DROP_SV.write();
+            sv.app_dragging.retain(|d| {
+                if d.view_id != args.id {
+                    return true;
+                }
+
+                if !args.applied.is_empty() && !d.allowed.contains(args.applied) {
+                    tracing::error!(
+                        "drop target applied disallowed effect, allowed={:?}, applied={:?}",
+                        d.allowed,
+                        args.applied
+                    );
+                }
+
+                DRAG_END_EVENT.notify(DragEndArgs::now(d.target.clone(), args.applied));
+
+                false
+            });
         }
 
         if update_sv {
@@ -192,44 +213,59 @@ impl AppExtension for DragDropManager {
                     if let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable()) {
                         // unhandled mouse press on draggable
                         args.propagation().stop();
-                        let args = DragStartArgs::now(wgt.interaction_path());
+                        let target = wgt.interaction_path();
+                        let args = DragStartArgs::now(target.clone());
                         DRAG_START_EVENT.notify(args);
-                        DRAG_DROP_SV.write().can_drag = true; // calls to DRAG_DROP.drag are now invalid
+                        DRAG_DROP_SV.write().app_drag = Some(AppDragging {
+                            target,
+                            data: vec![],
+                            handles: vec![],
+                            allowed: DragDropEffect::empty(),
+                            view_id: DragDropId(0),
+                        }); // calls to DRAG_DROP.drag are now valid
                     }
                 }
             }
-        } else if let Some(_args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
-            // !! TODO
+        } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+            if matches!(args.phase, TouchPhase::Start) {
+                if let Some(wgt) = WINDOWS.widget_info(args.target.widget_id()) {
+                    if let Some(wgt) = wgt.self_and_ancestors().find(|w| w.is_draggable()) {
+                        // unhandled touch start on draggable
+                        args.propagation().stop();
+                        let target = wgt.interaction_path();
+                        let args = DragStartArgs::now(target.clone());
+                        DRAG_START_EVENT.notify(args);
+                        DRAG_DROP_SV.write().app_drag = Some(AppDragging {
+                            target,
+                            data: vec![],
+                            handles: vec![],
+                            allowed: DragDropEffect::empty(),
+                            view_id: DragDropId(0),
+                        }); // calls to DRAG_DROP.drag are now valid
+                    }
+                }
+            }
         } else if let Some(args) = DRAG_START_EVENT.on(update) {
             // finished notifying draggable drag start
             let mut sv = DRAG_DROP_SV.write();
-            sv.can_drag = false; // calls to DRAG_DROP.drag are now invalid
-
+            let data = sv.app_drag.take();
             if !args.propagation_handle.is_stopped() {
-                // draggable did not cancel default
-                args.propagation_handle.stop();
-
-                // default, drag the widget info
-                let (owner, handle) = DragHandle::new();
-                handle.perm();
-                sv.app_dragging
-                    .push((owner, encode_widget_id(args.target.widget_id()), DragDropEffect::all()));
-                drop(sv);
-                DRAG_DROP.update_var();
+                if let Some(mut d) = data {
+                    if d.data.is_empty() {
+                        d.data.push(encode_widget_id(args.target.widget_id()));
+                        d.allowed = DragDropEffect::all();
+                    }
+                    // !!: TODO start drag view-process, need a WINDOWS access?
+                    sv.app_dragging.push(d);
+                } else {
+                    tracing::warn!("external notification of DRAG_START_EVENT ignored")
+                }
             }
         }
     }
 
     fn update_preview(&mut self) {
         let mut sv = DRAG_DROP_SV.write();
-
-        // fulfill drag requests
-        let mut requests = mem::take(&mut sv.pending_drag);
-        requests.retain(|(h, _, _)| !h.is_dropped());
-        if !requests.is_empty() {
-            sv.app_dragging.extend(requests);
-            DRAG_DROP.update_var();
-        }
 
         // fulfill drop requests
         if let Some((target, data)) = sv.pending_drop.take() {
@@ -256,47 +292,68 @@ impl DRAG_DROP {
     /// can provide custom drag data using this method.
     ///
     /// Returns a handle that can be dropped to cancel the drag operation. A [`DRAG_END_EVENT`] notifies
-    /// the draggable widget on cancel or drop.
+    /// the draggable widget on cancel or drop. Logs an error message and returns a dummy handle on error.
+    ///
+    /// Note that the `allowed_effects` apply to all data, if a previous handler already set data with an incompatible
+    /// effect the call is an error and the data ignored.
     pub fn drag(&self, data: DragDropData, allowed_effects: DragDropEffect) -> DragHandle {
         let mut sv = DRAG_DROP_SV.write();
-        if !sv.can_drag || allowed_effects.is_empty() {
-            return DragHandle::dummy();
-        }
+        if let Some(d) = &mut sv.app_drag {
+            if allowed_effects.is_empty() {
+                tracing::error!("cannot drag, no `allowed_effects`");
+                return DragHandle::dummy();
+            }
 
-        let (owner, handle) = DragHandle::new();
-        sv.pending_drag.push((owner, data, allowed_effects));
-        UPDATES.update(None);
-        handle
+            if d.allowed.is_empty() {
+                d.allowed = allowed_effects;
+            } else {
+                if !d.allowed.contains(allowed_effects) {
+                    tracing::error!("cannot drag, other data already set with incompatible `allowed_effects`");
+                    return DragHandle::dummy();
+                }
+                d.allowed |= allowed_effects
+            }
+
+            d.data.push(data);
+            let (owner, handle) = DragHandle::new();
+            d.handles.push(owner);
+            return handle;
+        }
+        tracing::error!("cannot drag, not in `DRAG_START_EVENT` interval");
+        DragHandle::dummy()
     }
 
     fn update_var(&self) {
-        let mut sv = DRAG_DROP_SV.write();
-        sv.app_dragging.retain(|(h, _, _)| !h.is_dropped());
-        let mut data = sv.system_dragging.clone();
-        data.extend(sv.app_dragging.iter().map(|(_, d, _)| d.clone()));
-        sv.data.set(data);
+        let sv = DRAG_DROP_SV.read();
+        sv.data.set(sv.system_dragging.clone());
     }
 }
 
 app_local! {
     static DRAG_DROP_SV: DragDropService = DragDropService {
         data: var(vec![]),
-        can_drag: false,
-        pending_drag: vec![],
         system_dragging: vec![],
+        app_drag: None,
         app_dragging: vec![],
         pending_drop: None,
     };
 }
 struct DragDropService {
     data: ArcVar<Vec<DragDropData>>,
-    can_drag: bool,
-    pending_drag: Vec<(HandleOwner<()>, DragDropData, DragDropEffect)>,
 
     system_dragging: Vec<DragDropData>,
-    app_dragging: Vec<(HandleOwner<()>, DragDropData, DragDropEffect)>,
+
+    app_drag: Option<AppDragging>,
+    app_dragging: Vec<AppDragging>,
 
     pending_drop: Option<(InteractionPath, Vec<DragDropData>)>,
+}
+struct AppDragging {
+    target: InteractionPath,
+    data: Vec<DragDropData>,
+    handles: Vec<HandleOwner<()>>,
+    allowed: DragDropEffect,
+    view_id: DragDropId,
 }
 
 /// Represents dragging data.
@@ -511,8 +568,8 @@ event! {
     pub static DRAG_MOVE_EVENT: DragMoveArgs;
     /// Drag&drop started dragging a draggable widget.
     ///
-    /// If the event propagation is not stopped the widget will be dragged by default. Handlers can stop and call [`DRAG_DROP.drag`]
-    /// to set custom drag data.
+    /// If propagation is stopped the drag operation is cancelled. Handlers can use
+    /// [`DRAG_DROP.drag`] to set the data, otherwise the widget ID will be dragged.
     ///
     /// [`DRAG_DROP.drag`]: DRAG_DROP::drag
     pub static DRAG_START_EVENT: DragStartArgs;

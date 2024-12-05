@@ -506,7 +506,7 @@ declare_api! {
     pub fn start_drag_drop(
         &mut self,
         id: WindowId,
-        data: DragDropData,
+        data: Vec<DragDropData>,
         allowed_effects: DragDropEffect,
     ) -> Result<DragDropId, DragDropError>;
 
