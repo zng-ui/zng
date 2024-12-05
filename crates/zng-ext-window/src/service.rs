@@ -37,7 +37,7 @@ use zng_task::{
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
     ParallelIteratorExt, UiTask,
 };
-use zng_txt::{formatx, Txt};
+use zng_txt::{formatx, ToTxt as _, Txt};
 use zng_unique_id::{IdMap, IdSet};
 use zng_var::{
     impl_from_and_into_var, response_done_var, response_var, types::WeakArcVar, var, AnyWeakVar, ArcVar, BoxedVar, LocalVar,
@@ -46,9 +46,10 @@ use zng_var::{
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{ChromeConfig, ColorsConfig},
+    drag_drop::{DragDropData, DragDropEffect, DragDropError},
     image::ImageMaskMode,
     window::{RenderMode, WindowState},
-    ViewProcessOffline,
+    DragDropId, ViewProcessOffline,
 };
 use zng_wgt::node::with_context_var;
 
@@ -781,6 +782,21 @@ impl WINDOWS {
                 Ok(())
             }
             None => Err(WindowNotFound(window_id)),
+        }
+    }
+
+    /// Request a stat of drag&drop from the window.
+    ///
+    /// This is a raw API, prefer using the `DRAG_DROP` service.
+    pub fn start_drag_drop(
+        &self,
+        window_id: WindowId,
+        data: Vec<DragDropData>,
+        allowed_effects: DragDropEffect,
+    ) -> Result<DragDropId, DragDropError> {
+        match WINDOWS_SV.write().windows.get_mut(&window_id) {
+            Some(w) => w.start_drag_drop(data, allowed_effects),
+            None => Err(DragDropError::CannotStart(WindowNotFound(window_id).to_txt())),
         }
     }
 
@@ -1662,6 +1678,10 @@ impl AppWindow {
 
     pub fn focus(&mut self) {
         self.ctrl_in_ctx(|ctrl| ctrl.focus());
+    }
+
+    pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
+        self.ctrl_in_ctx(|ctx| ctx.start_drag_drop(data, allowed_effects))
     }
 
     pub fn bring_to_top(&mut self) {

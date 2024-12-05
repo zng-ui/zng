@@ -248,17 +248,31 @@ impl AppExtension for DragDropManager {
         } else if let Some(args) = DRAG_START_EVENT.on(update) {
             // finished notifying draggable drag start
             let mut sv = DRAG_DROP_SV.write();
-            let data = sv.app_drag.take();
-            if !args.propagation_handle.is_stopped() {
-                if let Some(mut d) = data {
+            let mut data = sv.app_drag.take();
+            let mut cancel = args.propagation_handle.is_stopped();
+            if !cancel {
+                if let Some(d) = &mut data {
                     if d.data.is_empty() {
                         d.data.push(encode_widget_id(args.target.widget_id()));
                         d.allowed = DragDropEffect::all();
                     }
-                    // !!: TODO start drag view-process, need a WINDOWS access?
-                    sv.app_dragging.push(d);
+                    match WINDOWS.start_drag_drop(d.target.window_id(), mem::take(&mut d.data), d.allowed) {
+                        Ok(id) => {
+                            d.view_id = id;
+                            sv.app_dragging.push(data.take().unwrap());
+                        }
+                        Err(e) => {
+                            tracing::error!("cannot start drag&drop, {e}");
+                            cancel = true;
+                        }
+                    }
                 } else {
                     tracing::warn!("external notification of DRAG_START_EVENT ignored")
+                }
+            }
+            if cancel {
+                if let Some(d) = data {
+                    DRAG_END_EVENT.notify(DragEndArgs::now(d.target, DragDropEffect::empty()));
                 }
             }
         }
