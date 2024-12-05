@@ -5,38 +5,54 @@
 //! ```
 //! use zng::prelude::*;
 //! # let _scope = APP.defaults();
+//! use zng::drag_drop::*;
 //!
 //! # let _ =
+//! let data = var::<Vec<DragDropData>>(vec![]);
 //! Window! {
-//!     padding = 10;
+//!     padding = 20;
 //!     child = Container! {
-//!         widget::border = {
-//!             widths: 5,
-//!             sides: widget::BorderSides::dashed(colors::GRAY),
-//!         };
-//!         widget::corner_radius = 25;
+//!         widget::border = 5, widget::BorderSides::dashed(colors::GRAY);
+//!         widget::corner_radius = 15;
 //!         child_align = Align::CENTER;
-//!         child = Text! {
-//!             txt = zng::drag_drop::DRAG_DROP.dragging_data().map(|d| {
-//!                 if d.is_empty() {
-//!                     Txt::from("drag over to inspect")
-//!                 } else {
-//!                     formatx!("{d:#?}")
-//!                 }
-//!             });
-//!         };
+//!         on_drag_enter = hn!(data, |_| {
+//!             data.set(DRAG_DROP.dragging_data().get());
+//!         });
+//!         on_drag_leave = hn!(data, |_| {
+//!             data.set(vec![]);
+//!         });
+//!         on_drop = hn!(data, |args: &DropArgs| {
+//!             data.set(args.data.clone());
+//!         });
+//!         child = Text!(data.map(|d| if d.is_empty() {
+//!             Txt::from("drag over to inspect")
+//!         } else {
+//!             formatx!("{d:#?}")
+//!         }));
 //!     }
 //! }
 //! # ;
 //! ```
+//!
+//!
+//! # Limitations
+//!
+//! Drag&drop depends on the view-process backend, the default view-process (`zng-view`) is currently very limited:
+//!
+//! * Only file path drops.
+//! * No support in Wayland, you can work around by calling `std::env::remove_var("WAYLAND_DISPLAY");` before `zng::env::init!()` in
+//!   your main function, this enables XWayland that has support for the basic file path drop.
+//! * In X11 and macOS there is no cursor position notification on hover, just on drop, `DRAG_HOVERED_EVENT` and `DRAG_MOVE_EVENT`
+//!   based event properties will only fire once for the widget that is about to receive a drop.
+//! * No drag !!: TODO
 //!
 //! # Full API
 //!
 //! See [`zng_ext_input::drag_drop`] and [`zng_wgt_input::drag_drop`] for the full drag&drop API.
 
 pub use zng_ext_input::drag_drop::{
-    DragDropData, DragDropEffect, DragEndArgs, DragHandle, DragHoveredArgs, DragStartArgs, DropArgs, WeakDragHandle, DRAG_DROP,
-    DRAG_END_EVENT, DRAG_HOVERED_EVENT, DRAG_START_EVENT, DROP_EVENT,
+    DragDropData, DragDropEffect, DragEndArgs, DragHandle, DragHoveredArgs, DragMoveArgs, DragStartArgs, DropArgs, WeakDragHandle,
+    DRAG_DROP, DRAG_END_EVENT, DRAG_HOVERED_EVENT, DRAG_MOVE_EVENT, DRAG_START_EVENT, DROP_EVENT,
 };
 
 pub use zng_wgt_input::drag_drop::{

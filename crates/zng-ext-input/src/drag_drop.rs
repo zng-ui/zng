@@ -33,6 +33,12 @@ pub use zng_view_api::{DragDropData, DragDropEffect};
 ///
 /// Events this extension provides.
 ///
+/// * [`DROP_EVENT`]
+/// * [`DRAG_HOVERED_EVENT`]
+/// * [`DRAG_MOVE_EVENT`]
+/// * [`DRAG_START_EVENT`]
+/// * [`DRAG_END_EVENT`]
+///
 /// # Services
 ///
 /// Services this extension provides.
@@ -236,14 +242,6 @@ impl AppExtension for DragDropManager {
 }
 
 /// Drag & drop service.
-///
-/// # Support
-///
-/// The default view-process implementer depends on `winit` for drag&drop events, this has some limitations:
-///
-/// * Only file path drop.
-/// * No support in Linux/Wayland, you can work around by calling `std::env::remove_var("WAYLAND_DISPLAY");` before `zng::env::init!()` in
-///   your main function, this enables XWayland that has support for the basic file path drop.
 #[allow(non_camel_case_types)]
 pub struct DRAG_DROP;
 impl DRAG_DROP {
@@ -255,7 +253,10 @@ impl DRAG_DROP {
     /// Start dragging `data`.
     ///
     /// This method will only work if a [`DRAG_START_EVENT`] is notifying. Handlers of draggable widgets
-    /// can stop propagation of the event to provide custom drag data, set here.
+    /// can provide custom drag data using this method.
+    ///
+    /// Returns a handle that can be dropped to cancel the drag operation. A [`DRAG_END_EVENT`] notifies
+    /// the draggable widget on cancel or drop.
     pub fn drag(&self, data: DragDropData, allowed_effects: DragDropEffect) -> DragHandle {
         let mut sv = DRAG_DROP_SV.write();
         if !sv.can_drag || allowed_effects.is_empty() {

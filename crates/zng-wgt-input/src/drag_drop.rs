@@ -40,37 +40,99 @@ event_property! {
         args: DragStartArgs,
     }
 
-    /// Drag operation started from the draggable widget has ended.
+    /// Draggable widget stopped dragging.
+    ///
+    /// This event is always paired with [`on_drag_start`] first.
+    ///
+    /// [`on_drag_start`]: fn@on_drag_start
     pub fn drag_end {
         event: DRAG_END_EVENT,
         args: DragEndArgs,
     }
 
-    /// Drag&drop operation entered or exited the widget area.
+    /// Dragging cursor entered or exited the widget area and the widget is enabled.
     pub fn drag_hovered {
         event: DRAG_HOVERED_EVENT,
         args: DragHoveredArgs,
-        filter: |args| args.is_drag_enter()
+        filter: |args| args.is_drag_enter_enabled()
     }
-    /// Drag&drop operation entered the widget area.
+    /// Dragging cursor entered the widget area and the widget is enabled.
     pub fn drag_enter {
         event: DRAG_HOVERED_EVENT,
         args: DragHoveredArgs,
         filter: |args| args.is_drag_enter_enabled(),
     }
-
-    /// Mouse is no longer over the widget or any descendant widget, the widget is enabled and cursor capture allows it.
+    /// Dragging cursor exited the widget area and the widget is enabled.
     pub fn drag_leave {
         event: DRAG_HOVERED_EVENT,
         args: DragHoveredArgs,
         filter: |args| args.is_drag_leave_enabled(),
     }
 
-
-    /// Drag&drop operation finished over the widget.
+    /// Dragging cursor dropped data in the widget area and the widget is enabled.
     pub fn drop {
         event: DROP_EVENT,
         args: DropArgs,
         filter: |args| args.is_enabled(WIDGET.id()),
     }
+}
+
+/// If the dragging cursor is over the widget or a descendant and the widget is enabled.
+///
+/// The value is always `false` when the widget is not [`ENABLED`], use [`is_drag_hovered_disabled`] to implement *disabled hovered* visuals.
+///
+/// [`is_cap_hovered`]: fn@is_cap_hovered
+/// [`ENABLED`]: Interactivity::ENABLED
+/// [`is_drag_hovered_disabled`]: fn@is_drag_hovered_disabled
+#[property(EVENT)]
+pub fn is_drag_hovered(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    event_state(child, state, false, DRAG_HOVERED_EVENT, |args| {
+        if args.is_drag_enter_enabled() {
+            Some(true)
+        } else if args.is_drag_leave_enabled() {
+            Some(false)
+        } else {
+            None
+        }
+    })
+}
+
+/// If the dragging cursor is over the widget or a descendant and the widget is disabled.
+#[property(EVENT)]
+pub fn is_drag_hovered_disabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    event_state(child, state, false, DRAG_HOVERED_EVENT, |args| {
+        if args.is_drag_enter_disabled() {
+            Some(true)
+        } else if args.is_drag_leave_disabled() {
+            Some(false)
+        } else {
+            None
+        }
+    })
+}
+
+/// If the draggable widget is dragging.
+#[property(EVENT)]
+pub fn is_dragging(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    match_node(child, move |_, op| match op {
+        UiNodeOp::Init => {
+            WIDGET.sub_event(&DRAG_START_EVENT).sub_event(&DRAG_END_EVENT);
+        }
+        UiNodeOp::Deinit => {
+            let _ = state.set(false);
+        }
+        UiNodeOp::Event { update } => {
+            if let Some(args) = DRAG_START_EVENT.on(update) {
+                if args.target.contains(WIDGET.id()) {
+                    let _ = state.set(true);
+                }
+            } else if let Some(args) = DRAG_END_EVENT.on(update) {
+                if args.target.contains(WIDGET.id()) {
+                    let _ = state.set(false);
+                }
+            }
+        }
+        _ => {}
+    })
 }
