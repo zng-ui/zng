@@ -216,9 +216,9 @@ pub enum Event {
         /// Window that is hovered.
         window: WindowId,
         /// Data payload.
-        data: DragDropData,
+        data: Vec<DragDropData>,
         /// Allowed effects.
-        effects: DragDropEffect,
+        allowed: DragDropEffect,
     },
     /// A drag&drop gesture moved over the window.
     DragMoved {
@@ -234,7 +234,13 @@ pub enum Event {
         /// Window that received the file drop.
         window: WindowId,
         /// Data payload.
-        data: DragDropData,
+        data: Vec<DragDropData>,
+        /// Allowed effects.
+        allowed: DragDropEffect,
+        /// ID of this drop operation.
+        ///
+        /// Handlers must call `drag_dropped` with this ID and what effect was applied to the data.
+        drop_id: DragDropId,
     },
     /// A drag&drop gesture stopped hovering the window without dropping.
     DragCancelled {
@@ -817,6 +823,40 @@ impl Event {
             (LocaleChanged(config), LocaleChanged(n_config)) => {
                 *config = n_config;
             }
+            // drag hovered
+            (
+                DragHovered {
+                    window,
+                    data,
+                    allowed: effects,
+                },
+                DragHovered {
+                    window: n_window,
+                    data: mut n_data,
+                    allowed: n_effects,
+                },
+            ) if *window == n_window && effects.contains(n_effects) => {
+                data.append(&mut n_data);
+            }
+            // drag dropped
+            (
+                DragDropped {
+                    window,
+                    data,
+                    allowed,
+                    drop_id,
+                },
+                DragDropped {
+                    window: n_window,
+                    data: mut n_data,
+                    allowed: n_allowed,
+                    drop_id: n_drop_id,
+                },
+            ) if *window == n_window && allowed.contains(n_allowed) && *drop_id == n_drop_id => {
+                data.append(&mut n_data);
+            }
+            // drag cancelled
+            (DragCancelled { window }, DragCancelled { window: n_window }) if *window == n_window => {}
             (_, e) => return Err(e),
         }
         Ok(())

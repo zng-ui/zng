@@ -631,8 +631,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 self.drag_drop_hovered = Some((id, DipPoint::splat(Dip::new(-1000))));
                 self.notify(Event::DragHovered {
                     window: id,
-                    data: DragDropData::Path(file),
-                    effects: DragDropEffect::all(),
+                    data: vec![DragDropData::Path(file)],
+                    allowed: DragDropEffect::all(),
                 });
             }
             WindowEvent::DroppedFile(file) => {
@@ -661,7 +661,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 } else {
                     self.notify(Event::DragDropped {
                         window: id,
-                        data: DragDropData::Path(file),
+                        data: vec![DragDropData::Path(file)],
+                        allowed: DragDropEffect::all(),
+                        drop_id: DragDropId(0),
                     });
                 }
             }
@@ -796,7 +798,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                         });
                         self.notify(Event::DragDropped {
                             window: window_id,
-                            data: DragDropData::Path(file),
+                            data: vec![DragDropData::Path(file)],
+                            allowed: DragDropEffect::all(),
+                            drop_id: DragDropId(0),
                         });
                     }
                 }
@@ -2235,12 +2239,16 @@ impl Api for App {
         data: Vec<DragDropData>,
         allowed_effects: DragDropEffect,
     ) -> Result<DragDropId, DragDropError> {
-        let _ = (id, data, allowed_effects); // TODO
+        let _ = (id, data, allowed_effects); // TODO, wait winit
         Err(DragDropError::NotSupported)
     }
 
     fn cancel_drag_drop(&mut self, id: WindowId, drag_id: DragDropId) {
         let _ = (id, drag_id);
+    }
+
+    fn drag_dropped(&mut self, id: WindowId, drop_id: DragDropId, applied: DragDropEffect) {
+        let _ = (id, drop_id, applied); // TODO, wait winit
     }
 
     fn set_system_shutdown_warn(&mut self, id: WindowId, reason: Txt) {

@@ -513,6 +513,9 @@ declare_api! {
     /// Cancel a drag and drop operation.
     pub fn cancel_drag_drop(&mut self, id: WindowId, drag_id: DragDropId);
 
+    /// Notify the drag source of what effect was applied for a received drag&drop.
+    pub fn drag_dropped(&mut self, id: WindowId, drop_id: DragDropId, applied: DragDropEffect);
+
     /// Enable or disable IME by setting a cursor area.
     ///
     /// In mobile platforms also shows the software keyboard for `Some(_)` and hides it for `None`.

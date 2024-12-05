@@ -17,7 +17,7 @@ use zng_app::{
     AppExtension,
 };
 use zng_app_context::app_local;
-use zng_ext_window::{NestedWindowWidgetInfoExt as _, WINDOWS};
+use zng_ext_window::{NestedWindowWidgetInfoExt as _, WINDOWS, WINDOWS_DRAG_DROP};
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_layout::unit::{DipPoint, DipToPx as _, PxToDip as _};
 use zng_state_map::StateId;
@@ -40,6 +40,7 @@ pub use zng_view_api::drag_drop::{DragDropData, DragDropEffect};
 /// * [`DRAG_MOVE_EVENT`]
 /// * [`DRAG_START_EVENT`]
 /// * [`DRAG_END_EVENT`]
+/// * [`DROP_EVENT`]
 ///
 /// # Services
 ///
@@ -64,7 +65,9 @@ impl AppExtension for DragDropManager {
             // system drop
             let mut sv = DRAG_DROP_SV.write();
             let len = sv.system_dragging.len();
-            sv.system_dragging.retain(|d| d != &args.data);
+            for data in &args.data {
+                sv.system_dragging.retain(|d| d != data);
+            }
             update_sv = len != sv.system_dragging.len();
 
             // view-process can notify multiple drops in sequence, so we only notify DROP_EVENT
@@ -76,10 +79,10 @@ impl AppExtension for DragDropManager {
                             if target != hovered {
                                 tracing::error!("drop sequence across different hovered")
                             } else {
-                                data.push(args.data.clone());
+                                data.extend(args.data.iter().cloned());
                             }
                         }
-                        None => sv.pending_drop = Some((hovered.clone(), vec![args.data.clone()])),
+                        None => sv.pending_drop = Some((hovered.clone(), args.data.clone())),
                     }
                 }
             }
@@ -87,7 +90,7 @@ impl AppExtension for DragDropManager {
         } else if let Some(args) = RAW_DRAG_HOVERED_EVENT.on(update) {
             // system drag hover window
             update_sv = true;
-            DRAG_DROP_SV.write().system_dragging.push(args.data.clone());
+            DRAG_DROP_SV.write().system_dragging.extend(args.data.iter().cloned());
         } else if let Some(args) = RAW_DRAG_MOVED_EVENT.on(update) {
             // code adapted from the MouseManager implementation for mouse hovered
             let moved = self.pos != args.position || self.pos_window != Some(args.window_id);
@@ -256,7 +259,7 @@ impl AppExtension for DragDropManager {
                         d.data.push(encode_widget_id(args.target.widget_id()));
                         d.allowed = DragDropEffect::all();
                     }
-                    match WINDOWS.start_drag_drop(d.target.window_id(), mem::take(&mut d.data), d.allowed) {
+                    match WINDOWS_DRAG_DROP.start_drag_drop(d.target.window_id(), mem::take(&mut d.data), d.allowed) {
                         Ok(id) => {
                             d.view_id = id;
                             sv.app_dragging.push(data.take().unwrap());
@@ -469,6 +472,7 @@ event_args! {
         pub position: DipPoint,
         /// Hit-test result for the cursor point in the window.
         pub hits: HitTestInfo,
+        // !!: applied response
 
         ..
 

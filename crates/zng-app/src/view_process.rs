@@ -840,6 +840,11 @@ impl ViewWindow {
         self.0.call(|id, p| p.start_drag_drop(id, data, allowed_effects))
     }
 
+    /// Notify the drag source of what effect was applied for a received drag&drop.
+    pub fn drag_dropped(&self, drop_id: DragDropId, applied: DragDropEffect) -> Result<()> {
+        self.0.call(|id, p| p.drag_dropped(id, drop_id, applied))
+    }
+
     /// Open system title bar context menu.
     pub fn open_title_bar_context_menu(&self, position: DipPoint) -> Result<()> {
         self.0.call(|id, p| p.open_title_bar_context_menu(id, position))

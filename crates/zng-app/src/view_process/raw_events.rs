@@ -264,9 +264,9 @@ event_args! {
         pub window_id: WindowId,
 
         /// Data payload.
-        pub data: DragDropData,
+        pub data: Vec<DragDropData>,
         /// Allowed effects.
-        pub effects: DragDropEffect,
+        pub allowed: DragDropEffect,
 
         ..
 
@@ -303,7 +303,13 @@ event_args! {
         pub window_id: WindowId,
 
         /// Data payload.
-        pub data: DragDropData,
+        pub data: Vec<DragDropData>,
+        /// Allowed effects.
+        pub allowed: DragDropEffect,
+        /// ID of this drop operation.
+        ///
+        /// Handlers must call `drag_dropped` with this ID and what effect was applied to the data.
+        pub drop_id: DragDropId,
 
         ..
 

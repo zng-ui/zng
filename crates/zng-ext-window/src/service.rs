@@ -785,21 +785,6 @@ impl WINDOWS {
         }
     }
 
-    /// Request a stat of drag&drop from the window.
-    ///
-    /// This is a raw API, prefer using the `DRAG_DROP` service.
-    pub fn start_drag_drop(
-        &self,
-        window_id: WindowId,
-        data: Vec<DragDropData>,
-        allowed_effects: DragDropEffect,
-    ) -> Result<DragDropId, DragDropError> {
-        match WINDOWS_SV.write().windows.get_mut(&window_id) {
-            Some(w) => w.start_drag_drop(data, allowed_effects),
-            None => Err(DragDropError::CannotStart(WindowNotFound(window_id).to_txt())),
-        }
-    }
-
     pub(super) fn system_colors_config(&self) -> ColorsConfig {
         WINDOWS_SV.read().latest_colors_cfg
     }
@@ -1490,6 +1475,35 @@ impl WINDOWS {
     }
 }
 
+/// Raw drag&drop API.
+#[allow(non_camel_case_types)]
+pub struct WINDOWS_DRAG_DROP;
+impl WINDOWS_DRAG_DROP {
+    /// Request a start of drag&drop from the window.
+    pub fn start_drag_drop(
+        &self,
+        window_id: WindowId,
+        data: Vec<DragDropData>,
+        allowed_effects: DragDropEffect,
+    ) -> Result<DragDropId, DragDropError> {
+        match WINDOWS_SV.write().windows.get_mut(&window_id) {
+            Some(w) => w.start_drag_drop(data, allowed_effects),
+            None => Err(DragDropError::CannotStart(WindowNotFound(window_id).to_txt())),
+        }
+    }
+
+    /// Notify the drag source of what effect was applied for a received drag&drop.
+    pub fn drag_dropped(&self, window_id: WindowId, drop_id: DragDropId, applied: DragDropEffect) -> Result<(), WindowNotFound> {
+        match WINDOWS_SV.write().windows.get_mut(&window_id) {
+            Some(w) => {
+                w.drag_dropped(drop_id, applied);
+                Ok(())
+            }
+            None => Err(WindowNotFound(window_id)),
+        }
+    }
+}
+
 /// Window data visible in [`Windows`], detached so we can make the window visible inside the window content.
 struct AppWindowInfo {
     id: WindowId,
@@ -1682,6 +1696,10 @@ impl AppWindow {
 
     pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
         self.ctrl_in_ctx(|ctx| ctx.start_drag_drop(data, allowed_effects))
+    }
+
+    pub fn drag_dropped(&mut self, drop_id: DragDropId, applied: DragDropEffect) {
+        self.ctrl_in_ctx(|ctx| ctx.drag_dropped(drop_id, applied))
     }
 
     pub fn bring_to_top(&mut self) {
