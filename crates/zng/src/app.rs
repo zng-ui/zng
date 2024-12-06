@@ -23,7 +23,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = { version = "0.12.11", features = ["view_prebuilt"] }
+//! zng = { version = "0.13.0", features = ["view_prebuilt"] }
 //! ```
 //!
 //! ```no_run
