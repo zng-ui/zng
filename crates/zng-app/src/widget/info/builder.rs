@@ -362,7 +362,7 @@ impl WidgetInfoBuilder {
             WIDGET_INFO_CHANGED_EVENT.notify(args);
 
             let mut targets = IdSet::default();
-            INTERACTIVITY_CHANGED_EVENT.visit_subscribers(|wid| {
+            INTERACTIVITY_CHANGED_EVENT.visit_subscribers::<()>(|wid| {
                 if let Some(wgt) = tree.get(wid) {
                     let prev = prev_tree.get(wid).map(|w| w.interactivity());
                     let new_int = wgt.interactivity();
@@ -370,6 +370,7 @@ impl WidgetInfoBuilder {
                         targets.insert(wid);
                     }
                 }
+                ops::ControlFlow::Continue(())
             });
             if !targets.is_empty() {
                 let args = InteractivityChangedArgs::now(prev_tree, tree.clone(), targets);

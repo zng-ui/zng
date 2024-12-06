@@ -26,6 +26,7 @@ use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
     config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
+    drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::FontOptions,
     image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
     ipc::{IpcBytes, IpcBytesReceiver},
@@ -33,7 +34,7 @@ use zng_view_api::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
         ResizeDirection, VideoMode, WindowButton, WindowRequest, WindowStateAll,
     },
-    Event, FocusResult, ViewProcessGen, ViewProcessOffline,
+    DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessOffline,
 };
 
 use zng_view_api::{
@@ -824,6 +825,24 @@ impl ViewWindow {
     /// There's no guarantee that this will work unless the left mouse button was pressed immediately before this function is called.
     pub fn drag_resize(&self, direction: ResizeDirection) -> Result<()> {
         self.0.call(|id, p| p.drag_resize(id, direction))
+    }
+
+    /// Start a drag and drop operation, if the window is pressed.
+    ///
+    /// A [`RAW_APP_DRAG_ENDED_EVENT`] will be received when the operation finishes.
+    ///
+    /// [`RAW_APP_DRAG_ENDED_EVENT`]: raw_events::RAW_APP_DRAG_ENDED_EVENT
+    pub fn start_drag_drop(
+        &self,
+        data: Vec<DragDropData>,
+        allowed_effects: DragDropEffect,
+    ) -> Result<std::result::Result<DragDropId, DragDropError>> {
+        self.0.call(|id, p| p.start_drag_drop(id, data, allowed_effects))
+    }
+
+    /// Notify the drag source of what effect was applied for a received drag&drop.
+    pub fn drag_dropped(&self, drop_id: DragDropId, applied: DragDropEffect) -> Result<()> {
+        self.0.call(|id, p| p.drag_dropped(id, drop_id, applied))
     }
 
     /// Open system title bar context menu.

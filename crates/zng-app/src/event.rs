@@ -5,7 +5,7 @@ use std::{
     fmt,
     marker::PhantomData,
     mem,
-    ops::Deref,
+    ops::{ControlFlow, Deref},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -151,7 +151,7 @@ impl<A: EventArgs> Event<A> {
     ///
     /// Note that trying to subscribe or add hook inside `visit` will deadlock. Inside `visit` you can notify the event and
     /// generate event updates.
-    pub fn visit_subscribers(&self, visit: impl FnMut(WidgetId)) {
+    pub fn visit_subscribers<T>(&self, visit: impl FnMut(WidgetId) -> ControlFlow<T>) -> Option<T> {
         self.as_any().visit_subscribers(visit)
     }
 
@@ -446,10 +446,14 @@ impl AnyEvent {
     ///
     /// Note that trying to subscribe or add hook inside `visit` will deadlock. Inside `visit` you can notify the event and
     /// generate event updates.
-    pub fn visit_subscribers(&self, mut visit: impl FnMut(WidgetId)) {
+    pub fn visit_subscribers<T>(&self, mut visit: impl FnMut(WidgetId) -> ControlFlow<T>) -> Option<T> {
         for sub in self.local.read().widget_subs.keys() {
-            visit(*sub);
+            match visit(*sub) {
+                ControlFlow::Continue(_) => continue,
+                ControlFlow::Break(r) => return Some(r),
+            }
         }
+        None
     }
 
     /// Returns `true` if any app level callback is registered for this event.

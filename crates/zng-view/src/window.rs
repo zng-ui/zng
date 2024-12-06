@@ -2090,6 +2090,26 @@ impl Window {
             tracing::warn!("system shutdown warn not implemented on {}", std::env::consts::OS);
         }
     }
+
+    pub(crate) fn drag_drop_cursor_pos(&self) -> Option<DipPoint> {
+        #[cfg(windows)]
+        {
+            let mut pt = windows::Win32::Foundation::POINT::default();
+            // SAFETY: normal call
+            if unsafe { windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut pt) }.is_ok() {
+                let cursor_pos = PxPoint::new(Px(pt.x), Px(pt.y));
+                let win_pos = self.window.inner_position().unwrap_or_default().to_px();
+                let pos = cursor_pos - win_pos.to_vector();
+                if pos.x >= Px(0) && pos.y >= Px(0) {
+                    let size = self.window.inner_size().to_px();
+                    if pos.x <= size.width && pos.y <= size.height {
+                        return Some(pos.to_dip(self.scale_factor()));
+                    }
+                }
+            }
+        }
+        None
+    }
 }
 impl Drop for Window {
     fn drop(&mut self) {

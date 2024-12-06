@@ -41,11 +41,12 @@ use zng_state_map::StateId;
 use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
 use zng_view_api::{
     config::{ColorScheme, FontAntiAliasing},
+    drag_drop::{DragDropData, DragDropEffect, DragDropError},
     window::{
         EventCause, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, RenderMode, WindowRequest,
         WindowState, WindowStateAll,
     },
-    FocusResult, Ime, ViewProcessOffline,
+    DragDropId, FocusResult, Ime, ViewProcessOffline,
 };
 use zng_wgt::prelude::WidgetInfo;
 
@@ -53,7 +54,7 @@ use crate::{
     cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
     AutoSize, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WINDOW_Ext, WidgetInfoImeArea,
     WindowChangedArgs, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
-    WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
+    WINDOWS_DRAG_DROP, WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
 };
 
 struct ImageResources {
@@ -1370,6 +1371,21 @@ impl HeadedCtrl {
         });
     }
 
+    pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
+        if let Some(view) = &self.window {
+            if let Ok(r) = view.start_drag_drop(data, allowed_effects) {
+                return r;
+            }
+        }
+        Err(DragDropError::CannotStart("view not available".into()))
+    }
+
+    pub fn drag_dropped(&mut self, drop_id: DragDropId, applied: DragDropEffect) {
+        if let Some(view) = &self.window {
+            let _ = view.drag_dropped(drop_id, applied);
+        }
+    }
+
     pub fn bring_to_top(&mut self) {
         self.update_gen(|view| {
             let _ = view.bring_to_top();
@@ -1679,6 +1695,15 @@ impl HeadlessWithRendererCtrl {
         self.surface = None;
     }
 
+    pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
+        let _ = (data, allowed_effects);
+        Err(DragDropError::CannotStart("cannot start drag&drop from headless window".into()))
+    }
+
+    pub fn drag_dropped(&mut self, drop_id: DragDropId, applied: DragDropEffect) {
+        let _ = (drop_id, applied);
+    }
+
     fn view_task(&mut self, task: Box<dyn FnOnce(Option<&ViewWindow>) + Send>) {
         task(None)
     }
@@ -1853,6 +1878,15 @@ impl HeadlessCtrl {
 
     pub fn close(&mut self) {
         self.content.close();
+    }
+
+    pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
+        let _ = (data, allowed_effects);
+        Err(DragDropError::CannotStart("cannot start drag&drop from headless window".into()))
+    }
+
+    pub fn drag_dropped(&mut self, drop_id: DragDropId, applied: DragDropEffect) {
+        let _ = (drop_id, applied);
     }
 
     fn view_task(&mut self, task: Box<dyn FnOnce(Option<&ViewWindow>) + Send>) {
@@ -2351,6 +2385,24 @@ impl WindowCtrl {
         }
     }
 
+    pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.start_drag_drop(data, allowed_effects),
+            WindowCtrlMode::Headless(c) => c.start_drag_drop(data, allowed_effects),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.start_drag_drop(data, allowed_effects),
+            WindowCtrlMode::Nested(c) => c.start_drag_drop(data, allowed_effects),
+        }
+    }
+
+    pub fn drag_dropped(&mut self, drop_id: DragDropId, applied: DragDropEffect) {
+        match &mut self.0 {
+            WindowCtrlMode::Headed(c) => c.drag_dropped(drop_id, applied),
+            WindowCtrlMode::Headless(c) => c.drag_dropped(drop_id, applied),
+            WindowCtrlMode::HeadlessWithRenderer(c) => c.drag_dropped(drop_id, applied),
+            WindowCtrlMode::Nested(c) => c.drag_dropped(drop_id, applied),
+        }
+    }
+
     pub fn bring_to_top(&mut self) {
         match &mut self.0 {
             WindowCtrlMode::Headed(c) => c.bring_to_top(),
@@ -2490,6 +2542,17 @@ impl NestedCtrl {
         // many services track window focus with this event.
         let args = RawWindowFocusArgs::now(WINDOWS.focused_window_id(), Some(WINDOW.id()));
         RAW_WINDOW_FOCUS_EVENT.notify(args);
+    }
+
+    pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
+        if let Some((win_id, _)) = &self.c.lock().host {
+            return WINDOWS_DRAG_DROP.start_drag_drop(*win_id, data, allowed_effects);
+        }
+        Err(DragDropError::CannotStart("nested window host unavailable".into()))
+    }
+
+    pub fn drag_dropped(&mut self, drop_id: DragDropId, applied: DragDropEffect) {
+        let _ = (drop_id, applied);
     }
 
     fn bring_to_top(&self) {

@@ -37,7 +37,7 @@ use zng_task::{
     rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
     ParallelIteratorExt, UiTask,
 };
-use zng_txt::{formatx, Txt};
+use zng_txt::{formatx, ToTxt as _, Txt};
 use zng_unique_id::{IdMap, IdSet};
 use zng_var::{
     impl_from_and_into_var, response_done_var, response_var, types::WeakArcVar, var, AnyWeakVar, ArcVar, BoxedVar, LocalVar,
@@ -46,9 +46,10 @@ use zng_var::{
 use zng_view_api::{
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{ChromeConfig, ColorsConfig},
+    drag_drop::{DragDropData, DragDropEffect, DragDropError},
     image::ImageMaskMode,
     window::{RenderMode, WindowState},
-    ViewProcessOffline,
+    DragDropId, ViewProcessOffline,
 };
 use zng_wgt::node::with_context_var;
 
@@ -1474,6 +1475,35 @@ impl WINDOWS {
     }
 }
 
+/// Raw drag&drop API.
+#[allow(non_camel_case_types)]
+pub struct WINDOWS_DRAG_DROP;
+impl WINDOWS_DRAG_DROP {
+    /// Request a start of drag&drop from the window.
+    pub fn start_drag_drop(
+        &self,
+        window_id: WindowId,
+        data: Vec<DragDropData>,
+        allowed_effects: DragDropEffect,
+    ) -> Result<DragDropId, DragDropError> {
+        match WINDOWS_SV.write().windows.get_mut(&window_id) {
+            Some(w) => w.start_drag_drop(data, allowed_effects),
+            None => Err(DragDropError::CannotStart(WindowNotFound(window_id).to_txt())),
+        }
+    }
+
+    /// Notify the drag source of what effect was applied for a received drag&drop.
+    pub fn drag_dropped(&self, window_id: WindowId, drop_id: DragDropId, applied: DragDropEffect) -> Result<(), WindowNotFound> {
+        match WINDOWS_SV.write().windows.get_mut(&window_id) {
+            Some(w) => {
+                w.drag_dropped(drop_id, applied);
+                Ok(())
+            }
+            None => Err(WindowNotFound(window_id)),
+        }
+    }
+}
+
 /// Window data visible in [`Windows`], detached so we can make the window visible inside the window content.
 struct AppWindowInfo {
     id: WindowId,
@@ -1662,6 +1692,14 @@ impl AppWindow {
 
     pub fn focus(&mut self) {
         self.ctrl_in_ctx(|ctrl| ctrl.focus());
+    }
+
+    pub fn start_drag_drop(&mut self, data: Vec<DragDropData>, allowed_effects: DragDropEffect) -> Result<DragDropId, DragDropError> {
+        self.ctrl_in_ctx(|ctx| ctx.start_drag_drop(data, allowed_effects))
+    }
+
+    pub fn drag_dropped(&mut self, drop_id: DragDropId, applied: DragDropEffect) {
+        self.ctrl_in_ctx(|ctx| ctx.drag_dropped(drop_id, applied))
     }
 
     pub fn bring_to_top(&mut self) {

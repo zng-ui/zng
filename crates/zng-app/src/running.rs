@@ -211,17 +211,34 @@ impl<E: AppExtension> RunningApp<E> {
                 );
                 self.notify_event(RAW_WINDOW_CHANGED_EVENT.new_update(args), observer);
             }
-            Event::DroppedFile { window: w_id, file } => {
-                let args = RawDroppedFileArgs::now(window_id(w_id), file);
-                self.notify_event(RAW_DROPPED_FILE_EVENT.new_update(args), observer);
+            Event::DragHovered { window, data, allowed } => {
+                let args = RawDragHoveredArgs::now(window_id(window), data, allowed);
+                self.notify_event(RAW_DRAG_HOVERED_EVENT.new_update(args), observer);
             }
-            Event::HoveredFile { window: w_id, file } => {
-                let args = RawHoveredFileArgs::now(window_id(w_id), file);
-                self.notify_event(RAW_HOVERED_FILE_EVENT.new_update(args), observer);
+            Event::DragMoved {
+                window,
+                coalesced_pos,
+                position,
+            } => {
+                let args = RawDragMovedArgs::now(window_id(window), coalesced_pos, position);
+                self.notify_event(RAW_DRAG_MOVED_EVENT.new_update(args), observer);
             }
-            Event::HoveredFileCancelled(w_id) => {
-                let args = RawHoveredFileCancelledArgs::now(window_id(w_id));
-                self.notify_event(RAW_HOVERED_FILE_CANCELLED_EVENT.new_update(args), observer);
+            Event::DragDropped {
+                window,
+                data,
+                allowed,
+                drop_id,
+            } => {
+                let args = RawDragDroppedArgs::now(window_id(window), data, allowed, drop_id);
+                self.notify_event(RAW_DRAG_DROPPED_EVENT.new_update(args), observer);
+            }
+            Event::DragCancelled { window } => {
+                let args = RawDragCancelledArgs::now(window_id(window));
+                self.notify_event(RAW_DRAG_CANCELLED_EVENT.new_update(args), observer);
+            }
+            Event::AppDragEnded { window, drag, applied } => {
+                let args = RawAppDragEndedArgs::now(window_id(window), drag, applied);
+                self.notify_event(RAW_APP_DRAG_ENDED_EVENT.new_update(args), observer);
             }
             Event::FocusChanged { prev, new } => {
                 let args = RawWindowFocusArgs::now(prev.map(window_id), new.map(window_id));
@@ -1394,7 +1411,6 @@ impl AppProcessService {
 
 /// App events.
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant)]
 pub(crate) enum AppEvent {
     /// Event from the View Process.
     ViewEvent(zng_view_api::Event),

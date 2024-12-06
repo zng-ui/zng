@@ -511,11 +511,15 @@ impl Command {
     /// Calls `visitor` for each scope of this command.
     ///
     /// Note that scoped commands are removed if unused, see [`with_meta`](Self::with_meta) for more details.
-    pub fn visit_scopes(&self, mut visitor: impl FnMut(Command)) {
+    pub fn visit_scopes<T>(&self, mut visitor: impl FnMut(Command) -> ControlFlow<T>) -> Option<T> {
         let read = self.local.read();
         for &scope in read.scopes.keys() {
-            visitor(self.scoped(scope));
+            match visitor(self.scoped(scope)) {
+                ControlFlow::Continue(_) => continue,
+                ControlFlow::Break(r) => return Some(r),
+            }
         }
+        None
     }
 
     /// Schedule a command update without param.
@@ -525,7 +529,7 @@ impl Command {
 
     /// Schedule a command update without param for all scopes inside `parent`.
     pub fn notify_descendants(&self, parent: &WidgetInfo) {
-        self.visit_scopes(|parse_cmd| {
+        self.visit_scopes::<()>(|parse_cmd| {
             if let CommandScope::Widget(id) = parse_cmd.scope() {
                 if let Some(scope) = parent.tree().get(id) {
                     if scope.is_descendant(parent) {
@@ -533,6 +537,7 @@ impl Command {
                     }
                 }
             }
+            ControlFlow::Continue(())
         });
     }
 

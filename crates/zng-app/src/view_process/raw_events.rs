@@ -14,8 +14,6 @@
 //! [`notify`]: crate::event::Event::notify
 //! [`DeviceId`]: crate::view_process::raw_device_events::DeviceId
 
-use std::path::PathBuf;
-
 use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint, PxRect};
 use zng_txt::Txt;
 use zng_view_api::{
@@ -23,11 +21,12 @@ use zng_view_api::{
     config::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
+    drag_drop::{DragDropData, DragDropEffect},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
     window::{EventCause, FrameId, FrameWaitId, HeadlessOpenData, MonitorInfo, WindowStateAll},
-    AxisId, Ime,
+    AxisId, DragDropId, Ime,
 };
 
 use crate::{
@@ -259,29 +258,15 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_DROPPED_FILE_EVENT`].
-    pub struct RawDroppedFileArgs {
-        /// Window where it was dropped.
-        pub window_id: WindowId,
-
-        /// Path to file that was dropped.
-        pub file: PathBuf,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
-        }
-    }
-
-    /// Arguments for the [`RAW_HOVERED_FILE_EVENT`].
-    pub struct RawHoveredFileArgs {
+    /// Arguments for the [`RAW_DRAG_HOVERED_EVENT`].
+    pub struct RawDragHoveredArgs {
         /// Window where it was dragged over.
         pub window_id: WindowId,
 
-        /// Path to file that was dragged over the window.
-        pub file: PathBuf,
+        /// Data payload.
+        pub data: Vec<DragDropData>,
+        /// Allowed effects.
+        pub allowed: DragDropEffect,
 
         ..
 
@@ -291,14 +276,74 @@ event_args! {
         }
     }
 
-    /// Arguments for the [`RAW_HOVERED_FILE_CANCELLED_EVENT`].
-    ///
-    /// The file is the one that was last [hovered] into the window.
-    ///
-    /// [hovered]: RAW_HOVERED_FILE_EVENT
-    pub struct RawHoveredFileCancelledArgs {
+    /// Arguments for the [`RAW_DRAG_MOVED_EVENT`].
+    pub struct RawDragMovedArgs {
+        /// Window that is hovered by drag&drop.
+        pub window_id: WindowId,
+
+        /// Cursor positions in between the previous event and this one.
+        ///
+        /// Drag move events can be coalesced, i.e. multiple moves packed into a single event.
+        pub coalesced_pos: Vec<DipPoint>,
+
+        /// Position of the cursor over the window, (0, 0) is the top-left.
+        pub position: DipPoint,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_DRAG_DROPPED_EVENT`].
+    pub struct RawDragDroppedArgs {
+        /// Window where it was dropped.
+        pub window_id: WindowId,
+
+        /// Data payload.
+        pub data: Vec<DragDropData>,
+        /// Allowed effects.
+        pub allowed: DragDropEffect,
+        /// ID of this drop operation.
+        ///
+        /// Handlers must call `drag_dropped` with this ID and what effect was applied to the data.
+        pub drop_id: DragDropId,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_DRAG_CANCELLED_EVENT`].
+    pub struct RawDragCancelledArgs {
         /// Window where the file was previously dragged over.
         pub window_id: WindowId,
+
+        ..
+
+        /// Broadcast to all widgets.
+        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
+            list.search_all()
+        }
+    }
+
+    /// Arguments for the [`RAW_APP_DRAG_ENDED_EVENT`].
+    pub struct RawAppDragEndedArgs {
+        /// Window that started the drag operation.
+        pub window_id: WindowId,
+
+        /// ID of the drag & drop operation.
+        pub id: DragDropId,
+
+        /// Effect applied to the data by the drop target.
+        ///
+        /// Is a single flag if the data was dropped in a valid drop target, or is empty if was canceled.
+        pub applied: DragDropEffect,
 
         ..
 
@@ -704,18 +749,20 @@ event! {
     /// A window was destroyed.
     pub static RAW_WINDOW_CLOSE_EVENT: RawWindowCloseArgs;
 
-    /// A file was drag-dropped on a window.
-    pub static RAW_DROPPED_FILE_EVENT: RawDroppedFileArgs;
+    /// Data was dragged over a window.
+    pub static RAW_DRAG_HOVERED_EVENT: RawDragHoveredArgs;
 
-    /// A file was dragged over a window.
-    ///
-    /// If the file is dropped [`RAW_DROPPED_FILE_EVENT`] will raise.
-    pub static RAW_HOVERED_FILE_EVENT: RawHoveredFileArgs;
+    /// Data dragging over the window has moved.
+    pub static RAW_DRAG_MOVED_EVENT: RawDragMovedArgs;
 
-    /// A dragging file was moved away from the window or the operation was cancelled.
-    ///
-    /// The file is the last one that emitted a [`RAW_HOVERED_FILE_EVENT`].
-    pub static RAW_HOVERED_FILE_CANCELLED_EVENT: RawHoveredFileCancelledArgs;
+    /// Data was drag-dropped on a window.
+    pub static RAW_DRAG_DROPPED_EVENT: RawDragDroppedArgs;
+
+    /// Data was dragged away from the window or the operation was cancelled.
+    pub static RAW_DRAG_CANCELLED_EVENT: RawDragCancelledArgs;
+
+    /// Drag & drop operation started by the app has dropped or was cancelled.
+    pub static RAW_APP_DRAG_ENDED_EVENT: RawAppDragEndedArgs;
 
     /// Mouse pointer moved over a window.
     pub static RAW_MOUSE_MOVED_EVENT: RawMouseMovedArgs;

@@ -12,6 +12,7 @@
 #[macro_use]
 extern crate bitflags;
 
+pub mod drag_drop;
 pub mod focus;
 pub mod gesture;
 pub mod keyboard;

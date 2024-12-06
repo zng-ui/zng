@@ -10,6 +10,7 @@
 #![warn(missing_docs)]
 
 pub mod cmd;
+pub mod drag_drop;
 pub mod focus;
 pub mod gesture;
 pub mod keyboard;

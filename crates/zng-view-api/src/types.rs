@@ -7,6 +7,7 @@ use crate::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
+    drag_drop::{DragDropData, DragDropEffect},
     image::{ImageId, ImageLoadedData, ImagePpi},
     ipc::IpcBytes,
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
@@ -15,7 +16,7 @@ use crate::{
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::PathBuf};
+use std::fmt;
 use zng_txt::Txt;
 use zng_unit::{DipPoint, PxRect, PxSize, Rgba};
 
@@ -105,6 +106,11 @@ declare_id! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct AxisId(pub u32);
+
+/// Identifier for a drag drop operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DragDropId(pub u32);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// View process is online.
@@ -205,28 +211,53 @@ pub enum Event {
     /// [`EventCause`]: crate::window::EventCause
     WindowChanged(WindowChanged),
 
-    /// A file has been dropped into the window.
-    ///
-    /// When the user drops multiple files at once, this event will be emitted for each file separately.
-    DroppedFile {
+    /// A drag&drop gesture started dragging over the window.
+    DragHovered {
+        /// Window that is hovered.
+        window: WindowId,
+        /// Data payload.
+        data: Vec<DragDropData>,
+        /// Allowed effects.
+        allowed: DragDropEffect,
+    },
+    /// A drag&drop gesture moved over the window.
+    DragMoved {
+        /// Window that is hovered.
+        window: WindowId,
+        /// Cursor positions in between the previous event and this one.
+        coalesced_pos: Vec<DipPoint>,
+        /// Cursor position, relative to the window top-left in device independent pixels.
+        position: DipPoint,
+    },
+    /// A drag&drop gesture finished over the window.
+    DragDropped {
         /// Window that received the file drop.
         window: WindowId,
-        /// Path to the file that was dropped.
-        file: PathBuf,
+        /// Data payload.
+        data: Vec<DragDropData>,
+        /// Allowed effects.
+        allowed: DragDropEffect,
+        /// ID of this drop operation.
+        ///
+        /// Handlers must call `drag_dropped` with this ID and what effect was applied to the data.
+        drop_id: DragDropId,
     },
-    /// A file is being hovered over the window.
-    ///
-    /// When the user hovers multiple files at once, this event will be emitted for each file separately.
-    HoveredFile {
-        /// Window that was hovered by drag-drop.
+    /// A drag&drop gesture stopped hovering the window without dropping.
+    DragCancelled {
+        /// Window that was previous hovered.
         window: WindowId,
-        /// Path to the file being dragged.
-        file: PathBuf,
     },
-    /// A file was hovered, but has exited the window.
-    ///
-    /// There will be a single event triggered even if multiple files were hovered.
-    HoveredFileCancelled(WindowId),
+    /// A drag started by the app was dropped or canceled.
+    AppDragEnded {
+        /// Window that started the drag.
+        window: WindowId,
+        /// Drag ID.
+        drag: DragDropId,
+        /// Effect applied to the data by the drop target.
+        ///
+        /// Is a single flag if the data was dropped in a valid drop target, or is empty if was canceled.
+        applied: DragDropEffect,
+    },
 
     /// App window(s) focus changed.
     FocusChanged {
@@ -594,6 +625,22 @@ impl Event {
                 coalesced_pos.extend(n_coal_pos);
                 *position = n_pos;
             }
+            (
+                DragMoved {
+                    window,
+                    coalesced_pos,
+                    position,
+                },
+                DragMoved {
+                    window: n_window,
+                    coalesced_pos: n_coal_pos,
+                    position: n_pos,
+                },
+            ) if *window == n_window => {
+                coalesced_pos.push(*position);
+                coalesced_pos.extend(n_coal_pos);
+                *position = n_pos;
+            }
             // raw mouse motion.
             (
                 DeviceMouseMotion { device, delta },
@@ -776,6 +823,40 @@ impl Event {
             (LocaleChanged(config), LocaleChanged(n_config)) => {
                 *config = n_config;
             }
+            // drag hovered
+            (
+                DragHovered {
+                    window,
+                    data,
+                    allowed: effects,
+                },
+                DragHovered {
+                    window: n_window,
+                    data: mut n_data,
+                    allowed: n_effects,
+                },
+            ) if *window == n_window && effects.contains(n_effects) => {
+                data.append(&mut n_data);
+            }
+            // drag dropped
+            (
+                DragDropped {
+                    window,
+                    data,
+                    allowed,
+                    drop_id,
+                },
+                DragDropped {
+                    window: n_window,
+                    data: mut n_data,
+                    allowed: n_allowed,
+                    drop_id: n_drop_id,
+                },
+            ) if *window == n_window && allowed.contains(n_allowed) && *drop_id == n_drop_id => {
+                data.append(&mut n_data);
+            }
+            // drag cancelled
+            (DragCancelled { window }, DragCancelled { window: n_window }) if *window == n_window => {}
             (_, e) => return Err(e),
         }
         Ok(())
@@ -875,9 +956,10 @@ pub enum RepeatMode {
     /// border. Extra space will be distributed in between tiles to achieve the proper fit.
     Space,
 }
-/// Converts `true` to `Repeat` and `false` to the default `Stretch`.
-impl From<bool> for RepeatMode {
-    fn from(value: bool) -> Self {
+#[cfg(feature = "var")]
+zng_var::impl_from_and_into_var! {
+    /// Converts `true` to `Repeat` and `false` to the default `Stretch`.
+    fn from(value: bool) -> RepeatMode {
         match value {
             true => RepeatMode::Repeat,
             false => RepeatMode::Stretch,
