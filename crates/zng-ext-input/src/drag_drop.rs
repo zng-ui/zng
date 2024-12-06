@@ -1,7 +1,8 @@
 //! Drag & drop gesture events and service.
 
-use std::mem;
+use std::{mem, sync::Arc};
 
+use parking_lot::Mutex;
 use zng_app::{
     event::{event, event_args, AnyEventArgs},
     static_id,
@@ -70,19 +71,23 @@ impl AppExtension for DragDropManager {
             }
             update_sv = len != sv.system_dragging.len();
 
-            // view-process can notify multiple drops in sequence, so we only notify DROP_EVENT
+            // view-process can notify multiple drops in sequence with the same ID, so we only notify DROP_EVENT
             // on he next update
             if self.pos_window == Some(args.window_id) {
                 if let Some(hovered) = &self.hovered {
                     match &mut sv.pending_drop {
-                        Some((target, data)) => {
+                        Some((id, target, data, allowed)) => {
                             if target != hovered {
                                 tracing::error!("drop sequence across different hovered")
+                            } else if *id != args.drop_id {
+                                tracing::error!("drop_id changed mid sequence")
+                            } else if *allowed != args.allowed {
+                                tracing::error!("allowed effects changed mid sequence")
                             } else {
                                 data.extend(args.data.iter().cloned());
                             }
                         }
-                        None => sv.pending_drop = Some((hovered.clone(), args.data.clone())),
+                        None => sv.pending_drop = Some((args.drop_id, hovered.clone(), args.data.clone(), args.allowed)),
                     }
                 }
             }
@@ -278,6 +283,8 @@ impl AppExtension for DragDropManager {
                     DRAG_END_EVENT.notify(DragEndArgs::now(d.target, DragDropEffect::empty()));
                 }
             }
+        } else if let Some(args) = DROP_EVENT.on(update) {
+            let _ = WINDOWS_DRAG_DROP.drag_dropped(args.target.window_id(), args.drop_id, *args.applied.lock());
         }
     }
 
@@ -285,11 +292,19 @@ impl AppExtension for DragDropManager {
         let mut sv = DRAG_DROP_SV.write();
 
         // fulfill drop requests
-        if let Some((target, data)) = sv.pending_drop.take() {
+        if let Some((id, target, data, allowed)) = sv.pending_drop.take() {
             let window_id = self.pos_window.take().unwrap();
             let hits = self.hits.take().unwrap_or_else(|| HitTestInfo::no_hits(window_id));
             DRAG_HOVERED_EVENT.notify(DragHoveredArgs::now(Some(target.clone()), None, self.pos, hits.clone()));
-            DROP_EVENT.notify(DropArgs::now(target, data, self.pos, hits));
+            DROP_EVENT.notify(DropArgs::now(
+                target,
+                data,
+                allowed,
+                self.pos,
+                hits,
+                id,
+                Arc::new(Mutex::new(DragDropEffect::empty())),
+            ));
         }
     }
 }
@@ -363,7 +378,7 @@ struct DragDropService {
     app_drag: Option<AppDragging>,
     app_dragging: Vec<AppDragging>,
 
-    pending_drop: Option<(InteractionPath, Vec<DragDropData>)>,
+    pending_drop: Option<(DragDropId, InteractionPath, Vec<DragDropData>, DragDropEffect)>,
 }
 struct AppDragging {
     target: InteractionPath,
@@ -468,11 +483,15 @@ event_args! {
         pub target: InteractionPath,
         /// Drag&drop data payload.
         pub data: Vec<DragDropData>,
+        /// Drop effects that the drag source allows.
+        pub allowed: DragDropEffect,
         /// Position of the cursor in the window's content area.
         pub position: DipPoint,
         /// Hit-test result for the cursor point in the window.
         pub hits: HitTestInfo,
-        // !!: applied response
+
+        drop_id: DragDropId,
+        applied: Arc<Mutex<DragDropEffect>>,
 
         ..
 
@@ -563,14 +582,7 @@ event_args! {
 
         /// The `applied` field can only be empty or only have a single flag set.
         fn validate(&self) -> Result<(), Txt> {
-            if self.applied.is_empty()
-                && [DragDropEffect::COPY, DragDropEffect::MOVE, DragDropEffect::LINK]
-                    .into_iter()
-                    .filter(|&f| self.applied.contains(f))
-                    .take(2)
-                    .count()
-                    > 1
-            {
+            if self.applied.is_empty() && self.applied.len() > 1 {
                 return Err("only one or none `DragDropEffect` can be applied".into());
             }
             Ok(())
@@ -609,6 +621,28 @@ impl DropArgs {
     /// [`target`]: Self::target
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+    }
+
+    /// Stop propagation and set the `effect` that was applied to the data.
+    ///
+    /// Logs an error if propagation is already stopped.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `effect` sets more then one flag or is not [`allowed`].
+    ///
+    /// [`allowed`]: Self::allowed
+    pub fn applied(&self, effect: DragDropEffect) {
+        assert!(effect.len() > 1, "can only apply one effect");
+        assert!(self.allowed.contains(effect), "source does not allow this effect");
+
+        let mut e = self.applied.lock();
+        if !self.propagation().is_stopped() {
+            self.propagation().stop();
+            *e = effect;
+        } else {
+            tracing::error!("drop already handled");
+        }
     }
 }
 

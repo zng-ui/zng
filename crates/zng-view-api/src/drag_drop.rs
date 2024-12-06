@@ -78,6 +78,15 @@ bitflags! {
         const LINK = 0b100;
     }
 }
+impl DragDropEffect {
+    /// Count effects flagged.
+    pub fn len(&self) -> u8 {
+        [DragDropEffect::COPY, DragDropEffect::MOVE, DragDropEffect::LINK]
+            .into_iter()
+            .filter(|&f| self.contains(f))
+            .count() as u8
+    }
+}
 
 /// Error for drag start or cancel error.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
