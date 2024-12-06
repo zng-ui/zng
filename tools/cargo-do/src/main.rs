@@ -1213,7 +1213,7 @@ fn ra_check(mut args: Vec<&str>) {
 
 // do publish [--list]
 //            [--diff [-g glob] --all]
-//            [--bump <minor|patch> <CRATE..> --diff --all --dry-run]
+//            [--bump <minor|patch> <CRATE..> --diff --all --dry-run --no-deps]
 //            [--check]
 //            [--test]
 //    Manage crate versions and publish.
@@ -1226,7 +1226,7 @@ fn ra_check(mut args: Vec<&str>) {
 //       Print all changed files in publishable crates.
 //    publish --bump patch "crate1" "crate2"
 //       Increment the patch version of the named crates and of dependents.
-//    publish --bump minor "crate1" "crate2"
+//    publish --no-deps --bump minor "crate1" "crate2"
 //       Increment the minor of the named crates only.
 //    publish --bump patch --diff
 //       Increment the patch version of the --diff crates and of dependents.
@@ -1244,13 +1244,12 @@ fn publish(mut args: Vec<&str>) {
             print(f!("{member}\n"));
         }
     } else if let Some(values) = take_option(&mut args, &["--bump"], "minor|patch crate") {
-        let mut bump_deps = false;
+        let bump_deps = !take_flag(&mut args, &["--no-deps"]);
         let bump = match values[0] {
             "patch" => {
                 fn bump(v: &mut (u32, u32, u32)) {
                     v.2 += 1;
                 }
-                bump_deps = true;
                 bump
             }
             "minor" => {

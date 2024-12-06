@@ -1,5 +1,9 @@
 # Unreleased
 
+
+# 0.13.0
+
+* Add `zng::drag_drop`, with limited support drag&drop gestures.
 * Add missing `zng::var::OnVarArgs`.
 * **Breaking** Implemented drag&drop on the view-process API.
 * **Breaking** `Event::visit_subscribers` and `Command::visit_scopes` visitor closures now must return `ControlFlow`.

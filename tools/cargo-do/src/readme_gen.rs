@@ -219,7 +219,7 @@ pub fn generate_examples(_args: Vec<&str>) {
     let mut section = format!("{TAG}\n");
 
     for example in crate::util::examples() {
-        if example == "test" {
+        if example.starts_with("test") {
             continue;
         }
 
