@@ -21,7 +21,7 @@
         doc.querySelectorAll('h2').forEach(function (d) {
             if (d.id.startsWith('deref-methods')) {
                 let skipFirst = true;
-                let insertPoint = d.nextElementSibling.nextElementSibling;
+                let insertPoint = d.parentElement.nextElementSibling;
                 d.querySelectorAll('a.struct').forEach(function (a) {
                     if (skipFirst) {
                         skipFirst = false;
@@ -59,6 +59,9 @@
         }
 
         let implementationsList = implementations.nextSibling;
+        if (implementations.parentElement.nodeName == 'SUMMARY') {
+            implementationsList = implementations.parentElement.nextSibling;
+        }
 
         let isDeref = implementations.innerHTML.indexOf("Methods from") !== -1;
         let derefFrom = '';
