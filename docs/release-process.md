@@ -34,6 +34,8 @@ To make a release a `zng-ui` project owner needs to follow/monitor these steps:
    * Make a test crate that depends on the previous minor version of `zng`, it must still build.
       You can use `cargo do test --published` to automatically do this.
    * Update and test the template project (`zng-template`) repository.
+   * Update the <https://zng-ui.github.io/> header if the reused Rust docs CSS files have changed.
+   * Check if the custom docs in a [widget page](https://zng-ui.github.io/doc/zng/text/struct.Text.html) still load properly.
 
 ## Webrender
 
