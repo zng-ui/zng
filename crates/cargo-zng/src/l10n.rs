@@ -198,7 +198,9 @@ fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
                             println!("removing `{}` to clean template", output.display());
                         }
                         if let Err(e) = fs::remove_dir_all(&output) {
-                            error!("cannot remove `{}`, {e}", output.display());
+                            if !matches!(e.kind(), io::ErrorKind::NotFound) {
+                                error!("cannot remove `{}`, {e}", output.display());
+                            }
                         }
                     }
                     util::check_or_create_dir_all(args.check, &output)?;
@@ -222,7 +224,9 @@ fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
                     println!("removing `{}` to clean deps", dir.display());
                 }
                 if let Err(e) = std::fs::remove_dir_all(&dir) {
-                    error!("cannot remove `{}`, {e}", dir.display());
+                    if !matches!(e.kind(), io::ErrorKind::NotFound) {
+                        error!("cannot remove `{}`, {e}", dir.display());
+                    }
                 }
             }
         }
