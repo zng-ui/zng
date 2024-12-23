@@ -326,32 +326,34 @@ impl fmt::Debug for ByteLength {
         }
     }
 }
+
+/// Alternative mode prints in binary units (kibi, mebi, gibi, tebi)
 impl fmt::Display for ByteLength {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // alternate uses 0..=1000 units, normal used 0..=1024 units.
 
         if f.alternate() {
             if self.0 >= 1024usize.pow(4) {
-                write!(f, "{:.2} tebibytes", self.tebis())
+                write!(f, "{:.2}TiB", self.tebis())
             } else if self.0 >= 1024usize.pow(3) {
-                write!(f, "{:.2} gibibytes", self.gibis())
+                write!(f, "{:.2}GiB", self.gibis())
             } else if self.0 >= 1024usize.pow(2) {
-                write!(f, "{:.2} mebibytes", self.mebis())
+                write!(f, "{:.2}MiB", self.mebis())
             } else if self.0 >= 1024 {
-                write!(f, "{:.2} kibibytes", self.kibis())
+                write!(f, "{:.2}KiB", self.kibis())
             } else {
-                write!(f, "{} bytes", self.bytes())
+                write!(f, "{}B", self.bytes())
             }
         } else if self.0 >= 1000usize.pow(4) {
-            write!(f, "{:.2} terabytes", self.teras())
+            write!(f, "{:.2}TB", self.teras())
         } else if self.0 >= 1000usize.pow(3) {
-            write!(f, "{:.2} gigabytes", self.gigas())
+            write!(f, "{:.2}GB", self.gigas())
         } else if self.0 >= 1000usize.pow(2) {
-            write!(f, "{:.2} megabytes", self.megas())
+            write!(f, "{:.2}MB", self.megas())
         } else if self.0 >= 1000 {
-            write!(f, "{:.2} kilobytes", self.kilos())
+            write!(f, "{:.2}kB", self.kilos())
         } else {
-            write!(f, "{} bytes", self.bytes())
+            write!(f, "{}B", self.bytes())
         }
     }
 }
