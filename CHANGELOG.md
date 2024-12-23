@@ -1,5 +1,6 @@
 # Unreleased
 
+* Changed `ByteLength` to display unit symbols.
 * Ignore not found error on `cargo zng l10n` cleanup.
 
 # 0.13.0
