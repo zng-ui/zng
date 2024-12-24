@@ -1,7 +1,9 @@
 fn main() {
+    #[cfg(not(debug_assertions))]
     pack_l10n();
 }
 
+#[cfg(not(debug_assertions))]
 /// Pack l10n dir for embedding using `l10N.load_tar`.
 fn pack_l10n() {
     let out = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());

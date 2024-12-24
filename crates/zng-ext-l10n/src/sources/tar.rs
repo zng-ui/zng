@@ -66,16 +66,10 @@ impl L10nTar {
                         continue;
                     }
 
-                    let depth = entry.iter().take(5).count();
-                    let mut utf8_path = [""; 5];
-                    for (i, part) in entry.iter().rev().take(depth).enumerate() {
-                        match part.to_str() {
-                            Some(p) => utf8_path[depth - i - 1] = p,
-                            None => continue,
-                        }
-                    }
+                    let utf8_path: Vec<_> = entry.iter().take(6).map(|s| s.to_str().unwrap_or("")).collect();
+                    let utf8_path = &utf8_path[1..];
 
-                    let (lang, mut file) = match depth {
+                    let (lang, mut file) = match utf8_path.len() {
                         // lang/file.ftl
                         2 => {
                             let lang = utf8_path[0];
