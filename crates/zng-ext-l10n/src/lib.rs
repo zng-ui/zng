@@ -233,6 +233,16 @@ impl L10N {
         self.load(L10nDir::open(dir))
     }
 
+    /// Load localization resources from a TAR container.
+    ///
+    /// The packaged resources must be in the same format as [`load_dir`].
+    ///
+    /// [`load_dir`]: L10N::load_dir
+    #[cfg(feature = "tar")]
+    pub fn load_tar(&self, tar: &[u8]) {
+        todo!()
+    }
+
     /// Available localization files.
     ///
     /// The value maps lang to one or more files, the files can be from the project `dir/{lang}/{file}.ftl` or from dependencies
