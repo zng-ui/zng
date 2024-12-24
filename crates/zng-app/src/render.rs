@@ -388,268 +388,310 @@ impl FrameBuilder {
     /// [`can_reuse`]: Self::can_reuse
     /// [`WidgetLayout::collapse`]: crate::widget::info::WidgetLayout::collapse
     pub fn push_widget(&mut self, render: impl FnOnce(&mut Self)) {
-        let wgt_info = WIDGET.info();
-        let id = wgt_info.id();
+        // to reduce code bloat, method split to before, push and after. Only push is generic.
+        #[derive(Default)]
+        struct PushWidget {
+            parent_visible: bool,
+            parent_perspective: Option<(f32, PxPoint)>,
+            parent_can_reuse: bool,
+            widget_z: usize,
+            outer_transform: PxTransform,
+            undo_prev_outer_transform: Option<PxTransform>,
+            reuse: Option<ReuseRange>,
+            reused: bool,
+            display_count: usize,
+            child_offset: PxVector,
 
-        #[cfg(debug_assertions)]
-        if self.widget_data.is_some() && WIDGET.parent_id().is_some() {
-            tracing::error!(
-                "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
-                WIDGET.trace_id(),
-                self.widget_id
-            );
+            wgt_info: Option<WidgetInfo>,
+            collapsed: bool,
         }
+        impl PushWidget {
+            fn before(&mut self, builder: &mut FrameBuilder) {
+                let wgt_info = WIDGET.info();
+                let id = wgt_info.id();
 
-        let bounds = wgt_info.bounds_info();
-        let tree = wgt_info.tree();
-
-        if bounds.is_collapsed() {
-            // collapse
-            for info in wgt_info.self_and_descendants() {
-                info.bounds_info().set_rendered(None, tree);
-            }
-            // LAYOUT can be pending if parent called `collapse_child`, cleanup here.
-            let _ = WIDGET.take_update(UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
-            let _ = WIDGET.take_render_reuse(&self.render_widgets, &self.render_update_widgets);
-            return;
-        } else {
-            #[cfg(debug_assertions)]
-            if WIDGET.pending_update().contains(UpdateFlags::LAYOUT) {
-                // pending layout requested from inside the widget should have updated before render,
-                // this indicates that a widget skipped layout without properly collapsing.
-                tracing::error!("called `push_widget` for `{}` with pending layout", WIDGET.trace_id());
-            }
-        }
-
-        let mut try_reuse = true;
-
-        let prev_outer = bounds.outer_transform();
-        let outer_transform = PxTransform::from(self.child_offset).then(&self.transform);
-        bounds.set_outer_transform(outer_transform, tree);
-
-        if bounds.parent_child_offset() != self.child_offset {
-            bounds.set_parent_child_offset(self.child_offset);
-            try_reuse = false;
-        }
-        let outer_bounds = bounds.outer_bounds();
-
-        let parent_visible = self.visible;
-
-        if bounds.can_auto_hide() {
-            // collapse already handled, don't hide empty bounds here
-            // the bounds could be empty with visible content still,
-            // for example a Preserve3D object rotated 90º with 3D children also rotated.
-            let mut outer_bounds = outer_bounds;
-            if outer_bounds.size.width < Px(1) {
-                outer_bounds.size.width = Px(1);
-            }
-            if outer_bounds.size.height < Px(1) {
-                outer_bounds.size.height = Px(1);
-            }
-            match self.auto_hide_rect.intersection(&outer_bounds) {
-                Some(cull) => {
-                    let partial = cull != outer_bounds;
-                    if partial || bounds.is_partially_culled() {
-                        // partial cull, cannot reuse because descendant vis may have changed.
-                        try_reuse = false;
-                        bounds.set_is_partially_culled(partial);
-                    }
-                }
-                None => {
-                    // full cull
-                    self.visible = false;
-                }
-            }
-        } else {
-            bounds.set_is_partially_culled(false);
-        }
-
-        let parent_perspective = self.perspective;
-        self.perspective = wgt_info.perspective();
-        if let Some((_, o)) = &mut self.perspective {
-            *o -= self.child_offset;
-        }
-
-        let can_reuse = self.view_process_has_frame
-            && match bounds.render_info() {
-                Some(i) => i.visible == self.visible && i.parent_perspective == self.perspective,
-                // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
-                None => false,
-            };
-        let parent_can_reuse = mem::replace(&mut self.can_reuse, can_reuse);
-
-        try_reuse &= can_reuse;
-
-        self.widget_count += 1;
-        let widget_z = self.widget_count;
-
-        let mut reuse = WIDGET.take_render_reuse(&self.render_widgets, &self.render_update_widgets);
-        if !try_reuse {
-            reuse = None;
-        }
-
-        let mut undo_prev_outer_transform = None;
-        if reuse.is_some() {
-            // check if is possible to reuse.
-            if let Some(undo_prev) = prev_outer.inverse() {
-                undo_prev_outer_transform = Some(undo_prev);
-            } else {
-                reuse = None; // cannot reuse because cannot undo prev-transform.
-            }
-        }
-
-        let index = self.hit_clips.push_child(id);
-        bounds.set_hit_index(index);
-
-        let mut reused = true;
-        let display_count = self.display_list.len();
-
-        let child_offset = mem::take(&mut self.child_offset);
-
-        // try to reuse, or calls the closure and saves the reuse range.
-        self.push_reuse(&mut reuse, |frame| {
-            // did not reuse, render widget.
-
-            reused = false;
-            undo_prev_outer_transform = None;
-
-            frame.widget_data = Some(WidgetData {
-                filter: vec![],
-                blend: RenderMixBlendMode::Normal,
-                backdrop_filter: vec![],
-                parent_child_offset: child_offset,
-                inner_is_set: frame.perspective.is_some(),
-                inner_transform: PxTransform::identity(),
-            });
-            let parent_widget = mem::replace(&mut frame.widget_id, id);
-
-            render(frame);
-
-            frame.widget_id = parent_widget;
-            frame.widget_data = None;
-        });
-
-        WIDGET.set_render_reuse(reuse);
-
-        if reused {
-            // if did reuse, patch transforms and z-indexes.
-
-            let _span = tracing::trace_span!("reuse-descendants", ?id).entered();
-
-            let transform_patch = undo_prev_outer_transform.and_then(|t| {
-                let t = t.then(&outer_transform);
-                if t != PxTransform::identity() {
-                    Some(t)
-                } else {
-                    None
-                }
-            });
-
-            let current_wgt = tree.get(id).unwrap();
-            let z_patch = widget_z as i64 - current_wgt.z_index().map(|(b, _)| b.0 as i64).unwrap_or(0);
-
-            let update_transforms = transform_patch.is_some();
-            let seg_id = self.widget_count_offsets.id();
-
-            // apply patches, only iterates over descendants once.
-            if update_transforms {
-                let transform_patch = transform_patch.unwrap();
-
-                // patch descendants outer and inner.
-                let update_transforms_and_z = |info: WidgetInfo| {
-                    let b = info.bounds_info();
-
-                    if b != bounds {
-                        // only patch outer of descendants
-                        b.set_outer_transform(b.outer_transform().then(&transform_patch), tree);
-                    }
-                    b.set_inner_transform(
-                        b.inner_transform().then(&transform_patch),
-                        tree,
-                        info.id(),
-                        info.parent().map(|p| p.inner_bounds()),
+                #[cfg(debug_assertions)]
+                if builder.widget_data.is_some() && WIDGET.parent_id().is_some() {
+                    tracing::error!(
+                        "called `push_widget` for `{}` without calling `push_inner` for the parent `{}`",
+                        WIDGET.trace_id(),
+                        builder.widget_id
                     );
-
-                    if let Some(i) = b.render_info() {
-                        let (back, front) = info.z_index().unwrap();
-                        let back = back.0 as i64 + z_patch;
-                        let front = front.0 as i64 + z_patch;
-
-                        b.set_rendered(
-                            Some(WidgetRenderInfo {
-                                visible: i.visible,
-                                parent_perspective: i.parent_perspective,
-                                seg_id,
-                                back: back.try_into().unwrap(),
-                                front: front.try_into().unwrap(),
-                            }),
-                            tree,
-                        );
-                    }
-                };
-
-                let targets = current_wgt.self_and_descendants();
-                if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-                    targets.par_bridge().for_each(update_transforms_and_z);
-                } else {
-                    targets.for_each(update_transforms_and_z);
                 }
-            } else {
-                let update_z = |info: WidgetInfo| {
-                    let bounds = info.bounds_info();
 
-                    if let Some(i) = bounds.render_info() {
-                        let (back, front) = info.z_index().unwrap();
-                        let mut back = back.0 as i64 + z_patch;
-                        let mut front = front.0 as i64 + z_patch;
-                        if back < 0 {
-                            tracing::error!("incorrect back Z-index ({back}) after patch ({z_patch})");
-                            back = 0;
-                        }
-                        if front < 0 {
-                            tracing::error!("incorrect front Z-index ({front}) after patch ({z_patch})");
-                            front = 0;
-                        }
-                        bounds.set_rendered(
-                            Some(WidgetRenderInfo {
-                                visible: i.visible,
-                                parent_perspective: i.parent_perspective,
-                                seg_id,
-                                back: back as _,
-                                front: front as _,
-                            }),
-                            tree,
-                        );
+                let bounds = wgt_info.bounds_info();
+                let tree = wgt_info.tree();
+
+                if bounds.is_collapsed() {
+                    // collapse
+                    for info in wgt_info.self_and_descendants() {
+                        info.bounds_info().set_rendered(None, tree);
                     }
-                };
-
-                let targets = current_wgt.self_and_descendants();
-                if PARALLEL_VAR.get().contains(Parallel::RENDER) {
-                    targets.par_bridge().for_each(update_z);
+                    // LAYOUT can be pending if parent called `collapse_child`, cleanup here.
+                    let _ = WIDGET.take_update(UpdateFlags::LAYOUT | UpdateFlags::RENDER | UpdateFlags::RENDER_UPDATE);
+                    let _ = WIDGET.take_render_reuse(&builder.render_widgets, &builder.render_update_widgets);
+                    self.collapsed = true;
+                    return;
                 } else {
-                    targets.for_each(update_z);
+                    #[cfg(debug_assertions)]
+                    if WIDGET.pending_update().contains(UpdateFlags::LAYOUT) {
+                        // pending layout requested from inside the widget should have updated before render,
+                        // this indicates that a widget skipped layout without properly collapsing.
+                        tracing::error!("called `push_widget` for `{}` with pending layout", WIDGET.trace_id());
+                    }
                 }
+
+                let mut try_reuse = true;
+
+                let prev_outer = bounds.outer_transform();
+                self.outer_transform = PxTransform::from(builder.child_offset).then(&builder.transform);
+                bounds.set_outer_transform(self.outer_transform, tree);
+
+                if bounds.parent_child_offset() != builder.child_offset {
+                    bounds.set_parent_child_offset(builder.child_offset);
+                    try_reuse = false;
+                }
+                let outer_bounds = bounds.outer_bounds();
+
+                self.parent_visible = builder.visible;
+
+                if bounds.can_auto_hide() {
+                    // collapse already handled, don't hide empty bounds here
+                    // the bounds could be empty with visible content still,
+                    // for example a Preserve3D object rotated 90º with 3D children also rotated.
+                    let mut outer_bounds = outer_bounds;
+                    if outer_bounds.size.width < Px(1) {
+                        outer_bounds.size.width = Px(1);
+                    }
+                    if outer_bounds.size.height < Px(1) {
+                        outer_bounds.size.height = Px(1);
+                    }
+                    match builder.auto_hide_rect.intersection(&outer_bounds) {
+                        Some(cull) => {
+                            let partial = cull != outer_bounds;
+                            if partial || bounds.is_partially_culled() {
+                                // partial cull, cannot reuse because descendant vis may have changed.
+                                try_reuse = false;
+                                bounds.set_is_partially_culled(partial);
+                            }
+                        }
+                        None => {
+                            // full cull
+                            builder.visible = false;
+                        }
+                    }
+                } else {
+                    bounds.set_is_partially_culled(false);
+                }
+
+                self.parent_perspective = builder.perspective;
+                builder.perspective = wgt_info.perspective();
+                if let Some((_, o)) = &mut builder.perspective {
+                    *o -= builder.child_offset;
+                }
+
+                let can_reuse = builder.view_process_has_frame
+                    && match bounds.render_info() {
+                        Some(i) => i.visible == builder.visible && i.parent_perspective == builder.perspective,
+                        // cannot reuse if the widget was not rendered in the previous frame (clear stale reuse ranges in descendants).
+                        None => false,
+                    };
+                self.parent_can_reuse = mem::replace(&mut builder.can_reuse, can_reuse);
+
+                try_reuse &= can_reuse;
+
+                builder.widget_count += 1;
+                self.widget_z = builder.widget_count;
+
+                self.reuse = WIDGET.take_render_reuse(&builder.render_widgets, &builder.render_update_widgets);
+                if !try_reuse {
+                    self.reuse = None;
+                }
+
+                if self.reuse.is_some() {
+                    // check if is possible to reuse.
+                    if let Some(undo_prev) = prev_outer.inverse() {
+                        self.undo_prev_outer_transform = Some(undo_prev);
+                    } else {
+                        self.reuse = None; // cannot reuse because cannot undo prev-transform.
+                    }
+                }
+
+                let index = builder.hit_clips.push_child(id);
+                bounds.set_hit_index(index);
+
+                self.reused = true;
+                self.display_count = builder.display_list.len();
+
+                self.child_offset = mem::take(&mut builder.child_offset);
+
+                self.wgt_info = Some(wgt_info);
             }
+            fn push(&mut self, builder: &mut FrameBuilder, render: impl FnOnce(&mut FrameBuilder)) {
+                if self.collapsed {
+                    return;
+                }
 
-            // increment by reused
-            self.widget_count = bounds.render_info().map(|i| i.front).unwrap_or(self.widget_count);
-        } else {
-            // if did not reuse and rendered
-            bounds.set_rendered(
-                Some(WidgetRenderInfo {
-                    visible: self.display_list.len() > display_count,
-                    parent_perspective: self.perspective,
-                    seg_id: self.widget_count_offsets.id(),
-                    back: widget_z,
-                    front: self.widget_count,
-                }),
-                tree,
-            );
+                // try to reuse, or calls the closure and saves the reuse range.
+                builder.push_reuse(&mut self.reuse, |frame| {
+                    // did not reuse, render widget.
+
+                    self.reused = false;
+                    self.undo_prev_outer_transform = None;
+
+                    frame.widget_data = Some(WidgetData {
+                        filter: vec![],
+                        blend: RenderMixBlendMode::Normal,
+                        backdrop_filter: vec![],
+                        parent_child_offset: self.child_offset,
+                        inner_is_set: frame.perspective.is_some(),
+                        inner_transform: PxTransform::identity(),
+                    });
+                    let parent_widget = mem::replace(&mut frame.widget_id, self.wgt_info.as_ref().unwrap().id());
+
+                    render(frame);
+
+                    frame.widget_id = parent_widget;
+                    frame.widget_data = None;
+                });
+            }
+            fn after(self, builder: &mut FrameBuilder) {
+                if self.collapsed {
+                    return;
+                }
+
+                WIDGET.set_render_reuse(self.reuse);
+
+                let wgt_info = self.wgt_info.unwrap();
+                let id = wgt_info.id();
+                let tree = wgt_info.tree();
+                let bounds = wgt_info.bounds_info();
+
+                if self.reused {
+                    // if did reuse, patch transforms and z-indexes.
+
+                    let _span = tracing::trace_span!("reuse-descendants", ?id).entered();
+
+                    let transform_patch = self.undo_prev_outer_transform.and_then(|t| {
+                        let t = t.then(&self.outer_transform);
+                        if t != PxTransform::identity() {
+                            Some(t)
+                        } else {
+                            None
+                        }
+                    });
+
+                    let current_wgt = tree.get(id).unwrap();
+                    let z_patch = self.widget_z as i64 - current_wgt.z_index().map(|(b, _)| b.0 as i64).unwrap_or(0);
+
+                    let update_transforms = transform_patch.is_some();
+                    let seg_id = builder.widget_count_offsets.id();
+
+                    // apply patches, only iterates over descendants once.
+                    if update_transforms {
+                        let transform_patch = transform_patch.unwrap();
+
+                        // patch descendants outer and inner.
+                        let update_transforms_and_z = |info: WidgetInfo| {
+                            let b = info.bounds_info();
+
+                            if b != bounds {
+                                // only patch outer of descendants
+                                b.set_outer_transform(b.outer_transform().then(&transform_patch), tree);
+                            }
+                            b.set_inner_transform(
+                                b.inner_transform().then(&transform_patch),
+                                tree,
+                                info.id(),
+                                info.parent().map(|p| p.inner_bounds()),
+                            );
+
+                            if let Some(i) = b.render_info() {
+                                let (back, front) = info.z_index().unwrap();
+                                let back = back.0 as i64 + z_patch;
+                                let front = front.0 as i64 + z_patch;
+
+                                b.set_rendered(
+                                    Some(WidgetRenderInfo {
+                                        visible: i.visible,
+                                        parent_perspective: i.parent_perspective,
+                                        seg_id,
+                                        back: back.try_into().unwrap(),
+                                        front: front.try_into().unwrap(),
+                                    }),
+                                    tree,
+                                );
+                            }
+                        };
+
+                        let targets = current_wgt.self_and_descendants();
+                        if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                            targets.par_bridge().for_each(update_transforms_and_z);
+                        } else {
+                            targets.for_each(update_transforms_and_z);
+                        }
+                    } else {
+                        let update_z = |info: WidgetInfo| {
+                            let bounds = info.bounds_info();
+
+                            if let Some(i) = bounds.render_info() {
+                                let (back, front) = info.z_index().unwrap();
+                                let mut back = back.0 as i64 + z_patch;
+                                let mut front = front.0 as i64 + z_patch;
+                                if back < 0 {
+                                    tracing::error!("incorrect back Z-index ({back}) after patch ({z_patch})");
+                                    back = 0;
+                                }
+                                if front < 0 {
+                                    tracing::error!("incorrect front Z-index ({front}) after patch ({z_patch})");
+                                    front = 0;
+                                }
+                                bounds.set_rendered(
+                                    Some(WidgetRenderInfo {
+                                        visible: i.visible,
+                                        parent_perspective: i.parent_perspective,
+                                        seg_id,
+                                        back: back as _,
+                                        front: front as _,
+                                    }),
+                                    tree,
+                                );
+                            }
+                        };
+
+                        let targets = current_wgt.self_and_descendants();
+                        if PARALLEL_VAR.get().contains(Parallel::RENDER) {
+                            targets.par_bridge().for_each(update_z);
+                        } else {
+                            targets.for_each(update_z);
+                        }
+                    }
+
+                    // increment by reused
+                    builder.widget_count = bounds.render_info().map(|i| i.front).unwrap_or(builder.widget_count);
+                } else {
+                    // if did not reuse and rendered
+                    bounds.set_rendered(
+                        Some(WidgetRenderInfo {
+                            visible: builder.display_list.len() > self.display_count,
+                            parent_perspective: builder.perspective,
+                            seg_id: builder.widget_count_offsets.id(),
+                            back: self.widget_z,
+                            front: builder.widget_count,
+                        }),
+                        tree,
+                    );
+                }
+
+                builder.visible = self.parent_visible;
+                builder.perspective = self.parent_perspective;
+                builder.can_reuse = self.parent_can_reuse;
+            }
         }
-
-        self.visible = parent_visible;
-        self.perspective = parent_perspective;
-        self.can_reuse = parent_can_reuse;
+        let mut push = PushWidget::default();
+        push.before(self);
+        push.push(self, render);
+        push.after(self);
     }
 
     /// If previously generated display list items are available for reuse.
@@ -881,163 +923,211 @@ impl FrameBuilder {
         layout_translation_animating: bool,
         render: impl FnOnce(&mut Self),
     ) {
-        if let Some(mut data) = self.widget_data.take() {
-            let parent_transform = self.transform;
-            let parent_transform_style = self.transform_style;
-            let parent_hit_clips = mem::take(&mut self.hit_clips);
+        // like push_widget, split to reduce generics code bloating
+        #[derive(Default)]
+        struct PushInner {
+            invalid: bool,
+            parent_transform: PxTransform,
+            parent_transform_style: TransformStyle,
+            parent_hit_clips: HitTestClips,
+            parent_parent_inner_bounds: Option<PxRect>,
+            visible: bool,
+            ctx_outside_ref_frame: i32,
+            ctx_inside_ref_frame: i32,
 
-            let wgt_info = WIDGET.info();
-            let id = wgt_info.id();
-            let bounds = wgt_info.bounds_info();
-            let tree = wgt_info.tree();
-
-            let inner_offset = bounds.inner_offset();
-            let mut inner_transform = data.inner_transform;
-            if let Some((d, mut o)) = self.perspective {
-                o -= inner_offset;
-                let x = o.x.0 as f32;
-                let y = o.y.0 as f32;
-                let p = PxTransform::translation(-x, -y)
-                    .then(&PxTransform::perspective(d))
-                    .then_translate(euclid::vec2(x, y));
-                inner_transform = inner_transform.then(&p);
-            }
-            let inner_transform = inner_transform.then_translate((data.parent_child_offset + inner_offset).cast());
-
-            self.transform = inner_transform.then(&parent_transform);
-
-            bounds.set_inner_transform(self.transform, tree, id, self.parent_inner_bounds);
-
-            let parent_parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
-
-            if self.visible {
-                self.transform_style = wgt_info.transform_style();
-
-                let has_3d_ctx = matches!(self.transform_style, TransformStyle::Preserve3D);
-                let has_filters = !data.filter.is_empty() || data.blend != RenderMixBlendMode::Normal;
-
-                let mut ctx_outside_ref_frame = 0;
-                let mut ctx_inside_ref_frame = 0;
-
-                // reference frame must be just outside the stacking context, except for the
-                // pre-filter context in Preserve3D roots.
-                macro_rules! push_reference_frame {
-                    () => {
-                        self.display_list.push_reference_frame(
-                            ReferenceFrameId::from_widget(self.widget_id).into(),
-                            layout_translation_key.bind(inner_transform, layout_translation_animating),
-                            self.transform_style.into(),
-                            !data.inner_is_set,
-                        );
-                        if !data.backdrop_filter.is_empty() {
-                            self.display_list
-                                .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter);
-                        }
-                    };
-                }
-
-                if has_filters {
-                    // we want to apply filters in the top-to-bottom, left-to-right order they appear in
-                    // the widget declaration, but the widget declaration expands to have the top property
-                    // node be inside the bottom property node, so the bottom property ends up inserting
-                    // a filter first, because we cannot insert filters after the child node render is called
-                    // so we need to reverse the filters here. Left-to-right sequences are reversed on insert
-                    // so they get reversed again here and everything ends up in order.
-                    data.filter.reverse();
-
-                    if has_3d_ctx {
-                        // webrender ignores Preserve3D if there are filters, we work around the issue when possible here.
-
-                        // push the Preserve3D, unlike CSS we prefer this over filters.
-
-                        if matches!(
-                            (self.transform_style, bounds.transform_style()),
-                            (TransformStyle::Preserve3D, TransformStyle::Flat)
-                        ) {
-                            // is "flat root", push a nested stacking context with the filters.
-                            push_reference_frame!();
-                            self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[]);
-                            self.display_list
-                                .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
-                            ctx_inside_ref_frame = 2;
-                        } else if wgt_info
-                            .parent()
-                            .map(|p| matches!(p.bounds_info().transform_style(), TransformStyle::Flat))
-                            .unwrap_or(false)
-                        {
-                            // is "3D root", push the filters first, then the 3D root.
-
-                            self.display_list
-                                .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
-                            ctx_outside_ref_frame = 1;
-                            push_reference_frame!();
-                            self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[]);
-                            ctx_inside_ref_frame = 1;
-                        } else {
-                            // extends 3D space, cannot splice a filters stacking context because that
-                            // would disconnect the sub-tree from the parent space.
-                            tracing::warn!(
-                                "widget `{id}` cannot have filters because it is `Preserve3D` inside `Preserve3D`, filters & blend ignored"
-                            );
-
-                            push_reference_frame!();
-                            self.display_list
-                                .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[]);
-                            ctx_inside_ref_frame = 1;
-                        }
-                    } else {
-                        // no 3D context, push the filters context
-                        push_reference_frame!();
-                        self.display_list
-                            .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
-                        ctx_inside_ref_frame = 1;
-                    }
-                } else if has_3d_ctx {
-                    // just 3D context
-                    push_reference_frame!();
-                    self.display_list
-                        .push_stacking_context(RenderMixBlendMode::Normal, self.transform_style, &[]);
-                    ctx_inside_ref_frame = 1;
-                } else {
-                    // just flat, no filters
-                    push_reference_frame!();
-                }
-
-                render(self);
-
-                while ctx_inside_ref_frame > 0 {
-                    self.display_list.pop_stacking_context();
-                    ctx_inside_ref_frame -= 1;
-                }
-
-                self.display_list.pop_reference_frame();
-
-                while ctx_outside_ref_frame > 0 {
-                    self.display_list.pop_stacking_context();
-                    ctx_outside_ref_frame -= 1;
-                }
-            } else {
-                render(self);
-            }
-
-            self.transform = parent_transform;
-            self.transform_style = parent_transform_style;
-            self.parent_inner_bounds = parent_parent_inner_bounds;
-
-            let hit_clips = mem::replace(&mut self.hit_clips, parent_hit_clips);
-            bounds.set_hit_clips(hit_clips);
-
-            if !self.debug_dot_overlays.is_empty() && wgt_info.parent().is_none() {
-                for (offset, color) in mem::take(&mut self.debug_dot_overlays) {
-                    self.push_debug_dot(offset, color);
-                }
-            }
-        } else {
-            tracing::error!("called `push_inner` more then once for `{}`", self.widget_id);
-            render(self)
+            wgt_info: Option<WidgetInfo>,
         }
+        impl PushInner {
+            fn before(
+                &mut self,
+                builder: &mut FrameBuilder,
+                layout_translation_key: FrameValueKey<PxTransform>,
+                layout_translation_animating: bool,
+            ) {
+                if let Some(mut data) = builder.widget_data.take() {
+                    self.parent_transform = builder.transform;
+                    self.parent_transform_style = builder.transform_style;
+                    self.parent_hit_clips = mem::take(&mut builder.hit_clips);
+
+                    let wgt_info = WIDGET.info();
+                    let id = wgt_info.id();
+                    let bounds = wgt_info.bounds_info();
+                    let tree = wgt_info.tree();
+
+                    let inner_offset = bounds.inner_offset();
+                    let mut inner_transform = data.inner_transform;
+                    if let Some((d, mut o)) = builder.perspective {
+                        o -= inner_offset;
+                        let x = o.x.0 as f32;
+                        let y = o.y.0 as f32;
+                        let p = PxTransform::translation(-x, -y)
+                            .then(&PxTransform::perspective(d))
+                            .then_translate(euclid::vec2(x, y));
+                        inner_transform = inner_transform.then(&p);
+                    }
+                    let inner_transform = inner_transform.then_translate((data.parent_child_offset + inner_offset).cast());
+
+                    builder.transform = inner_transform.then(&self.parent_transform);
+
+                    bounds.set_inner_transform(builder.transform, tree, id, builder.parent_inner_bounds);
+
+                    self.parent_parent_inner_bounds = mem::replace(&mut builder.parent_inner_bounds, Some(bounds.inner_bounds()));
+
+                    if builder.visible {
+                        self.visible = true;
+                        builder.transform_style = wgt_info.transform_style();
+
+                        let has_3d_ctx = matches!(builder.transform_style, TransformStyle::Preserve3D);
+                        let has_filters = !data.filter.is_empty() || data.blend != RenderMixBlendMode::Normal;
+
+                        // reference frame must be just outside the stacking context, except for the
+                        // pre-filter context in Preserve3D roots.
+                        macro_rules! push_reference_frame {
+                            () => {
+                                builder.display_list.push_reference_frame(
+                                    ReferenceFrameId::from_widget(builder.widget_id).into(),
+                                    layout_translation_key.bind(inner_transform, layout_translation_animating),
+                                    builder.transform_style.into(),
+                                    !data.inner_is_set,
+                                );
+                                if !data.backdrop_filter.is_empty() {
+                                    builder
+                                        .display_list
+                                        .push_backdrop_filter(PxRect::from_size(bounds.inner_size()), &data.backdrop_filter);
+                                }
+                            };
+                        }
+
+                        if has_filters {
+                            // we want to apply filters in the top-to-bottom, left-to-right order they appear in
+                            // the widget declaration, but the widget declaration expands to have the top property
+                            // node be inside the bottom property node, so the bottom property ends up inserting
+                            // a filter first, because we cannot insert filters after the child node render is called
+                            // so we need to reverse the filters here. Left-to-right sequences are reversed on insert
+                            // so they get reversed again here and everything ends up in order.
+                            data.filter.reverse();
+
+                            if has_3d_ctx {
+                                // webrender ignores Preserve3D if there are filters, we work around the issue when possible here.
+
+                                // push the Preserve3D, unlike CSS we prefer this over filters.
+
+                                if matches!(
+                                    (builder.transform_style, bounds.transform_style()),
+                                    (TransformStyle::Preserve3D, TransformStyle::Flat)
+                                ) {
+                                    // is "flat root", push a nested stacking context with the filters.
+                                    push_reference_frame!();
+                                    builder
+                                        .display_list
+                                        .push_stacking_context(RenderMixBlendMode::Normal, builder.transform_style, &[]);
+                                    builder
+                                        .display_list
+                                        .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
+                                    self.ctx_inside_ref_frame = 2;
+                                } else if wgt_info
+                                    .parent()
+                                    .map(|p| matches!(p.bounds_info().transform_style(), TransformStyle::Flat))
+                                    .unwrap_or(false)
+                                {
+                                    // is "3D root", push the filters first, then the 3D root.
+
+                                    builder
+                                        .display_list
+                                        .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
+                                    self.ctx_outside_ref_frame = 1;
+                                    push_reference_frame!();
+                                    builder
+                                        .display_list
+                                        .push_stacking_context(RenderMixBlendMode::Normal, builder.transform_style, &[]);
+                                    self.ctx_inside_ref_frame = 1;
+                                } else {
+                                    // extends 3D space, cannot splice a filters stacking context because that
+                                    // would disconnect the sub-tree from the parent space.
+                                    tracing::warn!(
+                                        "widget `{id}` cannot have filters because it is `Preserve3D` inside `Preserve3D`, filters & blend ignored"
+                                    );
+
+                                    push_reference_frame!();
+                                    builder
+                                        .display_list
+                                        .push_stacking_context(RenderMixBlendMode::Normal, builder.transform_style, &[]);
+                                    self.ctx_inside_ref_frame = 1;
+                                }
+                            } else {
+                                // no 3D context, push the filters context
+                                push_reference_frame!();
+                                builder
+                                    .display_list
+                                    .push_stacking_context(data.blend, TransformStyle::Flat, &data.filter);
+                                self.ctx_inside_ref_frame = 1;
+                            }
+                        } else if has_3d_ctx {
+                            // just 3D context
+                            push_reference_frame!();
+                            builder
+                                .display_list
+                                .push_stacking_context(RenderMixBlendMode::Normal, builder.transform_style, &[]);
+                            self.ctx_inside_ref_frame = 1;
+                        } else {
+                            // just flat, no filters
+                            push_reference_frame!();
+                        }
+                    }
+
+                    self.wgt_info = Some(wgt_info);
+                } else {
+                    tracing::error!("called `push_inner` more then once for `{}`", builder.widget_id);
+                    self.invalid = true;
+                }
+            }
+            fn push(&mut self, builder: &mut FrameBuilder, render: impl FnOnce(&mut FrameBuilder)) {
+                if self.invalid {
+                    return;
+                }
+                render(builder)
+            }
+            fn after(mut self, builder: &mut FrameBuilder) {
+                if self.invalid {
+                    return;
+                }
+
+                if self.visible {
+                    while self.ctx_inside_ref_frame > 0 {
+                        builder.display_list.pop_stacking_context();
+                        self.ctx_inside_ref_frame -= 1;
+                    }
+
+                    builder.display_list.pop_reference_frame();
+
+                    while self.ctx_outside_ref_frame > 0 {
+                        builder.display_list.pop_stacking_context();
+                        self.ctx_outside_ref_frame -= 1;
+                    }
+                }
+
+                let wgt_info = self.wgt_info.unwrap();
+                let bounds = wgt_info.bounds_info();
+
+                // shared finish
+                builder.transform = self.parent_transform;
+                builder.transform_style = self.parent_transform_style;
+                builder.parent_inner_bounds = self.parent_parent_inner_bounds;
+
+                let hit_clips = mem::replace(&mut builder.hit_clips, self.parent_hit_clips);
+                bounds.set_hit_clips(hit_clips);
+
+                if !builder.debug_dot_overlays.is_empty() && wgt_info.parent().is_none() {
+                    for (offset, color) in mem::take(&mut builder.debug_dot_overlays) {
+                        builder.push_debug_dot(offset, color);
+                    }
+                }
+            }
+        }
+        let mut push_inner = PushInner::default();
+        push_inner.before(self, layout_translation_key, layout_translation_animating);
+        push_inner.push(self, render);
+        push_inner.after(self);
     }
 
     /// Returns `true` if the widget reference frame and stacking context is pushed and now is time for rendering the widget.

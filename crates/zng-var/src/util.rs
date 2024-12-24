@@ -480,6 +480,8 @@ fn apply_modify(
 
 #[cfg(not(feature = "dyn_closure"))]
 fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnce(&mut VarModify<T>)) {
+    use crate::AnyVarValue;
+
     let mut data = inner.write();
     if data.meta.skip_modify() {
         return;
@@ -490,38 +492,47 @@ fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnc
     modify(&mut value);
     let (notify, new_value, update, tags, custom_importance) = value.finish();
 
-    if notify {
-        drop(meta);
-        let mut data = inner.write();
-        if let Some(nv) = new_value {
-            data.value = nv;
-        }
-        data.meta.last_update = VARS.update_id();
+    // code size optimization, removes the impl FnOnce generic
+    fn finish<T: VarValue>(
+        inner: &RwLock<VarDataInner<T>>,
+        notify: bool,
+        new_value: Option<T>,
+        update: bool,
+        tags: Vec<Box<dyn AnyVarValue>>,
+        custom_importance: Option<usize>,
+    ) {
+        if notify {
+            let mut data = inner.write();
+            if let Some(nv) = new_value {
+                data.value = nv;
+            }
+            data.meta.last_update = VARS.update_id();
 
-        if let Some(i) = custom_importance {
+            if let Some(i) = custom_importance {
+                data.meta.animation.importance = i;
+            }
+
+            if !data.meta.hooks.is_empty() {
+                let mut hooks = std::mem::take(&mut data.meta.hooks);
+
+                let meta = parking_lot::RwLockWriteGuard::downgrade(data);
+
+                let args = AnyVarHookArgs::new(&meta.value, update, &tags);
+                call_hooks(&mut hooks, args);
+                drop(meta);
+
+                let mut data = inner.write();
+                hooks.append(&mut data.meta.hooks);
+                data.meta.hooks = hooks;
+            }
+
+            VARS.wake_app();
+        } else if let Some(i) = custom_importance {
+            let mut data = inner.write();
             data.meta.animation.importance = i;
         }
-
-        if !data.meta.hooks.is_empty() {
-            let mut hooks = std::mem::take(&mut data.meta.hooks);
-
-            let meta = parking_lot::RwLockWriteGuard::downgrade(data);
-
-            let args = AnyVarHookArgs::new(&meta.value, update, &tags);
-            call_hooks(&mut hooks, args);
-            drop(meta);
-
-            let mut data = inner.write();
-            hooks.append(&mut data.meta.hooks);
-            data.meta.hooks = hooks;
-        }
-
-        VARS.wake_app();
-    } else if let Some(i) = custom_importance {
-        drop(meta);
-        let mut data = inner.write();
-        data.meta.animation.importance = i;
     }
+    finish(inner, notify, new_value, update, tags, custom_importance);
 }
 
 fn call_hooks(hooks: &mut Vec<VarHook>, args: AnyVarHookArgs) {
