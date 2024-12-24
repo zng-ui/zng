@@ -11,7 +11,7 @@ use super::NilL10nSource;
 ///
 /// Note that [`L10N.load`] already uses this source internally.
 ///
-/// [`L10N.load`]: super::L10N::load
+/// [`L10N.load`]: crate::L10N::load
 pub struct SwapL10nSource {
     actual: Box<dyn L10nSource>,
 

@@ -213,7 +213,7 @@ zng-app = { path = "../zng-app", version = "0.14.0", default-features = false }
 zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.3.0" }
 zng-ext-config = { path = "../zng-ext-config", version = "0.4.0", default-features = false }
 zng-ext-font = { path = "../zng-ext-font", version = "0.5.0" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.6.0" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.6.0", features = ["tar"] }
 zng-ext-image = { path = "../zng-ext-image", version = "0.3.0" }
 zng-ext-svg = { path = "../zng-ext-svg", version = "0.2.0", optional = true }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.3.0" }

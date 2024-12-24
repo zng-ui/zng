@@ -7,10 +7,10 @@ use zng_var::{types::WeakArcVar, var, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, Loc
 
 use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 
-/// Represents localization resources loaded from a TAR container.
+/// Represents localization resources loaded from a `.tar` or `.tar.gz` container.
 ///
-/// The expected container layout is `{dir}/{lang}/{file}.ftl` app files and `{dir}/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`
-/// for dependencies, same as [`L10nDir`].
+/// The expected container layout is `root_dir/{lang}/{file}.ftl` app files and `root_dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`
+/// for dependencies, same as [`L10nDir`], `root_dir` can have any name.
 ///
 /// [`L10nDir`]: crate::L10nDir
 pub struct L10nTar {
@@ -66,9 +66,9 @@ impl L10nTar {
                         continue;
                     }
 
-                    let depth = entry.iter().count();
+                    let depth = entry.iter().take(5).count();
                     let mut utf8_path = [""; 5];
-                    for (i, part) in entry.iter().rev().enumerate() {
+                    for (i, part) in entry.iter().rev().take(depth).enumerate() {
                         match part.to_str() {
                             Some(p) => utf8_path[depth - i - 1] = p,
                             None => continue,
@@ -236,14 +236,14 @@ impl L10nTarData {
     }
 
     /// Check if the bytes have the GZIP magic number.
-    pub fn is_gzip(&self) -> bool {
+    pub fn is_gz(&self) -> bool {
         let bytes = self.bytes();
         bytes.len() >= 2 && bytes[0..2] == [0x1F, 0x8B]
     }
 
     /// Decompress bytes.
     pub fn decode_bytes(&self) -> std::io::Result<Cow<[u8]>> {
-        if self.is_gzip() {
+        if self.is_gz() {
             let bytes = self.bytes();
             let mut data = vec![];
             let mut decoder = flate2::read::GzDecoder::new(bytes);
