@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.13.2
+
 * Fix deadlock in release builds (introduced in 0.13.1).
 
 # 0.13.1
