@@ -235,12 +235,13 @@ impl L10N {
 
     /// Load localization resources from a TAR container.
     ///
-    /// The packaged resources must be in the same format as [`load_dir`].
+    /// The packaged resources must be in the same format as [`load_dir`]. The data can be embedded using
+    /// [`include_bytes!`] or loaded into a `Vec<u8>`.
     ///
     /// [`load_dir`]: L10N::load_dir
     #[cfg(feature = "tar")]
-    pub fn load_tar(&self, tar: &[u8]) {
-        todo!()
+    pub fn load_tar(&self, data: impl Into<L10nTarData>) {
+        self.load(L10nTar::load(data))
     }
 
     /// Available localization files.
