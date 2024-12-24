@@ -233,6 +233,19 @@ impl L10N {
         self.load(L10nDir::open(dir))
     }
 
+    /// Load localization resources from a `.tar` or `.tar.gz` container.
+    ///
+    /// The expected container layout is `root_dir/{lang}/{file}.ftl` app files and `root_dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`
+    /// for dependencies, same as [`load_dir`], `root_dir` can have any name.
+    ///
+    /// The data can be embedded using [`include_bytes!`] or loaded into a `Vec<u8>` and must be in the `.tar` or `.tar.gz` format.
+    ///
+    /// [`load_dir`]: L10N::load_dir
+    #[cfg(feature = "tar")]
+    pub fn load_tar(&self, data: impl Into<L10nTarData>) {
+        self.load(L10nTar::load(data))
+    }
+
     /// Available localization files.
     ///
     /// The value maps lang to one or more files, the files can be from the project `dir/{lang}/{file}.ftl` or from dependencies
