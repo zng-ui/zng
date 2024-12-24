@@ -491,6 +491,7 @@ fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnc
     let mut value = VarModify::new(&meta.value);
     modify(&mut value);
     let (notify, new_value, update, tags, custom_importance) = value.finish();
+    drop(meta);
 
     // code size optimization, removes the impl FnOnce generic
     fn finish<T: VarValue>(
