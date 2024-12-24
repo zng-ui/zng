@@ -24,7 +24,7 @@
 //! fallback is used.
 //!
 //! The [`L10N`] service can be used to set the app language and load localization resources. The example below
-//! sets the language to en-US and loads localization from a directory.
+//! sets the language to en-US and loads localization from a directory using [`L10N.load_dir`].
 //!
 //! ```no_run
 //! use zng::prelude::*;
@@ -42,6 +42,14 @@
 //!     }
 //! });
 //! ```
+//!
+//! The service also supports embedded localization resources in the `.tar` and `.tar.gz` formats using
+//! [`L10N.load_tar`], see the [localize example] for more details. You can also implement more container formats using [`L10N.load`].
+//!
+//! [`L10N.load_dir`]: crate::l10n::L10N::load_dir
+//! [`L10N.load_tar`]: crate::l10n::L10N::load_tar
+//! [`L10N.load`]: crate::l10n::L10N::load
+//! [localize example]: https://github.com/zng-ui/zng/blob/main/examples/localize/build.rs
 //!
 //! # Fluent
 //!
@@ -148,6 +156,6 @@
 //! See [`zng_ext_l10n`] for the full localization API.
 
 pub use zng_ext_l10n::{
-    l10n, lang, IntoL10nVar, L10nArgument, L10nDir, L10nMessageBuilder, L10nSource, Lang, LangFilePath, LangMap, LangResource,
+    l10n, lang, IntoL10nVar, L10nArgument, L10nDir, L10nMessageBuilder, L10nSource, L10nTar, Lang, LangFilePath, LangMap, LangResource,
     LangResourceStatus, LangResources, Langs, NilL10nSource, SwapL10nSource, L10N, LANG_VAR,
 };
