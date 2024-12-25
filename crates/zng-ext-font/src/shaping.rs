@@ -1758,11 +1758,17 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some((font, glyphs)) = &mut self.maybe_img {
+                // new glyph sequence or single emoji(maybe img)
+
+                // advance images to the next in or after glyph sequence
                 while self.images.first().map(|(i, _)| *i < self.glyphs_i).unwrap_or(false) {
                     self.images = &self.images[1..];
                 }
+
                 if let Some((i, img)) = self.images.first() {
+                    // if there is still images
                     if *i == self.glyphs_i {
+                        // if the next glyph is replaced by image
                         self.glyphs_i += 1;
                         let mut size = img.0.with(|i| i.size()).cast::<f32>();
                         let scale = font.size().0 as f32 / size.width.max(size.height);
@@ -1781,6 +1787,7 @@ where
                         }
                         return Some(r);
                     } else {
+                        // if the next glyph is not replaced by image, yield slice to end or next image
                         let normal = &glyphs[..glyphs.len().min(*i as _)];
                         self.glyphs_i += normal.len() as u32;
 
@@ -1793,12 +1800,16 @@ where
                         return Some(r);
                     }
                 } else {
+                    // if there are no more images
                     let r = (*font, ShapedImageGlyphs::Normal(glyphs));
+                    self.maybe_img = None;
                     return Some(r);
                 }
             } else if let Some(seq) = self.glyphs.next() {
+                // all sequences can contain images
                 self.maybe_img = Some(seq);
             } else {
+                // no more glyphs to yield
                 return None;
             }
         }
