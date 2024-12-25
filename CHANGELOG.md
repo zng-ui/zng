@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.13.3
+
 * Fix hang rendering some text with image emojis.
 
 # 0.13.2
