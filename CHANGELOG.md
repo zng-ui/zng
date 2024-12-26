@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix crash handler creating a temp file in the executable directory.
 
 # 0.13.3
 
