@@ -1014,11 +1014,10 @@ impl WIDGET {
                 w.handles.event_handles.lock().push(s);
             } else {
                 WIDGET_HANDLES_CTX.get().event_handles.lock().push(s);
-            }    
+            }
         }
         push(w, s);
 
-        
         self
     }
 
