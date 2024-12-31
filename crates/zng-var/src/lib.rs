@@ -655,11 +655,15 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
 
     /// Keep `other` alive until the handle or `self` are dropped.
     fn hold_any(&self, value: Box<dyn Any + Send + Sync>) -> VarHandle {
-        self.hook_any(Box::new(move |_| {
-            let _hold = &value;
-            true
-        }))
+        self.hook_any(hold_any_impl(value))
     }
+}
+// separate function to avoid code bloat
+fn hold_any_impl(value: Box<dyn Any + Send + Sync>) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
+    Box::new(move |_| {
+        let _hold = &value;
+        true
+    })
 }
 
 #[derive(Debug)]

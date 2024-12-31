@@ -906,11 +906,15 @@ impl WIDGET {
         let w = WIDGET_CTX.get();
         let s = var.subscribe(op, w.id);
 
-        if WIDGET_HANDLES_CTX.is_default() {
-            w.handles.var_handles.lock().push(s);
-        } else {
-            WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+        // function to avoid generics code bloat
+        fn push(w: Arc<WidgetCtxData>, s: VarHandle) {
+            if WIDGET_HANDLES_CTX.is_default() {
+                w.handles.var_handles.lock().push(s);
+            } else {
+                WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+            }
         }
+        push(w, s);
 
         self
     }
@@ -927,11 +931,15 @@ impl WIDGET {
         let w = WIDGET_CTX.get();
         let s = var.subscribe_when(op, w.id, predicate);
 
-        if WIDGET_HANDLES_CTX.is_default() {
-            w.handles.var_handles.lock().push(s);
-        } else {
-            WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+        // function to avoid generics code bloat
+        fn push(w: Arc<WidgetCtxData>, s: VarHandle) {
+            if WIDGET_HANDLES_CTX.is_default() {
+                w.handles.var_handles.lock().push(s);
+            } else {
+                WIDGET_HANDLES_CTX.get().var_handles.lock().push(s);
+            }
         }
+        push(w, s);
 
         self
     }
@@ -1000,12 +1008,17 @@ impl WIDGET {
         let w = WIDGET_CTX.get();
         let s = event.subscribe(w.id);
 
-        if WIDGET_HANDLES_CTX.is_default() {
-            w.handles.event_handles.lock().push(s);
-        } else {
-            WIDGET_HANDLES_CTX.get().event_handles.lock().push(s);
+        // function to avoid generics code bloat
+        fn push(w: Arc<WidgetCtxData>, s: EventHandle) {
+            if WIDGET_HANDLES_CTX.is_default() {
+                w.handles.event_handles.lock().push(s);
+            } else {
+                WIDGET_HANDLES_CTX.get().event_handles.lock().push(s);
+            }    
         }
+        push(w, s);
 
+        
         self
     }
 
