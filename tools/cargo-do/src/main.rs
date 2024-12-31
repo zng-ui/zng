@@ -905,7 +905,12 @@ fn mono_stats(mut args: Vec<&str>) {
     } else {
         rust_flags.push_str(" -Zdump-mono-stats=./mono-stats");
     }
-    cmd_env("cargo", &["+nightly", "build", "-p", crate_], &[], &[("RUSTFLAGS", rust_flags.as_str())]);
+    cmd_env(
+        "cargo",
+        &["+nightly", "build", "-p", crate_],
+        &[],
+        &[("RUSTFLAGS", rust_flags.as_str())],
+    );
 }
 
 // do build-apk <EXAMPLE> [--release-lto] [--no-strip]
