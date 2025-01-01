@@ -1,5 +1,5 @@
 /*
-IDEA
+!!: IDEA
 
 * Have all variables have a type erased core.
 * Var<T>: Deref<AnyVar> (the core).
@@ -17,11 +17,9 @@ use std::{marker::PhantomData, sync::Arc};
 use parking_lot::RwLock;
 use zng_txt::formatx;
 
-use crate::{animation::ModifyInfo, private, AnyVar, VarCapability, VarHandle, VarHook, VarUpdateId, VarValue};
+use crate::{animation::ModifyInfo, private, AnyVar, Var, VarCapability, VarHandle, VarHook, VarPtr, VarUpdateId, VarValue};
 
-pub struct ArcVarAny(Arc<RwLock<ArcVarInner>>);
-
-pub struct ArcVar<T: VarValue>(ArcVarAny, PhantomData<T>);
+pub struct ArcVar<T: VarValue>(Arc<RwLock<ArcVarInner>>, PhantomData<T>);
 
 struct ArcVarInner {
     value: Box<dyn crate::AnyVarValue>,
@@ -30,22 +28,27 @@ struct ArcVarInner {
     animation: ModifyInfo,
 }
 
-impl ArcVarAny {
-    pub fn new(value: Box<dyn crate::AnyVarValue>) -> Self {
-        Self(Arc::new(RwLock::new(ArcVarInner {
+impl<T: VarValue> ArcVar<T> {
+    pub fn new_data(value: Box<dyn crate::AnyVarValue>) -> Arc<RwLock<ArcVarInner>> {
+        Arc::new(RwLock::new(ArcVarInner {
             value,
             last_update: VarUpdateId::never(),
                 hooks: vec![],
                 animation: ModifyInfo::never(),
-        })))
+        }))
     }
 }
 
-impl private::Sealed for ArcVarAny { }
+impl<T: VarValue> private::Sealed for ArcVar<T> { }
+impl<T: VarValue> Clone for ArcVar<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), PhantomData)
+    }
+}
 
-impl AnyVar for ArcVarAny {
+impl<T: VarValue> AnyVar for ArcVar<T> {
     fn clone_any(&self) -> crate::BoxedAnyVar {
-        todo!()
+        Box::new(self.clone())
     }
 
     // Limitation, can't cast back to ArcVar<T>
@@ -56,11 +59,11 @@ impl AnyVar for ArcVarAny {
     }
 
     fn as_unboxed_any(&self) -> &dyn std::any::Any {
-        todo!()
+        self
     }
 
     fn double_boxed_any(self: Box<Self>) -> Box<dyn std::any::Any> {
-        todo!()
+        self
     }
 
     fn var_type_id(&self) -> std::any::TypeId {
@@ -126,15 +129,15 @@ impl AnyVar for ArcVarAny {
     }
 
     fn actual_var_any(&self) -> crate::BoxedAnyVar {
-        todo!()
+        self.clone_any()
     }
 
     fn downgrade_any(&self) -> crate::BoxedAnyWeakVar {
         todo!()
     }
 
-    fn var_ptr(&self) -> crate::VarPtr {
-        todo!()
+    fn var_ptr(&self) -> VarPtr {
+        VarPtr::new_arc(&self.0)
     }
 
     fn get_debug(&self) -> zng_txt::Txt {
@@ -146,6 +149,143 @@ impl AnyVar for ArcVarAny {
     }
 
     fn map_debug(&self) -> crate::BoxedVar<zng_txt::Txt> {
+        todo!()
+    }
+    
+    fn is_new(&self) -> bool {
+        crate::VARS.update_id() == self.last_update()
+    }
+    
+    fn perm(&self) {
+        crate::VARS.perm(self.clone_any());
+    }
+    
+    fn hold_any(&self, value: Box<dyn std::any::Any + Send + Sync>) -> VarHandle {
+        self.hook_any(Box::new(move |_| {
+            let _hold = &value;
+            true
+        }))
+    }
+}
+
+impl<T: VarValue> Var<T> for ArcVar<T> {
+    type ReadOnly;
+
+    type ActualVar;
+
+    type Downgrade;
+
+    type Map<O: VarValue>;
+
+    type MapBidi<O: VarValue>;
+
+    type FlatMap<O: VarValue, V: Var<O>>;
+
+    type FilterMap<O: VarValue>;
+
+    type FilterMapBidi<O: VarValue>;
+
+    type MapRef<O: VarValue>;
+
+    type MapRefBidi<O: VarValue>;
+
+    type Easing;
+
+    fn with<R, F>(&self, read: F) -> R
+    where
+        F: FnOnce(&T) -> R {
+        todo!()
+    }
+
+    fn modify<F>(&self, modify: F) -> Result<(), crate::VarIsReadOnlyError>
+    where
+        F: FnOnce(&mut crate::VarModify<T>) + Send + 'static {
+        todo!()
+    }
+
+    fn actual_var(self) -> Self::ActualVar {
+        todo!()
+    }
+
+    fn downgrade(&self) -> Self::Downgrade {
+        todo!()
+    }
+
+    fn into_value(self) -> T {
+        todo!()
+    }
+
+    fn read_only(&self) -> Self::ReadOnly {
+        todo!()
+    }
+
+    fn map<O, M>(&self, map: M) -> Self::Map<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static {
+        todo!()
+    }
+
+    fn map_bidi<O, M, B>(&self, map: M, map_back: B) -> Self::MapBidi<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> O + Send + 'static,
+        B: FnMut(&O) -> T + Send + 'static {
+        todo!()
+    }
+
+    fn flat_map<O, V, M>(&self, map: M) -> Self::FlatMap<O, V>
+    where
+        O: VarValue,
+        V: Var<O>,
+        M: FnMut(&T) -> V + Send + 'static {
+        todo!()
+    }
+
+    fn filter_map<O, M, I>(&self, map: M, fallback: I) -> Self::FilterMap<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static {
+        todo!()
+    }
+
+    fn filter_map_bidi<O, M, B, I>(&self, map: M, map_back: B, fallback: I) -> Self::FilterMapBidi<O>
+    where
+        O: VarValue,
+        M: FnMut(&T) -> Option<O> + Send + 'static,
+        B: FnMut(&O) -> Option<T> + Send + 'static,
+        I: Fn() -> O + Send + Sync + 'static {
+        todo!()
+    }
+
+    fn map_ref<O, M>(&self, map: M) -> Self::MapRef<O>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Send + Sync + 'static {
+        todo!()
+    }
+
+    fn map_ref_bidi<O, M, B>(&self, map: M, map_mut: B) -> Self::MapRefBidi<O>
+    where
+        O: VarValue,
+        M: Fn(&T) -> &O + Send + Sync + 'static,
+        B: Fn(&mut T) -> &mut O + Send + Sync + 'static {
+        todo!()
+    }
+
+    fn easing<F>(&self, duration: std::time::Duration, easing: F) -> Self::Easing
+    where
+        T: crate::animation::Transitionable,
+        F: Fn(crate::animation::easing::EasingTime) -> crate::animation::easing::EasingStep + Send + Sync + 'static {
+        todo!()
+    }
+
+    fn easing_with<F, S>(&self, duration: std::time::Duration, easing: F, sampler: S) -> Self::Easing
+    where
+        T: crate::animation::Transitionable,
+        F: Fn(crate::animation::easing::EasingTime) -> crate::animation::easing::EasingStep + Send + Sync + 'static,
+        S: Fn(&crate::animation::Transition<T>, crate::animation::easing::EasingStep) -> T + Send + Sync + 'static {
         todo!()
     }
 }

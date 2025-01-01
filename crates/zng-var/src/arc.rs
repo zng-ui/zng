@@ -6,15 +6,15 @@ use super::{util::VarData, *};
 ///
 /// This is the primary variable type, it can be instantiated using the [`var`] and [`var_from`] functions.
 #[derive(Clone)]
-pub struct ArcVar<T: VarValue>(Arc<VarData<T>>);
+pub struct ArcVar<T: VarValue>(Arc<VarData>, PhantomData<T>);
 
 /// Weak reference to a [`ArcVar<T>`].
 #[derive(Clone)]
-pub struct WeakArcVar<T: VarValue>(Weak<VarData<T>>);
+pub struct WeakArcVar<T: VarValue>(Weak<VarData>, PhantomData<T>);
 
 /// New ref counted read/write variable with initial `value`.
 pub fn var<T: VarValue>(value: T) -> ArcVar<T> {
-    ArcVar(Arc::new(VarData::new(value)))
+    ArcVar(Arc::new(VarData::new(value)), PhantomData)
 }
 
 /// New ref counted read/write variable with initial value converted from `source`.
@@ -30,7 +30,7 @@ pub fn var_default<T: VarValue + Default>() -> ArcVar<T> {
 impl<T: VarValue> WeakArcVar<T> {
     /// New reference to nothing.
     pub fn new() -> Self {
-        Self(Weak::new())
+        Self(Weak::new(), PhantomData)
     }
 }
 
@@ -116,7 +116,7 @@ impl<T: VarValue> AnyVar for ArcVar<T> {
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        Box::new(WeakArcVar(Arc::downgrade(&self.0)))
+        Box::new(WeakArcVar(Arc::downgrade(&self.0), PhantomData::<T>))
     }
 
     fn is_animating(&self) -> bool {
@@ -158,7 +158,7 @@ impl<T: VarValue> AnyWeakVar for WeakArcVar<T> {
     }
 
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
-        self.0.upgrade().map(|rc| Box::new(ArcVar(rc)) as _)
+        self.0.upgrade().map(|rc| Box::new(ArcVar(rc, PhantomData::<T>)) as _)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -245,13 +245,13 @@ impl<T: VarValue> Var<T> for ArcVar<T> {
     }
 
     fn downgrade(&self) -> WeakArcVar<T> {
-        WeakArcVar(Arc::downgrade(&self.0))
+        WeakArcVar(Arc::downgrade(&self.0), PhantomData::<T>)
     }
 
     fn into_value(self) -> T {
         match Arc::try_unwrap(self.0) {
             Ok(data) => data.into_value(),
-            Err(rc) => Self(rc).get(),
+            Err(rc) => Self(rc, PhantomData).get(),
         }
     }
 
@@ -343,7 +343,7 @@ impl<T: VarValue> WeakVar<T> for WeakArcVar<T> {
     type Upgrade = ArcVar<T>;
 
     fn upgrade(&self) -> Option<ArcVar<T>> {
-        self.0.upgrade().map(|rc| ArcVar(rc))
+        self.0.upgrade().map(|rc| ArcVar(rc, PhantomData))
     }
 }
 

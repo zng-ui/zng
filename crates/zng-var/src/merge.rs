@@ -72,7 +72,7 @@ struct MergeData<T> {
 
 struct Data<T: VarValue> {
     m: Mutex<MergeData<T>>,
-    value: VarData<T>,
+    value: VarData,
 }
 
 /// See [`merge_var!`].
