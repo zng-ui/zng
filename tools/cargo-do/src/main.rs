@@ -32,6 +32,7 @@ fn main() {
         "publish_version_tag" => publish_version_tag(args),
         "comment_feature" => comment_feature(args),
         "latest_release_changes" => latest_release_changes(args),
+        "mono-stats" => mono_stats(args),
         "just" => just(args),
         "version" => version(args),
         "ls" => ls(args),
@@ -884,6 +885,35 @@ fn build(mut args: Vec<&str>) {
     }
 
     cmd_env("cargo", &cargo_args, &args, rust_flags);
+}
+
+// do mono-stats <CRATE> [--print]
+//    Compile the crate and dump generic instances
+// USAGE
+//    mono-stats --print --dump <CRATE>
+//       Don't group/sort items in files, just print, to a dump file
+fn mono_stats(mut args: Vec<&str>) {
+    let print = take_flag(&mut args, &["--print"]);
+    if args.is_empty() {
+        fatal("expected a project <CRATE>")
+    }
+    let crate_ = &args[0];
+    let mut rust_flags = std::env::var("RUSTFLAGS").unwrap_or_default();
+    rust_flags.push_str("-C link-args=-znostart-stop-gc"); // fix linkme bug
+    if print {
+        rust_flags.push_str(" -Zprint-mono-items=lazy");
+    } else {
+        rust_flags.push_str(&format!(
+            " -Zdump-mono-stats={}",
+            std::env::current_dir().unwrap().join("mono-stats").display()
+        ));
+    }
+    cmd_env(
+        "cargo",
+        &["+nightly", "build", "-p", crate_],
+        &[],
+        &[("RUSTFLAGS", rust_flags.as_str())],
+    );
 }
 
 // do build-apk <EXAMPLE> [--release-lto] [--no-strip]
