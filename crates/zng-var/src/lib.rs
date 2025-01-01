@@ -36,6 +36,8 @@ use zng_clone_move::clmv;
 use zng_txt::{formatx, ToTxt, Txt};
 use zng_unit::{Factor, FactorUnits};
 
+pub mod _idea;
+
 pub mod animation;
 mod arc;
 mod boxed;
