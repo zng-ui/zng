@@ -903,7 +903,10 @@ fn mono_stats(mut args: Vec<&str>) {
     if print {
         rust_flags.push_str(" -Zprint-mono-items=lazy");
     } else {
-        rust_flags.push_str(" -Zdump-mono-stats=./mono-stats");
+        rust_flags.push_str(&format!(
+            " -Zdump-mono-stats={}",
+            std::env::current_dir().unwrap().join("mono-stats").display()
+        ));
     }
     cmd_env(
         "cargo",
