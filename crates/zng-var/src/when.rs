@@ -110,57 +110,10 @@ impl<T: VarValue> WhenVarBuilder<T> {
         }
     }
     fn build_impl(self) -> ArcWhenVar<T> {
-        ArcWhenVar(self.build_impl_any(std::any::type_name::<T>()), PhantomData)
-    }
-    fn build_impl_any(mut self, type_name: &'static str) -> Arc<Data> {
-        self.conditions.shrink_to_fit();
-        for (c, v) in self.conditions.iter_mut() {
-            #[expect(unreachable_code)]
-            fn panic_placeholder() -> BoxedVar<bool> {
-                types::ContextualizedVar::<bool>::new(|| LocalVar(unreachable!())).boxed()
-            }
-
-            take_mut::take_or_recover(c, panic_placeholder, Var::actual_var);
-            *v = v.actual_var_any();
-        }
-
-        let rc_when = Arc::new(Data {
-            default: self.default.actual_var_any(),
-            conditions: self.conditions,
-            w: Mutex::new(WhenData {
-                input_handles: Box::new([]),
-                hooks: vec![],
-                last_update: VarUpdateId::never(),
-                active: usize::MAX,
-            }),
-        });
-        let wk_when = Arc::downgrade(&rc_when);
-
-        {
-            let mut data = rc_when.w.lock();
-            let data = &mut *data;
-
-            // capacity can be n*2+1, but we only bet on conditions being `NEW`.
-            let mut input_handles = Vec::with_capacity(rc_when.conditions.len());
-            if rc_when.default.capabilities().contains(VarCapability::NEW) {
-                input_handles.push(rc_when.default.hook_any(handle_value(wk_when.clone(), usize::MAX, type_name)));
-            }
-            for (i, (c, v)) in rc_when.conditions.iter().enumerate() {
-                if c.get() && data.active > i {
-                    data.active = i;
-                }
-
-                if c.capabilities().contains(VarCapability::NEW) {
-                    input_handles.push(c.hook_any(handle_condition(wk_when.clone(), i, type_name)));
-                }
-                if v.capabilities().contains(VarCapability::NEW) {
-                    input_handles.push(v.hook_any(handle_value(wk_when.clone(), i, type_name)));
-                }
-            }
-
-            data.input_handles = input_handles.into_boxed_slice();
-        }
-        rc_when
+        ArcWhenVar(
+            build_impl_any(self.default, self.conditions, std::any::type_name::<T>()),
+            PhantomData,
+        )
     }
 }
 
@@ -293,6 +246,57 @@ pub struct ArcWhenVar<T>(Arc<Data>, PhantomData<T>);
 
 /// Weak reference to a [`ArcWhenVar<T>`].
 pub struct WeakWhenVar<T>(Weak<Data>, PhantomData<T>);
+
+fn build_impl_any(default: BoxedAnyVar, mut conditions: Vec<(BoxedVar<bool>, BoxedAnyVar)>, type_name: &'static str) -> Arc<Data> {
+    conditions.shrink_to_fit();
+    for (c, v) in conditions.iter_mut() {
+        #[expect(unreachable_code)]
+        fn panic_placeholder() -> BoxedVar<bool> {
+            types::ContextualizedVar::<bool>::new(|| LocalVar(unreachable!())).boxed()
+        }
+
+        take_mut::take_or_recover(c, panic_placeholder, Var::actual_var);
+        *v = v.actual_var_any();
+    }
+
+    let rc_when = Arc::new(Data {
+        default: default.actual_var_any(),
+        conditions,
+        w: Mutex::new(WhenData {
+            input_handles: Box::new([]),
+            hooks: vec![],
+            last_update: VarUpdateId::never(),
+            active: usize::MAX,
+        }),
+    });
+    let wk_when = Arc::downgrade(&rc_when);
+
+    {
+        let mut data = rc_when.w.lock();
+        let data = &mut *data;
+
+        // capacity can be n*2+1, but we only bet on conditions being `NEW`.
+        let mut input_handles = Vec::with_capacity(rc_when.conditions.len());
+        if rc_when.default.capabilities().contains(VarCapability::NEW) {
+            input_handles.push(rc_when.default.hook_any(handle_value(wk_when.clone(), usize::MAX, type_name)));
+        }
+        for (i, (c, v)) in rc_when.conditions.iter().enumerate() {
+            if c.get() && data.active > i {
+                data.active = i;
+            }
+
+            if c.capabilities().contains(VarCapability::NEW) {
+                input_handles.push(c.hook_any(handle_condition(wk_when.clone(), i, type_name)));
+            }
+            if v.capabilities().contains(VarCapability::NEW) {
+                input_handles.push(v.hook_any(handle_value(wk_when.clone(), i, type_name)));
+            }
+        }
+
+        data.input_handles = input_handles.into_boxed_slice();
+    }
+    rc_when
+}
 
 fn handle_condition(wk_when: Weak<Data>, i: usize, type_name: &'static str) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
     Box::new(move |args| {
