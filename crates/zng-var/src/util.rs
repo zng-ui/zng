@@ -332,9 +332,14 @@ impl VarData {
         *self.0.into_inner().value.into_any().downcast::<T>().unwrap()
     }
 
+    fn read<T: VarValue>(&self) -> parking_lot::MappedRwLockReadGuard<T> {
+        let read = self.0.read();
+        parking_lot::RwLockReadGuard::map(read, |r|r.value.as_any().downcast_ref::<T>().unwrap())
+    }
+
     /// Read the value.
     pub fn with<T: VarValue, R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        f(self.0.read().value.as_any().downcast_ref::<T>().unwrap())
+        f(&*self.read())
     }
 
     pub fn last_update(&self) -> VarUpdateId {

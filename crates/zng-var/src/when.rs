@@ -82,21 +82,23 @@ pub type ContextualizedArcWhenVar<T> = types::ContextualizedVar<T>;
 /// Manually build a [`ArcWhenVar<T>`].
 #[derive(Clone)]
 pub struct WhenVarBuilder<T: VarValue> {
-    default: BoxedVar<T>,
-    conditions: Vec<(BoxedVar<bool>, BoxedVar<T>)>,
+    default: BoxedAnyVar,
+    conditions: Vec<(BoxedVar<bool>, BoxedAnyVar)>,
+    _t: PhantomData<T>,
 }
 impl<T: VarValue> WhenVarBuilder<T> {
     /// Start building with the default value.
     pub fn new(default: impl IntoVar<T>) -> Self {
         Self {
-            default: default.into_var().boxed(),
+            default: default.into_var().boxed_any(),
             conditions: vec![],
+            _t: PhantomData,
         }
     }
 
     /// Push a condition and value.
     pub fn push(&mut self, condition: impl IntoVar<bool>, value: impl IntoVar<T>) {
-        self.conditions.push((condition.into_var().boxed(), value.into_var().boxed()));
+        self.conditions.push((condition.into_var().boxed(), value.into_var().boxed_any()));
     }
 
     /// Finish the build.
@@ -107,19 +109,23 @@ impl<T: VarValue> WhenVarBuilder<T> {
             self.build_impl().boxed()
         }
     }
-    fn build_impl(mut self) -> ArcWhenVar<T> {
+    fn build_impl(self) -> ArcWhenVar<T> {
+        ArcWhenVar(self.build_impl_any(std::any::type_name::<T>()), PhantomData)
+    }
+    fn build_impl_any(mut self, type_name: &'static str) -> Arc<Data> {
         self.conditions.shrink_to_fit();
         for (c, v) in self.conditions.iter_mut() {
             #[expect(unreachable_code)]
-            fn panic_placeholder<T: VarValue>() -> BoxedVar<T> {
-                types::ContextualizedVar::<T>::new(|| LocalVar(unreachable!())).boxed()
+            fn panic_placeholder() -> BoxedVar<bool> {
+                types::ContextualizedVar::<bool>::new(|| LocalVar(unreachable!())).boxed()
             }
-            take_mut::take_or_recover(c, panic_placeholder::<bool>, Var::actual_var);
-            take_mut::take_or_recover(v, panic_placeholder::<T>, Var::actual_var);
+
+            take_mut::take_or_recover(c, panic_placeholder, Var::actual_var);
+            *v = v.actual_var_any();
         }
 
         let rc_when = Arc::new(Data {
-            default: self.default.actual_var(),
+            default: self.default.actual_var_any(),
             conditions: self.conditions,
             w: Mutex::new(WhenData {
                 input_handles: Box::new([]),
@@ -137,7 +143,7 @@ impl<T: VarValue> WhenVarBuilder<T> {
             // capacity can be n*2+1, but we only bet on conditions being `NEW`.
             let mut input_handles = Vec::with_capacity(rc_when.conditions.len());
             if rc_when.default.capabilities().contains(VarCapability::NEW) {
-                input_handles.push(rc_when.default.hook_any(ArcWhenVar::handle_value(wk_when.clone(), usize::MAX)));
+                input_handles.push(rc_when.default.hook_any(handle_value(wk_when.clone(), usize::MAX, type_name)));
             }
             for (i, (c, v)) in rc_when.conditions.iter().enumerate() {
                 if c.get() && data.active > i {
@@ -145,17 +151,16 @@ impl<T: VarValue> WhenVarBuilder<T> {
                 }
 
                 if c.capabilities().contains(VarCapability::NEW) {
-                    input_handles.push(c.hook_any(ArcWhenVar::handle_condition(wk_when.clone(), i)));
+                    input_handles.push(c.hook_any(handle_condition(wk_when.clone(), i, type_name)));
                 }
                 if v.capabilities().contains(VarCapability::NEW) {
-                    input_handles.push(v.hook_any(ArcWhenVar::handle_value(wk_when.clone(), i)));
+                    input_handles.push(v.hook_any(handle_value(wk_when.clone(), i, type_name)));
                 }
             }
 
             data.input_handles = input_handles.into_boxed_slice();
         }
-
-        ArcWhenVar(rc_when)
+        rc_when
     }
 }
 
@@ -240,16 +245,17 @@ impl AnyWhenVarBuilder {
 
     /// Build the when var if all value variables are of type [`BoxedVar<T>`].
     pub fn build<T: VarValue>(&self) -> Option<BoxedVar<T>> {
-        let default = *self.default.clone().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
-
-        let mut when = WhenVarBuilder::new(default);
-
-        for (c, v) in &self.conditions {
-            let value = *v.clone().double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
-
-            when.push(c.clone(), value);
+        let t = self.default.var_type_id();
+        for (_, v) in &self.conditions {
+            if v.var_type_id() != t {
+                return None;
+            }
         }
-
+        let when = WhenVarBuilder {
+            default: self.default.clone(),
+            conditions: self.conditions.clone(),
+            _t: PhantomData,
+        };
         Some(when.build())
     }
 }
@@ -276,20 +282,101 @@ struct WhenData {
     active: usize,
 }
 
-struct Data<T> {
-    default: BoxedVar<T>,
-    conditions: Vec<(BoxedVar<bool>, BoxedVar<T>)>,
+struct Data {
+    default: BoxedAnyVar,
+    conditions: Vec<(BoxedVar<bool>, BoxedAnyVar)>,
     w: Mutex<WhenData>,
 }
 
 /// See [`when_var!`].
-pub struct ArcWhenVar<T>(Arc<Data<T>>);
+pub struct ArcWhenVar<T>(Arc<Data>, PhantomData<T>);
 
 /// Weak reference to a [`ArcWhenVar<T>`].
-pub struct WeakWhenVar<T>(Weak<Data<T>>);
+pub struct WeakWhenVar<T>(Weak<Data>, PhantomData<T>);
+
+fn handle_condition(wk_when: Weak<Data>, i: usize, type_name: &'static str) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
+    Box::new(move |args| {
+        if let Some(rc_when) = wk_when.upgrade() {
+            let data = rc_when.w.lock();
+            let mut update = false;
+
+            match data.active.cmp(&i) {
+                std::cmp::Ordering::Equal => {
+                    if let Some(&false) = args.downcast_value::<bool>() {
+                        update = true;
+                    }
+                }
+                std::cmp::Ordering::Greater => {
+                    if let Some(&true) = args.downcast_value::<bool>() {
+                        update = true;
+                    }
+                }
+                std::cmp::Ordering::Less => {}
+            }
+
+            if update {
+                drop(data);
+                VARS.schedule_update(
+                    apply_update(rc_when, false, args.tags_vec()),
+                    type_name,
+                );
+            }
+
+            true
+        } else {
+            false
+        }
+    })
+}
+
+fn handle_value(wk_when: Weak<Data>, i: usize, type_name: &'static str) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
+    Box::new(move |args| {
+        if let Some(rc_when) = wk_when.upgrade() {
+            let data = rc_when.w.lock();
+            if data.active == i {
+                drop(data);
+                VARS.schedule_update(
+                    apply_update(rc_when, args.update(), args.tags_vec()),
+                    type_name,
+                );
+            }
+            true
+        } else {
+            false
+        }
+    })
+}
+
+fn apply_update(rc_merge: Arc<Data>, update: bool, tags: Vec<Box<dyn AnyVarValue>>) -> VarUpdateFn {
+    Box::new(move || {
+        let mut data = rc_merge.w.lock();
+        let data = &mut *data;
+
+        data.active = usize::MAX;
+        for (i, (c, _)) in rc_merge.conditions.iter().enumerate() {
+            if c.get() {
+                data.active = i;
+                break;
+            }
+        }
+        data.last_update = VARS.update_id();
+
+        let active = if data.active == usize::MAX {
+            &rc_merge.default
+        } else {
+            &rc_merge.conditions[data.active].1
+        };
+
+        active.with_any(&mut |value| {
+            let args = AnyVarHookArgs::new(value, update, &tags);
+            data.hooks.retain(|h| h.call(&args));
+        });
+        VARS.wake_app();
+    })
+}
 
 impl<T: VarValue> ArcWhenVar<T> {
-    fn active(&self) -> &BoxedVar<T> {
+    fn active(&self) -> &BoxedAnyVar {
         let active = self.0.w.lock().active;
         if active == usize::MAX {
             &self.0.default
@@ -298,99 +385,19 @@ impl<T: VarValue> ArcWhenVar<T> {
         }
     }
 
-    fn handle_condition(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
-        Box::new(move |args| {
-            if let Some(rc_when) = wk_when.upgrade() {
-                let data = rc_when.w.lock();
-                let mut update = false;
-
-                match data.active.cmp(&i) {
-                    std::cmp::Ordering::Equal => {
-                        if let Some(&false) = args.downcast_value::<bool>() {
-                            update = true;
-                        }
-                    }
-                    std::cmp::Ordering::Greater => {
-                        if let Some(&true) = args.downcast_value::<bool>() {
-                            update = true;
-                        }
-                    }
-                    std::cmp::Ordering::Less => {}
-                }
-
-                if update {
-                    drop(data);
-                    VARS.schedule_update(
-                        ArcWhenVar::apply_update(rc_when, false, args.tags_vec()),
-                        std::any::type_name::<T>(),
-                    );
-                }
-
-                true
-            } else {
-                false
-            }
-        })
-    }
-
-    fn handle_value(wk_when: Weak<Data<T>>, i: usize) -> Box<dyn Fn(&AnyVarHookArgs) -> bool + Send + Sync> {
-        Box::new(move |args| {
-            if let Some(rc_when) = wk_when.upgrade() {
-                let data = rc_when.w.lock();
-                if data.active == i {
-                    drop(data);
-                    VARS.schedule_update(
-                        ArcWhenVar::apply_update(rc_when, args.update(), args.tags_vec()),
-                        std::any::type_name::<T>(),
-                    );
-                }
-                true
-            } else {
-                false
-            }
-        })
-    }
-
-    fn apply_update(rc_merge: Arc<Data<T>>, update: bool, tags: Vec<Box<dyn AnyVarValue>>) -> VarUpdateFn {
-        Box::new(move || {
-            let mut data = rc_merge.w.lock();
-            let data = &mut *data;
-
-            data.active = usize::MAX;
-            for (i, (c, _)) in rc_merge.conditions.iter().enumerate() {
-                if c.get() {
-                    data.active = i;
-                    break;
-                }
-            }
-            data.last_update = VARS.update_id();
-
-            let active = if data.active == usize::MAX {
-                &rc_merge.default
-            } else {
-                &rc_merge.conditions[data.active].1
-            };
-
-            active.with(|value| {
-                let args = AnyVarHookArgs::new(value, update, &tags);
-                data.hooks.retain(|h| h.call(&args));
-            });
-            VARS.wake_app();
-        })
-    }
-
+    
     /// Reference condition, value pairs.
     ///
     /// The active condition is the first `true`.
-    pub fn conditions(&self) -> &[(BoxedVar<bool>, BoxedVar<T>)] {
-        &self.0.conditions
+    pub fn conditions(&self) -> Vec<(BoxedVar<bool>, BoxedVar<T>)> {
+        self.0.conditions.iter().map(|(c, v)| (c.clone(), *v.clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap())).collect()
     }
 
     /// The default value var.
     ///
     /// When no condition is active this is the backing var.
-    pub fn default(&self) -> &BoxedVar<T> {
-        &self.0.default
+    pub fn default(&self) -> BoxedVar<T> {
+        *self.0.default.clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap()
     }
 
     /// Create a variable similar to [`Var::easing`], but with different duration and easing functions for each condition.
@@ -407,7 +414,7 @@ impl<T: VarValue> ArcWhenVar<T> {
     {
         let source = self.clone();
         types::ContextualizedVar::new(move || {
-            debug_assert_eq!(source.conditions().len(), condition_easing.len());
+            debug_assert_eq!(source.0.conditions.len(), condition_easing.len());
 
             let source_wk = source.downgrade();
             let easing_var = super::var(source.get());
@@ -417,7 +424,7 @@ impl<T: VarValue> ArcWhenVar<T> {
             let mut _anim_handle = AnimationHandle::dummy();
             var_bind(&source, &easing_var, move |value, _, easing_var| {
                 let source = source_wk.upgrade().unwrap();
-                for ((c, _), easing) in source.conditions().iter().zip(&condition_easing) {
+                for ((c, _), easing) in source.0.conditions.iter().zip(&condition_easing) {
                     if let Some((duration, func)) = easing {
                         if c.get() {
                             let func = func.clone();
@@ -439,12 +446,12 @@ impl<T: VarValue> ArcWhenVar<T> {
 
 impl<T> Clone for ArcWhenVar<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self(self.0.clone(), PhantomData)
     }
 }
 impl<T> Clone for WeakWhenVar<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self(self.0.clone(), PhantomData)
     }
 }
 
@@ -486,7 +493,7 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
     }
 
     fn set_any(&self, value: Box<dyn AnyVarValue>) -> Result<(), VarIsReadOnlyError> {
-        self.modify(var_set_any(value))
+        self.active().set_any(value)
     }
 
     fn last_update(&self) -> VarUpdateId {
@@ -532,7 +539,7 @@ impl<T: VarValue> AnyVar for ArcWhenVar<T> {
     }
 
     fn downgrade_any(&self) -> BoxedAnyWeakVar {
-        Box::new(WeakWhenVar(Arc::downgrade(&self.0)))
+        Box::new(WeakWhenVar(Arc::downgrade(&self.0), PhantomData::<T>))
     }
 
     fn is_animating(&self) -> bool {
@@ -574,7 +581,7 @@ impl<T: VarValue> AnyWeakVar for WeakWhenVar<T> {
     }
 
     fn upgrade_any(&self) -> Option<BoxedAnyVar> {
-        self.0.upgrade().map(|rc| Box::new(ArcWhenVar(rc)) as _)
+        self.0.upgrade().map(|rc| Box::new(ArcWhenVar(rc, PhantomData::<T>)) as _)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -614,14 +621,28 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
     where
         F: FnOnce(&T) -> R,
     {
-        self.active().with(read)
+        let mut read = Some(read);
+        let mut rsp = None;
+        self.active().with_any(&mut |v| {
+            let read = read.take().unwrap();
+            let r = read(v.as_any().downcast_ref::<T>().unwrap());
+            rsp = Some(r);
+        });
+        rsp.unwrap()
     }
 
     fn modify<F>(&self, modify: F) -> Result<(), VarIsReadOnlyError>
     where
         F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
-        self.active().modify(modify)
+        self.active().clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap().modify(modify)
+    }
+
+    fn set<I>(&self, value: I) -> Result<(), VarIsReadOnlyError>
+    where
+        I: Into<T>,
+    {
+        self.active().set_any(Box::new(value.into()))
     }
 
     fn actual_var(self) -> Self {
@@ -630,21 +651,12 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
     }
 
     fn downgrade(&self) -> WeakWhenVar<T> {
-        WeakWhenVar(Arc::downgrade(&self.0))
+        WeakWhenVar(Arc::downgrade(&self.0), PhantomData)
     }
 
     fn into_value(self) -> T {
-        match Arc::try_unwrap(self.0) {
-            Ok(mut v) => {
-                let active = v.w.into_inner().active;
-                if active == usize::MAX {
-                    v.default.into_value()
-                } else {
-                    v.conditions.swap_remove(active).1.into_value()
-                }
-            }
-            Err(rc) => Self(rc).get(),
-        }
+        // need to clone the value anyway because of type erased internals
+        self.get()
     }
 
     fn read_only(&self) -> Self::ReadOnly {
@@ -735,6 +747,6 @@ impl<T: VarValue> WeakVar<T> for WeakWhenVar<T> {
     type Upgrade = ArcWhenVar<T>;
 
     fn upgrade(&self) -> Option<ArcWhenVar<T>> {
-        self.0.upgrade().map(|rc| ArcWhenVar(rc))
+        self.0.upgrade().map(|rc| ArcWhenVar(rc, PhantomData))
     }
 }
