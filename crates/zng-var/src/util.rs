@@ -334,7 +334,7 @@ impl VarData {
 
     fn read<T: VarValue>(&self) -> parking_lot::MappedRwLockReadGuard<T> {
         let read = self.0.read();
-        parking_lot::RwLockReadGuard::map(read, |r|r.value.as_any().downcast_ref::<T>().unwrap())
+        parking_lot::RwLockReadGuard::map(read, |r| r.value.as_any().downcast_ref::<T>().unwrap())
     }
 
     /// Read the value.
@@ -453,4 +453,3 @@ fn apply_modify(
         data.meta.animation.importance = i;
     }
 }
-

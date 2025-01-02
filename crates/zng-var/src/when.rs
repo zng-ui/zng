@@ -316,10 +316,7 @@ fn handle_condition(wk_when: Weak<Data>, i: usize, type_name: &'static str) -> B
 
             if update {
                 drop(data);
-                VARS.schedule_update(
-                    apply_update(rc_when, false, args.tags_vec()),
-                    type_name,
-                );
+                VARS.schedule_update(apply_update(rc_when, false, args.tags_vec()), type_name);
             }
 
             true
@@ -335,10 +332,7 @@ fn handle_value(wk_when: Weak<Data>, i: usize, type_name: &'static str) -> Box<d
             let data = rc_when.w.lock();
             if data.active == i {
                 drop(data);
-                VARS.schedule_update(
-                    apply_update(rc_when, args.update(), args.tags_vec()),
-                    type_name,
-                );
+                VARS.schedule_update(apply_update(rc_when, args.update(), args.tags_vec()), type_name);
             }
             true
         } else {
@@ -385,12 +379,15 @@ impl<T: VarValue> ArcWhenVar<T> {
         }
     }
 
-    
     /// Reference condition, value pairs.
     ///
     /// The active condition is the first `true`.
     pub fn conditions(&self) -> Vec<(BoxedVar<bool>, BoxedVar<T>)> {
-        self.0.conditions.iter().map(|(c, v)| (c.clone(), *v.clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap())).collect()
+        self.0
+            .conditions
+            .iter()
+            .map(|(c, v)| (c.clone(), *v.clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap()))
+            .collect()
     }
 
     /// The default value var.
@@ -635,7 +632,12 @@ impl<T: VarValue> Var<T> for ArcWhenVar<T> {
     where
         F: FnOnce(&mut VarModify<T>) + Send + 'static,
     {
-        self.active().clone().double_boxed_any().downcast::<BoxedVar<T>>().unwrap().modify(modify)
+        self.active()
+            .clone()
+            .double_boxed_any()
+            .downcast::<BoxedVar<T>>()
+            .unwrap()
+            .modify(modify)
     }
 
     fn set<I>(&self, value: I) -> Result<(), VarIsReadOnlyError>
