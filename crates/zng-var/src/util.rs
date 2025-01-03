@@ -63,7 +63,7 @@ macro_rules! impl_from_and_into_var {
 
 use parking_lot::RwLock;
 
-use crate::AnyVarHookArgs;
+use crate::{AnyVarHookArgs, AnyVarValue};
 
 use super::{animation::ModifyInfo, VarHandle, VarHook, VarModify, VarUpdateId, VarValue, VARS};
 
@@ -306,70 +306,40 @@ impl VarMeta {
     }
 }
 
-#[cfg(feature = "dyn_closure")]
 struct VarDataInner {
-    value: Box<dyn crate::AnyVarValue>,
+    value: Box<dyn AnyVarValue>,
     meta: VarMeta,
 }
 
-#[cfg(not(feature = "dyn_closure"))]
-struct VarDataInner<T> {
-    value: T,
-    meta: VarMeta,
-}
+pub(super) struct VarData(RwLock<VarDataInner>);
 
-#[cfg(feature = "dyn_closure")]
-pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner>, std::marker::PhantomData<T>);
-
-#[cfg(not(feature = "dyn_closure"))]
-pub(super) struct VarData<T: VarValue>(RwLock<VarDataInner<T>>);
-
-impl<T: VarValue> VarData<T> {
-    pub fn new(value: T) -> Self {
-        #[cfg(feature = "dyn_closure")]
-        let value = Box::new(value);
-        let inner = RwLock::new(VarDataInner {
+impl VarData {
+    pub fn new(value: impl VarValue) -> Self {
+        Self::new_impl(Box::new(value))
+    }
+    fn new_impl(value: Box<dyn AnyVarValue>) -> Self {
+        Self(RwLock::new(VarDataInner {
             value,
             meta: VarMeta {
                 last_update: VarUpdateId::never(),
                 hooks: vec![],
                 animation: ModifyInfo::never(),
             },
-        });
-
-        #[cfg(feature = "dyn_closure")]
-        {
-            Self(inner, std::marker::PhantomData)
-        }
-
-        #[cfg(not(feature = "dyn_closure"))]
-        {
-            Self(inner)
-        }
+        }))
     }
 
-    pub fn into_value(self) -> T {
-        #[cfg(feature = "dyn_closure")]
-        {
-            *self.0.into_inner().value.into_any().downcast::<T>().unwrap()
-        }
-        #[cfg(not(feature = "dyn_closure"))]
-        {
-            self.0.into_inner().value
-        }
+    pub fn into_value<T: VarValue>(self) -> T {
+        *self.0.into_inner().value.into_any().downcast::<T>().unwrap()
+    }
+
+    fn read<T: VarValue>(&self) -> parking_lot::MappedRwLockReadGuard<T> {
+        let read = self.0.read();
+        parking_lot::RwLockReadGuard::map(read, |r| r.value.as_any().downcast_ref::<T>().unwrap())
     }
 
     /// Read the value.
-    pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        #[cfg(feature = "dyn_closure")]
-        {
-            f(self.0.read().value.as_any().downcast_ref::<T>().unwrap())
-        }
-
-        #[cfg(not(feature = "dyn_closure"))]
-        {
-            f(&self.0.read().value)
-        }
+    pub fn with<T: VarValue, R>(&self, f: impl FnOnce(&T) -> R) -> R {
+        f(&*self.read())
     }
 
     pub fn last_update(&self) -> VarUpdateId {
@@ -393,7 +363,7 @@ impl<T: VarValue> VarData<T> {
     }
 
     #[cfg(feature = "dyn_closure")]
-    pub fn apply_modify(&self, modify: Box<dyn FnOnce(&mut VarModify<T>) + 'static>) {
+    pub fn apply_modify<T: VarValue>(&self, modify: Box<dyn FnOnce(&mut VarModify<T>) + 'static>) {
         apply_modify(
             &self.0,
             Box::new(move |v| {
@@ -415,25 +385,31 @@ impl<T: VarValue> VarData<T> {
     }
 
     #[cfg(not(feature = "dyn_closure"))]
-    pub fn apply_modify(&self, modify: impl FnOnce(&mut VarModify<T>) + 'static) {
-        apply_modify(&self.0, modify)
+    pub fn apply_modify<T: VarValue>(&self, modify: impl FnOnce(&mut VarModify<T>) + 'static) {
+        apply_modify(
+            &self.0,
+            Box::new(move |v| {
+                let mut value = VarModify::new(v.as_any().downcast_ref::<T>().unwrap());
+                modify(&mut value);
+                let (notify, new_value, update, tags, importance) = value.finish();
+                (
+                    notify,
+                    match new_value {
+                        Some(v) => Some(Box::new(v)),
+                        None => None,
+                    },
+                    update,
+                    tags,
+                    importance,
+                )
+            }),
+        )
     }
 }
 
-#[cfg(feature = "dyn_closure")]
 fn apply_modify(
     inner: &RwLock<VarDataInner>,
-    modify: Box<
-        dyn FnOnce(
-            &dyn crate::AnyVarValue,
-        ) -> (
-            bool,
-            Option<Box<dyn crate::AnyVarValue>>,
-            bool,
-            Vec<Box<dyn crate::AnyVarValue>>,
-            Option<usize>,
-        ),
-    >,
+    modify: Box<dyn FnOnce(&dyn AnyVarValue) -> (bool, Option<Box<dyn AnyVarValue>>, bool, Vec<Box<dyn AnyVarValue>>, Option<usize>)>,
 ) {
     let mut data = inner.write();
     if data.meta.skip_modify() {
@@ -462,7 +438,7 @@ fn apply_modify(
             let meta = parking_lot::RwLockWriteGuard::downgrade(data);
 
             let args = AnyVarHookArgs::new(&*meta.value, update, &tags);
-            call_hooks(&mut hooks, args);
+            hooks.retain(|h| h.call(&args));
             drop(meta);
 
             let mut data = inner.write();
@@ -476,66 +452,4 @@ fn apply_modify(
         let mut data = inner.write();
         data.meta.animation.importance = i;
     }
-}
-
-#[cfg(not(feature = "dyn_closure"))]
-fn apply_modify<T: VarValue>(inner: &RwLock<VarDataInner<T>>, modify: impl FnOnce(&mut VarModify<T>)) {
-    use crate::AnyVarValue;
-
-    let mut data = inner.write();
-    if data.meta.skip_modify() {
-        return;
-    }
-
-    let meta = parking_lot::RwLockWriteGuard::downgrade(data);
-    let mut value = VarModify::new(&meta.value);
-    modify(&mut value);
-    let (notify, new_value, update, tags, custom_importance) = value.finish();
-    drop(meta);
-
-    // code size optimization, removes the impl FnOnce generic
-    fn finish<T: VarValue>(
-        inner: &RwLock<VarDataInner<T>>,
-        notify: bool,
-        new_value: Option<T>,
-        update: bool,
-        tags: Vec<Box<dyn AnyVarValue>>,
-        custom_importance: Option<usize>,
-    ) {
-        if notify {
-            let mut data = inner.write();
-            if let Some(nv) = new_value {
-                data.value = nv;
-            }
-            data.meta.last_update = VARS.update_id();
-
-            if let Some(i) = custom_importance {
-                data.meta.animation.importance = i;
-            }
-
-            if !data.meta.hooks.is_empty() {
-                let mut hooks = std::mem::take(&mut data.meta.hooks);
-
-                let meta = parking_lot::RwLockWriteGuard::downgrade(data);
-
-                let args = AnyVarHookArgs::new(&meta.value, update, &tags);
-                call_hooks(&mut hooks, args);
-                drop(meta);
-
-                let mut data = inner.write();
-                hooks.append(&mut data.meta.hooks);
-                data.meta.hooks = hooks;
-            }
-
-            VARS.wake_app();
-        } else if let Some(i) = custom_importance {
-            let mut data = inner.write();
-            data.meta.animation.importance = i;
-        }
-    }
-    finish(inner, notify, new_value, update, tags, custom_importance);
-}
-
-fn call_hooks(hooks: &mut Vec<VarHook>, args: AnyVarHookArgs) {
-    hooks.retain(|h| h.call(&args));
 }
