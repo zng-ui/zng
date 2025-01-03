@@ -1,6 +1,10 @@
 # Unreleased
 
 
+# 0.13.5
+
+* Various optimizations to reduce code bloat.
+
 # 0.13.4
 
 * Fix crash handler creating a temp file in the executable directory.
