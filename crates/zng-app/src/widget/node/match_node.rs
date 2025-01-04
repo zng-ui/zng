@@ -432,6 +432,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
         closure: impl FnMut(&mut MatchNodeChild<C>, UiNodeOp) + Send + 'static,
     })]
     impl UiNode for MatchNode {
+        #[inline(always)]
         fn init(&mut self) {
             self.child.delegated = false;
 
@@ -442,6 +443,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             }
         }
 
+        #[inline(always)]
         fn deinit(&mut self) {
             self.child.delegated = false;
 
@@ -452,6 +454,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             }
         }
 
+        #[inline(always)]
         fn info(&mut self, info: &mut WidgetInfoBuilder) {
             self.child.delegated = false;
 
@@ -462,6 +465,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             }
         }
 
+        #[inline(always)]
         fn event(&mut self, update: &EventUpdate) {
             self.child.delegated = false;
 
@@ -472,6 +476,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             }
         }
 
+        #[inline(always)]
         fn update(&mut self, updates: &WidgetUpdates) {
             self.child.delegated = false;
 
@@ -482,6 +487,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             }
         }
 
+        #[inline(always)]
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.child.delegated = false;
 
@@ -508,6 +514,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             }
         }
 
+        #[inline(always)]
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             self.child.delegated = false;
 
@@ -528,6 +535,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             }
         }
 
+        #[inline(always)]
         fn render(&mut self, frame: &mut FrameBuilder) {
             self.child.delegated = false;
 
@@ -538,6 +546,7 @@ fn match_node_impl<C: UiNode>(child: C, closure: impl FnMut(&mut MatchNodeChild<
             }
         }
 
+        #[inline(always)]
         fn render_update(&mut self, update: &mut FrameUpdate) {
             self.child.delegated = false;
 
@@ -653,26 +662,32 @@ pub fn match_node_leaf(closure: impl FnMut(UiNodeOp) + Send + 'static) -> impl U
         closure: impl FnMut(UiNodeOp) + Send + 'static,
     })]
     impl UiNode for MatchNodeLeaf {
+        #[inline(always)]
         fn init(&mut self) {
             (self.closure)(UiNodeOp::Init);
         }
 
+        #[inline(always)]
         fn deinit(&mut self) {
             (self.closure)(UiNodeOp::Deinit);
         }
 
+        #[inline(always)]
         fn info(&mut self, info: &mut WidgetInfoBuilder) {
             (self.closure)(UiNodeOp::Info { info });
         }
 
+        #[inline(always)]
         fn event(&mut self, update: &EventUpdate) {
             (self.closure)(UiNodeOp::Event { update });
         }
 
+        #[inline(always)]
         fn update(&mut self, updates: &WidgetUpdates) {
             (self.closure)(UiNodeOp::Update { updates });
         }
 
+        #[inline(always)]
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             let mut size = PxSize::zero();
             (self.closure)(UiNodeOp::Measure {
@@ -682,16 +697,19 @@ pub fn match_node_leaf(closure: impl FnMut(UiNodeOp) + Send + 'static) -> impl U
             size
         }
 
+        #[inline(always)]
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             let mut size = PxSize::zero();
             (self.closure)(UiNodeOp::Layout { wl, final_size: &mut size });
             size
         }
 
+        #[inline(always)]
         fn render(&mut self, frame: &mut FrameBuilder) {
             (self.closure)(UiNodeOp::Render { frame });
         }
 
+        #[inline(always)]
         fn render_update(&mut self, update: &mut FrameUpdate) {
             (self.closure)(UiNodeOp::RenderUpdate { update });
         }
@@ -961,6 +979,7 @@ pub fn match_node_list<L: UiNodeList>(
     })]
     #[allow_(zng::missing_delegate)] // false positive
     impl UiNode for MatchNodeList {
+        #[inline(always)]
         fn init(&mut self) {
             self.children.delegated = false;
 
@@ -971,6 +990,7 @@ pub fn match_node_list<L: UiNodeList>(
             }
         }
 
+        #[inline(always)]
         fn deinit(&mut self) {
             self.children.delegated = false;
 
@@ -981,6 +1001,7 @@ pub fn match_node_list<L: UiNodeList>(
             }
         }
 
+        #[inline(always)]
         fn info(&mut self, info: &mut WidgetInfoBuilder) {
             self.children.delegated = false;
 
@@ -991,6 +1012,7 @@ pub fn match_node_list<L: UiNodeList>(
             }
         }
 
+        #[inline(always)]
         fn event(&mut self, update: &EventUpdate) {
             self.children.delegated = false;
 
@@ -1001,6 +1023,7 @@ pub fn match_node_list<L: UiNodeList>(
             }
         }
 
+        #[inline(always)]
         fn update(&mut self, updates: &WidgetUpdates) {
             self.children.delegated = false;
 
@@ -1011,6 +1034,7 @@ pub fn match_node_list<L: UiNodeList>(
             }
         }
 
+        #[inline(always)]
         fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
             self.children.delegated = false;
 
@@ -1037,6 +1061,7 @@ pub fn match_node_list<L: UiNodeList>(
             }
         }
 
+        #[inline(always)]
         fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
             self.children.delegated = false;
 
@@ -1056,6 +1081,7 @@ pub fn match_node_list<L: UiNodeList>(
             }
         }
 
+        #[inline(always)]
         fn render(&mut self, frame: &mut FrameBuilder) {
             self.children.delegated = false;
 
@@ -1066,6 +1092,7 @@ pub fn match_node_list<L: UiNodeList>(
             }
         }
 
+        #[inline(always)]
         fn render_update(&mut self, update: &mut FrameUpdate) {
             self.children.delegated = false;
 
