@@ -193,6 +193,7 @@ pub mod __proc_macro_util {
 /// of this trait.
 pub trait AppExtension: 'static {
     /// Register info abound this extension on the info list.
+    #[inline(always)]
     fn register(&self, info: &mut AppExtensionsInfo)
     where
         Self: Sized,
@@ -201,6 +202,7 @@ pub trait AppExtension: 'static {
     }
 
     /// Initializes this extension.
+    #[inline(always)]
     fn init(&mut self) {}
 
     /// If the application should notify raw device events.
@@ -212,6 +214,7 @@ pub trait AppExtension: 'static {
     /// This is called zero or one times before [`init`](Self::init).
     ///
     /// Returns `false` by default.
+    #[inline(always)]
     fn enable_device_events(&self) -> bool {
         false
     }
@@ -222,6 +225,7 @@ pub trait AppExtension: 'static {
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `event_ui`.
+    #[inline(always)]
     fn event_preview(&mut self, update: &mut EventUpdate) {
         let _ = update;
     }
@@ -230,6 +234,7 @@ pub trait AppExtension: 'static {
     ///
     /// Only extensions that generate windows should handle this method. The [`UiNode::event`](crate::widget::node::UiNode::event)
     /// method is called here.
+    #[inline(always)]
     fn event_ui(&mut self, update: &mut EventUpdate) {
         let _ = update;
     }
@@ -237,6 +242,7 @@ pub trait AppExtension: 'static {
     /// Called after [`event_ui`](Self::event_ui).
     ///
     /// This is the general extensions event handler, it gives the chance for the UI to signal stop propagation.
+    #[inline(always)]
     fn event(&mut self, update: &mut EventUpdate) {
         let _ = update;
     }
@@ -246,6 +252,7 @@ pub trait AppExtension: 'static {
     /// The [`UiNode::info`] method is called here.
     ///
     /// [`UiNode::info`]: crate::widget::node::UiNode::info
+    #[inline(always)]
     fn info(&mut self, info_widgets: &mut InfoUpdates) {
         let _ = info_widgets;
     }
@@ -256,6 +263,7 @@ pub trait AppExtension: 'static {
     ///
     /// Note that this is not related to the `on_event_preview` properties, all UI events
     /// happen in `update_ui`.
+    #[inline(always)]
     fn update_preview(&mut self) {}
 
     /// Called just before [`update`](Self::update).
@@ -265,6 +273,7 @@ pub trait AppExtension: 'static {
     /// The [`UiNode::update`] method is called here.
     ///
     /// [`UiNode::update`]: crate::widget::node::UiNode::update
+    #[inline(always)]
     fn update_ui(&mut self, update_widgets: &mut WidgetUpdates) {
         let _ = update_widgets;
     }
@@ -273,6 +282,7 @@ pub trait AppExtension: 'static {
     ///
     /// This is the general extensions update, it gives the chance for
     /// the UI to make service requests.
+    #[inline(always)]
     fn update(&mut self) {}
 
     /// Called when layout is requested for windows and widgets.
@@ -280,6 +290,7 @@ pub trait AppExtension: 'static {
     /// The [`UiNode::layout`] method is called here.
     ///
     /// [`UiNode::layout`]: crate::widget::node::UiNode::layout
+    #[inline(always)]
     fn layout(&mut self, layout_widgets: &mut LayoutUpdates) {
         let _ = layout_widgets;
     }
@@ -290,6 +301,7 @@ pub trait AppExtension: 'static {
     ///
     /// [`UiNode::render`]: crate::widget::node::UiNode::render
     /// [`UiNode::render_update`]: crate::widget::node::UiNode::render_update
+    #[inline(always)]
     fn render(&mut self, render_widgets: &mut RenderUpdates, render_update_widgets: &mut RenderUpdates) {
         let _ = (render_widgets, render_update_widgets);
     }
@@ -298,11 +310,13 @@ pub trait AppExtension: 'static {
     ///
     /// Update requests and event notifications generated during this call are ignored,
     /// the extensions will be dropped after every extension received this call.
+    #[inline(always)]
     fn deinit(&mut self) {}
 
     /// Gets the extension boxed.
     ///
     /// Boxed app extensions also implement `AppExtension`, this method does not double box.
+    #[inline(always)]
     fn boxed(self) -> Box<dyn AppExtensionBoxed>
     where
         Self: Sized,
