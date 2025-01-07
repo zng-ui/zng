@@ -1,3 +1,5 @@
+#![cfg(feature = "image")]
+
 //! Images service, widget and other types.
 //!
 //! # Image

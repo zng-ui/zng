@@ -551,10 +551,10 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 pub mod crash_handler {
     pub use zng_app::crash_handler::{crash_handler_config, BacktraceFrame, CrashArgs, CrashConfig, CrashError, CrashPanic};
 
+    #[cfg(feature = "crash_handler_debug")]
     pub use zng_wgt_inspector::crash_handler::debug_dialog;
 
     crash_handler_config!(|cfg| {
-        use crate::prelude::*;
         cfg.default_dialog(|args| {
             if let Some(c) = &args.dialog_crash {
                 eprintln!("DEBUG CRASH DIALOG ALSO CRASHED");
@@ -562,11 +562,22 @@ pub mod crash_handler {
                 eprintln!("ORIGINAL APP CRASH");
                 eprintln!("   {}", args.latest().message());
                 args.exit(0xBADC0DE)
+            } else {
+                #[cfg(feature = "crash_handler_debug")]
+                {
+                    use crate::prelude::*;
+                    APP.defaults()
+                        .run_window(async_clmv!(args, { zng_wgt_inspector::crash_handler::debug_dialog(args) }));
+                }
+
+                #[cfg(not(feature = "crash_handler_debug"))]
+                {
+                    eprintln!(
+                        "app crashed {}\n\nbuild with feature = \"crash_handler_debug\" to se the debug crash dialog",
+                        args.latest().message()
+                    );
+                }
             }
-
-            APP.defaults()
-                .run_window(async_clmv!(args, { zng_wgt_inspector::crash_handler::debug_dialog(args) }));
-
             args.exit(0)
         });
     });

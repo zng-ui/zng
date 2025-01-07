@@ -1,3 +1,5 @@
+#![cfg(feature = "ansi_text")]
+
 //! ANSI text widget.
 //!
 //! This widget displays text styled using [ANSI escape codes], commonly used to style terminal text.

@@ -1,3 +1,5 @@
+#![cfg(feature = "grid")]
+
 //! Grid layout widgets.
 //!
 //! The [`Grid!`](struct@Grid) layout widget that defines a grid using column and row widgets and then size and position

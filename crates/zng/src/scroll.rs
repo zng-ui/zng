@@ -1,3 +1,5 @@
+#![cfg(feature = "scroll")]
+
 //! Scroll widgets, commands and properties.
 //!
 //! The [`Scroll!`](struct@Scroll) widget accepts a single child of any size, overflow is clipped and can be brought

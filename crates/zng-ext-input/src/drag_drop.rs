@@ -1,3 +1,5 @@
+#![cfg(feature = "drag_drop")]
+
 //! Drag & drop gesture events and service.
 
 use std::{mem, sync::Arc};

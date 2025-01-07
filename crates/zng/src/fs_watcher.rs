@@ -1,3 +1,5 @@
+#![cfg(feature = "fs_watcher")]
+
 //! File system watcher service and other types.
 //!
 //! The [`WATCHER`] service can be used to get notifications when a file or directory is modified. It also provides

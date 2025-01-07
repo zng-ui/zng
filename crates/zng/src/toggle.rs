@@ -1,3 +1,5 @@
+#![cfg(feature = "toggle")]
+
 //! Toggle button widget and styles for check box, combo box, radio button and switch button.
 //!
 //! The [`Toggle!`](struct@Toggle) widget has three states, `Some(true)`, `Some(false)` and `None`. How

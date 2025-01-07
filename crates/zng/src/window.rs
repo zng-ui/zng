@@ -1,3 +1,5 @@
+#![cfg(feature = "window")]
+
 //! Window service, widget, events, commands and other types.
 //!
 //! The [`Window!`](struct@Window) widget instantiates a window root, the windows service uses the window root as the

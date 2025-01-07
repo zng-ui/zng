@@ -11,6 +11,11 @@ repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
+[features]
+default = []
+# Enable drag&drop.
+drag_drop = []
+
 [dependencies]
 zng-app-context = { path = "../zng-app-context", version = "0.5.13" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }

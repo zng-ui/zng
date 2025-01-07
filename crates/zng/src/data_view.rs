@@ -1,4 +1,6 @@
-//! Data view widgets and nodes.
+#![cfg(feature = "data_view")]
+
+//! Data view widget.
 //!
 //! The [`DataView!`](struct@DataView) widget can be used to dynamically presents data from a variable, unlike
 //! the [`widget::node::presenter`](crate::widget::node::presenter) node the generated UI can be retained

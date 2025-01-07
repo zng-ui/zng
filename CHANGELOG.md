@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add features for each sub-module of the `zng`. This enabled compile size optimization.
 
 # 0.13.5
 

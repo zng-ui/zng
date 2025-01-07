@@ -1,3 +1,5 @@
+#![cfg(feature = "wrap")]
+
 //! Wrap layout widget and properties.
 //!
 //! The [`Wrap!`](struct@Wrap) widget implements [inline layout](crate::layout#inline). The example below demonstrates

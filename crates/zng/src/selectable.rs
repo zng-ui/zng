@@ -1,3 +1,5 @@
+#![cfg(feature = "text_input")]
+
 //! Selectable text widget and properties.
 //!
 //! The [`SelectableText!`](struct@SelectableText) is a read-only styleable text with text selection enabled.

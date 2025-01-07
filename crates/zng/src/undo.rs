@@ -1,3 +1,5 @@
+#![cfg(feature = "undo")]
+
 //! Undo service, commands and other types.
 //!
 //! The [`UNDO`] service can be used to operate the contextual undo stack, you can also use the service

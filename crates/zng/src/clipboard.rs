@@ -1,3 +1,5 @@
+#![cfg(feature = "clipboard")]
+
 //! Clipboard service, commands and other types.
 //!
 //! This module provides the [`CLIPBOARD`] service and clipboard related commands and command handlers.

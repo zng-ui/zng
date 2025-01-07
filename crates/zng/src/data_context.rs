@@ -1,3 +1,5 @@
+#![cfg(feature = "data_context")]
+
 //! Data context service and properties.
 //!
 //! The [`data`](fn@data) property can be set on a widget to any type that can be used in variables ([`VarValue`]). The

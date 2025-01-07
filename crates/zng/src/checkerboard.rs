@@ -1,3 +1,5 @@
+#![cfg(feature = "checkerboard")]
+
 //! Checkerboard visual widget.
 //!
 //! The widget appearance can be configured on it or in any parent widget, by default it looks like

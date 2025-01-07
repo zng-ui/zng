@@ -1,3 +1,5 @@
+#![cfg(feature = "third_party")]
+
 //! Third party licenses service and types.
 //!
 //! Rust projects depend on many crated with a variety of licenses, some of these licenses require that they must be
@@ -142,6 +144,7 @@ use crate::prelude::*;
 pub use zng_app::third_party::{License, LicenseUsed, User, UserLicense, LICENSES, OPEN_LICENSES_CMD};
 use zng_wgt_container::ChildInsert;
 
+#[cfg(feature = "third_party_default")]
 pub(crate) fn setup_default_view() {
     let id = WindowId::named("zng-third_party-default");
     OPEN_LICENSES_CMD
@@ -174,6 +177,7 @@ pub(crate) fn setup_default_view() {
         .perm();
 }
 
+#[cfg(feature = "third_party_default")]
 fn default_view() -> impl UiNode {
     let mut licenses = LICENSES.user_licenses();
     if licenses.is_empty() {
@@ -210,7 +214,6 @@ fn default_view() -> impl UiNode {
         }, 0;
         // list
         child = Scroll! {
-            id = "scrol";
             layout::min_width = 100;
             layout::sticky_width = true;
             mode = zng::scroll::ScrollMode::VERTICAL;

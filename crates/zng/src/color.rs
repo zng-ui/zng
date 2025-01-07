@@ -115,6 +115,7 @@ pub use zng_wgt::{accent_color, base_color, color_scheme};
 pub use zng_wgt_fill::node::flood;
 
 /// Color filter types and properties.
+#[cfg(feature = "color_filter")]
 pub mod filter {
     pub use zng_color::filter::{ColorMatrix, Filter, RenderFilter};
 

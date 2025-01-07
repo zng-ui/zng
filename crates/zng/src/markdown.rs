@@ -1,3 +1,5 @@
+#![cfg(feature = "markdown")]
+
 //! Markdown widget, properties and other types.
 //!
 //! This widget displays [CommonMark] text, without support for HTML code yet .

@@ -1,3 +1,5 @@
+#![cfg(feature = "text_input")]
+
 //! Text input widget and properties.
 //!
 //! The [`TextInput!`](struct@TextInput) widget is an text or parsed value editor that is styleable.

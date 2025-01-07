@@ -1,3 +1,5 @@
+#![cfg(feature = "drag_drop")]
+
 //! Drag&drop service, types and events.
 //!
 //! The example below defines a window that shows the current dragging data that has entered any of the app windows.

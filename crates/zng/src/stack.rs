@@ -1,3 +1,5 @@
+#![cfg(feature = "stack")]
+
 //! Stack layout widget, nodes and properties.
 //!
 //! The [`Stack!`](struct@Stack) widget is a layout panel stacks children, in Z and in a [`direction`](struct@Stack#method.direction).
