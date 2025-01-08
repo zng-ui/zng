@@ -36,6 +36,7 @@ fn main() {
         "just" => just(args),
         "version" => version(args),
         "ls" => ls(args),
+        "check-all-features" => check_all_features(args),
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {task:?}, `{} help` to list tasks", do_cmd())),
     }
@@ -334,6 +335,67 @@ fn doc(mut args: Vec<&str>) {
 
     if let Some(s) = server {
         let _ = s.join();
+    }
+}
+
+// do check-all-features [--max <n>]
+//                       [--clean <n>]
+//
+//    Check feature combinations of all publish crates.
+// USAGE:
+//    check-all-features --clean 5
+//       Check all with max combination 3 and cleans every 5 checks
+fn check_all_features(mut args: Vec<&str>) {
+    use itertools::Itertools;
+    use std::collections::HashSet;
+
+    let max_k = take_option(&mut args, &["--max"], "<number>").unwrap_or_else(|| vec!["3"])[0]
+        .parse::<usize>()
+        .expect("expected --max <n>")
+        .max(1);
+    let max_clean = take_option(&mut args, &["--clean"], "<number>").unwrap_or_else(|| vec!["30"])[0]
+        .parse::<usize>()
+        .expect("expected --clean <n>")
+        .max(1);
+    let mut clean = 0;
+
+    for member in &util::publish_members() {
+        let mut done = HashSet::new();
+
+        for k in 0..=member.features.len().min(max_k) {
+            let mut empty = vec![];
+            if k == 0 {
+                empty.push(vec![]);
+            }
+            for mut set in empty.into_iter().chain(member.features.iter().permutations(k)) {
+                set.sort();
+                if done.insert(set.clone()) {
+                    print(f!("CHECK {} WITH [", member.name));
+                    let mut features = vec![];
+                    let mut sep = "";
+                    for feat in &set {
+                        print(f!("{sep}{}", feat));
+                        sep = ", ";
+                        features.push("--features");
+                        features.push(feat.as_str());
+                    }
+                    print("]\n");
+
+                    clean += 1;
+                    if clean == max_clean {
+                        clean = 0;
+                        print("CLEAN\n");
+                        cmd("cargo", &["clean"], &[]);
+                    }
+
+                    cmd(
+                        "cargo",
+                        &["check", "--package", member.name.as_str(), "--no-default-features"],
+                        &features,
+                    );
+                }
+            }
+        }
     }
 }
 

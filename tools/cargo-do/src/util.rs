@@ -469,19 +469,26 @@ pub fn publish_members() -> Vec<PublishMember> {
                     name: String::new(),
                     version: (0, 0, 0),
                     dependencies: vec![],
+                    features: vec![],
                 };
 
                 enum Section {
                     Package,
                     Dependencies,
                     Other,
+                    Features,
                 }
                 let mut section = Section::Other;
 
                 for line in file.lines() {
                     let line = line.trim();
+                    if line.starts_with("#") || line.is_empty() {
+                        continue;
+                    }
                     if line == "[package]" {
                         section = Section::Package;
+                    } else if line == "[features]" {
+                        section = Section::Features;
                     } else if line.ends_with("dependencies]") {
                         section = Section::Dependencies;
                     } else if line.starts_with('[') && line.ends_with(']') {
@@ -496,6 +503,13 @@ pub fn publish_members() -> Vec<PublishMember> {
                                 member.version = parse_publish_version(version.trim_matches('"'));
                             } else if line == "publish = false" {
                                 continue 'members;
+                            }
+                        }
+                        Section::Features => {
+                            if let Some((feat, _)) = line.split_once(" = [") {
+                                if feat != "default" {
+                                    member.features.push(feat.trim_end().to_owned());
+                                }
                             }
                         }
                         Section::Dependencies => {
@@ -572,6 +586,7 @@ pub struct PublishMember {
     pub name: String,
     pub version: (u32, u32, u32),
     pub dependencies: Vec<PublishDependency>,
+    pub features: Vec<String>,
 }
 impl std::fmt::Display for PublishMember {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -580,6 +595,10 @@ impl std::fmt::Display for PublishMember {
         writeln!(f, "[dependencies]")?;
         for d in &self.dependencies {
             writeln!(f, "{}", d)?;
+        }
+        writeln!(f, "[features]")?;
+        for feat in &self.features {
+            writeln!(f, "{feat} = [...]")?;
         }
         Ok(())
     }
