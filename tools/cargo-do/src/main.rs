@@ -342,6 +342,7 @@ fn doc(mut args: Vec<&str>) {
 //                       [--clean <n>]
 //                       [-p, --package <CRATE>]
 //                       [--chunk <n/max>]
+//                       [--release]
 //
 //    Check feature combinations of all publish crates.
 // USAGE:
@@ -373,6 +374,8 @@ fn check_all_features(mut args: Vec<&str>) {
         .first()
         .copied()
         .unwrap_or("");
+    let release = take_flag(&mut args, &["--release"]);
+    let release = if release { "--release" } else { "" };
 
     let max_k: usize = max_k.parse().expect("expected --max <n>");
     let max_clean: usize = max_clean.parse().expect("expected --clean <n>");
@@ -441,7 +444,7 @@ fn check_all_features(mut args: Vec<&str>) {
             cmd("cargo", &["clean"], &[]);
         }
 
-        cmd("cargo", &["check", "--package", name, "--no-default-features"], &features);
+        cmd("cargo", &["check", "--package", name, "--no-default-features", release], &features);
     }
 }
 
