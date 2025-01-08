@@ -1,3 +1,5 @@
+#![cfg(feature = "text_input")]
+
 //! Label widget and properties.
 //!
 //! The [`Label!`](struct@Label) widget is a text presenter that is focusable, when it receives

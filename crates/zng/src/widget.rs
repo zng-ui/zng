@@ -61,6 +61,7 @@ pub use zng_wgt::{
     OnNodeOpArgs, WeakWidgetFn, Wgt, WidgetFn, EDITORS, IS_MOBILE_VAR,
 };
 
+#[cfg(feature = "image")]
 pub use zng_wgt_image::border::{border_img, border_img_fill, border_img_repeat, BorderRepeats};
 
 pub use zng_wgt_fill::{

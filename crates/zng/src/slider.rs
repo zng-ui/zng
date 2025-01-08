@@ -1,3 +1,5 @@
+#![cfg(feature = "slider")]
+
 //! Slider widget, styles and properties.
 //!
 //! This widget allows selecting a value or range by dragging a selector thumb over a range line.

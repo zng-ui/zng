@@ -1,3 +1,5 @@
+#![cfg(feature = "rule_line")]
+
 //! Rule line widgets and properties.
 //!
 //! A rule line is a horizontal or vertical separator line, this module provides 3 widgets the [`RuleLine!`](struct@RuleLine)

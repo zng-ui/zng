@@ -1,3 +1,5 @@
+#![cfg(feature = "config")]
+
 //! Config service, sources and other types.
 //!
 //! The configuration service [`CONFIG`] separates config using from config writing. A config
@@ -92,6 +94,7 @@ pub use zng_ext_config::{
     ReadOnlyConfig, SwapConfig, SwitchConfig, CONFIG,
 };
 
+#[cfg(feature = "window")]
 pub use zng_wgt_window::{save_state_node, SaveState};
 
 #[cfg(feature = "ron")]

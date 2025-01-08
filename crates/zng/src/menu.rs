@@ -1,3 +1,5 @@
+#![cfg(feature = "menu")]
+
 //! Menu widgets, properties and other types.
 //!
 //! ```no_run

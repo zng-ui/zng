@@ -1,3 +1,5 @@
+#![cfg(feature = "dialog")]
+
 //! Modal dialog overlay widget and service.
 //!
 //! The [`DIALOG`] service provides custom and modal native dialogs.

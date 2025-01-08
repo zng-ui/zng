@@ -1,4 +1,6 @@
-//! Drag& drop properties, event properties.
+#![cfg(feature = "drag_drop")]
+
+//! Drag&drop properties, event properties.
 
 use zng_ext_input::drag_drop::{
     DragEndArgs, DragHoveredArgs, DragStartArgs, DropArgs, WidgetInfoBuilderDragDropExt as _, DRAG_END_EVENT, DRAG_HOVERED_EVENT,

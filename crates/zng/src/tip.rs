@@ -1,3 +1,5 @@
+#![cfg(feature = "tooltip")]
+
 //! Tooltip properties and widget.
 //!
 //! The [`tooltip`](fn@tooltip) and [`tooltip_fn`](fn@tooltip_fn) properties can be set on any widget to git it a tooltip.

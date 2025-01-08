@@ -1,3 +1,5 @@
+#![cfg(feature = "progress")]
+
 //! Progress indicator widget, styles and properties.
 //!
 //! This widget displays [`task::Progress`] values that track the status of a running task.

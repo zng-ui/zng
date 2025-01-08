@@ -1,0 +1,33 @@
+name: Check All Features
+
+on:
+  workflow_dispatch:
+    inputs:
+      max:
+        default: "3"
+      clean:
+        default: "5"
+
+env:
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: '--codegen=debuginfo=0 --deny=warnings'
+  RUSTDOCFLAGS: '--deny=warnings'
+  CARGO_TERM_COLOR: always
+  ZNG_TP_LICENSES: false
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - chunk: [1, 2, 3, 4, 5, 6, 7, 8]
+          - os: [ubuntu-latest, windows-latest, macos-latest]
+          - profile: ["", --release]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt install libfontconfig1-dev
+      - run: cargo do check-all-features ${{ matrix.profile }} --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/8"
+      - run: cargo clean

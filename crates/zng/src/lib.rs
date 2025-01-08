@@ -604,14 +604,18 @@ mod __prelude {
 
     pub use zng_color::{colors, hex, hsl, hsla, hsv, hsva, light_dark, rgb, rgba, web_colors, LightDarkVarExt as _, MixAdjust as _};
 
+    #[cfg(feature = "clipboard")]
     pub use zng_ext_clipboard::CLIPBOARD;
 
+    #[cfg(feature = "config")]
     pub use zng_ext_config::CONFIG;
 
     pub use zng_ext_font::{FontStretch, FontStyle, FontWeight};
 
+    #[cfg(feature = "image")]
     pub use zng_ext_image::ImageSource;
 
+    #[cfg(feature = "image")]
     pub use zng_wgt_image::Image;
 
     pub use zng_ext_input::{
@@ -625,8 +629,10 @@ mod __prelude {
 
     pub use zng_wgt_text::lang;
 
+    #[cfg(feature = "undo")]
     pub use zng_ext_undo::{CommandUndoExt as _, REDO_CMD, UNDO, UNDO_CMD};
 
+    #[cfg(feature = "window")]
     pub use zng_ext_window::{
         AppRunWindowExt as _, HeadlessAppWindowExt as _, WINDOW_Ext as _, WidgetInfoImeArea as _, WindowCloseRequestedArgs, WindowIcon,
         WINDOWS,
@@ -637,18 +643,24 @@ mod __prelude {
     pub use crate::text;
     pub use zng_wgt_text::Text;
 
+    #[cfg(feature = "text_input")]
     pub use zng_wgt_text_input::{selectable::SelectableText, TextInput};
 
+    #[cfg(feature = "window")]
     pub use crate::window;
+    #[cfg(feature = "window")]
     pub use zng_wgt_window::Window;
 
     pub use zng_wgt_container::Container;
 
     pub use zng_wgt_button::Button;
 
+    #[cfg(feature = "data_context")]
     pub use zng_wgt_data::{data, DATA};
 
+    #[cfg(feature = "grid")]
     pub use crate::grid;
+    #[cfg(feature = "grid")]
     pub use zng_wgt_grid::Grid;
 
     pub use crate::layer;
@@ -657,36 +669,49 @@ mod __prelude {
     pub use crate::popup;
     pub use zng_wgt_layer::popup::POPUP;
 
+    #[cfg(feature = "menu")]
     pub use crate::menu;
+    #[cfg(feature = "menu")]
     pub use zng_wgt_menu::{
         context::{context_menu, context_menu_fn, ContextMenu},
         sub::SubMenu,
         Menu,
     };
 
+    #[cfg(feature = "rule_line")]
     pub use zng_wgt_rule_line::hr::Hr;
 
+    #[cfg(feature = "scroll")]
     pub use zng_wgt_scroll::{Scroll, SCROLL};
 
+    #[cfg(feature = "toggle")]
     pub use crate::toggle;
+    #[cfg(feature = "toggle")]
     pub use zng_wgt_toggle::Toggle;
 
+    #[cfg(feature = "tooltip")]
     pub use crate::tip;
+    #[cfg(feature = "tooltip")]
     pub use zng_wgt_tooltip::{tooltip, tooltip_fn, Tip};
 
     pub use zng_wgt::{wgt_fn, WidgetFn};
 
     pub use zng_wgt_style::{style_fn, Style};
 
+    #[cfg(feature = "stack")]
     pub use zng_wgt_stack::{Stack, StackDirection};
 
+    #[cfg(feature = "wrap")]
     pub use zng_wgt_wrap::Wrap;
 
+    #[cfg(feature = "data_view")]
     pub use zng_wgt_data_view::{DataView, DataViewArgs};
 
     pub use zng_wgt_settings::SettingBuilderEditorExt as _;
 
+    #[cfg(feature = "dialog")]
     pub use crate::dialog;
+    #[cfg(feature = "dialog")]
     pub use zng_wgt_dialog::DIALOG;
 }
 
@@ -798,6 +823,7 @@ mod __prelude_wgt {
         with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
 
+    #[cfg(feature = "window")]
     pub use zng_ext_window::WidgetInfoBuilderImeArea as _;
 
     #[cfg(hot_reload)]
@@ -806,17 +832,28 @@ mod __prelude_wgt {
 
 mod defaults {
     use zng_app::{AppExtended, AppExtension};
+    #[cfg(feature = "clipboard")]
     use zng_ext_clipboard::ClipboardManager;
+    #[cfg(feature = "config")]
     use zng_ext_config::ConfigManager;
     use zng_ext_font::FontManager;
+    #[cfg(feature = "fs_watcher")]
     use zng_ext_fs_watcher::FsWatcherManager;
+    #[cfg(feature = "image")]
     use zng_ext_image::ImageManager;
     use zng_ext_input::{
-        drag_drop::DragDropManager, focus::FocusManager, gesture::GestureManager, keyboard::KeyboardManager, mouse::MouseManager,
+        focus::FocusManager, gesture::GestureManager, keyboard::KeyboardManager, mouse::MouseManager,
         pointer_capture::PointerCaptureManager, touch::TouchManager,
     };
+
+    #[cfg(feature = "drag_drop")]
+    use zng_ext_input::drag_drop::DragDropManager;
+
     use zng_ext_l10n::L10nManager;
+    #[cfg(feature = "undo")]
     use zng_ext_undo::UndoManager;
+
+    #[cfg(feature = "window")]
     use zng_ext_window::WindowManager;
 
     use crate::default_editors;
@@ -841,20 +878,20 @@ mod defaults {
         ///
         /// Extensions included.
         ///
-        /// * [`FsWatcherManager`]
-        /// * [`ConfigManager`]
+        /// * [`FsWatcherManager`] if the `"fs_watcher"` feature is enabled.
+        /// * [`ConfigManager`] if the `"config"` feature is enabled.
         /// * [`L10nManager`]
         /// * [`PointerCaptureManager`]
         /// * [`MouseManager`]
         /// * [`TouchManager`]
         /// * [`KeyboardManager`]
         /// * [`GestureManager`]
-        /// * [`WindowManager`]
+        /// * [`WindowManager`] if the `"window"` feature is enabled.
         /// * [`FontManager`]
         /// * [`FocusManager`]
-        /// * [`DragDropManager`]
-        /// * [`ImageManager`]
-        /// * [`ClipboardManager`]
+        /// * [`DragDropManager`] if the `"drag_drop"` feature is enabled.
+        /// * [`ImageManager`] if the `"image"` feature is enabled.
+        /// * [`ClipboardManager`] if the `"clipboard"` feature is enabled.
         /// * [`UndoManager`]
         /// * [`SingleInstanceManager`] if the `"single_instance"` feature is enabled.
         /// * [`HotReloadManager`] if the `"hot_reload"` feature is enabled.
@@ -869,23 +906,44 @@ mod defaults {
         /// [`FontManager`]: zng_ext_font::FontManager
         /// [`SvgManager`]: zng_ext_svg::SvgManager
         pub fn defaults(&self) -> DefaultsAppExtended![] {
-            let r = self
-                .minimal()
-                .extend(FsWatcherManager::default())
-                .extend(ConfigManager::default())
-                .extend(L10nManager::default())
-                .extend(PointerCaptureManager::default())
-                .extend(MouseManager::default())
-                .extend(TouchManager::default())
-                .extend(KeyboardManager::default())
-                .extend(GestureManager::default())
-                .extend(WindowManager::default())
-                .extend(FontManager::default())
-                .extend(FocusManager::default())
-                .extend(DragDropManager::default())
-                .extend(ImageManager::default())
-                .extend(ClipboardManager::default())
-                .extend(UndoManager::default());
+            let r = self.minimal();
+
+            #[cfg(feature = "fs_watcher")]
+            let r = r.extend(FsWatcherManager::default());
+
+            #[cfg(feature = "config")]
+            let r = r.extend(ConfigManager::default());
+
+            let r = r.extend(L10nManager::default());
+
+            let r = r.extend(PointerCaptureManager::default());
+
+            let r = r.extend(MouseManager::default());
+
+            let r = r.extend(TouchManager::default());
+
+            let r = r.extend(KeyboardManager::default());
+
+            let r = r.extend(GestureManager::default());
+
+            #[cfg(feature = "window")]
+            let r = r.extend(WindowManager::default());
+
+            let r = r.extend(FontManager::default());
+
+            let r = r.extend(FocusManager::default());
+
+            #[cfg(feature = "drag_drop")]
+            let r = r.extend(DragDropManager::default());
+
+            #[cfg(feature = "image")]
+            let r = r.extend(ImageManager::default());
+
+            #[cfg(feature = "clipboard")]
+            let r = r.extend(ClipboardManager::default());
+
+            #[cfg(feature = "undo")]
+            let r = r.extend(UndoManager::default());
 
             #[cfg(all(view, view_prebuilt))]
             tracing::debug!(r#"both "view" and "view_prebuilt" enabled, will use only one, indeterminate witch"#);
@@ -919,16 +977,18 @@ mod defaults {
             tracing::debug!("defaults init, var_editor set");
 
             // injected in all windows
-            zng_ext_window::WINDOWS.register_root_extender(|a| {
-                let child = a.root;
+            #[cfg(feature = "window")]
+            {
+                zng_ext_window::WINDOWS.register_root_extender(|a| {
+                    let child = a.root;
 
-                #[cfg(feature = "inspector")]
-                let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
+                    #[cfg(feature = "inspector")]
+                    let child = zng_wgt_inspector::inspector(child, zng_wgt_inspector::live_inspector(true));
 
-                child
-            });
-            tracing::debug!("defaults init, root_extender set");
-
+                    child
+                });
+                tracing::debug!("defaults init, root_extender set");
+            }
             #[cfg(any(target_os = "android", target_os = "ios"))]
             {
                 zng_ext_window::WINDOWS.register_open_nested_handler(crate::window::default_mobile_nested_open_handler);
@@ -936,8 +996,11 @@ mod defaults {
             }
 
             // setup OPEN_LICENSES_CMD handler
-            crate::third_party::setup_default_view();
-            tracing::debug!("defaults init, third_party set");
+            #[cfg(feature = "third_party_default")]
+            {
+                crate::third_party::setup_default_view();
+                tracing::debug!("defaults init, third_party set");
+            }
 
             // setup SETTINGS_CMD handler
             zng_wgt_settings::handle_settings_cmd();
@@ -984,7 +1047,6 @@ pub mod read_me_test {}
 mod default_editors {
     use zng::{
         prelude::*,
-        text_input,
         widget::{
             node::{BoxedUiNode, NilUiNode},
             EditorRequestArgs,
@@ -992,26 +1054,30 @@ mod default_editors {
     };
 
     pub fn handler(args: EditorRequestArgs) -> BoxedUiNode {
+        #[cfg(feature = "text_input")]
         if let Some(txt) = args.value::<Txt>() {
             return TextInput! {
                 txt;
             }
             .boxed();
         }
+        #[cfg(feature = "text_input")]
         if let Some(s) = args.value::<String>() {
             return TextInput! {
                 txt = s.map_bidi(|s| Txt::from_str(s), |t: &Txt| t.to_string());
             }
             .boxed();
         }
+        #[cfg(feature = "text_input")]
         if let Some(c) = args.value::<char>() {
             return TextInput! {
                 txt_parse::<char> = c;
-                style_fn = text_input::FieldStyle!();
+                style_fn = crate::text_input::FieldStyle!();
             }
             .boxed();
         }
 
+        #[cfg(feature = "toggle")]
         if let Some(checked) = args.value::<bool>() {
             return Toggle! {
                 style_fn = toggle::CheckStyle!();
@@ -1023,10 +1089,11 @@ mod default_editors {
         macro_rules! parse {
             ($($ty:ty),+ $(,)?) => {
                 $(
+                    #[cfg(feature = "text_input")]
                     if let Some(n) = args.value::<$ty>() {
                         return TextInput! {
                             txt_parse::<$ty> = n;
-                            style_fn = text_input::FieldStyle!();
+                            style_fn = crate::text_input::FieldStyle!();
                         }
                         .boxed();
                     }
@@ -1038,6 +1105,7 @@ mod default_editors {
             u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64,
         }
 
+        let _ = args;
         NilUiNode.boxed()
     }
 }
