@@ -362,6 +362,10 @@ fn check_all_features(mut args: Vec<&str>) {
     for member in &util::publish_members() {
         let mut done = HashSet::new();
 
+        if member.features.is_empty() {
+            continue;
+        }
+
         for k in 0..=member.features.len().min(max_k) {
             let mut empty = vec![];
             if k == 0 {
