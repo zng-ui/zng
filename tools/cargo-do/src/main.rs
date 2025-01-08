@@ -340,26 +340,64 @@ fn doc(mut args: Vec<&str>) {
 
 // do check-all-features [--max <n>]
 //                       [--clean <n>]
+//                       [-p, --package <CRATE>]
+//                       [--chunk <n/max>]
 //
 //    Check feature combinations of all publish crates.
 // USAGE:
 //    check-all-features --clean 5
 //       Check all with max combination 3 and cleans every 5 checks
+//    check-all-features --chunk 2/3
+//       Split check list in 3 parts, run only part 2
 fn check_all_features(mut args: Vec<&str>) {
     use itertools::Itertools;
     use std::collections::HashSet;
 
-    let max_k = take_option(&mut args, &["--max"], "<number>").unwrap_or_else(|| vec!["3"])[0]
-        .parse::<usize>()
-        .expect("expected --max <n>")
-        .max(1);
-    let max_clean = take_option(&mut args, &["--clean"], "<number>").unwrap_or_else(|| vec!["30"])[0]
-        .parse::<usize>()
-        .expect("expected --clean <n>")
-        .max(1);
+    let max_k = take_option(&mut args, &["--max"], "<n>")
+        .unwrap_or(vec![])
+        .first()
+        .copied()
+        .unwrap_or("3");
+    let chunk = take_option(&mut args, &["--chunk"], "<n/n>")
+        .unwrap_or(vec![])
+        .first()
+        .copied()
+        .unwrap_or("1/1");
+    let max_clean = take_option(&mut args, &["--clean"], "<n>")
+        .unwrap_or(vec![])
+        .first()
+        .copied()
+        .unwrap_or("30");
+    let package = take_option(&mut args, &["-p", "--package"], "<CRATE>")
+        .unwrap_or(vec![])
+        .first()
+        .copied()
+        .unwrap_or("");
+
+    let max_k: usize = max_k.parse().expect("expected --max <n>");
+    let max_clean: usize = max_clean.parse().expect("expected --clean <n>");
+    let chunk = chunk.split_once('/').expect("expected --chunk <n/n>");
+    let (chunk_n, chunk_max): (usize, usize) = (
+        chunk.0.parse().expect("expected --chunk <n/.."),
+        chunk.1.parse().expect("expected --chunk <../n>"),
+    );
+    if chunk_n > chunk_max {
+        fatal("expected --chunk n/max");
+    }
+    if chunk_n == 0 {
+        fatal("expected at least one chunk, 1/1");
+    }
+
     let mut clean = 0;
 
-    for member in &util::publish_members() {
+    let members = util::publish_members();
+
+    let mut tasks = vec![];
+    for member in &members {
+        if !package.is_empty() && package != &member.name {
+            continue;
+        }
+
         let mut done = HashSet::new();
 
         if member.features.is_empty() {
@@ -374,32 +412,36 @@ fn check_all_features(mut args: Vec<&str>) {
             for mut set in empty.into_iter().chain(member.features.iter().permutations(k)) {
                 set.sort();
                 if done.insert(set.clone()) {
-                    print(f!("CHECK {} WITH [", member.name));
-                    let mut features = vec![];
-                    let mut sep = "";
-                    for feat in &set {
-                        print(f!("{sep}{}", feat));
-                        sep = ", ";
-                        features.push("--features");
-                        features.push(feat.as_str());
-                    }
-                    print("]\n");
-
-                    clean += 1;
-                    if clean == max_clean {
-                        clean = 0;
-                        print("CLEAN\n");
-                        cmd("cargo", &["clean"], &[]);
-                    }
-
-                    cmd(
-                        "cargo",
-                        &["check", "--package", member.name.as_str(), "--no-default-features"],
-                        &features,
-                    );
+                    tasks.push((member.name.as_str(), set))
                 }
             }
         }
+    }
+
+    let mut chunk_size = tasks.len() / chunk_max;
+    if tasks.len() % chunk_max != 0 {
+        chunk_size += 1;
+    }
+    for (name, set) in tasks.chunks(chunk_size).nth(chunk_n - 1).expect("invalid chunk") {
+        print(f!("CHECK {name} WITH ["));
+        let mut features = vec![];
+        let mut sep = "";
+        for feat in set {
+            print(f!("{sep}{}", feat));
+            sep = ", ";
+            features.push("--features");
+            features.push(feat.as_str());
+        }
+        print("]\n");
+
+        clean += 1;
+        if clean == max_clean {
+            clean = 0;
+            print("CLEAN\n");
+            cmd("cargo", &["clean"], &[]);
+        }
+
+        cmd("cargo", &["check", "--package", name, "--no-default-features"], &features);
     }
 }
 

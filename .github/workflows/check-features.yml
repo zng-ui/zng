@@ -17,10 +17,22 @@ env:
 
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - chunk: 1
+          - chunk: 2
+          - chunk: 3
+          - chunk: 4
+          - chunk: 5
+          - chunk: 6
+          - chunk: 7
+          - chunk: 8
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: sudo apt install libfontconfig1-dev
-      - run: cargo do check-all-features --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }}
+      - run: cargo do check-all-features --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/8"
       - run: cargo clean

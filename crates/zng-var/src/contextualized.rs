@@ -160,7 +160,12 @@ impl<T: VarValue> ContextualizedVar<T> {
         }
         #[cfg(not(feature = "dyn_closure"))]
         {
-            borrow_init_impl(&self.actual, &self.init)
+            borrow_init_impl(
+                &self.actual,
+                &self.init,
+                #[cfg(debug_assertions)]
+                std::any::type_name::<T>(),
+            )
         }
     }
 
