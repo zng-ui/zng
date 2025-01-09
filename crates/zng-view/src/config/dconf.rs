@@ -101,7 +101,7 @@ pub fn chrome_config() -> ChromeConfig {
     // so running from VSCode gets the wrong value.
     let is_gnome = std::env::var("ORIGINAL_XDG_CURRENT_DESKTOP")
         .or_else(|_| std::env::var("XDG_CURRENT_DESKTOP"))
-        .map_or(false, |val| val.contains("GNOME"));
+        .is_ok_and(|val| val.contains("GNOME"));
     ChromeConfig {
         prefer_custom: is_gnome,
         provided: !(is_wayland && is_gnome),
