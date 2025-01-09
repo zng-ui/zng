@@ -769,7 +769,7 @@ fn apk() {
         if apk.exists() {
             apk_folder = apk;
             output_file = path(ZR_TARGET).with_extension("apk");
-        } else if apk_folder.extension().map(|e| e.to_ascii_lowercase() == "apk").unwrap_or(false) {
+        } else if apk_folder.extension().map(|e| e.eq_ignore_ascii_case("apk")).unwrap_or(false) {
             output_file = apk_folder.clone();
         } else {
             fatal!("missing ./apk")

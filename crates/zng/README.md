@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 32 feature flags, 4 enabled by default.
+This crate provides 60 feature flags, 32 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -135,6 +135,11 @@ Allow app-process crash handler.
 Builds with this feature spawn a crash monitor-process for each app-process.
 
 Only enables in `not(any(target_arch = "wasm32", target_os = "android"))` builds.
+
+*Enabled by default.*
+
+#### `"crash_handler_debug"`
+Enable debug crash handler view.
 
 *Enabled by default.*
 
@@ -216,6 +221,141 @@ See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
 Basic Android backend that does not require Java.
 
 See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
+
+#### `"window"`
+Enable window, monitor services, widgets and properties.
+
+*Enabled by default.*
+
+#### `"third_party"`
+Enable third-party license service and types.
+
+*Enabled by default.*
+
+#### `"third_party_default"`
+Enable default third-party licenses default view.
+
+*Enabled by default.*
+
+#### `"ansi_text"`
+Enable ANSI text widget.
+
+Not enabled by default.
+
+#### `"checkerboard"`
+Enable checkerboard widget.
+
+*Enabled by default.*
+
+#### `"clipboard"`
+Enable clipboard service.
+
+*Enabled by default.*
+
+#### `"color_filter"`
+Enable color filter properties.
+
+*Enabled by default.*
+
+#### `"fs_watcher"`
+Enable file system watcher service.
+
+*Enabled by default.*
+
+#### `"config"`
+Enable the configuration service.
+
+*Enabled by default.*
+
+#### `"data_context"`
+Enable data context service and properties.
+
+*Enabled by default.*
+
+#### `"data_view"`
+Enable data view widget.
+
+*Enabled by default.*
+
+#### `"dialog"`
+Enable modal dialog overlay widget and service.
+
+*Enabled by default.*
+
+#### `"drag_drop"`
+Enable drag&drop.
+
+*Enabled by default.*
+
+#### `"grid"`
+Enable grid widget.
+
+*Enabled by default.*
+
+#### `"image"`
+Enable image service and widget.
+
+*Enabled by default.*
+
+#### `"markdown"`
+Enable markdown widget.
+
+*Enabled by default.*
+
+#### `"menu"`
+Enable menu widgets.
+
+*Enabled by default.*
+
+#### `"progress"`
+Enable progress indicator widgets.
+
+*Enabled by default.*
+
+#### `"rule_line"`
+Enable rule line widgets.
+
+*Enabled by default.*
+
+#### `"scroll"`
+Enable scroll widget.
+
+*Enabled by default.*
+
+#### `"toggle"`
+Enable toggle widgets.
+
+*Enabled by default.*
+
+#### `"slider"`
+Enable slider widget.
+
+*Enabled by default.*
+
+#### `"stack"`
+Enable stack widget.
+
+*Enabled by default.*
+
+#### `"text_input"`
+Enable text input widgets.
+
+*Enabled by default.*
+
+#### `"tooltip"`
+Enable tooltip widget.
+
+*Enabled by default.*
+
+#### `"undo"`
+Enable undo/redo service.
+
+*Enabled by default.*
+
+#### `"wrap"`
+Enable wrap widget.
+
+*Enabled by default.*
 
 <!--do doc --readme #SECTION-END-->
 

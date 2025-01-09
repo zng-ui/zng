@@ -237,7 +237,7 @@ window = ["dep:zng-ext-window", "dep:zng-wgt-window"]
 third_party = []
 
 # Enable default third-party licenses default view.
-third_party_default = ["window"]
+third_party_default = ["window", "scroll", "text_input", "data_view", "markdown", "stack", "toggle"]
 
 # Enable ANSI text widget.
 #

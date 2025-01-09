@@ -140,12 +140,13 @@
 //! [`cargo-about`]: https://github.com/EmbarkStudios/cargo-about/
 //! [`on_pre_event`]: crate::event::Command::on_pre_event
 
-use crate::prelude::*;
 pub use zng_app::third_party::{License, LicenseUsed, User, UserLicense, LICENSES, OPEN_LICENSES_CMD};
-use zng_wgt_container::ChildInsert;
 
 #[cfg(feature = "third_party_default")]
 pub(crate) fn setup_default_view() {
+    use crate::prelude::*;
+    use zng_wgt_container::ChildInsert;
+
     let id = WindowId::named("zng-third_party-default");
     OPEN_LICENSES_CMD
         .on_event(
@@ -175,126 +176,125 @@ pub(crate) fn setup_default_view() {
             }),
         )
         .perm();
-}
 
-#[cfg(feature = "third_party_default")]
-fn default_view() -> impl UiNode {
-    let mut licenses = LICENSES.user_licenses();
-    if licenses.is_empty() {
-        licenses.push(UserLicense {
-            user: User {
-                // l10n-# "user" is the package that uses the license
-                name: l10n!("license-none.user-name", "<none>").get(),
-                version: "".into(),
-                url: "".into(),
-            },
-            license: License {
-                id: l10n!("license-none.id", "<none>").get(),
-                // l10n-# License name
-                name: l10n!("license-none.name", "No license data").get(),
-                text: "".into(),
-            },
-        });
-    }
-    let selected = var(licenses[0].clone());
-    let search = var(Txt::from(""));
+    fn default_view() -> impl UiNode {
+        let mut licenses = LICENSES.user_licenses();
+        if licenses.is_empty() {
+            licenses.push(UserLicense {
+                user: User {
+                    // l10n-# "user" is the package that uses the license
+                    name: l10n!("license-none.user-name", "<none>").get(),
+                    version: "".into(),
+                    url: "".into(),
+                },
+                license: License {
+                    id: l10n!("license-none.id", "<none>").get(),
+                    // l10n-# License name
+                    name: l10n!("license-none.name", "No license data").get(),
+                    text: "".into(),
+                },
+            });
+        }
+        let selected = var(licenses[0].clone());
+        let search = var(Txt::from(""));
 
-    let actual_width = var(zng_layout::unit::Dip::new(0));
-    let alternate_layout = actual_width.map(|&w| w <= 500 && w > 1);
+        let actual_width = var(zng_layout::unit::Dip::new(0));
+        let alternate_layout = actual_width.map(|&w| w <= 500 && w > 1);
 
-    let selector = Container! {
-        widget::background_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
+        let selector = Container! {
+            widget::background_color = light_dark(rgb(0.82, 0.82, 0.82), rgb(0.18, 0.18, 0.18));
 
-        // search
-        child_top = TextInput! {
-            txt = search.clone();
-            style_fn = zng_wgt_text_input::SearchStyle!();
-            zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
-            placeholder_txt = l10n!("search.placeholder", "search licenses ({$shortcut})", shortcut="Ctrl+F");
-        }, 0;
-        // list
-        child = Scroll! {
-            layout::min_width = 100;
-            layout::sticky_width = true;
-            mode = zng::scroll::ScrollMode::VERTICAL;
-            child_align = Align::FILL;
-            child = DataView! {
-                view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
-                    let search = a.data().get();
-                    let licenses = if search.is_empty() {
-                        licenses.clone()
-                    } else {
-                        licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
-                    };
+            // search
+            child_top = TextInput! {
+                txt = search.clone();
+                style_fn = zng_wgt_text_input::SearchStyle!();
+                zng_wgt_input::focus::focus_shortcut = [shortcut![CTRL+'F'], shortcut![Find]];
+                placeholder_txt = l10n!("search.placeholder", "search licenses ({$shortcut})", shortcut="Ctrl+F");
+            }, 0;
+            // list
+            child = Scroll! {
+                layout::min_width = 100;
+                layout::sticky_width = true;
+                mode = zng::scroll::ScrollMode::VERTICAL;
+                child_align = Align::FILL;
+                child = DataView! {
+                    view::<Txt> = search, hn!(selected, |a: &DataViewArgs<Txt>| {
+                        let search = a.data().get();
+                        let licenses = if search.is_empty() {
+                            licenses.clone()
+                        } else {
+                            licenses.iter().filter(|t| t.user.name.contains(search.as_str())).cloned().collect()
+                        };
 
-                    a.set_view(Stack! {
-                        toggle::selector = toggle::Selector::single(selected.clone());
-                        direction = StackDirection::top_to_bottom();
-                        children = licenses.into_iter().map(default_item_view).collect::<UiVec>();
-                    })
-                });
+                        a.set_view(Stack! {
+                            toggle::selector = toggle::Selector::single(selected.clone());
+                            direction = StackDirection::top_to_bottom();
+                            children = licenses.into_iter().map(default_item_view).collect::<UiVec>();
+                        })
+                    });
+                };
+                when *#{alternate_layout.clone()} {
+                    layout::max_height = 100; // placed on top in small width screens
+                    layout::sticky_width = false; // reset sticky width
+                }
             };
-            when *#{alternate_layout.clone()} {
-                layout::max_height = 100; // placed on top in small width screens
-                layout::sticky_width = false; // reset sticky width
-            }
         };
-    };
 
-    Container! {
-        layout::actual_width;
+        Container! {
+            layout::actual_width;
 
-        child_insert = {
-            placement: alternate_layout.map(|&y| if y { ChildInsert::Top } else { ChildInsert::Start }),
-            node: selector,
-            spacing: 0,
+            child_insert = {
+                placement: alternate_layout.map(|&y| if y { ChildInsert::Top } else { ChildInsert::Start }),
+                node: selector,
+                spacing: 0,
+            };
+            // selected
+            child = Scroll! {
+                mode = zng::scroll::ScrollMode::VERTICAL;
+                child_align = Align::TOP_START;
+                padding = 10;
+                child = zng::markdown::Markdown!(selected.map(default_markdown));
+            };
+        }
+    }
+
+    fn default_item_view(item: UserLicense) -> impl UiNode {
+        let txt = if item.user.version.is_empty() {
+            item.user.name.clone()
+        } else {
+            formatx!("{} - {}", item.user.name, item.user.version)
         };
-        // selected
-        child = Scroll! {
-            mode = zng::scroll::ScrollMode::VERTICAL;
-            child_align = Align::TOP_START;
-            padding = 10;
-            child = zng::markdown::Markdown!(selected.map(default_markdown));
-        };
-    }
-}
-
-fn default_item_view(item: UserLicense) -> impl UiNode {
-    let txt = if item.user.version.is_empty() {
-        item.user.name.clone()
-    } else {
-        formatx!("{} - {}", item.user.name, item.user.version)
-    };
-    Toggle! {
-        child = Text!(txt);
-        value = item;
-        child_align = layout::Align::START;
-        widget::corner_radius = 0;
-        layout::padding = 2;
-        widget::border = unset!;
-    }
-}
-
-fn default_markdown(item: &UserLicense) -> Txt {
-    use std::fmt::*;
-
-    let mut t = Txt::from("");
-
-    if item.user.version.is_empty() {
-        writeln!(&mut t, "# {}\n", item.user.name).unwrap();
-    } else {
-        writeln!(&mut t, "# {} - {}\n", item.user.name, item.user.version).unwrap();
-    }
-    if !item.user.url.is_empty() {
-        writeln!(&mut t, "[{0}]({0})\n", item.user.url).unwrap();
+        Toggle! {
+            child = Text!(txt);
+            value = item;
+            child_align = layout::Align::START;
+            widget::corner_radius = 0;
+            layout::padding = 2;
+            widget::border = unset!;
+        }
     }
 
-    writeln!(&mut t, "## {}\n\n", item.license.name).unwrap();
+    fn default_markdown(item: &UserLicense) -> Txt {
+        use std::fmt::*;
 
-    if !item.license.text.is_empty() {
-        writeln!(&mut t, "```\n{}\n```\n", item.license.text).unwrap();
+        let mut t = Txt::from("");
+
+        if item.user.version.is_empty() {
+            writeln!(&mut t, "# {}\n", item.user.name).unwrap();
+        } else {
+            writeln!(&mut t, "# {} - {}\n", item.user.name, item.user.version).unwrap();
+        }
+        if !item.user.url.is_empty() {
+            writeln!(&mut t, "[{0}]({0})\n", item.user.url).unwrap();
+        }
+
+        writeln!(&mut t, "## {}\n\n", item.license.name).unwrap();
+
+        if !item.license.text.is_empty() {
+            writeln!(&mut t, "```\n{}\n```\n", item.license.text).unwrap();
+        }
+
+        t.end_mut();
+        t
     }
-
-    t.end_mut();
-    t
 }

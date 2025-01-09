@@ -15,7 +15,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 # Enable test util methods, `doc_test_window`.
 test_util = []
 # Implement conversions from http types.
-http = ["zng-task/http"]
+http = ["zng-task/http", "zng-ext-image/http"]
 
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }

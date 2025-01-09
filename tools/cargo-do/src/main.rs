@@ -358,7 +358,7 @@ fn check_all_features(mut args: Vec<&str>) {
         .unwrap_or(vec![])
         .first()
         .copied()
-        .unwrap_or("3");
+        .unwrap_or("2");
     let chunk = take_option(&mut args, &["--chunk"], "<n/n>")
         .unwrap_or(vec![])
         .first()
@@ -368,7 +368,7 @@ fn check_all_features(mut args: Vec<&str>) {
         .unwrap_or(vec![])
         .first()
         .copied()
-        .unwrap_or("30");
+        .unwrap_or("60");
     let package = take_option(&mut args, &["-p", "--package"], "<CRATE>")
         .unwrap_or(vec![])
         .first()
@@ -444,7 +444,11 @@ fn check_all_features(mut args: Vec<&str>) {
             cmd("cargo", &["clean"], &[]);
         }
 
-        cmd("cargo", &["check", "--package", name, "--no-default-features", release], &features);
+        cmd(
+            "cargo",
+            &["check", "--quiet", "--package", name, "--no-default-features", release],
+            &features,
+        );
     }
 }
 

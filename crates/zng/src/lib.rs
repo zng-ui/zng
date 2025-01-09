@@ -996,7 +996,7 @@ mod defaults {
             }
 
             // setup OPEN_LICENSES_CMD handler
-            #[cfg(feature = "third_party_default")]
+            #[cfg(all(feature = "third_party_default", feature = "third_party"))]
             {
                 crate::third_party::setup_default_view();
                 tracing::debug!("defaults init, third_party set");
@@ -1006,7 +1006,7 @@ mod defaults {
             zng_wgt_settings::handle_settings_cmd();
             tracing::debug!("defaults init, settings set");
 
-            #[cfg(single_instance)]
+            #[cfg(all(single_instance, feature = "window"))]
             {
                 crate::app::APP_INSTANCE_EVENT
                     .on_pre_event(crate::handler::app_hn!(|args: &crate::app::AppInstanceArgs, _| {

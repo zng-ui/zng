@@ -168,6 +168,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
     if open.len() == 1 {
         let id = args.ctx().id();
         let vars = args.vars();
+        #[cfg(feature = "image")]
         let icon = vars.icon();
         let title = vars.title();
         let node = task::parking_lot::Mutex::new(Some(args.nest()));
@@ -181,6 +182,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                     layout::margin = 10;
                     layout::align = Align::CENTER;
                     widget::modal = true;
+                    #[cfg(feature = "color_filter")]
                     color::filter::drop_shadow = {
                         offset: 4,
                         blur_radius: 6,
@@ -191,6 +193,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                     layout::padding = 5;
                     child_top = {
                         node: Container! {
+                            #[cfg(feature = "image")]
                             child_start = Image! {
                                 layout::size = 24;
                                 source = icon.map(|i| match i {

@@ -10,6 +10,7 @@
 //! The icons are from the [Material Design Icons] project.
 //!
 //! [`Icon!`]: struct@zng_wgt_text::icon::Icon
+//! [`ICONS`]: struct@zng_wgt::ICONS
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 //!
 //! # Crate
@@ -18,19 +19,19 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zng_app::widget::node::{NilUiNode, UiNode as _};
-use zng_ext_font::FontName;
-use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
-use zng_wgt_text::icon::{GlyphIcon, Icon};
-
 zng_wgt::enable_widget_macros!();
 
 /// Material icon fonts manager.
 ///
 /// This app extension registers the fonts in `"embedded"` builds and registers [`ICONS`] handlers that provide the icons.
+///
+/// [`ICONS`]: struct@zng_wgt::ICONS
 pub struct MaterialIconsManager;
 impl MaterialIconsManager {
-    #[cfg(feature = "embedded")]
+    #[cfg(all(
+        feature = "embedded",
+        any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
+    ))]
     fn register_fonts(&self) {
         let sets = [
             #[cfg(feature = "outlined")]
@@ -51,7 +52,12 @@ impl MaterialIconsManager {
 }
 #[cfg(feature = "embedded")]
 impl zng_app::AppExtension for MaterialIconsManager {
+    #[cfg(any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp"))]
     fn init(&mut self) {
+        use zng_app::widget::node::{NilUiNode, UiNode as _};
+        use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
+        use zng_wgt_text::icon::{GlyphIcon, Icon};
+
         self.register_fonts();
 
         ICONS.register(wgt_fn!(|args: IconRequestArgs| {
@@ -100,6 +106,7 @@ impl zng_app::AppExtension for MaterialIconsManager {
     }
 }
 
+#[cfg(any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp"))]
 macro_rules! getters {
     ($FONT_NAME:ident, $MAP:ident) => {
         /// Gets the [`GlyphIcon`].
@@ -112,6 +119,8 @@ macro_rules! getters {
         /// # Panics
         ///
         /// Panics if the `key` is not found.
+        ///
+        /// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
         pub fn req(key: &str) -> GlyphIcon {
             match get(key) {
                 Some(g) => g,
@@ -140,14 +149,17 @@ macro_rules! getters {
 ///
 /// Use [`outlined::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
 ///
-/// [`Icon!`]: struct@Icon
+/// [`Icon!`]: struct@zng_wgt_text::icon::Icon
+/// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
+/// [`ICONS`]: struct@zng_wgt::ICONS
 ///
 /// | Name | Icon |
 /// |------|------|
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.outlined.docs.txt"))]
 #[cfg(feature = "outlined")]
 pub mod outlined {
-    use super::*;
+    use zng_ext_font::FontName;
+    use zng_wgt_text::icon::GlyphIcon;
 
     /// "Material Icons Outlined".
     pub const FONT_NAME: FontName = FontName::from_static("Material Icons Outlined");
@@ -170,14 +182,17 @@ pub mod outlined {
 ///
 /// Use [`filled::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
 ///
-/// [`Icon!`]: struct@Icon
+/// [`Icon!`]: struct@zng_wgt_text::icon::Icon
+/// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
+/// [`ICONS`]: struct@zng_wgt::ICONS
 ///
 /// | Name | Icon |
 /// |------|------|
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.filled.docs.txt"))]
 #[cfg(feature = "filled")]
 pub mod filled {
-    use super::*;
+    use zng_ext_font::FontName;
+    use zng_wgt_text::icon::GlyphIcon;
 
     /// "Material Icons".
     pub const FONT_NAME: FontName = FontName::from_static("Material Icons");
@@ -200,14 +215,17 @@ pub mod filled {
 ///
 /// Use [`rounded::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
 ///
-/// [`Icon!`]: struct@Icon
+/// [`Icon!`]: struct@zng_wgt_text::icon::Icon
+/// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
+/// [`ICONS`]: struct@zng_wgt::ICONS
 ///
 /// | Name | Icon |
 /// |------|------|
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.rounded.docs.txt"))]
 #[cfg(feature = "rounded")]
 pub mod rounded {
-    use super::*;
+    use zng_ext_font::FontName;
+    use zng_wgt_text::icon::GlyphIcon;
 
     /// "Material Icons Rounded".
     pub const FONT_NAME: FontName = FontName::from_static("Material Icons Rounded");
@@ -230,14 +248,17 @@ pub mod rounded {
 ///
 /// Use [`sharp::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
 ///
-/// [`Icon!`]: struct@Icon
+/// [`Icon!`]: struct@zng_wgt_text::icon::Icon
+/// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
+/// [`ICONS`]: struct@zng_wgt::ICONS
 ///
 /// | Name | Icon |
 /// |------|------|
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.sharp.docs.txt"))]
 #[cfg(feature = "sharp")]
 pub mod sharp {
-    use super::*;
+    use zng_ext_font::FontName;
+    use zng_wgt_text::icon::GlyphIcon;
 
     /// "Material Icons Sharp".
     pub const FONT_NAME: FontName = FontName::from_static("Material Icons Sharp");
