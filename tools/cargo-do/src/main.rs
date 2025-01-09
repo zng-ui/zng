@@ -368,7 +368,7 @@ fn check_all_features(mut args: Vec<&str>) {
         .unwrap_or(vec![])
         .first()
         .copied()
-        .unwrap_or("30");
+        .unwrap_or("60");
     let package = take_option(&mut args, &["-p", "--package"], "<CRATE>")
         .unwrap_or(vec![])
         .first()

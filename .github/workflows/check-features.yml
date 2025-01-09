@@ -6,7 +6,7 @@ on:
       max:
         default: "2"
       clean:
-        default: "30"
+        default: "60"
 
 env:
   RUST_BACKTRACE: 1
