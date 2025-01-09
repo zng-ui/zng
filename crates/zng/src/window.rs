@@ -168,6 +168,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
     if open.len() == 1 {
         let id = args.ctx().id();
         let vars = args.vars();
+        #[cfg(feature = "image")]
         let icon = vars.icon();
         let title = vars.title();
         let node = task::parking_lot::Mutex::new(Some(args.nest()));
