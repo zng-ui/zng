@@ -444,7 +444,7 @@ fn check_all_features(mut args: Vec<&str>) {
             cmd("cargo", &["clean"], &[]);
         }
 
-        cmd("cargo", &["check", "--package", name, "--no-default-features", release], &features);
+        cmd("cargo", &["check", "--quiet", "--package", name, "--no-default-features", release], &features);
     }
 }
 
