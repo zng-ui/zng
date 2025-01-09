@@ -24,7 +24,7 @@ zng_wgt::enable_widget_macros!();
 /// Material icon fonts manager.
 ///
 /// This app extension registers the fonts in `"embedded"` builds and registers [`ICONS`] handlers that provide the icons.
-/// 
+///
 /// [`ICONS`]: struct@zng_wgt::ICONS
 pub struct MaterialIconsManager;
 impl MaterialIconsManager {
@@ -119,7 +119,7 @@ macro_rules! getters {
         /// # Panics
         ///
         /// Panics if the `key` is not found.
-        /// 
+        ///
         /// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
         pub fn req(key: &str) -> GlyphIcon {
             match get(key) {
