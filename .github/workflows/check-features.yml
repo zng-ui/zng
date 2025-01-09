@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       max:
-        default: "3"
+        default: "2"
       clean:
-        default: "5"
+        default: "10"
 
 env:
   RUST_BACKTRACE: 1
@@ -20,13 +20,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-          chunk: [1, 2, 3, 4, 5, 6, 7, 8]
-          os: [ubuntu-latest]
+          chunk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
           profile: ["", --release]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: sudo apt install libfontconfig1-dev
-      - run: cargo do check-all-features ${{ matrix.profile }} --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/8"
+      - run: cargo do check-all-features ${{ matrix.profile }} --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/12"
       - run: cargo clean
