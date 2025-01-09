@@ -1006,7 +1006,7 @@ mod defaults {
             zng_wgt_settings::handle_settings_cmd();
             tracing::debug!("defaults init, settings set");
 
-            #[cfg(single_instance)]
+            #[cfg(all(single_instance, feature = "window"))]
             {
                 crate::app::APP_INSTANCE_EVENT
                     .on_pre_event(crate::handler::app_hn!(|args: &crate::app::AppInstanceArgs, _| {
