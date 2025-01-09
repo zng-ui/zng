@@ -25,7 +25,10 @@ zng_wgt::enable_widget_macros!();
 /// This app extension registers the fonts in `"embedded"` builds and registers [`ICONS`] handlers that provide the icons.
 pub struct MaterialIconsManager;
 impl MaterialIconsManager {
-    #[cfg(feature = "embedded")]
+    #[cfg(all(
+        feature = "embedded",
+        any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp")
+    ))]
     fn register_fonts(&self) {
         let sets = [
             #[cfg(feature = "outlined")]
@@ -46,6 +49,7 @@ impl MaterialIconsManager {
 }
 #[cfg(feature = "embedded")]
 impl zng_app::AppExtension for MaterialIconsManager {
+    #[cfg(any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp"))]
     fn init(&mut self) {
         use zng_app::widget::node::{NilUiNode, UiNode as _};
         use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
@@ -99,6 +103,7 @@ impl zng_app::AppExtension for MaterialIconsManager {
     }
 }
 
+#[cfg(any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp"))]
 macro_rules! getters {
     ($FONT_NAME:ident, $MAP:ident) => {
         /// Gets the [`GlyphIcon`].
