@@ -996,7 +996,7 @@ mod defaults {
             }
 
             // setup OPEN_LICENSES_CMD handler
-            #[cfg(feature = "third_party_default")]
+            #[cfg(all(feature = "third_party_default", feature = "third_party"))]
             {
                 crate::third_party::setup_default_view();
                 tracing::debug!("defaults init, third_party set");
