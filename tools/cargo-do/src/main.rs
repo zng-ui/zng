@@ -358,7 +358,7 @@ fn check_all_features(mut args: Vec<&str>) {
         .unwrap_or(vec![])
         .first()
         .copied()
-        .unwrap_or("3");
+        .unwrap_or("2");
     let chunk = take_option(&mut args, &["--chunk"], "<n/n>")
         .unwrap_or(vec![])
         .first()
