@@ -259,6 +259,7 @@ fn default_view() -> impl UiNode {
     }
 }
 
+#[cfg(feature = "third_party_default")]
 fn default_item_view(item: UserLicense) -> impl UiNode {
     let txt = if item.user.version.is_empty() {
         item.user.name.clone()
@@ -275,6 +276,7 @@ fn default_item_view(item: UserLicense) -> impl UiNode {
     }
 }
 
+#[cfg(feature = "third_party_default")]
 fn default_markdown(item: &UserLicense) -> Txt {
     use std::fmt::*;
 
