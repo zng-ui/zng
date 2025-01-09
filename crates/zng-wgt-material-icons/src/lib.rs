@@ -18,11 +18,6 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zng_app::widget::node::{NilUiNode, UiNode as _};
-use zng_ext_font::FontName;
-use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
-use zng_wgt_text::icon::{GlyphIcon, Icon};
-
 zng_wgt::enable_widget_macros!();
 
 /// Material icon fonts manager.
@@ -52,6 +47,10 @@ impl MaterialIconsManager {
 #[cfg(feature = "embedded")]
 impl zng_app::AppExtension for MaterialIconsManager {
     fn init(&mut self) {
+        use zng_app::widget::node::{NilUiNode, UiNode as _};
+        use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
+        use zng_wgt_text::icon::{GlyphIcon, Icon};
+
         self.register_fonts();
 
         ICONS.register(wgt_fn!(|args: IconRequestArgs| {
@@ -147,7 +146,8 @@ macro_rules! getters {
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.outlined.docs.txt"))]
 #[cfg(feature = "outlined")]
 pub mod outlined {
-    use super::*;
+    use zng_ext_font::FontName;
+    use zng_wgt_text::icon::GlyphIcon;
 
     /// "Material Icons Outlined".
     pub const FONT_NAME: FontName = FontName::from_static("Material Icons Outlined");
@@ -177,7 +177,8 @@ pub mod outlined {
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.filled.docs.txt"))]
 #[cfg(feature = "filled")]
 pub mod filled {
-    use super::*;
+    use zng_ext_font::FontName;
+    use zng_wgt_text::icon::GlyphIcon;
 
     /// "Material Icons".
     pub const FONT_NAME: FontName = FontName::from_static("Material Icons");
@@ -207,7 +208,8 @@ pub mod filled {
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.rounded.docs.txt"))]
 #[cfg(feature = "rounded")]
 pub mod rounded {
-    use super::*;
+    use zng_ext_font::FontName;
+    use zng_wgt_text::icon::GlyphIcon;
 
     /// "Material Icons Rounded".
     pub const FONT_NAME: FontName = FontName::from_static("Material Icons Rounded");
@@ -237,7 +239,8 @@ pub mod rounded {
 #[doc = include_str!(concat!(env!("OUT_DIR"), "/generated.sharp.docs.txt"))]
 #[cfg(feature = "sharp")]
 pub mod sharp {
-    use super::*;
+    use zng_ext_font::FontName;
+    use zng_wgt_text::icon::GlyphIcon;
 
     /// "Material Icons Sharp".
     pub const FONT_NAME: FontName = FontName::from_static("Material Icons Sharp");
