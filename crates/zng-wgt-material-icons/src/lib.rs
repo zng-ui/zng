@@ -10,6 +10,7 @@
 //! The icons are from the [Material Design Icons] project.
 //!
 //! [`Icon!`]: struct@zng_wgt_text::icon::Icon
+//! [`ICONS`]: struct@zng_wgt::ICONS
 //! [Material Design Icons]: https://github.com/google/material-design-icons
 //!
 //! # Crate
@@ -23,6 +24,8 @@ zng_wgt::enable_widget_macros!();
 /// Material icon fonts manager.
 ///
 /// This app extension registers the fonts in `"embedded"` builds and registers [`ICONS`] handlers that provide the icons.
+/// 
+/// [`ICONS`]: struct@zng_wgt::ICONS
 pub struct MaterialIconsManager;
 impl MaterialIconsManager {
     #[cfg(all(
@@ -116,6 +119,8 @@ macro_rules! getters {
         /// # Panics
         ///
         /// Panics if the `key` is not found.
+        /// 
+        /// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
         pub fn req(key: &str) -> GlyphIcon {
             match get(key) {
                 Some(g) => g,
@@ -144,7 +149,9 @@ macro_rules! getters {
 ///
 /// Use [`outlined::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
 ///
-/// [`Icon!`]: struct@Icon
+/// [`Icon!`]: struct@zng_wgt_text::icon::Icon
+/// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
+/// [`ICONS`]: struct@zng_wgt::ICONS
 ///
 /// | Name | Icon |
 /// |------|------|
@@ -175,7 +182,9 @@ pub mod outlined {
 ///
 /// Use [`filled::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
 ///
-/// [`Icon!`]: struct@Icon
+/// [`Icon!`]: struct@zng_wgt_text::icon::Icon
+/// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
+/// [`ICONS`]: struct@zng_wgt::ICONS
 ///
 /// | Name | Icon |
 /// |------|------|
@@ -206,7 +215,9 @@ pub mod filled {
 ///
 /// Use [`rounded::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
 ///
-/// [`Icon!`]: struct@Icon
+/// [`Icon!`]: struct@zng_wgt_text::icon::Icon
+/// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
+/// [`ICONS`]: struct@zng_wgt::ICONS
 ///
 /// | Name | Icon |
 /// |------|------|
@@ -237,7 +248,9 @@ pub mod rounded {
 ///
 /// Use [`sharp::req`] to get a [`GlyphIcon`] directly for use in the [`Icon!`] widget.
 ///
-/// [`Icon!`]: struct@Icon
+/// [`Icon!`]: struct@zng_wgt_text::icon::Icon
+/// [`GlyphIcon`]: struct@zng_wgt_text::icon::GlyphIcon
+/// [`ICONS`]: struct@zng_wgt::ICONS
 ///
 /// | Name | Icon |
 /// |------|------|
