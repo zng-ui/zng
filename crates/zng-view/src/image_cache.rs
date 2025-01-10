@@ -1047,8 +1047,6 @@ impl Image {
             )));
         }
 
-        use image::*;
-
         if self.0.is_mask() {
             let width = size.width.0 as u32;
             let height = size.height.0 as u32;
@@ -1076,18 +1074,18 @@ impl Image {
 
         match format {
             #[cfg(feature = "image_jpeg")]
-            ImageFormat::Jpeg => {
-                let mut jpg = codecs::jpeg::JpegEncoder::new(buffer);
+            image::ImageFormat::Jpeg => {
+                let mut jpg = image::codecs::jpeg::JpegEncoder::new(buffer);
                 if let Some(ppi) = ppi {
-                    jpg.set_pixel_density(codecs::jpeg::PixelDensity {
+                    jpg.set_pixel_density(image::codecs::jpeg::PixelDensity {
                         density: (ppi.x as u16, ppi.y as u16),
-                        unit: codecs::jpeg::PixelDensityUnit::Inches,
+                        unit: image::codecs::jpeg::PixelDensityUnit::Inches,
                     });
                 }
-                jpg.encode(&rgba, width, height, ColorType::Rgba8.into())?;
+                jpg.encode(&rgba, width, height, image::ColorType::Rgba8.into())?;
             }
             #[cfg(feature = "image_png")]
-            ImageFormat::Png => {
+            image::ImageFormat::Png => {
                 let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());
                 if is_opaque {
                     img = image::DynamicImage::ImageRgb8(img.to_rgb8());
@@ -1095,7 +1093,7 @@ impl Image {
                 if let Some(ppi) = ppi {
                     let mut png_bytes = vec![];
 
-                    img.write_to(&mut std::io::Cursor::new(&mut png_bytes), ImageFormat::Png)?;
+                    img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)?;
 
                     let mut png = img_parts::png::Png::from_bytes(png_bytes.into()).unwrap();
 
@@ -1118,11 +1116,13 @@ impl Image {
 
                     png.encoder().write_to(buffer)?;
                 } else {
-                    img.write_to(&mut std::io::Cursor::new(buffer), ImageFormat::Png)?;
+                    img.write_to(&mut std::io::Cursor::new(buffer), image::ImageFormat::Png)?;
                 }
             }
             _ => {
                 // other formats that we don't with custom PPI meta.
+
+                let _ = ppi; // suppress warning when both png an jpeg are not enabled
 
                 let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());
                 if is_opaque {
