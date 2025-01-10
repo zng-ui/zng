@@ -12,24 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = [
-    "ipc", 
-    "software", 
-    "image_bmp",
-    "image_dds",
-    "image_exr",
-    "image_ff",
-    "image_gif",
-    "image_hdr",
-    "image_ico",
-    "image_jpeg",
-    "image_png",
-    "image_pnm",
-    "image_qoi",
-    "image_tga",
-    "image_tiff",
-    "image_webp",
-]
+default = ["ipc", "software", "image_all"]
 
 # Enables pre-build and init as view-process.
 #
@@ -98,6 +81,24 @@ image_tga = ["image/tga"]
 image_tiff = ["image/tiff"]
 # Enable WEBP image decoder.
 image_webp = ["image/webp"]
+
+# Enable all image decoders and encoders.
+image_all = [
+    "image_bmp",
+    "image_dds",
+    "image_exr",
+    "image_ff",
+    "image_gif",
+    "image_hdr",
+    "image_ico",
+    "image_jpeg",
+    "image_png",
+    "image_pnm",
+    "image_qoi",
+    "image_tga",
+    "image_tiff",
+    "image_webp",
+]
 
 [lib]
 crate-type = ["lib", "cdylib"]
@@ -204,7 +205,10 @@ zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.9", features = [
 cfg_aliases = "0.2"
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("image_avif"))', 'cfg(zng_view_image_has_avif)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("image_avif"))',
+    'cfg(zng_view_image_has_avif)',
+] }
 
 [package.metadata.docs.rs]
 all-features = true
