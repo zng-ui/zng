@@ -50,7 +50,7 @@ default = [
     "image_exr",
     "image_ff",
     "image_gif",
-    "image_hrd",
+    "image_hdr",
     "image_ico",
     "image_jpeg",
     "image_png",
@@ -86,7 +86,7 @@ debug_default = [
     "zng-wgt-window/debug_default",
 ]
 
-# Enable SVG images, emoji support.
+# Enable SVG image rendering, SBG emoji support.
 svg = ["zng-ext-svg", "zng-ext-font/svg"]
 
 # Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
@@ -329,33 +329,33 @@ undo = ["dep:zng-ext-undo", "dep:zng-wgt-undo-history", "dep:zng-wgt-undo"]
 wrap = ["dep:zng-wgt-wrap"]
 
 # Enable BMP image decoder and encoder with "view" feature.
-image_bmp = ["zng-view?/bmp"]
+image_bmp = ["zng-view?/image_bmp"]
 # Enable DDS image decoder with "view" feature.
-image_dds = ["zng-view?/dds"]
+image_dds = ["zng-view?/image_dds"]
 # Enable EXR image decoder and encoder with "view" feature.
-image_exr = ["zng-view?/exr"]
+image_exr = ["zng-view?/image_exr"]
 # Enable Farbfeld image decoder and encoder with "view" feature.
-image_ff = ["zng-view?/ff"]
+image_ff = ["zng-view?/image_ff"]
 # Enable GIF image decoder and encoder with "view" feature.
-image_gif = ["zng-view?/gif"]
-# Enable HDR image decoder and encoder with "view" feature.
-image_hrd = ["zng-view?/hdr"]
+image_gif = ["zng-view?/image_gif"]
+# Enable Radiance HDR image decoder and encoder with "view" feature.
+image_hdr = ["zng-view?/image_hdr"]
 # Enable ICO image decoder and encoder with "view" feature.
-image_ico = ["zng-view?/ico"]
+image_ico = ["zng-view?/image_ico"]
 # Enable JPEG image decoder and encoder with "view" feature.
-image_jpeg = ["zng-view?/jpeg"]
+image_jpeg = ["zng-view?/image_jpeg"]
 # Enable PNG image decoder and encoder with "view" feature.
-image_png = ["zng-view?/png"]
+image_png = ["zng-view?/image_png"]
 # Enable PNM image decoder and encoder with "view" feature.
-image_pnm = ["zng-view?/pnm"]
+image_pnm = ["zng-view?/image_pnm"]
 # Enable QOI image decoder and encoder with "view" feature.
-image_qoi = ["zng-view?/qoi"]
+image_qoi = ["zng-view?/image_qoi"]
 # Enable TGA image decoder and encoder with "view" feature.
-image_tga = ["zng-view?/tga"]
+image_tga = ["zng-view?/image_tga"]
 # Enable TIFF image decoder and encoder with "view" feature.
-image_tiff = ["zng-view?/tiff"]
+image_tiff = ["zng-view?/image_tiff"]
 # Enable WEBP image decoder with "view" feature.
-image_webp = ["zng-view?/webp"]
+image_webp = ["zng-view?/image_webp"]
 
 [dependencies]
 # foundation

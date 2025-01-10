@@ -20,7 +20,7 @@ default = [
     "image_exr",
     "image_ff",
     "image_gif",
-    "image_hrd",
+    "image_hdr",
     "image_ico",
     "image_jpeg",
     "image_png",
@@ -80,8 +80,8 @@ image_exr = ["image/exr"]
 image_ff = ["image/ff"]
 # Enable GIF image decoder and encoder.
 image_gif = ["image/gif"]
-# Enable HDR image decoder and encoder.
-image_hrd = ["image/hdr"]
+# Enable Radiance HDR image decoder and encoder.
+image_hdr = ["image/hdr"]
 # Enable ICO image decoder and encoder.
 image_ico = ["image/ico"]
 # Enable JPEG image decoder and encoder.
