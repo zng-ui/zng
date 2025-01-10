@@ -1,5 +1,5 @@
-[![License-APACHE](https://img.shields.io/badge/License-Apache--2.0-informational)](https://github.com/zng-ui/zng/blob/master/LICENSE-APACHE)
-[![License-MIT](https://img.shields.io/badge/license-MIT-informational)](https://github.com/zng-ui/zng/blob/master/LICENSE-MIT)
+[![License-APACHE](https://img.shields.io/badge/License-Apache--2.0-informational)](https://github.com/zng-ui/zng/blob/main/LICENSE-APACHE)
+[![License-MIT](https://img.shields.io/badge/license-MIT-informational)](https://github.com/zng-ui/zng/blob/main/LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/v/zng)](https://crates.io/crates/zng)
 [![Documentation](https://img.shields.io/badge/github.io-docs-success)](https://zng-ui.github.io/doc/zng)
 
@@ -77,7 +77,7 @@ this *internal* API will only be available in the widget's crate.
 
 The Cargo features of each crate are documented in the README file for that crate. See [`./crates/zng`] for the Cargo features of the main crate.
 
-[`./crates/zng`]:https://github.com/zng-ui/zng/tree/master/crates/zng#cargo-features
+[`./crates/zng`]:https://github.com/zng-ui/zng/tree/main/crates/zng#cargo-features
 
 ## Requirements
 
@@ -103,7 +103,7 @@ The Cargo features of each crate are documented in the README file for that crat
 
 ##### On macOS:
 
-* TO build with `"view_prebuilt"` feature:
+* To build with `"view_prebuilt"` feature:
     - macOS 11 or newer.
 
 ##### For Android:
@@ -141,7 +141,7 @@ Clone this repository and call `cargo do run <example>` to run an example.
 
 See the [`./examples`] README file for a list of examples with description and screenshots.
 
-[`./examples`]: https://github.com/zng-ui/zng/tree/master/examples#readme
+[`./examples`]: https://github.com/zng-ui/zng/tree/main/examples#readme
 
 ## License
 
