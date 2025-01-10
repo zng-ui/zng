@@ -18,39 +18,67 @@ use crate::{AppEvent, AppEventSender};
 use rustc_hash::FxHashMap;
 
 pub(crate) const ENCODERS: &[&str] = &[
+    #[cfg(feature = "image_png")]
     "png",
+    #[cfg(feature = "image_jpeg")]
     "jpg",
+    #[cfg(feature = "image_jpeg")]
     "jpeg",
+    #[cfg(feature = "image_webp")]
     "webp",
     #[cfg(any(feature = "image_avif", zng_view_image_has_avif))]
     "avif",
+    #[cfg(feature = "image_gif")]
     "gif",
+    #[cfg(feature = "image_ico")]
     "ico",
+    #[cfg(feature = "image_bmp")]
     "bmp",
+    #[cfg(feature = "image_jpeg")]
     "jfif",
+    #[cfg(feature = "image_exr")]
     "exr",
+    #[cfg(feature = "image_hdr")]
     "hdr",
+    #[cfg(feature = "image_pnm")]
     "pnm",
+    #[cfg(feature = "image_qoi")]
     "qoi",
+    #[cfg(feature = "image_ff")]
     "ff",
+    #[cfg(feature = "image_ff")]
     "farbfeld",
 ];
 pub(crate) const DECODERS: &[&str] = &[
+    #[cfg(feature = "image_png")]
     "png",
+    #[cfg(feature = "image_jpeg")]
     "jpg",
+    #[cfg(feature = "image_jpeg")]
     "jpeg",
+    #[cfg(feature = "image_webp")]
     "webp",
     #[cfg(any(feature = "image_avif", zng_view_image_has_avif))]
     "avif",
+    #[cfg(feature = "image_gif")]
     "gif",
+    #[cfg(feature = "image_ico")]
     "ico",
+    #[cfg(feature = "image_bmp")]
     "bmp",
+    #[cfg(feature = "image_jpeg")]
     "jfif",
+    #[cfg(feature = "image_exr")]
     "exr",
+    #[cfg(feature = "image_pnm")]
     "pnm",
+    #[cfg(feature = "image_qoi")]
     "qoi",
+    #[cfg(feature = "image_ff")]
     "ff",
+    #[cfg(feature = "image_ff")]
     "farbfeld",
+    #[cfg(feature = "image_dds")]
     "dds",
 ];
 
@@ -1047,6 +1075,7 @@ impl Image {
         let is_opaque = self.0.is_opaque();
 
         match format {
+            #[cfg(feature = "image_jpeg")]
             ImageFormat::Jpeg => {
                 let mut jpg = codecs::jpeg::JpegEncoder::new(buffer);
                 if let Some(ppi) = ppi {
@@ -1057,6 +1086,7 @@ impl Image {
                 }
                 jpg.encode(&rgba, width, height, ColorType::Rgba8.into())?;
             }
+            #[cfg(feature = "image_png")]
             ImageFormat::Png => {
                 let mut img = image::DynamicImage::ImageRgba8(image::ImageBuffer::from_raw(width, height, rgba).unwrap());
                 if is_opaque {
