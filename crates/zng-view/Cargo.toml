@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc", "software"]
+default = ["ipc", "software", "image_all"]
 
 # Enables pre-build and init as view-process.
 #
@@ -34,15 +34,6 @@ software = ["dep:swgl", "dep:softbuffer"]
 # Not enabled by default. Note that `"view_prebuilt"` always bundles licenses.
 bundle_licenses = ["zng-tp-licenses/bundle"]
 
-# Enable AVIF decoder and encoder.
-#
-# Note that this enables the `dav1d` dependency that is not trivial to build.
-#
-# Removed for now because there is no way to exclude this feature from test runs that use --all-features
-#
-# Also see `docs/avif-setup.md` for a guide on how to depend on zng-view with avif.
-# avif = ["image/avif", "image/avif-native"]
-
 # Standard Android backend that requires a build system that can compile Java or Kotlin and fetch Android dependencies.
 #
 # See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
@@ -52,6 +43,62 @@ android_game_activity = ["winit/android-game-activity"]
 #
 # See `https://docs.rs/winit/latest/winit/platform/android/` for more details. 
 android_native_activity = ["winit/android-native-activity"]
+
+# Enable AVIF image decoder and encoder.
+#
+# Note that this enables the `dav1d` dependency that is not trivial to build.
+#
+# Removed for now because there is no way to exclude this feature from test runs that use --all-features
+#
+# Also see `docs/avif-setup.md` for a guide on how to depend on zng-view with avif.
+# image_avif = ["image/avif", "image/avif-native"]
+
+# Enable BMP image decoder and encoder.
+image_bmp = ["image/bmp"]
+# Enable DDS image decoder.
+image_dds = ["image/dds"]
+# Enable EXR image decoder and encoder.
+image_exr = ["image/exr"]
+# Enable Farbfeld image decoder and encoder.
+image_ff = ["image/ff"]
+# Enable GIF image decoder and encoder.
+image_gif = ["image/gif"]
+# Enable Radiance HDR image decoder and encoder.
+image_hdr = ["image/hdr"]
+# Enable ICO image decoder and encoder.
+image_ico = ["image/ico"]
+# Enable JPEG image decoder and encoder.
+image_jpeg = ["image/jpeg"]
+# Enable PNG image decoder and encoder.
+image_png = ["image/png"]
+# Enable PNM image decoder and encoder.
+image_pnm = ["image/pnm"]
+# Enable QOI image decoder and encoder.
+image_qoi = ["image/qoi"]
+# Enable TGA image decoder and encoder.
+image_tga = ["image/tga"]
+# Enable TIFF image decoder and encoder.
+image_tiff = ["image/tiff"]
+# Enable WEBP image decoder.
+image_webp = ["image/webp"]
+
+# Enable all image decoders and encoders.
+image_all = [
+    "image_bmp",
+    "image_dds",
+    "image_exr",
+    "image_ff",
+    "image_gif",
+    "image_hdr",
+    "image_ico",
+    "image_jpeg",
+    "image_png",
+    "image_pnm",
+    "image_qoi",
+    "image_tga",
+    "image_tiff",
+    "image_webp",
+]
 
 [lib]
 crate-type = ["lib", "cdylib"]
@@ -80,23 +127,7 @@ winit = { version = "0.30", default-features = false, features = [
 glutin = "0.32"
 raw-window-handle = "0.6" # matches glutin
 flume = "0.11"
-image = { version = "0.25", default-features = false, features = [
-    "rayon",
-    "bmp",
-    "dds",
-    "exr",
-    "ff",
-    "gif",
-    "hdr",
-    "ico",
-    "jpeg",
-    "png",
-    "pnm",
-    "qoi",
-    "tga",
-    "tiff",
-    "webp",
-] }
+image = { version = "0.25", default-features = false, features = ["rayon"] }
 img-parts = "0.3"
 byteorder = "1.5"
 rustc-hash = "2.0"
@@ -174,7 +205,10 @@ zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.9", features = [
 cfg_aliases = "0.2"
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("avif"))', 'cfg(zng_view_image_has_avif)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("image_avif"))',
+    'cfg(zng_view_image_has_avif)',
+] }
 
 [package.metadata.docs.rs]
 all-features = true

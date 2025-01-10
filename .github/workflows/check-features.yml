@@ -16,7 +16,7 @@ env:
   ZNG_TP_LICENSES: false
 
 jobs:
-  test:
+  check:
     strategy:
       fail-fast: false
       matrix:
