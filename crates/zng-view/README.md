@@ -5,7 +5,7 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 19 feature flags, 17 enabled by default.
+This crate provides 20 feature flags, 3 enabled by default.
 
 #### `"ipc"`
 Enables pre-build and init as view-process.
@@ -44,70 +44,47 @@ See `https://docs.rs/winit/latest/winit/platform/android/` for more details.
 #### `"image_bmp"`
 Enable BMP image decoder and encoder.
 
-*Enabled by default.*
-
 #### `"image_dds"`
 Enable DDS image decoder.
-
-*Enabled by default.*
 
 #### `"image_exr"`
 Enable EXR image decoder and encoder.
 
-*Enabled by default.*
-
 #### `"image_ff"`
 Enable Farbfeld image decoder and encoder.
-
-*Enabled by default.*
 
 #### `"image_gif"`
 Enable GIF image decoder and encoder.
 
-*Enabled by default.*
-
-#### `"image_hrd"`
-Enable HDR image decoder and encoder.
-
-*Enabled by default.*
+#### `"image_hdr"`
+Enable Radiance HDR image decoder and encoder.
 
 #### `"image_ico"`
 Enable ICO image decoder and encoder.
 
-*Enabled by default.*
-
 #### `"image_jpeg"`
 Enable JPEG image decoder and encoder.
-
-*Enabled by default.*
 
 #### `"image_png"`
 Enable PNG image decoder and encoder.
 
-*Enabled by default.*
-
 #### `"image_pnm"`
 Enable PNM image decoder and encoder.
-
-*Enabled by default.*
 
 #### `"image_qoi"`
 Enable QOI image decoder and encoder.
 
-*Enabled by default.*
-
 #### `"image_tga"`
 Enable TGA image decoder and encoder.
-
-*Enabled by default.*
 
 #### `"image_tiff"`
 Enable TIFF image decoder and encoder.
 
-*Enabled by default.*
-
 #### `"image_webp"`
 Enable WEBP image decoder.
+
+#### `"image_all"`
+Enable all image decoders and encoders.
 
 *Enabled by default.*
 

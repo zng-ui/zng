@@ -46,6 +46,7 @@ default = [
     "wrap",
     "image_all",
     "button",
+    "ansi_text",
 ]
 
 # Include the default view-process implementation.
