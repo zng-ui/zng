@@ -1,6 +1,6 @@
 [package]
 name = "cargo-zng"
-version = "0.4.16"
+version = "0.4.17"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
