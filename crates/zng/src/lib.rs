@@ -653,6 +653,7 @@ mod __prelude {
 
     pub use zng_wgt_container::Container;
 
+    #[cfg(feature = "button")]
     pub use zng_wgt_button::Button;
 
     #[cfg(feature = "data_context")]
