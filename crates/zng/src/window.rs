@@ -206,6 +206,7 @@ pub fn default_mobile_nested_open_handler(args: &mut zng_ext_window::OpenNestedH
                                 txt_align = Align::CENTER;
                                 font_weight = FontWeight::BOLD;
                             };
+                            #[cfg(feature = "button")]
                             child_end = Button! {
                                 style_fn = zng::button::LightStyle!();
                                 child = ICONS.get_or("close", || Text!("x"));

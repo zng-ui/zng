@@ -1,3 +1,5 @@
+#![cfg(feature = "button")]
+
 //! Button widget, styles and properties.
 //!
 //! A simple clickable container widget, it can be used by directly handling the click events or by setting it to
