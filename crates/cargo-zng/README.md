@@ -18,6 +18,20 @@ Commands overview:
 ```console
 $ cargo zng --help
 
+Zng project manager.
+
+Usage: cargo zng <COMMAND>
+
+Commands:
+  fmt   Format code and macros
+  new   New project from a Zng template repository
+  l10n  Localization text scraper
+  res   Build resources
+  help  Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
 ```
 
 ## `fmt`
@@ -28,6 +42,33 @@ Formats the code with `cargo fmt` and formats Zng macros and some other braced m
 ```console
 $ cargo zng fmt --help
 
+Format code and macros
+
+Runs cargo fmt and formats Zng macros
+
+Usage: cargo zng fmt [OPTIONS]
+
+Options:
+      --check
+          Only check if files are formatted
+
+      --manifest-path <MANIFEST_PATH>
+          Format the crate identified by Cargo.toml
+
+  -p, --package <PACKAGE>
+          Format the workspace crate identified by package name
+
+  -f, --files <FILES>
+          Format all files matched by glob
+
+  -s, --stdin
+          Format the stdin to the stdout
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
 
 The formatter supports Zng macros and also attempts to format all braced macro contents 
@@ -59,6 +100,49 @@ Initialize a new repository from a Zng template repository.
 ```console
 $ cargo zng new --help
 
+New project from a Zng template repository
+
+Usage: cargo zng new [OPTIONS] [VALUE]...
+
+Arguments:
+  [VALUE]...
+          Set template values by position
+
+          The first value for all templates is the app name.
+
+          EXAMPLE
+
+          cargo zng new "My App!" | creates a "my-app" project.
+
+          cargo zng new "my_app"  | creates a "my_app" project.
+
+Options:
+  -t, --template <TEMPLATE>
+          Zng template
+
+          Can be a .git URL or an `owner/repo` for a GitHub repository. Can also be an absolute path or `./path` to a local template directory.
+
+          Use `#branch` to select a branch, that is `owner/repo#branch`.
+
+          [default: zng-ui/zng-template]
+
+  -s, --set [<SET>...]
+          Set a template value
+
+          Templates have a `.zng-template/keys` file that defines the possible options.
+
+          EXAMPLE
+
+          -s"key=value" -s"k2=v2"
+
+  -k, --keys
+          Show all possible values that can be set on the template
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
 
 The Zng project generator is very simple, it does not use any template engine, just Rust's string replace in UTF-8 text files only.
@@ -147,6 +231,96 @@ Localization text scraper.
 ```console
 $ cargo zng l10n --help
 
+Localization text scraper
+
+See the docs for `l10n!` for more details about the expected format.
+
+Usage: cargo zng l10n [OPTIONS]
+
+Options:
+  -i, --input <INPUT>
+          Rust files glob or directory
+
+          [default: ]
+
+  -o, --output <OUTPUT>
+          L10n resources dir
+
+          [default: ]
+
+  -p, --package <PACKAGE>
+          Package to scrap and copy dependencies
+
+          If set the --input and --output default is src/**.rs and l10n/
+
+          [default: ]
+
+      --manifest-path <MANIFEST_PATH>
+          Path to Cargo.toml of crate to scrap and copy dependencies
+
+          If set the --input and --output default to src/**.rs and l10n/
+
+          [default: ]
+
+      --no-deps
+          Don't copy dependencies localization
+
+          Use with --package or --manifest-path to not copy {dep-pkg}/l10n/*.ftl files
+
+      --no-local
+          Don't scrap `#.#.#-local` dependencies
+
+          Use with --package or --manifest-path to not scrap local dependencies.
+
+      --no-pkg
+          Don't scrap the target package.
+
+          Use with --package or --manifest-path to only scrap dependencies.
+
+      --clean-deps
+          Remove all previously copied dependency localization files
+
+      --clean-template
+          Remove all previously scraped resources before scraping
+
+      --clean
+          Same as --clean-deps --clean-template
+
+  -m, --macros <MACROS>
+          Custom l10n macro names, comma separated
+
+          [default: ]
+
+      --pseudo <PSEUDO>
+          Generate pseudo locale from dir/lang
+
+          EXAMPLE
+
+          "l10n/en" generates pseudo from "l10n/en.ftl" and "l10n/en/*.ftl"
+
+          [default: ]
+
+      --pseudo-m <PSEUDO_M>
+          Generate pseudo mirrored locale
+
+          [default: ]
+
+      --pseudo-w <PSEUDO_W>
+          Generate pseudo wide locale
+
+          [default: ]
+
+      --check
+          Only verify that the generated files are the same
+
+  -v, --verbose
+          Use verbose output
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
 
 Also see [`zng::l10n::l10n!`] docs for more details about the expected format.
@@ -161,6 +335,68 @@ Build resources
 ```console
 $ cargo zng res --help
 
+Build resources
+
+Builds resources SOURCE to TARGET, delegates `.zr-{tool}` files to `cargo-zng-res-{tool}` executables and crates.
+
+Usage: cargo zng res [OPTIONS] [SOURCE] [TARGET]
+
+Arguments:
+  [SOURCE]
+          Resources source dir
+
+          [default: res]
+
+  [TARGET]
+          Resources target dir
+
+          This directory is wiped before each build.
+
+          [default: target/res]
+
+Options:
+      --pack
+          Copy all static files to the target dir
+
+      --tool-dir <DIR>
+          Search for `zng-res-{tool}` in this directory first
+
+          [default: tools]
+
+      --tools
+          Prints help for all tools available
+
+      --tool <TOOL>
+          Prints the full help for a tool
+
+      --tool-cache <TOOL_CACHE>
+          Tools cache dir
+
+          [default: target/res.cache]
+
+      --recursion-limit <RECURSION_LIMIT>
+          Number of build passes allowed before final
+
+          [default: 32]
+
+      --metadata <TOML_FILE>
+          TOML file that that defines metadata uses by tools (ZR_APP, ZR_ORG, ..)
+
+          This is only needed if the workspace has multiple bin crates and none or many set '[package.metadata.zng.about]'.
+
+          See `zng::env::About` for more details.
+
+      --metadata-dump
+          Writes the metadata extracted the workspace or --metadata
+
+  -v, --verbose
+          Use verbose output
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
 
 This subcommand can be used to build resources and package releases. It is very simple, you create
@@ -241,6 +477,31 @@ These are the builtin tools provided:
 ```console
 $ cargo zng res --tools
 
+.zr-copy @ cargo-zng
+  Copy the file or dir
+
+.zr-glob @ cargo-zng
+  Copy all matches in place
+
+.zr-rp @ cargo-zng
+  Replace ${VAR|<file|!cmd} occurrences in the content
+
+.zr-sh @ cargo-zng
+  Run a bash script
+
+.zr-shf @ cargo-zng
+  Run a bash script on the final pass
+
+.zr-warn @ cargo-zng
+  Print a warning message
+
+.zr-fail @ cargo-zng
+  Print an error message and fail the build
+
+.zr-apk @ cargo-zng
+  Build an Android APK from a staging directory
+
+call 'cargo zng res --help tool' to read full help from a tool
 ```
 
 The expanded help for each:
@@ -251,6 +512,18 @@ The expanded help for each:
 ```console
 $ cargo zng res --tool copy
 
+.zr-copy</bold> @ cargo-zng
+  Copy the file or dir
+
+  The request file:
+    source/foo.txt.zr-copy
+     | # comment
+     | path/bar.txt
+
+  Copies `path/bar.txt` to:
+    target/foo.txt
+
+  Paths are relative to the Cargo workspace root.
 ```
 
 #### `.zr-glob`
@@ -259,6 +532,42 @@ $ cargo zng res --tool copy
 ```console
 $ cargo zng res --tool glob
 
+.zr-glob</bold> @ cargo-zng
+  Copy all matches in place
+
+  The request file:
+    source/l10n/fluent-files.zr-glob
+     | # localization dir
+     | l10n
+     | # only Fluent files
+     | **/*.ftl
+     | # except test locales
+     | !:**/pseudo*
+
+  Copies all '.ftl' not in a *pseudo* path to:
+    target/l10n/
+
+  The first path pattern is required and defines the entries that
+  will be copied, an initial pattern with '**' flattens the matches.
+  The path is relative to the Cargo workspace root.
+
+  The subsequent patterns are optional and filter each file or dir selected by
+  the first pattern. The paths are relative to each match, if it is a file
+  the filters apply to the file name only, if it is a dir the filters apply to
+  the dir and descendants.
+
+  The glob pattern syntax is:
+
+      ? — matches any single character.
+      * — matches any (possibly empty) sequence of characters.
+     ** — matches the current directory and arbitrary subdirectories.
+    [c] — matches any character inside the brackets.
+  [a-z] — matches any characters in the Unicode sequence.
+   [!b] — negates the brackets match.
+
+  And in filter patterns only:
+
+  !:pattern — negates the entire pattern.
 ```
 
 #### `.zr-rp`
@@ -267,6 +576,79 @@ $ cargo zng res --tool glob
 ```console
 $ cargo zng res --tool rp
 
+.zr-rp</bold> @ cargo-zng
+  Replace ${VAR|<file|!cmd} occurrences in the content
+
+  The request file:
+    source/greetings.txt.zr-rp
+     | Thanks for using ${ZR_APP}!
+
+  Writes the text content with ZR_APP replaced:
+    target/greetings.txt
+    | Thanks for using Foo App!
+
+  The parameters syntax is ${VAR|!|<[:[case]][?else]}:
+
+  ${VAR}          — Replaces with the env var value, or fails if it is not set.
+  ${VAR:case}     — Replaces with the env var value, case converted.
+  ${VAR:?else}    — If VAR is not set or is empty uses 'else' instead.
+
+  ${<file.txt}    — Replaces with the 'file.txt' content.
+                    Paths are relative to the workspace root.
+  ${<file:case}   — Replaces with the 'file.txt' content, case converted.
+  ${<file:?else}  — If file cannot be read or is empty uses 'else' instead.
+
+  ${!cmd -h}      — Replaces with the stdout of the bash script line.
+                    The script runs the same bash used by '.zr-sh'.
+                    The script must be defined all in one line.
+                    A separate bash instance is used for each occurrence.
+                    The working directory is the workspace root.
+  ${!cmd:case}    — Replaces with the stdout, case converted.
+                    If the script contains ':' quote it with double quotes"
+  $!{!cmd:?else}  — If script fails or ha no stdout, uses 'else' instead.
+
+  $${VAR}         — Escapes $, replaces with '${VAR}'.
+
+  The :case functions are:
+
+  :k or :kebab  — kebab-case (cleaned)
+  :K or :KEBAB  — UPPER-KEBAB-CASE (cleaned)
+  :s or :snake  — snake_case (cleaned)
+  :S or :SNAKE  — UPPER_SNAKE_CASE (cleaned)
+  :l or :lower  — lower case
+  :U or :UPPER  — UPPER CASE
+  :T or :Title  — Title Case
+  :c or :camel  — camelCase (cleaned)
+  :P or :Pascal — PascalCase (cleaned)
+  :Tr or :Train — Train-Case (cleaned)
+  :           — Unchanged
+  :clean      — Cleaned
+  :f or :file — Sanitize file name
+
+  Cleaned values only keep ascii alphabetic first char and ascii alphanumerics, ' ', '-' and '_' other chars.
+  More then one case function can be used, separated by pipe ':T|f' converts to title case and sanitize for file name.
+
+
+  The fallback(:?else) can have nested ${...} patterns.
+  You can set both case and else: '${VAR:case?else}'.
+
+  Variables:
+
+  All env variables can be used, of particular use with this tool are:
+
+  ZR_APP — package.metadata.zng.about.app or package.name
+  ZR_ORG — package.metadata.zng.about.org or the first package.authors
+  ZR_VERSION — package.version
+  ZR_DESCRIPTION — package.description
+  ZR_HOMEPAGE — package.homepage
+  ZR_LICENSE — package.license
+  ZR_PKG_NAME — package.name
+  ZR_PKG_AUTHORS — package.authors
+  ZR_CRATE_NAME — package.name in snake_case
+  ZR_QUALIFIER — package.metadata.zng.about.qualifier
+
+  See `zng::env::about` for more details about metadata vars.
+  See the cargo-zng crate docs for a full list of ZR vars.
 ```
 
 #### `.zr-sh`
@@ -275,6 +657,45 @@ $ cargo zng res --tool rp
 ```console
 $ cargo zng res --tool sh
 
+.zr-sh</bold> @ cargo-zng
+  Run a bash script
+
+  Script is configured using environment variables (like other tools):
+
+  ZR_SOURCE_DIR — Resources directory that is being build.
+  ZR_TARGET_DIR — Target directory where resources are being built to.
+  ZR_CACHE_DIR — Dir to use for intermediary data for the specific request.
+  ZR_WORKSPACE_DIR — Cargo workspace that contains source dir. Also the working dir.
+  ZR_REQUEST — Request file that called the tool (.zr-sh).
+  ZR_REQUEST_DD — Parent dir of the request file.
+  ZR_TARGET — Target file implied by the request file name.
+  ZR_TARGET_DD — Parent dir of the target file.
+
+  ZR_FINAL — Set if the script previously printed `zng-res::on-final={args}`.
+
+  In a Cargo workspace the `zng::env::about` metadata is also set:
+
+  ZR_APP — package.metadata.zng.about.app or package.name
+  ZR_ORG — package.metadata.zng.about.org or the first package.authors
+  ZR_VERSION — package.version
+  ZR_DESCRIPTION — package.description
+  ZR_HOMEPAGE — package.homepage
+  ZR_LICENSE — package.license
+  ZR_PKG_NAME — package.name
+  ZR_PKG_AUTHORS — package.authors
+  ZR_CRATE_NAME — package.name in snake_case
+  ZR_QUALIFIER — package.metadata.zng.about.qualifier
+
+  Script can make requests to the resource builder by printing to stdout.
+  Current supported requests:
+
+  zng-res::warning={msg} — Prints the `{msg}` as a warning after the script exits.
+  zng-res::on-final={args} — Schedule second run with `ZR_FINAL={args}`, on final pass.
+
+  If the script fails the entire stderr is printed and the resource build fails. Scripts run with
+  `set -e` by default.
+
+  Tries to run on $ZR_SH, $PROGRAMFILES/Git/bin/bash.exe, bash, sh.
 ```
 
 #### `.zr-shf`
@@ -283,6 +704,10 @@ $ cargo zng res --tool sh
 ```console
 $ cargo zng res --tool shf
 
+.zr-shf</bold> @ cargo-zng
+  Run a bash script on the final pass
+
+  Apart from running on final this tool behaves exactly like .zr-sh
 ```
 
 #### `.zr-warn`
@@ -291,6 +716,16 @@ $ cargo zng res --tool shf
 ```console
 $ cargo zng res --tool warn
 
+.zr-warn</bold> @ cargo-zng
+  Print a warning message
+
+  You can combine this with '.zr-rp' tool
+
+  The request file:
+    source/warn.zr-warn.zr-rp
+     | ${ZR_APP}!
+
+  Prints a warning with the value of ZR_APP
 ```
 
 #### `.zr-fail`
@@ -299,4 +734,12 @@ $ cargo zng res --tool warn
 ```console
 $ cargo zng res --tool fail
 
+.zr-fail</bold> @ cargo-zng
+  Print an error message and fail the build
+
+  The request file:
+    some/dir/disallow.zr-fail.zr-rp
+     | Don't copy ${ZR_REQUEST_DD} with a glob!
+
+  Prints an error message and fails the build if copied
 ```

@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 74 feature flags, 46 enabled by default.
+This crate provides 76 feature flags, 35 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -81,7 +81,7 @@ Enable the `"dyn_*"`, `"inspector"` features in debug builds.
 *Enabled by default.*
 
 #### `"svg"`
-Enable SVG images, emoji support.
+Enable SVG image rendering, SBG emoji support.
 
 #### `"dyn_node"`
 Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
@@ -242,6 +242,8 @@ Enable ANSI text widget.
 
 Not enabled by default.
 
+*Enabled by default.*
+
 #### `"checkerboard"`
 Enable checkerboard widget.
 
@@ -322,6 +324,11 @@ Enable scroll widget.
 
 *Enabled by default.*
 
+#### `"button"`
+Enable button widget.
+
+*Enabled by default.*
+
 #### `"toggle"`
 Enable toggle widgets.
 
@@ -360,70 +367,47 @@ Enable wrap widget.
 #### `"image_bmp"`
 Enable BMP image decoder and encoder with "view" feature.
 
-*Enabled by default.*
-
 #### `"image_dds"`
 Enable DDS image decoder with "view" feature.
-
-*Enabled by default.*
 
 #### `"image_exr"`
 Enable EXR image decoder and encoder with "view" feature.
 
-*Enabled by default.*
-
 #### `"image_ff"`
 Enable Farbfeld image decoder and encoder with "view" feature.
-
-*Enabled by default.*
 
 #### `"image_gif"`
 Enable GIF image decoder and encoder with "view" feature.
 
-*Enabled by default.*
-
-#### `"image_hrd"`
-Enable HDR image decoder and encoder with "view" feature.
-
-*Enabled by default.*
+#### `"image_hdr"`
+Enable Radiance HDR image decoder and encoder with "view" feature.
 
 #### `"image_ico"`
 Enable ICO image decoder and encoder with "view" feature.
 
-*Enabled by default.*
-
 #### `"image_jpeg"`
 Enable JPEG image decoder and encoder with "view" feature.
-
-*Enabled by default.*
 
 #### `"image_png"`
 Enable PNG image decoder and encoder with "view" feature.
 
-*Enabled by default.*
-
 #### `"image_pnm"`
 Enable PNM image decoder and encoder with "view" feature.
-
-*Enabled by default.*
 
 #### `"image_qoi"`
 Enable QOI image decoder and encoder with "view" feature.
 
-*Enabled by default.*
-
 #### `"image_tga"`
 Enable TGA image decoder and encoder with "view" feature.
-
-*Enabled by default.*
 
 #### `"image_tiff"`
 Enable TIFF image decoder and encoder with "view" feature.
 
-*Enabled by default.*
-
 #### `"image_webp"`
 Enable WEBP image decoder with "view" feature.
+
+#### `"image_all"`
+Enable all encoders and decoders.
 
 *Enabled by default.*
 
