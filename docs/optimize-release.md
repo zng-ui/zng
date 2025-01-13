@@ -43,8 +43,6 @@ Note that you may need some external dependencies to build the `"view"` feature.
 To quickly find what features your app is actually using you can temporary set `default = ["release"]` and `cargo run`, the rustc error messages
 usually show missing features.
 
-[`zng-template`]: https://github.com/zng-ui/zng-template
-
 ## LTO and Codegen Units
 
 The compiler has some parallelism by default to speedup compilation, you can configure the release profile to compile as a single unit
@@ -75,6 +73,8 @@ release = [
 opt-level = "z" # instruct the compiler to optimize for size
 ```
 
+Note that the [`zng-template`] already setups something like this, you just need to fill in the release features on each crate and call `cargo do build-r -z`.
+
 ### Nightly
 
 If your project safety constraints allows the nightly compiler and an unstable feature you can enable `-Zshare-generics` to reduce size even more:
@@ -95,3 +95,7 @@ In the command line example above the `RUSTFLAGS` is set to enable the `share-ge
 The example also sets the `-C link-args=-znostart-stop-gc`, this is to workaround a nightly only linker issue that affects a dependency of `zng`. Note
 that every nightly release can cause all kinds of issues and the `zng` project is only officially supported on the latest stable Rust release. This
 optimization was tested on the `2025-01-08` nightly release.
+
+The [`zng-template`] already setups something like this, call `cargo do build -r -z --bleed` to compile with nightly optimizations.
+
+[`zng-template`]: https://github.com/zng-ui/zng-template
