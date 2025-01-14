@@ -25,6 +25,7 @@ default = [
     "clipboard",
     "color_filter",
     "config",
+    "settings_editor",
     "data_context",
     "data_view",
     "dialog",
@@ -262,6 +263,9 @@ fs_watcher = ["dep:zng-ext-fs-watcher"]
 # Enable the configuration service.
 config = ["dep:zng-ext-config"]
 
+# Enable settings widgets.
+settings_editor = ["dep:zng-wgt-settings"]
+
 # Enable data context service and properties.
 data_context = ["dep:zng-wgt-data"]
 
@@ -411,7 +415,7 @@ zng-wgt-ansi-text = { path = "../zng-wgt-ansi-text", version = "0.4.6", optional
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.5.6", optional = true }
 zng-wgt-markdown = { path = "../zng-wgt-markdown", version = "0.4.6", optional = true }
 zng-wgt-inspector = { path = "../zng-wgt-inspector", version = "0.3.6" }
-zng-wgt-settings = { path = "../zng-wgt-settings", version = "0.2.6" }
+zng-wgt-settings = { path = "../zng-wgt-settings", version = "0.2.6", optional = true }
 zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.2.6", optional = true }
 zng-wgt-progress = { path = "../zng-wgt-progress", version = "0.2.6", optional = true }
 zng-wgt-slider = { path = "../zng-wgt-slider", version = "0.2.5", optional = true }

@@ -122,6 +122,7 @@ pub mod settings {
     /// # Full API
     ///
     /// See [`zng_wgt_settings`] for the full settings editor API.
+    #[cfg(feature = "settings_editor")]
     pub mod editor {
         pub use zng_wgt_settings::{
             categories_list_fn, category_header_fn, category_item_fn, setting_fn, settings_fn, CategoriesListArgs, CategoryHeaderArgs,
