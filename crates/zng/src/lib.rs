@@ -708,6 +708,7 @@ mod __prelude {
     #[cfg(feature = "data_view")]
     pub use zng_wgt_data_view::{DataView, DataViewArgs};
 
+    #[cfg(feature = "settings_editor")]
     pub use zng_wgt_settings::SettingBuilderEditorExt as _;
 
     #[cfg(feature = "dialog")]
@@ -1004,8 +1005,11 @@ mod defaults {
             }
 
             // setup SETTINGS_CMD handler
-            zng_wgt_settings::handle_settings_cmd();
-            tracing::debug!("defaults init, settings set");
+            #[cfg(feature = "settings_editor")]
+            {
+                zng_wgt_settings::handle_settings_cmd();
+                tracing::debug!("defaults init, settings set");
+            }
 
             #[cfg(all(single_instance, feature = "window"))]
             {

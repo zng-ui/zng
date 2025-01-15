@@ -1,3 +1,5 @@
+#![cfg(feature = "live")]
+
 use zng_app::access::ACCESS_CLICK_EVENT;
 use zng_ext_config::CONFIG;
 use zng_ext_input::{

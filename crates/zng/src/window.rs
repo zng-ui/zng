@@ -138,9 +138,10 @@ pub use zng_wgt_window::events::{
 ///
 /// # Full API
 ///
-/// See [`zng_wgt_inspector`] for the full API.
+/// See [`zng_wgt_inspector::debug`] for the full API.
 ///
 /// [`cmd::INSPECT_CMD`]: crate::window::cmd::INSPECT_CMD
+#[cfg(feature = "inspector")]
 pub mod inspector {
     pub use zng_wgt_inspector::debug::{show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode};
 }

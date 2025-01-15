@@ -11,6 +11,11 @@ repository = "https://github.com/zng-ui/zng"
 categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
+[features]
+default = ["tooltip"]
+# Enable tooltip in cmd buttons.
+tooltip = ["dep:zng-wgt-tooltip"]
+
 [dependencies]
 zng-var = { path = "../zng-var", version = "0.5.14" }
 zng-app = { path = "../zng-app", version = "0.14.5" }
@@ -23,4 +28,4 @@ zng-wgt-access = { path = "../zng-wgt-access", version = "0.3.5" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.3.5" }
 zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.3.5" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.5.6" }
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.5.6" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.5.6", optional = true }

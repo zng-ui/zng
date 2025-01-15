@@ -11,7 +11,7 @@
 
 zng_wgt::enable_widget_macros!();
 
-use std::{any::TypeId, ops};
+use std::any::TypeId;
 
 use colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR};
 use zng_app::event::CommandParam;
@@ -31,6 +31,8 @@ use zng_wgt_input::{
 };
 use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
 use zng_wgt_text::{font_color, underline, Text, FONT_COLOR_VAR};
+
+#[cfg(feature = "tooltip")]
 use zng_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
 
 /// A clickable container.
@@ -80,7 +82,10 @@ impl Button {
 
                 let on_click = wgt.property(property_id!(Self::on_click)).is_none();
                 let on_disabled_click = wgt.property(property_id!(on_disabled_click)).is_none();
+                #[cfg(feature = "tooltip")]
                 let tooltip = wgt.property(property_id!(tooltip)).is_none() && wgt.property(property_id!(tooltip_fn)).is_none();
+                #[cfg(not(feature = "tooltip"))]
+                let tooltip = false;
                 if on_click || on_disabled_click || tooltip {
                     wgt.push_intrinsic(
                         NestGroup::EVENT,
@@ -120,6 +125,7 @@ impl Button {
                                 )
                                 .boxed();
                             }
+                            #[cfg(feature = "tooltip")]
                             if tooltip {
                                 child = self::tooltip_fn(
                                     child,
@@ -161,11 +167,13 @@ context_var! {
     pub static CMD_CHILD_FN_VAR: WidgetFn<Command> = WidgetFn::new(default_cmd_child_fn);
 
     /// Widget function used when `cmd` is set and `tooltip_fn`, `tooltip` are not set.
+    #[cfg(feature = "tooltip")]
     pub static CMD_TOOLTIP_FN_VAR: WidgetFn<CmdTooltipArgs> = WidgetFn::new(default_cmd_tooltip_fn);
 
     static CMD_VAR: Option<Command> = None;
 }
 
+#[cfg(feature = "tooltip")]
 /// Arguments for [`cmd_tooltip_fn`].
 ///
 /// [`cmd_tooltip_fn`]: fn@cmd_tooltip_fn
@@ -176,7 +184,8 @@ pub struct CmdTooltipArgs {
     /// The command.
     pub cmd: Command,
 }
-impl ops::Deref for CmdTooltipArgs {
+#[cfg(feature = "tooltip")]
+impl std::ops::Deref for CmdTooltipArgs {
     type Target = TooltipArgs;
 
     fn deref(&self) -> &Self::Target {
@@ -189,6 +198,7 @@ pub fn default_cmd_child_fn(cmd: Command) -> impl UiNode {
     Text!(cmd.name())
 }
 
+#[cfg(feature = "tooltip")]
 /// Default [`CMD_TOOLTIP_FN_VAR`].
 pub fn default_cmd_tooltip_fn(args: CmdTooltipArgs) -> impl UiNode {
     let info = args.cmd.info();
@@ -272,6 +282,7 @@ pub fn cmd_child_fn(child: impl UiNode, cmd_child: impl IntoVar<WidgetFn<Command
     with_context_var(child, CMD_CHILD_FN_VAR, cmd_child)
 }
 
+#[cfg(feature = "tooltip")]
 /// Sets the widget function used to produce the button tooltip when [`cmd`] is set and tooltip is not.
 ///
 /// [`cmd`]: fn@cmd
