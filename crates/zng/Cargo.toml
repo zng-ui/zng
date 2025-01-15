@@ -315,7 +315,7 @@ stack = ["dep:zng-wgt-stack"]
 text_input = ["dep:zng-wgt-text-input"]
 
 # Enable tooltip widget.
-tooltip = ["dep:zng-wgt-tooltip"]
+tooltip = ["dep:zng-wgt-tooltip", "zng-wgt-button?/tooltip"]
 
 # Enable undo/redo service.
 undo = ["dep:zng-ext-undo", "dep:zng-wgt-undo-history", "dep:zng-wgt-undo"]
@@ -402,7 +402,7 @@ zng-wgt-undo-history = { path = "../zng-wgt-undo-history", version = "0.4.6", op
 zng-wgt-image = { path = "../zng-wgt-image", version = "0.4.6", optional = true }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.5.6" }
 zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.5.6", optional = true }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.5.6", optional = true }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.5.6", default-features = false, optional = true }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.4.5", optional = true }
 zng-wgt-panel = { path = "../zng-wgt-panel", version = "0.4.6" }
 zng-wgt-grid = { path = "../zng-wgt-grid", version = "0.4.5", optional = true }
