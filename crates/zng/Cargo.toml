@@ -85,7 +85,7 @@ dyn_node = ["zng-app/dyn_node"]
 
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.
-inspector = ["zng-app/inspector", "zng-wgt-inspector/live"]
+inspector = ["zng-wgt-inspector", "zng-app/inspector", "zng-wgt-inspector/live"]
 
 # Enable hot reload builds.
 #
@@ -414,7 +414,7 @@ zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.5.5", optional = tru
 zng-wgt-ansi-text = { path = "../zng-wgt-ansi-text", version = "0.4.6", optional = true }
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.5.6", optional = true }
 zng-wgt-markdown = { path = "../zng-wgt-markdown", version = "0.4.6", optional = true }
-zng-wgt-inspector = { path = "../zng-wgt-inspector", version = "0.3.6" }
+zng-wgt-inspector = { path = "../zng-wgt-inspector", version = "0.3.6", optional = true }
 zng-wgt-settings = { path = "../zng-wgt-settings", version = "0.2.6", optional = true }
 zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.2.6", optional = true }
 zng-wgt-progress = { path = "../zng-wgt-progress", version = "0.2.6", optional = true }
