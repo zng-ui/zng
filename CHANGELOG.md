@@ -1,5 +1,6 @@
 # Unreleased
 
+* More feature optimization.
 
 # 0.13.6
 
