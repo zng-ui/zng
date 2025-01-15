@@ -16,7 +16,6 @@ use zng_wgt::{prelude::*, ICONS};
 pub mod crash_handler;
 pub mod debug;
 
-#[cfg(feature = "live")]
 mod live;
 
 command! {

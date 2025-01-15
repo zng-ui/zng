@@ -16,92 +16,46 @@ default = ["debug_default"]
 # Enables the `"live"` feature in debug builds.
 debug_default = []
 # Compiles the interactive inspector.
-live = [
-    "dep:zng-app",
-    "dep:zng-ext-font",
-    "dep:zng-ext-clipboard",
-    "dep:zng-ext-image",
-    "dep:zng-ext-config",
-    "dep:zng-ext-l10n",
-    "dep:zng-wgt-dialog",
-    "dep:zng-wgt-window",
-    "dep:zng-wgt-button",
-    "dep:zng-wgt-toggle",
-    "dep:zng-wgt-fill",
-    "dep:zng-wgt-tooltip",
-    "dep:zng-wgt-text",
-    "dep:zng-wgt-text-input",
-    "dep:zng-wgt-container",
-    "dep:zng-wgt-input",
-    "dep:zng-wgt-scroll",
-    "dep:zng-wgt-menu",
-    "dep:zng-wgt-stack",
-    "dep:zng-wgt-size-offset",
-    "dep:zng-wgt-wrap",
-    "dep:zng-wgt-filter",
-    "dep:zng-wgt-rule-line",
-    "dep:zng-wgt-style",
-    "dep:zng-var",
-]
+live = []
 # Compiles the debug crash handler.
 #
 # Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
-crash_handler = [
-    "zng-app/crash_handler", 
-    "dep:open", 
-    "dep:zng-app",
-    "dep:zng-env",
-    "dep:zng-ext-config",
-    "dep:zng-ext-l10n",
-    "dep:zng-wgt-dialog",
-    "dep:zng-wgt-window",
-    "dep:zng-wgt-button",
-    "dep:zng-wgt-toggle",
-    "dep:zng-wgt-fill",
-    "dep:zng-wgt-tooltip",
-    "dep:zng-wgt-text",
-    "dep:zng-wgt-text-input",
-    "dep:zng-wgt-container",
-    "dep:zng-wgt-scroll",
-    "dep:zng-wgt-stack",
-    "dep:zng-wgt-wrap",
-    "dep:zng-wgt-ansi-text",
-    "dep:zng-wgt-style",
-]
+crash_handler = ["zng-app/crash_handler", "dep:open"]
 
 [dependencies]
 zng-wgt = { path = "../zng-wgt", version = "0.6.5" }
-zng-app = { path = "../zng-app", version = "0.14.5", optional = true }
-zng-env = { path = "../zng-env", version = "0.3.8", optional = true }
+zng-app = { path = "../zng-app", version = "0.14.5" }
+zng-env = { path = "../zng-env", version = "0.3.8" }
 zng-ext-input = { path = "../zng-ext-input", version = "0.6.5" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.5.6", optional = true }
-zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.3.5", optional = true }
-zng-ext-image = { path = "../zng-ext-image", version = "0.3.5", optional = true }
-zng-ext-config = { path = "../zng-ext-config", version = "0.4.5", default-features = false, optional = true }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.6.5", optional = true }
+zng-ext-font = { path = "../zng-ext-font", version = "0.5.6" }
+zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.3.5" }
+zng-ext-image = { path = "../zng-ext-image", version = "0.3.5" }
+zng-ext-config = { path = "../zng-ext-config", version = "0.4.5", default-features = false }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.6.5" }
 zng-view-api = { path = "../zng-view-api", version = "0.11.4" }
-zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.2.6", optional = true }
+zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.2.6" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.4.5" }
-zng-wgt-window = { path = "../zng-wgt-window", version = "0.7.6", optional = true }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.5.6", optional = true }
-zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.4.6", optional = true }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.3.5", optional = true }
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.5.6", optional = true }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.5.6", optional = true }
-zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.5.6", optional = true }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.5.5", optional = true }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.3.5", optional = true }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.5.5", optional = true }
-zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.4.6", optional = true }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.4.5", optional = true }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.3.5", optional = true }
-zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.4.6", optional = true }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.3.5", optional = true }
-zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.4.6", optional = true }
-zng-wgt-ansi-text = { path = "../zng-wgt-ansi-text", version = "0.4.6", optional = true }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.4.5", optional = true }
+zng-wgt-window = { path = "../zng-wgt-window", version = "0.7.6" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.5.6" }
+zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.4.6" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.3.5" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.3.5" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.5.6" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.5.6" }
+zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.5.6" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.5.5" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.3.5" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.5.5" }
+zng-wgt-menu = { path = "../zng-wgt-menu", version = "0.4.6" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.4.5" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.3.5" }
+zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.4.6" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.3.5" }
+zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.4.6" }
+zng-wgt-ansi-text = { path = "../zng-wgt-ansi-text", version = "0.4.6" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.4.5" }
 zng-layout = { path = "../zng-layout", version = "0.2.35" }
-zng-var = { path = "../zng-var", version = "0.5.14", optional = true }
+zng-var = { path = "../zng-var", version = "0.5.14" }
 zng-color = { path = "../zng-color", version = "0.4.4" }
 
 serde = { version = "1.0", features = ["derive"] }
