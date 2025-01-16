@@ -26,6 +26,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let out = quote! {
         {
+            #[inline(always)]
             fn merge_var__<
                 #(#type_idents: #vars_mod::VarValue,)*
                 #(#var_idents: #vars_mod::Var<#type_idents>,)*
