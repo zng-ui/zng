@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 76 feature flags, 35 enabled by default.
+This crate provides 77 feature flags, 36 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -266,6 +266,11 @@ Enable file system watcher service.
 
 #### `"config"`
 Enable the configuration service.
+
+*Enabled by default.*
+
+#### `"settings_editor"`
+Enable settings widgets.
 
 *Enabled by default.*
 
