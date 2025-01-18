@@ -1,6 +1,6 @@
 [package]
 name = "zng-var"
-version = "0.5.14"
+version = "0.5.15"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -23,7 +23,7 @@ debug_default = []
 dyn_closure = []
 
 [dependencies]
-zng-var-proc-macros = { path = "../zng-var-proc-macros", version = "0.2.8" }
+zng-var-proc-macros = { path = "../zng-var-proc-macros", version = "0.2.9" }
 
 zng-txt = { path = "../zng-txt", version = "0.2.8" }
 zng-unit = { path = "../zng-unit", version = "0.2.11" }
