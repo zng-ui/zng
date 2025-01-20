@@ -1785,6 +1785,7 @@ impl<I: SliceIndex<[Font]>> std::ops::Index<I> for FontList {
 struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFace>>,
     unregister_requests: Vec<(FontName, ResponderVar<bool>)>,
+
     system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
     list_cache: HashMap<Box<[FontName]>, Vec<FontFaceListQuery>>,
 }

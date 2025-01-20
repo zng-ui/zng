@@ -1,5 +1,6 @@
 # Unreleased
 
+* Improve cache of font data to use less memory.
 
 # 0.13.7
 
