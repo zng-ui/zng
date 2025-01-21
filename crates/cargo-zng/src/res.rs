@@ -131,8 +131,12 @@ pub(crate) fn run(mut args: ResArgs) {
         }
     }
 
-    // to use `display_path` in the tool runner (current process)
-    std::env::set_var(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap());
+    unsafe {
+        // SAFETY: cargo-zng res is single-threaded
+        //
+        // to use `display_path` in the tool runner (current process)
+        std::env::set_var(ZR_WORKSPACE_DIR, std::env::current_dir().unwrap());
+    }
 
     let start = Instant::now();
     if let Err(e) = build(&args, about) {

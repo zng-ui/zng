@@ -1,6 +1,6 @@
 use std::{fs, io};
 
-pub fn do_request() {
+pub(crate) fn do_request() {
     if let Some(test) = std::env::var_os("DO_TASKS_TEST_MACRO") {
         let mut test = test.to_string_lossy();
 
@@ -9,7 +9,10 @@ pub fn do_request() {
         }
 
         std::env::set_current_dir(env!("CARGO_MANIFEST_DIR")).unwrap();
-        std::env::set_var("TRYBUILD", "overwrite");
+        unsafe {
+            // SAFETY: do_request is called by main, no other thread spawned so far
+            std::env::set_var("TRYBUILD", "overwrite");
+        }
 
         {
             trybuild::TestCases::new().compile_fail(format!("cases/{test}.rs"));
