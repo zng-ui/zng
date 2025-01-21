@@ -275,7 +275,11 @@ fn apply_template(cx: &Context, package_name: &str) -> io::Result<()> {
         apply(cx, true, &post, &post_replaced)?;
         fs::remove_dir_all(&post)?;
         fs::rename(&post_replaced, &post)?;
-        std::env::set_var("ZNG_TEMPLATE_POST_DIR", &post);
+
+        unsafe {
+            // SAFETY: cargo-zng new is single-threaded
+            std::env::set_var("ZNG_TEMPLATE_POST_DIR", &post);
+        }
     }
 
     // rename/rewrite template and move it to new package dir

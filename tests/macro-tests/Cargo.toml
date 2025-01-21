@@ -8,11 +8,3 @@ edition = "2021"
 trybuild = "1.0"
 glob = "0.3"
 zng = { path = "../../crates/zng", features = ["hot_reload"] }
-
-[lib]
-name = "lib"
-path = "run.rs"
-
-[[bin]]
-name = "main"
-path = "main.rs"

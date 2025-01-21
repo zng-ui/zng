@@ -1182,7 +1182,12 @@ mod tests {
 
     #[test]
     fn replace_tests() {
-        std::env::set_var("ZR_RP_TEST", "test value");
+        unsafe {
+            // SAFETY: potentially not safe as tests run in parallel and I don't want to audit every C dep
+            // of code that runs in other tests. If a segfault happen during test run caused by this I intend
+            // to print the test runner log and frame it.
+            std::env::set_var("ZR_RP_TEST", "test value");
+        }
 
         assert_eq!("", replace("", 0).unwrap());
         assert_eq!("normal text", replace("normal text", 0).unwrap());
