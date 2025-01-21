@@ -9,11 +9,19 @@ pub use android::*;
 
 #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
 mod desktop {
-    use std::{borrow::Cow, path::Path, sync::Arc};
+    use std::{
+        borrow::Cow,
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
 
+    use parking_lot::Mutex;
+    use zng_layout::unit::ByteUnits;
     use zng_var::ResponseVar;
 
     use crate::{FontDataRef, FontLoadingError, FontName, FontStretch, FontStyle, FontWeight, GlyphLoadingError};
+
+    static DATA_CACHE: Mutex<Vec<(PathBuf, std::sync::Weak<Vec<u8>>)>> = Mutex::new(vec![]);
 
     pub fn system_all() -> ResponseVar<Vec<FontName>> {
         zng_task::wait_respond(|| {
@@ -166,9 +174,23 @@ mod desktop {
                     }
                 }
 
-                let bytes = std::fs::read(&*path)?;
+                for (k, data) in DATA_CACHE.lock().iter() {
+                    if *k == *path {
+                        if let Some(data) = data.upgrade() {
+                            return Ok((FontDataRef(data), *font_index));
+                        }
+                    }
+                }
 
-                Ok((FontDataRef(Arc::new(bytes)), *font_index))
+                let bytes = std::fs::read(&*path)?;
+                tracing::debug!("read font `{}:{}`, using {}", path.display(), font_index, bytes.capacity().bytes());
+
+                let data = Arc::new(bytes);
+                let mut cache = DATA_CACHE.lock();
+                cache.retain(|(_, v)| v.strong_count() > 0);
+                cache.push((path.to_path_buf(), Arc::downgrade(&data)));
+
+                Ok((FontDataRef(data), *font_index))
             }
             font_kit::handle::Handle::Memory { bytes, font_index } => Ok((FontDataRef(bytes.clone()), *font_index)),
         }
