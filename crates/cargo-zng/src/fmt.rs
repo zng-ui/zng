@@ -419,7 +419,7 @@ fn replace_widget_when(code: &str, reverse: bool) -> Cow<str> {
     static POUND_MARKER: &str = "__P_";
 
     if !reverse {
-        RGX.replace(code, |caps: &regex::Captures| {
+        RGX.replace_all(code, |caps: &regex::Captures| {
             let prefix_spaces = &caps[0][..caps.get(1).unwrap().start() - caps.get(0).unwrap().start()];
 
             let expr = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];
