@@ -770,7 +770,12 @@ impl InlineLayout {
 
                 let (inline, size) = wm.measure_inline(inline_constrain, row.size.height - spacing.row, child);
 
-                if size.is_empty() {
+                let can_collapse = size.is_empty()
+                    && match &inline {
+                        Some(i) => i.first_segs.is_empty(),
+                        None => true,
+                    };
+                if can_collapse {
                     row.item_segs.push(ItemSegsInfo::new_collapsed());
                     // collapsed, continue.
                     return;
