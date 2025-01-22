@@ -24,4 +24,4 @@ once_cell = "1.19"
 unic-langid = "0.9"
 fluent-syntax = "0.11"
 
-minifier = "0.3"
+minifier = { version = "0.3", default-features = false }
