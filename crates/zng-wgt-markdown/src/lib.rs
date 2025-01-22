@@ -198,6 +198,11 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
     let mut last_txt_end = '\0';
 
     for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b: BrokenLink<'a>| Some((b.reference, "".into())))) {
+        let item = match item {
+            Event::SoftBreak => Event::Text(pulldown_cmark::CowStr::Borrowed(" ")),
+            Event::HardBreak => Event::Text(pulldown_cmark::CowStr::Borrowed("\n")),
+            item => item,
+        };
         match item {
             Event::Start(tag) => match tag {
                 Tag::Paragraph => {
@@ -502,23 +507,25 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                     // apply `WhiteSpace::MergeAll` across texts.
                     let txt_end = txt.chars().next_back().unwrap();
 
-                    let starts_with_space = txt.chars().next().unwrap().is_whitespace();
-                    match WhiteSpace::MergeAll.transform(&txt) {
-                        std::borrow::Cow::Borrowed(_) => {
-                            if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
-                                txt.to_mut().insert(0, ' ');
-                            }
-                            txt.end_mut();
-                            last_txt_end = txt_end;
-                        }
-                        std::borrow::Cow::Owned(t) => {
-                            txt = t;
-                            if !txt.is_empty() {
+                    if txt != " " && txt != "\n" { // not Soft/HardBreak
+                        let starts_with_space = txt.chars().next().unwrap().is_whitespace();
+                        match WhiteSpace::MergeAll.transform(&txt) {
+                            std::borrow::Cow::Borrowed(_) => {
                                 if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
                                     txt.to_mut().insert(0, ' ');
-                                    txt.end_mut();
                                 }
+                                txt.end_mut();
                                 last_txt_end = txt_end;
+                            }
+                            std::borrow::Cow::Owned(t) => {
+                                txt = t;
+                                if !txt.is_empty() {
+                                    if starts_with_space && last_txt_end != '\0' || !txt.is_empty() && last_txt_end.is_whitespace() {
+                                        txt.to_mut().insert(0, ' ');
+                                        txt.end_mut();
+                                    }
+                                    last_txt_end = txt_end;
+                                }
                             }
                         }
                     }
@@ -578,8 +585,6 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                     inlines.push(txt);
                 }
             }
-            Event::SoftBreak => {}
-            Event::HardBreak => {}
             Event::Rule => {
                 blocks.push(rule_view(RuleFnArgs {}));
             }
@@ -590,6 +595,8 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
             }
             Event::InlineMath(_) => {}
             Event::DisplayMath(_) => {}
+            // handled early
+            Event::SoftBreak | Event::HardBreak => unreachable!(),
         }
     }
 
