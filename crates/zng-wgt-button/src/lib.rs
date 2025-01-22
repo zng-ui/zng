@@ -314,7 +314,7 @@ impl DefaultStyle {
             #[easing(150.ms())]
             border = {
                 widths: 1,
-                sides: BASE_COLOR_VAR.rgba_into()
+                sides: BASE_COLOR_VAR.rgba_into(),
             };
 
             when *#is_cap_hovered {

@@ -82,9 +82,7 @@ impl Window {
             }
 
             when #needs_fallback_chrome {
-                custom_chrome_adorner_fn = wgt_fn!(|_| {
-                    fallback_chrome()
-                });
+                custom_chrome_adorner_fn = wgt_fn!(|_| { fallback_chrome() });
                 custom_chrome_padding_fn = ContextualizedVar::new(|| {
                     let vars = WINDOW.vars();
                     expr_var! {
