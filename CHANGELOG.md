@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `Wrap!` ignoring child `Text!` that is only a line-break.
 * Fix soft/hard breaks in `Markdown!`.
 * Improve cache of font data to use less memory.
 

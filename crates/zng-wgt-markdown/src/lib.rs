@@ -507,7 +507,8 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
                     // apply `WhiteSpace::MergeAll` across texts.
                     let txt_end = txt.chars().next_back().unwrap();
 
-                    if txt != " " && txt != "\n" { // not Soft/HardBreak
+                    if txt != " " && txt != "\n" {
+                        // not Soft/HardBreak
                         let starts_with_space = txt.chars().next().unwrap().is_whitespace();
                         match WhiteSpace::MergeAll.transform(&txt) {
                             std::borrow::Cow::Borrowed(_) => {
