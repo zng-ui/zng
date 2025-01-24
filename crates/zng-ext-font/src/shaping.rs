@@ -2280,6 +2280,7 @@ impl ShapedTextBuilder {
         word_ctx_key.direction = info.direction();
         if info.kind.is_word() {
             let max_width = self.actual_max_width();
+
             fonts.shape_segment(seg, word_ctx_key, features, |shaped_seg, font| {
                 if self.origin.x + shaped_seg.x_advance > max_width {
                     // need wrap
@@ -2300,6 +2301,8 @@ impl ShapedTextBuilder {
                             };
                             if !self.out.segments.0[current_start..].is_empty() {
                                 self.push_line_break(true, text);
+                            } else if current_start == 0 && self.allow_first_wrap {
+                                self.out.first_wrapped = true;
                             }
                             self.push_glyphs(shaped_seg, self.letter_spacing);
                             self.push_text_seg(seg, info);

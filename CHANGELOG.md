@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix small `Text!` in a `Wrap!` not starting a new line.
 
 # 0.13.8
 
