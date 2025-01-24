@@ -1257,6 +1257,18 @@ fn clean(mut args: Vec<&str>) {
         let manifest_path = dunce::canonicalize(manifest_path).unwrap().display().to_string();
         cmd_external("cargo", &["clean", "--manifest-path", &manifest_path], &args);
     }
+
+    if all || prebuild {
+        let mut count = 0;
+        for file in glob::glob("crates/zng-view-prebuilt/lib/*").unwrap() {
+            let file = file.unwrap();
+            if !file.ends_with("README.md") {
+                std::fs::remove_file(file).unwrap();
+                count += 1;
+            }
+        }
+        println!("     Removed {count} prebuild files")
+    }
 }
 
 // do asm [r --rust] [--debug] [<FN-PATH>] [<cargo-asm-args>]
