@@ -558,19 +558,22 @@ impl LayoutTextFinal {
             self.pending.insert(PendingLayout::RESHAPE_LINES);
         }
 
+        if self.pending.contains(PendingLayout::RESHAPE_LINES) {
+            ctx.shaped_text.reshape_lines(
+                metrics.constraints(),
+                metrics.inline_constraints().map(|c| c.layout()),
+                align,
+                overflow_align,
+                line_height,
+                line_spacing,
+                metrics.direction(),
+            );
+        }
+
         if !is_measure {
             self.last_layout = (metrics.clone(), self.shaping_args.inline_constraints);
 
             if self.pending.contains(PendingLayout::RESHAPE_LINES) {
-                ctx.shaped_text.reshape_lines(
-                    metrics.constraints(),
-                    metrics.inline_constraints().map(|c| c.layout()),
-                    align,
-                    overflow_align,
-                    line_height,
-                    line_spacing,
-                    metrics.direction(),
-                );
                 ctx.shaped_text_version = ctx.shaped_text_version.wrapping_add(1);
                 drop(resolved);
                 self.baseline = ctx.shaped_text.baseline();
