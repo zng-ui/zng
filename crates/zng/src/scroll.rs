@@ -65,7 +65,7 @@ pub use zng_wgt_scroll::{
     line_units, max_zoom, min_zoom, mode, mouse_pan, overscroll_color, page_units, scroll_to_focused_mode, scrollbar_fn,
     scrollbar_joiner_fn, smooth_scrolling, v_line_unit, v_page_unit, v_scrollbar_fn, v_wheel_unit, wheel_units, zoom_origin,
     zoom_touch_origin, zoom_wheel_origin, zoom_wheel_unit, LazyMode, Scroll, ScrollBarArgs, ScrollFrom, ScrollInfo, ScrollMode,
-    ScrollUnitsMix, Scrollbar, ScrollbarFnMix, SmoothScrolling, Thumb, WidgetInfoExt, SCROLL,
+    ScrollUnitsMix, Scrollbar, ScrollbarFnMix, SmoothScrolling, Thumb, WidgetInfoExt, SCROLL, zoom_size_only,
 };
 
 /// Scrollbar thumb widget.

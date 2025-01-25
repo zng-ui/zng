@@ -22,6 +22,9 @@ pub mod thumb;
 mod scroll_properties;
 pub use scroll_properties::*;
 
+mod zoom_size;
+pub use zoom_size::*;
+
 mod types;
 pub use types::*;
 
