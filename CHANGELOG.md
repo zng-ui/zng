@@ -1,6 +1,7 @@
 # Unreleased
 
-* Implement `scroll::zoom_size_only` to disable scaling in `Scroll!` descendants and resize them instead.
+* Fix `Text!` measure incorrect size after a previous layout.
+* Add `scroll::zoom_size_only` property that disables scaling in `Scroll!` descendants and resizes them instead.
 * Fix small `Text!` in a `Wrap!` not starting a new line.
 
 # 0.13.8

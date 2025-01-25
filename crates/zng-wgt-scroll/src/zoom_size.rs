@@ -58,7 +58,7 @@ pub fn zoom_size_only(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
                     }
                 }
             } else {
-                tracing::error!("zoom_size_only must render at NestGroup::SIZE")
+                tracing::error!("zoom_size_only must render outside NestGroup::WIDGET_INNER")
             }
         }
         UiNodeOp::RenderUpdate { update } => {
@@ -69,7 +69,7 @@ pub fn zoom_size_only(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl U
                     }
                 }
             } else {
-                tracing::error!("zoom_size_only must render at NestGroup::SIZE")
+                tracing::error!("zoom_size_only must render outside NestGroup::WIDGET_INNER")
             }
         }
         _ => {}
