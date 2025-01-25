@@ -26,6 +26,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt install libfontconfig1-dev
+      - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
       - run: cargo do check-all-features ${{ matrix.profile }} --max ${{ github.event.inputs.max }} --clean ${{ github.event.inputs.clean }} --chunk "${{ matrix.chunk }}/12"
       - run: cargo clean
