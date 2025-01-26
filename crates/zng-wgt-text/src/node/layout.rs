@@ -558,7 +558,14 @@ impl LayoutTextFinal {
             self.pending.insert(PendingLayout::RESHAPE_LINES);
         }
 
-        if self.pending.contains(PendingLayout::RESHAPE_LINES) {
+        if self.pending.contains(PendingLayout::RESHAPE_LINES) && metrics.inline_constraints().is_none() {
+            // Affects block size in measure too
+            // 
+            // This breaks inline context, so it is avoided here and called later in the `if !is_measure` block.
+            // This is needed to measure the same block size a layout call would output.
+            // 
+            // Not sure if it is a bug that it does not work inlining, but it is not needed there anyway, so for now
+            // this fix is sufficient.
             ctx.shaped_text.reshape_lines(
                 metrics.constraints(),
                 metrics.inline_constraints().map(|c| c.layout()),
@@ -574,6 +581,19 @@ impl LayoutTextFinal {
             self.last_layout = (metrics.clone(), self.shaping_args.inline_constraints);
 
             if self.pending.contains(PendingLayout::RESHAPE_LINES) {
+                if metrics.inline_constraints().is_some() {
+                    // when inlining, only reshape lines in layout passes
+                    ctx.shaped_text.reshape_lines(
+                        metrics.constraints(),
+                        metrics.inline_constraints().map(|c| c.layout()),
+                        align,
+                        overflow_align,
+                        line_height,
+                        line_spacing,
+                        metrics.direction(),
+                    );
+                }
+
                 ctx.shaped_text_version = ctx.shaped_text_version.wrapping_add(1);
                 drop(resolved);
                 self.baseline = ctx.shaped_text.baseline();
