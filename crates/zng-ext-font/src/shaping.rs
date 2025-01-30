@@ -1964,6 +1964,7 @@ struct ShapedTextBuilder {
     tab_x_advance: f32,
     tab_index: u32,
     hyphens: Hyphens,
+    lang: Lang,
 
     origin: euclid::Point2D<f32, ()>,
     allow_first_wrap: bool,
@@ -2027,6 +2028,7 @@ impl ShapedTextBuilder {
             tab_x_advance: 0.0,
             tab_index: 0,
             hyphens: config.hyphens,
+            lang: config.lang.clone(),
             allow_first_wrap: false,
 
             origin: euclid::point2(0.0, 0.0),
@@ -2288,7 +2290,7 @@ impl ShapedTextBuilder {
                         // need segment split
 
                         // try to hyphenate
-                        let hyphenated = self.push_hyphenate(word_ctx_key, seg, font, shaped_seg, info, text);
+                        let hyphenated = self.push_hyphenate(seg, font, shaped_seg, info, text);
 
                         if !hyphenated && self.break_words {
                             // break word
@@ -2563,20 +2565,12 @@ impl ShapedTextBuilder {
         }
     }
 
-    fn push_hyphenate(
-        &mut self,
-        word_ctx_key: &WordContextKey,
-        seg: &str,
-        font: &Font,
-        shaped_seg: &ShapedSegmentData,
-        info: TextSegment,
-        text: &SegmentedText,
-    ) -> bool {
+    fn push_hyphenate(&mut self, seg: &str, font: &Font, shaped_seg: &ShapedSegmentData, info: TextSegment, text: &SegmentedText) -> bool {
         if !matches!(self.hyphens, Hyphens::Auto) {
             return false;
         }
 
-        let split_points = HYPHENATION.hyphenate(&word_ctx_key.lang(), seg);
+        let split_points = HYPHENATION.hyphenate(&self.lang, seg);
         self.push_hyphenate_pt(&split_points, font, shaped_seg, seg, info, text)
     }
 
@@ -3881,10 +3875,6 @@ impl WordContextKey {
 
     pub fn harfbuzz_direction(&self) -> rustybuzz::Direction {
         into_harf_direction(self.direction)
-    }
-
-    pub fn lang(&self) -> Lang {
-        Lang(unic_langid::LanguageIdentifier::from_parts(self.lang, self.script, None, &[]))
     }
 }
 
