@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix misaligned hyphenation split points.
 * Fix missing lang region in hyphenation query.
 
 # 0.13.10
