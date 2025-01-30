@@ -2571,18 +2571,21 @@ impl ShapedTextBuilder {
         }
 
         let split_points = HYPHENATION.hyphenate(&self.lang, seg);
-        self.push_hyphenate_pt(&split_points, font, shaped_seg, seg, info, text)
+        self.push_hyphenate_pt(&split_points, 0, font, shaped_seg, seg, info, text)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn push_hyphenate_pt(
         &mut self,
         split_points: &[usize],
+        split_points_sub: usize,
         font: &Font,
         shaped_seg: &ShapedSegmentData,
         seg: &str,
         info: TextSegment,
         text: &SegmentedText,
     ) -> bool {
+        println!("!!: {:?}", (seg, split_points));
         if split_points.is_empty() {
             return false;
         }
@@ -2592,13 +2595,15 @@ impl ShapedTextBuilder {
         let mut end_point_i = 0;
         let max_width = self.actual_max_width();
         for (i, point) in split_points.iter().enumerate() {
-            let mut point = *point;
+            let mut point = *point - split_points_sub;
             let mut width = 0.0;
             let mut c = u32::MAX;
             let mut gi = 0;
+            // find the first glyph in the cluster at the char byte index `point`
             for (i, g) in shaped_seg.glyphs.iter().enumerate() {
                 width = g.point.0;
                 if g.cluster != c {
+                    // advanced cluster, advance point
                     if point == 0 {
                         break;
                     }
@@ -2609,17 +2614,26 @@ impl ShapedTextBuilder {
             }
 
             if self.origin.x + width + self.hyphen_glyphs.0.x_advance > max_width {
+                // fragment+hyphen is to large
+                if end_glyph == 0 {
+                    // found no candidate, there is no way to avoid overflow, use smallest option
+                    end_glyph = gi + 1;
+                    end_point_i = i + 1;
+                }
                 break;
             } else {
-                end_glyph = gi;
-                end_point_i = i;
+                // found candidate fragment
+                end_glyph = gi + 1;
+                end_point_i = i + 1;
             }
         }
 
         // split and push the first half + hyphen
         let end_glyph_x = shaped_seg.glyphs[end_glyph].point.0;
         let (glyphs_a, glyphs_b) = shaped_seg.glyphs.split_at(end_glyph);
+
         if glyphs_a.is_empty() || glyphs_b.is_empty() {
+            debug_assert!(false, "invalid hyphenation split");
             return false;
         }
         let end_cluster = glyphs_b[0].cluster;
@@ -2655,7 +2669,15 @@ impl ShapedTextBuilder {
 
         if shaped_seg_b.x_advance > self.actual_max_width() {
             // second half still does not fit, try to hyphenate again.
-            if self.push_hyphenate_pt(&split_points[end_point_i..], font, &shaped_seg_b, seg_b, info, text) {
+            if self.push_hyphenate_pt(
+                &split_points[end_point_i..],
+                split_points_sub + seg_a.len(),
+                font,
+                &shaped_seg_b,
+                seg_b,
+                info,
+                text,
+            ) {
                 return true;
             }
         }
