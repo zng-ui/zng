@@ -291,8 +291,12 @@ context_var! {
     /// Text alignment inside the available space when it overflows.
     pub static TEXT_OVERFLOW_ALIGN_VAR: Align = Align::TOP_START;
 
-    /// Text justify mode when text align is fill.
+    #[doc(hidden)]
+    #[deprecated = "use `JUSTIFY_MODE_VAR`"]
     pub static JUSTIFY_VAR: Option<Justify> = None;
+
+    /// Text justify mode when text align is fill.
+    pub static JUSTIFY_MODE_VAR: Justify = Justify::Auto;
 }
 
 impl TextAlignMix<()> {
@@ -300,7 +304,7 @@ impl TextAlignMix<()> {
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&TEXT_ALIGN_VAR);
         set.insert(&TEXT_OVERFLOW_ALIGN_VAR);
-        set.insert(&JUSTIFY_VAR);
+        set.insert(&JUSTIFY_MODE_VAR);
     }
 }
 
@@ -340,19 +344,25 @@ pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl
     with_context_var(child, TEXT_OVERFLOW_ALIGN_VAR, mode)
 }
 
-/// Config the automatic spacing inserted between words and letters when text is aligned to fill.
-///
-/// Text alignment can be set to [`Align::FILL`], if this config is set to `Some(mode)` when that happens
-/// the text layout will automatically insert spaces to try and *fill* the text block. When justify is not
-/// enabled, that is set to `None`, fill alignment is the same as [`Align::START`].
-///
-/// Sets the [`JUSTIFY_VAR`].
-///
-/// [`Align::FILL`]: zng_wgt::prelude::Align::FILL
-/// [`Align::START`]: zng_wgt::prelude::Align::START
+#[doc(hidden)]
+#[deprecated = "use `justify_mode`"]
+#[allow(deprecated)]
 #[property(CONTEXT, default(JUSTIFY_VAR), widget_impl(TextAlignMix<P>))]
 pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl UiNode {
     with_context_var(child, JUSTIFY_VAR, mode)
+}
+
+/// Config the automatic spacing inserted between words and letters when text is aligned to fill.
+///
+/// Text alignment can be set to [`Align::FILL_X`], if that is the case this config is defines how
+/// the glyphs are spaced to *fill* the text block.
+///
+/// Sets the [`JUSTIFY_MODE_VAR`].
+///
+/// [`Align::FILL_X`]: zng_wgt::prelude::Align::FILL_X
+#[property(CONTEXT, default(JUSTIFY_MODE_VAR), widget_impl(TextAlignMix<P>))]
+pub fn justify_mode(child: impl UiNode, mode: impl IntoVar<Justify>) -> impl UiNode {
+    with_context_var(child, JUSTIFY_MODE_VAR, mode)
 }
 
 /// Text wrap, hyphenation.
