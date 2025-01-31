@@ -134,6 +134,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
     } else {
         attrs.tag_doc("W", "Widget struct and macro");
     }
+    let allow_deprecated = attrs.deprecated.as_ref().map(|_| {
+        quote! {
+            #[allow(deprecated)]
+        }
+    });
 
     let struct_token = struct_.struct_token;
 
@@ -152,6 +157,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
             mod #validate_path_ident {
                 macro_rules! #validate_path_ident {
                     () => {
+                        #allow_deprecated
                         use #struct_path;
                     }
                 }
@@ -240,6 +246,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
         let source_location = widget_util::source_location(&crate_core, ident.span());
         let start_r = quote! {
+            #allow_deprecated
             impl #mixin_p_bounded #ident #mixin_p {
                 /// Start building a new instance.
                 pub fn widget_new() -> Self {
@@ -272,6 +279,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         #attrs
         #docs_js
         #vis #struct_token #ident #mixin_p(#parent);
+        #allow_deprecated
         impl #mixin_p std::ops::Deref for #ident #mixin_p {
             type Target = #parent;
 
@@ -279,6 +287,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                 &self.0
             }
         }
+        #allow_deprecated
         impl #mixin_p std::ops::DerefMut for #ident #mixin_p {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.0
@@ -287,6 +296,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
         #start_r
 
         #[doc(hidden)]
+        #allow_deprecated
         impl #mixin_p_bounded #crate_core::widget::base::WidgetImpl for #ident #mixin_p {
             fn inherit(widget: #crate_core::widget::builder::WidgetType) -> Self {
                 let mut wgt = Self(<#parent as #crate_core::widget::base::WidgetImpl>::inherit(widget));
