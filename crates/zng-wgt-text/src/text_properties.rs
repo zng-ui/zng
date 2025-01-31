@@ -348,7 +348,12 @@ pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl
 #[deprecated = "use `justify_mode`"]
 #[property(CONTEXT, default(#[allow(deprecated)]JUSTIFY_VAR), widget_impl(TextAlignMix<P>))]
 pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl UiNode {
-    with_context_var(child, JUSTIFY_VAR, mode)
+    with_context_var(
+        child,
+        #[allow(deprecated)]
+        JUSTIFY_VAR,
+        mode,
+    )
 }
 
 /// Config the automatic spacing inserted between words and letters when text is aligned to fill.
