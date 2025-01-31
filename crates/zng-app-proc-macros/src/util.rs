@@ -338,6 +338,7 @@ pub struct Attributes {
     pub docs: Vec<Attribute>,
     pub inline: Option<Attribute>,
     pub cfg: Option<Attribute>,
+    pub deprecated: Option<Attribute>,
     pub lints: Vec<Attribute>,
     pub others: Vec<Attribute>,
 }
@@ -346,6 +347,7 @@ impl Attributes {
         let mut docs = vec![];
         let mut inline = None;
         let mut cfg = None;
+        let mut deprecated = None;
         let mut lints = vec![];
         let mut others = vec![];
 
@@ -358,6 +360,8 @@ impl Attributes {
                     inline = Some(attr);
                 } else if ident == "cfg" {
                     cfg = Some(attr);
+                } else if ident == "deprecated" {
+                    deprecated = Some(attr);
                 } else if ident == "allow" || ident == "expect" || ident == "warn" || ident == "deny" || ident == "forbid" {
                     lints.push(attr);
                 } else {
@@ -372,6 +376,7 @@ impl Attributes {
             docs,
             inline,
             cfg,
+            deprecated,
             lints,
             others,
         }
@@ -411,6 +416,7 @@ impl ToTokens for Attributes {
             .iter()
             .chain(&self.inline)
             .chain(&self.cfg)
+            .chain(&self.deprecated)
             .chain(&self.lints)
             .chain(&self.others)
         {
