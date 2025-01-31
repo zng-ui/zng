@@ -141,7 +141,8 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         // generate items if all is valid.
 
         let core = crate_core();
-        let cfg = Attributes::new(item.attrs.clone()).cfg;
+        let cfg = &attrs.cfg;
+        let deprecated = &attrs.deprecated;
         let vis = &item.vis;
         let ident = &item.sig.ident;
         let ident_str = ident.to_string();
@@ -589,6 +590,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             }
         };
 
+        let allow_deprecated = deprecated.as_ref().map(|_| {
+            quote! {
+                #[allow(deprecated)]
+            }
+        });
+
         let args = quote! {
             #cfg
             #[doc(hidden)]
@@ -608,6 +615,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     #ident_meta { }.info #path_gens()
                 }
 
+                #allow_deprecated
                 fn instantiate(&self, __child__: #core::widget::node::BoxedUiNode) -> #core::widget::node::BoxedUiNode {
                     #instantiate
                 }
@@ -657,6 +665,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 #cfg
                 impl #generics_impl #target #generics {
                     #(#docs)*
+                    #deprecated
                     #vis fn #ident #impl_gens(&self, #(#input_idents: #input_tys),*) #where_gens {
                         let args = #ident_meta { }.args(#(#input_idents),*);
                         #core::widget::base::WidgetImpl::base_ref(self).mtd_property__(args)
@@ -696,6 +705,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                 type MetaType;
 
                 #(#docs)*
+                #deprecated
                 #[allow(clippy::too_many_arguments)]
                 fn #ident #impl_gens(&mut self, #(#input_idents: #input_tys),*) #where_gens {
                     let args = #ident_meta { }.args(#(#input_idents),*);

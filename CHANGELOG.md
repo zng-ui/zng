@@ -1,6 +1,8 @@
 # Unreleased
 
 * Deprecate `justify`, add `justify_mode`.
+* Fix `#[deprecated]` widgets warning on declaration.
+* Fix `#[deprecated]` properties not warning on use and warning on declaration.
 * Fix text overflow truncate not applying in most texts.
 * Fix misaligned hyphenation split points.
 * Fix missing lang region in hyphenation query.
