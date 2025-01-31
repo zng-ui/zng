@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix text overflow truncate not applying in most texts.
 * Fix misaligned hyphenation split points.
 * Fix missing lang region in hyphenation query.
 

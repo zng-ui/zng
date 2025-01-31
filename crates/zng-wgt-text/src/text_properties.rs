@@ -412,7 +412,7 @@ pub enum TextOverflow {
     Ignore,
     /// Truncate the text so it will fit, the associated `Txt` is a suffix appended to the truncated text.
     ///
-    /// Note that if the suffix is not empty the text will truncated more to reserve space for the suffix. If
+    /// Note that if the suffix is not empty the text will truncate more to reserve space for the suffix. If
     /// the suffix itself is too wide it will overflow.
     Truncate(Txt),
 }

@@ -459,7 +459,7 @@ pub fn render_text() -> impl UiNode {
                         frame.push_text(clip, glyphs.as_ref(), font, color_value, r.synthesis, aa);
                     };
 
-                    match (&t.overflow, TEXT_OVERFLOW_VAR.get(), !TEXT_EDITABLE_VAR.get()) {
+                    match (&t.overflow, TEXT_OVERFLOW_VAR.get(), TEXT_EDITABLE_VAR.get()) {
                         (Some(o), TextOverflow::Truncate(_), false) => {
                             for glyphs in &o.included_glyphs {
                                 for (font, glyphs) in t.shaped_text.glyphs_slice(glyphs.clone()) {
