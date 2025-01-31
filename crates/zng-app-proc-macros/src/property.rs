@@ -1027,7 +1027,6 @@ pub fn expand_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     attrs.tag_doc("P", "This method is a widget property");
 
     let cfg = &attrs.cfg;
-    // let deprecated = &attrs.deprecated; !!: TODO
     let vis = p.vis;
     let path = p.path;
     let ident = &path.segments.last().unwrap().ident;
