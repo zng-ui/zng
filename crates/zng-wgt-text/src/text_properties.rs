@@ -346,8 +346,7 @@ pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl
 
 #[doc(hidden)]
 #[deprecated = "use `justify_mode`"]
-#[allow(deprecated)]
-#[property(CONTEXT, default(JUSTIFY_VAR), widget_impl(TextAlignMix<P>))]
+#[property(CONTEXT, default(#[allow(deprecated)]JUSTIFY_VAR), widget_impl(TextAlignMix<P>))]
 pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl UiNode {
     with_context_var(child, JUSTIFY_VAR, mode)
 }
