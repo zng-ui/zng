@@ -698,6 +698,8 @@ impl ShapedText {
     ///
     /// The general process of shaping text is to generate a shaped-text without align during *measure*, and then reuse
     /// this shaped text every layout that does not invalidate any property that affects the text wrap.
+    ///
+    /// Note that align `FILL` is the same as `START` here, fill/justify spacing can be dynamically added during iteration later.
     #[expect(clippy::too_many_arguments)]
     pub fn reshape_lines(
         &mut self,
@@ -2585,7 +2587,6 @@ impl ShapedTextBuilder {
         info: TextSegment,
         text: &SegmentedText,
     ) -> bool {
-        println!("!!: {:?}", (seg, split_points));
         if split_points.is_empty() {
             return false;
         }
