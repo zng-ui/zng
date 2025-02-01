@@ -1025,6 +1025,8 @@ impl ShapedText {
 
         let range = self.justify_lines_range();
 
+        let fill_width = self.align_size.width.0 as f32;
+
         for li in range.clone() {
             let mut count;
             let mut space;
@@ -1039,12 +1041,23 @@ impl ShapedText {
                 // count of space insert points
                 count = match mode {
                     Justify::InterWord => line.segs().filter(|s| s.kind().is_space()).count(),
-                    Justify::InterLetter => line.segs().filter(|s| s.kind().is_space() || s.kind().is_word()).count(),
+                    Justify::InterLetter => line
+                        .segs()
+                        .map(|s| {
+                            if s.kind().is_space() {
+                                s.clusters_count().saturating_sub(1).max(1)
+                            } else if s.kind().is_word() {
+                                s.clusters_count().saturating_sub(1)
+                            } else {
+                                0
+                            }
+                        })
+                        .sum(),
                     Justify::Auto => unreachable!(),
                 };
 
                 // space to distribute
-                space = (self.align_size.width - line.width()).0 as f32;
+                space = fill_width - self.lines.0[li].width;
 
                 line_seg_range = 0..line.segs_len();
 
@@ -1085,41 +1098,43 @@ impl ShapedText {
             let justify_advance = space / count as f32;
             self.justified.push(justify_advance);
 
-            if matches!(mode, Justify::InterLetter) {
-                // !!: TODO
-            } else {
-                for si in line_seg_range {
-                    let is_space;
-                    let glyphs_range;
-                    let gsi;
-                    {
-                        let line = self.line(li).unwrap();
-                        let seg = line.seg(si).unwrap();
+            for si in line_seg_range {
+                let is_space;
+                let glyphs_range;
+                let gsi;
+                {
+                    let line = self.line(li).unwrap();
+                    let seg = line.seg(si).unwrap();
 
-                        is_space = seg.kind().is_space();
-                        glyphs_range = seg.glyphs_range();
-                        gsi = line.seg_range.start() + si;
-                    }
+                    is_space = seg.kind().is_space();
+                    glyphs_range = seg.glyphs_range();
+                    gsi = line.seg_range.start() + si;
+                }
 
-                    for gi in glyphs_range {
-                        self.glyphs[gi].point.x += offset;
-                    }
+                let mut cluster = self.clusters[glyphs_range.start()];
+                for gi in glyphs_range {
+                    self.glyphs[gi].point.x += offset;
 
-                    let seg = &mut self.segments.0[gsi];
-                    seg.x += offset;
-                    if is_space {
+                    if matches!(mode, Justify::InterLetter) && self.clusters[gi] != cluster {
+                        cluster = self.clusters[gi];
                         offset += justify_advance;
-                        seg.advance += justify_advance;
+                        self.segments.0[gsi].advance += justify_advance;
                     }
                 }
-                if last_is_space {
-                    let gsi = self.line(li).unwrap().seg_range.end().saturating_sub(1);
-                    let seg = &mut self.segments.0[gsi];
-                    debug_assert_eq!(seg.advance, 0.0);
-                    seg.x += offset;
+
+                let seg = &mut self.segments.0[gsi];
+                seg.x += offset;
+                if is_space {
+                    offset += justify_advance;
+                    seg.advance += justify_advance;
                 }
             }
-            // !!: TODO, line width
+            if last_is_space {
+                let gsi = self.line(li).unwrap().seg_range.end().saturating_sub(1);
+                let seg = &mut self.segments.0[gsi];
+                debug_assert_eq!(seg.advance, 0.0);
+                seg.x += offset;
+            }
             self.justified.shrink_to_fit();
         }
 
@@ -1184,37 +1199,40 @@ impl ShapedText {
 
             let justify_advance = justified.next().unwrap();
 
-            if matches!(self.justify, Justify::InterLetter) {
-                // !!: TODO
-            } else {
-                for si in line_seg_range {
-                    let is_space;
-                    let glyphs_range;
-                    let gsi;
-                    {
-                        let line = self.line(li).unwrap();
-                        let seg = line.seg(si).unwrap();
+            for si in line_seg_range {
+                let is_space;
+                let glyphs_range;
+                let gsi;
+                {
+                    let line = self.line(li).unwrap();
+                    let seg = line.seg(si).unwrap();
 
-                        is_space = seg.kind().is_space();
-                        glyphs_range = seg.glyphs_range();
-                        gsi = line.seg_range.start() + si;
-                    }
+                    is_space = seg.kind().is_space();
+                    glyphs_range = seg.glyphs_range();
+                    gsi = line.seg_range.start() + si;
+                }
 
-                    for gi in glyphs_range {
-                        self.glyphs[gi].point.x -= offset;
-                    }
+                let mut cluster = self.clusters[glyphs_range.start()];
+                for gi in glyphs_range {
+                    self.glyphs[gi].point.x -= offset;
 
-                    let seg = &mut self.segments.0[gsi];
-                    seg.x -= offset;
-                    if is_space {
+                    if matches!(self.justify, Justify::InterLetter) && self.clusters[gi] != cluster {
+                        cluster = self.clusters[gi];
                         offset += justify_advance;
-                        seg.advance -= justify_advance;
+                        self.segments.0[gsi].advance -= justify_advance;
                     }
                 }
-                if last_is_space {
-                    let gsi = self.line(li).unwrap().seg_range.end().saturating_sub(1);
-                    self.segments.0[gsi].x -= offset;
+
+                let seg = &mut self.segments.0[gsi];
+                seg.x -= offset;
+                if is_space {
+                    offset += justify_advance;
+                    seg.advance -= justify_advance;
                 }
+            }
+            if last_is_space {
+                let gsi = self.line(li).unwrap().seg_range.end().saturating_sub(1);
+                self.segments.0[gsi].x -= offset;
             }
         }
 
@@ -1275,11 +1293,12 @@ impl ShapedText {
     ///
     /// [`LineBreak`]: TextSegmentKind::LineBreak
     pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
+        let just_width = self.justify_mode().map(|_| self.align_size.width);
         self.lines.iter_segs().enumerate().map(move |(i, (w, r))| ShapedLine {
             text: self,
             seg_range: r,
             index: i,
-            width: Px(w.round() as i32),
+            width: just_width.unwrap_or_else(|| Px(w.round() as i32)),
         })
     }
 
@@ -3684,6 +3703,21 @@ impl<'a> ShapedSegment<'a> {
     pub fn clusters(&self) -> &[u32] {
         let r = self.glyphs_range();
         self.text.clusters_range(r)
+    }
+
+    /// Count the deduplicated [`clusters`].
+    ///
+    /// [`clusters`]: Self::clusters
+    pub fn clusters_count(&self) -> usize {
+        let mut c = u32::MAX;
+        let mut count = 0;
+        for &i in self.clusters() {
+            if i != c {
+                c = i;
+                count += 1;
+            }
+        }
+        count
     }
 
     /// Number of next segments that are empty because their text is included in a ligature
