@@ -17,8 +17,8 @@ use zng_var::{AnyVar, Var as _};
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
-    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, LineBreak, SegmentedText, TextSegment, WordBreak,
-    HYPHENATION,
+    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, Justify, LineBreak, SegmentedText, TextSegment,
+    WordBreak, HYPHENATION,
 };
 
 /// Reasons why a font might fail to load a glyph.
@@ -339,6 +339,7 @@ pub struct ShapedText {
     mid_offset: f32,
     align_size: PxSize,
     align: Align,
+    justify: Justify, // applied justify if `align` is FILL_X
     overflow_align: Align,
     direction: LayoutDirection,
 
@@ -661,6 +662,21 @@ impl ShapedText {
         self.align
     }
 
+    /// Last applied justify.
+    ///
+    /// This is the resolved mode, it is never `Auto`.
+    ///
+    /// [`align`]: Self::align
+    pub fn justify_mode(&self) -> Option<Justify> {
+        match self.justify {
+            Justify::Auto => None,
+            m => {
+                debug_assert!(self.align.is_fill_x());
+                Some(m)
+            }
+        }
+    }
+
     /// Last applied overflow alignment.
     ///
     /// Only used in dimensions of the text that overflow [`align_size`].
@@ -699,7 +715,9 @@ impl ShapedText {
     /// The general process of shaping text is to generate a shaped-text without align during *measure*, and then reuse
     /// this shaped text every layout that does not invalidate any property that affects the text wrap.
     ///
-    /// Note that align `FILL` is the same as `START` here, fill/justify spacing can be dynamically added during iteration later.
+    /// Note that this method clears justify fill, of `align` is fill X you must call [`reshape_lines_justify`] after to refill.
+    ///
+    /// [`reshape_lines_justify`]: Self::reshape_lines_justify
     #[expect(clippy::too_many_arguments)]
     pub fn reshape_lines(
         &mut self,
@@ -711,6 +729,7 @@ impl ShapedText {
         line_spacing: Px,
         direction: LayoutDirection,
     ) {
+        self.clear_justify();
         self.reshape_line_height_and_spacing(line_height, line_spacing);
 
         let is_inlined = inline_constraints.is_some();
@@ -975,6 +994,45 @@ impl ShapedText {
         );
     }
 
+    /// Replace the applied [`justify_mode`], if the [`align`] is fill X.
+    ///
+    /// [`justify_mode`]: Self::justify_mode
+    /// [`align`]: Self::align
+    pub fn reshape_lines_justify(&mut self, mode: Justify, lang: &Lang) {
+        self.clear_justify();
+
+        if !self.align.is_fill_x() {
+            return;
+        }
+
+        let mode = mode.resolve(lang);
+
+        for line in self.lines() {
+            let space = self.align_size.width - line.width();
+            let mut count = 0;
+            for seg in line.segs() {
+                if seg.kind().is_space() {
+                    count += 1;
+                } else if matches!(mode, Justify::InterLetter) && seg.kind().is_word() {
+                   count += seg.clusters().len();
+                }
+            }
+            let justify_advance = space.0 as f32 / count as f32;
+            // !!: TODO
+        }
+    }
+
+    /// Remove the currently applied [`justify_mode`].
+    ///
+    /// [`justify_mode`]: Self::justify_mode
+    pub fn clear_justify(&mut self) {
+        if self.justify_mode().is_none() {
+            return;
+        }
+
+        self.justify = Justify::Auto;
+    }
+
     /// Height of a single line.
     pub fn line_height(&self) -> Px {
         self.line_height
@@ -1087,6 +1145,7 @@ impl ShapedText {
             mid_offset: 0.0,
             align_size: PxSize::zero(),
             align: Align::TOP_LEFT,
+            justify: Justify::Auto,
             overflow_align: Align::TOP_LEFT,
             direction: LayoutDirection::LTR,
             first_wrapped: false,
@@ -2008,6 +2067,7 @@ impl ShapedTextBuilder {
                 mid_offset: 0.0,
                 align_size: PxSize::zero(),
                 align: Align::TOP_LEFT,
+                justify: Justify::Auto,
                 overflow_align: Align::TOP_LEFT,
                 direction: LayoutDirection::LTR,
                 first_wrapped: false,
@@ -2935,6 +2995,17 @@ impl<'a> ShapedLine<'a> {
             self.text.last_line.height()
         } else {
             self.text.line_height
+        }
+    }
+
+    /// Width of the line.
+    pub fn width(&self) -> Px {
+        if self.index == 0 {
+            self.text.first_line.width()
+        } else if self.index == self.text.lines.0.len() - 1 {
+            self.text.last_line.width()
+        } else {
+            self.width
         }
     }
 

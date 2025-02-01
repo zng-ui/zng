@@ -200,6 +200,7 @@
         "unic_langid",
         "unicase",
         "unicode_bidi",
+        "unjustify",
         "unsets",
         "uri",
         "usvg",

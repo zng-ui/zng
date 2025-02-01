@@ -34,7 +34,7 @@ use crate::{
     node::SelectionBy,
     AutoSelection, TextOverflow, UnderlinePosition, UnderlineSkip, ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, AUTO_SELECTION_VAR, FONT_FAMILY_VAR,
     FONT_FEATURES_VAR, FONT_SIZE_VAR, FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHENS_VAR, HYPHEN_CHAR_VAR,
-    IME_UNDERLINE_THICKNESS_VAR, LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR,
+    IME_UNDERLINE_THICKNESS_VAR, JUSTIFY_MODE_VAR, LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR,
     OBSCURING_CHAR_VAR, OVERLINE_THICKNESS_VAR, STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR,
     TEXT_OVERFLOW_ALIGN_VAR, TEXT_OVERFLOW_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR,
     UNDERLINE_THICKNESS_VAR, WORD_BREAK_VAR, WORD_SPACING_VAR,
@@ -128,7 +128,10 @@ fn layout_text_layout(child: impl UiNode) -> impl UiNode {
                 .sub_var(&HYPHEN_CHAR_VAR)
                 .sub_var(&TEXT_WRAP_VAR)
                 .sub_var(&TEXT_OVERFLOW_VAR);
-            WIDGET.sub_var_layout(&TEXT_ALIGN_VAR).sub_var_layout(&TEXT_OVERFLOW_ALIGN_VAR);
+            WIDGET
+                .sub_var_layout(&TEXT_ALIGN_VAR)
+                .sub_var_layout(&JUSTIFY_MODE_VAR)
+                .sub_var_layout(&TEXT_OVERFLOW_ALIGN_VAR);
 
             WIDGET.sub_var(&FONT_FEATURES_VAR);
 
@@ -536,9 +539,12 @@ impl LayoutTextFinal {
         ctx.ime_underline_thickness = ime_underline;
 
         let align = TEXT_ALIGN_VAR.get();
+        let justify = JUSTIFY_MODE_VAR.get();
         let overflow_align = TEXT_OVERFLOW_ALIGN_VAR.get();
         if !self.pending.contains(PendingLayout::RESHAPE_LINES)
-            && (align != ctx.shaped_text.align() || overflow_align != ctx.shaped_text.overflow_align())
+            && (align != ctx.shaped_text.align()
+                || justify != ctx.shaped_text.justify_mode().unwrap_or_default()
+                || overflow_align != ctx.shaped_text.overflow_align())
         {
             self.pending.insert(PendingLayout::RESHAPE_LINES);
         }
@@ -593,6 +599,7 @@ impl LayoutTextFinal {
                         metrics.direction(),
                     );
                 }
+                ctx.shaped_text.reshape_lines_justify(justify, &self.shaping_args.lang);
 
                 ctx.shaped_text_version = ctx.shaped_text_version.wrapping_add(1);
                 drop(resolved);

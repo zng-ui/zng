@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement text fill/justify.
 * Deprecate `justify`, add `justify_mode`.
 * Fix `#[deprecated]` widgets warning on declaration.
 * Fix `#[deprecated]` properties not warning on use and warning on declaration.
