@@ -1007,18 +1007,91 @@ impl ShapedText {
 
         let mode = mode.resolve(lang);
 
-        for line in self.lines() {
-            let space = self.align_size.width - line.width();
-            let mut count = 0;
-            for seg in line.segs() {
-                if seg.kind().is_space() {
-                    count += 1;
-                } else if matches!(mode, Justify::InterLetter) && seg.kind().is_word() {
-                   count += seg.clusters().len();
+        let mut range = 0..self.lines_len().saturating_sub(1); // skip last line
+
+        if self.is_inlined {
+            // justify on inline not implemented
+            range.start += 1;
+            range.end = range.end.saturating_sub(1);
+            if range.start > range.end {
+                range = 0..0
+            }
+        }
+        for li in range.clone() {
+            let mut count;
+            let mut space;
+            let mut line_seg_range;
+            let mut offset = 0.0;
+
+            { // line scope
+                let line = self.line(li).unwrap();
+
+                // count of space insert points
+                count = match mode {
+                    Justify::InterWord => line.segs().filter(|s| s.kind().is_space()).count(),
+                    Justify::InterLetter => line.segs().filter(|s| s.kind().is_space() || s.kind().is_word()).count(),
+                    Justify::Auto => unreachable!(),
+                };
+
+                // space to distribute
+                space = (self.align_size.width - line.width()).0 as f32;
+
+                line_seg_range = 0..line.segs_len();
+
+                // trim spaces at start and end
+                let mut first_is_space = false;
+                let mut last_is_space = false;
+
+                if let Some(s) = line.seg(0) {
+                    if s.kind().is_space() {
+                        first_is_space = true;
+                        count -= 1;
+                        space += s.advance();
+                    }
+                }
+                if let Some(s) = line.seg(line.segs_len().saturating_sub(1)) {
+                    if s.kind().is_space() {
+                        last_is_space = true;
+                        count -= 1;
+                        space += s.advance();
+                    }
+                }
+                if first_is_space {
+                    line_seg_range.start += 1;
+                    offset -= self.line(li).unwrap().seg(0).unwrap().advance();
+                }
+                if last_is_space {
+                    line_seg_range.end = line_seg_range.end.saturating_sub(1);
+                }
+                if line_seg_range.start > line_seg_range.end {
+                    line_seg_range = 0..0;
+                }
+            }            
+            let justify_advance = space / count as f32;
+
+            if matches!(mode, Justify::InterLetter) {
+                // !!: TODO
+            } else {
+                for si in line_seg_range {
+                    let is_space;
+                    let glyphs_range;
+                    {
+                        let line = self.line(li).unwrap();
+                        let seg = line.seg(si).unwrap();
+
+                        is_space = seg.kind().is_space();
+                        glyphs_range = seg.glyphs_range();
+                    }
+                    if is_space {
+                        offset += justify_advance;
+                    } else {
+                        for gi in glyphs_range {
+                            self.glyphs[gi].point.x += offset;
+                        }
+                    }
                 }
             }
-            let justify_advance = space.0 as f32 / count as f32;
-            // !!: TODO
+            // !!: TODO record for clear_justify
         }
     }
 
@@ -1031,6 +1104,8 @@ impl ShapedText {
         }
 
         self.justify = Justify::Auto;
+
+        // !!: TODO
     }
 
     /// Height of a single line.
