@@ -17,8 +17,8 @@ use zng_var::{AnyVar, Var as _};
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
-    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, LineBreak, SegmentedText, TextSegment, WordBreak,
-    HYPHENATION,
+    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, Justify, LineBreak, SegmentedText, TextSegment,
+    WordBreak, HYPHENATION,
 };
 
 /// Reasons why a font might fail to load a glyph.
@@ -339,6 +339,8 @@ pub struct ShapedText {
     mid_offset: f32,
     align_size: PxSize,
     align: Align,
+    justify: Justify,    // applied justify if `align` is FILL_X
+    justified: Vec<f32>, // each line has up to 3 values here, depending on first/last segs are trimmed
     overflow_align: Align,
     direction: LayoutDirection,
 
@@ -661,6 +663,21 @@ impl ShapedText {
         self.align
     }
 
+    /// Last applied justify.
+    ///
+    /// This is the resolved mode, it is never `Auto`.
+    ///
+    /// [`align`]: Self::align
+    pub fn justify_mode(&self) -> Option<Justify> {
+        match self.justify {
+            Justify::Auto => None,
+            m => {
+                debug_assert!(self.align.is_fill_x());
+                Some(m)
+            }
+        }
+    }
+
     /// Last applied overflow alignment.
     ///
     /// Only used in dimensions of the text that overflow [`align_size`].
@@ -699,7 +716,9 @@ impl ShapedText {
     /// The general process of shaping text is to generate a shaped-text without align during *measure*, and then reuse
     /// this shaped text every layout that does not invalidate any property that affects the text wrap.
     ///
-    /// Note that align `FILL` is the same as `START` here, fill/justify spacing can be dynamically added during iteration later.
+    /// Note that this method clears justify fill, of `align` is fill X you must call [`reshape_lines_justify`] after to refill.
+    ///
+    /// [`reshape_lines_justify`]: Self::reshape_lines_justify
     #[expect(clippy::too_many_arguments)]
     pub fn reshape_lines(
         &mut self,
@@ -711,6 +730,7 @@ impl ShapedText {
         line_spacing: Px,
         direction: LayoutDirection,
     ) {
+        self.clear_justify_impl(align.is_fill_x());
         self.reshape_line_height_and_spacing(line_height, line_spacing);
 
         let is_inlined = inline_constraints.is_some();
@@ -975,6 +995,255 @@ impl ShapedText {
         );
     }
 
+    fn justify_lines_range(&self) -> ops::Range<usize> {
+        let mut range = 0..self.lines_len().saturating_sub(1); // skip last line
+
+        if self.is_inlined {
+            // justify on inline not implemented
+            range.start += 1;
+            range.end = range.end.saturating_sub(1);
+            if range.start > range.end {
+                range = 0..0
+            }
+        }
+
+        range
+    }
+
+    /// Replace the applied [`justify_mode`], if the [`align`] is fill X.
+    ///
+    /// [`justify_mode`]: Self::justify_mode
+    /// [`align`]: Self::align
+    pub fn reshape_lines_justify(&mut self, mode: Justify, lang: &Lang) {
+        self.clear_justify_impl(true);
+
+        if !self.align.is_fill_x() {
+            return;
+        }
+
+        let mode = mode.resolve(lang);
+
+        let range = self.justify_lines_range();
+
+        let fill_width = self.align_size.width.0 as f32;
+
+        for li in range.clone() {
+            let mut count;
+            let mut space;
+            let mut line_seg_range;
+            let mut offset = 0.0;
+            let mut last_is_space = false;
+
+            {
+                // line scope
+                let line = self.line(li).unwrap();
+
+                // count of space insert points
+                count = match mode {
+                    Justify::InterWord => line.segs().filter(|s| s.kind().is_space()).count(),
+                    Justify::InterLetter => line
+                        .segs()
+                        .map(|s| {
+                            if s.kind().is_space() {
+                                s.clusters_count().saturating_sub(1).max(1)
+                            } else if s.kind().is_word() {
+                                s.clusters_count().saturating_sub(1)
+                            } else {
+                                0
+                            }
+                        })
+                        .sum(),
+                    Justify::Auto => unreachable!(),
+                };
+
+                // space to distribute
+                space = fill_width - self.lines.0[li].width;
+
+                line_seg_range = 0..line.segs_len();
+
+                // trim spaces at start and end
+                let mut first_is_space = false;
+
+                if let Some(s) = line.seg(0) {
+                    if s.kind().is_space() {
+                        first_is_space = true;
+                        count -= 1;
+                        space += s.advance();
+                    }
+                }
+                if let Some(s) = line.seg(line.segs_len().saturating_sub(1)) {
+                    if s.kind().is_space() {
+                        last_is_space = true;
+                        count -= 1;
+                        space += s.advance();
+                    }
+                }
+                if first_is_space {
+                    line_seg_range.start += 1;
+                    let gsi = self.line(li).unwrap().seg_range.start();
+                    let adv = mem::take(&mut self.segments.0[gsi].advance);
+                    offset -= adv;
+                    self.justified.push(adv);
+                }
+                if last_is_space {
+                    line_seg_range.end = line_seg_range.end.saturating_sub(1);
+                    let gsi = self.line(li).unwrap().seg_range.end().saturating_sub(1);
+                    let adv = mem::take(&mut self.segments.0[gsi].advance);
+                    self.justified.push(adv);
+                }
+                if line_seg_range.start > line_seg_range.end {
+                    line_seg_range = 0..0;
+                }
+            }
+            let justify_advance = space / count as f32;
+            self.justified.push(justify_advance);
+
+            for si in line_seg_range {
+                let is_space;
+                let glyphs_range;
+                let gsi;
+                {
+                    let line = self.line(li).unwrap();
+                    let seg = line.seg(si).unwrap();
+
+                    is_space = seg.kind().is_space();
+                    glyphs_range = seg.glyphs_range();
+                    gsi = line.seg_range.start() + si;
+                }
+
+                let mut cluster = self.clusters[glyphs_range.start()];
+                for gi in glyphs_range {
+                    self.glyphs[gi].point.x += offset;
+
+                    if matches!(mode, Justify::InterLetter) && self.clusters[gi] != cluster {
+                        cluster = self.clusters[gi];
+                        offset += justify_advance;
+                        self.segments.0[gsi].advance += justify_advance;
+                    }
+                }
+
+                let seg = &mut self.segments.0[gsi];
+                seg.x += offset;
+                if is_space {
+                    offset += justify_advance;
+                    seg.advance += justify_advance;
+                }
+            }
+            if last_is_space {
+                let gsi = self.line(li).unwrap().seg_range.end().saturating_sub(1);
+                let seg = &mut self.segments.0[gsi];
+                debug_assert_eq!(seg.advance, 0.0);
+                seg.x += offset;
+            }
+            self.justified.shrink_to_fit();
+        }
+
+        self.justify = mode;
+    }
+
+    /// Remove the currently applied [`justify_mode`].
+    ///
+    /// [`justify_mode`]: Self::justify_mode
+    pub fn clear_justify(&mut self) {
+        self.clear_justify_impl(false)
+    }
+    fn clear_justify_impl(&mut self, keep_alloc: bool) {
+        if self.justify_mode().is_none() {
+            return;
+        }
+
+        let range = self.justify_lines_range();
+        debug_assert!(range.len() <= self.justified.len());
+
+        let mut justified_alloc = mem::take(&mut self.justified);
+
+        let mut justified = justified_alloc.drain(..);
+        for li in range {
+            let mut line_seg_range;
+            let mut last_is_space = false;
+
+            let mut offset = 0.0;
+
+            {
+                let line = self.line(li).unwrap();
+
+                line_seg_range = 0..line.segs_len();
+
+                // trim spaces at start and end
+                let mut first_is_space = false;
+
+                if let Some(s) = line.seg(0) {
+                    first_is_space = s.kind().is_space();
+                }
+                if let Some(s) = line.seg(line.segs_len().saturating_sub(1)) {
+                    last_is_space = s.kind().is_space();
+                }
+                if first_is_space {
+                    line_seg_range.start += 1;
+                    let gsi = self.line(li).unwrap().seg_range.start();
+
+                    let adv = justified.next().unwrap();
+                    self.segments.0[gsi].advance = adv;
+                    offset -= adv;
+                }
+                if last_is_space {
+                    line_seg_range.end = line_seg_range.end.saturating_sub(1);
+                    let adv = justified.next().unwrap();
+                    let gsi = self.line(li).unwrap().seg_range.end().saturating_sub(1);
+                    self.segments.0[gsi].advance = adv;
+                }
+                if line_seg_range.start > line_seg_range.end {
+                    line_seg_range = 0..0;
+                }
+            }
+
+            let justify_advance = justified.next().unwrap();
+
+            for si in line_seg_range {
+                let is_space;
+                let glyphs_range;
+                let gsi;
+                {
+                    let line = self.line(li).unwrap();
+                    let seg = line.seg(si).unwrap();
+
+                    is_space = seg.kind().is_space();
+                    glyphs_range = seg.glyphs_range();
+                    gsi = line.seg_range.start() + si;
+                }
+
+                let mut cluster = self.clusters[glyphs_range.start()];
+                for gi in glyphs_range {
+                    self.glyphs[gi].point.x -= offset;
+
+                    if matches!(self.justify, Justify::InterLetter) && self.clusters[gi] != cluster {
+                        cluster = self.clusters[gi];
+                        offset += justify_advance;
+                        self.segments.0[gsi].advance -= justify_advance;
+                    }
+                }
+
+                let seg = &mut self.segments.0[gsi];
+                seg.x -= offset;
+                if is_space {
+                    offset += justify_advance;
+                    seg.advance -= justify_advance;
+                }
+            }
+            if last_is_space {
+                let gsi = self.line(li).unwrap().seg_range.end().saturating_sub(1);
+                self.segments.0[gsi].x -= offset;
+            }
+        }
+
+        self.justify = Justify::Auto;
+
+        if keep_alloc {
+            drop(justified);
+            self.justified = justified_alloc;
+        }
+    }
+
     /// Height of a single line.
     pub fn line_height(&self) -> Px {
         self.line_height
@@ -1024,11 +1293,12 @@ impl ShapedText {
     ///
     /// [`LineBreak`]: TextSegmentKind::LineBreak
     pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
+        let just_width = self.justify_mode().map(|_| self.align_size.width);
         self.lines.iter_segs().enumerate().map(move |(i, (w, r))| ShapedLine {
             text: self,
             seg_range: r,
             index: i,
-            width: Px(w.round() as i32),
+            width: just_width.unwrap_or_else(|| Px(w.round() as i32)),
         })
     }
 
@@ -1087,6 +1357,8 @@ impl ShapedText {
             mid_offset: 0.0,
             align_size: PxSize::zero(),
             align: Align::TOP_LEFT,
+            justify: Justify::Auto,
+            justified: vec![],
             overflow_align: Align::TOP_LEFT,
             direction: LayoutDirection::LTR,
             first_wrapped: false,
@@ -2008,6 +2280,8 @@ impl ShapedTextBuilder {
                 mid_offset: 0.0,
                 align_size: PxSize::zero(),
                 align: Align::TOP_LEFT,
+                justify: Justify::Auto,
+                justified: vec![],
                 overflow_align: Align::TOP_LEFT,
                 direction: LayoutDirection::LTR,
                 first_wrapped: false,
@@ -2109,6 +2383,13 @@ impl ShapedTextBuilder {
         } else {
             t.push_text(fonts, &config.font_features, &mut word_ctx_key, text);
         }
+
+        t.out.glyphs.shrink_to_fit();
+        t.out.clusters.shrink_to_fit();
+        t.out.segments.0.shrink_to_fit();
+        t.out.lines.0.shrink_to_fit();
+        t.out.fonts.0.shrink_to_fit();
+        t.out.images.shrink_to_fit();
 
         t.out.debug_assert_ranges();
         t.out
@@ -2938,6 +3219,17 @@ impl<'a> ShapedLine<'a> {
         }
     }
 
+    /// Width of the line.
+    pub fn width(&self) -> Px {
+        if self.index == 0 {
+            self.text.first_line.width()
+        } else if self.index == self.text.lines.0.len() - 1 {
+            self.text.last_line.width()
+        } else {
+            self.width
+        }
+    }
+
     /// Bounds of the line.
     pub fn rect(&self) -> PxRect {
         if self.index == 0 {
@@ -3411,6 +3703,21 @@ impl<'a> ShapedSegment<'a> {
     pub fn clusters(&self) -> &[u32] {
         let r = self.glyphs_range();
         self.text.clusters_range(r)
+    }
+
+    /// Count the deduplicated [`clusters`].
+    ///
+    /// [`clusters`]: Self::clusters
+    pub fn clusters_count(&self) -> usize {
+        let mut c = u32::MAX;
+        let mut count = 0;
+        for &i in self.clusters() {
+            if i != c {
+                c = i;
+                count += 1;
+            }
+        }
+        count
     }
 
     /// Number of next segments that are empty because their text is included in a ligature

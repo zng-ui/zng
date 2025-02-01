@@ -2919,18 +2919,26 @@ pub enum Justify {
     /// For Chinese/Japanese/Korean uses `InterLetter` for the others uses `InterWord`.
     Auto,
     /// The text is justified by adding space between words.
-    ///
-    /// This only works if [`WordSpacing`] is set to auto.
     InterWord,
     /// The text is justified by adding space between letters.
-    ///
-    /// This only works if *letter spacing* is set to auto.
     InterLetter,
 }
 impl Default for Justify {
     /// [`Justify::Auto`]
     fn default() -> Self {
         Justify::Auto
+    }
+}
+impl Justify {
+    /// Resolve `Auto` for the given language.
+    pub fn resolve(self, lang: &Lang) -> Self {
+        match self {
+            Self::Auto => match lang.language.as_str() {
+                "zh" | "ja" | "ko" => Self::InterLetter,
+                _ => Self::InterWord,
+            },
+            m => m,
+        }
     }
 }
 impl fmt::Debug for Justify {
