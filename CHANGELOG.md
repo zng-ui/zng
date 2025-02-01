@@ -1,9 +1,12 @@
 # Unreleased
 
+
+# 0.13.11
+
 * Implement text fill/justify.
 * Deprecate `justify`, add `justify_mode`.
-* Fix `#[deprecated]` widgets warning on declaration.
-* Fix `#[deprecated]` properties not warning on use and warning on declaration.
+* Fix `#[deprecated]` usage in `#[widget]` structs.
+* Fix `#[deprecated]` usage in `#[property]` functions.
 * Fix text overflow truncate not applying in most texts.
 * Fix misaligned hyphenation split points.
 * Fix missing lang region in hyphenation query.
