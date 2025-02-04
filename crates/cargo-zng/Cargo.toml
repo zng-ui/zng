@@ -28,7 +28,7 @@ serde_json = "1.0"
 semver = "1.0"
 
 # new
-convert_case = "0.6"
+convert_case = "0.7"
 sanitise-file-name = "1.0"
 
 # res
@@ -39,7 +39,7 @@ is_executable = "1.0"
 anyhow = "1.0"
 dunce = "1.0"
 zng-env = { path = "../zng-env", version = "0.3.8" }
-directories = "5.0"
+directories = "6.0"
 quick-xml = { version = "0.37", features = ["serialize"] }
 
 # fmt

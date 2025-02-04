@@ -76,7 +76,7 @@ debug_default = [
 ]
 
 # Enable SVG image rendering, SBG emoji support.
-svg = ["zng-ext-svg", "zng-ext-font/svg"]
+svg = ["dep:zng-ext-svg", "zng-ext-font/svg"]
 
 # Use more dynamic dispatch at the node level by enabling `UiNode::cfg_boxed` to box.
 #
@@ -85,7 +85,7 @@ dyn_node = ["zng-app/dyn_node"]
 
 # Instrument each property and widget instance with "Inspector" nodes and
 # extend windows to be inspected on Ctrl+Shift+I.
-inspector = ["zng-wgt-inspector", "zng-app/inspector", "zng-wgt-inspector/live"]
+inspector = ["dep:zng-wgt-inspector", "zng-app/inspector", "zng-wgt-inspector/live"]
 
 # Enable hot reload builds.
 #
