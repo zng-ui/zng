@@ -83,9 +83,6 @@ pub fn children(children: impl UiNodeList) {}
 pub fn spacing(spacing: impl IntoVar<GridSpacing>) {}
 
 /// Children align.
-///
-/// [`TEXT_ALIGN_VAR`]: zng_wgt_text::TEXT_ALIGN_VAR
-/// [`txt_align`]: fn@zng_wgt_text::txt_align
 #[property(LAYOUT, capture, widget_impl(Wrap))]
 pub fn children_align(align: impl IntoVar<Align>) {}
 
@@ -530,12 +527,20 @@ impl InlineLayout {
             inline.rows.clear();
         }
 
+        let fill_width = if child_align.is_fill_x() {
+            Some(panel_width.0 as f32)
+        } else {
+            None
+        };
+
         LAYOUT.with_constraints(child_constraints, || {
             let mut row = first;
             let mut row_segs = &self.rows[0].item_segs;
             let mut row_advance = Px(0);
             let mut next_row_i = 1;
             let mut row_segs_i_start = 0;
+
+            let mut fill_scale = fill_width.map(|f| f / row.size.width.0 as f32);
 
             children.for_each(|i, child, o| {
                 if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
@@ -559,6 +564,14 @@ impl InlineLayout {
                     row_segs_i_start = self.rows[next_row_i].first_child;
                     next_row_i += 1;
                     row_advance = Px(0);
+
+                    fill_scale = None;
+                    if let Some(f) = fill_width {
+                        if wl.is_inline() || next_row_i < self.rows.len() {
+                            // fill row, if it is not the last in a block layout
+                            fill_scale = Some(f / row.size.width.0 as f32);
+                        }
+                    }
                 }
 
                 let (bidi_x, bidi_width, bidi_segs) = if self.has_bidi_inline {
@@ -627,6 +640,22 @@ impl InlineLayout {
                             child_last.size.width = last_bidi_width;
                         }
 
+                        if let Some(s) = fill_scale {
+                            child_first.origin.x *= s;
+                            child_first.size.width *= s;
+
+                            // child wraps, so last is different row
+                            if wl.is_inline() || next_row_i < self.rows.len() - 1 {
+                                fill_scale = fill_width.map(|f| f / next_row.size.width.0 as f32);
+                                let s = fill_scale.unwrap();
+                                child_last.origin.x *= s;
+                                child_last.size.width *= s;
+                            } else {
+                                // only fill last row if Wrap! is nested/inlined
+                                fill_scale = None;
+                            }
+                        }
+
                         let (_, define_ref_frame) =
                             wl.with_child(|wl| wl.layout_inline(child_first, child_mid, child_last, bidi_segs, last_bidi_segs, child));
                         o.child_offset = PxVector::new(Px(0), row.origin.y);
@@ -670,6 +699,14 @@ impl InlineLayout {
                             max_size.width = bidi_width;
                             child_first.size.width = bidi_width;
                             child_last.size.width = bidi_width;
+                        }
+
+                        if let Some(s) = fill_scale {
+                            // !!: TODO, review
+                            child_first.origin.x *= s;
+                            child_first.size.width *= s;
+                            child_last.origin.x *= s;
+                            child_last.size.width *= s;
                         }
 
                         let (_, define_ref_frame) = wl.with_child(|wl| {
