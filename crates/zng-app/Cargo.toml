@@ -120,7 +120,7 @@ minidumper = { version = "0.8", optional = true }
 crash-handler = { version = "0.6", optional = true }
 minidump = { version = "0.24", optional = true }
 linkme = { version = "=0.3.31", optional = true }
-uuid = { version = "1.1", optional = true }
+uuid = { version = "1.3", features = ["v4"], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tracing-web = "0.1"
