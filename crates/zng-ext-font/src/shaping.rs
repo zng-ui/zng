@@ -10,7 +10,7 @@ use zng_ext_image::{ImageDataFormat, ImageSource, ImageVar, IMAGES};
 use zng_ext_l10n::{lang, Lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
-    unit::{euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
+    unit::{about_eq, euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zng_txt::Txt;
 use zng_var::{AnyVar, Var as _};
@@ -1076,14 +1076,18 @@ impl ShapedText {
                 let mut first_is_space = false;
 
                 if let Some(s) = line.seg(0) {
-                    if s.kind().is_space() {
+                    if s.kind().is_space() && (!self.is_inlined || li > 0 || self.first_line.origin.x == Px(0)) {
+                        // trim start, unless it inlining and the first seg is actually a continuation of another text on the same row
                         first_is_space = true;
                         count -= 1;
                         space += s.advance();
                     }
                 }
                 if let Some(s) = line.seg(line.segs_len().saturating_sub(1)) {
-                    if s.kind().is_space() {
+                    if s.kind().is_space()
+                        && (!self.is_inlined || li < range.end - 1 || about_eq(self.first_line.size.width.0 as f32, fill_width, 1.0))
+                    {
+                        // trim end, unless its inlining and the last seg continues
                         last_is_space = true;
                         count -= 1;
                         space += s.advance();
