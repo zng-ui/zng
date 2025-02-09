@@ -567,7 +567,10 @@ impl InlineLayout {
 
                     fill_scale = None;
                     if let Some(f) = fill_width {
-                        if wl.is_inline() || next_row_i < self.rows.len() {
+                        if wl.is_inline() && next_row_i == 1 || next_row_i == self.rows.len() {
+                            // first or last inlined width is set by the parent
+                            fill_scale = Some(1.0);
+                        } else if next_row_i < self.rows.len() {
                             // fill row, if it is not the last in a block layout
                             fill_scale = Some(f / row.size.width.0 as f32);
                         }
@@ -644,7 +647,10 @@ impl InlineLayout {
                             child_first.size.width *= s;
 
                             // child wraps, so last is different row
-                            if wl.is_inline() || next_row_i < self.rows.len() - 1 {
+                            let last_i = self.rows.len() - 1;
+                            if wl.is_inline() && next_row_i == last_i {
+                                fill_scale = Some(1.0);
+                            } else if next_row_i < last_i {
                                 fill_scale = fill_width.map(|f| f / next_row.size.width.0 as f32);
                                 let s = fill_scale.unwrap();
                                 child_last.size.width *= s;
