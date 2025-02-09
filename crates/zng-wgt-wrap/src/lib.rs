@@ -700,11 +700,9 @@ impl InlineLayout {
                         }
 
                         if let Some(s) = fill_scale {
-                            // !!: TODO, review
-                            child_first.origin.x *= s;
                             child_first.size.width *= s;
-                            child_last.origin.x *= s;
                             child_last.size.width *= s;
+                            max_size.width *= s;
                         }
 
                         let (_, define_ref_frame) = wl.with_child(|wl| {
