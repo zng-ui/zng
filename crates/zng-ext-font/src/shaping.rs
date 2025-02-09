@@ -1126,7 +1126,7 @@ impl ShapedText {
                     gsi = line.seg_range.start() + si;
                 }
 
-                let mut cluster = self.clusters[glyphs_range.start()];
+                let mut cluster = if self.clusters.is_empty() { 0 } else { self.clusters[glyphs_range.start()] };
                 for gi in glyphs_range {
                     self.glyphs[gi].point.x += offset;
 
@@ -1227,7 +1227,7 @@ impl ShapedText {
                     gsi = line.seg_range.start() + si;
                 }
 
-                let mut cluster = self.clusters[glyphs_range.start()];
+                let mut cluster = if self.clusters.is_empty() { 0 } else { self.clusters[glyphs_range.start()] };
                 for gi in glyphs_range {
                     self.glyphs[gi].point.x -= offset;
 

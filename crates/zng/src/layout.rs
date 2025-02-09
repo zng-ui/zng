@@ -287,11 +287,11 @@
 //!
 //! ## Inline
 //!
-//! Layout has two modes, blocks and inline, in block layout the shape of the laidout widgets is not changed, they are always
+//! Layout has two modes, block and inline, in block layout the shape of the laidout widgets is not changed, they are always
 //! rectangular, inline layout expands layout to alter the shape of laidout widgets to potentially split into multiple rectangles that
 //! define the first line, the middle block of lines and the last line.
 //!
-//! The example below declares a `Wrap!` with 3 `Text!` children, both the wrap and text widgets support inline layout so the end-result
+//! The example below declares a `Wrap!` with three `Text!` children, both the wrap and text widgets support inline layout so the end-result
 //! is that the green text will be reshaped as two rectangles, one after the red text and one before the blue text.
 //!
 //! ```
@@ -329,7 +329,7 @@
 //! during layout and [`LAYOUT`] will have inline constraints. During layout the [`WidgetLayout::inline`] value can
 //! be set to the final inline info.
 //!
-//! After inline layout the are positioned so that the last line of the previous sibling connects with the first line of the next, all
+//! After inline layout the children are positioned so that the last line of the previous sibling connects with the first line of the next, all
 //! of the widget visual properties must support this however, the [`WIDGET.bounds().inline()`] is available during render with cached
 //! negative space clips that can quickly be used. If a visual property is not aware of inline it can potentially render over the
 //! previous sibling, inline should be disabled for the widget if the property cannot support inline.
