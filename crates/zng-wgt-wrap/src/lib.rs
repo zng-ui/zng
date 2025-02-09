@@ -913,11 +913,11 @@ impl InlineLayout {
 
             if (sum_width - width) > Px(1) {
                 if metrics.inline_constraints().is_some() && (i == 0 || i == self.rows.len() - 1) {
-                    tracing::error!("Wrap! panel row {i} inline width is {width}, but sum of segs is {sum_width}");
+                    tracing::error!("Wrap![{}] panel row {i} inline width is {width}, but sum of segs is {sum_width}", WIDGET.id());
                     continue;
                 }
 
-                tracing::error!("Wrap! panel row {i} computed width {width}, but sum of segs is {sum_width}");
+                tracing::error!("Wrap![{}] panel row {i} computed width {width}, but sum of segs is {sum_width}", WIDGET.id());
             }
         }
     }

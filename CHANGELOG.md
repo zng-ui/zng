@@ -1,6 +1,6 @@
 # Unreleased
 
-* Implemented text justify for *rich text* in `Wrap!`.
+* Implemented text justify for *rich text* composed of `Wrap!` and `Text!`.
 
 # 0.13.11
 
