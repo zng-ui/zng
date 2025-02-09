@@ -641,14 +641,12 @@ impl InlineLayout {
                         }
 
                         if let Some(s) = fill_scale {
-                            child_first.origin.x *= s;
                             child_first.size.width *= s;
 
                             // child wraps, so last is different row
                             if wl.is_inline() || next_row_i < self.rows.len() - 1 {
                                 fill_scale = fill_width.map(|f| f / next_row.size.width.0 as f32);
                                 let s = fill_scale.unwrap();
-                                child_last.origin.x *= s;
                                 child_last.size.width *= s;
                             } else {
                                 // only fill last row if Wrap! is nested/inlined
