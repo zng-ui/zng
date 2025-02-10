@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-container"
-version = "0.5.8"
+version = "0.5.9"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.6.8" }
-zng-app = { path = "../zng-app", version = "0.14.8" }
+zng-wgt = { path = "../zng-wgt", version = "0.6.9" }
+zng-app = { path = "../zng-app", version = "0.14.9" }
 
 serde = { version = "1.0", features = ["derive"] }

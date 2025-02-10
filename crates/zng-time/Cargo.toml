@@ -1,6 +1,6 @@
 [package]
 name = "zng-time"
-version = "0.2.25"
+version = "0.2.26"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.5.13" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.14" }
 
 parking_lot = "0.12"
 

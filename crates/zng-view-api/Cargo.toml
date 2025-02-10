@@ -1,6 +1,6 @@
 [package]
 name = "zng-view-api"
-version = "0.11.5"
+version = "0.11.6"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -29,10 +29,10 @@ euclid = { version = "0.22.6", features = [
 ] } # same version as webrender, but with bytemuck
 
 zng-unit = { path = "../zng-unit", version = "0.2.11" }
-zng-env = { path = "../zng-env", version = "0.3.8" }
+zng-env = { path = "../zng-env", version = "0.3.9" }
 zng-txt = { path = "../zng-txt", version = "0.2.8" }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.9" }
-zng-var = { path = "../zng-var", version = "0.5.15", optional = true }
+zng-var = { path = "../zng-var", version = "0.5.16", optional = true }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
