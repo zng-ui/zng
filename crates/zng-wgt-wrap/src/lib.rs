@@ -540,7 +540,7 @@ impl InlineLayout {
             let mut next_row_i = 1;
             let mut row_segs_i_start = 0;
 
-            let mut fill_scale = fill_width.map(|f| f / row.size.width.0 as f32);
+            let mut fill_scale = fill_width.map(|f| f / self.rows[0].size.width.0 as f32);
 
             children.for_each(|i, child, o| {
                 if next_row_i < self.rows.len() && self.rows[next_row_i].first_child == i {
@@ -567,12 +567,9 @@ impl InlineLayout {
 
                     fill_scale = None;
                     if let Some(f) = fill_width {
-                        if wl.is_inline() && next_row_i == 1 || next_row_i == self.rows.len() {
-                            // first or last inlined width is set by the parent
-                            fill_scale = Some(1.0);
-                        } else if next_row_i < self.rows.len() {
+                        if wl.is_inline() || next_row_i < self.rows.len() {
                             // fill row, if it is not the last in a block layout
-                            fill_scale = Some(f / row.size.width.0 as f32);
+                            fill_scale = Some(f / self.rows[next_row_i - 1].size.width.0 as f32);
                         }
                     }
                 }
@@ -647,10 +644,7 @@ impl InlineLayout {
                             child_first.size.width *= s;
 
                             // child wraps, so last is different row
-                            let last_i = self.rows.len() - 1;
-                            if wl.is_inline() && next_row_i == last_i {
-                                fill_scale = Some(1.0);
-                            } else if next_row_i < last_i {
+                            if next_row_i < self.rows.len() - 1 {
                                 fill_scale = fill_width.map(|f| f / next_row.size.width.0 as f32);
                                 let s = fill_scale.unwrap();
                                 child_last.size.width *= s;
@@ -913,11 +907,17 @@ impl InlineLayout {
 
             if (sum_width - width) > Px(1) {
                 if metrics.inline_constraints().is_some() && (i == 0 || i == self.rows.len() - 1) {
-                    tracing::error!("Wrap![{}] panel row {i} inline width is {width}, but sum of segs is {sum_width}", WIDGET.id());
+                    tracing::error!(
+                        "Wrap![{}] panel row {i} inline width is {width}, but sum of segs is {sum_width}",
+                        WIDGET.id()
+                    );
                     continue;
                 }
 
-                tracing::error!("Wrap![{}] panel row {i} computed width {width}, but sum of segs is {sum_width}", WIDGET.id());
+                tracing::error!(
+                    "Wrap![{}] panel row {i} computed width {width}, but sum of segs is {sum_width}",
+                    WIDGET.id()
+                );
             }
         }
     }
