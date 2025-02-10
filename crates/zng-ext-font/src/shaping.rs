@@ -10,7 +10,7 @@ use zng_ext_image::{ImageDataFormat, ImageSource, ImageVar, IMAGES};
 use zng_ext_l10n::{lang, Lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
-    unit::{euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
+    unit::{about_eq, euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
 };
 use zng_txt::Txt;
 use zng_var::{AnyVar, Var as _};
@@ -797,7 +797,9 @@ impl ShapedText {
 
                 let first_line = self.lines.first_mut();
                 first_line.x_offset = first.origin.x.0 as f32;
-                first_line.width = first.size.width.0 as f32;
+                // width is the same measured, unless the parent inliner changed it to fill,
+                // in that case we need the original width in `reshape_lines_justify`.
+                // first_line.width = first.size.width.0 as f32;
             }
             if !first_segs.is_empty() {
                 // parent set first_segs.
@@ -835,7 +837,8 @@ impl ShapedText {
 
                 let last_line = self.lines.last_mut();
                 last_line.x_offset = last.origin.x.0 as f32;
-                last_line.width = last.size.width.0 as f32;
+                // width is the same measured, unless the parent inliner changed it to justify, that is handled later.
+                // last_line.width = last.size.width.0 as f32;
             }
             if !last_segs.is_empty() {
                 // parent set last_segs.
@@ -996,16 +999,13 @@ impl ShapedText {
     }
 
     fn justify_lines_range(&self) -> ops::Range<usize> {
-        let mut range = 0..self.lines_len().saturating_sub(1); // skip last line
+        let mut range = 0..self.lines_len();
 
-        if self.is_inlined {
-            // justify on inline not implemented
-            range.start += 1;
+        if !self.is_inlined {
+            // skip last line
             range.end = range.end.saturating_sub(1);
-            if range.start > range.end {
-                range = 0..0
-            }
         }
+        // else inlined fills the first and last line rects
 
         range
     }
@@ -1026,6 +1026,7 @@ impl ShapedText {
         let range = self.justify_lines_range();
 
         let fill_width = self.align_size.width.0 as f32;
+        let last_li = range.end.saturating_sub(1);
 
         for li in range.clone() {
             let mut count;
@@ -1033,6 +1034,16 @@ impl ShapedText {
             let mut line_seg_range;
             let mut offset = 0.0;
             let mut last_is_space = false;
+
+            let mut fill_width = fill_width;
+            if self.is_inlined {
+                // inlining parent provides the fill space for the first and last segment
+                if li == 0 {
+                    fill_width = self.first_line.width().0 as f32;
+                } else if li == last_li {
+                    fill_width = self.last_line.width().0 as f32;
+                }
+            }
 
             {
                 // line scope
@@ -1065,14 +1076,18 @@ impl ShapedText {
                 let mut first_is_space = false;
 
                 if let Some(s) = line.seg(0) {
-                    if s.kind().is_space() {
+                    if s.kind().is_space() && (!self.is_inlined || li > 0 || self.first_line.origin.x == Px(0)) {
+                        // trim start, unless it inlining and the first seg is actually a continuation of another text on the same row
                         first_is_space = true;
                         count -= 1;
                         space += s.advance();
                     }
                 }
                 if let Some(s) = line.seg(line.segs_len().saturating_sub(1)) {
-                    if s.kind().is_space() {
+                    if s.kind().is_space()
+                        && (!self.is_inlined || li < range.end - 1 || about_eq(self.first_line.size.width.0 as f32, fill_width, 1.0))
+                    {
+                        // trim end, unless its inlining and the last seg continues
                         last_is_space = true;
                         count -= 1;
                         space += s.advance();
@@ -1111,7 +1126,11 @@ impl ShapedText {
                     gsi = line.seg_range.start() + si;
                 }
 
-                let mut cluster = self.clusters[glyphs_range.start()];
+                let mut cluster = if self.clusters.is_empty() {
+                    0
+                } else {
+                    self.clusters[glyphs_range.start()]
+                };
                 for gi in glyphs_range {
                     self.glyphs[gi].point.x += offset;
 
@@ -1212,7 +1231,11 @@ impl ShapedText {
                     gsi = line.seg_range.start() + si;
                 }
 
-                let mut cluster = self.clusters[glyphs_range.start()];
+                let mut cluster = if self.clusters.is_empty() {
+                    0
+                } else {
+                    self.clusters[glyphs_range.start()]
+                };
                 for gi in glyphs_range {
                     self.glyphs[gi].point.x -= offset;
 

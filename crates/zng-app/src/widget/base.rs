@@ -779,7 +779,7 @@ pub mod node {
                             ] {
                                 let width = size.width.0 as f32;
                                 let sum_width = segs.iter().map(|s| s.width).sum::<f32>();
-                                if sum_width > width {
+                                if sum_width > width + 0.1 {
                                     tracing::error!(
                                         "widget {:?} measured inline {name} row has {width} width, but row segs sum to {sum_width} width",
                                         WIDGET.id()

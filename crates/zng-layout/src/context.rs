@@ -282,7 +282,7 @@ pub struct InlineConstraintsMeasure {
     pub first_max: Px,
     /// Current height of the row in the parent. If the widget wraps and defines the first
     /// row in *this* parent's row, the `mid_clear` value will be the extra space needed to clear
-    /// this minimum or zero if the first how is taller. The widget must use this value to estimate the `mid_clear`
+    /// this minimum or zero if the first row is taller. The widget must use this value to estimate the `mid_clear`
     /// value and include it in the overall measured height of the widget.
     pub mid_clear_min: Px,
 }
