@@ -80,7 +80,7 @@ pub use zng_wgt_text::icon::{ico_color, ico_size, GlyphIcon, GlyphSource, Icon};
 /// [Material Design Icons]: https://github.com/google/material-design-icons
 ///
 /// ```toml
-/// zng = { version = "0.13.11", features = ["material_icons"] }
+/// zng = { version = "0.13.12", features = ["material_icons"] }
 /// ```
 ///
 /// Handlers are registered for [`ICONS`] that provides the icons, the raw codepoints and glyph icon metadata is available in each font module.

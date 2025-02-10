@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-input"
-version = "0.6.8"
+version = "0.6.9"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -17,17 +17,17 @@ default = []
 drag_drop = []
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.5.13" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.14" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
-zng-view-api = { path = "../zng-view-api", version = "0.11.5" }
-zng-app = { path = "../zng-app", version = "0.14.8" }
+zng-view-api = { path = "../zng-view-api", version = "0.11.6" }
+zng-app = { path = "../zng-app", version = "0.14.9" }
 zng-txt = { path = "../zng-txt", version = "0.2.8" }
-zng-var = { path = "../zng-var", version = "0.5.15" }
-zng-layout = { path = "../zng-layout", version = "0.2.36" }
+zng-var = { path = "../zng-var", version = "0.5.16" }
+zng-layout = { path = "../zng-layout", version = "0.2.37" }
 zng-handle = { path = "../zng-handle", version = "0.2.5" }
 zng-state-map = { path = "../zng-state-map", version = "0.3.8" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.8" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.4.8" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.4.9" }
 
 tracing = "0.1"
 parking_lot = "0.12"

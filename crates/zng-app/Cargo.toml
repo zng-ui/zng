@@ -1,6 +1,6 @@
 [package]
 name = "zng-app"
-version = "0.14.8"
+version = "0.14.9"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -79,21 +79,21 @@ deadlock_detection = ["zng-task/deadlock_detection"]
 zng-app-proc-macros = { path = "../zng-app-proc-macros", version = "0.3.12" }
 
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.8" }
-zng-env = { path = "../zng-env", version = "0.3.8" }
+zng-env = { path = "../zng-env", version = "0.3.9" }
 zng-handle = { path = "../zng-handle", version = "0.2.5" }
 zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.2.9" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
-zng-app-context = { path = "../zng-app-context", version = "0.5.13" }
-zng-time = { path = "../zng-time", version = "0.2.25" }
-zng-var = { path = "../zng-var", version = "0.5.15" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.14" }
+zng-time = { path = "../zng-time", version = "0.2.26" }
+zng-var = { path = "../zng-var", version = "0.5.16" }
 zng-txt = { path = "../zng-txt", version = "0.2.8" }
-zng-task = { path = "../zng-task", version = "0.4.17" }
-zng-view-api = { path = "../zng-view-api", version = "0.11.5", features = [
+zng-task = { path = "../zng-task", version = "0.4.18" }
+zng-view-api = { path = "../zng-view-api", version = "0.11.6", features = [
     "var",
 ] }
 zng-state-map = { path = "../zng-state-map", version = "0.3.8" }
-zng-layout = { path = "../zng-layout", version = "0.2.36" }
-zng-color = { path = "../zng-color", version = "0.4.5" }
+zng-layout = { path = "../zng-layout", version = "0.2.37" }
+zng-color = { path = "../zng-color", version = "0.4.6" }
 
 tracing = "0.1"
 tracing-subscriber = "0.3"

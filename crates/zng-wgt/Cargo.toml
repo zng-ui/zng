@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt"
-version = "0.6.8"
+version = "0.6.9"
 authors = ["The Zng Project Developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
@@ -27,13 +27,13 @@ http = ["zng-task/http"]
 
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.2.5" }
-zng-app = { path = "../zng-app", version = "0.14.8" }
-zng-color = { path = "../zng-color", version = "0.4.5" }
-zng-app-context = { path = "../zng-app-context", version = "0.5.13" }
-zng-var = { path = "../zng-var", version = "0.5.15" }
+zng-app = { path = "../zng-app", version = "0.14.9" }
+zng-color = { path = "../zng-color", version = "0.4.6" }
+zng-app-context = { path = "../zng-app-context", version = "0.5.14" }
+zng-var = { path = "../zng-var", version = "0.5.16" }
 zng-state-map = { path = "../zng-state-map", version = "0.3.8" }
-zng-layout = { path = "../zng-layout", version = "0.2.36" }
-zng-task = { path = "../zng-task", version = "0.4.17" }
+zng-layout = { path = "../zng-layout", version = "0.2.37" }
+zng-task = { path = "../zng-task", version = "0.4.18" }
 zng-txt = { path = "../zng-txt", version = "0.2.8" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.4.8" }
 
