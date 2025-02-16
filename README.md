@@ -69,9 +69,16 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 The `zng` crate is the only dependency you need to create apps, it re-exports the primary API of the other 
 crates in well organized and documented modules.
 
+The `cargo-zng` crate provides useful Cargo subcommands for managing Zng projects, for example, [`cargo zng fmt`] 
+is a `cargo fmt` replacement that also formats widget macros, other Zng macros and any macro that contains
+valid Rust syntax.
+
 The other crates provide the full API that you might need to implement more advanced features, for example, a 
 custom property that modifies the behavior of a widget might need to reference the widget's internal state,
 this *internal* API will only be available in the widget's crate.
+
+[`cargo zng fmt`]: crates/cargo-zng#fmt
+[`cargo-zng`]: crates/cargo-zng
 
 ## Cargo Features
 
