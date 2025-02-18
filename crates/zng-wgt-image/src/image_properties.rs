@@ -170,7 +170,6 @@ pub fn img_fit(child: impl UiNode, fit: impl IntoVar<ImageFit>) -> impl UiNode {
 /// By default not scaling is done.
 ///
 /// [`img_scale_ppi`]: fn@img_scale_ppi
-/// [`scale`]: fn@crate::scale
 #[property(CONTEXT, default(IMAGE_SCALE_VAR), widget_impl(Image))]
 pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_VAR, scale)
@@ -202,8 +201,6 @@ pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 ///
 /// [`img_crop`]: fn@img_crop
 /// [`MONITORS`]: zng_ext_window::MONITORS
-///
-/// [`scape_ppi`]: fn@crate::scape_ppi
 #[property(CONTEXT, default(IMAGE_SCALE_PPI_VAR), widget_impl(Image))]
 pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, IMAGE_SCALE_PPI_VAR, enabled)
@@ -251,8 +248,7 @@ pub fn img_offset(child: impl UiNode, offset: impl IntoVar<Vector>) -> impl UiNo
 /// By default no cropping is done.
 ///
 /// [`img_scale_ppi`]: #fn@img_scale_ppi
-/// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas///
-/// [`crop`]: fn@crate::crop
+/// [texture atlas]: https://en.wikipedia.org/wiki/Texture_atlas
 /// [`Rect`]: zng_wgt::prelude::Rect
 #[property(CONTEXT, default(IMAGE_CROP_VAR), widget_impl(Image))]
 pub fn img_crop(child: impl UiNode, crop: impl IntoVar<Rect>) -> impl UiNode {
@@ -300,7 +296,6 @@ pub fn img_repeat_spacing(child: impl UiNode, spacing: impl IntoVar<Size>) -> im
 ///
 /// This is [`ImageRendering::Auto`] by default.
 ///
-/// [`rendering`]: fn@crate::rendering
 /// [`ImageRendering`]: zng_app::render::ImageRendering
 /// [`ImageRendering::Auto`]: zng_app::render::ImageRendering::Auto
 #[property(CONTEXT, default(IMAGE_RENDERING_VAR), widget_impl(Image))]

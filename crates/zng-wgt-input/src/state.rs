@@ -423,7 +423,6 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
 /// Note that [`is_mouse_pressed`] and [`is_touched_from_start`] do not consider pointer capture, use [`is_cap_pressed`] to
 /// include the captured state.
 ///
-/// [`shortcut_pressed_duration`]: Gestures::shortcut_pressed_duration
 /// [`is_mouse_pressed`]: fn@is_mouse_pressed
 /// [`is_touched_from_start`]: fn@is_touched_from_start
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed

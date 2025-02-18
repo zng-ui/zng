@@ -1109,9 +1109,6 @@ impl HeadlessAppGestureExt for HeadlessApp {
 /// Adds the `shortcut_matches` method to commands.
 pub trait CommandShortcutMatchesExt: CommandShortcutExt {
     /// Returns `true` if the command has handlers, enabled or disabled, and the shortcut if one of the command shortcuts.
-    ///
-    /// [`App`]: crate::event::CommandScope::App
-    /// [`Custom`]: crate::event::CommandScope::Custom
     fn shortcut_matches(self, shortcut: &Shortcut) -> bool;
 }
 impl CommandShortcutMatchesExt for Command {

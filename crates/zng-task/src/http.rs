@@ -1217,7 +1217,6 @@ impl Client {
     ///
     /// [`cache`]: Self::cache
     /// [`cache_mode`]: Self::cache_mode
-    /// [`get_cached`]: Self::get_cached
     pub async fn send(&self, request: Request) -> Result<Response, Error> {
         if let Some(db) = &self.cache {
             match self.cache_mode(&request) {

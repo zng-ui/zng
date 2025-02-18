@@ -217,7 +217,6 @@ event! {
 /// require anything for initialization.
 ///
 /// [extension]: AppExtension
-/// [default app]: zng_app::APP::default
 /// [`FOCUS`]: crate::focus::FOCUS
 /// [`WINDOWS`]: zng_ext_window::WINDOWS
 #[derive(Default)]
@@ -294,7 +293,6 @@ impl KEYBOARD {
     ///
     /// [`sys_repeat_config`]: KEYBOARD::sys_repeat_config
     /// [`repeat_count`]: KeyInputArgs::repeat_count
-    /// [`repeat_speed`]: Self::repeat_speed
     pub fn repeat_config(&self) -> ArcCowVar<KeyRepeatConfig, ArcVar<KeyRepeatConfig>> {
         KEYBOARD_SV.read().repeat_config.clone()
     }

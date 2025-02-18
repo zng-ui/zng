@@ -97,7 +97,6 @@ impl ImageSource {
     /// # ; }
     /// ```
     ///
-    /// [`Images::render`]: crate::image::Images::render
     pub fn render<F, R>(new_img: F) -> Self
     where
         F: Fn(&ImageRenderArgs) -> R + Send + Sync + 'static,

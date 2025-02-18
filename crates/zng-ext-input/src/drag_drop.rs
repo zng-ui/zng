@@ -673,7 +673,6 @@ impl DragHoveredArgs {
     /// Returns `true` if the [`WIDGET`] is in [`prev_target`].
     ///
     /// [`prev_target`]: Self::prev_target
-    /// [`prev_capture`]: Self::prev_capture
     /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn was_over(&self) -> bool {
         if let Some(t) = &self.prev_target {
@@ -686,7 +685,6 @@ impl DragHoveredArgs {
     /// Returns `true` if the [`WIDGET`] is in [`target`].
     ///
     /// [`target`]: Self::target
-    /// [`capture`]: Self::capture
     /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn is_over(&self) -> bool {
         if let Some(t) = &self.target {

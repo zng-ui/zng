@@ -43,7 +43,6 @@
 //! [`on_touch_transform`]: fn@on_touch_transform
 //! [`gesture`]: crate::gesture
 //! [`gesture::on_click`]: fn@crate::gesture::on_click
-//! [`on_mouse_click`]: fn@on_mouse_click
 //!
 //! # Full API
 //!

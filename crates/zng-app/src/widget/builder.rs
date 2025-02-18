@@ -1364,8 +1364,6 @@ impl WhenInputVar {
     /// New input setter and input var.
     ///
     /// Trying to use the input var outside of the widget will panic.
-    ///
-    /// [`can_use`]: Self::can_use
     pub fn new<T: VarValue>() -> (Self, impl Var<T>) {
         let arc: Arc<Mutex<dyn AnyWhenInputVarInner>> = Arc::new(Mutex::new(WhenInputInitData::<T>::empty()));
         (

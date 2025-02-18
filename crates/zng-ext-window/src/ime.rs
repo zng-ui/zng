@@ -48,7 +48,6 @@ impl ImeArgs {
     /// committed text.
     ///
     /// [`txt`]: Self::txt
-    /// [`caret`]: Self::caret
     pub fn commit(&self) -> bool {
         self.preview_caret.is_none()
     }

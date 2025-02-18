@@ -29,7 +29,6 @@ pub trait WidgetHandler<A: Clone + 'static>: Any + Send {
     ///
     /// [`update`]: WidgetHandler::update
     /// [`info`]: crate::widget::node::UiNode::info
-    /// [`subscribe`]: WidgetHandler::subscribe
     fn event(&mut self, args: &A) -> bool;
 
     /// Called every widget update.

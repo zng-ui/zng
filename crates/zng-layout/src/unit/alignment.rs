@@ -43,7 +43,6 @@ use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrain
 /// [`is_fill_x`]: Align::is_fill_x
 /// [`is_fill_y`]: Align::is_fill_y
 /// [`is_baseline`]: Align::is_baseline
-/// [`as_self_align`]: Align::as_self_align
 #[derive(Clone, Copy)]
 pub struct Align {
     /// *x* alignment in a `[0.0..=1.0]` range.
