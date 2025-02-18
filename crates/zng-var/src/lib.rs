@@ -217,7 +217,6 @@ impl<T: VarValue> AnyVarValue for T {
 /// The trait is only auto-implemented for `T: Into<T> + VarValue`, unfortunately actual type conversions
 /// must be manually implemented, note that the [`impl_from_and_into_var!`] macro auto-implements this conversion.
 ///
-/// [inspected]: crate::inspector
 /// [`Debug`]: std::fmt::Debug
 /// [`impl_from_and_into_var`]: impl_from_and_into_var
 #[diagnostic::on_unimplemented(

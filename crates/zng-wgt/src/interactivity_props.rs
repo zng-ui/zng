@@ -96,7 +96,6 @@ pub fn interactive(child: impl UiNode, interactive: impl IntoVar<bool>) -> impl 
 /// the [`enabled`] property.
 ///
 /// [`enabled`]: fn@enabled
-/// [`WidgetInfo::allow_interaction`]: crate::widget_info::WidgetInfo::allow_interaction
 #[property(EVENT)]
 pub fn is_enabled(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     event_state(child, state, true, info::INTERACTIVITY_CHANGED_EVENT, move |args| {

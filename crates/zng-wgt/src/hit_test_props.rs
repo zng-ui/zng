@@ -42,7 +42,6 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
 /// This property is used only for probing the state. You can set the state using
 /// the [`hit_test_mode`] property.
 ///
-/// [`hit_testable`]: fn@hit_testable
 /// [`hit_test_mode`]: fn@hit_test_mode
 #[property(EVENT)]
 pub fn is_hit_testable(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
