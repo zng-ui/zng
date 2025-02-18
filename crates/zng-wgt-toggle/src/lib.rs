@@ -1119,8 +1119,6 @@ pub fn combo_spacing(child: impl UiNode, spacing: impl IntoVar<Length>) -> impl 
 ///
 /// [`ComboStyle!`]: struct@ComboStyle
 /// [`Popup!`]: struct@zng_wgt_layer::popup::Popup
-/// [`LAYERS`]: layers::LAYERS
-/// [`POPUP`]: zng_wgt_layer::popup::POPUP
 #[property(CHILD, widget_impl(Toggle))]
 pub fn checked_popup(child: impl UiNode, popup: impl IntoVar<WidgetFn<()>>) -> impl UiNode {
     let popup = popup.into_var();

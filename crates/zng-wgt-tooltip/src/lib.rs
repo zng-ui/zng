@@ -385,8 +385,6 @@ pub fn access_tooltip_anchor(child: impl UiNode, mode: impl IntoVar<AnchorMode>)
 /// Note that updates to this property do not affect tooltips already open, just subsequent tooltips.
 ///
 /// This property sets the [`TOOLTIP_CONTEXT_CAPTURE_VAR`].
-///
-/// [`LAYERS`]: crate::window::layers::LAYERS
 #[property(CONTEXT, default(TOOLTIP_CONTEXT_CAPTURE_VAR))]
 pub fn tooltip_context_capture(child: impl UiNode, capture: impl IntoVar<ContextCapture>) -> impl UiNode {
     with_context_var(child, TOOLTIP_CONTEXT_CAPTURE_VAR, capture)
