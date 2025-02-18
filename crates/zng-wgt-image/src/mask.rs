@@ -248,7 +248,6 @@ pub fn mask_image_cache(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// If not set or set to `None` the [`IMAGES.limits`] is used.
 ///
 /// [`IMAGES.limits`]: zng_ext_image::IMAGES::limits
-/// [`img_downscale`]: fn@img_downscale
 #[property(CONTEXT, default(MASK_IMAGE_LIMITS_VAR))]
 pub fn mask_image_limits(child: impl UiNode, limits: impl IntoVar<Option<ImageLimits>>) -> impl UiNode {
     with_context_var(child, MASK_IMAGE_LIMITS_VAR, limits)

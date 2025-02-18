@@ -1,9 +1,6 @@
 //! Commands that control the scoped scroll widget.
 //!
 //! The scroll widget implements all of this commands scoped to its widget ID.
-//!
-//! [`ScrollToTopCommand`]: crate::widgets::scroll::cmd::ScrollToTopCommand
-//! [`ScrollToLeftmostCommand`]: crate::widgets::scroll::cmd::ScrollToLeftmostCommand
 
 use super::*;
 use zng_app::event::{CommandArgs, CommandParam};

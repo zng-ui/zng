@@ -83,7 +83,6 @@ event_property! {
 ///
 /// The value is always `false` when the widget is not [`ENABLED`], use [`is_drag_hovered_disabled`] to implement *disabled hovered* visuals.
 ///
-/// [`is_cap_hovered`]: fn@is_cap_hovered
 /// [`ENABLED`]: Interactivity::ENABLED
 /// [`is_drag_hovered_disabled`]: fn@is_drag_hovered_disabled
 #[property(EVENT)]
