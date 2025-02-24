@@ -144,7 +144,7 @@ impl fmt::Display for Rgba {
         if a == 255 {
             write!(f, "#{rgb:0>6X}")
         } else {
-            let rgba = rgb << 8 | a;
+            let rgba = (rgb << 8) | a;
             write!(f, "#{rgba:0>8X}")
         }
     }

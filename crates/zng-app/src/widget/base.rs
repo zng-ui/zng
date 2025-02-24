@@ -145,8 +145,8 @@ impl WidgetBase {
             when: RefCell::new(self.when.borrow_mut().take()),
         };
         f(&mut inner);
-        *self.builder.borrow_mut() = inner.builder.into_inner().take();
-        *self.when.borrow_mut() = inner.when.into_inner().take();
+        *self.builder.borrow_mut() = inner.builder.into_inner();
+        *self.when.borrow_mut() = inner.when.into_inner();
         debug_assert_eq!(self.importance, inner.importance);
     }
 

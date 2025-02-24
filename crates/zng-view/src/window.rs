@@ -351,7 +351,7 @@ impl Window {
             enable_aa: true,
             enable_subpixel_aa: cfg!(not(target_os = "android")),
 
-            renderer_id: Some((gen.get() as u64) << 32 | id.get() as u64),
+            renderer_id: Some(((gen.get() as u64) << 32) | id.get() as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
             clear_color: webrender::api::ColorF::new(0.0, 0.0, 0.0, 0.0),

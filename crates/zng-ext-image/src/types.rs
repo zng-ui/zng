@@ -214,7 +214,7 @@ impl Img {
     /// Returns an error message if the image failed to load.
     pub fn error(&self) -> Option<Txt> {
         match self.view.get() {
-            Some(v) => v.error().map(Txt::from),
+            Some(v) => v.error(),
             None => None,
         }
     }
