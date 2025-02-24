@@ -6,8 +6,7 @@ error: expected expression, found `)`
 6  | |         cursor = #[allow(unused_imports)]
 7  | |         margin = {
 8  | |             use zng::layout::PxPoint;
-9  | |             0
-10 | |         }
+...  |
 11 | |     };
    | |_____^ expected expression
    |
