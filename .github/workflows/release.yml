@@ -139,11 +139,6 @@ jobs:
       ZNG_TP_LICENSES: true
       PIP_BREAK_SYSTEM_PACKAGES: 1
     steps:
-      - name: install cargo-about
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-about
       - name: install dav1d dep nasm
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: ilammy/setup-nasm@v1
@@ -177,6 +172,11 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         with:
           target: ${{ matrix.target }}
+      - name: install cargo-about
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" image_avif
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-unknown-linux-gnu' }}
       - name: cargo do prebuild ${{ matrix.features }}
@@ -208,11 +208,6 @@ jobs:
       ZNG_TP_LICENSES: true
       PIP_BREAK_SYSTEM_PACKAGES: 1
     steps:
-      - name: install cargo-about
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-about
       - name: config msvc for dav1d
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-pc-windows-msvc' }}
         uses: ilammy/msvc-dev-cmd@v1
@@ -255,6 +250,11 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         with:
           target: ${{ matrix.target }}
+      - name: install cargo-about
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" image_avif
         if: ${{ (github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true') && matrix.target == 'x86_64-pc-windows-msvc' }}
       - name: cargo do prebuild --target ${{ matrix.target }} ${{ matrix.features }}
@@ -288,11 +288,6 @@ jobs:
       ZNG_TP_LICENSES: true
       PIP_BREAK_SYSTEM_PACKAGES: 1
     steps:
-      - name: install cargo-about
-        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-about
       - name: install dav1d dep nasm
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
         uses: ilammy/setup-nasm@v1
@@ -319,6 +314,11 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+      - name: install cargo-about
+        if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-about
       - run: cargo do comment_feature -u "crates/zng-view/Cargo.toml" image_avif
         if: ${{ github.event.inputs.skip_tests != 'true' || github.event.inputs.skip_release != 'true' }}
       - name: cargo do prebuild --features image_avif
@@ -369,11 +369,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prebuild-ubuntu]
     steps:
-      - name: install cargo-nextest
-        if: ${{ github.event.inputs.skip_tests != 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' }}
       - run: sudo apt-get update -o Acquire::Retries=5 && sudo apt install libfontconfig1-dev -o Acquire::Retries=5
@@ -382,6 +377,11 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         with:
           components: rust-src
+      - name: install cargo-nextest
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
@@ -420,6 +420,10 @@ jobs:
       CC: 'clang-cl'
       CXX: 'clang-cl'
     steps:
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        with:
+          components: rust-src
       - name: install cargo-nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: taiki-e/install-action@v2
@@ -427,10 +431,6 @@ jobs:
           tool: cargo-nextest
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-      - uses: dtolnay/rust-toolchain@stable
-        if: ${{ github.event.inputs.skip_tests != 'true' }}
-        with:
-          components: rust-src
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
@@ -465,6 +465,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [prebuild-macos]
     steps:
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        with:
+          components: rust-src
       - name: install cargo-nextest
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: taiki-e/install-action@v2
@@ -472,10 +476,6 @@ jobs:
           tool: cargo-nextest
       - uses: actions/checkout@v4
         if: ${{ github.event.inputs.skip_tests != 'true' }}
-      - uses: dtolnay/rust-toolchain@stable
-        if: ${{ github.event.inputs.skip_tests != 'true' }}
-        with:
-          components: rust-src
       - name: install prebuilt
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         uses: actions/download-artifact@v4
