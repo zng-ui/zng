@@ -896,7 +896,7 @@ mod tests {
     #[track_caller]
     fn async_test<F>(test: F) -> F::Output
     where
-        F: std::future::Future,
+        F: Future,
     {
         task::block_on(task::with_deadline(test, 5.secs())).unwrap()
     }

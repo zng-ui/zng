@@ -10,9 +10,7 @@
 #![warn(missing_docs)]
 
 use std::{
-    env,
-    future::{Future, IntoFuture},
-    mem,
+    env, mem,
     path::{Path, PathBuf},
     sync::{
         Arc,

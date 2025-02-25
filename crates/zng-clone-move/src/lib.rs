@@ -162,7 +162,7 @@ macro_rules! __clmv {
 /// In the example `bar` is *clone-moved* into the `'static` future given to `foo`.
 ///
 /// ```
-/// # use std::{future::Future, time::Duration};
+/// # use std::{time::Duration};
 /// # use zng_clone_move::*;
 /// # trait TimeUnits { fn ms(self) -> Duration; }
 /// # impl TimeUnits for u64 { fn ms(self) -> Duration { Duration::from_millis(self) } }
@@ -183,7 +183,7 @@ macro_rules! __clmv {
 /// Expands to:
 ///
 /// ```
-/// # use std::{future::Future, time::Duration};
+/// # use std::{time::Duration};
 /// # use zng_clone_move::*;
 /// # async fn foo(mut f: impl Future<Output=()> + 'static) {
 /// #     f.await;
@@ -208,7 +208,7 @@ macro_rules! __clmv {
 /// variables cloned to achieve these effects.
 ///
 /// ```
-/// # use std::{future::Future, sync::Arc};
+/// # use std::{sync::Arc};
 /// # use zng_clone_move::*;
 /// async fn foo(mut f: impl Future<Output=()> + 'static) {
 ///     f.await;
@@ -226,7 +226,7 @@ macro_rules! __clmv {
 /// Expands to:
 ///
 /// ```
-/// # use std::{future::Future, sync::Arc};
+/// # use std::{sync::Arc};
 /// # use zng_clone_move::*;
 /// # async fn foo(mut f: impl Future<Output=()> + 'static) {
 /// #     f.await;
@@ -304,7 +304,6 @@ macro_rules! __async_clmv {
 ///
 /// ```
 /// # use zng_clone_move::async_clmv_fn;
-/// # use std::future::Future;
 /// async fn foo<F: Future<Output=()>, H: FnMut(bool) -> F + 'static>(mut f: H) {
 ///     f(true).await;
 /// }
@@ -322,7 +321,6 @@ macro_rules! __async_clmv {
 ///
 /// ```
 /// # use zng_clone_move::async_clmv_fn;
-/// # use std::future::Future;
 /// # async fn foo<F: Future<Output=()>, H: FnMut(bool) -> F + 'static>(mut f: H) {
 /// #     f(true).await;
 /// # }
@@ -485,7 +483,6 @@ macro_rules! __async_clmv_fn {
 ///
 /// ```
 /// # use zng_clone_move::async_clmv_fn;
-/// # use std::future::Future;
 /// async fn foo<F: Future<Output=()>, H: FnOnce(bool) -> F + 'static>(mut f: H) {
 ///     f(true).await;
 /// }
@@ -503,7 +500,6 @@ macro_rules! __async_clmv_fn {
 ///
 /// ```
 /// # use zng_clone_move::async_clmv_fn;
-/// # use std::future::Future;
 /// # async fn foo<F: Future<Output=()>, H: FnOnce(bool) -> F + 'static>(mut f: H) {
 /// #     f(true).await;
 /// # }

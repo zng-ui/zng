@@ -75,7 +75,7 @@
 //! on different modules.
 
 use core::fmt;
-use std::{future::Future, marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
+use std::{marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_clone_move::{async_clmv, clmv};

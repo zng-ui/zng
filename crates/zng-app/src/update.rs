@@ -1336,7 +1336,7 @@ impl UPDATES {
     /// Schedule the `future` to run in the app context, each future awake work runs as a *preview* update.
     ///
     /// Returns a handle that can be dropped to cancel execution.
-    pub fn run<F: std::future::Future<Output = ()> + Send + 'static>(&self, future: F) -> OnUpdateHandle {
+    pub fn run<F: Future<Output = ()> + Send + 'static>(&self, future: F) -> OnUpdateHandle {
         self.run_hn_once(async_app_hn_once!(|_| future.await))
     }
 

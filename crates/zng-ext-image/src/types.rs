@@ -220,7 +220,7 @@ impl Img {
     }
 
     /// Returns a future that awaits until this image is loaded or encountered an error.
-    pub fn wait_done(&self) -> impl std::future::Future<Output = ()> + Send + Sync + 'static {
+    pub fn wait_done(&self) -> impl Future<Output = ()> + Send + Sync + 'static {
         self.done_signal.clone()
     }
 

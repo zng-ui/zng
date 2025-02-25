@@ -1,9 +1,7 @@
 //! UI-thread bound tasks.
 
 use std::{
-    fmt,
-    future::{Future, IntoFuture},
-    mem,
+    fmt, mem,
     pin::Pin,
     task::{Poll, Waker},
 };

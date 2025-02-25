@@ -1909,7 +1909,7 @@ impl Window {
     }
     /// Run dialog unblocked.
     #[cfg(not(target_os = "android"))]
-    fn run_dialog(run: impl std::future::Future + Send + 'static) {
+    fn run_dialog(run: impl Future + Send + 'static) {
         let mut task = Box::pin(run);
         std::thread::spawn(move || {
             struct ThreadWaker(std::thread::Thread);

@@ -1,7 +1,6 @@
 //! Handler types and macros.
 
 use std::any::Any;
-use std::future::Future;
 use std::marker::PhantomData;
 use std::time::Duration;
 use std::{mem, thread};

@@ -32,7 +32,6 @@ pub use vars::*;
 mod service;
 pub use service::*;
 
-use std::future::{Future, IntoFuture};
 use zng_app::{
     AppControlFlow, AppExtended, AppExtension, HeadlessApp,
     update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates},

@@ -22,7 +22,6 @@ use std::{
     any::{Any, TypeId},
     borrow::Cow,
     fmt,
-    future::Future,
     marker::PhantomData,
     ops,
     sync::{

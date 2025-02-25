@@ -7,9 +7,7 @@
 use crate::Deadline;
 use parking_lot::Mutex;
 use std::{
-    fmt,
-    future::Future,
-    mem,
+    fmt, mem,
     pin::Pin,
     sync::{
         Arc,
@@ -96,7 +94,7 @@ impl TimersService {
         timer.read_only()
     }
 
-    fn wait_deadline(&mut self, deadline: Deadline) -> impl std::future::Future<Output = ()> + Send + Sync + use<> {
+    fn wait_deadline(&mut self, deadline: Deadline) -> impl Future<Output = ()> + Send + Sync + use<> {
         let deadline = Arc::new(WaitDeadline {
             deadline,
             wakers: Mutex::new(vec![]),
@@ -482,7 +480,7 @@ impl TIMERS {
     /// Implementation of the [`task::deadline`] function when called from app threads.
     ///
     /// [`task::deadline`]: zng_task::deadline
-    pub fn wait_deadline(&self, deadline: impl Into<Deadline>) -> impl std::future::Future<Output = ()> + Send + Sync + 'static {
+    pub fn wait_deadline(&self, deadline: impl Into<Deadline>) -> impl Future<Output = ()> + Send + Sync + 'static {
         TIMERS_SV.write().wait_deadline(deadline.into())
     }
 }
@@ -1052,6 +1050,6 @@ impl TimerArgs {
     }
 }
 
-pub(crate) fn deadline_service(deadline: Deadline) -> Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> {
+pub(crate) fn deadline_service(deadline: Deadline) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     Box::pin(TIMERS.wait_deadline(deadline))
 }

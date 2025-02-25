@@ -19,9 +19,7 @@
 use std::{
     any::{TypeId, type_name},
     collections::HashMap,
-    fmt,
-    future::{Future, IntoFuture},
-    ops,
+    fmt, ops,
     path::PathBuf,
     sync::Arc,
 };

@@ -11,7 +11,6 @@
 
 use std::{
     fmt,
-    future::{Future, IntoFuture},
     hash::Hash,
     mem, panic,
     pin::Pin,
@@ -1071,7 +1070,6 @@ macro_rules! __all {
             $(let mut $ident = (Some($fut), None);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1207,7 +1205,6 @@ macro_rules! __any {
             $(let mut $ident = $fut;)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
                 $(
                     // SAFETY: the closure owns $ident and is an exclusive borrow inside a
                     // Future::poll call, so it will not move.
@@ -1336,7 +1333,6 @@ macro_rules! __any_ok {
             $(let mut $ident = (Some($fut), None);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1479,7 +1475,6 @@ macro_rules! __any_some {
             $(let mut $ident = Some($fut);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1636,7 +1631,6 @@ macro_rules! __all_ok {
 
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1793,7 +1787,6 @@ macro_rules! __all_some {
             $(let mut $ident = (Some($fut), None);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 

@@ -1,9 +1,4 @@
-use std::{
-    any::Any,
-    future::{Future, IntoFuture},
-    mem,
-    sync::Arc,
-};
+use std::{any::Any, mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{

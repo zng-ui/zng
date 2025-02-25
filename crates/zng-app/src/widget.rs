@@ -14,7 +14,6 @@ use atomic::Atomic;
 use parking_lot::{Mutex, RwLock};
 use std::{
     borrow::Cow,
-    future::IntoFuture,
     sync::{Arc, atomic::Ordering::Relaxed},
 };
 use zng_app_context::context_local;
@@ -1674,12 +1673,12 @@ pub trait UiTaskWidget<R> {
     /// [`UiNode::info`]: crate::widget::node::UiNode::info
     fn new<F>(target: Option<WidgetId>, task: impl IntoFuture<IntoFuture = F>) -> Self
     where
-        F: std::future::Future<Output = R> + Send + 'static;
+        F: Future<Output = R> + Send + 'static;
 }
 impl<R> UiTaskWidget<R> for UiTask<R> {
     fn new<F>(target: Option<WidgetId>, task: impl IntoFuture<IntoFuture = F>) -> Self
     where
-        F: std::future::Future<Output = R> + Send + 'static,
+        F: Future<Output = R> + Send + 'static,
     {
         UiTask::new_raw(UPDATES.waker(target), task)
     }
