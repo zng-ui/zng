@@ -524,6 +524,8 @@ jobs:
         if: ${{ github.event.inputs.skip_tag != 'true' }}
         with:
           fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ github.event.inputs.skip_tag != 'true' }}
       - id: publish_version_tag
         if: ${{ github.event.inputs.skip_tag != 'true' }}
         run: cargo do publish_version_tag --execute | tail -n 1 >> "$GITHUB_OUTPUT"
