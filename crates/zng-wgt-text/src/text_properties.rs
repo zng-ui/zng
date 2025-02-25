@@ -291,10 +291,6 @@ context_var! {
     /// Text alignment inside the available space when it overflows.
     pub static TEXT_OVERFLOW_ALIGN_VAR: Align = Align::TOP_START;
 
-    #[doc(hidden)]
-    #[deprecated = "use `JUSTIFY_MODE_VAR`"]
-    pub static JUSTIFY_VAR: Option<Justify> = None;
-
     /// Text justify mode when text align is fill.
     pub static JUSTIFY_MODE_VAR: Justify = Justify::Auto;
 }
@@ -342,18 +338,6 @@ pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
 #[property(CONTEXT, default(TEXT_OVERFLOW_ALIGN_VAR), widget_impl(TextAlignMix<P>))]
 pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, TEXT_OVERFLOW_ALIGN_VAR, mode)
-}
-
-#[doc(hidden)]
-#[deprecated = "use `justify_mode`"]
-#[property(CONTEXT, default(#[allow(deprecated)]JUSTIFY_VAR), widget_impl(TextAlignMix<P>))]
-pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl UiNode {
-    with_context_var(
-        child,
-        #[allow(deprecated)]
-        JUSTIFY_VAR,
-        mode,
-    )
 }
 
 /// Config the automatic spacing inserted between words and letters when text is aligned to fill.

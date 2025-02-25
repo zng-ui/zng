@@ -81,6 +81,3 @@ pub use zng_wgt_text::{
     selection_toolbar_anchor, selection_toolbar_fn, strikethrough, strikethrough_color, tab_length, txt_align, txt_editable, txt_overflow,
     txt_overflow_align, underline, underline_color, underline_skip, white_space, word_break, word_spacing,
 };
-
-#[allow(deprecated)] // avoid breaking change
-pub use zng_wgt_text::justify;
