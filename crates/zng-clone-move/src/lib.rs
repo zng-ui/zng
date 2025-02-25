@@ -337,7 +337,7 @@ macro_rules! __async_clmv {
 /// });
 /// # println!("original: {bar}");
 /// ```
-/// 
+///
 /// Note that this is different from an async closure, it returns `'static` futures that do not borrow the closure.
 ///
 /// # Once
@@ -515,10 +515,10 @@ macro_rules! __async_clmv_fn {
 /// });
 /// # println!("original: {bar}");
 /// ```
-/// 
+///
 /// Note that this is different from an async once closure, it is an once closure that returns a future, this is so it is more similar with
 /// [`async_clmv_fn!`], that macro cannot be implemented an async closure.
-/// 
+///
 /// [`async_clmv_fn!`]: macro@crate::async_clmv_fn
 #[macro_export]
 macro_rules! async_clmv_fn_once {
