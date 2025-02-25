@@ -1,10 +1,9 @@
 # Unreleased
 
-* Upgrade all crates to Rust 2024 edition.
-* Many return impl Trait changed lifetimes slightly, some replaced with doc hidden types. In practice all code should still just compile,
-  but these are breaking changes.
-* Some public `hashbrown::{HashMap, HashSet}` API replaced with the `std::collections` equivalent.
-* Remove deprecated `zng::text::justify` that was replaced with `justify_mode` in 0.13.11.
+* **Breaking** Upgrade all crates to Rust 2024 edition.
+* **Breaking** Many return impl Trait changed lifetimes slightly, some replaced with doc hidden types. In practice all code should still just compile, but these are breaking changes.
+* **Breaking** Some public `hashbrown::{HashMap, HashSet}` API replaced with the `std::collections` equivalent.
+* **Breaking** Remove deprecated `zng::text::justify` that was replaced with `justify_mode` in 0.13.11.
 
 # 0.13.12
 

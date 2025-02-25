@@ -337,6 +337,8 @@ macro_rules! __async_clmv {
 /// });
 /// # println!("original: {bar}");
 /// ```
+/// 
+/// Note that this is different from an async closure, it returns `'static` futures that do not borrow the closure.
 ///
 /// # Once
 ///
@@ -473,7 +475,7 @@ macro_rules! __async_clmv_fn {
 
 ///<span data-del-macro-root></span> Async clone move closure that can only be called once.
 ///
-/// The macro syntax is exactly the same as [`async_clmv_fn!`](macro@crate::async_clmv_fn), but it does not clone variables
+/// The macro syntax is exactly the same as [`async_clmv_fn!`], but it does not clone variables
 /// again inside the call to move to the returned future. Because it moves the captured variables to the returned `Future`,
 /// the closure can only be `FnOnce`.
 ///
@@ -513,6 +515,11 @@ macro_rules! __async_clmv_fn {
 /// });
 /// # println!("original: {bar}");
 /// ```
+/// 
+/// Note that this is different from an async once closure, it is an once closure that returns a future, this is so it is more similar with
+/// [`async_clmv_fn!`], that macro cannot be implemented an async closure.
+/// 
+/// [`async_clmv_fn!`]: macro@crate::async_clmv_fn
 #[macro_export]
 macro_rules! async_clmv_fn_once {
     ($($tt:tt)+) => { $crate::__async_clmv_fn_once! { [][][] $($tt)+ } }
