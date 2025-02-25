@@ -69,7 +69,7 @@ impl LocalValueKind {
 /// `(value, is_context_var)`
 type LocalValue = (Arc<dyn Any + Send + Sync>, LocalValueKind);
 // equivalent to rustc_hash::FxHashMap, but can be constructed in `const`.
-type LocalData = hashbrown::HashMap<AppLocalId, LocalValue, BuildFxHasher>;
+type LocalData = std::collections::HashMap<AppLocalId, LocalValue, BuildFxHasher>;
 #[derive(Clone, Default)]
 struct BuildFxHasher;
 impl std::hash::BuildHasher for BuildFxHasher {
@@ -80,12 +80,12 @@ impl std::hash::BuildHasher for BuildFxHasher {
     }
 }
 const fn new_local_data() -> LocalData {
-    hashbrown::HashMap::with_hasher(BuildFxHasher)
+    LocalData::with_hasher(BuildFxHasher)
 }
 
-type LocalSet = hashbrown::HashSet<AppLocalId, BuildFxHasher>;
+type LocalSet = std::collections::HashSet<AppLocalId, BuildFxHasher>;
 const fn new_local_set() -> LocalSet {
-    hashbrown::HashSet::with_hasher(BuildFxHasher)
+    LocalSet::with_hasher(BuildFxHasher)
 }
 
 /// Represents an app lifetime, ends the app on drop.
@@ -156,8 +156,8 @@ impl LocalContext {
     /// Start an app scope in the current thread.
     pub fn start_app(id: AppId) -> AppScope {
         let valid = LOCAL.with_borrow_mut_dyn(|c| match c.entry(AppId::local_id()) {
-            hashbrown::hash_map::Entry::Occupied(_) => false,
-            hashbrown::hash_map::Entry::Vacant(e) => {
+            std::collections::hash_map::Entry::Occupied(_) => false,
+            std::collections::hash_map::Entry::Vacant(e) => {
                 e.insert((Arc::new(id), LocalValueKind::App));
                 true
             }
