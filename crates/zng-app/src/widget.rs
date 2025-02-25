@@ -14,22 +14,21 @@ use atomic::Atomic;
 use parking_lot::{Mutex, RwLock};
 use std::{
     borrow::Cow,
-    future::IntoFuture,
-    sync::{atomic::Ordering::Relaxed, Arc},
+    sync::{Arc, atomic::Ordering::Relaxed},
 };
 use zng_app_context::context_local;
 use zng_handle::Handle;
 use zng_layout::unit::{DipPoint, DipToPx as _, Layout1d, Layout2d, Px, PxPoint, PxTransform};
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_task::UiTask;
-use zng_txt::{formatx, Txt};
+use zng_txt::{Txt, formatx};
 use zng_var::{AnyVar, AnyVarHookArgs, AnyVarValue, ResponseVar, Var, VarHandle, VarHandles, VarValue};
 use zng_view_api::display_list::ReuseRange;
 
 use crate::{
     event::{Event, EventArgs, EventHandle, EventHandles},
-    handler::{app_hn, app_hn_once, AppHandler, AppHandlerArgs},
-    update::{LayoutUpdates, RenderUpdates, UpdateFlags, UpdateOp, UpdatesTrace, UPDATES},
+    handler::{AppHandler, AppHandlerArgs, app_hn, app_hn_once},
+    update::{LayoutUpdates, RenderUpdates, UPDATES, UpdateFlags, UpdateOp, UpdatesTrace},
     window::WINDOW,
 };
 
@@ -662,11 +661,7 @@ impl WIDGET {
 
     /// Get the widget ID, if called inside a widget.
     pub fn try_id(&self) -> Option<WidgetId> {
-        if self.is_in_widget() {
-            Some(WIDGET_CTX.get().id)
-        } else {
-            None
-        }
+        if self.is_in_widget() { Some(WIDGET_CTX.get().id) } else { None }
     }
 
     /// Gets a text with detailed path to the current widget.
@@ -1678,12 +1673,12 @@ pub trait UiTaskWidget<R> {
     /// [`UiNode::info`]: crate::widget::node::UiNode::info
     fn new<F>(target: Option<WidgetId>, task: impl IntoFuture<IntoFuture = F>) -> Self
     where
-        F: std::future::Future<Output = R> + Send + 'static;
+        F: Future<Output = R> + Send + 'static;
 }
 impl<R> UiTaskWidget<R> for UiTask<R> {
     fn new<F>(target: Option<WidgetId>, task: impl IntoFuture<IntoFuture = F>) -> Self
     where
-        F: std::future::Future<Output = R> + Send + 'static,
+        F: Future<Output = R> + Send + 'static,
     {
         UiTask::new_raw(UPDATES.waker(target), task)
     }

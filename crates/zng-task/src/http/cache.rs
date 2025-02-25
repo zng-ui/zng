@@ -336,11 +336,7 @@ mod file_cache {
                     })
                     .await;
 
-                    if ok {
-                        Some(entry.write_body(body).await)
-                    } else {
-                        Some(body)
-                    }
+                    if ok { Some(entry.write_body(body).await) } else { Some(body) }
                 }
                 _ => Some(body),
             }
@@ -891,7 +887,7 @@ mod tests {
     #[track_caller]
     fn async_test<F>(test: F) -> F::Output
     where
-        F: std::future::Future,
+        F: Future,
     {
         task::block_on(task::with_deadline(test, 30.secs())).unwrap()
     }

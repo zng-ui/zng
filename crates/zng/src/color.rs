@@ -105,9 +105,9 @@
 //! See [`zng_color`], [`zng_wgt_filter`] and [`zng_wgt_fill`] for the full API.
 
 pub use zng_color::{
-    colors, hex, hsl, hsla, hsla_linear_sampler, hsla_sampler, hsv, hsva, lerp_space, light_dark, rgb, rgba, rgba_sampler, web_colors,
-    with_lerp_space, ColorScheme, Hsla, Hsva, LerpSpace, LightDark, LightDarkVarExt, MixAdjust, MixBlendMode, PreMulRgba,
-    RenderMixBlendMode, Rgba, COLOR_SCHEME_VAR,
+    COLOR_SCHEME_VAR, ColorScheme, Hsla, Hsva, LerpSpace, LightDark, LightDarkVarExt, MixAdjust, MixBlendMode, PreMulRgba,
+    RenderMixBlendMode, Rgba, colors, hex, hsl, hsla, hsla_linear_sampler, hsla_sampler, hsv, hsva, lerp_space, light_dark, rgb, rgba,
+    rgba_sampler, web_colors, with_lerp_space,
 };
 
 pub use zng_wgt::{accent_color, base_color, color_scheme};
@@ -130,12 +130,12 @@ pub mod filter {
 /// Color gradient types and nodes.
 pub mod gradient {
     pub use zng_color::gradient::{
-        stops, ColorStop, ExtendMode, GradientRadius, GradientRadiusBase, GradientStop, GradientStops, LinearGradientAxis,
-        RenderExtendMode, RenderGradientStop,
+        ColorStop, ExtendMode, GradientRadius, GradientRadiusBase, GradientStop, GradientStops, LinearGradientAxis, RenderExtendMode,
+        RenderGradientStop, stops,
     };
 
     pub use zng_wgt_fill::node::{
-        conic_gradient, gradient, linear_gradient, radial_gradient, ConicGradient, GradientBuilder, LinearGradient, RadialGradient,
-        TiledConicGradient, TiledLinearGradient, TiledRadialGradient,
+        ConicGradient, GradientBuilder, LinearGradient, RadialGradient, TiledConicGradient, TiledLinearGradient, TiledRadialGradient,
+        conic_gradient, gradient, linear_gradient, radial_gradient,
     };
 }

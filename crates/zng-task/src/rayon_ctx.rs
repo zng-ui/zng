@@ -224,8 +224,8 @@ impl<P: Producer> Producer for ParallelCtxProducer<P> {
 #[cfg(test)]
 mod tests {
     use std::sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU32, Ordering},
     };
 
     use super::*;

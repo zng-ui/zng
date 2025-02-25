@@ -13,17 +13,17 @@ zng_wgt::enable_widget_macros!();
 
 use colors::BASE_COLOR_VAR;
 use zng_ext_input::gesture::ClickArgs;
-use zng_ext_l10n::{l10n, L10nArgument};
+use zng_ext_l10n::{L10nArgument, l10n};
 use zng_ext_undo::*;
 use zng_wgt::{base_color, margin, prelude::*};
 use zng_wgt_button::Button;
-use zng_wgt_container::{child_align, padding, Container};
+use zng_wgt_container::{Container, child_align, padding};
 use zng_wgt_fill::background_color;
 use zng_wgt_input::{is_cap_hovered, is_pressed};
 use zng_wgt_scroll::{Scroll, ScrollMode};
 use zng_wgt_size_offset::max_height;
 use zng_wgt_stack::{Stack, StackDirection};
-use zng_wgt_style::{style_fn, Style, StyleFn};
+use zng_wgt_style::{Style, StyleFn, style_fn};
 use zng_wgt_text::Text;
 
 use std::fmt;

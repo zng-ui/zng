@@ -1,9 +1,7 @@
 //! UI-thread bound tasks.
 
 use std::{
-    fmt,
-    future::{Future, IntoFuture},
-    mem,
+    fmt, mem,
     pin::Pin,
     task::{Poll, Waker},
 };
@@ -89,11 +87,7 @@ impl<R> UiTask<R> {
             }
         }
 
-        if let UiTaskState::Ready(r) = &self.0 {
-            Some(r)
-        } else {
-            None
-        }
+        if let UiTaskState::Ready(r) = &self.0 { Some(r) } else { None }
     }
 
     /// Returns `true` if the task is done.

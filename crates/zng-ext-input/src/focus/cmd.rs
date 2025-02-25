@@ -3,12 +3,12 @@
 //! [`Command`]: zng_app::event::Command
 
 use zng_app::{
-    event::{command, Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, EventArgs},
-    shortcut::{shortcut, CommandShortcutExt},
+    event::{Command, CommandHandle, CommandInfoExt, CommandNameExt, CommandScope, EventArgs, command},
+    shortcut::{CommandShortcutExt, shortcut},
     update::EventUpdate,
     widget::info::WidgetInfo,
 };
-use zng_var::{merge_var, BoxedVar};
+use zng_var::{BoxedVar, merge_var};
 
 use super::*;
 

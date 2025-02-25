@@ -6,7 +6,7 @@ use zng_app::widget::{
     info::WidgetInfoTree,
     inspector::{InspectorInfo, WidgetInfoInspectorExt},
 };
-use zng_var::{types::WeakArcVar, WeakVar};
+use zng_var::{WeakVar, types::WeakArcVar};
 use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 

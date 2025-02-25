@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use syn::{parse::Parse, parse_macro_input, LitInt, Path, Token};
+use syn::{LitInt, Path, Token, parse::Parse, parse_macro_input};
 
 struct Input {
     crate_: Path,

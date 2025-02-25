@@ -1,8 +1,8 @@
 use syn::{
+    Expr, Path, Token,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
-    Expr, Path, Token,
 };
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

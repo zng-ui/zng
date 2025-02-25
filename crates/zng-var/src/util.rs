@@ -65,7 +65,7 @@ use parking_lot::RwLock;
 
 use crate::{AnyVarHookArgs, AnyVarValue};
 
-use super::{animation::ModifyInfo, VarHandle, VarHook, VarModify, VarUpdateId, VarValue, VARS};
+use super::{VARS, VarHandle, VarHook, VarModify, VarUpdateId, VarValue, animation::ModifyInfo};
 
 #[doc(hidden)]
 #[macro_export]

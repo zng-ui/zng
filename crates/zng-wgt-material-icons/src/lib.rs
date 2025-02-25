@@ -55,7 +55,7 @@ impl zng_app::AppExtension for MaterialIconsManager {
     #[cfg(any(feature = "outlined", feature = "filled", feature = "rounded", feature = "sharp"))]
     fn init(&mut self) {
         use zng_app::widget::node::{NilUiNode, UiNode as _};
-        use zng_wgt::{wgt_fn, IconRequestArgs, ICONS};
+        use zng_wgt::{ICONS, IconRequestArgs, wgt_fn};
         use zng_wgt_text::icon::{GlyphIcon, Icon};
 
         self.register_fonts();

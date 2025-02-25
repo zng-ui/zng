@@ -5,30 +5,30 @@
 use std::{collections::HashMap, mem, num::NonZeroU32, time::*};
 
 use zng_app::{
-    event::{event, event_args, EventPropagationHandle},
+    AppExtension, DInstant, INSTANT,
+    event::{EventPropagationHandle, event, event_args},
     shortcut::ModifiersState,
     timer::{DeadlineVar, TIMERS},
     update::EventUpdate,
     view_process::{
+        VIEW_PROCESS_INITED_EVENT,
         raw_device_events::DeviceId,
         raw_events::{
             RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_LEFT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_MOUSE_WHEEL_EVENT,
             RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT,
         },
-        VIEW_PROCESS_INITED_EVENT,
     },
     widget::{
-        info::{HitTestInfo, InteractionPath, WidgetInfo, WidgetInfoBuilder, WIDGET_INFO_CHANGED_EVENT},
-        WidgetId, WIDGET,
+        WIDGET, WidgetId,
+        info::{HitTestInfo, InteractionPath, WIDGET_INFO_CHANGED_EVENT, WidgetInfo, WidgetInfoBuilder},
     },
     window::WindowId,
-    AppExtension, DInstant, INSTANT,
 };
 use zng_app_context::app_local;
 use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
 use zng_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint, PxToDip};
-use zng_state_map::{state_map, static_id, StateId};
-use zng_var::{impl_from_and_into_var, types::ArcCowVar, var, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var};
+use zng_state_map::{StateId, state_map, static_id};
+use zng_var::{ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, impl_from_and_into_var, types::ArcCowVar, var};
 use zng_view_api::touch::TouchPhase;
 pub use zng_view_api::{
     config::MultiClickConfig,
@@ -627,11 +627,7 @@ impl MouseWheelArgs {
     ///
     /// [`modifiers`]: Self::modifiers
     pub fn zoom_delta(&self) -> Option<MouseScrollDelta> {
-        if self.is_zoom() {
-            Some(self.delta)
-        } else {
-            None
-        }
+        if self.is_zoom() { Some(self.delta) } else { None }
     }
 
     /// Returns `true` if the widget is enabled in [`target`].

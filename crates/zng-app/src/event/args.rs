@@ -2,8 +2,8 @@ use std::{
     any::Any,
     fmt,
     sync::{
-        atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
+        atomic::{AtomicBool, Ordering::Relaxed},
     },
 };
 

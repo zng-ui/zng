@@ -10,7 +10,6 @@ error[E0599]: no method named `allowed_in_when_expr` found for struct `foo_` in 
 18 | |         when {
 19 | |             let node = #foo;
 ...  |
-23 | |         }
 24 | |     };
    | |_____^
    |

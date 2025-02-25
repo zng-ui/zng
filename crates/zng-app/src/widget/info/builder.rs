@@ -1,17 +1,17 @@
 use parking_lot::Mutex;
 use zng_layout::{
-    context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LayoutMask, LAYOUT},
+    context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LAYOUT, LayoutMask},
     unit::{Factor, Px, PxBox, PxPoint, PxRect, PxSize, PxVector},
 };
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_unique_id::{IdMap, IdSet};
 
 use crate::{
+    DInstant, INSTANT,
     render::TransformStyle,
     update::{InfoUpdates, LayoutUpdates, UpdateFlags},
-    widget::{border::BORDER, node::UiNode, WidgetId, WidgetUpdateMode, WIDGET},
-    window::{WindowId, WINDOW},
-    DInstant, INSTANT,
+    widget::{WIDGET, WidgetId, WidgetUpdateMode, border::BORDER, node::UiNode},
+    window::{WINDOW, WindowId},
 };
 
 use super::{hit::ParallelSegmentOffsets, *};
@@ -591,11 +591,7 @@ impl InteractivityChangedArgs {
         let new = self.new_interactivity(widget_id);
         let prev = self.prev_interactivity(widget_id);
         if let Some(prev) = prev {
-            if mtd(prev) != mtd(new) {
-                Some((Some(prev), new))
-            } else {
-                None
-            }
+            if mtd(prev) != mtd(new) { Some((Some(prev), new)) } else { None }
         } else {
             Some((prev, new))
         }

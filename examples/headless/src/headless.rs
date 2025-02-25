@@ -2,7 +2,7 @@ use std::io::Write as _;
 use zng::{
     color::{
         self,
-        gradient::{linear_gradient, GradientStops},
+        gradient::{GradientStops, linear_gradient},
     },
     prelude::*,
     stack::stack_nodes,

@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use zng_ext_config::{AnyConfig as _, ConfigKey, ConfigStatus, ConfigValue, CONFIG};
+use zng_ext_config::{AnyConfig as _, CONFIG, ConfigKey, ConfigStatus, ConfigValue};
 use zng_ext_window::{
-    AutoSize, FrameCaptureMode, MonitorQuery, WINDOW_Ext as _, WindowButton, WindowIcon, WindowLoadingHandle, WindowState, WindowVars,
-    MONITORS, WINDOWS, WINDOW_LOAD_EVENT,
+    AutoSize, FrameCaptureMode, MONITORS, MonitorQuery, WINDOW_Ext as _, WINDOW_LOAD_EVENT, WINDOWS, WindowButton, WindowIcon,
+    WindowLoadingHandle, WindowState, WindowVars,
 };
 use zng_wgt::prelude::*;
 

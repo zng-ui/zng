@@ -66,7 +66,7 @@ macro_rules! hot_static_patchable {
             static mut $IDENT: &$Ty = &[<$IDENT _COLD>];
             #[allow(non_snake_case)]
             unsafe fn [<$IDENT _INIT>](static_ptr: *const ()) -> *const () {
-                $crate::hot_reload::init_static(&mut $IDENT, static_ptr)
+                unsafe { $crate::hot_reload::init_static(&mut $IDENT, static_ptr) }
             }
 
             // expanded from:
@@ -106,7 +106,7 @@ pub unsafe fn init_static<T>(s: &mut &'static T, static_ptr: *const ()) -> *cons
     if static_ptr.is_null() {
         *s as *const T as *const ()
     } else {
-        *s = &*(static_ptr as *const T);
+        *s = unsafe { &*(static_ptr as *const T) };
         std::ptr::null()
     }
 }

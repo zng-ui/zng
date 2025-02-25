@@ -13,16 +13,16 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use semver::Version;
 use zng_app::{
+    AppExtension,
     event::{Command, CommandMetaVar, EVENTS_L10N},
     update::EventUpdate,
-    view_process::{raw_events::RAW_LOCALE_CONFIG_CHANGED_EVENT, VIEW_PROCESS_INITED_EVENT},
-    AppExtension,
+    view_process::{VIEW_PROCESS_INITED_EVENT, raw_events::RAW_LOCALE_CONFIG_CHANGED_EVENT},
 };
 use zng_layout::context::LayoutDirection;
 use zng_task as task;
 
 use zng_txt::Txt;
-use zng_var::{types::ArcCowVar, ArcEq, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
+use zng_var::{ArcEq, ArcVar, BoxedVar, ReadOnlyArcVar, Var, types::ArcCowVar};
 
 #[doc(hidden)]
 pub use zng_ext_l10n_proc_macros::lang as __lang;

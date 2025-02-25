@@ -530,7 +530,7 @@ fn make_replacements(keys: &KeyMap) -> io::Result<ReplaceMap> {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
                     format!("missing required key `{}`", kv.key),
-                ))
+                ));
             }
         };
         let clean_value = util::clean_value(value, kv.required)?;

@@ -57,12 +57,12 @@
 //! See [`zng_ext_undo`] for the full undo API.
 
 pub use zng_ext_undo::{
-    CommandUndoExt, RedoAction, UndoAction, UndoActionMergeArgs, UndoFullOp, UndoInfo, UndoOp, UndoSelect, UndoSelectInterval,
-    UndoSelectLtEq, UndoSelector, UndoStackInfo, UndoTransaction, UndoVarModifyTag, WidgetInfoUndoExt, WidgetUndoScope, CLEAR_HISTORY_CMD,
-    REDO_CMD, UNDO, UNDO_CMD,
+    CLEAR_HISTORY_CMD, CommandUndoExt, REDO_CMD, RedoAction, UNDO, UNDO_CMD, UndoAction, UndoActionMergeArgs, UndoFullOp, UndoInfo, UndoOp,
+    UndoSelect, UndoSelectInterval, UndoSelectLtEq, UndoSelector, UndoStackInfo, UndoTransaction, UndoVarModifyTag, WidgetInfoUndoExt,
+    WidgetUndoScope,
 };
 
-pub use zng_wgt_undo::{undo_enabled, undo_interval, undo_limit, undo_scope, UndoMix};
+pub use zng_wgt_undo::{UndoMix, undo_enabled, undo_interval, undo_limit, undo_scope};
 
 /// Undo history widget.
 ///
@@ -71,7 +71,7 @@ pub use zng_wgt_undo::{undo_enabled, undo_interval, undo_limit, undo_scope, Undo
 /// See [`zng_wgt_undo_history`] for the full undo API.
 pub mod history {
     pub use zng_wgt_undo_history::{
-        group_by_undo_interval, is_cap_hovered_timestamp, undo_button_style_fn, UndoEntryArgs, UndoHistory, UndoPanelArgs,
-        UndoRedoButtonStyle, UndoStackArgs,
+        UndoEntryArgs, UndoHistory, UndoPanelArgs, UndoRedoButtonStyle, UndoStackArgs, group_by_undo_interval, is_cap_hovered_timestamp,
+        undo_button_style_fn,
     };
 }

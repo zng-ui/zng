@@ -3,24 +3,25 @@
 use std::{fmt, mem, sync::Arc};
 
 use zng_app_context::context_local;
-use zng_color::{colors, Hsla, Hsva, Rgba};
+use zng_color::{Hsla, Hsva, Rgba, colors};
 use zng_layout::{
-    context::{LayoutMask, LAYOUT},
+    context::{LAYOUT, LayoutMask},
     unit::{
         Factor, FactorPercent, FactorSideOffsets, FactorUnits, Layout2d, Length, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize,
         Size,
     },
 };
 use zng_var::{
-    animation::{easing::EasingStep, Transitionable},
-    context_var, impl_from_and_into_var, Var,
+    Var,
+    animation::{Transitionable, easing::EasingStep},
+    context_var, impl_from_and_into_var,
 };
 
 pub use zng_view_api::LineOrientation;
 
 use crate::widget::VarLayout;
 
-use super::{info::WidgetBorderInfo, WidgetId, WIDGET};
+use super::{WIDGET, WidgetId, info::WidgetBorderInfo};
 
 /// Represents a line style.
 #[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -147,11 +148,7 @@ impl From<BorderStyle> for zng_view_api::BorderStyle {
 impl Transitionable for BorderStyle {
     /// Returns `self` for `step < 1.fct()` or `to` for `step >= 1.fct()`.
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        if step < 1.fct() {
-            self
-        } else {
-            *to
-        }
+        if step < 1.fct() { self } else { *to }
     }
 }
 

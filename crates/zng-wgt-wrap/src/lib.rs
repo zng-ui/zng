@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate_util::RecycleVec;
 use zng_app::widget::node::PanelListRange;
-use zng_ext_font::{unicode_bidi_levels, unicode_bidi_sort, BidiLevel};
+use zng_ext_font::{BidiLevel, unicode_bidi_levels, unicode_bidi_sort};
 use zng_layout::{
     context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, TextSegmentKind},
     unit::{GridSpacing, PxGridSpacing},

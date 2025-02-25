@@ -2,7 +2,7 @@ use std::fmt;
 
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
-use super::{euclid, FactorUnits, Px, PxSize};
+use super::{FactorUnits, Px, PxSize, euclid};
 
 pub use euclid::BoolVector2D;
 
@@ -80,11 +80,7 @@ impl PxConstraints {
     ///
     /// [`with_new_min`]: Self::with_new_min
     pub fn with_min(self, min: Px) -> Self {
-        if min > self.min {
-            self.with_new_min(min)
-        } else {
-            self
-        }
+        if min > self.min { self.with_new_min(min) } else { self }
     }
 
     /// Returns a copy of the current constraints that has `max` as the upper bound and min adjusted to be <= `max`.
@@ -98,11 +94,7 @@ impl PxConstraints {
     ///
     /// [`with_new_max`]: Self::with_new_max
     pub fn with_max(self, max: Px) -> Self {
-        if max < self.max {
-            self.with_new_max(max)
-        } else {
-            self
-        }
+        if max < self.max { self.with_new_max(max) } else { self }
     }
 
     /// Returns a copy of the current constraints that has max and min set to `len` and fill enabled.
@@ -188,22 +180,14 @@ impl PxConstraints {
 
     /// Gets the fixed length if the constraints only allow one length.
     pub fn exact(self) -> Option<Px> {
-        if self.is_exact() {
-            Some(self.max)
-        } else {
-            None
-        }
+        if self.is_exact() { Some(self.max) } else { None }
     }
 
     /// Gets the maximum allowed length, or `None` if is unbounded.
     ///
     /// The maximum is inclusive.
     pub fn max(self) -> Option<Px> {
-        if self.max < Px::MAX {
-            Some(self.max)
-        } else {
-            None
-        }
+        if self.max < Px::MAX { Some(self.max) } else { None }
     }
 
     /// Gets the minimum allowed length.
@@ -215,11 +199,7 @@ impl PxConstraints {
 
     /// Gets the maximum length if it is bounded, or the minimum if not.
     pub fn max_bounded(self) -> Px {
-        if self.max < Px::MAX {
-            self.max
-        } else {
-            self.min
-        }
+        if self.max < Px::MAX { self.max } else { self.min }
     }
 
     /// Clamp the `px` by min and max.
@@ -229,11 +209,7 @@ impl PxConstraints {
 
     /// Gets the fill length, if fill is `true` this is the maximum length, otherwise it is the minimum length.
     pub fn fill(self) -> Px {
-        if self.fill && !self.is_unbounded() {
-            self.max
-        } else {
-            self.min
-        }
+        if self.fill && !self.is_unbounded() { self.max } else { self.min }
     }
 
     /// Gets the maximum if fill is preferred and max is bounded, or `length` clamped by the constraints.
@@ -256,11 +232,7 @@ impl PxConstraints {
 
     /// Gets the maximum length if bounded or `length` clamped by the constraints.
     pub fn max_or(self, length: Px) -> Px {
-        if self.is_unbounded() {
-            self.clamp(length)
-        } else {
-            self.max
-        }
+        if self.is_unbounded() { self.clamp(length) } else { self.max }
     }
 }
 impl_from_and_into_var! {

@@ -329,10 +329,14 @@ impl TryFrom<TokenStream> for CommandMacroArgs {
             if tail4.len() > 4 {
                 tail4.remove(0);
                 match &tail4[..] {
-                    [TokenTree::Ident(i0), TokenTree::Ident(id), TokenTree::Punct(p0), TokenTree::Group(g)]
-                        if i0 == "static"
-                            && p0.as_char() == '='
-                            && matches!(g.delimiter(), Delimiter::Brace | Delimiter::Parenthesis | Delimiter::Bracket) =>
+                    [
+                        TokenTree::Ident(i0),
+                        TokenTree::Ident(id),
+                        TokenTree::Punct(p0),
+                        TokenTree::Group(g),
+                    ] if i0 == "static"
+                        && p0.as_char() == '='
+                        && matches!(g.delimiter(), Delimiter::Brace | Delimiter::Parenthesis | Delimiter::Bracket) =>
                     {
                         match CommandMacroEntry::try_from(g.stream()) {
                             Ok(mut entry) => {
@@ -351,11 +355,7 @@ impl TryFrom<TokenStream> for CommandMacroArgs {
                 }
             }
         }
-        if entries.is_empty() {
-            Err(None)
-        } else {
-            Ok(Self { entries })
-        }
+        if entries.is_empty() { Err(None) } else { Ok(Self { entries }) }
     }
 }
 struct CommandMacroEntry {
@@ -379,9 +379,13 @@ impl TryFrom<TokenStream> for CommandMacroEntry {
         // parse l10n!: #lit
         let mut buf: Vec<_> = (&mut tts).take(5).collect();
         match &buf[..] {
-            [TokenTree::Ident(i), TokenTree::Punct(p0), TokenTree::Punct(p1), value, TokenTree::Punct(p2)]
-                if i == "l10n" && p0.as_char() == '!' && p1.as_char() == ':' && p2.as_char() == ',' =>
-            {
+            [
+                TokenTree::Ident(i),
+                TokenTree::Punct(p0),
+                TokenTree::Punct(p1),
+                value,
+                TokenTree::Punct(p2),
+            ] if i == "l10n" && p0.as_char() == '!' && p1.as_char() == ':' && p2.as_char() == ',' => {
                 match litrs::Literal::try_from(value) {
                     Ok(litrs::Literal::String(str)) => {
                         r.id = str.into_value().into_owned();
@@ -396,7 +400,7 @@ impl TryFrom<TokenStream> for CommandMacroEntry {
                         return Err(Some((
                             "unexpected l10n: value, must be string or bool literal".to_owned(),
                             value.span(),
-                        )))
+                        )));
                     }
                 }
             }
@@ -428,11 +432,7 @@ impl TryFrom<TokenStream> for CommandMacroEntry {
             }
         }
 
-        if r.metadata.is_empty() {
-            Err(None)
-        } else {
-            Ok(r)
-        }
+        if r.metadata.is_empty() { Err(None) } else { Ok(r) }
     }
 }
 struct CommandMetaEntry {

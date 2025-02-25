@@ -10,7 +10,7 @@
 #![warn(missing_docs)]
 
 use zng_wgt::{margin, prelude::*};
-use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt_access::{AccessRole, access_role};
 
 /// Draws a horizontal or vertical rule line.
 #[widget($crate::RuleLine)]

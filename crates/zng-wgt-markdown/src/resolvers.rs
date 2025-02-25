@@ -14,7 +14,7 @@ use zng_wgt_container::Container;
 use zng_wgt_fill::*;
 use zng_wgt_filter::*;
 use zng_wgt_input::focus::on_focus_leave;
-use zng_wgt_layer::{AnchorMode, AnchorOffset, LayerIndex, LAYERS};
+use zng_wgt_layer::{AnchorMode, AnchorOffset, LAYERS, LayerIndex};
 use zng_wgt_scroll::cmd::ScrollToMode;
 use zng_wgt_size_offset::*;
 use zng_wgt_text::{self as text, Text};
@@ -514,11 +514,7 @@ pub fn heading_anchor(header: &str) -> Txt {
 }
 fn slugify(c: char) -> Option<char> {
     if c.is_alphanumeric() || c == '-' || c == '_' {
-        if c.is_ascii() {
-            Some(c.to_ascii_lowercase())
-        } else {
-            Some(c)
-        }
+        if c.is_ascii() { Some(c.to_ascii_lowercase()) } else { Some(c) }
     } else if c.is_whitespace() && c.is_ascii() {
         Some('-')
     } else {

@@ -40,7 +40,7 @@ mod android {
     use super::app;
     use zng::view_process::default::*;
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     fn android_main(app: android::AndroidApp) {
         zng::env::init!();
 
@@ -59,7 +59,7 @@ mod android {
 mod ios {
     use zng::view_process::default::{run_same_process, *};
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub extern "C" fn ios_main() {
         zng::env::init!();
 

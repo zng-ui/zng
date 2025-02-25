@@ -1,10 +1,10 @@
 use std::mem;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{parse::Parse, punctuated::Punctuated, spanned::Spanned, *};
 
-use crate::util::{crate_core, set_stream_span, Attributes, Errors};
+use crate::util::{Attributes, Errors, crate_core, set_stream_span};
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut errors = Errors::default();

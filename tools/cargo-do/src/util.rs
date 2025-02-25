@@ -146,11 +146,7 @@ pub fn take_option<'a>(args: &mut Vec<&'a str>, option: &[&str], value_name: &st
         i += 1;
     }
 
-    if values.is_empty() {
-        None
-    } else {
-        Some(values)
-    }
+    if values.is_empty() { None } else { Some(values) }
 }
 
 // Parses the initial input. Returns ("task-name", ["task", "args"]).
@@ -374,11 +370,7 @@ pub fn c_w() -> &'static str {
     color("\x1B[0m")
 }
 fn color(color: &str) -> &str {
-    if TaskInfo::dump() || !ansi_enabled() {
-        ""
-    } else {
-        color
-    }
+    if TaskInfo::dump() || !ansi_enabled() { "" } else { color }
 }
 #[allow(unreachable_code)]
 fn ansi_enabled() -> bool {

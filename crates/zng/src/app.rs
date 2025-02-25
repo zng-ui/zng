@@ -400,23 +400,23 @@
 //! may be available at the [`zng_app`], [`zng_app_context`] and [`zng_ext_single_instance`] base crates.
 
 pub use zng_app::{
-    on_app_start, print_tracing, print_tracing_filter, AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed,
-    AppExtensionInfo, AppStartArgs, DInstant, Deadline, ExitRequestedArgs, HeadlessApp, InstantMode, EXIT_CMD, EXIT_REQUESTED_EVENT,
-    INSTANT,
+    AppControlFlow, AppEventObserver, AppExtended, AppExtension, AppExtensionBoxed, AppExtensionInfo, AppStartArgs, DInstant, Deadline,
+    EXIT_CMD, EXIT_REQUESTED_EVENT, ExitRequestedArgs, HeadlessApp, INSTANT, InstantMode, on_app_start, print_tracing,
+    print_tracing_filter,
 };
 
 #[cfg(feature = "test_util")]
 pub use zng_app::test_log;
 
 pub use zng_app_context::{
-    app_local, context_local, AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, LocalContext,
-    MappedRwLockReadGuardOwned, MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned,
+    AppId, AppLocal, AppScope, CaptureFilter, ContextLocal, ContextValueSet, LocalContext, MappedRwLockReadGuardOwned,
+    MappedRwLockWriteGuardOwned, ReadOnlyRwLock, RunOnDrop, RwLockReadGuardOwned, RwLockWriteGuardOwned, app_local, context_local,
 };
 pub use zng_wgt_input::cmd::{
-    on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as, NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD,
+    NEW_CMD, OPEN_CMD, SAVE_AS_CMD, SAVE_CMD, on_new, on_open, on_pre_new, on_pre_open, on_pre_save, on_pre_save_as, on_save, on_save_as,
 };
 
-pub use zng_app::view_process::raw_events::{LowMemoryArgs, LOW_MEMORY_EVENT};
+pub use zng_app::view_process::raw_events::{LOW_MEMORY_EVENT, LowMemoryArgs};
 
 /// Input device hardware ID and events.
 ///
@@ -425,12 +425,12 @@ pub use zng_app::view_process::raw_events::{LowMemoryArgs, LOW_MEMORY_EVENT};
 /// See [`zng_app::view_process::raw_device_events`] for the full API.
 pub mod raw_device_events {
     pub use zng_app::view_process::raw_device_events::{
-        DeviceArgs, DeviceId, MotionArgs, DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, MOTION_EVENT,
+        DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, DeviceArgs, DeviceId, MOTION_EVENT, MotionArgs,
     };
 }
 
 #[cfg(single_instance)]
-pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
+pub use zng_ext_single_instance::{APP_INSTANCE_EVENT, AppInstanceArgs};
 
 /// App-process crash handler.
 ///
@@ -549,7 +549,7 @@ pub use zng_ext_single_instance::{AppInstanceArgs, APP_INSTANCE_EVENT};
 /// See [`zng_app::crash_handler`] and [`zng_wgt_inspector::crash_handler`] for the full API.
 #[cfg(crash_handler)]
 pub mod crash_handler {
-    pub use zng_app::crash_handler::{crash_handler_config, BacktraceFrame, CrashArgs, CrashConfig, CrashError, CrashPanic};
+    pub use zng_app::crash_handler::{BacktraceFrame, CrashArgs, CrashConfig, CrashError, CrashPanic, crash_handler_config};
 
     #[cfg(feature = "crash_handler_debug")]
     pub use zng_wgt_inspector::crash_handler::debug_dialog;

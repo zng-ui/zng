@@ -8,12 +8,13 @@ use zng_app::{
     render::FrameValueKey,
     update::UPDATES,
     widget::{
+        WIDGET, WidgetId,
         base::WidgetBase,
-        node::{match_node, match_node_leaf, UiNode, UiNodeOp},
-        property, widget, WidgetId, WIDGET,
+        node::{UiNode, UiNodeOp, match_node, match_node_leaf},
+        property, widget,
     },
 };
-use zng_app_context::{context_local, LocalContext};
+use zng_app_context::{LocalContext, context_local};
 use zng_color::colors;
 use zng_ext_input::{
     focus::{FOCUS, FOCUS_CHANGED_EVENT},
@@ -26,12 +27,12 @@ use zng_layout::{
     unit::{Dip, DipToPx as _, DipVector, Px, PxCornerRadius, PxPoint, PxRect, PxSize, PxTransform, PxVector},
 };
 use zng_view_api::{display_list::FrameValue, touch::TouchId};
-use zng_wgt::{prelude::*, WidgetFn};
-use zng_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
+use zng_wgt::{WidgetFn, prelude::*};
+use zng_wgt_layer::{AnchorMode, LAYERS, LayerIndex};
 
 use crate::{
-    cmd::{TextSelectOp, SELECT_CMD},
-    CaretShape, CARET_COLOR_VAR, INTERACTIVE_CARET_VAR, INTERACTIVE_CARET_VISUAL_VAR, TEXT_EDITABLE_VAR,
+    CARET_COLOR_VAR, CaretShape, INTERACTIVE_CARET_VAR, INTERACTIVE_CARET_VISUAL_VAR, TEXT_EDITABLE_VAR,
+    cmd::{SELECT_CMD, TextSelectOp},
 };
 
 use super::TEXT;

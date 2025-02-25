@@ -47,6 +47,6 @@
 //! [`WidgetInfoBuilder::with_meta`]: crate::widget::info::WidgetInfoBuilder::with_meta
 
 pub use zng_state_map::{
-    state_map::{OccupiedStateMapEntry, StateMapEntry, VacantStateMapEntry},
     OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue,
+    state_map::{OccupiedStateMapEntry, StateMapEntry, VacantStateMapEntry},
 };

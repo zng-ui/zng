@@ -3,12 +3,12 @@ use std::{any::Any, sync::Arc, time::Duration};
 use super::builder::*;
 use zng_layout::unit::*;
 use zng_var::{
+    BoxedVar, Var, VarValue,
     animation::{
-        easing::{EasingStep, EasingTime},
         Transitionable,
+        easing::{EasingStep, EasingTime},
     },
     types::{ArcWhenVar, ContextualizedVar},
-    BoxedVar, Var, VarValue,
 };
 
 pub use zng_app_proc_macros::easing;

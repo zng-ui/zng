@@ -28,4 +28,4 @@
 //!
 //! See [`zng_wgt_progress`] and [`zng_task::Progress`] for the full widget API.
 
-pub use zng_wgt_progress::{is_indeterminate, on_complete, on_progress, DefaultStyle, ProgressView, SimpleBarStyle, PROGRESS_VAR};
+pub use zng_wgt_progress::{DefaultStyle, PROGRESS_VAR, ProgressView, SimpleBarStyle, is_indeterminate, on_complete, on_progress};

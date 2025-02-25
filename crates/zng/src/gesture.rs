@@ -35,12 +35,12 @@
 //! [`zng_app::shortcut`]: mod@zng_app::shortcut
 
 pub use zng_ext_input::gesture::{
-    ClickArgs, ClickArgsSource, CommandShortcutMatchesExt, HeadlessAppGestureExt, ShortcutActions, ShortcutArgs, ShortcutClick,
-    ShortcutsHandle, WeakShortcutsHandle, CLICK_EVENT, GESTURES, SHORTCUT_EVENT,
+    CLICK_EVENT, ClickArgs, ClickArgsSource, CommandShortcutMatchesExt, GESTURES, HeadlessAppGestureExt, SHORTCUT_EVENT, ShortcutActions,
+    ShortcutArgs, ShortcutClick, ShortcutsHandle, WeakShortcutsHandle,
 };
 
 pub use zng_app::shortcut::{
-    shortcut, CommandShortcutExt, GestureKey, KeyChord, KeyGesture, ModifierGesture, Shortcut, ShortcutFilter, Shortcuts,
+    CommandShortcutExt, GestureKey, KeyChord, KeyGesture, ModifierGesture, Shortcut, ShortcutFilter, Shortcuts, shortcut,
 };
 
 pub use zng_wgt_input::gesture::{

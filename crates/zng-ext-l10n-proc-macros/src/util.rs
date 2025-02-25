@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote_spanned, ToTokens};
+use quote::{ToTokens, quote_spanned};
 
 /// Collection of compile errors.
 #[derive(Default)]

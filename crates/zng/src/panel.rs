@@ -60,4 +60,4 @@
 //!
 //! See [`zng_wgt_panel`] for the full widget API.
 
-pub use zng_wgt_panel::{node, panel_fn, Panel, PanelArgs};
+pub use zng_wgt_panel::{Panel, PanelArgs, node, panel_fn};

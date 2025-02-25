@@ -991,7 +991,7 @@ impl FrameId {
 
     /// Get the raw ID.
     pub fn get(self) -> u64 {
-        (self.0 as u64) << 32 | (self.1 as u64)
+        ((self.0 as u64) << 32) | (self.1 as u64)
     }
 
     /// Get the full frame ID.

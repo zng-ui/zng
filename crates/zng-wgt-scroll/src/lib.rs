@@ -37,7 +37,7 @@ pub use scrollbar::Scrollbar;
 pub use thumb::Thumb;
 
 use zng_ext_input::focus::FocusScopeOnFocus;
-use zng_wgt_container::{child_align, Container};
+use zng_wgt_container::{Container, child_align};
 use zng_wgt_input::focus::{focus_scope, focus_scope_behavior};
 
 /// A container that can pan and zoom a child of any size.

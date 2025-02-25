@@ -2,7 +2,7 @@
 name = "cargo-zng"
 version = "0.4.19"
 authors = ["The Zng Project Developers"]
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 description = "Zng project manager."

@@ -31,9 +31,9 @@ pub mod view_side {
         extensions::{AsyncBlobRasterizer, BlobExtension, RenderItemArgs, RenderUpdateArgs, RendererExtension},
         webrender::{
             api::{
-                units::{BlobDirtyRect, DeviceIntRect, DeviceIntSize, LayoutRect},
                 BlobImageError, BlobImageKey, BlobImageParams, BlobImageResult, ColorF, CommonItemProperties, ImageDescriptor,
                 ImageDescriptorFlags, ImageFormat, RasterizedBlobImage,
+                units::{BlobDirtyRect, DeviceIntRect, DeviceIntSize, LayoutRect},
             },
             euclid,
         },

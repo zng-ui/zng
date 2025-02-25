@@ -5,20 +5,20 @@ use std::{any::TypeId, cell::RefCell, fmt};
 use crate::{source_location, widget::WidgetId};
 
 use super::{
+    WIDGET,
     builder::{
         AnyPropertyBuildAction, Importance, PropertyArgs, PropertyId, SourceLocation, WhenBuildAction, WhenInfo, WhenInput, WidgetBuilder,
         WidgetType,
     },
     node::{FillUiNode, UiNode, UiNodeOp},
-    WIDGET,
 };
 
 use crate::widget::{
-    builder::{property_id, NestGroup},
+    builder::{NestGroup, property_id},
     node::match_node,
     property,
 };
-use zng_var::{context_var, impl_from_and_into_var, BoxedVar, IntoValue};
+use zng_var::{BoxedVar, IntoValue, context_var, impl_from_and_into_var};
 
 /// Base widget.
 ///
@@ -70,7 +70,7 @@ impl WidgetBase {
     /// Build the widget.
     ///
     /// After this call trying to set a property will panic.
-    pub fn widget_build(&mut self) -> impl UiNode {
+    pub fn widget_build(&mut self) -> impl UiNode + use<> {
         let mut wgt = self.widget_take();
         wgt.push_build_action(|wgt| {
             if !wgt.has_child() {
@@ -145,8 +145,8 @@ impl WidgetBase {
             when: RefCell::new(self.when.borrow_mut().take()),
         };
         f(&mut inner);
-        *self.builder.borrow_mut() = inner.builder.into_inner().take();
-        *self.when.borrow_mut() = inner.when.into_inner().take();
+        *self.builder.borrow_mut() = inner.builder.into_inner();
+        *self.when.borrow_mut() = inner.when.into_inner();
         debug_assert_eq!(self.importance, inner.importance);
     }
 
@@ -282,7 +282,10 @@ macro_rules! WidgetBaseMacro__ {
                 let mut wgt__ = $crate::widget::base::WidgetBase::widget_new();
                 let wgt__ = &mut wgt__;
             }
-            build { wgt__.widget_build() }
+            build {
+                let wgt__ = wgt__.widget_build();
+                wgt__
+            }
             set { $($tt)* }
         }
     }
@@ -447,9 +450,9 @@ pub mod node {
         render::{FrameBuilder, FrameUpdate, FrameValueKey},
         update::{EventUpdate, WidgetUpdates},
         widget::{
+            WidgetCtx, WidgetUpdateMode,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
             node::BoxedUiNode,
-            WidgetCtx, WidgetUpdateMode,
         },
     };
 

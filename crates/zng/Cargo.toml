@@ -2,7 +2,7 @@
 name = "zng"
 version = "0.13.12"
 authors = ["The Zng Project Developers"]
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 description = "Cross-platform GUI framework."

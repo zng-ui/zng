@@ -1,5 +1,3 @@
-use std::future::IntoFuture;
-
 use super::*;
 
 /// New paired [`ResponderVar`] and [`ResponseVar`] in the waiting state.

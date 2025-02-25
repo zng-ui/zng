@@ -2,7 +2,7 @@
 
 use zng_ext_input::{
     mouse::MOUSE_INPUT_EVENT,
-    pointer_capture::{PointerCaptureArgs, POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
+    pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT, PointerCaptureArgs},
     touch::TOUCH_INPUT_EVENT,
 };
 use zng_wgt::prelude::*;

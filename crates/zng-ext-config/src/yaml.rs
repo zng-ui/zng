@@ -154,7 +154,7 @@ fn yaml_map_key(key: serde_yaml::Value) -> Result<String, YamlValueRawError> {
         serde_yaml::Value::Number(n) => n.to_string(),
         serde_yaml::Value::String(s) => s,
         serde_yaml::Value::Sequence(_) | serde_yaml::Value::Mapping(_) | serde_yaml::Value::Tagged(_) => {
-            return Err(YamlValueRawError::InvalidMapKey)
+            return Err(YamlValueRawError::InvalidMapKey);
         }
     };
     Ok(ok)

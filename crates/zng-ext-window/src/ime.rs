@@ -6,7 +6,7 @@ use zng_app::{
     widget::info::{WidgetInfo, WidgetInfoBuilder, WidgetPath},
 };
 use zng_layout::unit::PxRect;
-use zng_state_map::{static_id, StateId};
+use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 
 event_args! {

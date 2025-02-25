@@ -5,7 +5,7 @@ use std::{fmt, sync::Arc};
 use bitflags::bitflags;
 use unicode_bidi::BidiDataSource as _;
 use zng_app_context::context_local;
-use zng_unit::{about_eq, about_eq_hash, euclid, Factor, Px, PxRect, PxSize};
+use zng_unit::{Factor, Px, PxRect, PxSize, about_eq, about_eq_hash, euclid};
 use zng_var::context_var;
 
 use atomic::{Atomic, Ordering::Relaxed};
@@ -852,8 +852,8 @@ impl From<char> for TextSegmentKind {
 
 impl From<unicode_bidi::BidiClass> for TextSegmentKind {
     fn from(value: unicode_bidi::BidiClass) -> Self {
-        use unicode_bidi::BidiClass::*;
         use TextSegmentKind::*;
+        use unicode_bidi::BidiClass::*;
 
         match value {
             WS => Space,
@@ -884,8 +884,8 @@ impl From<unicode_bidi::BidiClass> for TextSegmentKind {
 }
 impl From<TextSegmentKind> for unicode_bidi::BidiClass {
     fn from(value: TextSegmentKind) -> Self {
-        use unicode_bidi::BidiClass::*;
         use TextSegmentKind::*;
+        use unicode_bidi::BidiClass::*;
 
         match value {
             Space => WS,

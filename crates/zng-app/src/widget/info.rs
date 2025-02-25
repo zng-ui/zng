@@ -23,22 +23,22 @@ use zng_clone_move::clmv;
 use zng_layout::{
     context::{LayoutMask, LayoutMetricsSnapshot},
     unit::{
-        euclid, DistanceKey, Factor, FactorUnits, Orientation2D, Px, PxBox, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize,
-        PxTransform, PxVector,
+        DistanceKey, Factor, FactorUnits, Orientation2D, Px, PxBox, PxCornerRadius, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform,
+        PxVector, euclid,
     },
 };
 use zng_state_map::{OwnedStateMap, StateMapRef};
-use zng_txt::{formatx, Txt};
+use zng_txt::{Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
 use zng_var::impl_from_and_into_var;
-use zng_view_api::{display_list::FrameValueUpdate, window::FrameId, ViewProcessGen};
+use zng_view_api::{ViewProcessGen, display_list::FrameValueUpdate, window::FrameId};
 
-use crate::{render::TransformStyle, window::WindowId, DInstant};
+use crate::{DInstant, render::TransformStyle, window::WindowId};
 
 pub use self::hit::RelativeHitZ;
 use self::{access::AccessEnabled, hit::ParallelSegmentId, iter::TreeIterator};
 
-use super::{node::ZIndex, WidgetId};
+use super::{WidgetId, node::ZIndex};
 
 /// Stats over the lifetime of a widget info tree.
 ///
@@ -227,7 +227,7 @@ impl WidgetInfoTree {
     }
 
     /// Iterator over all widgets with inner-bounds not fully contained by their parent inner bounds.
-    pub fn out_of_bounds(&self) -> impl std::iter::ExactSizeIterator<Item = WidgetInfo> {
+    pub fn out_of_bounds(&self) -> impl std::iter::ExactSizeIterator<Item = WidgetInfo> + 'static + use<> {
         let out = self.0.frame.read().out_of_bounds.clone();
         let me = self.clone();
         (0..out.len()).map(move |i| WidgetInfo::new(me.clone(), out[i]))
@@ -296,8 +296,8 @@ impl WidgetInfoTree {
         frame.spatial_bounds = spatial_bounds;
 
         frame.scale_factor = scale_factor;
-        if let Some(gen) = view_process_gen {
-            frame.view_process_gen = gen;
+        if let Some(vp_gen) = view_process_gen {
+            frame.view_process_gen = vp_gen;
         }
         if let Some(w) = widget_count_offsets {
             frame.widget_count_offsets = w;
@@ -533,11 +533,7 @@ impl WidgetBoundsInfo {
     /// [`baseline`]: Self::baseline
     pub fn final_baseline(&self) -> Px {
         let s = self.0.lock();
-        if s.inner_offset_baseline {
-            Px(0)
-        } else {
-            s.baseline
-        }
+        if s.inner_offset_baseline { Px(0) } else { s.baseline }
     }
 
     /// Gets the global transform of the widget's outer bounds during the last render or render update.
@@ -1415,7 +1411,7 @@ impl WidgetInfo {
     }
 
     /// All parent children except this widget.
-    pub fn siblings(&self) -> impl Iterator<Item = WidgetInfo> {
+    pub fn siblings(&self) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         self.prev_siblings().chain(self.next_siblings())
     }
 
@@ -1630,7 +1626,7 @@ impl WidgetInfo {
     }
 
     /// Iterator over all descendants with inner bounds not fully contained by their parent inner bounds.
-    pub fn out_of_bounds(&self) -> impl Iterator<Item = WidgetInfo> {
+    pub fn out_of_bounds(&self) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         let range = self.descendants_range();
         self.tree.out_of_bounds().filter(move |w| range.contains(w))
     }
@@ -1640,7 +1636,10 @@ impl WidgetInfo {
     /// If the `filter` returns `false` the widget and all it's in-bounds descendants are skipped, otherwise they are yielded. After
     /// all in-bounds descendants reachable from `self` and filtered the iterator changes to each out-of-bounds descendants and their
     /// in-bounds descendants that are also filtered.
-    pub fn spatial_iter(&self, filter: impl Fn(&WidgetInfo) -> bool + Clone) -> impl Iterator<Item = WidgetInfo> {
+    pub fn spatial_iter<F>(&self, filter: F) -> impl Iterator<Item = WidgetInfo> + use<F>
+    where
+        F: Fn(&WidgetInfo) -> bool + Clone,
+    {
         let self_id = self.id();
         self.self_and_descendants()
             .tree_filter(clmv!(filter, |w| {
@@ -1663,37 +1662,37 @@ impl WidgetInfo {
     }
 
     /// Iterator over self and all descendants with inner bounds that contain the `point`.
-    pub fn inner_contains(&self, point: PxPoint) -> impl Iterator<Item = WidgetInfo> {
+    pub fn inner_contains(&self, point: PxPoint) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         self.spatial_iter(move |w| w.inner_bounds().contains(point))
     }
 
     /// Spatial iterator over self and descendants with inner bounds that intersects the `rect`.
-    pub fn inner_intersects(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> {
+    pub fn inner_intersects(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         let rect = rect.to_box2d();
         self.spatial_iter(move |w| w.inner_bounds().to_box2d().intersects(&rect))
     }
 
     /// Spatial iterator over self and descendants with inner bounds that fully envelops the `rect`.
-    pub fn inner_contains_rect(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> {
+    pub fn inner_contains_rect(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         let rect = rect.to_box2d();
         self.spatial_iter(move |w| w.inner_bounds().to_box2d().contains_box(&rect))
     }
 
     /// Spatial iterator over self and descendants with inner bounds that are fully inside the `rect`.
-    pub fn inner_contained(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> {
+    pub fn inner_contained(&self, rect: PxRect) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         let rect = rect.to_box2d();
         self.spatial_iter(move |w| rect.contains_box(&w.inner_bounds().to_box2d()))
     }
 
     /// Spatial iterator over self and descendants with center point inside the `area`.
-    pub fn center_contained(&self, area: PxRect) -> impl Iterator<Item = WidgetInfo> {
+    pub fn center_contained(&self, area: PxRect) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         let area = area.to_box2d();
         self.spatial_iter(move |w| w.inner_bounds().to_box2d().intersects(&area))
             .filter(move |w| area.contains(w.center()))
     }
 
     /// Spatial iterator over self and descendants with center point within the `max_radius` of the `origin`.
-    pub fn center_in_distance(&self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo> + '_ {
+    pub fn center_in_distance(&self, origin: PxPoint, max_radius: Px) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         let area = PxRect::new(origin, PxSize::splat(max_radius))
             .inflate(max_radius, max_radius)
             .to_box2d();
@@ -1817,7 +1816,12 @@ impl WidgetInfo {
     /// [`spatial_bounds`]: WidgetInfoTree::spatial_bounds
     /// [`center`]: WidgetInfo::center
     /// [`Orientation2D::point_is`]: zng_layout::unit::Orientation2D::point_is
-    pub fn oriented(&self, origin: PxPoint, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo> {
+    pub fn oriented(
+        &self,
+        origin: PxPoint,
+        max_distance: Px,
+        orientation: Orientation2D,
+    ) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         let distance_bounded = max_distance != Px::MAX;
         let distance_key = if distance_bounded {
             DistanceKey::from_distance(max_distance)
@@ -1853,7 +1857,12 @@ impl WidgetInfo {
     /// [`inner_bounds`]: WidgetInfo::inner_bounds
     /// [`center`]: WidgetInfo::center
     /// [`Orientation2D::box_is`]: zng_layout::unit::Orientation2D::box_is
-    pub fn oriented_box(&self, origin: PxBox, max_distance: Px, orientation: Orientation2D) -> impl Iterator<Item = WidgetInfo> {
+    pub fn oriented_box(
+        &self,
+        origin: PxBox,
+        max_distance: Px,
+        orientation: Orientation2D,
+    ) -> impl Iterator<Item = WidgetInfo> + 'static + use<> {
         let distance_bounded = max_distance != Px::MAX;
         let distance_key = if distance_bounded {
             DistanceKey::from_distance(max_distance)

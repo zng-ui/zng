@@ -38,4 +38,4 @@
 //!
 //! See [`zng_wgt_text_input::selectable`] for the full widget API.
 
-pub use zng_wgt_text_input::selectable::{style_fn, DefaultStyle, SelectableText};
+pub use zng_wgt_text_input::selectable::{DefaultStyle, SelectableText, style_fn};

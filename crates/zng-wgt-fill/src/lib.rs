@@ -9,8 +9,8 @@
 #![warn(unused_extern_crates)]
 #![warn(missing_docs)]
 
-use zng_wgt::prelude::gradient::{stops, GradientRadius, GradientStops, LinearGradientAxis};
-use zng_wgt::{hit_test_mode, node::interactive_node, prelude::*, HitTestMode};
+use zng_wgt::prelude::gradient::{GradientRadius, GradientStops, LinearGradientAxis, stops};
+use zng_wgt::{HitTestMode, hit_test_mode, node::interactive_node, prelude::*};
 
 pub mod node;
 

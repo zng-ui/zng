@@ -358,8 +358,8 @@ pub use zng_layout::unit::{
 pub use zng_var::types::{slerp_enabled, slerp_sampler};
 
 pub use zng_layout::context::{
-    InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LayoutDirection, LayoutMask,
-    LayoutMetrics, LayoutMetricsSnapshot, LayoutPassId, TextSegmentKind, DIRECTION_VAR, LAYOUT,
+    DIRECTION_VAR, InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LAYOUT,
+    LayoutDirection, LayoutMask, LayoutMetrics, LayoutMetricsSnapshot, LayoutPassId, TextSegmentKind,
 };
 
 pub use zng_app::widget::info::{WidgetLayout, WidgetMeasure};
@@ -370,12 +370,12 @@ pub use zng_wgt_transform::{
 };
 
 pub use zng_wgt_size_offset::{
-    actual_bounds, actual_height, actual_height_px, actual_size, actual_size_px, actual_transform, actual_width, actual_width_px, baseline,
-    force_height, force_size, force_width, height, max_height, max_size, max_width, min_height, min_size, min_width, offset, size,
-    sticky_height, sticky_size, sticky_width, width, x, y, WidgetLength, WIDGET_SIZE,
+    WIDGET_SIZE, WidgetLength, actual_bounds, actual_height, actual_height_px, actual_size, actual_size_px, actual_transform, actual_width,
+    actual_width_px, baseline, force_height, force_size, force_width, height, max_height, max_size, max_width, min_height, min_size,
+    min_width, offset, size, sticky_height, sticky_size, sticky_width, width, x, y,
 };
 
-pub use zng_wgt::{align, inline, is_ltr, is_rtl, margin, InlineMode};
+pub use zng_wgt::{InlineMode, align, inline, is_ltr, is_rtl, margin};
 
 pub use zng_wgt_container::{child_align, padding};
 

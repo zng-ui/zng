@@ -40,7 +40,7 @@
 //!
 //! See [`zng_ext_input::pointer_capture`] and [`zng_wgt_input::pointer_capture`] for the full pointer capture API.
 
-pub use zng_ext_input::pointer_capture::{CaptureInfo, CaptureMode, PointerCaptureArgs, POINTER_CAPTURE, POINTER_CAPTURE_EVENT};
+pub use zng_ext_input::pointer_capture::{CaptureInfo, CaptureMode, POINTER_CAPTURE, POINTER_CAPTURE_EVENT, PointerCaptureArgs};
 
 pub use zng_wgt_input::pointer_capture::{
     capture_pointer, capture_pointer_on_init, on_got_pointer_capture, on_lost_pointer_capture, on_pointer_capture_changed,

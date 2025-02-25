@@ -13,7 +13,7 @@ use std::{fmt, mem};
 
 use zng_layout::unit::{GridSpacing, PxGridSpacing};
 use zng_wgt::prelude::*;
-use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt_access::{AccessRole, access_role};
 use zng_wgt_size_offset::*;
 
 /// Grid layout with cells of variable sizes.
@@ -548,11 +548,7 @@ pub mod column {
             child,
             |w, &i| {
                 let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0;
-                if a != i {
-                    Some(a)
-                } else {
-                    None
-                }
+                if a != i { Some(a) } else { None }
             },
             |_, &i| if i != 0 { Some(0) } else { None },
             state,
@@ -566,11 +562,7 @@ pub mod column {
             child,
             |w, &i| {
                 let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
-                if a != i {
-                    Some(a)
-                } else {
-                    None
-                }
+                if a != i { Some(a) } else { None }
             },
             |_, &i| if i != (0, 0) { Some((0, 0)) } else { None },
             state,
@@ -585,11 +577,7 @@ pub mod column {
             |w, &i| {
                 let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 let a = a.1 - a.0;
-                if a != i {
-                    Some(a)
-                } else {
-                    None
-                }
+                if a != i { Some(a) } else { None }
             },
             |_, &i| if i != 0 { Some(0) } else { None },
             state,
@@ -703,11 +691,7 @@ pub mod row {
             child,
             |w, &i| {
                 let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0)).0;
-                if a != i {
-                    Some(a)
-                } else {
-                    None
-                }
+                if a != i { Some(a) } else { None }
             },
             |_, &i| if i != 0 { Some(0) } else { None },
             state,
@@ -721,11 +705,7 @@ pub mod row {
             child,
             |w, &i| {
                 let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
-                if a != i {
-                    Some(a)
-                } else {
-                    None
-                }
+                if a != i { Some(a) } else { None }
             },
             |_, &i| if i != (0, 0) { Some((0, 0)) } else { None },
             state,
@@ -740,11 +720,7 @@ pub mod row {
             |w, &i| {
                 let a = w.get(*INDEX_ID).copied().unwrap_or((0, 0));
                 let a = a.1 - a.0;
-                if a != i {
-                    Some(a)
-                } else {
-                    None
-                }
+                if a != i { Some(a) } else { None }
             },
             |_, &i| if i != 0 { Some(0) } else { None },
             state,
@@ -997,11 +973,7 @@ impl ColRowMeta {
 
     /// Return the leftover factor if the column or row must be measured on a fraction of the leftover space.
     fn is_leftover(self) -> Option<Factor> {
-        if self.0 >= 0.0 {
-            Some(Factor(self.0))
-        } else {
-            None
-        }
+        if self.0 >= 0.0 { Some(Factor(self.0)) } else { None }
     }
 
     /// `width` or `height` contains the final length or is pending layout `Px::MIN`.

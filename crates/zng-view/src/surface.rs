@@ -2,21 +2,22 @@ use std::{collections::VecDeque, fmt};
 
 use tracing::span::EnteredSpan;
 use webrender::{
-    api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction,
+    api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
 };
 use winit::event_loop::ActiveEventLoop;
 use zng_unit::{DipSize, DipToPx, Factor, Px, PxRect, Rgba};
 use zng_view_api::{
+    ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
     window::{FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, HeadlessRequest, RenderMode, WindowId},
-    ViewProcessGen,
 };
 
 use crate::{
-    display_list::{display_list_to_webrender, DisplayListCache},
+    AppEventSender, FrameReadyMsg, WrNotifier,
+    display_list::{DisplayListCache, display_list_to_webrender},
     extensions::{
         self, BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowConfigArgs, WindowExtension,
@@ -24,8 +25,7 @@ use crate::{
     gl::{GlContext, GlContextManager},
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
-    util::{frame_render_reasons, frame_update_render_reasons, PxToWinit},
-    AppEventSender, FrameReadyMsg, WrNotifier,
+    util::{PxToWinit, frame_render_reasons, frame_update_render_reasons},
 };
 
 /// A headless "window".
@@ -62,7 +62,7 @@ impl fmt::Debug for Surface {
 }
 impl Surface {
     pub fn open(
-        gen: ViewProcessGen,
+        vp_gen: ViewProcessGen,
         cfg: HeadlessRequest,
         winit_loop: &ActiveEventLoop,
         gl_manager: &mut GlContextManager,
@@ -99,7 +99,7 @@ impl Surface {
             enable_aa: true,
             enable_subpixel_aa: cfg!(not(target_os = "android")),
 
-            renderer_id: Some((gen.get() as u64) << 32 | id.get() as u64),
+            renderer_id: Some(((vp_gen.get() as u64) << 32) | id.get() as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
             clear_color: webrender::api::ColorF::new(0.0, 0.0, 0.0, 0.0),
@@ -141,7 +141,7 @@ impl Surface {
 
         let mut api = sender.create_api();
         let document_id = api.add_document(device_size);
-        let pipeline_id = webrender::api::PipelineId(gen.get(), id.get());
+        let pipeline_id = webrender::api::PipelineId(vp_gen.get(), id.get());
 
         renderer_exts.retain_mut(|(_, ext)| {
             ext.renderer_inited(&mut RendererInitedArgs {

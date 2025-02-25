@@ -31,5 +31,5 @@
 //!
 
 pub use zng_app::timer::{
-    DeadlineArgs, DeadlineHandle, DeadlineVar, Timer, TimerArgs, TimerHandle, TimerVar, WeakDeadlineHandle, WeakTimerHandle, TIMERS,
+    DeadlineArgs, DeadlineHandle, DeadlineVar, TIMERS, Timer, TimerArgs, TimerHandle, TimerVar, WeakDeadlineHandle, WeakTimerHandle,
 };

@@ -6,19 +6,19 @@ use std::{
 };
 
 use zng_app::widget::info::InlineSegmentInfo;
-use zng_ext_image::{ImageDataFormat, ImageSource, ImageVar, IMAGES};
-use zng_ext_l10n::{lang, Lang};
+use zng_ext_image::{IMAGES, ImageDataFormat, ImageSource, ImageVar};
+use zng_ext_l10n::{Lang, lang};
 use zng_layout::{
     context::{InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegmentPos, LayoutDirection, TextSegmentKind},
-    unit::{about_eq, euclid, Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize},
+    unit::{Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize, about_eq, euclid},
 };
 use zng_txt::Txt;
 use zng_var::{AnyVar, Var as _};
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
-    font_features::RFontFeatures, BidiLevel, CaretIndex, Font, FontList, Hyphens, Justify, LineBreak, SegmentedText, TextSegment,
-    WordBreak, HYPHENATION,
+    BidiLevel, CaretIndex, Font, FontList, HYPHENATION, Hyphens, Justify, LineBreak, SegmentedText, TextSegment, WordBreak,
+    font_features::RFontFeatures,
 };
 
 /// Reasons why a font might fail to load a glyph.
@@ -3385,7 +3385,7 @@ impl<'a> ShapedLine<'a> {
     }
 
     /// Iterate over word and space segments in this line.
-    pub fn segs(&self) -> impl DoubleEndedIterator<Item = ShapedSegment<'a>> + ExactSizeIterator {
+    pub fn segs(&self) -> impl DoubleEndedIterator<Item = ShapedSegment<'a>> + ExactSizeIterator + use<'a> {
         let text = self.text;
         let line_index = self.index;
         self.seg_range.iter().map(move |i| ShapedSegment {
@@ -3495,11 +3495,7 @@ impl<'a> ShapedLine<'a> {
                 seg.text.end
             } else {
                 // start of LineBreak segment
-                if end == 1 {
-                    0
-                } else {
-                    self.text.segments.0[end - 2].text.end
-                }
+                if end == 1 { 0 } else { self.text.segments.0[end - 2].text.end }
             }
         };
 
@@ -3760,7 +3756,9 @@ impl<'a> ShapedSegment<'a> {
     /// Glyphs in the segment, paired with the *x-advance*.
     ///
     /// Yields `(Font, [(glyph, advance)])`.
-    pub fn glyphs_with_x_advance(&self) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (GlyphInstance, f32)> + 'a)> + 'a {
+    pub fn glyphs_with_x_advance(
+        &self,
+    ) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (GlyphInstance, f32)> + use<'a>)> + use<'a> {
         let r = self.glyphs_range();
         self.text.seg_glyphs_with_x_advance(self.index, r)
     }
@@ -3768,7 +3766,9 @@ impl<'a> ShapedSegment<'a> {
     /// Glyphs per cluster in the segment, paired with the *x-advance* of the cluster.
     ///
     /// Yields `(Font, [(cluster, [glyph], advance)])`.
-    pub fn cluster_glyphs_with_x_advance(&self) -> impl Iterator<Item = (&Font, impl Iterator<Item = (u32, &[GlyphInstance], f32)>)> {
+    pub fn cluster_glyphs_with_x_advance(
+        &self,
+    ) -> impl Iterator<Item = (&'a Font, impl Iterator<Item = (u32, &'a [GlyphInstance], f32)> + use<'a>)> + use<'a> {
         let r = self.glyphs_range();
         self.text.seg_cluster_glyphs_with_x_advance(self.index, r)
     }
@@ -3899,7 +3899,7 @@ impl<'a> ShapedSegment<'a> {
     /// Underline spanning the word or spaces, skipping glyph descends that intercept the line.
     ///
     /// Returns an iterator of start point + width for underline segments.
-    pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + 'a {
+    pub fn underline_skip_glyphs(&self, thickness: Px) -> impl Iterator<Item = (PxPoint, Px)> + use<'a> {
         let y = (self.text.line_height * Px((self.line_index as i32) + 1)) - self.text.underline;
         let (x, _) = self.x_width();
 
@@ -3927,11 +3927,7 @@ impl<'a> ShapedSegment<'a> {
                     Px(px.round() as i32)
                 }
                 let r = (PxPoint::new(f32_to_px(self.x), self.y), f32_to_px(self.width));
-                if r.1 >= self.min_width {
-                    Some(r)
-                } else {
-                    None
-                }
+                if r.1 >= self.min_width { Some(r) } else { None }
             }
         }
         impl<'a, I, J> Iterator for UnderlineSkipGlyphs<'a, I, J>
@@ -4134,11 +4130,7 @@ impl<'a> ShapedSegment<'a> {
                 let middle_x = glyphs[0].point.x + advance / 2.0;
 
                 return if is_rtl {
-                    if x <= middle_x {
-                        char_b
-                    } else {
-                        char_a
-                    }
+                    if x <= middle_x { char_b } else { char_a }
                 } else if x <= middle_x {
                     char_a
                 } else {
@@ -4151,11 +4143,7 @@ impl<'a> ShapedSegment<'a> {
         if matches!(self.kind(), TextSegmentKind::LineBreak) {
             start = !start;
         }
-        if start {
-            txt_range.start
-        } else {
-            txt_range.end
-        }
+        if start { txt_range.start } else { txt_range.end }
     }
 
     /// Gets the segment index in the line.
@@ -4662,7 +4650,7 @@ fn into_harf_direction(d: LayoutDirection) -> rustybuzz::Direction {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Font, FontManager, FontName, FontStretch, FontStyle, FontWeight, SegmentedText, TextShapingArgs, WordContextKey, FONTS};
+    use crate::{FONTS, Font, FontManager, FontName, FontStretch, FontStyle, FontWeight, SegmentedText, TextShapingArgs, WordContextKey};
     use zng_app::APP;
     use zng_ext_l10n::lang;
     use zng_layout::{

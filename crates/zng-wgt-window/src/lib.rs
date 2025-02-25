@@ -21,9 +21,9 @@ use zng_var::types::ContextualizedVar;
 use zng_wgt::{is_mobile, prelude::*};
 use zng_wgt_fill::background_color;
 use zng_wgt_input::focus::{
-    directional_nav, focus_highlight, focus_scope, focus_scope_behavior, tab_nav, FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR,
+    FOCUS_HIGHLIGHT_OFFSETS_VAR, FOCUS_HIGHLIGHT_WIDTHS_VAR, directional_nav, focus_highlight, focus_scope, focus_scope_behavior, tab_nav,
 };
-use zng_wgt_text::{font_color, lang, FONT_SIZE_VAR};
+use zng_wgt_text::{FONT_SIZE_VAR, font_color, lang};
 
 pub mod events;
 mod window_properties;

@@ -3,17 +3,17 @@ use std::{mem, sync::Arc};
 use atomic::Atomic;
 use parking_lot::RwLock;
 use zng_app::{
+    DInstant,
     event::{AnyEventArgs as _, CommandHandle, EventHandle, EventHandles},
     widget::{
-        node::{match_node, UiNode, UiNodeOp},
         WIDGET,
+        node::{UiNode, UiNodeOp, match_node},
     },
-    DInstant,
 };
-use zng_ext_font::{font_features::FontVariations, CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextShapingArgs};
+use zng_ext_font::{CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextShapingArgs, font_features::FontVariations};
 use zng_ext_input::{
     focus::FOCUS,
-    keyboard::{KEYBOARD, KEY_INPUT_EVENT},
+    keyboard::{KEY_INPUT_EVENT, KEYBOARD},
     mouse::{MOUSE, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
     touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
@@ -22,25 +22,25 @@ use zng_ext_l10n::LANG_VAR;
 use zng_ext_undo::UNDO;
 use zng_ext_window::WidgetInfoBuilderImeArea as _;
 use zng_layout::{
-    context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment, LayoutMetrics, LAYOUT},
+    context::{InlineConstraints, InlineConstraintsMeasure, InlineSegment, LAYOUT, LayoutMetrics},
     unit::{DipPoint, FactorUnits as _, Px, PxBox, PxConstraints2d, PxRect, PxSize, PxTransform, Rect, Size},
 };
 use zng_view_api::keyboard::{Key, KeyState};
 use zng_wgt::prelude::*;
-use zng_wgt_scroll::{cmd::ScrollToMode, SCROLL};
+use zng_wgt_scroll::{SCROLL, cmd::ScrollToMode};
 
 use crate::{
-    cmd::{TextSelectOp, SELECT_ALL_CMD, SELECT_CMD},
+    ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, AUTO_SELECTION_VAR, AutoSelection, FONT_FAMILY_VAR, FONT_FEATURES_VAR, FONT_SIZE_VAR,
+    FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHEN_CHAR_VAR, HYPHENS_VAR, IME_UNDERLINE_THICKNESS_VAR,
+    JUSTIFY_MODE_VAR, LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR, OBSCURING_CHAR_VAR,
+    OVERLINE_THICKNESS_VAR, STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR, TEXT_OVERFLOW_ALIGN_VAR,
+    TEXT_OVERFLOW_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, TextOverflow, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR,
+    UNDERLINE_THICKNESS_VAR, UnderlinePosition, UnderlineSkip, WORD_BREAK_VAR, WORD_SPACING_VAR,
+    cmd::{SELECT_ALL_CMD, SELECT_CMD, TextSelectOp},
     node::SelectionBy,
-    AutoSelection, TextOverflow, UnderlinePosition, UnderlineSkip, ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, AUTO_SELECTION_VAR, FONT_FAMILY_VAR,
-    FONT_FEATURES_VAR, FONT_SIZE_VAR, FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHENS_VAR, HYPHEN_CHAR_VAR,
-    IME_UNDERLINE_THICKNESS_VAR, JUSTIFY_MODE_VAR, LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR,
-    OBSCURING_CHAR_VAR, OVERLINE_THICKNESS_VAR, STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR,
-    TEXT_OVERFLOW_ALIGN_VAR, TEXT_OVERFLOW_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR,
-    UNDERLINE_THICKNESS_VAR, WORD_BREAK_VAR, WORD_SPACING_VAR,
 };
 
-use super::{LaidoutText, PendingLayout, RenderInfo, LAIDOUT_TEXT, TEXT};
+use super::{LAIDOUT_TEXT, LaidoutText, PendingLayout, RenderInfo, TEXT};
 
 /// An UI node that layouts the parent [`ResolvedText`] defined by the text context vars.
 ///

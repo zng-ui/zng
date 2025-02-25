@@ -140,4 +140,4 @@
 //! # ;
 //! ```
 
-pub use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleArgs, StyleBuilder, StyleFn, StyleMix};
+pub use zng_wgt_style::{Style, StyleArgs, StyleBuilder, StyleFn, StyleMix, impl_style_fn, style_fn};

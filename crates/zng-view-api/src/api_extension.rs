@@ -289,11 +289,7 @@ impl std::str::FromStr for ApiExtensionId {
         match s.parse::<u32>() {
             Ok(i) => {
                 let r = Self::from_index(i as _);
-                if r == Self::INVALID {
-                    Err(r)
-                } else {
-                    Ok(r)
-                }
+                if r == Self::INVALID { Err(r) } else { Ok(r) }
             }
             Err(_) => Err(Self::INVALID),
         }
@@ -335,10 +331,6 @@ impl fmt::Display for ApiExtensionRecvError {
 }
 impl std::error::Error for ApiExtensionRecvError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        if let Self::Deserialize(e) = self {
-            Some(e)
-        } else {
-            None
-        }
+        if let Self::Deserialize(e) = self { Some(e) } else { None }
     }
 }

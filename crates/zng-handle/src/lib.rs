@@ -14,8 +14,8 @@ use std::{
     fmt,
     hash::Hasher,
     sync::{
-        atomic::{AtomicU8, Ordering},
         Arc, Weak,
+        atomic::{AtomicU8, Ordering},
     },
 };
 
@@ -149,11 +149,7 @@ impl<D: Send + Sync> WeakHandle<D> {
     pub fn upgrade(&self) -> Option<Handle<D>> {
         if let Some(arc) = self.0.upgrade() {
             let handle = Handle(arc);
-            if handle.is_dropped() {
-                None
-            } else {
-                Some(handle)
-            }
+            if handle.is_dropped() { None } else { Some(handle) }
         } else {
             None
         }
@@ -203,8 +199,8 @@ impl<D: Send + Sync> HandleOwner<D> {
     /// The handle is considered dropped when all handle and clones are dropped or when [`force_drop`](Handle::force_drop)
     /// was called in any of the clones.
     pub fn is_dropped(&self) -> bool {
-        let state = self.0 .0.state.load(Ordering::Relaxed);
-        state == FORCE_DROP || (state != PERMANENT && Arc::strong_count(&self.0 .0) <= 1)
+        let state = self.0.0.state.load(Ordering::Relaxed);
+        state == FORCE_DROP || (state != PERMANENT && Arc::strong_count(&self.0.0) <= 1)
     }
 
     /*
@@ -240,7 +236,7 @@ impl<D: Send + Sync> HandleOwner<D> {
 }
 impl<D: Send + Sync> Drop for HandleOwner<D> {
     fn drop(&mut self) {
-        self.0 .0.state.store(FORCE_DROP, Ordering::Relaxed);
+        self.0.0.state.store(FORCE_DROP, Ordering::Relaxed);
     }
 }
 

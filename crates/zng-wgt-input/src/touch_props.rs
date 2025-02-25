@@ -1,4 +1,4 @@
-use zng_ext_input::touch::{TouchTransformMode, TOUCH_TRANSFORM_EVENT};
+use zng_ext_input::touch::{TOUCH_TRANSFORM_EVENT, TouchTransformMode};
 use zng_view_api::touch::TouchPhase;
 use zng_wgt::prelude::*;
 

@@ -8,8 +8,7 @@ error[E0277]: the trait bound `impl zng::var::Var<SideOffsets>: zng::var::Var<bo
 13 | |
 14 | |         when *#margin {
    | |              ^ the trait `zng::var::Var<bool>` is not implemented for `impl zng::var::Var<SideOffsets>`
-15 | |             background_color = colors::WHITE;
-16 | |         }
+...  |
 17 | |     };
    | |_____- required by a bound introduced by this call
    |

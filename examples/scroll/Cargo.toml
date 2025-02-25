@@ -2,7 +2,7 @@
 name = "zng-example-scroll"
 version = "0.0.0"
 publish = false
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 zng = { path = "../../crates/zng", features = ["view_prebuilt", "material_icons_outlined"] }

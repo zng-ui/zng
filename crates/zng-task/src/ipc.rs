@@ -75,7 +75,7 @@
 //! on different modules.
 
 use core::fmt;
-use std::{future::Future, marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
+use std::{marker::PhantomData, path::PathBuf, pin::Pin, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_clone_move::{async_clmv, clmv};
@@ -84,7 +84,7 @@ use zng_unique_id::IdMap;
 use zng_unit::TimeUnits as _;
 
 #[doc(no_inline)]
-pub use ipc_channel::ipc::{bytes_channel, IpcBytesReceiver, IpcBytesSender, IpcReceiver, IpcSender};
+pub use ipc_channel::ipc::{IpcBytesReceiver, IpcBytesSender, IpcReceiver, IpcSender, bytes_channel};
 
 /// Represents a type that can be an input and output of IPC workers.
 ///
@@ -194,14 +194,16 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                     let code = output.status.code().unwrap_or(0);
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::TimedOut,
-                        format!("worker process did not connect in 10 seconds\nworker exit code: {code}\n--worker stdout--\n{stdout}\n--worker stderr--\n{stderr}"),
+                        format!(
+                            "worker process did not connect in 10 seconds\nworker exit code: {code}\n--worker stdout--\n{stdout}\n--worker stderr--\n{stderr}"
+                        ),
                     ));
                 }
                 Err(e) => {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::TimedOut,
                         format!("worker process did not connect in 10s\ncannot be kill worker process, {e}"),
-                    ))
+                    ));
                 }
             },
         };

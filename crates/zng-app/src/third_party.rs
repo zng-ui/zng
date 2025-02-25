@@ -2,10 +2,10 @@
 
 use zng_app_context::app_local;
 pub use zng_tp_licenses::{License, LicenseUsed, User, UserLicense};
-use zng_var::{var, ArcVar, Var as _};
+use zng_var::{ArcVar, Var as _, var};
 
 use crate::{
-    event::{command, CommandNameExt as _},
+    event::{CommandNameExt as _, command},
     view_process::VIEW_PROCESS,
 };
 

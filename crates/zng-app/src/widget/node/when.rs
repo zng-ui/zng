@@ -3,7 +3,7 @@ use zng_var::{BoxedVar, Var};
 
 use crate::{
     update::{EventUpdate, WidgetUpdates},
-    widget::{WidgetHandlesCtx, WIDGET},
+    widget::{WIDGET, WidgetHandlesCtx},
 };
 
 use super::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver};

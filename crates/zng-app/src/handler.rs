@@ -1,7 +1,6 @@
 //! Handler types and macros.
 
 use std::any::Any;
-use std::future::Future;
 use std::marker::PhantomData;
 use std::time::Duration;
 use std::{mem, thread};
@@ -427,10 +426,12 @@ where
 ///
 /// ## Futures and Clone-Move
 ///
-/// You may want to always *clone-move* captures for async handlers, because they then automatically get cloned again for each event. This
+/// You want to always *clone-move* captures for async handlers, because they then automatically get cloned again for each event. This
 /// needs to happen because you can have more then one *handler task* running at the same type, and both want access to the captured variables.
 ///
 /// This second cloning can be avoided by using the [`async_hn_once!`] macro instead, but only if you expect a single event.
+///
+/// Note that this means you are declaring a normal closure that returns a `'static` future, not an async closure, see [`async_clmv_fn!`].
 ///
 /// [`async_clmv_fn!`]: zng_clone_move::async_clmv_fn
 #[macro_export]
@@ -1206,11 +1207,7 @@ where
     F: FnMut(&A) -> bool + Send + 'static,
 {
     fn event(&mut self, args: &A) -> bool {
-        if (self.filter)(args) {
-            self.handler.event(args)
-        } else {
-            false
-        }
+        if (self.filter)(args) { self.handler.event(args) } else { false }
     }
 
     fn update(&mut self) -> bool {

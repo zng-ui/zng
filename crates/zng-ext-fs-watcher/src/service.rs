@@ -1,8 +1,8 @@
 use std::{
-    collections::{hash_map, HashMap},
+    collections::{HashMap, hash_map},
     io, mem,
     path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc},
+    sync::{Arc, atomic::AtomicBool},
     time::{Duration, SystemTime},
 };
 
@@ -11,21 +11,20 @@ use notify::Watcher;
 use parking_lot::Mutex;
 use path_absolutize::Absolutize;
 use zng_app::{
-    app_hn_once,
+    DInstant, INSTANT, app_hn_once,
     timer::{DeadlineHandle, TIMERS},
-    DInstant, INSTANT,
 };
-use zng_app_context::{app_local, LocalContext};
+use zng_app_context::{LocalContext, app_local};
 use zng_clone_move::clmv;
 use zng_handle::{Handle, HandleOwner};
 use zng_unit::TimeUnits;
 use zng_var::{
-    types::WeakArcVar, var, AnyVar, AnyVarHookArgs, AnyWeakVar, ArcVar, ReadOnlyArcVar, Var, VarUpdateId, VarValue, WeakVar, VARS,
+    AnyVar, AnyVarHookArgs, AnyWeakVar, ArcVar, ReadOnlyArcVar, VARS, Var, VarUpdateId, VarValue, WeakVar, types::WeakArcVar, var,
 };
 
 use crate::{
-    fs_event, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WatchFile, WatcherHandle, WatcherReadStatus, WatcherSyncStatus,
-    WatcherSyncWriteNote, WriteFile, FS_CHANGES_EVENT, WATCHER,
+    FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WATCHER, WatchFile, WatcherHandle, WatcherReadStatus,
+    WatcherSyncStatus, WatcherSyncWriteNote, WriteFile, fs_event,
 };
 
 use zng_task as task;
@@ -1051,31 +1050,33 @@ impl notify::Watcher for PollWatcher {
         let mut dirs = HashMap::<PathBuf, PollInfo, _>::new();
         let worker = std::thread::Builder::new()
             .name(String::from("poll-watcher"))
-            .spawn(move || loop {
-                match rcv.recv_timeout(config.poll_interval_v2().unwrap_or_default()) {
-                    Ok(msg) => match msg {
-                        PollMsg::Watch(d, r) => {
-                            let info = PollInfo::new(&d, r);
-                            dirs.insert(d, info);
-                        }
-                        PollMsg::Unwatch(d) => {
-                            if dirs.remove(&d).is_none() {
-                                event_handler.handle_event(Err(notify::Error {
-                                    kind: notify::ErrorKind::WatchNotFound,
-                                    paths: vec![d],
-                                }))
+            .spawn(move || {
+                loop {
+                    match rcv.recv_timeout(config.poll_interval_v2().unwrap_or_default()) {
+                        Ok(msg) => match msg {
+                            PollMsg::Watch(d, r) => {
+                                let info = PollInfo::new(&d, r);
+                                dirs.insert(d, info);
                             }
-                        }
-                        PollMsg::SetConfig(c) => config = c,
-                    },
-                    Err(e) => match e {
-                        flume::RecvTimeoutError::Timeout => {}           // ok
-                        flume::RecvTimeoutError::Disconnected => return, // stop thread
-                    },
-                }
+                            PollMsg::Unwatch(d) => {
+                                if dirs.remove(&d).is_none() {
+                                    event_handler.handle_event(Err(notify::Error {
+                                        kind: notify::ErrorKind::WatchNotFound,
+                                        paths: vec![d],
+                                    }))
+                                }
+                            }
+                            PollMsg::SetConfig(c) => config = c,
+                        },
+                        Err(e) => match e {
+                            flume::RecvTimeoutError::Timeout => {}           // ok
+                            flume::RecvTimeoutError::Disconnected => return, // stop thread
+                        },
+                    }
 
-                for (dir, info) in &mut dirs {
-                    info.poll(dir, &mut event_handler);
+                    for (dir, info) in &mut dirs {
+                        info.poll(dir, &mut event_handler);
+                    }
                 }
             })
             .expect("failed to spawn poll-watcher thread");

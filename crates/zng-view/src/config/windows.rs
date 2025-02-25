@@ -20,7 +20,6 @@ fn config_listener(event_loop: crate::AppEventSender) {
 
     use crate::AppEvent;
     use windows_sys::{
-        core::*,
         Win32::{
             Foundation::GetLastError,
             System::{
@@ -29,6 +28,7 @@ fn config_listener(event_loop: crate::AppEventSender) {
             },
             UI::WindowsAndMessaging::*,
         },
+        core::*,
     };
     use zng_view_api::Event;
 
@@ -318,14 +318,14 @@ pub fn colors_config() -> ColorsConfig {
     use std::mem;
 
     use windows_sys::{
-        core::PCSTR,
         Win32::{
             System::LibraryLoader::{GetProcAddress, LoadLibraryA},
             UI::{
                 Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTA},
-                WindowsAndMessaging::{SystemParametersInfoA, SPI_GETHIGHCONTRAST},
+                WindowsAndMessaging::{SPI_GETHIGHCONTRAST, SystemParametersInfoA},
             },
         },
+        core::PCSTR,
     };
 
     fn should_apps_use_dark_mode() -> bool {

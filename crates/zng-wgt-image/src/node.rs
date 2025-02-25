@@ -2,13 +2,13 @@
 
 use std::mem;
 
-use zng_ext_image::{ImageCacheMode, ImagePpi, ImageRenderArgs, IMAGES};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImagePpi, ImageRenderArgs};
 use zng_wgt_stack::stack_nodes_layout_by;
 
 use super::image_properties::{
-    ImageFit, ImgErrorArgs, ImgLoadingArgs, IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_FN_VAR,
-    IMAGE_FIT_VAR, IMAGE_LIMITS_VAR, IMAGE_LOADING_FN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR,
-    IMAGE_SCALE_PPI_VAR, IMAGE_SCALE_VAR,
+    IMAGE_ALIGN_VAR, IMAGE_CACHE_VAR, IMAGE_CROP_VAR, IMAGE_DOWNSCALE_VAR, IMAGE_ERROR_FN_VAR, IMAGE_FIT_VAR, IMAGE_LIMITS_VAR,
+    IMAGE_LOADING_FN_VAR, IMAGE_OFFSET_VAR, IMAGE_RENDERING_VAR, IMAGE_SCALE_FACTOR_VAR, IMAGE_SCALE_PPI_VAR, IMAGE_SCALE_VAR, ImageFit,
+    ImgErrorArgs, ImgLoadingArgs,
 };
 
 use super::*;

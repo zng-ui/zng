@@ -12,7 +12,7 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_json::Value> {
     }
 
     fn write(self, file: &mut WriteFile) -> io::Result<()> {
-        file.write_json(&self, true).map_err(Into::into)
+        file.write_json(&self, true)
     }
 
     fn get_raw(&self, key: &ConfigKey) -> Result<Option<RawConfigValue>, Arc<dyn std::error::Error + Send + Sync>> {

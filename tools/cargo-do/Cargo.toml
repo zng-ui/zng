@@ -2,7 +2,7 @@
 name = "cargo-do"
 version = "0.0.0"
 authors = ["The Zng Project Developers"]
-edition = "2021"
+edition = "2024"
 description = "Run tasks for managing this project. Implemented in \"./tools/cargo-do\"."
 
 [dependencies]

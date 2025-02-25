@@ -61,6 +61,6 @@
 //! See [`zng_ext_fs_watcher`] for the full watcher API.
 
 pub use zng_ext_fs_watcher::{
-    fs_event, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WatchFile, WatcherHandle, WatcherReadStatus, WatcherSyncStatus,
-    WriteFile, FS_CHANGES_EVENT, WATCHER,
+    FS_CHANGES_EVENT, FsChange, FsChangeNote, FsChangeNoteHandle, FsChangesArgs, WATCHER, WatchFile, WatcherHandle, WatcherReadStatus,
+    WatcherSyncStatus, WriteFile, fs_event,
 };

@@ -1,17 +1,17 @@
 use std::{collections::HashMap, fmt, mem};
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
     ext::IdentExt,
-    parse::{discouraged::Speculative, Parse},
+    parse::{Parse, discouraged::Speculative},
     punctuated::Punctuated,
     spanned::Spanned,
     *,
 };
 
 use crate::{
-    util::{self, parse_outer_attrs, parse_punct_terminated2, path_span, peek_any3, Attributes, ErrorRecoverable, Errors},
+    util::{self, Attributes, ErrorRecoverable, Errors, parse_outer_attrs, parse_punct_terminated2, path_span, peek_any3},
     wgt_property_attrs::PropertyAttrData,
 };
 

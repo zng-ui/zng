@@ -11,13 +11,12 @@
 
 use std::{
     fmt,
-    future::{Future, IntoFuture},
     hash::Hash,
     mem, panic,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     task::Poll,
 };
@@ -29,9 +28,9 @@ use parking_lot::Mutex;
 mod crate_util;
 
 use crate::crate_util::PanicResult;
-use zng_app_context::{app_local, LocalContext};
+use zng_app_context::{LocalContext, app_local};
 use zng_time::Deadline;
-use zng_var::{response_done_var, response_var, AnyVar, ResponseVar, VarValue};
+use zng_var::{AnyVar, ResponseVar, VarValue, response_done_var, response_var};
 
 #[cfg(test)]
 mod tests;
@@ -1071,7 +1070,6 @@ macro_rules! __all {
             $(let mut $ident = (Some($fut), None);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1207,7 +1205,6 @@ macro_rules! __any {
             $(let mut $ident = $fut;)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
                 $(
                     // SAFETY: the closure owns $ident and is an exclusive borrow inside a
                     // Future::poll call, so it will not move.
@@ -1336,7 +1333,6 @@ macro_rules! __any_ok {
             $(let mut $ident = (Some($fut), None);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1479,7 +1475,6 @@ macro_rules! __any_some {
             $(let mut $ident = Some($fut);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1636,7 +1631,6 @@ macro_rules! __all_ok {
 
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1793,7 +1787,6 @@ macro_rules! __all_some {
             $(let mut $ident = (Some($fut), None);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
-                use std::future::Future;
 
                 let mut pending = false;
 
@@ -1968,11 +1961,7 @@ impl McWaker {
     ///
     /// [`cancel`]: Self::cancel
     pub fn push(&self, waker: std::task::Waker) -> Option<std::task::Waker> {
-        if self.0.push(waker) {
-            Some(self.0.clone().into())
-        } else {
-            None
-        }
+        if self.0.push(waker) { Some(self.0.clone().into()) } else { None }
     }
 
     /// Clear current registered wakers.

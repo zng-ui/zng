@@ -128,8 +128,8 @@ pub mod view_side {
         extensions::{PxToWr as _, RenderItemArgs, RenderUpdateArgs, RendererExtension},
         webrender::{
             api::{
-                units::{LayoutPoint, LayoutRect},
                 ColorF, CommonItemProperties,
+                units::{LayoutPoint, LayoutRect},
             },
             euclid,
         },

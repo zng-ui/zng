@@ -2,7 +2,7 @@ use std::{cmp, fmt, ops};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{side_offsets::SideOffsets2D, CornerRadius2D, Factor};
+use crate::{CornerRadius2D, Factor, side_offsets::SideOffsets2D};
 
 /// Same value used in `60`.
 const DIP_TO_PX: i32 = 60;
@@ -439,11 +439,7 @@ impl num_traits::ToPrimitive for Dip {
     }
 
     fn to_u64(&self) -> Option<u64> {
-        if self.0 >= 0 {
-            Some(Dip::to_i32(*self) as u64)
-        } else {
-            None
-        }
+        if self.0 >= 0 { Some(Dip::to_i32(*self) as u64) } else { None }
     }
 
     fn to_f32(&self) -> Option<f32> {

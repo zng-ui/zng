@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{about_eq, about_eq_hash, Factor, FactorPercent};
+use crate::{Factor, FactorPercent, about_eq, about_eq_hash};
 
 /// RGB + alpha.
 ///
@@ -144,7 +144,7 @@ impl fmt::Display for Rgba {
         if a == 255 {
             write!(f, "#{rgb:0>6X}")
         } else {
-            let rgba = rgb << 8 | a;
+            let rgba = (rgb << 8) | a;
             write!(f, "#{rgba:0>8X}")
         }
     }

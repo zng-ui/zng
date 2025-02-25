@@ -85,7 +85,7 @@ impl EasingTime {
     ///
     /// [`FactorPercent`]: zng_unit::FactorPercent
     pub fn pct(self) -> FactorPercent {
-        self.0 .0.pct()
+        self.0.0.pct()
     }
 
     /// Flip the time.

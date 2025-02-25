@@ -1,21 +1,21 @@
 use std::mem;
 
 use zng_app::widget::{
+    OnVarArgs,
     border::{BorderSide, BorderSides},
     builder::{Importance, PropertyArgs, PropertyInfo, WidgetType},
     inspector::{InspectorActualVars, InstanceItem},
-    OnVarArgs,
 };
 use zng_color::Rgba;
 use zng_ext_font::{FontStyle, FontWeight};
 use zng_ext_input::focus::FOCUS;
 use zng_ext_l10n::{l10n, lang};
-use zng_ext_window::{WindowRoot, WINDOWS};
+use zng_ext_window::{WINDOWS, WindowRoot};
 use zng_var::animation::easing;
-use zng_wgt::{border, corner_radius, margin, prelude::*, visibility, Wgt};
+use zng_wgt::{Wgt, border, corner_radius, margin, prelude::*, visibility};
 use zng_wgt_button::Button;
-use zng_wgt_container::{child_align, padding, Container};
-use zng_wgt_dialog::{FileDialogFilters, DIALOG};
+use zng_wgt_container::{Container, child_align, padding};
+use zng_wgt_dialog::{DIALOG, FileDialogFilters};
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::opacity;
 use zng_wgt_input::{focus::focus_shortcut, gesture::click_shortcut, is_hovered};
@@ -24,10 +24,10 @@ use zng_wgt_scroll::{Scroll, ScrollMode};
 use zng_wgt_size_offset::{size, width};
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_style::Style;
-use zng_wgt_text::{font_family, lang, Text};
+use zng_wgt_text::{Text, font_family, lang};
 use zng_wgt_text_input::TextInput;
 use zng_wgt_toggle::{self as toggle, Toggle};
-use zng_wgt_tooltip::{tooltip, Tip};
+use zng_wgt_tooltip::{Tip, tooltip};
 use zng_wgt_window as window;
 use zng_wgt_wrap::Wrap;
 

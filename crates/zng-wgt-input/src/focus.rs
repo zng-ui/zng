@@ -1,8 +1,8 @@
 //! Keyboard focus properties, [`tab_index`](fn@tab_index), [`focusable`](fn@focusable),
 //! [`on_focus`](fn@on_focus), [`is_focused`](fn@is_focused) and more.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
 use zng_ext_input::focus::*;

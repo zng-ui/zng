@@ -1,14 +1,13 @@
 use std::{borrow::Cow, env, fmt, fs, path::PathBuf};
 
 use proc_macro2::*;
-use quote::{quote_spanned, ToTokens};
+use quote::{ToTokens, quote_spanned};
 use syn::{
-    self,
-    parse::{discouraged::Speculative, Parse, ParseStream},
+    self, Attribute, LitStr, Token,
+    parse::{Parse, ParseStream, discouraged::Speculative},
     parse_quote, parse_quote_spanned,
     punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, LitStr, Token,
 };
 
 use once_cell::sync::OnceCell;
@@ -843,7 +842,7 @@ mod tests {
         [package]
         name = "crate-name"
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         license = "Apache-2.0"
         "#;
 
@@ -856,7 +855,7 @@ mod tests {
         let toml = r#"
         [package]
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         name = "crate-name"
         license = "Apache-2.0"
         "#;
@@ -871,7 +870,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         license = "Apache-2.0"
 
         [dependencies]
@@ -891,7 +890,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         license = "Apache-2.0"
 
         [dependencies]
@@ -911,7 +910,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         license = "Apache-2.0"
 
         [target.'cfg(windows)'.dependencies]
@@ -931,7 +930,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         license = "Apache-2.0"
 
         [dev-dependencies]
@@ -951,7 +950,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         license = "Apache-2.0"
 
         [dev-dependencies.super-foo]
@@ -971,7 +970,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         license = "Apache-2.0"
 
         [dependencies.super-foo]
@@ -991,7 +990,7 @@ mod tests {
         [package]
         name = "foo"
         version = "0.1.0"
-        edition = "2021"
+        edition = "2024"
         license = "Apache-2.0"
 
         [dependencies.crate-name]

@@ -2,7 +2,7 @@
 //!
 
 use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
-use zng_wgt::{prelude::*, ICONS};
+use zng_wgt::{ICONS, prelude::*};
 
 command! {
     /// Represents the **new** action.

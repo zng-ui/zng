@@ -13,17 +13,17 @@ use core::fmt;
 use std::{any::Any, path::PathBuf};
 
 use zng_app::{
-    event::{command, CommandInfoExt as _, CommandNameExt as _},
-    shortcut::{shortcut, CommandShortcutExt as _, ShortcutFilter},
-    view_process::{ViewClipboard, ViewImage, VIEW_PROCESS},
-    AppExtension, APP,
+    APP, AppExtension,
+    event::{CommandInfoExt as _, CommandNameExt as _, command},
+    shortcut::{CommandShortcutExt as _, ShortcutFilter, shortcut},
+    view_process::{VIEW_PROCESS, ViewClipboard, ViewImage},
 };
 use zng_app_context::app_local;
-use zng_ext_image::{ImageHasher, ImageVar, Img, IMAGES};
+use zng_ext_image::{IMAGES, ImageHasher, ImageVar, Img};
 use zng_txt::Txt;
-use zng_var::{response_var, ResponderVar, ResponseVar};
+use zng_var::{ResponderVar, ResponseVar, response_var};
 use zng_view_api::ViewProcessOffline;
-use zng_wgt::{wgt_fn, CommandIconExt as _, ICONS};
+use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
 use zng_view_api::clipboard as clipboard_api;
 use zng_view_api::ipc::IpcBytes;

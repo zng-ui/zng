@@ -7,40 +7,39 @@ use crate::{
     window::WINDOW,
 };
 use zng_color::{
-    colors,
+    RenderMixBlendMode, Rgba, colors,
     filter::RenderFilter,
     gradient::{RenderExtendMode, RenderGradientStop},
-    RenderMixBlendMode, Rgba,
 };
 use zng_layout::unit::{
-    euclid, AngleRadian, Factor, FactorUnits, Px, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector,
+    AngleRadian, Factor, FactorUnits, Px, PxCornerRadius, PxLine, PxPoint, PxRect, PxSideOffsets, PxSize, PxTransform, PxVector, euclid,
 };
 use zng_task::rayon::iter::{ParallelBridge, ParallelIterator};
 use zng_unique_id::{impl_unique_id_bytemuck, unique_id_32};
-use zng_var::{impl_from_and_into_var, Var, VarCapability, VarValue};
+use zng_var::{Var, VarCapability, VarValue, impl_from_and_into_var};
 use zng_view_api::{
+    ReferenceFrameId as RenderReferenceFrameId, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::FontAntiAliasing,
     display_list::{DisplayList, DisplayListBuilder, FilterOp, NinePatchSource, ReuseStart},
     font::{GlyphInstance, GlyphOptions},
     window::FrameId,
-    ReferenceFrameId as RenderReferenceFrameId, ViewProcessGen,
 };
 
 use crate::{
     update::{RenderUpdates, UpdateFlags},
     view_process::ViewRenderer,
     widget::{
-        base::{Parallel, PARALLEL_VAR},
+        WIDGET, WidgetId,
+        base::{PARALLEL_VAR, Parallel},
         border::{self, BorderSides},
         info::{HitTestClips, ParallelBuilder, WidgetInfo, WidgetInfoTree, WidgetRenderInfo},
-        WidgetId, WIDGET,
     },
 };
 
 pub use zng_view_api::{
-    display_list::{FrameValue, FrameValueUpdate, ReuseRange},
     ImageRendering, RepeatMode, TransformStyle,
+    display_list::{FrameValue, FrameValueUpdate, ReuseRange},
 };
 
 /// A text font.
@@ -184,11 +183,11 @@ impl FrameBuilder {
         let auto_hide_rect = PxRect::from_size(root_size).inflate(root_size.width, root_size.height);
         root_bounds.set_outer_transform(PxTransform::identity(), info_tree);
 
-        let gen = renderer
+        let vp_gen = renderer
             .as_ref()
             .and_then(|r| r.generation().ok())
             .unwrap_or(ViewProcessGen::INVALID);
-        let view_process_has_frame = gen != ViewProcessGen::INVALID && gen == info_tree.view_process_gen();
+        let view_process_has_frame = vp_gen != ViewProcessGen::INVALID && vp_gen == info_tree.view_process_gen();
 
         FrameBuilder {
             render_widgets,
@@ -574,11 +573,7 @@ impl FrameBuilder {
 
                     let transform_patch = self.undo_prev_outer_transform.and_then(|t| {
                         let t = t.then(&self.outer_transform);
-                        if t != PxTransform::identity() {
-                            Some(t)
-                        } else {
-                            None
-                        }
+                        if t != PxTransform::identity() { Some(t) } else { None }
                     });
 
                     let current_wgt = tree.get(id).unwrap();
@@ -2290,8 +2285,8 @@ enum RenderLineCommand {
 }
 impl border::LineStyle {
     fn render_command(self) -> RenderLineCommand {
-        use border::LineStyle as LS;
         use RenderLineCommand::*;
+        use border::LineStyle as LS;
         match self {
             LS::Solid => Line(zng_view_api::LineStyle::Solid),
             LS::Double => Border(zng_view_api::BorderStyle::Double),

@@ -32,9 +32,9 @@ use crate::{
 };
 
 use super::{
-    base::{Parallel, PARALLEL_VAR},
+    WIDGET, WidgetId, WidgetUpdateMode,
+    base::{PARALLEL_VAR, Parallel},
     info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-    WidgetId, WidgetUpdateMode, WIDGET,
 };
 
 /// Represents an UI tree node.
@@ -1288,19 +1288,11 @@ impl<U: UiNode> UiNode for Option<U> {
     }
 
     fn measure(&mut self, wm: &mut WidgetMeasure) -> PxSize {
-        if let Some(node) = self {
-            node.measure(wm)
-        } else {
-            PxSize::zero()
-        }
+        if let Some(node) = self { node.measure(wm) } else { PxSize::zero() }
     }
 
     fn layout(&mut self, wl: &mut WidgetLayout) -> PxSize {
-        if let Some(node) = self {
-            node.layout(wl)
-        } else {
-            PxSize::zero()
-        }
+        if let Some(node) = self { node.layout(wl) } else { PxSize::zero() }
     }
 
     fn render(&mut self, frame: &mut FrameBuilder) {

@@ -85,16 +85,16 @@ where
     match msg {
         WM_DESTROY => {
             // last call and cleanup.
-            let mut handler = Box::from_raw(data as *mut H);
+            let mut handler = unsafe { Box::from_raw(data as *mut H) };
             handler(hwnd, msg, wparam, lparam).unwrap_or_default()
         }
 
         msg => {
-            let handler = &mut *(data as *mut H);
+            let handler = unsafe { &mut *(data as *mut H) };
             if let Some(r) = handler(hwnd, msg, wparam, lparam) {
                 r
             } else {
-                windows_sys::Win32::UI::Shell::DefSubclassProc(hwnd, msg, wparam, lparam)
+                unsafe { windows_sys::Win32::UI::Shell::DefSubclassProc(hwnd, msg, wparam, lparam) }
             }
         }
     }
@@ -1056,7 +1056,7 @@ pub fn get_instance_handle() -> isize {
     // This is preferred over GetModuleHandle(NULL) because it also works in DLLs:
     // https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
 
-    extern "C" {
+    unsafe extern "C" {
         static __ImageBase: windows_sys::Win32::System::SystemServices::IMAGE_DOS_HEADER;
     }
 
@@ -1073,8 +1073,8 @@ pub mod taskbar_com {
     use std::ffi::c_void;
 
     use windows_sys::{
-        core::{IUnknown, GUID, HRESULT},
         Win32::Foundation::{BOOL, HWND},
+        core::{GUID, HRESULT, IUnknown},
     };
 
     #[repr(C)]

@@ -3,9 +3,9 @@
 use zng_ext_input::mouse::MOUSE_MOVE_EVENT;
 use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
-use crate::{SliderDirection, ThumbValue, WidgetInfoExt as _, SLIDER_DIRECTION_VAR};
+use crate::{SLIDER_DIRECTION_VAR, SliderDirection, ThumbValue, WidgetInfoExt as _};
 
 /// Slider thumb widget.
 #[widget($crate::thumb::Thumb {

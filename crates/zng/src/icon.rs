@@ -70,8 +70,8 @@
 //!
 //! See [`zng_wgt_text::icon`] for the full widget API.
 
-pub use zng_wgt::{CommandIconExt, IconRequestArgs, ICONS};
-pub use zng_wgt_text::icon::{ico_color, ico_size, GlyphIcon, GlyphSource, Icon};
+pub use zng_wgt::{CommandIconExt, ICONS, IconRequestArgs};
+pub use zng_wgt_text::icon::{GlyphIcon, GlyphSource, Icon, ico_color, ico_size};
 
 /// Material Icons
 ///

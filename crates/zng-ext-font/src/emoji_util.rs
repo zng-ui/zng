@@ -6,7 +6,7 @@ use std::{fmt, mem::size_of};
 
 use byteorder::{BigEndian, ReadBytesExt};
 use icu_properties::sets;
-use zng_color::{rgba, ColorScheme, Rgba};
+use zng_color::{ColorScheme, Rgba, rgba};
 use zng_var::impl_from_and_into_var;
 use zng_view_api::font::GlyphIndex;
 

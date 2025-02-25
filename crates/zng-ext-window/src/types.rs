@@ -5,14 +5,14 @@ use std::{
 };
 
 use zng_app::{
+    AppEventSender, Deadline,
     event::{event, event_args},
     update::UpdateOp,
     widget::{
-        node::{BoxedUiNode, UiNode},
         WidgetId,
+        node::{BoxedUiNode, UiNode},
     },
-    window::{WindowId, WINDOW},
-    AppEventSender, Deadline,
+    window::{WINDOW, WindowId},
 };
 use zng_ext_image::{ImageSource, ImageVar, Img};
 use zng_layout::unit::{DipPoint, DipSize, Point, PxPoint};
@@ -20,9 +20,9 @@ use zng_txt::Txt;
 use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::{
+    ViewProcessOffline,
     image::{ImageDataFormat, ImageMaskMode},
     window::{CursorIcon, EventCause, FrameId},
-    ViewProcessOffline,
 };
 
 pub use zng_view_api::window::{FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState};
@@ -674,11 +674,7 @@ impl WindowFocusChangedArgs {
 
     /// Gets the previous focused window if it was closed.
     pub fn closed(&self) -> Option<WindowId> {
-        if self.closed {
-            self.prev_focus
-        } else {
-            None
-        }
+        if self.closed { self.prev_focus } else { None }
     }
 }
 impl WindowCloseRequestedArgs {

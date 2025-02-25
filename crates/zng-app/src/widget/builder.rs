@@ -3,7 +3,7 @@
 use crate::{handler::WidgetHandler, widget::node::WhenUiNodeListBuilder};
 use std::{
     any::{Any, TypeId},
-    collections::{hash_map, HashMap},
+    collections::{HashMap, hash_map},
     fmt, ops,
     sync::Arc,
 };
@@ -216,18 +216,17 @@ use parking_lot::Mutex;
 pub use widget_type;
 use zng_app_context::context_local;
 use zng_app_proc_macros::widget;
-use zng_txt::{formatx, Txt};
-use zng_unique_id::{unique_id_32, IdEntry, IdMap, IdSet};
+use zng_txt::{Txt, formatx};
+use zng_unique_id::{IdEntry, IdMap, IdSet, unique_id_32};
 use zng_var::{
-    impl_from_and_into_var,
+    AnyVar, AnyVarValue, BoxedAnyVar, BoxedVar, ContextInitHandle, IntoValue, IntoVar, LocalVar, Var, VarValue, impl_from_and_into_var,
     types::{AnyWhenVarBuilder, ContextualizedVar, WeakContextInitHandle},
-    AnyVar, AnyVarValue, BoxedAnyVar, BoxedVar, ContextInitHandle, IntoValue, IntoVar, LocalVar, Var, VarValue,
 };
 
 use super::{
     base::{WidgetBase, WidgetExt},
     node::{
-        with_new_context_init_id, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, FillUiNode, UiNode, UiNodeList, WhenUiNodeBuilder,
+        ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, FillUiNode, UiNode, UiNodeList, WhenUiNodeBuilder, with_new_context_init_id,
     },
 };
 

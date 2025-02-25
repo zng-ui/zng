@@ -2,11 +2,11 @@ use std::{io::BufRead as _, time::Duration};
 
 use zng_unit::{Rgba, TimeUnits as _};
 use zng_view_api::{
+    Event,
     config::{
         AnimationsConfig, ChromeConfig, ColorScheme, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig,
         TouchConfig,
     },
-    Event,
 };
 
 use crate::AppEvent;

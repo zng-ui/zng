@@ -1,8 +1,8 @@
 use std::{fmt, ops, time::Duration};
 
 use crate::{
-    about_eq, about_eq_hash, about_eq_ord, Dip, DipPoint, DipRect, DipSize, DipVector, Px, PxPoint, PxRect, PxSize, PxVector, EQ_EPSILON,
-    EQ_EPSILON_100,
+    Dip, DipPoint, DipRect, DipSize, DipVector, EQ_EPSILON, EQ_EPSILON_100, Px, PxPoint, PxRect, PxSize, PxVector, about_eq, about_eq_hash,
+    about_eq_ord,
 };
 
 /// Extension methods for initializing factor units.
@@ -547,11 +547,7 @@ impl ops::Neg for Factor {
 }
 impl From<bool> for Factor {
     fn from(value: bool) -> Self {
-        if value {
-            Factor(1.0)
-        } else {
-            Factor(0.0)
-        }
+        if value { Factor(1.0) } else { Factor(0.0) }
     }
 }
 

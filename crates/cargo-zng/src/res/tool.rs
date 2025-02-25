@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use is_executable::IsExecutable as _;
 use parking_lot::Mutex;
 use zng_env::About;

@@ -12,7 +12,7 @@ use std::{
     fmt,
     io::{BufRead, Write},
     path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc},
+    sync::{Arc, atomic::AtomicBool},
     time::SystemTime,
 };
 use zng_clone_move::clmv;

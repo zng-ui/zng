@@ -22,7 +22,7 @@ use zng_task::SignalOnce;
 use zng_txt::Txt;
 use zng_var::ResponderVar;
 use zng_view_api::{
-    self,
+    self, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessOffline,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
     config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
@@ -34,20 +34,19 @@ use zng_view_api::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
         ResizeDirection, VideoMode, WindowButton, WindowRequest, WindowStateAll,
     },
-    DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessOffline,
 };
 
+pub(crate) use zng_view_api::{Controller, DeviceId as ApiDeviceId, window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId};
 use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
     config::KeyRepeatConfig,
     font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
 };
-pub(crate) use zng_view_api::{window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId, Controller, DeviceId as ApiDeviceId};
 
 use self::raw_device_events::DeviceId;
 
-use super::{AppId, APP};
+use super::{APP, AppId};
 
 /// Connection to the running view-process for the context app.
 #[expect(non_camel_case_types)]
@@ -293,8 +292,8 @@ impl VIEW_PROCESS {
     /// The process will exit if the view-process was killed by the user.
     ///
     /// [`Event::Disconnected`]: zng_view_api::Event::Disconnected
-    pub fn handle_disconnect(&self, gen: ViewProcessGen) {
-        self.write().process.handle_disconnect(gen)
+    pub fn handle_disconnect(&self, vp_gen: ViewProcessGen) {
+        self.write().process.handle_disconnect(vp_gen)
     }
 
     /// Spawn the View Process.
@@ -356,10 +355,10 @@ impl VIEW_PROCESS {
     /// The view-process becomes online only after this call.
     ///
     /// [`Event::Inited`]: zng_view_api::Event::Inited
-    pub(super) fn handle_inited(&self, gen: ViewProcessGen, extensions: ApiExtensions) {
+    pub(super) fn handle_inited(&self, vp_gen: ViewProcessGen, extensions: ApiExtensions) {
         let mut me = self.write();
         me.extensions = extensions;
-        me.process.handle_inited(gen);
+        me.process.handle_inited(vp_gen);
     }
 
     pub(super) fn handle_suspended(&self) {
@@ -548,10 +547,10 @@ impl VIEW_PROCESS {
 impl ViewProcessService {
     #[must_use = "if `true` all current WinId, DevId and MonId are invalid"]
     fn check_generation(&mut self) -> bool {
-        let gen = self.process.generation();
-        let invalid = gen != self.data_generation;
+        let vp_gen = self.process.generation();
+        let invalid = vp_gen != self.data_generation;
         if invalid {
-            self.data_generation = gen;
+            self.data_generation = vp_gen;
             self.device_ids.clear();
             self.monitor_ids.clear();
         }

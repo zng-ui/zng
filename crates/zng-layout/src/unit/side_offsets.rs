@@ -3,7 +3,7 @@ use std::{fmt, ops};
 use zng_unit::DipSideOffsets;
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, Factor, FactorPercent, FactorSideOffsets, Layout1d, LayoutMask, Length, PxSideOffsets};
+use super::{Factor, FactorPercent, FactorSideOffsets, Layout1d, LayoutMask, Length, PxSideOffsets, impl_length_comp_conversions};
 
 /// 2D size offsets in [`Length`] units.
 ///

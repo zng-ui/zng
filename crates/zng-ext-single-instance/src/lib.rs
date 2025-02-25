@@ -13,9 +13,9 @@ use std::{
 };
 
 use zng_app::{
+    AppExtension,
     event::{event, event_args},
     handler::{async_app_hn, clmv},
-    AppExtension,
 };
 use zng_ext_fs_watcher::WATCHER;
 use zng_txt::{ToTxt, Txt};

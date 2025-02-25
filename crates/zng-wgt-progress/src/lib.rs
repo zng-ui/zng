@@ -13,10 +13,10 @@ zng_wgt::enable_widget_macros!();
 
 use zng_app::handler::FilterWidgetHandler;
 use zng_wgt::{base_color, prelude::*, visibility};
-use zng_wgt_container::{child_out_bottom, Container};
+use zng_wgt_container::{Container, child_out_bottom};
 use zng_wgt_fill::background_color;
 use zng_wgt_size_offset::{height, width, x};
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
 pub use zng_task::Progress;
 

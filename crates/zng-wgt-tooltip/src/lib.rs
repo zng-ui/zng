@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use zng_app::{
     access::ACCESS_TOOLTIP_EVENT,
-    widget::{info::INTERACTIVITY_CHANGED_EVENT, OnVarArgs},
+    widget::{OnVarArgs, info::INTERACTIVITY_CHANGED_EVENT},
 };
 use zng_ext_input::{
     focus::FOCUS_CHANGED_EVENT,
@@ -23,15 +23,15 @@ use zng_ext_input::{
     keyboard::KEY_INPUT_EVENT,
     mouse::{MOUSE, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_WHEEL_EVENT},
 };
-use zng_wgt::{base_color, border, corner_radius, hit_test_mode, prelude::*, HitTestMode};
-use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt::{HitTestMode, base_color, border, corner_radius, hit_test_mode, prelude::*};
+use zng_wgt_access::{AccessRole, access_role};
 use zng_wgt_container::padding;
 use zng_wgt_fill::background_color;
 use zng_wgt_layer::{
-    popup::{ContextCapture, Popup, PopupState, POPUP},
     AnchorMode,
+    popup::{ContextCapture, POPUP, Popup, PopupState},
 };
-use zng_wgt_style::{impl_style_fn, style_fn, Style};
+use zng_wgt_style::{Style, impl_style_fn, style_fn};
 
 /// Widget tooltip.
 ///

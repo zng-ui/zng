@@ -8,9 +8,9 @@ use std::{any::TypeId, cmp::Ordering, mem, ops, sync::Arc};
 use zng_app_context::app_local;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_txt::Txt;
-use zng_var::{impl_from_and_into_var, var, AnyVar, AnyVarHookArgs, AnyVarValue, BoxedAnyVar, BoxedVar, IntoVar, LocalVar, Var};
+use zng_var::{AnyVar, AnyVarHookArgs, AnyVarValue, BoxedAnyVar, BoxedVar, IntoVar, LocalVar, Var, impl_from_and_into_var, var};
 
-use crate::{Config, ConfigKey, ConfigValue, FallbackConfigReset, CONFIG};
+use crate::{CONFIG, Config, ConfigKey, ConfigValue, FallbackConfigReset};
 
 /// Settings metadata service.
 pub struct SETTINGS;
@@ -412,11 +412,7 @@ impl Setting {
 
         let r = self.name.with(|s| {
             let s = s.to_lowercase();
-            if s.contains(search) {
-                Some(s.len() - search.len())
-            } else {
-                None
-            }
+            if s.contains(search) { Some(s.len() - search.len()) } else { None }
         });
         if r.is_some() {
             return r;

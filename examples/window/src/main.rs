@@ -9,7 +9,7 @@ use zng::{
     layout::*,
     prelude::*,
     scroll::ScrollMode,
-    widget::{background_color, corner_radius, enabled, visibility, LineStyle},
+    widget::{LineStyle, background_color, corner_radius, enabled, visibility},
     window::{FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, WindowChangedArgs, WindowState},
 };
 

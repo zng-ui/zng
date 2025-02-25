@@ -4,18 +4,18 @@ use std::sync::Arc;
 
 use colors::BASE_COLOR_VAR;
 use zng_ext_input::{
-    focus::{WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
-    keyboard::{Key, KeyState, KEY_INPUT_EVENT},
+    focus::{FOCUS, FOCUS_CHANGED_EVENT, WidgetInfoFocusExt as _},
+    keyboard::{KEY_INPUT_EVENT, Key, KeyState},
 };
 use zng_layout::unit::Orientation2D;
 use zng_wgt::{base_color, border, prelude::*};
 use zng_wgt_fill::background_color;
-use zng_wgt_input::pointer_capture::{capture_pointer_on_init, CaptureMode};
-use zng_wgt_layer::popup::{PopupCloseMode, POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT};
+use zng_wgt_input::pointer_capture::{CaptureMode, capture_pointer_on_init};
+use zng_wgt_layer::popup::{POPUP, POPUP_CLOSE_CMD, POPUP_CLOSE_REQUESTED_EVENT, PopupCloseMode};
 use zng_wgt_stack::Stack;
 use zng_wgt_style::{impl_style_fn, style_fn};
 
-use super::sub::{SubMenuWidgetInfoExt, HOVER_OPEN_DELAY_VAR};
+use super::sub::{HOVER_OPEN_DELAY_VAR, SubMenuWidgetInfoExt};
 
 /// Sub-menu popup.
 #[widget($crate::popup::SubMenuPopup)]

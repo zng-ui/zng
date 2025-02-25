@@ -1,7 +1,7 @@
-use super::{euclid, Px};
+use super::{Px, euclid};
 
 use zng_var::{
-    animation::{easing::EasingStep, Transitionable},
+    animation::{Transitionable, easing::EasingStep},
     impl_from_and_into_var,
     types::{is_slerp_enabled, slerp_enabled},
 };

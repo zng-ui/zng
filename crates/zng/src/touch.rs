@@ -49,9 +49,9 @@
 //! See [`zng_ext_input::touch`] and [`zng_wgt_input::touch`] for the full touch API.
 
 pub use zng_ext_input::touch::{
-    TouchConfig, TouchForce, TouchId, TouchInputArgs, TouchLongPressArgs, TouchMove, TouchMoveArgs, TouchPhase, TouchPosition,
-    TouchTapArgs, TouchTransformArgs, TouchTransformInfo, TouchTransformMode, TouchUpdate, TouchedArgs, TOUCH, TOUCHED_EVENT,
-    TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_MOVE_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT,
+    TOUCH, TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_MOVE_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT, TOUCHED_EVENT, TouchConfig,
+    TouchForce, TouchId, TouchInputArgs, TouchLongPressArgs, TouchMove, TouchMoveArgs, TouchPhase, TouchPosition, TouchTapArgs,
+    TouchTransformArgs, TouchTransformInfo, TouchTransformMode, TouchUpdate, TouchedArgs,
 };
 
 pub use zng_wgt_input::touch::{

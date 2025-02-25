@@ -6,8 +6,7 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 6  | |         // we expected an error here.
 7  | |         cursor = ;
    | |         ^^^^^^
-8  | |         // we expect margin to be used here.
-9  | |         margin = 0;
+...  |
 10 | |     };
    | |_____- argument #1 is missing
    |

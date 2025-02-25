@@ -132,7 +132,7 @@ impl<P> StyleMix<P> {
 
 #[doc(hidden)]
 pub mod __impl_style_context_util {
-    pub use zng_wgt::prelude::{context_var, property, IntoVar, UiNode};
+    pub use zng_wgt::prelude::{IntoVar, UiNode, context_var, property};
 }
 
 /// Implements the contextual `STYLE_FN_VAR` and `style_fn`.
@@ -359,11 +359,7 @@ impl StyleFn {
     pub fn new(func: impl Fn(&StyleArgs) -> StyleBuilder + Send + Sync + 'static) -> Self {
         Self(Some(Arc::new(move |a| {
             let style = func(a);
-            if style.is_empty() {
-                None
-            } else {
-                Some(style)
-            }
+            if style.is_empty() { None } else { Some(style) }
         })))
     }
 
@@ -427,11 +423,7 @@ impl ops::Deref for StyleFn {
     type Target = dyn Fn(&StyleArgs) -> Option<StyleBuilder>;
 
     fn deref(&self) -> &Self::Target {
-        if let Some(func) = &self.0 {
-            &**func
-        } else {
-            &nil_func
-        }
+        if let Some(func) = &self.0 { &**func } else { &nil_func }
     }
 }
 fn nil_func(_: &StyleArgs) -> Option<StyleBuilder> {

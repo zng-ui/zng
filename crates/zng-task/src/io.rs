@@ -17,8 +17,8 @@ use crate::{McWaker, Progress};
 
 #[doc(no_inline)]
 pub use futures_lite::io::{
-    copy, empty, repeat, sink, split, AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite,
-    AsyncWriteExt, BoxedReader, BoxedWriter, BufReader, BufWriter, Cursor, ReadHalf, WriteHalf,
+    AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, BoxedReader, BoxedWriter,
+    BufReader, BufWriter, Cursor, ReadHalf, WriteHalf, copy, empty, repeat, sink, split,
 };
 use parking_lot::Mutex;
 use std::io::{Error, Result};
@@ -896,7 +896,7 @@ mod tests {
     #[track_caller]
     fn async_test<F>(test: F) -> F::Output
     where
-        F: std::future::Future,
+        F: Future,
     {
         task::block_on(task::with_deadline(test, 5.secs())).unwrap()
     }

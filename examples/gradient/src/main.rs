@@ -3,9 +3,9 @@
 use zng::{
     color::{
         self,
-        gradient::{linear_gradient, stops, GradientStops},
+        gradient::{GradientStops, linear_gradient, stops},
     },
-    layout::{size, Line},
+    layout::{Line, size},
     prelude::*,
     stack::stack_nodes,
     text::ToTxt,

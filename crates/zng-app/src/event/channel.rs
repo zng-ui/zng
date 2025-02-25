@@ -1,6 +1,6 @@
-use std::{future::Future, time::Duration};
+use std::time::Duration;
 
-use crate::{update::UpdatesTrace, AppEventSender};
+use crate::{AppEventSender, update::UpdatesTrace};
 
 use super::*;
 

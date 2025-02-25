@@ -216,11 +216,7 @@ impl Txt {
             TxtData::Arc(s) => TxtData::String((*s).to_owned()),
         };
 
-        if let TxtData::String(s) = &mut self.0 {
-            s
-        } else {
-            unreachable!()
-        }
+        if let TxtData::String(s) = &mut self.0 { s } else { unreachable!() }
     }
 
     /// Convert the inner representation of the string to not be [`String`]. After

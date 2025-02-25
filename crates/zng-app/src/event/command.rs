@@ -1,11 +1,11 @@
 use std::{
     any::TypeId,
-    collections::{hash_map, HashMap},
+    collections::{HashMap, hash_map},
     mem, ops,
     thread::ThreadId,
 };
 
-use crate::{shortcut::CommandShortcutExt, update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId, APP};
+use crate::{APP, shortcut::CommandShortcutExt, update::UpdatesTrace, widget::info::WidgetInfo, window::WindowId};
 
 use super::*;
 
@@ -156,7 +156,7 @@ use zng_app_context::AppId;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateValue};
 use zng_txt::Txt;
 use zng_unique_id::{static_id, unique_id_64};
-use zng_var::{impl_from_and_into_var, types::ArcCowVar, var, AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue};
+use zng_var::{AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue, impl_from_and_into_var, types::ArcCowVar, var};
 
 #[doc(hidden)]
 pub use zng_app_context::app_local;
@@ -733,11 +733,7 @@ impl CommandArgs {
     /// [`param`]: Self::param()
     /// [`enabled`]: Self::enabled
     pub fn enabled_param<T: Any>(&self) -> Option<&T> {
-        if self.enabled {
-            self.param::<T>()
-        } else {
-            None
-        }
+        if self.enabled { self.param::<T>() } else { None }
     }
 
     /// Returns [`param`] if is not [`enabled`].
@@ -745,11 +741,7 @@ impl CommandArgs {
     /// [`param`]: Self::param()
     /// [`enabled`]: Self::enabled
     pub fn disabled_param<T: Any>(&self) -> Option<&T> {
-        if !self.enabled {
-            self.param::<T>()
-        } else {
-            None
-        }
+        if !self.enabled { self.param::<T>() } else { None }
     }
 
     /// Call `handler` if propagation is not stopped and the command and local handler are enabled. Stops propagation

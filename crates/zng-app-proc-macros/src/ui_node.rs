@@ -226,7 +226,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
 
     // modify impl header for new_node and collect
     let (impl_generics, self_ty, decl) = if let Some(new_node) = new_node {
-        let gen = new_node.impl_generics;
+        let gens = new_node.impl_generics;
         let custom_gen = &generics.params;
         let sep = if custom_gen.trailing_punct() || custom_gen.is_empty() {
             TokenStream::new()
@@ -257,7 +257,7 @@ pub(crate) fn gen_ui_node(args: proc_macro::TokenStream, input: proc_macro::Toke
         }
         let node_gen = new_node.node_generics;
 
-        let impl_generics = quote! { <#custom_gen #sep #gen> };
+        let impl_generics = quote! { <#custom_gen #sep #gens> };
         let self_ty = quote! { #node_ident<#node_custom_gen #node_sep #node_gen> };
 
         let mut decl = new_node.decl;

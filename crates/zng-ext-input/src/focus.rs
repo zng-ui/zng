@@ -6,25 +6,25 @@ mod focus_info;
 pub use focus_info::*;
 
 use zng_app::{
+    AppExtension, DInstant, INSTANT,
     access::{ACCESS_CLICK_EVENT, ACCESS_FOCUS_EVENT, ACCESS_FOCUS_NAV_ORIGIN_EVENT},
     event::{event, event_args},
     update::{EventUpdate, InfoUpdates, RenderUpdates, UPDATES},
     view_process::raw_events::RAW_KEY_INPUT_EVENT,
     widget::{
-        info::{InteractionPath, WidgetBoundsInfo, WidgetInfoTree, WIDGET_INFO_CHANGED_EVENT},
         WidgetId,
+        info::{InteractionPath, WIDGET_INFO_CHANGED_EVENT, WidgetBoundsInfo, WidgetInfoTree},
     },
     window::WindowId,
-    AppExtension, DInstant, INSTANT,
 };
 
 pub mod cmd;
 use cmd::FocusCommands;
 use zng_app_context::app_local;
-use zng_ext_window::{WINDOWS, WINDOW_FOCUS, WINDOW_FOCUS_CHANGED_EVENT};
+use zng_ext_window::{WINDOW_FOCUS, WINDOW_FOCUS_CHANGED_EVENT, WINDOWS};
 use zng_layout::unit::{Px, PxPoint, PxRect, TimeUnits};
 use zng_unique_id::{IdEntry, IdMap};
-use zng_var::{var, AnyVar, ArcVar, ReadOnlyArcVar, Var};
+use zng_var::{AnyVar, ArcVar, ReadOnlyArcVar, Var, var};
 use zng_view_api::window::FrameId;
 
 use std::{mem, time::Duration};

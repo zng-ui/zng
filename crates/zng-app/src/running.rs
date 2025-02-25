@@ -9,28 +9,28 @@ use std::{
 
 use crate::Deadline;
 use parking_lot::Mutex;
-use zng_app_context::{app_local, AppScope};
+use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
-use zng_time::{InstantMode, INSTANT_APP};
+use zng_time::{INSTANT_APP, InstantMode};
 use zng_txt::Txt;
-use zng_var::{response_var, ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var as _, VARS, VARS_APP};
+use zng_var::{ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, VARS, VARS_APP, Var as _, response_var};
 
 use crate::{
+    APP, AppControlFlow, AppEventObserver, AppExtension, AppExtensionsInfo, DInstant, INSTANT,
     event::{
-        command, event, AnyEventArgs, AppDisconnected, CommandHandle, CommandInfoExt, CommandNameExt, EventPropagationHandle,
-        TimeoutOrAppDisconnected, EVENTS,
+        AnyEventArgs, AppDisconnected, CommandHandle, CommandInfoExt, CommandNameExt, EVENTS, EventPropagationHandle,
+        TimeoutOrAppDisconnected, command, event,
     },
     event_args,
-    shortcut::shortcut,
     shortcut::CommandShortcutExt,
+    shortcut::shortcut,
     timer::TimersService,
     update::{
-        ContextUpdates, EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdateOp, UpdateTrace, UpdatesTrace, WidgetUpdates, UPDATES,
+        ContextUpdates, EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, UpdateOp, UpdateTrace, UpdatesTrace, WidgetUpdates,
     },
     view_process::{raw_device_events::DeviceId, *},
     widget::WidgetId,
     window::WindowId,
-    AppControlFlow, AppEventObserver, AppExtension, AppExtensionsInfo, DInstant, APP, INSTANT,
 };
 
 /// Represents a running app controlled by an external event loop.
@@ -519,7 +519,9 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             Event::RecoveredFromComponentPanic { component, recover, panic } => {
-                tracing::error!("view-process recovered from internal component panic\n  component: {component}\n  recover: {recover}\n```panic\n{panic}\n```");
+                tracing::error!(
+                    "view-process recovered from internal component panic\n  component: {component}\n  recover: {recover}\n```panic\n{panic}\n```"
+                );
             }
 
             // Others
@@ -632,9 +634,9 @@ impl<E: AppExtension> RunningApp<E> {
                     self.notify_event(VIEW_PROCESS_SUSPENDED_EVENT.new_update(args), observer);
                     APP_PROCESS_SV.read().is_suspended.set(true);
                 }
-                zng_view_api::Event::Disconnected(gen) => {
+                zng_view_api::Event::Disconnected(vp_gen) => {
                     // update ViewProcess immediately.
-                    VIEW_PROCESS.handle_disconnect(gen);
+                    VIEW_PROCESS.handle_disconnect(vp_gen);
                 }
                 ev => {
                     if let Some(last) = self.pending_view_events.last_mut() {
@@ -1328,36 +1330,38 @@ pub(crate) fn check_deadlock() {
         return;
     }
 
-    thread::spawn(|| loop {
-        thread::sleep(Duration::from_secs(10));
+    thread::spawn(|| {
+        loop {
+            thread::sleep(Duration::from_secs(10));
 
-        let deadlocks = deadlock::check_deadlock();
-        if deadlocks.is_empty() {
-            continue;
-        }
-
-        use std::fmt::Write;
-        let mut msg = String::new();
-
-        let _ = writeln!(&mut msg, "{} deadlocks detected", deadlocks.len());
-        for (i, threads) in deadlocks.iter().enumerate() {
-            let _ = writeln!(&mut msg, "Deadlock #{}, {} threads", i, threads.len());
-            for t in threads {
-                let _ = writeln!(&mut msg, "Thread Id {:#?}", t.thread_id());
-                let _ = writeln!(&mut msg, "{:#?}", t.backtrace());
+            let deadlocks = deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
             }
-        }
 
-        #[cfg(not(feature = "test_util"))]
-        eprint!("{msg}");
+            use std::fmt::Write;
+            let mut msg = String::new();
 
-        #[cfg(feature = "test_util")]
-        {
-            // test runner captures output and ignores panics in background threads, so
-            // we write directly to stderr and exit the process.
-            use std::io::Write;
-            let _ = write!(&mut std::io::stderr(), "{msg}");
-            zng_env::exit(-1);
+            let _ = writeln!(&mut msg, "{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                let _ = writeln!(&mut msg, "Deadlock #{}, {} threads", i, threads.len());
+                for t in threads {
+                    let _ = writeln!(&mut msg, "Thread Id {:#?}", t.thread_id());
+                    let _ = writeln!(&mut msg, "{:#?}", t.backtrace());
+                }
+            }
+
+            #[cfg(not(feature = "test_util"))]
+            eprint!("{msg}");
+
+            #[cfg(feature = "test_util")]
+            {
+                // test runner captures output and ignores panics in background threads, so
+                // we write directly to stderr and exit the process.
+                use std::io::Write;
+                let _ = write!(&mut std::io::stderr(), "{msg}");
+                zng_env::exit(-1);
+            }
         }
     });
 }

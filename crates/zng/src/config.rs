@@ -90,12 +90,12 @@
 //! See [`zng_ext_config`] for the full config API.
 
 pub use zng_ext_config::{
-    AnyConfig, Config, ConfigKey, ConfigStatus, ConfigValue, FallbackConfig, FallbackConfigReset, JsonConfig, MemoryConfig, RawConfigValue,
-    ReadOnlyConfig, SwapConfig, SwitchConfig, CONFIG,
+    AnyConfig, CONFIG, Config, ConfigKey, ConfigStatus, ConfigValue, FallbackConfig, FallbackConfigReset, JsonConfig, MemoryConfig,
+    RawConfigValue, ReadOnlyConfig, SwapConfig, SwitchConfig,
 };
 
 #[cfg(feature = "window")]
-pub use zng_wgt_window::{save_state_node, SaveState};
+pub use zng_wgt_window::{SaveState, save_state_node};
 
 #[cfg(feature = "ron")]
 pub use zng_ext_config::RonConfig;
@@ -113,9 +113,9 @@ pub use zng_ext_config::YamlConfig;
 /// See [`zng_ext_config::settings`] for the full settings API.
 pub mod settings {
     pub use zng_ext_config::settings::{
-        CategoriesBuilder, Category, CategoryBuilder, CategoryId, Setting, SettingBuilder, SettingsBuilder, SETTINGS,
+        CategoriesBuilder, Category, CategoryBuilder, CategoryId, SETTINGS, Setting, SettingBuilder, SettingsBuilder,
     };
-    pub use zng_wgt_input::cmd::{on_pre_settings, on_settings, SETTINGS_CMD};
+    pub use zng_wgt_input::cmd::{SETTINGS_CMD, on_pre_settings, on_settings};
 
     /// Settings editor widget.
     ///
@@ -125,8 +125,8 @@ pub mod settings {
     #[cfg(feature = "settings_editor")]
     pub mod editor {
         pub use zng_wgt_settings::{
-            categories_list_fn, category_header_fn, category_item_fn, setting_fn, settings_fn, CategoriesListArgs, CategoryHeaderArgs,
-            CategoryItemArgs, SettingArgs, SettingBuilderEditorExt, SettingsArgs, SettingsCtxExt, SettingsEditor,
+            CategoriesListArgs, CategoryHeaderArgs, CategoryItemArgs, SettingArgs, SettingBuilderEditorExt, SettingsArgs, SettingsCtxExt,
+            SettingsEditor, categories_list_fn, category_header_fn, category_item_fn, setting_fn, settings_fn,
         };
     }
 }

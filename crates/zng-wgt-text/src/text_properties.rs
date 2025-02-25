@@ -3,7 +3,7 @@ use std::{fmt, num::NonZeroU32, time::Duration};
 use zng_app::render::FontSynthesis;
 use zng_color::COLOR_SCHEME_VAR;
 use zng_ext_font::{font_features::*, *};
-use zng_ext_l10n::{Langs, LANG_VAR};
+use zng_ext_l10n::{LANG_VAR, Langs};
 use zng_view_api::config::FontAntiAliasing;
 use zng_wgt::prelude::*;
 use zng_wgt_layer::AnchorOffset;
@@ -291,10 +291,6 @@ context_var! {
     /// Text alignment inside the available space when it overflows.
     pub static TEXT_OVERFLOW_ALIGN_VAR: Align = Align::TOP_START;
 
-    #[doc(hidden)]
-    #[deprecated = "use `JUSTIFY_MODE_VAR`"]
-    pub static JUSTIFY_VAR: Option<Justify> = None;
-
     /// Text justify mode when text align is fill.
     pub static JUSTIFY_MODE_VAR: Justify = Justify::Auto;
 }
@@ -342,18 +338,6 @@ pub fn txt_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
 #[property(CONTEXT, default(TEXT_OVERFLOW_ALIGN_VAR), widget_impl(TextAlignMix<P>))]
 pub fn txt_overflow_align(child: impl UiNode, mode: impl IntoVar<Align>) -> impl UiNode {
     with_context_var(child, TEXT_OVERFLOW_ALIGN_VAR, mode)
-}
-
-#[doc(hidden)]
-#[deprecated = "use `justify_mode`"]
-#[property(CONTEXT, default(#[allow(deprecated)]JUSTIFY_VAR), widget_impl(TextAlignMix<P>))]
-pub fn justify(child: impl UiNode, mode: impl IntoVar<Option<Justify>>) -> impl UiNode {
-    with_context_var(
-        child,
-        #[allow(deprecated)]
-        JUSTIFY_VAR,
-        mode,
-    )
 }
 
 /// Config the automatic spacing inserted between words and letters when text is aligned to fill.

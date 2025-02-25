@@ -25,7 +25,7 @@
 //!
 //! See [`zng_wgt_slider`] for the full widget API.
 
-pub use zng_wgt_slider::{DefaultStyle, Selector, SelectorValue, Slider, SliderDirection, SliderTrack, ThumbArgs, SLIDER_DIRECTION_VAR};
+pub use zng_wgt_slider::{DefaultStyle, SLIDER_DIRECTION_VAR, Selector, SelectorValue, Slider, SliderDirection, SliderTrack, ThumbArgs};
 
 /// Slider thumb widget, styles and properties.
 ///

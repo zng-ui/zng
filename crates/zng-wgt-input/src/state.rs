@@ -3,7 +3,7 @@ use std::{collections::HashSet, time::Duration};
 use zng_app::timer::TIMERS;
 use zng_ext_input::{
     gesture::{CLICK_EVENT, GESTURES},
-    mouse::{ClickMode, WidgetInfoMouseExt as _, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT},
+    mouse::{ClickMode, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, WidgetInfoMouseExt as _},
     pointer_capture::POINTER_CAPTURE_EVENT,
     touch::TOUCHED_EVENT,
 };

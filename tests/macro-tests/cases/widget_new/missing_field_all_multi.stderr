@@ -21,9 +21,7 @@ error[E0061]: this method takes 2 arguments but 1 argument was supplied
    |
 8  |       let _ = Wgt! {
    |  _____________-
-9  | |         // background_gradient has two fields
-10 | |         // this is interpreted as an unnamed assign `{ }` is the value
-11 | |         // and the second value is missing
+...  |
 12 | |         background_gradient = {}
    | |         ^^^^^^^^^^^^^^^^^^^
 13 | |     };

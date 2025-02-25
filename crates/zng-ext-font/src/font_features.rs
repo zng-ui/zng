@@ -1,7 +1,7 @@
 //! Font features and variation types.
 
 use std::{
-    collections::{hash_map, HashMap, HashSet},
+    collections::{HashMap, HashSet, hash_map},
     fmt,
     marker::PhantomData,
     num::NonZeroU32,
@@ -974,11 +974,7 @@ impl FontFeatureExclusiveSetsState for CapsVariant {
     }
 
     fn variant(self) -> Option<u32> {
-        if self == CapsVariant::Auto {
-            None
-        } else {
-            Some(self as u32)
-        }
+        if self == CapsVariant::Auto { None } else { Some(self as u32) }
     }
 
     fn from_variant(v: u32) -> Self {
@@ -1207,11 +1203,7 @@ impl fmt::Debug for FontStyleSet {
             write!(f, "FontStyleSet::")?;
         }
         let n = *self as u8;
-        if n == 0 {
-            write!(f, "Auto")
-        } else {
-            write!(f, "S{n:0<2}")
-        }
+        if n == 0 { write!(f, "Auto") } else { write!(f, "S{n:0<2}") }
     }
 }
 impl_from_and_into_var! {
@@ -1246,11 +1238,7 @@ impl FontFeatureExclusiveSetState for FontStyleSet {
     }
 
     fn variant(self) -> Option<u32> {
-        if self == FontStyleSet::Auto {
-            None
-        } else {
-            Some(self as u32)
-        }
+        if self == FontStyleSet::Auto { None } else { Some(self as u32) }
     }
 
     fn from_variant(v: u32) -> Self {
@@ -1272,11 +1260,7 @@ impl CharVariant {
     ///
     /// `v == 0 || v > 99` is Auto, `v >= 1 && v <= 99` maps to their variant.
     pub const fn new(v: u8) -> Self {
-        if v > 99 {
-            CharVariant(0)
-        } else {
-            CharVariant(v)
-        }
+        if v > 99 { CharVariant(0) } else { CharVariant(v) }
     }
 
     /// New auto.
@@ -1403,19 +1387,11 @@ impl FontFeatureExclusiveSetState for CharVariant {
     }
 
     fn variant(self) -> Option<u32> {
-        if self.is_auto() {
-            None
-        } else {
-            Some(self.0 as u32)
-        }
+        if self.is_auto() { None } else { Some(self.0 as u32) }
     }
 
     fn from_variant(v: u32) -> Self {
-        if v > 99 {
-            CharVariant::auto()
-        } else {
-            CharVariant(v as u8)
-        }
+        if v > 99 { CharVariant::auto() } else { CharVariant(v as u8) }
     }
 
     fn auto() -> Self {
@@ -1544,11 +1520,7 @@ impl FontFeatureExclusiveSetState for JpVariant {
     }
 
     fn variant(self) -> Option<u32> {
-        if self == JpVariant::Auto {
-            None
-        } else {
-            Some(self as u32)
-        }
+        if self == JpVariant::Auto { None } else { Some(self as u32) }
     }
 
     fn from_variant(v: u32) -> Self {
@@ -1704,11 +1676,7 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
     }
 
     fn variant(self) -> Option<u32> {
-        if self == EastAsianWidth::Auto {
-            None
-        } else {
-            Some(self as u32)
-        }
+        if self == EastAsianWidth::Auto { None } else { Some(self as u32) }
     }
 
     fn from_variant(v: u32) -> Self {

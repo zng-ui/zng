@@ -37,5 +37,5 @@
 //! See [`zng_wgt_wrap`] for the full view API.
 
 pub use zng_wgt_wrap::{
-    get_index, get_index_len, get_rev_index, is_even, is_first, is_last, is_odd, lazy_sample, lazy_size, node, WidgetInfoWrapExt, Wrap,
+    WidgetInfoWrapExt, Wrap, get_index, get_index_len, get_rev_index, is_even, is_first, is_last, is_odd, lazy_sample, lazy_size, node,
 };

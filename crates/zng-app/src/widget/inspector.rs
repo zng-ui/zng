@@ -9,7 +9,7 @@ mod inspector_only {
 
     use crate::widget::{
         builder::{InputKind, PropertyId},
-        node::{match_node, BoxedUiNode, UiNode, UiNodeOp},
+        node::{BoxedUiNode, UiNode, UiNodeOp, match_node},
     };
 
     pub(crate) fn insert_widget_builder_info(child: BoxedUiNode, info: super::InspectorInfo) -> impl UiNode {
@@ -53,9 +53,9 @@ use zng_var::{BoxedAnyVar, BoxedVar, VarValue};
 use std::{any::TypeId, collections::HashMap, sync::Arc};
 
 use super::{
+    WIDGET, WidgetUpdateMode,
     builder::{InputKind, NestGroup, PropertyArgs, PropertyId, WidgetBuilder, WidgetType},
     info::WidgetInfo,
-    WidgetUpdateMode, WIDGET,
 };
 
 static_id! {

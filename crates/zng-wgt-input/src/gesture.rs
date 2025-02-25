@@ -4,7 +4,7 @@
 //! Prefer using these events over the events directly tied to an input device.
 
 use zng_app::shortcut::Shortcuts;
-use zng_ext_input::gesture::{ShortcutClick, CLICK_EVENT, GESTURES};
+use zng_ext_input::gesture::{CLICK_EVENT, GESTURES, ShortcutClick};
 use zng_view_api::access::AccessCmdName;
 use zng_wgt::prelude::*;
 

@@ -765,11 +765,13 @@ impl GradientStops {
                 color: colors[0].into(),
                 offset: Length::zero(),
             };
-            let mut middle = vec![ColorStop {
-                color: start.color,
-                offset: (offset - tran).fct().into(),
-            }
-            .into()];
+            let mut middle = vec![
+                ColorStop {
+                    color: start.color,
+                    offset: (offset - tran).fct().into(),
+                }
+                .into(),
+            ];
 
             for &color in &colors[1..last] {
                 let color = color.into();

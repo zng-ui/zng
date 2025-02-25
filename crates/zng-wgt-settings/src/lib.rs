@@ -14,7 +14,7 @@ use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
 use zng_wgt::prelude::*;
 use zng_wgt_input::cmd::SETTINGS_CMD;
 use zng_wgt_size_offset::actual_width;
-use zng_wgt_window::{save_state_node, SaveState, Window};
+use zng_wgt_window::{SaveState, Window, save_state_node};
 
 /// Settings editor widget.
 #[widget($crate::SettingsEditor)]

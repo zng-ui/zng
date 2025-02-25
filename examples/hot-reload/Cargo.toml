@@ -2,7 +2,7 @@
 name = "zng-example-hot-reload"
 version = "0.0.0"
 publish = false
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 hot-reload-lib = { path = "../hot-reload-lib", package = "zng-example-hot-reload-lib" }

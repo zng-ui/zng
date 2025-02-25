@@ -13,10 +13,10 @@ use zng_app::{
     render::{FrameBuilder, FrameValueKey},
     update::WidgetUpdates,
     widget::{
+        VarLayout, WIDGET, WidgetUpdateMode,
         border::{BORDER, BORDER_ALIGN_VAR, BORDER_OVER_VAR},
         info::Interactivity,
         node::*,
-        VarLayout, WidgetUpdateMode, WIDGET,
     },
     window::WINDOW,
 };
@@ -2356,8 +2356,8 @@ where
     }
 }
 
+use crate::WidgetFn;
 #[doc(inline)]
 pub use crate::command_property;
 #[doc(inline)]
 pub use crate::event_property;
-use crate::WidgetFn;

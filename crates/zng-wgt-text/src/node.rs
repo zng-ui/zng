@@ -10,17 +10,17 @@ use zng_app_context::{MappedRwLockWriteGuardOwned, RwLockReadGuardOwned, RwLockW
 use zng_ext_font::{CaretIndex, FontFaceList, FontList, SegmentedText, ShapedLine, ShapedText, TextOverflowInfo};
 use zng_ext_input::{
     focus::FOCUS_CHANGED_EVENT,
-    keyboard::{Key, KeyState, KEY_INPUT_EVENT},
+    keyboard::{KEY_INPUT_EVENT, Key, KeyState},
     mouse::MOUSE_INPUT_EVENT,
     touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT},
 };
 use zng_ext_window::WINDOW_Ext as _;
 use zng_view_api::{mouse::ButtonState, touch::TouchPhase};
 use zng_wgt::prelude::*;
-use zng_wgt_data::{DataNoteHandle, DATA};
+use zng_wgt_data::{DATA, DataNoteHandle};
 use zng_wgt_layer::{
-    popup::{ContextCapture, PopupState, POPUP},
     AnchorMode, AnchorTransform,
+    popup::{ContextCapture, POPUP, PopupState},
 };
 
 mod resolve;

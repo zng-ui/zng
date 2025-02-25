@@ -6,8 +6,8 @@
 //! [`on_click`](fn@super::gesture::on_click) event.
 
 use zng_ext_input::touch::{
-    TouchInputArgs, TouchLongPressArgs, TouchMoveArgs, TouchTapArgs, TouchTransformArgs, TouchedArgs, TOUCHED_EVENT, TOUCH_INPUT_EVENT,
-    TOUCH_LONG_PRESS_EVENT, TOUCH_MOVE_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT,
+    TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_MOVE_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT, TOUCHED_EVENT, TouchInputArgs,
+    TouchLongPressArgs, TouchMoveArgs, TouchTapArgs, TouchTransformArgs, TouchedArgs,
 };
 use zng_wgt::prelude::*;
 

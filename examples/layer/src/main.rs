@@ -3,11 +3,11 @@
 use zng::{
     button,
     color::filter::opacity,
-    focus::{directional_nav, focus_scope, tab_nav, DirectionalNav, TabNav},
+    focus::{DirectionalNav, TabNav, directional_nav, focus_scope, tab_nav},
     layer::AnchorOffset,
     layout::{align, margin, offset},
     prelude::*,
-    widget::{background_color, border, hit_test_mode, HitTestMode},
+    widget::{HitTestMode, background_color, border, hit_test_mode},
 };
 
 fn main() {

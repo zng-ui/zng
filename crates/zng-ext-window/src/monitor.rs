@@ -1,16 +1,16 @@
 use core::fmt;
 use std::sync::Arc;
 
-use zng_app::event::{event, event_args, AnyEventArgs};
+use zng_app::event::{AnyEventArgs, event, event_args};
 use zng_app::update::EventUpdate;
-use zng_app::view_process::raw_events::{RawMonitorsChangedArgs, RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT};
 use zng_app::view_process::VIEW_PROCESS_INITED_EVENT;
-use zng_app::window::{MonitorId, WindowId, WINDOW};
+use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT, RawMonitorsChangedArgs};
+use zng_app::window::{MonitorId, WINDOW, WindowId};
 use zng_app_context::app_local;
 use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, Px, PxPoint, PxRect, PxSize, PxToDip};
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::IdMap;
-use zng_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var, VarValue};
+use zng_var::{ArcVar, ReadOnlyArcVar, Var, VarValue, impl_from_and_into_var, var};
 use zng_view_api::window::VideoMode;
 
 use crate::WINDOWS;

@@ -17,8 +17,8 @@ use zng_layout::{
 };
 use zng_task::{self as task, SignalOnce};
 use zng_txt::Txt;
-use zng_var::{impl_from_and_into_var, AnyVar, ReadOnlyArcVar};
-use zng_view_api::{image::ImageTextureId, ViewProcessOffline};
+use zng_var::{AnyVar, ReadOnlyArcVar, impl_from_and_into_var};
+use zng_view_api::{ViewProcessOffline, image::ImageTextureId};
 
 use crate::render::ImageRenderWindowRoot;
 
@@ -214,13 +214,13 @@ impl Img {
     /// Returns an error message if the image failed to load.
     pub fn error(&self) -> Option<Txt> {
         match self.view.get() {
-            Some(v) => v.error().map(Txt::from),
+            Some(v) => v.error(),
             None => None,
         }
     }
 
     /// Returns a future that awaits until this image is loaded or encountered an error.
-    pub fn wait_done(&self) -> impl std::future::Future<Output = ()> + Send + Sync + 'static {
+    pub fn wait_done(&self) -> impl Future<Output = ()> + Send + Sync + 'static {
         self.done_signal.clone()
     }
 

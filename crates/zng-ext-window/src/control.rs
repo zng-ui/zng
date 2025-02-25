@@ -4,34 +4,34 @@ use std::{mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
+    Deadline,
     access::{ACCESS_DEINITED_EVENT, ACCESS_INITED_EVENT},
     app_hn_once,
     event::{AnyEventArgs, CommandHandle},
     render::{FrameBuilder, FrameUpdate},
     static_id,
     timer::TIMERS,
-    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
+    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
     view_process::{
+        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewHeadless, ViewRenderer, ViewWindow,
         raw_events::{
-            RawWindowFocusArgs, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT,
-            RAW_WINDOW_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT,
+            RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_FRAME_RENDERED_EVENT, RAW_HEADLESS_OPEN_EVENT, RAW_IME_EVENT, RAW_WINDOW_CHANGED_EVENT,
+            RAW_WINDOW_FOCUS_EVENT, RAW_WINDOW_OPEN_EVENT, RAW_WINDOW_OR_HEADLESS_OPEN_ERROR_EVENT, RawWindowFocusArgs,
         },
-        ViewHeadless, ViewRenderer, ViewWindow, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
     widget::{
-        info::{access::AccessEnabled, WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath},
+        VarLayout, WIDGET, WidgetCtx, WidgetId, WidgetUpdateMode,
+        info::{WidgetInfoBuilder, WidgetInfoTree, WidgetLayout, WidgetMeasure, WidgetPath, access::AccessEnabled},
         node::{BoxedUiNode, UiNode},
-        VarLayout, WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
     },
-    window::{WindowCtx, WindowId, WindowMode, WINDOW},
-    Deadline,
+    window::{WINDOW, WindowCtx, WindowId, WindowMode},
 };
 use zng_app_context::LocalContext;
 use zng_clone_move::clmv;
-use zng_color::{colors, LightDark, Rgba};
-use zng_ext_image::{ImageRenderArgs, ImageSource, ImageVar, Img, IMAGES};
+use zng_color::{LightDark, Rgba, colors};
+use zng_ext_image::{IMAGES, ImageRenderArgs, ImageSource, ImageVar, Img};
 use zng_layout::{
-    context::{LayoutMetrics, LayoutPassId, DIRECTION_VAR, LAYOUT},
+    context::{DIRECTION_VAR, LAYOUT, LayoutMetrics, LayoutPassId},
     unit::{
         Dip, DipPoint, DipRect, DipSize, DipToPx, Factor, FactorUnits, Layout1d, Layout2d, Length, Ppi, Px, PxConstraints, PxPoint, PxRect,
         PxSize, PxToDip, PxVector, TimeUnits,
@@ -40,21 +40,21 @@ use zng_layout::{
 use zng_state_map::StateId;
 use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
 use zng_view_api::{
+    DragDropId, FocusResult, Ime, ViewProcessOffline,
     config::{ColorScheme, FontAntiAliasing},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     window::{
         EventCause, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, RenderMode, WindowRequest,
         WindowState, WindowStateAll,
     },
-    DragDropId, FocusResult, Ime, ViewProcessOffline,
 };
 use zng_wgt::prelude::WidgetInfo;
 
 use crate::{
-    cmd::{WindowCommands, MINIMIZE_CMD, RESTORE_CMD},
-    AutoSize, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MonitorInfo, StartPosition, WINDOW_Ext, WidgetInfoImeArea,
-    WindowChangedArgs, WindowIcon, WindowRoot, WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS,
-    WINDOWS_DRAG_DROP, WINDOW_CHANGED_EVENT, WINDOW_FOCUS,
+    AutoSize, FRAME_IMAGE_READY_EVENT, FrameCaptureMode, FrameImageReadyArgs, HeadlessMonitor, MONITORS, MONITORS_CHANGED_EVENT,
+    MonitorInfo, StartPosition, WINDOW_CHANGED_EVENT, WINDOW_Ext, WINDOW_FOCUS, WINDOWS, WINDOWS_DRAG_DROP, WidgetInfoImeArea,
+    WindowChangedArgs, WindowIcon, WindowRoot, WindowVars,
+    cmd::{MINIMIZE_CMD, RESTORE_CMD, WindowCommands},
 };
 
 struct ImageResources {

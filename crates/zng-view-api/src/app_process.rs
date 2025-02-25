@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use zng_txt::Txt;
 
-use crate::{ipc, AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, ViewProcessOffline, VpResult};
+use crate::{AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, ViewProcessOffline, VpResult, ipc};
 
 /// The listener returns the closure on join for reuse in respawn.
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Event) + Send>>;
@@ -167,11 +167,7 @@ impl Controller {
     }
 
     fn offline_err(&self) -> Result<(), ViewProcessOffline> {
-        if self.online() {
-            Ok(())
-        } else {
-            Err(ViewProcessOffline)
-        }
+        if self.online() { Ok(()) } else { Err(ViewProcessOffline) }
     }
 
     fn try_talk(&mut self, req: Request) -> ipc::IpcResult<Response> {
@@ -297,16 +293,16 @@ impl Controller {
     /// Handle an [`Event::Inited`].
     ///
     /// Set the online flag to `true`.
-    pub fn handle_inited(&mut self, gen: ViewProcessGen) {
+    pub fn handle_inited(&mut self, vp_gen: ViewProcessGen) {
         match self.view_state {
             ViewState::Offline => {
-                if self.generation == gen {
+                if self.generation == vp_gen {
                     // crash respawn already sets gen
                     self.view_state = ViewState::Online;
                 }
             }
             ViewState::Suspended => {
-                self.generation = gen;
+                self.generation = vp_gen;
                 self.view_state = ViewState::Online;
             }
             ViewState::Online => {}
@@ -339,8 +335,8 @@ impl Controller {
     /// If the an error happens three times when trying to spawn the new view-process.
     ///
     /// If another disconnect happens during the view-process startup dialog.
-    pub fn handle_disconnect(&mut self, gen: ViewProcessGen) {
-        if gen == self.generation {
+    pub fn handle_disconnect(&mut self, vp_gen: ViewProcessGen) {
+        if vp_gen == self.generation {
             #[cfg(not(ipc))]
             {
                 tracing::error!(target: "vp_respawn", "cannot recover in same_process mode (no ipc)");

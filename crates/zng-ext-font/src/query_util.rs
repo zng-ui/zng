@@ -84,7 +84,7 @@ mod desktop {
                     font_kit::error::SelectionError::CannotAccessSource { reason } => Err(FontLoadingError::Io(Arc::new(
                         std::io::Error::new(std::io::ErrorKind::Other, reason.unwrap_or_default()),
                     ))),
-                }
+                };
             }
         };
         for handle in ubuntu.fonts() {

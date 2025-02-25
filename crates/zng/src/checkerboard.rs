@@ -25,4 +25,4 @@
 //!
 //! See [`zng_wgt_checkerboard`] for the full widget API.
 
-pub use zng_wgt_checkerboard::{cb_origin, cb_size, colors, Checkerboard, Colors};
+pub use zng_wgt_checkerboard::{Checkerboard, Colors, cb_origin, cb_size, colors};

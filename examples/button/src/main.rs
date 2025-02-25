@@ -8,7 +8,7 @@ use zng::{
     prelude::*,
     stack,
     var::ObservableVec,
-    widget::{node::EditableUiNodeList, LineStyle},
+    widget::{LineStyle, node::EditableUiNodeList},
 };
 
 fn main() {

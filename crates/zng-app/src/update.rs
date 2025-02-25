@@ -1,9 +1,9 @@
 //! App updates API.
 
 use std::{
-    collections::{hash_map, HashMap},
+    collections::{HashMap, hash_map},
     fmt, mem,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{Arc, atomic::AtomicBool},
     task::Waker,
 };
 
@@ -14,16 +14,16 @@ use zng_unique_id::IdSet;
 use zng_var::VARS_APP;
 
 use crate::{
+    AppEventSender, AppExtension, LoopTimer,
     event::{AnyEvent, AnyEventArgs, AppDisconnected, EVENTS, EVENTS_SV},
-    handler::{async_app_hn_once, AppHandler, AppHandlerArgs, AppWeakHandle},
+    handler::{AppHandler, AppHandlerArgs, AppWeakHandle, async_app_hn_once},
     timer::TIMERS_SV,
     widget::{
+        WIDGET, WidgetId,
         info::{InteractionPath, WidgetInfo, WidgetInfoTree, WidgetPath},
         node::{BoxedUiNode, UiNode},
-        WidgetId, WIDGET,
     },
-    window::{WindowId, WINDOW},
-    AppEventSender, AppExtension, LoopTimer,
+    window::{WINDOW, WindowId},
 };
 
 /// Represents all the widgets and windows marked to receive an update.
@@ -1336,7 +1336,7 @@ impl UPDATES {
     /// Schedule the `future` to run in the app context, each future awake work runs as a *preview* update.
     ///
     /// Returns a handle that can be dropped to cancel execution.
-    pub fn run<F: std::future::Future<Output = ()> + Send + 'static>(&self, future: F) -> OnUpdateHandle {
+    pub fn run<F: Future<Output = ()> + Send + 'static>(&self, future: F) -> OnUpdateHandle {
         self.run_hn_once(async_app_hn_once!(|_| future.await))
     }
 

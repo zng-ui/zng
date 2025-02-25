@@ -1,63 +1,56 @@
-use std::{
-    any::Any,
-    future::{Future, IntoFuture},
-    mem,
-    sync::Arc,
-};
+use std::{any::Any, mem, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::{
-    app_hn_once,
+    APP, AppEventSender, Deadline, EXIT_REQUESTED_EVENT, app_hn_once,
     event::AnyEventArgs,
     timer::{DeadlineHandle, TIMERS},
-    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, WidgetUpdates, UPDATES},
+    update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, WidgetUpdates},
     view_process::{
-        self,
+        self, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImage, ViewRenderer, ViewWindowOrHeadless,
         raw_events::{
-            RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT,
+            RAW_CHROME_CONFIG_CHANGED_EVENT, RAW_COLORS_CONFIG_CHANGED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT,
             RAW_WINDOW_CLOSE_EVENT, RAW_WINDOW_CLOSE_REQUESTED_EVENT, RAW_WINDOW_FOCUS_EVENT,
         },
-        ViewImage, ViewRenderer, ViewWindowOrHeadless, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
     },
     widget::{
+        UiTaskWidget, WidgetId,
         info::{InteractionPath, WidgetInfo, WidgetInfoTree},
         node::{BoxedUiNode, NilUiNode, UiNode},
-        UiTaskWidget, WidgetId,
     },
-    window::{WindowCtx, WindowId, WindowMode, WINDOW},
-    AppEventSender, Deadline, APP, EXIT_REQUESTED_EVENT,
+    window::{WINDOW, WindowCtx, WindowId, WindowMode},
 };
 use zng_app_context::app_local;
 
-use zng_color::{colors::ACCENT_COLOR_VAR, COLOR_SCHEME_VAR};
+use zng_color::{COLOR_SCHEME_VAR, colors::ACCENT_COLOR_VAR};
 use zng_ext_image::{ImageRenderWindowRoot, ImageRenderWindowsService, ImageVar, Img};
 use zng_layout::unit::TimeUnits as _;
 use zng_layout::unit::{Factor, FactorUnits, LengthUnits, PxRect};
 use zng_task::{
-    rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
     ParallelIteratorExt, UiTask,
+    rayon::iter::{IntoParallelRefMutIterator, ParallelIterator},
 };
-use zng_txt::{formatx, ToTxt as _, Txt};
+use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdMap, IdSet};
 use zng_var::{
-    impl_from_and_into_var, response_done_var, response_var, types::WeakArcVar, var, AnyWeakVar, ArcVar, BoxedVar, LocalVar,
-    ReadOnlyArcVar, ResponderVar, ResponseVar, Var, WeakVar,
+    AnyWeakVar, ArcVar, BoxedVar, LocalVar, ReadOnlyArcVar, ResponderVar, ResponseVar, Var, WeakVar, impl_from_and_into_var,
+    response_done_var, response_var, types::WeakArcVar, var,
 };
 use zng_view_api::{
+    DragDropId, ViewProcessOffline,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{ChromeConfig, ColorsConfig},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     image::ImageMaskMode,
     window::{RenderMode, WindowState},
-    DragDropId, ViewProcessOffline,
 };
 use zng_wgt::node::with_context_var;
 
 use crate::{
-    cmd::WindowCommands, control::WindowCtrl, CloseWindowResult, FrameCaptureMode, HeadlessMonitor, StartPosition, ViewExtensionError,
-    WindowCloseArgs, WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle, WindowNotFound, WindowOpenArgs, WindowRoot,
-    WindowVars, FRAME_IMAGE_READY_EVENT, MONITORS, WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT,
-    WINDOW_LOAD_EVENT, WINDOW_VARS_ID,
+    CloseWindowResult, FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, MONITORS, StartPosition, ViewExtensionError,
+    WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT, WINDOW_VARS_ID, WindowCloseArgs,
+    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars,
+    cmd::WindowCommands, control::WindowCtrl,
 };
 
 app_local! {

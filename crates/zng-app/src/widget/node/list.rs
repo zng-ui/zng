@@ -2,8 +2,8 @@ use std::{
     cmp::Ordering,
     mem, ops,
     sync::{
-        atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
+        atomic::{AtomicBool, Ordering::Relaxed},
     },
 };
 
@@ -72,11 +72,11 @@ macro_rules! ui_vec {
 pub use crate::ui_vec;
 use crate::{
     render::{FrameBuilder, FrameUpdate, FrameValueKey},
-    update::{EventUpdate, WidgetUpdates, UPDATES},
+    update::{EventUpdate, UPDATES, WidgetUpdates},
     widget::{
-        base::{Parallel, PARALLEL_VAR},
+        WIDGET, WidgetUpdateMode,
+        base::{PARALLEL_VAR, Parallel},
         info::{WidgetInfo, WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-        WidgetUpdateMode, WIDGET,
     },
 };
 

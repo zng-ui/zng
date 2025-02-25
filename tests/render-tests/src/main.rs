@@ -8,11 +8,11 @@ use std::{
 
 use color_print::cstr;
 use zng::{
+    APP,
     app::HeadlessApp,
     layout::{FactorUnits as _, TimeUnits as _},
-    text::{formatx, Txt},
+    text::{Txt, formatx},
     window::RenderMode,
-    APP,
 };
 
 mod tests;

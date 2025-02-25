@@ -17,11 +17,9 @@
 #![warn(missing_docs)]
 
 use std::{
-    any::{type_name, TypeId},
+    any::{TypeId, type_name},
     collections::HashMap,
-    fmt,
-    future::{Future, IntoFuture},
-    ops,
+    fmt, ops,
     path::PathBuf,
     sync::Arc,
 };
@@ -49,9 +47,9 @@ use zng_txt::Txt;
 #[doc(hidden)]
 pub use zng_var as var;
 
-pub use zng_time::{DInstant, Deadline, InstantMode, INSTANT};
+pub use zng_time::{DInstant, Deadline, INSTANT, InstantMode};
 
-use update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UpdatesTrace, WidgetUpdates, UPDATES};
+use update::{EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, UpdatesTrace, WidgetUpdates};
 use window::WindowMode;
 use zng_app_context::{AppId, AppScope, LocalContext};
 use zng_task::UiTask;
@@ -101,12 +99,12 @@ pub mod __proc_macro_util {
         pub mod builder {
             #[doc(hidden)]
             pub use crate::widget::builder::{
-                getter_var, iter_input_build_actions, nest_group_items, new_dyn_other, new_dyn_ui_node, new_dyn_ui_node_list, new_dyn_var,
-                new_dyn_widget_handler, panic_input, state_var, ui_node_list_to_args, ui_node_to_args, value_to_args, var_to_args,
-                when_condition_expr_var, widget_handler_to_args, AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind,
-                PropertyArgs, PropertyId, PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation,
-                UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput, WhenInputMember, WhenInputVar,
-                WidgetHandlerInWhenExprError, WidgetType,
+                AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind, PropertyArgs, PropertyId, PropertyInfo, PropertyInput,
+                PropertyInputTypes, PropertyNewArgs, SourceLocation, UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput,
+                WhenInputMember, WhenInputVar, WidgetHandlerInWhenExprError, WidgetType, getter_var, iter_input_build_actions,
+                nest_group_items, new_dyn_other, new_dyn_ui_node, new_dyn_ui_node_list, new_dyn_var, new_dyn_widget_handler, panic_input,
+                state_var, ui_node_list_to_args, ui_node_to_args, value_to_args, var_to_args, when_condition_expr_var,
+                widget_handler_to_args,
             };
         }
 
@@ -118,7 +116,7 @@ pub mod __proc_macro_util {
         #[doc(hidden)]
         pub mod node {
             pub use crate::widget::node::{
-                ui_node_list_default, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, UiVec,
+                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList, UiVec, ui_node_list_default,
             };
         }
 
@@ -168,7 +166,7 @@ pub mod __proc_macro_util {
     #[doc(hidden)]
     pub mod var {
         #[doc(hidden)]
-        pub use crate::var::{expr_var, AnyVar, AnyVarValue, BoxedVar, Var};
+        pub use crate::var::{AnyVar, AnyVarValue, BoxedVar, Var, expr_var};
 
         #[doc(hidden)]
         pub mod animation {

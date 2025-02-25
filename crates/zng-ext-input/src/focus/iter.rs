@@ -2,8 +2,8 @@
 //!
 
 use zng_app::widget::info::{
-    iter::{self as w_iter, TreeIterator},
     WidgetInfo,
+    iter::{self as w_iter, TreeIterator},
 };
 
 use super::*;

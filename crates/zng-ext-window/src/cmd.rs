@@ -1,16 +1,16 @@
 //! Commands that control the scoped window.
 
 use zng_app::{
-    event::{command, CommandHandle, CommandInfoExt, CommandNameExt},
-    shortcut::{shortcut, CommandShortcutExt},
+    event::{CommandHandle, CommandInfoExt, CommandNameExt, command},
+    shortcut::{CommandShortcutExt, shortcut},
     update::EventUpdate,
-    window::{WindowId, WINDOW},
+    window::{WINDOW, WindowId},
 };
 use zng_var::Var;
 use zng_view_api::window::WindowState;
-use zng_wgt::{wgt_fn, CommandIconExt as _, ICONS};
+use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
-use crate::{WindowVars, WINDOWS};
+use crate::{WINDOWS, WindowVars};
 
 pub use zng_view_api::window::ResizeDirection;
 

@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::atomic::AtomicBool};
 use atomic::{Atomic, Ordering};
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::WATCHER;
-use zng_var::{ReadOnlyArcVar, VarUpdateId, VARS};
+use zng_var::{ReadOnlyArcVar, VARS, VarUpdateId};
 
 use super::*;
 

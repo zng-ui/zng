@@ -10,26 +10,24 @@
 #![warn(missing_docs)]
 
 use std::{
-    env,
-    future::{Future, IntoFuture},
-    mem,
+    env, mem,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
 use parking_lot::Mutex;
 use task::io::AsyncReadExt;
 use zng_app::{
+    AppExtension,
     update::EventUpdate,
     view_process::{
-        raw_events::{LOW_MEMORY_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
-        ViewImage, VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT,
+        VIEW_PROCESS, VIEW_PROCESS_INITED_EVENT, ViewImage,
+        raw_events::{LOW_MEMORY_EVENT, RAW_IMAGE_LOAD_ERROR_EVENT, RAW_IMAGE_LOADED_EVENT, RAW_IMAGE_METADATA_LOADED_EVENT},
     },
     widget::UiTaskWidget,
-    AppExtension,
 };
 use zng_app_context::app_local;
 use zng_clone_move::{async_clmv, clmv};
@@ -40,13 +38,13 @@ pub use types::*;
 
 mod render;
 #[doc(inline)]
-pub use render::{render_retain, ImageRenderWindowRoot, ImageRenderWindowsService, IMAGES_WINDOW, IMAGE_RENDER};
+pub use render::{IMAGE_RENDER, IMAGES_WINDOW, ImageRenderWindowRoot, ImageRenderWindowsService, render_retain};
 use zng_layout::unit::{ByteLength, ByteUnits};
 use zng_task::UiTask;
-use zng_txt::{formatx, ToTxt, Txt};
+use zng_txt::{ToTxt, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
-use zng_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, Var, WeakVar};
-use zng_view_api::{image::ImageRequest, ipc::IpcBytes, ViewProcessOffline};
+use zng_var::{AnyVar, AnyWeakVar, ArcVar, Var, WeakVar, types::WeakArcVar, var};
+use zng_view_api::{ViewProcessOffline, image::ImageRequest, ipc::IpcBytes};
 
 /// Application extension that provides an image cache.
 ///
@@ -534,7 +532,7 @@ impl ImagesService {
                         limits,
                         downscale,
                         mask,
-                    )
+                    );
                 }
                 ProxyGetResult::Image(img) => {
                     IMAGES_SV.write().proxies.append(&mut proxies);

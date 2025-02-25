@@ -2,13 +2,13 @@
 
 use zng_app::access::ACCESS_CLICK_EVENT;
 use zng_ext_input::{
-    focus::{FocusInfoBuilder, FOCUS},
+    focus::{FOCUS, FocusInfoBuilder},
     mouse::MOUSE_INPUT_EVENT,
     touch::TOUCH_INPUT_EVENT,
 };
 use zng_wgt::prelude::*;
 use zng_wgt_input::focus::FocusableMix;
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
 /// Styleable and focusable read-only text widget.
 ///

@@ -1,9 +1,9 @@
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
-use zng_ext_input::mouse::{ClickMode, WidgetInfoBuilderMouseExt as _, MOUSE_HOVERED_EVENT};
+use zng_ext_input::mouse::{ClickMode, MOUSE_HOVERED_EVENT, WidgetInfoBuilderMouseExt as _};
 use zng_ext_window::WINDOW_Ext as _;
 use zng_wgt::prelude::*;
 

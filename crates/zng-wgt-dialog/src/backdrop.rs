@@ -3,9 +3,9 @@
 use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
-use zng_wgt_input::gesture::{on_click, ClickArgs};
+use zng_wgt_input::gesture::{ClickArgs, on_click};
 use zng_wgt_layer::popup::POPUP_CLOSE_REQUESTED_EVENT;
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
 use crate::DIALOG;
 

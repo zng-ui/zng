@@ -1,6 +1,6 @@
 use std::ops;
 
-use crate::{VarUpdateId, VarValue, VARS};
+use crate::{VARS, VarUpdateId, VarValue};
 
 /// Represents a [`Vec<T>`] that tracks changes when used inside a variable.
 ///
@@ -95,11 +95,7 @@ impl<T: VarValue> ObservableVec<T> {
     ///
     /// See [`Vec::pop`].
     pub fn pop(&mut self) -> Option<T> {
-        if self.is_empty() {
-            None
-        } else {
-            Some(self.remove(self.len() - 1))
-        }
+        if self.is_empty() { None } else { Some(self.remove(self.len() - 1)) }
     }
 
     /// Shortens the vector, keeping the first `len` elements and dropping the rest.

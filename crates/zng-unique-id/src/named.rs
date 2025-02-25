@@ -3,7 +3,7 @@ use std::{
     hash::{BuildHasher, Hash},
 };
 
-use hashbrown::hash_map;
+use std::collections::hash_map;
 
 use crate::{IdEntry, IdMap};
 
@@ -16,10 +16,10 @@ impl BuildHasher for ConstDefaultHashBuilder {
     }
 }
 
-type DefaultHashMap<K, V> = hashbrown::HashMap<K, V, ConstDefaultHashBuilder>;
+type DefaultHashMap<K, V> = std::collections::HashMap<K, V, ConstDefaultHashBuilder>;
 
 const fn default_hash_map_new<K, V>() -> DefaultHashMap<K, V> {
-    hashbrown::HashMap::with_hasher(ConstDefaultHashBuilder)
+    DefaultHashMap::with_hasher(ConstDefaultHashBuilder)
 }
 
 #[doc(hidden)]

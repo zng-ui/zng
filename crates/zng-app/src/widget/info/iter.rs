@@ -436,15 +436,15 @@ mod tests {
     use zng_layout::unit::FactorUnits;
 
     use crate::{
-        widget::{
-            info::{
-                access::AccessEnabled, iter::TreeIterator, TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
-                WidgetInfoTree,
-            },
-            WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET,
-        },
-        window::{WindowId, WINDOW},
         APP,
+        widget::{
+            WIDGET, WidgetCtx, WidgetId, WidgetUpdateMode,
+            info::{
+                TreeFilter, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, access::AccessEnabled,
+                iter::TreeIterator,
+            },
+        },
+        window::{WINDOW, WindowId},
     };
 
     trait WidgetInfoBuilderExt {
@@ -712,7 +712,9 @@ mod tests {
 
         assert_eq!(
             result,
-            vec!["c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1", "c-0-0",]
+            vec![
+                "c-2-2", "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1", "c-0-0",
+            ]
         );
     }
 
@@ -728,7 +730,9 @@ mod tests {
 
         assert_eq!(
             result,
-            vec!["c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1", "c-0-0"]
+            vec![
+                "c-2-2-0", "c-2-1", "c-2-0", "c-1", "c-1-1", "c-1-1-1", "c-1-1-0", "c-1-0", "c-0", "c-0-2", "c-0-1", "c-0-0"
+            ]
         );
     }
 

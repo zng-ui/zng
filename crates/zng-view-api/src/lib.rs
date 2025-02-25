@@ -270,7 +270,7 @@ declare_api! {
     ///
     /// Sends an [`Event::Inited`] once the view is completely online.
     /// Other methods may only be called after this event.
-    fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool);
+    fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool);
 
     /// Called once after exit, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);

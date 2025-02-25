@@ -3,9 +3,9 @@ use std::borrow::Cow;
 use zng_app::{
     render::{FontSynthesis, FrameValueKey, ReferenceFrameId},
     widget::{
-        border::{LineOrientation, LineStyle},
-        node::{match_node, match_node_leaf, UiNode, UiNodeOp},
         WIDGET,
+        border::{LineOrientation, LineStyle},
+        node::{UiNode, UiNodeOp, match_node, match_node_leaf},
     },
 };
 use zng_color::Rgba;
@@ -19,9 +19,9 @@ use zng_view_api::{config::FontAntiAliasing, display_list::FrameValue, font::Gly
 use zng_wgt::prelude::*;
 
 use crate::{
-    TextOverflow, FONT_AA_VAR, FONT_COLOR_VAR, FONT_PALETTE_COLORS_VAR, FONT_PALETTE_VAR, IME_UNDERLINE_STYLE_VAR, OVERLINE_COLOR_VAR,
+    FONT_AA_VAR, FONT_COLOR_VAR, FONT_PALETTE_COLORS_VAR, FONT_PALETTE_VAR, IME_UNDERLINE_STYLE_VAR, OVERLINE_COLOR_VAR,
     OVERLINE_STYLE_VAR, SELECTION_COLOR_VAR, STRIKETHROUGH_COLOR_VAR, STRIKETHROUGH_STYLE_VAR, TEXT_EDITABLE_VAR, TEXT_OVERFLOW_VAR,
-    UNDERLINE_COLOR_VAR, UNDERLINE_STYLE_VAR,
+    TextOverflow, UNDERLINE_COLOR_VAR, UNDERLINE_STYLE_VAR,
 };
 
 use super::TEXT;
