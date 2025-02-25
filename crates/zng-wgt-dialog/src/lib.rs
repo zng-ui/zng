@@ -16,8 +16,8 @@ use std::{fmt, ops, path::PathBuf, sync::Arc};
 use bitflags::bitflags;
 use parking_lot::Mutex;
 use zng_ext_l10n::l10n;
-use zng_ext_window::{WindowCloseRequestedArgs, WINDOWS, WINDOW_CLOSE_REQUESTED_EVENT};
-use zng_var::{animation::easing, ContextInitHandle};
+use zng_ext_window::{WINDOW_CLOSE_REQUESTED_EVENT, WINDOWS, WindowCloseRequestedArgs};
+use zng_var::{ContextInitHandle, animation::easing};
 use zng_view_api::dialog as native_api;
 use zng_wgt::{prelude::*, *};
 use zng_wgt_container::Container;
@@ -25,10 +25,10 @@ use zng_wgt_fill::background_color;
 use zng_wgt_filter::drop_shadow;
 use zng_wgt_input::focus::FocusableMix;
 use zng_wgt_layer::{
-    popup::{ContextCapture, POPUP, POPUP_CLOSE_REQUESTED_EVENT},
     AnchorMode,
+    popup::{ContextCapture, POPUP, POPUP_CLOSE_REQUESTED_EVENT},
 };
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 use zng_wgt_text::Text;
 use zng_wgt_text_input::selectable::SelectableText;
 use zng_wgt_wrap::Wrap;

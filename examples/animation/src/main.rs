@@ -5,8 +5,8 @@ use zng::{
     color::Rgba,
     layout::{margin, size},
     prelude::*,
-    var::animation::easing::EasingFn,
     var::VARS,
+    var::animation::easing::EasingFn,
     widget::{background_color, corner_radius},
 };
 

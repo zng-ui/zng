@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{about_eq, about_eq_hash, Factor, FactorPercent};
+use crate::{Factor, FactorPercent, about_eq, about_eq_hash};
 
 /// RGB + alpha.
 ///

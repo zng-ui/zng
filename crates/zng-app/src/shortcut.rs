@@ -8,7 +8,7 @@ use std::fmt;
 use bitflags::bitflags;
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::static_id;
-use zng_var::{impl_from_and_into_var, BoxedVar, Var};
+use zng_var::{BoxedVar, Var, impl_from_and_into_var};
 
 #[doc(hidden)]
 pub use zng_view_api::keyboard::{Key, KeyCode};

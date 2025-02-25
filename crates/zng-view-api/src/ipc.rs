@@ -5,7 +5,7 @@ use std::{fmt, ops::Deref, time::Duration};
 use crate::{AnyResult, Event, Request, Response};
 
 #[cfg(ipc)]
-use ipc_channel::ipc::{channel, IpcOneShotServer, IpcReceiver, IpcSender};
+use ipc_channel::ipc::{IpcOneShotServer, IpcReceiver, IpcSender, channel};
 
 #[cfg(not(ipc))]
 use flume::unbounded as channel;

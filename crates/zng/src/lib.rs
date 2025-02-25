@@ -572,23 +572,22 @@ mod __prelude {
     };
 
     pub use zng_app::{
+        INSTANT,
         event::{AnyEventArgs as _, CommandInfoExt as _, CommandNameExt as _, CommandParam, EventArgs as _},
         handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
-        shortcut::{shortcut, CommandShortcutExt as _},
+        shortcut::{CommandShortcutExt as _, shortcut},
         widget::{
-            easing,
-            node::{ui_vec, UiNode, UiNodeList, UiNodeListChain as _, UiVec},
-            AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WidgetId, WIDGET,
+            AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, easing,
+            node::{UiNode, UiNodeList, UiNodeListChain as _, UiVec, ui_vec},
         },
-        window::{WindowId, WINDOW},
-        INSTANT,
+        window::{WINDOW, WindowId},
     };
 
     pub use zng_app::widget::inspector::WidgetInfoInspectorExt as _;
 
     pub use zng_var::{
-        context_var, expr_var, getter_var, merge_var, state_var, var, var_from, when_var, AnyVar as _, AnyWeakVar as _, IntoValue, IntoVar,
-        Var, VarValue, WeakVar as _,
+        AnyVar as _, AnyWeakVar as _, IntoValue, IntoVar, Var, VarValue, WeakVar as _, context_var, expr_var, getter_var, merge_var,
+        state_var, var, var_from, when_var,
     };
 
     pub use crate::var::animation::easing;
@@ -598,11 +597,11 @@ mod __prelude {
         LineFromTuplesBuilder as _, PxToDip as _, RectFromTuplesBuilder as _, ResolutionUnits as _, TimeUnits as _,
     };
 
-    pub use zng_txt::{formatx, ToTxt as _, Txt};
+    pub use zng_txt::{ToTxt as _, Txt, formatx};
 
     pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
-    pub use zng_color::{colors, hex, hsl, hsla, hsv, hsva, light_dark, rgb, rgba, web_colors, LightDarkVarExt as _, MixAdjust as _};
+    pub use zng_color::{LightDarkVarExt as _, MixAdjust as _, colors, hex, hsl, hsla, hsv, hsva, light_dark, rgb, rgba, web_colors};
 
     #[cfg(feature = "clipboard")]
     pub use zng_ext_clipboard::CLIPBOARD;
@@ -619,13 +618,13 @@ mod __prelude {
     pub use zng_wgt_image::Image;
 
     pub use zng_ext_input::{
-        focus::{cmd::CommandFocusExt as _, iter::IterFocusableExt as _, WidgetInfoFocusExt as _, FOCUS},
+        focus::{FOCUS, WidgetInfoFocusExt as _, cmd::CommandFocusExt as _, iter::IterFocusableExt as _},
         gesture::{CommandShortcutMatchesExt as _, HeadlessAppGestureExt as _},
         keyboard::HeadlessAppKeyboardExt as _,
         mouse::WidgetInfoMouseExt as _,
     };
 
-    pub use zng_ext_l10n::{l10n, lang, L10N};
+    pub use zng_ext_l10n::{L10N, l10n, lang};
 
     pub use zng_wgt_text::lang;
 
@@ -634,17 +633,17 @@ mod __prelude {
 
     #[cfg(feature = "window")]
     pub use zng_ext_window::{
-        AppRunWindowExt as _, HeadlessAppWindowExt as _, WINDOW_Ext as _, WidgetInfoImeArea as _, WindowCloseRequestedArgs, WindowIcon,
-        WINDOWS,
+        AppRunWindowExt as _, HeadlessAppWindowExt as _, WINDOW_Ext as _, WINDOWS, WidgetInfoImeArea as _, WindowCloseRequestedArgs,
+        WindowIcon,
     };
 
-    pub use zng_wgt::{CommandIconExt as _, Wgt, ICONS};
+    pub use zng_wgt::{CommandIconExt as _, ICONS, Wgt};
 
     pub use crate::text;
     pub use zng_wgt_text::Text;
 
     #[cfg(feature = "text_input")]
-    pub use zng_wgt_text_input::{selectable::SelectableText, TextInput};
+    pub use zng_wgt_text_input::{TextInput, selectable::SelectableText};
 
     #[cfg(feature = "window")]
     pub use crate::window;
@@ -657,7 +656,7 @@ mod __prelude {
     pub use zng_wgt_button::Button;
 
     #[cfg(feature = "data_context")]
-    pub use zng_wgt_data::{data, DATA};
+    pub use zng_wgt_data::{DATA, data};
 
     #[cfg(feature = "grid")]
     pub use crate::grid;
@@ -665,7 +664,7 @@ mod __prelude {
     pub use zng_wgt_grid::Grid;
 
     pub use crate::layer;
-    pub use zng_wgt_layer::{AnchorMode, LayerIndex, LAYERS};
+    pub use zng_wgt_layer::{AnchorMode, LAYERS, LayerIndex};
 
     pub use crate::popup;
     pub use zng_wgt_layer::popup::POPUP;
@@ -674,16 +673,16 @@ mod __prelude {
     pub use crate::menu;
     #[cfg(feature = "menu")]
     pub use zng_wgt_menu::{
-        context::{context_menu, context_menu_fn, ContextMenu},
-        sub::SubMenu,
         Menu,
+        context::{ContextMenu, context_menu, context_menu_fn},
+        sub::SubMenu,
     };
 
     #[cfg(feature = "rule_line")]
     pub use zng_wgt_rule_line::hr::Hr;
 
     #[cfg(feature = "scroll")]
-    pub use zng_wgt_scroll::{Scroll, SCROLL};
+    pub use zng_wgt_scroll::{SCROLL, Scroll};
 
     #[cfg(feature = "toggle")]
     pub use crate::toggle;
@@ -693,11 +692,11 @@ mod __prelude {
     #[cfg(feature = "tooltip")]
     pub use crate::tip;
     #[cfg(feature = "tooltip")]
-    pub use zng_wgt_tooltip::{tooltip, tooltip_fn, Tip};
+    pub use zng_wgt_tooltip::{Tip, tooltip, tooltip_fn};
 
-    pub use zng_wgt::{wgt_fn, WidgetFn};
+    pub use zng_wgt::{WidgetFn, wgt_fn};
 
-    pub use zng_wgt_style::{style_fn, Style};
+    pub use zng_wgt_style::{Style, style_fn};
 
     #[cfg(feature = "stack")]
     pub use zng_wgt_stack::{Stack, StackDirection};
@@ -752,44 +751,44 @@ pub mod prelude_wgt {
 }
 mod __prelude_wgt {
     pub use zng_app::{
+        DInstant, Deadline, INSTANT,
         event::{
-            command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam,
-            Event, EventArgs as _, EventHandle, EventHandles, EventPropagationHandle,
+            AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, CommandParam, Event, EventArgs as _,
+            EventHandle, EventHandles, EventPropagationHandle, command, event, event_args,
         },
-        handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once, AppHandler, WidgetHandler},
+        handler::{AppHandler, WidgetHandler, app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
-        shortcut::{shortcut, CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts},
-        timer::{DeadlineHandle, DeadlineVar, TimerHandle, TimerVar, TIMERS},
-        update::{EventUpdate, UpdateDeliveryList, UpdateOp, WidgetUpdates, UPDATES},
+        shortcut::{CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts, shortcut},
+        timer::{DeadlineHandle, DeadlineVar, TIMERS, TimerHandle, TimerVar},
+        update::{EventUpdate, UPDATES, UpdateDeliveryList, UpdateOp, WidgetUpdates},
         widget::{
+            AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, WidgetUpdateMode,
             base::{WidgetBase, WidgetImpl},
-            border::{BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER},
-            builder::{property_id, NestGroup, WidgetBuilder, WidgetBuilding},
+            border::{BORDER, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle},
+            builder::{NestGroup, WidgetBuilder, WidgetBuilding, property_id},
             easing,
             info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
             node::{
-                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, ArcNode, ArcNodeList, BoxedUiNode,
-                BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, SortingList, UiNode,
-                UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiVec, ZIndex, SORTING_LIST,
+                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode,
+                PanelList, SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiVec,
+                ZIndex, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
             },
-            property, ui_node, widget, widget_impl, widget_mixin, widget_set, AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _,
-            WidgetId, WidgetUpdateMode, WIDGET,
+            property, ui_node, widget, widget_impl, widget_mixin, widget_set,
         },
-        window::{MonitorId, WindowId, WINDOW},
-        DInstant, Deadline, INSTANT,
+        window::{MonitorId, WINDOW, WindowId},
     };
 
     pub use zng_var::{
-        context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var,
         AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar,
-        ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, WeakVar as _,
+        ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, WeakVar as _, context_var, expr_var, getter_var,
+        impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var,
     };
 
     pub use zng_layout::{
-        context::{LayoutDirection, LayoutMetrics, DIRECTION_VAR, LAYOUT},
+        context::{DIRECTION_VAR, LAYOUT, LayoutDirection, LayoutMetrics},
         unit::{
             Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Dip, DipBox, DipPoint, DipRect, DipSideOffsets,
             DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _, Layout1d as _,
@@ -799,24 +798,24 @@ mod __prelude_wgt {
         },
     };
 
-    pub use zng_txt::{formatx, ToTxt as _, Txt};
+    pub use zng_txt::{ToTxt as _, Txt, formatx};
 
     pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
     pub use crate::task;
 
-    pub use zng_app_context::{app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, LocalContext, RunOnDrop};
+    pub use zng_app_context::{CaptureFilter, ContextLocal, ContextValueSet, LocalContext, RunOnDrop, app_local, context_local};
 
     pub use crate::state_map;
-    pub use zng_state_map::{static_id, OwnedStateMap, StateId, StateMapMut, StateMapRef};
+    pub use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, static_id};
 
     pub use zng_wgt::prelude::{IdEntry, IdMap, IdSet};
 
-    pub use zng_wgt::{wgt_fn, WidgetFn};
+    pub use zng_wgt::{WidgetFn, wgt_fn};
 
     pub use zng_color::{
-        colors, gradient, hex, hsl, hsla, hsv, hsva, light_dark, rgb, rgba, web_colors, ColorScheme, Hsla, Hsva, LightDark, MixAdjust as _,
-        MixBlendMode, Rgba,
+        ColorScheme, Hsla, Hsva, LightDark, MixAdjust as _, MixBlendMode, Rgba, colors, gradient, hex, hsl, hsla, hsv, hsva, light_dark,
+        rgb, rgba, web_colors,
     };
 
     pub use zng_wgt::node::{
@@ -1053,8 +1052,8 @@ mod default_editors {
     use zng::{
         prelude::*,
         widget::{
-            node::{BoxedUiNode, NilUiNode},
             EditorRequestArgs,
+            node::{BoxedUiNode, NilUiNode},
         },
     };
 

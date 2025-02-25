@@ -84,8 +84,8 @@
 //! See [`zng_wgt_dialog`] for the full view API.
 
 pub use zng_wgt_dialog::{
-    native_dialogs, AskStyle, ConfirmStyle, DefaultStyle, Dialog, DialogButtonArgs, DialogKind, ErrorStyle, FileDialogFilters,
-    FileDialogResponse, InfoStyle, Response, Responses, WarnStyle, DIALOG,
+    AskStyle, ConfirmStyle, DIALOG, DefaultStyle, Dialog, DialogButtonArgs, DialogKind, ErrorStyle, FileDialogFilters, FileDialogResponse,
+    InfoStyle, Response, Responses, WarnStyle, native_dialogs,
 };
 
 /// Modal dialog parent widget that fills the window.
@@ -117,5 +117,5 @@ pub use zng_wgt_dialog::{
 ///
 /// See [`zng_wgt_dialog::backdrop`] for the fill view API.
 pub mod backdrop {
-    pub use zng_wgt_dialog::backdrop::{style_fn, DefaultStyle};
+    pub use zng_wgt_dialog::backdrop::{DefaultStyle, style_fn};
 }

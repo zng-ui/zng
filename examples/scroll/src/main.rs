@@ -1,7 +1,7 @@
 //! Demonstrates the `Scroll!` widget and scroll commands.
 
 use zng::{
-    mouse::{cursor, CursorIcon},
+    mouse::{CursorIcon, cursor},
     prelude::*,
     scroll::cmd::ScrollToMode,
 };

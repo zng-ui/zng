@@ -6,27 +6,27 @@ use std::{
 };
 
 use zng_app::{
+    AppExtension,
     event::{event, event_args},
     update::{EventUpdate, UPDATES},
     view_process::{
+        VIEW_PROCESS_INITED_EVENT,
         raw_device_events::DeviceId,
         raw_events::{
             RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT,
             RAW_WINDOW_FOCUS_EVENT,
         },
-        VIEW_PROCESS_INITED_EVENT,
     },
     widget::{
-        info::{InteractionPath, WidgetInfoTree, WidgetPath, WIDGET_INFO_CHANGED_EVENT},
-        WidgetId, WIDGET,
+        WIDGET, WidgetId,
+        info::{InteractionPath, WIDGET_INFO_CHANGED_EVENT, WidgetInfoTree, WidgetPath},
     },
-    window::{WindowId, WINDOW},
-    AppExtension,
+    window::{WINDOW, WindowId},
 };
 use zng_app_context::app_local;
 use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
 use zng_layout::unit::{DipPoint, DipToPx};
-use zng_var::{impl_from_and_into_var, var, ArcVar, ReadOnlyArcVar, Var};
+use zng_var::{ArcVar, ReadOnlyArcVar, Var, impl_from_and_into_var, var};
 use zng_view_api::{
     mouse::{ButtonState, MouseButton},
     touch::{TouchId, TouchPhase},

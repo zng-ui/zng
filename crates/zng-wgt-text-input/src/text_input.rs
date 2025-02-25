@@ -2,9 +2,9 @@ use colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR};
 use zng_ext_clipboard::{COPY_CMD, CUT_CMD, PASTE_CMD};
 use zng_wgt::base_color;
 use zng_wgt::{align, is_disabled, margin, prelude::*};
-use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt_access::{AccessRole, access_role};
 use zng_wgt_button::Button;
-use zng_wgt_data::{DataNoteLevel, DataNotes, DATA};
+use zng_wgt_data::{DATA, DataNoteLevel, DataNotes};
 use zng_wgt_fill::foreground_highlight;
 use zng_wgt_filter::{child_opacity, saturate};
 use zng_wgt_input::{
@@ -14,13 +14,13 @@ use zng_wgt_input::{
 use zng_wgt_layer::popup;
 use zng_wgt_menu::{
     self as menu,
-    context::{context_menu_fn, ContextMenu},
+    context::{ContextMenu, context_menu_fn},
 };
 use zng_wgt_rule_line::hr::Hr;
 use zng_wgt_size_offset::{offset, y};
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 use zng_wgt_text::{self as text, *};
-use zng_wgt_undo::{undo_scope, UndoMix};
+use zng_wgt_undo::{UndoMix, undo_scope};
 
 /// Simple text editor widget.
 ///

@@ -322,8 +322,8 @@
 //! See [`zng_app::event`] for the full event API.
 
 pub use zng_app::event::{
-    command, event, event_args, AnyEvent, AnyEventArgs, AppCommandArgs, Command, CommandArgs, CommandHandle, CommandInfoExt, CommandMeta,
-    CommandMetaVar, CommandMetaVarId, CommandNameExt, CommandParam, CommandScope, Event, EventArgs, EventHandle, EventHandles,
-    EventPropagationHandle, EventReceiver, EVENTS,
+    AnyEvent, AnyEventArgs, AppCommandArgs, Command, CommandArgs, CommandHandle, CommandInfoExt, CommandMeta, CommandMetaVar,
+    CommandMetaVarId, CommandNameExt, CommandParam, CommandScope, EVENTS, Event, EventArgs, EventHandle, EventHandles,
+    EventPropagationHandle, EventReceiver, command, event, event_args,
 };
 pub use zng_wgt::node::{command_property, event_property, on_command, on_event, on_pre_command, on_pre_event};

@@ -17,12 +17,12 @@ use zng_app::widget::info::WIDGET_INFO_CHANGED_EVENT;
 use zng_ext_input::mouse::MOUSE;
 use zng_ext_input::touch::TOUCH;
 use zng_ext_window::WINDOW_Ext as _;
-use zng_var::{animation, ContextInitHandle, ReadOnlyContextVar};
+use zng_var::{ContextInitHandle, ReadOnlyContextVar, animation};
 use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{fmt, mem, ops};
 
 pub mod popup;
@@ -424,11 +424,7 @@ impl LAYERS {
                                         _ => None,
                                     }
                                 } else if let Some(p) = MOUSE.position().get() {
-                                    if p.window_id == WINDOW.id() {
-                                        Some(p.position)
-                                    } else {
-                                        None
-                                    }
+                                    if p.window_id == WINDOW.id() { Some(p.position) } else { None }
                                 } else {
                                     None
                                 };

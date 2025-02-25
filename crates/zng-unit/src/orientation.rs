@@ -65,7 +65,7 @@ impl Orientation2D {
 
     /// Iterator that yields quadrants for efficient search in a quad-tree, if a point is inside a quadrant and
     /// passes the [`Orientation2D::point_is`] check it is in the orientation, them if it is within the `max_distance` it is valid.
-    pub fn search_bounds(self, origin: PxPoint, max_distance: Px, spatial_bounds: PxBox) -> impl Iterator<Item = PxBox> {
+    pub fn search_bounds(self, origin: PxPoint, max_distance: Px, spatial_bounds: PxBox) -> impl Iterator<Item = PxBox> + 'static {
         let mut bounds = PxRect::new(origin, PxSize::splat(max_distance));
         match self {
             Orientation2D::Above => {

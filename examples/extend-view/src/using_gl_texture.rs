@@ -27,9 +27,9 @@ pub mod view_side {
         extensions::{PxToWr as _, RenderItemArgs, RendererExtension},
         gleam::gl,
         webrender::api::{
-            units::{DeviceIntSize, TexelRect},
             AlphaType, ColorF, CommonItemProperties, ExternalImageData, ExternalImageId, ExternalImageType, ImageDescriptor,
             ImageDescriptorFlags, ImageFormat, ImageKey, ImageRendering,
+            units::{DeviceIntSize, TexelRect},
         },
     };
     use zng_view_api::api_extension::ApiExtensionId;

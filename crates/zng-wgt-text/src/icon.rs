@@ -3,7 +3,7 @@
 //! Note that no icons are embedded in this crate directly, you can manually create a [`GlyphIcon`]
 //! or use an icon set crate. See the `zng::icon::material` module for an example.
 
-use zng_ext_font::{font_features::FontFeatures, FontName, FontSize};
+use zng_ext_font::{FontName, FontSize, font_features::FontFeatures};
 use zng_wgt::prelude::*;
 
 use std::fmt;

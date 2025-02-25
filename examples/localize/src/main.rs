@@ -8,7 +8,7 @@ use std::sync::Arc;
 use zng::{
     clipboard::{COPY_CMD, PASTE_CMD},
     color::filter::drop_shadow,
-    focus::{alt_focus_scope, focus_click_behavior, FocusClickBehavior},
+    focus::{FocusClickBehavior, alt_focus_scope, focus_click_behavior},
     image,
     l10n::{LangFilePath, LangMap},
     layout::align,

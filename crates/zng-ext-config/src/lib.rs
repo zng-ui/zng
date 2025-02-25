@@ -45,18 +45,18 @@ pub mod settings;
 
 use std::{
     any::Any,
-    collections::{hash_map, HashMap},
+    collections::{HashMap, hash_map},
     fmt, io,
     sync::Arc,
 };
 
-use zng_app::{update::EventUpdate, view_process::raw_events::LOW_MEMORY_EVENT, AppExtension};
+use zng_app::{AppExtension, update::EventUpdate, view_process::raw_events::LOW_MEMORY_EVENT};
 use zng_app_context::app_local;
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zng_task as task;
 use zng_txt::Txt;
-use zng_var::{types::WeakArcVar, var, AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar};
+use zng_var::{AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar, types::WeakArcVar, var};
 
 /// Application extension that provides mouse events and service.
 ///

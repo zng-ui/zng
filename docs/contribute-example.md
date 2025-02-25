@@ -9,7 +9,7 @@ To contribute an example, add the new example crate in `examples/<example-name>`
 name = "zng-example-<example-name>"
 version = "0.0.0"
 publish = false
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 zng = { path = "../../crates/zng", features = ["view_prebuilt"] }

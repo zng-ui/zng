@@ -100,15 +100,15 @@
 //!
 //! See [`zng_ext_window`], [`zng_app::window`] and [`zng_wgt_window`] for the full window API.
 
-pub use zng_app::window::{MonitorId, WindowId, WindowMode, WINDOW};
+pub use zng_app::window::{MonitorId, WINDOW, WindowId, WindowMode};
 
 pub use zng_ext_window::{
-    AppRunWindowExt, AutoSize, CloseWindowResult, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs, HeadlessAppWindowExt,
-    HeadlessMonitor, ImeArgs, MonitorInfo, MonitorQuery, MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode,
-    WINDOW_Ext, WidgetInfoBuilderImeArea, WidgetInfoImeArea, WindowButton, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs,
-    WindowIcon, WindowLoadingHandle, WindowOpenArgs, WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
-    FRAME_IMAGE_READY_EVENT, IME_EVENT, MONITORS, MONITORS_CHANGED_EVENT, WINDOWS, WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT,
-    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT,
+    AppRunWindowExt, AutoSize, CloseWindowResult, FRAME_IMAGE_READY_EVENT, FocusIndicator, FrameCaptureMode, FrameImageReadyArgs,
+    HeadlessAppWindowExt, HeadlessMonitor, IME_EVENT, ImeArgs, MONITORS, MONITORS_CHANGED_EVENT, MonitorInfo, MonitorQuery,
+    MonitorsChangedArgs, ParallelWin, RenderMode, StartPosition, VideoMode, WINDOW_CHANGED_EVENT, WINDOW_CLOSE_EVENT,
+    WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_Ext, WINDOW_LOAD_EVENT, WINDOW_OPEN_EVENT, WINDOWS, WidgetInfoBuilderImeArea, WidgetInfoImeArea,
+    WindowButton, WindowChangedArgs, WindowCloseArgs, WindowCloseRequestedArgs, WindowIcon, WindowLoadingHandle, WindowOpenArgs,
+    WindowRoot, WindowRootExtenderArgs, WindowState, WindowStateAllowed, WindowVars,
 };
 
 /// Window commands.
@@ -143,7 +143,7 @@ pub use zng_wgt_window::events::{
 /// [`cmd::INSPECT_CMD`]: crate::window::cmd::INSPECT_CMD
 #[cfg(feature = "inspector")]
 pub mod inspector {
-    pub use zng_wgt_inspector::debug::{show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows, InspectMode};
+    pub use zng_wgt_inspector::debug::{InspectMode, show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows};
 }
 
 /// Default handler registered in mobile platforms.

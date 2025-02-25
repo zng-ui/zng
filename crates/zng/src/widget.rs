@@ -37,12 +37,12 @@
 //!
 //! See [`zng_app::widget`] for the full API.
 
-pub use zng_app::widget::base::{HitTestMode, NonWidgetBase, Parallel, WidgetBase, WidgetExt, WidgetImpl, PARALLEL_VAR};
+pub use zng_app::widget::base::{HitTestMode, NonWidgetBase, PARALLEL_VAR, Parallel, WidgetBase, WidgetExt, WidgetImpl};
 
-pub use zng_app::widget::{widget_impl, widget_set, WidgetId, WidgetUpdateMode, WIDGET};
+pub use zng_app::widget::{WIDGET, WidgetId, WidgetUpdateMode, widget_impl, widget_set};
 
 pub use zng_app::widget::border::{
-    BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER,
+    BORDER, BorderSide, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle,
 };
 pub use zng_app::widget::info::Visibility;
 pub use zng_app::widget::node::ZIndex;
@@ -50,19 +50,19 @@ pub use zng_app::widget::node::ZIndex;
 pub use zng_app::render::RepeatMode;
 
 pub use zng_wgt::{
-    auto_hide, border, border_align, border_over, clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline,
-    interactive, is_collapsed, is_disabled, is_enabled, is_hidden, is_hit_testable, is_inited, is_mobile, is_visible, modal,
-    modal_included, modal_includes, on_block, on_blocked_changed, on_collapse, on_deinit, on_disable, on_enable, on_enabled_changed,
-    on_hide, on_info_init, on_init, on_interactivity_changed, on_move, on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_collapse,
-    on_pre_deinit, on_pre_disable, on_pre_enable, on_pre_enabled_changed, on_pre_hide, on_pre_init, on_pre_interactivity_changed,
-    on_pre_move, on_pre_node_op, on_pre_show, on_pre_transform_changed, on_pre_unblock, on_pre_update, on_pre_vis_disable,
-    on_pre_vis_enable, on_pre_vis_enabled_changed, on_pre_visibility_changed, on_show, on_transform_changed, on_unblock, on_update,
-    on_vis_disable, on_vis_enable, on_vis_enabled_changed, on_visibility_changed, parallel, visibility, wgt_fn, z_index, EditorRequestArgs,
-    OnNodeOpArgs, WeakWidgetFn, Wgt, WidgetFn, EDITORS, IS_MOBILE_VAR,
+    EDITORS, EditorRequestArgs, IS_MOBILE_VAR, OnNodeOpArgs, WeakWidgetFn, Wgt, WidgetFn, auto_hide, border, border_align, border_over,
+    clip_to_bounds, corner_radius, corner_radius_fit, enabled, hit_test_mode, inline, interactive, is_collapsed, is_disabled, is_enabled,
+    is_hidden, is_hit_testable, is_inited, is_mobile, is_visible, modal, modal_included, modal_includes, on_block, on_blocked_changed,
+    on_collapse, on_deinit, on_disable, on_enable, on_enabled_changed, on_hide, on_info_init, on_init, on_interactivity_changed, on_move,
+    on_node_op, on_pre_block, on_pre_blocked_changed, on_pre_collapse, on_pre_deinit, on_pre_disable, on_pre_enable,
+    on_pre_enabled_changed, on_pre_hide, on_pre_init, on_pre_interactivity_changed, on_pre_move, on_pre_node_op, on_pre_show,
+    on_pre_transform_changed, on_pre_unblock, on_pre_update, on_pre_vis_disable, on_pre_vis_enable, on_pre_vis_enabled_changed,
+    on_pre_visibility_changed, on_show, on_transform_changed, on_unblock, on_update, on_vis_disable, on_vis_enable, on_vis_enabled_changed,
+    on_visibility_changed, parallel, visibility, wgt_fn, z_index,
 };
 
 #[cfg(feature = "image")]
-pub use zng_wgt_image::border::{border_img, border_img_fill, border_img_repeat, BorderRepeats};
+pub use zng_wgt_image::border::{BorderRepeats, border_img, border_img_fill, border_img_repeat};
 
 pub use zng_wgt_fill::{
     background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground, foreground_color,
@@ -129,11 +129,11 @@ pub use zng_wgt_fill::{
 /// See [`zng_app::widget::builder`] for the full API.
 pub mod builder {
     pub use zng_app::widget::builder::{
-        property_args, property_id, property_info, property_input_types, source_location, widget_type, AnyWhenArcWidgetHandlerBuilder,
-        ArcWidgetHandler, BuilderProperty, BuilderPropertyMut, BuilderPropertyRef, Importance, InputKind, NestGroup, NestPosition,
-        PropertyArgs, PropertyBuildAction, PropertyBuildActionArgs, PropertyBuildActions, PropertyBuildActionsWhenData, PropertyId,
-        PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation, WhenBuildAction, WhenInfo, WhenInput,
-        WhenInputMember, WhenInputVar, WidgetBuilder, WidgetBuilderProperties, WidgetBuilding, WidgetType,
+        AnyWhenArcWidgetHandlerBuilder, ArcWidgetHandler, BuilderProperty, BuilderPropertyMut, BuilderPropertyRef, Importance, InputKind,
+        NestGroup, NestPosition, PropertyArgs, PropertyBuildAction, PropertyBuildActionArgs, PropertyBuildActions,
+        PropertyBuildActionsWhenData, PropertyId, PropertyInfo, PropertyInput, PropertyInputTypes, PropertyNewArgs, SourceLocation,
+        WhenBuildAction, WhenInfo, WhenInput, WhenInputMember, WhenInputVar, WidgetBuilder, WidgetBuilderProperties, WidgetBuilding,
+        WidgetType, property_args, property_id, property_info, property_input_types, source_location, widget_type,
     };
 }
 
@@ -193,11 +193,11 @@ pub mod builder {
 /// ```
 pub mod info {
     pub use zng_app::widget::info::{
-        iter, HitInfo, HitTestInfo, InlineSegmentInfo, InteractionPath, Interactivity, InteractivityChangedArgs, InteractivityFilterArgs,
-        ParallelBuilder, RelativeHitZ, TransformChangedArgs, TreeFilter, VisibilityChangedArgs, WidgetBorderInfo, WidgetBoundsInfo,
+        HitInfo, HitTestInfo, INTERACTIVITY_CHANGED_EVENT, InlineSegmentInfo, InteractionPath, Interactivity, InteractivityChangedArgs,
+        InteractivityFilterArgs, ParallelBuilder, RelativeHitZ, TRANSFORM_CHANGED_EVENT, TransformChangedArgs, TreeFilter,
+        VISIBILITY_CHANGED_EVENT, VisibilityChangedArgs, WIDGET_INFO_CHANGED_EVENT, WidgetBorderInfo, WidgetBoundsInfo,
         WidgetDescendantsRange, WidgetInfo, WidgetInfoBuilder, WidgetInfoChangedArgs, WidgetInfoMeta, WidgetInfoTree, WidgetInfoTreeStats,
-        WidgetInlineInfo, WidgetInlineMeasure, WidgetPath, INTERACTIVITY_CHANGED_EVENT, TRANSFORM_CHANGED_EVENT, VISIBILITY_CHANGED_EVENT,
-        WIDGET_INFO_CHANGED_EVENT,
+        WidgetInlineInfo, WidgetInlineMeasure, WidgetPath, iter,
     };
 
     /// Accessibility metadata types.
@@ -219,11 +219,11 @@ pub mod info {
 /// [`UiNodeList`]: crate::prelude::UiNodeList
 pub mod node {
     pub use zng_app::widget::node::{
-        extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, AdoptiveChildNode,
-        AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList, EditableUiNodeListRef,
-        FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver, PanelList, PanelListData,
-        PanelListRange, SortingList, UiNode, UiNodeList, UiNodeListChain, UiNodeListChainImpl, UiNodeListObserver, UiNodeOp,
-        UiNodeOpMethod, UiVec, WeakNode, WeakNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder, SORTING_LIST, Z_INDEX,
+        AdoptiveChildNode, AdoptiveNode, ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, DefaultPanelListData, EditableUiNodeList,
+        EditableUiNodeListRef, FillUiNode, MatchNodeChild, MatchNodeChildren, MatchWidgetChild, NilUiNode, OffsetUiListObserver, PanelList,
+        PanelListData, PanelListRange, SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain, UiNodeListChainImpl,
+        UiNodeListObserver, UiNodeOp, UiNodeOpMethod, UiVec, WeakNode, WeakNodeList, WhenUiNodeBuilder, WhenUiNodeListBuilder, Z_INDEX,
+        extend_widget, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
     };
 
     pub use zng_wgt::node::{
@@ -308,7 +308,7 @@ pub mod node {
 ///
 /// impl Foo {
 ///     /// Custom build.
-///     pub fn widget_build(&mut self) -> impl UiNode {
+///     pub fn widget_build(&mut self) -> impl UiNode + use<> {
 ///         println!("on build!");
 ///         WidgetBase::widget_build(self)
 ///     }

@@ -3,7 +3,7 @@
 use zng_ext_input::mouse::{ClickMode, MouseClickArgs};
 use zng_ext_window::WINDOW_Ext as _;
 use zng_wgt::{align, prelude::*};
-use zng_wgt_access::{access_role, AccessRole};
+use zng_wgt_access::{AccessRole, access_role};
 use zng_wgt_fill::background_color;
 use zng_wgt_input::{click_mode, mouse::on_mouse_click};
 

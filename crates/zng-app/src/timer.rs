@@ -12,8 +12,8 @@ use std::{
     mem,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     task::Waker,
     time::Duration,
@@ -21,12 +21,12 @@ use std::{
 use zng_app_context::app_local;
 use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_time::{DInstant, INSTANT, INSTANT_APP};
-use zng_var::{types::WeakArcVar, var, ReadOnlyArcVar, Var, WeakVar};
+use zng_var::{ReadOnlyArcVar, Var, WeakVar, types::WeakArcVar, var};
 
 use crate::{
+    LoopTimer,
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle},
     update::UPDATES,
-    LoopTimer,
 };
 
 struct DeadlineHandlerEntry {
@@ -96,7 +96,7 @@ impl TimersService {
         timer.read_only()
     }
 
-    fn wait_deadline(&mut self, deadline: Deadline) -> impl std::future::Future<Output = ()> + Send + Sync {
+    fn wait_deadline(&mut self, deadline: Deadline) -> impl std::future::Future<Output = ()> + Send + Sync + use<> {
         let deadline = Arc::new(WaitDeadline {
             deadline,
             wakers: Mutex::new(vec![]),
@@ -174,7 +174,7 @@ impl TimersService {
                 if !t.handle.is_dropped() && !t.handle.data().paused.load(Ordering::Relaxed) {
                     // not dropped and not paused
                     var.with(|t| {
-                        let deadline = t.0 .0.data().deadline.lock();
+                        let deadline = t.0.0.data().deadline.lock();
                         timer.register(deadline.current_deadline());
                     });
                 }
@@ -239,10 +239,10 @@ impl TimersService {
                 if !t.handle.is_dropped() {
                     if !t.handle.data().paused.load(Ordering::Relaxed) {
                         var.with(|t| {
-                            let mut deadline = t.0 .0.data().deadline.lock();
+                            let mut deadline = t.0.0.data().deadline.lock();
 
                             if timer.elapsed(deadline.current_deadline()) {
-                                t.0 .0.data().count.fetch_add(1, Ordering::Relaxed);
+                                t.0.0.data().count.fetch_add(1, Ordering::Relaxed);
                                 var.update();
 
                                 deadline.last = now;
@@ -482,7 +482,7 @@ impl TIMERS {
     /// Implementation of the [`task::deadline`] function when called from app threads.
     ///
     /// [`task::deadline`]: zng_task::deadline
-    pub fn wait_deadline(&self, deadline: impl Into<Deadline>) -> impl std::future::Future<Output = ()> + Send + Sync {
+    pub fn wait_deadline(&self, deadline: impl Into<Deadline>) -> impl std::future::Future<Output = ()> + Send + Sync + 'static {
         TIMERS_SV.write().wait_deadline(deadline.into())
     }
 }

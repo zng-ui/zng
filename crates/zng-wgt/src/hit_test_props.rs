@@ -1,5 +1,5 @@
-pub use zng_app::widget::base::HitTestMode;
 use zng_app::widget::base::HIT_TEST_MODE_VAR;
+pub use zng_app::widget::base::HitTestMode;
 
 use crate::prelude::*;
 

@@ -16,8 +16,8 @@ use std::{
     any::Any,
     fmt, mem,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     time::Duration,
 };
@@ -25,23 +25,23 @@ use std::{
 use atomic::Atomic;
 use parking_lot::Mutex;
 use zng_app::{
+    AppExtension, DInstant, INSTANT,
     event::CommandScope,
-    event::{command, AnyEventArgs, Command, CommandNameExt},
-    shortcut::{shortcut, CommandShortcutExt},
+    event::{AnyEventArgs, Command, CommandNameExt, command},
+    shortcut::{CommandShortcutExt, shortcut},
     update::EventUpdate,
     widget::{
+        WIDGET, WidgetId,
         info::{WidgetInfo, WidgetInfoBuilder},
-        WidgetId, WIDGET,
     },
-    AppExtension, DInstant, INSTANT,
 };
-use zng_app_context::{app_local, context_local, RunOnDrop};
+use zng_app_context::{RunOnDrop, app_local, context_local};
 use zng_clone_move::clmv;
 use zng_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
-use zng_state_map::{static_id, StateId, StateMapRef};
+use zng_state_map::{StateId, StateMapRef, static_id};
 use zng_txt::Txt;
-use zng_var::{context_var, var, BoxedVar, Var, VarHandle, VarValue, WeakVar};
-use zng_wgt::{wgt_fn, CommandIconExt as _, ICONS};
+use zng_var::{BoxedVar, Var, VarHandle, VarValue, WeakVar, context_var, var};
+use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
 mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed
@@ -1139,11 +1139,7 @@ impl UndoAction for UndoRedoFullOp {
                     merged: &mut merged,
                 },
             );
-            if merged {
-                Ok(self)
-            } else {
-                Err((self, args.next))
-            }
+            if merged { Ok(self) } else { Err((self, args.next)) }
         } else {
             Err((self, args.next))
         }

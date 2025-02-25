@@ -7,33 +7,33 @@ use zng_app::{
     render::FontSynthesis,
     update::{EventUpdate, UpdateOp},
     widget::{
-        info::INTERACTIVITY_CHANGED_EVENT,
-        node::{match_node, UiNode, UiNodeOp},
         WIDGET,
+        info::INTERACTIVITY_CHANGED_EVENT,
+        node::{UiNode, UiNodeOp, match_node},
     },
     window::WINDOW,
 };
 use zng_ext_clipboard::{CLIPBOARD, COPY_CMD, CUT_CMD, PASTE_CMD};
-use zng_ext_font::{CaretIndex, FontFaceList, SegmentedText, FONTS, FONT_CHANGED_EVENT};
+use zng_ext_font::{CaretIndex, FONT_CHANGED_EVENT, FONTS, FontFaceList, SegmentedText};
 use zng_ext_input::{
-    focus::{FocusInfoBuilder, WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
-    keyboard::{KEYBOARD, KEY_INPUT_EVENT},
+    focus::{FOCUS, FOCUS_CHANGED_EVENT, FocusInfoBuilder, WidgetInfoFocusExt as _},
+    keyboard::{KEY_INPUT_EVENT, KEYBOARD},
 };
 use zng_ext_l10n::LANG_VAR;
 use zng_ext_undo::UNDO;
-use zng_ext_window::{cmd::CANCEL_IME_CMD, WINDOW_Ext as _, WindowLoadingHandle, IME_EVENT};
-use zng_layout::context::{LayoutDirection, DIRECTION_VAR};
+use zng_ext_window::{IME_EVENT, WINDOW_Ext as _, WindowLoadingHandle, cmd::CANCEL_IME_CMD};
+use zng_layout::context::{DIRECTION_VAR, LayoutDirection};
 use zng_view_api::keyboard::{Key, KeyState};
 use zng_wgt::prelude::*;
 
 use crate::{
-    cmd::{TextEditOp, TextSelectOp, UndoTextEditOp, EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD},
-    AutoSelection, ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, AUTO_SELECTION_VAR, FONT_FAMILY_VAR, FONT_STRETCH_VAR, FONT_STYLE_VAR,
+    ACCEPTS_ENTER_VAR, ACCEPTS_TAB_VAR, AUTO_SELECTION_VAR, AutoSelection, FONT_FAMILY_VAR, FONT_STRETCH_VAR, FONT_STYLE_VAR,
     FONT_SYNTHESIS_VAR, FONT_WEIGHT_VAR, MAX_CHARS_COUNT_VAR, OBSCURE_TXT_VAR, TEXT_EDITABLE_VAR, TEXT_SELECTABLE_VAR, TEXT_TRANSFORM_VAR,
     WHITE_SPACE_VAR,
+    cmd::{EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD, TextEditOp, TextSelectOp, UndoTextEditOp},
 };
 
-use super::{CaretInfo, ImePreview, PendingLayout, ResolvedText, SelectionBy, RESOLVED_TEXT, TEXT};
+use super::{CaretInfo, ImePreview, PendingLayout, RESOLVED_TEXT, ResolvedText, SelectionBy, TEXT};
 
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
 ///

@@ -4,15 +4,15 @@ use std::fmt;
 
 use zng_layout::{
     context::LayoutMask,
-    unit::{about_eq, about_eq_hash, AngleDegree, Factor, FactorUnits, Layout1d, Layout2d, Length, Point},
+    unit::{AngleDegree, Factor, FactorUnits, Layout1d, Layout2d, Length, Point, about_eq, about_eq_hash},
 };
 use zng_var::{
-    animation::{easing::EasingStep, Transitionable},
+    animation::{Transitionable, easing::EasingStep},
     impl_from_and_into_var,
 };
 use zng_view_api::display_list::{FilterOp, FrameValue};
 
-use crate::{lerp_rgba, Rgba};
+use crate::{Rgba, lerp_rgba};
 
 /// A color filter or combination of filters.
 ///

@@ -2,7 +2,7 @@ use std::{fmt, mem, ops};
 
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, Px, PxVector};
+use super::{Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, Px, PxVector, impl_length_comp_conversions};
 
 /// Spacing in-between grid cells in [`Length`] units.
 #[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]

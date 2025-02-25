@@ -4,9 +4,9 @@ use zng::{
     button,
     color::filter::drop_shadow,
     focus::{
+        DirectionalNav, FOCUS_CHANGED_EVENT, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget, TabIndex, TabNav,
         alt_focus_scope, directional_nav, focus_click_behavior, focus_scope, focus_shortcut, focusable, is_focused, is_return_focus,
-        return_focus_on_deinit, tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusClickBehavior, FocusRequest, FocusTarget,
-        TabIndex, TabNav, FOCUS_CHANGED_EVENT,
+        return_focus_on_deinit, tab_index, tab_nav,
     },
     font::FontName,
     gesture::ClickArgs,

@@ -29,44 +29,44 @@ pub mod prelude {
 }
 mod __prelude {
     pub use zng_app::{
+        DInstant, Deadline, INSTANT,
         event::{
-            command, event, event_args, AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event,
-            EventArgs as _, EventHandle, EventHandles, EventPropagationHandle,
+            AnyEventArgs as _, Command, CommandHandle, CommandInfoExt as _, CommandNameExt as _, Event, EventArgs as _, EventHandle,
+            EventHandles, EventPropagationHandle, command, event, event_args,
         },
-        handler::{app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once, AppHandler, WidgetHandler},
+        handler::{AppHandler, WidgetHandler, app_hn, app_hn_once, async_app_hn, async_app_hn_once, async_hn, async_hn_once, hn, hn_once},
         render::{FrameBuilder, FrameUpdate, FrameValue, FrameValueKey, FrameValueUpdate, SpatialFrameId, TransformStyle},
-        shortcut::{shortcut, CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts},
-        timer::{DeadlineHandle, DeadlineVar, TimerHandle, TimerVar, TIMERS},
-        update::{EventUpdate, UpdateDeliveryList, UpdateOp, WidgetUpdates, UPDATES},
+        shortcut::{CommandShortcutExt as _, Shortcut, ShortcutFilter, Shortcuts, shortcut},
+        timer::{DeadlineHandle, DeadlineVar, TIMERS, TimerHandle, TimerVar},
+        update::{EventUpdate, UPDATES, UpdateDeliveryList, UpdateOp, WidgetUpdates},
         widget::{
+            AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _, WIDGET, WidgetId, WidgetUpdateMode,
             base::{WidgetBase, WidgetImpl},
-            border::{BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle, BORDER},
-            builder::{property_id, NestGroup, WidgetBuilder, WidgetBuilding},
+            border::{BORDER, BorderSides, BorderStyle, CornerRadius, CornerRadiusFit, LineOrientation, LineStyle},
+            builder::{NestGroup, WidgetBuilder, WidgetBuilding, property_id},
             easing,
             info::{
                 InteractionPath, Interactivity, Visibility, WidgetBorderInfo, WidgetBoundsInfo, WidgetInfo, WidgetInfoBuilder,
                 WidgetLayout, WidgetMeasure, WidgetPath,
             },
             node::{
-                match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec, ArcNode, ArcNodeList, BoxedUiNode,
-                BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode, PanelList, PanelListData as _,
-                SortingList, UiNode, UiNodeList, UiNodeListChain as _, UiNodeListObserver, UiNodeOp, UiVec, ZIndex, SORTING_LIST,
+                ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, EditableUiNodeList, EditableUiNodeListRef, FillUiNode, NilUiNode,
+                PanelList, PanelListData as _, SORTING_LIST, SortingList, UiNode, UiNodeList, UiNodeListChain as _, UiNodeListObserver,
+                UiNodeOp, UiVec, ZIndex, match_node, match_node_leaf, match_node_list, match_node_typed, match_widget, ui_vec,
             },
-            property, ui_node, widget, widget_impl, widget_mixin, widget_set, AnyVarSubscribe as _, VarLayout as _, VarSubscribe as _,
-            WidgetId, WidgetUpdateMode, WIDGET,
+            property, ui_node, widget, widget_impl, widget_mixin, widget_set,
         },
-        window::{MonitorId, WindowId, WINDOW},
-        DInstant, Deadline, INSTANT,
+        window::{MonitorId, WINDOW, WindowId},
     };
 
     pub use zng_var::{
-        context_var, expr_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_from, when_var,
         AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ObservableVec, ReadOnlyArcVar,
-        ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarUpdateId, VarValue, WeakVar as _,
+        ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarUpdateId, VarValue, WeakVar as _, context_var, expr_var,
+        impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_from, when_var,
     };
 
     pub use zng_layout::{
-        context::{LayoutDirection, LayoutMetrics, DIRECTION_VAR, LAYOUT},
+        context::{DIRECTION_VAR, LAYOUT, LayoutDirection, LayoutMetrics},
         unit::{
             Align, AngleDegree, AngleGradian, AngleRadian, AngleUnits as _, ByteUnits as _, Dip, DipBox, DipPoint, DipRect, DipSideOffsets,
             DipSize, DipToPx as _, DipVector, Factor, Factor2d, FactorPercent, FactorSideOffsets, FactorUnits as _, Layout1d as _,
@@ -76,21 +76,21 @@ mod __prelude {
         },
     };
 
-    pub use zng_txt::{formatx, ToTxt, Txt};
+    pub use zng_txt::{ToTxt, Txt, formatx};
 
     pub use zng_clone_move::{async_clmv, async_clmv_fn, async_clmv_fn_once, clmv};
 
     pub use zng_task as task;
 
-    pub use zng_app_context::{app_local, context_local, CaptureFilter, ContextLocal, ContextValueSet, LocalContext, RunOnDrop};
+    pub use zng_app_context::{CaptureFilter, ContextLocal, ContextValueSet, LocalContext, RunOnDrop, app_local, context_local};
 
-    pub use zng_state_map::{state_map, static_id, OwnedStateMap, StateId, StateMapMut, StateMapRef};
+    pub use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, state_map, static_id};
 
     pub use zng_unique_id::{IdEntry, IdMap, IdSet};
 
     pub use zng_color::{
-        colors, gradient, hex, hsl, hsla, hsv, hsva, light_dark, rgb, rgba, web_colors, ColorScheme, Hsla, Hsva, LightDark,
-        LightDarkVarExt as _, MixAdjust as _, MixBlendMode, Rgba,
+        ColorScheme, Hsla, Hsva, LightDark, LightDarkVarExt as _, MixAdjust as _, MixBlendMode, Rgba, colors, gradient, hex, hsl, hsla,
+        hsv, hsva, light_dark, rgb, rgba, web_colors,
     };
 
     pub use crate::node::{
@@ -99,7 +99,7 @@ mod __prelude {
         with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
 
-    pub use crate::{wgt_fn, CommandIconExt as _, WidgetFn};
+    pub use crate::{CommandIconExt as _, WidgetFn, wgt_fn};
 }
 
 pub mod node;

@@ -6,8 +6,8 @@
 //! [`on_click`](fn@super::gesture::on_click) event.
 
 use zng_ext_input::mouse::{
-    MouseClickArgs, MouseHoverArgs, MouseInputArgs, MouseMoveArgs, MouseWheelArgs, MOUSE_CLICK_EVENT, MOUSE_HOVERED_EVENT,
-    MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT,
+    MOUSE_CLICK_EVENT, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT, MouseClickArgs, MouseHoverArgs,
+    MouseInputArgs, MouseMoveArgs, MouseWheelArgs,
 };
 use zng_wgt::prelude::*;
 

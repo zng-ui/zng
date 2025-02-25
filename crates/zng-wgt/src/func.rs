@@ -83,11 +83,7 @@ impl<D> WidgetFn<D> {
     ///
     /// In the example above `a` and `b` are both calls to the widget function.
     pub fn call(&self, data: D) -> BoxedUiNode {
-        if let Some(g) = &self.0 {
-            g(data)
-        } else {
-            NilUiNode.boxed()
-        }
+        if let Some(g) = &self.0 { g(data) } else { NilUiNode.boxed() }
     }
 
     /// Calls the function with `data` argument and only returns a node if is not nil.
@@ -98,11 +94,7 @@ impl<D> WidgetFn<D> {
     /// [`UiNode::is_nil`]: zng_app::widget::node::UiNode::is_nil
     pub fn call_checked(&self, data: D) -> Option<BoxedUiNode> {
         let r = self.0.as_ref()?(data);
-        if r.is_nil() {
-            None
-        } else {
-            Some(r)
-        }
+        if r.is_nil() { None } else { Some(r) }
     }
 
     /// New widget function that returns the same `widget` for every call.
@@ -334,11 +326,7 @@ impl ICONS {
     /// if no handler can handle the request.
     pub fn get_or<U: UiNode>(&self, icon_name: impl IconNames, fallback: impl FnOnce() -> U) -> BoxedUiNode {
         let i = self.get(icon_name);
-        if i.is_nil() {
-            fallback().boxed()
-        } else {
-            i
-        }
+        if i.is_nil() { fallback().boxed() } else { i }
     }
 
     /// Same as [`get`], but also logs an error is there are no available icon for any of the names.
@@ -367,11 +355,7 @@ impl ICONS {
     /// [`get_or`]: Self::get_or
     pub fn req_or<U: UiNode>(&self, icon_name: impl IconNames, fallback: impl FnOnce() -> U) -> BoxedUiNode {
         let i = self.req(icon_name);
-        if i.is_nil() {
-            fallback().boxed()
-        } else {
-            i
-        }
+        if i.is_nil() { fallback().boxed() } else { i }
     }
 }
 

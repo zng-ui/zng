@@ -336,11 +336,7 @@ mod file_cache {
                     })
                     .await;
 
-                    if ok {
-                        Some(entry.write_body(body).await)
-                    } else {
-                        Some(body)
-                    }
+                    if ok { Some(entry.write_body(body).await) } else { Some(body) }
                 }
                 _ => Some(body),
             }

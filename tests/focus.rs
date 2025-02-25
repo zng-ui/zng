@@ -4,14 +4,14 @@ use zng::{
     data_view::{DataView, DataViewArgs},
     event::EventReceiver,
     focus::{
-        alt_focus_scope,
+        DirectionalNav, FOCUS_CHANGED_EVENT, FocusChangedArgs, FocusChangedCause, RETURN_FOCUS_CHANGED_EVENT, ReturnFocusChangedArgs,
+        TabIndex, TabNav, alt_focus_scope,
         cmd::{FOCUS_NEXT_CMD, FOCUS_PREV_CMD},
-        directional_nav, focus_scope, focusable, tab_index, tab_nav, DirectionalNav, FocusChangedArgs, FocusChangedCause,
-        ReturnFocusChangedArgs, TabIndex, TabNav, FOCUS_CHANGED_EVENT, RETURN_FOCUS_CHANGED_EVENT,
+        directional_nav, focus_scope, focusable, tab_index, tab_nav,
     },
     keyboard::{Key, KeyCode, KeyState},
     prelude::*,
-    widget::{info::InteractionPath, interactive, node::ArcNode, visibility, Visibility, WidgetUpdateMode},
+    widget::{Visibility, WidgetUpdateMode, info::InteractionPath, interactive, node::ArcNode, visibility},
 };
 
 #[test]

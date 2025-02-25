@@ -5,7 +5,7 @@ use std::num::NonZeroU32;
 use parking_lot::Mutex;
 use unic_langid::LanguageIdentifier;
 use zng_layout::unit::{Factor, PxSize, PxTransform};
-use zng_state_map::{static_id, StateId};
+use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 use zng_unique_id::IdMap;
 use zng_var::{BoxedVar, IntoVar, Var};
@@ -16,7 +16,7 @@ use zng_view_api::access::{AccessNodeId, AccessState};
 
 use crate::widget::WidgetId;
 
-use super::{iter::TreeIterator, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree};
+use super::{WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, iter::TreeIterator};
 
 impl WidgetInfoBuilder {
     /// Accessibility metadata builder.

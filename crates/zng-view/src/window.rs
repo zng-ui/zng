@@ -2,15 +2,15 @@ use std::{
     collections::VecDeque,
     fmt, mem,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
 use tracing::span::EnteredSpan;
 use webrender::{
-    api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
     RenderApi, Renderer, Transaction, UploadMethod, VertexUsageHint,
+    api::{DocumentId, DynamicProperties, FontInstanceKey, FontKey, FontVariation, PipelineId},
 };
 
 use winit::{
@@ -21,6 +21,7 @@ use winit::{
 use zng_txt::{ToTxt, Txt};
 use zng_unit::{DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
 use zng_view_api::{
+    DeviceId, Event, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
@@ -28,7 +29,6 @@ use zng_view_api::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, ResizeDirection, VideoMode,
         WindowButton, WindowId, WindowRequest, WindowState, WindowStateAll,
     },
-    DeviceId, Event, ViewProcessGen,
 };
 
 use zng_view_api::dialog as dlg_api;
@@ -37,7 +37,8 @@ use zng_view_api::dialog as dlg_api;
 use zng_view_api::keyboard::{Key, KeyCode, KeyState};
 
 use crate::{
-    display_list::{display_list_to_webrender, DisplayListCache},
+    AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
+    display_list::{DisplayListCache, display_list_to_webrender},
     extensions::{
         self, BlobExtensionsImgHandler, DisplayListExtAdapter, FrameReadyArgs, RedrawArgs, RendererCommandArgs, RendererConfigArgs,
         RendererDeinitedArgs, RendererExtension, RendererInitedArgs, WindowCommandArgs, WindowConfigArgs, WindowDeinitedArgs,
@@ -47,10 +48,9 @@ use crate::{
     image_cache::{Image, ImageCache, ImageUseMap, WrImageCache},
     px_wr::PxToWr as _,
     util::{
-        frame_render_reasons, frame_update_render_reasons, CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _,
-        WindowButtonsToWinit as _, WinitToDip, WinitToPx,
+        CursorToWinit, DipToWinit, PxToWinit, ResizeDirectionToWinit as _, WindowButtonsToWinit as _, WinitToDip, WinitToPx,
+        frame_render_reasons, frame_update_render_reasons,
     },
-    AppEvent, AppEventSender, FrameReadyMsg, WrNotifier,
 };
 
 /// A headed window.
@@ -140,7 +140,7 @@ impl fmt::Debug for Window {
 impl Window {
     #[expect(clippy::too_many_arguments)]
     pub fn open(
-        gen: ViewProcessGen,
+        vp_gen: ViewProcessGen,
         cfg_icon: Option<Icon>,
         cfg_cursor_image: Option<CustomCursor>,
         cfg: WindowRequest,
@@ -351,7 +351,7 @@ impl Window {
             enable_aa: true,
             enable_subpixel_aa: cfg!(not(target_os = "android")),
 
-            renderer_id: Some(((gen.get() as u64) << 32) | id.get() as u64),
+            renderer_id: Some(((vp_gen.get() as u64) << 32) | id.get() as u64),
 
             // this clear color paints over the one set using `Renderer::set_clear_color`.
             clear_color: webrender::api::ColorF::new(0.0, 0.0, 0.0, 0.0),
@@ -400,7 +400,7 @@ impl Window {
 
         let mut api = sender.create_api();
         let document_id = api.add_document(device_size);
-        let pipeline_id = webrender::api::PipelineId(gen.get(), id.get());
+        let pipeline_id = webrender::api::PipelineId(vp_gen.get(), id.get());
 
         renderer_exts.retain_mut(|(_, ext)| {
             ext.renderer_inited(&mut RendererInitedArgs {
@@ -1881,11 +1881,7 @@ impl Window {
                 &patterns
                     .map(|s| {
                         let s = s.trim_start_matches(['*', '.']);
-                        if s.is_empty() {
-                            "*"
-                        } else {
-                            s
-                        }
+                        if s.is_empty() { "*" } else { s }
                     })
                     .collect::<Vec<_>>(),
             );

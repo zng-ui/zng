@@ -156,6 +156,6 @@
 //! See [`zng_ext_l10n`] for the full localization API.
 
 pub use zng_ext_l10n::{
-    l10n, lang, IntoL10nVar, L10nArgument, L10nDir, L10nMessageBuilder, L10nSource, L10nTar, Lang, LangFilePath, LangMap, LangResource,
-    LangResourceStatus, LangResources, Langs, NilL10nSource, SwapL10nSource, L10N, LANG_VAR,
+    IntoL10nVar, L10N, L10nArgument, L10nDir, L10nMessageBuilder, L10nSource, L10nTar, LANG_VAR, Lang, LangFilePath, LangMap, LangResource,
+    LangResourceStatus, LangResources, Langs, NilL10nSource, SwapL10nSource, l10n, lang,
 };

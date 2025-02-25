@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
 use zng_app::{
-    widget::{info::access::AccessEnabled, WidgetId},
-    window::{MonitorId, WindowId, WINDOW},
+    widget::{WidgetId, info::access::AccessEnabled},
+    window::{MonitorId, WINDOW, WindowId},
 };
 use zng_color::LightDark;
 use zng_ext_image::Img;
 use zng_layout::unit::{
     Dip, DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, FactorUnits, Length, LengthUnits, Point, PxPoint, PxSize, Size,
 };
-use zng_state_map::{static_id, StateId};
+use zng_state_map::{StateId, static_id};
 use zng_txt::Txt;
 use zng_unique_id::IdSet;
-use zng_var::{merge_var, var, var_from, ArcVar, BoxedVar, ReadOnlyArcVar, Var};
+use zng_var::{ArcVar, BoxedVar, ReadOnlyArcVar, Var, merge_var, var, var_from};
 use zng_view_api::{
     config::{ColorScheme, ColorsConfig},
     window::{CursorIcon, FocusIndicator, RenderMode, VideoMode, WindowButton, WindowState},

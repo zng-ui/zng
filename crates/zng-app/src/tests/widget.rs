@@ -6,10 +6,10 @@ use zng_app_proc_macros::{property, widget};
 use zng_var::{IntoValue, Var};
 
 use crate::{
-    widget::{builder::WidgetBuilder, node::UiNode, WidgetId, WidgetUpdateMode, WIDGET},
+    APP,
+    widget::{WIDGET, WidgetId, WidgetUpdateMode, builder::WidgetBuilder, node::UiNode},
     widget_set,
     window::WINDOW,
-    APP,
 };
 
 use self::util::Position;
@@ -1131,8 +1131,8 @@ pub mod util {
     use zng_var::{IntoValue, IntoVar, Var};
 
     use crate::widget::{
-        node::{match_node, UiNode, UiNodeOp},
-        WidgetUpdateMode, WIDGET,
+        WIDGET, WidgetUpdateMode,
+        node::{UiNode, UiNodeOp, match_node},
     };
 
     /// Insert `trace` in the widget state. Can be probed using [`traced`].

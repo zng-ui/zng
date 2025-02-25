@@ -4,7 +4,7 @@
 //! Before using them review the [`gesture`](super::gesture) properties, in particular
 //! the [`click_shortcut`](fn@super::gesture::click_shortcut) property.
 
-use zng_ext_input::keyboard::{KeyInputArgs, KeyState, KEY_INPUT_EVENT};
+use zng_ext_input::keyboard::{KEY_INPUT_EVENT, KeyInputArgs, KeyState};
 use zng_wgt::prelude::*;
 
 event_property! {

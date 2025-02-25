@@ -694,11 +694,7 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
 }
 
 fn from_unic_level(d: unicode_bidi::Level) -> LayoutDirection {
-    if d.is_ltr() {
-        LayoutDirection::LTR
-    } else {
-        LayoutDirection::RTL
-    }
+    if d.is_ltr() { LayoutDirection::LTR } else { LayoutDirection::RTL }
 }
 fn into_unic_level(d: LayoutDirection) -> unicode_bidi::Level {
     match d {

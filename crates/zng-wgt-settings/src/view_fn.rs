@@ -6,13 +6,13 @@ use zng_app::{
     },
 };
 use zng_ext_config::{
-    settings::{Category, CategoryId, Setting, SettingBuilder, SETTINGS},
     ConfigKey,
+    settings::{Category, CategoryId, SETTINGS, Setting, SettingBuilder},
 };
 use zng_ext_font::FontWeight;
 use zng_ext_l10n::l10n;
 use zng_var::{ContextInitHandle, ReadOnlyContextVar};
-use zng_wgt::{node::with_context_var, prelude::*, Wgt, WidgetFn, EDITORS, ICONS};
+use zng_wgt::{EDITORS, ICONS, Wgt, WidgetFn, node::with_context_var, prelude::*};
 use zng_wgt_container::Container;
 use zng_wgt_filter::opacity;
 use zng_wgt_markdown::Markdown;
@@ -23,7 +23,7 @@ use zng_wgt_style::Style;
 use zng_wgt_text::Text;
 use zng_wgt_text_input::TextInput;
 use zng_wgt_toggle::{Selector, Toggle};
-use zng_wgt_tooltip::{disabled_tooltip, tooltip, Tip};
+use zng_wgt_tooltip::{Tip, disabled_tooltip, tooltip};
 
 use crate::SettingsEditor;
 

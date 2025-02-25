@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{hash_map, HashMap},
+    collections::{HashMap, hash_map},
     fmt, ops,
     path::PathBuf,
     str::FromStr,
@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 use zng_app_context::app_local;
 use zng_txt::Txt;
 use zng_var::{
-    merge_var, types::ArcCowVar, var, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, MergeVarBuilder, ReadOnlyArcVar, Var, WeakVar,
+    ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, MergeVarBuilder, ReadOnlyArcVar, Var, WeakVar, merge_var, types::ArcCowVar, var,
 };
 use zng_view_api::config::LocaleConfig;
 

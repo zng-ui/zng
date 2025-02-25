@@ -3,17 +3,18 @@ use std::{any::Any, sync::Arc};
 use zng_app::{
     update::{EventUpdate, UPDATES},
     widget::{
-        node::{match_node, BoxedUiNode, UiNode, UiNodeOp},
-        property, WIDGET,
+        WIDGET,
+        node::{BoxedUiNode, UiNode, UiNodeOp, match_node},
+        property,
     },
-    window::{WindowId, WINDOW},
+    window::{WINDOW, WindowId},
 };
 use zng_layout::unit::Factor;
-use zng_state_map::{static_id, StateId};
-use zng_var::{types::WeakArcVar, var, ArcVar, IntoVar, Var, WeakVar};
+use zng_state_map::{StateId, static_id};
+use zng_var::{ArcVar, IntoVar, Var, WeakVar, types::WeakArcVar, var};
 use zng_view_api::{image::ImageMaskMode, window::RenderMode};
 
-use crate::{ImageManager, ImageRenderArgs, ImageSource, ImageVar, ImagesService, Img, IMAGES, IMAGES_SV};
+use crate::{IMAGES, IMAGES_SV, ImageManager, ImageRenderArgs, ImageSource, ImageVar, ImagesService, Img};
 
 impl ImagesService {
     fn render<N, R>(&mut self, mask: Option<ImageMaskMode>, render: N) -> ImageVar

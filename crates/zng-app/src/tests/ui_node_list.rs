@@ -4,14 +4,13 @@ use zng_app_proc_macros::{property, widget};
 use zng_var::ContextInitHandle;
 
 use crate::{
-    ui_vec,
+    APP, ui_vec,
     widget::{
+        WidgetUpdateMode,
         base::PARALLEL_VAR,
         node::{PanelList, UiNode, UiNodeList, UiVec},
-        WidgetUpdateMode,
     },
     window::WINDOW,
-    APP,
 };
 
 use super::widget::EmptyWgt;
@@ -119,15 +118,15 @@ mod util {
         thread::{self, ThreadId},
     };
 
-    use zng_app_context::{context_local, ContextLocal};
+    use zng_app_context::{ContextLocal, context_local};
     use zng_app_proc_macros::property;
     use zng_state_map::StateId;
     use zng_unique_id::static_id;
     use zng_var::IntoValue;
 
     use crate::widget::{
-        node::{match_node, match_node_list, UiNode, UiNodeList, UiNodeOp},
-        WidgetUpdateMode, WIDGET,
+        WIDGET, WidgetUpdateMode,
+        node::{UiNode, UiNodeList, UiNodeOp, match_node, match_node_list},
     };
 
     pub use super::super::widget::util::*;

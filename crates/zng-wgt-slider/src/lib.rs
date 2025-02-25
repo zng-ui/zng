@@ -20,7 +20,7 @@ use parking_lot::Mutex;
 use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar};
 use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
 /// Value selector from a range of values.
 #[widget($crate::Slider)]

@@ -13,12 +13,12 @@
 use std::{fmt, ops, sync::Arc};
 use zng_app_context::context_local;
 
-use zng_layout::unit::{about_eq, about_eq_hash, AngleDegree, Factor, FactorUnits};
+use zng_layout::unit::{AngleDegree, Factor, FactorUnits, about_eq, about_eq_hash};
 use zng_var::{
-    animation::{easing::EasingStep, Transition, Transitionable},
+    IntoVar, Var, VarValue,
+    animation::{Transition, Transitionable, easing::EasingStep},
     context_var, expr_var, impl_from_and_into_var,
     types::ContextualizedVar,
-    IntoVar, Var, VarValue,
 };
 
 pub use zng_view_api::config::ColorScheme;

@@ -1,14 +1,14 @@
 use super::{
-    about_eq, ByteLength, ByteUnits, Dip, DipToPx, Factor, FactorPercent, FactorUnits, LayoutAxis, Px, EQ_EPSILON, EQ_EPSILON_100,
+    ByteLength, ByteUnits, Dip, DipToPx, EQ_EPSILON, EQ_EPSILON_100, Factor, FactorPercent, FactorUnits, LayoutAxis, Px, about_eq,
 };
 use std::{fmt, mem, ops};
 
 use zng_var::{
-    animation::{easing::EasingStep, Transitionable},
+    animation::{Transitionable, easing::EasingStep},
     impl_from_and_into_var,
 };
 
-use crate::context::{LayoutMask, LAYOUT};
+use crate::context::{LAYOUT, LayoutMask};
 
 /// 1D length units.
 ///
@@ -575,11 +575,7 @@ impl Length {
 
     /// Sum total memory used in nested [`Length::Expr`] heap memory.
     pub fn heap_memory_used(&self) -> ByteLength {
-        if let Length::Expr(e) = self {
-            e.memory_used()
-        } else {
-            0.bytes()
-        }
+        if let Length::Expr(e) = self { e.memory_used() } else { 0.bytes() }
     }
 
     /// 96.0 / 72.0

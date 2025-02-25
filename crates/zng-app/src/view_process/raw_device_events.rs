@@ -12,9 +12,9 @@ use crate::event::*;
 
 use zng_layout::unit::euclid;
 use zng_view_api::{
+    AxisId,
     keyboard::{KeyCode, KeyState},
     mouse::{ButtonId, ButtonState, MouseScrollDelta},
-    AxisId,
 };
 
 use once_cell::sync::Lazy;

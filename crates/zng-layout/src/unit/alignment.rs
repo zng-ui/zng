@@ -6,7 +6,7 @@ use std::{
 
 use crate::context::LayoutDirection;
 use zng_var::{
-    animation::{easing::EasingStep, Transitionable},
+    animation::{Transitionable, easing::EasingStep},
     impl_from_and_into_var,
 };
 
@@ -73,11 +73,7 @@ impl Align {
     pub fn x(self, direction: LayoutDirection) -> Factor {
         let x = if self.x.0.is_finite() { self.x } else { 0.fct() };
 
-        if self.x_rtl_aware && direction.is_rtl() {
-            x.flip()
-        } else {
-            x
-        }
+        if self.x_rtl_aware && direction.is_rtl() { x.flip() } else { x }
     }
 
     /// Gets the best finite [`y`] align value.

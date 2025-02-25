@@ -871,7 +871,7 @@ impl fmt::Debug for AppLocalId {
 macro_rules! app_local {
     ($(
         $(#[$meta:meta])*
-        $vis:vis static $IDENT:ident : $T:ty = $(const { $init_const:expr })? $($init:expr)?;
+        $vis:vis static $IDENT:ident : $T:ty = $(const { $init_const:expr })? $($init:expr_2021)?;
     )+) => {$(
         $crate::app_local_impl! {
             $(#[$meta])*
@@ -900,7 +900,7 @@ macro_rules! app_local_impl_single {
     };
     (
         $(#[$meta:meta])*
-        $vis:vis static $IDENT:ident : $T:ty = $init:expr;
+        $vis:vis static $IDENT:ident : $T:ty = $init:expr_2021;
     ) => {
         $(#[$meta])*
         $vis static $IDENT: $crate::AppLocal<$T> = {
@@ -947,7 +947,7 @@ macro_rules! app_local_impl_multi {
     };
     (
         $(#[$meta:meta])*
-        $vis:vis static $IDENT:ident : $T:ty = $init:expr;
+        $vis:vis static $IDENT:ident : $T:ty = $init:expr_2021;
     ) => {
         $(#[$meta])*
         $vis static $IDENT: $crate::AppLocal<$T> = {

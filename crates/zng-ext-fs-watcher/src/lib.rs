@@ -22,11 +22,11 @@ use std::{
 
 use path_absolutize::Absolutize;
 use zng_app::{
-    event::{event, event_args, EventHandle},
+    AppExtension,
+    event::{EventHandle, event, event_args},
     handler::{AppHandler, FilterAppHandler},
     update::EventUpdate,
     view_process::raw_events::LOW_MEMORY_EVENT,
-    AppExtension,
 };
 use zng_handle::Handle;
 use zng_txt::Txt;

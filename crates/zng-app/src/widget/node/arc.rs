@@ -104,7 +104,10 @@ impl<U: UiNode> ArcNode<U> {
     /// Create a slot node that takes ownership of this node when `var` updates to `true`.
     ///
     /// The slot node also takes ownership on init if the `var` is already `true`.
-    pub fn take_when(&self, var: impl IntoVar<bool>) -> TakeSlot<U, impl TakeOn> {
+    pub fn take_when<I>(&self, var: I) -> TakeSlot<U, impls::TakeWhenVar<I::Var>>
+    where
+        I: IntoVar<bool>,
+    {
         impls::TakeSlot {
             slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
@@ -118,12 +121,11 @@ impl<U: UiNode> ArcNode<U> {
     /// Create a slot node that takes ownership of this node when `event` updates and `filter` returns `true`.
     ///
     /// The slot node also takes ownership on init if `take_on_init` is `true`.
-    pub fn take_on<A: EventArgs>(
-        &self,
-        event: Event<A>,
-        filter: impl FnMut(&A) -> bool + Send + 'static,
-        take_on_init: bool,
-    ) -> TakeSlot<U, impl TakeOn> {
+    pub fn take_on<A, F>(&self, event: Event<A>, filter: F, take_on_init: bool) -> TakeSlot<U, impls::TakeOnEvent<A, F>>
+    where
+        A: EventArgs,
+        F: FnMut(&A) -> bool + Send + 'static,
+    {
         impls::TakeSlot {
             slot: self.0.slots.lock().next_slot(),
             rc: self.0.clone(),
@@ -141,7 +143,7 @@ impl<U: UiNode> ArcNode<U> {
     /// Create a slot node that takes ownership of this node as soon as the node is inited.
     ///
     /// This is equivalent to `self.take_when(true)`.
-    pub fn take_on_init(&self) -> TakeSlot<U, impl TakeOn> {
+    pub fn take_on_init(&self) -> TakeSlot<U, impls::TakeWhenVar<zng_var::LocalVar<bool>>> {
         self.take_when(true)
     }
 
@@ -307,11 +309,11 @@ mod impls {
     use crate::{
         event::{Event, EventArgs},
         render::{FrameBuilder, FrameUpdate},
-        update::{EventUpdate, WidgetUpdates, UPDATES},
+        update::{EventUpdate, UPDATES, WidgetUpdates},
         widget::{
+            WIDGET, WidgetHandlesCtx, WidgetUpdateMode,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
             node::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver},
-            WidgetHandlesCtx, WidgetUpdateMode, WIDGET,
         },
     };
 
@@ -334,7 +336,8 @@ mod impls {
         }
     }
 
-    pub(super) struct TakeWhenVar<V: Var<bool>> {
+    #[doc(hidden)]
+    pub struct TakeWhenVar<V: Var<bool>> {
         pub(super) var: V,
     }
     impl<V: Var<bool>> TakeOn for TakeWhenVar<V> {
@@ -348,7 +351,8 @@ mod impls {
         }
     }
 
-    pub(super) struct TakeOnEvent<A: EventArgs, F: FnMut(&A) -> bool + Send + 'static> {
+    #[doc(hidden)]
+    pub struct TakeOnEvent<A: EventArgs, F: FnMut(&A) -> bool + Send + 'static> {
         pub(super) event: Event<A>,
         pub(super) filter: F,
         pub(super) take_on_init: bool,
@@ -496,11 +500,7 @@ mod impls {
         }
 
         fn delegate_owned<R>(&self, del: impl FnOnce(&U) -> R) -> Option<R> {
-            if self.is_owner() {
-                Some(del(&*self.rc.item.lock()))
-            } else {
-                None
-            }
+            if self.is_owner() { Some(del(&*self.rc.item.lock())) } else { None }
         }
         fn delegate_owned_mut<R>(&mut self, del: impl FnOnce(&mut U) -> R) -> Option<R> {
             if self.is_owner() {

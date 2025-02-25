@@ -15,7 +15,7 @@ use zng_view_api::window::{RenderMode, WindowId};
 
 use raw_window_handle::*;
 
-use crate::{util, AppEvent, AppEventSender};
+use crate::{AppEvent, AppEventSender, util};
 
 /// Create and track the current OpenGL context.
 pub(crate) struct GlContextManager {

@@ -287,14 +287,16 @@ fn zng_new<S: AsRef<OsStr>>(args: &[S], target: &Path, template: &Path) -> Resul
 }
 
 fn zng(setup: impl FnOnce(&mut Command) -> &mut Command, cleanup: impl FnOnce(&mut StdioStr)) -> Result<StdioStr, (io::Error, StdioStr)> {
-    assert!(Command::new("cargo")
-        .arg("build")
-        .arg("-p")
-        .arg("cargo-zng")
-        .output()
-        .expect("cannot build cargo-zng")
-        .status
-        .success());
+    assert!(
+        Command::new("cargo")
+            .arg("build")
+            .arg("-p")
+            .arg("cargo-zng")
+            .output()
+            .expect("cannot build cargo-zng")
+            .status
+            .success()
+    );
 
     let cargo_zng = dunce::canonicalize(Path::new("../target/debug").join(format!("cargo-zng{}", std::env::consts::EXE_SUFFIX))).unwrap();
 

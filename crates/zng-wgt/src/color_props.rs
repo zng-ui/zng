@@ -1,6 +1,6 @@
 use zng_color::{
-    colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR},
     COLOR_SCHEME_VAR,
+    colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR},
 };
 
 use crate::prelude::*;

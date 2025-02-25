@@ -1,4 +1,4 @@
-use super::{clamp_normal, Hsla, Hsva, PreMulRgba, Rgba};
+use super::{Hsla, Hsva, PreMulRgba, Rgba, clamp_normal};
 use zng_layout::unit::Factor;
 
 use paste::*;

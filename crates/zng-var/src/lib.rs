@@ -13,8 +13,8 @@
 #![deny(clippy::future_not_send)]
 
 use animation::{
-    easing::{EasingStep, EasingTime},
     Transitionable,
+    easing::{EasingStep, EasingTime},
 };
 use bitflags::bitflags;
 use parking_lot::Mutex;
@@ -26,14 +26,14 @@ use std::{
     marker::PhantomData,
     ops,
     sync::{
-        atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
+        atomic::{AtomicBool, Ordering::Relaxed},
     },
     time::Duration,
 };
 use zng_app_context::{AppLocalId, ContextLocal};
 use zng_clone_move::clmv;
-use zng_txt::{formatx, ToTxt, Txt};
+use zng_txt::{ToTxt, Txt, formatx};
 use zng_unit::{Factor, FactorUnits};
 
 pub mod animation;
@@ -59,7 +59,7 @@ mod when;
 #[macro_use]
 mod util;
 
-pub use arc::{getter_var, state_var, var, var_default, var_from, ArcVar};
+pub use arc::{ArcVar, getter_var, state_var, var, var_default, var_from};
 pub use boxed::{BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar};
 #[doc(inline)]
 pub use context::{ContextInitHandle, ContextVar, ReadOnlyContextVar};
@@ -67,7 +67,7 @@ pub use local::LocalVar;
 #[doc(inline)]
 pub use merge::MergeVarBuilder;
 pub use read_only::ReadOnlyArcVar;
-pub use response::{response_done_var, response_var, ResponderVar, ResponseVar};
+pub use response::{ResponderVar, ResponseVar, response_done_var, response_var};
 pub use vars::*;
 pub use vec::ObservableVec;
 
@@ -82,17 +82,17 @@ pub mod types {
 
     pub use super::arc::WeakArcVar;
     pub use super::boxed::{VarBoxed, WeakVarBoxed};
-    pub use super::context::{context_var_init, WeakContextInitHandle};
+    pub use super::context::{WeakContextInitHandle, context_var_init};
     pub use super::contextualized::{ContextualizedVar, WeakContextualizedVar};
     pub use super::cow::{ArcCowVar, WeakCowVar};
     pub use super::expr::{__expr_var, expr_var_as, expr_var_into, expr_var_map};
     pub use super::flat_map::{ArcFlatMapVar, WeakFlatMapVar};
     pub use super::map_ref::{MapRef, MapRefBidi, WeakMapRef, WeakMapRefBidi};
-    pub use super::merge::{ArcMergeVar, ArcMergeVarInput, MergeVarInputs, WeakMergeVar, __merge_var};
+    pub use super::merge::{__merge_var, ArcMergeVar, ArcMergeVarInput, MergeVarInputs, WeakMergeVar};
     pub use super::read_only::{ReadOnlyVar, WeakReadOnlyVar};
     pub use super::response::Response;
     pub use super::vec::VecChange;
-    pub use super::when::{AnyWhenVarBuilder, ArcWhenVar, ContextualizedArcWhenVar, WeakWhenVar, WhenVarBuilder, __when_var};
+    pub use super::when::{__when_var, AnyWhenVarBuilder, ArcWhenVar, ContextualizedArcWhenVar, WeakWhenVar, WhenVarBuilder};
 
     use super::*;
 
@@ -1187,11 +1187,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     where
         F: FnOnce(&T) -> R,
     {
-        if self.is_new() {
-            Some(self.with(read))
-        } else {
-            None
-        }
+        if self.is_new() { Some(self.with(read)) } else { None }
     }
 
     /// Get a clone of the current value.
@@ -1231,11 +1227,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     ///
     /// [`is_new`]: AnyVar::is_new
     fn get_new(&self) -> Option<T> {
-        if self.is_new() {
-            Some(self.with(Clone::clone))
-        } else {
-            None
-        }
+        if self.is_new() { Some(self.with(Clone::clone)) } else { None }
     }
 
     /// Get a clone of the current value into `value` if the current value [`is_new`].

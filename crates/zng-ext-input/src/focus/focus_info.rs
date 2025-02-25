@@ -5,14 +5,14 @@ use atomic::Atomic;
 use parking_lot::Mutex;
 use zng_app::{
     widget::{
-        info::{TreeFilter, Visibility, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
         WidgetId,
+        info::{TreeFilter, Visibility, WidgetInfo, WidgetInfoBuilder, WidgetInfoTree, WidgetPath},
     },
     window::WindowId,
 };
 use zng_ext_window::NestedWindowWidgetInfoExt;
 use zng_layout::unit::{DistanceKey, Orientation2D, Px, PxBox, PxPoint, PxRect, PxSize};
-use zng_state_map::{static_id, StateId};
+use zng_state_map::{StateId, static_id};
 use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::window::FocusIndicator;
@@ -592,11 +592,7 @@ impl WidgetInfoFocusExt for WidgetInfo {
     }
     fn into_focusable(self, focus_disabled_widgets: bool, focus_hidden_widgets: bool) -> Option<WidgetFocusInfo> {
         let r = self.into_focus_info(focus_disabled_widgets, focus_hidden_widgets);
-        if r.is_focusable() {
-            Some(r)
-        } else {
-            None
-        }
+        if r.is_focusable() { Some(r) } else { None }
     }
 }
 
@@ -784,11 +780,7 @@ impl WidgetFocusInfo {
         let focus_hidden_widgets = self.focus_hidden_widgets();
         self.info.ancestors().filter_map(move |i| {
             let i = i.into_focus_info(focus_disabled_widgets, focus_hidden_widgets);
-            if i.is_scope() {
-                Some(i)
-            } else {
-                None
-            }
+            if i.is_scope() { Some(i) } else { None }
         })
     }
 
@@ -962,11 +954,7 @@ impl WidgetFocusInfo {
             }
         }
 
-        if best.0.is_skip() {
-            None
-        } else {
-            Some(best.1)
-        }
+        if best.0.is_skip() { None } else { Some(best.1) }
     }
 
     /// Last descendant considering TAB index.
@@ -981,11 +969,7 @@ impl WidgetFocusInfo {
             }
         }
 
-        if best.0 < 0 {
-            None
-        } else {
-            Some(best.1)
-        }
+        if best.0 < 0 { None } else { Some(best.1) }
     }
 
     /// Iterator over all focusable widgets in the same scope after this widget.
@@ -1068,11 +1052,7 @@ impl WidgetFocusInfo {
             }
         }
 
-        if best.0.is_skip() {
-            None
-        } else {
-            Some(best.1)
-        }
+        if best.0.is_skip() { None } else { Some(best.1) }
     }
 
     /// Iterator over all focusable widgets in the same scope before this widget in reverse.
@@ -1148,11 +1128,7 @@ impl WidgetFocusInfo {
             }
         }
 
-        if best.0 < 0 {
-            None
-        } else {
-            Some(best.1)
-        }
+        if best.0 < 0 { None } else { Some(best.1) }
     }
 
     /// Widget to focus when pressing TAB from this widget.

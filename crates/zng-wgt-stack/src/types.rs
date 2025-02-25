@@ -1,6 +1,6 @@
 use std::{fmt, mem, ops};
 use zng_layout::context::LayoutMask;
-use zng_var::animation::{easing::EasingStep, Transitionable};
+use zng_var::animation::{Transitionable, easing::EasingStep};
 use zng_wgt::prelude::*;
 
 /// Defines a placement point in the previous item and the origin point of the next.

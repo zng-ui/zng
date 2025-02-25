@@ -6,9 +6,9 @@ use super::ButtonStyle;
 use colors::BASE_COLOR_VAR;
 use zng_ext_font::FontNames;
 use zng_ext_input::{
-    focus::{WidgetInfoFocusExt as _, FOCUS, FOCUS_CHANGED_EVENT},
+    focus::{FOCUS, FOCUS_CHANGED_EVENT, WidgetInfoFocusExt as _},
     gesture::CLICK_EVENT,
-    keyboard::{Key, KeyState, KEY_INPUT_EVENT},
+    keyboard::{KEY_INPUT_EVENT, Key, KeyState},
     mouse::{ClickMode, MOUSE_HOVERED_EVENT},
 };
 use zng_ext_l10n::lang;
@@ -17,18 +17,17 @@ use zng_wgt_container::padding;
 use zng_wgt_fill::{background, background_color, foreground_highlight};
 use zng_wgt_filter::{opacity, saturate};
 use zng_wgt_input::{
-    click_mode, cursor,
-    focus::{focus_click_behavior, focusable, is_focused, FocusClickBehavior},
+    CursorIcon, click_mode, cursor,
+    focus::{FocusClickBehavior, focus_click_behavior, focusable, is_focused},
     is_hovered,
     pointer_capture::capture_pointer,
-    CursorIcon,
 };
 use zng_wgt_layer::{
-    popup::{PopupState, POPUP, POPUP_CLOSE_CMD},
     AnchorMode, AnchorOffset, AnchorSize,
+    popup::{POPUP, POPUP_CLOSE_CMD, PopupState},
 };
 use zng_wgt_size_offset::{size, width};
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 #[doc(hidden)]
 pub use zng_wgt_text::Text;
 

@@ -1,5 +1,5 @@
 use zng::{
-    image::{Img, IMAGES},
+    image::{IMAGES, Img},
     layout::LayoutPassId,
     prelude::*,
     prelude_wgt::*,

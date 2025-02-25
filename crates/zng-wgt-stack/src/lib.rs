@@ -274,11 +274,7 @@ fn measure(wm: &mut WidgetMeasure, children: &mut PanelList, direction: StackDir
             children.measure_each(
                 wm,
                 |_, c, _, wm| {
-                    if c.is_widget() {
-                        c.measure(wm)
-                    } else {
-                        PxSize::zero()
-                    }
+                    if c.is_widget() { c.measure(wm) } else { PxSize::zero() }
                 },
                 |_, _| PxSize::zero(),
             );
@@ -525,11 +521,7 @@ fn stack_nodes_layout_by_impl(
                     children.measure_each(
                         wm,
                         |i, n, wm| {
-                            if i != index {
-                                n.measure(wm)
-                            } else {
-                                index_size
-                            }
+                            if i != index { n.measure(wm) } else { index_size }
                         },
                         PxSize::max,
                     )
@@ -555,11 +547,7 @@ fn stack_nodes_layout_by_impl(
                     children.layout_each(
                         wl,
                         |i, n, wl| {
-                            if i != index {
-                                n.layout(wl)
-                            } else {
-                                index_size
-                            }
+                            if i != index { n.layout(wl) } else { index_size }
                         },
                         PxSize::max,
                     )

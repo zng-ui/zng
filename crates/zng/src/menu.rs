@@ -87,7 +87,7 @@
 //! See [`zng_wgt_menu`] for the full widget API.
 
 pub use zng_wgt_menu::{
-    icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn, ButtonStyle, DefaultStyle, Menu, ToggleStyle, TouchButtonStyle,
+    ButtonStyle, DefaultStyle, Menu, ToggleStyle, TouchButtonStyle, icon, icon_fn, panel_fn, shortcut_spacing, shortcut_txt, style_fn,
 };
 
 /// Submenu widget and properties.
@@ -95,8 +95,8 @@ pub use zng_wgt_menu::{
 /// See [`zng_wgt_menu::sub`] for the full widget API.
 pub mod sub {
     pub use zng_wgt_menu::sub::{
-        column_width_padding, end_column, end_column_fn, end_column_width, hover_open_delay, is_open, start_column, start_column_fn,
-        start_column_width, DefaultStyle, SubMenu, SubMenuAncestors, SubMenuStyle, SubMenuWidgetInfoExt,
+        DefaultStyle, SubMenu, SubMenuAncestors, SubMenuStyle, SubMenuWidgetInfoExt, column_width_padding, end_column, end_column_fn,
+        end_column_width, hover_open_delay, is_open, start_column, start_column_fn, start_column_width,
     };
 }
 
@@ -105,8 +105,8 @@ pub mod sub {
 /// See [`zng_wgt_menu::context`] for the full widget API.
 pub mod context {
     pub use zng_wgt_menu::context::{
-        context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu, disabled_context_menu_fn, panel_fn, style_fn,
-        ContextMenu, ContextMenuArgs, DefaultStyle, TouchStyle,
+        ContextMenu, ContextMenuArgs, DefaultStyle, TouchStyle, context_menu, context_menu_anchor, context_menu_fn, disabled_context_menu,
+        disabled_context_menu_fn, panel_fn, style_fn,
     };
 }
 
@@ -114,5 +114,5 @@ pub mod context {
 ///
 /// See [`zng_wgt_menu::popup`] for the full widget API.
 pub mod popup {
-    pub use zng_wgt_menu::popup::{panel_fn, style_fn, DefaultStyle, SubMenuPopup};
+    pub use zng_wgt_menu::popup::{DefaultStyle, SubMenuPopup, panel_fn, style_fn};
 }

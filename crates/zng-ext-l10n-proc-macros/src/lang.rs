@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use std::str::FromStr;
-use syn::{ext::IdentExt, parse::Parse, parse_macro_input, Ident, LitStr};
+use syn::{Ident, LitStr, ext::IdentExt, parse::Parse, parse_macro_input};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { unic_langid, lang } = parse_macro_input!(input as Input);

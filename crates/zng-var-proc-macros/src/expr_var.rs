@@ -1,10 +1,11 @@
 use proc_macro2::{Group, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
+    Expr, Ident, Path, Token,
     parse::{Parse, ParseStream},
-    parse2, parse_macro_input,
+    parse_macro_input, parse2,
     spanned::Spanned,
-    token, Expr, Ident, Path, Token,
+    token,
 };
 
 use crate::util::{token_stream_eq, tokens_to_ident_str};

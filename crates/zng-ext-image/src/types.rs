@@ -17,8 +17,8 @@ use zng_layout::{
 };
 use zng_task::{self as task, SignalOnce};
 use zng_txt::Txt;
-use zng_var::{impl_from_and_into_var, AnyVar, ReadOnlyArcVar};
-use zng_view_api::{image::ImageTextureId, ViewProcessOffline};
+use zng_var::{AnyVar, ReadOnlyArcVar, impl_from_and_into_var};
+use zng_view_api::{ViewProcessOffline, image::ImageTextureId};
 
 use crate::render::ImageRenderWindowRoot;
 

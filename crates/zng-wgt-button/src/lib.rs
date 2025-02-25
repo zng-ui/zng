@@ -17,23 +17,22 @@ use colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR};
 use zng_app::event::CommandParam;
 use zng_var::ReadOnlyContextVar;
 use zng_wgt::{base_color, border, corner_radius, is_disabled, prelude::*};
-use zng_wgt_access::{access_role, labelled_by_child, AccessRole};
-use zng_wgt_container::{child_align, padding, Container};
+use zng_wgt_access::{AccessRole, access_role, labelled_by_child};
+use zng_wgt_container::{Container, child_align, padding};
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::{child_opacity, saturate};
 use zng_wgt_input::{
-    cursor,
+    CursorIcon, cursor,
     focus::FocusableMix,
-    gesture::{on_click, on_disabled_click, ClickArgs},
+    gesture::{ClickArgs, on_click, on_disabled_click},
     is_cap_hovered, is_pressed,
-    pointer_capture::{capture_pointer, CaptureMode},
-    CursorIcon,
+    pointer_capture::{CaptureMode, capture_pointer},
 };
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
-use zng_wgt_text::{font_color, underline, Text, FONT_COLOR_VAR};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
+use zng_wgt_text::{FONT_COLOR_VAR, Text, font_color, underline};
 
 #[cfg(feature = "tooltip")]
-use zng_wgt_tooltip::{tooltip, tooltip_fn, Tip, TooltipArgs};
+use zng_wgt_tooltip::{Tip, TooltipArgs, tooltip, tooltip_fn};
 
 /// A clickable container.
 ///

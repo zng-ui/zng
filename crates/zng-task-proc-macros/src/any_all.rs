@@ -1,10 +1,10 @@
 //! Macro for `task::any!` or `task::all!` calls with more then 8 futures.
 
 use syn::{
+    Expr, Path, Token,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
-    Expr, Path, Token,
 };
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

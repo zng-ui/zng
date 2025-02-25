@@ -12,7 +12,7 @@
 use std::{any::Any, collections::HashMap, fmt, mem, num::NonZeroU8, ops, sync::Arc};
 
 use zng_color::COLOR_SCHEME_VAR;
-use zng_var::{types::ContextualizedVar, BoxedAnyVar};
+use zng_var::{BoxedAnyVar, types::ContextualizedVar};
 use zng_wgt::prelude::*;
 
 use task::parking_lot::RwLock;

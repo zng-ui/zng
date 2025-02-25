@@ -6,9 +6,9 @@ use zng::{
     gesture::{click_shortcut, is_hovered},
     layout::{align, margin, padding},
     prelude::*,
-    text::{font_family, font_weight, UnderlinePosition, UnderlineSkip},
+    text::{UnderlinePosition, UnderlineSkip, font_family, font_weight},
     var::ArcVar,
-    widget::{background_color, corner_radius, LineStyle},
+    widget::{LineStyle, background_color, corner_radius},
 };
 
 mod editor;

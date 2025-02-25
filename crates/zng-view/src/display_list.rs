@@ -4,11 +4,11 @@ use rustc_hash::FxHashMap;
 use webrender::api as wr;
 use zng_unit::{Factor, Px, PxCornerRadius, PxRect, PxSideOffsets, PxSize, PxTransform, Rgba};
 use zng_view_api::{
+    GradientStop, ReferenceFrameId, RepeatMode,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     display_list::{DisplayItem, DisplayList, FilterOp, FrameValue, FrameValueId, FrameValueUpdate, NinePatchSource, SegmentId},
     font::{GlyphIndex, GlyphInstance},
     window::FrameId,
-    GradientStop, ReferenceFrameId, RepeatMode,
 };
 
 use crate::px_wr::PxToWr;
@@ -716,10 +716,11 @@ fn display_item_to_webrender(
             end_point,
             extend_mode,
             stops,
-            mut tile_origin,
+            tile_origin,
             tile_size,
             tile_spacing,
         } => {
+            let mut tile_origin = *tile_origin;
             tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
             tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
             let bounds = PxRect::new(
@@ -757,10 +758,11 @@ fn display_item_to_webrender(
             end_offset,
             extend_mode,
             stops,
-            mut tile_origin,
+            tile_origin,
             tile_size,
             tile_spacing,
         } => {
+            let mut tile_origin = *tile_origin;
             tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
             tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
             let bounds = PxRect::new(
@@ -798,10 +800,11 @@ fn display_item_to_webrender(
             end_offset,
             extend_mode,
             stops,
-            mut tile_origin,
+            tile_origin,
             tile_size,
             tile_spacing,
         } => {
+            let mut tile_origin = *tile_origin;
             tile_origin.x.0 = tile_origin.x.0.rem_euclid(tile_size.width.0);
             tile_origin.y.0 = tile_origin.y.0.rem_euclid(tile_size.height.0);
             let bounds = PxRect::new(

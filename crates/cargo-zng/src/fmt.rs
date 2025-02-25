@@ -218,8 +218,13 @@ fn fmt_code(code: &str, stream: TokenStream) -> String {
                     // #[..]
                     let mut attr = g.stream().into_iter();
                     let attr = [attr.next(), attr.next(), attr.next(), attr.next(), attr.next()];
-                    if let [Some(TokenTree::Ident(i0)), Some(TokenTree::Punct(p0)), Some(TokenTree::Punct(p1)), Some(TokenTree::Ident(i1)), None] =
-                        attr
+                    if let [
+                        Some(TokenTree::Ident(i0)),
+                        Some(TokenTree::Punct(p0)),
+                        Some(TokenTree::Punct(p1)),
+                        Some(TokenTree::Ident(i1)),
+                        None,
+                    ] = attr
                     {
                         if i0 == "rustfmt" && p0.as_char() == ':' && p1.as_char() == ':' && i1 == "skip" {
                             // #[rustfmt::skip]

@@ -1206,11 +1206,7 @@ where
     F: FnMut(&A) -> bool + Send + 'static,
 {
     fn event(&mut self, args: &A) -> bool {
-        if (self.filter)(args) {
-            self.handler.event(args)
-        } else {
-            false
-        }
+        if (self.filter)(args) { self.handler.event(args) } else { false }
     }
 
     fn update(&mut self) -> bool {

@@ -6,9 +6,9 @@ use semver::Version;
 use zng_ext_fs_watcher::WatcherReadStatus;
 use zng_layout::context::LayoutDirection;
 use zng_txt::{ToTxt, Txt};
-use zng_var::{context_var, impl_from_and_into_var, ArcEq, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, VarValue};
+use zng_var::{ArcEq, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, VarValue, context_var, impl_from_and_into_var};
 
-use crate::{lang, service::L10N_SV, L10N};
+use crate::{L10N, lang, service::L10N_SV};
 
 /// Handle to multiple localization resources.
 #[derive(Clone, Debug)]
@@ -710,11 +710,7 @@ impl fmt::Display for FluentParserErrors {
 }
 impl std::error::Error for FluentParserErrors {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        if self.0.len() == 1 {
-            Some(&self.0[0])
-        } else {
-            None
-        }
+        if self.0.len() == 1 { Some(&self.0[0]) } else { None }
     }
 }
 

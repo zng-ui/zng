@@ -3,27 +3,27 @@
 use std::{collections::HashSet, time::Duration};
 
 use zng_app::{
+    AppExtension, DInstant, HeadlessApp,
     event::{event, event_args},
     shortcut::ModifiersState,
     update::EventUpdate,
     view_process::{
+        VIEW_PROCESS_INITED_EVENT,
         raw_device_events::DeviceId,
         raw_events::{
-            RawKeyInputArgs, RAW_ANIMATIONS_CONFIG_CHANGED_EVENT, RAW_KEY_INPUT_EVENT, RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT,
-            RAW_WINDOW_FOCUS_EVENT,
+            RAW_ANIMATIONS_CONFIG_CHANGED_EVENT, RAW_KEY_INPUT_EVENT, RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT,
+            RawKeyInputArgs,
         },
-        VIEW_PROCESS_INITED_EVENT,
     },
-    widget::{info::InteractionPath, WidgetId},
+    widget::{WidgetId, info::InteractionPath},
     window::WindowId,
-    AppExtension, DInstant, HeadlessApp,
 };
 use zng_app_context::app_local;
 use zng_clone_move::clmv;
 use zng_ext_window::WINDOWS;
 use zng_layout::unit::{Factor, FactorUnits};
 use zng_txt::Txt;
-use zng_var::{types::ArcCowVar, var, var_default, ArcVar, ReadOnlyArcVar, Var};
+use zng_var::{ArcVar, ReadOnlyArcVar, Var, types::ArcCowVar, var, var_default};
 use zng_view_api::config::AnimationsConfig;
 pub use zng_view_api::{
     config::KeyRepeatConfig,

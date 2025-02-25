@@ -145,6 +145,7 @@ use window::Window;
 use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zng_view_api::{
+    Inited,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
@@ -159,7 +160,7 @@ use zng_view_api::{
         HeadlessOpenData, HeadlessRequest, MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest,
         WindowState, WindowStateAll,
     },
-    Inited, *,
+    *,
 };
 
 use rustc_hash::FxHashMap;
@@ -205,7 +206,7 @@ pub fn view_process_main() {
 
 #[cfg(ipc)]
 #[doc(hidden)]
-#[no_mangle]
+#[unsafe(no_mangle)] // SAFETY: minimal risk of name collision, nothing else to do
 pub extern "C" fn extern_view_process_main() {
     std::panic::set_hook(Box::new(ffi_abort));
     view_process_main()
@@ -282,7 +283,7 @@ pub fn run_same_process_extended(run_app: impl FnOnce() + Send + 'static, ext: f
 
 #[cfg(ipc)]
 #[doc(hidden)]
-#[no_mangle]
+#[unsafe(no_mangle)] // SAFETY minimal risk of name collision, nothing else to do
 pub extern "C" fn extern_run_same_process(patch: &StaticPatch, run_app: extern "C" fn()) {
     std::panic::set_hook(Box::new(ffi_abort));
 
@@ -1722,12 +1723,12 @@ impl App {
 }
 
 impl Api for App {
-    fn init(&mut self, gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
+    fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
         if self.exited {
             panic!("cannot restart exited");
         }
 
-        self.generation = gen;
+        self.generation = vp_gen;
         self.device_events = device_events;
         self.headless = headless;
 
@@ -1735,7 +1736,7 @@ impl Api for App {
 
         let available_monitors = self.available_monitors();
         self.notify(Event::Inited(Inited {
-            generation: gen,
+            generation: vp_gen,
             is_respawn,
             available_monitors,
             multi_click_config: config::multi_click_config(),

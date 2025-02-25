@@ -5,9 +5,9 @@ use std::{
     time::Instant,
 };
 
-use anyhow::{bail, Context as _};
+use anyhow::{Context as _, bail};
 
-use built_in::{display_path, ZR_WORKSPACE_DIR};
+use built_in::{ZR_WORKSPACE_DIR, display_path};
 use clap::*;
 use color_print::cstr;
 use zng_env::About;

@@ -16,8 +16,8 @@ use std::{
     mem, panic,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     task::Poll,
 };
@@ -29,9 +29,9 @@ use parking_lot::Mutex;
 mod crate_util;
 
 use crate::crate_util::PanicResult;
-use zng_app_context::{app_local, LocalContext};
+use zng_app_context::{LocalContext, app_local};
 use zng_time::Deadline;
-use zng_var::{response_done_var, response_var, AnyVar, ResponseVar, VarValue};
+use zng_var::{AnyVar, ResponseVar, VarValue, response_done_var, response_var};
 
 #[cfg(test)]
 mod tests;
@@ -1968,11 +1968,7 @@ impl McWaker {
     ///
     /// [`cancel`]: Self::cancel
     pub fn push(&self, waker: std::task::Waker) -> Option<std::task::Waker> {
-        if self.0.push(waker) {
-            Some(self.0.clone().into())
-        } else {
-            None
-        }
+        if self.0.push(waker) { Some(self.0.clone().into()) } else { None }
     }
 
     /// Clear current registered wakers.

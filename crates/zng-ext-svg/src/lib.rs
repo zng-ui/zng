@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use zng_app::AppExtension;
 use zng_ext_image::*;
-use zng_txt::{formatx, Txt};
+use zng_txt::{Txt, formatx};
 use zng_unit::{Px, PxSize};
 
 /// Application extension that installs SVG handling.

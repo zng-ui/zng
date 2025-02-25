@@ -2,7 +2,7 @@
 
 use std::convert::TryInto;
 use zng::{
-    gesture::{click_shortcut, Shortcuts},
+    gesture::{Shortcuts, click_shortcut},
     prelude::*,
 };
 

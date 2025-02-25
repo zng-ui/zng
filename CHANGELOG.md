@@ -1,5 +1,8 @@
 # Unreleased
 
+* Upgrade all crates to Rust 2024 edition.
+* Many return impl Trait changed lifetimes slightly, some replaced with doc hidden types. In practice all code should still just compile,
+  but these are breaking changes.
 
 # 0.13.12
 

@@ -6,12 +6,12 @@ use zng_app_context::{app_local, context_local};
 use zng_time::{DInstant, Deadline};
 use zng_txt::Txt;
 use zng_unit::{
-    euclid, AngleDegree, AngleGradian, AngleRadian, AngleTurn, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits,
-    Orientation2D, Px, Rgba,
+    AngleDegree, AngleGradian, AngleRadian, AngleTurn, ByteLength, CornerRadius2D, Dip, Factor, FactorPercent, FactorUnits, Orientation2D,
+    Px, Rgba, euclid,
 };
 
 use crate::{
-    animation::{easing::EasingStep, Transition, Transitionable},
+    animation::{Transition, Transitionable, easing::EasingStep},
     impl_from_and_into_var,
 };
 
@@ -165,11 +165,7 @@ where
 }
 impl Transitionable for bool {
     fn lerp(self, to: &Self, step: EasingStep) -> Self {
-        if step >= 1.fct() {
-            *to
-        } else {
-            self
-        }
+        if step >= 1.fct() { *to } else { self }
     }
 }
 impl<T, U> Transitionable for CornerRadius2D<T, U>

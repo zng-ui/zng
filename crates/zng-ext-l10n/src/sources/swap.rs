@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use zng_var::{types::WeakArcVar, var, ArcEq, ArcVar, BoxedVar, BoxedWeakVar, Var as _, VarHandle, WeakVar as _};
+use zng_var::{ArcEq, ArcVar, BoxedVar, BoxedWeakVar, Var as _, VarHandle, WeakVar as _, types::WeakArcVar, var};
 
 use crate::{L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 

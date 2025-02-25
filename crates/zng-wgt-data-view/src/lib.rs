@@ -38,11 +38,7 @@ impl<D: VarValue> DataViewArgs<D> {
     /// [`view_is_nil`]: Self::view_is_nil
     /// [`data`]: Self::data
     pub fn get_new(&self) -> Option<D> {
-        if self.is_nil {
-            Some(self.data.get())
-        } else {
-            self.data.get_new()
-        }
+        if self.is_nil { Some(self.data.get()) } else { self.data.get_new() }
     }
 
     /// If the current child is nil node.

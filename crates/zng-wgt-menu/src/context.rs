@@ -5,8 +5,8 @@ use zng_ext_input::gesture::CLICK_EVENT;
 use zng_wgt::prelude::*;
 use zng_wgt_input::focus::alt_focus_scope;
 use zng_wgt_layer::{
-    popup::{PopupState, CONTEXT_CAPTURE_VAR, POPUP},
     AnchorMode,
+    popup::{CONTEXT_CAPTURE_VAR, POPUP, PopupState},
 };
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_style::{impl_style_fn, style_fn};

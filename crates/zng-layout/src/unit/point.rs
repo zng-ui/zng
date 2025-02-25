@@ -2,7 +2,7 @@ use std::{fmt, ops};
 
 use zng_var::{animation::Transitionable, impl_from_and_into_var};
 
-use super::{impl_length_comp_conversions, DipPoint, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxPoint, Size, Vector};
+use super::{DipPoint, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxPoint, Size, Vector, impl_length_comp_conversions};
 
 /// 2D point in [`Length`] units.
 #[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]

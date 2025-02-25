@@ -9,7 +9,7 @@ use zng::{
     text::font_size,
     toggle,
     var::animation::{self, easing::EasingStep},
-    widget::{background_color, border, corner_radius, z_index, BorderStyle, ZIndex},
+    widget::{BorderStyle, ZIndex, background_color, border, corner_radius, z_index},
     window::WindowState,
 };
 

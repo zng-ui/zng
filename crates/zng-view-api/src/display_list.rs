@@ -2,18 +2,18 @@
 
 use std::{
     ops,
-    sync::{atomic::AtomicUsize, Arc},
+    sync::{Arc, atomic::AtomicUsize},
 };
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    AlphaType, BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId,
+    RepeatMode, TransformStyle,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontId, GlyphInstance, GlyphOptions},
     image::ImageTextureId,
     window::FrameId,
-    AlphaType, BorderSide, ExtendMode, GradientStop, ImageRendering, LineOrientation, LineStyle, MixBlendMode, ReferenceFrameId,
-    RepeatMode, TransformStyle,
 };
 use zng_unit::*;
 
@@ -634,11 +634,7 @@ impl FrameValueId {
     #[must_use]
     pub const fn next(self) -> Self {
         let r = Self(self.0.wrapping_add(1));
-        if r.0 == Self::INVALID.0 {
-            Self::first()
-        } else {
-            r
-        }
+        if r.0 == Self::INVALID.0 { Self::first() } else { r }
     }
     /// Replace self with [`next`] and returns.
     ///

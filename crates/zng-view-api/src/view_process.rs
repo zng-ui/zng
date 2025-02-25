@@ -168,7 +168,10 @@ impl StaticPatch {
     ///
     /// Only safe if it is the first view-process code to run in the dynamic library.
     pub unsafe fn install(&self) {
-        *std::ptr::addr_of_mut!(SAME_PROCESS) = &*self.same_process;
+        // SAFETY: safety handled by the caller
+        unsafe {
+            *std::ptr::addr_of_mut!(SAME_PROCESS) = &*self.same_process;
+        }
         self.tracing.install();
     }
 }

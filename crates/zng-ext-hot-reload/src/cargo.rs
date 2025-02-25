@@ -114,7 +114,7 @@ fn run_build(manifest_path: PathBuf, stdout: ChildStdout) -> Result<PathBuf, Bui
                 None => {
                     return Err(BuildError::UnknownMessageFormat {
                         pat: MANIFEST_FIELD.into(),
-                    })
+                    });
                 }
             };
             let line = &line[i + MANIFEST_FIELD.len()..];
@@ -123,7 +123,7 @@ fn run_build(manifest_path: PathBuf, stdout: ChildStdout) -> Result<PathBuf, Bui
                 None => {
                     return Err(BuildError::UnknownMessageFormat {
                         pat: MANIFEST_FIELD.into(),
-                    })
+                    });
                 }
             };
             let line_manifest = PathBuf::from(&line[..i]);
@@ -138,7 +138,7 @@ fn run_build(manifest_path: PathBuf, stdout: ChildStdout) -> Result<PathBuf, Bui
                 None => {
                     return Err(BuildError::UnknownMessageFormat {
                         pat: FILENAMES_FIELD.into(),
-                    })
+                    });
                 }
             };
             let line = &line[i + FILENAMES_FIELD.len()..];
@@ -147,7 +147,7 @@ fn run_build(manifest_path: PathBuf, stdout: ChildStdout) -> Result<PathBuf, Bui
                 None => {
                     return Err(BuildError::UnknownMessageFormat {
                         pat: FILENAMES_FIELD.into(),
-                    })
+                    });
                 }
             };
 

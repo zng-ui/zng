@@ -11,7 +11,7 @@
 
 zng_wgt::enable_widget_macros!();
 
-use zng_wgt::{prelude::*, ICONS};
+use zng_wgt::{ICONS, prelude::*};
 
 pub mod crash_handler;
 pub mod debug;

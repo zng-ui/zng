@@ -1,4 +1,4 @@
-use zng_app::widget::base::{Parallel, PARALLEL_VAR};
+use zng_app::widget::base::{PARALLEL_VAR, Parallel};
 
 use crate::prelude::*;
 

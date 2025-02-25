@@ -1,4 +1,4 @@
-use super::{about_eq, Factor, EQ_EPSILON, EQ_EPSILON_100};
+use super::{EQ_EPSILON, EQ_EPSILON_100, Factor, about_eq};
 
 use std::{
     f32::consts::{PI, TAU},

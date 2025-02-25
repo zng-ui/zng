@@ -3,7 +3,7 @@
 //! [`mask_image`]: fn@mask_image
 //! [`mask_mode`]: fn@mask_mode
 
-use zng_ext_image::{ImageCacheMode, ImageDownscale, ImageLimits, ImageMaskMode, ImageRenderArgs, ImageSource, IMAGES};
+use zng_ext_image::{IMAGES, ImageCacheMode, ImageDownscale, ImageLimits, ImageMaskMode, ImageRenderArgs, ImageSource};
 use zng_wgt::prelude::*;
 
 use crate::ImageFit;

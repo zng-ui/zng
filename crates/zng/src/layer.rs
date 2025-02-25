@@ -43,5 +43,5 @@
 //! See [`zng_wgt_layer`] for the full layers API.
 
 pub use zng_wgt_layer::{
-    adorner, adorner_fn, AnchorMode, AnchorOffset, AnchorSize, AnchorTransform, LayerIndex, LAYERS, LAYERS_INSERT_CMD, LAYERS_REMOVE_CMD,
+    AnchorMode, AnchorOffset, AnchorSize, AnchorTransform, LAYERS, LAYERS_INSERT_CMD, LAYERS_REMOVE_CMD, LayerIndex, adorner, adorner_fn,
 };

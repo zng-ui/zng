@@ -6,12 +6,12 @@ use winit::{
     event_loop::ActiveEventLoop,
     window::{CustomCursor, Icon},
 };
-use zng_txt::{formatx, ToTxt, Txt};
+use zng_txt::{ToTxt, Txt, formatx};
 use zng_unit::{Px, PxPoint, PxSize};
 use zng_view_api::{
+    Event,
     image::{ImageDataFormat, ImageDownscale, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
     ipc::{IpcBytes, IpcBytesReceiver},
-    Event,
 };
 
 use crate::{AppEvent, AppEventSender};
@@ -1159,12 +1159,12 @@ mod external {
 
     use rustc_hash::FxHashMap;
     use webrender::{
+        RenderApi,
         api::{
-            units::{ImageDirtyRect, TexelRect},
             DocumentId, ExternalImage, ExternalImageData, ExternalImageHandler, ExternalImageId, ExternalImageSource, ExternalImageType,
             ImageKey,
+            units::{ImageDirtyRect, TexelRect},
         },
-        RenderApi,
     };
     use zng_view_api::image::ImageTextureId;
 
@@ -1300,15 +1300,15 @@ mod capture {
     use zng_txt::formatx;
     use zng_unit::{Factor, PxRect};
     use zng_view_api::{
+        Event,
         image::{ImageDataFormat, ImageId, ImageLoadedData, ImageMaskMode, ImagePpi, ImageRequest},
         ipc::IpcBytes,
         window::{FrameId, WindowId},
-        Event,
     };
 
     use crate::{
-        image_cache::{Image, ImageData},
         AppEvent,
+        image_cache::{Image, ImageData},
     };
 
     use super::ImageCache;

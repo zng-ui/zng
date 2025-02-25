@@ -183,7 +183,8 @@ fn glob() {
     let target = path(ZR_TARGET);
     let target = target.parent().unwrap();
 
-    let mut lines = read_lines(&path(ZR_REQUEST));
+    let request_path = path(ZR_REQUEST);
+    let mut lines = read_lines(&request_path);
     let (ln, selection) = lines
         .next()
         .unwrap_or_else(|| fatal!("expected at least one path pattern"))
@@ -1076,34 +1077,36 @@ fn read_lines(path: &Path) -> impl Iterator<Item = io::Result<(usize, String)>> 
     }
     // start -> open
     let mut state = State::Open(fs::File::open(path));
-    std::iter::from_fn(move || loop {
-        match std::mem::replace(&mut state, State::End) {
-            State::Lines(count, mut lines) => {
-                if let Some(l) = lines.next() {
-                    match l {
-                        // lines -> lines
-                        Ok(l) => {
-                            state = State::Lines(count + 1, lines);
-                            let test = l.trim();
-                            if !test.is_empty() && !test.starts_with('#') {
-                                return Some(Ok((count, l)));
+    std::iter::from_fn(move || {
+        loop {
+            match std::mem::replace(&mut state, State::End) {
+                State::Lines(count, mut lines) => {
+                    if let Some(l) = lines.next() {
+                        match l {
+                            // lines -> lines
+                            Ok(l) => {
+                                state = State::Lines(count + 1, lines);
+                                let test = l.trim();
+                                if !test.is_empty() && !test.starts_with('#') {
+                                    return Some(Ok((count, l)));
+                                }
                             }
-                        }
-                        // lines -> end
-                        Err(e) => {
-                            return Some(Err(e));
+                            // lines -> end
+                            Err(e) => {
+                                return Some(Err(e));
+                            }
                         }
                     }
                 }
+                State::Open(r) => match r {
+                    // open -> lines
+                    Ok(f) => state = State::Lines(1, io::BufReader::new(f).lines()),
+                    // open -> end
+                    Err(e) => return Some(Err(e)),
+                },
+                // end -> end
+                State::End => return None,
             }
-            State::Open(r) => match r {
-                // open -> lines
-                Ok(f) => state = State::Lines(1, io::BufReader::new(f).lines()),
-                // open -> end
-                Err(e) => return Some(Err(e)),
-            },
-            // end -> end
-            State::End => return None,
         }
     })
 }

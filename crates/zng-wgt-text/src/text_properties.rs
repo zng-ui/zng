@@ -3,7 +3,7 @@ use std::{fmt, num::NonZeroU32, time::Duration};
 use zng_app::render::FontSynthesis;
 use zng_color::COLOR_SCHEME_VAR;
 use zng_ext_font::{font_features::*, *};
-use zng_ext_l10n::{Langs, LANG_VAR};
+use zng_ext_l10n::{LANG_VAR, Langs};
 use zng_view_api::config::FontAntiAliasing;
 use zng_wgt::prelude::*;
 use zng_wgt_layer::AnchorOffset;

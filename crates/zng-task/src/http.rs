@@ -41,13 +41,13 @@ use super::io::AsyncRead;
 use isahc::config::Configurable;
 pub use isahc::config::RedirectPolicy;
 pub use isahc::cookies::{Cookie, CookieJar};
-pub use isahc::http::{header, uri, Method, StatusCode, Uri};
+pub use isahc::http::{Method, StatusCode, Uri, header, uri};
 
 use futures_lite::io::{AsyncReadExt, BufReader};
 use isahc::{AsyncReadResponseExt, ResponseExt};
-use parking_lot::{const_mutex, Mutex};
+use parking_lot::{Mutex, const_mutex};
 
-use zng_txt::{formatx, Txt};
+use zng_txt::{Txt, formatx};
 use zng_unit::*;
 
 /// Marker trait for types that try-to-convert to [`Uri`].

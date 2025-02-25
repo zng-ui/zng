@@ -140,7 +140,7 @@ pub fn markdown_node(md: impl IntoVar<Txt>) -> impl UiNode {
     })
 }
 
-fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode {
+fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
     use pulldown_cmark::*;
     use resolvers::*;
     use view_fn::*;

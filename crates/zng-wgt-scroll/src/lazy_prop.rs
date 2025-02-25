@@ -143,11 +143,7 @@ impl LazyMode {
             LazyMode::Disabled => panic!("expected `LazyMode::Enabled`"),
             LazyMode::Enabled { intersect, .. } => {
                 let m = *intersect;
-                if m.is_empty() {
-                    ScrollMode::PAN
-                } else {
-                    m
-                }
+                if m.is_empty() { ScrollMode::PAN } else { m }
             }
         }
     }

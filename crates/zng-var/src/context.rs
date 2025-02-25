@@ -1,4 +1,4 @@
-use zng_app_context::{context_local, AppLocalId, ContextLocal, ContextLocalKeyProvider};
+use zng_app_context::{AppLocalId, ContextLocal, ContextLocalKeyProvider, context_local};
 
 use super::*;
 

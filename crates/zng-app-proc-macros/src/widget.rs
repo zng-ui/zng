@@ -1,9 +1,9 @@
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{ext::IdentExt, parse::Parse, spanned::Spanned, *};
 
 use crate::{
-    util::{self, parse_outer_attrs, ErrorRecoverable, Errors},
+    util::{self, ErrorRecoverable, Errors, parse_outer_attrs},
     widget_util::{self, WgtItem, WgtProperty, WgtWhen},
 };
 
@@ -190,7 +190,10 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
                     let mut wgt__ = #struct_path::widget_new();
                     let wgt__ = &mut wgt__;
                 }
-                build { wgt__.widget_build() }
+                build {
+                    let wgt__ = wgt__.widget_build();
+                    wgt__
+                }
                 set { $($tt)* }
             }
         };

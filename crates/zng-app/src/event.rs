@@ -7,8 +7,8 @@ use std::{
     mem,
     ops::{ControlFlow, Deref},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     time::Instant,
 };

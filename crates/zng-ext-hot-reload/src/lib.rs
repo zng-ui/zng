@@ -24,15 +24,15 @@ pub use cargo::BuildError;
 use node::*;
 
 use zng_app::{
+    AppExtension, DInstant, INSTANT,
     event::{event, event_args},
     handler::async_clmv,
     update::UPDATES,
-    AppExtension, DInstant, INSTANT,
 };
-use zng_app_context::{app_local, LocalContext};
+use zng_app_context::{LocalContext, app_local};
 use zng_ext_fs_watcher::WATCHER;
 pub use zng_ext_hot_reload_proc_macros::hot_node;
-use zng_task::{parking_lot::Mutex, SignalOnce};
+use zng_task::{SignalOnce, parking_lot::Mutex};
 use zng_txt::Txt;
 use zng_unique_id::hot_reload::HOT_STATICS;
 use zng_unit::TimeUnits as _;
@@ -44,13 +44,17 @@ pub use zng_unique_id::{hot_static, hot_static_ref, lazy_static};
 /// Declare hot reload entry.
 ///
 /// Must be called at the root of the crate.
+///
+/// # Safety
+///
+/// Must be called only once at the hot-reload crate.
 #[macro_export]
 macro_rules! zng_hot_entry {
     () => {
         #[doc(hidden)] // used by proc-macro
         pub use $crate::zng_hot_entry;
 
-        #[no_mangle]
+        #[unsafe(no_mangle)] // SAFETY: docs struct users to call the macro only once, name is unlikely to have collisions.
         #[doc(hidden)] // used by lib loader
         pub extern "C" fn zng_hot_entry(
             manifest_dir: &&str,
@@ -61,7 +65,7 @@ macro_rules! zng_hot_entry {
             $crate::zng_hot_entry::entry(manifest_dir, node_name, ctx, exchange)
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)] // SAFETY: docs struct users to call the macro only once, name is unlikely to have collisions.
         #[doc(hidden)]
         pub extern "C" fn zng_hot_entry_init(patch: &$crate::StaticPatch) {
             $crate::zng_hot_entry::init(patch)
@@ -148,7 +152,10 @@ impl StaticPatch {
         for (key, patch) in HOT_STATICS.iter() {
             if let Some(val) = self.entries.get(key) {
                 // println!("patched `{key:?}`");
-                patch(val(std::ptr::null()));
+                // SAFETY: HOT_STATICS is defined using linkme, so all entries are defined by the hot_static! macro
+                unsafe {
+                    patch(val(std::ptr::null()));
+                }
             } else {
                 eprintln!("did not find `{key:?}` to patch, static references may fail");
             }

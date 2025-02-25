@@ -140,7 +140,7 @@
 //! [`cargo-about`]: https://github.com/EmbarkStudios/cargo-about/
 //! [`on_pre_event`]: crate::event::Command::on_pre_event
 
-pub use zng_app::third_party::{License, LicenseUsed, User, UserLicense, LICENSES, OPEN_LICENSES_CMD};
+pub use zng_app::third_party::{LICENSES, License, LicenseUsed, OPEN_LICENSES_CMD, User, UserLicense};
 
 #[cfg(feature = "third_party_default")]
 pub(crate) fn setup_default_view() {

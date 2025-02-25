@@ -6,8 +6,9 @@ use crate::{
     render::{FrameBuilder, FrameUpdate},
     update::{EventUpdate, WidgetUpdates},
     widget::{
+        WidgetUpdateMode,
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
-        ui_node, WidgetUpdateMode,
+        ui_node,
     },
 };
 

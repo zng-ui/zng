@@ -6,9 +6,9 @@ use zng_wgt_button::Button;
 use zng_wgt_input::focus::FocusableMix;
 use zng_wgt_menu::{
     self as menu,
-    context::{context_menu_fn, ContextMenu},
+    context::{ContextMenu, context_menu_fn},
 };
-use zng_wgt_style::{impl_style_fn, style_fn, Style, StyleMix};
+use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 use zng_wgt_text::{self as text, *};
 
 #[doc(hidden)]

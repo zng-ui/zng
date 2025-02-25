@@ -27,8 +27,8 @@
 pub use zng_app::shortcut::ModifiersState;
 
 pub use zng_ext_input::keyboard::{
-    HeadlessAppKeyboardExt, Key, KeyCode, KeyInputArgs, KeyLocation, KeyRepeatConfig, KeyState, ModifiersChangedArgs, NativeKeyCode,
-    KEYBOARD, KEY_INPUT_EVENT, MODIFIERS_CHANGED_EVENT,
+    HeadlessAppKeyboardExt, KEY_INPUT_EVENT, KEYBOARD, Key, KeyCode, KeyInputArgs, KeyLocation, KeyRepeatConfig, KeyState,
+    MODIFIERS_CHANGED_EVENT, ModifiersChangedArgs, NativeKeyCode,
 };
 
 pub use zng_wgt_input::keyboard::{
@@ -54,5 +54,5 @@ pub use zng_wgt_input::keyboard::{
 /// });
 /// ```
 pub mod raw_device_events {
-    pub use zng_app::view_process::raw_device_events::{KeyArgs, TextArgs, KEY_EVENT, TEXT_EVENT};
+    pub use zng_app::view_process::raw_device_events::{KEY_EVENT, KeyArgs, TEXT_EVENT, TextArgs};
 }

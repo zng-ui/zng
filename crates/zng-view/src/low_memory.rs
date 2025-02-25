@@ -3,7 +3,7 @@
 #[cfg(windows)]
 mod windows {
     use windows::Win32::{
-        Foundation::{CloseHandle, BOOL, HANDLE},
+        Foundation::{BOOL, CloseHandle, HANDLE},
         System::Memory::*,
     };
 

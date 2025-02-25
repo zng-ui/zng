@@ -37,9 +37,9 @@
 //! See [`zng_ext_input::mouse`] and [`zng_wgt_input::mouse`] for the full mouse API.
 
 pub use zng_ext_input::mouse::{
-    ButtonRepeatConfig, ButtonState, ClickMode, ClickTrigger, MouseButton, MouseClickArgs, MouseHoverArgs, MouseInputArgs, MouseMoveArgs,
-    MousePosition, MouseScrollDelta, MouseWheelArgs, MultiClickConfig, WidgetInfoBuilderMouseExt, WidgetInfoMouseExt, MOUSE,
-    MOUSE_CLICK_EVENT, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT,
+    ButtonRepeatConfig, ButtonState, ClickMode, ClickTrigger, MOUSE, MOUSE_CLICK_EVENT, MOUSE_HOVERED_EVENT, MOUSE_INPUT_EVENT,
+    MOUSE_MOVE_EVENT, MOUSE_WHEEL_EVENT, MouseButton, MouseClickArgs, MouseHoverArgs, MouseInputArgs, MouseMoveArgs, MousePosition,
+    MouseScrollDelta, MouseWheelArgs, MultiClickConfig, WidgetInfoBuilderMouseExt, WidgetInfoMouseExt,
 };
 
 pub use zng_wgt_input::mouse::{
@@ -54,13 +54,13 @@ pub use zng_wgt_input::mouse::{
     on_pre_mouse_wheel, on_pre_mouse_zoom,
 };
 
-pub use zng_wgt_input::{click_mode, cursor, is_cap_mouse_pressed, is_mouse_pressed, CursorIcon, CursorImg, CursorSource};
+pub use zng_wgt_input::{CursorIcon, CursorImg, CursorSource, click_mode, cursor, is_cap_mouse_pressed, is_mouse_pressed};
 
 /// Raw mouse hardware events, received independent of what window is under the pointer.
 ///
 /// You must enable device events in the app to receive this events.
 pub mod raw_device_events {
     pub use zng_app::view_process::raw_device_events::{
-        ButtonArgs, MouseMotionArgs, MouseWheelArgs, BUTTON_EVENT, MOUSE_MOTION_EVENT, MOUSE_WHEEL_EVENT,
+        BUTTON_EVENT, ButtonArgs, MOUSE_MOTION_EVENT, MOUSE_WHEEL_EVENT, MouseMotionArgs, MouseWheelArgs,
     };
 }

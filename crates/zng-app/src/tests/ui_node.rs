@@ -2,19 +2,18 @@
 //!
 //! Note: Compile error tests are in the integration tests folder: `tests/macro-tests/ui_node`
 
-use util::{assert_did_not_trace, assert_only_traced, TestTraceNode};
+use util::{TestTraceNode, assert_did_not_trace, assert_only_traced};
 use zng_app_proc_macros::ui_node;
 use zng_layout::unit::{Px, PxConstraints2d};
 
 use crate::{
-    ui_vec,
+    APP, ui_vec,
     update::WidgetUpdates,
     widget::{
+        WIDGET, WidgetUpdateMode,
         node::{UiNode, UiNodeList},
-        WidgetUpdateMode, WIDGET,
     },
     window::WINDOW,
-    APP,
 };
 
 #[test]
@@ -203,7 +202,7 @@ mod util {
     use std::sync::Arc;
     use zng_app_proc_macros::ui_node;
     use zng_layout::unit::{Px, PxSize};
-    use zng_state_map::{static_id, StateId};
+    use zng_state_map::{StateId, static_id};
 
     static_id! {
         pub(super) static ref TRACE_ID: StateId<Vec<TraceRef>>;
@@ -266,9 +265,9 @@ mod util {
         render::{FrameBuilder, FrameUpdate},
         update::{EventUpdate, UpdateDeliveryList, WidgetUpdates},
         widget::{
+            WIDGET, WidgetId, WidgetUpdateMode,
             info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
             node::UiNode,
-            WidgetId, WidgetUpdateMode, WIDGET,
         },
         window::WINDOW,
     };

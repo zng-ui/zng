@@ -46,28 +46,28 @@ pub use unit::*;
 use parking_lot::{Mutex, RwLock};
 use paste::paste;
 use zng_app::{
+    AppExtension,
     event::{event, event_args},
     render::FontSynthesis,
     update::{EventUpdate, UPDATES},
     view_process::{
+        VIEW_PROCESS_INITED_EVENT, ViewRenderer,
         raw_events::{RAW_FONT_AA_CHANGED_EVENT, RAW_FONT_CHANGED_EVENT},
-        ViewRenderer, VIEW_PROCESS_INITED_EVENT,
     },
-    AppExtension,
 };
 use zng_app_context::app_local;
-use zng_ext_l10n::{lang, Lang, LangMap};
+use zng_ext_l10n::{Lang, LangMap, lang};
 use zng_layout::unit::{
-    about_eq, about_eq_hash, about_eq_ord, euclid, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, EQ_EPSILON,
-    EQ_EPSILON_100,
+    EQ_EPSILON, EQ_EPSILON_100, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, about_eq, about_eq_hash, about_eq_ord,
+    euclid,
 };
 use zng_task as task;
 use zng_txt::Txt;
 use zng_var::{
-    animation::Transitionable, impl_from_and_into_var, response_done_var, response_var, var, AnyVar, ArcVar, IntoVar, LocalVar,
-    ResponderVar, ResponseVar, Var,
+    AnyVar, ArcVar, IntoVar, LocalVar, ResponderVar, ResponseVar, Var, animation::Transitionable, impl_from_and_into_var,
+    response_done_var, response_var, var,
 };
-use zng_view_api::{config::FontAntiAliasing, ViewProcessOffline};
+use zng_view_api::{ViewProcessOffline, config::FontAntiAliasing};
 
 /// Font family name.
 ///

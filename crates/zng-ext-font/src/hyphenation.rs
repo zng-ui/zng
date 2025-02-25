@@ -173,7 +173,7 @@ mod util {
     use super::*;
     use hyphenation::Language::*;
     use regex::Regex;
-    use zng_ext_l10n::{lang, Lang};
+    use zng_ext_l10n::{Lang, lang};
 
     app_local! {
         pub static LANG_TO_LANGUAGE_MAP: Vec<(Lang, hyphenation::Language)> = vec![

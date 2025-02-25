@@ -15,7 +15,7 @@ use zng_ext_font::*;
 use zng_wgt::{prelude::*, *};
 use zng_wgt_fill::*;
 use zng_wgt_filter::*;
-use zng_wgt_scroll::{lazy, LazyMode};
+use zng_wgt_scroll::{LazyMode, lazy};
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_text::*;
 

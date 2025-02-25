@@ -7,16 +7,16 @@ use zng::{
     checkerboard::Checkerboard,
     clipboard,
     color::{
-        filter::{drop_shadow, filter, mix_blend, Filter},
+        filter::{Filter, drop_shadow, filter, mix_blend},
         gradient::stops,
     },
-    image::{self, img_error_fn, img_loading_fn, mask::mask_image, ImageDownscale, ImageFit, ImageLimits, ImgErrorArgs, IMAGES},
+    image::{self, IMAGES, ImageDownscale, ImageFit, ImageLimits, ImgErrorArgs, img_error_fn, img_loading_fn, mask::mask_image},
     layout::{align, margin, padding, size},
     mouse,
     prelude::*,
     scroll::ScrollMode,
     task::http,
-    widget::{background_color, border, BorderSides},
+    widget::{BorderSides, background_color, border},
     window::{RenderMode, WindowState},
 };
 use zng_wgt_webrender_debug as wr;

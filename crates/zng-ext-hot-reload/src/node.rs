@@ -4,9 +4,9 @@ use zng_app::{
     render::{FrameBuilder, FrameUpdate},
     update::{EventUpdate, WidgetUpdates},
     widget::{
+        WIDGET, WidgetUpdateMode,
         info::{WidgetInfoBuilder, WidgetLayout, WidgetMeasure},
         node::{ArcNode, ArcNodeList, BoxedUiNode, BoxedUiNodeList, NilUiNode, UiNode, UiNodeList},
-        WidgetUpdateMode, WIDGET,
     },
 };
 use zng_app_context::LocalContext;

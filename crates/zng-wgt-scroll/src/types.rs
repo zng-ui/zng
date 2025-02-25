@@ -5,15 +5,15 @@ use bitflags::bitflags;
 use parking_lot::Mutex;
 use zng_ext_input::touch::TouchPhase;
 use zng_var::{
-    animation::{
-        easing::{self, EasingStep, EasingTime},
-        AnimationHandle, ChaseAnimation, Transition,
-    },
     ReadOnlyContextVar, VARS,
+    animation::{
+        AnimationHandle, ChaseAnimation, Transition,
+        easing::{self, EasingStep, EasingTime},
+    },
 };
 use zng_wgt::prelude::*;
 
-use super::{cmd, SMOOTH_SCROLLING_VAR};
+use super::{SMOOTH_SCROLLING_VAR, cmd};
 
 bitflags! {
     /// What dimensions are scrollable in a widget.

@@ -93,11 +93,7 @@ fn cmd_impl(line: &str, args: &[&str], env: &[(&str, &str)], silent: bool) -> io
         line_parts
             .map(|a| {
                 let a = a.trim();
-                if a.starts_with('"') {
-                    a.trim_matches('"')
-                } else {
-                    a
-                }
+                if a.starts_with('"') { a.trim_matches('"') } else { a }
             })
             .filter(|a| !a.is_empty()),
     );

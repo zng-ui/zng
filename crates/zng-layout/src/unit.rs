@@ -238,7 +238,7 @@ mod tests {
 
     use zng_app_context::{AppId, LocalContext};
 
-    use crate::context::{LayoutMetrics, LAYOUT};
+    use crate::context::{LAYOUT, LayoutMetrics};
 
     use super::*;
 

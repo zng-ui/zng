@@ -120,11 +120,7 @@ impl WINDOW {
 
     /// Gets the window ID, if called inside a window.
     pub fn try_id(&self) -> Option<WindowId> {
-        if WINDOW_CTX.is_default() {
-            None
-        } else {
-            Some(WINDOW_CTX.get().id)
-        }
+        if WINDOW_CTX.is_default() { None } else { Some(WINDOW_CTX.get().id) }
     }
 
     /// Gets the window ID.
@@ -224,20 +220,20 @@ impl WINDOW {
 mod _impl {
     use zng_color::colors;
     use zng_layout::{
-        context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, LayoutMetrics, LAYOUT},
+        context::{InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, LAYOUT, LayoutMetrics},
         unit::{FactorUnits, Length, Px, PxConstraints2d, PxSize, PxTransform},
     };
-    use zng_state_map::{static_id, StateId};
+    use zng_state_map::{StateId, static_id};
     use zng_view_api::config::FontAntiAliasing;
 
     use super::*;
     use crate::{
         render::FrameValueKey,
-        update::{ContextUpdates, EventUpdate, LayoutUpdates, UpdateDeliveryList, WidgetUpdates, UPDATES},
+        update::{ContextUpdates, EventUpdate, LayoutUpdates, UPDATES, UpdateDeliveryList, WidgetUpdates},
         widget::{
+            WIDGET, WIDGET_CTX, WidgetCtx, WidgetId, WidgetUpdateMode,
             info::{WidgetBorderInfo, WidgetBoundsInfo, WidgetPath},
             node::UiNode,
-            WidgetCtx, WidgetId, WidgetUpdateMode, WIDGET, WIDGET_CTX,
         },
     };
     use atomic::Ordering::Relaxed;
