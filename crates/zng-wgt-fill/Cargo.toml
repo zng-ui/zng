@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-fill"
-version = "0.3.9"
+version = "0.4.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,4 +12,4 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.6.9" }
+zng-wgt = { path = "../zng-wgt", version = "0.7.0" }

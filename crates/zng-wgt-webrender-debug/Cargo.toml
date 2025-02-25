@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-webrender-debug"
-version = "0.3.9"
+version = "0.4.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,10 +12,10 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.14.9" }
-zng-wgt = { path = "../zng-wgt", version = "0.6.9" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.4.9" }
-zng-view-api = { path = "../zng-view-api", version = "0.11.6" }
+zng-app = { path = "../zng-app", version = "0.15.0" }
+zng-wgt = { path = "../zng-wgt", version = "0.7.0" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.5.0" }
+zng-view-api = { path = "../zng-view-api", version = "0.12.0" }
 
 webrender-api = { package = "zng-webrender-api", version = "0.64.0" }
 serde = "1.0"
