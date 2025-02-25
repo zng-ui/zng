@@ -83,7 +83,7 @@ lazy_static! {
 ///
 /// ```
 /// # macro_rules! demo { () => {
-/// #[no_mangle]
+/// #[unsafe(no_mangle)]
 /// fn android_main(app: zng::view_process::default::android::AndroidApp) {
 ///     zng::env::init!();
 ///     zng::view_process::default::android::init_android_app(app);
@@ -362,7 +362,7 @@ fn res_impl(relative_path: &Path) -> PathBuf {
 ///
 /// ```
 /// # macro_rules! demo { () => {
-/// #[no_mangle]
+/// #[unsafe(no_mangle)]
 /// fn android_main(app: zng::view_process::default::android::AndroidApp) {
 ///     zng::env::init!();
 ///     zng::view_process::default::android::init_android_app(app.clone());

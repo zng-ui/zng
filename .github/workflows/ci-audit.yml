@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo generate-lockfile
       - name: install cargo-audit
         uses: baptiste0928/cargo-install@v3
