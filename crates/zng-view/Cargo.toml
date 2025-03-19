@@ -127,14 +127,14 @@ winit = { version = "0.30", default-features = false, features = [
 glutin = "0.32"
 raw-window-handle = "0.6" # matches glutin
 flume = "0.11"
-image = { version = "0.25", default-features = false, features = ["rayon"] }
+image = { version = "0.25", default-features = false, features = ["rayon"] } # on upgrade review audit.toml
 img-parts = "0.3"
 byteorder = "1.5"
 rustc-hash = "2.0"
 rayon = "1.10"
 serde = "1.0"
-accesskit = "0.17"
-accesskit_winit = "0.23"
+accesskit = "0.18"
+accesskit_winit = "0.26"
 # rfd
 ## cfg(not(linux, android, ios))
 [target.'cfg(not(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "android", target_os = "ios")))'.dependencies.rfd]

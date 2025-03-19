@@ -29,7 +29,7 @@ use zng_state_map::{StateId, StateMapRef, StateValue};
 use zng_var::{types::VecChange, *};
 
 #[doc(hidden)]
-pub use paste::paste;
+pub use pastey::paste;
 
 #[doc(hidden)]
 pub use zng_app;
