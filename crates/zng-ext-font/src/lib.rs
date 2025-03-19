@@ -44,7 +44,7 @@ mod unit;
 pub use unit::*;
 
 use parking_lot::{Mutex, RwLock};
-use paste::paste;
+use pastey::paste;
 use zng_app::{
     AppExtension,
     event::{event, event_args},

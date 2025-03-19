@@ -51,7 +51,7 @@ pub use hot_reload::lazy_static_init;
 pub use named::*;
 
 #[doc(hidden)]
-pub use paste::paste;
+pub use pastey::paste;
 
 /// Declare a new unique id type that is backed by a `NonZeroU32`.
 #[macro_export]

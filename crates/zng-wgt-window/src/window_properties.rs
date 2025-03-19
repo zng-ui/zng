@@ -49,7 +49,7 @@ macro_rules! set_properties {
     ($(
         $ident:ident: $Type:ty,
     )+) => {
-        $(paste::paste! {
+        $(pastey::paste! {
             #[doc = "Binds the [`"$ident "`](fn@WindowVars::"$ident ") window var with the property value."]
             ///
             /// The binding is bidirectional and the window variable is assigned on init.
@@ -101,7 +101,7 @@ set_properties! {
 macro_rules! map_properties {
     ($(
         $ident:ident . $member:ident = $name:ident : $Type:ty,
-    )+) => {$(paste::paste! {
+    )+) => {$(pastey::paste! {
         #[doc = "Binds the `"$member "` of the [`"$ident "`](fn@WindowVars::"$ident ") window var with the property value."]
         ///
         /// The binding is bidirectional and the window variable is assigned on init.

@@ -1,0 +1,19 @@
+[advisories]
+ignore = [
+    # paste! no longer maintained
+    #
+    # already replaced in project crates, some dependencies still use it:
+    #
+    # └── accesskit_windows 0.24.1
+    # └── accesskit_winit 0.23.1
+    #     └── zng-view 0.8.0
+    # ├── rav1e 0.7.1
+    # └── ravif 0.11.11
+    #     └── image 0.25.5
+    #         ├── zng-view 0.8.0
+    #         └── arboard 3.4.1
+    #             └── zng-view 0.8.0
+    #
+    # remove this ignore when all dependencies are fixes
+    "RUSTSEC-2024-0436",
+]

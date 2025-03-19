@@ -1,7 +1,7 @@
 use super::{Hsla, Hsva, PreMulRgba, Rgba, clamp_normal};
 use zng_layout::unit::Factor;
 
-use paste::*;
+use pastey::*;
 
 /// Webrender [`MixBlendMode`].
 pub type RenderMixBlendMode = zng_view_api::MixBlendMode;
