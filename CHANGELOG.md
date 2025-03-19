@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add functions `all`, `all_ok`, `all_some`, `any`, `any_ok`, `any_some` in `zng::task`. These functions are dynamic versions of the
+macros of the same name.
+* Task macros `all!`, `all_ok!`, `all_some!`, `any!`, `any_ok!` and `any_some` now accept `IntoFuture` inputs.
 
 # 0.14.0
 
