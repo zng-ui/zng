@@ -37,7 +37,7 @@ zng-task = { path = "../zng-task", version = "0.5.0" }
 zng-txt = { path = "../zng-txt", version = "0.3.0" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.5.0" }
 
-pastey = "0.1"
+pastey = "=0.1.0"
 tracing = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 pretty-type-name = "1.0"
