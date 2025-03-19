@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-svg"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,11 +12,11 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.15.0" }
-zng-ext-image = { path = "../zng-ext-image", version = "0.4.0" }
+zng-app = { path = "../zng-app", version = "0.15.1" }
+zng-ext-image = { path = "../zng-ext-image", version = "0.4.1" }
 zng-txt = { path = "../zng-txt", version = "0.3.0" }
 zng-unit = { path = "../zng-unit", version = "0.3.0" }
-zng-task = { path = "../zng-task", version = "0.5.0" }
+zng-task = { path = "../zng-task", version = "0.5.1" }
 
 resvg = "0.44"
 tracing = "0.1"
