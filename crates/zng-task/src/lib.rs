@@ -1693,6 +1693,7 @@ pub async fn any_some<Some, F: IntoFuture<Output = Option<Some>>>(futures: impl 
 ///
 /// assert_eq!(Err(FooError), r);
 /// # });
+/// ```
 #[macro_export]
 macro_rules! all_ok {
     ($fut0:expr $(,)?) => { $crate::__all_ok! { fut0: $fut0; } };
@@ -1774,7 +1775,7 @@ macro_rules! __all_ok {
                 let mut pending = false;
 
                 $(
-                    if $crate::FutureOrOutput::Future(fut) = &mut $ident {
+                    if let $crate::FutureOrOutput::Future(fut) = &mut $ident {
                         // SAFETY: the closure owns $ident and is an exclusive borrow inside a
                         // Future::poll call, so it will not move.
                         let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
@@ -1967,7 +1968,7 @@ macro_rules! __all_some {
                 let mut pending = false;
 
                 $(
-                    if let $crate::FutureOrOutput::Future(std::future::IntoFuture::into_future($fut)) = &mut $ident {
+                    if let $crate::FutureOrOutput::Future(fut) = &mut $ident {
                         // SAFETY: the closure owns $ident and is an exclusive borrow inside a
                         // Future::poll call, so it will not move.
                         let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
@@ -1976,7 +1977,7 @@ macro_rules! __all_some {
                                 return Poll::Ready(None);
                             }
 
-                            $ident = $crate::FutureOrOutput::Output(Some(r));
+                            $ident = $crate::FutureOrOutput::Output(r);
                         } else {
                             pending = true;
                         }
