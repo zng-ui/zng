@@ -978,6 +978,9 @@ pub async fn with_deadline<O, F: Future<Output = O>>(
 /// eight futures a proc-macro is used which may cause code auto-complete to stop working in
 /// some IDEs.
 ///
+/// Each input must implement [`IntoFuture`]. Note that each input must be known at compile time, use the [`fn@all`] async
+/// function to await on all futures in a dynamic list of futures.
+///
 /// # Examples
 ///
 /// Await for three different futures to complete:
@@ -1067,20 +1070,19 @@ macro_rules! all {
 macro_rules! __all {
     ($($ident:ident: $fut:expr;)+) => {
         {
-            $(let mut $ident = (Some($fut), None);)+
+            $(let mut $ident = $crate::FutureOrOutput::Future(std::future::IntoFuture::into_future($fut));)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
 
                 let mut pending = false;
 
                 $(
-                    if let Some(fut) = $ident.0.as_mut() {
+                    if let $crate::FutureOrOutput::Future(fut) = &mut $ident {
                         // SAFETY: the closure owns $ident and is an exclusive borrow inside a
                         // Future::poll call, so it will not move.
-                        let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
-                        if let Poll::Ready(r) = fut.as_mut().poll(cx) {
-                            $ident.0 = None;
-                            $ident.1 = Some(r);
+                        let mut fut_mut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                        if let Poll::Ready(r) = fut_mut.as_mut().poll(cx) {
+                            $ident = $crate::FutureOrOutput::Output(r);
                         } else {
                             pending = true;
                         }
@@ -1090,11 +1092,55 @@ macro_rules! __all {
                 if pending {
                     Poll::Pending
                 } else {
-                    Poll::Ready(($($ident.1.take().unwrap()),+))
+                    Poll::Ready(($($ident.take_output()),+))
                 }
             })
         }
     }
+}
+
+#[doc(hidden)]
+pub enum FutureOrOutput<F: Future> {
+    Future(F),
+    Output(F::Output),
+    Taken,
+}
+impl<F: Future> FutureOrOutput<F> {
+    pub fn take_output(&mut self) -> F::Output {
+        match std::mem::replace(self, Self::Taken) {
+            FutureOrOutput::Output(o) => o,
+            _ => unreachable!(),
+        }
+    }
+}
+
+/// A future that awaits on all `futures` at the same time and returns all results when all futures are ready.
+///
+/// This is the dynamic version of [`all!`].
+pub async fn all<F: IntoFuture>(futures: impl IntoIterator<Item = F>) -> Vec<F::Output> {
+    let mut futures: Vec<_> = futures.into_iter().map(|f| FutureOrOutput::Future(f.into_future())).collect();
+    future_fn(move |cx| {
+        let mut pending = false;
+        for input in &mut futures {
+            if let FutureOrOutput::Future(fut) = input {
+                // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                // Future::poll call, so it will not move.
+                let mut fut_mut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                if let Poll::Ready(r) = fut_mut.as_mut().poll(cx) {
+                    *input = FutureOrOutput::Output(r);
+                } else {
+                    pending = true;
+                }
+            }
+        }
+
+        if pending {
+            Poll::Pending
+        } else {
+            Poll::Ready(futures.iter_mut().map(FutureOrOutput::take_output).collect())
+        }
+    })
+    .await
 }
 
 /// <span data-del-macro-root></span> A future that awaits for the first future that is ready.
@@ -1109,6 +1155,9 @@ macro_rules! __all {
 ///
 /// If two futures are ready at the same time the result of the first future in the input list is used.
 /// After one future is ready the other futures are not polled again and are dropped.
+///
+/// Each input must implement [`IntoFuture`] with the same `Output` type. Note that each input must be
+/// known at compile time, use the [`fn@any`] async function to await on all futures in a dynamic list of futures.
 ///
 /// # Examples
 ///
@@ -1196,13 +1245,12 @@ macro_rules! any {
     };
     ($($fut:expr),+ $(,)?) => { $crate::__proc_any_all!{ $crate::__any; $($fut),+ } }
 }
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __any {
     ($($ident:ident: $fut:expr;)+) => {
         {
-            $(let mut $ident = $fut;)+
+            $(let mut $ident = std::future::IntoFuture::into_future($fut);)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
                 $(
@@ -1219,9 +1267,27 @@ macro_rules! __any {
         }
     }
 }
-
 #[doc(hidden)]
 pub use zng_task_proc_macros::task_any_all as __proc_any_all;
+
+/// A future that awaits on all `futures` at the same time and returns the first result when the first future is ready.
+///
+/// This is the dynamic version of [`any!`].
+pub async fn any<F: IntoFuture>(futures: impl IntoIterator<Item = F>) -> F::Output {
+    let mut futures: Vec<_> = futures.into_iter().map(IntoFuture::into_future).collect();
+    future_fn(move |cx| {
+        for fut in &mut futures {
+            // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+            // Future::poll call, so it will not move.
+            let mut fut_mut = unsafe { std::pin::Pin::new_unchecked(fut) };
+            if let Poll::Ready(r) = fut_mut.as_mut().poll(cx) {
+                return Poll::Ready(r);
+            }
+        }
+        Poll::Pending
+    })
+    .await
+}
 
 /// <span data-del-macro-root></span> A future that waits for the first future that is ready with an `Ok(T)` result.
 ///
@@ -1237,6 +1303,9 @@ pub use zng_task_proc_macros::task_any_all as __proc_any_all;
 /// If two futures are ready and `Ok(T)` at the same time the result of the first future in the input list is used.
 /// After one future is ready and `Ok(T)` the other futures are not polled again and are dropped. After a future
 /// is ready and `Err(E)` it is also not polled again and dropped.
+///
+/// Each input must implement [`IntoFuture`] with the same `Output` type. Note that each input must be
+/// known at compile time, use the [`fn@any_ok`] async function to await on all futures in a dynamic list of futures.
 ///
 /// # Examples
 ///
@@ -1330,14 +1399,14 @@ macro_rules! any_ok {
 macro_rules! __any_ok {
     ($($ident:ident: $fut: expr;)+) => {
         {
-            $(let mut $ident = (Some($fut), None);)+
+            $(let mut $ident = $crate::FutureOrOutput::Future(std::future::IntoFuture::into_future($fut));)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
 
                 let mut pending = false;
 
                 $(
-                    if let Some(fut) = $ident.0.as_mut() {
+                    if let $crate::FutureOrOutput::Future(fut) = &mut $ident {
                         // SAFETY: the closure owns $ident and is an exclusive borrow inside a
                         // Future::poll call, so it will not move.
                         let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
@@ -1345,8 +1414,7 @@ macro_rules! __any_ok {
                             match r {
                                 Ok(r) => return Poll::Ready(Ok(r)),
                                 Err(e) => {
-                                    $ident.0 = None;
-                                    $ident.1 = Some(e);
+                                    $ident = $crate::FutureOrOutput::Output(Err(e));
                                 }
                             }
                         } else {
@@ -1359,12 +1427,50 @@ macro_rules! __any_ok {
                     Poll::Pending
                 } else {
                     Poll::Ready(Err((
-                        $($ident.1.take().unwrap()),+
+                        $($ident.take_output().unwrap_err()),+
                     )))
                 }
             })
         }
     }
+}
+
+/// A future that awaits on all `futures` at the same time and returns when any future is `Ok(_)` or all are `Err(_)`.
+///
+/// This is the dynamic version of [`all_some!`].
+pub async fn any_ok<Ok, Err, F: IntoFuture<Output = Result<Ok, Err>>>(futures: impl IntoIterator<Item = F>) -> Result<Ok, Vec<Err>> {
+    let mut futures: Vec<_> = futures.into_iter().map(|f| FutureOrOutput::Future(f.into_future())).collect();
+    future_fn(move |cx| {
+        let mut pending = false;
+        for input in &mut futures {
+            if let FutureOrOutput::Future(fut) = input {
+                // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                // Future::poll call, so it will not move.
+                let mut fut_mut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                if let Poll::Ready(r) = fut_mut.as_mut().poll(cx) {
+                    match r {
+                        Ok(r) => return Poll::Ready(Ok(r)),
+                        Err(e) => *input = FutureOrOutput::Output(Err(e)),
+                    }
+                } else {
+                    pending = true;
+                }
+            }
+        }
+
+        if pending {
+            Poll::Pending
+        } else {
+            Poll::Ready(Err(futures
+                .iter_mut()
+                .map(|f| match f.take_output() {
+                    Ok(_) => unreachable!(),
+                    Err(e) => e,
+                })
+                .collect()))
+        }
+    })
+    .await
 }
 
 /// <span data-del-macro-root></span> A future that is ready when any of the futures is ready and `Some(T)`.
@@ -1381,6 +1487,9 @@ macro_rules! __any_ok {
 /// If two futures are ready and `Some(T)` at the same time the result of the first future in the input list is used.
 /// After one future is ready and `Some(T)` the other futures are not polled again and are dropped. After a future
 /// is ready and `None` it is also not polled again and dropped.
+///
+/// Each input must implement [`IntoFuture`] with the same `Output` type. Note that each input must be
+/// known at compile time, use the [`fn@any_some`] async function to await on all futures in a dynamic list of futures.
 ///
 /// # Examples
 ///
@@ -1472,7 +1581,7 @@ macro_rules! any_some {
 macro_rules! __any_some {
     ($($ident:ident: $fut: expr;)+) => {
         {
-            $(let mut $ident = Some($fut);)+
+            $(let mut $ident = Some(std::future::IntoFuture::into_future($fut));)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
 
@@ -1504,6 +1613,34 @@ macro_rules! __any_some {
     }
 }
 
+/// A future that awaits on all `futures` at the same time and returns when any future is `Some(_)` or all are `None`.
+///
+/// This is the dynamic version of [`all_some!`].
+pub async fn any_some<Some, F: IntoFuture<Output = Option<Some>>>(futures: impl IntoIterator<Item = F>) -> Option<Some> {
+    let mut futures: Vec<_> = futures.into_iter().map(|f| Some(f.into_future())).collect();
+    future_fn(move |cx| {
+        let mut pending = false;
+        for input in &mut futures {
+            if let Some(fut) = input {
+                // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                // Future::poll call, so it will not move.
+                let mut fut_mut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                if let Poll::Ready(r) = fut_mut.as_mut().poll(cx) {
+                    match r {
+                        Some(r) => return Poll::Ready(Some(r)),
+                        None => *input = None,
+                    }
+                } else {
+                    pending = true;
+                }
+            }
+        }
+
+        if pending { Poll::Pending } else { Poll::Ready(None) }
+    })
+    .await
+}
+
 /// <span data-del-macro-root></span> A future that is ready when all futures are ready with an `Ok(T)` result or
 /// any future is ready with an `Err(E)` result.
 ///
@@ -1518,6 +1655,9 @@ macro_rules! __any_some {
 /// If two futures are ready and `Err(E)` at the same time the result of the first future in the input list is used.
 /// After one future is ready and `Err(T)` the other futures are not polled again and are dropped. After a future
 /// is ready it is also not polled again and dropped.
+///
+/// Each input must implement [`IntoFuture`] with the same `Output` type. Note that each input must be
+/// known at compile time, use the [`fn@all_ok`] async function to await on all futures in a dynamic list of futures.
 ///
 /// # Examples
 ///
@@ -1553,6 +1693,7 @@ macro_rules! __any_some {
 ///
 /// assert_eq!(Err(FooError), r);
 /// # });
+/// ```
 #[macro_export]
 macro_rules! all_ok {
     ($fut0:expr $(,)?) => { $crate::__all_ok! { fut0: $fut0; } };
@@ -1627,23 +1768,21 @@ macro_rules! all_ok {
 macro_rules! __all_ok {
     ($($ident:ident: $fut: expr;)+) => {
         {
-            $(let mut $ident = (Some($fut), None);)+
-
+            $(let mut $ident = $crate::FutureOrOutput::Future(std::future::IntoFuture::into_future($fut));)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
 
                 let mut pending = false;
 
                 $(
-                    if let Some(fut) = $ident.0.as_mut() {
+                    if let $crate::FutureOrOutput::Future(fut) = &mut $ident {
                         // SAFETY: the closure owns $ident and is an exclusive borrow inside a
                         // Future::poll call, so it will not move.
                         let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
                         if let Poll::Ready(r) = fut.as_mut().poll(cx) {
                             match r {
                                 Ok(r) => {
-                                    $ident.0 = None;
-                                    $ident.1 = Some(r);
+                                    $ident = $crate::FutureOrOutput::Output(Ok(r))
                                 },
                                 Err(e) => return Poll::Ready(Err(e)),
                             }
@@ -1657,12 +1796,47 @@ macro_rules! __all_ok {
                     Poll::Pending
                 } else {
                     Poll::Ready(Ok((
-                        $($ident.1.take().unwrap()),+
+                        $($ident.take_output().unwrap()),+
                     )))
                 }
             })
         }
     }
+}
+
+/// A future that awaits on all `futures` at the same time and returns when all futures are `Ok(_)` or any future is `Err(_)`.
+///
+/// This is the dynamic version of [`all_ok!`].
+pub async fn all_ok<Ok, Err, F: IntoFuture<Output = Result<Ok, Err>>>(futures: impl IntoIterator<Item = F>) -> Result<Vec<Ok>, Err> {
+    let mut futures: Vec<_> = futures.into_iter().map(|f| FutureOrOutput::Future(f.into_future())).collect();
+    future_fn(move |cx| {
+        let mut pending = false;
+        for input in &mut futures {
+            if let FutureOrOutput::Future(fut) = input {
+                // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                // Future::poll call, so it will not move.
+                let mut fut_mut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                if let Poll::Ready(r) = fut_mut.as_mut().poll(cx) {
+                    match r {
+                        Ok(r) => *input = FutureOrOutput::Output(Ok(r)),
+                        Err(e) => return Poll::Ready(Err(e)),
+                    }
+                } else {
+                    pending = true;
+                }
+            }
+        }
+
+        if pending {
+            Poll::Pending
+        } else {
+            Poll::Ready(Ok(futures
+                .iter_mut()
+                .map(|f| f.take_output().unwrap_or_else(|_| unreachable!()))
+                .collect()))
+        }
+    })
+    .await
 }
 
 /// <span data-del-macro-root></span> A future that is ready when all futures are ready with `Some(T)` or when any
@@ -1678,6 +1852,9 @@ macro_rules! __all_ok {
 ///
 /// After one future is ready and `None` the other futures are not polled again and are dropped. After a future
 /// is ready it is also not polled again and dropped.
+///
+/// Each input must implement [`IntoFuture`] with the same `Output` type. Note that each input must be
+/// known at compile time, use the [`fn@all_some`] async function to await on all futures in a dynamic list of futures.
 ///
 /// # Examples
 ///
@@ -1784,14 +1961,14 @@ macro_rules! all_some {
 macro_rules! __all_some {
     ($($ident:ident: $fut: expr;)+) => {
         {
-            $(let mut $ident = (Some($fut), None);)+
+            $(let mut $ident = $crate::FutureOrOutput::Future(std::future::IntoFuture::into_future($fut));)+
             $crate::future_fn(move |cx| {
                 use std::task::Poll;
 
                 let mut pending = false;
 
                 $(
-                    if let Some(fut) = $ident.0.as_mut() {
+                    if let $crate::FutureOrOutput::Future(fut) = &mut $ident {
                         // SAFETY: the closure owns $ident and is an exclusive borrow inside a
                         // Future::poll call, so it will not move.
                         let mut fut = unsafe { std::pin::Pin::new_unchecked(fut) };
@@ -1800,8 +1977,7 @@ macro_rules! __all_some {
                                 return Poll::Ready(None);
                             }
 
-                            $ident.0 = None;
-                            $ident.1 = r;
+                            $ident = $crate::FutureOrOutput::Output(r);
                         } else {
                             pending = true;
                         }
@@ -1812,12 +1988,44 @@ macro_rules! __all_some {
                     Poll::Pending
                 } else {
                     Poll::Ready(Some((
-                        $($ident.1.take().unwrap()),+
+                        $($ident.take_output().unwrap()),+
                     )))
                 }
             })
         }
     }
+}
+
+/// A future that awaits on all `futures` at the same time and returns when all futures are `Some(_)` or any future is `None`.
+///
+/// This is the dynamic version of [`all_some!`].
+pub async fn all_some<Some, F: IntoFuture<Output = Option<Some>>>(futures: impl IntoIterator<Item = F>) -> Option<Vec<Some>> {
+    let mut futures: Vec<_> = futures.into_iter().map(|f| FutureOrOutput::Future(f.into_future())).collect();
+    future_fn(move |cx| {
+        let mut pending = false;
+        for input in &mut futures {
+            if let FutureOrOutput::Future(fut) = input {
+                // SAFETY: the closure owns $ident and is an exclusive borrow inside a
+                // Future::poll call, so it will not move.
+                let mut fut_mut = unsafe { std::pin::Pin::new_unchecked(fut) };
+                if let Poll::Ready(r) = fut_mut.as_mut().poll(cx) {
+                    match r {
+                        Some(r) => *input = FutureOrOutput::Output(Some(r)),
+                        None => return Poll::Ready(None),
+                    }
+                } else {
+                    pending = true;
+                }
+            }
+        }
+
+        if pending {
+            Poll::Pending
+        } else {
+            Poll::Ready(Some(futures.iter_mut().map(|f| f.take_output().unwrap()).collect()))
+        }
+    })
+    .await
 }
 
 /// A future that will await until [`set`] is called.

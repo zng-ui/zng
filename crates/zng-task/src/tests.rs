@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use rayon::prelude::*;
 
 use super::*;
@@ -20,6 +22,7 @@ fn any_one() {
 
 #[test]
 fn any_nine() {
+    let t = Instant::now();
     let one_s = 1.secs();
     let r = async_test(async {
         any!(
@@ -61,6 +64,7 @@ fn any_nine() {
     });
 
     assert_eq!(9, r);
+    assert!(2.secs() > t.elapsed());
 }
 
 #[test]
@@ -107,4 +111,105 @@ fn run_panic_handling_parallel() {
 
         assert!(r.is_err());
     })
+}
+
+#[test]
+fn fn_all() {
+    let expected: Vec<_> = (0..20).collect();
+    let tasks: Vec<_> = expected
+        .iter()
+        .map(|&i| async move {
+            crate::deadline(((20 - i) * 50).ms()).await;
+            i
+        })
+        .collect();
+
+    let t = Instant::now();
+
+    let results = async_test(async move { crate::all(tasks).await });
+
+    assert_eq!(expected, results);
+    assert!((30 * 50).ms() > t.elapsed())
+}
+
+#[test]
+fn fn_all_ok_ok() {
+    let expected: Vec<_> = (0..20).collect();
+    let tasks: Vec<_> = expected
+        .iter()
+        .map(|&i| async move {
+            crate::deadline(((20 - i) * 50).ms()).await;
+            Ok::<_, String>(i)
+        })
+        .collect();
+
+    let t = Instant::now();
+
+    let results = async_test(async move { crate::all_ok(tasks).await }).unwrap();
+
+    assert_eq!(expected, results);
+    assert!((30 * 50).ms() > t.elapsed())
+}
+
+#[test]
+fn fn_all_ok_err() {
+    let expected: Vec<_> = (0..20).collect();
+    let tasks: Vec<_> = expected
+        .iter()
+        .map(|&i| async move {
+            crate::deadline(((20 - i) * 50).ms()).await;
+            if i == 10 {
+                return Err("error".to_owned());
+            }
+            Ok::<_, String>(i)
+        })
+        .collect();
+
+    let t = Instant::now();
+
+    let results = async_test(async move { crate::all_ok(tasks).await }).unwrap_err();
+
+    assert_eq!("error", results);
+    assert!((30 * 50).ms() > t.elapsed())
+}
+
+#[test]
+fn fn_all_some_some() {
+    let expected: Vec<_> = (0..20).collect();
+    let tasks: Vec<_> = expected
+        .iter()
+        .map(|&i| async move {
+            crate::deadline(((20 - i) * 50).ms()).await;
+            Some(i)
+        })
+        .collect();
+
+    let t = Instant::now();
+
+    let results = async_test(async move { crate::all_some(tasks).await }).unwrap();
+
+    assert_eq!(expected, results);
+    assert!((30 * 50).ms() > t.elapsed())
+}
+
+#[test]
+fn fn_all_some_none() {
+    let expected: Vec<_> = (0..20).collect();
+    let tasks: Vec<_> = expected
+        .iter()
+        .map(|&i| async move {
+            crate::deadline(((20 - i) * 50).ms()).await;
+            if i == 10 {
+                return None;
+            }
+            Some(i)
+        })
+        .collect();
+
+    let t = Instant::now();
+
+    let results = async_test(async move { crate::all_some(tasks).await });
+
+    assert!(results.is_none());
+    assert!((30 * 50).ms() > t.elapsed())
 }
