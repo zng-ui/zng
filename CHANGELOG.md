@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix rustsec adivisory warning by replacing `paste` dependency with the new maintained `pastey` crate. 
 
 # 0.14.0
 

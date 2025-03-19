@@ -162,7 +162,7 @@ use zng_var::{AnyVar, ArcVar, BoxedVar, ReadOnlyArcVar, Var, VarValue, impl_from
 pub use zng_app_context::app_local;
 
 #[doc(hidden)]
-pub use paste::paste;
+pub use pastey::paste;
 
 #[doc(hidden)]
 #[macro_export]

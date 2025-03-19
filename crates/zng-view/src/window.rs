@@ -419,6 +419,7 @@ impl Window {
         drop(wr_scope);
 
         let access = accesskit_winit::Adapter::with_direct_handlers(
+            winit_loop,
             &winit_window,
             AccessActivateHandler {
                 id,
