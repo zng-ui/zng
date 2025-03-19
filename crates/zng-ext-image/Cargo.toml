@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-image"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -16,18 +16,18 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 http = ["zng-task/http"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.6.0" }
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.0" }
+zng-app-context = { path = "../zng-app-context", version = "0.6.1" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.5.1" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
-zng-app = { path = "../zng-app", version = "0.15.0" }
-zng-view-api = { path = "../zng-view-api", version = "0.12.0" }
+zng-app = { path = "../zng-app", version = "0.15.1" }
+zng-view-api = { path = "../zng-view-api", version = "0.12.1" }
 zng-txt = { path = "../zng-txt", version = "0.3.0" }
-zng-var = { path = "../zng-var", version = "0.6.0" }
-zng-task = { path = "../zng-task", version = "0.5.0" }
-zng-layout = { path = "../zng-layout", version = "0.3.0" }
-zng-color = { path = "../zng-color", version = "0.5.0" }
-zng-state-map = { path = "../zng-state-map", version = "0.4.0" }
-zng-env = { path = "../zng-env", version = "0.4.0" }
+zng-var = { path = "../zng-var", version = "0.6.1" }
+zng-task = { path = "../zng-task", version = "0.5.1" }
+zng-layout = { path = "../zng-layout", version = "0.3.1" }
+zng-color = { path = "../zng-color", version = "0.5.1" }
+zng-state-map = { path = "../zng-state-map", version = "0.4.1" }
+zng-env = { path = "../zng-env", version = "0.4.1" }
 
 serde = "1.0"
 once_cell = "1.19"
