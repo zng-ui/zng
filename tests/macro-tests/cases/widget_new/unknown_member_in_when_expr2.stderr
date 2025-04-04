@@ -6,5 +6,6 @@ error[E0599]: no method named `__w_unknown__` found for struct `zng_wgt_input::s
   |
 help: there is a method `__w_0__` with a similar name
   |
-7 |         when *#__w_0__.unknown {
-  |                ~~~~~~~
+7 -         when *#is_pressed.unknown {
+7 +         when *#__w_0__.unknown {
+  |

@@ -317,9 +317,9 @@ impl L10N {
     /// # Params
     ///
     /// * `file`: Name of the resource file, in the default directory layout the file is searched at `dir/{lang}/{file}.ftl`, if
-    ///           empty the file is searched at `dir/{lang}/_.ftl`. Only a single file name is valid, no other path components allowed.
-    ///           Note that the file can also be a full [`LangFilePath`] that includes dependency package info. Those files are searched in
-    ///           `dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`.
+    ///   empty the file is searched at `dir/{lang}/_.ftl`. Only a single file name is valid, no other path components allowed.
+    ///   Note that the file can also be a full [`LangFilePath`] that includes dependency package info. Those files are searched in
+    ///   `dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`.
     /// * `id`: Message identifier inside the resource file.
     /// * `attribute`: Attribute of the identifier, leave empty to not use an attribute.
     /// * `fallback`: Message to use when a localized message cannot be found.
@@ -379,9 +379,9 @@ impl L10N {
     ///
     /// * `lang`: Language identifier.
     /// * `file`: Name of the resource file, in the default directory layout the file is searched at `dir/{lang}/{file}.ftl`, if
-    ///           empty the file is searched at `dir/{lang}/_.ftl`. Only a single file name is valid, no other path components allowed.
-    ///           Note that the file can also be a full [`LangFilePath`] that includes dependency package info. Those files are searched in
-    ///           `dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`.
+    ///   empty the file is searched at `dir/{lang}/_.ftl`. Only a single file name is valid, no other path components allowed.
+    ///   Note that the file can also be a full [`LangFilePath`] that includes dependency package info. Those files are searched in
+    ///   `dir/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`.
     ///
     /// Panics if the file is invalid.
     pub fn lang_resource(&self, lang: impl Into<Lang>, file: impl Into<LangFilePath>) -> LangResource {

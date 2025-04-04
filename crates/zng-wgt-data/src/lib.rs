@@ -477,11 +477,11 @@ impl DataNoteLevel {
     // SAFETY: values are not zero.
 
     /// Entry represents useful information.
-    pub const INFO: Self = Self(unsafe { NonZeroU8::new_unchecked(1) });
+    pub const INFO: Self = Self(NonZeroU8::new(1).unwrap());
     /// Entry represents a data validation warning.
-    pub const WARN: Self = Self(unsafe { NonZeroU8::new_unchecked(128) });
+    pub const WARN: Self = Self(NonZeroU8::new(128).unwrap());
     /// Entry represents a data validation error.
-    pub const ERROR: Self = Self(unsafe { NonZeroU8::new_unchecked(255) });
+    pub const ERROR: Self = Self(NonZeroU8::new(255).unwrap());
 
     /// Gets the level name, if it is one of the `const` levels.
     pub fn name(self) -> &'static str {

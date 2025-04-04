@@ -565,7 +565,7 @@ pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
         UiNodeOp::Layout { .. } => {
             let txt = super::node::TEXT.laidout();
             let is_o = if let Some(info) = &txt.overflow {
-                info.line < txt.shaped_text.lines_len().saturating_sub(1) as _
+                info.line < txt.shaped_text.lines_len().saturating_sub(1)
             } else {
                 false
             };

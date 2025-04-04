@@ -458,7 +458,7 @@ pub struct RendererConfigArgs<'a> {
     ///
     /// * `workers` will be already set by the window, blob rasterizers may clone and use these threads.
     /// * `blob_image_handler` will be set by the window to an object that aggregates
-    ///    all extension blob image handlers. Add your own blob handler to `blobs` instead.
+    ///   all extension blob image handlers. Add your own blob handler to `blobs` instead.
     pub options: &'a mut webrender::WebRenderOptions,
 
     /// Blob extensions.

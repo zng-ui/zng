@@ -55,7 +55,7 @@ note: method defined here
 15 | #[property(CONTEXT, default(true))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 16 | pub fn incorrect_default_args_count_u_1(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
-   |                                                             ---------------------  --------------------
+   |                                                                                    --------------------
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: provide the argument
    |
@@ -73,8 +73,6 @@ note: method defined here
    |
 27 | #[property(CONTEXT, default(true, 2555, "ABC"))]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-28 | pub fn incorrect_default_args_count_u_2(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {
-   |                                                             ---------------------  --------------------
    = note: this error originates in the attribute macro `property` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: remove the extra argument
    |

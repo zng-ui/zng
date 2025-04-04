@@ -16,5 +16,6 @@ error[E0599]: no method named `allowed_in_when_assign` found for struct `foo_` i
 help: there is a method `allowed_in_when_expr` with a similar name
   --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
    |
-   | allowed_in_when_expr
+   - #[widget($crate::Wgt)]
+   + allowed_in_when_expr
    |
