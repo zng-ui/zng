@@ -25,5 +25,6 @@ note: method defined here
 help: provide the argument
   --> $WORKSPACE/crates/zng-wgt/src/wgt.rs
    |
-   | cursor(/* cursor */)
+   - #[widget($crate::Wgt)]
+   + cursor(/* cursor */)
    |

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix build error in Rust 1.86.
 
 # 0.14.1
 
