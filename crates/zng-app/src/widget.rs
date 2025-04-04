@@ -816,9 +816,9 @@ impl WIDGET {
     ///
     /// * [`UiNode::init`] and [`UiNode::deinit`]: Request is ignored, removed.
     /// * [`UiNode::event`]: If the widget is pending a reinit, it is reinited first, then the event is propagated to child nodes.
-    ///                      If a reinit is requested during event handling the widget is reinited immediately after the event handler.
+    ///   If a reinit is requested during event handling the widget is reinited immediately after the event handler.
     /// * [`UiNode::update`]: If the widget is pending a reinit, it is reinited and the update ignored.
-    ///                       If a reinit is requested during update the widget is reinited immediately after the update.
+    ///   If a reinit is requested during update the widget is reinited immediately after the update.
     /// * Other methods: Reinit request is flagged and an [`UiNode::update`] is requested for the widget.
     ///
     /// [`UiNode::init`]: crate::widget::node::UiNode::init

@@ -2708,7 +2708,7 @@ impl ShapedTextBuilder {
             RasterImageFormat::BitmapMono => {
                 // row aligned 1-bitmap
                 let mut bgra = Vec::with_capacity(bgra_len);
-                let bytes_per_row = (img.width as usize + 7) / 8;
+                let bytes_per_row = (img.width as usize).div_ceil(8);
                 for y in 0..img.height as usize {
                     let row_start = y * bytes_per_row;
                     for x in 0..img.width as usize {
@@ -2742,7 +2742,7 @@ impl ShapedTextBuilder {
             RasterImageFormat::BitmapGray2 => {
                 // row aligned 2-bitmap
                 let mut bgra = Vec::with_capacity(bgra_len);
-                let bytes_per_row = (img.width as usize + 3) / 4;
+                let bytes_per_row = (img.width as usize).div_ceil(4);
                 for y in 0..img.height as usize {
                     let row_start = y * bytes_per_row;
                     for x in 0..img.width as usize {
@@ -2785,7 +2785,7 @@ impl ShapedTextBuilder {
             RasterImageFormat::BitmapGray4 => {
                 // row aligned 4-bitmap
                 let mut bgra = Vec::with_capacity(bgra_len);
-                let bytes_per_row = (img.width as usize + 1) / 2;
+                let bytes_per_row = (img.width as usize).div_ceil(2);
                 for y in 0..img.height as usize {
                     let row_start = y * bytes_per_row;
                     for x in 0..img.width as usize {

@@ -144,7 +144,7 @@ impl EVENTS_L10N {
     /// The closure arguments are:
     ///
     /// * `file` is the crate package name, version and the file from command declaration `@l10n: "file"`
-    ///    value or is empty if `@l10n` was set to something else.
+    ///   value or is empty if `@l10n` was set to something else.
     /// * `cmd` is the command, the command event name should be used as key.
     /// * `meta` is the metadata name, for example `"name"`, should be used as attribute.
     /// * `txt` is text variable that must be set with the translation.

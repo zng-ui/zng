@@ -605,7 +605,7 @@ impl GesturesService {
 ///    the click and command events are linked by the same propagation. If the shortcut contains no action and it
 ///
 /// 3. If the shortcut is a [`KeyChord::starter`] for one of the registered shortcuts, and was not claimed by
-///     any of the above, the chord starter is primed for the next shortcut press.
+///    any of the above, the chord starter is primed for the next shortcut press.
 ///
 /// The event propagation flag of shortcut, click and command events are linked, so stopping [`propagation`] in one signal
 /// all others.

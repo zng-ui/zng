@@ -282,7 +282,7 @@
 //!
 //! 1. Sleep if there are not pending events or updates.
 //!    * If the view-process is busy blocks until it sends a message, this is a mechanism to stop the app-process
-//!       from overwhelming the view-process.
+//!      from overwhelming the view-process.
 //!    * Block until a message is received, from the view-process or from other app threads.
 //!    * If there are [`TIMERS`] or [`VARS`] animations the message block has a deadline to the nearest timer or animation frame.
 //!        * Animations have a fixed frame-rate defined in [`VARS.frame_duration`], it is 60 frames-per-second by default.

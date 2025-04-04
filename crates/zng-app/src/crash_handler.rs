@@ -940,7 +940,7 @@ fn crash_handler_monitor_process(
                                     dlg_stdout
                                         .lines()
                                         .filter_map(|l| l.trim().strip_prefix(RESPONSE_PREFIX))
-                                        .last()
+                                        .next_back()
                                         .unwrap_or("exit 0")
                                         .to_owned()
                                 } else {
