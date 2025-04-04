@@ -1,6 +1,6 @@
 [package]
 name = "zng-view-prebuilt"
-version = "0.14.1"
+version = "0.14.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"

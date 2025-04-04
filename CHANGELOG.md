@@ -1,6 +1,9 @@
 # Unreleased
 
-* Fix build error in Rust 1.86.
+
+# 0.14.2
+
+* Fix build error in Rust 1.86. [See details](https://github.com/zng-ui/zng/pull/633#issuecomment-2777515702)
 
 # 0.14.1
 

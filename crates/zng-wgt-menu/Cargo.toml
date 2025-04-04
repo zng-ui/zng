@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-menu"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,26 +12,26 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.7.1" }
-zng-app = { path = "../zng-app", version = "0.15.1" }
+zng-wgt = { path = "../zng-wgt", version = "0.7.2" }
+zng-app = { path = "../zng-app", version = "0.15.2" }
 zng-layout = { path = "../zng-layout", version = "0.3.1" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.5.1" }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.5.1" }
-zng-wgt-panel = { path = "../zng-wgt-panel", version = "0.5.1" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.6.1" }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.6.1" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.7.1" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.4.1" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.6.1" }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.6.1" }
-zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.5.1" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.6.1" }
-zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.5.1" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.4.1" }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.4.1" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.4.1" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.4.1" }
-zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.5.1" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.7.1" }
-zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.5.1" }
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.6.1" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.5.2" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.5.2" }
+zng-wgt-panel = { path = "../zng-wgt-panel", version = "0.5.2" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.6.2" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.6.2" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.7.2" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.4.2" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.6.2" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.6.2" }
+zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.5.2" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.6.2" }
+zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.5.2" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.4.2" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.4.2" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.4.2" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.4.2" }
+zng-wgt-rule-line = { path = "../zng-wgt-rule-line", version = "0.5.2" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.7.2" }
+zng-wgt-toggle = { path = "../zng-wgt-toggle", version = "0.5.2" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.6.2" }
