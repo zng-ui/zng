@@ -1038,29 +1038,36 @@ impl TextSelectOp {
 
 fn next_prev(
     clear_selection: bool,
-    insert_index_fn: fn(&SegmentedText, usize) -> usize,
-    selection_index: fn(&SegmentedText, ops::Range<CaretIndex>) -> usize,
+    index_from_caret: fn(&SegmentedText, usize) -> usize,
+    index_from_selection: fn(&SegmentedText, ops::Range<CaretIndex>) -> usize,
 ) {
+    // compute next caret position
     let resolved = TEXT.resolved();
-    let mut i = resolved.caret.index.unwrap_or(CaretIndex::ZERO);
+    let mut next_index = resolved.caret.index.unwrap_or(CaretIndex::ZERO);
+    let current_index = next_index;
     if clear_selection {
-        i.index = if let Some(s) = resolved.caret.selection_range() {
-            selection_index(&resolved.segmented_text, s)
+        next_index.index = if let Some(s) = resolved.caret.selection_range() {
+            // get if selection collapses to the start or end position
+            index_from_selection(&resolved.segmented_text, s)
         } else {
-            insert_index_fn(&resolved.segmented_text, i.index)
+            // no selection to clear, just advance the caret
+            index_from_caret(&resolved.segmented_text, next_index.index)
         };
     } else {
-        i.index = insert_index_fn(&resolved.segmented_text, i.index);
+        // no selection to clear, just advance the caret
+        next_index.index = index_from_caret(&resolved.segmented_text, next_index.index);
     }
     drop(resolved);
 
+    // update caret and selection
     let mut c = TEXT.resolve_caret();
     if clear_selection {
         c.clear_selection();
     } else if c.selection_index.is_none() {
-        c.selection_index = Some(i);
+        // starting selection (shift+arrow)
+        c.selection_index = Some(current_index);
     }
-    c.set_index(i);
+    c.set_index(next_index);
     c.used_retained_x = false;
 }
 

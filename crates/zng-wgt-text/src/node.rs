@@ -176,7 +176,7 @@ pub struct ImePreview {
 /// Text internals used by text implementer nodes and properties.
 ///
 /// The text implementation is split between two contexts, [`resolve_text`] and [`layout_text`], this service
-/// provides access to data produced y these two contexts.
+/// provides access to data produced by these two contexts.
 pub struct TEXT;
 
 impl TEXT {
