@@ -6,5 +6,3 @@ edition = "2024"
 
 [dependencies]
 zng = { path = "../../crates/zng", features = ["view_prebuilt", "material_icons_outlined"] }
-lipsum = "0.9"
-rand = "0.8.5" # must match lipsum dependency

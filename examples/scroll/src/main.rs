@@ -6,8 +6,6 @@ use zng::{
     scroll::cmd::ScrollToMode,
 };
 
-use rand::SeedableRng;
-
 fn main() {
     zng::env::init!();
 
@@ -189,15 +187,32 @@ fn scroll_to_rect(target: layout::Rect, mode: ScrollToMode) -> impl UiNode {
 }
 
 fn ipsum() -> Txt {
-    let mut s = String::new();
-    let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
-    for _ in 0..10 {
-        for _ in 0..10 {
-            s.push_str(&lipsum::lipsum_words_with_rng(&mut rng, 25));
-            s.push('\n');
+    static IPSUM: &[&str] = &[
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam interdum tincidunt nibh, id placerat purus molestie at. Quisque fringilla viverra quam at pretium. Cras volutpat vehicula mauris, sit amet efficitur tortor tempor eu. Aenean fermentum condimentum nunc, sed fringilla justo aliquam a. Curabitur porta iaculis venenatis. Nunc dignissim suscipit nunc, vel lobortis purus tincidunt eu. Sed condimentum sollicitudin ligula. Sed a pulvinar felis, nec mattis metus. Proin rhoncus risus id enim consequat hendrerit. Nulla pharetra ante sem, id aliquam quam semper nec. Suspendisse efficitur lacinia ligula, in vehicula nunc luctus nec. Proin condimentum tortor vel ex bibendum molestie. Aenean quis lobortis orci. ",
+        "Sed et dignissim neque, sed scelerisque lectus. Integer sit amet nisi dui. Aliquam malesuada arcu quis nunc finibus auctor. Fusce auctor est a est lobortis, in tempor ligula eleifend. Ut pulvinar magna nec nibh efficitur dapibus. Praesent pretium eleifend lacinia. Etiam sed elementum est. Nulla ullamcorper mauris at ullamcorper aliquam. Mauris nibh sem, convallis sed facilisis eget, viverra ut orci. Ut elementum erat eget congue malesuada. Maecenas ut elementum nisl. Aenean ut magna sapien. Praesent iaculis ante sit amet leo placerat, vitae tempus purus egestas. Phasellus tincidunt, purus eget tempus tristique, ligula ex euismod elit, non facilisis libero lectus id orci. ",
+        "Etiam in pulvinar metus, ac gravida justo. Vestibulum suscipit suscipit ligula, a faucibus lectus rhoncus ut. Aliquam quis ipsum vel enim fringilla facilisis. Cras a augue nibh. Nulla purus lorem, accumsan nec mi a, gravida aliquam metus. Vestibulum mollis imperdiet pharetra. Vestibulum tempor rutrum molestie. Phasellus nec porta mauris. Pellentesque sagittis est sem, vitae commodo libero viverra a. In hac habitasse platea dictumst. Aenean vitae dui eu dui posuere sagittis eget id orci. Praesent purus elit, imperdiet quis felis et, placerat eleifend sapien. Curabitur diam diam, convallis sed mi eu, maximus sagittis nisi. Vivamus mauris sem, condimentum quis ultrices eget, porta eu elit. Aliquam lorem arcu, ultricies nec lorem ut, mattis vulputate erat. Nullam lacinia magna nec consequat egestas. ",
+        "Quisque ornare erat vel turpis tempus cursus. In bibendum bibendum lectus eu condimentum. Pellentesque nec orci metus. Maecenas ac odio quis odio auctor tempus. Vivamus tristique tempor nisi. Donec ante augue, tempus vel tincidunt luctus, pulvinar ac felis. Proin magna eros, finibus ut pulvinar imperdiet, elementum vel ligula. Cras eu vestibulum orci. Proin et quam et eros interdum imperdiet. Nulla facilisi. Proin convallis luctus risus et suscipit. Donec molestie id augue eu semper. Nulla venenatis nisl risus, non aliquam orci eleifend sed. Etiam sodales porta nisl, posuere vestibulum massa gravida a. Praesent sit amet hendrerit ipsum. Nunc nec purus consectetur, consectetur ex vel, egestas justo. ",
+    ];
+    let mut i = 0;
+    let mut r = String::new();
+    for _ in 0..30 {
+        let mut line_len = 0;
+        for word in IPSUM[i].split(' ') {
+            line_len += word.len();
+            if line_len > 150 {
+                line_len = word.len();
+                r.push('\n');
+            }
+            r.push_str(word);
+            r.push(' ');
         }
-        s.push('\n');
-    }
+        r.push('\n');
+        r.push('\n');
 
-    s.into()
+        i += 1;
+        if i == IPSUM.len() {
+            i = 0;
+        }
+    }
+    r.into()
 }
