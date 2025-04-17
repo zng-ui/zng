@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix shift+arrow key gestures not starting text selection until next arrow key press.
+* Update dependencies.
 
 # 0.14.2
 
