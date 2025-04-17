@@ -569,7 +569,7 @@ impl WriteFile {
         let mut temp_path = actual_path.with_file_name(format!("{hidden_name}.{TRANSACTION_GUID}-{n}.tmp"));
         let temp_file = loop {
             if let Ok(f) = fs::OpenOptions::new().write(true).create(true).truncate(true).open(&temp_path) {
-                if f.try_lock_exclusive().is_ok() {
+                if let Ok(true) = f.try_lock_exclusive(){
                     break f;
                 }
             }

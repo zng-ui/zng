@@ -5,13 +5,13 @@ pub use fs4::fs_std::FileExt;
 
 #[cfg(target_arch = "wasm32")]
 pub trait FileExt {
-    fn try_lock_shared(&self) -> std::io::Result<()> {
+    fn try_lock_shared(&self) -> std::io::Result<bool> {
         not_supported()
     }
-    fn try_lock_exclusive(&self) -> std::io::Result<()> {
+    fn try_lock_exclusive(&self) -> std::io::Result<bool> {
         not_supported()
     }
-    fn unlock(&self) -> std::io::Result<()> {
+    fn unlock(&self) -> std::io::Result<bool> {
         not_supported()
     }
 }
@@ -41,11 +41,13 @@ pub fn lock_timeout<F: FileExt>(_: &F, _: impl Fn(&F) -> std::io::Result<()>, _:
     not_supported()
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Result<()>, mut timeout: Duration) -> std::io::Result<()> {
+pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Result<bool>, mut timeout: Duration) -> std::io::Result<()> {
     let mut locked_error = None;
     loop {
+        let mut error = None;
         match try_lock(file) {
-            Ok(()) => return Ok(()),
+            Ok(true) => return Ok(()),
+            Ok(false) => {}
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::WouldBlock
                     && e.raw_os_error() != locked_error.get_or_insert_with(fs4::lock_contended_error).raw_os_error()
@@ -53,14 +55,20 @@ pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Resu
                     return Err(e);
                 }
 
-                const INTERVAL: Duration = Duration::from_millis(10);
-                timeout = timeout.saturating_sub(INTERVAL);
-                if timeout.is_zero() {
-                    return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
-                } else {
-                    std::thread::sleep(INTERVAL.min(timeout));
-                }
+                error = Some(e);
             }
+        }
+
+        const INTERVAL: Duration = Duration::from_millis(10);
+        timeout = timeout.saturating_sub(INTERVAL);
+        if timeout.is_zero() {
+            match error {
+                Some(e) => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e)),
+                None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "file already locked")),
+            }
+            
+        } else {
+            std::thread::sleep(INTERVAL.min(timeout));
         }
     }
 }

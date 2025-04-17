@@ -47,7 +47,7 @@ ron = { version = "0.8", optional = true, features = ["indexmap"] }
 serde_yaml = { version = "0.9", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-fs4 = "0.12"
+fs4 = "0.13"
 
 [package.metadata.docs.rs]
 all-features = true
