@@ -223,7 +223,10 @@ impl Text {
             } else {
                 wgt.capture_var_or_default(property_id!(Self::txt))
             };
-            wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| node::resolve_text(child, text));
+            wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| {
+                let child = node::rich_text_component(child);
+                node::resolve_text(child, text)
+            });
         });
     }
 }

@@ -787,7 +787,7 @@ impl RedoAction for UndoTextEditOp {
     }
 }
 
-/// Represents a text selection operation that can be send to an editable text using [`SELECT_CMD`].
+/// Represents a text caret/selection operation that can be send to an editable text using [`SELECT_CMD`].
 #[derive(Clone)]
 pub struct TextSelectOp {
     op: Arc<Mutex<dyn FnMut() + Send>>,
@@ -801,11 +801,11 @@ impl TextSelectOp {
     /// New text select operation.
     ///
     /// The editable text widget that handles [`SELECT_CMD`] will call `op` during event handling in
-    /// the [`node::layout_text`] context. You can position the caret using [`ResolvedText::caret`],
+    /// the [`node::layout_text`] context. You can position the caret using [`TEXT.resolve_caret`],
     /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
     /// the caret index is also snapped to the nearest grapheme start.
     ///
-    /// [`ResolvedText::caret`]: super::node::ResolvedText::caret
+    /// [`TEXT.resolve_caret`]: super::node::TEXT::resolve_caret
     pub fn new(op: impl FnMut() + Send + 'static) -> Self {
         Self {
             op: Arc::new(Mutex::new(op)),
@@ -1069,6 +1069,12 @@ fn next_prev(
     }
     c.set_index(next_index);
     c.used_retained_x = false;
+
+    if current_index == next_index {
+        if let Some(ctx) = TEXT.try_rich() {
+            println!("!!: TODO try to navigate to next")
+        }
+    }
 }
 
 fn line_up_down(clear_selection: bool, diff: i8) {

@@ -970,6 +970,7 @@ impl_from_and_into_var! {
     fn from(index: u32) -> ZIndex {
         ZIndex(index)
     }
+    fn from(index: ZIndex) -> Option<ZIndex>;
 }
 
 /// Represents an [`UiNodeList::update_all`] observer that can be used to monitor widget insertion, removal and re-order.

@@ -51,6 +51,10 @@
 //! font family value because of this, the [`font_size`](fn@font_size) on the other hand is set for
 //! each text widget and only affects that widget.
 //!
+//! # Rich Text
+//!
+//! !!: TODO
+//!
 //! [`Text!`]: struct@Text
 //! [`SelectableText!`]: struct@crate::selectable::SelectableText
 //! [`TextInput!`]: struct@crate::text_input::TextInput
@@ -77,7 +81,7 @@ pub use zng_wgt_text::{
     interactive_caret_visual, is_line_overflown, is_overflown, is_parse_pending, justify_mode, lang, letter_spacing, line_break,
     line_height, line_spacing, max_chars_count,
     node::{TEXT, set_interactive_caret_spot},
-    obscure_txt, obscuring_char, on_change_stop, overline, overline_color, paragraph_spacing, selection_color, selection_toolbar,
-    selection_toolbar_anchor, selection_toolbar_fn, strikethrough, strikethrough_color, tab_length, txt_align, txt_editable, txt_overflow,
-    txt_overflow_align, underline, underline_color, underline_skip, white_space, word_break, word_spacing,
+    obscure_txt, obscuring_char, on_change_stop, overline, overline_color, paragraph_spacing, rich_text, selection_color,
+    selection_toolbar, selection_toolbar_anchor, selection_toolbar_fn, strikethrough, strikethrough_color, tab_length, txt_align,
+    txt_editable, txt_overflow, txt_overflow_align, underline, underline_color, underline_skip, white_space, word_break, word_spacing,
 };

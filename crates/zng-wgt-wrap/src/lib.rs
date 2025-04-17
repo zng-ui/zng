@@ -916,7 +916,8 @@ impl InlineLayout {
         #[cfg(debug_assertions)]
         for (i, row) in self.rows.iter().enumerate() {
             let width = row.size.width;
-            let sum_width = row.item_segs.iter().map(|s| Px(s.measure_width() as i32)).sum::<Px>();
+            let sum_width = row.item_segs.iter().map(|s| Px(s.measure_width() as i32)).sum::<Px>()
+                + spacing.column * Px(row.item_segs.len().saturating_sub(1) as _);
 
             if (sum_width - width) > Px(1) {
                 if metrics.inline_constraints().is_some() && (i == 0 || i == self.rows.len() - 1) {

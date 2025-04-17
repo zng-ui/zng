@@ -23,6 +23,9 @@ use zng_wgt_layer::{
     popup::{ContextCapture, POPUP, PopupState},
 };
 
+mod rich;
+pub use rich::*;
+
 mod resolve;
 pub use resolve::*;
 
@@ -180,6 +183,15 @@ pub struct ImePreview {
 pub struct TEXT;
 
 impl TEXT {
+    /// Read lock the current rich text context if any parent widget defines it.
+    pub fn try_rich(&self) -> Option<RwLockReadGuardOwned<RichText>> {
+        if RICH_TEXT.is_default() {
+            None
+        } else {
+            Some(RICH_TEXT.read_recursive())
+        }
+    }
+
     /// Read lock the current contextual resolved text if called in a node inside [`resolve_text`].
     ///
     /// Note that this will block until a read lock can be acquired.
@@ -189,6 +201,17 @@ impl TEXT {
         } else {
             Some(RESOLVED_TEXT.read_recursive())
         }
+    }
+
+    /// Read lock the current rich text context.
+    ///
+    /// # Panics
+    ///
+    /// Panics if requested in a node outside [`rich_text`].
+    ///
+    /// [`rich_text`]: fn@crate::rich_text
+    pub fn rich(&self) -> RwLockReadGuardOwned<RichText> {
+        RICH_TEXT.read_recursive()
     }
 
     /// Read lock the current contextual resolved text.
@@ -412,14 +435,28 @@ pub struct LaidoutText {
     /// Latest layout viewport.
     pub viewport: PxSize,
 }
-
 impl LaidoutText {
     fn no_context() -> Self {
         panic!("no `LaidoutText` in context, only available inside `layout_text`")
     }
 }
 
+/// Represents the parent rich text context.
+///
+/// Use [`TEXT`] to get.
+pub struct RichText {
+    /// Widget that defines the rich text context.
+    pub parent: WidgetId,
+}
+impl RichText {
+    fn no_context() -> Self {
+        panic!("no `RichText` in context, only available inside `rich_text`")
+    }
+}
+
 context_local! {
+    /// Represents the contextual [`RichText`] setup by the [`rich_text`] property.
+    static RICH_TEXT: RwLock<RichText> = RwLock::new(RichText::no_context());
     /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
     static RESOLVED_TEXT: RwLock<ResolvedText> = RwLock::new(ResolvedText::no_context());
     /// Represents the contextual [`LaidoutText`] setup by the [`layout_text`] node.
