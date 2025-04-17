@@ -37,7 +37,7 @@ pub fn lock_shared(file: &impl FileExt, timeout: Duration) -> std::io::Result<()
 
 #[cfg(target_arch = "wasm32")]
 
-pub fn lock_timeout<F: FileExt>(_: &F, _: impl Fn(&F) -> std::io::Result<()>, _: Duration) -> std::io::Result<()> {
+pub fn lock_timeout<F: FileExt>(_: &F, _: impl Fn(&F) -> std::io::Result<bool>, _: Duration) -> std::io::Result<()> {
     not_supported()
 }
 #[cfg(not(target_arch = "wasm32"))]

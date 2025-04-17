@@ -266,7 +266,9 @@ macro_rules! include_bundle {
     () => {
         $crate::include_bundle!(concat!(env!("OUT_DIR"), "/zng-tp-licenses.bin"))
     };
-    ($custom_name:expr) => {{ $crate::decode_licenses(include_bytes!($custom_name)) }};
+    ($custom_name:expr) => {{
+        $crate::decode_licenses(include_bytes!($custom_name))
+    }};
 }
 
 /// Decode licenses encoded with [`encode_licenses`]. Note that the encoded format is only guaranteed to work
@@ -274,5 +276,7 @@ macro_rules! include_bundle {
 #[cfg(feature = "bundle")]
 pub fn decode_licenses(bin: &[u8]) -> Vec<LicenseUsed> {
     let bin = inflate::inflate_bytes(bin).expect("invalid bundle deflate binary");
-    bincode::deserialize(&bin).expect("invalid bundle bincode binary")
+    bincode::serde::decode_from_slice(&bin, bincode::config::legacy())
+        .expect("invalid bundle bincode binary")
+        .0
 }
