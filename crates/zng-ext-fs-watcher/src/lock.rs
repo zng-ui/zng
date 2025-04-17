@@ -38,7 +38,7 @@ pub fn lock_shared(file: &impl FileExt, timeout: Duration) -> std::io::Result<()
 #[cfg(target_arch = "wasm32")]
 
 pub fn lock_timeout<F: FileExt>(_: &F, _: impl Fn(&F) -> std::io::Result<bool>, _: Duration) -> std::io::Result<()> {
-    not_supported()
+    not_supported().map(|_| ())
 }
 #[cfg(not(target_arch = "wasm32"))]
 pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Result<bool>, mut timeout: Duration) -> std::io::Result<()> {
@@ -64,7 +64,7 @@ pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Resu
         if timeout.is_zero() {
             match error {
                 Some(e) => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e)),
-                None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "file already locked")),
+                None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, fs4::lock_contended_error())),
             }
         } else {
             std::thread::sleep(INTERVAL.min(timeout));

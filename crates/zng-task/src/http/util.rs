@@ -37,7 +37,7 @@ fn lock_timeout<F: fs4::fs_std::FileExt>(
         if timeout.is_zero() {
             match error {
                 Some(e) => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e)),
-                None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "file is locked")),
+                None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, fs4::lock_contended_error())),
             }
         } else {
             std::thread::sleep(INTERVAL.min(timeout));
