@@ -145,6 +145,23 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
     use resolvers::*;
     use view_fn::*;
 
+    // options  that where incorrectly enabled in 0.5, remove for next breaking release
+    // there is a note for this in https://github.com/zng-ui/zng/issues/635
+    let v_0_6_parse_options = Options::ENABLE_HEADING_ATTRIBUTES
+        | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
+        | Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS
+        | Options::ENABLE_OLD_FOOTNOTES
+        | Options::ENABLE_MATH
+        | Options::ENABLE_GFM;
+
+    let parse_options = Options::ENABLE_TABLES
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_SMART_PUNCTUATION
+        | Options::ENABLE_DEFINITION_LIST
+        | v_0_6_parse_options;
+
     let mut strong = 0;
     let mut emphasis = 0;
     let mut strikethrough = 0;
@@ -197,7 +214,7 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
 
     let mut last_txt_end = '\0';
 
-    for item in Parser::new_with_broken_link_callback(md, Options::all(), Some(&mut |b: BrokenLink<'a>| Some((b.reference, "".into())))) {
+    for item in Parser::new_with_broken_link_callback(md, parse_options, Some(&mut |b: BrokenLink<'a>| Some((b.reference, "".into())))) {
         let item = match item {
             Event::SoftBreak => Event::Text(pulldown_cmark::CowStr::Borrowed(" ")),
             Event::HardBreak => Event::Text(pulldown_cmark::CowStr::Borrowed("\n")),
@@ -308,6 +325,8 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
                     last_txt_end = '\0';
                     image = Some((String::new(), dest_url, title));
                 }
+                Tag::Superscript => {}
+                Tag::Subscript => {}
                 Tag::HtmlBlock => {}
                 Tag::MetadataBlock(_) => {}
             },
@@ -452,13 +471,6 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
                     let title = html_escape::decode_html_entities(title.as_ref());
                     let url = link_resolver.resolve(url.as_ref());
                     match kind {
-                        LinkType::Inline => {}
-                        LinkType::Reference => {}
-                        LinkType::ReferenceUnknown => {}
-                        LinkType::Collapsed => {}
-                        LinkType::CollapsedUnknown => {}
-                        LinkType::Shortcut => {}
-                        LinkType::ShortcutUnknown => {}
                         LinkType::Autolink | LinkType::Email => {
                             let url = html_escape::decode_html_entities(&url);
                             if let Some(txt) = text_view.call_checked(TextFnArgs {
@@ -472,6 +484,14 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
                                 inlines.push(txt);
                             }
                         }
+                        LinkType::Inline => {}
+                        LinkType::Reference => {}
+                        LinkType::ReferenceUnknown => {}
+                        LinkType::Collapsed => {}
+                        LinkType::CollapsedUnknown => {}
+                        LinkType::Shortcut => {}
+                        LinkType::ShortcutUnknown => {}
+                        LinkType::WikiLink { .. } => {}
                     }
                     if !inlines.is_empty() {
                         let items = inlines.drain(inlines_start..).collect();
@@ -494,6 +514,8 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
                         alt_txt: alt_txt.into(),
                     }));
                 }
+                TagEnd::Superscript => {}
+                TagEnd::Subscript => {}
                 TagEnd::HtmlBlock => {}
                 TagEnd::MetadataBlock(_) => {}
             },

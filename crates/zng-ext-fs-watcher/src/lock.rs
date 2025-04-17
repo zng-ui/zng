@@ -66,7 +66,6 @@ pub fn lock_timeout<F: FileExt>(file: &F, try_lock: impl Fn(&F) -> std::io::Resu
                 Some(e) => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e)),
                 None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "file already locked")),
             }
-            
         } else {
             std::thread::sleep(INTERVAL.min(timeout));
         }
