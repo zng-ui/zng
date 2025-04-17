@@ -243,7 +243,7 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<LicenseUsed>, serde_json::Err
 /// Panics in case of any error.
 #[cfg(feature = "build")]
 pub fn encode_licenses(licenses: &[LicenseUsed]) -> Vec<u8> {
-    deflate::deflate_bytes(&bincode::serialize(licenses).expect("bincode error"))
+    deflate::deflate_bytes(&bincode::serde::encode_to_vec(licenses, bincode::config::legacy()).expect("bincode error"))
 }
 
 /// Encode licenses and write to the output file that is included by [`include_bundle!`].
