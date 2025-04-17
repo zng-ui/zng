@@ -12,13 +12,15 @@ pub fn lock_shared(file: &impl fs4::fs_std::FileExt, timeout: Duration) -> std::
 
 fn lock_timeout<F: fs4::fs_std::FileExt>(
     file: &F,
-    try_lock: impl Fn(&F) -> std::io::Result<()>,
+    try_lock: impl Fn(&F) -> std::io::Result<bool>,
     mut timeout: Duration,
 ) -> std::io::Result<()> {
     let mut locked_error = None;
     loop {
+        let mut error = None;
         match try_lock(file) {
-            Ok(()) => return Ok(()),
+            Ok(true) => return Ok(()),
+            Ok(false) => {}
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::WouldBlock
                     && e.raw_os_error() != locked_error.get_or_insert_with(fs4::lock_contended_error).raw_os_error()
@@ -26,14 +28,19 @@ fn lock_timeout<F: fs4::fs_std::FileExt>(
                     return Err(e);
                 }
 
-                const INTERVAL: Duration = Duration::from_millis(10);
-                timeout = timeout.saturating_sub(INTERVAL);
-                if timeout.is_zero() {
-                    return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e));
-                } else {
-                    std::thread::sleep(INTERVAL.min(timeout));
-                }
+                error = Some(e)
             }
+        }
+
+        const INTERVAL: Duration = Duration::from_millis(10);
+        timeout = timeout.saturating_sub(INTERVAL);
+        if timeout.is_zero() {
+            match error {
+                Some(e) => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, e)),
+                None => return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, fs4::lock_contended_error())),
+            }
+        } else {
+            std::thread::sleep(INTERVAL.min(timeout));
         }
     }
 }

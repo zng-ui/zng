@@ -18,7 +18,7 @@ zng-txt = { path = "../zng-txt", version = "0.3.0" }
 zng-unit = { path = "../zng-unit", version = "0.3.0" }
 zng-task = { path = "../zng-task", version = "0.5.1" }
 
-resvg = "0.44"
+resvg = "0.45"
 tracing = "0.1"
 
 [package.metadata.docs.rs]

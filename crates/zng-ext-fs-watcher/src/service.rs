@@ -1052,7 +1052,7 @@ impl notify::Watcher for PollWatcher {
             .name(String::from("poll-watcher"))
             .spawn(move || {
                 loop {
-                    match rcv.recv_timeout(config.poll_interval_v2().unwrap_or_default()) {
+                    match rcv.recv_timeout(config.poll_interval().unwrap_or_default()) {
                         Ok(msg) => match msg {
                             PollMsg::Watch(d, r) => {
                                 let info = PollInfo::new(&d, r);

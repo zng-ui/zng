@@ -37,7 +37,7 @@ zng-ext-font = { path = "../zng-ext-font", version = "0.6.2" }
 zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.4.2" }
 zng-app = { path = "../zng-app", version = "0.15.2" }
 
-pulldown-cmark = "0.12"
+pulldown-cmark = "0.13"
 http = "1.1"
 path-absolutize = { version = "3.1", features = ["use_unix_paths_on_wasm"] }
 html-escape = "0.2"
