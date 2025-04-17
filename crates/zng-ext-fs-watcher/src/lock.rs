@@ -18,7 +18,7 @@ pub trait FileExt {
 #[cfg(target_arch = "wasm32")]
 impl FileExt for std::fs::File {}
 #[cfg(target_arch = "wasm32")]
-fn not_supported() -> std::io::Result<()> {
+fn not_supported() -> std::io::Result<bool> {
     Err(std::io::Error::new(
         std::io::ErrorKind::Other,
         "operation not supported on wasm yet",
