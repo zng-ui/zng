@@ -1238,6 +1238,31 @@ impl TextSelectOp {
     /// Select the full text.
     pub fn select_all() -> Self {
         Self::new(|| {
+            if let Some(ctx) = TEXT.try_rich() {
+                if let Some(info) = ctx.root_info() {
+                    let mut last_id = None;
+                    for leaf in info.rich_text_leafs() {
+                        let leaf_id = leaf.info().id();
+                        SELECT_CMD.scoped(leaf_id).notify_param(Self::local_select_all());
+                        last_id = Some(leaf_id);
+                    }
+                    if let Some(last_id) = last_id {
+                        let current_id = WIDGET.id();
+                        if last_id != current_id && FOCUS.is_focused(current_id).get() {
+                            FOCUS.focus_widget(last_id, false);
+                        }
+                        return;
+                    }
+                }
+            }
+            Self::local_select_all().call();
+        })
+    }
+    /// Like [`select_all`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_all`]: Self::select_all
+    pub fn local_select_all() -> Self {
+        Self::new(|| {
             let len = TEXT.resolved().segmented_text.text().len();
             let mut caret = TEXT.resolve_caret();
             caret.set_char_selection(0, len);
@@ -1286,7 +1311,8 @@ fn next_prev(
     c.set_index(next_index);
     c.used_retained_x = false;
 
-    if current_index == next_index || next_index == CaretIndex::ZERO { // !!: TODO prev_word to next_index=0 causes jump to start
+    if current_index == next_index || next_index == CaretIndex::ZERO {
+        // !!: TODO prev_word to next_index=0 causes jump to start
         if let Some(widget_from_current) = widget_from_current {
             if let Some(_ctx) = TEXT.try_rich() {
                 let info = WIDGET.info();

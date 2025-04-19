@@ -1517,9 +1517,11 @@ pub fn change_stop_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> i
     with_context_var(child, CHANGE_STOP_DELAY_VAR, delay)
 }
 
-/// Auto-selection on focus when the text is selectable.
+/// Auto-selection on focus change when the text is selectable.
 ///
 /// If enabled on keyboard focus all text is selected and on blur any selection is cleared.
+///
+/// In rich text contexts applies to all sub-component texts.
 #[property(CONTEXT, default(AUTO_SELECTION_VAR), widget_impl(TextEditMix<P>))]
 pub fn auto_selection(child: impl UiNode, mode: impl IntoVar<AutoSelection>) -> impl UiNode {
     with_context_var(child, AUTO_SELECTION_VAR, mode)
@@ -1551,7 +1553,9 @@ pub fn obscure_txt(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
 }
 
 bitflags! {
-    /// Defines when text is auto-selected on focus.
+    /// Defines when text is auto-selected on focus change.
+    ///
+    /// In a rich text context applies across all sub component texts.
     #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
     pub struct AutoSelection: u8 {
         /// No auto-selection.
@@ -1561,12 +1565,12 @@ bitflags! {
         /// This is the default behavior.
         const CLEAR_ON_BLUR = 0b0000_0001;
         /// Select all on keyboard initiated focus.
-        const ALL_ON_FOCUS_KEYBOARD = 0b0000_00010;
+        const ALL_ON_FOCUS_KEYBOARD = 0b0000_0010;
         /// Select all on pointer release if the pointer press event caused the focus to happen and it did not change
         /// the selection and there is no selection on release.
-        const ALL_ON_FOCUS_POINTER = 0b0000_00100;
+        const ALL_ON_FOCUS_POINTER = 0b0000_0100;
         /// All auto-selection features enabled.
-        const ENABLED = 0b1111_1111;
+        const ENABLED = 0b0000_0111;
     }
 }
 impl_from_and_into_var! {

@@ -139,7 +139,7 @@ impl FocusChangedArgs {
         }
     }
 
-    /// If `widget_id` is the new focus or a parent of the new focus and was not a parent of the previous focus.
+    /// If `widget_id` is the new focus or a parent of the new focus and was not the focus nor the parent of the previous focus.
     pub fn is_focus_enter(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => !prev.contains(widget_id) && new.contains(widget_id),
@@ -148,7 +148,7 @@ impl FocusChangedArgs {
         }
     }
 
-    /// If `widget_id` is the previous focus or a parent of the previous focus and is not a parent of the new focus.
+    /// If `widget_id` is the previous focus or a parent of the previous focus and is not the new focus nor a parent of the new focus.
     pub fn is_focus_leave(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.contains(widget_id) && !new.contains(widget_id),
