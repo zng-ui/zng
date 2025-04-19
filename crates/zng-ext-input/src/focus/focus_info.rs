@@ -170,7 +170,7 @@ impl<'de> serde::Deserialize<'de> for TabIndex {
 
 /// Tab navigation configuration of a focus scope.
 ///
-/// See the [module level](crate::focus#tab-navigation) for an overview of tab navigation.
+/// See the [module level](../#tab-navigation) for an overview of tab navigation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TabNav {
     /// Tab can move into the scope, but does not move the focus inside the scope.
@@ -201,7 +201,7 @@ impl fmt::Debug for TabNav {
 
 /// Directional navigation configuration of a focus scope.
 ///
-/// See the [module level](crate::focus#directional-navigation) for an overview of directional navigation.
+/// See the [module level](../#directional-navigation) for an overview of directional navigation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum DirectionalNav {
     /// Arrows can move into the scope, but does not move the focus inside the scope.

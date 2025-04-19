@@ -1517,9 +1517,11 @@ pub fn change_stop_delay(child: impl UiNode, delay: impl IntoVar<Duration>) -> i
     with_context_var(child, CHANGE_STOP_DELAY_VAR, delay)
 }
 
-/// Auto-selection on focus when the text is selectable.
+/// Auto-selection on focus change when the text is selectable.
 ///
 /// If enabled on keyboard focus all text is selected and on blur any selection is cleared.
+///
+/// In rich text contexts applies to all sub-component texts.
 #[property(CONTEXT, default(AUTO_SELECTION_VAR), widget_impl(TextEditMix<P>))]
 pub fn auto_selection(child: impl UiNode, mode: impl IntoVar<AutoSelection>) -> impl UiNode {
     with_context_var(child, AUTO_SELECTION_VAR, mode)
@@ -1551,7 +1553,9 @@ pub fn obscure_txt(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNo
 }
 
 bitflags! {
-    /// Defines when text is auto-selected on focus.
+    /// Defines when text is auto-selected on focus change.
+    ///
+    /// In a rich text context applies across all sub component texts.
     #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
     pub struct AutoSelection: u8 {
         /// No auto-selection.
@@ -1561,12 +1565,12 @@ bitflags! {
         /// This is the default behavior.
         const CLEAR_ON_BLUR = 0b0000_0001;
         /// Select all on keyboard initiated focus.
-        const ALL_ON_FOCUS_KEYBOARD = 0b0000_00010;
+        const ALL_ON_FOCUS_KEYBOARD = 0b0000_0010;
         /// Select all on pointer release if the pointer press event caused the focus to happen and it did not change
         /// the selection and there is no selection on release.
-        const ALL_ON_FOCUS_POINTER = 0b0000_00100;
+        const ALL_ON_FOCUS_POINTER = 0b0000_0100;
         /// All auto-selection features enabled.
-        const ENABLED = 0b1111_1111;
+        const ENABLED = 0b0000_0111;
     }
 }
 impl_from_and_into_var! {
@@ -1931,4 +1935,46 @@ pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(Font, std::o
             }
         }
     })
+}
+
+/// Rich text properties.
+///
+/// Note that these properties are usually set in parent panels of text widgets.
+#[widget_mixin]
+pub struct RichTextMix<P>(P);
+
+context_var! {
+    /// Selection toolbar function.
+    pub static RICH_TEXT_FOCUSED_Z_VAR: Option<ZIndex> = ZIndex::FRONT;
+}
+
+impl RichTextMix<()> {
+    /// Insert context variables used by properties in this mix-in.
+    pub fn context_vars_set(set: &mut ContextValueSet) {
+        set.insert(&RICH_TEXT_FOCUSED_Z_VAR);
+    }
+}
+
+/// Defines a *rich text* context.
+///
+/// When enabled text widget descendants of this widget edit the text across the widgets,
+/// for example, the caret position moves to the next text widget when it reaches the start/end of the first text widget.
+///
+/// Nested rich text contexts are allowed and are all part of the outermost context, enabling this property in all nested
+/// wrap panels is recommended as it enables some rich text behavior like bringing the focused widget to front to avoid
+/// clipping the caret.
+#[property(CONTEXT, default(false), widget_impl(RichTextMix<P>))]
+pub fn rich_text(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    crate::node::rich_text_node(child, enabled)
+}
+
+/// Defines the Z-index set on inner text (and nested rich text) widgets when focus is within.
+///
+/// Is [`ZIndex::FRONT`] by default, so that the caret visual is not clipped when the insert point is at
+/// an edge between texts. Set to `None` to not change the Z-index on focus.
+///
+/// Sets the [`RICH_TEXT_FOCUSED_Z_VAR`].
+#[property(CONTEXT, default(RICH_TEXT_FOCUSED_Z_VAR), widget_impl(RichTextMix<P>))]
+pub fn rich_text_focused_z(child: impl UiNode, z_index: impl IntoVar<Option<ZIndex>>) -> impl UiNode {
+    with_context_var(child, RICH_TEXT_FOCUSED_Z_VAR, z_index)
 }
