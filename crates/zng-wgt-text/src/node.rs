@@ -441,12 +441,12 @@ impl LaidoutText {
     }
 }
 
-/// Represents the parent rich text context.
+/// Represents the rich text context.
 ///
 /// Use [`TEXT`] to get.
 pub struct RichText {
     /// Widget that defines the rich text context.
-    pub parent: WidgetId,
+    pub root_id: WidgetId,
 }
 impl RichText {
     fn no_context() -> Self {

@@ -1302,7 +1302,6 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
         if let Some(args) = SELECT_CMD.scoped(widget.id()).on_unhandled(update) {
             if let Some(op) = args.param::<TextSelectOp>() {
                 args.propagation().stop();
-
                 op.clone().call();
             }
         } else if let Some(args) = SELECT_ALL_CMD.scoped(widget.id()).on_unhandled(update) {

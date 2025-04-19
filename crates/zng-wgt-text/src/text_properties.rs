@@ -1934,7 +1934,7 @@ pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(Font, std::o
 }
 
 /// Rich text properties.
-/// 
+///
 /// Note that these properties are usually set in parent panels of text widgets.
 #[widget_mixin]
 pub struct RichTextMix<P>(P);
@@ -1965,10 +1965,10 @@ pub fn rich_text(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode
 }
 
 /// Defines the Z-index set on inner text (and nested rich text) widgets when focus is within.
-/// 
+///
 /// Is [`ZIndex::FRONT`] by default, so that the caret visual is not clipped when the insert point is at
-/// an edge between texts. Set to `None` to not change the Z-index on focus. 
-/// 
+/// an edge between texts. Set to `None` to not change the Z-index on focus.
+///
 /// Sets the [`RICH_TEXT_FOCUSED_Z_VAR`].
 #[property(CONTEXT, default(RICH_TEXT_FOCUSED_Z_VAR), widget_impl(RichTextMix<P>))]
 pub fn rich_text_focused_z(child: impl UiNode, z_index: impl IntoVar<Option<ZIndex>>) -> impl UiNode {

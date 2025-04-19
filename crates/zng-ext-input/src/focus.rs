@@ -312,7 +312,7 @@ event! {
 ///
 /// # About Focus
 ///
-/// See the [module level](crate::focus) documentation for an overview of the keyboard
+/// See the [module level](../) documentation for an overview of the keyboard
 /// focus concepts implemented by this app extension.
 ///
 /// [`SHORTCUT_EVENT`]: crate::gesture::SHORTCUT_EVENT

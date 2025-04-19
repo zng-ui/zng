@@ -224,7 +224,7 @@ impl Text {
                 wgt.capture_var_or_default(property_id!(Self::txt))
             };
             wgt.push_intrinsic(NestGroup::EVENT, "resolve_text", |child| {
-                let child = node::rich_text_component(child);
+                let child = node::rich_text_component(child, "text");
                 node::resolve_text(child, text)
             });
         });

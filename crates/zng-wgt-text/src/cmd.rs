@@ -9,9 +9,12 @@ use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
+use zng_ext_input::focus::{FOCUS, WidgetFocusInfo};
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_wgt::prelude::*;
+
+use crate::node::{RichTextComponent, RichTextWidgetInfoExt};
 
 use super::{node::TEXT, *};
 
@@ -816,56 +819,234 @@ impl TextSelectOp {
     ///
     /// This is the `Right` key operation.
     pub fn next() -> Self {
-        Self::new(|| next_prev(true, SegmentedText::next_insert_index, |_, s| s.end.index))
+        Self::new(|| {
+            next_prev(
+                true,
+                SegmentedText::next_insert_index,
+                |_, s| s.end.index,
+                Some(|w| w.rich_text_next().next()),
+                || {
+                    Self::new(|| {
+                        Self::local_text_start().call();
+                        Self::local_next().call();
+                    })
+                },
+            )
+        })
+    }
+    /// Like [`next`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`next`]: Self::next
+    pub fn local_next() -> Self {
+        Self::new(|| next_prev(true, SegmentedText::next_insert_index, |_, s| s.end.index, None, || unreachable!()))
     }
 
     /// Extend or shrink selection by moving the caret to the next insert index.
     ///
     /// This is the `SHIFT+Right` key operation.
     pub fn select_next() -> Self {
-        Self::new(|| next_prev(false, SegmentedText::next_insert_index, |_, _| unreachable!()))
+        Self::new(|| {
+            next_prev(
+                false,
+                SegmentedText::next_insert_index,
+                |_, _| unreachable!(),
+                Some(|w| w.rich_text_next().next()),
+                Self::local_text_start, // !!: TODO
+            )
+        })
+    }
+    /// Like [`select_next`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_next`]: Self::select_next
+    pub fn local_select_next() -> Self {
+        Self::new(|| {
+            next_prev(
+                false,
+                SegmentedText::next_insert_index,
+                |_, _| unreachable!(),
+                None,
+                || unreachable!(),
+            )
+        })
     }
 
     /// Clear selection and move the caret to the previous insert index.
     ///
     /// This is the `Left` key operation.
     pub fn prev() -> Self {
-        Self::new(|| next_prev(true, SegmentedText::prev_insert_index, |_, s| s.start.index))
+        Self::new(|| {
+            next_prev(
+                true,
+                SegmentedText::prev_insert_index,
+                |_, s| s.start.index,
+                Some(|w| w.rich_text_prev().next()),
+                Self::local_text_end,
+            )
+        })
+    }
+    /// Like [`prev`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`prev`]: Self::prev
+    pub fn local_prev() -> Self {
+        Self::new(|| {
+            next_prev(
+                true,
+                SegmentedText::prev_insert_index,
+                |_, s| s.start.index,
+                None,
+                || unreachable!(),
+            )
+        })
     }
 
     /// Extend or shrink selection by moving the caret to the previous insert index.
     ///
     /// This is the `SHIFT+Left` key operation.
     pub fn select_prev() -> Self {
-        Self::new(|| next_prev(false, SegmentedText::prev_insert_index, |_, _| unreachable!()))
+        Self::new(|| {
+            next_prev(
+                false,
+                SegmentedText::prev_insert_index,
+                |_, _| unreachable!(),
+                Some(|w| w.rich_text_prev().next()),
+                Self::local_text_end, // !!: TODO
+            )
+        })
+    }
+    /// Like [`select_prev`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_prev`]: Self::select_prev
+    pub fn local_select_prev() -> Self {
+        Self::new(|| {
+            next_prev(
+                false,
+                SegmentedText::prev_insert_index,
+                |_, _| unreachable!(),
+                None,
+                || unreachable!(),
+            )
+        })
     }
 
     /// Clear selection and move the caret to the next word insert index.
     ///
     /// This is the `CTRL+Right` shortcut operation.
     pub fn next_word() -> Self {
-        Self::new(|| next_prev(true, SegmentedText::next_word_index, |t, s| t.next_word_index(s.end.index)))
+        Self::new(|| {
+            next_prev(
+                true,
+                SegmentedText::next_word_index,
+                |t, s| t.next_word_index(s.end.index),
+                Some(|w| w.rich_text_next().next()),
+                || {
+                    Self::new(|| {
+                        Self::local_text_start().call();
+                        Self::local_next_word().call();
+                    })
+                },
+            )
+        })
+    }
+    /// Like [`next_word`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`next_word`]: Self::next_word
+    pub fn local_next_word() -> Self {
+        Self::new(|| {
+            next_prev(
+                true,
+                SegmentedText::next_word_index,
+                |t, s| t.next_word_index(s.end.index),
+                None,
+                || unreachable!(),
+            )
+        })
     }
 
     /// Extend or shrink selection by moving the caret to the next word insert index.
     ///
     /// This is the `CTRL+SHIFT+Right` shortcut operation.
     pub fn select_next_word() -> Self {
-        Self::new(|| next_prev(false, SegmentedText::next_word_index, |_, _| unreachable!()))
+        Self::new(|| {
+            next_prev(
+                false,
+                SegmentedText::next_word_index,
+                |_, _| unreachable!(),
+                Some(|w| w.rich_text_next().next()),
+                Self::local_text_start, // !!: TODO
+            )
+        })
+    }
+    /// Like [`select_next_word`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_next_word`]: Self::select_next_word
+    pub fn local_select_next_word() -> Self {
+        Self::new(|| {
+            next_prev(
+                false,
+                SegmentedText::next_word_index,
+                |_, _| unreachable!(),
+                None,
+                || unreachable!(),
+            )
+        })
     }
 
     /// Clear selection and move the caret to the previous word insert index.
     ///
     /// This is the `CTRL+Left` shortcut operation.
     pub fn prev_word() -> Self {
-        Self::new(|| next_prev(true, SegmentedText::prev_word_index, |t, s| t.prev_word_index(s.start.index)))
+        Self::new(|| {
+            next_prev(
+                true,
+                SegmentedText::prev_word_index,
+                |t, s| t.prev_word_index(s.start.index),
+                Some(|w| w.rich_text_prev().next()),
+                Self::local_text_end,
+            )
+        })
+    }
+    /// Like [`prev_word`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`prev_word`]: Self::prev_word
+    pub fn local_prev_word() -> Self {
+        Self::new(|| {
+            next_prev(
+                true,
+                SegmentedText::prev_word_index,
+                |t, s| t.prev_word_index(s.start.index),
+                None,
+                || unreachable!(),
+            )
+        })
     }
 
     /// Extend or shrink selection by moving the caret to the previous word insert index.
     ///
     /// This is the `CTRL+SHIFT+Left` shortcut operation.
     pub fn select_prev_word() -> Self {
-        Self::new(|| next_prev(false, SegmentedText::prev_word_index, |_, _| unreachable!()))
+        Self::new(|| {
+            next_prev(
+                false,
+                SegmentedText::prev_word_index,
+                |_, _| unreachable!(),
+                Some(|w| w.rich_text_prev().next()),
+                Self::local_text_end, // !!: TODO
+            )
+        })
+    }
+    /// Like [`select_prev_word`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_prev_word`]: Self::select_prev_word
+    pub fn local_select_prev_word() -> Self {
+        Self::new(|| {
+            next_prev(
+                false,
+                SegmentedText::prev_word_index,
+                |_, _| unreachable!(),
+                None,
+                || unreachable!(),
+            )
+        })
     }
 
     /// Clear selection and move the caret to the nearest insert index on the previous line.
@@ -956,28 +1137,61 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+Home` shortcut operation.
     pub fn text_start() -> Self {
-        Self::new(|| text_start_end(true, |_| 0))
+        Self::new(|| text_start_end(true, |_| 0, Some(|w| w.rich_text_leafs().next()), Self::local_text_start))
+    }
+    /// Like [`text_start`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`text_start`]: Self::text_start
+    pub fn local_text_start() -> Self {
+        Self::new(|| text_start_end(true, |_| 0, None, || unreachable!()))
     }
 
     /// Extend or shrink selection by moving the caret to the text start.
     ///
     /// This is the `CTRL+SHIFT+Home` shortcut operation.
     pub fn select_text_start() -> Self {
-        Self::new(|| text_start_end(false, |_| 0))
+        // !!: TODO
+        Self::new(|| text_start_end(false, |_| 0, Some(|w| w.rich_text_leafs().next()), Self::local_select_text_start))
+    }
+    /// Like [`select_text_start`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_text_start`]: Self::select_text_start
+    pub fn local_select_text_start() -> Self {
+        Self::new(|| text_start_end(false, |_| 0, None, || unreachable!()))
     }
 
     /// Clear selection and move the caret to the text end.
     ///
     /// This is the `CTRL+End` shortcut operation.
     pub fn text_end() -> Self {
-        Self::new(|| text_start_end(true, |s| s.len()))
+        Self::new(|| text_start_end(true, |s| s.len(), Some(|w| w.rich_text_leafs_rev().next()), Self::local_text_end))
+    }
+    /// Like [`text_end`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`text_end`]: Self::text_end
+    pub fn local_text_end() -> Self {
+        Self::new(|| text_start_end(true, |s| s.len(), None, || unreachable!()))
     }
 
     /// Extend or shrink selection by moving the caret to the text end.
     ///
     /// This is the `CTRL+SHIFT+End` shortcut operation.
     pub fn select_text_end() -> Self {
-        Self::new(|| text_start_end(false, |s| s.len()))
+        // !!: TODO
+        Self::new(|| {
+            text_start_end(
+                false,
+                |s| s.len(),
+                Some(|w| w.rich_text_leafs_rev().next()),
+                Self::local_select_text_end,
+            )
+        })
+    }
+    /// Like [`select_text_end`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_text_end`]: Self::select_text_end
+    pub fn local_select_text_end() -> Self {
+        Self::new(|| text_start_end(false, |s| s.len(), None, || unreachable!()))
     }
 
     /// Clear selection and move the caret to the insert point nearest to the `window_point`.
@@ -1040,6 +1254,8 @@ fn next_prev(
     clear_selection: bool,
     index_from_caret: fn(&SegmentedText, usize) -> usize,
     index_from_selection: fn(&SegmentedText, ops::Range<CaretIndex>) -> usize,
+    widget_from_current: Option<fn(WidgetInfo) -> Option<WidgetFocusInfo>>,
+    rich_text_op: fn() -> TextSelectOp,
 ) {
     // compute next caret position
     let resolved = TEXT.resolved();
@@ -1070,9 +1286,23 @@ fn next_prev(
     c.set_index(next_index);
     c.used_retained_x = false;
 
-    if current_index == next_index {
-        if let Some(ctx) = TEXT.try_rich() {
-            println!("!!: TODO try to navigate to next")
+    if current_index == next_index || next_index == CaretIndex::ZERO { // !!: TODO prev_word to next_index=0 causes jump to start
+        if let Some(widget_from_current) = widget_from_current {
+            if let Some(_ctx) = TEXT.try_rich() {
+                let info = WIDGET.info();
+                if matches!(info.rich_text_component(), Some(RichTextComponent::Leaf { .. })) {
+                    if let Some(next) = widget_from_current(info) {
+                        let next_id = next.info().id();
+                        let cmd = SELECT_CMD.scoped(next_id);
+                        if cmd.is_enabled().get() {
+                            if FOCUS.is_focused(WIDGET.id()).get() {
+                                FOCUS.focus_widget(next_id, false);
+                            }
+                            cmd.notify_param(rich_text_op());
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1198,7 +1428,33 @@ fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize
     }
 }
 
-fn text_start_end(clear_selection: bool, index: impl FnOnce(&str) -> usize) {
+fn text_start_end(
+    clear_selection: bool,
+    index: impl FnOnce(&str) -> usize,
+    widget_from_root: Option<fn(WidgetInfo) -> Option<WidgetFocusInfo>>,
+    rich_text_op: fn() -> TextSelectOp,
+) {
+    if let Some(widget_from_root) = widget_from_root {
+        if let Some(w) = TEXT.try_rich() {
+            if let Some(root) = w.root_info() {
+                if let Some(start) = widget_from_root(root) {
+                    let id = start.info().id();
+                    let current_id = WIDGET.id();
+                    if id != current_id {
+                        let cmd = SELECT_CMD.scoped(id);
+                        if cmd.is_enabled().get() {
+                            if FOCUS.is_focused(current_id).get() {
+                                FOCUS.focus_widget(id, false);
+                            }
+                            SELECT_CMD.scoped(id).notify_param(rich_text_op());
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     let idx = index(TEXT.resolved().segmented_text.text());
 
     let mut caret = TEXT.resolve_caret();
