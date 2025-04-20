@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use zng_app::widget::node::Z_INDEX;
-use zng_ext_input::focus::{FOCUS_CHANGED_EVENT, WidgetFocusInfo, WidgetInfoFocusExt};
+use zng_ext_input::focus::{WidgetFocusInfo, WidgetInfoFocusExt, FOCUS_CHANGED_EVENT};
 use zng_ext_window::WINDOWS;
 use zng_wgt::prelude::*;
 
 use crate::RICH_TEXT_FOCUSED_Z_VAR;
 
-use super::{RICH_TEXT, RichText, TEXT};
+use super::{RichCaretInfo, RichText, RICH_TEXT, TEXT};
 
 pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
@@ -19,7 +19,13 @@ pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) ->
         UiNodeOp::Init => {
             WIDGET.sub_var(&enabled);
             if enabled.get() && TEXT.try_rich().is_none() {
-                ctx = Some(Arc::new(RwLock::new(RichText { root_id: WIDGET.id() })));
+                ctx = Some(Arc::new(RwLock::new(RichText {
+                    root_id: WIDGET.id(),
+                    caret: RichCaretInfo {
+                        index: None,
+                        selection_index: None,
+                    },
+                })));
 
                 RICH_TEXT.with_context(&mut ctx, || child.init());
             }
@@ -127,6 +133,42 @@ impl RichText {
     pub fn root_info(&self) -> Option<WidgetInfo> {
         WINDOWS.widget_info(self.root_id)
     }
+
+    /// Iterate over the text/leaf component descendants that can be interacted with.
+    pub fn leaves(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static {
+        self.root_info().into_iter().flat_map(|w| rich_text_leaves_static(&w))
+    }
+
+    /// Iterate over the text/leaf component descendants that can be interacted with in reverse.
+    pub fn leaves_rev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static {
+        self.root_info().into_iter().flat_map(|w| rich_text_leaves_rev_static(&w))
+    }
+
+    /// Iterate over all text/leaf components that are part of the selection.
+    ///
+    /// The return iterator is empty if there is no selection.
+    pub fn selection(&self) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + 'static {
+        let (root, a, b) = match (self.caret.index, self.caret.selection_index) {
+            (Some(a), Some(b)) => (self.root_info(), a, b),
+            _ => (None, self.root_id, self.root_id),
+        };
+        OptKnownLenIter {
+            known_len_iter: root.into_iter().flat_map(move |w| rich_text_selection_static(&w, a, b)),
+        }
+    }
+
+    /// Iterate over all text/leaf components that are part of the selection in reverse.
+    ///
+    /// The return iterator is empty if there is no selection.
+    pub fn selection_rev(&self) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + 'static {
+        let (root, a, b) = match (self.caret.index, self.caret.selection_index) {
+            (Some(a), Some(b)) => (self.root_info(), a, b),
+            _ => (None, self.root_id, self.root_id),
+        };
+        OptKnownLenIter {
+            known_len_iter: root.into_iter().flat_map(move |w| rich_text_selection_rev_static(&w, a, b)),
+        }
+    }
 }
 
 /// Extends [`WidgetInfo`] state to provide information about rich text.
@@ -138,15 +180,24 @@ pub trait RichTextWidgetInfoExt {
     fn rich_text_component(&self) -> Option<RichTextComponent>;
 
     /// Iterate over the text/leaf component descendants that can be interacted with.
-    fn rich_text_leafs(&self) -> impl Iterator<Item = WidgetFocusInfo>;
+    fn rich_text_leaves(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
     /// Iterate over the text/leaf component descendants that can be interacted with, in reverse.
-    fn rich_text_leafs_rev(&self) -> impl Iterator<Item = WidgetFocusInfo>;
+    fn rich_text_leaves_rev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
+
+    /// Iterate over the selection text/leaf component descendants that can be interacted with.
+    ///
+    /// The iterator is over `a..=b` or if `a` is after `b` the iterator is over `b..=a`.
+    fn rich_text_selection(&self, a: WidgetId, b: WidgetId) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + 'static;
+
+    /// Iterate over the selection text/leaf component descendants that can be interacted with, in reverse.
+    ///
+    /// The iterator is over `b..=a` or if `a` is after `b` the iterator is over `a..=b`.
+    fn rich_text_selection_rev(&self, a: WidgetId, b: WidgetId) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + 'static;
 
     /// Iterate over the prev text/leaf components before the current one.
-    fn rich_text_prev(&self) -> impl Iterator<Item = WidgetFocusInfo>;
-
+    fn rich_text_prev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
     /// Iterate over the next text/leaf components after the current one.
-    fn rich_text_next(&self) -> impl Iterator<Item = WidgetFocusInfo>;
+    fn rich_text_next(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
 }
 impl RichTextWidgetInfoExt for WidgetInfo {
     fn rich_text_root(&self) -> Option<WidgetInfo> {
@@ -158,32 +209,112 @@ impl RichTextWidgetInfoExt for WidgetInfo {
         self.meta().copy(*RICH_TEXT_COMPONENT_ID)
     }
 
-    fn rich_text_leafs(&self) -> impl Iterator<Item = WidgetFocusInfo> {
-        self.descendants()
-            .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
-            .filter_map(|w| w.into_focusable(false, false))
+    fn rich_text_leaves(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static {
+        rich_text_leaves_static(self)
     }
-    fn rich_text_leafs_rev(&self) -> impl Iterator<Item = WidgetFocusInfo> {
-        self.descendants()
-            .tree_rev()
+    fn rich_text_leaves_rev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static {
+        rich_text_leaves_rev_static(self)
+    }
+
+    fn rich_text_selection(&self, a: WidgetId, b: WidgetId) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + 'static {
+        rich_text_selection_static(self, a, b)
+    }
+    fn rich_text_selection_rev(&self, a: WidgetId, b: WidgetId) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + 'static {
+        rich_text_selection_rev_static(self, a, b)
+    }
+
+    fn rich_text_prev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static {
+        let me = self.clone();
+        self.rich_text_root()
+            .into_iter()
+            .flat_map(move |w| me.prev_siblings_in(&w))
             .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
             .filter_map(|w| w.into_focusable(false, false))
     }
 
-    fn rich_text_prev(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+    fn rich_text_next(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static {
+        let me = self.clone();
         self.rich_text_root()
             .into_iter()
-            .flat_map(|w| self.prev_siblings_in(&w))
+            .flat_map(move |w| me.next_siblings_in(&w))
             .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
             .filter_map(|w| w.into_focusable(false, false))
     }
+}
 
-    fn rich_text_next(&self) -> impl Iterator<Item = WidgetFocusInfo> {
-        self.rich_text_root()
-            .into_iter()
-            .flat_map(|w| self.next_siblings_in(&w))
-            .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
-            .filter_map(|w| w.into_focusable(false, false))
+// implemented here because there is a borrow checker limitation with `+'static`
+// that will only be fixed when `+use<>` is allowed in trait methods.
+fn rich_text_leaves_static(wgt: &WidgetInfo) -> impl Iterator<Item = WidgetFocusInfo> + use<> {
+    wgt.descendants()
+        .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
+        .filter_map(|w| w.into_focusable(false, false))
+}
+fn rich_text_leaves_rev_static(wgt: &WidgetInfo) -> impl Iterator<Item = WidgetFocusInfo> + use<> {
+    wgt.descendants()
+        .tree_rev()
+        .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
+        .filter_map(|w| w.into_focusable(false, false))
+}
+fn rich_text_selection_static(wgt: &WidgetInfo, a: WidgetId, b: WidgetId) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + use<> {
+    let mut ai = usize::MAX;
+    let mut bi = usize::MAX;
+
+    for (i, leaf) in wgt.rich_text_leaves().enumerate() {
+        let id = leaf.info().id();
+        if id == a {
+            ai = i;
+        } else if id == b {
+            bi = i;
+        }
+        if ai != usize::MAX && bi != usize::MAX {
+            break;
+        }
+    }
+
+    if ai > bi {
+        std::mem::swap(&mut ai, &mut bi);
+    }
+
+    let (skip, take) = if ai != usize::MAX && bi != usize::MAX {
+        (ai, bi - ai)
+    } else {
+        (0, 0)
+    };
+
+    KnownLenIter {
+        take: rich_text_leaves_static(wgt).skip(skip).take(take),
+        len: take,
+    }
+}
+fn rich_text_selection_rev_static(wgt: &WidgetInfo, a: WidgetId, b: WidgetId) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + use<> {
+    let mut ai = usize::MAX;
+    let mut bi = usize::MAX;
+
+    for (i, leaf) in wgt.rich_text_leaves_rev().enumerate() {
+        let id = leaf.info().id();
+        if id == a {
+            ai = i;
+        } else if id == b {
+            bi = i;
+        }
+        if ai != usize::MAX && bi != usize::MAX {
+            break;
+        }
+    }
+
+    if ai > bi {
+        std::mem::swap(&mut ai, &mut bi);
+    }
+
+    let (skip, take) = if ai != usize::MAX && bi != usize::MAX {
+        (ai, bi - ai)
+    } else {
+        (0, 0)
+    };
+
+    KnownLenIter {
+        take: rich_text_leaves_rev_static(wgt).skip(skip).take(take),
+        len: take,
     }
 }
 
@@ -206,3 +337,43 @@ pub enum RichTextComponent {
 static_id! {
     static ref RICH_TEXT_COMPONENT_ID: StateId<RichTextComponent>;
 }
+
+struct KnownLenIter<I> {
+    take: I,
+    len: usize,
+}
+impl<I: Iterator<Item = WidgetFocusInfo>> Iterator for KnownLenIter<I> {
+    type Item = WidgetFocusInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.take.next() {
+            Some(r) => {
+                self.len -= 1;
+                Some(r)
+            }
+            None => None,
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
+}
+impl<I: Iterator<Item = WidgetFocusInfo>> ExactSizeIterator for KnownLenIter<I> {}
+
+struct OptKnownLenIter<I> {
+    known_len_iter: I,
+}
+impl<I: Iterator<Item = WidgetFocusInfo>> Iterator for OptKnownLenIter<I> {
+    type Item = WidgetFocusInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.known_len_iter.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // is either 0 from `None` or known len from `Some(KnownLenIter)`
+        self.known_len_iter.size_hint()
+    }
+}
+impl<I: Iterator<Item = WidgetFocusInfo>> ExactSizeIterator for OptKnownLenIter<I> {}

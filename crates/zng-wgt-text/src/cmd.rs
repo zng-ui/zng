@@ -1137,7 +1137,7 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+Home` shortcut operation.
     pub fn text_start() -> Self {
-        Self::new(|| text_start_end(true, |_| 0, Some(|w| w.rich_text_leafs().next()), Self::local_text_start))
+        Self::new(|| text_start_end(true, |_| 0, Some(|w| w.rich_text_leaves().next()), Self::local_text_start))
     }
     /// Like [`text_start`] but stays within the same text widget, ignores rich text context.
     ///
@@ -1151,7 +1151,7 @@ impl TextSelectOp {
     /// This is the `CTRL+SHIFT+Home` shortcut operation.
     pub fn select_text_start() -> Self {
         // !!: TODO
-        Self::new(|| text_start_end(false, |_| 0, Some(|w| w.rich_text_leafs().next()), Self::local_select_text_start))
+        Self::new(|| text_start_end(false, |_| 0, Some(|w| w.rich_text_leaves().next()), Self::local_select_text_start))
     }
     /// Like [`select_text_start`] but stays within the same text widget, ignores rich text context.
     ///
@@ -1164,7 +1164,7 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+End` shortcut operation.
     pub fn text_end() -> Self {
-        Self::new(|| text_start_end(true, |s| s.len(), Some(|w| w.rich_text_leafs_rev().next()), Self::local_text_end))
+        Self::new(|| text_start_end(true, |s| s.len(), Some(|w| w.rich_text_leaves_rev().next()), Self::local_text_end))
     }
     /// Like [`text_end`] but stays within the same text widget, ignores rich text context.
     ///
@@ -1182,7 +1182,7 @@ impl TextSelectOp {
             text_start_end(
                 false,
                 |s| s.len(),
-                Some(|w| w.rich_text_leafs_rev().next()),
+                Some(|w| w.rich_text_leaves_rev().next()),
                 Self::local_select_text_end,
             )
         })
@@ -1241,7 +1241,7 @@ impl TextSelectOp {
             if let Some(ctx) = TEXT.try_rich() {
                 if let Some(info) = ctx.root_info() {
                     let mut last_id = None;
-                    for leaf in info.rich_text_leafs() {
+                    for leaf in info.rich_text_leaves() {
                         let leaf_id = leaf.info().id();
                         SELECT_CMD.scoped(leaf_id).notify_param(Self::local_select_all());
                         last_id = Some(leaf_id);
@@ -1312,9 +1312,10 @@ fn next_prev(
     c.used_retained_x = false;
 
     if current_index == next_index || next_index == CaretIndex::ZERO {
-        // !!: TODO prev_word to next_index=0 causes jump to start
         if let Some(widget_from_current) = widget_from_current {
             if let Some(_ctx) = TEXT.try_rich() {
+                // prev/next widget
+
                 let info = WIDGET.info();
                 if matches!(info.rich_text_component(), Some(RichTextComponent::Leaf { .. })) {
                     if let Some(next) = widget_from_current(info) {

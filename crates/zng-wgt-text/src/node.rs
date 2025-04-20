@@ -38,7 +38,20 @@ pub use render::*;
 mod caret;
 pub use caret::*;
 
-/// Represents the caret position at the [`ResolvedText`] level.
+/// Represents the caret position in a [`RichText`] context.
+#[derive(Clone, Debug)]
+pub struct RichCaretInfo {
+    /// Widget that defines the caret insert position.
+    ///
+    /// Inside the widget the [`CaretInfo::index`] defines the actual index.
+    pub index: Option<WidgetId>,
+    /// Widget that defines the selection second index.
+    ///
+    /// Inside the widget the [`CaretInfo::selection_Index`] defines the actual index.
+    pub selection_index: Option<WidgetId>,
+}
+
+/// Represents the caret position at the [`ResolvedText`] context.
 #[derive(Clone)]
 pub struct CaretInfo {
     /// Caret opacity.
@@ -244,12 +257,27 @@ impl TEXT {
     }
 
     /// Write lock the current contextual resolved text to edit the caret.
+    ///
+    /// Note that the entire `ResolvedText` is exclusive locked, you cannot access the resolved text while holding this lock.
     ///     
     /// # Panics
     ///
     /// Panics if requested in a node outside [`resolve_text`].
     pub fn resolve_caret(&self) -> MappedRwLockWriteGuardOwned<ResolvedText, CaretInfo> {
         RwLockWriteGuardOwned::map(self.resolve(), |ctx| &mut ctx.caret)
+    }
+
+    /// Write lock the current contextual rich text to edit the caret.
+    ///
+    /// Note that the entire `RichText` is exclusive locked, you cannot access the rich text while holding this lock.
+    ///
+    /// # Panics
+    ///
+    /// Panics if requested in a node outside [`rich_text`].
+    ///
+    /// [`rich_text`]: fn@crate::rich_text
+    pub fn resolve_rich_caret(&self) -> MappedRwLockWriteGuardOwned<RichText, RichCaretInfo> {
+        RwLockWriteGuardOwned::map(RICH_TEXT.write(), |ctx| &mut ctx.caret)
     }
 
     pub(crate) fn resolve(&self) -> RwLockWriteGuardOwned<ResolvedText> {
@@ -447,6 +475,9 @@ impl LaidoutText {
 pub struct RichText {
     /// Widget that defines the rich text context.
     pub root_id: WidgetId,
+
+    /// Widgets that define the caret and selection indexes.
+    pub caret: RichCaretInfo,
 }
 impl RichText {
     fn no_context() -> Self {
