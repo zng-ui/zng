@@ -9,7 +9,7 @@ use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
-use zng_ext_input::focus::{WidgetFocusInfo, FOCUS};
+use zng_ext_input::focus::{FOCUS, WidgetFocusInfo};
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_wgt::prelude::*;
@@ -1185,13 +1185,13 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) {
             if is_next {
                 for leaf in ctx.selection() {
                     let leaf_id = leaf.info().id();
-                    SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::local_text_end());
+                    SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::local_next());
                     clear_end = Some(leaf_id);
                 }
             } else {
                 for leaf in ctx.selection_rev() {
                     let leaf_id = leaf.info().id();
-                    SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::local_text_start());
+                    SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::local_prev());
                     clear_end = Some(leaf_id);
                 }
             }
@@ -1272,22 +1272,26 @@ fn local_clear_next_prev(is_next: bool, is_word: bool) -> bool {
     let ctx = TEXT.resolved();
     let current_index = ctx.caret.index.unwrap_or(CaretIndex::ZERO);
     let mut next_index = current_index;
-    let selection_range_or_caret = ctx.caret.selection_range().unwrap_or_else(|| current_index..current_index);
-    next_index.index = if is_next {
-        let from = selection_range_or_caret.end.index;
-        if is_word {
-            ctx.segmented_text.next_word_index(from)
-        } else {
-            ctx.segmented_text.next_insert_index(from)
-        }
+    if let Some(selection) = ctx.caret.selection_range() {
+        next_index.index = if is_next { selection.end.index } else { selection.start.index };
     } else {
-        let from = selection_range_or_caret.start.index;
-        if is_word {
-            ctx.segmented_text.prev_word_index(from)
+        next_index.index = if is_next {
+            let from = current_index.index;
+            if is_word {
+                ctx.segmented_text.next_word_index(from)
+            } else {
+                ctx.segmented_text.next_insert_index(from)
+            }
         } else {
-            ctx.segmented_text.prev_insert_index(from)
-        }
-    };
+            let from = current_index.index;
+            if is_word {
+                ctx.segmented_text.prev_word_index(from)
+            } else {
+                ctx.segmented_text.prev_insert_index(from)
+            }
+        };
+    }
+
     drop(ctx);
 
     let mut ctx = TEXT.resolve_caret();

@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use zng_app::widget::node::Z_INDEX;
-use zng_ext_input::focus::{WidgetFocusInfo, WidgetInfoFocusExt, FOCUS_CHANGED_EVENT};
+use zng_ext_input::focus::{FOCUS_CHANGED_EVENT, WidgetFocusInfo, WidgetInfoFocusExt};
 use zng_ext_window::WINDOWS;
 use zng_wgt::prelude::*;
 
 use crate::RICH_TEXT_FOCUSED_Z_VAR;
 
-use super::{RichCaretInfo, RichText, RICH_TEXT, TEXT};
+use super::{RICH_TEXT, RichCaretInfo, RichText, TEXT};
 
 pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
@@ -299,7 +299,7 @@ fn rich_text_selection_static(wgt: &WidgetInfo, a: WidgetId, b: WidgetId) -> imp
     }
 
     let (skip, take) = if ai != usize::MAX && bi != usize::MAX {
-        (ai, bi - ai)
+        (ai, bi - ai + 1)
     } else {
         (0, 0)
     };
@@ -330,7 +330,7 @@ fn rich_text_selection_rev_static(wgt: &WidgetInfo, a: WidgetId, b: WidgetId) ->
     }
 
     let (skip, take) = if ai != usize::MAX && bi != usize::MAX {
-        (ai, bi - ai)
+        (ai, bi - ai + 1)
     } else {
         (0, 0)
     };
