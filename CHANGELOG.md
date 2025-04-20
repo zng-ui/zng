@@ -1,6 +1,7 @@
 # Unreleased
 
-* Add missing `zng::text::txt_selectable` reexport.
+* Implement `From<WidgetFocusInfo> for WidgetInfo`.
+* Surface `zng::text::txt_selectable` property.
 * Fix incorrect `Wrap!` debug validation with negative spacing.
 * Fix shift+arrow key gestures not starting text selection until next arrow key press.
 * Update dependencies.

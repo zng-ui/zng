@@ -1702,6 +1702,11 @@ impl WidgetFocusInfo {
         nav
     }
 }
+impl_from_and_into_var! {
+    fn from(focus_info: WidgetFocusInfo) -> WidgetInfo {
+        focus_info.info
+    }
+}
 
 /// Focus metadata associated with a widget info tree.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
