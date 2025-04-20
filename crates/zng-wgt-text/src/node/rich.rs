@@ -169,6 +169,29 @@ impl RichText {
             known_len_iter: root.into_iter().flat_map(move |w| rich_text_selection_rev_static(&w, a, b)),
         }
     }
+
+    /// Gets the `caret.index` widget info if it is set and is a valid leaf.
+    pub fn caret_index_info(&self) -> Option<WidgetFocusInfo> {
+        self.leaf_info(self.caret.index?)
+    }
+
+    /// Gets the `caret.selection_index` widget info if it is set and is a valid leaf.
+    pub fn caret_selection_index_info(&self) -> Option<WidgetFocusInfo> {
+        self.leaf_info(self.caret.selection_index?)
+    }
+
+    /// Gets the `id` widget info if it is a valid leaf in the rich text context.
+    pub fn leaf_info(&self, id: WidgetId) -> Option<WidgetFocusInfo> {
+        let root = self.root_info()?;
+        let wgt = root.tree().get(id)?;
+        if !matches!(wgt.rich_text_component(), Some(RichTextComponent::Leaf { .. })) {
+            return None;
+        }
+        if !wgt.is_descendant(&root) {
+            return None;
+        }
+        wgt.into_focusable(false, false)
+    }
 }
 
 /// Extends [`WidgetInfo`] state to provide information about rich text.
