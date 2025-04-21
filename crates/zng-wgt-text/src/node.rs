@@ -47,7 +47,7 @@ pub struct RichCaretInfo {
     pub index: Option<WidgetId>,
     /// Widget that defines the selection second index.
     ///
-    /// Inside the widget the [`CaretInfo::selection_Index`] defines the actual index.
+    /// Inside the widget the [`CaretInfo::selection_index`] defines the actual index.
     pub selection_index: Option<WidgetId>,
 }
 
