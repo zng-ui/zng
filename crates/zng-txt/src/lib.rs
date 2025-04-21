@@ -628,6 +628,91 @@ impl Ord for Txt {
         self.as_str().cmp(other.as_str())
     }
 }
+impl FromIterator<char> for Txt {
+    fn from_iter<I: IntoIterator<Item = char>>(iter: I) -> Txt {
+        String::from_iter(iter).into()
+    }
+}
+impl<'a> FromIterator<&'a char> for Txt {
+    fn from_iter<I: IntoIterator<Item = &'a char>>(iter: I) -> Txt {
+        String::from_iter(iter).into()
+    }
+}
+impl<'a> FromIterator<&'a str> for Txt {
+    fn from_iter<I: IntoIterator<Item = &'a str>>(iter: I) -> Txt {
+        String::from_iter(iter).into()
+    }
+}
+impl FromIterator<String> for Txt {
+    fn from_iter<I: IntoIterator<Item = String>>(iter: I) -> Txt {
+        String::from_iter(iter).into()
+    }
+}
+impl<'a> FromIterator<Cow<'a, str>> for Txt {
+    fn from_iter<I: IntoIterator<Item = Cow<'a, str>>>(iter: I) -> Txt {
+        String::from_iter(iter).into()
+    }
+}
+
+impl FromIterator<Txt> for Txt {
+    fn from_iter<I: IntoIterator<Item = Txt>>(iter: I) -> Txt {
+        let mut iterator = iter.into_iter();
+
+        match iterator.next() {
+            None => Txt::from_static(""),
+            Some(mut buf) => {
+                buf.extend(iterator);
+                buf
+            }
+        }
+    }
+}
+
+impl Extend<char> for Txt {
+    fn extend<T: IntoIterator<Item = char>>(&mut self, iter: T) {
+        if let TxtData::String(s) = &mut self.0 {
+            s.extend(iter);
+        } else {
+            let iter = iter.into_iter();
+            let (lower_bound, _) = iter.size_hint();
+
+            if self.len() + lower_bound < INLINE_MAX {
+                // avoid alloc
+                for c in iter {
+                    self.push(c);
+                }
+            } else {
+                self.to_mut().extend(iter);
+            }
+        }
+    }
+}
+impl<'a> Extend<&'a char> for Txt {
+    fn extend<I: IntoIterator<Item = &'a char>>(&mut self, iter: I) {
+        self.extend(iter.into_iter().cloned());
+    }
+}
+impl<'a> Extend<&'a str> for Txt {
+    fn extend<I: IntoIterator<Item = &'a str>>(&mut self, iter: I) {
+        iter.into_iter().for_each(move |s| self.push_str(s));
+    }
+}
+impl Extend<String> for Txt {
+    fn extend<I: IntoIterator<Item = String>>(&mut self, iter: I) {
+        iter.into_iter().for_each(move |s| self.push_str(&s));
+    }
+}
+impl<'a> Extend<Cow<'a, str>> for Txt {
+    fn extend<I: IntoIterator<Item = Cow<'a, str>>>(&mut self, iter: I) {
+        iter.into_iter().for_each(move |s| self.push_str(&s));
+    }
+}
+
+impl Extend<Txt> for Txt {
+    fn extend<I: IntoIterator<Item = Txt>>(&mut self, iter: I) {
+        iter.into_iter().for_each(move |s| self.push_str(&s));
+    }
+}
 
 /// A trait for converting a value to a [`Txt`].
 ///
