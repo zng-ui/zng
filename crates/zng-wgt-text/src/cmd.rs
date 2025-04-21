@@ -9,7 +9,7 @@ use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
-use zng_ext_input::focus::{FOCUS, WidgetFocusInfo};
+use zng_ext_input::focus::FOCUS;
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_wgt::prelude::*;
@@ -1039,61 +1039,52 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+Home` shortcut operation.
     pub fn text_start() -> Self {
-        Self::new(|| text_start_end(true, |_| 0, Some(|w| w.rich_text_leaves().next()), Self::local_text_start))
+        Self::new(|| rich_clear_text_start_end(false))
     }
     /// Like [`text_start`] but stays within the same text widget, ignores rich text context.
     ///
     /// [`text_start`]: Self::text_start
     pub fn local_text_start() -> Self {
-        Self::new(|| text_start_end(true, |_| 0, None, || unreachable!()))
+        Self::new(|| local_clear_text_start_end(false))
     }
 
     /// Extend or shrink selection by moving the caret to the text start.
     ///
     /// This is the `CTRL+SHIFT+Home` shortcut operation.
     pub fn select_text_start() -> Self {
-        // !!: TODO
-        Self::new(|| text_start_end(false, |_| 0, Some(|w| w.rich_text_leaves().next()), Self::local_select_text_start))
+        Self::new(|| rich_select_text_start_end(false))
     }
     /// Like [`select_text_start`] but stays within the same text widget, ignores rich text context.
     ///
     /// [`select_text_start`]: Self::select_text_start
     pub fn local_select_text_start() -> Self {
-        Self::new(|| text_start_end(false, |_| 0, None, || unreachable!()))
+        Self::new(|| local_select_text_start_end(false))
     }
 
     /// Clear selection and move the caret to the text end.
     ///
     /// This is the `CTRL+End` shortcut operation.
     pub fn text_end() -> Self {
-        Self::new(|| text_start_end(true, |s| s.len(), Some(|w| w.rich_text_leaves_rev().next()), Self::local_text_end))
+        Self::new(|| rich_clear_text_start_end(true))
     }
     /// Like [`text_end`] but stays within the same text widget, ignores rich text context.
     ///
     /// [`text_end`]: Self::text_end
     pub fn local_text_end() -> Self {
-        Self::new(|| text_start_end(true, |s| s.len(), None, || unreachable!()))
+        Self::new(|| local_clear_text_start_end(true))
     }
 
     /// Extend or shrink selection by moving the caret to the text end.
     ///
     /// This is the `CTRL+SHIFT+End` shortcut operation.
     pub fn select_text_end() -> Self {
-        // !!: TODO
-        Self::new(|| {
-            text_start_end(
-                false,
-                |s| s.len(),
-                Some(|w| w.rich_text_leaves_rev().next()),
-                Self::local_select_text_end,
-            )
-        })
+        Self::new(|| rich_select_text_start_end(true))
     }
     /// Like [`select_text_end`] but stays within the same text widget, ignores rich text context.
     ///
     /// [`select_text_end`]: Self::select_text_end
     pub fn local_select_text_end() -> Self {
-        Self::new(|| text_start_end(false, |s| s.len(), None, || unreachable!()))
+        Self::new(|| local_select_text_start_end(true))
     }
 
     /// Clear selection and move the caret to the insert point nearest to the `window_point`.
@@ -1142,15 +1133,26 @@ impl TextSelectOp {
         Self::new(|| {
             if let Some(ctx) = TEXT.try_rich() {
                 if let Some(info) = ctx.root_info() {
+                    let mut first_id = None;
                     let mut last_id = None;
                     for leaf in info.rich_text_leaves() {
                         let leaf_id = leaf.info().id();
                         SELECT_CMD.scoped(leaf_id).notify_param(Self::local_select_all());
+
+                        if first_id.is_none() {
+                            first_id = Some(leaf_id);
+                        }
                         last_id = Some(leaf_id);
                     }
+                    let root_id = ctx.root_id;
+                    drop(ctx);
+                    let mut ctx = TEXT.resolve_rich_caret();
+                    ctx.selection_index = first_id;
+                    ctx.index = last_id;
+
                     if let Some(last_id) = last_id {
                         let current_id = WIDGET.id();
-                        if last_id != current_id && FOCUS.is_focused(current_id).get() {
+                        if last_id != current_id && FOCUS.is_focus_within(root_id).get() {
                             FOCUS.focus_widget(last_id, false);
                         }
                         return;
@@ -1250,7 +1252,7 @@ fn continue_rich_clear_next_prev(is_next: bool, is_word: bool, caret_wgt: &Widge
             let advance_id = advance.info().id();
             SELECT_CMD.scoped(advance_id).notify_param(if is_next {
                 TextSelectOp::new(move || {
-                    TextSelectOp::local_text_start().call();
+                    local_clear_text_start_end(false);
                     local_clear_next_prev(true, is_word);
                 })
             } else {
@@ -1345,12 +1347,12 @@ fn continue_rich_select_next_prev(is_next: bool, is_word: bool, caret_wgt: &Widg
             let advance_id = advance.info().id();
             SELECT_CMD.scoped(advance_id).notify_param(if is_next {
                 TextSelectOp::new(move || {
-                    TextSelectOp::local_text_start().call();
+                    local_clear_text_start_end(false);
                     local_select_next_prev(true, is_word);
                 })
             } else {
                 TextSelectOp::new(move || {
-                    TextSelectOp::local_text_end().call();
+                    local_clear_text_start_end(true);
                     local_select_next_prev(false, is_word);
                 })
             });
@@ -1517,47 +1519,118 @@ fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize
     }
 }
 
-fn text_start_end(
-    clear_selection: bool,
-    index: impl FnOnce(&str) -> usize,
-    widget_from_root: Option<fn(WidgetInfo) -> Option<WidgetFocusInfo>>,
-    rich_text_op: fn() -> TextSelectOp,
-) {
-    if let Some(widget_from_root) = widget_from_root {
-        if let Some(w) = TEXT.try_rich() {
-            if let Some(root) = w.root_info() {
-                if let Some(start) = widget_from_root(root) {
-                    let id = start.info().id();
-                    let current_id = WIDGET.id();
-                    if id != current_id {
-                        let cmd = SELECT_CMD.scoped(id);
-                        if cmd.is_enabled().get() {
-                            if FOCUS.is_focused(current_id).get() {
-                                FOCUS.focus_widget(id, false);
-                            }
-                            SELECT_CMD.scoped(id).notify_param(rich_text_op());
-                        }
-                        return;
-                    }
+fn rich_clear_text_start_end(is_end: bool) {
+    if let Some(ctx) = TEXT.try_rich() {
+        let advance = if is_end { ctx.leaves_rev().next() } else { ctx.leaves().next() };
+
+        if let Some(advance) = advance {
+            let root_id = ctx.root_id;
+            drop(ctx);
+            let mut ctx = TEXT.resolve_rich_caret();
+            ctx.selection_index = None;
+
+            let advance_id = advance.info().id();
+            SELECT_CMD.scoped(advance_id).notify_param(if is_end {
+                TextSelectOp::local_text_end()
+            } else {
+                TextSelectOp::local_text_start()
+            });
+            ctx.index = Some(advance_id);
+            if FOCUS.is_focus_within(root_id).get() {
+                FOCUS.focus_widget(advance_id, false);
+            }
+        }
+    } else {
+        local_clear_text_start_end(is_end);
+    }
+}
+fn local_clear_text_start_end(is_end: bool) {
+    let idx = if is_end { TEXT.resolved().segmented_text.text().len() } else { 0 };
+
+    let mut ctx = TEXT.resolve_caret();
+    let mut i = ctx.index.unwrap_or(CaretIndex::ZERO);
+    ctx.clear_selection();
+    i.index = idx;
+    ctx.set_index(i);
+    ctx.used_retained_x = false;
+}
+
+fn rich_select_text_start_end(is_end: bool) {
+    if let Some(ctx) = TEXT.try_rich() {
+        // clear current selection
+        let clear_op = if is_end {
+            TextSelectOp::local_next()
+        } else {
+            TextSelectOp::local_prev()
+        };
+        for leaf in ctx.selection() {
+            SELECT_CMD.scoped(leaf.info().id()).notify_param(clear_op.clone());
+        }
+
+        let current_index = ctx
+            .caret
+            .index
+            .or_else(|| ctx.leaf_info(WIDGET.id()).map(|w| w.info().id()))
+            .or_else(|| ctx.leaves().next().map(|w| w.info().id()));
+        let current_index = match current_index {
+            Some(id) => id,
+            None => return,
+        };
+        let selection_index = ctx.caret.selection_index.unwrap_or(current_index);
+
+        let mut new_index = None;
+        if is_end {
+            let op = TextSelectOp::local_select_text_end();
+            for leaf in ctx.leaves_rev() {
+                let leaf_id = leaf.info().id();
+                if new_index.is_none() {
+                    new_index = Some(leaf_id);
+                }
+                SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
+                if leaf_id == selection_index {
+                    break;
+                }
+            }
+        } else {
+            let op = TextSelectOp::local_select_text_start();
+            for leaf in ctx.leaves() {
+                let leaf_id = leaf.info().id();
+                if new_index.is_none() {
+                    new_index = Some(leaf_id);
+                }
+                SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
+                if leaf_id == selection_index {
+                    break;
                 }
             }
         }
+
+        if let Some(new_index) = new_index {
+            let root_id = ctx.root_id;
+            drop(ctx);
+            let mut ctx = TEXT.resolve_rich_caret();
+            ctx.selection_index = Some(selection_index);
+            ctx.index = Some(new_index);
+
+            if FOCUS.is_focus_within(root_id).get() {
+                FOCUS.focus_widget(new_index, false);
+            }
+        }
+    } else {
+        local_select_text_start_end(is_end);
     }
+}
+fn local_select_text_start_end(is_end: bool) {
+    let idx = if is_end { TEXT.resolved().segmented_text.text().len() } else { 0 };
 
-    let idx = index(TEXT.resolved().segmented_text.text());
-
-    let mut caret = TEXT.resolve_caret();
-    let mut i = caret.index.unwrap_or(CaretIndex::ZERO);
-    if clear_selection {
-        caret.clear_selection();
-    } else if caret.selection_index.is_none() {
-        caret.selection_index = Some(i);
+    let mut ctx = TEXT.resolve_caret();
+    let mut i = ctx.index.unwrap_or(CaretIndex::ZERO);
+    if ctx.selection_index.is_none() {
+        ctx.selection_index = Some(i);
     }
-
     i.index = idx;
-
-    caret.set_index(i);
-    caret.used_retained_x = false;
+    ctx.set_index(i);
+    ctx.used_retained_x = false;
 }
 
 fn nearest_to(clear_selection: bool, window_point: DipPoint) {

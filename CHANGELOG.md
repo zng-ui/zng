@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix Alt focus scope navigation from inside nested focus scopes.
 * Implement `From<WidgetFocusInfo> for WidgetInfo`.
 * Surface `zng::text::txt_selectable` property.
 * Fix incorrect `Wrap!` debug validation with negative spacing.

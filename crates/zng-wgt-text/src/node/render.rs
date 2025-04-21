@@ -177,7 +177,7 @@ pub fn render_selection(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                let new_is_focused = args.is_focus_within(WIDGET.id());
+                let new_is_focused = args.is_focus_within(TEXT.try_rich().map(|r| r.root_id).unwrap_or_else(|| WIDGET.id()));
                 if is_focused != new_is_focused {
                     WIDGET.render();
                     is_focused = new_is_focused;

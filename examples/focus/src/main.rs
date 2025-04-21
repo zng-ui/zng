@@ -29,20 +29,14 @@ fn main() {
         Window! {
             title = "Focus Example";
             enabled = window_enabled.clone();
-            widget::background = commands();
+            child_top = alt_scope(), 50;
             child = Stack! {
-                direction = StackDirection::top_to_bottom();
-                children = ui_vec![
-                    alt_scope(),
-                    Stack! {
-                        direction = StackDirection::left_to_right();
-                        margin = (50, 0, 0, 0);
-                        align = Align::CENTER;
-                        spacing = 10;
-                        children = ui_vec![tab_index_example(), functions(window_enabled), delayed_focus()]
-                    }
-                ];
+                direction = StackDirection::left_to_right();
+                align = Align::TOP;
+                spacing = 10;
+                children = ui_vec![tab_index_example(), functions(window_enabled), delayed_focus()]
             };
+            widget::background = commands();
             // zng::window::inspector::show_center_points = true;
             // zng::window::inspector::show_bounds = true;
             // zng::window::inspector::show_hit_test = true;
