@@ -1011,28 +1011,52 @@ impl TextSelectOp {
     ///
     /// This is the `Home` key operation.
     pub fn line_start() -> Self {
-        Self::new(|| line_start_end(true, |li| li.text_range().start))
+        Self::new(|| rich_clear_line_start_end(false))
+    }
+    /// Like [`line_start`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`line_start`]: Self::line_start
+    pub fn local_line_start() -> Self {
+        Self::new(|| local_clear_line_start_end(false))
     }
 
     /// Extend or shrink selection by moving the caret to the start of the line.
     ///
     /// This is the `SHIFT+Home` key operation.
     pub fn select_line_start() -> Self {
-        Self::new(|| line_start_end(false, |li| li.text_range().start))
+        Self::new(|| rich_select_line_start_end(false))
+    }
+    /// Like [`select_line_start`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_line_start`]: Self::select_line_start
+    pub fn local_select_line_start() -> Self {
+        Self::new(|| local_select_line_start_end(false))
     }
 
     /// Clear selection and move the caret to the end of the line (before the line-break if any).
     ///
     /// This is the `End` key operation.
     pub fn line_end() -> Self {
-        Self::new(|| line_start_end(true, |li| li.text_caret_range().end))
+        Self::new(|| rich_clear_line_start_end(true))
+    }
+    /// Like [`line_end`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`line_end`]: Self::line_end
+    pub fn local_line_end() -> Self {
+        Self::new(|| local_clear_line_start_end(true))
     }
 
     /// Extend or shrink selection by moving the caret to the end of the line (before the line-break if any).
     ///
     /// This is the `SHIFT+End` key operation.
     pub fn select_line_end() -> Self {
-        Self::new(|| line_start_end(false, |li| li.text_caret_range().end))
+        Self::new(|| rich_select_line_start_end(true))
+    }
+    /// Like [`select_line_end`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_line_end`]: Self::select_line_end
+    pub fn local_select_line_end() -> Self {
+        Self::new(|| rich_select_line_start_end(true))
     }
 
     /// Clear selection and move the caret to the text start.
@@ -1503,19 +1527,48 @@ fn page_up_down(clear_selection: bool, diff: i8) {
     }
 }
 
-fn line_start_end(clear_selection: bool, index: impl FnOnce(ShapedLine) -> usize) {
-    let mut caret = TEXT.resolve_caret();
-    let mut i = caret.index.unwrap_or(CaretIndex::ZERO);
-    if clear_selection {
-        caret.clear_selection();
-    } else if caret.selection_index.is_none() {
-        caret.selection_index = Some(i);
+fn rich_clear_line_start_end(is_end: bool) {
+    if let Some(_ctx) = TEXT.try_rich() {
+        // line end is inferred from inside each leaf:
+        // - if a leaf wraps after the caret position it knowns the line end.
+        // - if a leaf baseline changes significantly from the previous leaf sibling it knowns the previous was the line end.
+
+        // !!: TODO use `rich_text_lines` when implemented
+    } else {
+        local_clear_line_start_end(is_end);
+    }
+}
+
+fn local_clear_line_start_end(is_end: bool) {
+    let mut ctx = TEXT.resolve_caret();
+    let mut i = ctx.index.unwrap_or(CaretIndex::ZERO);
+    ctx.clear_selection();
+
+    if let Some(li) = TEXT.laidout().shaped_text.line(i.line) {
+        i.index = if is_end { li.text_caret_range().end } else { li.text_range().start };
+        ctx.set_index(i);
+        ctx.used_retained_x = false;
+    }
+}
+
+fn rich_select_line_start_end(is_end: bool) {
+    if let Some(_rich) = TEXT.try_rich() {
+        // !!: TODO
+    } else {
+        local_select_line_start_end(is_end);
+    }
+}
+fn local_select_line_start_end(is_end: bool) {
+    let mut ctx = TEXT.resolve_caret();
+    let mut i = ctx.index.unwrap_or(CaretIndex::ZERO);
+    if ctx.selection_index.is_none() {
+        ctx.selection_index = Some(i);
     }
 
     if let Some(li) = TEXT.laidout().shaped_text.line(i.line) {
-        i.index = index(li);
-        caret.set_index(i);
-        caret.used_retained_x = false;
+        i.index = if is_end { li.text_caret_range().end } else { li.text_range().start };
+        ctx.set_index(i);
+        ctx.used_retained_x = false;
     }
 }
 

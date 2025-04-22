@@ -211,7 +211,6 @@ pub trait RichTextWidgetInfoExt {
     ///
     /// The iterator is over `a..=b` or if `a` is after `b` the iterator is over `b..=a`.
     fn rich_text_selection(&self, a: WidgetId, b: WidgetId) -> impl ExactSizeIterator<Item = WidgetFocusInfo> + 'static;
-
     /// Iterate over the selection text/leaf component descendants that can be interacted with, in reverse.
     ///
     /// The iterator is over `b..=a` or if `a` is after `b` the iterator is over `a..=b`.
@@ -221,6 +220,9 @@ pub trait RichTextWidgetInfoExt {
     fn rich_text_prev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
     /// Iterate over the next text/leaf components after the current one.
     fn rich_text_next(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
+
+    /// Iterate over the text/leaf component descendants analyzing if each component starts new lines of text.
+    fn rich_text_lines(&self) -> impl Iterator<Item = (WidgetFocusInfo, RichTextLineInfo)> + 'static;
 }
 impl RichTextWidgetInfoExt for WidgetInfo {
     fn rich_text_root(&self) -> Option<WidgetInfo> {
@@ -263,6 +265,57 @@ impl RichTextWidgetInfoExt for WidgetInfo {
             .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
             .filter_map(|w| w.into_focusable(false, false))
     }
+
+    fn rich_text_lines(&self) -> impl Iterator<Item = (WidgetFocusInfo, RichTextLineInfo)> + 'static {
+        struct Iter<I> {
+            leaves: I,
+            prev_base_line: Px,
+        }
+        impl<I: Iterator<Item=WidgetFocusInfo> + 'static> Iterator for Iter<I> {
+            type Item = (WidgetFocusInfo, RichTextLineInfo);
+        
+            fn next(&mut self) -> Option<Self::Item> {
+                let leaf = self.leaves.next()?;
+                let leaf_bounds = leaf.info().bounds_info();
+
+                let mut starts = false;
+                let mut wraps = false;
+
+                if let Some(leaf_inline) = leaf_bounds.inline() {
+                    // !!: TODO first line baseline
+                    wraps = leaf_inline.rows.len() > 1;
+                } else {
+                    let leaf_inner_bounds = leaf_bounds.inner_bounds();
+                    let baseline = leaf_inner_bounds.max_y() - leaf_bounds.final_baseline();
+                    starts = (self.prev_base_line - baseline).abs() > Px(10).min(leaf_inner_bounds.height());
+                }
+
+                Some((leaf, RichTextLineInfo { starts_new_line: starts, ends_in_new_line: wraps }))
+            }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                self.leaves.size_hint()
+            }
+        }
+        Iter {
+            leaves: self.rich_text_leaves(),
+            prev_base_line: Px::MIN,
+        }
+    }
+}
+
+/// Info about how a rich text leaf defines new lines in a rich text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct RichTextLineInfo {
+    /// Leaf widget baseline differs significantly from previous sibling.
+    /// 
+    /// If the widget inline wraps the base line of the first line is compared.
+    pub starts_new_line: bool,
+    /// Leaf widget inline wraps so that the end is in a new line.
+    /// 
+    /// Note that the widget may define multiple other lines inside itself, those don't count as "rich text lines".
+    pub ends_in_new_line: bool,
 }
 
 // implemented here because there is a borrow checker limitation with `+'static`

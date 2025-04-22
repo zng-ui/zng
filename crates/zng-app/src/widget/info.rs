@@ -524,7 +524,7 @@ impl WidgetBoundsInfo {
         self.0.lock().baseline
     }
 
-    /// Gets the baseline of the widget after [`inner_offset`] is applied.
+    /// Gets the baseline offset of the widget after [`inner_offset`] is applied.
     ///
     /// Returns `Px(0)` if [`inner_offset_baseline`], otherwise returns [`baseline`].
     ///
