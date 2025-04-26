@@ -791,6 +791,9 @@ impl RedoAction for UndoTextEditOp {
 }
 
 /// Represents a text caret/selection operation that can be send to an editable text using [`SELECT_CMD`].
+///
+/// The provided operations work in rich text context by default, unless they are named with prefix `local_`. In
+/// rich text contexts the operation may generate other `SELECT_CMD` requests as it propagates to all involved component texts.
 #[derive(Clone)]
 pub struct TextSelectOp {
     op: Arc<Mutex<dyn FnMut() + Send>>,
@@ -804,11 +807,12 @@ impl TextSelectOp {
     /// New text select operation.
     ///
     /// The editable text widget that handles [`SELECT_CMD`] will call `op` during event handling in
-    /// the [`node::layout_text`] context. You can position the caret using [`TEXT.resolve_caret`],
+    /// the [`node::layout_text`] context. You can position the caret using [`TEXT.resolve_caret`] and [`TEXT.resolve_rich_caret`],
     /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
     /// the caret index is also snapped to the nearest grapheme start.
     ///
     /// [`TEXT.resolve_caret`]: super::node::TEXT::resolve_caret
+    /// [`TEXT.resolve_rich_caret`]: super::node::TEXT::resolve_rich_caret
     pub fn new(op: impl FnMut() + Send + 'static) -> Self {
         Self {
             op: Arc::new(Mutex::new(op)),
@@ -1208,6 +1212,9 @@ impl TextSelectOp {
                 for leaf in ctx.selection() {
                     SELECT_CMD.scoped(leaf.info().id()).notify_param(op.clone());
                 }
+                drop(ctx);
+                let mut ctx = TEXT.resolve_rich_caret();
+                ctx.selection_index = None;
             } else {
                 op.call();
             }
@@ -1713,19 +1720,134 @@ fn rich_select_line_start_end(is_end: bool) {
             Some(c) => c,
             None => return,
         };
-        let selection = ctx.caret_selection_index_info().unwrap_or_else(|| caret.clone());
 
         let caret_id = caret.info().id();
         if caret_id == WIDGET.id() {
             drop(ctx);
-            // continue_rich_clear_line_start_end_inside_caret(is_end, &caret);
+            continue_rich_select_line_start_end_inside_caret(is_end, &caret);
         } else {
             SELECT_CMD.scoped(caret.info().id()).notify_param(TextSelectOp::new(move || {
-                // continue_rich_clear_line_start_end_inside_caret(is_end, &caret);
+                continue_rich_select_line_start_end_inside_caret(is_end, &caret);
             }));
         }
     } else {
         local_select_line_start_end(is_end);
+    }
+}
+fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &WidgetFocusInfo) {
+    let id = caret.info().id();
+
+    // clear rich selection
+    let rich_id = {
+        let ctx = match TEXT.try_rich() {
+            Some(r) => r,
+            None => return, // unlikely but context can be removed between SELECT_CMD notify and receive
+        };
+
+        let _selection = ctx.caret_selection_index_info().unwrap_or_else(|| caret.clone());
+        // !!: TODO
+
+        let op = if is_end {
+            TextSelectOp::local_line_end()
+        } else {
+            TextSelectOp::local_line_start()
+        };
+        for leaf in ctx.selection() {
+            let leaf_id = leaf.info().id();
+            if leaf_id != id {
+                SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
+            }
+            // else will clean now
+        }
+        ctx.root_id
+    };
+
+    // clear local selection and get caret
+    local_clear_line_start_end(is_end);
+
+    // if local line_start_end set caret not at start or end the context leaf wraps and the caret
+    // is already in the correct place
+    let is_inside = {
+        let ctx = TEXT.resolved();
+        let idx = ctx.caret.index.unwrap_or(CaretIndex::ZERO);
+        idx.index > 0 && idx.index < ctx.segmented_text.text().len() - 1
+    };
+
+    let mut new_caret_id = caret.info().id();
+
+    if !is_inside {
+        if is_end {
+            let mut prev = caret.info().clone();
+            let mut found = false;
+            for next in caret.info().rich_text_next() {
+                let info = next.info().rich_text_line_info();
+                if info.starts_new_line {
+                    // prev's text end is the line end
+                    new_caret_id = prev.id();
+                    SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+                    found = true;
+                    break;
+                } else if info.ends_in_new_line {
+                    // next's first row end is the line end
+                    new_caret_id = next.info().id();
+                    SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::new(move || {
+                        let ctx = TEXT.laidout();
+                        let new_idx = ctx.shaped_text.line(0).unwrap().text_caret_range().end;
+                        let mut ctx = TEXT.resolve_caret();
+                        ctx.clear_selection();
+                        ctx.set_index(CaretIndex { index: new_idx, line: 0 });
+                    }));
+                    found = true;
+                    break;
+                } else {
+                    prev = next.into();
+                }
+            }
+            if !found {
+                // end of text is line end
+                new_caret_id = prev.id();
+                SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+            }
+        } else {
+            let line_info = caret.info().rich_text_line_info();
+            if !line_info.starts_new_line {
+                for prev in caret.info().rich_text_prev() {
+                    let info = prev.info().rich_text_line_info();
+                    if info.starts_new_line {
+                        // prev's text start is the line start
+                        new_caret_id = prev.info().id();
+                        SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_start());
+                        break;
+                    } else if info.ends_in_new_line {
+                        // prev's last row start is the line start
+                        new_caret_id = prev.info().id();
+                        SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::new(move || {
+                            let ctx = TEXT.laidout();
+                            let last_i = ctx.shaped_text.lines_len() - 1;
+                            let new_idx = ctx.shaped_text.line(last_i).unwrap().text_caret_range().start;
+                            let mut ctx = TEXT.resolve_caret();
+                            ctx.clear_selection();
+                            ctx.set_index(CaretIndex {
+                                index: new_idx,
+                                line: last_i,
+                            });
+                        }));
+                        break;
+                    }
+                }
+            }
+            // else already in correct place
+        }
+    }
+
+    {
+        let mut ctx = TEXT.resolve_rich_caret();
+        ctx.index = Some(new_caret_id);
+        ctx.selection_index = None;
+    }
+
+    if FOCUS.is_focus_within(rich_id).get() {
+        FOCUS.focus_widget(new_caret_id, false);
     }
 }
 

@@ -344,7 +344,8 @@ fn rich_text_selection_static(wgt: &WidgetInfo, a: WidgetId, b: WidgetId) -> imp
         let id = leaf.info().id();
         if id == a {
             ai = i;
-        } else if id == b {
+        }
+        if id == b {
             bi = i;
         }
         if ai != usize::MAX && bi != usize::MAX {
