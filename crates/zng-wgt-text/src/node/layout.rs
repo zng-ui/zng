@@ -1152,6 +1152,14 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                         .call();
                     }
                 }
+                Key::Escape => {
+                    if args.modifiers.is_empty() && (editable || selectable) {
+                        args.propagation().stop();
+                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
+
+                        TextSelectOp::clear_selection().call();
+                    }
+                }
                 _ => {}
             }
         }

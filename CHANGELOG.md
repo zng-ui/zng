@@ -1,5 +1,6 @@
 # Unreleased
 
+* Text now clears selection on `Key::Escape`.
 * Implement all `FromIterator` and `Extend` that `String` implements for `Txt`.
 * Fix Alt focus scope navigation from inside nested focus scopes.
 * Implement `From<WidgetFocusInfo> for WidgetInfo`.

@@ -1198,6 +1198,32 @@ impl TextSelectOp {
         })
     }
 
+    /// Clear selection and keep the caret at the same position.
+    ///
+    /// This is the `Esc` shortcut operation.
+    pub fn clear_selection() -> Self {
+        Self::new(|| {
+            let op = Self::local_clear_selection();
+            if let Some(ctx) = TEXT.try_rich() {
+                for leaf in ctx.selection() {
+                    SELECT_CMD.scoped(leaf.info().id()).notify_param(op.clone());
+                }
+            } else {
+                op.call();
+            }
+        })
+    }
+
+    /// Like [`clear_selection`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`clear_selection`]: Self::clear_selection
+    pub fn local_clear_selection() -> Self {
+        Self::new(|| {
+            let mut ctx = TEXT.resolve_caret();
+            ctx.clear_selection();
+        })
+    }
+
     pub(super) fn call(self) {
         (self.op.lock())();
     }
@@ -1678,12 +1704,31 @@ fn local_clear_line_start_end(is_end: bool) {
 }
 
 fn rich_select_line_start_end(is_end: bool) {
-    if let Some(_rich) = TEXT.try_rich() {
-        // !!: TODO
+    if let Some(ctx) = TEXT.try_rich() {
+        let caret = match ctx
+            .caret_index_info()
+            .or_else(|| ctx.leaf_info(WIDGET.id()))
+            .or_else(|| ctx.leaves().next())
+        {
+            Some(c) => c,
+            None => return,
+        };
+        let selection = ctx.caret_selection_index_info().unwrap_or_else(|| caret.clone());
+
+        let caret_id = caret.info().id();
+        if caret_id == WIDGET.id() {
+            drop(ctx);
+            // continue_rich_clear_line_start_end_inside_caret(is_end, &caret);
+        } else {
+            SELECT_CMD.scoped(caret.info().id()).notify_param(TextSelectOp::new(move || {
+                // continue_rich_clear_line_start_end_inside_caret(is_end, &caret);
+            }));
+        }
     } else {
         local_select_line_start_end(is_end);
     }
 }
+
 fn local_select_line_start_end(is_end: bool) {
     let mut ctx = TEXT.resolve_caret();
     let mut i = ctx.index.unwrap_or(CaretIndex::ZERO);
