@@ -1595,7 +1595,6 @@ fn continue_rich_clear_line_start_end_inside_caret(is_end: bool, caret: &WidgetF
             let mut found = false;
             for next in caret.info().rich_text_next() {
                 let info = next.info().rich_text_line_info();
-                println!("!!: {:?}", (next.info().id(), &info));
                 if info.starts_new_line {
                     // prev's text end is the line end
                     new_caret_id = prev.id();
