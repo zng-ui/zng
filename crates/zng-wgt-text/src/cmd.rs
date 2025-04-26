@@ -9,7 +9,7 @@ use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
-use zng_ext_input::focus::FOCUS;
+use zng_ext_input::focus::{FOCUS, WidgetFocusInfo};
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_wgt::prelude::*;
@@ -1528,14 +1528,131 @@ fn page_up_down(clear_selection: bool, diff: i8) {
 }
 
 fn rich_clear_line_start_end(is_end: bool) {
-    if let Some(_ctx) = TEXT.try_rich() {
-        // line end is inferred from inside each leaf:
-        // - if a leaf wraps after the caret position it knowns the line end.
-        // - if a leaf baseline changes significantly from the previous leaf sibling it knowns the previous was the line end.
+    if let Some(ctx) = TEXT.try_rich() {
+        let caret = match ctx
+            .caret_index_info()
+            .or_else(|| ctx.leaf_info(WIDGET.id()))
+            .or_else(|| ctx.leaves().next())
+        {
+            Some(c) => c,
+            None => return,
+        };
 
-        // !!: TODO use `rich_text_lines` when implemented
+        let caret_id = caret.info().id();
+        if caret_id == WIDGET.id() {
+            drop(ctx);
+            continue_rich_clear_line_start_end_inside_caret(is_end, &caret);
+        } else {
+            SELECT_CMD.scoped(caret.info().id()).notify_param(TextSelectOp::new(move || {
+                continue_rich_clear_line_start_end_inside_caret(is_end, &caret);
+            }));
+        }
     } else {
         local_clear_line_start_end(is_end);
+    }
+}
+fn continue_rich_clear_line_start_end_inside_caret(is_end: bool, caret: &WidgetFocusInfo) {
+    let id = caret.info().id();
+
+    // clear rich selection
+    let rich_id = {
+        let ctx = match TEXT.try_rich() {
+            Some(r) => r,
+            None => return, // unlikely but context can be removed between SELECT_CMD notify and receive
+        };
+
+        let op = if is_end {
+            TextSelectOp::local_line_end()
+        } else {
+            TextSelectOp::local_line_start()
+        };
+        for leaf in ctx.selection() {
+            let leaf_id = leaf.info().id();
+            if leaf_id != id {
+                SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
+            }
+            // else will clean now
+        }
+        ctx.root_id
+    };
+
+    // clear local selection and get caret
+    local_clear_line_start_end(is_end);
+
+    // if local line_start_end set caret not at start or end the context leaf wraps and the caret
+    // is already in the correct place
+    let is_inside = {
+        let ctx = TEXT.resolved();
+        let idx = ctx.caret.index.unwrap_or(CaretIndex::ZERO);
+        idx.index > 0 && idx.index < ctx.segmented_text.text().len() - 1
+    };
+
+    let mut new_caret_id = caret.info().id();
+
+    if !is_inside {
+        if is_end {
+            let mut prev = caret.info().clone();
+            for next in caret.info().rich_text_next() {
+                let info = next.info().rich_text_line_info();
+                if info.starts_new_line {
+                    // prev's text end is the line end
+                    new_caret_id = prev.id();
+                    SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+                } else if info.ends_in_new_line {
+                    // next's first row end is the line end
+                    new_caret_id = next.info().id();
+                    SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::new(move || {
+                        let ctx = TEXT.laidout();
+                        let new_idx = ctx.shaped_text.line(0).unwrap().text_caret_range().end;
+                        let mut ctx = TEXT.resolve_caret();
+                        ctx.clear_selection();
+                        ctx.set_index(CaretIndex { index: new_idx, line: 0 });
+                    }));
+                } else {
+                    prev = next.into();
+                }
+            }
+            // end of text is line end
+            new_caret_id = prev.id();
+            SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+        } else {
+            let line_info = caret.info().rich_text_line_info();
+            if !line_info.starts_new_line {
+                for prev in caret.info().rich_text_prev() {
+                    let info = prev.info().rich_text_line_info();
+                    if info.starts_new_line {
+                        // prev's text start is the line start
+                        new_caret_id = prev.info().id();
+                        SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_start());
+                    } else if info.ends_in_new_line {
+                        // prev's last row start is the line start
+                        new_caret_id = prev.info().id();
+                        SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::new(move || {
+                            let ctx = TEXT.laidout();
+                            let last_i = ctx.shaped_text.lines_len() - 1;
+                            let new_idx = ctx.shaped_text.line(last_i).unwrap().text_caret_range().start;
+                            let mut ctx = TEXT.resolve_caret();
+                            ctx.clear_selection();
+                            ctx.set_index(CaretIndex {
+                                index: new_idx,
+                                line: last_i,
+                            });
+                        }));
+                    }
+                }
+            }
+            // else already in correct place
+        }
+    }
+
+    {
+        let mut ctx = TEXT.resolve_rich_caret();
+        ctx.index = Some(new_caret_id);
+        ctx.selection_index = None;
+    }
+
+    if FOCUS.is_focus_within(rich_id).get() {
+        FOCUS.focus_widget(new_caret_id, false);
     }
 }
 

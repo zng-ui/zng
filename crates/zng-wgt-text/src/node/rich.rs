@@ -221,8 +221,8 @@ pub trait RichTextWidgetInfoExt {
     /// Iterate over the next text/leaf components after the current one.
     fn rich_text_next(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
 
-    /// Iterate over the text/leaf component descendants analyzing if each component starts new lines of text.
-    fn rich_text_lines(&self) -> impl Iterator<Item = (WidgetFocusInfo, RichTextLineInfo)> + 'static;
+    /// Gets info about how this rich leaf affects the text lines.
+    fn rich_text_line_info(&self) -> RichLineInfo;
 }
 impl RichTextWidgetInfoExt for WidgetInfo {
     fn rich_text_root(&self) -> Option<WidgetInfo> {
@@ -266,54 +266,56 @@ impl RichTextWidgetInfoExt for WidgetInfo {
             .filter_map(|w| w.into_focusable(false, false))
     }
 
-    fn rich_text_lines(&self) -> impl Iterator<Item = (WidgetFocusInfo, RichTextLineInfo)> + 'static {
-        struct Iter<I> {
-            leaves: I,
-            prev_base_line: Px,
-        }
-        impl<I: Iterator<Item=WidgetFocusInfo> + 'static> Iterator for Iter<I> {
-            type Item = (WidgetFocusInfo, RichTextLineInfo);
-        
-            fn next(&mut self) -> Option<Self::Item> {
-                let leaf = self.leaves.next()?;
-                let leaf_bounds = leaf.info().bounds_info();
-
-                let mut starts = false;
-                let mut wraps = false;
-
-                if let Some(leaf_inline) = leaf_bounds.inline() {
-                    // !!: TODO first line baseline
-                    wraps = leaf_inline.rows.len() > 1;
+    fn rich_text_line_info(&self) -> RichLineInfo {
+        let (prev_min, prev_max) = match self.rich_text_prev().next() {
+            Some(p) => {
+                let bounds = p.info().bounds_info();
+                if let Some(inline) = bounds.inline() {
+                    (inline.rows[0].min_y(), inline.rows[0].max_y())
                 } else {
-                    let leaf_inner_bounds = leaf_bounds.inner_bounds();
-                    let baseline = leaf_inner_bounds.max_y() - leaf_bounds.final_baseline();
-                    starts = (self.prev_base_line - baseline).abs() > Px(10).min(leaf_inner_bounds.height());
+                    let b = bounds.inner_bounds();
+                    (b.min_y(), b.max_y())
                 }
-
-                Some((leaf, RichTextLineInfo { starts_new_line: starts, ends_in_new_line: wraps }))
             }
+            None => (Px::MIN, Px::MIN),
+        };
 
-            fn size_hint(&self) -> (usize, Option<usize>) {
-                self.leaves.size_hint()
-            }
-        }
-        Iter {
-            leaves: self.rich_text_leaves(),
-            prev_base_line: Px::MIN,
+        let bounds = self.bounds_info();
+        let (min, max, wraps) = if let Some(inline) = bounds.inline() {
+            let last = &inline.rows[inline.rows.len() - 1];
+            (last.min_y(), last.max_y(), inline.rows.len() > 1)
+        } else {
+            let b = bounds.inner_bounds();
+            (b.min_y(), b.max_y(), false)
+        };
+
+        let starts = !lines_overlap_strict(prev_min, prev_max, min, max);
+
+        RichLineInfo {
+            starts_new_line: starts,
+            ends_in_new_line: wraps,
         }
     }
+}
+fn lines_overlap_strict(y_min1: Px, y_max1: Px, y_min2: Px, y_max2: Px) -> bool {
+    let (a_min, a_max) = if y_min1 <= y_max1 { (y_min1, y_max1) } else { (y_max1, y_min1) };
+    let (b_min, b_max) = if y_min2 <= y_max2 { (y_min2, y_max2) } else { (y_max2, y_min2) };
+
+    a_min < b_max && b_min < a_max
 }
 
 /// Info about how a rich text leaf defines new lines in a rich text.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
-pub struct RichTextLineInfo {
-    /// Leaf widget baseline differs significantly from previous sibling.
-    /// 
-    /// If the widget inline wraps the base line of the first line is compared.
+pub struct RichLineInfo {
+    /// Leaf widget first line height span does not intersect the previous sibling last line height span vertically.
+    ///
+    /// This heuristic allow multiple *baselines* in the same row (sub/superscript), it also allows bidi mixed segments that
+    /// maybe have negative horizontal offsets, but very custom layouts such as a diagonal stack panel may want to provide
+    /// their own definition of a *line* as an alternative to this API.
     pub starts_new_line: bool,
-    /// Leaf widget inline wraps so that the end is in a new line.
-    /// 
+    /// Leaf widget inline layout declared multiple lines so the end is in a new line.
+    ///
     /// Note that the widget may define multiple other lines inside itself, those don't count as "rich text lines".
     pub ends_in_new_line: bool,
 }
