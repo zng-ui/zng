@@ -270,23 +270,26 @@ impl RichTextWidgetInfoExt for WidgetInfo {
         let (prev_min, prev_max) = match self.rich_text_prev().next() {
             Some(p) => {
                 let bounds = p.info().bounds_info();
+                let inner_bounds = bounds.inner_bounds();
                 if let Some(inline) = bounds.inline() {
-                    (inline.rows[0].min_y(), inline.rows[0].max_y())
+                    let mut last = inline.rows[inline.rows.len() - 1];
+                    last.origin += inner_bounds.origin.to_vector();
+                    (last.min_y(), last.max_y())
                 } else {
-                    let b = bounds.inner_bounds();
-                    (b.min_y(), b.max_y())
+                    (inner_bounds.min_y(), inner_bounds.max_y())
                 }
             }
             None => (Px::MIN, Px::MIN),
         };
 
         let bounds = self.bounds_info();
+        let inner_bounds = bounds.inner_bounds();
         let (min, max, wraps) = if let Some(inline) = bounds.inline() {
-            let last = &inline.rows[inline.rows.len() - 1];
-            (last.min_y(), last.max_y(), inline.rows.len() > 1)
+            let mut first = inline.rows[0];
+            first.origin += inner_bounds.origin.to_vector();
+            (first.min_y(), first.max_y(), inline.rows.len() > 1)
         } else {
-            let b = bounds.inner_bounds();
-            (b.min_y(), b.max_y(), false)
+            (inner_bounds.min_y(), inner_bounds.max_y(), false)
         };
 
         let starts = !lines_overlap_strict(prev_min, prev_max, min, max);

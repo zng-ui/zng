@@ -1592,12 +1592,16 @@ fn continue_rich_clear_line_start_end_inside_caret(is_end: bool, caret: &WidgetF
     if !is_inside {
         if is_end {
             let mut prev = caret.info().clone();
+            let mut found = false;
             for next in caret.info().rich_text_next() {
                 let info = next.info().rich_text_line_info();
+                println!("!!: {:?}", (next.info().id(), &info));
                 if info.starts_new_line {
                     // prev's text end is the line end
                     new_caret_id = prev.id();
                     SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+                    found = true;
+                    break;
                 } else if info.ends_in_new_line {
                     // next's first row end is the line end
                     new_caret_id = next.info().id();
@@ -1608,13 +1612,17 @@ fn continue_rich_clear_line_start_end_inside_caret(is_end: bool, caret: &WidgetF
                         ctx.clear_selection();
                         ctx.set_index(CaretIndex { index: new_idx, line: 0 });
                     }));
+                    found = true;
+                    break;
                 } else {
                     prev = next.into();
                 }
             }
-            // end of text is line end
-            new_caret_id = prev.id();
-            SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+            if !found {
+                // end of text is line end
+                new_caret_id = prev.id();
+                SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+            }
         } else {
             let line_info = caret.info().rich_text_line_info();
             if !line_info.starts_new_line {
@@ -1624,6 +1632,7 @@ fn continue_rich_clear_line_start_end_inside_caret(is_end: bool, caret: &WidgetF
                         // prev's text start is the line start
                         new_caret_id = prev.info().id();
                         SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_start());
+                        break;
                     } else if info.ends_in_new_line {
                         // prev's last row start is the line start
                         new_caret_id = prev.info().id();
@@ -1638,6 +1647,7 @@ fn continue_rich_clear_line_start_end_inside_caret(is_end: bool, caret: &WidgetF
                                 line: last_i,
                             });
                         }));
+                        break;
                     }
                 }
             }
