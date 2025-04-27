@@ -899,56 +899,56 @@ impl TextSelectOp {
     ///
     /// This is the `Up` key operation.
     pub fn line_up() -> Self {
-        Self::new(|| line_up_down(true, -1))
+        Self::new(|| rich_line_up_down(true, -1))
     }
 
     /// Extend or shrink selection by moving the caret to the nearest insert index on the previous line.
     ///
     /// This is the `SHIFT+Up` key operation.
     pub fn select_line_up() -> Self {
-        Self::new(|| line_up_down(false, -1))
+        Self::new(|| rich_line_up_down(false, -1))
     }
 
     /// Clear selection and move the caret to the nearest insert index on the next line.
     ///
     /// This is the `Down` key operation.
     pub fn line_down() -> Self {
-        Self::new(|| line_up_down(true, 1))
+        Self::new(|| rich_line_up_down(true, 1))
     }
 
     /// Extend or shrink selection by moving the caret to the nearest insert index on the next line.
     ///
     /// This is the `SHIFT+Down` key operation.
     pub fn select_line_down() -> Self {
-        Self::new(|| line_up_down(false, 1))
+        Self::new(|| rich_line_up_down(false, 1))
     }
 
     /// Clear selection and move the caret one viewport up.
     ///
     /// This is the `PageUp` key operation.
     pub fn page_up() -> Self {
-        Self::new(|| page_up_down(true, -1))
+        Self::new(|| rich_page_up_down(true, -1))
     }
 
     /// Extend or shrink selection by moving the caret one viewport up.
     ///
     /// This is the `SHIFT+PageUp` key operation.
     pub fn select_page_up() -> Self {
-        Self::new(|| page_up_down(false, -1))
+        Self::new(|| rich_page_up_down(false, -1))
     }
 
     /// Clear selection and move the caret one viewport down.
     ///
     /// This is the `PageDown` key operation.
     pub fn page_down() -> Self {
-        Self::new(|| page_up_down(true, 1))
+        Self::new(|| rich_page_up_down(true, 1))
     }
 
     /// Extend or shrink selection by moving the caret one viewport down.
     ///
     /// This is the `SHIFT+PageDown` key operation.
     pub fn select_page_down() -> Self {
-        Self::new(|| page_up_down(false, 1))
+        Self::new(|| rich_page_up_down(false, 1))
     }
 
     /// Clear selection and move the caret to the start of the line.
@@ -1012,7 +1012,7 @@ impl TextSelectOp {
     /// This is the mouse primary button down operation.
     pub fn nearest_to(window_point: DipPoint) -> Self {
         Self::new(move || {
-            nearest_to(true, window_point);
+            rich_nearest_to(true, window_point);
         })
     }
 
@@ -1021,7 +1021,7 @@ impl TextSelectOp {
     /// This is the mouse primary button down when holding SHIFT operation.
     pub fn select_nearest_to(window_point: DipPoint) -> Self {
         Self::new(move || {
-            nearest_to(false, window_point);
+            rich_nearest_to(false, window_point);
         })
     }
 
@@ -1030,7 +1030,7 @@ impl TextSelectOp {
     /// This is the touch selection caret drag operation.
     pub fn select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> Self {
         Self::new(move || {
-            index_nearest_to(window_point, move_selection_index);
+            rich_index_nearest_to(window_point, move_selection_index);
         })
     }
 
@@ -1038,14 +1038,14 @@ impl TextSelectOp {
     ///
     /// This is the mouse primary button double click.
     pub fn select_word_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
-        Self::new(move || select_line_word_nearest_to(replace_selection, true, window_point))
+        Self::new(move || rich_select_line_word_nearest_to(replace_selection, true, window_point))
     }
 
     /// Replace or extend selection with the line nearest to the `window_point`
     ///
     /// This is the mouse primary button triple click.
     pub fn select_line_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
-        Self::new(move || select_line_word_nearest_to(replace_selection, false, window_point))
+        Self::new(move || rich_select_line_word_nearest_to(replace_selection, false, window_point))
     }
 
     /// Select the full text.
@@ -1257,99 +1257,99 @@ impl TextSelectOp {
 
     /// Like [`line_up`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`line_up`]: Self::line_up !!:
+    /// [`line_up`]: Self::line_up
     pub fn local_line_up() -> Self {
-        Self::new(|| line_up_down(true, -1))
+        Self::new(|| local_line_up_down(true, -1))
     }
 
     /// Like [`select_line_up`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`select_line_up`]: Self::select_line_up !!:
+    /// [`select_line_up`]: Self::select_line_up
     pub fn local_select_line_up() -> Self {
-        Self::new(|| line_up_down(false, -1))
+        Self::new(|| local_line_up_down(false, -1))
     }
 
     /// Like [`line_down`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`line_down`]: Self::line_down !!:
+    /// [`line_down`]: Self::line_down
     pub fn local_line_down() -> Self {
-        Self::new(|| line_up_down(true, 1))
+        Self::new(|| local_line_up_down(true, 1))
     }
 
     /// Like [`select_line_down`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`select_line_down`]: Self::select_line_down !!:
+    /// [`select_line_down`]: Self::select_line_down
     pub fn local_select_line_down() -> Self {
-        Self::new(|| line_up_down(false, 1))
+        Self::new(|| local_line_up_down(false, 1))
     }
 
     /// Like [`page_up`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`page_up`]: Self::page_up !!:
+    /// [`page_up`]: Self::page_up
     pub fn local_page_up() -> Self {
-        Self::new(|| page_up_down(true, -1))
+        Self::new(|| local_page_up_down(true, -1))
     }
 
     /// Like [`select_page_up`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`select_page_up`]: Self::select_page_up !!:
+    /// [`select_page_up`]: Self::select_page_up
     pub fn local_select_page_up() -> Self {
-        Self::new(|| page_up_down(false, -1))
+        Self::new(|| local_page_up_down(false, -1))
     }
 
     /// Like [`page_down`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`page_down`]: Self::page_down !!:
+    /// [`page_down`]: Self::page_down
     pub fn local_page_down() -> Self {
-        Self::new(|| page_up_down(true, 1))
+        Self::new(|| local_page_up_down(true, 1))
     }
 
     /// Like [`select_page_down`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`select_page_down`]: Self::select_page_down !!:
+    /// [`select_page_down`]: Self::select_page_down
     pub fn local_select_page_down() -> Self {
-        Self::new(|| page_up_down(false, 1))
+        Self::new(|| local_page_up_down(false, 1))
     }
 
     /// Like [`nearest_to`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`nearest_to`]: Self::nearest_to !!:
+    /// [`nearest_to`]: Self::nearest_to
     pub fn local_nearest_to(window_point: DipPoint) -> Self {
         Self::new(move || {
-            nearest_to(true, window_point);
+            local_nearest_to(true, window_point);
         })
     }
 
     /// Like [`select_nearest_to`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`select_nearest_to`]: Self::select_nearest_to !!:
+    /// [`select_nearest_to`]: Self::select_nearest_to
     pub fn local_select_nearest_to(window_point: DipPoint) -> Self {
         Self::new(move || {
-            nearest_to(false, window_point);
+            local_nearest_to(false, window_point);
         })
     }
 
     /// Like [`select_index_nearest_to`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`select_index_nearest_to`]: Self::select_index_nearest_to !!:
+    /// [`select_index_nearest_to`]: Self::select_index_nearest_to
     pub fn local_select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> Self {
         Self::new(move || {
-            index_nearest_to(window_point, move_selection_index);
+            local_index_nearest_to(window_point, move_selection_index);
         })
     }
 
-    /// Like [`word_nearest_to`]  but stays within the same text widget, ignores rich text context.
+    /// Like [`select_word_nearest_to`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`word_nearest_to`]: Self::word_nearest_to !!:
-    pub fn local_word_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
-        Self::new(move || select_line_word_nearest_to(replace_selection, true, window_point))
+    /// [`select_word_nearest_to`]: Self::select_word_nearest_to
+    pub fn local_select_word_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
+        Self::new(move || local_select_line_word_nearest_to(replace_selection, true, window_point))
     }
 
-    /// Like [`line_nearest_to`]  but stays within the same text widget, ignores rich text context.
+    /// Like [`select_line_nearest_to`]  but stays within the same text widget, ignores rich text context.
     ///
-    /// [`line_nearest_to`]: Self::line_nearest_to !!:
-    pub fn local_line_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
-        Self::new(move || select_line_word_nearest_to(replace_selection, false, window_point))
+    /// [`select_line_nearest_to`]: Self::select_line_nearest_to
+    pub fn local_select_line_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
+        Self::new(move || local_select_line_word_nearest_to(replace_selection, false, window_point))
     }
 }
 
@@ -1572,7 +1572,14 @@ fn local_select_next_prev(is_next: bool, is_word: bool) -> bool {
     current_index == next_index || next_index == CaretIndex::ZERO && !is_next
 }
 
-fn line_up_down(clear_selection: bool, diff: i8) {
+fn rich_line_up_down(clear_selection: bool, diff: i8) {
+    if let Some(_ctx) = TEXT.try_rich() {
+        // !!: TODO
+    } else {
+        local_line_up_down(clear_selection, diff);
+    }
+}
+fn local_line_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as isize;
 
     let mut caret = TEXT.resolve_caret();
@@ -1623,7 +1630,14 @@ fn line_up_down(clear_selection: bool, diff: i8) {
     }
 }
 
-fn page_up_down(clear_selection: bool, diff: i8) {
+fn rich_page_up_down(clear_selection: bool, diff: i8) {
+    if let Some(_ctx) = TEXT.try_rich() {
+        // !!: TODO
+    } else {
+        local_page_up_down(clear_selection, diff);
+    }
+}
+fn local_page_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as i32;
 
     let mut caret = TEXT.resolve_caret();
@@ -2168,7 +2182,14 @@ fn local_select_text_start_end(is_end: bool) {
     ctx.used_retained_x = false;
 }
 
-fn nearest_to(clear_selection: bool, window_point: DipPoint) {
+fn rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
+    if let Some(_ctx) = TEXT.try_rich() {
+        // !!: TODO
+    } else {
+        local_nearest_to(clear_selection, window_point);
+    }
+}
+fn local_nearest_to(clear_selection: bool, window_point: DipPoint) {
     let mut caret = TEXT.resolve_caret();
     let mut i = caret.index.unwrap_or(CaretIndex::ZERO);
 
@@ -2178,7 +2199,7 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
         caret.selection_index = Some(i);
     } else if let Some((_, is_word)) = caret.initial_selection.clone() {
         drop(caret);
-        return select_line_word_nearest_to(false, is_word, window_point);
+        return local_select_line_word_nearest_to(false, is_word, window_point);
     }
 
     caret.used_retained_x = false;
@@ -2219,7 +2240,14 @@ fn nearest_to(clear_selection: bool, window_point: DipPoint) {
     }
 }
 
-fn index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
+fn rich_index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
+    if let Some(_ctx) = TEXT.try_rich() {
+        // !!: TODO
+    } else {
+        local_index_nearest_to(window_point, move_selection_index);
+    }
+}
+fn local_index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
     let mut caret = TEXT.resolve_caret();
 
     if caret.index.is_none() {
@@ -2265,7 +2293,14 @@ fn index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
     }
 }
 
-fn select_line_word_nearest_to(replace_selection: bool, select_word: bool, window_point: DipPoint) {
+fn rich_select_line_word_nearest_to(replace_selection: bool, select_word: bool, window_point: DipPoint) {
+    if let Some(_ctx) = TEXT.try_rich() {
+        // !!: TODO
+    } else {
+        local_select_line_word_nearest_to(replace_selection, select_word, window_point);
+    }
+}
+fn local_select_line_word_nearest_to(replace_selection: bool, select_word: bool, window_point: DipPoint) {
     let mut caret = TEXT.resolve_caret();
 
     //if there was at least one laidout
