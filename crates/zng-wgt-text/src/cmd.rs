@@ -1612,7 +1612,7 @@ fn continue_rich_clear_line_start_end_inside_caret(is_end: bool, caret: &WidgetF
     // clear local selection and get caret
     local_clear_line_start_end(is_end);
 
-    // if local line_start_end set caret not at start or end the context leaf wraps and the caret
+    // if local line_start_end set caret not at start nor end the context leaf wraps and the caret
     // is already in the correct place
     let is_inside = {
         let ctx = TEXT.resolved();
@@ -1738,14 +1738,14 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
     let id = caret.info().id();
 
     // clear rich selection
-    let rich_id = {
+    let (rich_id, selection_id) = {
         let ctx = match TEXT.try_rich() {
             Some(r) => r,
             None => return, // unlikely but context can be removed between SELECT_CMD notify and receive
         };
 
-        let _selection = ctx.caret_selection_index_info().unwrap_or_else(|| caret.clone());
-        // !!: TODO
+        let selection = ctx.caret_selection_index_info().unwrap_or_else(|| caret.clone());
+        let selection_id = selection.info().id();
 
         let op = if is_end {
             TextSelectOp::local_line_end()
@@ -1754,18 +1754,18 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
         };
         for leaf in ctx.selection() {
             let leaf_id = leaf.info().id();
-            if leaf_id != id {
+            if leaf_id != id && leaf_id == selection_id {
                 SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
             }
             // else will clean now
         }
-        ctx.root_id
+        (ctx.root_id, selection_id)
     };
 
-    // clear local selection and get caret
+    // clear local selection
     local_clear_line_start_end(is_end);
 
-    // if local line_start_end set caret not at start or end the context leaf wraps and the caret
+    // if local line_start_end set caret not at start nor end the context leaf wraps and the caret
     // is already in the correct place
     let is_inside = {
         let ctx = TEXT.resolved();
@@ -1773,7 +1773,7 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
         idx.index > 0 && idx.index < ctx.segmented_text.text().len() - 1
     };
 
-    let mut new_caret_id = caret.info().id();
+    let mut new_caret = caret.info().clone();
 
     if !is_inside {
         if is_end {
@@ -1783,14 +1783,14 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
                 let info = next.info().rich_text_line_info();
                 if info.starts_new_line {
                     // prev's text end is the line end
-                    new_caret_id = prev.id();
-                    SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+                    new_caret = prev.clone();
+                    SELECT_CMD.scoped(new_caret.id()).notify_param(TextSelectOp::local_text_end());
                     found = true;
                     break;
                 } else if info.ends_in_new_line {
                     // next's first row end is the line end
-                    new_caret_id = next.info().id();
-                    SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::new(move || {
+                    new_caret = next.into();
+                    SELECT_CMD.scoped(new_caret.id()).notify_param(TextSelectOp::new(move || {
                         let ctx = TEXT.laidout();
                         let new_idx = ctx.shaped_text.line(0).unwrap().text_caret_range().end;
                         let mut ctx = TEXT.resolve_caret();
@@ -1805,8 +1805,8 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
             }
             if !found {
                 // end of text is line end
-                new_caret_id = prev.id();
-                SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_end());
+                new_caret = prev;
+                SELECT_CMD.scoped(new_caret.id()).notify_param(TextSelectOp::local_text_end());
             }
         } else {
             let line_info = caret.info().rich_text_line_info();
@@ -1815,13 +1815,13 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
                     let info = prev.info().rich_text_line_info();
                     if info.starts_new_line {
                         // prev's text start is the line start
-                        new_caret_id = prev.info().id();
-                        SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::local_text_start());
+                        new_caret = prev.into();
+                        SELECT_CMD.scoped(new_caret.id()).notify_param(TextSelectOp::local_text_start());
                         break;
                     } else if info.ends_in_new_line {
                         // prev's last row start is the line start
-                        new_caret_id = prev.info().id();
-                        SELECT_CMD.scoped(new_caret_id).notify_param(TextSelectOp::new(move || {
+                        new_caret = prev.into();
+                        SELECT_CMD.scoped(new_caret.id()).notify_param(TextSelectOp::new(move || {
                             let ctx = TEXT.laidout();
                             let last_i = ctx.shaped_text.lines_len() - 1;
                             let new_idx = ctx.shaped_text.line(last_i).unwrap().text_caret_range().start;
@@ -1842,12 +1842,59 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
 
     {
         let mut ctx = TEXT.resolve_rich_caret();
-        ctx.index = Some(new_caret_id);
-        ctx.selection_index = None;
+        ctx.index = Some(new_caret.id());
+        ctx.selection_index = Some(selection_id);
+    }
+
+    // select
+    let ctx = TEXT.rich();
+    for leaf in ctx.selection() {
+        let leaf_id = leaf.info().id();
+        if leaf_id == selection_id {
+            if leaf_id == new_caret.id() {
+                // !!: TODO already selected?
+            } else {
+                // selection_index widget, select to start/end
+                SELECT_CMD.scoped(selection_id).notify_param(TextSelectOp::new(move || {
+                    if is_end {
+                        let len = TEXT.resolved().segmented_text.text().len();
+    
+                        let mut ctx = TEXT.resolve_caret();
+                        if ctx.selection_index.is_none() {
+                            ctx.selection_index = Some(ctx.index.unwrap_or(CaretIndex::ZERO));
+                        }
+                        ctx.set_char_index(len);
+                    } else {
+                        let mut ctx = TEXT.resolve_caret();
+                        if ctx.selection_index.is_none() {
+                            ctx.selection_index = Some(ctx.index.unwrap_or(CaretIndex::ZERO));
+                        }
+                        ctx.set_index(CaretIndex::ZERO);
+                    }
+                }));
+            }            
+        } else if leaf_id == new_caret.id() {
+            // line end widget select to !(start/end) (move the selection_index, not the caret)
+            SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::new( move || {
+                if is_end {
+                    let len = TEXT.resolved().segmented_text.text().len();
+                    let mut ctx = TEXT.resolve_caret();
+                    ctx.selection_index = Some(CaretIndex { index: len, line: 0 }); // line will snap to correct after update
+                    ctx.index_version += 1;
+                } else {
+                    let mut ctx = TEXT.resolve_caret();
+                    ctx.selection_index = Some(CaretIndex::ZERO);
+                    ctx.index_version += 1;
+                }
+            }));
+        } else {
+            // middle widget, select all
+            SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::select_all());
+        }
     }
 
     if FOCUS.is_focus_within(rich_id).get() {
-        FOCUS.focus_widget(new_caret_id, false);
+        FOCUS.focus_widget(new_caret.id(), false);
     }
 }
 
