@@ -792,8 +792,10 @@ impl RedoAction for UndoTextEditOp {
 
 /// Represents a text caret/selection operation that can be send to an editable text using [`SELECT_CMD`].
 ///
-/// The provided operations work in rich text context by default, unless they are named with prefix `local_`. In
+/// The provided operations work in rich texts by default, unless they are named with prefix `local_`. In
 /// rich text contexts the operation may generate other `SELECT_CMD` requests as it propagates to all involved component texts.
+/// The `local_` operations are for use by other operations only, direct use inside rich text requires updating the rich text state
+/// to match.
 #[derive(Clone)]
 pub struct TextSelectOp {
     op: Arc<Mutex<dyn FnMut() + Send>>,
@@ -819,20 +821,16 @@ impl TextSelectOp {
         }
     }
 
+    pub(super) fn call(self) {
+        (self.op.lock())();
+    }
+
     /// Clear selection and move the caret to the next insert index.
     ///
     /// This is the `Right` key operation.
     pub fn next() -> Self {
         Self::new(|| {
             rich_clear_next_prev(true, false);
-        })
-    }
-    /// Like [`next`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`next`]: Self::next
-    pub fn local_next() -> Self {
-        Self::new(|| {
-            local_clear_next_prev(true, false);
         })
     }
 
@@ -844,14 +842,6 @@ impl TextSelectOp {
             rich_select_next_prev(true, false);
         })
     }
-    /// Like [`select_next`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_next`]: Self::select_next
-    pub fn local_select_next() -> Self {
-        Self::new(|| {
-            local_select_next_prev(true, false);
-        })
-    }
 
     /// Clear selection and move the caret to the previous insert index.
     ///
@@ -859,14 +849,6 @@ impl TextSelectOp {
     pub fn prev() -> Self {
         Self::new(|| {
             rich_clear_next_prev(false, false);
-        })
-    }
-    /// Like [`prev`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`prev`]: Self::prev
-    pub fn local_prev() -> Self {
-        Self::new(|| {
-            local_clear_next_prev(false, false);
         })
     }
 
@@ -878,14 +860,6 @@ impl TextSelectOp {
             rich_select_next_prev(false, false);
         })
     }
-    /// Like [`select_prev`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_prev`]: Self::select_prev
-    pub fn local_select_prev() -> Self {
-        Self::new(|| {
-            local_select_next_prev(false, false);
-        })
-    }
 
     /// Clear selection and move the caret to the next word insert index.
     ///
@@ -895,15 +869,6 @@ impl TextSelectOp {
             rich_clear_next_prev(true, true);
         })
     }
-    /// Like [`next_word`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`next_word`]: Self::next_word
-    pub fn local_next_word() -> Self {
-        Self::new(|| {
-            local_clear_next_prev(true, true);
-        })
-    }
-
     /// Extend or shrink selection by moving the caret to the next word insert index.
     ///
     /// This is the `CTRL+SHIFT+Right` shortcut operation.
@@ -912,29 +877,12 @@ impl TextSelectOp {
             rich_select_next_prev(true, true);
         })
     }
-    /// Like [`select_next_word`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_next_word`]: Self::select_next_word
-    pub fn local_select_next_word() -> Self {
-        Self::new(|| {
-            local_select_next_prev(true, true);
-        })
-    }
-
     /// Clear selection and move the caret to the previous word insert index.
     ///
     /// This is the `CTRL+Left` shortcut operation.
     pub fn prev_word() -> Self {
         Self::new(|| {
             rich_clear_next_prev(false, true);
-        })
-    }
-    /// Like [`prev_word`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`prev_word`]: Self::prev_word
-    pub fn local_prev_word() -> Self {
-        Self::new(|| {
-            local_clear_next_prev(false, true);
         })
     }
 
@@ -944,14 +892,6 @@ impl TextSelectOp {
     pub fn select_prev_word() -> Self {
         Self::new(|| {
             rich_select_next_prev(false, true);
-        })
-    }
-    /// Like [`select_prev_word`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_prev_word`]: Self::select_prev_word
-    pub fn local_select_prev_word() -> Self {
-        Self::new(|| {
-            local_select_next_prev(false, true);
         })
     }
 
@@ -1017,24 +957,12 @@ impl TextSelectOp {
     pub fn line_start() -> Self {
         Self::new(|| rich_clear_line_start_end(false))
     }
-    /// Like [`line_start`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`line_start`]: Self::line_start
-    pub fn local_line_start() -> Self {
-        Self::new(|| local_clear_line_start_end(false))
-    }
 
     /// Extend or shrink selection by moving the caret to the start of the line.
     ///
     /// This is the `SHIFT+Home` key operation.
     pub fn select_line_start() -> Self {
         Self::new(|| rich_select_line_start_end(false))
-    }
-    /// Like [`select_line_start`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_line_start`]: Self::select_line_start
-    pub fn local_select_line_start() -> Self {
-        Self::new(|| local_select_line_start_end(false))
     }
 
     /// Clear selection and move the caret to the end of the line (before the line-break if any).
@@ -1043,23 +971,11 @@ impl TextSelectOp {
     pub fn line_end() -> Self {
         Self::new(|| rich_clear_line_start_end(true))
     }
-    /// Like [`line_end`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`line_end`]: Self::line_end
-    pub fn local_line_end() -> Self {
-        Self::new(|| local_clear_line_start_end(true))
-    }
 
     /// Extend or shrink selection by moving the caret to the end of the line (before the line-break if any).
     ///
     /// This is the `SHIFT+End` key operation.
     pub fn select_line_end() -> Self {
-        Self::new(|| rich_select_line_start_end(true))
-    }
-    /// Like [`select_line_end`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_line_end`]: Self::select_line_end
-    pub fn local_select_line_end() -> Self {
         Self::new(|| rich_select_line_start_end(true))
     }
 
@@ -1069,24 +985,12 @@ impl TextSelectOp {
     pub fn text_start() -> Self {
         Self::new(|| rich_clear_text_start_end(false))
     }
-    /// Like [`text_start`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`text_start`]: Self::text_start
-    pub fn local_text_start() -> Self {
-        Self::new(|| local_clear_text_start_end(false))
-    }
 
     /// Extend or shrink selection by moving the caret to the text start.
     ///
     /// This is the `CTRL+SHIFT+Home` shortcut operation.
     pub fn select_text_start() -> Self {
         Self::new(|| rich_select_text_start_end(false))
-    }
-    /// Like [`select_text_start`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_text_start`]: Self::select_text_start
-    pub fn local_select_text_start() -> Self {
-        Self::new(|| local_select_text_start_end(false))
     }
 
     /// Clear selection and move the caret to the text end.
@@ -1095,24 +999,12 @@ impl TextSelectOp {
     pub fn text_end() -> Self {
         Self::new(|| rich_clear_text_start_end(true))
     }
-    /// Like [`text_end`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`text_end`]: Self::text_end
-    pub fn local_text_end() -> Self {
-        Self::new(|| local_clear_text_start_end(true))
-    }
 
     /// Extend or shrink selection by moving the caret to the text end.
     ///
     /// This is the `CTRL+SHIFT+End` shortcut operation.
     pub fn select_text_end() -> Self {
         Self::new(|| rich_select_text_start_end(true))
-    }
-    /// Like [`select_text_end`] but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_text_end`]: Self::select_text_end
-    pub fn local_select_text_end() -> Self {
-        Self::new(|| local_select_text_start_end(true))
     }
 
     /// Clear selection and move the caret to the insert point nearest to the `window_point`.
@@ -1190,17 +1082,6 @@ impl TextSelectOp {
             Self::local_select_all().call();
         })
     }
-    /// Like [`select_all`]  but stays within the same text widget, ignores rich text context.
-    ///
-    /// [`select_all`]: Self::select_all
-    pub fn local_select_all() -> Self {
-        Self::new(|| {
-            let len = TEXT.resolved().segmented_text.text().len();
-            let mut caret = TEXT.resolve_caret();
-            caret.set_char_selection(0, len);
-            caret.skip_next_scroll = true;
-        })
-    }
 
     /// Clear selection and keep the caret at the same position.
     ///
@@ -1220,6 +1101,149 @@ impl TextSelectOp {
             }
         })
     }
+}
+
+/// Operations that ignore the rich text context, for internal use only.
+impl TextSelectOp {
+    /// Like [`next`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`next`]: Self::next
+    pub fn local_next() -> Self {
+        Self::new(|| {
+            local_clear_next_prev(true, false);
+        })
+    }
+
+    /// Like [`select_next`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_next`]: Self::select_next
+    pub fn local_select_next() -> Self {
+        Self::new(|| {
+            local_select_next_prev(true, false);
+        })
+    }
+
+    /// Like [`prev`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`prev`]: Self::prev
+    pub fn local_prev() -> Self {
+        Self::new(|| {
+            local_clear_next_prev(false, false);
+        })
+    }
+
+    /// Like [`select_prev`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_prev`]: Self::select_prev
+    pub fn local_select_prev() -> Self {
+        Self::new(|| {
+            local_select_next_prev(false, false);
+        })
+    }
+
+    /// Like [`next_word`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`next_word`]: Self::next_word
+    pub fn local_next_word() -> Self {
+        Self::new(|| {
+            local_clear_next_prev(true, true);
+        })
+    }
+
+    /// Like [`select_next_word`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_next_word`]: Self::select_next_word
+    pub fn local_select_next_word() -> Self {
+        Self::new(|| {
+            local_select_next_prev(true, true);
+        })
+    }
+
+    /// Like [`prev_word`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`prev_word`]: Self::prev_word
+    pub fn local_prev_word() -> Self {
+        Self::new(|| {
+            local_clear_next_prev(false, true);
+        })
+    }
+
+    /// Like [`select_prev_word`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_prev_word`]: Self::select_prev_word
+    pub fn local_select_prev_word() -> Self {
+        Self::new(|| {
+            local_select_next_prev(false, true);
+        })
+    }
+
+    /// Like [`line_start`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`line_start`]: Self::line_start
+    pub fn local_line_start() -> Self {
+        Self::new(|| local_clear_line_start_end(false))
+    }
+
+    /// Like [`select_line_start`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_line_start`]: Self::select_line_start
+    pub fn local_select_line_start() -> Self {
+        Self::new(|| local_select_line_start_end(false))
+    }
+
+    /// Like [`line_end`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`line_end`]: Self::line_end
+    pub fn local_line_end() -> Self {
+        Self::new(|| local_clear_line_start_end(true))
+    }
+
+    /// Like [`select_line_end`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_line_end`]: Self::select_line_end
+    pub fn local_select_line_end() -> Self {
+        Self::new(|| rich_select_line_start_end(true))
+    }
+
+    /// Like [`text_start`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`text_start`]: Self::text_start
+    pub fn local_text_start() -> Self {
+        Self::new(|| local_clear_text_start_end(false))
+    }
+
+    /// Like [`select_text_start`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_text_start`]: Self::select_text_start
+    pub fn local_select_text_start() -> Self {
+        Self::new(|| local_select_text_start_end(false))
+    }
+
+    /// Like [`text_end`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`text_end`]: Self::text_end
+    pub fn local_text_end() -> Self {
+        Self::new(|| local_clear_text_start_end(true))
+    }
+
+    /// Like [`select_text_end`] but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_text_end`]: Self::select_text_end
+    pub fn local_select_text_end() -> Self {
+        Self::new(|| local_select_text_start_end(true))
+    }
+
+    /// Like [`select_all`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_all`]: Self::select_all
+    pub fn local_select_all() -> Self {
+        Self::new(|| {
+            let len = TEXT.resolved().segmented_text.text().len();
+            let mut caret = TEXT.resolve_caret();
+            caret.set_char_selection(0, len);
+            caret.skip_next_scroll = true;
+        })
+    }
 
     /// Like [`clear_selection`]  but stays within the same text widget, ignores rich text context.
     ///
@@ -1231,8 +1255,101 @@ impl TextSelectOp {
         })
     }
 
-    pub(super) fn call(self) {
-        (self.op.lock())();
+    /// Like [`line_up`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`line_up`]: Self::line_up !!:
+    pub fn local_line_up() -> Self {
+        Self::new(|| line_up_down(true, -1))
+    }
+
+    /// Like [`select_line_up`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_line_up`]: Self::select_line_up !!:
+    pub fn local_select_line_up() -> Self {
+        Self::new(|| line_up_down(false, -1))
+    }
+
+    /// Like [`line_down`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`line_down`]: Self::line_down !!:
+    pub fn local_line_down() -> Self {
+        Self::new(|| line_up_down(true, 1))
+    }
+
+    /// Like [`select_line_down`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_line_down`]: Self::select_line_down !!:
+    pub fn local_select_line_down() -> Self {
+        Self::new(|| line_up_down(false, 1))
+    }
+
+    /// Like [`page_up`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`page_up`]: Self::page_up !!:
+    pub fn local_page_up() -> Self {
+        Self::new(|| page_up_down(true, -1))
+    }
+
+    /// Like [`select_page_up`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_page_up`]: Self::select_page_up !!:
+    pub fn local_select_page_up() -> Self {
+        Self::new(|| page_up_down(false, -1))
+    }
+
+    /// Like [`page_down`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`page_down`]: Self::page_down !!:
+    pub fn local_page_down() -> Self {
+        Self::new(|| page_up_down(true, 1))
+    }
+
+    /// Like [`select_page_down`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_page_down`]: Self::select_page_down !!:
+    pub fn local_select_page_down() -> Self {
+        Self::new(|| page_up_down(false, 1))
+    }
+
+    /// Like [`nearest_to`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`nearest_to`]: Self::nearest_to !!:
+    pub fn local_nearest_to(window_point: DipPoint) -> Self {
+        Self::new(move || {
+            nearest_to(true, window_point);
+        })
+    }
+
+    /// Like [`select_nearest_to`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_nearest_to`]: Self::select_nearest_to !!:
+    pub fn local_select_nearest_to(window_point: DipPoint) -> Self {
+        Self::new(move || {
+            nearest_to(false, window_point);
+        })
+    }
+
+    /// Like [`select_index_nearest_to`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`select_index_nearest_to`]: Self::select_index_nearest_to !!:
+    pub fn local_select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> Self {
+        Self::new(move || {
+            index_nearest_to(window_point, move_selection_index);
+        })
+    }
+
+    /// Like [`word_nearest_to`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`word_nearest_to`]: Self::word_nearest_to !!:
+    pub fn local_word_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
+        Self::new(move || select_line_word_nearest_to(replace_selection, true, window_point))
+    }
+
+    /// Like [`line_nearest_to`]  but stays within the same text widget, ignores rich text context.
+    ///
+    /// [`line_nearest_to`]: Self::line_nearest_to !!:
+    pub fn local_line_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
+        Self::new(move || select_line_word_nearest_to(replace_selection, false, window_point))
     }
 }
 
