@@ -1754,16 +1754,26 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
         };
         for leaf in ctx.selection() {
             let leaf_id = leaf.info().id();
-            if leaf_id != id && leaf_id == selection_id {
+            if leaf_id != id && leaf_id != selection_id {
                 SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
             }
-            // else will clean now
+            // else will clean local (for id or skip to selection update for selection_id)
         }
         (ctx.root_id, selection_id)
     };
 
     // clear local selection
-    local_clear_line_start_end(is_end);
+    if selection_id == id {
+        let ctx = TEXT.resolved();
+        let preserve = ctx.caret.selection_index.or(ctx.caret.index).unwrap_or(CaretIndex::ZERO);
+        drop(ctx);
+        local_clear_line_start_end(is_end);
+        let mut ctx = TEXT.resolve_caret();
+        // after the line start/end is found the selection will be recreated and use this
+        ctx.selection_index = Some(preserve);
+    } else {
+        local_clear_line_start_end(is_end);
+    }
 
     // if local line_start_end set caret not at start nor end the context leaf wraps and the caret
     // is already in the correct place
@@ -1784,17 +1794,25 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
                 if info.starts_new_line {
                     // prev's text end is the line end
                     new_caret = prev.clone();
-                    SELECT_CMD.scoped(new_caret.id()).notify_param(TextSelectOp::local_text_end());
+                    let id = new_caret.id();
+                    if selection_id == id {
+                        SELECT_CMD.scoped(id).notify_param(TextSelectOp::local_select_text_end());
+                    } else {
+                        SELECT_CMD.scoped(id).notify_param(TextSelectOp::local_text_end());
+                    }
                     found = true;
                     break;
                 } else if info.ends_in_new_line {
                     // next's first row end is the line end
                     new_caret = next.into();
-                    SELECT_CMD.scoped(new_caret.id()).notify_param(TextSelectOp::new(move || {
+                    let id = new_caret.id();
+                    SELECT_CMD.scoped(id).notify_param(TextSelectOp::new(move || {
                         let ctx = TEXT.laidout();
                         let new_idx = ctx.shaped_text.line(0).unwrap().text_caret_range().end;
                         let mut ctx = TEXT.resolve_caret();
-                        ctx.clear_selection();
+                        if selection_id != id {
+                            ctx.clear_selection();
+                        }
                         ctx.set_index(CaretIndex { index: new_idx, line: 0 });
                     }));
                     found = true;
@@ -1806,9 +1824,16 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
             if !found {
                 // end of text is line end
                 new_caret = prev;
-                SELECT_CMD.scoped(new_caret.id()).notify_param(TextSelectOp::local_text_end());
+                let id = new_caret.id();
+                if selection_id == id {
+                    SELECT_CMD.scoped(id).notify_param(TextSelectOp::local_select_text_end());
+                } else {
+                    SELECT_CMD.scoped(id).notify_param(TextSelectOp::local_text_end());
+                }
             }
         } else {
+            // !is_end
+
             let line_info = caret.info().rich_text_line_info();
             if !line_info.starts_new_line {
                 for prev in caret.info().rich_text_prev() {
@@ -1851,14 +1876,14 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
     for leaf in ctx.selection() {
         let leaf_id = leaf.info().id();
         if leaf_id == selection_id {
-            if leaf_id == new_caret.id() {
-                // !!: TODO already selected?
+            if selection_id == new_caret.id() {
+                // already selected when caret moved to start/end
             } else {
                 // selection_index widget, select to start/end
                 SELECT_CMD.scoped(selection_id).notify_param(TextSelectOp::new(move || {
                     if is_end {
                         let len = TEXT.resolved().segmented_text.text().len();
-    
+
                         let mut ctx = TEXT.resolve_caret();
                         if ctx.selection_index.is_none() {
                             ctx.selection_index = Some(ctx.index.unwrap_or(CaretIndex::ZERO));
@@ -1872,11 +1897,11 @@ fn continue_rich_select_line_start_end_inside_caret(is_end: bool, caret: &Widget
                         ctx.set_index(CaretIndex::ZERO);
                     }
                 }));
-            }            
+            }
         } else if leaf_id == new_caret.id() {
             // line end widget select to !(start/end) (move the selection_index, not the caret)
-            SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::new( move || {
-                if is_end {
+            SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::new(move || {
+                if !is_end {
                     let len = TEXT.resolved().segmented_text.text().len();
                     let mut ctx = TEXT.resolve_caret();
                     ctx.selection_index = Some(CaretIndex { index: len, line: 0 }); // line will snap to correct after update
