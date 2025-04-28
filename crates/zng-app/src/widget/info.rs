@@ -685,6 +685,46 @@ impl WidgetBoundsInfo {
         self.0.lock().inner_bounds
     }
 
+    /// Gets the inline rows for inline widgets or inner bounds for block widgets.
+    ///
+    /// The rectangles are in the root space.
+    pub fn inner_rects(&self) -> Vec<PxRect> {
+        let m = self.0.lock();
+        if let Some(i) = &m.inline {
+            let offset = m.inner_bounds.origin.to_vector();
+            let mut rows = i.rows.clone();
+            for r in &mut rows {
+                r.origin += offset;
+            }
+            rows
+        } else {
+            vec![m.inner_bounds]
+        }
+    }
+
+    /// Call `visitor` for each [`inner_rects`] without allocating a vector.
+    ///
+    /// [`inner_rects`]: Self::inner_rects
+    pub fn visit_inner_rects<B>(&self, mut visitor: impl FnMut(PxRect) -> ops::ControlFlow<B>) -> Option<B> {
+        let m = self.0.lock();
+        if let Some(i) = &m.inline {
+            let offset = m.inner_bounds.origin.to_vector();
+            for mut r in i.rows.iter().copied() {
+                r.origin += offset;
+                match visitor(r) {
+                    ops::ControlFlow::Continue(()) => continue,
+                    ops::ControlFlow::Break(r) => return Some(r),
+                }
+            }
+            None
+        } else {
+            match visitor(m.inner_bounds) {
+                ops::ControlFlow::Continue(()) => None,
+                ops::ControlFlow::Break(r) => Some(r),
+            }
+        }
+    }
+
     /// If the widget and descendants was collapsed during layout.
     pub fn is_collapsed(&self) -> bool {
         self.0.lock().is_collapsed
@@ -1559,6 +1599,23 @@ impl WidgetInfo {
         DistanceKey::from_points(origin, self.center())
     }
 
+    /// Value that indicates the distance between the nearest point inside this widgets rectangle and `origin`.
+    ///
+    /// The widgets rectangles is the inner bounds for block widgets or the row rectangles for inline widgets.
+    pub fn rect_distance_key(&self, origin: PxPoint) -> DistanceKey {
+        let mut d = DistanceKey::NONE_MAX;
+        self.info().bounds_info.visit_inner_rects::<()>(|r| {
+            let dd = DistanceKey::from_rect_to_point(r, origin);
+            d = d.min(dd);
+            if d == DistanceKey::MIN {
+                ops::ControlFlow::Break(())
+            } else {
+                ops::ControlFlow::Continue(())
+            }
+        });
+        d
+    }
+
     /// Count of ancestors.
     pub fn depth(&self) -> usize {
         self.ancestors().count()
@@ -1729,7 +1786,7 @@ impl WidgetInfo {
 
     /// Find the descendant with center point nearest of `origin` within the `max_radius`.
     ///
-    /// This method is faster than using sorting the result of [`center_in_distance`], but is slower if any point in distance is acceptable.
+    /// This method is faster than sorting the result of [`center_in_distance`], but is slower if any point in distance is acceptable.
     ///
     /// [`center_in_distance`]: Self::center_in_distance
     pub fn nearest(&self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo> {
@@ -1772,6 +1829,92 @@ impl WidgetInfo {
                 if w_dist < dist && filter(&w) {
                     dist = w_dist;
                     nearest = Some(w);
+                }
+            }
+
+            let source_width = source_quad.width();
+            if nearest.is_some() || source_width >= max_diameter {
+                break;
+            } else {
+                source_quad = source_quad.inflate(source_width, source_width);
+                let new_search = match source_quad.intersection(&max_quad) {
+                    Some(b) if b != search_quad => b,
+                    _ => break, // filled bounds
+                };
+                search_quad = new_search;
+            }
+        }
+
+        if nearest.is_some() {
+            // ensure that we are not skipping a closer widget because the nearest was in a corner of the search quad.
+            let distance = PxVector::splat(Px(2) * dist.distance().unwrap_or(Px(0)));
+
+            let quad = euclid::Box2D::new(origin - distance, origin + distance).intersection_unchecked(&max_quad.to_box2d());
+
+            for w in self.center_contained(quad.to_rect()) {
+                let w_dist = w.distance_key(origin);
+                if w_dist < dist && filter(&w) {
+                    dist = w_dist;
+                    nearest = Some(w);
+                }
+            }
+        }
+
+        nearest
+    }
+
+    /// Find the descendant that has inner bounds or inline rows nearest to `origin` and are within `max_radius`.
+    ///
+    /// The distance is from any given point inside the bounds or inline rows rectangle to the origin. If origin is inside
+    /// the rectangle the distance is zero. If multiple widgets have the same distance the nearest center point widget is used.
+    pub fn nearest_rect(&self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo> {
+        self.nearest_rect_filtered(origin, max_radius, |_| true)
+    }
+
+    /// Find the descendant that has inner bounds or inline rows nearest to `origin` and are within `max_radius` and .
+    pub fn nearest_rect_filtered(&self, origin: PxPoint, max_radius: Px, filter: impl FnMut(&WidgetInfo) -> bool) -> Option<WidgetInfo> {
+        self.nearest_rect_bounded_filtered(origin, max_radius, self.tree.spatial_bounds(), filter)
+    }
+
+    /// Find the widget, self or descendant, with inner bounds or inline rows nearest of `origin` within the `max_radius` and inside `bounds`;
+    /// and approved by the `filter` closure.
+    pub fn nearest_rect_bounded_filtered(
+        &self,
+        origin: PxPoint,
+        max_radius: Px,
+        bounds: PxRect,
+        mut filter: impl FnMut(&WidgetInfo) -> bool,
+    ) -> Option<WidgetInfo> {
+        // search quadrants of `128` -> `256` -> .. until one quadrant finds at least a widget centered in it,
+        // the nearest widget centered in the smallest quadrant is selected.
+        let max_quad = self.tree.spatial_bounds().intersection(&bounds)?;
+
+        let mut source_quad = PxRect::new(origin - PxVector::splat(Px(64)), PxSize::splat(Px(128)));
+        let mut search_quad = source_quad.intersection(&max_quad)?;
+
+        let max_diameter = max_radius * Px(2);
+
+        let mut dist = if max_radius != Px::MAX {
+            DistanceKey::from_distance(max_radius + Px(1))
+        } else {
+            DistanceKey::NONE_MAX
+        };
+
+        let mut nearest = None;
+        loop {
+            for w in self.inner_intersects(search_quad) {
+                let w_dist = w.rect_distance_key(origin);
+                if w_dist < dist {
+                    if filter(&w) {
+                        dist = w_dist;
+                        nearest = Some(w);
+                    }
+                } else if w_dist == DistanceKey::MIN && filter(&w) {
+                    let w_center_dist = w.distance_key(origin);
+                    let center_dist = nearest.as_ref().unwrap().distance_key(origin);
+                    if w_center_dist < center_dist {
+                        nearest = Some(w);
+                    }
                 }
             }
 

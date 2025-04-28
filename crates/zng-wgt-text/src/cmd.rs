@@ -2183,10 +2183,44 @@ fn local_select_text_start_end(is_end: bool) {
 }
 
 fn rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
-    if let Some(_ctx) = TEXT.try_rich() {
-        // !!: TODO
+    if let Some(ctx) = TEXT.try_rich() {
+        let root = match ctx.root_info() {
+            Some(r) => r,
+            None => return,
+        };
+
+        if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point) {
+            let id = nearest_leaf.info().id();
+            if id != WIDGET.id() {
+                SELECT_CMD
+                    .scoped(id)
+                    .notify_param(TextSelectOp::new(move || continue_rich_nearest_to(clear_selection, window_point)));
+                return;
+            }
+        }
+
+        drop(ctx);
+        continue_rich_nearest_to(clear_selection, window_point);
     } else {
         local_nearest_to(clear_selection, window_point);
+    }
+}
+fn continue_rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
+    if !clear_selection {
+        // !!: TODO
+    }
+
+    local_nearest_to(clear_selection, window_point);
+
+    if let Some(ctx) = TEXT.try_rich() {
+        let root_id = ctx.root_id;
+        drop(ctx);
+        let mut ctx = TEXT.resolve_rich_caret();
+        let id = WIDGET.id();
+        ctx.index = Some(id);
+        if FOCUS.is_focus_within(root_id).get() {
+            FOCUS.focus_widget(id, false);
+        }
     }
 }
 fn local_nearest_to(clear_selection: bool, window_point: DipPoint) {

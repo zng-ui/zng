@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `WidgetBoundsInfo::inner_rects` and associated methods.
+* Add `WidgetInfo::nearest_rect` and associated methods.
 * Text now clears selection on `Key::Escape`.
 * Implement all `FromIterator` and `Extend` that `String` implements for `Txt`.
 * Fix Alt focus scope navigation from inside nested focus scopes.

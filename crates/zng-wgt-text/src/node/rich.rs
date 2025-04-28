@@ -223,6 +223,9 @@ pub trait RichTextWidgetInfoExt {
 
     /// Gets info about how this rich leaf affects the text lines.
     fn rich_text_line_info(&self) -> RichLineInfo;
+
+    /// Gets the leaf descendant that is nearest to the `window_point`.
+    fn rich_text_nearest_leaf(&self, window_point: DipPoint) -> Option<WidgetFocusInfo>;
 }
 impl RichTextWidgetInfoExt for WidgetInfo {
     fn rich_text_root(&self) -> Option<WidgetInfo> {
@@ -298,6 +301,16 @@ impl RichTextWidgetInfoExt for WidgetInfo {
             starts_new_line: starts,
             ends_in_new_line: wraps,
         }
+    }
+
+    fn rich_text_nearest_leaf(&self, window_point: DipPoint) -> Option<WidgetFocusInfo> {
+        let root_size = self.inner_border_size();
+        let search_radius = root_size.width.max(root_size.height);
+
+        let r = self.nearest_rect_filtered(window_point.to_px(self.tree().scale_factor()), search_radius, |w| {
+            matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })) && w.clone().into_focusable(false, false).is_some()
+        })?;
+        Some(r.into_focus_info(false, false))
     }
 }
 fn lines_overlap_strict(y_min1: Px, y_max1: Px, y_min2: Px, y_max2: Px) -> bool {
