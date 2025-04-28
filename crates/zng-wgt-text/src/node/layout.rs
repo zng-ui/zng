@@ -1239,7 +1239,11 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     let id = widget.id();
                     edit.selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(id));
                     edit.selection_move_handles.push(POINTER_CAPTURE_EVENT.subscribe(id));
-                    POINTER_CAPTURE.capture_widget(id);
+                    if let Some(ctx) = TEXT.try_rich() {
+                        POINTER_CAPTURE.capture_subtree(ctx.root_id);
+                    } else {
+                        POINTER_CAPTURE.capture_widget(id);
+                    }
                 }
             }
         } else {

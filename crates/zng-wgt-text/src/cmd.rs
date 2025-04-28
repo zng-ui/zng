@@ -2206,17 +2206,29 @@ fn rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
     }
 }
 fn continue_rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
-    if !clear_selection {
-        // !!: TODO
-    }
-
     local_nearest_to(clear_selection, window_point);
 
     if let Some(ctx) = TEXT.try_rich() {
+        if clear_selection {
+            let op = TextSelectOp::local_clear_selection();
+            let id = WIDGET.id();
+            for leaf in ctx.selection() {
+                let leaf_id = leaf.info().id();
+                if leaf_id != id {
+                    SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
+                }
+            }
+        }
+
         let root_id = ctx.root_id;
         drop(ctx);
         let mut ctx = TEXT.resolve_rich_caret();
         let id = WIDGET.id();
+        if clear_selection {
+            ctx.selection_index = None;
+        } else if ctx.selection_index.is_none() {
+            ctx.selection_index = Some(ctx.index.unwrap_or(id));
+        }
         ctx.index = Some(id);
         if FOCUS.is_focus_within(root_id).get() {
             FOCUS.focus_widget(id, false);
