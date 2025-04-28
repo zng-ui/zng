@@ -1509,6 +1509,19 @@ impl WidgetInfo {
         }
     }
 
+    /// Compare the position of `self` and `sibling` in the `ancestor` [`descendants`].
+    ///
+    /// [`descendants`]: Self::descendants
+    pub fn cmp_sibling_in(&self, sibling: &WidgetInfo, ancestor: &WidgetInfo) -> Option<std::cmp::Ordering> {
+        let range = ancestor.node().descendants_range();
+        let index = self.node_id.get();
+        let sibling_index = sibling.node_id.get();
+        if range.contains(&index) && self.tree == sibling.tree && self.tree == ancestor.tree {
+            return Some(index.cmp(&sibling_index));
+        }
+        None
+    }
+
     /// If `self` is an ancestor of `maybe_descendant`.
     pub fn is_ancestor(&self, maybe_descendant: &WidgetInfo) -> bool {
         self.descendants_range().contains(maybe_descendant)

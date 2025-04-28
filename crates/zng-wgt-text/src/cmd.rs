@@ -5,7 +5,7 @@
 //!
 //! The [`node::resolve_text`] node implements [`EDIT_CMD`] when the text is editable.
 
-use std::{any::Any, borrow::Cow, fmt, ops, sync::Arc};
+use std::{any::Any, borrow::Cow, cmp, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
@@ -2206,9 +2206,9 @@ fn rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
     }
 }
 fn continue_rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
-    local_nearest_to(clear_selection, window_point);
-
     if let Some(ctx) = TEXT.try_rich() {
+        let id = WIDGET.id();
+
         if clear_selection {
             let op = TextSelectOp::local_clear_selection();
             let id = WIDGET.id();
@@ -2218,18 +2218,117 @@ fn continue_rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
                     SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
                 }
             }
+        } else if let Some(sid) = ctx.caret.selection_index {
+            if sid != id {
+                let mut local_ctx = TEXT.resolve_caret();
+                if local_ctx.selection_index.is_none() {
+                    let tree = WINDOW.info();
+                    let r_info = tree.get(ctx.root_id);
+                    let s_info = tree.get(sid);
+                    let info = tree.get(id);
+
+                    if let (Some(s_info), Some(info), Some(r_info)) = (s_info, info, r_info) {
+                        if let Some(ordering) = info.cmp_sibling_in(&s_info, &r_info) {
+                            // snap index to start/end in the direction of the rich selection index so that
+                            // local_nearest_to can start the local selection from the right end.
+                            match ordering {
+                                cmp::Ordering::Less => {
+                                    drop(local_ctx);
+                                    let len = TEXT.resolved().segmented_text.text().len();
+                                    let mut local_ctx = TEXT.resolve_caret();
+                                    local_ctx.selection_index = Some(CaretIndex { index: len, line: 0 });
+                                }
+                                cmp::Ordering::Greater => local_ctx.selection_index = Some(CaretIndex::ZERO),
+                                cmp::Ordering::Equal => {}
+                            }
+
+                            // fast cursor move can skip the start/end of local selection of previous widget, ensure they are finished here.
+                            match ordering {
+                                cmp::Ordering::Less => {
+                                    let op = TextSelectOp::new(|| {
+                                        TEXT.resolve_caret().set_char_index(0);
+                                    });
+                                    for next in info.rich_text_next() {
+                                        let next_id = next.info().id();
+                                        SELECT_CMD.scoped(next_id).notify_param(op.clone());
+                                        if next_id == sid {
+                                            break;
+                                        }
+                                    }
+                                }
+                                cmp::Ordering::Greater => {
+                                    let op = TextSelectOp::new(|| {
+                                        let len = TEXT.resolved().segmented_text.text().len();
+                                        TEXT.resolve_caret().set_char_index(len);
+                                    });
+                                    for prev in info.rich_text_prev() {
+                                        let prev_id = prev.info().id();
+                                        SELECT_CMD.scoped(prev_id).notify_param(op.clone());
+                                        if prev_id == sid {
+                                            break;
+                                        }
+                                    }
+                                }
+                                cmp::Ordering::Equal => {}
+                            }
+                        }
+                    }
+                }
+            }
         }
+        local_nearest_to(clear_selection, window_point);
 
         let root_id = ctx.root_id;
         drop(ctx);
         let mut ctx = TEXT.resolve_rich_caret();
-        let id = WIDGET.id();
         if clear_selection {
             ctx.selection_index = None;
         } else if ctx.selection_index.is_none() {
             ctx.selection_index = Some(ctx.index.unwrap_or(id));
         }
+        let prev_index = ctx.index;
         ctx.index = Some(id);
+        if let (Some(prev_id), Some(sel_id)) = (prev_index, ctx.selection_index) {
+            drop(ctx);
+            if prev_id != id {
+                // fast cursor move can leave some selection behind, ensure clear.
+                let ctx = TEXT.rich();
+                let tree = WINDOW.info();
+                if let (Some(prev), Some(new), Some(selection), Some(root)) =
+                    (tree.get(prev_id), tree.get(id), tree.get(sel_id), tree.get(ctx.root_id))
+                {
+                    if let (Some(ordering), Some(sel_ordering)) = (new.cmp_sibling_in(&prev, &root), prev.cmp_sibling_in(&selection, &root))
+                    {
+                        // all valid
+                        if sel_ordering != ordering && sel_ordering != cmp::Ordering::Equal {
+                            // reduced selection/changed towards selection
+                            let op = TextSelectOp::local_clear_selection();
+                            match ordering {
+                                cmp::Ordering::Less => {
+                                    for next in new.rich_text_next() {
+                                        let next_id = next.info().id();
+                                        SELECT_CMD.scoped(next_id).notify_param(op.clone());
+                                        if next_id == prev_id {
+                                            break;
+                                        }
+                                    }
+                                }
+                                cmp::Ordering::Greater => {
+                                    for prev in new.rich_text_prev() {
+                                        let prev_info_id = prev.info().id();
+                                        SELECT_CMD.scoped(prev_info_id).notify_param(op.clone());
+                                        if prev_info_id == prev_id {
+                                            break;
+                                        }
+                                    }
+                                }
+                                cmp::Ordering::Equal => {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if FOCUS.is_focus_within(root_id).get() {
             FOCUS.focus_widget(id, false);
         }

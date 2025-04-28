@@ -1239,11 +1239,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     let id = widget.id();
                     edit.selection_move_handles.push(MOUSE_MOVE_EVENT.subscribe(id));
                     edit.selection_move_handles.push(POINTER_CAPTURE_EVENT.subscribe(id));
-                    if let Some(ctx) = TEXT.try_rich() {
-                        POINTER_CAPTURE.capture_subtree(ctx.root_id);
-                    } else {
-                        POINTER_CAPTURE.capture_widget(id);
-                    }
+                    POINTER_CAPTURE.capture_widget(id);
                 }
             }
         } else {
@@ -1294,15 +1290,23 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             TextSelectOp::select_word_nearest_to(true, args.position).call();
         }
     } else if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-        if !edit.selection_move_handles.is_dummy() && selectable && args.target.widget_id() == widget.id() {
-            args.propagation().stop();
+        if !edit.selection_move_handles.is_dummy() && selectable {
+            let handle = if let Some(rich_root_id) = TEXT.try_rich().map(|r| r.root_id) {
+                args.target.contains(rich_root_id)
+            } else {
+                args.target.widget_id() == widget.id()
+            };
 
-            match edit.click_count {
-                1 => TextSelectOp::select_nearest_to(args.position).call(),
-                2 => TextSelectOp::select_word_nearest_to(false, args.position).call(),
-                3 => TextSelectOp::select_line_nearest_to(false, args.position).call(),
-                4 => {}
-                _ => unreachable!(),
+            if handle {
+                args.propagation().stop();
+
+                match edit.click_count {
+                    1 => TextSelectOp::select_nearest_to(args.position).call(),
+                    2 => TextSelectOp::select_word_nearest_to(false, args.position).call(),
+                    3 => TextSelectOp::select_line_nearest_to(false, args.position).call(),
+                    4 => {}
+                    _ => unreachable!(),
+                }
             }
         }
     } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
