@@ -1035,7 +1035,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     }
                 }
                 Key::ArrowUp => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 {
+                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
                         if modifiers.is_empty() && (editable || select) {
@@ -1053,7 +1053,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     }
                 }
                 Key::ArrowDown => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 {
+                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
                         if modifiers.is_empty() && (editable || select) {
@@ -1071,7 +1071,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     }
                 }
                 Key::PageUp => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 {
+                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
                         if modifiers.is_empty() && (editable || select) {
@@ -1089,7 +1089,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     }
                 }
                 Key::PageDown => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 {
+                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
                         if modifiers.is_empty() && (editable || select) {

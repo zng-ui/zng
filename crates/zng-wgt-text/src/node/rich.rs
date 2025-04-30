@@ -225,7 +225,16 @@ pub trait RichTextWidgetInfoExt {
     fn rich_text_line_info(&self) -> RichLineInfo;
 
     /// Gets the leaf descendant that is nearest to the `window_point`.
-    fn rich_text_nearest_leaf(&self, window_point: DipPoint) -> Option<WidgetFocusInfo>;
+    fn rich_text_nearest_leaf(&self, window_point: PxPoint) -> Option<WidgetFocusInfo>;
+    /// Gets the leaf descendant that is nearest to the `window_point` and is approved by the filter.
+    ///
+    /// The filter parameters are the widget, the rect, the rect row index and the widget inline rows length. If the widget is not inlined
+    /// both index and len are zero.
+    fn rich_text_nearest_leaf_filtered(
+        &self,
+        window_point: PxPoint,
+        filter: impl FnMut(&WidgetFocusInfo, PxRect, usize, usize) -> bool,
+    ) -> Option<WidgetFocusInfo>;
 }
 impl RichTextWidgetInfoExt for WidgetInfo {
     fn rich_text_root(&self) -> Option<WidgetInfo> {
@@ -303,12 +312,23 @@ impl RichTextWidgetInfoExt for WidgetInfo {
         }
     }
 
-    fn rich_text_nearest_leaf(&self, window_point: DipPoint) -> Option<WidgetFocusInfo> {
+    fn rich_text_nearest_leaf(&self, window_point: PxPoint) -> Option<WidgetFocusInfo> {
+        self.rich_text_nearest_leaf_filtered(window_point, |_, _, _, _| true)
+    }
+    fn rich_text_nearest_leaf_filtered(
+        &self,
+        window_point: PxPoint,
+        mut filter: impl FnMut(&WidgetFocusInfo, PxRect, usize, usize) -> bool,
+    ) -> Option<WidgetFocusInfo> {
         let root_size = self.inner_border_size();
         let search_radius = root_size.width.max(root_size.height);
 
-        let r = self.nearest_rect_filtered(window_point.to_px(self.tree().scale_factor()), search_radius, |w| {
-            matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })) && w.clone().into_focusable(false, false).is_some()
+        let r = self.nearest_rect_filtered(window_point, search_radius, |w, rect, i, len| {
+            matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. }))
+                && w.clone()
+                    .into_focusable(false, false)
+                    .map(|w| filter(&w, rect, i, len))
+                    .unwrap_or(false)
         })?;
         Some(r.into_focus_info(false, false))
     }

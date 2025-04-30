@@ -280,6 +280,14 @@ impl TEXT {
         RwLockWriteGuardOwned::map(RICH_TEXT.write(), |ctx| &mut ctx.caret)
     }
 
+    /// Set the `caret_retained_x` value.
+    ///
+    /// Note that the value is already updated automatically on caret layout, this method is for rich text operations
+    /// to propagate the line position between widgets.
+    pub fn set_caret_retained_x(&self, x: Px) {
+        self.layout().caret_retained_x = x;
+    }
+
     pub(crate) fn resolve(&self) -> RwLockWriteGuardOwned<ResolvedText> {
         RESOLVED_TEXT.write()
     }

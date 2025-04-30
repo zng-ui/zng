@@ -702,23 +702,36 @@ impl WidgetBoundsInfo {
         }
     }
 
-    /// Call `visitor` for each [`inner_rects`] without allocating a vector.
+    /// Call `visitor` for each [`inner_rects`] without allocating or locking.
+    ///
+    // The visitor parameters are the rect, inline row index and rows length. If the widget
+    /// is not inline both index and len are zero.
     ///
     /// [`inner_rects`]: Self::inner_rects
-    pub fn visit_inner_rects<B>(&self, mut visitor: impl FnMut(PxRect) -> ops::ControlFlow<B>) -> Option<B> {
+    pub fn visit_inner_rects<B>(&self, mut visitor: impl FnMut(PxRect, usize, usize) -> ops::ControlFlow<B>) -> Option<B> {
         let m = self.0.lock();
-        if let Some(i) = &m.inline {
-            let offset = m.inner_bounds.origin.to_vector();
-            for mut r in i.rows.iter().copied() {
+        let inner_bounds = m.inner_bounds;
+        let inline_range = m.inline.as_ref().map(|i| 0..i.rows.len());
+        drop(m);
+
+        if let Some(inline_range) = inline_range {
+            let offset = inner_bounds.origin.to_vector();
+            let len = inline_range.len();
+
+            for i in inline_range {
+                let mut r = match self.0.lock().inline.as_ref().and_then(|inl| inl.rows.get(i).copied()) {
+                    Some(r) => r,
+                    None => break, // changed mid visit
+                };
                 r.origin += offset;
-                match visitor(r) {
+                match visitor(r, i, len) {
                     ops::ControlFlow::Continue(()) => continue,
                     ops::ControlFlow::Break(r) => return Some(r),
                 }
             }
             None
         } else {
-            match visitor(m.inner_bounds) {
+            match visitor(inner_bounds, 0, 0) {
                 ops::ControlFlow::Continue(()) => None,
                 ops::ControlFlow::Break(r) => Some(r),
             }
@@ -1612,12 +1625,25 @@ impl WidgetInfo {
         DistanceKey::from_points(origin, self.center())
     }
 
-    /// Value that indicates the distance between the nearest point inside this widgets rectangle and `origin`.
+    /// Value that indicates the distance between the nearest point inside this widgets rectangles and `origin`.
     ///
     /// The widgets rectangles is the inner bounds for block widgets or the row rectangles for inline widgets.
     pub fn rect_distance_key(&self, origin: PxPoint) -> DistanceKey {
+        self.rect_distance_key_filtered(origin, |_, _, _| true)
+    }
+
+    /// Like [`rect_distance_key`], but only consider rectangles approved by `filter`.
+    ///
+    /// The filter parameters are the rectangle, the inline row index and the total inline rows length. If the widget
+    /// is not inlined both the index and len are zero.
+    ///
+    /// [`rect_distance_key`]: Self::rect_distance_key
+    pub fn rect_distance_key_filtered(&self, origin: PxPoint, mut filter: impl FnMut(PxRect, usize, usize) -> bool) -> DistanceKey {
         let mut d = DistanceKey::NONE_MAX;
-        self.info().bounds_info.visit_inner_rects::<()>(|r| {
+        self.info().bounds_info.visit_inner_rects::<()>(|r, i, len| {
+            if !filter(r, i, len) {
+                return ops::ControlFlow::Continue(());
+            }
             let dd = DistanceKey::from_rect_to_point(r, origin);
             d = d.min(dd);
             if d == DistanceKey::MIN {
@@ -1881,22 +1907,34 @@ impl WidgetInfo {
     /// The distance is from any given point inside the bounds or inline rows rectangle to the origin. If origin is inside
     /// the rectangle the distance is zero. If multiple widgets have the same distance the nearest center point widget is used.
     pub fn nearest_rect(&self, origin: PxPoint, max_radius: Px) -> Option<WidgetInfo> {
-        self.nearest_rect_filtered(origin, max_radius, |_| true)
+        self.nearest_rect_filtered(origin, max_radius, |_, _, _, _| true)
     }
 
-    /// Find the descendant that has inner bounds or inline rows nearest to `origin` and are within `max_radius` and .
-    pub fn nearest_rect_filtered(&self, origin: PxPoint, max_radius: Px, filter: impl FnMut(&WidgetInfo) -> bool) -> Option<WidgetInfo> {
+    /// Find the descendant that has inner bounds or inline rows nearest to `origin` and are within `max_radius` and are
+    /// approved by the `filter` closure.
+    ///
+    /// The filter parameters are the widget, the rect, the rect row index and the widget inline rows length. If the widget is not inlined
+    /// both index and len are zero.
+    pub fn nearest_rect_filtered(
+        &self,
+        origin: PxPoint,
+        max_radius: Px,
+        filter: impl FnMut(&WidgetInfo, PxRect, usize, usize) -> bool,
+    ) -> Option<WidgetInfo> {
         self.nearest_rect_bounded_filtered(origin, max_radius, self.tree.spatial_bounds(), filter)
     }
 
     /// Find the widget, self or descendant, with inner bounds or inline rows nearest of `origin` within the `max_radius` and inside `bounds`;
     /// and approved by the `filter` closure.
+    ///
+    /// The filter parameters are the widget, the rect, the rect row index and the widget inline rows length. If the widget is not inlined
+    /// both index and len are zero.
     pub fn nearest_rect_bounded_filtered(
         &self,
         origin: PxPoint,
         max_radius: Px,
         bounds: PxRect,
-        mut filter: impl FnMut(&WidgetInfo) -> bool,
+        mut filter: impl FnMut(&WidgetInfo, PxRect, usize, usize) -> bool,
     ) -> Option<WidgetInfo> {
         // search quadrants of `128` -> `256` -> .. until one quadrant finds at least a widget centered in it,
         // the nearest widget centered in the smallest quadrant is selected.
@@ -1916,13 +1954,11 @@ impl WidgetInfo {
         let mut nearest = None;
         loop {
             for w in self.inner_intersects(search_quad) {
-                let w_dist = w.rect_distance_key(origin);
+                let w_dist = w.rect_distance_key_filtered(origin, |rect, i, len| filter(&w, rect, i, len));
                 if w_dist < dist {
-                    if filter(&w) {
-                        dist = w_dist;
-                        nearest = Some(w);
-                    }
-                } else if w_dist == DistanceKey::MIN && filter(&w) {
+                    dist = w_dist;
+                    nearest = Some(w);
+                } else if w_dist == DistanceKey::MIN {
                     let w_center_dist = w.distance_key(origin);
                     let center_dist = nearest.as_ref().unwrap().distance_key(origin);
                     if w_center_dist < center_dist {
@@ -1941,21 +1977,6 @@ impl WidgetInfo {
                     _ => break, // filled bounds
                 };
                 search_quad = new_search;
-            }
-        }
-
-        if nearest.is_some() {
-            // ensure that we are not skipping a closer widget because the nearest was in a corner of the search quad.
-            let distance = PxVector::splat(Px(2) * dist.distance().unwrap_or(Px(0)));
-
-            let quad = euclid::Box2D::new(origin - distance, origin + distance).intersection_unchecked(&max_quad.to_box2d());
-
-            for w in self.center_contained(quad.to_rect()) {
-                let w_dist = w.distance_key(origin);
-                if w_dist < dist && filter(&w) {
-                    dist = w_dist;
-                    nearest = Some(w);
-                }
             }
         }
 
