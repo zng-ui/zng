@@ -9,7 +9,7 @@ use std::{any::Any, borrow::Cow, cmp, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
-use zng_ext_input::focus::{FOCUS, WidgetFocusInfo};
+use zng_ext_input::focus::{WidgetFocusInfo, FOCUS};
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_wgt::prelude::*;
@@ -1676,10 +1676,11 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
                         };
                         if let Some(next) = root_info.rich_text_nearest_leaf_filtered(window_point, filter) {
                             // found sibling
-                            let next_to_window = next.info().inner_transform();
+                            let next_info = next.info().clone();
+                            let next_to_window = next_info.inner_transform();
                             let window_to_next = next_to_window.inverse().unwrap_or_default();
 
-                            if let Some(next_inline_rows_len) = next.info().bounds_info().inline().map(|i| i.rows.len()) {
+                            if let Some(next_inline_rows_len) = next_info.bounds_info().inline().map(|i| i.rows.len()) {
                                 // local_nearest_to uses "nearest_line(y)", need to adjust the y to match the next rich line
 
                                 let mut next_line = 0;
@@ -1724,7 +1725,7 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
                                     }
                                 }
 
-                                let next_line = next.info().bounds_info().inline().unwrap().rows[next_line];
+                                let next_line = next_info.bounds_info().inline().unwrap().rows[next_line];
                                 let next_line_y = next_line.origin.y + next_line.size.height / Px(2);
 
                                 window_point.y = next_to_window.transform_point(PxPoint::new(Px(0), next_line_y)).unwrap().y;
@@ -1737,17 +1738,44 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
                             // send request
                             let window_point = window_point.to_dip(root_info.tree().scale_factor());
                             let root_id = root_info.id();
-                            let next_id = next.info().id();
+                            let next_id = next_info.id();
+                            let local_id = local_info.id();
                             SELECT_CMD.scoped(next_id).notify_param(TextSelectOp::new(move || {
+                                let ctx = match TEXT.try_rich() {
+                                    Some(c) => c,
+                                    None => return,
+                                };
+
                                 TEXT.set_caret_retained_x(next_x);
 
                                 local_nearest_to(clear_selection, window_point);
 
                                 TEXT.resolve_caret().used_retained_x = true;
 
+                                // !!: TODO prev selection min/max, new selection min/max, only send the needed messages
+                                for sel in ctx.selection() {
+                                    let sel_id = sel.info().id();
+                                    if sel_id == next_id {
+                                        continue;
+                                    }
+                                    SELECT_CMD.scoped(sel_id).notify_param(TextSelectOp::clear_selection());
+                                }
+
                                 let mut ctx = TEXT.resolve_rich_caret();
                                 if clear_selection {
                                     ctx.selection_index = None;
+                                } else {
+                                    if ctx.selection_index.is_none() {
+                                        ctx.selection_index = Some(local_id);
+                                    }
+                                    
+                                    if let Some(cmp) = local_info.cmp_sibling_in(&next_info, &root_info) {
+                                        match cmp {
+                                            cmp::Ordering::Less => todo!(),
+                                            cmp::Ordering::Equal => todo!(),
+                                            cmp::Ordering::Greater => todo!(),
+                                        }
+                                    }
                                 }
                                 ctx.index = Some(next_id);
 
@@ -1764,10 +1792,10 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
     }
 
     if local_line_up_down(clear_selection, diff) {
-        if diff < 0 {
-            TextSelectOp::text_start().call();
+        if clear_selection {
+            rich_clear_text_start_end(diff > 0);
         } else {
-            TextSelectOp::text_end().call(); // !!: TODO selection
+            rich_select_text_start_end(diff > 0);
         }
     }
 }

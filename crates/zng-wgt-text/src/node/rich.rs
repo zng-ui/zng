@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use zng_app::widget::node::Z_INDEX;
-use zng_ext_input::focus::{FOCUS_CHANGED_EVENT, WidgetFocusInfo, WidgetInfoFocusExt};
+use zng_ext_font::CaretIndex;
+use zng_ext_input::focus::{WidgetFocusInfo, WidgetInfoFocusExt, FOCUS, FOCUS_CHANGED_EVENT};
 use zng_ext_window::WINDOWS;
 use zng_wgt::prelude::*;
 
-use crate::RICH_TEXT_FOCUSED_Z_VAR;
+use crate::{cmd::{TextSelectOp, SELECT_CMD}, RICH_TEXT_FOCUSED_Z_VAR};
 
 use super::{RICH_TEXT, RichCaretInfo, RichText, TEXT};
 
@@ -193,6 +194,173 @@ impl RichText {
         wgt.into_focusable(false, false)
     }
 }
+impl RichCaretInfo {
+    /// Update the rich selection and local selection for each rich component.
+    /// 
+    /// Before calling this you must update the [`CaretInfo::index`] in `new_index` AND in 
+    /// `new_selection_index`. It will become the selection index in the second one. Alternatively enable `skip_end_points` to
+    /// handle the local selection at the end point widgets.
+    /// 
+    /// If you don't want focus to be moved to the `new_index` set `skip_focus` to `true`.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if `new_index` or `new_selection_index` is not inside the same rich text context.
+    pub fn update_selection(&mut self, new_index: &WidgetInfo, new_selection_index: Option<&WidgetInfo>, skip_end_points: bool, skip_focus: bool) {
+        let root = new_index.rich_text_root().unwrap();
+        let old_index = self.index.and_then(|id| new_index.tree().get(id)).unwrap_or_else(|| new_index.clone());
+        let old_selection_index = self.selection_index.and_then(|id| new_index.tree().get(id));
+        match (&old_selection_index, new_selection_index) {
+            (None, None) => self.continue_focus(skip_focus, new_index, &root),
+            (None, Some(new_sel)) => {
+                // add selection
+                let (a, b) = match new_index.cmp_sibling_in(new_sel, &root).unwrap() {
+                    std::cmp::Ordering::Less => (new_index, new_sel),
+                    std::cmp::Ordering::Greater => (new_sel, new_index),
+                    std::cmp::Ordering::Equal => return self.continue_focus(skip_focus, new_index, &root),
+                };
+                if !skip_end_points {
+                    self.continue_select_lesser(a, a == new_index);
+                }
+                let middle_op = TextSelectOp::local_select_all();
+                for middle in a.rich_text_next().take_while(|n| n.info() != b) {
+                    SELECT_CMD.scoped(middle.info().id()).notify_param(middle_op.clone());
+                }
+                if !skip_end_points {
+                    let b_is_caret = b == new_index;
+                    self.continue_select_greater(b, b_is_caret);
+                }
+
+                self.continue_focus(skip_focus, new_index, &root);
+            },
+            (Some(old_sel), None) => {
+                // remove selection
+                let (a, b) = match old_index.cmp_sibling_in(old_sel, &root).unwrap() {
+                    std::cmp::Ordering::Less => (&old_index, old_sel),
+                    std::cmp::Ordering::Greater => (old_sel, &old_index),
+                    std::cmp::Ordering::Equal => return self.continue_focus(skip_focus, new_index, &root),
+                };
+                let op = TextSelectOp::local_clear_selection();
+                if !skip_end_points {
+                    SELECT_CMD.scoped(a.id()).notify_param(op.clone());
+                }
+                for middle in a.rich_text_next().take_while(|n| n.info() != b) {
+                    SELECT_CMD.scoped(middle.info().id()).notify_param(op.clone());
+                }
+                if !skip_end_points {
+                    SELECT_CMD.scoped(b.id()).notify_param(op);
+                }
+
+                self.continue_focus(skip_focus, new_index, &root);
+            },
+            (Some(old_sel), Some(new_sel)) => {
+                // update selection
+            
+                let (old_a, old_b) = match old_index.cmp_sibling_in(old_sel, &root).unwrap() {
+                    std::cmp::Ordering::Less => (&old_index, old_sel),
+                    std::cmp::Ordering::Greater => (old_sel, &old_index),
+                    std::cmp::Ordering::Equal => return self.continue_focus(skip_focus, new_index, &root),
+                };
+                let (new_a, new_b) = match new_index.cmp_sibling_in(new_sel, &root).unwrap() {
+                    std::cmp::Ordering::Less => (new_index, new_sel),
+                    std::cmp::Ordering::Greater => (new_sel, new_index),
+                    std::cmp::Ordering::Equal => return self.continue_focus(skip_focus, new_index, &root),
+                };
+
+                // overall_start = min(old_a, new_a)
+                // overall_end = max(old_b, new_b)
+                let min_a = match old_a.cmp_sibling_in(new_a, &root).unwrap() {
+                    std::cmp::Ordering::Less |
+                    std::cmp::Ordering::Equal => old_a,
+                    std::cmp::Ordering::Greater => new_a,
+                };
+                let max_b = match old_b.cmp_sibling_in(new_b, &root).unwrap() {
+                    std::cmp::Ordering::Less => new_b,
+                    std::cmp::Ordering::Equal |
+                    std::cmp::Ordering::Greater => old_b,
+                };
+
+                fn inclusive_range_contains(a: &WidgetInfo, b: &WidgetInfo, q: &WidgetInfo, root: &WidgetInfo) -> bool {
+                    match a.cmp_sibling_in(q, root).unwrap() {
+                        std::cmp::Ordering::Less => false,
+                        std::cmp::Ordering::Equal => true,
+                        std::cmp::Ordering::Greater => match b.cmp_sibling_in(q, root).unwrap() {
+                            std::cmp::Ordering::Less => true,
+                            std::cmp::Ordering::Equal => true,
+                            std::cmp::Ordering::Greater => false,
+                        },
+                    }
+                }
+
+                for wgt in min_a.rich_text_self_and_next() {
+                    let wgt = wgt.info();
+
+                    if wgt == new_a {
+                        if !skip_end_points {
+                            self.continue_select_lesser(new_a, new_a == new_index);
+                        }
+                    } else if wgt == new_b {
+                        if !skip_end_points {
+                            self.continue_select_greater(new_b, new_b == new_index);
+                        }
+                    } else {
+                        let is_old = inclusive_range_contains(old_a, old_b, wgt, &root);
+                        let is_new = inclusive_range_contains(new_a, new_b, wgt, &root);
+
+                        match (is_old, is_new) {
+                            (true, true) => {},
+                            (true, false) => {
+                                SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_clear_selection());
+                            },
+                            (false, true) => SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_select_all()),
+                            (false, false) => {},
+                        }
+                    }
+
+                    if wgt == max_b {
+                        break;
+                    }
+                }
+
+                self.continue_focus(skip_focus, new_index, &root);
+            },
+        }
+    }
+    fn continue_select_lesser(&self, a: &WidgetInfo, a_is_caret: bool) {
+        SELECT_CMD.scoped(a.id()).notify_param(TextSelectOp::new(move || {
+            let len = TEXT.resolved().segmented_text.text().len();
+            let len = CaretIndex { index: len, line: 0 }; // line is updated next layout
+            let mut ctx = TEXT.resolve_caret();
+            if a_is_caret {
+                ctx.selection_index = Some(len);
+            } else {
+                ctx.selection_index = ctx.index;
+                ctx.index = Some(len);    
+            }
+            ctx.index_version += 1;
+        }));
+    }
+    fn continue_select_greater(&self, b: &WidgetInfo, b_is_caret: bool) {
+        SELECT_CMD.scoped(b.id()).notify_param(TextSelectOp::new(move || {
+            let mut ctx = TEXT.resolve_caret();
+            if b_is_caret {
+                ctx.selection_index = Some(CaretIndex::ZERO);
+            } else {
+                ctx.selection_index = ctx.index;
+                ctx.index = Some(CaretIndex::ZERO);
+            }
+            ctx.index_version += 1;
+        }));
+    }
+    fn continue_focus(&self, skip_focus: bool, new_index: &WidgetInfo, root: &WidgetInfo) {
+        if !skip_focus && FOCUS.is_focus_within(root.id()).get() {
+            FOCUS.focus_widget(new_index.id(), false);
+        }
+    }
+}
+
+
+
 
 /// Extends [`WidgetInfo`] state to provide information about rich text.
 pub trait RichTextWidgetInfoExt {
@@ -218,8 +386,12 @@ pub trait RichTextWidgetInfoExt {
 
     /// Iterate over the prev text/leaf components before the current one.
     fn rich_text_prev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
+    /// Iterate over the text/leaf component and previous.
+    fn rich_text_self_and_prev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
     /// Iterate over the next text/leaf components after the current one.
     fn rich_text_next(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
+    /// Iterate over the text/leaf component and next.
+    fn rich_text_self_and_next(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static;
 
     /// Gets info about how this rich leaf affects the text lines.
     fn rich_text_line_info(&self) -> RichLineInfo;
@@ -274,6 +446,24 @@ impl RichTextWidgetInfoExt for WidgetInfo {
         self.rich_text_root()
             .into_iter()
             .flat_map(move |w| me.next_siblings_in(&w))
+            .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
+            .filter_map(|w| w.into_focusable(false, false))
+    }
+
+    fn rich_text_self_and_prev(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static {
+        let me = self.clone();
+        self.rich_text_root()
+            .into_iter()
+            .flat_map(move |w| me.self_and_prev_siblings_in(&w))
+            .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
+            .filter_map(|w| w.into_focusable(false, false))
+    }
+
+    fn rich_text_self_and_next(&self) -> impl Iterator<Item = WidgetFocusInfo> + 'static {
+        let me = self.clone();
+        self.rich_text_root()
+            .into_iter()
+            .flat_map(move |w| me.self_and_next_siblings_in(&w))
             .filter(|w| matches!(w.rich_text_component(), Some(RichTextComponent::Leaf { .. })))
             .filter_map(|w| w.into_focusable(false, false))
     }
