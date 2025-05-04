@@ -200,9 +200,8 @@ impl RichText {
 impl RichCaretInfo {
     /// Update the rich selection and local selection for each rich component.
     ///
-    /// Before calling this you must update the [`CaretInfo::index`] in `new_index` AND in
-    /// `new_selection_index`. It will become the selection index in the second one. Alternatively enable `skip_end_points` to
-    /// handle the local selection at the end point widgets.
+    /// Before calling this you must update the [`CaretInfo::index`] in `new_index` and the [`CaretInfo::selection_index`] in
+    /// `new_selection_index`. Alternatively enable `skip_end_points` to handle the local selection at the end point widgets.
     ///
     /// If you don't want focus to be moved to the `new_index` set `skip_focus` to `true`.
     ///
@@ -222,6 +221,10 @@ impl RichCaretInfo {
             .and_then(|id| new_index.tree().get(id))
             .unwrap_or_else(|| new_index.clone());
         let old_selection_index = self.selection_index.and_then(|id| new_index.tree().get(id));
+
+        self.index = Some(new_index.id());
+        self.selection_index = new_selection_index.map(|w| w.id());
+
         match (&old_selection_index, new_selection_index) {
             (None, None) => self.continue_focus(skip_focus, new_index, &root),
             (None, Some(new_sel)) => {
@@ -229,7 +232,10 @@ impl RichCaretInfo {
                 let (a, b) = match new_index.cmp_sibling_in(new_sel, &root).unwrap() {
                     std::cmp::Ordering::Less => (new_index, new_sel),
                     std::cmp::Ordering::Greater => (new_sel, new_index),
-                    std::cmp::Ordering::Equal => return self.continue_focus(skip_focus, new_index, &root),
+                    std::cmp::Ordering::Equal => {
+                        // single widget selection, already defined
+                        return self.continue_focus(skip_focus, new_index, &root);
+                    }
                 };
                 if !skip_end_points {
                     self.continue_select_lesser(a, a == new_index);
@@ -239,8 +245,7 @@ impl RichCaretInfo {
                     SELECT_CMD.scoped(middle.info().id()).notify_param(middle_op.clone());
                 }
                 if !skip_end_points {
-                    let b_is_caret = b == new_index;
-                    self.continue_select_greater(b, b_is_caret);
+                    self.continue_select_greater(b, b == new_index);
                 }
 
                 self.continue_focus(skip_focus, new_index, &root);
@@ -250,7 +255,13 @@ impl RichCaretInfo {
                 let (a, b) = match old_index.cmp_sibling_in(old_sel, &root).unwrap() {
                     std::cmp::Ordering::Less => (&old_index, old_sel),
                     std::cmp::Ordering::Greater => (old_sel, &old_index),
-                    std::cmp::Ordering::Equal => return self.continue_focus(skip_focus, new_index, &root),
+                    std::cmp::Ordering::Equal => {
+                        // was single widget selection
+                        if !skip_end_points {
+                            SELECT_CMD.scoped(old_sel.id()).notify_param(TextSelectOp::local_clear_selection());
+                        }
+                        return self.continue_focus(skip_focus, new_index, &root);
+                    }
                 };
                 let op = TextSelectOp::local_clear_selection();
                 if !skip_end_points {
@@ -269,18 +280,14 @@ impl RichCaretInfo {
                 // update selection
 
                 let (old_a, old_b) = match old_index.cmp_sibling_in(old_sel, &root).unwrap() {
-                    std::cmp::Ordering::Less => (&old_index, old_sel),
+                    std::cmp::Ordering::Less | std::cmp::Ordering::Equal => (&old_index, old_sel),
                     std::cmp::Ordering::Greater => (old_sel, &old_index),
-                    std::cmp::Ordering::Equal => return self.continue_focus(skip_focus, new_index, &root),
                 };
                 let (new_a, new_b) = match new_index.cmp_sibling_in(new_sel, &root).unwrap() {
-                    std::cmp::Ordering::Less => (new_index, new_sel),
+                    std::cmp::Ordering::Less | std::cmp::Ordering::Equal => (new_index, new_sel),
                     std::cmp::Ordering::Greater => (new_sel, new_index),
-                    std::cmp::Ordering::Equal => return self.continue_focus(skip_focus, new_index, &root),
                 };
 
-                // overall_start = min(old_a, new_a)
-                // overall_end = max(old_b, new_b)
                 let min_a = match old_a.cmp_sibling_in(new_a, &root).unwrap() {
                     std::cmp::Ordering::Less | std::cmp::Ordering::Equal => old_a,
                     std::cmp::Ordering::Greater => new_a,
@@ -292,25 +299,33 @@ impl RichCaretInfo {
 
                 fn inclusive_range_contains(a: &WidgetInfo, b: &WidgetInfo, q: &WidgetInfo, root: &WidgetInfo) -> bool {
                     match a.cmp_sibling_in(q, root).unwrap() {
-                        std::cmp::Ordering::Less => false,
-                        std::cmp::Ordering::Equal => true,
-                        std::cmp::Ordering::Greater => match b.cmp_sibling_in(q, root).unwrap() {
-                            std::cmp::Ordering::Less => true,
-                            std::cmp::Ordering::Equal => true,
-                            std::cmp::Ordering::Greater => false,
+                        // a < q
+                        std::cmp::Ordering::Less => match b.cmp_sibling_in(q, root).unwrap() {
+                            // b < q
+                            std::cmp::Ordering::Less => false,
+                            // b >= q
+                            std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => true,
                         },
+                        // a == q
+                        std::cmp::Ordering::Equal => true,
+                        // a > q
+                        std::cmp::Ordering::Greater => false,
                     }
                 }
+
+                // println!("(old_a, old_b) = ({}, {})", old_a.id(), old_b.id());
+                // println!("(new_a, new_b) = ({}, {})", new_a.id(), new_b.id());
+                // println!("(min_a, max_b) = ({}, {})", min_a.id(), max_b.id());
 
                 for wgt in min_a.rich_text_self_and_next() {
                     let wgt = wgt.info();
 
                     if wgt == new_a {
-                        if !skip_end_points {
+                        if !skip_end_points && new_a != new_b {
                             self.continue_select_lesser(new_a, new_a == new_index);
                         }
                     } else if wgt == new_b {
-                        if !skip_end_points {
+                        if !skip_end_points && new_a != new_b {
                             self.continue_select_greater(new_b, new_b == new_index);
                         }
                     } else {
@@ -344,7 +359,6 @@ impl RichCaretInfo {
             if a_is_caret {
                 ctx.selection_index = Some(len);
             } else {
-                ctx.selection_index = ctx.index;
                 ctx.index = Some(len);
             }
             ctx.index_version += 1;
@@ -356,7 +370,6 @@ impl RichCaretInfo {
             if b_is_caret {
                 ctx.selection_index = Some(CaretIndex::ZERO);
             } else {
-                ctx.selection_index = ctx.index;
                 ctx.index = Some(CaretIndex::ZERO);
             }
             ctx.index_version += 1;

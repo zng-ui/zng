@@ -817,9 +817,7 @@ impl TextSelectOp {
     ///
     /// This is the `SHIFT+Right` key operation.
     pub fn select_next() -> Self {
-        Self::new(|| {
-            rich_select_next_prev(true, false);
-        })
+        rich_select_next_prev(true, false)
     }
 
     /// Clear selection and move the caret to the previous insert index.
@@ -833,9 +831,7 @@ impl TextSelectOp {
     ///
     /// This is the `SHIFT+Left` key operation.
     pub fn select_prev() -> Self {
-        Self::new(|| {
-            rich_select_next_prev(false, false);
-        })
+        rich_select_next_prev(false, false)
     }
 
     /// Clear selection and move the caret to the next word insert index.
@@ -848,9 +844,7 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+SHIFT+Right` shortcut operation.
     pub fn select_next_word() -> Self {
-        Self::new(|| {
-            rich_select_next_prev(true, true);
-        })
+        rich_select_next_prev(true, true)
     }
     /// Clear selection and move the caret to the previous word insert index.
     ///
@@ -863,9 +857,7 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+SHIFT+Left` shortcut operation.
     pub fn select_prev_word() -> Self {
-        Self::new(|| {
-            rich_select_next_prev(false, true);
-        })
+        rich_select_next_prev(false, true)
     }
 
     /// Clear selection and move the caret to the nearest insert index on the previous line.
@@ -1435,7 +1427,6 @@ fn rich_select_op_0_get_caret<D0, D1, D2: Send + 'static>(
     let (index, d1) = local_caret_index(d0);
     {
         let mut ctx = TEXT.resolve_caret();
-        ctx.selection_index = None;
         ctx.set_index(index);
     }
 
@@ -1467,8 +1458,8 @@ fn rich_select_op_1_get_selection<D2>(
 ) {
     if let Some(index) = local_selection_index(d2) {
         let mut local_ctx = TEXT.resolve_caret();
-        local_ctx.selection_index = None;
-        local_ctx.set_index(index); // finish selection uses this index to create the selection.
+        local_ctx.selection_index = Some(index);
+        local_ctx.index_version += 1;
         rich_select_op_2_finish(ctx, rich_caret_index, Some(rich_selection_index));
     } else {
         rich_select_op_2_finish(ctx, rich_caret_index, None);
@@ -1497,17 +1488,17 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
             if is_next {
                 if local_ctx.caret.selection_index.is_some() {
                     // just clears selection, caret does not move outside selection
-                    return (WIDGET.id(), false)
-                } 
+                    return (WIDGET.id(), false);
+                }
 
                 let index = local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index;
                 if index == local_ctx.segmented_text.text().len() {
                     // next from end, check if has next sibling
                     if let Some(info) = ctx.leaf_info(WIDGET.id()) {
                         if let Some(next) = info.info().rich_text_next().next() {
-                            return (next.info().id(), true)
+                            return (next.info().id(), true);
                         }
-                    } 
+                    }
                 }
 
                 // caret stays inside
@@ -1522,15 +1513,18 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
                         // next clears to start, start is the prev end when there is a prev
                         prev_wgt = true;
                     }
-                } else if local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index <= 1 {
-                    // next moves the start (or is already in start)
-                    prev_wgt = true;
+                } else {
+                    let cutout = if is_word { local_ctx.segmented_text.next_word_index(0) } else { 1 };
+                    if local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index <= cutout {
+                        // next moves to the start (or is already in start)
+                        prev_wgt = true;
+                    }
                 }
 
                 if prev_wgt {
                     if let Some(info) = ctx.leaf_info(WIDGET.id()) {
                         if let Some(prev) = info.info().rich_text_prev().next() {
-                            return (prev.info().id(), true)
+                            return (prev.info().id(), true);
                         }
                     }
                 }
@@ -1552,16 +1546,13 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
             } else {
                 local_clear_next_prev(is_next, is_word);
                 (TEXT.resolved().caret.index.unwrap_or(CaretIndex::ZERO), ())
-            }            
+            }
         },
         |_, _| None,
         |()| None,
     )
 }
-/// Place caret at end or start of the current local selection or advance/back the caret.
-///
-/// Returns `true` if this change can propagate to siblings in rich text contexts.
-fn local_clear_next_prev(is_next: bool, is_word: bool) -> bool {
+fn local_clear_next_prev(is_next: bool, is_word: bool) {
     // compute next caret position
     let ctx = TEXT.resolved();
     let current_index = ctx.caret.index.unwrap_or(CaretIndex::ZERO);
@@ -1592,74 +1583,72 @@ fn local_clear_next_prev(is_next: bool, is_word: bool) -> bool {
     ctx.clear_selection();
     ctx.set_index(next_index);
     ctx.used_retained_x = false;
-
-    current_index == next_index || next_index == CaretIndex::ZERO && !is_next
 }
 
-/// Start or extend a rich selection the covers multiple rich text leaves if needed.
-fn rich_select_next_prev(is_next: bool, is_word: bool) {
-    if let Some(ctx) = TEXT.try_rich() {
-        if let Some(caret_wgt) = ctx.caret_index_info().or_else(|| ctx.leaf_info(WIDGET.id())) {
-            let caret_wgt = WidgetInfo::from(caret_wgt);
-            if caret_wgt.id() == WIDGET.id() {
-                drop(ctx);
-                continue_rich_select_next_prev(is_next, is_word, &caret_wgt);
+fn rich_select_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
+    TextSelectOp::new_rich(
+        // get prev/next leaf widget
+        move |ctx| {
+            let local_ctx = TEXT.resolved();
+
+            let index = local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index;
+
+            if is_next {
+                if index == local_ctx.segmented_text.text().len() {
+                    // next from end
+                    if let Some(info) = ctx.leaf_info(WIDGET.id()) {
+                        if let Some(next) = info.info().rich_text_next().next() {
+                            return (next.info().id(), true);
+                        }
+                    }
+                }
             } else {
-                SELECT_CMD.scoped(caret_wgt.id()).notify_param(TextSelectOp::new(move || {
-                    continue_rich_select_next_prev(is_next, is_word, &caret_wgt);
-                }));
+                // !is_next
+
+                let cutout = if is_word { local_ctx.segmented_text.next_word_index(0) } else { 1 };
+                if local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index <= cutout {
+                    // next moves to the start (or is already in start)
+                    if let Some(info) = ctx.leaf_info(WIDGET.id()) {
+                        if let Some(prev) = info.info().rich_text_prev().next() {
+                            return (prev.info().id(), true);
+                        }
+                    }
+                }
             }
-        }
-    } else {
-        // not inside rich text
-        local_select_next_prev(is_next, is_word);
-    }
-}
-fn continue_rich_select_next_prev(is_next: bool, is_word: bool, caret_wgt: &WidgetInfo) {
-    if TEXT.try_rich().is_none() {
-        tracing::error!("ignoring rich text caret operation, not inside rich context anymore");
-        return;
-    }
-
-    let mut ctx = TEXT.resolve_rich_caret();
-    ctx.index = Some(caret_wgt.id());
-    if ctx.selection_index.is_none() {
-        ctx.selection_index = ctx.index;
-    }
-
-    if local_select_next_prev(is_next, is_word) {
-        // local advance can propagate to sibling rich leaves
-
-        let advance = if is_next {
-            caret_wgt.rich_text_next().next()
-        } else {
-            caret_wgt.rich_text_prev().next()
-        };
-        if let Some(advance) = advance {
-            let advance_id = advance.info().id();
-            SELECT_CMD.scoped(advance_id).notify_param(if is_next {
-                TextSelectOp::new(move || {
-                    local_clear_text_start_end(false);
-                    local_select_next_prev(true, is_word);
-                })
+            (WIDGET.id(), false)
+        },
+        // get caret in the prev/next widget
+        move |is_from_sibling| {
+            let id = WIDGET.id();
+            if is_from_sibling {
+                if is_next {
+                    // caret was at sibling end
+                    (CaretIndex { index: 1, line: 0 }, id)
+                } else {
+                    // caret was at sibling start or moves to sibling start (that is the same as our end)
+                    let len = TEXT.resolved().segmented_text.text().len();
+                    (CaretIndex { index: len, line: 0 }, id)
+                }
             } else {
-                TextSelectOp::new(move || {
-                    local_clear_text_start_end(true);
-                    local_select_next_prev(false, is_word);
-                })
-            });
-            ctx.index = Some(advance_id);
-            if FOCUS.is_focused(WIDGET.id()).get() {
-                FOCUS.focus_widget(advance_id, false);
+                local_select_next_prev(is_next, is_word);
+                (TEXT.resolved().caret.index.unwrap_or(CaretIndex::ZERO), id)
             }
-        }
-    }
+        },
+        // get selection_index leaf widget
+        |ctx, index| Some((ctx.caret.selection_index.unwrap_or(index), ())),
+        // get local selection_index
+        |()| {
+            let local_ctx = TEXT.resolved();
+            Some(
+                local_ctx
+                    .caret
+                    .selection_index
+                    .unwrap_or(local_ctx.caret.index.unwrap_or(CaretIndex::ZERO)),
+            )
+        },
+    )
 }
-
-/// Extend or start selection within a single text.
-///
-/// Returns `true` if this change can propagate to siblings in rich text contexts.
-fn local_select_next_prev(is_next: bool, is_word: bool) -> bool {
+fn local_select_next_prev(is_next: bool, is_word: bool) {
     // compute next caret position
     let ctx = TEXT.resolved();
     let current_index = ctx.caret.index.unwrap_or(CaretIndex::ZERO);
@@ -1686,8 +1675,6 @@ fn local_select_next_prev(is_next: bool, is_word: bool) -> bool {
     }
     ctx.set_index(next_index);
     ctx.used_retained_x = false;
-
-    current_index == next_index || next_index == CaretIndex::ZERO && !is_next
 }
 
 fn rich_line_up_down(clear_selection: bool, diff: i8) {
