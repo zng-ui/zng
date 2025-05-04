@@ -3,11 +3,14 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use zng_app::widget::node::Z_INDEX;
 use zng_ext_font::CaretIndex;
-use zng_ext_input::focus::{WidgetFocusInfo, WidgetInfoFocusExt, FOCUS, FOCUS_CHANGED_EVENT};
+use zng_ext_input::focus::{FOCUS, FOCUS_CHANGED_EVENT, WidgetFocusInfo, WidgetInfoFocusExt};
 use zng_ext_window::WINDOWS;
 use zng_wgt::prelude::*;
 
-use crate::{cmd::{TextSelectOp, SELECT_CMD}, RICH_TEXT_FOCUSED_Z_VAR};
+use crate::{
+    RICH_TEXT_FOCUSED_Z_VAR,
+    cmd::{SELECT_CMD, TextSelectOp},
+};
 
 use super::{RICH_TEXT, RichCaretInfo, RichText, TEXT};
 
@@ -196,19 +199,28 @@ impl RichText {
 }
 impl RichCaretInfo {
     /// Update the rich selection and local selection for each rich component.
-    /// 
-    /// Before calling this you must update the [`CaretInfo::index`] in `new_index` AND in 
+    ///
+    /// Before calling this you must update the [`CaretInfo::index`] in `new_index` AND in
     /// `new_selection_index`. It will become the selection index in the second one. Alternatively enable `skip_end_points` to
     /// handle the local selection at the end point widgets.
-    /// 
+    ///
     /// If you don't want focus to be moved to the `new_index` set `skip_focus` to `true`.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if `new_index` or `new_selection_index` is not inside the same rich text context.
-    pub fn update_selection(&mut self, new_index: &WidgetInfo, new_selection_index: Option<&WidgetInfo>, skip_end_points: bool, skip_focus: bool) {
+    pub fn update_selection(
+        &mut self,
+        new_index: &WidgetInfo,
+        new_selection_index: Option<&WidgetInfo>,
+        skip_end_points: bool,
+        skip_focus: bool,
+    ) {
         let root = new_index.rich_text_root().unwrap();
-        let old_index = self.index.and_then(|id| new_index.tree().get(id)).unwrap_or_else(|| new_index.clone());
+        let old_index = self
+            .index
+            .and_then(|id| new_index.tree().get(id))
+            .unwrap_or_else(|| new_index.clone());
         let old_selection_index = self.selection_index.and_then(|id| new_index.tree().get(id));
         match (&old_selection_index, new_selection_index) {
             (None, None) => self.continue_focus(skip_focus, new_index, &root),
@@ -232,7 +244,7 @@ impl RichCaretInfo {
                 }
 
                 self.continue_focus(skip_focus, new_index, &root);
-            },
+            }
             (Some(old_sel), None) => {
                 // remove selection
                 let (a, b) = match old_index.cmp_sibling_in(old_sel, &root).unwrap() {
@@ -252,10 +264,10 @@ impl RichCaretInfo {
                 }
 
                 self.continue_focus(skip_focus, new_index, &root);
-            },
+            }
             (Some(old_sel), Some(new_sel)) => {
                 // update selection
-            
+
                 let (old_a, old_b) = match old_index.cmp_sibling_in(old_sel, &root).unwrap() {
                     std::cmp::Ordering::Less => (&old_index, old_sel),
                     std::cmp::Ordering::Greater => (old_sel, &old_index),
@@ -270,14 +282,12 @@ impl RichCaretInfo {
                 // overall_start = min(old_a, new_a)
                 // overall_end = max(old_b, new_b)
                 let min_a = match old_a.cmp_sibling_in(new_a, &root).unwrap() {
-                    std::cmp::Ordering::Less |
-                    std::cmp::Ordering::Equal => old_a,
+                    std::cmp::Ordering::Less | std::cmp::Ordering::Equal => old_a,
                     std::cmp::Ordering::Greater => new_a,
                 };
                 let max_b = match old_b.cmp_sibling_in(new_b, &root).unwrap() {
                     std::cmp::Ordering::Less => new_b,
-                    std::cmp::Ordering::Equal |
-                    std::cmp::Ordering::Greater => old_b,
+                    std::cmp::Ordering::Equal | std::cmp::Ordering::Greater => old_b,
                 };
 
                 fn inclusive_range_contains(a: &WidgetInfo, b: &WidgetInfo, q: &WidgetInfo, root: &WidgetInfo) -> bool {
@@ -308,12 +318,12 @@ impl RichCaretInfo {
                         let is_new = inclusive_range_contains(new_a, new_b, wgt, &root);
 
                         match (is_old, is_new) {
-                            (true, true) => {},
+                            (true, true) => {}
                             (true, false) => {
                                 SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_clear_selection());
-                            },
+                            }
                             (false, true) => SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_select_all()),
-                            (false, false) => {},
+                            (false, false) => {}
                         }
                     }
 
@@ -323,7 +333,7 @@ impl RichCaretInfo {
                 }
 
                 self.continue_focus(skip_focus, new_index, &root);
-            },
+            }
         }
     }
     fn continue_select_lesser(&self, a: &WidgetInfo, a_is_caret: bool) {
@@ -335,7 +345,7 @@ impl RichCaretInfo {
                 ctx.selection_index = Some(len);
             } else {
                 ctx.selection_index = ctx.index;
-                ctx.index = Some(len);    
+                ctx.index = Some(len);
             }
             ctx.index_version += 1;
         }));
@@ -358,9 +368,6 @@ impl RichCaretInfo {
         }
     }
 }
-
-
-
 
 /// Extends [`WidgetInfo`] state to provide information about rich text.
 pub trait RichTextWidgetInfoExt {

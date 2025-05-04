@@ -9,12 +9,12 @@ use std::{any::Any, borrow::Cow, cmp, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
-use zng_ext_input::focus::{WidgetFocusInfo, FOCUS};
+use zng_ext_input::focus::{FOCUS, WidgetFocusInfo};
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_wgt::prelude::*;
 
-use crate::node::RichTextWidgetInfoExt;
+use crate::node::{RichText, RichTextWidgetInfoExt};
 
 use super::{node::TEXT, *};
 
@@ -806,32 +806,11 @@ impl fmt::Debug for TextSelectOp {
     }
 }
 impl TextSelectOp {
-    /// New text select operation.
-    ///
-    /// The editable text widget that handles [`SELECT_CMD`] will call `op` during event handling in
-    /// the [`node::layout_text`] context. You can position the caret using [`TEXT.resolve_caret`] and [`TEXT.resolve_rich_caret`],
-    /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
-    /// the caret index is also snapped to the nearest grapheme start.
-    ///
-    /// [`TEXT.resolve_caret`]: super::node::TEXT::resolve_caret
-    /// [`TEXT.resolve_rich_caret`]: super::node::TEXT::resolve_rich_caret
-    pub fn new(op: impl FnMut() + Send + 'static) -> Self {
-        Self {
-            op: Arc::new(Mutex::new(op)),
-        }
-    }
-
-    pub(super) fn call(self) {
-        (self.op.lock())();
-    }
-
     /// Clear selection and move the caret to the next insert index.
     ///
     /// This is the `Right` key operation.
     pub fn next() -> Self {
-        Self::new(|| {
-            rich_clear_next_prev(true, false);
-        })
+        rich_clear_next_prev(true, false)
     }
 
     /// Extend or shrink selection by moving the caret to the next insert index.
@@ -847,9 +826,7 @@ impl TextSelectOp {
     ///
     /// This is the `Left` key operation.
     pub fn prev() -> Self {
-        Self::new(|| {
-            rich_clear_next_prev(false, false);
-        })
+        rich_clear_next_prev(false, false)
     }
 
     /// Extend or shrink selection by moving the caret to the previous insert index.
@@ -865,9 +842,7 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+Right` shortcut operation.
     pub fn next_word() -> Self {
-        Self::new(|| {
-            rich_clear_next_prev(true, true);
-        })
+        rich_clear_next_prev(true, true)
     }
     /// Extend or shrink selection by moving the caret to the next word insert index.
     ///
@@ -881,9 +856,7 @@ impl TextSelectOp {
     ///
     /// This is the `CTRL+Left` shortcut operation.
     pub fn prev_word() -> Self {
-        Self::new(|| {
-            rich_clear_next_prev(false, true);
-        })
+        rich_clear_next_prev(false, true)
     }
 
     /// Extend or shrink selection by moving the caret to the previous word insert index.
@@ -1361,93 +1334,230 @@ impl TextSelectOp {
     }
 }
 
-/// Place caret at end or start of the current rich selection or advance/back the caret across rich leaves if needed.
-fn rich_clear_next_prev(is_next: bool, is_word: bool) {
-    if let Some(ctx) = TEXT.try_rich() {
-        let mut clear_end = None;
-        if ctx.caret.selection_index.is_some() {
-            if is_next {
-                for leaf in ctx.selection() {
-                    let leaf_id = leaf.info().id();
-                    SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::local_next());
-                    clear_end = Some(leaf_id);
-                }
-            } else {
-                for leaf in ctx.selection_rev() {
-                    let leaf_id = leaf.info().id();
-                    SELECT_CMD.scoped(leaf_id).notify_param(TextSelectOp::local_prev());
-                    clear_end = Some(leaf_id);
-                }
-            }
+impl TextSelectOp {
+    /// New text select operation.
+    ///
+    /// The editable text widget that handles [`SELECT_CMD`] will call `op` during event handling in
+    /// the [`node::layout_text`] context. You can position the caret using [`TEXT.resolve_caret`] and [`TEXT.resolve_rich_caret`],
+    /// the text widget will detect changes to it and react accordingly (updating caret position and animation),
+    /// the caret index is also snapped to the nearest grapheme start.
+    ///
+    /// [`TEXT.resolve_caret`]: super::node::TEXT::resolve_caret
+    /// [`TEXT.resolve_rich_caret`]: super::node::TEXT::resolve_rich_caret
+    pub fn new(op: impl FnMut() + Send + 'static) -> Self {
+        Self {
+            op: Arc::new(Mutex::new(op)),
         }
+    }
 
-        if let Some(focus) = clear_end {
-            if FOCUS.is_focus_within(ctx.root_id).get() {
-                FOCUS.focus_widget(focus, false);
-            }
-
-            drop(ctx);
-
-            let mut ctx = TEXT.resolve_rich_caret();
-            ctx.selection_index = None;
-            ctx.index = Some(focus);
-
-            // cleared selection
-        } else if let Some(caret_wgt) = ctx.caret_index_info().or_else(|| ctx.leaf_info(WIDGET.id())) {
-            // no selection, but inside rich text with caret or at least one leaf
-
-            // send local_clear_next_prev to caret widget, likely its the same WIDGET.id
-            let caret_wgt = WidgetInfo::from(caret_wgt);
-            if caret_wgt.id() == WIDGET.id() {
-                drop(ctx);
-                continue_rich_clear_next_prev(is_next, is_word, &caret_wgt);
+    /// New text selection operation with helpers for implementing rich selection.
+    ///
+    /// The input closures are:
+    ///
+    /// * `rich_caret_index` - Called if the op executes inside a rich text, must return the leaf widget that will contain the rich text caret.
+    /// * `local_caret_index` - Called in the caret widget context, must return the local caret index.
+    /// * `rich_selection_index` - Called if the op executes inside a rich text, must return the leaf widget that will contain the rich text selection end.
+    /// * `local_selection_index` - Called in selection end widget context, must return the local selection end index.
+    ///
+    /// If the op is not called inside a rich text only `local_caret_index` and `local_selection_index` are called.
+    pub fn new_rich<D0, D1, D2>(
+        rich_caret_index: impl FnOnce(&RichText) -> (WidgetId, D0) + Send + 'static,
+        local_caret_index: impl FnOnce(D0) -> (CaretIndex, D1) + Send + 'static,
+        rich_selection_index: impl FnOnce(&RichText, D1) -> Option<(WidgetId, D2)> + Send + 'static,
+        local_selection_index: impl FnOnce(D2) -> Option<CaretIndex> + Send + 'static,
+    ) -> Self
+    where
+        D0: Default + Send + 'static,
+        D1: Send + 'static,
+        D2: Default + Send + 'static,
+    {
+        let mut f0 = Some(rich_caret_index);
+        let mut f1 = Some(local_caret_index);
+        let mut f2 = Some(rich_selection_index);
+        let mut f3 = Some(local_selection_index);
+        Self::new(move || {
+            if let Some(ctx) = TEXT.try_rich() {
+                rich_select_op(ctx, f0.take().unwrap(), f1.take().unwrap(), f2.take().unwrap(), f3.take().unwrap());
             } else {
-                SELECT_CMD.scoped(caret_wgt.id()).notify_param(TextSelectOp::new(move || {
-                    continue_rich_clear_next_prev(is_next, is_word, &caret_wgt);
+                let (index, _) = f1.take().unwrap()(D0::default());
+                let selection_index = f3.take().unwrap()(D2::default());
+                let mut ctx = TEXT.resolve_caret();
+                ctx.selection_index = selection_index;
+                ctx.set_index(index);
+            }
+        })
+    }
+
+    pub(super) fn call(self) {
+        (self.op.lock())();
+    }
+}
+
+fn rich_select_op<D0: Send + 'static, D1: Send + 'static, D2: Send + 'static>(
+    ctx: zng_app_context::RwLockReadGuardOwned<RichText>,
+    rich_caret_index: impl FnOnce(&RichText) -> (WidgetId, D0),
+    local_caret_index: impl FnOnce(D0) -> (CaretIndex, D1) + Send + 'static,
+    rich_selection_index: impl FnOnce(&RichText, D1) -> Option<(WidgetId, D2)> + Send + 'static,
+    local_selection_index: impl FnOnce(D2) -> Option<CaretIndex> + Send + 'static,
+) {
+    let (index, d0) = rich_caret_index(&ctx);
+    if index == WIDGET.id() {
+        rich_select_op_0_get_caret(ctx, index, d0, local_caret_index, rich_selection_index, local_selection_index);
+    } else {
+        let mut d0 = Some(d0);
+        let mut f0 = Some(local_caret_index);
+        let mut f1 = Some(rich_selection_index);
+        let mut f2 = Some(local_selection_index);
+        SELECT_CMD.scoped(index).notify_param(TextSelectOp::new(move || {
+            if let Some(ctx) = TEXT.try_rich() {
+                if index == WIDGET.id() {
+                    rich_select_op_0_get_caret(
+                        ctx,
+                        index,
+                        d0.take().unwrap(),
+                        f0.take().unwrap(),
+                        f1.take().unwrap(),
+                        f2.take().unwrap(),
+                    );
+                }
+            }
+        }));
+    }
+}
+fn rich_select_op_0_get_caret<D0, D1, D2: Send + 'static>(
+    ctx: zng_app_context::RwLockReadGuardOwned<RichText>,
+    rich_caret_index: WidgetId,
+    d0: D0,
+    local_caret_index: impl FnOnce(D0) -> (CaretIndex, D1),
+    rich_selection_index: impl FnOnce(&RichText, D1) -> Option<(WidgetId, D2)>,
+    local_selection_index: impl FnOnce(D2) -> Option<CaretIndex> + Send + 'static,
+) {
+    let (index, d1) = local_caret_index(d0);
+    {
+        let mut ctx = TEXT.resolve_caret();
+        ctx.selection_index = None;
+        ctx.set_index(index);
+    }
+
+    match rich_selection_index(&ctx, d1) {
+        Some((selection_index, d2)) => {
+            if selection_index == WIDGET.id() {
+                rich_select_op_1_get_selection(ctx, rich_caret_index, selection_index, d2, local_selection_index);
+            } else {
+                let mut d2 = Some(d2);
+                let mut f0 = Some(local_selection_index);
+                SELECT_CMD.scoped(selection_index).notify_param(TextSelectOp::new(move || {
+                    if let Some(ctx) = TEXT.try_rich() {
+                        if selection_index == WIDGET.id() {
+                            rich_select_op_1_get_selection(ctx, rich_caret_index, selection_index, d2.take().unwrap(), f0.take().unwrap());
+                        }
+                    }
                 }));
             }
         }
-    } else {
-        // not inside rich text
-        local_clear_next_prev(is_next, is_word);
+        None => rich_select_op_2_finish(ctx, rich_caret_index, None),
     }
 }
-fn continue_rich_clear_next_prev(is_next: bool, is_word: bool, caret_wgt: &WidgetInfo) {
-    if TEXT.try_rich().is_none() {
-        tracing::error!("ignoring rich text caret operation, not inside rich context anymore");
-        return;
+fn rich_select_op_1_get_selection<D2>(
+    ctx: zng_app_context::RwLockReadGuardOwned<RichText>,
+    rich_caret_index: WidgetId,
+    rich_selection_index: WidgetId,
+    d2: D2,
+    local_selection_index: impl FnOnce(D2) -> Option<CaretIndex>,
+) {
+    if let Some(index) = local_selection_index(d2) {
+        let mut local_ctx = TEXT.resolve_caret();
+        local_ctx.selection_index = None;
+        local_ctx.set_index(index); // finish selection uses this index to create the selection.
+        rich_select_op_2_finish(ctx, rich_caret_index, Some(rich_selection_index));
+    } else {
+        rich_select_op_2_finish(ctx, rich_caret_index, None);
     }
-
-    let mut ctx = TEXT.resolve_rich_caret();
-    ctx.selection_index = None;
-    ctx.index = Some(caret_wgt.id());
-
-    if local_clear_next_prev(is_next, is_word) {
-        // local advance can propagate to sibling rich leaves
-
-        let advance = if is_next {
-            caret_wgt.rich_text_next().next()
-        } else {
-            caret_wgt.rich_text_prev().next()
-        };
-        if let Some(advance) = advance {
-            let advance_id = advance.info().id();
-            SELECT_CMD.scoped(advance_id).notify_param(if is_next {
-                TextSelectOp::new(move || {
-                    local_clear_text_start_end(false);
-                    local_clear_next_prev(true, is_word);
-                })
-            } else {
-                TextSelectOp::local_text_end()
-            });
-            ctx.index = Some(advance_id);
-            if FOCUS.is_focused(WIDGET.id()).get() {
-                FOCUS.focus_widget(advance_id, false);
-            }
+}
+fn rich_select_op_2_finish(
+    ctx: zng_app_context::RwLockReadGuardOwned<RichText>,
+    rich_caret_index: WidgetId,
+    rich_selection_index: Option<WidgetId>,
+) {
+    if let Some(index) = ctx.leaf_info(rich_caret_index) {
+        let selection_index = rich_selection_index.and_then(|id| ctx.leaf_info(id));
+        if selection_index.is_some() == rich_selection_index.is_some() {
+            drop(ctx);
+            TEXT.resolve_rich_caret()
+                .update_selection(index.info(), selection_index.as_ref().map(|s| s.info()), false, false);
         }
     }
 }
 
+fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
+    TextSelectOp::new_rich(
+        // get prev/next leaf widget
+        move |ctx| {
+            let local_ctx = TEXT.resolved();
+            if is_next {
+                if local_ctx.caret.selection_index.is_some() {
+                    // just clears selection, caret does not move outside selection
+                    return (WIDGET.id(), false)
+                } 
+
+                let index = local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index;
+                if index == local_ctx.segmented_text.text().len() {
+                    // next from end, check if has next sibling
+                    if let Some(info) = ctx.leaf_info(WIDGET.id()) {
+                        if let Some(next) = info.info().rich_text_next().next() {
+                            return (next.info().id(), true)
+                        }
+                    } 
+                }
+
+                // caret stays inside
+                (WIDGET.id(), false)
+            } else {
+                // !is_next
+
+                let mut prev_wgt = false;
+                if let Some(sel_i) = local_ctx.caret.selection_index {
+                    let i = local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index.min(sel_i.index);
+                    if i == 0 {
+                        // next clears to start, start is the prev end when there is a prev
+                        prev_wgt = true;
+                    }
+                } else if local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index <= 1 {
+                    // next moves the start (or is already in start)
+                    prev_wgt = true;
+                }
+
+                if prev_wgt {
+                    if let Some(info) = ctx.leaf_info(WIDGET.id()) {
+                        if let Some(prev) = info.info().rich_text_prev().next() {
+                            return (prev.info().id(), true)
+                        }
+                    }
+                }
+
+                (WIDGET.id(), false)
+            }
+        },
+        // get caret in the prev/next widget
+        move |is_from_sibling| {
+            if is_from_sibling {
+                if is_next {
+                    // caret was at sibling end without selection
+                    (CaretIndex { index: 1, line: 0 }, ())
+                } else {
+                    // caret was at sibling start with selection or moves to sibling start (that is the same as our end)
+                    let len = TEXT.resolved().segmented_text.text().len();
+                    (CaretIndex { index: len, line: 0 }, ())
+                }
+            } else {
+                local_clear_next_prev(is_next, is_word);
+                (TEXT.resolved().caret.index.unwrap_or(CaretIndex::ZERO), ())
+            }            
+        },
+        |_, _| None,
+        |()| None,
+    )
+}
 /// Place caret at end or start of the current local selection or advance/back the caret.
 ///
 /// Returns `true` if this change can propagate to siblings in rich text contexts.
@@ -1768,7 +1878,7 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
                                     if ctx.selection_index.is_none() {
                                         ctx.selection_index = Some(local_id);
                                     }
-                                    
+
                                     if let Some(cmp) = local_info.cmp_sibling_in(&next_info, &root_info) {
                                         match cmp {
                                             cmp::Ordering::Less => todo!(),
