@@ -978,19 +978,14 @@ impl TextSelectOp {
     ///
     /// This is the mouse primary button down operation.
     pub fn nearest_to(window_point: DipPoint) -> Self {
-        // !!: TODO rewrite with new API
-        Self::new(move || {
-            rich_nearest_to(true, window_point);
-        })
+        rich_nearest_to(true, window_point)
     }
 
     /// Extend or shrink selection by moving the caret to the insert point nearest to the `window_point`.
     ///
     /// This is the mouse primary button down when holding SHIFT operation.
     pub fn select_nearest_to(window_point: DipPoint) -> Self {
-        Self::new(move || {
-            rich_nearest_to(false, window_point);
-        })
+        rich_nearest_to(false, window_point)
     }
 
     /// Extend or shrink selection by moving the caret index or caret selection index to the insert point nearest to `window_point`.
@@ -1020,7 +1015,15 @@ impl TextSelectOp {
     pub fn select_all() -> Self {
         Self::new_rich(
             |ctx| (ctx.leaves_rev().next().map(|w| w.info().id()).unwrap_or_else(|| WIDGET.id()), ()),
-            |()| (CaretIndex { index: TEXT.resolved().segmented_text.text().len(), line: 0 }, ()),
+            |()| {
+                (
+                    CaretIndex {
+                        index: TEXT.resolved().segmented_text.text().len(),
+                        line: 0,
+                    },
+                    (),
+                )
+            },
             |ctx, ()| Some((ctx.leaves().next().map(|w| w.info().id()).unwrap_or_else(|| WIDGET.id()), ())),
             |()| Some(CaretIndex::ZERO),
         )
@@ -2176,157 +2179,42 @@ fn local_text_start_end(clear_selection: bool, is_end: bool) {
     ctx.used_retained_x = false;
 }
 
-fn rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
-    if let Some(ctx) = TEXT.try_rich() {
-        let root = match ctx.root_info() {
-            Some(r) => r,
-            None => return,
-        };
-
-        if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
-            let id = nearest_leaf.info().id();
-            if id != WIDGET.id() {
-                SELECT_CMD
-                    .scoped(id)
-                    .notify_param(TextSelectOp::new(move || continue_rich_nearest_to(clear_selection, window_point)));
-                return;
-            }
-        }
-
-        drop(ctx);
-        continue_rich_nearest_to(clear_selection, window_point);
-    } else {
-        local_nearest_to(clear_selection, window_point);
-    }
-}
-fn continue_rich_nearest_to(clear_selection: bool, window_point: DipPoint) {
-    if let Some(ctx) = TEXT.try_rich() {
-        let id = WIDGET.id();
-
-        if clear_selection {
-            let op = TextSelectOp::local_clear_selection();
-            let id = WIDGET.id();
-            for leaf in ctx.selection() {
-                let leaf_id = leaf.info().id();
-                if leaf_id != id {
-                    SELECT_CMD.scoped(leaf_id).notify_param(op.clone());
+fn rich_nearest_to(clear_selection: bool, window_point: DipPoint) -> TextSelectOp {
+    TextSelectOp::new_rich(
+        move |ctx| {
+            if let Some(root) = ctx.root_info() {
+                if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
+                    return (nearest_leaf.info().id(), ());
                 }
             }
-        } else if let Some(sid) = ctx.caret.selection_index {
-            if sid != id {
-                let mut local_ctx = TEXT.resolve_caret();
-                if local_ctx.selection_index.is_none() {
-                    let tree = WINDOW.info();
-                    let r_info = tree.get(ctx.root_id);
-                    let s_info = tree.get(sid);
-                    let info = tree.get(id);
-
-                    if let (Some(s_info), Some(info), Some(r_info)) = (s_info, info, r_info) {
-                        if let Some(ordering) = info.cmp_sibling_in(&s_info, &r_info) {
-                            // snap index to start/end in the direction of the rich selection index so that
-                            // local_nearest_to can start the local selection from the right end.
-                            match ordering {
-                                cmp::Ordering::Less => {
-                                    drop(local_ctx);
-                                    let len = TEXT.resolved().segmented_text.text().len();
-                                    let mut local_ctx = TEXT.resolve_caret();
-                                    local_ctx.selection_index = Some(CaretIndex { index: len, line: 0 });
-                                }
-                                cmp::Ordering::Greater => local_ctx.selection_index = Some(CaretIndex::ZERO),
-                                cmp::Ordering::Equal => {}
-                            }
-
-                            // fast cursor move can skip the start/end of local selection of previous widget, ensure they are finished here.
-                            match ordering {
-                                cmp::Ordering::Less => {
-                                    let op = TextSelectOp::new(|| {
-                                        TEXT.resolve_caret().set_char_index(0);
-                                    });
-                                    for next in info.rich_text_next() {
-                                        let next_id = next.info().id();
-                                        SELECT_CMD.scoped(next_id).notify_param(op.clone());
-                                        if next_id == sid {
-                                            break;
-                                        }
-                                    }
-                                }
-                                cmp::Ordering::Greater => {
-                                    let op = TextSelectOp::new(|| {
-                                        let len = TEXT.resolved().segmented_text.text().len();
-                                        TEXT.resolve_caret().set_char_index(len);
-                                    });
-                                    for prev in info.rich_text_prev() {
-                                        let prev_id = prev.info().id();
-                                        SELECT_CMD.scoped(prev_id).notify_param(op.clone());
-                                        if prev_id == sid {
-                                            break;
-                                        }
-                                    }
-                                }
-                                cmp::Ordering::Equal => {}
-                            }
-                        }
-                    }
-                }
+            (WIDGET.id(), ())
+        },
+        move |()| {
+            local_nearest_to(clear_selection, window_point);
+            (TEXT.resolved().caret.index.unwrap(), ())
+        },
+        move |ctx, ()| {
+            if clear_selection {
+                None
+            } else {
+                Some((ctx.caret.selection_index.unwrap_or_else(|| WIDGET.id()), ()))
             }
-        }
-        local_nearest_to(clear_selection, window_point);
-
-        let root_id = ctx.root_id;
-        drop(ctx);
-        let mut ctx = TEXT.resolve_rich_caret();
-        if clear_selection {
-            ctx.selection_index = None;
-        } else if ctx.selection_index.is_none() {
-            ctx.selection_index = Some(ctx.index.unwrap_or(id));
-        }
-        let prev_index = ctx.index;
-        ctx.index = Some(id);
-        if let (Some(prev_id), Some(sel_id)) = (prev_index, ctx.selection_index) {
-            drop(ctx);
-            if prev_id != id {
-                // fast cursor move can leave some selection behind, ensure clear.
-                let ctx = TEXT.rich();
-                let tree = WINDOW.info();
-                if let (Some(prev), Some(new), Some(selection), Some(root)) =
-                    (tree.get(prev_id), tree.get(id), tree.get(sel_id), tree.get(ctx.root_id))
-                {
-                    if let (Some(ordering), Some(sel_ordering)) = (new.cmp_sibling_in(&prev, &root), prev.cmp_sibling_in(&selection, &root))
-                    {
-                        // all valid
-                        if sel_ordering != ordering && sel_ordering != cmp::Ordering::Equal {
-                            // reduced selection/changed towards selection
-                            let op = TextSelectOp::local_clear_selection();
-                            match ordering {
-                                cmp::Ordering::Less => {
-                                    for next in new.rich_text_next() {
-                                        let next_id = next.info().id();
-                                        SELECT_CMD.scoped(next_id).notify_param(op.clone());
-                                        if next_id == prev_id {
-                                            break;
-                                        }
-                                    }
-                                }
-                                cmp::Ordering::Greater => {
-                                    for prev in new.rich_text_prev() {
-                                        let prev_info_id = prev.info().id();
-                                        SELECT_CMD.scoped(prev_info_id).notify_param(op.clone());
-                                        if prev_info_id == prev_id {
-                                            break;
-                                        }
-                                    }
-                                }
-                                cmp::Ordering::Equal => {}
-                            }
-                        }
-                    }
-                }
+        },
+        move |()| {
+            if clear_selection {
+                None
+            } else {
+                let local_ctx = TEXT.resolved();
+                Some(
+                    local_ctx
+                        .caret
+                        .selection_index
+                        .or(local_ctx.caret.index)
+                        .unwrap_or(CaretIndex::ZERO),
+                )
             }
-        }
-        if FOCUS.is_focus_within(root_id).get() {
-            FOCUS.focus_widget(id, false);
-        }
-    }
+        },
+    )
 }
 fn local_nearest_to(clear_selection: bool, window_point: DipPoint) {
     let mut caret = TEXT.resolve_caret();

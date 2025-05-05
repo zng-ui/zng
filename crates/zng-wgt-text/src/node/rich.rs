@@ -336,7 +336,12 @@ impl RichCaretInfo {
                         let is_new = inclusive_range_contains(new_a, new_b, wgt, &root);
 
                         match (is_old, is_new) {
-                            (true, true) => {}
+                            (true, true) => {
+                                if wgt == old_a || wgt == old_b {
+                                    // was endpoint now is full selection
+                                    SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_select_all())
+                                }
+                            }
                             (true, false) => {
                                 SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_clear_selection());
                             }
