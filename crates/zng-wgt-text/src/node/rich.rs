@@ -208,6 +208,9 @@ impl RichCaretInfo {
     /// # Panics
     ///
     /// Panics if `new_index` or `new_selection_index` is not inside the same rich text context.
+    ///
+    /// [`CaretInfo::index`]: crate::node::CaretInfo::index
+    /// [`CaretInfo::selection_index`]: crate::node::CaretInfo::selection_index
     pub fn update_selection(
         &mut self,
         new_index: &WidgetInfo,
