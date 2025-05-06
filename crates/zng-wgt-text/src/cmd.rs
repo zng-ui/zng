@@ -864,57 +864,56 @@ impl TextSelectOp {
     ///
     /// This is the `Up` key operation.
     pub fn line_up() -> Self {
-        rich_line_up_down(true, false)
+        rich_up_down(true, false, false)
     }
 
     /// Extend or shrink selection by moving the caret to the nearest insert index on the previous line.
     ///
     /// This is the `SHIFT+Up` key operation.
     pub fn select_line_up() -> Self {
-        rich_line_up_down(false, false)
+        rich_up_down(false, false, false)
     }
 
     /// Clear selection and move the caret to the nearest insert index on the next line.
     ///
     /// This is the `Down` key operation.
     pub fn line_down() -> Self {
-        rich_line_up_down(true, true)
+        rich_up_down(true, true, false)
     }
 
     /// Extend or shrink selection by moving the caret to the nearest insert index on the next line.
     ///
     /// This is the `SHIFT+Down` key operation.
     pub fn select_line_down() -> Self {
-        rich_line_up_down(false, true)
+        rich_up_down(false, true, false)
     }
 
     /// Clear selection and move the caret one viewport up.
     ///
     /// This is the `PageUp` key operation.
     pub fn page_up() -> Self {
-        // !!: TODO rewrite with new API
-        Self::new(|| rich_page_up_down(true, -1))
+        rich_up_down(true, false, true)
     }
 
     /// Extend or shrink selection by moving the caret one viewport up.
     ///
     /// This is the `SHIFT+PageUp` key operation.
     pub fn select_page_up() -> Self {
-        Self::new(|| rich_page_up_down(false, -1))
+        rich_up_down(false, false, true)
     }
 
     /// Clear selection and move the caret one viewport down.
     ///
     /// This is the `PageDown` key operation.
     pub fn page_down() -> Self {
-        Self::new(|| rich_page_up_down(true, 1))
+        rich_up_down(true, true, true)
     }
 
     /// Extend or shrink selection by moving the caret one viewport down.
     ///
     /// This is the `SHIFT+PageDown` key operation.
     pub fn select_page_down() -> Self {
-        Self::new(|| rich_page_up_down(false, 1))
+        rich_up_down(false, true, true)
     }
 
     /// Clear selection and move the caret to the start of the line.
@@ -1683,7 +1682,7 @@ fn local_select_next_prev(is_next: bool, is_word: bool) {
     ctx.used_retained_x = false;
 }
 
-fn rich_line_up_down(clear_selection: bool, is_down: bool) -> TextSelectOp {
+fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSelectOp {
     TextSelectOp::new_rich(
         move |ctx| {
             let resolved = TEXT.resolved();
@@ -1693,10 +1692,24 @@ fn rich_line_up_down(clear_selection: bool, is_down: bool) -> TextSelectOp {
             let last_line_i = laidout.shaped_text.lines_len().saturating_sub(1);
             let next_local_line_i = local_line_i.saturating_add_signed(if is_down { 1 } else { -1 }).min(last_line_i);
 
+            let page_h = if is_page { laidout.viewport.height } else { Px(0) };
+
             let mut need_spatial_search = local_line_i == next_local_line_i; // if already at first/last line
 
             if !need_spatial_search {
-                if let Some(next_local_line) = laidout.shaped_text.line(next_local_line_i) {
+                if is_page {
+                    if let Some(local_line) = laidout.shaped_text.line(local_line_i) {
+                        if is_down {
+                            if let Some(last_line) = laidout.shaped_text.line(last_line_i) {
+                                let max_local_y = last_line.rect().max_y() - local_line.rect().min_y();
+                                need_spatial_search = max_local_y < page_h; // if page distance is greater than maximum down distance
+                            }
+                        } else if let Some(first_line) = laidout.shaped_text.line(0) {
+                            let max_local_y = local_line.rect().max_y() - first_line.rect().min_y();
+                            need_spatial_search = max_local_y < page_h; // if page distance is greater than maximum up distance
+                        }
+                    }
+                } else if let Some(next_local_line) = laidout.shaped_text.line(next_local_line_i) {
                     let r = next_local_line.rect();
                     let x = laidout.caret_retained_x;
                     need_spatial_search = r.min_x() > x || r.max_x() < x; // if next local line does not contain ideal caret horizontally
@@ -1710,12 +1723,29 @@ fn rich_line_up_down(clear_selection: bool, is_down: bool) -> TextSelectOp {
                     let local_point = PxPoint::new(laidout.caret_retained_x, r.origin.y + r.size.height / Px(2));
                     let local_info = WIDGET.info();
                     let local_to_window = local_info.inner_transform();
+
+                    let local_cut_y = if is_down { local_point.y + page_h } else { local_point.y - page_h };
+                    let window_cut_y = local_to_window
+                        .transform_point(PxPoint::new(Px(0), local_cut_y))
+                        .unwrap_or_default()
+                        .y;
+
                     if let Some(window_point) = local_to_window.transform_point(local_point) {
                         // transform ok
 
                         // find the nearest sibling considering only the prev/next rich lines
                         let local_line_info = local_info.rich_text_line_info();
-                        let filter = |other: &WidgetFocusInfo, _, row_i, rows_len| {
+                        let filter = |other: &WidgetFocusInfo, rect: PxRect, row_i, rows_len| {
+                            if is_down {
+                                if rect.max_y() < window_cut_y {
+                                    // rectangle is before the page y line or the the current line
+                                    return false;
+                                }
+                            } else if rect.min_y() > window_cut_y {
+                                // rectangle is after the page y line or the current line
+                                return false;
+                            }
+
                             match local_info.cmp_sibling_in(other.info(), &root_info).unwrap() {
                                 cmp::Ordering::Less => {
                                     // other is after local
@@ -1828,16 +1858,35 @@ fn rich_line_up_down(clear_selection: bool, is_down: bool) -> TextSelectOp {
                 }
             }
 
-            if is_down {
-                if local_line_i == last_line_i {
-                    // can't go down, go to end
+            // when can't go down within local goes to text start/end
+            let mut cant_go_down_up = if is_down {
+                // if already at last line
+                local_line_i == last_line_i
+            } else {
+                // if already at first line
+                local_line_i == 0
+            };
+            if is_page && !cant_go_down_up {
+                if let Some(local_line) = laidout.shaped_text.line(local_line_i) {
+                    if is_down {
+                        if let Some(last_line) = laidout.shaped_text.line(last_line_i) {
+                            // if page down distance greater than distance to last line
+                            let max_local_y = last_line.rect().max_y() - local_line.rect().min_y();
+                            cant_go_down_up = max_local_y < page_h;
+                        }
+                    } else if let Some(first_line) = laidout.shaped_text.line(0) {
+                        // if page up distance greater than distance to first line
+                        let max_local_y = local_line.rect().max_y() - first_line.rect().min_y();
+                        cant_go_down_up = max_local_y < page_h;
+                    }
+                }
+            }
+            if cant_go_down_up {
+                if is_down {
                     if let Some(end) = ctx.leaves_rev().next() {
                         return (end.info().id(), None);
                     }
-                }
-            } else if local_line_i == 0 {
-                // can't go up, go to start
-                if let Some(start) = ctx.leaves().next() {
+                } else if let Some(start) = ctx.leaves().next() {
                     return (start.info().id(), None);
                 }
             }
@@ -1865,7 +1914,12 @@ fn rich_line_up_down(clear_selection: bool, is_down: bool) -> TextSelectOp {
                     return (index, ());
                 }
             }
-            local_line_up_down(clear_selection, if is_down { 1 } else { -1 });
+            let diff = if is_down { 1 } else { -1 };
+            if is_page {
+                local_page_up_down(clear_selection, diff);
+            } else {
+                local_line_up_down(clear_selection, diff);
+            }
             (TEXT.resolved().caret.index.unwrap(), ())
         },
         move |ctx, ()| {
@@ -1939,14 +1993,6 @@ fn local_line_up_down(clear_selection: bool, diff: i8) {
     if caret.index.is_none() {
         caret.set_index(CaretIndex::ZERO);
         caret.clear_selection();
-    }
-}
-
-fn rich_page_up_down(clear_selection: bool, diff: i8) {
-    if let Some(_ctx) = TEXT.try_rich() {
-        // !!: TODO
-    } else {
-        local_page_up_down(clear_selection, diff);
     }
 }
 fn local_page_up_down(clear_selection: bool, diff: i8) {
