@@ -9,7 +9,7 @@ use std::{any::Any, borrow::Cow, cmp, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
-use zng_ext_input::focus::{FOCUS, WidgetFocusInfo};
+use zng_ext_input::focus::WidgetFocusInfo;
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_wgt::prelude::*;
@@ -864,29 +864,28 @@ impl TextSelectOp {
     ///
     /// This is the `Up` key operation.
     pub fn line_up() -> Self {
-        // !!: TODO rewrite with new API
-        Self::new(|| rich_line_up_down(true, -1))
+        rich_line_up_down(true, false)
     }
 
     /// Extend or shrink selection by moving the caret to the nearest insert index on the previous line.
     ///
     /// This is the `SHIFT+Up` key operation.
     pub fn select_line_up() -> Self {
-        Self::new(|| rich_line_up_down(false, -1))
+        rich_line_up_down(false, false)
     }
 
     /// Clear selection and move the caret to the nearest insert index on the next line.
     ///
     /// This is the `Down` key operation.
     pub fn line_down() -> Self {
-        Self::new(|| rich_line_up_down(true, 1))
+        rich_line_up_down(true, true)
     }
 
     /// Extend or shrink selection by moving the caret to the nearest insert index on the next line.
     ///
     /// This is the `SHIFT+Down` key operation.
     pub fn select_line_down() -> Self {
-        Self::new(|| rich_line_up_down(false, 1))
+        rich_line_up_down(false, true)
     }
 
     /// Clear selection and move the caret one viewport up.
@@ -1198,36 +1197,28 @@ impl TextSelectOp {
     ///
     /// [`line_up`]: Self::line_up
     pub fn local_line_up() -> Self {
-        Self::new(|| {
-            local_line_up_down(true, -1);
-        })
+        Self::new(|| local_line_up_down(true, -1))
     }
 
     /// Like [`select_line_up`]  but stays within the same text widget, ignores rich text context.
     ///
     /// [`select_line_up`]: Self::select_line_up
     pub fn local_select_line_up() -> Self {
-        Self::new(|| {
-            local_line_up_down(false, -1);
-        })
+        Self::new(|| local_line_up_down(false, -1))
     }
 
     /// Like [`line_down`]  but stays within the same text widget, ignores rich text context.
     ///
     /// [`line_down`]: Self::line_down
     pub fn local_line_down() -> Self {
-        Self::new(|| {
-            local_line_up_down(true, 1);
-        })
+        Self::new(|| local_line_up_down(true, 1))
     }
 
     /// Like [`select_line_down`]  but stays within the same text widget, ignores rich text context.
     ///
     /// [`select_line_down`]: Self::select_line_down
     pub fn local_select_line_down() -> Self {
-        Self::new(|| {
-            local_line_up_down(false, 1);
-        })
+        Self::new(|| local_line_up_down(false, 1))
     }
 
     /// Like [`page_up`]  but stays within the same text widget, ignores rich text context.
@@ -1692,37 +1683,35 @@ fn local_select_next_prev(is_next: bool, is_word: bool) {
     ctx.used_retained_x = false;
 }
 
-fn rich_line_up_down(clear_selection: bool, diff: i8) {
-    if let Some(ctx) = TEXT.try_rich() {
-        let resolved = TEXT.resolved();
-        let laidout = TEXT.laidout();
+fn rich_line_up_down(clear_selection: bool, is_down: bool) -> TextSelectOp {
+    TextSelectOp::new_rich(
+        move |ctx| {
+            let resolved = TEXT.resolved();
+            let laidout = TEXT.laidout();
 
-        let local_line_i = resolved.caret.index.unwrap_or(CaretIndex::ZERO).line;
-        let last_line_i = laidout.shaped_text.lines_len().saturating_sub(1);
-        let next_local_line_i = local_line_i.saturating_add_signed(diff as isize).min(last_line_i);
+            let local_line_i = resolved.caret.index.unwrap_or(CaretIndex::ZERO).line;
+            let last_line_i = laidout.shaped_text.lines_len().saturating_sub(1);
+            let next_local_line_i = local_line_i.saturating_add_signed(if is_down { 1 } else { -1 }).min(last_line_i);
 
-        let mut need_rich_query = local_line_i == next_local_line_i; // if already at first/last line
+            let mut need_spatial_search = local_line_i == next_local_line_i; // if already at first/last line
 
-        if !need_rich_query {
-            if let Some(next_local_line) = laidout.shaped_text.line(next_local_line_i) {
-                let r = next_local_line.rect();
-                let x = laidout.caret_retained_x;
-                need_rich_query = r.min_x() > x || r.max_x() < x; // if next local line does not contain ideal caret horizontally
+            if !need_spatial_search {
+                if let Some(next_local_line) = laidout.shaped_text.line(next_local_line_i) {
+                    let r = next_local_line.rect();
+                    let x = laidout.caret_retained_x;
+                    need_spatial_search = r.min_x() > x || r.max_x() < x; // if next local line does not contain ideal caret horizontally
+                }
             }
-        }
 
-        if need_rich_query {
-            if let Some(local_line) = laidout.shaped_text.line(local_line_i) {
-                // line ok
-                let r = local_line.rect();
-                let local_point = PxPoint::new(laidout.caret_retained_x, r.origin.y + r.size.height / Px(2));
-                let local_info = WIDGET.info();
-                let local_to_window = local_info.inner_transform();
-                if let Some(mut window_point) = local_to_window.transform_point(local_point) {
-                    // transform ok
-
-                    if let Some(root_info) = ctx.root_info() {
-                        // rich context ok
+            if need_spatial_search {
+                if let (Some(local_line), Some(root_info)) = (laidout.shaped_text.line(local_line_i), ctx.root_info()) {
+                    // line ok, rich context ok
+                    let r = local_line.rect();
+                    let local_point = PxPoint::new(laidout.caret_retained_x, r.origin.y + r.size.height / Px(2));
+                    let local_info = WIDGET.info();
+                    let local_to_window = local_info.inner_transform();
+                    if let Some(window_point) = local_to_window.transform_point(local_point) {
+                        // transform ok
 
                         // find the nearest sibling considering only the prev/next rich lines
                         let local_line_info = local_info.rich_text_line_info();
@@ -1730,14 +1719,13 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
                             match local_info.cmp_sibling_in(other.info(), &root_info).unwrap() {
                                 cmp::Ordering::Less => {
                                     // other is after local
-                                    if diff < 0 {
-                                        return false; // navigating up
-                                    }
 
+                                    if !is_down {
+                                        return false;
+                                    }
                                     if local_line_i < last_line_i {
                                         return true; // local started next line
                                     }
-
                                     for next in local_info.rich_text_next() {
                                         let line_info = next.info().rich_text_line_info();
                                         if line_info.starts_new_line {
@@ -1757,14 +1745,13 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
                                 }
                                 cmp::Ordering::Greater => {
                                     // other is before local
-                                    if diff > 0 {
-                                        return false; // navigation down
-                                    }
 
+                                    if is_down {
+                                        return false;
+                                    }
                                     if local_line_i > 0 || local_line_info.starts_new_line {
                                         return true; // local started line, all prev wgt in prev lines
                                     }
-
                                     for prev in local_info.rich_text_prev() {
                                         let line_info = prev.info().rich_text_line_info();
                                         if line_info.ends_in_new_line {
@@ -1787,18 +1774,16 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
                             }
                         };
                         if let Some(next) = root_info.rich_text_nearest_leaf_filtered(window_point, filter) {
-                            // found sibling
+                            // found nearest sibling on the next/prev rich lines
+
                             let next_info = next.info().clone();
-                            let next_to_window = next_info.inner_transform();
-                            let window_to_next = next_to_window.inverse().unwrap_or_default();
 
+                            // get the next(wgt) local line that is in the next/prev rich line
+                            let mut next_line = 0;
                             if let Some(next_inline_rows_len) = next_info.bounds_info().inline().map(|i| i.rows.len()) {
-                                // local_nearest_to uses "nearest_line(y)", need to adjust the y to match the next rich line
-
-                                let mut next_line = 0;
                                 if next_inline_rows_len > 1 {
-                                    if diff > 0 {
-                                        // next is down (logical next)
+                                    if is_down {
+                                        // next is logical next
 
                                         if local_line_i == last_line_i {
                                             // local did not start next line
@@ -1836,79 +1821,77 @@ fn rich_line_up_down(clear_selection: bool, diff: i8) {
                                         }
                                     }
                                 }
-
-                                let next_line = next_info.bounds_info().inline().unwrap().rows[next_line];
-                                let next_line_y = next_line.origin.y + next_line.size.height / Px(2);
-
-                                window_point.y = next_to_window.transform_point(PxPoint::new(Px(0), next_line_y)).unwrap().y;
                             }
-                            let window_x = local_to_window
-                                .transform_point(PxPoint::new(laidout.caret_retained_x, Px(0)))
-                                .unwrap_or_default();
-                            let next_x = window_to_next.transform_point(window_x).unwrap_or_default().x;
-
-                            // send request
-                            let window_point = window_point.to_dip(root_info.tree().scale_factor());
-                            let root_id = root_info.id();
-                            let next_id = next_info.id();
-                            let local_id = local_info.id();
-                            SELECT_CMD.scoped(next_id).notify_param(TextSelectOp::new(move || {
-                                let ctx = match TEXT.try_rich() {
-                                    Some(c) => c,
-                                    None => return,
-                                };
-
-                                TEXT.set_caret_retained_x(next_x);
-
-                                local_nearest_to(clear_selection, window_point);
-
-                                TEXT.resolve_caret().used_retained_x = true;
-
-                                // !!: TODO prev selection min/max, new selection min/max, only send the needed messages
-                                for sel in ctx.selection() {
-                                    let sel_id = sel.info().id();
-                                    if sel_id == next_id {
-                                        continue;
-                                    }
-                                    SELECT_CMD.scoped(sel_id).notify_param(TextSelectOp::clear_selection());
-                                }
-
-                                let mut ctx = TEXT.resolve_rich_caret();
-                                if clear_selection {
-                                    ctx.selection_index = None;
-                                } else {
-                                    if ctx.selection_index.is_none() {
-                                        ctx.selection_index = Some(local_id);
-                                    }
-
-                                    if let Some(cmp) = local_info.cmp_sibling_in(&next_info, &root_info) {
-                                        match cmp {
-                                            cmp::Ordering::Less => todo!(),
-                                            cmp::Ordering::Equal => todo!(),
-                                            cmp::Ordering::Greater => todo!(),
-                                        }
-                                    }
-                                }
-                                ctx.index = Some(next_id);
-
-                                if FOCUS.is_focus_within(root_id).get() {
-                                    FOCUS.focus_widget(next_id, false);
-                                }
-                            }));
-                            return;
+                            return (next.info().id(), Some((window_point.x, next_line)));
                         }
                     }
                 }
             }
-        }
-    }
 
-    if local_line_up_down(clear_selection, diff) {
-        rich_text_start_end(clear_selection, diff > 0);
-    }
+            if is_down {
+                if local_line_i == last_line_i {
+                    // can't go down, go to end
+                    if let Some(end) = ctx.leaves_rev().next() {
+                        return (end.info().id(), None);
+                    }
+                }
+            } else if local_line_i == 0 {
+                // can't go up, go to start
+                if let Some(start) = ctx.leaves().next() {
+                    return (start.info().id(), None);
+                }
+            }
+
+            (WIDGET.id(), None) // only local nav
+        },
+        move |rich_request| {
+            if let Some((window_x, line_i)) = rich_request {
+                let local_x = WIDGET
+                    .info()
+                    .inner_transform()
+                    .inverse()
+                    .and_then(|t| t.transform_point(PxPoint::new(window_x, Px(0))))
+                    .unwrap_or_default()
+                    .x;
+                TEXT.set_caret_retained_x(local_x);
+                let local_ctx = TEXT.laidout();
+                if let Some(line) = local_ctx.shaped_text.line(line_i) {
+                    let index = match line.nearest_seg(local_x) {
+                        Some(s) => s.nearest_char_index(local_x, TEXT.resolved().segmented_text.text()),
+                        None => line.text_range().end,
+                    };
+                    let index = CaretIndex { index, line: line_i };
+                    TEXT.resolve_caret().used_retained_x = true; // new_rich does not set this
+                    return (index, ());
+                }
+            }
+            local_line_up_down(clear_selection, if is_down { 1 } else { -1 });
+            (TEXT.resolved().caret.index.unwrap(), ())
+        },
+        move |ctx, ()| {
+            if clear_selection {
+                None
+            } else {
+                Some((ctx.caret.selection_index.or(ctx.caret.index).unwrap_or_else(|| WIDGET.id()), ()))
+            }
+        },
+        move |()| {
+            if clear_selection {
+                None
+            } else {
+                let local_ctx = TEXT.resolved();
+                Some(
+                    local_ctx
+                        .caret
+                        .selection_index
+                        .or(local_ctx.caret.index)
+                        .unwrap_or(CaretIndex::ZERO),
+                )
+            }
+        },
+    )
 }
-/// Returns `true` if caret was moved to start/end because cannot go up/down.
-fn local_line_up_down(clear_selection: bool, diff: i8) -> bool {
+fn local_line_up_down(clear_selection: bool, diff: i8) {
     let diff = diff as isize;
 
     let mut caret = TEXT.resolve_caret();
@@ -1921,7 +1904,6 @@ fn local_line_up_down(clear_selection: bool, diff: i8) -> bool {
     caret.used_retained_x = true;
 
     let laidout = TEXT.laidout();
-    let mut caret_to_start_end = false;
 
     if laidout.caret_origin.is_some() {
         let last_line = laidout.shaped_text.lines_len().saturating_sub(1);
@@ -1946,13 +1928,11 @@ fn local_line_up_down(clear_selection: bool, diff: i8) -> bool {
             caret.set_index(i);
         } else if diff == -1 {
             caret.set_char_index(0);
-            caret_to_start_end = true;
         } else if diff == 1 {
             drop(caret);
             let len = TEXT.resolved().segmented_text.text().len();
             caret = TEXT.resolve_caret();
             caret.set_char_index(len);
-            caret_to_start_end = true;
         }
     }
 
@@ -1960,8 +1940,6 @@ fn local_line_up_down(clear_selection: bool, diff: i8) -> bool {
         caret.set_index(CaretIndex::ZERO);
         caret.clear_selection();
     }
-
-    caret_to_start_end
 }
 
 fn rich_page_up_down(clear_selection: bool, diff: i8) {
