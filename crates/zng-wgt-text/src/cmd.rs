@@ -12,6 +12,7 @@ use zng_ext_font::*;
 use zng_ext_input::focus::WidgetFocusInfo;
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
+use zng_layout::unit::DistanceKey;
 use zng_wgt::prelude::*;
 
 use crate::node::{RichText, RichTextWidgetInfoExt};
@@ -976,37 +977,35 @@ impl TextSelectOp {
     ///
     /// This is the mouse primary button down operation.
     pub fn nearest_to(window_point: DipPoint) -> Self {
-        rich_nearest_to(true, window_point)
+        rich_nearest_char_word_to(true, window_point, false)
     }
 
     /// Extend or shrink selection by moving the caret to the insert point nearest to the `window_point`.
     ///
     /// This is the mouse primary button down when holding SHIFT operation.
     pub fn select_nearest_to(window_point: DipPoint) -> Self {
-        rich_nearest_to(false, window_point)
-    }
-
-    /// Extend or shrink selection by moving the caret index or caret selection index to the insert point nearest to `window_point`.
-    ///
-    /// This is the touch selection caret drag operation.
-    pub fn select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> Self {
-        Self::new(move || {
-            rich_index_nearest_to(window_point, move_selection_index);
-        })
+        rich_nearest_char_word_to(false, window_point, false)
     }
 
     /// Replace or extend selection with the word nearest to the `window_point`
     ///
     /// This is the mouse primary button double click.
     pub fn select_word_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
-        Self::new(move || rich_select_line_word_nearest_to(replace_selection, true, window_point))
+        rich_nearest_char_word_to(replace_selection, window_point, true)
     }
 
     /// Replace or extend selection with the line nearest to the `window_point`
     ///
     /// This is the mouse primary button triple click.
     pub fn select_line_nearest_to(replace_selection: bool, window_point: DipPoint) -> Self {
-        Self::new(move || rich_select_line_word_nearest_to(replace_selection, false, window_point))
+        rich_nearest_line_to(replace_selection, window_point)
+    }
+
+    /// Extend or shrink selection by moving the caret index or caret selection index to the insert point nearest to `window_point`.
+    ///
+    /// This is the touch selection caret drag operation.
+    pub fn select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> Self {
+        rich_selection_index_nearest_to(window_point, move_selection_index)
     }
 
     /// Select the full text.
@@ -1271,7 +1270,7 @@ impl TextSelectOp {
     /// [`select_index_nearest_to`]: Self::select_index_nearest_to
     pub fn local_select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> Self {
         Self::new(move || {
-            local_index_nearest_to(window_point, move_selection_index);
+            local_select_index_nearest_to(window_point, move_selection_index);
         })
     }
 
@@ -2203,7 +2202,8 @@ fn local_text_start_end(clear_selection: bool, is_end: bool) {
     ctx.used_retained_x = false;
 }
 
-fn rich_nearest_to(clear_selection: bool, window_point: DipPoint) -> TextSelectOp {
+/// `clear_selection` is `replace_selection` for `is_word` mode.
+fn rich_nearest_char_word_to(clear_selection: bool, window_point: DipPoint, is_word: bool) -> TextSelectOp {
     TextSelectOp::new_rich(
         move |ctx| {
             if let Some(root) = ctx.root_info() {
@@ -2214,19 +2214,27 @@ fn rich_nearest_to(clear_selection: bool, window_point: DipPoint) -> TextSelectO
             (WIDGET.id(), ())
         },
         move |()| {
-            local_nearest_to(clear_selection, window_point);
+            if is_word {
+                local_select_line_word_nearest_to(clear_selection, true, window_point)
+            } else {
+                local_nearest_to(clear_selection, window_point)
+            }
             (TEXT.resolved().caret.index.unwrap(), ())
         },
         move |ctx, ()| {
             if clear_selection {
-                None
+                if is_word && TEXT.resolved().caret.selection_index.is_some() {
+                    Some((WIDGET.id(), ()))
+                } else {
+                    None
+                }
             } else {
                 Some((ctx.caret.selection_index.unwrap_or_else(|| WIDGET.id()), ()))
             }
         },
         move |()| {
             if clear_selection {
-                None
+                if is_word { TEXT.resolved().caret.selection_index } else { None }
             } else {
                 let local_ctx = TEXT.resolved();
                 Some(
@@ -2291,14 +2299,25 @@ fn local_nearest_to(clear_selection: bool, window_point: DipPoint) {
     }
 }
 
-fn rich_index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
-    if let Some(_ctx) = TEXT.try_rich() {
-        // !!: TODO
-    } else {
-        local_index_nearest_to(window_point, move_selection_index);
-    }
+fn rich_selection_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> TextSelectOp {
+    TextSelectOp::local_select_index_nearest_to(window_point, move_selection_index)
+    // !!: TODO
+    // TextSelectOp::new_rich(
+    //     |ctx| {
+    //         todo!()
+    //     },
+    //     |()| {
+    //         todo!()
+    //     },
+    //     |ctx, ()| {
+    //         todo!()
+    //     },
+    //     |()| {
+    //         todo!()
+    //     }
+    // )
 }
-fn local_index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
+fn local_select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
     let mut caret = TEXT.resolve_caret();
 
     if caret.index.is_none() {
@@ -2344,12 +2363,132 @@ fn local_index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
     }
 }
 
-fn rich_select_line_word_nearest_to(replace_selection: bool, select_word: bool, window_point: DipPoint) {
-    if let Some(_ctx) = TEXT.try_rich() {
-        // !!: TODO
-    } else {
-        local_select_line_word_nearest_to(replace_selection, select_word, window_point);
-    }
+fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> TextSelectOp {
+    TextSelectOp::new_rich(
+        move |ctx| {
+            if let Some(root) = ctx.root_info() {
+                let window_point = window_point.to_px(root.tree().scale_factor());
+                if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point) {
+                    let mut nearest = usize::MAX;
+                    let mut nearest_dist = DistanceKey::NONE_MAX;
+                    let mut rows_len = 0;
+                    nearest_leaf.info().bounds_info().visit_inner_rects::<()>(|r, i, l| {
+                        rows_len = l;
+                        let dist = DistanceKey::from_rect_to_point(r, window_point);
+                        if dist < nearest_dist {
+                            nearest_dist = dist;
+                            nearest = i;
+                        }
+                        ops::ControlFlow::Continue(())
+                    });
+
+                    // !!: TODO, line selection selects the "actual" line, that is wrap line breaks are not considered.
+                    //     - the kind of line break that starts an inline row is not available in the current API.
+
+                    // returns the rich line end
+                    if nearest < rows_len.saturating_sub(1) {
+                        // rich line ends in the leaf widget
+                        return (nearest_leaf.info().id(), Some(nearest));
+                    } else {
+                        // rich line starts in the leaf widget
+                        let mut end = nearest_leaf.clone();
+                        for next in nearest_leaf.info().rich_text_next() {
+                            let line_info = next.info().rich_text_line_info();
+                            if line_info.starts_new_line {
+                                return (
+                                    end.info().id(),
+                                    Some(
+                                        end.info()
+                                            .bounds_info()
+                                            .inline()
+                                            .map(|i| i.rows.len().saturating_sub(1))
+                                            .unwrap_or(0),
+                                    ),
+                                );
+                            }
+                            end = next;
+                            if line_info.ends_in_new_line {
+                                break;
+                            }
+                        }
+                        return (end.info().id(), Some(0));
+                    }
+                }
+            }
+            (WIDGET.id(), None)
+        },
+        move |rich_request| {
+            if let Some(line_i) = rich_request {
+                let local_ctx = TEXT.laidout();
+                if let Some(line) = local_ctx.shaped_text.line(line_i) {
+                    return (
+                        CaretIndex {
+                            index: line.actual_text_caret_range().end,
+                            line: line_i,
+                        },
+                        line_i == 0,
+                    );
+                }
+            }
+            local_select_line_word_nearest_to(replace_selection, true, window_point);
+            (TEXT.resolved().caret.index.unwrap(), false)
+        },
+        move |ctx, rich_select_line_start| {
+            if rich_select_line_start {
+                let id = WIDGET.id();
+                if let Some(line_end) = ctx.leaf_info(id) {
+                    let mut line_start = line_end;
+                    for prev in line_start.info().rich_text_prev() {
+                        let line_info = prev.info().rich_text_line_info();
+                        line_start = prev;
+                        if line_info.starts_new_line || line_info.ends_in_new_line {
+                            break;
+                        }
+                    }
+                    if !replace_selection {
+                        if let Some(sel) = ctx.caret_selection_index_info() {
+                            if let Some(std::cmp::Ordering::Less) = sel.info().cmp_sibling_in(line_start.info(), &sel.info().root()) {
+                                // rich line start already inside selection
+                                return Some((sel.info().id(), false));
+                            }
+                        }
+                    }
+                    return Some((line_start.info().id(), line_start.info().id() != id));
+                }
+            }
+            if replace_selection {
+                return Some((WIDGET.id(), false));
+            }
+            Some((ctx.caret.selection_index.unwrap_or_else(|| WIDGET.id()), false))
+        },
+        move |start_of_last_line| {
+            if replace_selection {
+                let local_ctx = TEXT.laidout();
+                let mut line_i = local_ctx.shaped_text.lines_len().saturating_sub(1);
+                if !start_of_last_line {
+                    if let Some(i) = TEXT.resolved().caret.index {
+                        line_i = i.line;
+                    }
+                }
+                if let Some(last_line) = local_ctx.shaped_text.line(line_i) {
+                    return Some(CaretIndex {
+                        index: last_line.actual_text_caret_range().start,
+                        line: line_i,
+                    });
+                }
+                None
+            } else {
+                let local_ctx = TEXT.resolved();
+                Some(
+                    local_ctx
+                        .caret
+                        .selection_index
+                        .or(local_ctx.caret.index)
+                        .unwrap_or(CaretIndex::ZERO),
+                )
+            }
+        },
+    )
 }
 fn local_select_line_word_nearest_to(replace_selection: bool, select_word: bool, window_point: DipPoint) {
     let mut caret = TEXT.resolve_caret();
