@@ -9,7 +9,6 @@ use std::{any::Any, borrow::Cow, cmp, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_ext_font::*;
-use zng_ext_input::focus::WidgetFocusInfo;
 use zng_ext_l10n::l10n;
 use zng_ext_undo::*;
 use zng_layout::unit::DistanceKey;
@@ -1011,7 +1010,7 @@ impl TextSelectOp {
     /// Select the full text.
     pub fn select_all() -> Self {
         Self::new_rich(
-            |ctx| (ctx.leaves_rev().next().map(|w| w.info().id()).unwrap_or_else(|| WIDGET.id()), ()),
+            |ctx| (ctx.leaves_rev().next().map(|w| w.id()).unwrap_or_else(|| WIDGET.id()), ()),
             |()| {
                 (
                     CaretIndex {
@@ -1021,7 +1020,7 @@ impl TextSelectOp {
                     (),
                 )
             },
-            |ctx, ()| Some((ctx.leaves().next().map(|w| w.info().id()).unwrap_or_else(|| WIDGET.id()), ())),
+            |ctx, ()| Some((ctx.leaves().next().map(|w| w.id()).unwrap_or_else(|| WIDGET.id()), ())),
             |()| Some(CaretIndex::ZERO),
         )
     }
@@ -1448,9 +1447,9 @@ fn rich_select_op_2_finish(
     if let Some(mut index) = ctx.leaf_info(rich_caret_index.0) {
         if rich_caret_index.1.index == 0 {
             // index 0 is the end of previous leaf
-            if let Some(prev) = index.info().rich_text_prev().next() {
+            if let Some(prev) = index.rich_text_prev().next() {
                 index = prev;
-                SELECT_CMD.scoped(index.info().id()).notify_param(TextSelectOp::new(move || {
+                SELECT_CMD.scoped(index.id()).notify_param(TextSelectOp::new(move || {
                     let end = TEXT.resolved().segmented_text.text().len();
                     TEXT.resolve_caret().set_char_index(end);
                 }));
@@ -1460,9 +1459,9 @@ fn rich_select_op_2_finish(
             if let Some(mut selection) = ctx.leaf_info(rich_selection_index.0) {
                 if rich_selection_index.1.index == 0 {
                     // selection 0 is the end of the previous leaf
-                    if let Some(prev) = selection.info().rich_text_prev().next() {
+                    if let Some(prev) = selection.rich_text_prev().next() {
                         selection = prev;
-                        SELECT_CMD.scoped(selection.info().id()).notify_param(TextSelectOp::new(move || {
+                        SELECT_CMD.scoped(selection.id()).notify_param(TextSelectOp::new(move || {
                             let end = TEXT.resolved().segmented_text.text().len();
                             TEXT.resolve_caret().set_char_index(end);
                         }));
@@ -1470,14 +1469,13 @@ fn rich_select_op_2_finish(
                 }
 
                 drop(ctx);
-                TEXT.resolve_rich_caret()
-                    .update_selection(index.info(), Some(selection.info()), false, false);
+                TEXT.resolve_rich_caret().update_selection(&index, Some(&selection), false, false);
             }
         } else {
             // no selection
 
             drop(ctx);
-            TEXT.resolve_rich_caret().update_selection(index.info(), None, false, false);
+            TEXT.resolve_rich_caret().update_selection(&index, None, false, false);
         }
     }
 }
@@ -1489,9 +1487,9 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
             if let (Some(i), Some(s)) = (ctx.caret_index_info(), ctx.caret_selection_index_info()) {
                 // clear selection, next places caret at end of selection, prev at start
 
-                let (a, b) = match i.info().cmp_sibling_in(s.info(), &i.info().root()).unwrap() {
-                    cmp::Ordering::Less | cmp::Ordering::Equal => (i.info(), s.info()),
-                    cmp::Ordering::Greater => (s.info(), i.info()),
+                let (a, b) = match i.cmp_sibling_in(&s, &i.root()).unwrap() {
+                    cmp::Ordering::Less | cmp::Ordering::Equal => (&i, &s),
+                    cmp::Ordering::Greater => (&s, &i),
                 };
 
                 let c = if is_next { b } else { a };
@@ -1506,8 +1504,8 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
                     if index == local_ctx.segmented_text.text().len() {
                         // next from end, check if has next sibling
                         if let Some(info) = ctx.leaf_info(WIDGET.id()) {
-                            if let Some(next) = info.info().rich_text_next().next() {
-                                return (next.info().id(), true);
+                            if let Some(next) = info.rich_text_next().next() {
+                                return (next.id(), true);
                             }
                         }
                     }
@@ -1522,8 +1520,8 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
                         // next moves to the start (or is already in start)
 
                         if let Some(info) = ctx.leaf_info(WIDGET.id()) {
-                            if let Some(prev) = info.info().rich_text_prev().next() {
-                                return (prev.info().id(), true);
+                            if let Some(prev) = info.rich_text_prev().next() {
+                                return (prev.id(), true);
                             }
                         }
                     }
@@ -1601,8 +1599,8 @@ fn rich_select_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
                 if index == local_ctx.segmented_text.text().len() {
                     // next from end
                     if let Some(info) = ctx.leaf_info(WIDGET.id()) {
-                        if let Some(next) = info.info().rich_text_next().next() {
-                            return (next.info().id(), true);
+                        if let Some(next) = info.rich_text_next().next() {
+                            return (next.id(), true);
                         }
                     }
                 }
@@ -1613,8 +1611,8 @@ fn rich_select_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
                 if local_ctx.caret.index.unwrap_or(CaretIndex::ZERO).index <= cutout {
                     // next moves to the start (or is already in start)
                     if let Some(info) = ctx.leaf_info(WIDGET.id()) {
-                        if let Some(prev) = info.info().rich_text_prev().next() {
-                            return (prev.info().id(), true);
+                        if let Some(prev) = info.rich_text_prev().next() {
+                            return (prev.id(), true);
                         }
                     }
                 }
@@ -1734,7 +1732,7 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
 
                         // find the nearest sibling considering only the prev/next rich lines
                         let local_line_info = local_info.rich_text_line_info();
-                        let filter = |other: &WidgetFocusInfo, rect: PxRect, row_i, rows_len| {
+                        let filter = |other: &WidgetInfo, rect: PxRect, row_i, rows_len| {
                             if is_down {
                                 if rect.max_y() < window_cut_y {
                                     // rectangle is before the page y line or the the current line
@@ -1745,7 +1743,7 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                                 return false;
                             }
 
-                            match local_info.cmp_sibling_in(other.info(), &root_info).unwrap() {
+                            match local_info.cmp_sibling_in(other, &root_info).unwrap() {
                                 cmp::Ordering::Less => {
                                     // other is after local
 
@@ -1756,7 +1754,7 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                                         return true; // local started next line
                                     }
                                     for next in local_info.rich_text_next() {
-                                        let line_info = next.info().rich_text_line_info();
+                                        let line_info = next.rich_text_line_info();
                                         if line_info.starts_new_line {
                                             return true; // `other` starts new line or is after this line break
                                         }
@@ -1782,7 +1780,7 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                                         return true; // local started line, all prev wgt in prev lines
                                     }
                                     for prev in local_info.rich_text_prev() {
-                                        let line_info = prev.info().rich_text_line_info();
+                                        let line_info = prev.rich_text_line_info();
                                         if line_info.ends_in_new_line {
                                             if &prev == other {
                                                 return row_i < rows_len - 1; // `other` rect is not in the same line
@@ -1805,7 +1803,7 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                         if let Some(next) = root_info.rich_text_nearest_leaf_filtered(window_point, filter) {
                             // found nearest sibling on the next/prev rich lines
 
-                            let next_info = next.info().clone();
+                            let next_info = next.clone();
 
                             // get the next(wgt) local line that is in the next/prev rich line
                             let mut next_line = 0;
@@ -1818,7 +1816,7 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                                             // local did not start next line
 
                                             for l_next in local_info.rich_text_next() {
-                                                let line_info = l_next.info().rich_text_line_info();
+                                                let line_info = l_next.rich_text_line_info();
                                                 if line_info.starts_new_line || line_info.ends_in_new_line {
                                                     // found rich line end
                                                     if l_next == next {
@@ -1837,7 +1835,7 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                                             // local did not start current line
 
                                             for l_prev in local_info.rich_text_prev() {
-                                                let line_info = l_prev.info().rich_text_line_info();
+                                                let line_info = l_prev.rich_text_line_info();
                                                 if line_info.starts_new_line || line_info.ends_in_new_line {
                                                     // found rich line start
                                                     if l_prev == next {
@@ -1851,7 +1849,7 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                                     }
                                 }
                             }
-                            return (next.info().id(), Some((window_point.x, next_line)));
+                            return (next.id(), Some((window_point.x, next_line)));
                         }
                     }
                 }
@@ -1883,10 +1881,10 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
             if cant_go_down_up {
                 if is_down {
                     if let Some(end) = ctx.leaves_rev().next() {
-                        return (end.info().id(), None);
+                        return (end.id(), None);
                     }
                 } else if let Some(start) = ctx.leaves().next() {
-                    return (start.info().id(), None);
+                    return (start.id(), None);
                 }
             }
 
@@ -2059,19 +2057,19 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
                     if local_line == last_line {
                         // current line can end in a next sibling
 
-                        let mut prev_id = c.info().id();
-                        for c in c.info().rich_text_next() {
-                            let line_info = c.info().rich_text_line_info();
+                        let mut prev_id = c.id();
+                        for c in c.rich_text_next() {
+                            let line_info = c.rich_text_line_info();
                             if line_info.starts_new_line {
-                                return (prev_id, prev_id != c.info().id());
+                                return (prev_id, prev_id != c.id());
                             } else if line_info.ends_in_new_line {
-                                return (c.info().id(), true);
+                                return (c.id(), true);
                             }
-                            prev_id = c.info().id();
+                            prev_id = c.id();
                         }
 
                         // text end
-                        return (prev_id, prev_id != c.info().id());
+                        return (prev_id, prev_id != c.id());
                     }
                 } else {
                     // !is_end
@@ -2079,17 +2077,17 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
                     if local_line == 0 {
                         // current line can start in a prev sibling
 
-                        let mut last_id = c.info().id();
-                        for c in c.info().rich_text_prev() {
-                            let line_info = c.info().rich_text_line_info();
+                        let mut last_id = c.id();
+                        for c in c.rich_text_prev() {
+                            let line_info = c.rich_text_line_info();
                             if line_info.starts_new_line || line_info.ends_in_new_line {
-                                return (c.info().id(), true);
+                                return (c.id(), true);
                             }
-                            last_id = c.info().id();
+                            last_id = c.id();
                         }
 
                         // text start
-                        return (last_id, last_id != c.info().id());
+                        return (last_id, last_id != c.id());
                     }
                 }
             }
@@ -2156,7 +2154,7 @@ fn local_line_start_end(clear_selection: bool, is_end: bool) {
 fn rich_text_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
     TextSelectOp::new_rich(
         move |ctx| {
-            let id = if is_end { ctx.leaves_rev().next() } else { ctx.leaves().next() }.map(|w| w.info().id());
+            let id = if is_end { ctx.leaves_rev().next() } else { ctx.leaves().next() }.map(|w| w.id());
             let id = id.unwrap_or_else(|| WIDGET.id());
             (id, ())
         },
@@ -2208,7 +2206,7 @@ fn rich_nearest_char_word_to(clear_selection: bool, window_point: DipPoint, is_w
         move |ctx| {
             if let Some(root) = ctx.root_info() {
                 if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
-                    return (nearest_leaf.info().id(), ());
+                    return (nearest_leaf.id(), ());
                 }
             }
             (WIDGET.id(), ())
@@ -2308,7 +2306,7 @@ fn rich_selection_index_nearest_to(window_point: DipPoint, move_selection_index:
 
             if let Some(root) = ctx.root_info() {
                 if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
-                    return (nearest_leaf.info().id(), ());
+                    return (nearest_leaf.id(), ());
                 }
             }
             (WIDGET.id(), ())
@@ -2326,7 +2324,7 @@ fn rich_selection_index_nearest_to(window_point: DipPoint, move_selection_index:
 
             if let Some(root) = ctx.root_info() {
                 if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
-                    return Some((nearest_leaf.info().id(), ()));
+                    return Some((nearest_leaf.id(), ()));
                 }
             }
             Some((WIDGET.id(), ()))
@@ -2394,7 +2392,7 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                     let mut nearest = usize::MAX;
                     let mut nearest_dist = DistanceKey::NONE_MAX;
                     let mut rows_len = 0;
-                    nearest_leaf.info().bounds_info().visit_inner_rects::<()>(|r, i, l| {
+                    nearest_leaf.bounds_info().visit_inner_rects::<()>(|r, i, l| {
                         rows_len = l;
                         let dist = DistanceKey::from_rect_to_point(r, window_point);
                         if dist < nearest_dist {
@@ -2407,22 +2405,16 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                     // returns the rich line end
                     if nearest < rows_len.saturating_sub(1) {
                         // rich line ends in the leaf widget
-                        return (nearest_leaf.info().id(), Some(nearest));
+                        return (nearest_leaf.id(), Some(nearest));
                     } else {
                         // rich line starts in the leaf widget
                         let mut end = nearest_leaf.clone();
-                        for next in nearest_leaf.info().rich_text_next() {
-                            let line_info = next.info().rich_text_line_info();
+                        for next in nearest_leaf.rich_text_next() {
+                            let line_info = next.rich_text_line_info();
                             if line_info.starts_new_line {
                                 return (
-                                    end.info().id(),
-                                    Some(
-                                        end.info()
-                                            .bounds_info()
-                                            .inline()
-                                            .map(|i| i.rows.len().saturating_sub(1))
-                                            .unwrap_or(0),
-                                    ),
+                                    end.id(),
+                                    Some(end.bounds_info().inline().map(|i| i.rows.len().saturating_sub(1)).unwrap_or(0)),
                                 );
                             }
                             end = next;
@@ -2430,7 +2422,7 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                                 break;
                             }
                         }
-                        return (end.info().id(), Some(0));
+                        return (end.id(), Some(0));
                     }
                 }
             }
@@ -2457,8 +2449,8 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                 let id = WIDGET.id();
                 if let Some(line_end) = ctx.leaf_info(id) {
                     let mut line_start = line_end;
-                    for prev in line_start.info().rich_text_prev() {
-                        let line_info = prev.info().rich_text_line_info();
+                    for prev in line_start.rich_text_prev() {
+                        let line_info = prev.rich_text_line_info();
                         line_start = prev;
                         if line_info.starts_new_line || line_info.ends_in_new_line {
                             break;
@@ -2466,13 +2458,13 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                     }
                     if !replace_selection {
                         if let Some(sel) = ctx.caret_selection_index_info() {
-                            if let Some(std::cmp::Ordering::Less) = sel.info().cmp_sibling_in(line_start.info(), &sel.info().root()) {
+                            if let Some(std::cmp::Ordering::Less) = sel.cmp_sibling_in(&line_start, &sel.root()) {
                                 // rich line start already inside selection
-                                return Some((sel.info().id(), false));
+                                return Some((sel.id(), false));
                             }
                         }
                     }
-                    return Some((line_start.info().id(), line_start.info().id() != id));
+                    return Some((line_start.id(), line_start.id() != id));
                 }
             }
             if replace_selection {
