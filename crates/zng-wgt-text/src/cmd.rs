@@ -2300,22 +2300,44 @@ fn local_nearest_to(clear_selection: bool, window_point: DipPoint) {
 }
 
 fn rich_selection_index_nearest_to(window_point: DipPoint, move_selection_index: bool) -> TextSelectOp {
-    TextSelectOp::local_select_index_nearest_to(window_point, move_selection_index)
-    // !!: TODO
-    // TextSelectOp::new_rich(
-    //     |ctx| {
-    //         todo!()
-    //     },
-    //     |()| {
-    //         todo!()
-    //     },
-    //     |ctx, ()| {
-    //         todo!()
-    //     },
-    //     |()| {
-    //         todo!()
-    //     }
-    // )
+    TextSelectOp::new_rich(
+        move |ctx| {
+            if move_selection_index {
+                return (ctx.caret.index.unwrap_or_else(|| WIDGET.id()), ());
+            }
+
+            if let Some(root) = ctx.root_info() {
+                if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
+                    return (nearest_leaf.info().id(), ());
+                }
+            }
+            (WIDGET.id(), ())
+        },
+        move |()| {
+            if !move_selection_index {
+                local_select_index_nearest_to(window_point, false);
+            }
+            (TEXT.resolved().caret.index.unwrap_or(CaretIndex::ZERO), ())
+        },
+        move |ctx, ()| {
+            if !move_selection_index {
+                return Some((ctx.caret.selection_index.unwrap_or_else(|| WIDGET.id()), ()));
+            }
+
+            if let Some(root) = ctx.root_info() {
+                if let Some(nearest_leaf) = root.rich_text_nearest_leaf(window_point.to_px(root.tree().scale_factor())) {
+                    return Some((nearest_leaf.info().id(), ()));
+                }
+            }
+            Some((WIDGET.id(), ()))
+        },
+        move |()| {
+            if move_selection_index {
+                local_select_index_nearest_to(window_point, true);
+            }
+            Some(TEXT.resolved().caret.selection_index.unwrap_or(CaretIndex::ZERO))
+        },
+    )
 }
 fn local_select_index_nearest_to(window_point: DipPoint, move_selection_index: bool) {
     let mut caret = TEXT.resolve_caret();
@@ -2381,9 +2403,6 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                         }
                         ops::ControlFlow::Continue(())
                     });
-
-                    // !!: TODO, line selection selects the "actual" line, that is wrap line breaks are not considered.
-                    //     - the kind of line break that starts an inline row is not available in the current API.
 
                     // returns the rich line end
                     if nearest < rows_len.saturating_sub(1) {
