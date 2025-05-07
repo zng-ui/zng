@@ -14,7 +14,7 @@ use zng_ext_undo::*;
 use zng_layout::unit::DistanceKey;
 use zng_wgt::prelude::*;
 
-use crate::node::{RichText, RichTextWidgetInfoExt};
+use crate::node::{RichText, RichTextWidgetInfoExt, notify_leaf_select_op};
 
 use super::{node::TEXT, *};
 
@@ -1337,7 +1337,7 @@ impl TextSelectOp {
         let mut f3 = Some(local_selection_index);
         Self::new(move || {
             if let Some(ctx) = TEXT.try_rich() {
-                rich_select_op(ctx, f0.take().unwrap(), f1.take().unwrap(), f2.take().unwrap(), f3.take().unwrap());
+                rich_select_op_start(ctx, f0.take().unwrap(), f1.take().unwrap(), f2.take().unwrap(), f3.take().unwrap());
             } else {
                 let (index, _) = f1.take().unwrap()(D0::default());
                 let selection_index = f3.take().unwrap()(D2::default());
@@ -1353,7 +1353,7 @@ impl TextSelectOp {
     }
 }
 
-fn rich_select_op<D0: Send + 'static, D1: Send + 'static, D2: Send + 'static>(
+fn rich_select_op_start<D0: Send + 'static, D1: Send + 'static, D2: Send + 'static>(
     ctx: zng_app_context::RwLockReadGuardOwned<RichText>,
     rich_caret_index: impl FnOnce(&RichText) -> (WidgetId, D0),
     local_caret_index: impl FnOnce(D0) -> (CaretIndex, D1) + Send + 'static,
@@ -1362,29 +1362,32 @@ fn rich_select_op<D0: Send + 'static, D1: Send + 'static, D2: Send + 'static>(
 ) {
     let (index, d0) = rich_caret_index(&ctx);
     if index == WIDGET.id() {
-        rich_select_op_0_get_caret(ctx, index, d0, local_caret_index, rich_selection_index, local_selection_index);
+        rich_select_op_get_caret(ctx, index, d0, local_caret_index, rich_selection_index, local_selection_index);
     } else {
         let mut d0 = Some(d0);
         let mut f0 = Some(local_caret_index);
         let mut f1 = Some(rich_selection_index);
         let mut f2 = Some(local_selection_index);
-        SELECT_CMD.scoped(index).notify_param(TextSelectOp::new(move || {
-            if let Some(ctx) = TEXT.try_rich() {
-                if index == WIDGET.id() {
-                    rich_select_op_0_get_caret(
-                        ctx,
-                        index,
-                        d0.take().unwrap(),
-                        f0.take().unwrap(),
-                        f1.take().unwrap(),
-                        f2.take().unwrap(),
-                    );
+        notify_leaf_select_op(
+            index,
+            TextSelectOp::new(move || {
+                if let Some(ctx) = TEXT.try_rich() {
+                    if index == WIDGET.id() {
+                        rich_select_op_get_caret(
+                            ctx,
+                            index,
+                            d0.take().unwrap(),
+                            f0.take().unwrap(),
+                            f1.take().unwrap(),
+                            f2.take().unwrap(),
+                        );
+                    }
                 }
-            }
-        }));
+            }),
+        );
     }
 }
-fn rich_select_op_0_get_caret<D0, D1, D2: Send + 'static>(
+fn rich_select_op_get_caret<D0, D1, D2: Send + 'static>(
     ctx: zng_app_context::RwLockReadGuardOwned<RichText>,
     rich_caret_index: WidgetId,
     d0: D0,
@@ -1401,29 +1404,32 @@ fn rich_select_op_0_get_caret<D0, D1, D2: Send + 'static>(
     match rich_selection_index(&ctx, d1) {
         Some((selection_index, d2)) => {
             if selection_index == WIDGET.id() {
-                rich_select_op_1_get_selection(ctx, (rich_caret_index, index), selection_index, d2, local_selection_index);
+                rich_select_op_get_selection(ctx, (rich_caret_index, index), selection_index, d2, local_selection_index);
             } else {
                 let mut d2 = Some(d2);
                 let mut f0 = Some(local_selection_index);
-                SELECT_CMD.scoped(selection_index).notify_param(TextSelectOp::new(move || {
-                    if let Some(ctx) = TEXT.try_rich() {
-                        if selection_index == WIDGET.id() {
-                            rich_select_op_1_get_selection(
-                                ctx,
-                                (rich_caret_index, index),
-                                selection_index,
-                                d2.take().unwrap(),
-                                f0.take().unwrap(),
-                            );
+                notify_leaf_select_op(
+                    selection_index,
+                    TextSelectOp::new(move || {
+                        if let Some(ctx) = TEXT.try_rich() {
+                            if selection_index == WIDGET.id() {
+                                rich_select_op_get_selection(
+                                    ctx,
+                                    (rich_caret_index, index),
+                                    selection_index,
+                                    d2.take().unwrap(),
+                                    f0.take().unwrap(),
+                                );
+                            }
                         }
-                    }
-                }));
+                    }),
+                );
             }
         }
-        None => rich_select_op_2_finish(ctx, (rich_caret_index, index), None),
+        None => rich_select_op_finish(ctx, (rich_caret_index, index), None),
     }
 }
-fn rich_select_op_1_get_selection<D2>(
+fn rich_select_op_get_selection<D2>(
     ctx: zng_app_context::RwLockReadGuardOwned<RichText>,
     rich_caret_index: (WidgetId, CaretIndex),
     rich_selection_index: WidgetId,
@@ -1434,12 +1440,12 @@ fn rich_select_op_1_get_selection<D2>(
         let mut local_ctx = TEXT.resolve_caret();
         local_ctx.selection_index = Some(index);
         local_ctx.index_version += 1;
-        rich_select_op_2_finish(ctx, rich_caret_index, Some((rich_selection_index, index)));
+        rich_select_op_finish(ctx, rich_caret_index, Some((rich_selection_index, index)));
     } else {
-        rich_select_op_2_finish(ctx, rich_caret_index, None);
+        rich_select_op_finish(ctx, rich_caret_index, None);
     }
 }
-fn rich_select_op_2_finish(
+fn rich_select_op_finish(
     ctx: zng_app_context::RwLockReadGuardOwned<RichText>,
     rich_caret_index: (WidgetId, CaretIndex),
     rich_selection_index: Option<(WidgetId, CaretIndex)>,
@@ -1449,10 +1455,13 @@ fn rich_select_op_2_finish(
             // index 0 is the end of previous leaf
             if let Some(prev) = index.rich_text_prev().next() {
                 index = prev;
-                SELECT_CMD.scoped(index.id()).notify_param(TextSelectOp::new(move || {
-                    let end = TEXT.resolved().segmented_text.text().len();
-                    TEXT.resolve_caret().set_char_index(end);
-                }));
+                notify_leaf_select_op(
+                    index.id(),
+                    TextSelectOp::new(move || {
+                        let end = TEXT.resolved().segmented_text.text().len();
+                        TEXT.resolve_caret().set_char_index(end);
+                    }),
+                );
             }
         }
         if let Some(rich_selection_index) = rich_selection_index {
@@ -1461,10 +1470,13 @@ fn rich_select_op_2_finish(
                     // selection 0 is the end of the previous leaf
                     if let Some(prev) = selection.rich_text_prev().next() {
                         selection = prev;
-                        SELECT_CMD.scoped(selection.id()).notify_param(TextSelectOp::new(move || {
-                            let end = TEXT.resolved().segmented_text.text().len();
-                            TEXT.resolve_caret().set_char_index(end);
-                        }));
+                        notify_leaf_select_op(
+                            selection.id(),
+                            TextSelectOp::new(move || {
+                                let end = TEXT.resolved().segmented_text.text().len();
+                                TEXT.resolve_caret().set_char_index(end);
+                            }),
+                        );
                     }
                 }
 

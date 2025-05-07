@@ -491,6 +491,9 @@ impl RichText {
     fn no_context() -> Self {
         panic!("no `RichText` in context, only available inside `rich_text`")
     }
+    fn no_dispatch_context() -> Vec<EventUpdate> {
+        panic!("`RichText::notify_leaf` must be called inside `UiNode::event` only")
+    }
 }
 
 context_local! {
@@ -500,6 +503,26 @@ context_local! {
     static RESOLVED_TEXT: RwLock<ResolvedText> = RwLock::new(ResolvedText::no_context());
     /// Represents the contextual [`LaidoutText`] setup by the [`layout_text`] node.
     static LAIDOUT_TEXT: RwLock<LaidoutText> = RwLock::new(LaidoutText::no_context());
+    /// Represents a list of events send from rich text leaves to other leaves.
+    static RICH_TEXT_NOTIFY: RwLock<Vec<EventUpdate>> = RwLock::new(RichText::no_dispatch_context());
+}
+
+impl RichText {
+    /// Send an event *immediately* to a leaf widget inside the rich context.
+    ///
+    /// After the current event returns to the rich text root widget the `update` is sent. Rich text leaves can send
+    /// multiple commands to sibling leaves to implement rich text operations, using this method instead of the global dispatch
+    /// can gain significant performance.
+    ///
+    /// Note that all requests during a single app event run after that event, and all recursive requests during these notification events only
+    /// run after they all notify, that is, not actually recursive.
+    ///
+    /// # Panics
+    ///
+    /// Panics is not called during a `UiNode::event`.
+    pub fn notify_leaf(&self, update: EventUpdate) {
+        RICH_TEXT_NOTIFY.write().push(update);
+    }
 }
 
 bitflags! {

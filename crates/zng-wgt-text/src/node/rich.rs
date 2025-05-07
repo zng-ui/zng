@@ -12,13 +12,14 @@ use crate::{
     cmd::{SELECT_CMD, TextSelectOp},
 };
 
-use super::{RICH_TEXT, RichCaretInfo, RichText, TEXT};
+use super::{RICH_TEXT, RICH_TEXT_NOTIFY, RichCaretInfo, RichText, TEXT};
 
 pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
     let child = rich_text_component(child, "rich_text");
 
     let mut ctx = None;
+    let mut dispatch = None;
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
             WIDGET.sub_var(&enabled);
@@ -30,8 +31,33 @@ pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) ->
                         selection_index: None,
                     },
                 })));
+                dispatch = Some(Arc::new(RwLock::new(vec![])));
 
                 RICH_TEXT.with_context(&mut ctx, || child.init());
+            }
+        }
+        UiNodeOp::Event { update } => {
+            if ctx.is_some() {
+                RICH_TEXT.with_context(&mut ctx, || {
+                    RICH_TEXT_NOTIFY.with_context(&mut dispatch, || {
+                        child.event(update);
+
+                        let mut requests = std::mem::take(&mut *RICH_TEXT_NOTIFY.write());
+                        let mut tree = None;
+                        while !requests.is_empty() {
+                            for mut update in requests.drain(..) {
+                                if update.delivery_list_mut().has_pending_search() {
+                                    if tree.is_none() {
+                                        tree = Some(WINDOW.info());
+                                    }
+                                    update.delivery_list_mut().fulfill_search(tree.iter());
+                                }
+                                child.event(&update);
+                            }
+                            requests.extend(RICH_TEXT_NOTIFY.write().drain(..));
+                        }
+                    });
+                });
             }
         }
         UiNodeOp::Update { updates } => {
@@ -45,6 +71,7 @@ pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) ->
             if ctx.is_some() {
                 RICH_TEXT.with_context(&mut ctx, || child.deinit());
                 ctx = None;
+                dispatch = None;
             }
         }
         op => {
@@ -245,7 +272,7 @@ impl RichCaretInfo {
                 }
                 let middle_op = TextSelectOp::local_select_all();
                 for middle in a.rich_text_next().take_while(|n| n != b) {
-                    SELECT_CMD.scoped(middle.id()).notify_param(middle_op.clone());
+                    notify_leaf_select_op(middle.id(), middle_op.clone());
                 }
                 if !skip_end_points {
                     self.continue_select_greater(b, b == new_index);
@@ -261,20 +288,20 @@ impl RichCaretInfo {
                     std::cmp::Ordering::Equal => {
                         // was single widget selection
                         if !skip_end_points {
-                            SELECT_CMD.scoped(old_sel.id()).notify_param(TextSelectOp::local_clear_selection());
+                            notify_leaf_select_op(old_sel.id(), TextSelectOp::local_clear_selection());
                         }
                         return self.continue_focus(skip_focus, new_index, &root);
                     }
                 };
                 let op = TextSelectOp::local_clear_selection();
                 if !skip_end_points {
-                    SELECT_CMD.scoped(a.id()).notify_param(op.clone());
+                    notify_leaf_select_op(a.id(), op.clone());
                 }
                 for middle in a.rich_text_next().take_while(|n| n != b) {
-                    SELECT_CMD.scoped(middle.id()).notify_param(op.clone());
+                    notify_leaf_select_op(middle.id(), op.clone());
                 }
                 if !skip_end_points {
-                    SELECT_CMD.scoped(b.id()).notify_param(op);
+                    notify_leaf_select_op(b.id(), op);
                 }
 
                 self.continue_focus(skip_focus, new_index, &root);
@@ -337,13 +364,13 @@ impl RichCaretInfo {
                             (true, true) => {
                                 if &wgt == old_a || &wgt == old_b {
                                     // was endpoint now is full selection
-                                    SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_select_all())
+                                    notify_leaf_select_op(wgt.id(), TextSelectOp::local_select_all())
                                 }
                             }
                             (true, false) => {
-                                SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_clear_selection());
+                                notify_leaf_select_op(wgt.id(), TextSelectOp::local_clear_selection());
                             }
-                            (false, true) => SELECT_CMD.scoped(wgt.id()).notify_param(TextSelectOp::local_select_all()),
+                            (false, true) => notify_leaf_select_op(wgt.id(), TextSelectOp::local_select_all()),
                             (false, false) => {}
                         }
                     }
@@ -358,34 +385,44 @@ impl RichCaretInfo {
         }
     }
     fn continue_select_lesser(&self, a: &WidgetInfo, a_is_caret: bool) {
-        SELECT_CMD.scoped(a.id()).notify_param(TextSelectOp::new(move || {
-            let len = TEXT.resolved().segmented_text.text().len();
-            let len = CaretIndex { index: len, line: 0 }; // line is updated next layout
-            let mut ctx = TEXT.resolve_caret();
-            if a_is_caret {
-                ctx.selection_index = Some(len);
-            } else {
-                ctx.index = Some(len);
-            }
-            ctx.index_version += 1;
-        }));
+        notify_leaf_select_op(
+            a.id(),
+            TextSelectOp::new(move || {
+                let len = TEXT.resolved().segmented_text.text().len();
+                let len = CaretIndex { index: len, line: 0 }; // line is updated next layout
+                let mut ctx = TEXT.resolve_caret();
+                if a_is_caret {
+                    ctx.selection_index = Some(len);
+                } else {
+                    ctx.index = Some(len);
+                }
+                ctx.index_version += 1;
+            }),
+        );
     }
     fn continue_select_greater(&self, b: &WidgetInfo, b_is_caret: bool) {
-        SELECT_CMD.scoped(b.id()).notify_param(TextSelectOp::new(move || {
-            let mut ctx = TEXT.resolve_caret();
-            if b_is_caret {
-                ctx.selection_index = Some(CaretIndex::ZERO);
-            } else {
-                ctx.index = Some(CaretIndex::ZERO);
-            }
-            ctx.index_version += 1;
-        }));
+        notify_leaf_select_op(
+            b.id(),
+            TextSelectOp::new(move || {
+                let mut ctx = TEXT.resolve_caret();
+                if b_is_caret {
+                    ctx.selection_index = Some(CaretIndex::ZERO);
+                } else {
+                    ctx.index = Some(CaretIndex::ZERO);
+                }
+                ctx.index_version += 1;
+            }),
+        );
     }
     fn continue_focus(&self, skip_focus: bool, new_index: &WidgetInfo, root: &WidgetInfo) {
         if !skip_focus && FOCUS.is_focus_within(root.id()).get() {
             FOCUS.focus_widget(new_index.id(), false);
         }
     }
+}
+
+pub(crate) fn notify_leaf_select_op(leaf_id: WidgetId, op: TextSelectOp) {
+    RICH_TEXT_NOTIFY.write().push(SELECT_CMD.scoped(leaf_id).new_update_param(op));
 }
 
 /// Extends [`WidgetInfo`] state to provide information about rich text.
