@@ -15,6 +15,7 @@ use zng_ext_font::*;
 use zng_wgt::{prelude::*, *};
 use zng_wgt_fill::*;
 use zng_wgt_filter::*;
+use zng_wgt_input::{CursorIcon, cursor};
 use zng_wgt_scroll::{LazyMode, lazy};
 use zng_wgt_stack::{Stack, StackDirection};
 use zng_wgt_text::*;
@@ -50,6 +51,11 @@ impl AnsiText {
         widget_set! {
             self;
             font_family = ["JetBrains Mono", "Consolas", "monospace"];
+            rich_text = true;
+
+            when #txt_selectable {
+                cursor = CursorIcon::Text;
+            }
         };
 
         self.widget_builder().push_build_action(|wgt| {
@@ -62,6 +68,11 @@ impl AnsiText {
     widget_impl! {
         /// ANSI text.
         pub txt(text: impl IntoVar<Txt>);
+
+        /// Enable text selection, copy.
+        ///
+        /// Note that the copy is only in plain text, without the ANSI escape codes.
+        pub zng_wgt_text::txt_selectable(enabled: impl IntoVar<bool>);
     }
 }
 
@@ -524,6 +535,7 @@ mod ansi_fn {
             args.text.remove(0)
         } else {
             Stack! {
+                rich_text = true;
                 direction = StackDirection::start_to_end();
                 children = args.text;
             }
@@ -544,6 +556,7 @@ mod ansi_fn {
         } else {
             let len = args.lines.len();
             Stack! {
+                rich_text = true;
                 direction = StackDirection::top_to_bottom();
                 children = args.lines;
                 lazy = LazyMode::lazy_vertical(wgt_fn!(|_| {
@@ -567,6 +580,7 @@ mod ansi_fn {
             args.pages.remove(0)
         } else {
             Stack! {
+                rich_text = true;
                 direction = StackDirection::top_to_bottom();
                 children = args.pages;
             }

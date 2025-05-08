@@ -1,5 +1,6 @@
 # Unreleased
 
+* Enable basic text selection and copy for `Markdown!` and `AnsiText!`.
 * Add `WidgetBoundsInfo::inner_rects` and associated methods.
 * Add `WidgetInfo::nearest_rect` and associated methods.
 * Text now clears selection on `Key::Escape`.
