@@ -2062,6 +2062,7 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
     TextSelectOp::new_rich(
         // get caret widget, rich line start/end
         move |ctx| {
+            let from_id = WIDGET.id();
             if let Some(c) = ctx.leaf_info(WIDGET.id()) {
                 let local_line = TEXT.resolved().caret.index.unwrap_or(CaretIndex::ZERO).line;
                 if is_end {
@@ -2073,15 +2074,15 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
                         for c in c.rich_text_next() {
                             let line_info = c.rich_text_line_info();
                             if line_info.starts_new_line {
-                                return (prev_id, prev_id != c.id());
+                                return (prev_id, Some(from_id));
                             } else if line_info.ends_in_new_line {
-                                return (c.id(), true);
+                                return (c.id(), Some(from_id));
                             }
                             prev_id = c.id();
                         }
 
                         // text end
-                        return (prev_id, prev_id != c.id());
+                        return (prev_id, Some(from_id));
                     }
                 } else {
                     // !is_end
@@ -2093,42 +2094,44 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
                         for c in c.rich_text_prev() {
                             let line_info = c.rich_text_line_info();
                             if line_info.starts_new_line || line_info.ends_in_new_line {
-                                return (c.id(), true);
+                                return (c.id(), Some(from_id));
                             }
                             last_id = c.id();
                         }
 
                         // text start
-                        return (last_id, last_id != c.id());
+                        return (last_id, Some(from_id));
                     }
                 }
             }
-            (WIDGET.id(), false)
+            (from_id, None)
         },
         // get local caret index in the rich line start/end widget
-        move |is_from_sibling| {
-            if is_from_sibling {
-                // ensure the caret is at a start/end from the other sibling for `local_clear_line_start_end`
-                if is_end {
-                    TEXT.resolve_caret().index = Some(CaretIndex::ZERO);
-                } else {
-                    let local_ctx = TEXT.laidout();
-                    let line = local_ctx.shaped_text.lines_len() - 1;
-                    let index = local_ctx.shaped_text.line(line).unwrap().text_caret_range().end;
-                    drop(local_ctx);
-                    TEXT.resolve_caret().index = Some(CaretIndex { index, line })
+        move |from_id| {
+            if let Some(from_id) = from_id {
+                if from_id != WIDGET.id() {
+                    // ensure the caret is at a start/end from the other sibling for `local_line_start_end`
+                    if is_end {
+                        TEXT.resolve_caret().index = Some(CaretIndex::ZERO);
+                    } else {
+                        let local_ctx = TEXT.laidout();
+                        let line = local_ctx.shaped_text.lines_len() - 1;
+                        let index = local_ctx.shaped_text.line(line).unwrap().text_caret_range().end;
+                        drop(local_ctx);
+                        TEXT.resolve_caret().index = Some(CaretIndex { index, line })
+                    }
                 }
             }
             local_line_start_end(clear_selection, is_end);
 
-            (TEXT.resolved().caret.index.unwrap(), WIDGET.id())
+            (TEXT.resolved().caret.index.unwrap(), from_id)
         },
         // get the selection index widget, line selection always updates from the caret
-        move |ctx, new_index| {
+        move |ctx, from_id| {
             if clear_selection {
                 return None;
             }
-            Some((ctx.caret.selection_index.unwrap_or(new_index), ()))
+            Some((ctx.caret.selection_index.or(from_id).unwrap_or_else(|| WIDGET.id()), ()))
         },
         // get the selection index
         move |()| {
@@ -2166,20 +2169,20 @@ fn local_line_start_end(clear_selection: bool, is_end: bool) {
 fn rich_text_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
     TextSelectOp::new_rich(
         move |ctx| {
+            let from_id = WIDGET.id();
             let id = if is_end { ctx.leaves_rev().next() } else { ctx.leaves().next() }.map(|w| w.id());
-            let id = id.unwrap_or_else(|| WIDGET.id());
-            (id, ())
+            (id.unwrap_or(from_id), Some(from_id))
         },
-        move |()| {
+        move |from_id| {
             local_text_start_end(clear_selection, is_end);
-            (TEXT.resolved().caret.index.unwrap(), WIDGET.id())
+            (TEXT.resolved().caret.index.unwrap(), from_id)
         },
         // get the selection index widget, line selection always updates from the caret
-        move |ctx, new_index| {
+        move |ctx, from_id| {
             if clear_selection {
                 return None;
             }
-            Some((ctx.caret.selection_index.unwrap_or(new_index), ()))
+            Some((ctx.caret.selection_index.or(from_id).unwrap_or_else(|| WIDGET.id()), ()))
         },
         // get the selection index
         move |()| {
