@@ -42,7 +42,7 @@ rustybuzz = "0.20"
 ttf-parser = "0.25"
 parking_lot = "0.12"
 byteorder = "1.5"
-icu_properties = "1.4"
+icu_properties = "2.0"
 bitflags = { version = "2.5", features = ["serde", "bytemuck"] }
 tracing = "0.1"
 pastey = "=0.1.0"

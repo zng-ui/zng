@@ -5,25 +5,25 @@ Loaded data is !Send+!Sync so we probably don't need to cache it.
 use std::{fmt, mem::size_of};
 
 use byteorder::{BigEndian, ReadBytesExt};
-use icu_properties::sets;
+use icu_properties::props::{self, BinaryProperty};
 use zng_color::{ColorScheme, Rgba, rgba};
 use zng_var::impl_from_and_into_var;
 use zng_view_api::font::GlyphIndex;
 
 pub(super) fn maybe_emoji(c: char) -> bool {
-    sets::emoji().contains(c)
+    props::Emoji::for_char(c)
 }
 
 pub(super) fn definitely_emoji(c: char) -> bool {
-    sets::emoji_presentation().contains(c) || is_modifier(c)
+    props::EmojiPresentation::for_char(c) || is_modifier(c)
 }
 
 pub(super) fn is_modifier(c: char) -> bool {
-    sets::emoji_modifier().contains(c)
+    props::EmojiModifier::for_char(c)
 }
 
 pub(super) fn is_component(c: char) -> bool {
-    sets::emoji_component().contains(c)
+    props::EmojiComponent::for_char(c)
 }
 
 /*
