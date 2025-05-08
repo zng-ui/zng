@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.14.3
+
 * Enable basic text selection and copy for `Markdown!` and `AnsiText!`.
 * Add rich text context, `TEXT.rich` and associated API.
   - Implemented most text gestures for rich text.

@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-slider"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,15 +12,15 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-var = { path = "../zng-var", version = "0.6.1" }
-zng-wgt = { path = "../zng-wgt", version = "0.7.2" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.5.2" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.4.2" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.7.2" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.6.2" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.4.2" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.4.2" }
-zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.4.2" }
+zng-var = { path = "../zng-var", version = "0.6.2" }
+zng-wgt = { path = "../zng-wgt", version = "0.7.3" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.5.3" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.4.3" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.7.3" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.6.3" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.4.3" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.4.3" }
+zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.4.3" }
 
 parking_lot = "0.12"
 tracing = "0.1"
