@@ -558,6 +558,12 @@ impl Command {
         ))
     }
 
+    /// Create an event update for this command with custom `param`.
+    pub fn new_update_param(&self, param: impl Any + Send + Sync) -> EventUpdate {
+        self.event
+            .new_update(CommandArgs::now(CommandParam::new(param), self.scope, self.is_enabled_value()))
+    }
+
     /// Creates a preview event handler for the command.
     ///
     /// This is similar to [`Event::on_pre_event`], but `handler` is only called if the command

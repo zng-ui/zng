@@ -19,5 +19,6 @@ zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.4.2" }
 zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.6.2" }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.5.2" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.6.2" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.4.2" }
 
 serde = { version = "1.0", features = ["derive"] }

@@ -1,5 +1,14 @@
 # Unreleased
 
+* Enable basic text selection and copy for `Markdown!` and `AnsiText!`.
+* Add `WidgetBoundsInfo::inner_rects` and associated methods.
+* Add `WidgetInfo::nearest_rect` and associated methods.
+* Text now clears selection on `Key::Escape`.
+* Implement all `FromIterator` and `Extend` that `String` implements for `Txt`.
+* Fix Alt focus scope navigation from inside nested focus scopes.
+* Implement `From<WidgetFocusInfo> for WidgetInfo`.
+* Surface `zng::text::txt_selectable` property.
+* Fix incorrect `Wrap!` debug validation with negative spacing.
 * Fix shift+arrow key gestures not starting text selection until next arrow key press.
 * Update dependencies.
 

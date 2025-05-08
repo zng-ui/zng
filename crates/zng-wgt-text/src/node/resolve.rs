@@ -33,7 +33,7 @@ use crate::{
     cmd::{EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD, TextEditOp, TextSelectOp, UndoTextEditOp},
 };
 
-use super::{CaretInfo, ImePreview, PendingLayout, RESOLVED_TEXT, ResolvedText, SelectionBy, TEXT};
+use super::{CaretInfo, ImePreview, PendingLayout, RESOLVED_TEXT, ResolvedText, RichTextCopyParam, SelectionBy, TEXT};
 
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
 ///
@@ -471,17 +471,42 @@ fn resolve_text_edit_events(update: &EventUpdate, edit: &mut ResolveTextEdit) {
 
         let auto_select = AUTO_SELECTION_VAR.get();
         if auto_select != AutoSelection::DISABLED && caret.selection_index.is_some() && TEXT_SELECTABLE_VAR.get() {
-            if auto_select.contains(AutoSelection::CLEAR_ON_BLUR) && args.is_blur(widget.id()) {
-                // deselect if the widget is not the ALT return focus and is not the parent scope return focus.
+            if auto_select.contains(AutoSelection::CLEAR_ON_BLUR) {
+                if let Some(rich) = TEXT.try_rich() {
+                    if args.is_focus_leave(rich.root_id) {
+                        // deselect if the ALT return and parent scope return are not inside the rich text context
 
-                let us = Some(widget.id());
-                let alt_return = FOCUS.alt_return().with(|p| p.as_ref().map(|p| p.widget_id()));
-                if alt_return != us {
-                    if let Some(info) = WIDGET.info().into_focusable(true, true) {
-                        if let Some(scope) = info.scope() {
-                            let parent_return = FOCUS.return_focused(scope.info().id()).with(|p| p.as_ref().map(|p| p.widget_id()));
-                            if parent_return != us {
-                                SELECT_CMD.scoped(widget.id()).notify_param(TextSelectOp::next());
+                        if let Some(rich_root) = rich.root_info() {
+                            let alt_return = FOCUS.alt_return().with(|p| p.as_ref().map(|p| p.widget_id()));
+                            if alt_return.is_none() || rich_root.descendants().all(|d| d.id() != alt_return.unwrap()) {
+                                // not ALT return
+                                if let Some(info) = WIDGET.info().into_focusable(true, true) {
+                                    if let Some(scope) = info.scope() {
+                                        let parent_return =
+                                            FOCUS.return_focused(scope.info().id()).with(|p| p.as_ref().map(|p| p.widget_id()));
+                                        if parent_return.is_none() || rich_root.descendants().all(|d| d.id() != alt_return.unwrap()) {
+                                            // not parent scope return
+                                            SELECT_CMD.scoped(widget.id()).notify_param(TextSelectOp::next());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if args.is_blur(widget.id()) {
+                    // deselect if the widget is not the ALT return focus and is not the parent scope return focus.
+
+                    let us = Some(widget.id());
+                    let alt_return = FOCUS.alt_return().with(|p| p.as_ref().map(|p| p.widget_id()));
+                    if alt_return != us {
+                        // not ALT return
+                        if let Some(info) = WIDGET.info().into_focusable(true, true) {
+                            if let Some(scope) = info.scope() {
+                                let parent_return = FOCUS.return_focused(scope.info().id()).with(|p| p.as_ref().map(|p| p.widget_id()));
+                                if parent_return != us {
+                                    // not parent scope return
+                                    SELECT_CMD.scoped(widget.id()).notify_param(TextSelectOp::next());
+                                }
                             }
                         }
                     }
@@ -673,7 +698,12 @@ fn resolve_text_edit_or_select_events(update: &EventUpdate, _: &mut ResolveTextE
         let ctx = TEXT.resolved();
         if let Some(range) = ctx.caret.selection_char_range() {
             args.propagation().stop();
-            let _ = CLIPBOARD.set_text(Txt::from_str(&ctx.segmented_text.text()[range]));
+            let txt = Txt::from_str(&ctx.segmented_text.text()[range]);
+            if let Some(rt) = args.param::<RichTextCopyParam>() {
+                rt.set_text(txt);
+            } else {
+                let _ = CLIPBOARD.set_text(txt);
+            }
         }
     } else if let Some(args) = ACCESS_SELECTION_EVENT.on_unhandled(update) {
         if args.start.0 == widget_id && args.caret.0 == widget_id {

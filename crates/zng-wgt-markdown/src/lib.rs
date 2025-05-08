@@ -17,6 +17,7 @@ pub use pulldown_cmark::HeadingLevel;
 
 use zng_ext_font::WhiteSpace;
 use zng_wgt::prelude::*;
+use zng_wgt_input::{CursorIcon, cursor};
 
 #[doc(hidden)]
 pub use zng_wgt_text::__formatx;
@@ -57,6 +58,10 @@ impl Markdown {
             on_link = hn!(|args: &LinkArgs| {
                 try_default_link_action(args);
             });
+
+            when #txt_selectable {
+                cursor = CursorIcon::Text;
+            }
         };
 
         self.widget_builder().push_build_action(|wgt| {
@@ -69,6 +74,11 @@ impl Markdown {
     widget_impl! {
         /// Markdown text.
         pub text::txt(txt: impl IntoVar<Txt>);
+
+        /// Enable text selection, copy.
+        ///
+        /// Note that the copy is only in plain text, without any style.
+        pub zng_wgt_text::txt_selectable(enabled: impl IntoVar<bool>);
     }
 }
 

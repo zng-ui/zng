@@ -1,4 +1,4 @@
-use crate::{Px, PxPoint};
+use crate::{Px, PxPoint, PxRect};
 
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +30,11 @@ impl DistanceKey {
         Self((pa + pb) + 1)
     }
 
+    /// New distance key computed from the nearest point inside `a` to `b`.
+    pub fn from_rect_to_point(a: PxRect, b: PxPoint) -> Self {
+        Self::from_points(b.clamp(a.min(), a.max()), b)
+    }
+
     /// New distance key from already computed actual distance.
     ///
     /// Note that computing the actual distance is slower then using [`from_points`] to compute just the distance key.
@@ -58,5 +63,15 @@ impl DistanceKey {
 
             Some(Px(d.round() as i32))
         }
+    }
+
+    /// Compares and returns the minimum distance.
+    pub fn min(self, other: Self) -> Self {
+        Self(self.0.min(other.0))
+    }
+
+    /// Compares and returns the maximum distance.
+    pub fn max(self, other: Self) -> Self {
+        Self(self.0.max(other.0))
     }
 }

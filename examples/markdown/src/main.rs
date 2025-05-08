@@ -19,6 +19,7 @@ fn main() {
                 padding = 10;
                 child = Markdown! {
                     txt = std::fs::read_to_string(zng::env::res("sample.md")).unwrap_or_else(|e| e.to_string());
+                    txt_selectable = true;
 
                     // allow limited image download and read.
                     image::img_limits = ImageLimits::default()

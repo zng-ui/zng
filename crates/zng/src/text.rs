@@ -51,6 +51,44 @@
 //! font family value because of this, the [`font_size`](fn@font_size) on the other hand is set for
 //! each text widget and only affects that widget.
 //!
+//! # Rich Text
+//!
+//! Rich text is a sequence of `Text!` of different styles and other widgets such as `Image!` inside one or more layout panels,
+//! usually a `Wrap!` panel for paragraphs and a `Stack!` panel for the full text or page, if you only intent to present the text
+//! that is all you need, the inline layout will coordinate the flow of lines across multiple `Text!` widgets.
+//!
+//! To enable selection or editing in rich text you can enable the [`rich_text`] property on the panels. The outer panel will
+//! declare a rich text context that the inner `Text!` widgets will use to coordinate the caret position and selection across texts.
+//!
+//! ```
+//! use zng::prelude::*;
+//! # let _scope = APP.defaults();
+//! # let _ =
+//! Wrap! {
+//!     text::rich_text = true;
+//!     text::txt_selectable = true;
+//!     children = ui_vec![
+//!         Text! { txt = "red text"; font_color = colors::RED; },
+//!         Text! { txt = " green text"; font_color = colors::GREEN; },
+//!         Text! { txt = " blue text"; font_color = colors::BLUE; },
+//!     ];
+//! }
+//! # ;
+//! ```
+//!
+//! The example above declares a rich text with three different *text runs*, by enabling [`rich_text`] the wrap panel becomes
+//! a rich text context that all descendant texts will use to coordinate text operations. In this case the [`txt_selectable`]
+//! property enables text selection (and copy) for all descendants, without `rich_text` the descendant texts would allow
+//! selection only within each text.
+//!
+//! The [`rich_text`] property together with [`txt_editable`] is the base for rich text editor widgets, out of the box the descendant texts
+//! will coordinate the caret position and the focused text is edited by typing. A rich text editor needs to implement many other features,
+//! such as removing empty text widgets, inserting new styled texts, encoding all these texts into an unified representation for saving.
+//!
+//! To suppress the default behavior of component texts you can handle keyboard events in the preview track and stop propagation,
+//! same for mouse/touch events. The full text API crate provides the [`zng_wgt_text::cmd`] module that can be used to programmatically
+//! control the texts. The *active* component text is just the focused widget, that can be controlled using the [`zng::focus`] module.
+//!
 //! [`Text!`]: struct@Text
 //! [`SelectableText!`]: struct@crate::selectable::SelectableText
 //! [`TextInput!`]: struct@crate::text_input::TextInput
@@ -58,6 +96,9 @@
 //! [`Markdown!`]: struct@crate::markdown::Markdown
 //! [`AnsiText!`]: struct@crate::ansi_text::AnsiText
 //! [`wrap`]: crate::wrap
+//! [`rich_text`]: fn@rich_text
+//! [`txt_selectable`]: fn@txt_selectable
+//! [`txt_editable`]: fn@txt_editable
 //!
 //! # Full API
 //!
@@ -77,7 +118,8 @@ pub use zng_wgt_text::{
     interactive_caret_visual, is_line_overflown, is_overflown, is_parse_pending, justify_mode, lang, letter_spacing, line_break,
     line_height, line_spacing, max_chars_count,
     node::{TEXT, set_interactive_caret_spot},
-    obscure_txt, obscuring_char, on_change_stop, overline, overline_color, paragraph_spacing, selection_color, selection_toolbar,
-    selection_toolbar_anchor, selection_toolbar_fn, strikethrough, strikethrough_color, tab_length, txt_align, txt_editable, txt_overflow,
-    txt_overflow_align, underline, underline_color, underline_skip, white_space, word_break, word_spacing,
+    obscure_txt, obscuring_char, on_change_stop, overline, overline_color, paragraph_spacing, rich_text, selection_color,
+    selection_toolbar, selection_toolbar_anchor, selection_toolbar_fn, strikethrough, strikethrough_color, tab_length, txt_align,
+    txt_editable, txt_overflow, txt_overflow_align, txt_selectable, underline, underline_color, underline_skip, white_space, word_break,
+    word_spacing,
 };

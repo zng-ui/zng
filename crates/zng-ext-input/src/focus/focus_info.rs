@@ -170,7 +170,7 @@ impl<'de> serde::Deserialize<'de> for TabIndex {
 
 /// Tab navigation configuration of a focus scope.
 ///
-/// See the [module level](crate::focus#tab-navigation) for an overview of tab navigation.
+/// See the [module level](../#tab-navigation) for an overview of tab navigation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TabNav {
     /// Tab can move into the scope, but does not move the focus inside the scope.
@@ -201,7 +201,7 @@ impl fmt::Debug for TabNav {
 
 /// Directional navigation configuration of a focus scope.
 ///
-/// See the [module level](crate::focus#directional-navigation) for an overview of directional navigation.
+/// See the [module level](../#directional-navigation) for an overview of directional navigation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum DirectionalNav {
     /// Arrows can move into the scope, but does not move the focus inside the scope.
@@ -812,29 +812,28 @@ impl WidgetFocusInfo {
                     return scope.inner_alt_scope_skip(&alt_scope);
                 }
             }
-            None
-        } else if self.is_scope() {
+            return None;
+        }
+
+        if self.is_scope() {
             // if we are a normal scope, try for an inner ALT scope descendant first.
             let r = self.inner_alt_scope();
             if r.is_some() {
                 return r;
             }
-            if let Some(scope) = self.scope() {
-                // search sibling ALT scope.
-                return scope.inner_alt_scope_skip(self);
-            }
-            None
-        } else if let Some(scope) = self.scope() {
-            // search sibling ALT scope.
-            if self.is_focusable() {
-                scope.inner_alt_scope_skip(self)
-            } else {
-                scope.inner_alt_scope()
-            }
-        } else {
-            // we reached root, no ALT found.
-            None
         }
+
+        // try each parent scope up the tree
+        let mut skip = self.clone();
+        for scope in self.scopes() {
+            let r = scope.inner_alt_scope_skip(&skip);
+            if r.is_some() {
+                return r;
+            }
+            skip = scope;
+        }
+
+        None
     }
     fn inner_alt_scope(&self) -> Option<WidgetFocusInfo> {
         let inner_alt = self.info.meta().get(*FOCUS_INFO_ID)?.inner_alt.load(Relaxed);
@@ -848,7 +847,7 @@ impl WidgetFocusInfo {
         }
         None
     }
-    fn inner_alt_scope_skip(self, skip: &WidgetFocusInfo) -> Option<WidgetFocusInfo> {
+    fn inner_alt_scope_skip(&self, skip: &WidgetFocusInfo) -> Option<WidgetFocusInfo> {
         if let Some(alt) = self.inner_alt_scope() {
             if !alt.info.is_descendant(&skip.info) && alt.info != skip.info {
                 return Some(alt);
@@ -1700,6 +1699,11 @@ impl WidgetFocusInfo {
         nav.set(FocusNavAction::ALT, self.in_alt_scope() || self.alt_scope().is_some());
 
         nav
+    }
+}
+impl_from_and_into_var! {
+    fn from(focus_info: WidgetFocusInfo) -> WidgetInfo {
+        focus_info.info
     }
 }
 

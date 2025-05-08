@@ -23,6 +23,9 @@ use zng_wgt_layer::{
     popup::{ContextCapture, POPUP, PopupState},
 };
 
+mod rich;
+pub use rich::*;
+
 mod resolve;
 pub use resolve::*;
 
@@ -35,7 +38,20 @@ pub use render::*;
 mod caret;
 pub use caret::*;
 
-/// Represents the caret position at the [`ResolvedText`] level.
+/// Represents the caret position in a [`RichText`] context.
+#[derive(Clone, Debug)]
+pub struct RichCaretInfo {
+    /// Widget that defines the caret insert position.
+    ///
+    /// Inside the widget the [`CaretInfo::index`] defines the actual index.
+    pub index: Option<WidgetId>,
+    /// Widget that defines the selection second index.
+    ///
+    /// Inside the widget the [`CaretInfo::selection_index`] defines the actual index.
+    pub selection_index: Option<WidgetId>,
+}
+
+/// Represents the caret position at the [`ResolvedText`] context.
 #[derive(Clone)]
 pub struct CaretInfo {
     /// Caret opacity.
@@ -180,6 +196,15 @@ pub struct ImePreview {
 pub struct TEXT;
 
 impl TEXT {
+    /// Read lock the current rich text context if any parent widget defines it.
+    pub fn try_rich(&self) -> Option<RwLockReadGuardOwned<RichText>> {
+        if RICH_TEXT.is_default() {
+            None
+        } else {
+            Some(RICH_TEXT.read_recursive())
+        }
+    }
+
     /// Read lock the current contextual resolved text if called in a node inside [`resolve_text`].
     ///
     /// Note that this will block until a read lock can be acquired.
@@ -189,6 +214,17 @@ impl TEXT {
         } else {
             Some(RESOLVED_TEXT.read_recursive())
         }
+    }
+
+    /// Read lock the current rich text context.
+    ///
+    /// # Panics
+    ///
+    /// Panics if requested in a node outside [`rich_text`].
+    ///
+    /// [`rich_text`]: fn@crate::rich_text
+    pub fn rich(&self) -> RwLockReadGuardOwned<RichText> {
+        RICH_TEXT.read_recursive()
     }
 
     /// Read lock the current contextual resolved text.
@@ -221,12 +257,35 @@ impl TEXT {
     }
 
     /// Write lock the current contextual resolved text to edit the caret.
+    ///
+    /// Note that the entire `ResolvedText` is exclusive locked, you cannot access the resolved text while holding this lock.
     ///     
     /// # Panics
     ///
     /// Panics if requested in a node outside [`resolve_text`].
     pub fn resolve_caret(&self) -> MappedRwLockWriteGuardOwned<ResolvedText, CaretInfo> {
         RwLockWriteGuardOwned::map(self.resolve(), |ctx| &mut ctx.caret)
+    }
+
+    /// Write lock the current contextual rich text to edit the caret.
+    ///
+    /// Note that the entire `RichText` is exclusive locked, you cannot access the rich text while holding this lock.
+    ///
+    /// # Panics
+    ///
+    /// Panics if requested in a node outside [`rich_text`].
+    ///
+    /// [`rich_text`]: fn@crate::rich_text
+    pub fn resolve_rich_caret(&self) -> MappedRwLockWriteGuardOwned<RichText, RichCaretInfo> {
+        RwLockWriteGuardOwned::map(RICH_TEXT.write(), |ctx| &mut ctx.caret)
+    }
+
+    /// Set the `caret_retained_x` value.
+    ///
+    /// Note that the value is already updated automatically on caret layout, this method is for rich text operations
+    /// to propagate the line position between widgets.
+    pub fn set_caret_retained_x(&self, x: Px) {
+        self.layout().caret_retained_x = x;
     }
 
     pub(crate) fn resolve(&self) -> RwLockWriteGuardOwned<ResolvedText> {
@@ -412,18 +471,58 @@ pub struct LaidoutText {
     /// Latest layout viewport.
     pub viewport: PxSize,
 }
-
 impl LaidoutText {
     fn no_context() -> Self {
         panic!("no `LaidoutText` in context, only available inside `layout_text`")
     }
 }
 
+/// Represents the rich text context.
+///
+/// Use [`TEXT`] to get.
+pub struct RichText {
+    /// Widget that defines the rich text context.
+    pub root_id: WidgetId,
+
+    /// Widgets that define the caret and selection indexes.
+    pub caret: RichCaretInfo,
+}
+impl RichText {
+    fn no_context() -> Self {
+        panic!("no `RichText` in context, only available inside `rich_text`")
+    }
+    fn no_dispatch_context() -> Vec<EventUpdate> {
+        panic!("`RichText::notify_leaf` must be called inside `UiNode::event` only")
+    }
+}
+
 context_local! {
+    /// Represents the contextual [`RichText`] setup by the [`rich_text`] property.
+    static RICH_TEXT: RwLock<RichText> = RwLock::new(RichText::no_context());
     /// Represents the contextual [`ResolvedText`] setup by the [`resolve_text`] node.
     static RESOLVED_TEXT: RwLock<ResolvedText> = RwLock::new(ResolvedText::no_context());
     /// Represents the contextual [`LaidoutText`] setup by the [`layout_text`] node.
     static LAIDOUT_TEXT: RwLock<LaidoutText> = RwLock::new(LaidoutText::no_context());
+    /// Represents a list of events send from rich text leaves to other leaves.
+    static RICH_TEXT_NOTIFY: RwLock<Vec<EventUpdate>> = RwLock::new(RichText::no_dispatch_context());
+}
+
+impl RichText {
+    /// Send an event *immediately* to a leaf widget inside the rich context.
+    ///
+    /// After the current event returns to the rich text root widget the `update` is sent. Rich text leaves can send
+    /// multiple commands to sibling leaves to implement rich text operations, using this method instead of the global dispatch
+    /// can gain significant performance.
+    ///
+    /// Note that all requests during a single app event run after that event, and all recursive requests during these notification events only
+    /// run after they all notify, that is, not actually recursive.
+    ///
+    /// # Panics
+    ///
+    /// Panics is not called during a `UiNode::event`.
+    pub fn notify_leaf(&self, update: EventUpdate) {
+        RICH_TEXT_NOTIFY.write().push(update);
+    }
 }
 
 bitflags! {

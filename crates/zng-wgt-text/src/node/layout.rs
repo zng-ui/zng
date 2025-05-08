@@ -1035,7 +1035,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     }
                 }
                 Key::ArrowUp => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 {
+                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
                         if modifiers.is_empty() && (editable || select) {
@@ -1053,7 +1053,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     }
                 }
                 Key::ArrowDown => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 {
+                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
                         if modifiers.is_empty() && (editable || select) {
@@ -1071,7 +1071,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     }
                 }
                 Key::PageUp => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 {
+                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
                         if modifiers.is_empty() && (editable || select) {
@@ -1089,7 +1089,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     }
                 }
                 Key::PageDown => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 {
+                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
                         if modifiers.is_empty() && (editable || select) {
@@ -1150,6 +1150,14 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                             TextSelectOp::line_end()
                         }
                         .call();
+                    }
+                }
+                Key::Escape => {
+                    if args.modifiers.is_empty() && (editable || selectable) {
+                        args.propagation().stop();
+                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
+
+                        TextSelectOp::clear_selection().call();
                     }
                 }
                 _ => {}
@@ -1282,15 +1290,23 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             TextSelectOp::select_word_nearest_to(true, args.position).call();
         }
     } else if let Some(args) = MOUSE_MOVE_EVENT.on(update) {
-        if !edit.selection_move_handles.is_dummy() && selectable && args.target.widget_id() == widget.id() {
-            args.propagation().stop();
+        if !edit.selection_move_handles.is_dummy() && selectable {
+            let handle = if let Some(rich_root_id) = TEXT.try_rich().map(|r| r.root_id) {
+                args.target.contains(rich_root_id)
+            } else {
+                args.target.widget_id() == widget.id()
+            };
 
-            match edit.click_count {
-                1 => TextSelectOp::select_nearest_to(args.position).call(),
-                2 => TextSelectOp::select_word_nearest_to(false, args.position).call(),
-                3 => TextSelectOp::select_line_nearest_to(false, args.position).call(),
-                4 => {}
-                _ => unreachable!(),
+            if handle {
+                args.propagation().stop();
+
+                match edit.click_count {
+                    1 => TextSelectOp::select_nearest_to(args.position).call(),
+                    2 => TextSelectOp::select_word_nearest_to(false, args.position).call(),
+                    3 => TextSelectOp::select_line_nearest_to(false, args.position).call(),
+                    4 => {}
+                    _ => unreachable!(),
+                }
             }
         }
     } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
@@ -1302,7 +1318,6 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
         if let Some(args) = SELECT_CMD.scoped(widget.id()).on_unhandled(update) {
             if let Some(op) = args.param::<TextSelectOp>() {
                 args.propagation().stop();
-
                 op.clone().call();
             }
         } else if let Some(args) = SELECT_ALL_CMD.scoped(widget.id()).on_unhandled(update) {
