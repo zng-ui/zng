@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
-use parking_lot::RwLock;
-use zng_app::widget::node::Z_INDEX;
+use parking_lot::{Mutex, RwLock};
+use zng_app::{event::CommandScope, widget::node::Z_INDEX};
+use zng_ext_clipboard::{CLIPBOARD, COPY_CMD};
 use zng_ext_font::CaretIndex;
 use zng_ext_input::focus::{FOCUS, FOCUS_CHANGED_EVENT};
 use zng_ext_window::WINDOWS;
@@ -16,6 +17,7 @@ use super::{RICH_TEXT, RICH_TEXT_NOTIFY, RichCaretInfo, RichText, TEXT};
 
 pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
+    let child = rich_text_copy(child);
     let child = rich_text_component(child, "rich_text");
 
     let mut ctx = None;
@@ -42,8 +44,8 @@ pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) ->
                     RICH_TEXT_NOTIFY.with_context(&mut dispatch, || {
                         child.event(update);
 
-                        let mut requests = std::mem::take(&mut *RICH_TEXT_NOTIFY.write());
                         let mut tree = None;
+                        let mut requests = std::mem::take(&mut *RICH_TEXT_NOTIFY.write());
                         while !requests.is_empty() {
                             for mut update in requests.drain(..) {
                                 if update.delivery_list_mut().has_pending_search() {
@@ -52,7 +54,11 @@ pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) ->
                                     }
                                     update.delivery_list_mut().fulfill_search(tree.iter());
                                 }
-                                child.event(&update);
+                                if update.delivery_list().enter_widget(WIDGET.id()) {
+                                    child.event(&update);
+                                } else {
+                                    tracing::error!("RichText notify_leaf update does not target an widget inside the rich context");
+                                }
                             }
                             requests.extend(RICH_TEXT_NOTIFY.write().drain(..));
                         }
@@ -77,6 +83,38 @@ pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) ->
         op => {
             if ctx.is_some() {
                 RICH_TEXT.with_context(&mut ctx, || child.op(op));
+            }
+        }
+    })
+}
+
+fn rich_text_copy(child: impl UiNode) -> impl UiNode {
+    match_node(child, |child, op| {
+        if let UiNodeOp::Event { update } = op {
+            if let Some(args) = COPY_CMD.event().on_unhandled(update) {
+                if let (None, CommandScope::Widget(scope_id)) = (&args.param, args.scope) {
+                    let ctx = TEXT.rich();
+                    if ctx.root_id == scope_id || ctx.leaf_info(scope_id).is_some() {
+                        // is normal COPY_CMD request for the rich text or a leaf text.
+                        args.propagation().stop();
+
+                        let mut txt = String::new();
+
+                        for leaf in ctx.selection() {
+                            let rich_copy = RichTextCopyParam::default();
+                            let mut update = COPY_CMD.scoped(leaf.id()).new_update_param(rich_copy.clone());
+                            update.delivery_list_mut().fulfill_search([leaf.tree()].into_iter());
+
+                            child.event(&update);
+
+                            if let Some(t_frag) = rich_copy.into_text() {
+                                txt.push_str(&t_frag);
+                            }
+                        }
+
+                        let _ = CLIPBOARD.set_text(txt);
+                    }
+                }
             }
         }
     })
@@ -734,3 +772,31 @@ impl<I: Iterator<Item = WidgetInfo>> Iterator for OptKnownLenIter<I> {
     }
 }
 impl<I: Iterator<Item = WidgetInfo>> ExactSizeIterator for OptKnownLenIter<I> {}
+
+/// Parameter used in [`COPY_CMD`] requests sent from the rich text context to collect
+/// all selected text for copy.
+#[derive(Clone, Default)]
+pub struct RichTextCopyParam(Arc<Mutex<Option<Txt>>>);
+impl RichTextCopyParam {
+    /// Set the text fragment for the rich text copy.
+    pub fn set_text(&self, txt: impl Into<Txt>) {
+        *self.0.lock() = Some(txt.into());
+    }
+
+    /// Get the text fragment, if it was set.
+    pub fn into_text(self) -> Option<Txt> {
+        match Arc::try_unwrap(self.0) {
+            Ok(m) => m.into_inner(),
+            Err(c) => c.lock().clone(),
+        }
+    }
+}
+impl fmt::Debug for RichTextCopyParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(t) = self.0.try_lock() {
+            f.debug_tuple("RichTextCopyParam").field(&*t).finish()
+        } else {
+            f.debug_tuple("RichTextCopyParam").finish_non_exhaustive()
+        }
+    }
+}

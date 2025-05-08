@@ -33,7 +33,7 @@ use crate::{
     cmd::{EDIT_CMD, SELECT_ALL_CMD, SELECT_CMD, TextEditOp, TextSelectOp, UndoTextEditOp},
 };
 
-use super::{CaretInfo, ImePreview, PendingLayout, RESOLVED_TEXT, ResolvedText, SelectionBy, TEXT};
+use super::{CaretInfo, ImePreview, PendingLayout, RESOLVED_TEXT, ResolvedText, RichTextCopyParam, SelectionBy, TEXT};
 
 /// An UI node that resolves the text context vars, applies the text transform and white space correction and segments the `text`.
 ///
@@ -698,7 +698,12 @@ fn resolve_text_edit_or_select_events(update: &EventUpdate, _: &mut ResolveTextE
         let ctx = TEXT.resolved();
         if let Some(range) = ctx.caret.selection_char_range() {
             args.propagation().stop();
-            let _ = CLIPBOARD.set_text(Txt::from_str(&ctx.segmented_text.text()[range]));
+            let txt = Txt::from_str(&ctx.segmented_text.text()[range]);
+            if let Some(rt) = args.param::<RichTextCopyParam>() {
+                rt.set_text(txt);
+            } else {
+                let _ = CLIPBOARD.set_text(txt);
+            }
         }
     } else if let Some(args) = ACCESS_SELECTION_EVENT.on_unhandled(update) {
         if args.start.0 == widget_id && args.caret.0 == widget_id {
