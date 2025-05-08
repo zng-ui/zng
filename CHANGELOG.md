@@ -1,8 +1,13 @@
 # Unreleased
 
 * Enable basic text selection and copy for `Markdown!` and `AnsiText!`.
+* Add rich text context, `TEXT.rich` and associated API.
+  - Implemented most text gestures for rich text.
+  - Missing: proper line selection, touch carets across text runs.
+* Add `Command::new_update_param` helper method. 
 * Add `WidgetBoundsInfo::inner_rects` and associated methods.
 * Add `WidgetInfo::nearest_rect` and associated methods.
+* Add `WidgetInfo::cmp_sibling_in` method for fast ordering between widget infos.
 * Text now clears selection on `Key::Escape`.
 * Implement all `FromIterator` and `Extend` that `String` implements for `Txt`.
 * Fix Alt focus scope navigation from inside nested focus scopes.
