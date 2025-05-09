@@ -1,6 +1,6 @@
 [package]
 name = "zng-task"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -49,15 +49,15 @@ test_util = []
 [dependencies]
 zng-task-proc-macros = { path = "../zng-task-proc-macros", version = "0.3.0" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
-zng-unit = { path = "../zng-unit", version = "0.3.0" }
-zng-app-context = { path = "../zng-app-context", version = "0.6.1" }
-zng-time = { path = "../zng-time", version = "0.3.1" }
-zng-var = { path = "../zng-var", version = "0.6.1" }
-zng-env = { path = "../zng-env", version = "0.4.1" }
-zng-txt = { path = "../zng-txt", version = "0.3.0" }
-zng-state-map = { path = "../zng-state-map", version = "0.4.1" }
+zng-unit = { path = "../zng-unit", version = "0.3.1" }
+zng-app-context = { path = "../zng-app-context", version = "0.6.2" }
+zng-time = { path = "../zng-time", version = "0.3.2" }
+zng-var = { path = "../zng-var", version = "0.6.2" }
+zng-env = { path = "../zng-env", version = "0.4.2" }
+zng-txt = { path = "../zng-txt", version = "0.3.1" }
+zng-state-map = { path = "../zng-state-map", version = "0.4.2" }
 
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.1", default-features = false, optional = true }
+zng-unique-id = { path = "../zng-unique-id", version = "0.5.2", default-features = false, optional = true }
 
 tracing = "0.1"
 pretty-type-name = "1.0"
