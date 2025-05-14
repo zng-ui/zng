@@ -919,6 +919,7 @@ struct LayoutTextEdit {
     selection_mouse_down: Option<SelectionMouseDown>,
     auto_select: bool,
     selection_move_handles: EventHandles,
+    selection_started_by_alt: bool,
 }
 struct SelectionMouseDown {
     position: DipPoint,
@@ -1173,8 +1174,14 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                     _ => {}
                 }
             }
-        } else if !args.modifiers.has_alt() {
-            // !!: TODO and selection was started with alt pressed, can be in a different text widget in rich contexts.
+        } else if let Key::Alt | Key::AltGraph = &args.key {
+            if TEXT.try_rich().is_some() {
+                if TEXT.take_rich_selection_started_by_alt() {
+                    args.propagation().stop();
+                }
+            } else if mem::take(&mut edit.selection_started_by_alt) {
+                args.propagation().stop();
+            }
         }
     } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
         if args.is_primary() && args.is_mouse_down() && args.target.widget_id() == widget.id() {
@@ -1185,6 +1192,13 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             if modifiers.is_empty() && (!selectable_alt_only || alt) {
                 args.propagation().stop();
                 TEXT.resolve().selection_by = SelectionBy::Mouse;
+                if alt {
+                    if TEXT.try_rich().is_some() {
+                        TEXT.flag_rich_selection_started_by_alt();
+                    } else {
+                        edit.selection_started_by_alt = true;
+                    }
+                }
 
                 edit.click_count = if let Some(info) = &mut edit.selection_mouse_down {
                     let cfg = MOUSE.multi_click_config().get();
@@ -1286,6 +1300,13 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             args.propagation().stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
+            if alt {
+                if TEXT.try_rich().is_some() {
+                    TEXT.flag_rich_selection_started_by_alt();
+                } else {
+                    edit.selection_started_by_alt = true;
+                }
+            }
 
             TextSelectOp::nearest_to(args.position).call();
 
@@ -1305,6 +1326,13 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             args.propagation().stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
+            if alt {
+                if TEXT.try_rich().is_some() {
+                    TEXT.flag_rich_selection_started_by_alt();
+                } else {
+                    edit.selection_started_by_alt = true;
+                }
+            }
 
             TextSelectOp::select_word_nearest_to(true, args.position).call();
         }

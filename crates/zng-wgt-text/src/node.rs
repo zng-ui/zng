@@ -295,6 +295,14 @@ impl TEXT {
     fn layout(&self) -> RwLockWriteGuardOwned<LaidoutText> {
         LAIDOUT_TEXT.write()
     }
+
+    pub(crate) fn take_rich_selection_started_by_alt(&self) -> bool {
+        std::mem::take(&mut *RICH_TEXT_SELECTION_STARTED_BY_ALT.write())
+    }
+
+    pub(crate) fn flag_rich_selection_started_by_alt(&self) {
+        *RICH_TEXT_SELECTION_STARTED_BY_ALT.write() = true;
+    }
 }
 
 /// Defines the source of the current selection.
@@ -505,6 +513,8 @@ context_local! {
     static LAIDOUT_TEXT: RwLock<LaidoutText> = RwLock::new(LaidoutText::no_context());
     /// Represents a list of events send from rich text leaves to other leaves.
     static RICH_TEXT_NOTIFY: RwLock<Vec<EventUpdate>> = RwLock::new(RichText::no_dispatch_context());
+    /// TODO refactor into RichCaretInfo private field next breaking change.
+    static RICH_TEXT_SELECTION_STARTED_BY_ALT: RwLock<bool> = RwLock::new(false);
 }
 
 impl RichText {
