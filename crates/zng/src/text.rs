@@ -120,6 +120,6 @@ pub use zng_wgt_text::{
     node::{TEXT, set_interactive_caret_spot},
     obscure_txt, obscuring_char, on_change_stop, overline, overline_color, paragraph_spacing, rich_text, selection_color,
     selection_toolbar, selection_toolbar_anchor, selection_toolbar_fn, strikethrough, strikethrough_color, tab_length, txt_align,
-    txt_editable, txt_overflow, txt_overflow_align, txt_selectable, underline, underline_color, underline_skip, white_space, word_break,
-    word_spacing,
+    txt_editable, txt_overflow, txt_overflow_align, txt_selectable, txt_selectable_alt_only, underline, underline_color, underline_skip,
+    white_space, word_break, word_spacing,
 };

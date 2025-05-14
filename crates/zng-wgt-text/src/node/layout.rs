@@ -13,11 +13,10 @@ use zng_app::{
 use zng_ext_font::{CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextShapingArgs, font_features::FontVariations};
 use zng_ext_input::{
     focus::FOCUS,
-    gesture::CLICK_EVENT,
     keyboard::{KEY_INPUT_EVENT, KEYBOARD},
-    mouse::{MOUSE, MOUSE_CLICK_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
+    mouse::{MOUSE, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
-    touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT},
+    touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
 };
 use zng_ext_l10n::LANG_VAR;
 use zng_ext_undo::UNDO;
@@ -35,8 +34,8 @@ use crate::{
     FONT_STRETCH_VAR, FONT_STYLE_VAR, FONT_VARIATIONS_VAR, FONT_WEIGHT_VAR, HYPHEN_CHAR_VAR, HYPHENS_VAR, IME_UNDERLINE_THICKNESS_VAR,
     JUSTIFY_MODE_VAR, LETTER_SPACING_VAR, LINE_BREAK_VAR, LINE_HEIGHT_VAR, LINE_SPACING_VAR, OBSCURE_TXT_VAR, OBSCURING_CHAR_VAR,
     OVERLINE_THICKNESS_VAR, STRIKETHROUGH_THICKNESS_VAR, TAB_LENGTH_VAR, TEXT_ALIGN_VAR, TEXT_EDITABLE_VAR, TEXT_OVERFLOW_ALIGN_VAR,
-    TEXT_OVERFLOW_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, TextOverflow, UNDERLINE_POSITION_VAR, UNDERLINE_SKIP_VAR,
-    UNDERLINE_THICKNESS_VAR, UnderlinePosition, UnderlineSkip, WORD_BREAK_VAR, WORD_SPACING_VAR,
+    TEXT_OVERFLOW_VAR, TEXT_SELECTABLE_ALT_ONLY_VAR, TEXT_SELECTABLE_VAR, TEXT_WRAP_VAR, TextOverflow, UNDERLINE_POSITION_VAR,
+    UNDERLINE_SKIP_VAR, UNDERLINE_THICKNESS_VAR, UnderlinePosition, UnderlineSkip, WORD_BREAK_VAR, WORD_SPACING_VAR,
     cmd::{SELECT_ALL_CMD, SELECT_CMD, TextSelectOp},
     node::SelectionBy,
 };
@@ -886,21 +885,6 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
             if selectable || editable {
                 let id = WIDGET.id();
 
-                // if the widget subscribes to these events only enable
-                // selection/caret gestures if Alt is pressed.
-                //
-                // !!: TODO let users disable this behavior? As in still select without alt if some prop is enabled.
-                // Users probably want some flag that applies to the current event already, a property with a flag variable
-                // does not let users allow some events to have the default behavior. But a property is the best place to document this..
-                let only_alt_any_events = CLICK_EVENT.is_subscriber(id);
-                edit.only_alt_mouse_events =
-                    only_alt_any_events || MOUSE_INPUT_EVENT.is_subscriber(id) || MOUSE_CLICK_EVENT.is_subscriber(id);
-                edit.only_alt_touch_events = only_alt_any_events
-                    || TOUCH_INPUT_EVENT.is_subscriber(id)
-                    || TOUCH_TAP_EVENT.is_subscriber(id)
-                    || TOUCH_LONG_PRESS_EVENT.is_subscriber(id)
-                    || TOUCH_TRANSFORM_EVENT.is_subscriber(id);
-
                 edit.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
                 edit.events[1] = TOUCH_TAP_EVENT.subscribe(id);
                 edit.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
@@ -920,8 +904,6 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
                 edit.select = Default::default();
                 edit.select_all = Default::default();
             }
-        } else {
-            edit = None;
         }
     })
 }
@@ -929,8 +911,6 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
 #[derive(Default)]
 struct LayoutTextEdit {
     events: [EventHandle; 4],
-    only_alt_mouse_events: bool,
-    only_alt_touch_events: bool,
     caret_animation: VarHandle,
     select: CommandHandle,
     select_all: CommandHandle,
@@ -994,6 +974,8 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
         return;
     }
 
+    let selectable_alt_only = selectable && !editable && TEXT_SELECTABLE_ALT_ONLY_VAR.get();
+
     let prev_caret_index = {
         let caret = &resolved.caret;
         (caret.index, caret.index_version, caret.selection_index)
@@ -1001,194 +983,198 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     drop(resolved);
 
     if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-        if args.state == KeyState::Pressed && args.target.widget_id() == widget.id() {
-            match &args.key {
-                Key::Tab => {
-                    if editable && args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
-                        args.propagation().stop();
-                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
-                    }
-                }
-                Key::Enter => {
-                    if editable && args.modifiers.is_empty() && ACCEPTS_ENTER_VAR.get() {
-                        args.propagation().stop();
-                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
-                    }
-                }
-                Key::ArrowRight => {
-                    let mut modifiers = args.modifiers;
-                    let select = selectable && modifiers.take_shift();
-                    let word = modifiers.take_ctrl();
-                    if modifiers.is_empty() && (editable || select) {
-                        args.propagation().stop();
-
-                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
-
-                        if select {
-                            if word {
-                                TextSelectOp::select_next_word()
-                            } else {
-                                TextSelectOp::select_next()
-                            }
-                        } else if word {
-                            TextSelectOp::next_word()
-                        } else {
-                            TextSelectOp::next()
+        if args.state == KeyState::Pressed {
+            if args.target.widget_id() == widget.id() {
+                match &args.key {
+                    Key::Tab => {
+                        if editable && args.modifiers.is_empty() && ACCEPTS_TAB_VAR.get() {
+                            args.propagation().stop();
+                            TEXT.resolve().selection_by = SelectionBy::Keyboard;
                         }
-                        .call();
                     }
-                }
-                Key::ArrowLeft => {
-                    let mut modifiers = args.modifiers;
-                    let select = selectable && modifiers.take_shift();
-                    let word = modifiers.take_ctrl();
-                    if modifiers.is_empty() && (editable || select) {
-                        args.propagation().stop();
-
-                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
-
-                        if select {
-                            if word {
-                                TextSelectOp::select_prev_word()
-                            } else {
-                                TextSelectOp::select_prev()
-                            }
-                        } else if word {
-                            TextSelectOp::prev_word()
-                        } else {
-                            TextSelectOp::prev()
+                    Key::Enter => {
+                        if editable && args.modifiers.is_empty() && ACCEPTS_ENTER_VAR.get() {
+                            args.propagation().stop();
+                            TEXT.resolve().selection_by = SelectionBy::Keyboard;
                         }
-                        .call();
                     }
-                }
-                Key::ArrowUp => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
+                    Key::ArrowRight => {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
+                        let word = modifiers.take_ctrl();
                         if modifiers.is_empty() && (editable || select) {
                             args.propagation().stop();
 
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
                             if select {
-                                TextSelectOp::select_line_up()
+                                if word {
+                                    TextSelectOp::select_next_word()
+                                } else {
+                                    TextSelectOp::select_next()
+                                }
+                            } else if word {
+                                TextSelectOp::next_word()
                             } else {
-                                TextSelectOp::line_up()
+                                TextSelectOp::next()
                             }
                             .call();
                         }
                     }
-                }
-                Key::ArrowDown => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
+                    Key::ArrowLeft => {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
+                        let word = modifiers.take_ctrl();
                         if modifiers.is_empty() && (editable || select) {
                             args.propagation().stop();
 
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
                             if select {
-                                TextSelectOp::select_line_down()
+                                if word {
+                                    TextSelectOp::select_prev_word()
+                                } else {
+                                    TextSelectOp::select_prev()
+                                }
+                            } else if word {
+                                TextSelectOp::prev_word()
                             } else {
-                                TextSelectOp::line_down()
+                                TextSelectOp::prev()
                             }
                             .call();
                         }
                     }
-                }
-                Key::PageUp => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
+                    Key::ArrowUp => {
+                        if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
+                            let mut modifiers = args.modifiers;
+                            let select = selectable && modifiers.take_shift();
+                            if modifiers.is_empty() && (editable || select) {
+                                args.propagation().stop();
+
+                                TEXT.resolve().selection_by = SelectionBy::Keyboard;
+
+                                if select {
+                                    TextSelectOp::select_line_up()
+                                } else {
+                                    TextSelectOp::line_up()
+                                }
+                                .call();
+                            }
+                        }
+                    }
+                    Key::ArrowDown => {
+                        if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
+                            let mut modifiers = args.modifiers;
+                            let select = selectable && modifiers.take_shift();
+                            if modifiers.is_empty() && (editable || select) {
+                                args.propagation().stop();
+
+                                TEXT.resolve().selection_by = SelectionBy::Keyboard;
+
+                                if select {
+                                    TextSelectOp::select_line_down()
+                                } else {
+                                    TextSelectOp::line_down()
+                                }
+                                .call();
+                            }
+                        }
+                    }
+                    Key::PageUp => {
+                        if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
+                            let mut modifiers = args.modifiers;
+                            let select = selectable && modifiers.take_shift();
+                            if modifiers.is_empty() && (editable || select) {
+                                args.propagation().stop();
+
+                                TEXT.resolve().selection_by = SelectionBy::Keyboard;
+
+                                if select {
+                                    TextSelectOp::select_page_up()
+                                } else {
+                                    TextSelectOp::page_up()
+                                }
+                                .call();
+                            }
+                        }
+                    }
+                    Key::PageDown => {
+                        if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
+                            let mut modifiers = args.modifiers;
+                            let select = selectable && modifiers.take_shift();
+                            if modifiers.is_empty() && (editable || select) {
+                                args.propagation().stop();
+
+                                TEXT.resolve().selection_by = SelectionBy::Keyboard;
+
+                                if select {
+                                    TextSelectOp::select_page_down()
+                                } else {
+                                    TextSelectOp::page_down()
+                                }
+                                .call();
+                            }
+                        }
+                    }
+                    Key::Home => {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
+                        let full_text = modifiers.take_ctrl();
                         if modifiers.is_empty() && (editable || select) {
                             args.propagation().stop();
 
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
                             if select {
-                                TextSelectOp::select_page_up()
+                                if full_text {
+                                    TextSelectOp::select_text_start()
+                                } else {
+                                    TextSelectOp::select_line_start()
+                                }
+                            } else if full_text {
+                                TextSelectOp::text_start()
                             } else {
-                                TextSelectOp::page_up()
+                                TextSelectOp::line_start()
                             }
                             .call();
                         }
                     }
-                }
-                Key::PageDown => {
-                    if ACCEPTS_ENTER_VAR.get() || TEXT.laidout().shaped_text.lines_len() > 1 || TEXT.try_rich().is_some() {
+                    Key::End => {
                         let mut modifiers = args.modifiers;
                         let select = selectable && modifiers.take_shift();
+                        let full_text = modifiers.take_ctrl();
                         if modifiers.is_empty() && (editable || select) {
                             args.propagation().stop();
 
                             TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
                             if select {
-                                TextSelectOp::select_page_down()
+                                if full_text {
+                                    TextSelectOp::select_text_end()
+                                } else {
+                                    TextSelectOp::select_line_end()
+                                }
+                            } else if full_text {
+                                TextSelectOp::text_end()
                             } else {
-                                TextSelectOp::page_down()
+                                TextSelectOp::line_end()
                             }
                             .call();
                         }
                     }
-                }
-                Key::Home => {
-                    let mut modifiers = args.modifiers;
-                    let select = selectable && modifiers.take_shift();
-                    let full_text = modifiers.take_ctrl();
-                    if modifiers.is_empty() && (editable || select) {
-                        args.propagation().stop();
+                    Key::Escape => {
+                        if args.modifiers.is_empty() && (editable || selectable) {
+                            args.propagation().stop();
+                            TEXT.resolve().selection_by = SelectionBy::Keyboard;
 
-                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
-
-                        if select {
-                            if full_text {
-                                TextSelectOp::select_text_start()
-                            } else {
-                                TextSelectOp::select_line_start()
-                            }
-                        } else if full_text {
-                            TextSelectOp::text_start()
-                        } else {
-                            TextSelectOp::line_start()
+                            TextSelectOp::clear_selection().call();
                         }
-                        .call();
                     }
+                    _ => {}
                 }
-                Key::End => {
-                    let mut modifiers = args.modifiers;
-                    let select = selectable && modifiers.take_shift();
-                    let full_text = modifiers.take_ctrl();
-                    if modifiers.is_empty() && (editable || select) {
-                        args.propagation().stop();
-
-                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
-
-                        if select {
-                            if full_text {
-                                TextSelectOp::select_text_end()
-                            } else {
-                                TextSelectOp::select_line_end()
-                            }
-                        } else if full_text {
-                            TextSelectOp::text_end()
-                        } else {
-                            TextSelectOp::line_end()
-                        }
-                        .call();
-                    }
-                }
-                Key::Escape => {
-                    if args.modifiers.is_empty() && (editable || selectable) {
-                        args.propagation().stop();
-                        TEXT.resolve().selection_by = SelectionBy::Keyboard;
-
-                        TextSelectOp::clear_selection().call();
-                    }
-                }
-                _ => {}
             }
+        } else if !args.modifiers.has_alt() {
+            // !!: TODO and selection was started with alt pressed, can be in a different text widget in rich contexts.
         }
     } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
         if args.is_primary() && args.is_mouse_down() && args.target.widget_id() == widget.id() {
@@ -1196,9 +1182,8 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             let alt = modifiers.take_alt();
             let select = selectable && modifiers.take_shift();
 
-            if modifiers.is_empty() && (!edit.only_alt_mouse_events || alt) {
+            if modifiers.is_empty() && (!selectable_alt_only || alt) {
                 args.propagation().stop();
-
                 TEXT.resolve().selection_by = SelectionBy::Mouse;
 
                 edit.click_count = if let Some(info) = &mut edit.selection_mouse_down {
@@ -1284,7 +1269,9 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             edit.selection_move_handles.clear();
         }
     } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
-        if args.modifiers.is_empty() && args.target.widget_id() == widget.id() {
+        let mut modifiers = args.modifiers;
+        let alt = modifiers.take_alt();
+        if modifiers.is_empty() && (!selectable_alt_only || alt) && args.target.widget_id() == widget.id() {
             edit.auto_select = selectable
                 && AUTO_SELECTION_VAR.get().contains(AutoSelection::ALL_ON_FOCUS_POINTER)
                 && args.modifiers.is_empty()
@@ -1295,7 +1282,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
         let mut modifiers = args.modifiers;
         let alt = modifiers.take_alt();
-        if modifiers.is_empty() && (!edit.only_alt_touch_events || alt) && args.target.widget_id() == widget.id() {
+        if modifiers.is_empty() && (!selectable_alt_only || alt) && args.target.widget_id() == widget.id() {
             args.propagation().stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
@@ -1314,7 +1301,7 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
         let mut modifiers = args.modifiers;
         let alt = modifiers.take_alt();
-        if modifiers.is_empty() && (!edit.only_alt_touch_events || alt) && selectable && args.target.widget_id() == widget.id() {
+        if modifiers.is_empty() && (!selectable_alt_only || alt) && selectable && args.target.widget_id() == widget.id() {
             args.propagation().stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;

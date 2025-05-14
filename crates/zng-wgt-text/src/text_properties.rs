@@ -1239,6 +1239,8 @@ context_var! {
 
     /// Text is selectable.
     pub static TEXT_SELECTABLE_VAR: bool = false;
+    /// Text only starts selection from mouse or touch if the Alt modifier is pressed.
+    pub static TEXT_SELECTABLE_ALT_ONLY_VAR: bool = false;
 
     /// Accepts `'\t'` input when editable.
     pub static ACCEPTS_TAB_VAR: bool = false;
@@ -1286,6 +1288,7 @@ impl TextEditMix<()> {
     pub fn context_vars_set(set: &mut ContextValueSet) {
         set.insert(&TEXT_EDITABLE_VAR);
         set.insert(&TEXT_SELECTABLE_VAR);
+        set.insert(&TEXT_SELECTABLE_ALT_ONLY_VAR);
         set.insert(&ACCEPTS_ENTER_VAR);
         set.insert(&CARET_COLOR_VAR);
         set.insert(&INTERACTIVE_CARET_VISUAL_VAR);
@@ -1371,10 +1374,30 @@ pub fn txt_editable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiN
 
 /// Enable text selection, copy and makes the widget focusable.
 ///
+/// Note that if the text widget subscribes to mouse or touch events the selection gestures will interfere with those events,
+/// you can enable [`txt_selectable_alt_only`] so that pointer selection gestures only start when the Alt keyboard modifier is pressed.
+///
 /// Sets the [`TEXT_SELECTABLE_VAR`].
+///
+/// [`txt_selectable_alt_only`]: fn@txt_selectable_alt_only
 #[property(CONTEXT, default(TEXT_SELECTABLE_VAR), widget_impl(TextEditMix<P>))]
 pub fn txt_selectable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     with_context_var(child, TEXT_SELECTABLE_VAR, enabled)
+}
+
+/// Only start mouse and touch selections from this widget when the Alt keyboard modifier is pressed.
+///
+/// Note that this property does not enable text selection, [`txt_selectable`] must be enabled on the widget or parent.
+///
+/// This property is ignored if the text is also editable. Selections started from sibling widgets in rich text also expand
+/// inside this widget normally, this property only applies to selection started from this widget.
+///
+/// Sets the [`TEXT_SELECTABLE_ALT_ONLY_VAR`].
+///
+/// [`txt_selectable`]: fn@txt_selectable
+#[property(CONTEXT, default(TEXT_SELECTABLE_ALT_ONLY_VAR), widget_impl(TextEditMix<P>))]
+pub fn txt_selectable_alt_only(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    with_context_var(child, TEXT_SELECTABLE_ALT_ONLY_VAR, enabled)
 }
 
 /// If the `'\t'` character is inserted when tab is pressed and the text is editable.
