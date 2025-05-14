@@ -13,10 +13,11 @@ use zng_app::{
 use zng_ext_font::{CaretIndex, FontFaceList, Hyphens, SegmentedText, ShapedText, TextShapingArgs, font_features::FontVariations};
 use zng_ext_input::{
     focus::FOCUS,
+    gesture::CLICK_EVENT,
     keyboard::{KEY_INPUT_EVENT, KEYBOARD},
-    mouse::{MOUSE, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
+    mouse::{MOUSE, MOUSE_CLICK_EVENT, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::{POINTER_CAPTURE, POINTER_CAPTURE_EVENT},
-    touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
+    touch::{TOUCH_INPUT_EVENT, TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT, TOUCH_TRANSFORM_EVENT},
 };
 use zng_ext_l10n::LANG_VAR;
 use zng_ext_undo::UNDO;
@@ -819,6 +820,7 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
         let mut enable = false;
         match op {
             UiNodeOp::Init => {
+                child.init(); // let other nodes subscribe to events first (needed for `only_alt_...`)
                 enable = TEXT_EDITABLE_VAR.get() || TEXT_SELECTABLE_VAR.get();
             }
             UiNodeOp::Deinit => {
@@ -884,11 +886,28 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
             if selectable || editable {
                 let id = WIDGET.id();
 
+                // if the widget subscribes to these events only enable
+                // selection/caret gestures if Alt is pressed.
+                //
+                // !!: TODO let users disable this behavior? As in still select without alt if some prop is enabled.
+                // Users probably want some flag that applies to the current event already, a property with a flag variable
+                // does not let users allow some events to have the default behavior. But a property is the best place to document this..
+                let only_alt_any_events = CLICK_EVENT.is_subscriber(id);
+                edit.only_alt_mouse_events =
+                    only_alt_any_events || MOUSE_INPUT_EVENT.is_subscriber(id) || MOUSE_CLICK_EVENT.is_subscriber(id);
+                edit.only_alt_touch_events = only_alt_any_events
+                    || TOUCH_INPUT_EVENT.is_subscriber(id)
+                    || TOUCH_TAP_EVENT.is_subscriber(id)
+                    || TOUCH_LONG_PRESS_EVENT.is_subscriber(id)
+                    || TOUCH_TRANSFORM_EVENT.is_subscriber(id);
+
                 edit.events[0] = MOUSE_INPUT_EVENT.subscribe(id);
                 edit.events[1] = TOUCH_TAP_EVENT.subscribe(id);
                 edit.events[2] = TOUCH_LONG_PRESS_EVENT.subscribe(id);
                 edit.events[3] = TOUCH_INPUT_EVENT.subscribe(id);
                 // KEY_INPUT_EVENT subscribed by `resolve_text`.
+            } else {
+                edit.events = Default::default();
             }
 
             if selectable {
@@ -897,7 +916,12 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
                 edit.select = SELECT_CMD.scoped(id).subscribe(true);
                 let is_empty = TEXT.resolved().txt.with(|t| t.is_empty());
                 edit.select_all = SELECT_ALL_CMD.scoped(id).subscribe(!is_empty);
+            } else {
+                edit.select = Default::default();
+                edit.select_all = Default::default();
             }
+        } else {
+            edit = None;
         }
     })
 }
@@ -905,6 +929,8 @@ fn layout_text_edit(child: impl UiNode) -> impl UiNode {
 #[derive(Default)]
 struct LayoutTextEdit {
     events: [EventHandle; 4],
+    only_alt_mouse_events: bool,
+    only_alt_touch_events: bool,
     caret_animation: VarHandle,
     select: CommandHandle,
     select_all: CommandHandle,
@@ -954,6 +980,7 @@ impl LayoutTextEdit {
         }
     }
 }
+
 fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     let resolved = TEXT.resolved();
     let editable = TEXT_EDITABLE_VAR.get() && resolved.txt.capabilities().can_modify();
@@ -1166,9 +1193,10 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
     } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
         if args.is_primary() && args.is_mouse_down() && args.target.widget_id() == widget.id() {
             let mut modifiers = args.modifiers;
+            let alt = modifiers.take_alt();
             let select = selectable && modifiers.take_shift();
 
-            if modifiers.is_empty() {
+            if modifiers.is_empty() && (!edit.only_alt_mouse_events || alt) {
                 args.propagation().stop();
 
                 TEXT.resolve().selection_by = SelectionBy::Mouse;
@@ -1265,7 +1293,9 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
                 && TEXT.resolved().caret.selection_range().is_none();
         }
     } else if let Some(args) = TOUCH_TAP_EVENT.on_unhandled(update) {
-        if args.modifiers.is_empty() && args.target.widget_id() == widget.id() {
+        let mut modifiers = args.modifiers;
+        let alt = modifiers.take_alt();
+        if modifiers.is_empty() && (!edit.only_alt_touch_events || alt) && args.target.widget_id() == widget.id() {
             args.propagation().stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
@@ -1282,7 +1312,9 @@ fn layout_text_edit_events(update: &EventUpdate, edit: &mut LayoutTextEdit) {
             }
         }
     } else if let Some(args) = TOUCH_LONG_PRESS_EVENT.on_unhandled(update) {
-        if args.modifiers.is_empty() && selectable && args.target.widget_id() == widget.id() {
+        let mut modifiers = args.modifiers;
+        let alt = modifiers.take_alt();
+        if modifiers.is_empty() && (!edit.only_alt_touch_events || alt) && selectable && args.target.widget_id() == widget.id() {
             args.propagation().stop();
 
             TEXT.resolve().selection_by = SelectionBy::Touch;
