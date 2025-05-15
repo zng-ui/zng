@@ -29,7 +29,7 @@ use zng_wgt_input::{
     pointer_capture::{CaptureMode, capture_pointer},
 };
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
-use zng_wgt_text::{FONT_COLOR_VAR, Text, font_color, underline};
+use zng_wgt_text::{FONT_COLOR_VAR, Text, font_color, txt_selectable_alt_only, underline};
 
 #[cfg(feature = "tooltip")]
 use zng_wgt_tooltip::{Tip, TooltipArgs, tooltip, tooltip_fn};
@@ -54,6 +54,7 @@ impl Button {
             style_base_fn = style_fn!(|_| DefaultStyle!());
             capture_pointer = true;
             labelled_by_child = true;
+            txt_selectable_alt_only = true;
         }
 
         self.widget_builder().push_build_action(|wgt| {
