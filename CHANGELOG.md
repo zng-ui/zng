@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.14.4
+
 * `Markdown!` is not a rich text context, enable `txt_selectable` to provide simple selection and copy.
 * Add `zng::text::txt_selectable_alt_only` to coordinate click events with rich text selection gestures.
   - `Button!` widgets enable this by default, any button or derived widget is now clickable inside rich texts.

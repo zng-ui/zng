@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-tooltip"
-version = "0.6.3"
+version = "0.6.4"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -15,7 +15,7 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 zng-wgt = { path = "../zng-wgt", version = "0.7.3" }
 zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.5.3" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.4.3" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.6.3" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.6.4" }
 zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.4.3" }
 zng-wgt-container = { path = "../zng-wgt-container", version = "0.6.3" }
 zng-wgt-style = { path = "../zng-wgt-style", version = "0.5.3" }
