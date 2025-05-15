@@ -1,5 +1,6 @@
 # Unreleased
 
+* Rich text contexts now handle scoped `SELECT_CMD` and `SELECT_ALL_CMD`.
 
 # 0.14.4
 
