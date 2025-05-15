@@ -435,12 +435,10 @@ impl Command {
 
                 let read = self.local.read();
                 let scope = read.scopes.get(&scope).unwrap();
-                let r = visit(&mut CommandMeta {
+                visit(&mut CommandMeta {
                     meta: read.meta.lock().borrow_mut(),
                     scope: Some(scope.meta.lock().borrow_mut()),
-                });
-
-                r
+                })
             }
         }
     }

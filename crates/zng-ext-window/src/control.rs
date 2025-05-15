@@ -861,14 +861,13 @@ impl HeadedCtrl {
             }
         } else if let Some(args) = super::cmd::OPEN_TITLE_BAR_CONTEXT_MENU_CMD.scoped(WINDOW.id()).on(update) {
             let pos = args.handle_enabled(&self.open_title_menu_handle, |args| {
-                let pos = if let Some(p) = args.param::<DipPoint>() {
+                if let Some(p) = args.param::<DipPoint>() {
                     *p
                 } else if let Some(p) = args.param::<PxPoint>() {
                     p.to_dip(self.vars.scale_factor().get())
                 } else {
                     DipPoint::splat(Dip::new(24))
-                };
-                pos
+                }
             });
             if let Some(pos) = pos {
                 self.view_task(Box::new(move |w| {
@@ -2300,6 +2299,7 @@ impl ContentCtrl {
 
 /// Management of window content and synchronization of WindowVars and View-Process.
 pub(super) struct WindowCtrl(WindowCtrlMode);
+#[allow(clippy::large_enum_variant)] // headed control is the largest, but also the most common
 enum WindowCtrlMode {
     Headed(HeadedCtrl),
     Headless(HeadlessCtrl),
@@ -2777,6 +2777,7 @@ impl NestedWindowWidgetInfoExt for WidgetInfo {
     }
 }
 
+#[allow(clippy::large_enum_variant)] // Normal is the largest, but also most common
 enum OpenNestedHandlerArgsValue {
     Normal {
         ctx: WindowCtx,

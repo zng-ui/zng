@@ -98,6 +98,7 @@ impl From<hcs::CachePolicy> for CachePolicy {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 enum PolicyInner {
     Policy(hcs::CachePolicy),
     Permanent(PermanentHeader),

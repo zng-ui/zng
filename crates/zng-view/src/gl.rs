@@ -34,6 +34,7 @@ impl Default for GlContextManager {
     }
 }
 
+#[allow(clippy::large_enum_variant)] // enum is temporary
 enum GlWindowCreation {
     /// Windows requires this.
     Before(winit::window::Window),
@@ -542,6 +543,7 @@ impl GlContextManager {
     }
 }
 
+#[allow(clippy::large_enum_variant)] // glutin is the largest, but also most common
 enum GlBackend {
     Glutin {
         headless: Option<GlutinHeadless>,

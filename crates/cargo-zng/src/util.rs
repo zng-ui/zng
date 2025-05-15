@@ -114,7 +114,7 @@ fn cmd_impl(line: &str, args: &[&str], env: &[(&str, &str)], silent: bool) -> io
             }
             cmd.push('\n');
             cmd.push_str(&String::from_utf8_lossy(&output.stderr));
-            Err(io::Error::new(io::ErrorKind::Other, cmd))
+            Err(io::Error::other(cmd))
         }
     } else {
         let status = cmd.status()?;
@@ -126,7 +126,7 @@ fn cmd_impl(line: &str, args: &[&str], env: &[(&str, &str)], silent: bool) -> io
                 cmd.push(' ');
                 cmd.push_str(arg);
             }
-            Err(io::Error::new(io::ErrorKind::Other, cmd))
+            Err(io::Error::other(cmd))
         }
     }
 }

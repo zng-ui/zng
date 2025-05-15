@@ -309,10 +309,7 @@ fn zng(setup: impl FnOnce(&mut Command) -> &mut Command, cleanup: impl FnOnce(&m
     if output.status.success() {
         Ok(stdio)
     } else {
-        Err((
-            io::Error::new(io::ErrorKind::Other, format!("error code {}", output.status.code().unwrap_or(0))),
-            stdio,
-        ))
+        Err((io::Error::other(format!("error code {}", output.status.code().unwrap_or(0))), stdio))
     }
 }
 
@@ -380,13 +377,10 @@ fn git_init(dir: &Path) -> io::Result<()> {
                 if !s.status.success() {
                     let stdout = String::from_utf8_lossy(&s.stdout);
                     let stderr = String::from_utf8_lossy(&s.stderr);
-                    return Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!(
-                            "git exited with {}\n--stdout--\n{stdout}\n--stderr--\n{stderr}",
-                            s.status.code().unwrap_or(0)
-                        ),
-                    ));
+                    return Err(io::Error::other(format!(
+                        "git exited with {}\n--stdout--\n{stdout}\n--stderr--\n{stderr}",
+                        s.status.code().unwrap_or(0)
+                    )));
                 }
             }
             Err(e) => return Err(e),
