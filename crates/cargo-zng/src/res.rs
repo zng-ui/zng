@@ -295,7 +295,7 @@ fn display_tool_path(p: &Path) -> String {
     };
 
     #[cfg(windows)]
-    return r.replace('\\', "/");
+    return r.replace('\\', "/").trim_end_matches(".exe").to_owned();
 
     #[cfg(not(windows))]
     r
