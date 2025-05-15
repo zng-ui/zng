@@ -125,7 +125,6 @@ error[E0277]: the trait bound `Box<dyn zng_var::boxed::VarBoxed<NotDefault>>: Cl
   |
   = help: the following other types implement trait `Clone`:
             <implementers-list>
-  = note: this error originates in the derive macro `std::clone::Clone` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `Box<dyn zng_var::boxed::VarBoxed<NotDefault>>: Clone` is not satisfied
  --> cases/property/prefix_get_default.rs:9:1
