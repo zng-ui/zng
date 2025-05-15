@@ -109,7 +109,7 @@ pub use zng_txt::*;
 pub use zng_wgt_text::{
     AutoSelection, CaretShape, CaretStatus, ChangeStopArgs, ChangeStopCause, Em, FONT_COLOR_VAR, InteractiveCaretMode, LangMix,
     LinesWrapCount, ParagraphMix, SelectionToolbarArgs, Strong, Text, TextOverflow, TxtParseValue, UnderlinePosition, UnderlineSkip,
-    accepts_enter, accepts_tab, auto_selection, caret_color, change_stop_delay, cmd, direction, font_aa, font_annotation, font_caps,
+    accepts_enter, accepts_tab, auto_selection, caret_color, change_stop_delay, direction, font_aa, font_annotation, font_caps,
     font_char_variant, font_cn_variant, font_color, font_common_lig, font_contextual_alt, font_discretionary_lig, font_ea_width,
     font_family, font_features, font_historical_forms, font_historical_lig, font_jp_variant, font_kerning, font_num_fraction,
     font_num_spacing, font_numeric, font_ornaments, font_palette, font_palette_colors, font_position, font_size, font_stretch, font_style,
@@ -123,3 +123,14 @@ pub use zng_wgt_text::{
     txt_editable, txt_overflow, txt_overflow_align, txt_selectable, txt_selectable_alt_only, underline, underline_color, underline_skip,
     white_space, word_break, word_spacing,
 };
+
+/// Commands that controls the editable/selectable text.
+///
+/// Most of the normal text editing is controlled by keyboard events, these commands.
+/// 
+/// # Full API
+/// 
+/// See [`zng_wgt_text::cmd`] for the full API.
+pub mod cmd {
+    pub use zng_wgt_text::cmd::{SELECT_ALL_CMD, SELECT_CMD, TextEditOp, TextSelectOp, EDIT_CMD, PARSE_CMD};
+}
