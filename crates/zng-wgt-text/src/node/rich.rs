@@ -10,14 +10,14 @@ use zng_wgt::prelude::*;
 
 use crate::{
     RICH_TEXT_FOCUSED_Z_VAR,
-    cmd::{SELECT_CMD, TextSelectOp},
+    cmd::{SELECT_ALL_CMD, SELECT_CMD, TextSelectOp},
 };
 
 use super::{RICH_TEXT, RICH_TEXT_NOTIFY, RichCaretInfo, RichText, TEXT};
 
 pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
-    let child = rich_text_copy(child);
+    let child = rich_text_cmds(child);
     let child = rich_text_component(child, "rich_text");
 
     let mut ctx = None;
@@ -88,12 +88,34 @@ pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) ->
     })
 }
 
-fn rich_text_copy(child: impl UiNode) -> impl UiNode {
-    match_node(child, |child, op| {
-        if let UiNodeOp::Event { update } = op {
+fn rich_text_cmds(child: impl UiNode) -> impl UiNode {
+    #[derive(Default)]
+    struct Cmds {
+        // cut: CommandHandle,
+        copy: CommandHandle,
+        // paste: CommandHandle,
+        // edit: CommandHandle,
+        select: CommandHandle,
+        select_all: CommandHandle,
+    }
+    let mut cmds = Cmds::default();
+    match_node(child, move |child, op| match op {
+        UiNodeOp::Init => {
+            let id = WIDGET.id();
+            // cmds.cut = CUT_CMD.scoped(id).subscribe(true);
+            cmds.copy = COPY_CMD.scoped(id).subscribe(true);
+            // cmds.paste = PASTE_CMD.scoped(id).subscribe(true);
+            cmds.select = SELECT_CMD.scoped(id).subscribe(true);
+            // cmds.edit = EDIT_CMD.scoped(id).subscribe(true);
+            cmds.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+        }
+        UiNodeOp::Deinit => {
+            cmds = Cmds::default();
+        }
+        UiNodeOp::Event { update } => {
+            let ctx = TEXT.rich();
             if let Some(args) = COPY_CMD.event().on_unhandled(update) {
                 if let (None, CommandScope::Widget(scope_id)) = (&args.param, args.scope) {
-                    let ctx = TEXT.rich();
                     if ctx.root_id == scope_id || ctx.leaf_info(scope_id).is_some() {
                         // is normal COPY_CMD request for the rich text or a leaf text.
                         args.propagation().stop();
@@ -115,8 +137,23 @@ fn rich_text_copy(child: impl UiNode) -> impl UiNode {
                         let _ = CLIPBOARD.set_text(txt);
                     }
                 }
+            } else if let Some(args) = SELECT_CMD.scoped(ctx.root_id).on_unhandled(update) {
+                args.propagation().stop();
+                if let Some(leaf) = ctx.caret_index_info().or_else(|| ctx.leaves().next()) {
+                    let mut update = SELECT_CMD.scoped(leaf.id()).new_update();
+                    update.delivery_list_mut().fulfill_search([leaf.tree()].into_iter());
+                    child.event(&update);
+                }
+            } else if let Some(args) = SELECT_ALL_CMD.scoped(ctx.root_id).on_unhandled(update) {
+                args.propagation().stop();
+                if let Some(leaf) = ctx.caret_index_info().or_else(|| ctx.leaves().next()) {
+                    let mut update = SELECT_ALL_CMD.scoped(leaf.id()).new_update();
+                    update.delivery_list_mut().fulfill_search([leaf.tree()].into_iter());
+                    child.event(&update);
+                }
             }
         }
+        _ => {}
     })
 }
 

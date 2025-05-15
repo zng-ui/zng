@@ -558,6 +558,11 @@ impl Command {
         ))
     }
 
+    /// Create an event update for this command without custom `param`.
+    pub fn new_update(&self) -> EventUpdate {
+        self.event.new_update(CommandArgs::now(None, self.scope, self.is_enabled_value()))
+    }
+
     /// Create an event update for this command with custom `param`.
     pub fn new_update_param(&self, param: impl Any + Send + Sync) -> EventUpdate {
         self.event
