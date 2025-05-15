@@ -58,6 +58,7 @@ impl Markdown {
             on_link = hn!(|args: &LinkArgs| {
                 try_default_link_action(args);
             });
+            zng_wgt_text::rich_text = true;
 
             when #txt_selectable {
                 cursor = CursorIcon::Text;
