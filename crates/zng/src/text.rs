@@ -127,10 +127,10 @@ pub use zng_wgt_text::{
 /// Commands that controls the editable/selectable text.
 ///
 /// Most of the normal text editing is controlled by keyboard events, these commands.
-/// 
+///
 /// # Full API
-/// 
+///
 /// See [`zng_wgt_text::cmd`] for the full API.
 pub mod cmd {
-    pub use zng_wgt_text::cmd::{SELECT_ALL_CMD, SELECT_CMD, TextEditOp, TextSelectOp, EDIT_CMD, PARSE_CMD};
+    pub use zng_wgt_text::cmd::{EDIT_CMD, PARSE_CMD, SELECT_ALL_CMD, SELECT_CMD, TextEditOp, TextSelectOp};
 }

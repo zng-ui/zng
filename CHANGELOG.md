@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add text `has_selection` getter property.
 * **Breaking** Add `Command::new_update` that automatically uses the correct `CommandArgs`.
   - To create an update with custom args use `cmd.event().new_update(args)`.
 * Rich text contexts now handle scoped `SELECT_CMD` and `SELECT_ALL_CMD`.
