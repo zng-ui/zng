@@ -81,7 +81,7 @@ impl WidgetPath {
 
     /// If the `widget_id` is part of the path.
     pub fn contains(&self, widget_id: WidgetId) -> bool {
-        self.path.iter().any(move |&w| w == widget_id)
+        self.path.contains(&widget_id)
     }
 
     /// Make a path to an ancestor id that is contained in the current path.

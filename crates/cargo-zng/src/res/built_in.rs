@@ -644,8 +644,8 @@ fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool, current_dir: Op
         Ok(s) => {
             if !s.status.success() {
                 return Err(match s.status.code() {
-                    Some(c) => io::Error::new(io::ErrorKind::Other, format!("script failed, exit code {c}")),
-                    None => io::Error::new(io::ErrorKind::Other, "script failed"),
+                    Some(c) => io::Error::other(format!("script failed, exit code {c}")),
+                    None => io::Error::other("script failed"),
                 });
             }
             Ok(Some(String::from_utf8_lossy(&s.stdout).into_owned()))

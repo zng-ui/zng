@@ -6,6 +6,5 @@ error[E0609]: no field `iner` on type `&mut Node<C>`
   |
 help: a field with a similar name exists
   |
-6 - #[ui_node(delegate = &mut self.iner)]
-6 + #[ui_node(delegate = &mut self.inner)]
-  |
+6 | #[ui_node(delegate = &mut self.inner)]
+  |                                  +

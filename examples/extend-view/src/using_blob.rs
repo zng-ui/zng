@@ -134,7 +134,7 @@ pub mod view_side {
                         // the renderer will receive an async rasterize request from Webrender
                         // that is when we will actually render this.
 
-                        let key = if let Some(i) = renderer
+                        if let Some(i) = renderer
                             .tasks
                             .iter()
                             .position(|t| matches!(t.state, CustomRenderTaskState::Free(n) if n < MAX_FREE))
@@ -206,9 +206,7 @@ pub mod view_side {
                             );
 
                             key
-                        };
-
-                        key
+                        }
                     };
 
                     let rect = LayoutRect::from_size(p.size.to_wr());

@@ -428,7 +428,7 @@ mod _impl {
                 let frame_id = win.frame_id.load(Relaxed);
                 win.frame_id.store(frame_id.next(), Relaxed);
 
-                let f = FrameBuilder::new_renderless(
+                FrameBuilder::new_renderless(
                     Arc::default(),
                     Arc::default(),
                     frame_id,
@@ -437,8 +437,7 @@ mod _impl {
                     win.widget_tree.read().as_ref().unwrap(),
                     1.fct(),
                     FontAntiAliasing::Default,
-                );
-                f
+                )
             };
 
             frame.push_inner(self.test_root_translation_key(), false, |frame| {
@@ -464,8 +463,7 @@ mod _impl {
                 let frame_id = win.frame_id.load(Relaxed);
                 win.frame_id.store(frame_id.next_update(), Relaxed);
 
-                let f = FrameUpdate::new(Arc::default(), frame_id, wgt.id, wgt.bounds.lock().clone(), colors::BLACK);
-                f
+                FrameUpdate::new(Arc::default(), frame_id, wgt.id, wgt.bounds.lock().clone(), colors::BLACK)
             };
 
             update.update_inner(self.test_root_translation_key(), false, |update| {

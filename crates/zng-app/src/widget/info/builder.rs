@@ -1383,7 +1383,7 @@ impl WidgetLayout {
     /// [`child_offset`]: WidgetBoundsInfo::child_offset
     /// [`with_branch_child`]: Self::with_branch_child
     pub fn with_child(&mut self, layout: impl FnOnce(&mut Self) -> PxSize) -> (PxSize, bool) {
-        let parent_needs_ref_count = mem::replace(&mut self.needs_ref_count, Some(0));
+        let parent_needs_ref_count = self.needs_ref_count.replace(0);
 
         self.nest_group = LayoutNestGroup::Child;
         let child_size = layout(self);
