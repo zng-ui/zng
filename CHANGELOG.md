@@ -1,7 +1,10 @@
 # Unreleased
 
+* **Breaking** Many structs marked `non_exhaustive`.
+  - All are supposed to only be read or have construction associated functions.
 * **Breaking** Upgrade `ron` from 0.8 to 0.10.
   - `zng_ext_config::RonValueRawError` changed.
+  - `zng_ext_config::TomlValueRawError` changed.
   - `zng_ext_fs_watcher::WriteFile::write_ron` now uses new format.
   - `zng_ext_fs_watcher::WatchFile::ron` now uses new format.
 * **Breaking** Upgrade `encoding` dependency to 2.

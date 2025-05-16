@@ -423,6 +423,7 @@ fn run_worker_server(worker_name: &str) -> Option<String> {
 }
 
 /// Arguments for [`run_worker`].
+#[non_exhaustive]
 pub struct RequestArgs<I: IpcValue> {
     /// The task request data.
     pub request: I,
@@ -450,6 +451,7 @@ impl std::error::Error for RunError {}
 
 /// Info about a worker process crash.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct WorkerCrashError {
     /// Worker process exit code.
     pub status: std::process::ExitStatus,

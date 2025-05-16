@@ -577,7 +577,7 @@ impl FrameBuilder {
                     });
 
                     let current_wgt = tree.get(id).unwrap();
-                    let z_patch = self.widget_z as i64 - current_wgt.z_index().map(|(b, _)| b.0 as i64).unwrap_or(0);
+                    let z_patch = self.widget_z as i64 - current_wgt.z_index().map(|(b, _)| u32::from(b) as i64).unwrap_or(0);
 
                     let update_transforms = transform_patch.is_some();
                     let seg_id = builder.widget_count_offsets.id();
@@ -603,8 +603,8 @@ impl FrameBuilder {
 
                             if let Some(i) = b.render_info() {
                                 let (back, front) = info.z_index().unwrap();
-                                let back = back.0 as i64 + z_patch;
-                                let front = front.0 as i64 + z_patch;
+                                let back = u32::from(back) as i64 + z_patch;
+                                let front = u32::from(front) as i64 + z_patch;
 
                                 b.set_rendered(
                                     Some(WidgetRenderInfo {
@@ -631,8 +631,8 @@ impl FrameBuilder {
 
                             if let Some(i) = bounds.render_info() {
                                 let (back, front) = info.z_index().unwrap();
-                                let mut back = back.0 as i64 + z_patch;
-                                let mut front = front.0 as i64 + z_patch;
+                                let mut back = u32::from(back) as i64 + z_patch;
+                                let mut front = u32::from(front) as i64 + z_patch;
                                 if back < 0 {
                                     tracing::error!("incorrect back Z-index ({back}) after patch ({z_patch})");
                                     back = 0;
@@ -2272,6 +2272,7 @@ impl HitTestBuilder<'_> {
 }
 
 /// Output of a [`FrameBuilder`].
+#[non_exhaustive]
 pub struct BuiltFrame {
     /// Built display list.
     pub display_list: DisplayList,
@@ -2862,6 +2863,7 @@ impl FrameUpdate {
 }
 
 /// Output of a [`FrameBuilder`].
+#[non_exhaustive]
 pub struct BuiltFrameUpdate {
     /// Bound transforms update.
     pub transforms: Vec<FrameValueUpdate<PxTransform>>,

@@ -66,6 +66,7 @@ use zng_var::{AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, V
 ///
 /// * [`CONFIG`]
 #[derive(Default)]
+#[non_exhaustive]
 pub struct ConfigManager {}
 
 impl AppExtension for ConfigManager {

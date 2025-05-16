@@ -53,6 +53,7 @@ use lock::*;
 ///
 /// * [`WATCHER`]
 #[derive(Default)]
+#[non_exhaustive]
 pub struct FsWatcherManager {}
 impl AppExtension for FsWatcherManager {
     fn init(&mut self) {
@@ -851,6 +852,7 @@ pub mod fs_event {
 
 /// Represents a single file system change, annotated.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct FsChange {
     /// All [`WATCHER.annotate`] that where set when this event happened.
     ///

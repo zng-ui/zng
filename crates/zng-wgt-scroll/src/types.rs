@@ -1108,4 +1108,5 @@ impl_from_and_into_var! {
 ///
 /// [`auto_scroll_indicator`]: fn@crate::auto_scroll_indicator
 #[derive(Debug, Default, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct AutoScrollArgs {}

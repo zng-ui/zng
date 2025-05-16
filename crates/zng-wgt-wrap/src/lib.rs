@@ -215,7 +215,7 @@ impl ItemSegsInfo {
                 }
 
                 let r = Arc::get_mut(layout).unwrap();
-                r.resize(measure.len(), InlineSegmentPos { x: 0.0 });
+                r.resize(measure.len(), InlineSegmentPos::new(0.0));
 
                 r
             }
@@ -232,7 +232,7 @@ impl ItemSegsInfo {
                 }
 
                 let r = Arc::get_mut(layout).unwrap();
-                r.resize(measure.len(), InlineSegmentPos { x: 0.0 });
+                r.resize(measure.len(), InlineSegmentPos::new(0.0));
 
                 measure.iter().zip(r)
             }
@@ -261,10 +261,7 @@ impl ItemSegsInfo {
             ItemSegsInfo::Block(width) => {
                 let width = width.0 as f32;
                 *self = ItemSegsInfo::Built {
-                    measure: Arc::new(vec![InlineSegment {
-                        width,
-                        kind: TextSegmentKind::OtherNeutral,
-                    }]),
+                    measure: Arc::new(vec![InlineSegment::new(width, TextSegmentKind::OtherNeutral)]),
                     layout: Arc::new(Vec::with_capacity(1)),
                     x: 0.0,
                     width,

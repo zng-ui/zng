@@ -42,6 +42,7 @@ impl fmt::Display for GlyphLoadingError {
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct TextShapingArgs {
     /// Extra spacing to add after each character.
     pub letter_spacing: Px,
@@ -2184,6 +2185,7 @@ where
 ///
 /// Can be computed using [`ShapedText::overflow_info`].
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct TextOverflowInfo {
     /// First overflow line.
     ///
@@ -3868,7 +3870,7 @@ impl<'a> ShapedSegment<'a> {
     /// Segment info for widget inline segments.
     pub fn inline_info(&self) -> InlineSegmentInfo {
         let (x, width) = self.x_width();
-        InlineSegmentInfo { x, width }
+        InlineSegmentInfo::new(x, width)
     }
 
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {

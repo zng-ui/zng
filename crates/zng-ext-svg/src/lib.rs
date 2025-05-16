@@ -20,6 +20,7 @@ use zng_unit::{Px, PxSize};
 ///
 /// This extension installs the [`SvgRenderCache`] in [`IMAGES`] on init.
 #[derive(Default)]
+#[non_exhaustive]
 pub struct SvgManager {}
 
 impl AppExtension for SvgManager {
@@ -30,6 +31,7 @@ impl AppExtension for SvgManager {
 
 /// Image cache proxy that handlers SVG requests.
 #[derive(Default)]
+#[non_exhaustive]
 pub struct SvgRenderCache {}
 impl ImageCacheProxy for SvgRenderCache {
     fn data(

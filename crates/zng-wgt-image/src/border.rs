@@ -54,7 +54,7 @@ pub fn border_img(
 
                 let mut source = source.get();
                 if let ImageSource::Render(_, args) = &mut source {
-                    *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
+                    *args = Some(ImageRenderArgs::new(WINDOW.id()));
                 }
                 img = IMAGES.image(source, mode, limits, None, None);
                 _img_sub = img.subscribe(UpdateOp::Update, WIDGET.id());
@@ -75,7 +75,7 @@ pub fn border_img(
                     let mut source = source.get();
 
                     if let ImageSource::Render(_, args) = &mut source {
-                        *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
+                        *args = Some(ImageRenderArgs::new(WINDOW.id()));
                     }
 
                     let mode = if IMAGE_CACHE_VAR.get() {

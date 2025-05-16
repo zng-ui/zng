@@ -1588,6 +1588,7 @@ impl UpdatesService {
 /// Updates that must be reacted by an app owner.
 ///
 /// This type is public only for testing, it is the return type for test methods of [`WINDOW`].
+#[non_exhaustive]
 #[derive(Default)]
 pub struct ContextUpdates {
     /// Events to notify.
@@ -1855,6 +1856,7 @@ pub enum UpdateOp {
 
 /// Arguments for an [`on_pre_update`](UPDATES::on_pre_update), [`on_update`](UPDATES::on_update) or [`run`](UPDATES::run) handler.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub struct UpdateArgs {
     /// Number of times the handler was called.
     pub count: usize,

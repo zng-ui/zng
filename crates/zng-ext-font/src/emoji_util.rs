@@ -239,6 +239,7 @@ bitflags! {
 /// Represents a color palette entry.
 ///
 /// See [`ColorPalettes`] for more details.
+#[non_exhaustive]
 pub struct ColorPalette<'a> {
     /// Palette v1 flags.
     pub flags: ColorPaletteType,

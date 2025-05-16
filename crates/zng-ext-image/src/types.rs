@@ -518,9 +518,16 @@ type RenderFn = Arc<Box<dyn Fn(&ImageRenderArgs) -> Box<dyn ImageRenderWindowRoo
 ///
 /// The arguments are set by the widget that will render the image.
 #[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub struct ImageRenderArgs {
     /// Window that will render the image.
     pub parent: Option<WindowId>,
+}
+impl ImageRenderArgs {
+    /// New with parent window.
+    pub fn new(parent: WindowId) -> Self {
+        Self { parent: Some(parent) }
+    }
 }
 
 /// The different sources of an image resource.
@@ -1044,6 +1051,7 @@ impl<F: Fn(&task::http::Uri) -> bool + Send + Sync + 'static> From<F> for UriFil
 
 /// Limits for image loading and decoding.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ImageLimits {
     /// Maximum encoded file size allowed.
     ///

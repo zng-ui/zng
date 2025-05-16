@@ -290,11 +290,18 @@ pub fn default_button_fn(args: DialogButtonArgs) -> impl UiNode {
 ///
 /// [`button_fn`]: fn@button_fn
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct DialogButtonArgs {
     /// The response that must be represented by the button.
     pub response: Response,
     /// If the button is the last entry on the responses list.
     pub is_last: bool,
+}
+impl DialogButtonArgs {
+    /// New args.
+    pub fn new(response: Response, is_last: bool) -> Self {
+        Self { response, is_last }
+    }
 }
 
 /// Dialog title widget.
@@ -447,6 +454,7 @@ impl ConfirmStyle {
 
 /// Dialog response.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct Response {
     /// Response identifying name.
     pub name: Txt,

@@ -258,11 +258,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream, mix
 
                 /// Gets the widget type info.
                 pub fn widget_type() -> #crate_core::widget::builder::WidgetType {
-                    #crate_core::widget::builder::WidgetType {
-                        type_id: std::any::TypeId::of::<Self>(),
-                        path: #struct_path_str,
-                        location: #source_location,
-                    }
+                    #crate_core::widget::builder::WidgetType::new(
+                        std::any::TypeId::of::<Self>(), #struct_path_str, #source_location,
+                    )
                 }
             }
         };
@@ -537,6 +535,7 @@ pub fn expand_new(args: proc_macro::TokenStream) -> proc_macro::TokenStream {
                                 member: #core::widget::builder::WhenInputMember::#member,
                                 var: #var_input,
                                 property_default: meta__ .default_fn #generics(),
+                                _non_exhaustive: ()
                             }
                         },
                     });

@@ -119,7 +119,7 @@ macro_rules! ui_vec_items {
         match { }
         result { $($r:tt)* }
     ) => {
-        $crate::widget::node::UiVec(std::vec![
+        $crate::widget::node::UiVec::from(std::vec![
             $($r)*
         ])
     };
@@ -235,7 +235,7 @@ impl UiNodeList for Vec<BoxedUiNode> {
 ///
 /// This is a thin wrapper around `Vec<BoxedUiNode>` that adds helper methods for pushing widgets without needing to box.
 #[derive(Default)]
-pub struct UiVec(pub Vec<BoxedUiNode>);
+pub struct UiVec(Vec<BoxedUiNode>);
 impl UiVec {
     /// New default.
     pub fn new() -> Self {
@@ -430,6 +430,7 @@ where
 }
 
 /// Implementation of [`UiNodeListChain::chain`].
+#[non_exhaustive]
 pub struct UiNodeListChainImpl(pub BoxedUiNodeList, pub BoxedUiNodeList);
 impl UiNodeList for UiNodeListChainImpl {
     fn with_node<R, F>(&mut self, index: usize, f: F) -> R
@@ -854,7 +855,7 @@ static_id! {
 /// let highlight_z = ZIndex::DEFAULT + 1;
 /// ```
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Transitionable)]
-pub struct ZIndex(pub u32);
+pub struct ZIndex(u32);
 impl ZIndex {
     /// Widget is rendered first causing all overlapping siblings to render on top of it.
     ///
@@ -969,6 +970,9 @@ impl fmt::Debug for ZIndex {
 impl_from_and_into_var! {
     fn from(index: u32) -> ZIndex {
         ZIndex(index)
+    }
+    fn from(index: ZIndex) -> u32 {
+        index.0
     }
     fn from(index: ZIndex) -> Option<ZIndex>;
 }

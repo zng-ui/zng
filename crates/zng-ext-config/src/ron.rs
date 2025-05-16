@@ -91,11 +91,11 @@ impl TryFrom<serde_ron::Value> for RawConfigValue {
                 serde_ron::Number::U64(n) => serde_json::Number::from(n),
                 serde_ron::Number::F32(n) => match serde_json::Number::from_f64(n.get() as _) {
                     Some(n) => n,
-                    None => return Err(RonValueRawError::InvalidFloat(n.get() as _)),
+                    None => return Err(RonValueRawError::UnsupportedFloat(n.get() as _)),
                 },
                 serde_ron::Number::F64(n) => match serde_json::Number::from_f64(n.get()) {
                     Some(n) => n,
-                    None => return Err(RonValueRawError::InvalidFloat(n.get())),
+                    None => return Err(RonValueRawError::UnsupportedFloat(n.get())),
                 },
                 _ => return Err(RonValueRawError::UnsupportedValue),
             }),
@@ -191,7 +191,7 @@ fn ron_map_key(key: &serde_ron::Value) -> Result<String, RonValueRawError> {
 #[derive(Debug, Clone, Copy)]
 pub enum RonValueRawError {
     /// JSON only supports finite floats.
-    InvalidFloat(f64),
+    UnsupportedFloat(f64),
     /// JSON only supports key types that are [`fmt::Display`].
     UnsupportedKey,
     /// RON added a new number format or value kind that is not supported yet.
@@ -199,8 +199,9 @@ pub enum RonValueRawError {
 }
 impl fmt::Display for RonValueRawError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "error converting ron to internal json, ")?;
         match self {
-            RonValueRawError::InvalidFloat(fl) => write!(f, "json does not support float `{fl}`"),
+            RonValueRawError::UnsupportedFloat(fl) => write!(f, "json does not support float `{fl}`"),
             RonValueRawError::UnsupportedKey => write!(f, "json does not support non-display keys"),
             RonValueRawError::UnsupportedValue => write!(f, "conversion to json does not support the number format or value kind"),
         }

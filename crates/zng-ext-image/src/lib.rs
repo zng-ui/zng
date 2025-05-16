@@ -54,6 +54,7 @@ use zng_view_api::{ViewProcessOffline, image::ImageRequest, ipc::IpcBytes};
 ///
 /// * [`IMAGES`]
 #[derive(Default)]
+#[non_exhaustive]
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {

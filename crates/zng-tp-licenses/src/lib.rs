@@ -67,6 +67,7 @@ impl fmt::Debug for UserLicense {
 
 /// Represents a license id, name and text.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Hash)]
+#[non_exhaustive]
 pub struct License {
     /// License [SPDX] id.
     ///
@@ -78,8 +79,20 @@ pub struct License {
     pub text: Txt,
 }
 
+impl License {
+    /// New License.
+    pub fn new(id: impl Into<Txt>, name: impl Into<Txt>, text: impl Into<Txt>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            text: text.into(),
+        }
+    }
+}
+
 /// Represents a project or package that uses a license.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+#[non_exhaustive]
 pub struct User {
     /// Project or package name.
     pub name: Txt,
@@ -89,6 +102,16 @@ pub struct User {
     /// Project or package URL.
     #[serde(default)]
     pub url: Txt,
+}
+impl User {
+    /// New license user.
+    pub fn new(name: impl Into<Txt>, version: impl Into<Txt>, url: impl Into<Txt>) -> Self {
+        Self {
+            name: name.into(),
+            version: version.into(),
+            url: url.into(),
+        }
+    }
 }
 
 /// Merge `licenses` into `into`.

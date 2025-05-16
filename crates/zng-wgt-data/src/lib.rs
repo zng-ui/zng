@@ -474,8 +474,6 @@ context_local! {
 #[serde(transparent)]
 pub struct DataNoteLevel(pub NonZeroU8);
 impl DataNoteLevel {
-    // SAFETY: values are not zero.
-
     /// Entry represents useful information.
     pub const INFO: Self = Self(NonZeroU8::new(1).unwrap());
     /// Entry represents a data validation warning.

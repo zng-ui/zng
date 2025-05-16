@@ -288,28 +288,50 @@ pub fn default_panel_mobile_fn(args: PanelArgs) -> impl UiNode {
 }
 
 /// Arguments for a widget function that makes a category item for a categories list.
+#[non_exhaustive]
 pub struct CategoryItemArgs {
     /// Index on the list.
     pub index: usize,
     /// The category.
     pub category: Category,
 }
+impl CategoryItemArgs {
+    /// New args.
+    pub fn new(index: usize, category: Category) -> Self {
+        Self { index, category }
+    }
+}
 
 /// Arguments for a widget function that makes a category header in a settings list.
+#[non_exhaustive]
 pub struct CategoryHeaderArgs {
     /// The category.
     pub category: Category,
+}
+impl CategoryHeaderArgs {
+    /// New args.
+    pub fn new(category: Category) -> Self {
+        Self { category }
+    }
 }
 
 /// Arguments for a widget function that makes a list of category items that can be selected.
 ///
 /// The selected category variable is in [`SETTINGS.editor_selected_category`](SettingsCtxExt::editor_selected_category).
+#[non_exhaustive]
 pub struct CategoriesListArgs {
     /// The item views.
     pub items: UiVec,
 }
+impl CategoriesListArgs {
+    /// New args.
+    pub fn new(items: UiVec) -> Self {
+        Self { items }
+    }
+}
 
 /// Arguments for a widget function that makes a setting container.
+#[non_exhaustive]
 pub struct SettingArgs {
     /// Index of the setting on the list.
     pub index: usize,
@@ -318,21 +340,37 @@ pub struct SettingArgs {
     /// The setting value editor.
     pub editor: BoxedUiNode,
 }
+impl SettingArgs {
+    /// New args.
+    pub fn new(index: usize, setting: Setting, editor: BoxedUiNode) -> Self {
+        Self { index, setting, editor }
+    }
+}
 
 /// Arguments for a widget function that makes a settings for a category list.
+#[non_exhaustive]
 pub struct SettingsArgs {
     /// The category header.
     pub header: BoxedUiNode,
     /// The items.
     pub items: UiVec,
 }
+impl SettingsArgs {
+    /// New args.
+    pub fn new(header: BoxedUiNode, items: UiVec) -> Self {
+        Self { header, items }
+    }
+}
 
 /// Arguments for a search box widget.
 ///
 /// The search variable is in [`SETTINGS.editor_search`](SettingsCtxExt::editor_search).
+#[derive(Default)]
+#[non_exhaustive]
 pub struct SettingsSearchArgs {}
 
 /// Arguments for the entire settings editor layout.
+#[non_exhaustive]
 pub struct PanelArgs {
     /// Search box widget.
     pub search: BoxedUiNode,
@@ -340,6 +378,16 @@ pub struct PanelArgs {
     pub categories: BoxedUiNode,
     /// Settings widget.
     pub settings: BoxedUiNode,
+}
+impl PanelArgs {
+    /// New args.
+    pub fn new(search: BoxedUiNode, categories: BoxedUiNode, settings: BoxedUiNode) -> Self {
+        Self {
+            search,
+            categories,
+            settings,
+        }
+    }
 }
 
 /// Extends [`SettingBuilder`] to set custom editor metadata.
@@ -459,6 +507,7 @@ pub fn setting(child: impl UiNode, setting: impl IntoValue<Setting>) -> impl UiN
 ///
 /// [`SETTINGS.editor_state`]: SettingsCtxExt::editor_state
 #[derive(PartialEq, Debug, Clone)]
+#[non_exhaustive]
 pub struct SettingsEditorState {
     /// The actual text searched.
     pub clean_search: Txt,
