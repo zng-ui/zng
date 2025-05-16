@@ -63,9 +63,9 @@ mod desktop {
                 tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
                 Ok(None)
             }
-            Err(font_kit::error::SelectionError::CannotAccessSource { reason }) => Err(FontLoadingError::Io(Arc::new(
-                std::io::Error::new(std::io::ErrorKind::Other, reason.unwrap_or_default()),
-            ))),
+            Err(font_kit::error::SelectionError::CannotAccessSource { reason }) => {
+                Err(FontLoadingError::Io(Arc::new(std::io::Error::other(reason.unwrap_or_default()))))
+            }
         }
     }
 
@@ -81,9 +81,9 @@ mod desktop {
             Err(e) => {
                 return match e {
                     font_kit::error::SelectionError::NotFound => Ok(None),
-                    font_kit::error::SelectionError::CannotAccessSource { reason } => Err(FontLoadingError::Io(Arc::new(
-                        std::io::Error::new(std::io::ErrorKind::Other, reason.unwrap_or_default()),
-                    ))),
+                    font_kit::error::SelectionError::CannotAccessSource { reason } => {
+                        Err(FontLoadingError::Io(Arc::new(std::io::Error::other(reason.unwrap_or_default()))))
+                    }
                 };
             }
         };
@@ -408,7 +408,7 @@ mod android {
                 tracing::debug!(target: "font_loading", "system font not found\nquery: {:?}", (font_name, style, weight, stretch));
                 Ok(None)
             }
-            Err(e) => Err(FontLoadingError::Io(Arc::new(std::io::Error::new(std::io::ErrorKind::Other, e)))),
+            Err(e) => Err(FontLoadingError::Io(Arc::new(std::io::Error::other(e)))),
         }
     }
 

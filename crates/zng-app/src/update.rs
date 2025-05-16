@@ -573,7 +573,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
     }
 
     fn new_span(&self, span: &tracing::span::Attributes<'_>) -> tracing::span::Id {
-        let r = match span.metadata().name() {
+        match span.metadata().name() {
             "property" | "intrinsic" => {
                 let name = visit_str(|v| span.record(v), "name");
                 let mut ctx = self.context.lock();
@@ -648,9 +648,7 @@ impl tracing::subscriber::Subscriber for UpdatesTrace {
                 tracing::span::Id::from_u64(5)
             }
             _ => tracing::span::Id::from_u64(u64::MAX),
-        };
-        // println!("{}", self.context.lock());
-        r
+        }
     }
 
     fn record(&self, _span: &tracing::span::Id, _values: &tracing::span::Record<'_>) {}
@@ -1369,8 +1367,7 @@ impl UPDATES {
         H: AppHandler<UpdateArgs>,
     {
         let u = UPDATES_SV.read();
-        let r = Self::push_handler(&mut u.pre_handlers.lock(), true, handler, false);
-        r
+        Self::push_handler(&mut u.pre_handlers.lock(), true, handler, false)
     }
 
     /// Create an update handler.
@@ -1391,8 +1388,7 @@ impl UPDATES {
         H: AppHandler<UpdateArgs>,
     {
         let u = UPDATES_SV.read();
-        let r = Self::push_handler(&mut u.pos_handlers.lock(), false, handler, false);
-        r
+        Self::push_handler(&mut u.pos_handlers.lock(), false, handler, false)
     }
 
     fn push_handler<H>(entries: &mut Vec<UpdateHandler>, is_preview: bool, mut handler: H, force_once: bool) -> OnUpdateHandle
@@ -1509,13 +1505,13 @@ impl UPDATES {
 
     pub(crate) fn handler_lens(&self) -> (usize, usize) {
         let u = UPDATES_SV.read();
-        let r = (u.pre_handlers.lock().len(), u.pos_handlers.lock().len());
-        r
+
+        (u.pre_handlers.lock().len(), u.pos_handlers.lock().len())
     }
     pub(crate) fn new_update_handlers(&self, pre_from: usize, pos_from: usize) -> Vec<Box<dyn Fn() -> bool>> {
         let u = UPDATES_SV.read();
-        let r = u
-            .pre_handlers
+
+        u.pre_handlers
             .lock()
             .iter()
             .skip(pre_from)
@@ -1525,8 +1521,7 @@ impl UPDATES {
                 let r: Box<dyn Fn() -> bool> = Box::new(move || h.upgrade().is_some());
                 r
             })
-            .collect();
-        r
+            .collect()
     }
 }
 

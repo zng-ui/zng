@@ -966,7 +966,7 @@ impl FrameBuilder {
 
                     bounds.set_inner_transform(builder.transform, tree, id, builder.parent_inner_bounds);
 
-                    self.parent_parent_inner_bounds = mem::replace(&mut builder.parent_inner_bounds, Some(bounds.inner_bounds()));
+                    self.parent_parent_inner_bounds = builder.parent_inner_bounds.replace(bounds.inner_bounds());
 
                     if builder.visible {
                         self.visible = true;
@@ -2695,7 +2695,7 @@ impl FrameUpdate {
             self.transform = inner_transform.then(&parent_transform);
 
             bounds.set_inner_transform(self.transform, &tree, id, self.parent_inner_bounds);
-            let parent_inner_bounds = mem::replace(&mut self.parent_inner_bounds, Some(bounds.inner_bounds()));
+            let parent_inner_bounds = self.parent_inner_bounds.replace(bounds.inner_bounds());
 
             render_update(self);
 

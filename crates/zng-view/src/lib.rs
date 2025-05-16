@@ -2329,6 +2329,7 @@ pub(crate) enum AppEvent {
 ///
 /// These *events* are detached from [`AppEvent`] so that we can continue receiving requests while
 /// the main loop is blocked in a resize operation.
+#[allow(clippy::large_enum_variant)] // Request is the largest, but also most common
 #[derive(Debug)]
 enum RequestEvent {
     /// A request from the [`Api`].

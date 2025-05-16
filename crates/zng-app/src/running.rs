@@ -1415,6 +1415,7 @@ impl AppProcessService {
 
 /// App events.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)] // Event is the most used variant
 pub(crate) enum AppEvent {
     /// Event from the View Process.
     ViewEvent(zng_view_api::Event),

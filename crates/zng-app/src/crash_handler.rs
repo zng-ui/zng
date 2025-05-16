@@ -1043,8 +1043,7 @@ fn run_process(
                             ) {
                                 tracing::error!("minidump server exited with error, {e}");
                             }
-                            let r = created_file.lock().take();
-                            r
+                            created_file.lock().take()
                         }));
                         dump_server = Some(DumpServer { shutdown, runner });
                     }

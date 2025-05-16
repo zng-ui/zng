@@ -375,7 +375,7 @@ impl<S: AsyncRead> AsyncRead for McBufReader<S> {
                     if self.lazy {
                         if inner.non_lazy_count == 0 {
                             // user can make this reader non-lazy and try again.
-                            return Poll::Ready(Err(Error::new(ErrorKind::Other, ONLY_NON_LAZY_ERROR_MSG)));
+                            return Poll::Ready(Err(Error::other(ONLY_NON_LAZY_ERROR_MSG)));
                         } else {
                             // register waker for after non-lazy poll.
                             inner.lazy_wakers.push(cx.waker().clone());
