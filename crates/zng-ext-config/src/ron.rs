@@ -81,11 +81,23 @@ impl TryFrom<serde_ron::Value> for RawConfigValue {
             serde_ron::Value::Char(c) => serde_json::Value::String(c.to_string()),
             serde_ron::Value::String(s) => serde_json::Value::String(s),
             serde_ron::Value::Number(n) => serde_json::Value::Number(match n {
-                serde_ron::Number::Integer(n) => serde_json::Number::from(n),
-                serde_ron::Number::Float(n) => match serde_json::Number::from_f64(n.get()) {
+                serde_ron::Number::I8(n) => serde_json::Number::from(n),
+                serde_ron::Number::I16(n) => serde_json::Number::from(n),
+                serde_ron::Number::I32(n) => serde_json::Number::from(n),
+                serde_ron::Number::I64(n) => serde_json::Number::from(n),
+                serde_ron::Number::U8(n) => serde_json::Number::from(n),
+                serde_ron::Number::U16(n) => serde_json::Number::from(n),
+                serde_ron::Number::U32(n) => serde_json::Number::from(n),
+                serde_ron::Number::U64(n) => serde_json::Number::from(n),
+                serde_ron::Number::F32(n) => match serde_json::Number::from_f64(n.get() as _) {
+                    Some(n) => n,
+                    None => return Err(RonValueRawError::InvalidFloat(n.get() as _)),
+                },
+                serde_ron::Number::F64(n) => match serde_json::Number::from_f64(n.get()) {
                     Some(n) => n,
                     None => return Err(RonValueRawError::InvalidFloat(n.get())),
                 },
+                _ => return Err(RonValueRawError::UnsupportedValue),
             }),
             serde_ron::Value::Option(o) => match o {
                 Some(v) => return Self::try_from(*v),
@@ -110,6 +122,7 @@ impl TryFrom<serde_ron::Value> for RawConfigValue {
                 r
             }),
             serde_ron::Value::Unit => serde_json::Value::Null,
+            serde_ron::Value::Bytes(_) => return Err(RonValueRawError::UnsupportedValue),
         };
         Ok(Self(ok))
     }
@@ -139,7 +152,7 @@ impl TryFrom<RawConfigValue> for serde_ron::Value {
                 // ron::Map has no with_capacity
                 let mut r = serde_ron::Map::new();
                 for (k, v) in o {
-                    r.insert(serde_ron::Value::String(k), RawConfigValue(v).try_into()?);
+                    r.insert(serde_ron::Value::String(k), serde_ron::Value::try_from(RawConfigValue(v))?);
                 }
                 r
             }),
@@ -154,15 +167,22 @@ fn ron_map_key(key: &serde_ron::Value) -> Result<String, RonValueRawError> {
         serde_ron::Value::Bool(b) => b.to_string(),
         serde_ron::Value::Char(c) => format!("{c}"),
         serde_ron::Value::Number(n) => match n {
-            serde_ron::Number::Integer(i) => i.to_string(),
-            serde_ron::Number::Float(_) => return Err(RonValueRawError::InvalidMapKey),
+            ::ron::Number::I8(n) => n.to_string(),
+            ::ron::Number::I16(n) => n.to_string(),
+            ::ron::Number::I32(n) => n.to_string(),
+            ::ron::Number::I64(n) => n.to_string(),
+            ::ron::Number::U8(n) => n.to_string(),
+            ::ron::Number::U16(n) => n.to_string(),
+            ::ron::Number::U32(n) => n.to_string(),
+            ::ron::Number::U64(n) => n.to_string(),
+            _ => return Err(RonValueRawError::UnsupportedKey), // no floats, no any new variant
         },
         serde_ron::Value::Unit => String::new(),
         serde_ron::Value::Option(o) => match o {
             Some(o) => return ron_map_key(o),
             None => String::new(),
         },
-        serde_ron::Value::Map(_) | serde_ron::Value::Seq(_) => return Err(RonValueRawError::InvalidMapKey),
+        serde_ron::Value::Map(_) | serde_ron::Value::Seq(_) | serde_ron::Value::Bytes(_) => return Err(RonValueRawError::UnsupportedKey),
     };
     Ok(ok)
 }
@@ -173,13 +193,16 @@ pub enum RonValueRawError {
     /// JSON only supports finite floats.
     InvalidFloat(f64),
     /// JSON only supports key types that are [`fmt::Display`].
-    InvalidMapKey,
+    UnsupportedKey,
+    /// RON added a new number format or value kind that is not supported yet.
+    UnsupportedValue,
 }
 impl fmt::Display for RonValueRawError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RonValueRawError::InvalidFloat(fl) => write!(f, "json does not support float `{fl}`"),
-            RonValueRawError::InvalidMapKey => write!(f, "json does not support non-display keys"),
+            RonValueRawError::UnsupportedKey => write!(f, "json does not support non-display keys"),
+            RonValueRawError::UnsupportedValue => write!(f, "conversion to json does not support the number format or value kind"),
         }
     }
 }

@@ -632,13 +632,22 @@ impl WriteFile {
     /// If `pretty` is `true` the RON if formatted for human reading using the default pretty config.
     #[cfg(feature = "ron")]
     pub fn write_ron<O: serde::Serialize>(&mut self, value: &O, pretty: bool) -> io::Result<()> {
-        let mut buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
+        let buf = io::BufWriter::new(ops::DerefMut::deref_mut(self));
+        struct Ffs<'a> {
+            w: io::BufWriter<&'a mut fs::File>,
+        }
+        impl<'a> fmt::Write for Ffs<'a> {
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                self.w.write_all(s.as_bytes()).map_err(|_| fmt::Error)
+            }
+        }
+        let mut buf = Ffs { w: buf };
         if pretty {
             ron::ser::to_writer_pretty(&mut buf, value, Default::default()).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         } else {
             ron::ser::to_writer(&mut buf, value).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         }
-        buf.flush()
+        buf.w.flush()
     }
 
     /// Serialize and write.
