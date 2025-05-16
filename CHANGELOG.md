@@ -10,6 +10,10 @@
   - `zng_view_api::ApiExtensionPayload::serialize` return error type changed.
   - `zng_view_api::ApiExtensionRecvError::Deserialize` associated value changed.
   - `zng_task::RunError` changed.
+* Add text `get_selection` getter property, works for local texts.
+* Add text `has_selection` getter property, works for local and rich texts.
+* **Breaking** Add `Command::new_update` that automatically uses the correct `CommandArgs`.
+  - To create an update with custom args use `cmd.event().new_update(args)`.
 * Rich text contexts now handle scoped `SELECT_CMD` and `SELECT_ALL_CMD`.
 
 # 0.14.4

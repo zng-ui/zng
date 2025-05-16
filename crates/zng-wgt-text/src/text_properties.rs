@@ -8,6 +8,8 @@ use zng_view_api::config::FontAntiAliasing;
 use zng_wgt::prelude::*;
 use zng_wgt_layer::AnchorOffset;
 
+use crate::node::TEXT;
+
 /// Basic text font properties.
 ///
 /// All properties in this mixin affects [`Text!`] nodes inside the widget where they are set.
@@ -1560,7 +1562,7 @@ pub fn obscuring_char(child: impl UiNode, character: impl IntoVar<char>) -> impl
     with_context_var(child, OBSCURING_CHAR_VAR, character)
 }
 
-/// If the typed text is obscured in render.
+/// Enable typed text obscuring in render.
 ///
 /// When enabled each text character is replaced with [`obscuring_char`], cut, copy and undo commands are disabled.
 ///
@@ -1955,6 +1957,92 @@ pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(Font, std::o
                 }
 
                 let _ = font_use.set(r);
+            }
+        }
+    })
+}
+
+/// If widget or rich context has selection.
+///
+/// If set on a text widget gets if the local text has a selection, otherwise gets if the rich text context has a selection.
+#[property(EVENT, widget_impl(TextInspectMix<P>))]
+pub fn has_selection(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
+    let state = state.into_var();
+    match_node(child, move |c, op| {
+        let mut update = false;
+        match &op {
+            UiNodeOp::Init => {
+                update = true;
+            }
+            UiNodeOp::Deinit => {
+                let _ = state.set(false);
+            }
+            UiNodeOp::Event { .. } => {
+                update = true;
+            }
+            UiNodeOp::Update { .. } => {
+                update = true;
+            }
+            _ => {}
+        }
+
+        c.op(op);
+
+        if update {
+            let new = if let Some(ctx) = TEXT.try_rich() {
+                ctx.caret.selection_index.is_some()
+            } else if let Some(ctx) = TEXT.try_resolved() {
+                ctx.caret.selection_index.is_some()
+            } else {
+                false
+            };
+            if new != state.get() {
+                let _ = state.set(new);
+            }
+        }
+    })
+}
+
+/// Gets the selected text in the widget.
+#[property(EVENT, default(Txt::from_static("")), widget_impl(TextInspectMix<P>))]
+pub fn get_selection(child: impl UiNode, state: impl IntoVar<Txt>) -> impl UiNode {
+    let state = state.into_var();
+    let mut last_sel = (CaretIndex::ZERO, None::<CaretIndex>);
+    match_node(child, move |c, op| {
+        let mut update = false;
+        match &op {
+            UiNodeOp::Init => {
+                update = true;
+            }
+            UiNodeOp::Deinit => {
+                let _ = state.set(Txt::from_static(""));
+            }
+            UiNodeOp::Event { .. } => {
+                update = true;
+            }
+            UiNodeOp::Update { .. } => {
+                update = true;
+            }
+            _ => {}
+        }
+
+        c.op(op);
+
+        if update {
+            if let Some(ctx) = TEXT.try_resolved() {
+                let new_sel = (ctx.caret.index.unwrap_or(CaretIndex::ZERO), ctx.caret.selection_index);
+
+                if last_sel != new_sel {
+                    last_sel = new_sel;
+
+                    let txt = if let Some(range) = ctx.caret.selection_char_range() {
+                        Txt::from_str(&ctx.segmented_text.text()[range])
+                    } else {
+                        Txt::from_static("")
+                    };
+
+                    let _ = state.set(txt);
+                }
             }
         }
     })
