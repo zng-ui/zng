@@ -1,5 +1,11 @@
 # Unreleased
 
+* **Breaking** Upgrade `encoding` dependency to 2.0.
+  - `zng_tp_licenses::encode_licenses` format changes. Not an issue for the recommended usage of encoding licenses at build time, using the same crate version.
+  - `zng_view_api::ApiExtensionPayload` internal format changed.
+  - `zng_view_api::ApiExtensionPayload::serialize` return error type changed.
+  - `zng_view_api::ApiExtensionRecvError::Deserialize` associated value changed.
+  - `zng_task::RunError` changed.
 * Rich text contexts now handle scoped `SELECT_CMD` and `SELECT_ALL_CMD`.
 
 # 0.14.4

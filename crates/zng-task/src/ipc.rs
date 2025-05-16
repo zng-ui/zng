@@ -229,7 +229,8 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
                             break;
                         }
                         ipc_channel::ipc::IpcError::Bincode(e) => {
-                            tracing::error!("worker response error, {e}")
+                            tracing::error!("worker response error, will shutdown, {e}");
+                            break;
                         }
                         ipc_channel::ipc::IpcError::Io(e) => {
                             tracing::error!("worker response io error, will shutdown, {e}");
@@ -277,7 +278,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         }
     }
 
-    /// Run a task in a free worker thread.
+    /// Run a task in a free worker process thread.
     pub fn run(&mut self, input: I) -> impl Future<Output = Result<O, RunError>> + Send + 'static {
         self.run_request(Request::Run(input))
     }
@@ -298,7 +299,7 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
         Box::pin(async move {
             if let Err(e) = send_r.await {
                 requests.lock().remove(&id);
-                return Err(RunError::Ser(Arc::new(e)));
+                return Err(RunError::Other(Arc::new(e)));
             }
 
             match rx.recv_async().await {
@@ -434,17 +435,14 @@ pub enum RunError {
     ///
     /// See [`Worker::crash_error`] for the error.
     Disconnected,
-    /// Error serializing request.
-    Ser(Arc<bincode::Error>),
-    /// Error deserializing response.
-    De(Arc<bincode::Error>),
+    /// Other error.
+    Other(Arc<dyn std::error::Error + Send + Sync>),
 }
 impl fmt::Display for RunError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RunError::Disconnected => write!(f, "worker process disconnected"),
-            RunError::Ser(e) => write!(f, "error serializing request, {e}"),
-            RunError::De(e) => write!(f, "error deserializing response, {e}"),
+            RunError::Other(e) => write!(f, "run error, {e}"),
         }
     }
 }
