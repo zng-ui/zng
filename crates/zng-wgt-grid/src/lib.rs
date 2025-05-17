@@ -386,11 +386,18 @@ pub fn node(
 ///
 /// [`auto_grow_fn`]: fn@auto_grow_fn
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct AutoGrowFnArgs {
     /// Auto-grow direction.
     pub mode: AutoGrowMode,
     /// Column index.
     pub index: usize,
+}
+impl AutoGrowFnArgs {
+    /// New args.
+    pub fn new(mode: AutoGrowMode, index: usize) -> Self {
+        Self { mode, index }
+    }
 }
 
 /// Grid auto-grow direction.
@@ -755,6 +762,7 @@ pub mod cell {
 
     /// Represents values set by cell properties in a widget.
     #[derive(Clone, Copy, Debug)]
+    #[non_exhaustive]
     pub struct CellInfo {
         /// The [`column`] value.
         ///

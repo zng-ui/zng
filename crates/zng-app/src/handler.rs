@@ -604,6 +604,7 @@ impl<D: Send + Sync + 'static> AppWeakHandle for WeakHandle<D> {
 }
 
 /// Arguments for a call of [`AppHandler::event`].
+#[non_exhaustive]
 pub struct AppHandlerArgs<'a> {
     /// Handle to the [`AppHandler`] subscription.
     pub handle: &'a dyn AppWeakHandle,

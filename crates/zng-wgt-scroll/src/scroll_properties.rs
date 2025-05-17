@@ -544,6 +544,7 @@ pub fn zoom_scale(child: impl UiNode, scale: impl IntoVar<Factor>) -> impl UiNod
 
 /// Arguments for scrollbar widget functions.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ScrollBarArgs {
     /// Scrollbar orientation.
     pub orientation: scrollbar::Orientation,

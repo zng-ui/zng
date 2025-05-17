@@ -1617,9 +1617,16 @@ impl Default for AutoSelection {
 ///
 /// [`on_change_stop`]: fn@on_change_stop
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct ChangeStopArgs {
     /// Event cause.
     pub cause: ChangeStopCause,
+}
+impl ChangeStopArgs {
+    /// New args.
+    pub fn new(cause: ChangeStopCause) -> Self {
+        Self { cause }
+    }
 }
 
 /// Cause of an [`on_change_stop`].
@@ -1816,11 +1823,21 @@ pub fn selection_toolbar_fn(child: impl UiNode, toolbar: impl IntoVar<WidgetFn<S
 /// Arguments for [`selection_toolbar_fn`].
 ///
 /// [`selection_toolbar_fn`]: fn@selection_toolbar_fn
+#[non_exhaustive]
 pub struct SelectionToolbarArgs {
     /// ID of the widget the toolbar is anchored to.
     pub anchor_id: WidgetId,
     /// Text was selected through touch interaction.
     pub is_touch: bool,
+}
+impl SelectionToolbarArgs {
+    /// New args.
+    pub fn new(anchor_id: impl Into<WidgetId>, is_touch: bool) -> Self {
+        Self {
+            anchor_id: anchor_id.into(),
+            is_touch,
+        }
+    }
 }
 
 /// Position the selection toolbar in relation to the bounding box of all selection rectangles.

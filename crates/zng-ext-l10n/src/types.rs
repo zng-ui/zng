@@ -722,6 +722,7 @@ impl std::error::Error for FluentParserErrors {
 ///
 /// [`is_current_app`]: Self::is_current_app
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct LangFilePath {
     /// Package name.
     pub pkg_name: Txt,

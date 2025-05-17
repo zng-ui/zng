@@ -116,15 +116,11 @@
 //!     writeln!(&mut report, "\n").unwrap();
 //!
 //!     // shape text
-//!     let shaped_txt = font.shape_text(
-//!         &segmented_txt,
-//!         &TextShapingArgs {
-//!             lang: lang.clone(),
-//!             direction: segmented_txt.base_direction(),
-//!             line_height: font.best().metrics().line_height(),
-//!             ..TextShapingArgs::default()
-//!         },
-//!     );
+//!     let mut args = TextShapingArgs::default();
+//!     args.lang = lang.clone();
+//!     args.direction = segmented_txt.base_direction();
+//!     args.line_height = font.best().metrics().line_height();
+//!     let shaped_txt = font.shape_text(&segmented_txt,&args);
 //!
 //!     write!(&mut report, "### Glyphs\n\n|text|glyphs|\n|--|--|\n").unwrap();
 //!     for line in shaped_txt.lines() {

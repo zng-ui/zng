@@ -531,6 +531,7 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
 ///
 /// See [`APP::extensions`] for more details.
 #[derive(Clone, Copy)]
+#[non_exhaustive]
 pub struct AppExtensionInfo {
     /// Extension type ID.
     pub type_id: TypeId,

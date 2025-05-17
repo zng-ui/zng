@@ -1,5 +1,18 @@
 # Unreleased
 
+* **Breaking** Many structs marked `non_exhaustive`.
+  - All are supposed to only be read or have construction associated functions.
+* **Breaking** Upgrade `ron` from 0.8 to 0.10.
+  - `zng_ext_config::RonValueRawError` changed.
+  - `zng_ext_config::TomlValueRawError` changed.
+  - `zng_ext_fs_watcher::WriteFile::write_ron` now uses new format.
+  - `zng_ext_fs_watcher::WatchFile::ron` now uses new format.
+* **Breaking** Upgrade `encoding` dependency to 2.
+  - `zng_tp_licenses::encode_licenses` format changes. Not an issue for the recommended usage of encoding licenses at build time.
+  - `zng_view_api::ApiExtensionPayload` internal format changed.
+  - `zng_view_api::ApiExtensionPayload::serialize` return error type changed.
+  - `zng_view_api::ApiExtensionRecvError::Deserialize` associated value changed.
+  - `zng_task::RunError` changed.
 * Add text `get_selection` getter property, works for local texts.
 * Add text `has_selection` getter property, works for local and rich texts.
 * **Breaking** Add `Command::new_update` that automatically uses the correct `CommandArgs`.

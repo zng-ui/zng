@@ -277,6 +277,7 @@ impl VarCapability {
 ///
 /// [`MODIFY`]: VarCapability::MODIFY
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub struct VarIsReadOnlyError {
     /// Variable capabilities when the request was made.
     pub capabilities: VarCapability,

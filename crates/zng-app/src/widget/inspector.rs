@@ -117,6 +117,7 @@ impl InspectorActualVars {
 /// Widget instance inspector info.
 ///
 /// Can be accessed and queried using [`WidgetInfoInspectorExt`].
+#[non_exhaustive]
 pub struct InspectorInfo {
     /// Builder that was used to instantiate the widget.
     pub builder: WidgetBuilder,

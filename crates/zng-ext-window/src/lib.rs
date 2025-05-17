@@ -67,6 +67,7 @@ pub mod cmd;
 ///
 /// [`IMAGES`]: zng_ext_image::IMAGES
 #[derive(Default)]
+#[non_exhaustive]
 pub struct WindowManager {}
 impl AppExtension for WindowManager {
     fn init(&mut self) {

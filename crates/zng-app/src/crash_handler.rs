@@ -223,6 +223,7 @@ impl CrashConfig {
 
 /// Arguments for the crash handler dialog function.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct CrashArgs {
     /// Info about the app-process crashes.
     ///
@@ -281,6 +282,7 @@ impl fmt::Display for CrashArgs {
 
 /// Info about an app-process crash.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct CrashError {
     /// Crash moment.
     pub timestamp: SystemTime,
@@ -480,6 +482,7 @@ pub fn remove_ansi_csi(mut s: &str) -> Txt {
 
 /// Panic parsed from a `stderr` dump.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct CrashPanic {
     /// Name of thread that panicked.
     pub thread: Txt,
@@ -662,6 +665,7 @@ impl CrashPanic {
 
 /// Represents a frame parsed from a stack backtrace.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct BacktraceFrame {
     /// Position on the backtrace.
     pub n: usize,

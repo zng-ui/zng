@@ -1551,6 +1551,7 @@ where
 }
 
 /// Arguments for a var event handler.
+#[non_exhaustive]
 pub struct OnVarArgs<T: VarValue> {
     /// The new value.
     pub value: T,

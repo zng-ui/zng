@@ -67,6 +67,7 @@ impl fmt::Debug for UserLicense {
 
 /// Represents a license id, name and text.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Hash)]
+#[non_exhaustive]
 pub struct License {
     /// License [SPDX] id.
     ///
@@ -78,8 +79,20 @@ pub struct License {
     pub text: Txt,
 }
 
+impl License {
+    /// New License.
+    pub fn new(id: impl Into<Txt>, name: impl Into<Txt>, text: impl Into<Txt>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            text: text.into(),
+        }
+    }
+}
+
 /// Represents a project or package that uses a license.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+#[non_exhaustive]
 pub struct User {
     /// Project or package name.
     pub name: Txt,
@@ -89,6 +102,16 @@ pub struct User {
     /// Project or package URL.
     #[serde(default)]
     pub url: Txt,
+}
+impl User {
+    /// New license user.
+    pub fn new(name: impl Into<Txt>, version: impl Into<Txt>, url: impl Into<Txt>) -> Self {
+        Self {
+            name: name.into(),
+            version: version.into(),
+            url: url.into(),
+        }
+    }
 }
 
 /// Merge `licenses` into `into`.
@@ -243,7 +266,7 @@ pub fn parse_cargo_about(json: &str) -> Result<Vec<LicenseUsed>, serde_json::Err
 /// Panics in case of any error.
 #[cfg(feature = "build")]
 pub fn encode_licenses(licenses: &[LicenseUsed]) -> Vec<u8> {
-    deflate::deflate_bytes(&bincode::serde::encode_to_vec(licenses, bincode::config::legacy()).expect("bincode error"))
+    deflate::deflate_bytes(&bincode::serde::encode_to_vec(licenses, bincode::config::standard()).expect("bincode error"))
 }
 
 /// Encode licenses and write to the output file that is included by [`include_bundle!`].
@@ -274,7 +297,7 @@ macro_rules! include_bundle {
 #[cfg(feature = "bundle")]
 pub fn decode_licenses(bin: &[u8]) -> Vec<LicenseUsed> {
     let bin = inflate::inflate_bytes(bin).expect("invalid bundle deflate binary");
-    bincode::serde::decode_from_slice(&bin, bincode::config::legacy())
+    bincode::serde::decode_from_slice(&bin, bincode::config::standard())
         .expect("invalid bundle bincode binary")
         .0
 }

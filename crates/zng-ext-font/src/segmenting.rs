@@ -12,6 +12,7 @@ pub use unicode_bidi::Level as BidiLevel;
 
 /// Represents a single text segment in a [`SegmentedText`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct TextSegment {
     /// Segment kind.
     pub kind: TextSegmentKind,

@@ -934,6 +934,7 @@ where
 
 /// Error returned by [`set_default_client_init`] if the default was already initialized.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub struct DefaultAlreadyInitedError;
 impl fmt::Display for DefaultAlreadyInitedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -944,6 +945,7 @@ impl std::error::Error for DefaultAlreadyInitedError {}
 
 /// Information about the state of an HTTP request.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Metrics {
     /// Number of bytes uploaded / estimated total.
     pub upload_progress: (ByteLength, ByteLength),

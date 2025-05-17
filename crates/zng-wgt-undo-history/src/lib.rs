@@ -265,6 +265,7 @@ pub fn default_undo_panel_fn(args: UndoPanelArgs) -> impl UiNode {
 
 /// Represents an action in the undo or redo stack.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct UndoEntryArgs {
     /// Info about the action.
     ///
@@ -280,6 +281,11 @@ pub struct UndoEntryArgs {
     pub cmd: Command,
 }
 impl UndoEntryArgs {
+    /// New args.
+    pub fn new(info: Vec<(DInstant, Arc<dyn UndoInfo>)>, op: UndoOp, cmd: Command) -> Self {
+        Self { info, op, cmd }
+    }
+
     /// Moment the undo action was first registered.
     ///
     /// This does not change after redo and undo, it is always the register time.
@@ -311,6 +317,7 @@ impl fmt::Debug for UndoEntryArgs {
 
 /// Represents an undo or redo stack.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct UndoStackArgs {
     /// Stack, latest at the end.
     pub stack: UndoStackInfo,
@@ -318,6 +325,12 @@ pub struct UndoStackArgs {
     pub op: UndoOp,
     /// The undo or redo command, scoped.
     pub cmd: Command,
+}
+impl UndoStackArgs {
+    /// New args.
+    pub fn new(stack: UndoStackInfo, op: UndoOp, cmd: Command) -> Self {
+        Self { stack, op, cmd }
+    }
 }
 
 impl PartialEq for UndoStackArgs {
@@ -346,9 +359,16 @@ impl fmt::Debug for UndoStackArgs {
 ///
 /// [`UndoHistory!`]: struct@UndoHistory
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct UndoPanelArgs {
     /// What stack history must be shown.
     pub op: UndoOp,
+}
+impl UndoPanelArgs {
+    /// New args.
+    pub fn new(op: UndoOp) -> Self {
+        Self { op }
+    }
 }
 
 /// Menu style button for an entry in a undo/redo stack.

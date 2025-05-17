@@ -4,6 +4,7 @@ use crate::prelude::*;
 
 /// Arguments for the node operation event properties.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct OnNodeOpArgs {
     /// Operation.
     ///

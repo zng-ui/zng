@@ -323,6 +323,7 @@ impl_from_and_into_var! {
 /// Empty struct, there are no style args in the current release, this struct is declared so that if
 /// args may be introduced in the future with minimal breaking changes.
 #[derive(Debug, Default)]
+#[non_exhaustive]
 pub struct StyleArgs {}
 
 /// Boxed shared closure that generates a style instance for a given widget context.
@@ -382,8 +383,8 @@ impl StyleFn {
     /// ```
     /// # use zng_wgt_style::{StyleFn, StyleArgs};
     /// fn foo(func: &StyleFn) {
-    ///     let a = func.call(&StyleArgs {});
-    ///     let b = func(&StyleArgs {});
+    ///     let a = func.call(&StyleArgs::default());
+    ///     let b = func(&StyleArgs::default());
     /// }
     /// ```
     ///

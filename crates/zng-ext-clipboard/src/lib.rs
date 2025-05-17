@@ -36,6 +36,7 @@ use zng_view_api::ipc::IpcBytes;
 ///
 /// * [`CLIPBOARD`]
 #[derive(Default)]
+#[non_exhaustive]
 pub struct ClipboardManager {}
 
 impl AppExtension for ClipboardManager {

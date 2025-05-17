@@ -64,6 +64,7 @@ pub fn panel_fn(child: impl UiNode, panel: impl IntoVar<WidgetFn<PanelArgs>>) ->
 /// Arguments for [`panel_fn`].
 ///
 /// [`panel_fn`]: fn@panel_fn
+#[non_exhaustive]
 pub struct PanelArgs {
     /// The panel children.
     ///
@@ -71,6 +72,12 @@ pub struct PanelArgs {
     ///
     /// [`ArcNodeList`]: zng_wgt::prelude::ArcNodeList
     pub children: BoxedUiNodeList,
+}
+impl PanelArgs {
+    /// New args.
+    pub fn new(children: BoxedUiNodeList) -> Self {
+        Self { children }
+    }
 }
 
 /// Panel widget child node.

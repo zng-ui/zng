@@ -42,7 +42,7 @@ pub fn mask_image(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl
 
             let mut source = source.get();
             if let ImageSource::Render(_, args) = &mut source {
-                *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
+                *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
             let i = IMAGES.image(source, mode, limits, downscale, Some(mask_mode));
             let s = i.subscribe(UpdateOp::Update, WIDGET.id());
@@ -65,7 +65,7 @@ pub fn mask_image(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl
                 let mut source = source.get();
 
                 if let ImageSource::Render(_, args) = &mut source {
-                    *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
+                    *args = Some(ImageRenderArgs::new(WINDOW.id()));
                 }
 
                 let mode = if MASK_IMAGE_CACHE_VAR.get() {

@@ -151,7 +151,7 @@ impl WindowsService {
 
         for w in windows {
             if !self.windows_info.contains_key(&w) {
-                return Err(WindowNotFound(w));
+                return Err(WindowNotFound::new(w));
             }
             group.insert(w);
         }
@@ -182,13 +182,13 @@ impl WindowsService {
                         self.frame_images.push(img.downgrade());
                         img.read_only()
                     }
-                    Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only(),
+                    Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFound::new(window_id))))).read_only(),
                 }
             } else {
                 var(Img::dummy(Some(formatx!("window `{window_id}` is headless without renderer")))).read_only()
             }
         } else {
-            var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only()
+            var(Img::dummy(Some(formatx!("{}", WindowNotFound::new(window_id))))).read_only()
         }
     }
 
@@ -451,7 +451,7 @@ impl WINDOWS {
             .windows_info
             .get(&window_id)
             .map(|w| w.mode)
-            .ok_or(WindowNotFound(window_id))
+            .ok_or(WindowNotFound::new(window_id))
     }
 
     /// Returns a shared reference to the latest widget tree info for the window.
@@ -464,7 +464,7 @@ impl WINDOWS {
             .windows_info
             .get(&window_id)
             .map(|w| w.widget_tree.clone())
-            .ok_or(WindowNotFound(window_id))
+            .ok_or(WindowNotFound::new(window_id))
     }
 
     /// Search for the widget info in all windows.
@@ -530,7 +530,7 @@ impl WINDOWS {
             .windows_info
             .get(&window_id)
             .map(|w| w.vars.clone())
-            .ok_or(WindowNotFound(window_id))
+            .ok_or(WindowNotFound::new(window_id))
     }
 
     /// Gets if the window is focused in the operating system.
@@ -545,7 +545,7 @@ impl WINDOWS {
         } else if w.open_loading.contains_key(&window_id) {
             Ok(false)
         } else {
-            Err(WindowNotFound(window_id))
+            Err(WindowNotFound::new(window_id))
         }
     }
 
@@ -691,7 +691,7 @@ impl WINDOWS {
             UPDATES.update(None);
             Ok(())
         } else {
-            Err(WindowNotFound(window_id))
+            Err(WindowNotFound::new(window_id))
         }
     }
 
@@ -774,7 +774,7 @@ impl WINDOWS {
                 i.extensions.push((extension_id, request));
                 Ok(())
             }
-            None => Err(WindowNotFound(window_id)),
+            None => Err(WindowNotFound::new(window_id)),
         }
     }
 
@@ -810,7 +810,7 @@ impl WINDOWS {
                 },
                 None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound::new(window_id))),
         }
     }
 
@@ -844,7 +844,7 @@ impl WINDOWS {
                 },
                 None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound::new(window_id))),
         }
     }
 
@@ -869,7 +869,7 @@ impl WINDOWS {
                 }
                 None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound::new(window_id))),
         }
     }
 
@@ -900,7 +900,7 @@ impl WINDOWS {
                 }
                 None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound::new(window_id))),
         }
     }
 
@@ -1481,7 +1481,7 @@ impl WINDOWS_DRAG_DROP {
     ) -> Result<DragDropId, DragDropError> {
         match WINDOWS_SV.write().windows.get_mut(&window_id) {
             Some(w) => w.start_drag_drop(data, allowed_effects),
-            None => Err(DragDropError::CannotStart(WindowNotFound(window_id).to_txt())),
+            None => Err(DragDropError::CannotStart(WindowNotFound::new(window_id).to_txt())),
         }
     }
 
@@ -1492,7 +1492,7 @@ impl WINDOWS_DRAG_DROP {
                 w.drag_dropped(drop_id, applied);
                 Ok(())
             }
-            None => Err(WindowNotFound(window_id)),
+            None => Err(WindowNotFound::new(window_id)),
         }
     }
 }
@@ -1852,6 +1852,7 @@ impl WINDOW_Ext for WINDOW {}
 /// Arguments for [`WINDOWS.register_root_extender`].
 ///
 /// [`WINDOWS.register_root_extender`]: WINDOWS::register_root_extender
+#[non_exhaustive]
 pub struct WindowRootExtenderArgs {
     /// The window root content, extender must wrap this node with extension nodes or return
     /// it for no-op.

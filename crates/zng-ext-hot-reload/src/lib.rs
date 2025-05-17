@@ -165,6 +165,7 @@ impl StaticPatch {
 
 /// Status of a monitored dynamic library crate.
 #[derive(Clone, PartialEq, Debug)]
+#[non_exhaustive]
 pub struct HotStatus {
     /// Dynamic library crate directory.
     ///
@@ -322,6 +323,7 @@ type RebuildLoadVar = ResponseVar<Result<HotLib, BuildError>>;
 ///
 /// [`HOT_RELOAD.rebuilder`]: HOT_RELOAD::rebuilder
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct BuildArgs {
     /// Crate that changed.
     pub manifest_dir: Txt,

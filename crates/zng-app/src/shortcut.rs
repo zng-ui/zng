@@ -503,6 +503,7 @@ impl std::ops::DerefMut for Shortcuts {
 
 /// Shortcut, gesture parsing error.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ParseError {
     /// Error message, usually in the pattern "`{invalid-input}` is not a {shortcut/modifier}".
     pub error: String,

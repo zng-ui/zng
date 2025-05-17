@@ -131,6 +131,7 @@ impl MonitorsService {
 ///
 /// [headless mode]: zng_app::window::WindowMode::is_headless
 #[derive(Clone, Copy, PartialEq)]
+#[non_exhaustive]
 pub struct HeadlessMonitor {
     /// The scale factor used for the headless layout and rendering.
     ///

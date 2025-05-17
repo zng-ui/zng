@@ -133,6 +133,7 @@ impl ContextMenu {
 impl_style_fn!(ContextMenu);
 
 /// Arguments for context menu widget functions.
+#[non_exhaustive]
 pub struct ContextMenuArgs {
     /// ID of the widget the menu is anchored to.
     pub anchor_id: WidgetId,
@@ -142,6 +143,15 @@ pub struct ContextMenuArgs {
     /// [`context_menu_fn`]: fn@context_menu_fn
     /// [`disabled_context_menu_fn`]: fn@disabled_context_menu_fn
     pub disabled: bool,
+}
+impl ContextMenuArgs {
+    /// New args.
+    pub fn new(anchor_id: impl Into<WidgetId>, disabled: bool) -> Self {
+        Self {
+            anchor_id: anchor_id.into(),
+            disabled,
+        }
+    }
 }
 
 context_var! {

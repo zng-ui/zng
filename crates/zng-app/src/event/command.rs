@@ -774,7 +774,8 @@ impl CommandArgs {
     }
 }
 
-/// Arguments for [`Command::on_event`].
+/// Arguments for [`Command::on_event`] handler closure.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct AppCommandArgs {
     /// The command args.
@@ -928,6 +929,7 @@ impl Default for CommandHandle {
 
 /// Represents a reference counted `dyn Any` object parameter for a command request.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct CommandParam(pub Arc<dyn Any + Send + Sync>);
 impl PartialEq for CommandParam {
     fn eq(&self, other: &Self) -> bool {
@@ -938,11 +940,13 @@ impl Eq for CommandParam {}
 impl CommandParam {
     /// New param.
     ///
-    /// If `param` is already a [`CommandParam`] returns a clone.
+    /// If `param` is already a [`CommandParam`] or `Arc<dyn Any + Send + Sync>` returns a clone.
     pub fn new(param: impl Any + Send + Sync + 'static) -> Self {
         let p: &dyn Any = &param;
         if let Some(p) = p.downcast_ref::<Self>() {
             p.clone()
+        } else if let Some(p) = p.downcast_ref::<Arc<dyn Any + Send + Sync>>() {
+            CommandParam(p.clone())
         } else {
             CommandParam(Arc::new(param))
         }

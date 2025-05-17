@@ -277,6 +277,7 @@ impl LayoutPassId {
 ///
 /// See [`InlineConstraints`] for more details.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct InlineConstraintsMeasure {
     /// Available space on the first row.
     pub first_max: Px,
@@ -286,6 +287,12 @@ pub struct InlineConstraintsMeasure {
     /// value and include it in the overall measured height of the widget.
     pub mid_clear_min: Px,
 }
+impl InlineConstraintsMeasure {
+    /// New constraint.
+    pub fn new(first_max: Px, mid_clear_min: Px) -> Self {
+        Self { first_max, mid_clear_min }
+    }
+}
 
 /// Position of an inline segment set by the inlining parent.
 ///
@@ -293,9 +300,16 @@ pub struct InlineConstraintsMeasure {
 ///
 /// [`InlineConstraintsLayout::first_segs`]: crate::context::InlineConstraintsLayout::first_segs
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct InlineSegmentPos {
     /// Seg offset to the right from the row origin, in pixels.
     pub x: f32,
+}
+impl InlineSegmentPos {
+    /// New pos.
+    pub fn new(x: f32) -> Self {
+        Self { x }
+    }
 }
 impl PartialEq for InlineSegmentPos {
     fn eq(&self, other: &Self) -> bool {
@@ -313,6 +327,7 @@ impl std::hash::Hash for InlineSegmentPos {
 ///
 /// See [`InlineConstraints`] for more details.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct InlineConstraintsLayout {
     /// First row rect, defined by the parent.
     pub first: PxRect,
@@ -325,6 +340,25 @@ pub struct InlineConstraintsLayout {
     pub first_segs: Arc<Vec<InlineSegmentPos>>,
     /// Position of inline segments of the last row.
     pub last_segs: Arc<Vec<InlineSegmentPos>>,
+}
+
+impl InlineConstraintsLayout {
+    /// New constraint.
+    pub fn new(
+        first: PxRect,
+        mid_clear: Px,
+        last: PxRect,
+        first_segs: Arc<Vec<InlineSegmentPos>>,
+        last_segs: Arc<Vec<InlineSegmentPos>>,
+    ) -> Self {
+        Self {
+            first,
+            mid_clear,
+            last,
+            first_segs,
+            last_segs,
+        }
+    }
 }
 
 /// Constraints for inline measure or layout.
@@ -360,6 +394,7 @@ impl InlineConstraints {
 ///
 /// A snapshot can be taken using the [`LayoutMetrics::snapshot`].
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct LayoutMetricsSnapshot {
     /// The [`constraints`].
     ///
@@ -696,11 +731,19 @@ impl fmt::Debug for LayoutDirection {
 ///
 /// This info is used by inlining parent to sort the joiner row in a way that preserves bidirectional text flow.
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct InlineSegment {
     /// Width of the segment, in pixels.
     pub width: f32,
     /// Info for bidirectional reorder.
     pub kind: TextSegmentKind,
+}
+
+impl InlineSegment {
+    /// New from width and text kind.
+    pub fn new(width: f32, kind: TextSegmentKind) -> Self {
+        Self { width, kind }
+    }
 }
 impl PartialEq for InlineSegment {
     fn eq(&self, other: &Self) -> bool {

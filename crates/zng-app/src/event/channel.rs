@@ -199,6 +199,7 @@ where
 /// Error when the app connected to a sender/receiver channel has disconnected.
 ///
 /// Contains the value that could not be send or `()` for receiver errors.
+#[non_exhaustive]
 pub struct AppDisconnected<T>(pub T);
 impl From<flume::RecvError> for AppDisconnected<()> {
     fn from(_: flume::RecvError) -> Self {

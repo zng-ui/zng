@@ -630,6 +630,7 @@ pub enum FontChange {
 ///
 /// * [`FONT_CHANGED_EVENT`] - Font config or system fonts changed.
 #[derive(Default)]
+#[non_exhaustive]
 pub struct FontManager {}
 impl AppExtension for FontManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -2329,8 +2330,8 @@ impl GenericFontsService {
 /// See also [`FontNames::system_ui`] for the default font selection for UIs.
 ///
 /// [`FontNames::system_ui`]: crate::FontNames::system_ui
+#[non_exhaustive]
 pub struct GenericFonts {}
-impl GenericFonts {}
 macro_rules! impl_fallback_accessors {
     ($($name:ident=$name_str:tt),+ $(,)?) => {$($crate::paste! {
     #[doc = "Gets the fallback *"$name_str "* font for the given language."]
@@ -2962,6 +2963,7 @@ impl fmt::Debug for Justify {
 ///
 /// [`FreeType Glyph Metrics`]: https://freetype.org/freetype2/docs/glyphs/glyphs-3.html
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct FontFaceMetrics {
     /// The number of font units per em.
     ///
@@ -3029,6 +3031,7 @@ impl FontFaceMetrics {
 ///
 /// You can compute these metrics from a [`FontFaceMetrics`]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct FontMetrics {
     /// Multiply this to a font EM value to get the size in pixels.
     pub size_scale: f32,

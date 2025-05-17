@@ -54,7 +54,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
 
             let mut source = source.get();
             if let ImageSource::Render(_, args) = &mut source {
-                *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
+                *args = Some(ImageRenderArgs::new(WINDOW.id()));
             }
             img = IMAGES.image(source, mode, limits, downscale, None);
 
@@ -75,7 +75,7 @@ pub fn image_source(child: impl UiNode, source: impl IntoVar<ImageSource>) -> im
                 let mut source = source.get();
 
                 if let ImageSource::Render(_, args) = &mut source {
-                    *args = Some(ImageRenderArgs { parent: Some(WINDOW.id()) });
+                    *args = Some(ImageRenderArgs::new(WINDOW.id()));
                 }
 
                 let mode = if IMAGE_CACHE_VAR.get() {

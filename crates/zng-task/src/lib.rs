@@ -946,6 +946,7 @@ where
 
 /// Error when [`with_deadline`] reach a time limit before a task finishes.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub struct DeadlineError {}
 impl fmt::Display for DeadlineError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

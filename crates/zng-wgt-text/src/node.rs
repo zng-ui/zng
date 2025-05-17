@@ -40,6 +40,7 @@ pub use caret::*;
 
 /// Represents the caret position in a [`RichText`] context.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct RichCaretInfo {
     /// Widget that defines the caret insert position.
     ///
@@ -53,6 +54,7 @@ pub struct RichCaretInfo {
 
 /// Represents the caret position at the [`ResolvedText`] context.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct CaretInfo {
     /// Caret opacity.
     ///
@@ -177,6 +179,7 @@ impl CaretInfo {
 
 /// IME text edit that is not committed yet.
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct ImePreview {
     /// The inserted text.
     pub txt: Txt,
@@ -334,6 +337,7 @@ impl SelectionBy {
 /// Represents the resolved fonts and the transformed, white space corrected and segmented text.
 ///
 /// Use [`TEXT`] to get.
+#[non_exhaustive]
 pub struct ResolvedText {
     /// The text source variable.
     pub txt: BoxedVar<Txt>,
@@ -388,6 +392,7 @@ impl ResolvedText {
 
 /// Info about the last text render or render update.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RenderInfo {
     /// Render transform of the text, in the window space.
     pub transform: PxTransform,
@@ -408,6 +413,7 @@ impl Default for RenderInfo {
 ///
 /// Use [`TEXT`] to get.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct LaidoutText {
     /// Sized [`faces`].
     ///
@@ -488,6 +494,7 @@ impl LaidoutText {
 /// Represents the rich text context.
 ///
 /// Use [`TEXT`] to get.
+#[non_exhaustive]
 pub struct RichText {
     /// Widget that defines the rich text context.
     pub root_id: WidgetId,

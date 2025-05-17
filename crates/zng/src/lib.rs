@@ -961,7 +961,7 @@ mod defaults {
                 feature = "material_icons_rounded",
                 feature = "material_icons_sharp",
             ))]
-            let r = r.extend(zng_wgt_material_icons::MaterialIconsManager);
+            let r = r.extend(zng_wgt_material_icons::MaterialIconsManager::default());
 
             #[cfg(feature = "svg")]
             let r = r.extend(zng_ext_svg::SvgManager::default());

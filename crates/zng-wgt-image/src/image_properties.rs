@@ -401,13 +401,15 @@ pub fn img_loading_fn(child: impl UiNode, wgt_fn: impl IntoVar<WidgetFn<ImgLoadi
 /// Arguments for [`img_loading_fn`].
 ///
 /// [`img_loading_fn`]: fn@img_loading_fn
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ImgLoadingArgs {}
 
 /// Arguments for [`on_load`].
 ///
 /// [`on_load`]: fn@on_load
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
+#[non_exhaustive]
 pub struct ImgLoadArgs {}
 
 /// Arguments for [`on_error`] and [`img_error_fn`].
@@ -415,9 +417,17 @@ pub struct ImgLoadArgs {}
 /// [`on_error`]: fn@on_error
 /// [`img_error_fn`]: fn@img_error_fn
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ImgErrorArgs {
     /// Error message.
     pub error: Txt,
+}
+
+impl ImgErrorArgs {
+    /// New args.
+    pub fn new(error: impl Into<Txt>) -> Self {
+        Self { error: error.into() }
+    }
 }
 
 /// Image load or decode error event.

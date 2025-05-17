@@ -357,10 +357,9 @@ impl HeadedCtrl {
         if let Some(ico) = self.vars.icon().get_new() {
             self.img_res.icon_var = match ico {
                 WindowIcon::Default => None,
-                WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.cache(ImageSource::Render(
-                    ico.clone(),
-                    Some(ImageRenderArgs { parent: Some(WINDOW.id()) }),
-                ))),
+                WindowIcon::Image(ImageSource::Render(ico, _)) => {
+                    Some(IMAGES.cache(ImageSource::Render(ico.clone(), Some(ImageRenderArgs::new(WINDOW.id())))))
+                }
                 WindowIcon::Image(source) => Some(IMAGES.cache(source)),
             };
 
@@ -398,10 +397,9 @@ impl HeadedCtrl {
                 }
                 crate::CursorSource::Img(img) => {
                     self.img_res.cursor_var = Some(match img.source {
-                        ImageSource::Render(cur, _) => IMAGES.cache(ImageSource::Render(
-                            cur.clone(),
-                            Some(ImageRenderArgs { parent: Some(WINDOW.id()) }),
-                        )),
+                        ImageSource::Render(cur, _) => {
+                            IMAGES.cache(ImageSource::Render(cur.clone(), Some(ImageRenderArgs::new(WINDOW.id()))))
+                        }
                         source => IMAGES.cache(source),
                     });
 

@@ -749,7 +749,18 @@ pub enum CloseWindowResult {
 /// [`WINDOWS`]: crate::WINDOWS
 /// [`WindowId`]: crate::WindowId
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct WindowNotFound(pub WindowId);
+pub struct WindowNotFound(WindowId);
+impl WindowNotFound {
+    /// New from id.
+    pub fn new(id: impl Into<WindowId>) -> Self {
+        Self(id.into())
+    }
+
+    /// Gets the ID that was not found.
+    pub fn id(&self) -> WindowId {
+        self.0
+    }
+}
 impl fmt::Display for WindowNotFound {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "window `{}` not found", self.0)

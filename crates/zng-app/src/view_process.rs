@@ -634,6 +634,7 @@ event! {
 
 /// Information about a successfully opened window.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct WindowOpenData {
     /// Window complete state.
     pub state: WindowStateAll,
@@ -1513,6 +1514,7 @@ struct EncodeRequest {
 type ClipboardResult<T> = std::result::Result<T, ClipboardError>;
 
 /// View-process clipboard methods.
+#[non_exhaustive]
 pub struct ViewClipboard {}
 impl ViewClipboard {
     /// Read [`ClipboardType::Text`].

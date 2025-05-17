@@ -649,6 +649,7 @@ impl VisibilityChangedArgs {
 
 /// Info about the input inline connecting rows of the widget.
 #[derive(Clone, Debug, Default, PartialEq)]
+#[non_exhaustive]
 pub struct WidgetInlineMeasure {
     /// Preferred first size.
     ///
@@ -729,6 +730,7 @@ impl WidgetInlineMeasure {
 ///
 /// See [`WidgetInlineInfo::first_segs`] for more details.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct InlineSegmentInfo {
     /// Segment offset from the row rectangle origin.
     pub x: Px,
@@ -738,8 +740,16 @@ pub struct InlineSegmentInfo {
     pub width: Px,
 }
 
+impl InlineSegmentInfo {
+    /// New from `x` and `width`.
+    pub fn new(x: Px, width: Px) -> Self {
+        Self { x, width }
+    }
+}
+
 /// Info about the inlined rows of the widget.
 #[derive(Debug, Default)]
+#[non_exhaustive]
 pub struct WidgetInlineInfo {
     /// Last layout rows of the widget.
     ///
@@ -1049,7 +1059,7 @@ impl WidgetMeasure {
     ///
     /// [`InlineConstraintsMeasure`]: zng_layout::context::InlineConstraintsMeasure
     pub fn measure_inline(&mut self, first_max: Px, mid_clear_min: Px, child: &mut impl UiNode) -> (Option<WidgetInlineMeasure>, PxSize) {
-        let constraints = InlineConstraints::Measure(InlineConstraintsMeasure { first_max, mid_clear_min });
+        let constraints = InlineConstraints::Measure(InlineConstraintsMeasure::new(first_max, mid_clear_min));
         let metrics = LAYOUT.metrics().with_inline_constraints(Some(constraints));
         let size = LAYOUT.with_context(metrics, || child.measure(self));
         let inline = child
@@ -1132,10 +1142,7 @@ impl WidgetMeasure {
         }
         let metrics = LAYOUT.metrics();
         let size = if metrics.inline_constraints().is_none() {
-            let constraints = InlineConstraints::Measure(InlineConstraintsMeasure {
-                first_max: metrics.constraints().x.max_or(Px::MAX),
-                mid_clear_min: Px(0),
-            });
+            let constraints = InlineConstraints::Measure(InlineConstraintsMeasure::new(metrics.constraints().x.max_or(Px::MAX), Px(0)));
             let metrics = metrics.with_inline_constraints(Some(constraints));
             LAYOUT.with_context(metrics, || measure(self))
         } else {
@@ -1331,17 +1338,17 @@ impl WidgetLayout {
         } else {
             let bounds = WIDGET.bounds();
             if let Some(measure) = bounds.measure_inline() {
-                let constraints = InlineConstraintsLayout {
-                    first: PxRect::from_size(measure.first),
-                    mid_clear: Px(0),
-                    last: {
+                let constraints = InlineConstraintsLayout::new(
+                    PxRect::from_size(measure.first),
+                    Px(0),
+                    {
                         let mut r = PxRect::from_size(measure.last);
                         r.origin.y = bounds.measure_outer_size().height - measure.last.height;
                         r
                     },
-                    first_segs: Arc::new(vec![]),
-                    last_segs: Arc::new(vec![]),
-                };
+                    Arc::new(vec![]),
+                    Arc::new(vec![]),
+                );
 
                 self.inline = Some(Default::default());
 
@@ -1650,13 +1657,7 @@ impl WidgetLayout {
         last_segs: Arc<Vec<InlineSegmentPos>>,
         child: &mut impl UiNode,
     ) -> PxSize {
-        let constraints = InlineConstraints::Layout(InlineConstraintsLayout {
-            first,
-            mid_clear,
-            last,
-            first_segs,
-            last_segs,
-        });
+        let constraints = InlineConstraints::Layout(InlineConstraintsLayout::new(first, mid_clear, last, first_segs, last_segs));
         let metrics = LAYOUT.metrics().with_inline_constraints(Some(constraints));
         LAYOUT.with_context(metrics, || child.layout(self))
     }

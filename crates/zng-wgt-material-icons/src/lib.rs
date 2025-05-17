@@ -26,6 +26,8 @@ zng_wgt::enable_widget_macros!();
 /// This app extension registers the fonts in `"embedded"` builds and registers [`ICONS`] handlers that provide the icons.
 ///
 /// [`ICONS`]: struct@zng_wgt::ICONS
+#[derive(Default)]
+#[non_exhaustive]
 pub struct MaterialIconsManager;
 impl MaterialIconsManager {
     #[cfg(all(
