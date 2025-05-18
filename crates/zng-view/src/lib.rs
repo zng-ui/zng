@@ -397,20 +397,20 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             self.exts.resumed();
             self.generation = self.generation.next();
             let available_monitors = self.available_monitors();
-            self.notify(Event::Inited(Inited {
-                generation: self.generation,
-                is_respawn: true,
+            self.notify(Event::Inited(Inited::new(
+                self.generation,
+                true,
                 available_monitors,
-                multi_click_config: config::multi_click_config(),
-                key_repeat_config: config::key_repeat_config(),
-                touch_config: config::touch_config(),
-                font_aa: config::font_aa(),
-                animations_config: config::animations_config(),
-                locale_config: config::locale_config(),
-                colors_config: config::colors_config(),
-                chrome_config: config::chrome_config(),
-                extensions: self.exts.api_extensions(),
-            }));
+                config::multi_click_config(),
+                config::key_repeat_config(),
+                config::touch_config(),
+                config::font_aa(),
+                config::animations_config(),
+                config::locale_config(),
+                config::colors_config(),
+                config::chrome_config(),
+                self.exts.api_extensions(),
+            )));
 
             winit_loop_guard.unset(&mut self.winit_loop);
         } else {
@@ -891,12 +891,12 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     self.notify(Event::Touch {
                         window: id,
                         device: d_id,
-                        touches: vec![TouchUpdate {
-                            phase: util::winit_touch_phase_to_zng(t.phase),
+                        touches: vec![TouchUpdate::new(
+                            TouchId(t.id),
+                            util::winit_touch_phase_to_zng(t.phase),
                             position,
-                            force: t.force.map(util::winit_force_to_zng),
-                            touch: TouchId(t.id),
-                        }],
+                            t.force.map(util::winit_force_to_zng),
+                        )],
                     });
                 }
             }
@@ -1233,11 +1233,7 @@ impl App {
                                                 None
                                             };
                                             if let Some((frame_id, image)) = r {
-                                                self.app.notify(Event::FrameRendered(EventFrameRendered {
-                                                    window: id,
-                                                    frame: frame_id,
-                                                    frame_image: image,
-                                                }));
+                                                self.app.notify(Event::FrameRendered(EventFrameRendered::new(id, frame_id, image)));
                                             }
                                         }
                                     }
@@ -1383,7 +1379,7 @@ impl App {
         let app_sender = self.app_sender.clone();
         thread::spawn(move || {
             while let Ok(r) = request_recv.recv() {
-                if let Err(ipc::Disconnected) = app_sender.request(r) {
+                if let Err(ipc::ViewChannelError::Disconnected) = app_sender.request(r) {
                     break;
                 }
             }
@@ -1511,11 +1507,9 @@ impl App {
         if let Some(w) = self.windows.iter_mut().find(|w| w.id() == window_id) {
             let r = w.on_frame_ready(msg, &mut self.image_cache);
 
-            let _ = self.event_sender.send(Event::FrameRendered(EventFrameRendered {
-                window: window_id,
-                frame: r.frame_id,
-                frame_image: r.image,
-            }));
+            let _ = self
+                .event_sender
+                .send(Event::FrameRendered(EventFrameRendered::new(window_id, r.frame_id, r.image)));
 
             if r.first_frame {
                 let size = w.size();
@@ -1524,11 +1518,7 @@ impl App {
         } else if let Some(s) = self.surfaces.iter_mut().find(|w| w.id() == window_id) {
             let (frame_id, image) = s.on_frame_ready(msg, &mut self.image_cache);
 
-            self.notify(Event::FrameRendered(EventFrameRendered {
-                window: window_id,
-                frame: frame_id,
-                frame_image: image,
-            }))
+            self.notify(Event::FrameRendered(EventFrameRendered::new(window_id, frame_id, image)))
         }
     }
 
@@ -1707,7 +1697,7 @@ impl App {
 
         self.surfaces.push(surf);
 
-        HeadlessOpenData { render_mode }
+        HeadlessOpenData::new(render_mode)
     }
 
     #[cfg(not(any(windows, target_os = "android")))]
@@ -1735,20 +1725,20 @@ impl Api for App {
         self.app_sender.send(AppEvent::InitDeviceEvents(device_events)).unwrap();
 
         let available_monitors = self.available_monitors();
-        self.notify(Event::Inited(Inited {
-            generation: vp_gen,
+        self.notify(Event::Inited(Inited::new(
+            vp_gen,
             is_respawn,
             available_monitors,
-            multi_click_config: config::multi_click_config(),
-            key_repeat_config: config::key_repeat_config(),
-            touch_config: config::touch_config(),
-            font_aa: config::font_aa(),
-            animations_config: config::animations_config(),
-            locale_config: config::locale_config(),
-            colors_config: config::colors_config(),
-            chrome_config: config::chrome_config(),
-            extensions: self.exts.api_extensions(),
-        }));
+            config::multi_click_config(),
+            config::key_repeat_config(),
+            config::touch_config(),
+            config::font_aa(),
+            config::animations_config(),
+            config::locale_config(),
+            config::colors_config(),
+            config::chrome_config(),
+            self.exts.api_extensions(),
+        )));
     }
 
     fn exit(&mut self) {
@@ -1769,30 +1759,30 @@ impl Api for App {
 
         if self.headless {
             let id = config.id;
-            let data = self.open_headless_impl(HeadlessRequest {
-                id: config.id,
-                scale_factor: Factor(1.0),
-                size: config.state.restore_rect.size,
-                render_mode: config.render_mode,
-                extensions: config.extensions,
-            });
-            let msg = WindowOpenData {
-                render_mode: data.render_mode,
-                monitor: None,
-                position: (PxPoint::zero(), DipPoint::zero()),
-                size: config.state.restore_rect.size,
-                scale_factor: Factor(1.0),
-                safe_padding: DipSideOffsets::zero(),
-                state: WindowStateAll {
-                    state: WindowState::Fullscreen,
-                    global_position: PxPoint::zero(),
-                    restore_rect: DipRect::from_size(config.state.restore_rect.size),
-                    restore_state: WindowState::Fullscreen,
-                    min_size: DipSize::zero(),
-                    max_size: DipSize::new(Dip::MAX, Dip::MAX),
-                    chrome_visible: false,
-                },
-            };
+            let data = self.open_headless_impl(HeadlessRequest::new(
+                config.id,
+                Factor(1.0),
+                config.state.restore_rect.size,
+                config.render_mode,
+                config.extensions,
+            ));
+            let msg = WindowOpenData::new(
+                WindowStateAll::new(
+                    WindowState::Fullscreen,
+                    PxPoint::zero(),
+                    DipRect::from_size(config.state.restore_rect.size),
+                    WindowState::Fullscreen,
+                    DipSize::zero(),
+                    DipSize::new(Dip::MAX, Dip::MAX),
+                    false,
+                ),
+                None,
+                (PxPoint::zero(), DipPoint::zero()),
+                config.state.restore_rect.size,
+                Factor(1.0),
+                data.render_mode,
+                DipSideOffsets::zero(),
+            );
 
             self.notify(Event::WindowOpened(id, msg));
         } else {
@@ -1819,15 +1809,15 @@ impl Api for App {
                 self.app_sender.clone(),
             );
 
-            let msg = WindowOpenData {
-                monitor: win.monitor().map(|h| self.monitor_id(&h)),
-                position: win.inner_position(),
-                size: win.size(),
-                scale_factor: win.scale_factor(),
-                render_mode: win.render_mode(),
-                state: win.state(),
-                safe_padding: win.safe_padding(),
-            };
+            let msg = WindowOpenData::new(
+                win.state(),
+                win.monitor().map(|h| self.monitor_id(&h)),
+                win.inner_position(),
+                win.size(),
+                win.scale_factor(),
+                win.render_mode(),
+                win.safe_padding(),
+            );
 
             self.windows.push(win);
 
@@ -2103,13 +2093,13 @@ impl Api for App {
 
                 let bitmap = clipboard_win::get(clipboard_win::formats::Bitmap).map_err(util::clipboard_win_to_clip)?;
 
-                let id = self.image_cache.add(ImageRequest {
-                    format: image::ImageDataFormat::FileExtension(Txt::from_str("bmp")),
-                    data: IpcBytes::from_vec(bitmap),
-                    max_decoded_len: u64::MAX,
-                    downscale: None,
-                    mask: None,
-                });
+                let id = self.image_cache.add(ImageRequest::new(
+                    image::ImageDataFormat::FileExtension(Txt::from_str("bmp")),
+                    IpcBytes::from_vec(bitmap),
+                    u64::MAX,
+                    None,
+                    None,
+                ));
                 Ok(clipboard::ClipboardData::Image(id))
             }
             clipboard::ClipboardType::FileList => {
@@ -2120,6 +2110,7 @@ impl Api for App {
                     .map(clipboard::ClipboardData::FileList)
             }
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
+            _ => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
@@ -2156,6 +2147,7 @@ impl Api for App {
                     .map_err(util::clipboard_win_to_clip)
             }
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
+            _ => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
@@ -2173,20 +2165,21 @@ impl Api for App {
                 for rgba in data.chunks_exact_mut(4) {
                     rgba.swap(0, 2); // to bgra
                 }
-                let id = self.image_cache.add(image::ImageRequest {
-                    format: image::ImageDataFormat::Bgra8 {
+                let id = self.image_cache.add(image::ImageRequest::new(
+                    image::ImageDataFormat::Bgra8 {
                         size: zng_unit::PxSize::new(Px(bitmap.width as _), Px(bitmap.height as _)),
                         ppi: None,
                     },
-                    data: IpcBytes::from_vec(data),
-                    max_decoded_len: u64::MAX,
-                    downscale: None,
-                    mask: None,
-                });
+                    IpcBytes::from_vec(data),
+                    u64::MAX,
+                    None,
+                    None,
+                ));
                 Ok(clipboard::ClipboardData::Image(id))
             }
             clipboard::ClipboardType::FileList => Err(clipboard::ClipboardError::NotSupported),
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
+            _ => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
@@ -2215,6 +2208,7 @@ impl Api for App {
             }
             clipboard::ClipboardData::FileList(_) => Err(clipboard::ClipboardError::NotSupported),
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
+            _ => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
@@ -2351,27 +2345,31 @@ pub(crate) enum AppEventSender {
 }
 impl AppEventSender {
     /// Send an event.
-    fn send(&self, ev: AppEvent) -> Result<(), ipc::Disconnected> {
+    fn send(&self, ev: AppEvent) -> Result<(), ipc::ViewChannelError> {
         match self {
-            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(|_| ipc::Disconnected),
-            AppEventSender::Headless(p, _) => p.send(ev).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headless(p, _) => p.send(ev).map_err(|_| ipc::ViewChannelError::Disconnected),
         }
     }
 
     /// Send a request.
-    fn request(&self, req: Request) -> Result<(), ipc::Disconnected> {
+    fn request(&self, req: Request) -> Result<(), ipc::ViewChannelError> {
         match self {
-            AppEventSender::Headed(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::Disconnected),
-            AppEventSender::Headless(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headed(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headless(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::ViewChannelError::Disconnected),
         }?;
         self.send(AppEvent::Request)
     }
 
     /// Send a frame-ready.
-    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), ipc::Disconnected> {
+    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), ipc::ViewChannelError> {
         match self {
-            AppEventSender::Headed(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| ipc::Disconnected),
-            AppEventSender::Headless(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headed(_, p) => p
+                .send(RequestEvent::FrameReady(window_id, msg))
+                .map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headless(_, p) => p
+                .send(RequestEvent::FrameReady(window_id, msg))
+                .map_err(|_| ipc::ViewChannelError::Disconnected),
         }?;
         self.send(AppEvent::Request)
     }

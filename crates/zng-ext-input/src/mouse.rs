@@ -567,6 +567,7 @@ impl MouseWheelArgs {
             match self.delta {
                 MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(y, x),
                 MouseScrollDelta::PixelDelta(x, y) => MouseScrollDelta::PixelDelta(y, x),
+                _ => unimplemented!(),
             }
         } else {
             self.delta
@@ -597,6 +598,7 @@ impl MouseWheelArgs {
             delta = match delta {
                 MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(x * alt_factor.0, y * alt_factor.0),
                 MouseScrollDelta::PixelDelta(x, y) => MouseScrollDelta::PixelDelta(x * alt_factor.0, y * alt_factor.0),
+                _ => return None,
             };
         }
 
@@ -606,6 +608,7 @@ impl MouseWheelArgs {
             Some(match delta {
                 MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::LineDelta(y, x),
                 MouseScrollDelta::PixelDelta(x, y) => MouseScrollDelta::PixelDelta(y, x),
+                _ => return None,
             })
         } else {
             None

@@ -117,6 +117,7 @@ pub fn init(about: About) -> impl Drop {
 ///
 /// See [`about`] for more details.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct About {
     /// package.name
     pub pkg_name: Txt,

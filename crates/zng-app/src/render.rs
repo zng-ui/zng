@@ -577,7 +577,7 @@ impl FrameBuilder {
                     });
 
                     let current_wgt = tree.get(id).unwrap();
-                    let z_patch = self.widget_z as i64 - current_wgt.z_index().map(|(b, _)| b.0 as i64).unwrap_or(0);
+                    let z_patch = self.widget_z as i64 - current_wgt.z_index().map(|(b, _)| u32::from(b) as i64).unwrap_or(0);
 
                     let update_transforms = transform_patch.is_some();
                     let seg_id = builder.widget_count_offsets.id();
@@ -603,8 +603,8 @@ impl FrameBuilder {
 
                             if let Some(i) = b.render_info() {
                                 let (back, front) = info.z_index().unwrap();
-                                let back = back.0 as i64 + z_patch;
-                                let front = front.0 as i64 + z_patch;
+                                let back = u32::from(back) as i64 + z_patch;
+                                let front = u32::from(front) as i64 + z_patch;
 
                                 b.set_rendered(
                                     Some(WidgetRenderInfo {
@@ -631,8 +631,8 @@ impl FrameBuilder {
 
                             if let Some(i) = bounds.render_info() {
                                 let (back, front) = info.z_index().unwrap();
-                                let mut back = back.0 as i64 + z_patch;
-                                let mut front = front.0 as i64 + z_patch;
+                                let mut back = u32::from(back) as i64 + z_patch;
+                                let mut front = u32::from(front) as i64 + z_patch;
                                 if back < 0 {
                                     tracing::error!("incorrect back Z-index ({back}) after patch ({z_patch})");
                                     back = 0;
@@ -1539,14 +1539,14 @@ impl FrameBuilder {
             if !glyphs.is_empty() && self.visible && !font.is_empty_fallback() {
                 let font_id = font.renderer_id(r, synthesis);
 
-                let opts = GlyphOptions {
-                    aa: match aa {
+                let opts = GlyphOptions::new(
+                    match aa {
                         FontAntiAliasing::Default => self.default_font_aa,
                         aa => aa,
                     },
-                    synthetic_bold: synthesis.contains(FontSynthesis::BOLD),
-                    synthetic_oblique: synthesis.contains(FontSynthesis::OBLIQUE),
-                };
+                    synthesis.contains(FontSynthesis::BOLD),
+                    synthesis.contains(FontSynthesis::OBLIQUE),
+                );
                 self.display_list.push_text(clip_rect, font_id, glyphs, color, opts);
             }
         }
@@ -2272,6 +2272,7 @@ impl HitTestBuilder<'_> {
 }
 
 /// Output of a [`FrameBuilder`].
+#[non_exhaustive]
 pub struct BuiltFrame {
     /// Built display list.
     pub display_list: DisplayList,
@@ -2862,6 +2863,7 @@ impl FrameUpdate {
 }
 
 /// Output of a [`FrameBuilder`].
+#[non_exhaustive]
 pub struct BuiltFrameUpdate {
     /// Bound transforms update.
     pub transforms: Vec<FrameValueUpdate<PxTransform>>,
@@ -3063,11 +3065,7 @@ impl<T> FrameValueKey<T> {
     ///
     /// [`update`]: Self::update
     pub fn update_child(self, child_index: u32, value: T, animating: bool) -> FrameValueUpdate<T> {
-        FrameValueUpdate {
-            id: self.to_wr_child(child_index),
-            value,
-            animating,
-        }
+        FrameValueUpdate::new(self.to_wr_child(child_index), value, animating)
     }
 
     /// Create a binding with this key and `var`.
@@ -3127,11 +3125,11 @@ impl<T> FrameValueKey<T> {
         map: impl FnOnce(&VT) -> T,
     ) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(VarCapability::NEW) {
-            Some(FrameValueUpdate {
-                id: self.to_wr_child(child_index),
-                value: var.with(map),
-                animating: var.is_animating(),
-            })
+            Some(FrameValueUpdate::new(
+                self.to_wr_child(child_index),
+                var.with(map),
+                var.is_animating(),
+            ))
         } else {
             None
         }
@@ -3147,11 +3145,7 @@ impl<T> FrameValueKey<T> {
     /// [`update_var_mapped`]: Self::update_var_mapped
     pub fn update_var_mapped_child<VT: VarValue>(self, child_index: u32, var: &impl Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(VarCapability::NEW) {
-            Some(FrameValueUpdate {
-                id: self.to_wr_child(child_index),
-                value,
-                animating: var.is_animating(),
-            })
+            Some(FrameValueUpdate::new(self.to_wr_child(child_index), value, var.is_animating()))
         } else {
             None
         }

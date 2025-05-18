@@ -88,7 +88,7 @@ impl TryFrom<serde_toml::Value> for RawConfigValue {
             serde_toml::Value::Integer(n) => serde_json::Value::Number(n.into()),
             serde_toml::Value::Float(f) => match serde_json::Number::from_f64(f) {
                 Some(f) => serde_json::Value::Number(f),
-                None => return Err(TomlValueRawError::InvalidFloat(f)),
+                None => return Err(TomlValueRawError::UnsupportedFloat(f)),
             },
             serde_toml::Value::Boolean(b) => serde_json::Value::Bool(b),
             serde_toml::Value::Datetime(d) => serde_json::Value::String(d.to_string()),
@@ -123,7 +123,7 @@ impl TryFrom<RawConfigValue> for serde_toml::Value {
                     serde_toml::Value::Integer(n)
                 } else if let Some(n) = n.as_u64() {
                     if n > i64::MAX as u64 {
-                        return Err(TomlValueRawError::InvalidInt(n));
+                        return Err(TomlValueRawError::UnsupportedInt(n));
                     }
                     serde_toml::Value::Integer(n as i64)
                 } else if let Some(n) = n.as_f64() {
@@ -164,20 +164,22 @@ impl TryFrom<RawConfigValue> for serde_toml::Value {
 
 /// Error converting toml::Value, RawConfigValue.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub enum TomlValueRawError {
     /// JSON only supports finite floats.
-    InvalidFloat(f64),
+    UnsupportedFloat(f64),
     /// TOML does not support `null`.
     Null,
     /// TOML only supports integers up to `i64::MAX`.
-    InvalidInt(u64),
+    UnsupportedInt(u64),
 }
 impl fmt::Display for TomlValueRawError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "error converting toml to internal json, ")?;
         match self {
-            TomlValueRawError::InvalidFloat(fl) => write!(f, "json does not support float `{fl}`"),
+            TomlValueRawError::UnsupportedFloat(fl) => write!(f, "json does not support float `{fl}`"),
             TomlValueRawError::Null => write!(f, "toml does not support `null`"),
-            TomlValueRawError::InvalidInt(i) => write!(f, "toml does not support int > i64::MAX ({i})"),
+            TomlValueRawError::UnsupportedInt(i) => write!(f, "toml does not support int > i64::MAX ({i})"),
         }
     }
 }

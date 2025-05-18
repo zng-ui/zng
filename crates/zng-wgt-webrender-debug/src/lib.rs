@@ -53,6 +53,7 @@ pub fn renderer_debug(child: impl UiNode, debug: impl IntoVar<RendererDebug>) ->
 
 /// Webrender renderer debug flags and profiler UI.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct RendererDebug {
     /// Debug flags.
     #[serde(with = "serde_debug_flags")]

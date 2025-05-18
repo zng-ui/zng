@@ -1604,6 +1604,7 @@ impl<T: Send + Sync + 'static> ContextLocalKeyProvider for ContextLocal<T> {
 /// Represents the [`tracing::dispatcher::get_default`] dispatcher in a context value set.
 ///
 /// [`tracing::dispatcher::get_default`]: https://docs.rs/tracing/latest/tracing/dispatcher/fn.get_global_default.html
+#[allow(clippy::exhaustive_structs)]
 pub struct TracingDispatcherContext;
 
 impl ContextLocalKeyProvider for TracingDispatcherContext {

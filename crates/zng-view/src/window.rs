@@ -937,6 +937,7 @@ impl Window {
             self.window.request_user_attention(request.map(|r| match r {
                 FocusIndicator::Critical => winit::window::UserAttentionType::Critical,
                 FocusIndicator::Info => winit::window::UserAttentionType::Informational,
+                _ => winit::window::UserAttentionType::Informational,
             }));
         }
     }
@@ -1589,6 +1590,7 @@ impl Window {
             FrameCapture::None => None,
             FrameCapture::Full => Some(None),
             FrameCapture::Mask(m) => Some(Some(m)),
+            _ => None,
         };
         let image = if let Some(mask) = capture {
             let _s = tracing::trace_span!("capture_image").entered();
@@ -1819,11 +1821,13 @@ impl Window {
                 dlg_api::MsgDialogIcon::Info => rfd::MessageLevel::Info,
                 dlg_api::MsgDialogIcon::Warn => rfd::MessageLevel::Warning,
                 dlg_api::MsgDialogIcon::Error => rfd::MessageLevel::Error,
+                _ => rfd::MessageLevel::Info,
             })
             .set_buttons(match dialog.buttons {
                 dlg_api::MsgDialogButtons::Ok => rfd::MessageButtons::Ok,
                 dlg_api::MsgDialogButtons::OkCancel => rfd::MessageButtons::OkCancel,
                 dlg_api::MsgDialogButtons::YesNo => rfd::MessageButtons::YesNo,
+                _ => rfd::MessageButtons::Ok,
             })
             .set_title(dialog.title.as_str())
             .set_description(dialog.message.as_str())
@@ -1849,6 +1853,7 @@ impl Window {
                     rfd::MessageDialogResult::Cancel => dlg_api::MsgDialogResponse::No,
                     rfd::MessageDialogResult::Custom(_) => dlg_api::MsgDialogResponse::No,
                 },
+                _ => dlg_api::MsgDialogResponse::Ok,
             };
             modal_dialog_active.store(false, Ordering::Release);
             let _ = event_sender.send(AppEvent::Notify(Event::MsgDialogResponse(id, r)));
@@ -1896,6 +1901,7 @@ impl Window {
                 dlg_api::FileDialogKind::SelectFolder => dlg.pick_folder().await.into_iter().map(Into::into).collect(),
                 dlg_api::FileDialogKind::SelectFolders => dlg.pick_folders().await.into_iter().flatten().map(Into::into).collect(),
                 dlg_api::FileDialogKind::SaveFile => dlg.save_file().await.into_iter().map(Into::into).collect(),
+                _ => vec![],
             };
 
             let r = if selection.is_empty() {

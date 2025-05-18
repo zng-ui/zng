@@ -44,7 +44,7 @@ use zng_task::UiTask;
 use zng_txt::{ToTxt, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
 use zng_var::{AnyVar, AnyWeakVar, ArcVar, Var, WeakVar, types::WeakArcVar, var};
-use zng_view_api::{ViewProcessOffline, image::ImageRequest, ipc::IpcBytes};
+use zng_view_api::{image::ImageRequest, ipc::IpcBytes};
 
 /// Application extension that provides an image cache.
 ///
@@ -54,6 +54,7 @@ use zng_view_api::{ViewProcessOffline, image::ImageRequest, ipc::IpcBytes};
 ///
 /// * [`IMAGES`]
 #[derive(Default)]
+#[non_exhaustive]
 pub struct ImageManager {}
 impl AppExtension for ImageManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -144,17 +145,17 @@ impl AppExtension for ImageManager {
                     } else if let Some(task) = decoding_interrupted.iter().find(|e| e.image.with(|img| img.view() == Some(view))) {
                         // respawned, but image was decoding, need to restart decode.
 
-                        match VIEW_PROCESS.add_image(ImageRequest {
-                            format: task.format.clone(),
-                            data: task.data.clone(),
-                            max_decoded_len: max_decoded_len.0 as u64,
+                        match VIEW_PROCESS.add_image(ImageRequest::new(
+                            task.format.clone(),
+                            task.data.clone(),
+                            max_decoded_len.0 as u64,
                             downscale,
                             mask,
-                        }) {
+                        )) {
                             Ok(img) => {
                                 img_var.set(Img::new(img));
                             }
-                            Err(ViewProcessOffline) => { /*will receive another event.*/ }
+                            Err(_) => { /*will receive another event.*/ }
                         }
                         images.decoding.push(ImageDecodingTask {
                             format: task.format.clone(),
@@ -174,15 +175,15 @@ impl AppExtension for ImageManager {
                         };
 
                         let data = view.pixels().unwrap();
-                        let img = match VIEW_PROCESS.add_image(ImageRequest {
-                            format: img_format.clone(),
-                            data: data.clone(),
-                            max_decoded_len: max_decoded_len.0 as u64,
+                        let img = match VIEW_PROCESS.add_image(ImageRequest::new(
+                            img_format.clone(),
+                            data.clone(),
+                            max_decoded_len.0 as u64,
                             downscale,
                             mask,
-                        }) {
+                        )) {
                             Ok(img) => img,
-                            Err(ViewProcessOffline) => return, // we will receive another event.
+                            Err(_) => return, // we will receive another event.
                         };
 
                         img_var.set(Img::new(img));
@@ -231,13 +232,13 @@ impl AppExtension for ImageManager {
 
                             if VIEW_PROCESS.is_available() {
                                 // success and we have a view-process.
-                                match VIEW_PROCESS.add_image(ImageRequest {
-                                    format: d.format.clone(),
-                                    data: data.clone(),
-                                    max_decoded_len: t.max_decoded_len.0 as u64,
-                                    downscale: t.downscale,
-                                    mask: t.mask,
-                                }) {
+                                match VIEW_PROCESS.add_image(ImageRequest::new(
+                                    d.format.clone(),
+                                    data.clone(),
+                                    t.max_decoded_len.0 as u64,
+                                    t.downscale,
+                                    t.mask,
+                                )) {
                                     Ok(img) => {
                                         // request sent, add to `decoding` will receive
                                         // `RawImageLoadedEvent` or `RawImageLoadErrorEvent` event
@@ -246,7 +247,7 @@ impl AppExtension for ImageManager {
                                             v.to_mut().view.set(img).unwrap();
                                         });
                                     }
-                                    Err(ViewProcessOffline) => {
+                                    Err(_) => {
                                         // will recover in ViewProcessInitedEvent
                                     }
                                 }

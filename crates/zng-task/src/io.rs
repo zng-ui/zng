@@ -144,6 +144,7 @@ impl<T: AsyncWrite + Unpin> AsyncWrite for Measure<T> {
 ///
 /// Use [`Measure`] to measure a task.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Metrics {
     /// Number of bytes read / estimated total.
     pub read_progress: (ByteLength, ByteLength),

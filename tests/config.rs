@@ -170,10 +170,7 @@ fn test_view_api_types() {
     test_config!(CursorIcon::Alias);
     test_config!(WindowState::Normal);
 
-    test_config!(zng_wgt_webrender_debug::RendererDebug {
-        flags: zng_wgt_webrender_debug::DebugFlags::DISABLE_ALPHA_PASS | zng_wgt_webrender_debug::DebugFlags::DISABLE_BATCHING,
-        profiler_ui: "default".to_owned()
-    });
+    test_config!(zng_wgt_webrender_debug::RendererDebug::default());
 }
 
 fn test_core_app() {

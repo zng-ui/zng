@@ -20,3 +20,6 @@ zng-wgt = { path = "../zng-wgt", version = "0.7.3" }
 zng-app = { path = "../zng-app", version = "0.15.3" }
 
 tracing = "0.1"
+
+[lints.clippy]
+exhaustive_structs = "warn"

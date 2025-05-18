@@ -36,16 +36,24 @@ pub struct MarkdownStyle {
 /// The text can be inside a paragraph, heading, list item or any other markdown block item.
 ///
 /// See [`TEXT_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct TextFnArgs {
     /// The text run.
     pub txt: Txt,
     /// The style.
     pub style: MarkdownStyle,
 }
+impl TextFnArgs {
+    /// New args.
+    pub fn new(txt: impl Into<Txt>, style: MarkdownStyle) -> Self {
+        Self { txt: txt.into(), style }
+    }
+}
 
 /// Arguments for a markdown inlined link view.
 ///
 /// See [`LINK_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct LinkFnArgs {
     /// The link.
     pub url: Txt,
@@ -56,40 +64,75 @@ pub struct LinkFnArgs {
     /// Inline items.
     pub items: UiVec,
 }
+impl LinkFnArgs {
+    /// New args.
+    pub fn new(url: impl Into<Txt>, title: impl Into<Txt>, items: UiVec) -> Self {
+        Self {
+            url: url.into(),
+            title: title.into(),
+            items,
+        }
+    }
+}
 
 /// Arguments for a markdown inlined code text view.
 ///
 /// The text can be inside a paragraph, heading, list item or any other markdown block item.
 ///
 /// See [`CODE_INLINE_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct CodeInlineFnArgs {
     /// The code text run.
     pub txt: Txt,
     /// The style.
     pub style: MarkdownStyle,
 }
+impl CodeInlineFnArgs {
+    /// New args.
+    pub fn new(txt: impl Into<Txt>, style: MarkdownStyle) -> Self {
+        Self { txt: txt.into(), style }
+    }
+}
 
 /// Arguments for a markdown code block view.
 ///
 /// See [`CODE_BLOCK_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct CodeBlockFnArgs {
     /// Code language, can be empty.
     pub lang: Txt,
     /// Raw text.
     pub txt: Txt,
 }
+impl CodeBlockFnArgs {
+    /// New args.
+    pub fn new(lang: impl Into<Txt>, txt: impl Into<Txt>) -> Self {
+        Self {
+            lang: lang.into(),
+            txt: txt.into(),
+        }
+    }
+}
 
 /// Arguments for a markdown paragraph view.
 ///
 /// See [`PARAGRAPH_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct ParagraphFnArgs {
     /// Zero-sized index of the paragraph.
     pub index: u32,
     /// Inline items.
     pub items: UiVec,
 }
+impl ParagraphFnArgs {
+    /// New args.
+    pub fn new(index: u32, items: UiVec) -> Self {
+        Self { index, items }
+    }
+}
 
 /// Arguments for a markdown heading view.
+#[non_exhaustive]
 pub struct HeadingFnArgs {
     /// Level.
     pub level: HeadingLevel,
@@ -100,8 +143,19 @@ pub struct HeadingFnArgs {
     /// Inline items.
     pub items: UiVec,
 }
+impl HeadingFnArgs {
+    /// New args.
+    pub fn new(level: HeadingLevel, anchor: impl Into<Txt>, items: UiVec) -> Self {
+        Self {
+            level,
+            anchor: anchor.into(),
+            items,
+        }
+    }
+}
 
 /// Arguments for a markdown list view.
+#[non_exhaustive]
 pub struct ListFnArgs {
     /// Nested list depth, starting from zero for the outer-list.
     pub depth: u32,
@@ -114,9 +168,16 @@ pub struct ListFnArgs {
     /// Each two items are the bullet or number followed by the item.
     pub items: UiVec,
 }
+impl ListFnArgs {
+    /// New args.
+    pub fn new(depth: u32, first_num: Option<u64>, items: UiVec) -> Self {
+        Self { depth, first_num, items }
+    }
+}
 
 /// Arguments for a markdown list item bullet, check mark or number.
 #[derive(Clone, Copy)]
+#[non_exhaustive]
 pub struct ListItemBulletFnArgs {
     /// Nested list depth, starting from zero for items in the outer-list.
     pub depth: u32,
@@ -127,8 +188,15 @@ pub struct ListItemBulletFnArgs {
     /// If the list is checked. `Some(true)` is `[x]` and `Some(false)` is `[ ]`.
     pub checked: Option<bool>,
 }
+impl ListItemBulletFnArgs {
+    /// New args.
+    pub fn new(depth: u32, num: Option<u64>, checked: Option<bool>) -> Self {
+        Self { depth, num, checked }
+    }
+}
 
 /// Arguments for a markdown list item view.
+#[non_exhaustive]
 pub struct ListItemFnArgs {
     /// Copy of the bullet args.
     pub bullet: ListItemBulletFnArgs,
@@ -139,28 +207,56 @@ pub struct ListItemFnArgs {
     /// Inner block items, paragraphs and nested lists.
     pub blocks: UiVec,
 }
+impl ListItemFnArgs {
+    /// New args.
+    pub fn new(bullet: ListItemBulletFnArgs, items: UiVec, blocks: UiVec) -> Self {
+        Self { bullet, items, blocks }
+    }
+}
 
 /// Arguments for a markdown definition list.
+#[non_exhaustive]
 pub struct DefListArgs {
     /// List items.
     ///
     /// Each two items are the title and definition.
     pub items: UiVec,
 }
+impl DefListArgs {
+    /// New args.
+    pub fn new(items: UiVec) -> Self {
+        Self { items }
+    }
+}
 
 /// Arguments for a markdown definition list item title.
+#[non_exhaustive]
 pub struct DefListItemTitleArgs {
     /// Inline items of the title.
     pub items: UiVec,
 }
+impl DefListItemTitleArgs {
+    /// New args.
+    pub fn new(items: UiVec) -> Self {
+        Self { items }
+    }
+}
 
 /// Arguments for a markdown definition list item description.
+#[non_exhaustive]
 pub struct DefListItemDefinitionArgs {
     /// Inline items of the description.
     pub items: UiVec,
 }
+impl DefListItemDefinitionArgs {
+    /// New args.
+    pub fn new(items: UiVec) -> Self {
+        Self { items }
+    }
+}
 
 /// Arguments for a markdown image view.
+#[non_exhaustive]
 pub struct ImageFnArgs {
     /// Image, resolved by the [`image_resolver`].
     ///
@@ -173,13 +269,27 @@ pub struct ImageFnArgs {
     /// Alt items in text form.
     pub alt_txt: Txt,
 }
+impl ImageFnArgs {
+    /// New args.
+    pub fn new(source: ImageSource, title: impl Into<Txt>, alt_items: UiVec, alt_txt: impl Into<Txt>) -> Self {
+        Self {
+            source,
+            title: title.into(),
+            alt_items,
+            alt_txt: alt_txt.into(),
+        }
+    }
+}
 
 /// Arguments for a markdown rule view.
 ///
 /// Currently no args.
+#[derive(Default)]
+#[non_exhaustive]
 pub struct RuleFnArgs {}
 
 /// Arguments for a markdown block quote view.
+#[non_exhaustive]
 pub struct BlockQuoteFnArgs {
     /// Number of *parent* quotes in case of nesting.
     ///
@@ -191,36 +301,67 @@ pub struct BlockQuoteFnArgs {
     /// Block items.
     pub items: UiVec,
 }
+impl BlockQuoteFnArgs {
+    /// New args.
+    pub fn new(level: u32, items: UiVec) -> Self {
+        Self { level, items }
+    }
+}
 
 /// Arguments for a markdown footnote reference view.
+#[non_exhaustive]
 pub struct FootnoteRefFnArgs {
     /// Footnote referenced.
     pub label: Txt,
+}
+impl FootnoteRefFnArgs {
+    /// New args.
+    pub fn new(label: impl Into<Txt>) -> Self {
+        Self { label: label.into() }
+    }
 }
 
 /// Arguments for a markdown footnote definition view.
 ///
 /// See [`PARAGRAPH_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct FootnoteDefFnArgs {
     /// Identifier label.
     pub label: Txt,
     /// Block items.
     pub items: UiVec,
 }
+impl FootnoteDefFnArgs {
+    /// New args.
+    pub fn new(label: impl Into<Txt>, items: UiVec) -> Self {
+        Self {
+            label: label.into(),
+            items,
+        }
+    }
+}
 
 /// Arguments for a markdown table view.
 ///
 /// See [`TABLE_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct TableFnArgs {
     /// Column definitions with align.
     pub columns: Vec<Align>,
     /// Cell items.
     pub cells: UiVec,
 }
+impl TableFnArgs {
+    /// New args.
+    pub fn new(columns: Vec<Align>, cells: UiVec) -> Self {
+        Self { columns, cells }
+    }
+}
 
 /// Arguments for a markdown table cell view.
 ///
 /// See [`TABLE_CELL_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct TableCellFnArgs {
     /// If the cell is inside the header row.
     pub is_heading: bool,
@@ -231,13 +372,30 @@ pub struct TableCellFnArgs {
     /// Inline items.
     pub items: UiVec,
 }
+impl TableCellFnArgs {
+    /// New args.
+    pub fn new(is_heading: bool, col_align: Align, items: UiVec) -> Self {
+        Self {
+            is_heading,
+            col_align,
+            items,
+        }
+    }
+}
 
 /// Arguments for a markdown panel.
 ///
 /// See [`PANEL_FN_VAR`] for more details.
+#[non_exhaustive]
 pub struct PanelFnArgs {
     /// Block items.
     pub items: UiVec,
+}
+impl PanelFnArgs {
+    /// New args.
+    pub fn new(items: UiVec) -> Self {
+        Self { items }
+    }
 }
 
 context_var! {

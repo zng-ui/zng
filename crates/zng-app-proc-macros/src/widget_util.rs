@@ -589,11 +589,9 @@ impl Parse for WidgetCustomRule {
 // expansion of `macro_rules! source_location`
 pub fn source_location(crate_core: &TokenStream, location: Span) -> TokenStream {
     let source_location = quote_spanned! {location=>
-        #crate_core::widget::builder::SourceLocation {
-            file: std::file!(),
-            line: std::line!(),
-            column: std::column!(),
-        }
+        #crate_core::widget::builder::SourceLocation::new(
+            std::file!(), std::line!(), std::column!(),
+        )
     };
     util::set_stream_span(source_location, location)
 }

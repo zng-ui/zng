@@ -40,9 +40,10 @@ use zng_layout::{
 use zng_state_map::StateId;
 use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
 use zng_view_api::{
-    DragDropId, FocusResult, Ime, ViewProcessOffline,
+    DragDropId, FocusResult, Ime,
     config::{ColorScheme, FontAntiAliasing},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
+    ipc::ViewChannelError,
     window::{
         EventCause, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, RenderMode, WindowRequest,
         WindowState, WindowStateAll,
@@ -151,7 +152,7 @@ impl HeadedCtrl {
 
     fn update_gen(&mut self, update: impl FnOnce(&ViewWindow) + Send + 'static) {
         if let Some(view) = &self.window {
-            // view is online, just update.
+            // view is ready, just update.
             update(view);
         } else if self.waiting_view {
             // update after view requested, but still not ready. Will apply when the view is received
@@ -357,10 +358,9 @@ impl HeadedCtrl {
         if let Some(ico) = self.vars.icon().get_new() {
             self.img_res.icon_var = match ico {
                 WindowIcon::Default => None,
-                WindowIcon::Image(ImageSource::Render(ico, _)) => Some(IMAGES.cache(ImageSource::Render(
-                    ico.clone(),
-                    Some(ImageRenderArgs { parent: Some(WINDOW.id()) }),
-                ))),
+                WindowIcon::Image(ImageSource::Render(ico, _)) => {
+                    Some(IMAGES.cache(ImageSource::Render(ico.clone(), Some(ImageRenderArgs::new(WINDOW.id())))))
+                }
                 WindowIcon::Image(source) => Some(IMAGES.cache(source)),
             };
 
@@ -398,10 +398,9 @@ impl HeadedCtrl {
                 }
                 crate::CursorSource::Img(img) => {
                     self.img_res.cursor_var = Some(match img.source {
-                        ImageSource::Render(cur, _) => IMAGES.cache(ImageSource::Render(
-                            cur.clone(),
-                            Some(ImageRenderArgs { parent: Some(WINDOW.id()) }),
-                        )),
+                        ImageSource::Render(cur, _) => {
+                            IMAGES.cache(ImageSource::Render(cur.clone(), Some(ImageRenderArgs::new(WINDOW.id()))))
+                        }
                         source => IMAGES.cache(source),
                     });
 
@@ -929,11 +928,11 @@ impl HeadedCtrl {
         if let Some(view) = &self.window {
             let info = WINDOW.info();
             if info.access_enabled().is_enabled() {
-                let _ = view.access_update(zng_view_api::access::AccessTreeUpdate {
-                    updates: vec![],
-                    full_root: None,
-                    focused: self.accessible_focused(&info).unwrap_or(info.root().id()).into(),
-                });
+                let _ = view.access_update(zng_view_api::access::AccessTreeUpdate::new(
+                    vec![],
+                    None,
+                    self.accessible_focused(&info).unwrap_or(info.root().id()).into(),
+                ));
             }
         }
     }
@@ -1120,57 +1119,53 @@ impl HeadedCtrl {
         let m_position = (position - screen_rect.origin.to_vector()).to_dip(scale_factor);
         let size = size.to_dip(scale_factor);
 
-        let state = WindowStateAll {
+        let state = WindowStateAll::new(
             state,
-            global_position: position,
-            restore_rect: DipRect::new(m_position, size),
-            restore_state: WindowState::Normal,
-            min_size: min_size.to_dip(scale_factor),
-            max_size: max_size.to_dip(scale_factor),
-            chrome_visible: self.vars.chrome().get() && !WINDOWS.system_chrome().get().needs_custom(),
-        };
+            position,
+            DipRect::new(m_position, size),
+            WindowState::Normal,
+            min_size.to_dip(scale_factor),
+            max_size.to_dip(scale_factor),
+            self.vars.chrome().get() && !WINDOWS.system_chrome().get().needs_custom(),
+        );
 
         let window_id = WINDOW.id();
 
-        let request = WindowRequest {
-            id: zng_view_api::window::WindowId::from_raw(window_id.get()),
-            title: self.vars.title().get(),
-            state: state.clone(),
-            kiosk: self.kiosk.is_some(),
-            default_position: system_pos,
-            video_mode: self.vars.video_mode().get(),
-            visible: self.vars.visible().get(),
-            taskbar_visible: self.vars.taskbar_visible().get(),
-            always_on_top: self.vars.always_on_top().get(),
-            movable: self.vars.movable().get(),
-            resizable: self.vars.resizable().get(),
-            enabled_buttons: self.vars.enabled_buttons().get(),
-            icon: self
-                .img_res
+        let request = WindowRequest::new(
+            zng_view_api::window::WindowId::from_raw(window_id.get()),
+            self.vars.title().get(),
+            state.clone(),
+            self.kiosk.is_some(),
+            system_pos,
+            self.vars.video_mode().get(),
+            self.vars.visible().get(),
+            self.vars.taskbar_visible().get(),
+            self.vars.always_on_top().get(),
+            self.vars.movable().get(),
+            self.vars.resizable().get(),
+            self.img_res
                 .icon_var
                 .as_ref()
                 .and_then(|ico| ico.get().view().map(|ico| ico.id()))
                 .flatten(),
-            cursor: self.vars.cursor().with(|c| c.icon()),
-            cursor_image: self
-                .vars
+            self.vars.cursor().with(|c| c.icon()),
+            self.vars
                 .actual_cursor_img()
                 .get()
                 .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h))),
-            transparent: self.transparent,
-            capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
-
-            focus: self.start_focused,
-            focus_indicator: self.vars.focus_indicator().get(),
-            ime_area: self.ime_info.as_ref().and_then(|a| {
+            self.transparent,
+            matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
+            self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
+            self.vars.focus_indicator().get(),
+            self.start_focused,
+            self.ime_info.as_ref().and_then(|a| {
                 let area = WINDOW.info().get(a.target.widget_id())?.ime_area().to_dip(scale_factor);
                 Some(area)
             }),
-            system_shutdown_warn: self.vars.system_shutdown_warn().get(),
-
-            extensions: WINDOWS.take_view_extensions_init(window_id),
-        };
+            self.vars.enabled_buttons().get(),
+            self.vars.system_shutdown_warn().get(),
+            WINDOWS.take_view_extensions_init(window_id),
+        );
 
         if let Ok(()) = VIEW_PROCESS.open_window(request) {
             self.state = Some(state);
@@ -1255,47 +1250,42 @@ impl HeadedCtrl {
 
         let window_id = WINDOW.id();
 
-        let request = WindowRequest {
-            id: zng_view_api::window::WindowId::from_raw(window_id.get()),
-            title: self.vars.title().get(),
-            state: self.state.clone().unwrap(),
-            kiosk: self.kiosk.is_some(),
-            default_position: false,
-            video_mode: self.vars.video_mode().get(),
-            visible: self.vars.visible().get(),
-            taskbar_visible: self.vars.taskbar_visible().get(),
-            always_on_top: self.vars.always_on_top().get(),
-            movable: self.vars.movable().get(),
-            resizable: self.vars.resizable().get(),
-            enabled_buttons: self.vars.enabled_buttons().get(),
-            icon: self
-                .img_res
+        let request = WindowRequest::new(
+            zng_view_api::window::WindowId::from_raw(window_id.get()),
+            self.vars.title().get(),
+            self.state.clone().unwrap(),
+            self.kiosk.is_some(),
+            false,
+            self.vars.video_mode().get(),
+            self.vars.visible().get(),
+            self.vars.taskbar_visible().get(),
+            self.vars.always_on_top().get(),
+            self.vars.movable().get(),
+            self.vars.resizable().get(),
+            self.img_res
                 .icon_var
                 .as_ref()
                 .and_then(|ico| ico.get().view().map(|ico| ico.id()))
                 .flatten(),
-            cursor: self.vars.cursor().with(|c| c.icon()),
-            cursor_image: self
-                .vars
+            self.vars.cursor().with(|c| c.icon()),
+            self.vars
                 .actual_cursor_img()
                 .get()
                 .and_then(|(i, h)| i.view().and_then(|i| i.id()).map(|i| (i, h))),
-            transparent: self.transparent,
-            capture_mode: matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
-            render_mode: self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
-
-            focus: WINDOWS.is_focused(WINDOW.id()).unwrap_or(false),
-            focus_indicator: self.vars.focus_indicator().get(),
-
-            ime_area: self.ime_info.as_ref().and_then(|a| {
+            self.transparent,
+            matches!(self.vars.frame_capture_mode().get(), FrameCaptureMode::All),
+            self.render_mode.unwrap_or_else(|| WINDOWS.default_render_mode().get()),
+            self.vars.focus_indicator().get(),
+            WINDOWS.is_focused(WINDOW.id()).unwrap_or(false),
+            self.ime_info.as_ref().and_then(|a| {
                 let info = WINDOW.info();
                 let area = info.get(a.target.widget_id())?.ime_area().to_dip(info.scale_factor());
                 Some(area)
             }),
-            system_shutdown_warn: self.vars.system_shutdown_warn().get(),
-
-            extensions: WINDOWS.take_view_extensions_init(window_id),
-        };
+            self.vars.enabled_buttons().get(),
+            self.vars.system_shutdown_warn().get(),
+            WINDOWS.take_view_extensions_init(window_id),
+        );
 
         if let Ok(()) = VIEW_PROCESS.open_window(request) {
             self.waiting_view = true
@@ -1652,13 +1642,13 @@ impl HeadlessWithRendererCtrl {
 
             let window_id = WINDOW.id();
 
-            let r = VIEW_PROCESS.open_headless(HeadlessRequest {
-                id: zng_view_api::window::WindowId::from_raw(window_id.get()),
+            let r = VIEW_PROCESS.open_headless(HeadlessRequest::new(
+                zng_view_api::window::WindowId::from_raw(window_id.get()),
                 scale_factor,
                 size,
                 render_mode,
-                extensions: WINDOWS.take_view_extensions_init(window_id),
-            });
+                WINDOWS.take_view_extensions_init(window_id),
+            ));
 
             if let Ok(()) = r {
                 self.waiting_view = true
@@ -2223,13 +2213,13 @@ impl ContentCtrl {
             let capture = self.take_frame_capture();
 
             if let Some(renderer) = renderer {
-                let _: Ignore = renderer.render(FrameRequest {
-                    id: self.frame_id,
-                    clear_color: self.clear_color,
-                    display_list: frame.display_list,
+                let _: Ignore = renderer.render(FrameRequest::new(
+                    self.frame_id,
+                    self.clear_color,
+                    frame.display_list,
                     capture,
                     wait_id,
-                });
+                ));
             } else {
                 // simulate frame in headless
                 FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
@@ -2264,16 +2254,16 @@ impl ContentCtrl {
             let capture = self.take_frame_capture();
 
             if let Some(renderer) = renderer {
-                let _: Ignore = renderer.render_update(FrameUpdateRequest {
-                    id: self.frame_id,
-                    transforms: update.transforms,
-                    floats: update.floats,
-                    colors: update.colors,
-                    clear_color: update.clear_color,
-                    extensions: update.extensions,
+                let _: Ignore = renderer.render_update(FrameUpdateRequest::new(
+                    self.frame_id,
+                    update.transforms,
+                    update.floats,
+                    update.colors,
+                    update.clear_color,
                     capture,
                     wait_id,
-                });
+                    update.extensions,
+                ));
             } else {
                 // simulate frame in headless
                 FRAME_IMAGE_READY_EVENT.notify(FrameImageReadyArgs::now(WINDOW.id(), self.frame_id, None));
@@ -2440,7 +2430,7 @@ fn default_size(scale_factor: Factor) -> PxSize {
 }
 
 /// Respawned error is ok here, because we recreate the window/surface on respawn.
-type Ignore = Result<(), ViewProcessOffline>;
+type Ignore = Result<(), ViewChannelError>;
 
 pub(crate) struct NestedContentCtrl {
     content: ContentCtrl,
@@ -2500,6 +2490,7 @@ impl NestedCtrl {
                         FrameCapture::None => None,
                         FrameCapture::Full => Some(WINDOWS.frame_image(win, None).get()),
                         FrameCapture::Mask(m) => Some(WINDOWS.frame_image(win, Some(m)).get()),
+                        _ => None,
                     };
                     let args = FrameImageReadyArgs::new(args.timestamp, args.propagation().clone(), win, args.frame_id, image);
                     FRAME_IMAGE_READY_EVENT.notify(args);

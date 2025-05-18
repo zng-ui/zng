@@ -44,6 +44,7 @@ use super::{WidgetId, node::ZIndex};
 ///
 /// The stats for a tree are available in [`WidgetInfoTree::stats`].
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct WidgetInfoTreeStats {
     /// Number of times info was rebuild for the window.
     pub generation: u32,
@@ -1241,7 +1242,7 @@ impl WidgetInfo {
     pub fn z_index(&self) -> Option<(ZIndex, ZIndex)> {
         self.info().bounds_info.render_info().map(|i| {
             let offset = self.tree.0.frame.read().widget_count_offsets.offset(i.seg_id);
-            (ZIndex((i.back + offset) as u32), ZIndex((i.front + offset) as u32))
+            (ZIndex::from((i.back + offset) as u32), ZIndex::from((i.front + offset) as u32))
         })
     }
 
@@ -1707,7 +1708,9 @@ impl WidgetInfo {
                         child = p;
                     }
 
-                    Some(ZIndex((z + self.tree.0.frame.read().widget_count_offsets.offset(seg_id)) as u32))
+                    Some(ZIndex::from(
+                        (z + self.tree.0.frame.read().widget_count_offsets.offset(seg_id)) as u32,
+                    ))
                 }
                 None => None,
             }
@@ -2190,6 +2193,7 @@ impl WidgetInfo {
 ///
 /// See [`WidgetInfoBuilder::push_interactivity_filter`] for more details.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct InteractivityFilterArgs {
     /// Widget being filtered.
     pub info: WidgetInfo,
@@ -2392,6 +2396,7 @@ impl WidgetDescendantsRange {
 
 /// A hit-test hit.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct HitInfo {
     /// ID of widget hit.
     pub widget_id: WidgetId,

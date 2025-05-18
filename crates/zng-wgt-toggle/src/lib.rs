@@ -863,6 +863,7 @@ impl PartialEq for Selector {
 
 /// Error for [`Selector`] operations.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum SelectorError {
     /// Cannot select item because it is not of type that the selector can handle.
     WrongType,

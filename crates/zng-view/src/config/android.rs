@@ -31,13 +31,13 @@ pub fn colors_config() -> ColorsConfig {
         UiModeNight::No => ColorScheme::Light,
         _ => ColorScheme::default(),
     };
-    ColorsConfig {
-        accent: match scheme {
-            ColorScheme::Light => Rgba::new(3, 218, 197, 255),
-            ColorScheme::Dark => Rgba::new(187, 134, 252, 255),
-        },
+    ColorsConfig::new(
         scheme,
-    }
+        match scheme {
+            ColorScheme::Dark => Rgba::new(187, 134, 252, 255),
+            ColorScheme::Light | _ => Rgba::new(3, 218, 197, 255),
+        },
+    )
 }
 
 pub fn locale_config() -> zng_view_api::config::LocaleConfig {
@@ -46,10 +46,7 @@ pub fn locale_config() -> zng_view_api::config::LocaleConfig {
 }
 
 pub fn chrome_config() -> ChromeConfig {
-    ChromeConfig {
-        prefer_custom: false,
-        provided: false,
-    }
+    ChromeConfig::new(false, false)
 }
 
 pub fn spawn_listener(l: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {

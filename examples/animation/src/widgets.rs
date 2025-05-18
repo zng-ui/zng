@@ -86,8 +86,8 @@ fn plot(easing: EasingFn) -> ImageSource {
 
             image::IMAGE_RENDER.retain().set(true);
             let meta_color = WINDOW.vars().actual_color_scheme().map(|t| match t {
-                ColorScheme::Light => rgba(0, 0, 0, 0.4),
                 ColorScheme::Dark => rgba(255, 255, 255, 0.4),
+                ColorScheme::Light | _ => rgba(0, 0, 0, 0.4),
             });
 
             children.push(

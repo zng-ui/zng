@@ -53,6 +53,7 @@ pub struct L10N;
 ///
 /// * [`L10N`]
 #[derive(Default)]
+#[non_exhaustive]
 pub struct L10nManager {}
 impl AppExtension for L10nManager {
     fn init(&mut self) {

@@ -925,7 +925,7 @@ where
 {
     let mut ci = CLIENT_INIT.lock();
     if let ClientInit::Inited = &*ci {
-        Err(DefaultAlreadyInitedError)
+        Err(DefaultAlreadyInitedError {})
     } else {
         *ci = ClientInit::Set(Box::new(init));
         Ok(())
@@ -934,7 +934,8 @@ where
 
 /// Error returned by [`set_default_client_init`] if the default was already initialized.
 #[derive(Debug, Clone, Copy)]
-pub struct DefaultAlreadyInitedError;
+#[non_exhaustive]
+pub struct DefaultAlreadyInitedError {}
 impl fmt::Display for DefaultAlreadyInitedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "default client already initialized, can only set before first use")
@@ -944,6 +945,7 @@ impl std::error::Error for DefaultAlreadyInitedError {}
 
 /// Information about the state of an HTTP request.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Metrics {
     /// Number of bytes uploaded / estimated total.
     pub upload_progress: (ByteLength, ByteLength),
@@ -1777,7 +1779,7 @@ impl fmt::Display for Error {
                 content_length,
                 max_length,
             } => write!(f, "{}", MaxLengthError(*content_length, *max_length)),
-            Error::RequireLength => write!(f, "{RequireLengthError}"),
+            Error::RequireLength => write!(f, "{}", RequireLengthError {}),
         }
     }
 }
@@ -1798,7 +1800,8 @@ impl fmt::Display for MaxLengthError {
 impl StdError for MaxLengthError {}
 
 #[derive(Debug)]
-struct RequireLengthError;
+#[non_exhaustive]
+struct RequireLengthError {}
 impl fmt::Display for RequireLengthError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "content-length is required")

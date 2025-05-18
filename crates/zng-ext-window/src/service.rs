@@ -37,11 +37,12 @@ use zng_var::{
     response_done_var, response_var, types::WeakArcVar, var,
 };
 use zng_view_api::{
-    DragDropId, ViewProcessOffline,
+    DragDropId,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     config::{ChromeConfig, ColorsConfig},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     image::ImageMaskMode,
+    ipc::ViewChannelError,
     window::{RenderMode, WindowState},
 };
 use zng_wgt::node::with_context_var;
@@ -49,7 +50,7 @@ use zng_wgt::node::with_context_var;
 use crate::{
     CloseWindowResult, FRAME_IMAGE_READY_EVENT, FrameCaptureMode, HeadlessMonitor, MONITORS, StartPosition, ViewExtensionError,
     WINDOW_CLOSE_EVENT, WINDOW_CLOSE_REQUESTED_EVENT, WINDOW_FOCUS_CHANGED_EVENT, WINDOW_LOAD_EVENT, WINDOW_VARS_ID, WindowCloseArgs,
-    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle, WindowNotFound, WindowOpenArgs, WindowRoot, WindowVars,
+    WindowCloseRequestedArgs, WindowFocusChangedArgs, WindowLoadingHandle, WindowNotFoundError, WindowOpenArgs, WindowRoot, WindowVars,
     cmd::WindowCommands, control::WindowCtrl,
 };
 
@@ -146,12 +147,15 @@ impl WindowsService {
         handle
     }
 
-    fn close_together(&mut self, windows: impl IntoIterator<Item = WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
+    fn close_together(
+        &mut self,
+        windows: impl IntoIterator<Item = WindowId>,
+    ) -> Result<ResponseVar<CloseWindowResult>, WindowNotFoundError> {
         let mut group = IdSet::default();
 
         for w in windows {
             if !self.windows_info.contains_key(&w) {
-                return Err(WindowNotFound(w));
+                return Err(WindowNotFoundError::new(w));
             }
             group.insert(w);
         }
@@ -170,7 +174,7 @@ impl WindowsService {
     fn frame_image_impl(
         &mut self,
         window_id: WindowId,
-        action: impl FnOnce(&ViewRenderer) -> std::result::Result<ViewImage, ViewProcessOffline>,
+        action: impl FnOnce(&ViewRenderer) -> std::result::Result<ViewImage, ViewChannelError>,
     ) -> ImageVar {
         if let Some(w) = self.windows_info.get(&window_id) {
             if let Some(r) = &w.view {
@@ -182,13 +186,13 @@ impl WindowsService {
                         self.frame_images.push(img.downgrade());
                         img.read_only()
                     }
-                    Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only(),
+                    Err(_) => var(Img::dummy(Some(formatx!("{}", WindowNotFoundError::new(window_id))))).read_only(),
                 }
             } else {
                 var(Img::dummy(Some(formatx!("window `{window_id}` is headless without renderer")))).read_only()
             }
         } else {
-            var(Img::dummy(Some(formatx!("{}", WindowNotFound(window_id))))).read_only()
+            var(Img::dummy(Some(formatx!("{}", WindowNotFoundError::new(window_id))))).read_only()
         }
     }
 
@@ -407,7 +411,7 @@ impl WINDOWS {
     /// Returns a response var that will update once with the result of the operation.
     ///
     /// Returns an error if the `window_id` is not one of the open windows or is only an open request.
-    pub fn close(&self, window_id: impl Into<WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
+    pub fn close(&self, window_id: impl Into<WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFoundError> {
         self.close_together([window_id.into()])
     }
 
@@ -421,7 +425,10 @@ impl WINDOWS {
     /// Returns an error if any of the IDs is not one of the open windows or is only an open request.
     ///
     /// [`Cancel`]: CloseWindowResult::Cancel
-    pub fn close_together(&self, windows: impl IntoIterator<Item = WindowId>) -> Result<ResponseVar<CloseWindowResult>, WindowNotFound> {
+    pub fn close_together(
+        &self,
+        windows: impl IntoIterator<Item = WindowId>,
+    ) -> Result<ResponseVar<CloseWindowResult>, WindowNotFoundError> {
         WINDOWS_SV.write().close_together(windows)
     }
 
@@ -444,27 +451,27 @@ impl WINDOWS {
     /// Returns an error if the `window_id` is not one of the open windows or is only an open request.
     ///
     /// [mode]: WindowMode
-    pub fn mode(&self, window_id: impl Into<WindowId>) -> Result<WindowMode, WindowNotFound> {
+    pub fn mode(&self, window_id: impl Into<WindowId>) -> Result<WindowMode, WindowNotFoundError> {
         let window_id = window_id.into();
         WINDOWS_SV
             .read()
             .windows_info
             .get(&window_id)
             .map(|w| w.mode)
-            .ok_or(WindowNotFound(window_id))
+            .ok_or(WindowNotFoundError::new(window_id))
     }
 
     /// Returns a shared reference to the latest widget tree info for the window.
     ///
     /// Returns an error if the `window_id` is not one of the open windows or is only an open request.
-    pub fn widget_tree(&self, window_id: impl Into<WindowId>) -> Result<WidgetInfoTree, WindowNotFound> {
+    pub fn widget_tree(&self, window_id: impl Into<WindowId>) -> Result<WidgetInfoTree, WindowNotFoundError> {
         let window_id = window_id.into();
         WINDOWS_SV
             .read()
             .windows_info
             .get(&window_id)
             .map(|w| w.widget_tree.clone())
-            .ok_or(WindowNotFound(window_id))
+            .ok_or(WindowNotFoundError::new(window_id))
     }
 
     /// Search for the widget info in all windows.
@@ -523,21 +530,21 @@ impl WINDOWS {
     /// Returns a shared reference the variables that control the window.
     ///
     /// Returns an error if the `window_id` is not one of the open windows or is only an open request.
-    pub fn vars(&self, window_id: impl Into<WindowId>) -> Result<WindowVars, WindowNotFound> {
+    pub fn vars(&self, window_id: impl Into<WindowId>) -> Result<WindowVars, WindowNotFoundError> {
         let window_id = window_id.into();
         WINDOWS_SV
             .read()
             .windows_info
             .get(&window_id)
             .map(|w| w.vars.clone())
-            .ok_or(WindowNotFound(window_id))
+            .ok_or(WindowNotFoundError::new(window_id))
     }
 
     /// Gets if the window is focused in the operating system.
     ///
     /// Returns an error if the `window_id` is not one of the open windows, returns `false` if the `window_id` is
     /// one of the open requests.
-    pub fn is_focused(&self, window_id: impl Into<WindowId>) -> Result<bool, WindowNotFound> {
+    pub fn is_focused(&self, window_id: impl Into<WindowId>) -> Result<bool, WindowNotFoundError> {
         let window_id = window_id.into();
         let w = WINDOWS_SV.read();
         if let Some(w) = w.windows_info.get(&window_id) {
@@ -545,7 +552,7 @@ impl WINDOWS {
         } else if w.open_loading.contains_key(&window_id) {
             Ok(false)
         } else {
-            Err(WindowNotFound(window_id))
+            Err(WindowNotFoundError::new(window_id))
         }
     }
 
@@ -647,7 +654,7 @@ impl WINDOWS {
     ///
     /// If the `window_id` is only associated with an open request it is modified to focus the window on open.
     /// If more than one focus request is made in the same update cycle only the last request is processed.
-    pub fn focus(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
+    pub fn focus(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFoundError> {
         let window_id = window_id.into();
         if !self.is_focused(window_id)? {
             let mut w = WINDOWS_SV.write();
@@ -683,7 +690,7 @@ impl WINDOWS {
     ///
     /// [`always_on_top`]: WindowVars::always_on_top
     /// [`focus`]: Self::focus
-    pub fn bring_to_top(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFound> {
+    pub fn bring_to_top(&self, window_id: impl Into<WindowId>) -> Result<(), WindowNotFoundError> {
         let window_id = window_id.into();
         let mut w = WINDOWS_SV.write();
         if w.windows_info.contains_key(&window_id) {
@@ -691,7 +698,7 @@ impl WINDOWS {
             UPDATES.update(None);
             Ok(())
         } else {
-            Err(WindowNotFound(window_id))
+            Err(WindowNotFoundError::new(window_id))
         }
     }
 
@@ -767,14 +774,14 @@ impl WINDOWS {
         window_id: impl Into<WindowId>,
         extension_id: ApiExtensionId,
         request: ApiExtensionPayload,
-    ) -> Result<(), WindowNotFound> {
+    ) -> Result<(), WindowNotFoundError> {
         let window_id = window_id.into();
         match WINDOWS_SV.write().windows_info.get_mut(&window_id) {
             Some(i) => {
                 i.extensions.push((extension_id, request));
                 Ok(())
             }
-            None => Err(WindowNotFound(window_id)),
+            None => Err(WindowNotFoundError::new(window_id)),
         }
     }
 
@@ -804,13 +811,13 @@ impl WINDOWS {
                         let r = r.clone();
                         drop(sv);
                         r.window_extension_raw(extension_id, request)
-                            .map_err(ViewExtensionError::ViewProcessOffline)
+                            .map_err(|_| ViewExtensionError::Disconnected)
                     }
                     ViewWindowOrHeadless::Headless(_) => Err(ViewExtensionError::WindowNotHeaded(window_id)),
                 },
                 None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFoundError::new(window_id))),
         }
     }
 
@@ -837,14 +844,14 @@ impl WINDOWS {
                         drop(sv);
                         let r = r
                             .window_extension(extension_id, request)
-                            .map_err(ViewExtensionError::ViewProcessOffline)?;
+                            .map_err(|_| ViewExtensionError::Disconnected)?;
                         r.map_err(ViewExtensionError::Api)
                     }
                     ViewWindowOrHeadless::Headless(_) => Err(ViewExtensionError::WindowNotHeaded(window_id)),
                 },
                 None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFoundError::new(window_id))),
         }
     }
 
@@ -865,11 +872,11 @@ impl WINDOWS {
                     let r = r.renderer();
                     drop(sv);
                     r.render_extension_raw(extension_id, request)
-                        .map_err(ViewExtensionError::ViewProcessOffline)
+                        .map_err(|_| ViewExtensionError::Disconnected)
                 }
                 None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFoundError::new(window_id))),
         }
     }
 
@@ -895,12 +902,12 @@ impl WINDOWS {
                     drop(sv);
                     let r = r
                         .render_extension(extension_id, request)
-                        .map_err(ViewExtensionError::ViewProcessOffline)?;
+                        .map_err(|_| ViewExtensionError::Disconnected)?;
                     r.map_err(ViewExtensionError::Api)
                 }
                 None => Err(ViewExtensionError::NotOpenInViewProcess(window_id)),
             },
-            None => Err(ViewExtensionError::WindowNotFound(WindowNotFound(window_id))),
+            None => Err(ViewExtensionError::WindowNotFound(WindowNotFoundError::new(window_id))),
         }
     }
 
@@ -1150,7 +1157,7 @@ impl WINDOWS {
     }
 
     fn fulfill_requests() {
-        if VIEW_PROCESS.is_available() && !VIEW_PROCESS.is_online() {
+        if VIEW_PROCESS.is_available() && !VIEW_PROCESS.is_connected() {
             // wait ViewProcessInitedEvent
             return;
         }
@@ -1481,18 +1488,18 @@ impl WINDOWS_DRAG_DROP {
     ) -> Result<DragDropId, DragDropError> {
         match WINDOWS_SV.write().windows.get_mut(&window_id) {
             Some(w) => w.start_drag_drop(data, allowed_effects),
-            None => Err(DragDropError::CannotStart(WindowNotFound(window_id).to_txt())),
+            None => Err(DragDropError::CannotStart(WindowNotFoundError::new(window_id).to_txt())),
         }
     }
 
     /// Notify the drag source of what effect was applied for a received drag&drop.
-    pub fn drag_dropped(&self, window_id: WindowId, drop_id: DragDropId, applied: DragDropEffect) -> Result<(), WindowNotFound> {
+    pub fn drag_dropped(&self, window_id: WindowId, drop_id: DragDropId, applied: DragDropEffect) -> Result<(), WindowNotFoundError> {
         match WINDOWS_SV.write().windows.get_mut(&window_id) {
             Some(w) => {
                 w.drag_dropped(drop_id, applied);
                 Ok(())
             }
-            None => Err(WindowNotFound(window_id)),
+            None => Err(WindowNotFoundError::new(window_id)),
         }
     }
 }
@@ -1852,6 +1859,7 @@ impl WINDOW_Ext for WINDOW {}
 /// Arguments for [`WINDOWS.register_root_extender`].
 ///
 /// [`WINDOWS.register_root_extender`]: WINDOWS::register_root_extender
+#[non_exhaustive]
 pub struct WindowRootExtenderArgs {
     /// The window root content, extender must wrap this node with extension nodes or return
     /// it for no-op.

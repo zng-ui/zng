@@ -178,11 +178,20 @@ context_var! {
 ///
 /// [`cmd_tooltip_fn`]: fn@cmd_tooltip_fn
 #[derive(Clone)]
+#[non_exhaustive]
 pub struct CmdTooltipArgs {
     /// The tooltip arguments.
     pub tooltip: TooltipArgs,
     /// The command.
     pub cmd: Command,
+}
+
+#[cfg(feature = "tooltip")]
+impl CmdTooltipArgs {
+    /// New args.
+    pub fn new(tooltip: TooltipArgs, cmd: Command) -> Self {
+        Self { tooltip, cmd }
+    }
 }
 #[cfg(feature = "tooltip")]
 impl std::ops::Deref for CmdTooltipArgs {

@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use zng_txt::Txt;
 
-use crate::{AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, ViewProcessOffline, VpResult, ipc};
+use crate::{AnyResult, Event, Request, Response, ViewConfig, ViewProcessGen, VpResult, ipc};
 
 /// The listener returns the closure on join for reuse in respawn.
 type EventListenerJoin = JoinHandle<Box<dyn FnMut(Event) + Send>>;
@@ -22,8 +22,8 @@ pub(crate) const VIEW_MODE: &str = "ZNG_VIEW_MODE";
 
 #[derive(Clone, Copy)]
 enum ViewState {
-    Offline,
-    Online,
+    NotRunning,
+    RunningAndConnected,
     Suspended,
 }
 
@@ -114,7 +114,7 @@ impl Controller {
 
         let mut c = Controller {
             same_process: process.is_none(),
-            view_state: ViewState::Offline,
+            view_state: ViewState::NotRunning,
             process,
             view_process_exe,
             view_process_env,
@@ -129,7 +129,7 @@ impl Controller {
             fast_respawn_count: 0,
         };
 
-        if let Err(ViewProcessOffline) = c.try_init() {
+        if let Err(ipc::ViewChannelError::Disconnected) = c.try_init() {
             panic!("respawn on init");
         }
 
@@ -141,9 +141,9 @@ impl Controller {
         Ok(())
     }
 
-    /// View-process is connected and ready to respond.
-    pub fn online(&self) -> bool {
-        matches!(self.view_state, ViewState::Online)
+    /// View-process is running, connected and ready to respond.
+    pub fn is_connected(&self) -> bool {
+        matches!(self.view_state, ViewState::RunningAndConnected)
     }
 
     /// View-process generation.
@@ -166,8 +166,12 @@ impl Controller {
         self.same_process
     }
 
-    fn offline_err(&self) -> Result<(), ViewProcessOffline> {
-        if self.online() { Ok(()) } else { Err(ViewProcessOffline) }
+    fn disconnected_err(&self) -> Result<(), ipc::ViewChannelError> {
+        if self.is_connected() {
+            Ok(())
+        } else {
+            Err(ipc::ViewChannelError::Disconnected)
+        }
     }
 
     fn try_talk(&mut self, req: Request) -> ipc::IpcResult<Response> {
@@ -177,15 +181,15 @@ impl Controller {
     pub(crate) fn talk(&mut self, req: Request) -> VpResult<Response> {
         debug_assert!(req.expect_response());
 
-        if req.must_be_online() {
-            self.offline_err()?;
+        if req.must_be_connected() {
+            self.disconnected_err()?;
         }
 
         match self.try_talk(req) {
             Ok(r) => Ok(r),
-            Err(ipc::Disconnected) => {
+            Err(ipc::ViewChannelError::Disconnected) => {
                 self.handle_disconnect(self.generation);
-                Err(ViewProcessOffline)
+                Err(ipc::ViewChannelError::Disconnected)
             }
         }
     }
@@ -193,15 +197,15 @@ impl Controller {
     pub(crate) fn command(&mut self, req: Request) -> VpResult<()> {
         debug_assert!(!req.expect_response());
 
-        if req.must_be_online() {
-            self.offline_err()?;
+        if req.must_be_connected() {
+            self.disconnected_err()?;
         }
 
         match self.request_sender.send(req) {
             Ok(_) => Ok(()),
-            Err(ipc::Disconnected) => {
+            Err(ipc::ViewChannelError::Disconnected) => {
                 self.handle_disconnect(self.generation);
-                Err(ViewProcessOffline)
+                Err(ipc::ViewChannelError::Disconnected)
             }
         }
     }
@@ -292,26 +296,26 @@ impl Controller {
 
     /// Handle an [`Event::Inited`].
     ///
-    /// Set the online flag to `true`.
+    /// Set the connected flag to `true`.
     pub fn handle_inited(&mut self, vp_gen: ViewProcessGen) {
         match self.view_state {
-            ViewState::Offline => {
+            ViewState::NotRunning => {
                 if self.generation == vp_gen {
                     // crash respawn already sets gen
-                    self.view_state = ViewState::Online;
+                    self.view_state = ViewState::RunningAndConnected;
                 }
             }
             ViewState::Suspended => {
                 self.generation = vp_gen;
-                self.view_state = ViewState::Online;
+                self.view_state = ViewState::RunningAndConnected;
             }
-            ViewState::Online => {}
+            ViewState::RunningAndConnected => {}
         }
     }
 
     /// Handle an [`Event::Suspended`].
     ///
-    /// Set the online flat to `false`.
+    /// Set the connected flat to `false`.
     pub fn handle_suspended(&mut self) {
         self.view_state = ViewState::Suspended;
     }
@@ -368,7 +372,7 @@ impl Controller {
     fn respawn_impl(&mut self, is_crash: bool) {
         use zng_unit::TimeUnits;
 
-        self.view_state = ViewState::Offline;
+        self.view_state = ViewState::NotRunning;
         self.is_respawn = true;
 
         let mut process = if let Some(p) = self.process.take() {
@@ -503,7 +507,7 @@ impl Controller {
         let next_id = self.generation.next();
         self.generation = next_id;
 
-        if let Err(ViewProcessOffline) = self.try_init() {
+        if let Err(ipc::ViewChannelError::Disconnected) = self.try_init() {
             panic!("respawn on respawn startup");
         }
 

@@ -199,6 +199,7 @@ zng_var::impl_from_and_into_var! {
 
 /// Kind of current item a widget represents.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum CurrentKind {
     /// Represents the current page within a set of pages such as the link to the current document in a breadcrumb.
     Page,
@@ -381,6 +382,7 @@ zng_var::impl_from_and_into_var! {
 ///
 /// [`AccessState::Live`]: crate::access::AccessState::Live
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum LiveIndicator {
     /// Indicates that updates to the region have the highest priority and should be presented to the user immediately.
     Assertive,
@@ -438,6 +440,7 @@ zng_var::impl_from_and_into_var! {
 ///
 /// [`AccessState::Popup`]: crate::access::AccessState::Popup
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum Popup {
     /// The popup is a menu.
     Menu,
@@ -666,6 +669,7 @@ zng_var::impl_from_and_into_var! {
 ///
 /// [`AccessCmd::Scroll`]: crate::access::AccessCmd::Scroll
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum ScrollCmd {
     /// Scroll page up.
     ///
@@ -693,6 +697,7 @@ zng_var::impl_from_and_into_var! {
 
 /// Represents a widget in the access info tree.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct AccessNode {
     /// Widget ID.
     pub id: AccessNodeId,
@@ -906,6 +911,7 @@ impl ops::Deref for AccessNodeRef<'_> {
 
 /// Update for accessibility info tree for a window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct AccessTreeUpdate {
     /// Partial updates or full update.
     pub updates: Vec<AccessTree>,
@@ -915,4 +921,14 @@ pub struct AccessTreeUpdate {
 
     /// Focused widget, or root.
     pub focused: AccessNodeId,
+}
+impl AccessTreeUpdate {
+    /// New update.
+    pub fn new(updates: Vec<AccessTree>, full_root: Option<AccessNodeId>, focused: AccessNodeId) -> Self {
+        Self {
+            updates,
+            full_root,
+            focused,
+        }
+    }
 }

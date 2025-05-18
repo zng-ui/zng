@@ -28,6 +28,7 @@ use zng_txt::{ToTxt, Txt};
 ///
 /// * [`APP_INSTANCE_EVENT`]
 #[derive(Default)]
+#[non_exhaustive]
 pub struct SingleInstanceManager {}
 impl AppExtension for SingleInstanceManager {
     fn init(&mut self) {

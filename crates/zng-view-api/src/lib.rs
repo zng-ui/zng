@@ -72,7 +72,7 @@ use zng_unit::{DipPoint, DipRect, DipSize, Factor, Px, PxRect};
 pub struct Request(RequestData);
 impl Request {
     /// Returns `true` if the request can only be made after the *init* event.
-    pub fn must_be_online(&self) -> bool {
+    pub fn must_be_connected(&self) -> bool {
         !matches!(&self.0, RequestData::init { .. })
     }
 
@@ -268,7 +268,7 @@ macro_rules! declare_api {
 declare_api! {
     /// Called once on init.
     ///
-    /// Sends an [`Event::Inited`] once the view is completely online.
+    /// Sends an [`Event::Inited`] once the view is completely connected.
     /// Other methods may only be called after this event.
     fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool);
 

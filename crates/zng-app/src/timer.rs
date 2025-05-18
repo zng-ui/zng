@@ -622,6 +622,7 @@ impl WeakDeadlineHandle {
 
 /// Arguments for the handler of [`on_deadline`](TIMERS::on_deadline).
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct DeadlineArgs {
     /// When the handler was called.
     pub timestamp: DInstant,

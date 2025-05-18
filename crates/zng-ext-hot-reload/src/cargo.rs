@@ -168,6 +168,7 @@ fn run_build(manifest_path: PathBuf, stdout: ChildStdout) -> Result<PathBuf, Bui
 
 /// Rebuild error.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum BuildError {
     /// Error starting, ending the build command.
     Io(Arc<io::Error>),

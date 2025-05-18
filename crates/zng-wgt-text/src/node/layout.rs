@@ -265,10 +265,7 @@ fn layout_text_layout(child: impl UiNode) -> impl UiNode {
                         inline.first = first_line.original_size();
                         inline.with_first_segs(|i| {
                             for seg in first_line.segs() {
-                                i.push(InlineSegment {
-                                    width: seg.advance(),
-                                    kind: seg.kind(),
-                                });
+                                i.push(InlineSegment::new(seg.advance(), seg.kind()));
                             }
                         });
                     } else {
@@ -283,10 +280,7 @@ fn layout_text_layout(child: impl UiNode) -> impl UiNode {
                         inline.last = last_line.original_size();
                         inline.with_last_segs(|i| {
                             for seg in last_line.segs() {
-                                i.push(InlineSegment {
-                                    width: seg.advance(),
-                                    kind: seg.kind(),
-                                })
+                                i.push(InlineSegment::new(seg.advance(), seg.kind()));
                             }
                         })
                     } else {

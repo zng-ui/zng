@@ -23,6 +23,7 @@ use crate::{
 
 /// Reasons why a font might fail to load a glyph.
 #[derive(Clone, Copy, PartialEq, Debug)]
+#[non_exhaustive]
 pub enum GlyphLoadingError {
     /// The font didn't contain a glyph with that ID.
     NoSuchGlyph,
@@ -42,6 +43,7 @@ impl fmt::Display for GlyphLoadingError {
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct TextShapingArgs {
     /// Extra spacing to add after each character.
     pub letter_spacing: Px,
@@ -2184,6 +2186,7 @@ where
 ///
 /// Can be computed using [`ShapedText::overflow_info`].
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct TextOverflowInfo {
     /// First overflow line.
     ///
@@ -2660,10 +2663,7 @@ impl ShapedTextBuilder {
                     }
                     let point = euclid::point2(self.origin.x, self.origin.y);
                     self.origin.x += self.tab_x_advance;
-                    self.out.glyphs.push(GlyphInstance {
-                        index: self.tab_index,
-                        point,
-                    });
+                    self.out.glyphs.push(GlyphInstance::new(self.tab_index, point));
                     self.out.clusters.push(i as u32);
                 }
 
@@ -2995,10 +2995,7 @@ impl ShapedTextBuilder {
 
     fn push_glyphs(&mut self, shaped_seg: &ShapedSegmentData, spacing: f32) {
         self.out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
-            let r = GlyphInstance {
-                index: gi.index,
-                point: euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y),
-            };
+            let r = GlyphInstance::new(gi.index, euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y));
             self.origin.x += spacing;
             r
         }));
@@ -3868,7 +3865,7 @@ impl<'a> ShapedSegment<'a> {
     /// Segment info for widget inline segments.
     pub fn inline_info(&self) -> InlineSegmentInfo {
         let (x, width) = self.x_width();
-        InlineSegmentInfo { x, width }
+        InlineSegmentInfo::new(x, width)
     }
 
     fn decoration_line(&self, bottom_up_offset: Px) -> (PxPoint, Px) {

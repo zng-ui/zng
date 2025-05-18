@@ -87,7 +87,7 @@ pub fn colors_config() -> ColorsConfig {
         _ => ColorsConfig::default().accent,
     };
 
-    ColorsConfig { scheme, accent }
+    ColorsConfig::new(scheme, accent)
 }
 
 pub fn locale_config() -> LocaleConfig {
@@ -102,10 +102,7 @@ pub fn chrome_config() -> ChromeConfig {
     let is_gnome = std::env::var("ORIGINAL_XDG_CURRENT_DESKTOP")
         .or_else(|_| std::env::var("XDG_CURRENT_DESKTOP"))
         .is_ok_and(|val| val.contains("GNOME"));
-    ChromeConfig {
-        prefer_custom: is_gnome,
-        provided: !(is_wayland && is_gnome),
-    }
+    ChromeConfig::new(is_gnome, !(is_wayland && is_gnome))
 }
 
 fn on_change(key: &str, s: &crate::AppEventSender) {

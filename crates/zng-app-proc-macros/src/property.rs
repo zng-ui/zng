@@ -253,6 +253,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     kind: #kind,
                     ty: std::any::TypeId::of::<#info_ty>(),
                     ty_name: std::any::type_name::<#info_ty>(),
+                    _non_exhaustive: (),
                 },
             });
 
@@ -505,6 +506,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #cfg
             #[doc(hidden)]
             #[allow(non_camel_case_types)]
+            #[non_exhaustive]
             #vis struct #ident_meta { }
             #cfg
             #[doc(hidden)]
@@ -535,6 +537,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         inputs: std::boxed::Box::new([
                             #input_info
                         ]),
+                        _non_exhaustive: (),
                     }
                 }
 
@@ -601,6 +604,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #[doc(hidden)]
             #[derive(std::clone::Clone)]
             #[allow(non_camel_case_types)]
+            #[non_exhaustive]
             #vis struct #ident_args #impl_gens #where_gens {
                 #(#input_idents: #storage_tys),*
             }
@@ -631,6 +635,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
             #cfg
             #[doc(hidden)]
             #[allow(non_camel_case_types)]
+            #[non_exhaustive]
             #vis struct #ident_inputs { }
             #cfg
             #[doc(hidden)]

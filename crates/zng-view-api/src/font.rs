@@ -19,6 +19,7 @@ declare_id! {
 
 /// Extra font options.
 #[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[non_exhaustive]
 pub struct FontOptions {
     /// Font render mode.
     ///
@@ -30,6 +31,16 @@ pub struct FontOptions {
     /// If synthetic skew is enabled.
     pub synthetic_oblique: bool,
 }
+impl FontOptions {
+    /// New font options.
+    pub fn new(aa: FontAntiAliasing, synthetic_bold: bool, synthetic_oblique: bool) -> Self {
+        Self {
+            aa,
+            synthetic_bold,
+            synthetic_oblique,
+        }
+    }
+}
 
 /// Extra font options send with text glyphs.
 pub type GlyphOptions = FontOptions;
@@ -40,11 +51,18 @@ pub type FontVariationName = [u8; 4];
 /// Glyph index with position.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[non_exhaustive]
 pub struct GlyphInstance {
     /// Glyph id.
     pub index: GlyphIndex,
     /// Glyph position.
     pub point: euclid::Point2D<f32, Px>,
+}
+impl GlyphInstance {
+    /// New glyph.
+    pub fn new(index: GlyphIndex, point: euclid::Point2D<f32, Px>) -> Self {
+        Self { index, point }
+    }
 }
 
 /// Glyph index in a font.

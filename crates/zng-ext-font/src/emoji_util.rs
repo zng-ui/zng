@@ -239,6 +239,7 @@ bitflags! {
 /// Represents a color palette entry.
 ///
 /// See [`ColorPalettes`] for more details.
+#[non_exhaustive]
 pub struct ColorPalette<'a> {
     /// Palette v1 flags.
     pub flags: ColorPaletteType,
@@ -454,6 +455,7 @@ impl_from_and_into_var! {
         match color_scheme {
             ColorScheme::Light => FontColorPalette::Light,
             ColorScheme::Dark => FontColorPalette::Dark,
+            _ => FontColorPalette::Light,
         }
     }
 }

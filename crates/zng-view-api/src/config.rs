@@ -9,6 +9,7 @@ use zng_unit::{Dip, DipSize, Rgba};
 
 /// System settings needed for implementing double/triple clicks.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
+#[non_exhaustive]
 pub struct MultiClickConfig {
     /// Maximum time interval between clicks.
     ///
@@ -19,6 +20,12 @@ pub struct MultiClickConfig {
     ///
     /// Only repeated clicks that are within this distance of the first click can count as double-clicks.
     pub area: DipSize,
+}
+impl MultiClickConfig {
+    /// New config.
+    pub fn new(time: Duration, area: DipSize) -> Self {
+        Self { time, area }
+    }
 }
 impl Default for MultiClickConfig {
     /// `500ms` and `4, 4`.
@@ -32,6 +39,7 @@ impl Default for MultiClickConfig {
 
 /// System settings needed to implementing touch gestures.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
+#[non_exhaustive]
 pub struct TouchConfig {
     /// Maximum (x, y) distance between a touch start and end that generates a touch click.
     ///
@@ -58,6 +66,27 @@ pub struct TouchConfig {
     /// Fling velocity ceiling, in dip per seconds.
     pub max_fling_velocity: Dip,
 }
+
+impl TouchConfig {
+    /// New config.
+    pub fn new(
+        tap_area: DipSize,
+        double_tap_area: DipSize,
+        tap_max_time: Duration,
+        double_tap_max_time: Duration,
+        min_fling_velocity: Dip,
+        max_fling_velocity: Dip,
+    ) -> Self {
+        Self {
+            tap_area,
+            double_tap_area,
+            tap_max_time,
+            double_tap_max_time,
+            min_fling_velocity,
+            max_fling_velocity,
+        }
+    }
+}
 impl Default for TouchConfig {
     fn default() -> Self {
         Self {
@@ -73,11 +102,18 @@ impl Default for TouchConfig {
 
 /// System settings that define the key pressed repeat.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
+#[non_exhaustive]
 pub struct KeyRepeatConfig {
     /// Delay before repeat starts.
     pub start_delay: Duration,
     /// Delay before each repeat event after the first.
     pub interval: Duration,
+}
+impl KeyRepeatConfig {
+    /// New config.
+    pub fn new(start_delay: Duration, interval: Duration) -> Self {
+        Self { start_delay, interval }
+    }
 }
 impl Default for KeyRepeatConfig {
     /// 600ms, 100ms.
@@ -91,6 +127,7 @@ impl Default for KeyRepeatConfig {
 
 /// System settings that control animations.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize)]
+#[non_exhaustive]
 pub struct AnimationsConfig {
     /// If animation are enabled.
     ///
@@ -103,6 +140,16 @@ pub struct AnimationsConfig {
     pub caret_blink_interval: Duration,
     /// Duration after which the blink animation stops.
     pub caret_blink_timeout: Duration,
+}
+impl AnimationsConfig {
+    /// New config.
+    pub fn new(enabled: bool, caret_blink_interval: Duration, caret_blink_timeout: Duration) -> Self {
+        Self {
+            enabled,
+            caret_blink_interval,
+            caret_blink_timeout,
+        }
+    }
 }
 impl Default for AnimationsConfig {
     /// true, 530ms, 5s.
@@ -117,13 +164,21 @@ impl Default for AnimationsConfig {
 
 /// System settings that define the locale.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Deserialize, Default)]
+#[non_exhaustive]
 pub struct LocaleConfig {
     /// BCP-47 language tags, if the locale can be obtained.
     pub langs: Vec<Txt>,
 }
+impl LocaleConfig {
+    /// New config.
+    pub fn new(langs: Vec<Txt>) -> Self {
+        Self { langs }
+    }
+}
 
 /// Text anti-aliasing.
 #[derive(Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum FontAntiAliasing {
     /// Uses the operating system configuration.
     #[default]
@@ -151,6 +206,7 @@ impl fmt::Debug for FontAntiAliasing {
 
 /// Color scheme preference.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum ColorScheme {
     /// Dark text, light background.
     Light,
@@ -167,6 +223,7 @@ impl Default for ColorScheme {
 
 /// System colors and color scheme.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ColorsConfig {
     /// Color scheme (light/dark) preference.
     pub scheme: ColorScheme,
@@ -176,6 +233,12 @@ pub struct ColorsConfig {
     ///
     /// Expect a saturated color that contrasts with the text color.
     pub accent: Rgba,
+}
+impl ColorsConfig {
+    /// New config.
+    pub fn new(scheme: ColorScheme, accent: Rgba) -> Self {
+        Self { scheme, accent }
+    }
 }
 impl Default for ColorsConfig {
     fn default() -> Self {
@@ -193,6 +256,7 @@ zng_var::impl_from_and_into_var! {
 
 /// Window chrome (decorations) preference.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ChromeConfig {
     /// Window manager prefers that the window renders a custom chrome.
     ///
@@ -206,6 +270,11 @@ pub struct ChromeConfig {
     pub provided: bool,
 }
 impl ChromeConfig {
+    /// New config.
+    pub fn new(prefer_custom: bool, provided: bool) -> Self {
+        Self { prefer_custom, provided }
+    }
+
     /// If system prefers custom and does not provide chrome.
     ///
     /// Note that a chromeless window is not forbidden if this is `true`.

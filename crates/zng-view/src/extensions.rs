@@ -192,6 +192,7 @@ pub trait RendererExtension: Any {
 }
 
 /// Arguments for [`RendererExtension::render_start`] and [`RendererExtension::render_end`].
+#[non_exhaustive]
 pub struct RenderArgs<'a> {
     /// Id of the new frame.
     pub frame_id: zng_view_api::window::FrameId,
@@ -213,6 +214,7 @@ pub struct RenderArgs<'a> {
 }
 
 /// Arguments for [`RendererExtension::render_push`] and [`RendererExtension::render_pop`].
+#[non_exhaustive]
 pub struct RenderItemArgs<'a> {
     /// Extension index.
     pub extension_id: ApiExtensionId,
@@ -241,6 +243,7 @@ pub struct RenderItemArgs<'a> {
 }
 
 /// Arguments for [`RendererExtension::render_update`].
+#[non_exhaustive]
 pub struct RenderUpdateArgs<'a> {
     /// Extension index.
     pub extension_id: ApiExtensionId,
@@ -271,6 +274,7 @@ pub struct RenderUpdateArgs<'a> {
 }
 
 /// Arguments for [`RendererExtension::frame_ready`].
+#[non_exhaustive]
 pub struct FrameReadyArgs {
     /// Frame that finished rendering and is ready to redraw.
     pub frame_id: zng_view_api::window::FrameId,
@@ -282,6 +286,7 @@ pub struct FrameReadyArgs {
 }
 
 /// Arguments for [`RendererExtension::redraw`].
+#[non_exhaustive]
 pub struct RedrawArgs<'a> {
     /// Scale factor of the screen or window.
     pub scale_factor: Factor,
@@ -346,6 +351,7 @@ pub trait BlobExtension: Send + Any {
 }
 
 /// Arguments for [`ViewExtension::init`].
+#[non_exhaustive]
 pub struct ViewExtensionInitArgs {
     /// Sender of [`Event::ExtensionEvent`] events.
     pub event_sender: ExtensionEventSender,
@@ -361,7 +367,7 @@ pub struct ExtensionEventSender {
 }
 impl ExtensionEventSender {
     /// Send the event `payload`.
-    pub fn send(&self, payload: ApiExtensionPayload) -> Result<(), zng_view_api::ipc::Disconnected> {
+    pub fn send(&self, payload: ApiExtensionPayload) -> Result<(), zng_view_api::ipc::ViewChannelError> {
         self.sender.send(crate::AppEvent::Notify(Event::ExtensionEvent(self.id, payload)))
     }
 }
@@ -376,6 +382,7 @@ pub trait AsyncBlobRasterizer: Send + Any {
 }
 
 /// Arguments for [`BlobExtension::prepare_resources`].
+#[non_exhaustive]
 pub struct BlobPrepareArgs<'a> {
     /// Webrender services.
     pub services: &'a dyn webrender::api::BlobImageResources,
@@ -385,6 +392,7 @@ pub struct BlobPrepareArgs<'a> {
 }
 
 /// Arguments for [`BlobExtension::add`].
+#[non_exhaustive]
 pub struct BlobAddArgs {
     /// Blob key.
     ///
@@ -400,6 +408,7 @@ pub struct BlobAddArgs {
 }
 
 /// Arguments for [`BlobExtension::update`].
+#[non_exhaustive]
 pub struct BlobUpdateArgs {
     /// Blob key.
     ///
@@ -414,6 +423,7 @@ pub struct BlobUpdateArgs {
 }
 
 /// Arguments for [`AsyncBlobRasterizer::rasterize`].
+#[non_exhaustive]
 pub struct BlobRasterizerArgs<'a> {
     /// Rasterization requests for all rasterizers.
     ///
@@ -434,6 +444,7 @@ pub struct BlobRasterizerArgs<'a> {
 }
 
 /// Arguments for [`WindowExtension::configure`]
+#[non_exhaustive]
 pub struct WindowConfigArgs<'a> {
     /// Config payload send with the window creation request addressed to this extension.
     ///
@@ -445,6 +456,7 @@ pub struct WindowConfigArgs<'a> {
 }
 
 /// Arguments for [`RendererExtension::configure`]
+#[non_exhaustive]
 pub struct RendererConfigArgs<'a> {
     /// Config payload send with the renderer creation request addressed to this extension.
     ///
@@ -474,6 +486,7 @@ pub struct RendererConfigArgs<'a> {
 }
 
 /// Arguments for [`RendererExtension::renderer_inited`].
+#[non_exhaustive]
 pub struct RendererInitedArgs<'a> {
     /// The new renderer.
     ///
@@ -561,6 +574,7 @@ impl ExternalImages {
 }
 
 /// Arguments for [`RendererExtension::renderer_deinited`].
+#[non_exhaustive]
 pub struct RendererDeinitedArgs<'a> {
     /// The document ID of the main content, already deinited.
     pub document_id: DocumentId,
@@ -579,6 +593,7 @@ pub struct RendererDeinitedArgs<'a> {
 }
 
 /// Arguments for [`WindowExtension::window_inited`].
+#[non_exhaustive]
 pub struct WindowInitedArgs<'a> {
     /// Underlying winit window.
     pub window: &'a winit::window::Window,
@@ -588,6 +603,7 @@ pub struct WindowInitedArgs<'a> {
 }
 
 /// Arguments for [`WindowExtension::window_deinited`].
+#[non_exhaustive]
 pub struct WindowDeinitedArgs<'a> {
     /// Underlying winit window.
     pub window: &'a winit::window::Window,
@@ -597,6 +613,7 @@ pub struct WindowDeinitedArgs<'a> {
 }
 
 /// Arguments for [`WindowExtension::command`].
+#[non_exhaustive]
 pub struct WindowCommandArgs<'a> {
     /// Underlying winit window.
     pub window: &'a winit::window::Window,
@@ -609,6 +626,7 @@ pub struct WindowCommandArgs<'a> {
 }
 
 /// Arguments for [`WindowExtension::event`].
+#[non_exhaustive]
 pub struct WindowEventArgs<'a> {
     /// Underlying winit window.
     pub window: &'a winit::window::Window,
@@ -674,6 +692,7 @@ impl OpenGlContext for crate::gl::GlContext {
 }
 
 /// Arguments for [`RendererExtension::command`].
+#[non_exhaustive]
 pub struct RendererCommandArgs<'a> {
     /// The renderer.
     pub renderer: &'a mut webrender::Renderer,

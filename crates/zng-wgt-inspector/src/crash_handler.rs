@@ -364,6 +364,7 @@ async fn save_copy(enabled: ArcVar<bool>, path: PathBuf) {
                 .wait_done()
                 .await
         }
+        _ => {}
     }
 
     enabled.set(true);

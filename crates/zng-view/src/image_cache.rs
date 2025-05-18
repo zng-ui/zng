@@ -105,6 +105,7 @@ impl ImageCache {
             max_decoded_len,
             downscale,
             mask,
+            ..
         }: ImageRequest<IpcBytes>,
     ) -> ImageId {
         let id = self.image_id_gen.incr();
@@ -181,14 +182,9 @@ impl ImageCache {
 
             match r {
                 Ok((pixels, size, ppi, is_opaque, is_mask)) => {
-                    let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
-                        id,
-                        pixels,
-                        size,
-                        ppi,
-                        is_opaque,
-                        is_mask,
-                    }));
+                    let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
+                        id, size, ppi, is_opaque, is_mask, pixels,
+                    )));
                 }
                 Err(e) => {
                     let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError { image: id, error: e }));
@@ -207,6 +203,7 @@ impl ImageCache {
             max_decoded_len,
             downscale,
             mask,
+            ..
         }: ImageRequest<IpcBytesReceiver>,
     ) -> ImageId {
         let id = self.image_id_gen.incr();
@@ -234,6 +231,7 @@ impl ImageCache {
                 ImageDataFormat::FileExtension(ext) => image::ImageFormat::from_extension(ext.as_str()),
                 ImageDataFormat::MimeType(t) => t.strip_prefix("image/").and_then(image::ImageFormat::from_extension),
                 ImageDataFormat::Unknown => None,
+                _ => None,
             };
 
             let mut pending = true;
@@ -285,14 +283,9 @@ impl ImageCache {
                 match Self::image_decode(&full[..], fmt, downscale, orientation) {
                     Ok(img) => {
                         let (pixels, size, ppi, is_opaque, is_mask) = Self::convert_decoded(img, mask);
-                        let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
-                            id,
-                            pixels,
-                            size,
-                            ppi,
-                            is_opaque,
-                            is_mask,
-                        }));
+                        let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
+                            id, size, ppi, is_opaque, is_mask, pixels,
+                        )));
                     }
                     Err(e) => {
                         let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
@@ -304,14 +297,14 @@ impl ImageCache {
             } else if !is_encoded {
                 let pixels = IpcBytes::from_vec(full);
                 let is_opaque = pixels.chunks_exact(4).all(|c| c[3] == 255);
-                let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData {
+                let _ = app_sender.send(AppEvent::ImageLoaded(ImageLoadedData::new(
                     id,
-                    pixels,
-                    size: size.unwrap(),
+                    size.unwrap(),
                     ppi,
                     is_opaque,
-                    is_mask: false,
-                }));
+                    false,
+                    pixels,
+                )));
             } else {
                 let _ = app_sender.send(AppEvent::Notify(Event::ImageLoadError {
                     image: id,
@@ -362,6 +355,7 @@ impl ImageCache {
             ImageDataFormat::Unknown => None,
             ImageDataFormat::Bgra8 { .. } => unreachable!(),
             ImageDataFormat::A8 { .. } => unreachable!(),
+            _ => None,
         };
 
         let reader = match fmt {
@@ -467,6 +461,7 @@ impl ImageCache {
                                 la[0]
                             })
                             .collect(),
+                        _ => unimplemented!(),
                     }
                 } else {
                     img.into_raw()
@@ -622,6 +617,7 @@ impl ImageCache {
                                 l as u8
                             })
                             .collect(),
+                        _ => unimplemented!(),
                     }
                 } else {
                     img.into_raw()
@@ -1427,22 +1423,15 @@ mod capture {
                     Some(mask),
                 );
 
-                let id = self.add(ImageRequest {
-                    format: ImageDataFormat::A8 { size },
-                    data: pixels.clone(),
-                    max_decoded_len: u64::MAX,
-                    downscale: None,
-                    mask: Some(mask),
-                });
+                let id = self.add(ImageRequest::new(
+                    ImageDataFormat::A8 { size },
+                    pixels.clone(),
+                    u64::MAX,
+                    None,
+                    Some(mask),
+                ));
 
-                ImageLoadedData {
-                    id,
-                    size,
-                    ppi,
-                    is_opaque,
-                    is_mask,
-                    pixels,
-                }
+                ImageLoadedData::new(id, size, ppi, is_opaque, is_mask, pixels)
             } else {
                 if format == gleam::gl::RGBA {
                     for rgba in buf.chunks_exact_mut(4) {
@@ -1457,22 +1446,15 @@ mod capture {
                 let ppi = Some(ImagePpi::splat(ppi));
                 let size = rect.size;
 
-                let id = self.add(ImageRequest {
-                    format: ImageDataFormat::Bgra8 { size, ppi },
-                    data: data.clone(),
-                    max_decoded_len: u64::MAX,
-                    downscale: None,
+                let id = self.add(ImageRequest::new(
+                    ImageDataFormat::Bgra8 { size, ppi },
+                    data.clone(),
+                    u64::MAX,
+                    None,
                     mask,
-                });
+                ));
 
-                ImageLoadedData {
-                    id,
-                    size,
-                    ppi,
-                    is_opaque,
-                    pixels: data,
-                    is_mask: false,
-                }
+                ImageLoadedData::new(id, size, ppi, is_opaque, false, data)
             }
         }
     }

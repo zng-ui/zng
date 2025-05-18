@@ -10,6 +10,7 @@ use bitflags::bitflags;
 
 /// Drag&drop data payload.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum DragDropData {
     /// Text encoded data.
     ///
@@ -90,6 +91,7 @@ impl DragDropEffect {
 
 /// Error for drag start or cancel error.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum DragDropError {
     /// View-process implementer does not support any of the provided data types.
     NotSupported,

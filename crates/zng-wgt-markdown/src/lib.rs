@@ -156,22 +156,12 @@ fn markdown_view_fn<'a>(md: &'a str) -> impl UiNode + use<> {
     use resolvers::*;
     use view_fn::*;
 
-    // options  that where incorrectly enabled in 0.5, remove for next breaking release
-    // there is a note for this in https://github.com/zng-ui/zng/issues/635
-    let v_0_6_parse_options = Options::ENABLE_HEADING_ATTRIBUTES
-        | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
-        | Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS
-        | Options::ENABLE_OLD_FOOTNOTES
-        | Options::ENABLE_MATH
-        | Options::ENABLE_GFM;
-
     let parse_options = Options::ENABLE_TABLES
         | Options::ENABLE_FOOTNOTES
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
         | Options::ENABLE_SMART_PUNCTUATION
-        | Options::ENABLE_DEFINITION_LIST
-        | v_0_6_parse_options;
+        | Options::ENABLE_DEFINITION_LIST;
 
     let mut strong = 0;
     let mut emphasis = 0;

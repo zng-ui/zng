@@ -1177,12 +1177,7 @@ impl AppExtension for TouchManager {
                     RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
                         args.window_id,
                         args.device_id,
-                        vec![TouchUpdate {
-                            touch: id,
-                            phase: TouchPhase::Move,
-                            position: args.position,
-                            force: None,
-                        }],
+                        vec![TouchUpdate::new(id, TouchPhase::Move, args.position, None)],
                     ));
                 }
             } else if let Some(args) = MOUSE_INPUT_EVENT.on(update) {
@@ -1209,12 +1204,7 @@ impl AppExtension for TouchManager {
                     RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
                         args.window_id,
                         args.device_id.unwrap_or(DeviceId::new_unique()),
-                        vec![TouchUpdate {
-                            touch: TouchId(u64::MAX),
-                            phase,
-                            position: args.position,
-                            force: None,
-                        }],
+                        vec![TouchUpdate::new(TouchId(u64::MAX), phase, args.position, None)],
                     ));
                 }
             } else if let Some(args) = RAW_MOUSE_LEFT_EVENT.on(update) {
@@ -1222,12 +1212,7 @@ impl AppExtension for TouchManager {
                     RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
                         args.window_id,
                         args.device_id,
-                        vec![TouchUpdate {
-                            touch: id,
-                            phase: TouchPhase::Cancel,
-                            position: DipPoint::zero(),
-                            force: None,
-                        }],
+                        vec![TouchUpdate::new(id, TouchPhase::Cancel, DipPoint::zero(), None)],
                     ))
                 }
             }

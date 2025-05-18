@@ -292,23 +292,23 @@ impl CursorToWinit for CursorIcon {
 pub(crate) fn monitor_handle_to_info(handle: &MonitorHandle) -> MonitorInfo {
     let position = handle.position().to_px();
     let size = handle.size().to_px();
-    MonitorInfo {
-        name: Txt::from_str(&handle.name().unwrap_or_default()),
+    MonitorInfo::new(
+        Txt::from_str(&handle.name().unwrap_or_default()),
         position,
         size,
-        scale_factor: Factor(handle.scale_factor() as _),
-        video_modes: handle.video_modes().map(glutin_video_mode_to_video_mode).collect(),
-        is_primary: false,
-    }
+        Factor(handle.scale_factor() as _),
+        handle.video_modes().map(glutin_video_mode_to_video_mode).collect(),
+        false,
+    )
 }
 
 pub(crate) fn glutin_video_mode_to_video_mode(v: winit::monitor::VideoModeHandle) -> VideoMode {
     let size = v.size();
-    VideoMode {
-        size: PxSize::new(Px(size.width as i32), Px(size.height as i32)),
-        bit_depth: v.bit_depth(),
-        refresh_rate: v.refresh_rate_millihertz(),
-    }
+    VideoMode::new(
+        PxSize::new(Px(size.width as i32), Px(size.height as i32)),
+        v.bit_depth(),
+        v.refresh_rate_millihertz(),
+    )
 }
 
 pub(crate) fn element_state_to_key_state(s: ElementState) -> KeyState {
@@ -1359,6 +1359,7 @@ fn access_node_to_kit(
                 access::CurrentKind::Date => builder.set_aria_current(accesskit::AriaCurrent::Date),
                 access::CurrentKind::Time => builder.set_aria_current(accesskit::AriaCurrent::Time),
                 access::CurrentKind::Item => builder.set_aria_current(accesskit::AriaCurrent::True),
+                _ => {}
             },
             Disabled => builder.set_disabled(),
             ErrorMessage(id) => builder.set_error_message(access_id_to_kit(*id)),
@@ -1369,6 +1370,7 @@ fn access_node_to_kit(
                 access::Popup::Tree => builder.set_has_popup(accesskit::HasPopup::Tree),
                 access::Popup::Grid => builder.set_has_popup(accesskit::HasPopup::Grid),
                 access::Popup::Dialog => builder.set_has_popup(accesskit::HasPopup::Dialog),
+                _ => {}
             },
             Invalid(i) => {
                 if i.contains(access::Invalid::SPELLING) {
@@ -1404,6 +1406,7 @@ fn access_node_to_kit(
                     access::LiveIndicator::Assertive => accesskit::Live::Assertive,
                     access::LiveIndicator::OnlyFocused => accesskit::Live::Off,
                     access::LiveIndicator::Polite => accesskit::Live::Polite,
+                    _ => accesskit::Live::Polite,
                 });
                 if *atomic {
                     builder.set_live_atomic();

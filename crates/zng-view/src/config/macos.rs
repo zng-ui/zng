@@ -10,10 +10,9 @@ pub fn font_aa() -> FontAntiAliasing {
 }
 
 pub fn multi_click_config() -> MultiClickConfig {
-    MultiClickConfig {
-        time: (unsafe { NSEvent::doubleClickInterval() } as f32).ms(),
-        ..Default::default()
-    }
+    let mut cfg = MultiClickConfig::default();
+    cfg.time = (unsafe { NSEvent::doubleClickInterval() } as f32).ms();
+    cfg
 }
 
 pub fn animations_config() -> AnimationsConfig {
@@ -21,10 +20,10 @@ pub fn animations_config() -> AnimationsConfig {
 }
 
 pub fn key_repeat_config() -> KeyRepeatConfig {
-    KeyRepeatConfig {
-        start_delay: (unsafe { NSEvent::keyRepeatDelay() } as f32).ms(),
-        interval: (unsafe { NSEvent::keyRepeatInterval() } as f32).ms(),
-    }
+    KeyRepeatConfig::new(
+        (unsafe { NSEvent::keyRepeatDelay() } as f32).ms(),
+        (unsafe { NSEvent::keyRepeatInterval() } as f32).ms(),
+    )
 }
 
 pub fn touch_config() -> TouchConfig {
@@ -68,7 +67,7 @@ pub fn colors_config() -> ColorsConfig {
             ColorsConfig::default().accent
         }
     };
-    ColorsConfig { scheme, accent }
+    ColorsConfig::new(scheme, accent)
 }
 
 pub fn locale_config() -> zng_view_api::config::LocaleConfig {

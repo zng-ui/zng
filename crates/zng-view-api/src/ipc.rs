@@ -14,7 +14,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use zng_txt::Txt;
 
-pub(crate) type IpcResult<T> = std::result::Result<T, Disconnected>;
+pub(crate) type IpcResult<T> = std::result::Result<T, ViewChannelError>;
 
 /// Bytes sender.
 ///
@@ -209,15 +209,19 @@ type IpcSender<T> = flume::Sender<T>;
 #[cfg(not(ipc))]
 type IpcReceiver<T> = flume::Receiver<T>;
 
-/// Channel disconnected error.
-#[derive(Debug)]
-pub struct Disconnected;
-impl fmt::Display for Disconnected {
+/// IPC channel with view-process error.
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub enum ViewChannelError {
+    /// IPC channel disconnected.
+    Disconnected,
+}
+impl fmt::Display for ViewChannelError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ipc channel disconnected")
     }
 }
-impl std::error::Error for Disconnected {}
+impl std::error::Error for ViewChannelError {}
 
 /// Call `new`, then spawn the view-process using the `name` then call `connect`.
 #[cfg(ipc)]
@@ -464,39 +468,39 @@ impl EventReceiver {
 }
 
 #[cfg(ipc)]
-fn handle_recv_error(e: ipc_channel::ipc::IpcError) -> Disconnected {
+fn handle_recv_error(e: ipc_channel::ipc::IpcError) -> ViewChannelError {
     match e {
-        ipc_channel::ipc::IpcError::Disconnected => Disconnected,
+        ipc_channel::ipc::IpcError::Disconnected => ViewChannelError::Disconnected,
         e => {
             tracing::error!("IO or bincode error: {e:?}");
-            Disconnected
+            ViewChannelError::Disconnected
         }
     }
 }
 #[cfg(not(ipc))]
-fn handle_recv_error(e: flume::RecvError) -> Disconnected {
+fn handle_recv_error(e: flume::RecvError) -> ViewChannelError {
     match e {
-        flume::RecvError::Disconnected => Disconnected,
+        flume::RecvError::Disconnected => ViewChannelError::Disconnected,
     }
 }
 
 #[cfg(ipc)]
 #[expect(clippy::boxed_local)]
-fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
+fn handle_send_error(e: ipc_channel::Error) -> ViewChannelError {
     match *e {
         ipc_channel::ErrorKind::Io(e) => {
             if e.kind() == std::io::ErrorKind::BrokenPipe {
-                return Disconnected;
+                return ViewChannelError::Disconnected;
             }
             #[cfg(windows)]
             if e.raw_os_error() == Some(-2147024664) {
                 // 0x800700E8 - "The pipe is being closed."
-                return Disconnected;
+                return ViewChannelError::Disconnected;
             }
             #[cfg(target_os = "macos")]
             if e.kind() == std::io::ErrorKind::NotFound && format!("{e:?}") == "Custom { kind: NotFound, error: SendInvalidDest }" {
                 // this error happens in the same test that on Windows is 0x800700E8 and on Ubuntu is BrokenPipe
-                return Disconnected;
+                return ViewChannelError::Disconnected;
             }
             panic!("unexpected IO error: {e:?}")
         }
@@ -505,14 +509,14 @@ fn handle_send_error(e: ipc_channel::Error) -> Disconnected {
 }
 
 #[cfg(not(ipc))]
-fn handle_send_error<T>(_: flume::SendError<T>) -> Disconnected {
-    Disconnected
+fn handle_send_error<T>(_: flume::SendError<T>) -> ViewChannelError {
+    ViewChannelError::Disconnected
 }
 
 #[cfg(ipc)]
-fn handle_io_error(e: std::io::Error) -> Disconnected {
+fn handle_io_error(e: std::io::Error) -> ViewChannelError {
     match e.kind() {
-        std::io::ErrorKind::BrokenPipe => Disconnected,
+        std::io::ErrorKind::BrokenPipe => ViewChannelError::Disconnected,
         e => panic!("unexpected IO error: {e:?}"),
     }
 }

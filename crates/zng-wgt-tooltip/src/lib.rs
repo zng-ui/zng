@@ -448,6 +448,7 @@ pub fn access_tooltip_duration(child: impl UiNode, duration: impl IntoVar<Durati
 
 /// Arguments for tooltip widget functions.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct TooltipArgs {
     /// ID of the widget the tooltip is anchored to.
     pub anchor_id: WidgetId,
@@ -457,6 +458,15 @@ pub struct TooltipArgs {
     /// [`tooltip_fn`]: fn@tooltip_fn
     /// [`disabled_tooltip_fn`]: fn@disabled_tooltip_fn
     pub disabled: bool,
+}
+impl TooltipArgs {
+    /// New from anchor and state.
+    pub fn new(anchor_id: impl Into<WidgetId>, disabled: bool) -> Self {
+        Self {
+            anchor_id: anchor_id.into(),
+            disabled,
+        }
+    }
 }
 
 app_local! {

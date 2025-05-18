@@ -9,7 +9,7 @@ use crate::{
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect},
     image::{ImageId, ImageLoadedData, ImagePpi},
-    ipc::IpcBytes,
+    ipc::{self, IpcBytes},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonId, ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
@@ -113,12 +113,13 @@ pub struct AxisId(pub u32);
 pub struct DragDropId(pub u32);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// View process is online.
+/// View process is connected and ready.
 ///
 /// The [`ViewProcessGen`] is the generation of the new view-process, it must be passed to
 /// [`Controller::handle_inited`].
 ///
 /// [`Controller::handle_inited`]: crate::Controller::handle_inited
+#[non_exhaustive]
 pub struct Inited {
     /// View-process generation, changes after respawns and is never zero.
     pub generation: ViewProcessGen,
@@ -148,6 +149,39 @@ pub struct Inited {
     /// The extension IDs will stay valid for the duration of the view-process.
     pub extensions: ApiExtensions,
 }
+impl Inited {
+    /// New response.
+    #[allow(clippy::too_many_arguments)] // already grouping stuff.
+    pub fn new(
+        generation: ViewProcessGen,
+        is_respawn: bool,
+        available_monitors: Vec<(MonitorId, MonitorInfo)>,
+        multi_click_config: MultiClickConfig,
+        key_repeat_config: KeyRepeatConfig,
+        touch_config: TouchConfig,
+        font_aa: FontAntiAliasing,
+        animations_config: AnimationsConfig,
+        locale_config: LocaleConfig,
+        colors_config: ColorsConfig,
+        chrome_config: ChromeConfig,
+        extensions: ApiExtensions,
+    ) -> Self {
+        Self {
+            generation,
+            is_respawn,
+            available_monitors,
+            multi_click_config,
+            key_repeat_config,
+            touch_config,
+            font_aa,
+            animations_config,
+            locale_config,
+            colors_config,
+            chrome_config,
+            extensions,
+        }
+    }
+}
 
 /// IME preview or insert event.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,6 +201,7 @@ pub enum Ime {
 
 /// System and User events sent from the View Process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum Event {
     /// View-process inited.
     Inited(Inited),
@@ -863,18 +898,8 @@ impl Event {
     }
 }
 
-/// The View-Process disconnected or has not finished initializing, try again after the *inited* event.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-pub struct ViewProcessOffline;
-impl fmt::Display for ViewProcessOffline {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "view-process disconnected or is initing, try again after the init event")
-    }
-}
-impl std::error::Error for ViewProcessOffline {}
-
 /// View Process IPC result.
-pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
+pub(crate) type VpResult<T> = std::result::Result<T, ipc::ViewChannelError>;
 
 /// Offset and color in a gradient.
 #[repr(C)]
@@ -971,6 +996,7 @@ zng_var::impl_from_and_into_var! {
 #[allow(missing_docs)]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Default)]
+#[non_exhaustive]
 pub enum MixBlendMode {
     #[default]
     Normal = 0,
@@ -1003,6 +1029,7 @@ pub enum MixBlendMode {
 /// slower but more complex algorithm or pre-scaling it before including in the app.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum ImageRendering {
     /// Let the renderer select the algorithm, currently this is the same as [`CrispEdges`].
     ///
@@ -1070,6 +1097,7 @@ impl fmt::Debug for LineOrientation {
 #[allow(missing_docs)]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[non_exhaustive]
 pub enum LineStyle {
     Solid,
     Dotted,
@@ -1085,6 +1113,7 @@ pub enum LineStyle {
 /// The line style for the sides of a widget's border.
 #[repr(u8)]
 #[derive(Default, Debug, Clone, Copy, PartialEq, Hash, Eq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum BorderStyle {
     /// No border line.
     #[default]
@@ -1117,6 +1146,7 @@ pub enum BorderStyle {
 /// Result of a focus request.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum FocusResult {
     /// Focus was requested, an [`Event::FocusChanged`] will be send if the operating system gives focus to the window.
     Requested,

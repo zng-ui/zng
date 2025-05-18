@@ -41,6 +41,7 @@ crate::declare_id! {
 ///
 /// This is mostly a trade-off between performance, power consumption and cold startup time.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum RenderMode {
     /// Prefer the best dedicated GPU, probably the best performance after initialization, but also the
     /// most power consumption.
@@ -98,6 +99,7 @@ zng_var::impl_from_and_into_var! {
 ///
 /// [`capture_mode`]: WindowRequest::capture_mode
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct HeadlessRequest {
     /// ID that will identify the new headless surface.
     ///
@@ -120,9 +122,28 @@ pub struct HeadlessRequest {
     /// with the payload.
     pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
+impl HeadlessRequest {
+    /// New request.
+    pub fn new(
+        id: WindowId,
+        scale_factor: Factor,
+        size: DipSize,
+        render_mode: RenderMode,
+        extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
+    ) -> Self {
+        Self {
+            id,
+            scale_factor,
+            size,
+            render_mode,
+            extensions,
+        }
+    }
+}
 
 /// Information about a monitor screen.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct MonitorInfo {
     /// Readable name of the monitor.
     pub name: Txt,
@@ -139,6 +160,18 @@ pub struct MonitorInfo {
     pub is_primary: bool,
 }
 impl MonitorInfo {
+    /// New info.
+    pub fn new(name: Txt, position: PxPoint, size: PxSize, scale_factor: Factor, video_modes: Vec<VideoMode>, is_primary: bool) -> Self {
+        Self {
+            name,
+            position,
+            size,
+            scale_factor,
+            video_modes,
+            is_primary,
+        }
+    }
+
     /// Returns the `size` descaled using the `scale_factor`.
     pub fn dip_size(&self) -> DipSize {
         self.size.to_dip(self.scale_factor)
@@ -154,6 +187,7 @@ impl MonitorInfo {
 ///
 /// [`MonitorInfo::video_modes`]: crate::window::MonitorInfo::video_modes
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct VideoMode {
     /// Resolution of this video mode.
     pub size: PxSize,
@@ -170,6 +204,15 @@ impl Default for VideoMode {
     }
 }
 impl VideoMode {
+    /// New video mode.
+    pub fn new(size: PxSize, bit_depth: u16, refresh_rate: u32) -> Self {
+        Self {
+            size,
+            bit_depth,
+            refresh_rate,
+        }
+    }
+
     /// Default value, matches with the largest size, greatest bit-depth and refresh rate.
     pub const MAX: VideoMode = VideoMode {
         size: PxSize::new(Px::MAX, Px::MAX),
@@ -196,6 +239,7 @@ impl fmt::Display for VideoMode {
 
 /// Information about a successfully opened window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct WindowOpenData {
     /// Window complete state.
     pub state: WindowStateAll,
@@ -223,16 +267,46 @@ pub struct WindowOpenData {
     /// interactive or important content outside of this padding.
     pub safe_padding: DipSideOffsets,
 }
+impl WindowOpenData {
+    /// New response.
+    pub fn new(
+        state: WindowStateAll,
+        monitor: Option<MonitorId>,
+        position: (PxPoint, DipPoint),
+        size: DipSize,
+        scale_factor: Factor,
+        render_mode: RenderMode,
+        safe_padding: DipSideOffsets,
+    ) -> Self {
+        Self {
+            state,
+            monitor,
+            position,
+            size,
+            scale_factor,
+            render_mode,
+            safe_padding,
+        }
+    }
+}
 
 /// Information about a successfully opened headless surface.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct HeadlessOpenData {
     /// Actual render mode, can be different from the requested mode if it is not available.
     pub render_mode: RenderMode,
 }
+impl HeadlessOpenData {
+    /// New resonse.
+    pub fn new(render_mode: RenderMode) -> Self {
+        Self { render_mode }
+    }
+}
 
 /// Represents a focus request indicator.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum FocusIndicator {
     /// Activate critical focus request.
     Critical,
@@ -242,6 +316,7 @@ pub enum FocusIndicator {
 
 /// Frame image capture request.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum FrameCapture {
     /// Don't capture the frame.
     #[default]
@@ -254,6 +329,7 @@ pub enum FrameCapture {
 
 /// Data for rendering a new frame.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct FrameRequest {
     /// ID of the new frame.
     pub id: FrameId,
@@ -274,9 +350,22 @@ pub struct FrameRequest {
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
     pub wait_id: Option<FrameWaitId>,
 }
+impl FrameRequest {
+    /// New request.
+    pub fn new(id: FrameId, clear_color: Rgba, display_list: DisplayList, capture: FrameCapture, wait_id: Option<FrameWaitId>) -> Self {
+        Self {
+            id,
+            clear_color,
+            display_list,
+            capture,
+            wait_id,
+        }
+    }
+}
 
 /// Data for rendering a new frame that is derived from the current frame.
 #[derive(Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct FrameUpdateRequest {
     /// ID of the new frame.
     pub id: FrameId,
@@ -287,11 +376,6 @@ pub struct FrameUpdateRequest {
     pub floats: Vec<FrameValueUpdate<f32>>,
     /// Bound colors.
     pub colors: Vec<FrameValueUpdate<Rgba>>,
-
-    /// Update payload for API extensions.
-    ///
-    /// The `zng-view` crate implements this by calling `DisplayListExtension::update` with the payload.
-    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 
     /// New clear color.
     pub clear_color: Option<Rgba>,
@@ -305,8 +389,37 @@ pub struct FrameUpdateRequest {
 
     /// Identifies this frame as the response to the [`WindowChanged`] resized frame request.
     pub wait_id: Option<FrameWaitId>,
+
+    /// Update payload for API extensions.
+    ///
+    /// The `zng-view` crate implements this by calling `DisplayListExtension::update` with the payload.
+    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 impl FrameUpdateRequest {
+    /// New request.
+    #[allow(clippy::too_many_arguments)] // already grouping stuff>
+    pub fn new(
+        id: FrameId,
+        transforms: Vec<FrameValueUpdate<PxTransform>>,
+        floats: Vec<FrameValueUpdate<f32>>,
+        colors: Vec<FrameValueUpdate<Rgba>>,
+        clear_color: Option<Rgba>,
+        capture: FrameCapture,
+        wait_id: Option<FrameWaitId>,
+        extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
+    ) -> Self {
+        Self {
+            id,
+            transforms,
+            floats,
+            colors,
+            extensions,
+            clear_color,
+            capture,
+            wait_id,
+        }
+    }
+
     /// A request that does nothing, apart from re-rendering the frame.
     pub fn empty(id: FrameId) -> FrameUpdateRequest {
         FrameUpdateRequest {
@@ -347,6 +460,7 @@ impl fmt::Debug for FrameUpdateRequest {
 
 /// Configuration of a new window.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct WindowRequest {
     /// ID that will identify the new window.
     pub id: WindowId,
@@ -408,11 +522,6 @@ pub struct WindowRequest {
     /// the windows manager, usually focusing the new window only if the process that causes the window has focus.
     pub focus: bool,
 
-    /// Initial payload for API extensions.
-    ///
-    /// The `zng-view` crate implements this by calling `WindowExtension::configure` and `RendererExtension::configure` with the payload.
-    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
-
     /// IME cursor area, if IME is enabled.
     pub ime_area: Option<DipRect>,
 
@@ -421,8 +530,67 @@ pub struct WindowRequest {
 
     /// System shutdown warning associated with the window.
     pub system_shutdown_warn: Txt,
+
+    /// Initial payload for API extensions.
+    ///
+    /// The `zng-view` crate implements this by calling `WindowExtension::configure` and `RendererExtension::configure` with the payload.
+    pub extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
 }
 impl WindowRequest {
+    /// New request.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        id: WindowId,
+        title: Txt,
+        state: WindowStateAll,
+        kiosk: bool,
+        default_position: bool,
+        video_mode: VideoMode,
+        visible: bool,
+        taskbar_visible: bool,
+        always_on_top: bool,
+        movable: bool,
+        resizable: bool,
+        icon: Option<ImageId>,
+        cursor: Option<CursorIcon>,
+        cursor_image: Option<(ImageId, PxPoint)>,
+        transparent: bool,
+        capture_mode: bool,
+        render_mode: RenderMode,
+        focus_indicator: Option<FocusIndicator>,
+        focus: bool,
+        ime_area: Option<DipRect>,
+        enabled_buttons: WindowButton,
+        system_shutdown_warn: Txt,
+        extensions: Vec<(ApiExtensionId, ApiExtensionPayload)>,
+    ) -> Self {
+        Self {
+            id,
+            title,
+            state,
+            kiosk,
+            default_position,
+            video_mode,
+            visible,
+            taskbar_visible,
+            always_on_top,
+            movable,
+            resizable,
+            icon,
+            cursor,
+            cursor_image,
+            transparent,
+            capture_mode,
+            render_mode,
+            focus_indicator,
+            focus,
+            extensions,
+            ime_area,
+            enabled_buttons,
+            system_shutdown_warn,
+        }
+    }
+
     /// Corrects invalid values if [`kiosk`] is `true`.
     ///
     /// An error is logged for each invalid value.
@@ -448,6 +616,7 @@ impl WindowRequest {
 
 /// Represents the properties of a window that affect its position, size and state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct WindowStateAll {
     /// The window state.
     pub state: WindowState,
@@ -490,6 +659,27 @@ pub struct WindowStateAll {
     pub chrome_visible: bool,
 }
 impl WindowStateAll {
+    /// New state.
+    pub fn new(
+        state: WindowState,
+        global_position: PxPoint,
+        restore_rect: DipRect,
+        restore_state: WindowState,
+        min_size: DipSize,
+        max_size: DipSize,
+        chrome_visible: bool,
+    ) -> Self {
+        Self {
+            state,
+            global_position,
+            restore_rect,
+            restore_state,
+            min_size,
+            max_size,
+            chrome_visible,
+        }
+    }
+
     /// Clamp the `restore_rect.size` to `min_size` and `max_size`.
     pub fn clamp_size(&mut self) {
         self.restore_rect.size = self.restore_rect.size.min(self.max_size).max(self.min_size)
@@ -746,6 +936,7 @@ impl CursorIcon {
 
 /// Defines a custom mouse cursor.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CursorImage {
     /// Cursor image.
     pub img: ImageId,
@@ -753,6 +944,12 @@ pub struct CursorImage {
     ///
     /// This value is only used if the image format does not contain a hotspot.
     pub hotspot: PxPoint,
+}
+impl CursorImage {
+    /// New cursor.
+    pub fn new(img: ImageId, hotspot: PxPoint) -> Self {
+        Self { img, hotspot }
+    }
 }
 
 /// Defines the orientation that a window resize will be performed.
@@ -846,6 +1043,7 @@ impl WindowState {
 ///
 /// [`Event::FrameRendered`]: crate::Event::FrameRendered
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct EventFrameRendered {
     /// Window that was rendered.
     pub window: WindowId,
@@ -854,11 +1052,22 @@ pub struct EventFrameRendered {
     /// Frame image, if one was requested with the frame request.
     pub frame_image: Option<ImageLoadedData>,
 }
+impl EventFrameRendered {
+    /// New response.
+    pub fn new(window: WindowId, frame: FrameId, frame_image: Option<ImageLoadedData>) -> Self {
+        Self {
+            window,
+            frame,
+            frame_image,
+        }
+    }
+}
 
 /// [`Event::WindowChanged`] payload.
 ///
 /// [`Event::WindowChanged`]: crate::Event::WindowChanged
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct WindowChanged {
     // note that this payload is handled by `Event::coalesce`, add new fields there too.
     //
@@ -901,6 +1110,30 @@ pub struct WindowChanged {
     pub cause: EventCause,
 }
 impl WindowChanged {
+    /// New response.
+    #[allow(clippy::too_many_arguments)] // already grouping stuff>
+    pub fn new(
+        window: WindowId,
+        state: Option<WindowStateAll>,
+        position: Option<(PxPoint, DipPoint)>,
+        monitor: Option<MonitorId>,
+        size: Option<DipSize>,
+        safe_padding: Option<DipSideOffsets>,
+        frame_wait_id: Option<FrameWaitId>,
+        cause: EventCause,
+    ) -> Self {
+        Self {
+            window,
+            state,
+            position,
+            monitor,
+            size,
+            safe_padding,
+            frame_wait_id,
+            cause,
+        }
+    }
+
     /// Create an event that represents window move.
     pub fn moved(window: WindowId, global_position: PxPoint, position: DipPoint, cause: EventCause) -> Self {
         WindowChanged {
@@ -1007,6 +1240,7 @@ impl FrameId {
 
 /// Cause of a window state change.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum EventCause {
     /// Operating system or end-user affected the window.
     System,

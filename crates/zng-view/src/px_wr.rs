@@ -349,6 +349,7 @@ impl PxToWr for FilterOp {
                 m[19],
             ]),
             FilterOp::Flood(c) => wr::FilterOp::Flood(c.to_wr()),
+            _ => wr::FilterOp::Identity,
         }
     }
 }
@@ -399,6 +400,7 @@ impl PxToWr for BorderStyle {
             BorderStyle::Ridge => wr::BorderStyle::Ridge,
             BorderStyle::Inset => wr::BorderStyle::Inset,
             BorderStyle::Outset => wr::BorderStyle::Outset,
+            _ => wr::BorderStyle::None,
         }
     }
 }
@@ -433,6 +435,7 @@ impl<T: PxToWr> PxToWr for FrameValue<T> {
                 value, animating: false, ..
             } => wr::PropertyBinding::Value(value.to_wr()),
             FrameValue::Value(value) => wr::PropertyBinding::Value(value.to_wr()),
+            _ => unimplemented!(),
         }
     }
 }
@@ -494,6 +497,7 @@ impl PxToWr for FontOptions {
                     FontAntiAliasing::Subpixel => wr::FontRenderMode::Subpixel,
                     FontAntiAliasing::Alpha => wr::FontRenderMode::Alpha,
                     FontAntiAliasing::Mono => wr::FontRenderMode::Mono,
+                    _ => wr::FontRenderMode::default(),
                 },
                 flags: if self.synthetic_bold {
                     wr::FontInstanceFlags::SYNTHETIC_BOLD
@@ -603,6 +607,7 @@ impl PxToWr for MixBlendMode {
             MixBlendMode::Color => Color,
             MixBlendMode::Luminosity => Luminosity,
             MixBlendMode::PlusLighter => PlusLighter,
+            _ => Normal,
         }
     }
 }
@@ -626,6 +631,7 @@ impl PxToWr for ImageRendering {
             ImageRendering::Auto => Auto,
             ImageRendering::CrispEdges => CrispEdges,
             ImageRendering::Pixelated => Pixelated,
+            _ => Auto,
         }
     }
 }
@@ -712,6 +718,7 @@ impl PxToWr for LineStyle {
             LineStyle::Dotted => (wr::LineStyle::Dotted, 0.0),
             LineStyle::Dashed => (wr::LineStyle::Dashed, 0.0),
             LineStyle::Wavy(t) => (wr::LineStyle::Wavy, t),
+            _ => (wr::LineStyle::Solid, 0.0),
         }
     }
 }

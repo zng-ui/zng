@@ -81,7 +81,7 @@ impl TryFrom<serde_yaml::Value> for RawConfigValue {
                 } else if let Some(n) = n.as_f64() {
                     match serde_json::Number::from_f64(n) {
                         Some(n) => n,
-                        None => return Err(YamlValueRawError::InvalidFloat(n)),
+                        None => return Err(YamlValueRawError::UnsupportedFloat(n)),
                     }
                 } else {
                     unreachable!()
@@ -154,7 +154,7 @@ fn yaml_map_key(key: serde_yaml::Value) -> Result<String, YamlValueRawError> {
         serde_yaml::Value::Number(n) => n.to_string(),
         serde_yaml::Value::String(s) => s,
         serde_yaml::Value::Sequence(_) | serde_yaml::Value::Mapping(_) | serde_yaml::Value::Tagged(_) => {
-            return Err(YamlValueRawError::InvalidMapKey);
+            return Err(YamlValueRawError::UnsupportedKey);
         }
     };
     Ok(ok)
@@ -162,17 +162,19 @@ fn yaml_map_key(key: serde_yaml::Value) -> Result<String, YamlValueRawError> {
 
 /// Error converting serde_yaml::Value, RawConfigValue.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub enum YamlValueRawError {
     /// JSON only supports finite floats.
-    InvalidFloat(f64),
+    UnsupportedFloat(f64),
     /// JSON only supports key types that are [`fmt::Display`].
-    InvalidMapKey,
+    UnsupportedKey,
 }
 impl fmt::Display for YamlValueRawError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "error converting yaml to internal json, ")?;
         match self {
-            Self::InvalidFloat(fl) => write!(f, "json does not support float `{fl}`"),
-            Self::InvalidMapKey => write!(f, "json does not support non-display keys"),
+            Self::UnsupportedFloat(fl) => write!(f, "json does not support float `{fl}`"),
+            Self::UnsupportedKey => write!(f, "json does not support non-display keys"),
         }
     }
 }

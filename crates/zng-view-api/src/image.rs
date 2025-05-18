@@ -22,6 +22,7 @@ crate::declare_id! {
 
 /// Defines how the A8 image mask pixels are to be derived from a source mask image.
 #[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Hash, Deserialize, Default)]
+#[non_exhaustive]
 pub enum ImageMaskMode {
     /// Alpha channel.
     ///
@@ -48,6 +49,7 @@ pub enum ImageMaskMode {
 
 /// Represent a image load/decode request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ImageRequest<D> {
     /// Image data format.
     pub format: ImageDataFormat,
@@ -67,6 +69,24 @@ pub struct ImageRequest<D> {
     pub downscale: Option<ImageDownscale>,
     /// Convert or decode the image into a single channel mask (R8).
     pub mask: Option<ImageMaskMode>,
+}
+impl<D> ImageRequest<D> {
+    /// New request.
+    pub fn new(
+        format: ImageDataFormat,
+        data: D,
+        max_decoded_len: u64,
+        downscale: Option<ImageDownscale>,
+        mask: Option<ImageMaskMode>,
+    ) -> Self {
+        Self {
+            format,
+            data,
+            max_decoded_len,
+            downscale,
+            mask,
+        }
+    }
 }
 
 /// Defines how an image is downscaled after decoding.
@@ -150,6 +170,7 @@ impl ImageDownscale {
 
 /// Format of the image bytes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum ImageDataFormat {
     /// Decoded BGRA8.
     ///
@@ -244,6 +265,7 @@ fn ppi_key(ppi: Option<ImagePpi>) -> Option<(u16, u16)> {
 ///
 /// [`Event::ImageLoaded`]: crate::Event::ImageLoaded
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ImageLoadedData {
     /// Image ID.
     pub id: ImageId,
@@ -257,6 +279,19 @@ pub struct ImageLoadedData {
     pub is_mask: bool,
     /// Reference to the BGRA8 pre-multiplied image pixels or the A8 pixels if `is_mask`.
     pub pixels: IpcBytes,
+}
+impl ImageLoadedData {
+    /// New response.
+    pub fn new(id: ImageId, size: PxSize, ppi: Option<ImagePpi>, is_opaque: bool, is_mask: bool, pixels: IpcBytes) -> Self {
+        Self {
+            id,
+            size,
+            ppi,
+            is_opaque,
+            is_mask,
+            pixels,
+        }
+    }
 }
 impl fmt::Debug for ImageLoadedData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

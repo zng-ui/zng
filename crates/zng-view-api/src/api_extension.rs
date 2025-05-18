@@ -17,8 +17,8 @@ use zng_txt::Txt;
 pub struct ApiExtensionPayload(#[serde(with = "serde_bytes")] pub Vec<u8>);
 impl ApiExtensionPayload {
     /// Serialize the payload.
-    pub fn serialize<T: Serialize>(payload: &T) -> bincode::Result<Self> {
-        bincode::serialize(payload).map(Self)
+    pub fn serialize<T: Serialize>(payload: &T) -> Result<Self, bincode::error::EncodeError> {
+        bincode::serde::encode_to_vec(payload, bincode::config::standard()).map(Self)
     }
 
     /// Deserialize the payload.
@@ -31,7 +31,10 @@ impl ApiExtensionPayload {
         } else if let Some(id) = self.parse_unknown_extension() {
             Err(ApiExtensionRecvError::UnknownExtension { extension_id: id })
         } else {
-            bincode::deserialize(&self.0).map_err(ApiExtensionRecvError::Deserialize)
+            match bincode::serde::decode_from_slice(&self.0, bincode::config::standard()) {
+                Ok((r, _)) => Ok(r),
+                Err(e) => Err(ApiExtensionRecvError::Deserialize(e)),
+            }
         }
     }
 
@@ -169,6 +172,7 @@ impl From<&'static str> for ApiExtensionName {
 
 /// API extension invalid name.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum ApiExtensionNameError {
     /// Name cannot empty `""`.
     NameCannotBeEmpty,
@@ -298,6 +302,7 @@ impl std::str::FromStr for ApiExtensionId {
 
 /// Error in the response of an API extension call.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ApiExtensionRecvError {
     /// Requested extension was not in the list of extensions.
     UnknownExtension {
@@ -316,7 +321,7 @@ pub enum ApiExtensionRecvError {
         error: Txt,
     },
     /// Failed to deserialize to the expected response type.
-    Deserialize(bincode::Error),
+    Deserialize(bincode::error::DecodeError),
 }
 impl fmt::Display for ApiExtensionRecvError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -330,6 +330,7 @@ pub trait Transitionable: VarValue {
 }
 
 /// Represents a simple transition between two values.
+#[non_exhaustive]
 pub struct Transition<T> {
     /// Value sampled at the `0.fct()` step.
     pub from: T,

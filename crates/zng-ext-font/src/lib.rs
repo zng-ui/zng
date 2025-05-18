@@ -67,7 +67,7 @@ use zng_var::{
     AnyVar, ArcVar, IntoVar, LocalVar, ResponderVar, ResponseVar, Var, animation::Transitionable, impl_from_and_into_var,
     response_done_var, response_var, var,
 };
-use zng_view_api::{ViewProcessOffline, config::FontAntiAliasing};
+use zng_view_api::config::FontAntiAliasing;
 
 /// Font family name.
 ///
@@ -630,6 +630,7 @@ pub enum FontChange {
 ///
 /// * [`FONT_CHANGED_EVENT`] - Font config or system fonts changed.
 #[derive(Default)]
+#[non_exhaustive]
 pub struct FontManager {}
 impl AppExtension for FontManager {
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -1192,7 +1193,7 @@ impl FontFace {
 
         let key = match renderer.add_font_face((*self.0.data.0).clone(), self.0.face_index) {
             Ok(k) => k,
-            Err(ViewProcessOffline) => {
+            Err(_) => {
                 tracing::debug!("respawned calling `add_font`, will return dummy font key");
                 return zng_view_api::font::FontFaceId::INVALID;
             }
@@ -1439,16 +1440,14 @@ impl Font {
 
         let font_key = self.0.face.render_face(renderer);
 
-        let opt = zng_view_api::font::FontOptions {
-            synthetic_oblique: synthesis.contains(FontSynthesis::OBLIQUE),
-            synthetic_bold: synthesis.contains(FontSynthesis::BOLD),
-            ..Default::default()
-        };
+        let mut opt = zng_view_api::font::FontOptions::default();
+        opt.synthetic_oblique = synthesis.contains(FontSynthesis::OBLIQUE);
+        opt.synthetic_bold = synthesis.contains(FontSynthesis::BOLD);
         let variations = self.0.variations.iter().map(|v| (v.tag.to_bytes(), v.value)).collect();
 
         let key = match renderer.add_font(font_key, self.0.size, opt, variations) {
             Ok(k) => k,
-            Err(ViewProcessOffline) => {
+            Err(_) => {
                 tracing::debug!("respawned calling `add_font_instance`, will return dummy font key");
                 return zng_view_api::font::FontId::INVALID;
             }
@@ -2329,8 +2328,8 @@ impl GenericFontsService {
 /// See also [`FontNames::system_ui`] for the default font selection for UIs.
 ///
 /// [`FontNames::system_ui`]: crate::FontNames::system_ui
+#[non_exhaustive]
 pub struct GenericFonts {}
-impl GenericFonts {}
 macro_rules! impl_fallback_accessors {
     ($($name:ident=$name_str:tt),+ $(,)?) => {$($crate::paste! {
     #[doc = "Gets the fallback *"$name_str "* font for the given language."]
@@ -2962,6 +2961,7 @@ impl fmt::Debug for Justify {
 ///
 /// [`FreeType Glyph Metrics`]: https://freetype.org/freetype2/docs/glyphs/glyphs-3.html
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct FontFaceMetrics {
     /// The number of font units per em.
     ///
@@ -3029,6 +3029,7 @@ impl FontFaceMetrics {
 ///
 /// You can compute these metrics from a [`FontFaceMetrics`]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct FontMetrics {
     /// Multiply this to a font EM value to get the size in pixels.
     pub size_scale: f32,
@@ -3279,6 +3280,7 @@ impl Ord for CaretIndex {
 
 /// Reasons why a loader might fail to load a font.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum FontLoadingError {
     /// The data was of a format the loader didn't recognize.
     UnknownFormat,

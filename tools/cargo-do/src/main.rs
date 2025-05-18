@@ -1331,6 +1331,9 @@ fn rust_analyzer_run(args: Vec<&str>) {
 fn rust_analyzer_check(mut args: Vec<&str>) {
     if !settings_path().join(".rust_analyzer_disabled").exists() {
         args.push("--message-format=json");
+        // args.push("--");
+        // args.push("-W",
+        // args.push("clippy::exhaustive_structs");
         check(args);
     }
 }

@@ -41,9 +41,7 @@ pub fn chrome_config() -> ChromeConfig {
 
 #[cfg(not(windows))]
 pub fn locale_config() -> zng_view_api::config::LocaleConfig {
-    zng_view_api::config::LocaleConfig {
-        langs: sys_locale::get_locale().into_iter().map(zng_txt::Txt::from).collect(),
-    }
+    zng_view_api::config::LocaleConfig::new(sys_locale::get_locale().into_iter().map(zng_txt::Txt::from).collect())
 }
 
 pub fn spawn_listener(_: crate::AppEventSender) -> Option<Box<dyn FnOnce()>> {
