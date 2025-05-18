@@ -367,7 +367,7 @@ pub struct ExtensionEventSender {
 }
 impl ExtensionEventSender {
     /// Send the event `payload`.
-    pub fn send(&self, payload: ApiExtensionPayload) -> Result<(), zng_view_api::ipc::Disconnected> {
+    pub fn send(&self, payload: ApiExtensionPayload) -> Result<(), zng_view_api::ipc::ViewChannelError> {
         self.sender.send(crate::AppEvent::Notify(Event::ExtensionEvent(self.id, payload)))
     }
 }

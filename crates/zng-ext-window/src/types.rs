@@ -20,8 +20,8 @@ use zng_txt::Txt;
 use zng_unique_id::IdSet;
 use zng_var::impl_from_and_into_var;
 use zng_view_api::{
-    ViewProcessOffline,
     image::{ImageDataFormat, ImageMaskMode},
+    ipc::ViewChannelError,
     window::{CursorIcon, EventCause, FrameId},
 };
 
@@ -749,8 +749,8 @@ pub enum CloseWindowResult {
 /// [`WINDOWS`]: crate::WINDOWS
 /// [`WindowId`]: crate::WindowId
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct WindowNotFound(WindowId);
-impl WindowNotFound {
+pub struct WindowNotFoundError(WindowId);
+impl WindowNotFoundError {
     /// New from id.
     pub fn new(id: impl Into<WindowId>) -> Self {
         Self(id.into())
@@ -761,12 +761,12 @@ impl WindowNotFound {
         self.0
     }
 }
-impl fmt::Display for WindowNotFound {
+impl fmt::Display for WindowNotFoundError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "window `{}` not found", self.0)
     }
 }
-impl std::error::Error for WindowNotFound {}
+impl std::error::Error for WindowNotFoundError {}
 
 /// Represents a handle that stops the window from loading while the handle is alive.
 ///
@@ -812,9 +812,10 @@ impl fmt::Debug for WindowLoadingHandle {
 
 /// Error calling a view-process API extension associated with a window or renderer.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ViewExtensionError {
     /// Window is not open in the `WINDOWS` service.
-    WindowNotFound(WindowNotFound),
+    WindowNotFound(WindowNotFoundError),
     /// Window must be headed to call window extensions.
     WindowNotHeaded(WindowId),
     /// Window is not open in the view-process.
@@ -823,7 +824,7 @@ pub enum ViewExtensionError {
     /// headless with renderer the window opens in the view-process after the first layout.
     NotOpenInViewProcess(WindowId),
     /// View-process is not running.
-    ViewProcessOffline(ViewProcessOffline),
+    Disconnected,
     /// Api Error.
     Api(zng_view_api::api_extension::ApiExtensionRecvError),
 }
@@ -833,7 +834,7 @@ impl fmt::Display for ViewExtensionError {
             Self::WindowNotFound(e) => fmt::Display::fmt(e, f),
             Self::WindowNotHeaded(id) => write!(f, "window `{id}` is not headed"),
             Self::NotOpenInViewProcess(id) => write!(f, "window/renderer `{id}` not open in the view-process"),
-            Self::ViewProcessOffline(e) => fmt::Display::fmt(e, f),
+            Self::Disconnected => fmt::Display::fmt(&ViewChannelError::Disconnected, f),
             Self::Api(e) => fmt::Display::fmt(e, f),
         }
     }
@@ -844,7 +845,7 @@ impl std::error::Error for ViewExtensionError {
             Self::WindowNotFound(e) => Some(e),
             Self::WindowNotHeaded(_) => None,
             Self::NotOpenInViewProcess(_) => None,
-            Self::ViewProcessOffline(e) => Some(e),
+            Self::Disconnected => Some(&ViewChannelError::Disconnected),
             Self::Api(e) => Some(e),
         }
     }

@@ -254,6 +254,7 @@ const LIB_NAME: &str = concat!("zv.", env!("CARGO_PKG_VERSION"), ".", env!("ZNG_
 
 /// Error searching or linking to pre-build library.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Error searching library.
     Io(io::Error),

@@ -67,7 +67,7 @@ use zng_var::{
     AnyVar, ArcVar, IntoVar, LocalVar, ResponderVar, ResponseVar, Var, animation::Transitionable, impl_from_and_into_var,
     response_done_var, response_var, var,
 };
-use zng_view_api::{ViewProcessOffline, config::FontAntiAliasing};
+use zng_view_api::config::FontAntiAliasing;
 
 /// Font family name.
 ///
@@ -1193,7 +1193,7 @@ impl FontFace {
 
         let key = match renderer.add_font_face((*self.0.data.0).clone(), self.0.face_index) {
             Ok(k) => k,
-            Err(ViewProcessOffline) => {
+            Err(_) => {
                 tracing::debug!("respawned calling `add_font`, will return dummy font key");
                 return zng_view_api::font::FontFaceId::INVALID;
             }
@@ -1449,7 +1449,7 @@ impl Font {
 
         let key = match renderer.add_font(font_key, self.0.size, opt, variations) {
             Ok(k) => k,
-            Err(ViewProcessOffline) => {
+            Err(_) => {
                 tracing::debug!("respawned calling `add_font_instance`, will return dummy font key");
                 return zng_view_api::font::FontId::INVALID;
             }
@@ -3282,6 +3282,7 @@ impl Ord for CaretIndex {
 
 /// Reasons why a loader might fail to load a font.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum FontLoadingError {
     /// The data was of a format the loader didn't recognize.
     UnknownFormat,

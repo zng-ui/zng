@@ -172,6 +172,7 @@ impl From<&'static str> for ApiExtensionName {
 
 /// API extension invalid name.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum ApiExtensionNameError {
     /// Name cannot empty `""`.
     NameCannotBeEmpty,
@@ -301,6 +302,7 @@ impl std::str::FromStr for ApiExtensionId {
 
 /// Error in the response of an API extension call.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ApiExtensionRecvError {
     /// Requested extension was not in the list of extensions.
     UnknownExtension {

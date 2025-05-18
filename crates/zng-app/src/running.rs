@@ -17,10 +17,7 @@ use zng_var::{ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, VARS, VARS_APP,
 
 use crate::{
     APP, AppControlFlow, AppEventObserver, AppExtension, AppExtensionsInfo, DInstant, INSTANT,
-    event::{
-        AnyEventArgs, AppDisconnected, CommandHandle, CommandInfoExt, CommandNameExt, EVENTS, EventPropagationHandle,
-        TimeoutOrAppDisconnected, command, event,
-    },
+    event::{AnyEventArgs, CommandHandle, CommandInfoExt, CommandNameExt, EVENTS, EventPropagationHandle, command, event},
     event_args,
     shortcut::CommandShortcutExt,
     shortcut::shortcut,
@@ -1443,43 +1440,38 @@ impl AppEventSender {
     }
 
     #[allow(clippy::result_large_err)] // error does not move far up the stack
-    fn send_app_event(&self, event: AppEvent) -> Result<(), AppDisconnected<AppEvent>> {
-        self.0.send(event)?;
-        Ok(())
+    fn send_app_event(&self, event: AppEvent) -> Result<(), AppChannelError> {
+        self.0.send(event).map_err(|_| AppChannelError::Disconnected)
     }
 
     #[allow(clippy::result_large_err)]
-    fn send_view_event(&self, event: zng_view_api::Event) -> Result<(), AppDisconnected<AppEvent>> {
-        self.0.send(AppEvent::ViewEvent(event))?;
-        Ok(())
+    fn send_view_event(&self, event: zng_view_api::Event) -> Result<(), AppChannelError> {
+        self.0.send(AppEvent::ViewEvent(event)).map_err(|_| AppChannelError::Disconnected)
     }
 
     /// Causes an update cycle to happen in the app.
-    pub fn send_update(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> Result<(), AppDisconnected<()>> {
+    pub fn send_update(&self, op: UpdateOp, target: impl Into<Option<WidgetId>>) -> Result<(), AppChannelError> {
         UpdatesTrace::log_update();
         self.send_app_event(AppEvent::Update(op, target.into()))
-            .map_err(|_| AppDisconnected(()))
+            .map_err(|_| AppChannelError::Disconnected)
     }
 
     /// [`EventSender`](crate::event::EventSender) util.
-    pub(crate) fn send_event(&self, event: crate::event::EventUpdateMsg) -> Result<(), AppDisconnected<crate::event::EventUpdateMsg>> {
-        self.send_app_event(AppEvent::Event(event)).map_err(|e| match e.0 {
-            AppEvent::Event(ev) => AppDisconnected(ev),
-            _ => unreachable!(),
-        })
+    pub(crate) fn send_event(&self, event: crate::event::EventUpdateMsg) -> Result<(), AppChannelError> {
+        self.send_app_event(AppEvent::Event(event))
+            .map_err(|_| AppChannelError::Disconnected)
     }
 
     /// Resume a panic in the app main loop thread.
-    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppDisconnected<PanicPayload>> {
-        self.send_app_event(AppEvent::ResumeUnwind(payload)).map_err(|e| match e.0 {
-            AppEvent::ResumeUnwind(p) => AppDisconnected(p),
-            _ => unreachable!(),
-        })
+    pub fn send_resume_unwind(&self, payload: PanicPayload) -> Result<(), AppChannelError> {
+        self.send_app_event(AppEvent::ResumeUnwind(payload))
+            .map_err(|_| AppChannelError::Disconnected)
     }
 
     /// [`UPDATES`] util.
-    pub(crate) fn send_check_update(&self) -> Result<(), AppDisconnected<()>> {
-        self.send_app_event(AppEvent::CheckUpdate).map_err(|_| AppDisconnected(()))
+    pub(crate) fn send_check_update(&self) -> Result<(), AppChannelError> {
+        self.send_app_event(AppEvent::CheckUpdate)
+            .map_err(|_| AppChannelError::Disconnected)
     }
 
     /// Create an [`Waker`] that causes a [`send_update`](Self::send_update).
@@ -1543,32 +1535,32 @@ impl<T> Clone for AppExtSender<T> {
 }
 impl<T: Send> AppExtSender<T> {
     /// Send an extension update and `msg`, blocks until the app receives the message.
-    pub fn send(&self, msg: T) -> Result<(), AppDisconnected<T>> {
+    pub fn send(&self, msg: T) -> Result<(), AppChannelError> {
         match self.update.send_update(UpdateOp::Update, None) {
-            Ok(()) => self.sender.send(msg).map_err(|e| AppDisconnected(e.0)),
-            Err(_) => Err(AppDisconnected(msg)),
+            Ok(()) => self.sender.send(msg).map_err(|_| AppChannelError::Disconnected),
+            Err(_) => Err(AppChannelError::Disconnected),
         }
     }
 
     /// Send an extension update and `msg`, blocks until the app receives the message or `dur` elapses.
-    pub fn send_timeout(&self, msg: T, dur: Duration) -> Result<(), TimeoutOrAppDisconnected> {
+    pub fn send_timeout(&self, msg: T, dur: Duration) -> Result<(), AppChannelError> {
         match self.update.send_update(UpdateOp::Update, None) {
             Ok(()) => self.sender.send_timeout(msg, dur).map_err(|e| match e {
-                flume::SendTimeoutError::Timeout(_) => TimeoutOrAppDisconnected::Timeout,
-                flume::SendTimeoutError::Disconnected(_) => TimeoutOrAppDisconnected::AppDisconnected,
+                flume::SendTimeoutError::Timeout(_) => AppChannelError::Timeout,
+                flume::SendTimeoutError::Disconnected(_) => AppChannelError::Disconnected,
             }),
-            Err(_) => Err(TimeoutOrAppDisconnected::AppDisconnected),
+            Err(_) => Err(AppChannelError::Disconnected),
         }
     }
 
     /// Send an extension update and `msg`, blocks until the app receives the message or `deadline` is reached.
-    pub fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), TimeoutOrAppDisconnected> {
+    pub fn send_deadline(&self, msg: T, deadline: Instant) -> Result<(), AppChannelError> {
         match self.update.send_update(UpdateOp::Update, None) {
             Ok(()) => self.sender.send_deadline(msg, deadline).map_err(|e| match e {
-                flume::SendTimeoutError::Timeout(_) => TimeoutOrAppDisconnected::Timeout,
-                flume::SendTimeoutError::Disconnected(_) => TimeoutOrAppDisconnected::AppDisconnected,
+                flume::SendTimeoutError::Timeout(_) => AppChannelError::Timeout,
+                flume::SendTimeoutError::Disconnected(_) => AppChannelError::Disconnected,
             }),
-            Err(_) => Err(TimeoutOrAppDisconnected::AppDisconnected),
+            Err(_) => Err(AppChannelError::Disconnected),
         }
     }
 }
@@ -1591,25 +1583,40 @@ impl<T> AppExtReceiver<T> {
     ///
     /// Returns `Ok(msg)` if there was at least one message, or returns `Err(None)` if there was no update or
     /// returns `Err(AppExtSenderDisconnected)` if the connected sender was dropped.
-    pub fn try_recv(&self) -> Result<T, Option<AppExtSenderDisconnected>> {
+    pub fn try_recv(&self) -> Result<T, Option<AppChannelError>> {
         self.receiver.try_recv().map_err(|e| match e {
             flume::TryRecvError::Empty => None,
-            flume::TryRecvError::Disconnected => Some(AppExtSenderDisconnected),
+            flume::TryRecvError::Disconnected => Some(AppChannelError::Disconnected),
         })
     }
 }
 
-/// Error when the app connected to a sender/receiver channel has disconnected.
-///
-/// Contains the value that could not be send or `()` for receiver errors.
-#[derive(Debug)]
-pub struct AppExtSenderDisconnected;
-impl fmt::Display for AppExtSenderDisconnected {
+/// Error during send or receive of app channels.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum AppChannelError {
+    /// App connected to a sender/receiver channel has disconnected.
+    Disconnected,
+    /// Deadline elapsed before message could be send/received.
+    Timeout,
+}
+impl fmt::Display for AppChannelError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "cannot receive because the sender disconnected")
+        match self {
+            AppChannelError::Disconnected => write!(f, "cannot receive because the sender disconnected"),
+            AppChannelError::Timeout => write!(f, "deadline elapsed before message could be send/received"),
+        }
     }
 }
-impl std::error::Error for AppExtSenderDisconnected {}
+impl std::error::Error for AppChannelError {}
+impl From<flume::RecvTimeoutError> for AppChannelError {
+    fn from(value: flume::RecvTimeoutError) -> Self {
+        match value {
+            flume::RecvTimeoutError::Timeout => AppChannelError::Timeout,
+            flume::RecvTimeoutError::Disconnected => AppChannelError::Disconnected,
+        }
+    }
+}
 
 event_args! {
     /// Arguments for [`EXIT_REQUESTED_EVENT`].

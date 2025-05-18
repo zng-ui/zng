@@ -20,13 +20,12 @@ use zng_app::{
 };
 use zng_app_context::app_local;
 use zng_ext_image::{IMAGES, ImageHasher, ImageVar, Img};
-use zng_txt::Txt;
+use zng_txt::{ToTxt, Txt};
 use zng_var::{ResponderVar, ResponseVar, response_var};
-use zng_view_api::ViewProcessOffline;
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
-use zng_view_api::clipboard as clipboard_api;
 use zng_view_api::ipc::IpcBytes;
+use zng_view_api::{clipboard as clipboard_api, ipc::ViewChannelError};
 
 /// Clipboard app extension.
 ///
@@ -93,9 +92,10 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
                             clipboard_api::ClipboardError::NotFound => Ok(None),
                             clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
                             clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
+                            e => Err(ClipboardError::Other(e.to_txt())),
                         },
                     },
-                    Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
+                    Err(_) => Err(ClipboardError::Disconnected),
                 };
                 if let Err(e) = &r {
                     tracing::error!("clipboard get error, {e:?}");
@@ -143,9 +143,10 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
                         }
                         clipboard_api::ClipboardError::NotSupported => Err(ClipboardError::NotSupported),
                         clipboard_api::ClipboardError::Other(e) => Err(ClipboardError::Other(e)),
+                        e => Err(ClipboardError::Other(e.to_txt())),
                     },
                 },
-                Err(ViewProcessOffline) => Err(ClipboardError::ViewProcessOffline),
+                Err(_) => Err(ClipboardError::Disconnected),
             };
             if let Err(e) = &r {
                 tracing::error!("clipboard set error, {e:?}");
@@ -159,12 +160,13 @@ impl<O: Clone + 'static, I: 'static> ClipboardData<O, I> {
 ///
 /// The [`CLIPBOARD`] service already logs the error.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum ClipboardError {
     /// No view-process available to process the request.
     ///
     /// Note that this error only happens if the view-process is respawning. For headless apps (without renderer)
     /// a in memory "clipboard" is used and this error does not return.
-    ViewProcessOffline,
+    Disconnected,
     /// View-process or operating system does not support the data type.
     NotSupported,
     /// Cannot set image in clipboard because it has not finished loading or loaded with error.
@@ -178,7 +180,7 @@ impl std::error::Error for ClipboardError {}
 impl fmt::Display for ClipboardError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ClipboardError::ViewProcessOffline => write!(f, "no view-process available to process the request"),
+            ClipboardError::Disconnected => write!(f, "no view-process available to process the request"),
             ClipboardError::NotSupported => write!(f, "view-process or operating system does not support the data type"),
             ClipboardError::ImageNotLoaded => write!(
                 f,
@@ -196,7 +198,7 @@ impl fmt::Display for ClipboardError {
 /// at the end of the update pass.
 ///
 /// This service needs a running view-process to actually interact with the system clipboard, in a headless app
-/// without renderer (no view-process) the service will always return [`ClipboardError::ViewProcessOffline`].
+/// without renderer (no view-process) the service will always return [`ClipboardError::Disconnected`].
 pub struct CLIPBOARD;
 impl CLIPBOARD {
     /// Gets a text string from the clipboard.
@@ -277,24 +279,24 @@ impl CLIPBOARD {
     }
 }
 
-type ActualClipboardResult<T> = Result<Result<T, clipboard_api::ClipboardError>, ViewProcessOffline>;
+type ActualClipboardResult<T> = Result<Result<T, clipboard_api::ClipboardError>, ViewChannelError>;
 impl CLIPBOARD {
     fn actual(&self) -> &dyn ActualClipboard {
         if VIEW_PROCESS.is_available() {
             match VIEW_PROCESS.clipboard() {
                 Ok(c) => c,
-                Err(ViewProcessOffline) => {
+                Err(_) => {
                     if !APP.window_mode().has_renderer() {
                         &CLIPBOARD
                     } else {
-                        &ViewProcessOffline
+                        &ViewChannelError::Disconnected
                     }
                 }
             }
         } else if !APP.window_mode().has_renderer() {
             &CLIPBOARD
         } else {
-            &ViewProcessOffline
+            &ViewChannelError::Disconnected
         }
     }
 }
@@ -394,33 +396,33 @@ impl ActualClipboard for CLIPBOARD {
         self.headless_clipboard_set((data_type, data))
     }
 }
-impl ActualClipboard for ViewProcessOffline {
+impl ActualClipboard for ViewChannelError {
     fn read_text(&self) -> ActualClipboardResult<Txt> {
-        Err(ViewProcessOffline)
+        Err(self.clone())
     }
     fn write_text(&self, _: Txt) -> ActualClipboardResult<()> {
-        Err(ViewProcessOffline)
+        Err(self.clone())
     }
 
     fn read_image(&self) -> ActualClipboardResult<ViewImage> {
-        Err(ViewProcessOffline)
+        Err(self.clone())
     }
     fn write_image(&self, _: &ViewImage) -> ActualClipboardResult<()> {
-        Err(ViewProcessOffline)
+        Err(self.clone())
     }
 
     fn read_file_list(&self) -> ActualClipboardResult<Vec<PathBuf>> {
-        Err(ViewProcessOffline)
+        Err(self.clone())
     }
     fn write_file_list(&self, _: Vec<PathBuf>) -> ActualClipboardResult<()> {
-        Err(ViewProcessOffline)
+        Err(self.clone())
     }
 
     fn read_extension(&self, _: Txt) -> ActualClipboardResult<IpcBytes> {
-        Err(ViewProcessOffline)
+        Err(self.clone())
     }
     fn write_extension(&self, _: Txt, _: IpcBytes) -> ActualClipboardResult<()> {
-        Err(ViewProcessOffline)
+        Err(self.clone())
     }
 }
 

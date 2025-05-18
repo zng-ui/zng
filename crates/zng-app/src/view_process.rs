@@ -22,14 +22,14 @@ use zng_task::SignalOnce;
 use zng_txt::Txt;
 use zng_var::ResponderVar;
 use zng_view_api::{
-    self, DragDropId, Event, FocusResult, ViewProcessGen, ViewProcessOffline,
+    self, DragDropId, Event, FocusResult, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
     config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::FontOptions,
     image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
-    ipc::{IpcBytes, IpcBytesReceiver},
+    ipc::{IpcBytes, IpcBytesReceiver, ViewChannelError},
     window::{
         CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
         ResizeDirection, VideoMode, WindowButton, WindowRequest, WindowStateAll,
@@ -90,11 +90,11 @@ impl VIEW_PROCESS {
     fn try_write(&self) -> Result<MappedRwLockWriteGuard<ViewProcessService>> {
         let vp = VIEW_PROCESS_SV.write();
         if let Some(w) = &*vp {
-            if w.process.online() {
+            if w.process.is_connected() {
                 return Ok(MappedRwLockWriteGuard::map(vp, |w| w.as_mut().unwrap()));
             }
         }
-        Err(ViewProcessOffline)
+        Err(ViewChannelError::Disconnected)
     }
 
     fn check_app(&self, id: AppId) {
@@ -109,9 +109,9 @@ impl VIEW_PROCESS {
         self.write()
     }
 
-    /// View-process connected and ready.
-    pub fn is_online(&self) -> bool {
-        self.read().process.online()
+    /// View-process running, connected and ready.
+    pub fn is_connected(&self) -> bool {
+        self.read().process.is_connected()
     }
 
     /// If is running in headless renderer mode.
@@ -214,10 +214,10 @@ impl VIEW_PROCESS {
 
     /// View-process clipboard methods.
     pub fn clipboard(&self) -> Result<&ViewClipboard> {
-        if VIEW_PROCESS.is_online() {
+        if VIEW_PROCESS.is_connected() {
             Ok(&ViewClipboard {})
         } else {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         }
     }
 
@@ -256,10 +256,10 @@ impl VIEW_PROCESS {
     /// at any time in case of error.
     pub fn extension_id(&self, extension_name: impl Into<ApiExtensionName>) -> Result<Option<ApiExtensionId>> {
         let me = self.read();
-        if me.process.online() {
+        if me.process.is_connected() {
             Ok(me.extensions.id(&extension_name.into()))
         } else {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         }
     }
 
@@ -352,7 +352,7 @@ impl VIEW_PROCESS {
 
     /// Handle an [`Event::Inited`].
     ///
-    /// The view-process becomes online only after this call.
+    /// The view-process becomes "connected" only after this call.
     ///
     /// [`Event::Inited`]: zng_view_api::Event::Inited
     pub(super) fn handle_inited(&self, vp_gen: ViewProcessGen, extensions: ApiExtensions) {
@@ -623,7 +623,7 @@ event_args! {
 }
 
 event! {
-    /// View-Process finished initializing and is now online.
+    /// View-Process finished initializing and is now connected and ready.
     pub static VIEW_PROCESS_INITED_EVENT: ViewProcessInitedArgs;
     /// View-Process suspended, all resources dropped.
     ///
@@ -728,7 +728,7 @@ impl ViewWindow {
                 if p.generation() == icon.generation {
                     p.set_icon(id, icon.id)
                 } else {
-                    Err(ViewProcessOffline)
+                    Err(ViewChannelError::Disconnected)
                 }
             } else {
                 p.set_icon(id, None)
@@ -754,7 +754,7 @@ impl ViewWindow {
                 if p.generation() == cur.generation {
                     p.set_cursor_image(id, cur.id.map(|img| zng_view_api::window::CursorImage { img, hotspot }))
                 } else {
-                    Err(ViewProcessOffline)
+                    Err(ViewChannelError::Disconnected)
                 }
             } else {
                 p.set_cursor_image(id, None)
@@ -975,7 +975,7 @@ impl ViewWindowData {
     fn call<R>(&self, f: impl FnOnce(ApiWindowId, &mut Controller) -> Result<R>) -> Result<R> {
         let mut app = VIEW_PROCESS.handle_write(self.app_id);
         if app.check_generation() {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         } else {
             f(self.id, &mut app.process)
         }
@@ -991,7 +991,7 @@ impl Drop for ViewWindowData {
         }
     }
 }
-type Result<T> = std::result::Result<T, ViewProcessOffline>;
+type Result<T> = std::result::Result<T, ViewChannelError>;
 
 /// Handle to a headless surface/document open in the View Process.
 ///
@@ -1034,10 +1034,8 @@ impl ViewHeadless {
 
 /// Weak handle to a window or view.
 ///
-/// This is only a weak reference, every method returns [`ViewProcessOffline`] if the
+/// This is only a weak reference, every method returns [`ViewChannelError::Disconnected`] if the
 /// window is closed or view is disposed.
-///
-/// [`ViewProcessOffline`]: zng_view_api::ViewProcessOffline
 #[derive(Clone, Debug)]
 pub struct ViewRenderer(sync::Weak<ViewWindowData>);
 impl PartialEq for ViewRenderer {
@@ -1056,13 +1054,13 @@ impl ViewRenderer {
         if let Some(c) = self.0.upgrade() {
             c.call(f)
         } else {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         }
     }
 
     /// Returns the view-process generation on which the renderer was created.
     pub fn generation(&self) -> Result<ViewProcessGen> {
-        self.0.upgrade().map(|c| c.generation).ok_or(ViewProcessOffline)
+        self.0.upgrade().map(|c| c.generation).ok_or(ViewChannelError::Disconnected)
     }
 
     /// Use an image resource in the window renderer.
@@ -1074,7 +1072,7 @@ impl ViewRenderer {
             if p.generation() == image.generation {
                 p.use_image(id, image.id.unwrap_or(ImageId::INVALID))
             } else {
-                Err(ViewProcessOffline)
+                Err(ViewChannelError::Disconnected)
             }
         })
     }
@@ -1086,7 +1084,7 @@ impl ViewRenderer {
             if p.generation() == image.generation {
                 p.update_image_use(id, tex_id, image.id.unwrap_or(ImageId::INVALID))
             } else {
-                Err(ViewProcessOffline)
+                Err(ViewChannelError::Disconnected)
             }
         })
     }
@@ -1132,7 +1130,7 @@ impl ViewRenderer {
             let id = c.call(|id, p| p.frame_image(id, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
         } else {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         }
     }
 
@@ -1142,7 +1140,7 @@ impl ViewRenderer {
             let id = c.call(|id, p| p.frame_image_rect(id, rect, mask))?;
             Ok(Self::add_frame_image(c.app_id, id))
         } else {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         }
     }
 
@@ -1181,7 +1179,7 @@ impl ViewRenderer {
             VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
             Ok(())
         } else {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         }
     }
 
@@ -1194,7 +1192,7 @@ impl ViewRenderer {
             VIEW_PROCESS.handle_write(w.app_id).pending_frames += 1;
             Ok(())
         } else {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         }
     }
 
@@ -1203,7 +1201,7 @@ impl ViewRenderer {
         if let Some(w) = self.0.upgrade() {
             w.call(|id, p| p.render_extension(id, extension_id, request))
         } else {
-            Err(ViewProcessOffline)
+            Err(ViewChannelError::Disconnected)
         }
     }
 
@@ -1452,6 +1450,7 @@ impl ViewImage {
 
 /// Error returned by [`ViewImage::encode`].
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum EncodeError {
     /// Encode error.
     Encode(Txt),
@@ -1461,21 +1460,21 @@ pub enum EncodeError {
     /// view-process backend running.
     Dummy,
     /// The View-Process disconnected or has not finished initializing yet, try again after [`VIEW_PROCESS_INITED_EVENT`].
-    ViewProcessOffline,
+    Disconnected,
 }
 impl From<Txt> for EncodeError {
     fn from(e: Txt) -> Self {
         EncodeError::Encode(e)
     }
 }
-impl From<ViewProcessOffline> for EncodeError {
-    fn from(_: ViewProcessOffline) -> Self {
-        EncodeError::ViewProcessOffline
+impl From<ViewChannelError> for EncodeError {
+    fn from(_: ViewChannelError) -> Self {
+        EncodeError::Disconnected
     }
 }
 impl From<flume::RecvError> for EncodeError {
     fn from(_: flume::RecvError) -> Self {
-        EncodeError::ViewProcessOffline
+        EncodeError::Disconnected
     }
 }
 impl fmt::Display for EncodeError {
@@ -1483,7 +1482,7 @@ impl fmt::Display for EncodeError {
         match self {
             EncodeError::Encode(e) => write!(f, "{e}"),
             EncodeError::Dummy => write!(f, "cannot encode dummy image"),
-            EncodeError::ViewProcessOffline => write!(f, "{ViewProcessOffline}"),
+            EncodeError::Disconnected => write!(f, "{}", ViewChannelError::Disconnected),
         }
     }
 }

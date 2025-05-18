@@ -164,6 +164,7 @@ impl TryFrom<RawConfigValue> for serde_toml::Value {
 
 /// Error converting toml::Value, RawConfigValue.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub enum TomlValueRawError {
     /// JSON only supports finite floats.
     UnsupportedFloat(f64),

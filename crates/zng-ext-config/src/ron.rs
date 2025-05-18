@@ -189,6 +189,7 @@ fn ron_map_key(key: &serde_ron::Value) -> Result<String, RonValueRawError> {
 
 /// Error converting ron::Value, RawConfigValue.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub enum RonValueRawError {
     /// JSON only supports finite floats.
     UnsupportedFloat(f64),

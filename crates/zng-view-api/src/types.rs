@@ -9,7 +9,7 @@ use crate::{
     dialog::{DialogId, FileDialogResponse, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect},
     image::{ImageId, ImageLoadedData, ImagePpi},
-    ipc::IpcBytes,
+    ipc::{self, IpcBytes},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonId, ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
@@ -113,7 +113,7 @@ pub struct AxisId(pub u32);
 pub struct DragDropId(pub u32);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// View process is online.
+/// View process is connected and ready.
 ///
 /// The [`ViewProcessGen`] is the generation of the new view-process, it must be passed to
 /// [`Controller::handle_inited`].
@@ -863,18 +863,8 @@ impl Event {
     }
 }
 
-/// The View-Process disconnected or has not finished initializing, try again after the *inited* event.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-pub struct ViewProcessOffline;
-impl fmt::Display for ViewProcessOffline {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "view-process disconnected or is initing, try again after the init event")
-    }
-}
-impl std::error::Error for ViewProcessOffline {}
-
 /// View Process IPC result.
-pub(crate) type VpResult<T> = std::result::Result<T, ViewProcessOffline>;
+pub(crate) type VpResult<T> = std::result::Result<T, ipc::ViewChannelError>;
 
 /// Offset and color in a gradient.
 #[repr(C)]

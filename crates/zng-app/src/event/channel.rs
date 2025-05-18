@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{AppEventSender, update::UpdatesTrace};
+use crate::{AppChannelError, AppEventSender, update::UpdatesTrace};
 
 use super::*;
 
@@ -52,7 +52,7 @@ where
     A: EventArgs + Send,
 {
     /// Send an event update.
-    pub fn send(&self, args: A) -> Result<(), AppDisconnected<A>> {
+    pub fn send(&self, args: A) -> Result<(), AppChannelError> {
         UpdatesTrace::log_event(self.event.as_any());
 
         let event = self.event;
@@ -60,13 +60,7 @@ where
             args: Box::new(move || event.new_update(args)),
         };
 
-        self.sender.send_event(msg).map_err(|e| {
-            if let Some(args) = (e.0.args)().args.as_any().downcast_ref::<A>() {
-                AppDisconnected(args.clone())
-            } else {
-                unreachable!()
-            }
-        })
+        self.sender.send_event(msg).map_err(|_| AppChannelError::Disconnected)
     }
 
     /// Event that receives from this sender.
@@ -112,37 +106,40 @@ where
     /// Receives the oldest update, blocks until the event updates.
     ///
     /// Note that *oldest* here refers to send order (FIFO), not the args creation timestamp.
-    pub fn recv(&self) -> Result<A, AppDisconnected<()>> {
-        self.receiver.recv().map_err(|_| AppDisconnected(()))
+    pub fn recv(&self) -> Result<A, AppChannelError> {
+        self.receiver.recv().map_err(|_| AppChannelError::Disconnected)
     }
 
     /// Tries to receive the oldest sent update not received, returns `Ok(args)` if there was at least
     /// one update, or returns `Err(None)` if there was no update or returns `Err(AppDisconnected)` if the connected
     /// app has exited.
-    pub fn try_recv(&self) -> Result<A, Option<AppDisconnected<()>>> {
-        self.receiver.try_recv().map_err(|e| match e {
-            flume::TryRecvError::Empty => None,
-            flume::TryRecvError::Disconnected => Some(AppDisconnected(())),
-        })
+    pub fn try_recv(&self) -> Result<Option<A>, AppChannelError> {
+        match self.receiver.try_recv() {
+            Ok(a) => Ok(Some(a)),
+            Err(e) => match e {
+                flume::TryRecvError::Empty => Ok(None),
+                flume::TryRecvError::Disconnected => Err(AppChannelError::Disconnected),
+            },
+        }
     }
 
     /// Receives the oldest send update, blocks until the event updates or until the `deadline` is reached.
-    pub fn recv_deadline(&self, deadline: Instant) -> Result<A, TimeoutOrAppDisconnected> {
-        self.receiver.recv_deadline(deadline).map_err(TimeoutOrAppDisconnected::from)
+    pub fn recv_deadline(&self, deadline: Instant) -> Result<A, AppChannelError> {
+        self.receiver.recv_deadline(deadline).map_err(AppChannelError::from)
     }
 
     /// Receives the oldest send update, blocks until the event updates or until timeout.
-    pub fn recv_timeout(&self, dur: Duration) -> Result<A, TimeoutOrAppDisconnected> {
-        self.receiver.recv_timeout(dur).map_err(TimeoutOrAppDisconnected::from)
+    pub fn recv_timeout(&self, dur: Duration) -> Result<A, AppChannelError> {
+        self.receiver.recv_timeout(dur).map_err(AppChannelError::from)
     }
 
     /// Returns a future that receives the oldest send update, awaits until an event update occurs.
-    pub async fn recv_async(&self) -> Result<A, AppDisconnected<()>> {
+    pub async fn recv_async(&self) -> Result<A, AppChannelError> {
         RecvFut::from(self.receiver.recv_async()).await
     }
 
     /// Turns into a future that receives the oldest send update, awaits until an event update occurs.
-    pub fn into_recv_async(self) -> impl Future<Output = Result<A, AppDisconnected<()>>> + Send + Sync + 'static {
+    pub fn into_recv_async(self) -> impl Future<Output = Result<A, AppChannelError>> + Send + Sync + 'static {
         RecvFut::from(self.receiver.into_recv_async())
     }
 
@@ -196,69 +193,6 @@ where
     }
 }
 
-/// Error when the app connected to a sender/receiver channel has disconnected.
-///
-/// Contains the value that could not be send or `()` for receiver errors.
-#[non_exhaustive]
-pub struct AppDisconnected<T>(pub T);
-impl From<flume::RecvError> for AppDisconnected<()> {
-    fn from(_: flume::RecvError) -> Self {
-        AppDisconnected(())
-    }
-}
-impl<T> From<flume::SendError<T>> for AppDisconnected<T> {
-    fn from(e: flume::SendError<T>) -> Self {
-        AppDisconnected(e.0)
-    }
-}
-impl<T> fmt::Debug for AppDisconnected<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "AppDisconnected<{}>", pretty_type_name::pretty_type_name::<T>())
-    }
-}
-impl<T> fmt::Display for AppDisconnected<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "cannot send/receive because the app has disconnected")
-    }
-}
-impl<T> std::error::Error for AppDisconnected<T> {}
-
-/// Error when the app connected to a sender channel has disconnected or taken to long to respond.
-pub enum TimeoutOrAppDisconnected {
-    /// Connected app has not responded.
-    Timeout,
-    /// Connected app has disconnected.
-    AppDisconnected,
-}
-impl From<flume::RecvTimeoutError> for TimeoutOrAppDisconnected {
-    fn from(e: flume::RecvTimeoutError) -> Self {
-        match e {
-            flume::RecvTimeoutError::Timeout => TimeoutOrAppDisconnected::Timeout,
-            flume::RecvTimeoutError::Disconnected => TimeoutOrAppDisconnected::AppDisconnected,
-        }
-    }
-}
-impl fmt::Debug for TimeoutOrAppDisconnected {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if f.alternate() {
-            write!(f, "TimeoutOrAppDisconnected::")?;
-        }
-        match self {
-            TimeoutOrAppDisconnected::Timeout => write!(f, "Timeout"),
-            TimeoutOrAppDisconnected::AppDisconnected => write!(f, "AppDisconnected"),
-        }
-    }
-}
-impl fmt::Display for TimeoutOrAppDisconnected {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TimeoutOrAppDisconnected::Timeout => write!(f, "failed send, timeout"),
-            TimeoutOrAppDisconnected::AppDisconnected => write!(f, "cannot send because the app has disconnected"),
-        }
-    }
-}
-impl std::error::Error for TimeoutOrAppDisconnected {}
-
 /// A future that receives a single message from a running app.
 struct RecvFut<'a, M>(flume::r#async::RecvFut<'a, M>);
 impl<'a, M> From<flume::r#async::RecvFut<'a, M>> for RecvFut<'a, M> {
@@ -267,11 +201,11 @@ impl<'a, M> From<flume::r#async::RecvFut<'a, M>> for RecvFut<'a, M> {
     }
 }
 impl<M> Future for RecvFut<'_, M> {
-    type Output = Result<M, AppDisconnected<()>>;
+    type Output = Result<M, AppChannelError>;
 
     fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
         match std::pin::Pin::new(&mut self.0).poll(cx) {
-            std::task::Poll::Ready(r) => std::task::Poll::Ready(r.map_err(|_| AppDisconnected(()))),
+            std::task::Poll::Ready(r) => std::task::Poll::Ready(r.map_err(|_| AppChannelError::Disconnected)),
             std::task::Poll::Pending => std::task::Poll::Pending,
         }
     }

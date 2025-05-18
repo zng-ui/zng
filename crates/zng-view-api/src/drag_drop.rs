@@ -90,6 +90,7 @@ impl DragDropEffect {
 
 /// Error for drag start or cancel error.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum DragDropError {
     /// View-process implementer does not support any of the provided data types.
     NotSupported,

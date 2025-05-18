@@ -1,5 +1,20 @@
 # Unreleased
 
+* **Breaking** Renamed view-process "online" to "connected".
+  - `zng_view_api::Controller::online` to `is_connected`.
+  - `zng_view_api::Request::must_be_online` to `must_be_connected`.
+  - `VIEW_PROCESS.is_online` to ` is_connected`.
+  - `zng_app::view_process::EncodeError::ViewProcessOffline` to `Disconnected`.
+  - `ClipboardError::ViewProcessOffline` to `Disconnected`.
+  - `ClipboardError::ViewProcessOffline` to `Disconnected`.
+* **Breaking** `EventReceiver::try_recv` now returns `Result<Option<A>, AppChannelError>`.
+* **Breaking** Normalized error types.
+  - Replaced `AppExtSenderDisconnected` with `AppChannelError::Disconnected`.
+  - Replaced `AppDisconnected` with `AppChannelError::Disconnected`.
+  - Many error enums marked `non_exhaustive`.
+  - Renamed `WindowNotFound` to `WindowNotFoundError`.
+  - Replaced `zng_view_api::ipc::Disconnected` with `zng_view_api::ipc::ViewChannelError::Disconnected`.
+  - Replaced `zng_view_api::ViewProcessOffline` with`zng_view_api::ipc::ViewChannelError::Disconnected`.
 * **Breaking** Many structs marked `non_exhaustive`.
   - All are supposed to only be read or have construction associated functions.
 * **Breaking** Upgrade `ron` from 0.8 to 0.10.

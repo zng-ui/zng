@@ -14,8 +14,8 @@ use zng_unique_id::IdSet;
 use zng_var::VARS_APP;
 
 use crate::{
-    AppEventSender, AppExtension, LoopTimer,
-    event::{AnyEvent, AnyEventArgs, AppDisconnected, EVENTS, EVENTS_SV},
+    AppChannelError, AppEventSender, AppExtension, LoopTimer,
+    event::{AnyEvent, AnyEventArgs, EVENTS, EVENTS_SV},
     handler::{AppHandler, AppHandlerArgs, AppWeakHandle, async_app_hn_once},
     timer::TIMERS_SV,
     widget::{
@@ -1568,7 +1568,7 @@ impl UpdatesService {
             self.awake_pending = true;
             match self.event_sender.as_ref() {
                 Some(s) => {
-                    if let Err(AppDisconnected(())) = s.send_check_update() {
+                    if let Err(AppChannelError::Disconnected) = s.send_check_update() {
                         tracing::debug!("no app connected to update");
                     }
                 }

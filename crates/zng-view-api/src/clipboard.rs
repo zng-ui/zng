@@ -46,6 +46,7 @@ pub enum ClipboardType {
 
 /// Clipboard read/write error.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum ClipboardError {
     /// Requested format is not set on the clipboard.
     NotFound,

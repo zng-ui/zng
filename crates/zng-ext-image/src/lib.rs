@@ -44,7 +44,7 @@ use zng_task::UiTask;
 use zng_txt::{ToTxt, Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap};
 use zng_var::{AnyVar, AnyWeakVar, ArcVar, Var, WeakVar, types::WeakArcVar, var};
-use zng_view_api::{ViewProcessOffline, image::ImageRequest, ipc::IpcBytes};
+use zng_view_api::{image::ImageRequest, ipc::IpcBytes};
 
 /// Application extension that provides an image cache.
 ///
@@ -155,7 +155,7 @@ impl AppExtension for ImageManager {
                             Ok(img) => {
                                 img_var.set(Img::new(img));
                             }
-                            Err(ViewProcessOffline) => { /*will receive another event.*/ }
+                            Err(_) => { /*will receive another event.*/ }
                         }
                         images.decoding.push(ImageDecodingTask {
                             format: task.format.clone(),
@@ -183,7 +183,7 @@ impl AppExtension for ImageManager {
                             mask,
                         }) {
                             Ok(img) => img,
-                            Err(ViewProcessOffline) => return, // we will receive another event.
+                            Err(_) => return, // we will receive another event.
                         };
 
                         img_var.set(Img::new(img));
@@ -247,7 +247,7 @@ impl AppExtension for ImageManager {
                                             v.to_mut().view.set(img).unwrap();
                                         });
                                     }
-                                    Err(ViewProcessOffline) => {
+                                    Err(_) => {
                                         // will recover in ViewProcessInitedEvent
                                     }
                                 }

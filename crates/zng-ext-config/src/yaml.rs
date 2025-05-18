@@ -162,6 +162,7 @@ fn yaml_map_key(key: serde_yaml::Value) -> Result<String, YamlValueRawError> {
 
 /// Error converting serde_yaml::Value, RawConfigValue.
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub enum YamlValueRawError {
     /// JSON only supports finite floats.
     UnsupportedFloat(f64),

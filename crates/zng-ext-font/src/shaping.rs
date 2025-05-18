@@ -23,6 +23,7 @@ use crate::{
 
 /// Reasons why a font might fail to load a glyph.
 #[derive(Clone, Copy, PartialEq, Debug)]
+#[non_exhaustive]
 pub enum GlyphLoadingError {
     /// The font didn't contain a glyph with that ID.
     NoSuchGlyph,

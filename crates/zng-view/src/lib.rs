@@ -1383,7 +1383,7 @@ impl App {
         let app_sender = self.app_sender.clone();
         thread::spawn(move || {
             while let Ok(r) = request_recv.recv() {
-                if let Err(ipc::Disconnected) = app_sender.request(r) {
+                if let Err(ipc::ViewChannelError::Disconnected) = app_sender.request(r) {
                     break;
                 }
             }
@@ -2351,27 +2351,31 @@ pub(crate) enum AppEventSender {
 }
 impl AppEventSender {
     /// Send an event.
-    fn send(&self, ev: AppEvent) -> Result<(), ipc::Disconnected> {
+    fn send(&self, ev: AppEvent) -> Result<(), ipc::ViewChannelError> {
         match self {
-            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(|_| ipc::Disconnected),
-            AppEventSender::Headless(p, _) => p.send(ev).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headed(p, _) => p.send_event(ev).map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headless(p, _) => p.send(ev).map_err(|_| ipc::ViewChannelError::Disconnected),
         }
     }
 
     /// Send a request.
-    fn request(&self, req: Request) -> Result<(), ipc::Disconnected> {
+    fn request(&self, req: Request) -> Result<(), ipc::ViewChannelError> {
         match self {
-            AppEventSender::Headed(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::Disconnected),
-            AppEventSender::Headless(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headed(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headless(_, p) => p.send(RequestEvent::Request(req)).map_err(|_| ipc::ViewChannelError::Disconnected),
         }?;
         self.send(AppEvent::Request)
     }
 
     /// Send a frame-ready.
-    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), ipc::Disconnected> {
+    fn frame_ready(&self, window_id: WindowId, msg: FrameReadyMsg) -> Result<(), ipc::ViewChannelError> {
         match self {
-            AppEventSender::Headed(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| ipc::Disconnected),
-            AppEventSender::Headless(_, p) => p.send(RequestEvent::FrameReady(window_id, msg)).map_err(|_| ipc::Disconnected),
+            AppEventSender::Headed(_, p) => p
+                .send(RequestEvent::FrameReady(window_id, msg))
+                .map_err(|_| ipc::ViewChannelError::Disconnected),
+            AppEventSender::Headless(_, p) => p
+                .send(RequestEvent::FrameReady(window_id, msg))
+                .map_err(|_| ipc::ViewChannelError::Disconnected),
         }?;
         self.send(AppEvent::Request)
     }

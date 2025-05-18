@@ -18,7 +18,7 @@ use zng_layout::{
 use zng_task::{self as task, SignalOnce};
 use zng_txt::Txt;
 use zng_var::{AnyVar, ReadOnlyArcVar, impl_from_and_into_var};
-use zng_view_api::{ViewProcessOffline, image::ImageTextureId};
+use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
 
@@ -382,7 +382,7 @@ impl zng_app::render::Img for Img {
                     }
                     k
                 }
-                Err(ViewProcessOffline) => {
+                Err(_) => {
                     tracing::debug!("respawned `add_image`, will return INVALID");
                     return ImageTextureId::INVALID;
                 }

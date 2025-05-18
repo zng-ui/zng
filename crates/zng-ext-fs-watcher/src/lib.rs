@@ -768,6 +768,7 @@ impl WriteFile {
 
 /// Error for [`WatchFile::parse`].
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum WatchFileParseError<E> {
     /// Error reading the file.
     Io(io::Error),

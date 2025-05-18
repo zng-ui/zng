@@ -40,9 +40,10 @@ use zng_layout::{
 use zng_state_map::StateId;
 use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
 use zng_view_api::{
-    DragDropId, FocusResult, Ime, ViewProcessOffline,
+    DragDropId, FocusResult, Ime,
     config::{ColorScheme, FontAntiAliasing},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
+    ipc::ViewChannelError,
     window::{
         EventCause, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, FrameWaitId, HeadlessRequest, RenderMode, WindowRequest,
         WindowState, WindowStateAll,
@@ -151,7 +152,7 @@ impl HeadedCtrl {
 
     fn update_gen(&mut self, update: impl FnOnce(&ViewWindow) + Send + 'static) {
         if let Some(view) = &self.window {
-            // view is online, just update.
+            // view is ready, just update.
             update(view);
         } else if self.waiting_view {
             // update after view requested, but still not ready. Will apply when the view is received
@@ -2438,7 +2439,7 @@ fn default_size(scale_factor: Factor) -> PxSize {
 }
 
 /// Respawned error is ok here, because we recreate the window/surface on respawn.
-type Ignore = Result<(), ViewProcessOffline>;
+type Ignore = Result<(), ViewChannelError>;
 
 pub(crate) struct NestedContentCtrl {
     content: ContentCtrl,

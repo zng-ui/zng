@@ -431,6 +431,7 @@ pub struct RequestArgs<I: IpcValue> {
 
 /// Worker run error.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum RunError {
     /// Lost connection with the worker process.
     ///
