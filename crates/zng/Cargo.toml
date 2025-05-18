@@ -366,7 +366,7 @@ zng-var = { path = "../zng-var", version = "0.7.0" }
 zng-task = { path = "../zng-task", version = "0.6.0" }
 zng-color = { path = "../zng-color", version = "0.6.0" }
 zng-env = { path = "../zng-env", version = "0.5.0" }
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.2" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.6.0" }
 
 # app
 zng-app = { path = "../zng-app", version = "0.16.0", default-features = false }

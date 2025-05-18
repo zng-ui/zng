@@ -19,7 +19,7 @@ http = ["zng-task/http", "zng-ext-image/http"]
 
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.2" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.6.0" }
 zng-app-context = { path = "../zng-app-context", version = "0.7.0" }
 zng-app = { path = "../zng-app", version = "0.16.0" }
 zng-var = { path = "../zng-var", version = "0.7.0" }

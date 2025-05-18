@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.2" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.6.0" }
 
 bytemuck = { version = "1.15" }
 pretty-type-name = "1.0"

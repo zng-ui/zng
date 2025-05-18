@@ -17,7 +17,7 @@ http = ["zng-task/http"]
 
 [dependencies]
 zng-app-context = { path = "../zng-app-context", version = "0.7.0" }
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.2" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.6.0" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
 zng-app = { path = "../zng-app", version = "0.16.0" }
 zng-view-api = { path = "../zng-view-api", version = "0.13.0" }

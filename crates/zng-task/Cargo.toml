@@ -56,7 +56,7 @@ zng-env = { path = "../zng-env", version = "0.5.0" }
 zng-txt = { path = "../zng-txt", version = "0.3.1" }
 zng-state-map = { path = "../zng-state-map", version = "0.4.2" }
 
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.2", default-features = false, optional = true }
+zng-unique-id = { path = "../zng-unique-id", version = "0.6.0", default-features = false, optional = true }
 
 tracing = "0.1"
 pretty-type-name = "1.0"

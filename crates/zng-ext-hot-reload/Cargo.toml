@@ -16,7 +16,7 @@ zng-ext-hot-reload-proc-macros = { path = "../zng-ext-hot-reload-proc-macros", v
 
 # the `static` dyn patching `linkme` register is implemented on this crate
 # so it is available across the entire workspace.
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.2", features = ["hot_reload"] }
+zng-unique-id = { path = "../zng-unique-id", version = "0.6.0", features = ["hot_reload"] }
 zng-env = { path = "../zng-env", version = "0.5.0" }
 zng-app-context = { path = "../zng-app-context", version = "0.7.0" }
 zng-app = { path = "../zng-app", version = "0.16.0" }

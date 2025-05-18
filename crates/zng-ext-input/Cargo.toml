@@ -26,7 +26,7 @@ zng-var = { path = "../zng-var", version = "0.7.0" }
 zng-layout = { path = "../zng-layout", version = "0.4.0" }
 zng-handle = { path = "../zng-handle", version = "0.3.0" }
 zng-state-map = { path = "../zng-state-map", version = "0.4.2" }
-zng-unique-id = { path = "../zng-unique-id", version = "0.5.2" }
+zng-unique-id = { path = "../zng-unique-id", version = "0.6.0" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.6.0" }
 
 tracing = "0.1"
