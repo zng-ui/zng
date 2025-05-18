@@ -27,16 +27,8 @@ fn avif_licenses(l: &mut Vec<zng_tp_licenses::LicenseUsed>) {
         use zng_tp_licenses::*;
 
         l.push(LicenseUsed {
-            license: License {
-                id: "BSD-2-Clause".into(),
-                name: r#"BSD 2-Clause "Simplified" License"#.into(),
-                text: DAV1D_COPYING.into(),
-            },
-            used_by: vec![User {
-                name: "dav1d".into(),
-                version: "1.3.0".into(), // from .github/workflows/release.yml
-                url: "https://code.videolan.org/videolan/dav1d".into(),
-            }],
+            license: License::new("BSD-2-Clause", r#"BSD 2-Clause "Simplified" License"#, DAV1D_COPYING),
+            used_by: vec![User::new("dav1d", "1.3.0", "https://code.videolan.org/videolan/dav1d")],
         });
 
         const DAV1D_COPYING: &str = r##"
