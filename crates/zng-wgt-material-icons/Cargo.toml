@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-material-icons"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -30,11 +30,11 @@ rounded = []
 sharp = []
 
 [dependencies]
-zng-app = { path = "../zng-app", version = "0.16.0" }
-zng-wgt = { path = "../zng-wgt", version = "0.8.0" }
-zng-var = { path = "../zng-var", version = "0.7.0" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.7.0" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.0" }
+zng-app = { path = "../zng-app", version = "0.16.1" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.1" }
+zng-var = { path = "../zng-var", version = "0.7.1" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.7.1" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.1" }
 
 phf = { version = "0.11", default-features = false }
 tracing = "0.1"
