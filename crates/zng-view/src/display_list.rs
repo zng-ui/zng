@@ -871,6 +871,7 @@ fn display_item_to_webrender(
             list: wr_list,
             sc,
         }),
+        _ => {}
     }
 }
 

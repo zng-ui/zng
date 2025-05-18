@@ -666,6 +666,7 @@ impl FrameValueId {
 ///
 /// This value is send in a full frame request, after frame updates may be send targeting the key.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum FrameValue<T> {
     /// Value that is updated with frame update requests.
     Bind {
@@ -735,6 +736,7 @@ impl<T> From<T> for FrameValue<T> {
 
 /// Represents an update targeting a previously setup [`FrameValue`].
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct FrameValueUpdate<T> {
     /// Value ID.
     pub id: FrameValueId,
@@ -743,9 +745,16 @@ pub struct FrameValueUpdate<T> {
     /// If the value is updating rapidly.
     pub animating: bool,
 }
+impl<T> FrameValueUpdate<T> {
+    /// New update.
+    pub fn new(id: FrameValueId, value: T, animating: bool) -> Self {
+        Self { id, value, animating }
+    }
+}
 
 /// Represents one of the filters applied to a stacking context.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum FilterOp {
     /// Blur, width and height in pixels.
     Blur(f32, f32),
@@ -785,6 +794,7 @@ pub enum FilterOp {
 /// Display item in a [`DisplayList`].
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum DisplayItem {
     Reuse {
         frame_id: FrameId,

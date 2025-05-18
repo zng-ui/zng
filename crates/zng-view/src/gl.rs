@@ -90,6 +90,7 @@ impl GlContextManager {
                 RenderMode::Dedicated => self.create_headed_glutin(winit_loop, id, window, config.hardware_acceleration, prefer_egl),
                 RenderMode::Integrated => self.create_headed_glutin(winit_loop, id, window, Some(false), prefer_egl),
                 RenderMode::Software => self.create_headed_swgl(winit_loop, id, window),
+                _ => self.create_headed_swgl(winit_loop, id, window),
             }));
 
             let error = match r {
@@ -100,6 +101,7 @@ impl GlContextManager {
                         RenderMode::Dedicated => "glutin (headed, dedicated)",
                         RenderMode::Integrated => "glutin (headed, integrated)",
                         RenderMode::Software => "swgl (headed)",
+                        _ => "swgl (headed)",
                     };
                     let _ = sender.send(AppEvent::Notify(zng_view_api::Event::RecoveredFromComponentPanic {
                         component: component.into(),
@@ -146,6 +148,7 @@ impl GlContextManager {
                 RenderMode::Dedicated => self.create_headless_glutin(id, winit_loop, config.hardware_acceleration, prefer_egl),
                 RenderMode::Integrated => self.create_headless_glutin(id, winit_loop, Some(false), prefer_egl),
                 RenderMode::Software => self.create_headless_swgl(id),
+                _ => self.create_headless_swgl(id),
             }));
 
             let error = match r {
@@ -156,6 +159,7 @@ impl GlContextManager {
                         RenderMode::Dedicated => "glutin (headless, dedicated)",
                         RenderMode::Integrated => "glutin (headless, integrated)",
                         RenderMode::Software => "swgl (headless)",
+                        _ => "swgl (headless)",
                     };
                     let _ = sender.send(AppEvent::Notify(zng_view_api::Event::RecoveredFromComponentPanic {
                         component: component.into(),
@@ -817,6 +821,7 @@ impl TryConfig {
                         hardware_acceleration: Some(false),
                     });
                 }
+                _ => {}
             }
         }
         configs.into_iter()
@@ -829,6 +834,7 @@ impl TryConfig {
                 RenderMode::Integrated => "Integrated",
                 RenderMode::Software => "Software",
                 RenderMode::Dedicated => unreachable!(),
+                _ => unreachable!(),
             },
             None => "Dedicated (generic)",
         }

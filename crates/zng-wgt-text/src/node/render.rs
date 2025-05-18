@@ -418,7 +418,7 @@ pub fn render_text() -> impl UiNode {
                                             color
                                         };
 
-                                        let mut g = GlyphInstance { point, index };
+                                        let mut g = GlyphInstance::new(index, point);
                                         if let Some(offset) = offset {
                                             g.point.x += offset.x;
                                             g.point.y += offset.y;

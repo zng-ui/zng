@@ -752,7 +752,7 @@ impl ViewWindow {
             if let Some(cur) = cursor {
                 let cur = cur.0.read();
                 if p.generation() == cur.generation {
-                    p.set_cursor_image(id, cur.id.map(|img| zng_view_api::window::CursorImage { img, hotspot }))
+                    p.set_cursor_image(id, cur.id.map(|img| zng_view_api::window::CursorImage::new(img, hotspot)))
                 } else {
                     Err(ViewChannelError::Disconnected)
                 }

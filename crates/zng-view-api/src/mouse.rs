@@ -20,6 +20,7 @@ pub enum ButtonState {
 
 /// Describes a button of a mouse controller.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum MouseButton {
     /// Left button.
     Left,
@@ -37,6 +38,7 @@ pub enum MouseButton {
 
 /// Describes a difference in the mouse scroll wheel state.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum MouseScrollDelta {
     /// Amount in lines or rows to scroll in the horizontal
     /// and vertical directions.

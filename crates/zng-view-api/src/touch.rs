@@ -24,6 +24,7 @@ pub enum TouchPhase {
 
 /// Identify a new touch contact or a contact update.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[non_exhaustive]
 pub struct TouchUpdate {
     /// Identify a continuous touch contact or *finger*.
     ///
@@ -38,9 +39,21 @@ pub struct TouchUpdate {
     /// Touch pressure force and angle.
     pub force: Option<TouchForce>,
 }
+impl TouchUpdate {
+    /// New update.
+    pub fn new(touch: TouchId, phase: TouchPhase, position: DipPoint, force: Option<TouchForce>) -> Self {
+        Self {
+            touch,
+            phase,
+            position,
+            force,
+        }
+    }
+}
 
 /// Describes the force of a touch event.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum TouchForce {
     /// On iOS, the force is calibrated so that the same number corresponds to
     /// roughly the same amount of pressure on the screen regardless of the

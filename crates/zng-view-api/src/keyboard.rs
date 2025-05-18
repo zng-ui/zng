@@ -13,6 +13,7 @@ use zng_txt::Txt;
 /// them.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[repr(u8)]
+#[non_exhaustive]
 pub enum KeyLocation {
     /// The key is in its "normal" location on the keyboard.
     ///
@@ -65,6 +66,7 @@ impl std::fmt::Debug for KeyLocation {
 /// - On non-web platforms, support assigning key binds to virtually any key through a UI.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[repr(u8)]
+#[non_exhaustive]
 pub enum NativeKeyCode {
     /// Implementer did not identify system or scancode.
     Unidentified,

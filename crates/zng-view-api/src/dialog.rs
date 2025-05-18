@@ -11,6 +11,7 @@ crate::declare_id! {
 
 /// Defines a native message dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct MsgDialog {
     /// Message dialog window title.
     pub title: Txt,
@@ -20,6 +21,17 @@ pub struct MsgDialog {
     pub icon: MsgDialogIcon,
     /// Message buttons.
     pub buttons: MsgDialogButtons,
+}
+impl MsgDialog {
+    /// New message dialog.
+    pub fn new(title: impl Into<Txt>, message: impl Into<Txt>, icon: MsgDialogIcon, buttons: MsgDialogButtons) -> Self {
+        Self {
+            title: title.into(),
+            message: message.into(),
+            icon,
+            buttons,
+        }
+    }
 }
 impl Default for MsgDialog {
     fn default() -> Self {
@@ -36,6 +48,7 @@ impl Default for MsgDialog {
 ///
 /// Defines the overall *level* style of the dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum MsgDialogIcon {
     /// Informational.
     Info,
@@ -49,6 +62,7 @@ pub enum MsgDialogIcon {
 ///
 /// Defines what kind of question the user is answering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum MsgDialogButtons {
     /// Ok.
     ///
@@ -64,6 +78,7 @@ pub enum MsgDialogButtons {
 
 /// Response to a message dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum MsgDialogResponse {
     /// Message received or approved.
     Ok,
@@ -228,6 +243,7 @@ zng_var::impl_from_and_into_var! {
 
 /// Defines a native file dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct FileDialog {
     /// Dialog window title.
     pub title: Txt,
@@ -253,6 +269,23 @@ pub struct FileDialog {
     pub kind: FileDialogKind,
 }
 impl FileDialog {
+    /// New file dialog.
+    pub fn new(
+        title: impl Into<Txt>,
+        starting_dir: PathBuf,
+        starting_name: impl Into<Txt>,
+        filters: impl Into<Txt>,
+        kind: FileDialogKind,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            starting_dir,
+            starting_name: starting_name.into(),
+            filters: filters.into(),
+            kind,
+        }
+    }
+
     /// Push a filter entry.
     pub fn push_filter<S: AsRef<str>>(&mut self, display_name: &str, extensions: &[S]) -> &mut Self {
         let mut f = FileDialogFilters(mem::take(&mut self.filters));
@@ -280,6 +313,7 @@ impl Default for FileDialog {
 
 /// Kind of file dialogs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum FileDialogKind {
     /// Pick one file for reading.
     OpenFile,
@@ -295,6 +329,7 @@ pub enum FileDialogKind {
 
 /// Response to a message dialog.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum FileDialogResponse {
     /// Selected paths.
     ///

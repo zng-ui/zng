@@ -324,6 +324,7 @@ impl fmt::Debug for FilterData {
                     } => write!(f, "drop_shadow(({}, {}), {}, {})", offset.x, offset.y, blur_radius, *color),
                     FilterOp::ColorMatrix(m) => write!(f, "color_matrix({:?})", ColorMatrix(*m)),
                     FilterOp::Flood(c) => write!(f, "flood({})", *c),
+                    w => write!(f, "{w:?}"),
                 },
                 FilterData::Blur(l) => write!(f, "blur({l:?})"),
                 FilterData::DropShadow {
@@ -346,6 +347,7 @@ fn lerp_frame_value<T: Transitionable>(s: FrameValue<T>, to: &FrameValue<T>, ste
             value
         }
         FrameValue::Value(v) => v,
+        _ => return to.clone(),
     };
 
     value = value.lerp(to.value(), step);
@@ -364,6 +366,7 @@ fn lerp_frame_value<T: Transitionable>(s: FrameValue<T>, to: &FrameValue<T>, ste
                 animating: *animating,
             },
             FrameValue::Value(_) => FrameValue::Value(value),
+            _ => to.clone(),
         }
     }
 }

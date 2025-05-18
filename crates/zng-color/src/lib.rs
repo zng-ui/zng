@@ -885,6 +885,7 @@ impl IntoVar<Rgba> for LightDark {
         COLOR_SCHEME_VAR.map(move |s| match s {
             ColorScheme::Light => self.light,
             ColorScheme::Dark => self.dark,
+            _ => self.light,
         })
     }
 }
@@ -930,6 +931,7 @@ impl LightDark {
         COLOR_SCHEME_VAR.map(move |s| match s {
             ColorScheme::Light => map(self.light),
             ColorScheme::Dark => map(self.dark),
+            _ => map(self.light),
         })
     }
 
@@ -945,6 +947,7 @@ impl ops::Index<ColorScheme> for LightDark {
         match index {
             ColorScheme::Light => &self.light,
             ColorScheme::Dark => &self.dark,
+            _ => &self.light,
         }
     }
 }
@@ -953,6 +956,7 @@ impl ops::IndexMut<ColorScheme> for LightDark {
         match index {
             ColorScheme::Light => &mut self.light,
             ColorScheme::Dark => &mut self.dark,
+            _ => &mut self.light,
         }
     }
 }
@@ -991,6 +995,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => c.light,
                 ColorScheme::Dark => c.dark,
+                _ => c.light,
             }
         }
     }
@@ -1001,6 +1006,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => map(c.light),
                 ColorScheme::Dark => map(c.dark),
+                _ => map(c.light),
             }
         }
     }
@@ -1015,6 +1021,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => c.light,
                 ColorScheme::Dark => c.dark,
+                _ => c.light,
             }
         }
     }
@@ -1025,6 +1032,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => T::from(c.light),
                 ColorScheme::Dark => T::from(c.dark),
+                _ => T::from(c.light),
             }
         }
     }
@@ -1036,6 +1044,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => c.light,
                 ColorScheme::Dark => c.dark,
+                _ => c.light,
             }
         }
     }
@@ -1046,6 +1055,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => c.light,
                 ColorScheme::Dark => c.dark,
+                _ => c.light,
             }
         }
     }
@@ -1057,6 +1067,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => T::from(c.light),
                 ColorScheme::Dark => T::from(c.dark),
+                _ => T::from(c.light),
             }
         }
     }
@@ -1067,6 +1078,7 @@ impl<V: Var<LightDark>> LightDarkVarExt for V {
             match *#{COLOR_SCHEME_VAR} {
                 ColorScheme::Light => T::from(c.light),
                 ColorScheme::Dark => T::from(c.dark),
+                _ => T::from(c.light),
             }
         }
     }

@@ -194,6 +194,7 @@ context_var! {
     pub static FONT_COLOR_VAR: Rgba = COLOR_SCHEME_VAR.map(|s| match s {
         ColorScheme::Light => colors::BLACK,
         ColorScheme::Dark => colors::WHITE,
+        _ => colors::BLACK,
     });
 
     /// Color of [`Text!`] glyphs that are colored by palette, mostly Emoji.

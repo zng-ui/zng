@@ -425,6 +425,7 @@ impl Surface {
                 FrameCapture::None => None,
                 FrameCapture::Full => Some(None),
                 FrameCapture::Mask(m) => Some(Some(m)),
+                _ => None,
             };
             if let Some(mask) = capture {
                 captured_data = Some(images.frame_image_data(

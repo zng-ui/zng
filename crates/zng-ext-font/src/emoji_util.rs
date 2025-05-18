@@ -455,6 +455,7 @@ impl_from_and_into_var! {
         match color_scheme {
             ColorScheme::Light => FontColorPalette::Light,
             ColorScheme::Dark => FontColorPalette::Dark,
+            _ => FontColorPalette::Light,
         }
     }
 }

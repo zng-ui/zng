@@ -599,6 +599,7 @@ fn native() -> impl UiNode {
                             tracing::error!("unexpected select dir response {e:?}");
                             return;
                         }
+                        _ => return,
                     };
 
                     let mut filters = dialog::FileDialogFilters::new();
@@ -619,6 +620,7 @@ fn native() -> impl UiNode {
                             tracing::error!("unexpected open files response {e:?}");
                             return;
                         }
+                        _ => return,
                     };
 
                     let res = DIALOG
@@ -643,6 +645,7 @@ fn native() -> impl UiNode {
                             tracing::error!("unexpected save file response {e:?}");
                             return;
                         }
+                        _ => return,
                     };
                     tracing::info!("save {}", save_file.display());
                 });

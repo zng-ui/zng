@@ -515,6 +515,7 @@ impl_from_and_into_var! {
                 name: Txt::from_static("native-error"),
                 label: LocalVar(e).boxed(),
             },
+            _ => unimplemented!(),
         }
     }
     fn from(response: Response) -> Option<Response>;
@@ -660,13 +661,13 @@ impl DIALOG {
     ) -> ResponseVar<FileDialogResponse> {
         WINDOWS.native_file_dialog(
             WINDOW.id(),
-            native_api::FileDialog {
-                title: title.into_var().get(),
-                starting_dir: starting_dir.into(),
-                starting_name: starting_name.into_var().get(),
-                filters: filters.into().build(),
-                kind: native_api::FileDialogKind::OpenFile,
-            },
+            native_api::FileDialog::new(
+                title.into_var().get(),
+                starting_dir.into(),
+                starting_name.into_var().get(),
+                filters.into().build(),
+                native_api::FileDialogKind::OpenFile,
+            ),
         )
     }
 
@@ -680,13 +681,13 @@ impl DIALOG {
     ) -> ResponseVar<FileDialogResponse> {
         WINDOWS.native_file_dialog(
             WINDOW.id(),
-            native_api::FileDialog {
-                title: title.into_var().get(),
-                starting_dir: starting_dir.into(),
-                starting_name: starting_name.into_var().get(),
-                filters: filters.into().build(),
-                kind: native_api::FileDialogKind::OpenFiles,
-            },
+            native_api::FileDialog::new(
+                title.into_var().get(),
+                starting_dir.into(),
+                starting_name.into_var().get(),
+                filters.into().build(),
+                native_api::FileDialogKind::OpenFiles,
+            ),
         )
     }
 
@@ -700,13 +701,13 @@ impl DIALOG {
     ) -> ResponseVar<FileDialogResponse> {
         WINDOWS.native_file_dialog(
             WINDOW.id(),
-            native_api::FileDialog {
-                title: title.into_var().get(),
-                starting_dir: starting_dir.into(),
-                starting_name: starting_name.into_var().get(),
-                filters: filters.into().build(),
-                kind: native_api::FileDialogKind::SaveFile,
-            },
+            native_api::FileDialog::new(
+                title.into_var().get(),
+                starting_dir.into(),
+                starting_name.into_var().get(),
+                filters.into().build(),
+                native_api::FileDialogKind::SaveFile,
+            ),
         )
     }
 
@@ -719,13 +720,13 @@ impl DIALOG {
     ) -> ResponseVar<FileDialogResponse> {
         WINDOWS.native_file_dialog(
             WINDOW.id(),
-            native_api::FileDialog {
-                title: title.into_var().get(),
-                starting_dir: starting_dir.into(),
-                starting_name: starting_name.into_var().get(),
-                filters: "".into(),
-                kind: native_api::FileDialogKind::SelectFolder,
-            },
+            native_api::FileDialog::new(
+                title.into_var().get(),
+                starting_dir.into(),
+                starting_name.into_var().get(),
+                "",
+                native_api::FileDialogKind::SelectFolder,
+            ),
         )
     }
 
@@ -738,13 +739,13 @@ impl DIALOG {
     ) -> ResponseVar<FileDialogResponse> {
         WINDOWS.native_file_dialog(
             WINDOW.id(),
-            native_api::FileDialog {
-                title: title.into_var().get(),
-                starting_dir: starting_dir.into(),
-                starting_name: starting_name.into_var().get(),
-                filters: "".into(),
-                kind: native_api::FileDialogKind::SelectFolders,
-            },
+            native_api::FileDialog::new(
+                title.into_var().get(),
+                starting_dir.into(),
+                starting_name.into_var().get(),
+                "",
+                native_api::FileDialogKind::SelectFolders,
+            ),
         )
     }
 
@@ -851,12 +852,7 @@ impl DIALOG {
             WINDOWS
                 .native_message_dialog(
                     WINDOW.id(),
-                    native_api::MsgDialog {
-                        title: title.get(),
-                        message: msg.get(),
-                        icon: native_icon,
-                        buttons: native_buttons,
-                    },
+                    native_api::MsgDialog::new(title.get(), msg.get(), native_icon, native_buttons),
                 )
                 .map_response(|r| r.clone().into())
         } else {

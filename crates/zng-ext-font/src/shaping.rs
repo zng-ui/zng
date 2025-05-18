@@ -2663,10 +2663,7 @@ impl ShapedTextBuilder {
                     }
                     let point = euclid::point2(self.origin.x, self.origin.y);
                     self.origin.x += self.tab_x_advance;
-                    self.out.glyphs.push(GlyphInstance {
-                        index: self.tab_index,
-                        point,
-                    });
+                    self.out.glyphs.push(GlyphInstance::new(self.tab_index, point));
                     self.out.clusters.push(i as u32);
                 }
 
@@ -2998,10 +2995,7 @@ impl ShapedTextBuilder {
 
     fn push_glyphs(&mut self, shaped_seg: &ShapedSegmentData, spacing: f32) {
         self.out.glyphs.extend(shaped_seg.glyphs.iter().map(|gi| {
-            let r = GlyphInstance {
-                index: gi.index,
-                point: euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y),
-            };
+            let r = GlyphInstance::new(gi.index, euclid::point2(gi.point.0 + self.origin.x, gi.point.1 + self.origin.y));
             self.origin.x += spacing;
             r
         }));

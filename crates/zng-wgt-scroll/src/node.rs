@@ -1103,6 +1103,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                                 }
                             }
                         }
+                        _ => {}
                     }
 
                     WIDGET.layout();
@@ -1127,6 +1128,7 @@ pub fn scroll_wheel_node(child: impl UiNode) -> impl UiNode {
                                 0.001.fct() * x.fct()
                             }
                         }
+                        _ => Factor(0.0),
                     };
 
                     let apply = if delta > 0.fct() {
@@ -1341,6 +1343,7 @@ pub fn access_scroll_node(child: impl UiNode) -> impl UiNode {
                             // parent scroll handles this
                             return;
                         }
+                        _ => return,
                     }
                     args.propagation().stop();
                 } else {

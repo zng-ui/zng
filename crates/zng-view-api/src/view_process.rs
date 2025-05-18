@@ -13,6 +13,7 @@ use crate::{VIEW_MODE, VIEW_SERVER, VIEW_VERSION};
 
 /// Configuration for starting a view-process.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct ViewConfig {
     /// The [`VERSION`] of the API crate in the app-process.
     ///
@@ -29,6 +30,15 @@ pub struct ViewConfig {
     pub headless: bool,
 }
 impl ViewConfig {
+    /// New config.
+    pub fn new(version: impl Into<Txt>, server_name: impl Into<Txt>, headless: bool) -> Self {
+        Self {
+            version: version.into(),
+            server_name: server_name.into(),
+            headless,
+        }
+    }
+
     /// Reads config from environment variables set by the [`Controller`] in a view-process instance.
     ///
     /// View API implementers should call this to get the config when it suspects that is running as a view-process.

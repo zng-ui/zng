@@ -525,6 +525,8 @@ impl<E: AppExtension> RunningApp<E> {
             Event::Inited(zng_view_api::Inited { .. }) | Event::Suspended | Event::Disconnected(_) | Event::FrameRendered(_) => {
                 unreachable!()
             } // handled before coalesce.
+
+            _ => {}
         }
     }
 
@@ -593,6 +595,7 @@ impl<E: AppExtension> RunningApp<E> {
                     colors_config,
                     chrome_config,
                     extensions,
+                    ..
                 }) => {
                     // notify immediately.
                     if is_respawn {

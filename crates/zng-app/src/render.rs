@@ -1539,14 +1539,14 @@ impl FrameBuilder {
             if !glyphs.is_empty() && self.visible && !font.is_empty_fallback() {
                 let font_id = font.renderer_id(r, synthesis);
 
-                let opts = GlyphOptions {
-                    aa: match aa {
+                let opts = GlyphOptions::new(
+                    match aa {
                         FontAntiAliasing::Default => self.default_font_aa,
                         aa => aa,
                     },
-                    synthetic_bold: synthesis.contains(FontSynthesis::BOLD),
-                    synthetic_oblique: synthesis.contains(FontSynthesis::OBLIQUE),
-                };
+                    synthesis.contains(FontSynthesis::BOLD),
+                    synthesis.contains(FontSynthesis::OBLIQUE),
+                );
                 self.display_list.push_text(clip_rect, font_id, glyphs, color, opts);
             }
         }
@@ -3065,11 +3065,7 @@ impl<T> FrameValueKey<T> {
     ///
     /// [`update`]: Self::update
     pub fn update_child(self, child_index: u32, value: T, animating: bool) -> FrameValueUpdate<T> {
-        FrameValueUpdate {
-            id: self.to_wr_child(child_index),
-            value,
-            animating,
-        }
+        FrameValueUpdate::new(self.to_wr_child(child_index), value, animating)
     }
 
     /// Create a binding with this key and `var`.
@@ -3129,11 +3125,11 @@ impl<T> FrameValueKey<T> {
         map: impl FnOnce(&VT) -> T,
     ) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(VarCapability::NEW) {
-            Some(FrameValueUpdate {
-                id: self.to_wr_child(child_index),
-                value: var.with(map),
-                animating: var.is_animating(),
-            })
+            Some(FrameValueUpdate::new(
+                self.to_wr_child(child_index),
+                var.with(map),
+                var.is_animating(),
+            ))
         } else {
             None
         }
@@ -3149,11 +3145,7 @@ impl<T> FrameValueKey<T> {
     /// [`update_var_mapped`]: Self::update_var_mapped
     pub fn update_var_mapped_child<VT: VarValue>(self, child_index: u32, var: &impl Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(VarCapability::NEW) {
-            Some(FrameValueUpdate {
-                id: self.to_wr_child(child_index),
-                value,
-                animating: var.is_animating(),
-            })
+            Some(FrameValueUpdate::new(self.to_wr_child(child_index), value, var.is_animating()))
         } else {
             None
         }

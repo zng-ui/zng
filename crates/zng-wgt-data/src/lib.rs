@@ -438,6 +438,7 @@ impl DATA {
             match scheme {
                 ColorScheme::Light => c.light,
                 ColorScheme::Dark => c.dark,
+                _ => c.light,
             }
         })
     }

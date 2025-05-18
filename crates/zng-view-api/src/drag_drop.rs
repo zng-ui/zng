@@ -10,6 +10,7 @@ use bitflags::bitflags;
 
 /// Drag&drop data payload.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum DragDropData {
     /// Text encoded data.
     ///

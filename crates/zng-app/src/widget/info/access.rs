@@ -458,11 +458,11 @@ impl WidgetInfoTree {
         let root_id = self.root().id().into();
         if is_enabled && !prev_tree.access_enabled().is_enabled() {
             // first update after access enabled
-            return Some(zng_view_api::access::AccessTreeUpdate {
-                updates: vec![self.to_access_tree()],
-                full_root: Some(root_id),
-                focused: root_id,
-            });
+            return Some(zng_view_api::access::AccessTreeUpdate::new(
+                vec![self.to_access_tree()],
+                Some(root_id),
+                root_id,
+            ));
         }
 
         if is_enabled {
@@ -470,11 +470,7 @@ impl WidgetInfoTree {
             let mut updates = vec![];
             self.root().access().unwrap().to_access_updates(prev_tree, &inverse, &mut updates);
             if !updates.is_empty() {
-                return Some(zng_view_api::access::AccessTreeUpdate {
-                    updates,
-                    full_root: None,
-                    focused: root_id,
-                });
+                return Some(zng_view_api::access::AccessTreeUpdate::new(updates, None, root_id));
             }
         }
 
@@ -503,11 +499,7 @@ impl WidgetInfoTree {
             let mut updates = vec![];
             self.root().access().unwrap().to_access_updates_bounds(&inverse, &mut updates);
             if !updates.is_empty() {
-                return Some(zng_view_api::access::AccessTreeUpdate {
-                    updates,
-                    full_root: None,
-                    focused: root_id,
-                });
+                return Some(zng_view_api::access::AccessTreeUpdate::new(updates, None, root_id));
             }
         }
 

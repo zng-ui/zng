@@ -1440,11 +1440,9 @@ impl Font {
 
         let font_key = self.0.face.render_face(renderer);
 
-        let opt = zng_view_api::font::FontOptions {
-            synthetic_oblique: synthesis.contains(FontSynthesis::OBLIQUE),
-            synthetic_bold: synthesis.contains(FontSynthesis::BOLD),
-            ..Default::default()
-        };
+        let mut opt = zng_view_api::font::FontOptions::default();
+        opt.synthetic_oblique = synthesis.contains(FontSynthesis::OBLIQUE);
+        opt.synthetic_bold = synthesis.contains(FontSynthesis::BOLD);
         let variations = self.0.variations.iter().map(|v| (v.tag.to_bytes(), v.value)).collect();
 
         let key = match renderer.add_font(font_key, self.0.size, opt, variations) {

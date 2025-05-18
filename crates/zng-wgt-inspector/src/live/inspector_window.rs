@@ -709,6 +709,7 @@ async fn save_screenshot(inspected: WindowId) {
             screenshot_error(e).await;
             return;
         }
+        _ => return,
     };
 
     frame.wait_value(|f| !f.is_loading()).await;
