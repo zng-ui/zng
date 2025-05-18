@@ -188,13 +188,13 @@ pub fn multi_click_config() -> MultiClickConfig {
     use zng_unit::*;
 
     unsafe {
-        MultiClickConfig {
-            time: Duration::from_millis(u64::from(GetDoubleClickTime())),
-            area: DipSize::new(
+        MultiClickConfig::new(
+            Duration::from_millis(u64::from(GetDoubleClickTime())),
+            DipSize::new(
                 Dip::new(GetSystemMetrics(SM_CXDOUBLECLK).abs()),
                 Dip::new(GetSystemMetrics(SM_CYDOUBLECLK).abs()),
             ),
-        }
+        )
     }
 }
 
@@ -238,11 +238,7 @@ pub fn animations_config() -> AnimationsConfig {
         Duration::from_millis(blink_timeout as _)
     };
 
-    AnimationsConfig {
-        enabled,
-        caret_blink_interval: blink_time,
-        caret_blink_timeout: blink_timeout,
-    }
+    AnimationsConfig::new(enabled, blink_time, blink_timeout)
 }
 
 pub fn key_repeat_config() -> KeyRepeatConfig {
@@ -298,10 +294,7 @@ pub fn key_repeat_config() -> KeyRepeatConfig {
         }
     };
 
-    KeyRepeatConfig {
-        start_delay,
-        interval: speed,
-    }
+    KeyRepeatConfig::new(start_delay, speed)
 }
 
 pub fn touch_config() -> TouchConfig {
@@ -376,7 +369,7 @@ pub fn colors_config() -> ColorsConfig {
         .map(|a| Rgba::new(a.R, a.G, a.B, a.A))
         .unwrap_or_else(|| ColorsConfig::default().accent);
 
-    ColorsConfig { scheme, accent }
+    ColorsConfig::new(scheme, accent)
 }
 
 pub(crate) fn locale_config() -> LocaleConfig {
@@ -393,7 +386,7 @@ pub(crate) fn locale_config() -> LocaleConfig {
     if let Ok(r) = GlobalizationPreferences::Languages() {
         let r: Vec<_> = r.into_iter().map(|l| Txt::from_str(&l.to_string_lossy())).collect();
         if !r.is_empty() {
-            return LocaleConfig { langs: r };
+            return LocaleConfig::new(r);
         }
     }
 
@@ -419,7 +412,5 @@ pub(crate) fn locale_config() -> LocaleConfig {
     buffer.pop();
     buffer.pop();
 
-    LocaleConfig {
-        langs: String::from_utf16_lossy(&buffer).split('\0').map(Txt::from_str).collect(),
-    }
+    LocaleConfig::new(String::from_utf16_lossy(&buffer).split('\0').map(Txt::from_str).collect())
 }

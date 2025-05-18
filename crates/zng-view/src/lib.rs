@@ -2093,13 +2093,13 @@ impl Api for App {
 
                 let bitmap = clipboard_win::get(clipboard_win::formats::Bitmap).map_err(util::clipboard_win_to_clip)?;
 
-                let id = self.image_cache.add(ImageRequest {
-                    format: image::ImageDataFormat::FileExtension(Txt::from_str("bmp")),
-                    data: IpcBytes::from_vec(bitmap),
-                    max_decoded_len: u64::MAX,
-                    downscale: None,
-                    mask: None,
-                });
+                let id = self.image_cache.add(ImageRequest::new(
+                    image::ImageDataFormat::FileExtension(Txt::from_str("bmp")),
+                    IpcBytes::from_vec(bitmap),
+                    u64::MAX,
+                    None,
+                    None,
+                ));
                 Ok(clipboard::ClipboardData::Image(id))
             }
             clipboard::ClipboardType::FileList => {
@@ -2110,6 +2110,7 @@ impl Api for App {
                     .map(clipboard::ClipboardData::FileList)
             }
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
+            _ => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 
@@ -2146,6 +2147,7 @@ impl Api for App {
                     .map_err(util::clipboard_win_to_clip)
             }
             clipboard::ClipboardData::Extension { .. } => Err(clipboard::ClipboardError::NotSupported),
+            _ => Err(clipboard::ClipboardError::NotSupported),
         }
     }
 

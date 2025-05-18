@@ -637,7 +637,7 @@ impl WriteFile {
         struct Ffs<'a> {
             w: io::BufWriter<&'a mut fs::File>,
         }
-        impl<'a> fmt::Write for Ffs<'a> {
+        impl fmt::Write for Ffs<'_> {
             fn write_str(&mut self, s: &str) -> fmt::Result {
                 self.w.write_all(s.as_bytes()).map_err(|_| fmt::Error)
             }
