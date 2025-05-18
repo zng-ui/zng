@@ -1,5 +1,11 @@
 # Unreleased
 
+
+# 0.15.0
+
+This release contains many small breaking changes, almost all on advanced API, the normal surface API is mostly untouched.
+All changes are trivial to fix, they are either a rename or types that are now non-exhaustive. 
+
 * **Breaking** Renamed view-process "online" to "connected".
   - `zng_view_api::Controller::online` to `is_connected`.
   - `zng_view_api::Request::must_be_online` to `must_be_connected`.
@@ -31,7 +37,7 @@
 * Add text `get_selection` getter property, works for local texts.
 * Add text `has_selection` getter property, works for local and rich texts.
 * **Breaking** Add `Command::new_update` that automatically uses the correct `CommandArgs`.
-  - To create an update with custom args use `cmd.event().new_update(args)`.
+  - To create an update with custom args now use `cmd.event().new_update(args)`.
 * Rich text contexts now handle scoped `SELECT_CMD` and `SELECT_ALL_CMD`.
 
 # 0.14.4
