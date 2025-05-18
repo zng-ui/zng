@@ -1,6 +1,6 @@
 [package]
 name = "zng-app-context"
-version = "0.6.2"
+version = "0.7.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -31,7 +31,7 @@ dyn_closure = []
 
 [dependencies]
 zng-unique-id = { path = "../zng-unique-id", version = "0.5.2" }
-zng-env = { path = "../zng-env", version = "0.4.2" }
+zng-env = { path = "../zng-env", version = "0.5.0" }
 zng-txt = { path = "../zng-txt", version = "0.3.1" }
 parking_lot = "0.12"
 rustc-hash = "2.0"

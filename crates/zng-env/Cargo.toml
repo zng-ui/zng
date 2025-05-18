@@ -1,6 +1,6 @@
 [package]
 name = "zng-env"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
