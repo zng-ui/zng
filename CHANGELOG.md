@@ -3,6 +3,7 @@
 
 # 0.15.2
 
+* Fix build of version 0.14 users. See #650 and #649 for details.
 
 # 0.15.1
 
