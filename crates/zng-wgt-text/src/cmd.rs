@@ -2073,7 +2073,7 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
                         let mut prev_id = c.id();
                         for c in c.rich_text_next() {
                             let line_info = c.rich_text_line_info();
-                            if line_info.starts_new_line {
+                            if line_info.starts_new_line && !line_info.is_wrap_start {
                                 return (prev_id, Some(from_id));
                             } else if line_info.ends_in_new_line {
                                 return (c.id(), Some(from_id));
@@ -2093,7 +2093,7 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
                         let mut last_id = c.id();
                         for c in c.rich_text_prev() {
                             let line_info = c.rich_text_line_info();
-                            if line_info.starts_new_line || line_info.ends_in_new_line {
+                            if (line_info.starts_new_line && !line_info.is_wrap_start) || line_info.ends_in_new_line {
                                 return (c.id(), Some(from_id));
                             }
                             last_id = c.id();
@@ -2426,7 +2426,7 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                         let mut end = nearest_leaf.clone();
                         for next in nearest_leaf.rich_text_next() {
                             let line_info = next.rich_text_line_info();
-                            if line_info.starts_new_line {
+                            if line_info.starts_new_line && !line_info.is_wrap_start {
                                 return (
                                     end.id(),
                                     Some(end.bounds_info().inline().map(|i| i.rows.len().saturating_sub(1)).unwrap_or(0)),
@@ -2467,7 +2467,7 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                     for prev in line_start.rich_text_prev() {
                         let line_info = prev.rich_text_line_info();
                         line_start = prev;
-                        if line_info.starts_new_line || line_info.ends_in_new_line {
+                        if (line_info.starts_new_line && !line_info.is_wrap_start) || line_info.ends_in_new_line {
                             break;
                         }
                     }

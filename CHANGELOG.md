@@ -1,5 +1,9 @@
 # Unreleased
 
+* Fix rich selection not highlighting all text components with focused style.
+* Add `EventUpdate::custom` to create a custom event delivery from an existing one.
+  - Somewhat equivalent to `Event<A>::new_update_custom`, but without needing to know the event type. 
+* Fix panic on explicit disabled `rich_text`.
 * Enable rich text selection in default third-party licenses screen. 
 * Enable rich text selection in debug crash dialog, removed "plain" stdio panels.
 * Rich text copy now includes all visible line breaks, in a future release wrap breaks will be ignored, but for now this is better then no breaks.

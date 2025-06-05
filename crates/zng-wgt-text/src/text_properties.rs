@@ -2092,6 +2092,8 @@ impl RichTextMix<()> {
 /// Nested rich text contexts are allowed and are all part of the outermost context, enabling this property in all nested
 /// wrap panels is recommended as it enables some rich text behavior like bringing the focused widget to front to avoid
 /// clipping the caret.
+///
+/// When enabled and not nested the widget will handle text commands, it also broadcasts focus change events to all text descendants.
 #[property(CONTEXT, default(false), widget_impl(RichTextMix<P>))]
 pub fn rich_text(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     crate::node::rich_text_node(child, enabled)

@@ -17,6 +17,7 @@ use super::{RICH_TEXT, RICH_TEXT_NOTIFY, RichCaretInfo, RichText, TEXT};
 
 pub(crate) fn rich_text_node(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     let enabled = enabled.into_var();
+    let child = rich_text_focus_change_broadcast(child);
     let child = rich_text_cmds(child);
     let child = rich_text_component(child, "rich_text");
 
@@ -101,19 +102,24 @@ fn rich_text_cmds(child: impl UiNode) -> impl UiNode {
     let mut cmds = Cmds::default();
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            let id = WIDGET.id();
-            // cmds.cut = CUT_CMD.scoped(id).subscribe(true);
-            cmds.copy = COPY_CMD.scoped(id).subscribe(true);
-            // cmds.paste = PASTE_CMD.scoped(id).subscribe(true);
-            cmds.select = SELECT_CMD.scoped(id).subscribe(true);
-            // cmds.edit = EDIT_CMD.scoped(id).subscribe(true);
-            cmds.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+            if TEXT.try_rich().is_some() {
+                let id = WIDGET.id();
+                // cmds.cut = CUT_CMD.scoped(id).subscribe(true);
+                cmds.copy = COPY_CMD.scoped(id).subscribe(true);
+                // cmds.paste = PASTE_CMD.scoped(id).subscribe(true);
+                cmds.select = SELECT_CMD.scoped(id).subscribe(true);
+                // cmds.edit = EDIT_CMD.scoped(id).subscribe(true);
+                cmds.select_all = SELECT_ALL_CMD.scoped(id).subscribe(true);
+            }
         }
         UiNodeOp::Deinit => {
             cmds = Cmds::default();
         }
         UiNodeOp::Event { update } => {
-            let ctx = TEXT.rich();
+            let ctx = match TEXT.try_rich() {
+                Some(c) => c,
+                None => return, // disabled
+            };
             if let Some(args) = COPY_CMD.event().on_unhandled(update) {
                 if let (None, CommandScope::Widget(scope_id)) = (&args.param, args.scope) {
                     if ctx.root_id == scope_id || ctx.leaf_info(scope_id).is_some() {
@@ -131,10 +137,7 @@ fn rich_text_cmds(child: impl UiNode) -> impl UiNode {
 
                             if let Some(t_frag) = rich_copy.into_text() {
                                 let line_info = leaf.rich_text_line_info();
-                                if line_info.starts_new_line && !txt.is_empty() {
-                                    // TODO, ignore wrap new lines
-                                    // * Some widgets line `AnsiText!` remove text line breaks and use a `Stack!` of lines.
-                                    // * `Wrap!` can wrap two `Text!` widgets such that the second one starts on a new line, without any actual break.
+                                if line_info.starts_new_line && !line_info.is_wrap_start && !txt.is_empty() {
                                     txt.push('\n');
                                 }
 
@@ -162,6 +165,28 @@ fn rich_text_cmds(child: impl UiNode) -> impl UiNode {
             }
         }
         _ => {}
+    })
+}
+// some visuals (like selection background) depend on focused status of any rich leaf
+fn rich_text_focus_change_broadcast(child: impl UiNode) -> impl UiNode {
+    match_node(child, move |c, op| {
+        if let UiNodeOp::Event { update } = op {
+            if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
+                let ctx = match TEXT.try_rich() {
+                    Some(c) => c,
+                    None => return, // disabled
+                };
+                if args.prev_focus.iter().chain(args.new_focus.iter()).any(|p| p.contains(ctx.root_id)) {
+                    let mut extended_list = UpdateDeliveryList::new_any();
+                    for leaf in ctx.leaves() {
+                        extended_list.insert_wgt(&leaf);
+                    }
+                    args.delivery_list(&mut extended_list);
+                    debug_assert!(!extended_list.has_pending_search()); // FocusChangedArgs inserts full paths.
+                    c.event(&update.custom(extended_list));
+                }
+            }
+        }
     })
 }
 
@@ -628,18 +653,34 @@ impl RichTextWidgetInfoExt for WidgetInfo {
 
         let bounds = self.bounds_info();
         let inner_bounds = bounds.inner_bounds();
-        let (min, max, wraps) = if let Some(inline) = bounds.inline() {
+        let (min, max, wraps, inlined) = if let Some(inline) = bounds.inline() {
             let mut first = inline.rows[0];
             first.origin += inner_bounds.origin.to_vector();
-            (first.min_y(), first.max_y(), inline.rows.len() > 1)
+            (first.min_y(), first.max_y(), inline.rows.len() > 1, true)
         } else {
-            (inner_bounds.min_y(), inner_bounds.max_y(), false)
+            (inner_bounds.min_y(), inner_bounds.max_y(), false, false)
         };
 
         let starts = !lines_overlap_strict(prev_min, prev_max, min, max);
 
+        let mut is_wrap_start = false;
+        if inlined {
+            let mut child_id = self.id();
+            for parent in self.ancestors() {
+                if parent.first_child().unwrap().id() != child_id {
+                    is_wrap_start = true; // inlined and is not first
+                    break;
+                }
+                if parent.bounds_info().inline().is_none() {
+                    break;
+                }
+                child_id = parent.id();
+            }
+        }
+
         RichLineInfo {
             starts_new_line: starts,
+            is_wrap_start,
             ends_in_new_line: wraps,
         }
     }
@@ -676,7 +717,14 @@ pub struct RichLineInfo {
     /// This heuristic allow multiple *baselines* in the same row (sub/superscript), it also allows bidi mixed segments that
     /// maybe have negative horizontal offsets, but very custom layouts such as a diagonal stack panel may want to provide
     /// their own definition of a *line* as an alternative to this API.
+    ///
+    /// Note that this can be `true` due to wrap layout, usually this is ignored when defining a *line* for selection. Check
+    /// `is_wrap_start` to implement *real lines*.
     pub starts_new_line: bool,
+
+    /// if `starts_new_line` is `true` because the parent widget wrapped the leaf widget.
+    pub is_wrap_start: bool,
+
     /// Leaf widget inline layout declared multiple lines so the end is in a new line.
     ///
     /// Note that the widget may define multiple other lines inside itself, those don't count as "rich text lines".
