@@ -130,6 +130,14 @@ fn rich_text_cmds(child: impl UiNode) -> impl UiNode {
                             child.event(&update);
 
                             if let Some(t_frag) = rich_copy.into_text() {
+                                let line_info = leaf.rich_text_line_info();
+                                if line_info.starts_new_line && !txt.is_empty() {
+                                    // TODO, ignore wrap new lines
+                                    // * Some widgets line `AnsiText!` remove text line breaks and use a `Stack!` of lines.
+                                    // * `Wrap!` can wrap two `Text!` widgets such that the second one starts on a new line, without any actual break.
+                                    txt.push('\n');
+                                }
+
                                 txt.push_str(&t_frag);
                             }
                         }

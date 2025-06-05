@@ -1,5 +1,6 @@
 # Unreleased
 
+* Rich text copy now includes all visible line breaks, in a future release wrap breaks will be ignored, but for now this is better then no breaks.
 
 # 0.15.2
 
