@@ -247,7 +247,10 @@ pub(crate) fn setup_default_view() {
                 mode = zng::scroll::ScrollMode::VERTICAL;
                 child_align = Align::TOP_START;
                 padding = 10;
-                child = zng::markdown::Markdown!(selected.map(default_markdown));
+                child = zng::markdown::Markdown! {
+                    txt = selected.map(default_markdown);
+                    txt_selectable = true;
+                };
             };
         }
     }

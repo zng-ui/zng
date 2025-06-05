@@ -1,5 +1,8 @@
 # Unreleased
 
+* Enable rich text selection in default third-party licenses screen. 
+* Enable rich text selection in debug crash dialog, removed "plain" stdio panels.
+* Rich text copy now includes all visible line breaks, in a future release wrap breaks will be ignored, but for now this is better then no breaks.
 
 # 0.15.2
 

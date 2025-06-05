@@ -68,21 +68,13 @@ fn panels(error: &CrashError) -> impl UiNode {
     let mut active = ErrorPanel::Summary;
 
     if !error.stdout.is_empty() {
-        options.push(ErrorPanel::StdoutPlain);
-        active = ErrorPanel::StdoutPlain;
-        if !error.is_stdout_plain() {
-            options.push(ErrorPanel::Stdout);
-            active = ErrorPanel::Stdout;
-        }
+        options.push(ErrorPanel::Stdout);
+        active = ErrorPanel::Stdout;
     }
 
     if !error.stderr.is_empty() {
-        options.push(ErrorPanel::StderrPlain);
-        active = ErrorPanel::StderrPlain;
-        if error.is_stderr_plain() {
-            options.push(ErrorPanel::Stderr);
-            active = ErrorPanel::Stderr;
-        }
+        options.push(ErrorPanel::Stderr);
+        active = ErrorPanel::Stderr;
     }
 
     if error.has_panic() {
@@ -123,8 +115,6 @@ enum ErrorPanel {
     Summary,
     Stdout,
     Stderr,
-    StdoutPlain,
-    StderrPlain,
     Panic,
     Widget,
     Minidump,
@@ -135,8 +125,6 @@ impl ErrorPanel {
             ErrorPanel::Summary => l10n!("crash-handler/summary.title", "Summary").get(),
             ErrorPanel::Stdout => l10n!("crash-handler/stdout.title", "Stdout").get(),
             ErrorPanel::Stderr => l10n!("crash-handler/stderr.title", "Stderr").get(),
-            ErrorPanel::StdoutPlain => l10n!("crash-handler/stdout.title-plain", "Stdout (plain)").get(),
-            ErrorPanel::StderrPlain => l10n!("crash-handler/stderr.title-plain", "Stderr (plain)").get(),
             ErrorPanel::Panic => l10n!("crash-handler/panic.title", "Panic").get(),
             ErrorPanel::Widget => l10n!("crash-handler/widget.title", "Widget").get(),
             ErrorPanel::Minidump => l10n!("crash-handler/minidump.title", "Minidump").get(),
@@ -148,8 +136,6 @@ impl ErrorPanel {
             ErrorPanel::Summary => summary_panel(error).boxed(),
             ErrorPanel::Stdout => std_panel(error.stdout.clone(), "stdout").boxed(),
             ErrorPanel::Stderr => std_panel(error.stderr.clone(), "stderr").boxed(),
-            ErrorPanel::StdoutPlain => std_plain_panel(error.stdout_plain(), "stdout").boxed(),
-            ErrorPanel::StderrPlain => std_plain_panel(error.stderr_plain(), "stderr").boxed(),
             ErrorPanel::Panic => panic_panel(error.find_panic().unwrap()).boxed(),
             ErrorPanel::Widget => widget_panel(error.find_panic().unwrap().widget_path).boxed(),
             ErrorPanel::Minidump => minidump_panel(error.minidump.clone().unwrap()).boxed(),
@@ -206,12 +192,10 @@ fn std_panel(std: Txt, config_key: &'static str) -> impl UiNode {
         vertical_offset = CONFIG.get(formatx!("{config_key}.scroll.v"), 0.fct());
         child = AnsiText! {
             txt = std;
+            txt_selectable = true;
             font_size = 0.9.em();
         }
     }
-}
-fn std_plain_panel(std: Txt, config_key: &'static str) -> impl UiNode {
-    plain_panel(std, config_key)
 }
 fn panic_panel(panic: CrashPanic) -> impl UiNode {
     plain_panel(panic.to_txt(), "panic")
