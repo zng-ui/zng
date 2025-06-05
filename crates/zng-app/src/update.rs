@@ -327,6 +327,19 @@ impl EventUpdate {
         }
     }
 
+    /// Create an event update for the same event and args, but with a custom `delivery_list`.
+    ///
+    /// Note that the returned instance can only be used to notify app extensions or nodes that the caller can reference.
+    pub fn custom(&self, delivery_list: UpdateDeliveryList) -> Self {
+        Self {
+            event: self.event,
+            args: self.args.clone_any(),
+            delivery_list,
+            pre_actions: Mutex::new(vec![]),
+            pos_actions: Mutex::new(vec![]),
+        }
+    }
+
     pub(crate) fn push_once_action(&mut self, action: Box<dyn FnOnce(&EventUpdate) + Send>, is_preview: bool) {
         if is_preview {
             self.pre_actions.get_mut().push(action);
