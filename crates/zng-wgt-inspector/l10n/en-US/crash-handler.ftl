@@ -24,11 +24,9 @@ panic =
 
 stderr =
     .title = Stderr
-    .title-plain = Stderr (plain)
 
 stdout =
     .title = Stdout
-    .title-plain = Stdout (plain)
 
 summary =
     .text = Timestamp: {$timestamp}
