@@ -135,11 +135,11 @@ impl std::fmt::Debug for InspectorInfo {
             .field("builder", &self.builder)
             .field("items", &self.items)
             .field("actual_vars", &self.actual_vars.0.read().keys())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 impl InspectorInfo {
-    /// Iterate over property items.
+    /// Iterate over property items and if they are captured.
     pub fn properties(&self) -> impl Iterator<Item = (&dyn PropertyArgs, bool)> {
         self.items.iter().filter_map(|it| match it {
             InstanceItem::Property { args, captured } => Some((&**args, *captured)),

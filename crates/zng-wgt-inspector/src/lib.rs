@@ -18,6 +18,8 @@ pub mod debug;
 
 mod live;
 
+pub use live::data_model::{INSPECTOR, InspectedInfo, InspectedTree, InspectedWidget, InspectorWatcherBuilder, WeakInspectedTree};
+
 command! {
     /// Represent the window **inspect** action.
     pub static INSPECT_CMD = {

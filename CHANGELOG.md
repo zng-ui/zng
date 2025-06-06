@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `zng::window::inspector::INSPECTOR` and associated types for configuring the live inspector (ctrl+shift+i).
+  - In this release: custom watchers and the internal data model is made public, root type `InspectedTree`.
 * Fix rich selection not highlighting all text components with focused style.
 * Add `EventUpdate::custom` to create a custom event delivery from an existing one.
   - Somewhat equivalent to `Event<A>::new_update_custom`, but without needing to know the event type. 

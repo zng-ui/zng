@@ -14,7 +14,7 @@ use zng_wgt_input::CursorSource;
 
 use crate::INSPECT_CMD;
 
-mod data_model;
+pub mod data_model;
 mod inspector_window;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]

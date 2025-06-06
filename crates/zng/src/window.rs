@@ -134,16 +134,42 @@ pub use zng_wgt_window::events::{
 ///
 /// The properties in this module can be set on a window or widget to visualize layout and render internals.
 ///
-/// Note that you can also use the [`cmd::INSPECT_CMD`] command to open the Inspector that shows the widget tree and properties.
+/// The [`INSPECTOR`] service can be used to configure the inspector window, add custom watchers.
+/// Note that you can use the [`cmd::INSPECT_CMD`] command to open the Inspector.
+///
+/// # Examples
+///
+/// The example below registers two custom live updating watchers.
+///
+/// ```
+/// # use zng::prelude::*;
+/// #
+/// window::inspector::INSPECTOR.register_watcher(|wgt, builder| {
+///     // watch custom info metadata
+///     use zng::markdown::WidgetInfoExt as _;
+///     let watcher = wgt.info().map(|i| formatx!("{:?}", i.anchor()));
+///     builder.insert("markdown.anchor", watcher);
+///
+///     // watch value that can change every layout/render without info rebuild
+///     let watcher = wgt.render_watcher(|i| formatx!("{:?}", i.bounds_info().inline().is_some()));
+///     builder.insert("is_inlined", watcher);
+/// });
+/// ```
+///
+/// The closure is called on widget selection change (in the inspector screen), the values are presented in the
+/// `/* INFO */` section of the properties panel.
 ///
 /// # Full API
 ///
-/// See [`zng_wgt_inspector::debug`] for the full API.
+/// See [`zng_wgt_inspector`] for the full API.
 ///
 /// [`cmd::INSPECT_CMD`]: crate::window::cmd::INSPECT_CMD
+/// [`INSPECTOR`]: crate::window::inspector::INSPECTOR
 #[cfg(feature = "inspector")]
 pub mod inspector {
     pub use zng_wgt_inspector::debug::{InspectMode, show_bounds, show_center_points, show_directional_query, show_hit_test, show_rows};
+
+    pub use zng_wgt_inspector::{INSPECTOR, InspectedInfo, InspectedTree, InspectedWidget, InspectorWatcherBuilder};
 }
 
 /// Default handler registered in mobile platforms.
