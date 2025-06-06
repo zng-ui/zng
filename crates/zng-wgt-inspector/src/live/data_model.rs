@@ -1,4 +1,4 @@
-use std::{fmt, ops, sync::Arc};
+use std::{collections::HashMap, fmt, ops, sync::Arc};
 
 use parking_lot::Mutex;
 use zng_app::widget::{
@@ -11,7 +11,7 @@ use zng_view_api::window::FrameId;
 use zng_wgt::prelude::*;
 
 #[derive(Default)]
-pub struct InspectedTreeData {
+struct InspectedTreeData {
     widgets: IdMap<WidgetId, InspectedWidget>,
     latest_frame: Option<ArcVar<FrameId>>,
 }
@@ -205,13 +205,13 @@ impl InspectedWidget {
         }
     }
 
-    // /// If this widget inspector is permanently disconnected and will not update.
-    // ///
-    // /// This is set to `true` when an inspected widget is not found after an update, when `true`
-    // /// this inspector will not update even if the same widget ID is re-inserted in another update.
-    // pub fn removed(&self) -> impl Var<bool> {
-    //     self.removed.read_only()
-    // }
+    /// If this widget inspector is permanently disconnected and will not update.
+    ///
+    /// This is set to `true` when an inspected widget is not found after an update, when `true`
+    /// this inspector will not update even if the same widget ID is re-inserted in another update.
+    pub fn removed(&self) -> impl Var<bool> {
+        self.removed.read_only()
+    }
 
     /// Latest info.
     pub fn info(&self) -> impl Var<WidgetInfo> {
@@ -223,10 +223,10 @@ impl InspectedWidget {
         self.info.with(|i| i.id())
     }
 
-    // /// Count of ancestor widgets.
-    // pub fn depth(&self) -> impl Var<usize> {
-    //     self.info.map(|w| w.depth()).actual_var()
-    // }
+    /// Count of ancestor widgets.
+    pub fn depth(&self) -> impl Var<usize> {
+        self.info.map(|w| w.depth()).actual_var()
+    }
 
     /// Count of descendant widgets.
     pub fn descendants_len(&self) -> impl Var<usize> {
@@ -329,5 +329,64 @@ impl ops::Deref for InspectedInfo {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+/// Builder for [`INSPECTOR.register_watcher`].
+///
+/// [`INSPECTOR.register_watcher`]: INSPECTOR::register_watcher
+#[non_exhaustive]
+pub struct InspectorWatcherBuilder {
+    watchers: HashMap<Txt, BoxedVar<Txt>>,
+}
+impl InspectorWatcherBuilder {
+    /// Insert a watcher variable.
+    pub fn insert(&mut self, name: impl Into<Txt>, value: impl IntoVar<Txt>) {
+        self.insert_impl(name.into(), value.into_var().boxed());
+    }
+    fn insert_impl(&mut self, name: Txt, value: BoxedVar<Txt>) {
+        self.watchers.insert(name, value);
+    }
+}
+
+app_local! {
+    #[allow(clippy::type_complexity)]
+    static INSPECTOR_SV: Vec<Box<dyn FnMut(&InspectedWidget, &mut InspectorWatcherBuilder) + Send + Sync + 'static>> = vec![];
+}
+
+/// Service that configures the live inspector.
+pub struct INSPECTOR;
+impl INSPECTOR {
+    /// Register a `watcher` that provides custom live state variables.
+    ///
+    /// In the default live inspector the `watcher` closure is called for the selected widget and the watcher values are presented
+    /// in the `/* INFO */` section of the properties panel.
+    ///
+    /// Note that newly registered watchers only apply for subsequent inspections, it does not refresh current views.
+    pub fn register_watcher(&self, watcher: impl FnMut(&InspectedWidget, &mut InspectorWatcherBuilder) + Send + Sync + 'static) {
+        INSPECTOR_SV.write().push(Box::new(watcher));
+    }
+
+    /// Call all registered watchers on the `target`.
+    ///
+    /// Returns a vector of unique name and watcher variable, sorted  by name.
+    pub fn build_watchers(&self, target: &InspectedWidget) -> Vec<(Txt, BoxedVar<Txt>)> {
+        let mut builder = InspectorWatcherBuilder { watchers: HashMap::new() };
+        self.default_watchers(target, &mut builder);
+        for w in INSPECTOR_SV.write().iter_mut() {
+            w(target, &mut builder);
+        }
+        let mut watchers: Vec<_> = builder.watchers.into_iter().collect();
+        watchers.sort_by(|a, b| a.0.cmp(&b.0));
+        watchers
+    }
+
+    fn default_watchers(&self, target: &InspectedWidget, builder: &mut InspectorWatcherBuilder) {
+        builder.insert("interactivity", target.info().map(|i| formatx!("{:?}", i.interactivity())));
+        builder.insert("visibility", target.render_watcher(|i| formatx!("{:?}", i.visibility())));
+        builder.insert(
+            "inner_bounds",
+            target.render_watcher(|i| formatx!("{:?}", i.bounds_info().inner_bounds())),
+        );
     }
 }

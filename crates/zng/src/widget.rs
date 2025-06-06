@@ -206,6 +206,8 @@ pub mod info {
     }
 
     /// Helper types for inspecting an UI tree.
+    ///
+    /// See also [`zng::window::inspector`] for higher level inspectors.
     pub mod inspector {
         pub use zng_app::widget::inspector::{
             InspectPropertyPattern, InspectWidgetPattern, InspectorActualVars, InspectorInfo, InstanceItem, WidgetInfoInspectorExt,

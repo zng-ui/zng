@@ -602,42 +602,26 @@ fn intrinsic_view(name: &'static str) -> impl UiNode {
 
 fn info_watchers(wgt: &InspectedWidget) -> impl UiNode {
     let mut children = UiVec::new();
-    children.push(Text! {
-        txt = "interactivity: ";
-    });
 
-    let value = wgt.info().map(|i| formatx!("{:?}", i.interactivity())).boxed();
-    let flash = value_background(&value);
-    children.push(Text! {
-        txt = value;
-        font_color = PROPERTY_VALUE_COLOR_VAR;
-        background_color = flash;
-    });
-
-    children.push(Text! {
-        txt = ",\nvisibility: ";
-    });
-    let value = wgt.render_watcher(|i| formatx!("{:?}", i.visibility())).boxed();
-    let flash = value_background(&value);
-    children.push(Text! {
-        txt = value;
-        font_color = PROPERTY_VALUE_COLOR_VAR;
-        background_color = flash;
-    });
-
-    children.push(Text! {
-        txt = ",\ninner_bounds: ";
-    });
-    let value = wgt.render_watcher(|i| formatx!("{:?}", i.bounds_info().inner_bounds())).boxed();
-    let flash = value_background(&value);
-    children.push(Text! {
-        txt = value;
-        font_color = PROPERTY_VALUE_COLOR_VAR;
-        background_color = flash;
-    });
-    children.push(Text! {
-        txt = ",";
-    });
+    let mut sep = "";
+    for (name, value) in INSPECTOR.build_watchers(wgt) {
+        children.push(Text! {
+            txt = formatx!("{sep}{name}: ");
+        });
+        let flash = value_background(&value);
+        children.push(Text! {
+            txt = value;
+            font_color = PROPERTY_VALUE_COLOR_VAR;
+            background_color = flash;
+        });
+        sep = ",\n";
+    }
+    if !sep.is_empty() {
+        // if any
+        children.push(Text! {
+            txt = ",";
+        });
+    }
 
     Stack! {
         direction = StackDirection::top_to_bottom();
