@@ -144,6 +144,7 @@ pub use zng_wgt_window::events::{
 /// ```
 /// # use zng::prelude::*;
 /// #
+/// # let _scope = APP.minimal();
 /// window::inspector::INSPECTOR.register_watcher(|wgt, builder| {
 ///     // watch custom info metadata
 ///     use zng::markdown::WidgetInfoExt as _;
