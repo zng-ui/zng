@@ -1,5 +1,6 @@
 # Unreleased
 
+* Inspector properties panel is now a selectable rich text.
 * Rich text selection operations that apply to lines now ignore wrap line breaks.
 * Add `zng::window::inspector::INSPECTOR` and associated types for configuring the live inspector (ctrl+shift+i).
   - In this release: custom watchers and the internal data model is made public, root type `InspectedTree`.
