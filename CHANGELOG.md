@@ -1,5 +1,6 @@
 # Unreleased
 
+* Rich text selection operations that apply to lines now ignore wrap line breaks.
 * Add `zng::window::inspector::INSPECTOR` and associated types for configuring the live inspector (ctrl+shift+i).
   - In this release: custom watchers and the internal data model is made public, root type `InspectedTree`.
 * Fix rich selection not highlighting all text components with focused style.
@@ -8,7 +9,7 @@
 * Fix panic on explicit disabled `rich_text`.
 * Enable rich text selection in default third-party licenses screen. 
 * Enable rich text selection in debug crash dialog, removed "plain" stdio panels.
-* Rich text copy now includes all visible line breaks, in a future release wrap breaks will be ignored, but for now this is better then no breaks.
+* Rich text copy now includes line breaks between *vertically stacked* texts in non-wrap panels.
 
 # 0.15.2
 
