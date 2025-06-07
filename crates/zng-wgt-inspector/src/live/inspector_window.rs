@@ -411,6 +411,9 @@ fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
             child = Stack! {
                 direction = StackDirection::top_to_bottom();
                 font_family = ["JetBrains Mono", "Consolas", "monospace"];
+                zng_wgt_text::rich_text = true;
+                zng_wgt_text::txt_selectable = true;
+                zng_wgt_input::cursor = zng_wgt_input::CursorIcon::Text;
                 children = ui_vec![
                     Wrap! {
                         children = ui_vec![
