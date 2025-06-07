@@ -2091,12 +2091,14 @@ fn rich_line_start_end(clear_selection: bool, is_end: bool) -> TextSelectOp {
                         // current line can start in a prev sibling
 
                         let mut last_id = c.id();
-                        for c in c.rich_text_prev() {
+                        let mut first = true;
+                        for c in c.rich_text_self_and_prev() {
                             let line_info = c.rich_text_line_info();
-                            if (line_info.starts_new_line && !line_info.is_wrap_start) || line_info.ends_in_new_line {
+                            if (line_info.starts_new_line && !line_info.is_wrap_start) || (line_info.ends_in_new_line && !first) {
                                 return (c.id(), Some(from_id));
                             }
                             last_id = c.id();
+                            first = false;
                         }
 
                         // text start
@@ -2160,7 +2162,11 @@ fn local_line_start_end(clear_selection: bool, is_end: bool) {
     }
 
     if let Some(li) = TEXT.laidout().shaped_text.line(i.line) {
-        i.index = if is_end { li.text_caret_range().end } else { li.text_range().start };
+        i.index = if is_end {
+            li.actual_text_caret_range().end
+        } else {
+            li.actual_text_range().start
+        };
         ctx.set_index(i);
         ctx.used_retained_x = false;
     }
@@ -2452,7 +2458,7 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                             index: line.actual_text_caret_range().end,
                             line: line_i,
                         },
-                        line_i == 0,
+                        line.actual_line_start().index() == 0,
                     );
                 }
             }
@@ -2464,12 +2470,14 @@ fn rich_nearest_line_to(replace_selection: bool, window_point: DipPoint) -> Text
                 let id = WIDGET.id();
                 if let Some(line_end) = ctx.leaf_info(id) {
                     let mut line_start = line_end;
-                    for prev in line_start.rich_text_prev() {
+                    let mut first = true;
+                    for prev in line_start.rich_text_self_and_prev() {
                         let line_info = prev.rich_text_line_info();
                         line_start = prev;
-                        if (line_info.starts_new_line && !line_info.is_wrap_start) || line_info.ends_in_new_line {
+                        if (line_info.starts_new_line && !line_info.is_wrap_start) || (line_info.ends_in_new_line && !first) {
                             break;
                         }
+                        first = false;
                     }
                     if !replace_selection {
                         if let Some(sel) = ctx.caret_selection_index_info() {
