@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-input"
-version = "0.8.2"
+version = "0.8.3"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -20,14 +20,14 @@ drag_drop = []
 zng-app-context = { path = "../zng-app-context", version = "0.7.1" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
 zng-view-api = { path = "../zng-view-api", version = "0.13.1" }
-zng-app = { path = "../zng-app", version = "0.16.2" }
+zng-app = { path = "../zng-app", version = "0.16.3" }
 zng-txt = { path = "../zng-txt", version = "0.3.1" }
 zng-var = { path = "../zng-var", version = "0.7.1" }
 zng-layout = { path = "../zng-layout", version = "0.4.1" }
 zng-handle = { path = "../zng-handle", version = "0.3.0" }
 zng-state-map = { path = "../zng-state-map", version = "0.5.0" }
 zng-unique-id = { path = "../zng-unique-id", version = "0.6.1" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.6.2" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.6.3" }
 
 tracing = "0.1"
 parking_lot = "0.12"
