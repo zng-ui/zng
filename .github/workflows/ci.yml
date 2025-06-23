@@ -41,7 +41,7 @@ jobs:
       - run: cargo do fmt --check
       - run: cargo do check
   check-windows:
-    runs-on: windows-latest
+    runs-on: windows-2025
     env:
       CC: 'clang-cl'
       CXX: 'clang-cl'
@@ -90,7 +90,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo do build-apk multi
   check-android-windows:
-    runs-on: windows-latest
+    runs-on: windows-2025
     needs: [check-windows]
     steps:
       - uses: actions/checkout@v4
@@ -162,7 +162,7 @@ jobs:
     - uses: Swatinem/rust-cache@v2
     - run: cargo do test --nextest
   test-windows:
-    runs-on: windows-latest
+    runs-on: windows-2025
     needs: [check-windows]
     env:
       ZNG_TP_LICENSES: true
@@ -236,7 +236,7 @@ jobs:
         with:
           run: cargo do test --render --no-prebuilt
   test-render-windows:
-    runs-on: windows-latest
+    runs-on: windows-2025
     needs: [check-windows]
     env:
       ZNG_TP_LICENSES: true
