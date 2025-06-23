@@ -35,7 +35,7 @@ jobs:
       matrix:
         feature: ['--all-features', '']
         profile: ['--release', '']
-    runs-on: windows-latest
+    runs-on: windows-2025
     env:
       CC: 'clang-cl'
       CXX: 'clang-cl'

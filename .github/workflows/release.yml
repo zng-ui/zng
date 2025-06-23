@@ -61,7 +61,7 @@ jobs:
       - run: cargo clean
         if: ${{ github.event.inputs.skip_checks != 'true' }}
   check-windows:
-    runs-on: windows-latest
+    runs-on: windows-2025
     env:
       CC: 'clang-cl'
       CXX: 'clang-cl'
@@ -107,7 +107,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-          - os: windows-latest
+          - os: windows-2025
           - os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -202,7 +202,7 @@ jobs:
           - target: x86_64-pc-windows-msvc
             features: --features image_avif
           - target: aarch64-pc-windows-msvc
-    runs-on: windows-latest
+    runs-on: windows-2025
     needs: [check-windows]
     env:
       ZNG_TP_LICENSES: true
@@ -414,7 +414,7 @@ jobs:
         if: ${{ github.event.inputs.skip_tests != 'true' }}
   
   test-windows:
-    runs-on: windows-latest
+    runs-on: windows-2025
     needs: [prebuild-windows]
     env:
       CC: 'clang-cl'
