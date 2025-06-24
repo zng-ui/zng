@@ -104,8 +104,10 @@ image_all = [
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-webrender = { package = "zng-webrender", version = "0.64.1" }
-swgl = { package = "zng-swgl", version = "0.3.1", optional = true }
+# path = "../../../zng-webrender/webrender" for testing webrender updates
+webrender = { package = "zng-webrender", version = "0.65.0" }
+# path = "../../../zng-webrender/swgl" 
+swgl = { package = "zng-swgl", version = "0.4.0", optional = true }
 
 zng-view-api = { path = "../zng-view-api", version = "0.13.1", default-features = false }
 zng-unit = { path = "../zng-unit", version = "0.3.1" }
@@ -117,7 +119,7 @@ zng-env = { path = "../zng-env", version = "0.5.1" }
 linkme = "=0.3.33"
 
 tracing = "0.1"
-gleam = "0.15.0" # matches webrender
+gleam = "0.15.1" # matches webrender
 winit = { version = "0.30", default-features = false, features = [
     "x11",
     "wayland",

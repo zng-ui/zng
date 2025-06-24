@@ -127,7 +127,7 @@ Tools that can be installed by cargo for use in Zng apps.
 
 ### Webrender
 
-The Zng also publishes a fork of [`servo/webrender`] called [`zng-ui/zng-webrender`]. The fork code has minimal
+The Zng project publishes a fork of [`servo/webrender`] called [`zng-ui/zng-webrender`]. The fork code has minimal
 modification, the crates uses by the Zng project are renamed with the `zng-` prefix and some Mozilla specific
 dependencies are removed.
 
