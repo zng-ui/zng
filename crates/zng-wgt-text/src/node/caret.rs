@@ -145,7 +145,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
             {
                 if r_txt.caret.selection_index.is_some() {
                     expected_len = 2;
-                } else {
+                } else if TEXT_EDITABLE_VAR.get() {
                     expected_len = 1;
                 }
             }

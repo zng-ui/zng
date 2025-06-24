@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix interactive caret appearing for text that are only selectable, not editable.
 * Update `webrender` and  `swgl`.
 
 # 0.15.3
