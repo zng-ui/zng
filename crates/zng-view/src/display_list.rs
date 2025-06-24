@@ -495,6 +495,7 @@ fn display_item_to_webrender(
                 &[],
                 wr::RasterSpace::Screen, // Local disables sub-pixel AA for performance (future perf.)
                 wr::StackingContextFlags::empty(),
+                None,
             )
         }
         DisplayItem::PopStackingContext => wr_list.pop_stacking_context(),
@@ -552,6 +553,7 @@ fn display_item_to_webrender(
                 &[],
                 wr::RasterSpace::Screen,
                 wr::StackingContextFlags::empty(),
+                None,
             );
         }
         DisplayItem::PopMask => {

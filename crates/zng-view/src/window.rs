@@ -1428,7 +1428,7 @@ impl Window {
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
         self.push_resize(&mut txn);
-        txn.generate_frame(frame.id.get(), frame_render_reasons(&frame));
+        txn.generate_frame(frame.id.get(), true, frame_render_reasons(&frame));
 
         let display_list = display_list_to_webrender(
             frame.display_list,
@@ -1479,7 +1479,7 @@ impl Window {
         let mut txn = Transaction::new();
         txn.set_root_pipeline(self.pipeline_id);
         self.push_resize(&mut txn);
-        txn.generate_frame(self.frame_id().get(), render_reasons);
+        txn.generate_frame(self.frame_id().get(), true, render_reasons);
 
         let frame_scope = match self.display_list_cache.update(
             &mut DisplayListExtAdapter {

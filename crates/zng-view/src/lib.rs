@@ -2395,8 +2395,11 @@ impl RenderNotifier for WrNotifier {
 
     fn wake_up(&self, _: bool) {}
 
-    fn new_frame_ready(&self, _document_id: DocumentId, _scrolled: bool, composite_needed: bool, _: FramePublishId) {
-        let msg = FrameReadyMsg { composite_needed };
+    fn new_frame_ready(&self, _: DocumentId, _: FramePublishId, params: &FrameReadyParams) {
+        // render is composite_needed (https://github.com/servo/webrender/commit/82860cfd6ebb012a009d639629eeb29078e2974f)
+        let msg = FrameReadyMsg {
+            composite_needed: params.render,
+        };
         let _ = self.sender.frame_ready(self.id, msg);
     }
 }
