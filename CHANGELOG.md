@@ -1,6 +1,8 @@
 # Unreleased
 
-* Fix interactive caret appearing for text that are only selectable, not editable.
+* Fix interactive carets in rich texts.
+  - Now transfers pointer capture to the caret widget of each leaf text as they become the active focus. !!: TODO
+* Fix interactive insert caret appearing in non editable text.
 * Update `webrender` and  `swgl`.
 
 # 0.15.3

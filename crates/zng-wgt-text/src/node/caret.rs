@@ -116,7 +116,12 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                let new_is_focused = args.is_focus_within(WIDGET.id());
+                let new_is_focused;
+                if let Some(ctx) = TEXT.try_rich() {
+                    new_is_focused = FOCUS.is_focus_within(ctx.root_id).get();
+                } else {
+                    new_is_focused = args.is_focus_within(WIDGET.id());
+                }
                 if is_focused != new_is_focused {
                     WIDGET.layout();
                     is_focused = new_is_focused;
@@ -134,10 +139,10 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
 
+            let mut expected_len = 0;
+
             let r_txt = TEXT.resolved();
             let line_height_half = TEXT.laidout().shaped_text.line_height() / Px(2);
-
-            let mut expected_len = 0;
 
             if r_txt.caret.index.is_some()
                 && (is_focused || r_txt.selection_toolbar_is_open)
@@ -162,6 +167,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                         inner_text: PxTransform::identity(),
                         x: Px::MIN,
                         y: Px::MIN,
+                        rich_text_hidden: false,
                         shape: CaretShape::Insert,
                         width: Px::MIN,
                         spot: PxPoint::zero(),
@@ -208,9 +214,10 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 origin.x -= l.spot.x;
                 origin.y += line_height_half - l.spot.y;
 
-                if l.x != origin.x || l.y != origin.y {
+                if l.x != origin.x || l.y != origin.y || l.rich_text_hidden {
                     l.x = origin.x;
                     l.y = origin.y;
+                    l.rich_text_hidden = false;
 
                     UPDATES.render(carets[0].id);
                 }
@@ -223,6 +230,14 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                     tracing::error!("caret instance, but no caret in context");
                     return;
                 };
+
+                let mut index_hidden = false;
+                let mut s_index_hidden = false;
+                if let Some(rr_ctx) = TEXT.try_rich() {
+                    let id = WIDGET.id();
+                    index_hidden = rr_ctx.caret.index != Some(id);
+                    s_index_hidden = rr_ctx.caret.selection_index != Some(id);
+                }
 
                 let mut index_is_left = index.index <= s_index.index;
                 let seg_txt = &r_txt.segmented_text;
@@ -277,12 +292,14 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 }
 
                 let mut origins = [origin, s_origin];
+                let hidden = [index_hidden, s_index_hidden];
                 for i in 0..2 {
                     origins[i].x -= l[i].spot.x;
                     origins[i].y += line_height_half - l[i].spot.y;
-                    if l[i].x != origins[i].x || l[i].y != origins[i].y {
+                    if l[i].x != origins[i].x || l[i].y != origins[i].y || l[i].rich_text_hidden != hidden[i] {
                         l[i].x = origins[i].x;
                         l[i].y = origins[i].y;
+                        l[i].rich_text_hidden = hidden[i];
                         UPDATES.render(carets[i].id);
                     }
                 }
@@ -330,14 +347,15 @@ impl PartialEq for InteractiveCaretInput {
 struct InteractiveCaretInputMut {
     // # set by Text:
     inner_text: PxTransform,
-    // request render for Caret after changing.
+    // ## request render for Caret after changing:
     x: Px,
     y: Px,
-    // request update for Caret after changing.
+    rich_text_hidden: bool,
+    // ## request update for Caret after changing
     shape: CaretShape,
 
     // # set by Caret:
-    // request layout for Text after changing.
+    // ## request layout for Text after changing:
     width: Px,
     spot: PxPoint,
 }
@@ -481,9 +499,18 @@ fn interactive_caret_node(
 
             if input_m.x > Px::MIN && input_m.y > Px::MIN {
                 transform = transform.then(&PxTransform::from(PxVector::new(input_m.x, input_m.y)));
-                frame.push_inner_transform(&transform, |frame| {
-                    visual.render(frame);
-                });
+
+                let mut render = |frame: &mut FrameBuilder| {
+                    frame.push_inner_transform(&transform, |frame| {
+                        visual.render(frame);
+                    });
+                };
+
+                if input_m.rich_text_hidden {
+                    frame.hide(render);
+                } else {
+                    render(frame);
+                }
             }
         }
         _ => {}
