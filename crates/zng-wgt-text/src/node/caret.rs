@@ -156,8 +156,22 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
             }
 
             if expected_len != carets.len() {
+                let keep_capture = TEXT
+                    .try_rich()
+                    .and_then(|_| POINTER_CAPTURE.current_capture().with(|c| c.as_ref().map(|c| c.target.widget_id())));
                 for caret in carets.drain(..) {
-                    LAYERS.remove(caret.id);
+                    if Some(caret.id) == keep_capture {
+                        // keep dragging caret alive, in rich texts select ops that use window point are automatically passed to the
+                        // nearest sibling leaf, so the caret logic is still sound even tough a different caret will be visible now.
+                        let mut l = caret.input.lock();
+                        l.deinit_on_capture_lost = true;
+                        if !l.rich_text_hidden {
+                            l.rich_text_hidden = true;
+                            UPDATES.render(caret.id);
+                        }
+                    } else {
+                        LAYERS.remove(caret.id);
+                    }
                 }
                 carets.reserve_exact(expected_len);
 
@@ -168,6 +182,7 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                         x: Px::MIN,
                         y: Px::MIN,
                         rich_text_hidden: false,
+                        deinit_on_capture_lost: false,
                         shape: CaretShape::Insert,
                         width: Px::MIN,
                         spot: PxPoint::zero(),
@@ -351,8 +366,10 @@ struct InteractiveCaretInputMut {
     x: Px,
     y: Px,
     rich_text_hidden: bool,
-    // ## request update for Caret after changing
+    // ## request update for Caret after changing:
     shape: CaretShape,
+    // ## no request needed:
+    deinit_on_capture_lost: bool,
 
     // # set by Caret:
     // ## request layout for Text after changing:
@@ -413,6 +430,7 @@ fn interactive_caret_node(
                 FOCUS.focus_widget(parent_id, false);
                 if args.is_touch_start() {
                     let wgt_info = WIDGET.info();
+                    let wgt_id = wgt_info.id();
                     move_start_to_spot = wgt_info
                         .inner_transform()
                         .transform_vector(input.lock().spot.to_vector())
@@ -420,10 +438,10 @@ fn interactive_caret_node(
                         - args.position.to_vector();
 
                     let mut handles = EventHandles::dummy();
-                    handles.push(TOUCH_MOVE_EVENT.subscribe(WIDGET.id()));
-                    handles.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
+                    handles.push(TOUCH_MOVE_EVENT.subscribe(wgt_id));
+                    handles.push(POINTER_CAPTURE_EVENT.subscribe(wgt_id));
                     touch_move = Some((args.touch, handles));
-                    POINTER_CAPTURE.capture_subtree(WIDGET.id());
+                    POINTER_CAPTURE.capture_subtree(wgt_id);
                 } else if touch_move.is_some() {
                     touch_move = None;
                     POINTER_CAPTURE.release_capture();
@@ -448,15 +466,16 @@ fn interactive_caret_node(
                 FOCUS.focus_widget(parent_id, false);
                 if !args.is_click && args.is_mouse_down() && args.is_primary() {
                     let wgt_info = WIDGET.info();
+                    let wgt_id = wgt_info.id();
                     move_start_to_spot = wgt_info
                         .inner_transform()
                         .transform_vector(input.lock().spot.to_vector())
                         .to_dip(wgt_info.tree().scale_factor())
                         - args.position.to_vector();
 
-                    mouse_move.push(MOUSE_MOVE_EVENT.subscribe(WIDGET.id()));
-                    mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
-                    POINTER_CAPTURE.capture_subtree(WIDGET.id());
+                    mouse_move.push(MOUSE_MOVE_EVENT.subscribe(wgt_id));
+                    mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(wgt_id));
+                    POINTER_CAPTURE.capture_subtree(wgt_id);
                 } else if !mouse_move.is_dummy() {
                     POINTER_CAPTURE.release_capture();
                     mouse_move.clear();
@@ -472,9 +491,14 @@ fn interactive_caret_node(
                     SELECT_CMD.scoped(parent_id).notify_param(op);
                 }
             } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
-                if args.is_lost(WIDGET.id()) {
+                let id = WIDGET.id();
+                if args.is_lost(id) {
                     touch_move = None;
                     mouse_move.clear();
+
+                    if input.lock().deinit_on_capture_lost {
+                        LAYERS.remove(id);
+                    }
                 }
             }
         }
