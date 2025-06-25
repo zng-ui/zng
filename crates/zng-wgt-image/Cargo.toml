@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-image"
-version = "0.6.3"
+version = "0.6.4"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -17,7 +17,7 @@ zng-app = { path = "../zng-app", version = "0.16.3" }
 zng-wgt-access = { path = "../zng-wgt-access", version = "0.5.3" }
 zng-ext-image = { path = "../zng-ext-image", version = "0.5.3" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.6.3" }
-zng-wgt-window = { path = "../zng-wgt-window", version = "0.9.3" }
+zng-wgt-window = { path = "../zng-wgt-window", version = "0.9.4" }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.6.3" }
 
 serde = { version = "1.0", features = ["derive"] }
