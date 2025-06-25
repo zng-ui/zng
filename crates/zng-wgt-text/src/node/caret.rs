@@ -116,7 +116,12 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                let new_is_focused = args.is_focus_within(WIDGET.id());
+                let new_is_focused;
+                if let Some(ctx) = TEXT.try_rich() {
+                    new_is_focused = FOCUS.is_focus_within(ctx.root_id).get();
+                } else {
+                    new_is_focused = args.is_focus_within(WIDGET.id());
+                }
                 if is_focused != new_is_focused {
                     WIDGET.layout();
                     is_focused = new_is_focused;
@@ -134,10 +139,10 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
 
+            let mut expected_len = 0;
+
             let r_txt = TEXT.resolved();
             let line_height_half = TEXT.laidout().shaped_text.line_height() / Px(2);
-
-            let mut expected_len = 0;
 
             if r_txt.caret.index.is_some()
                 && (is_focused || r_txt.selection_toolbar_is_open)
@@ -145,14 +150,28 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
             {
                 if r_txt.caret.selection_index.is_some() {
                     expected_len = 2;
-                } else {
+                } else if TEXT_EDITABLE_VAR.get() {
                     expected_len = 1;
                 }
             }
 
             if expected_len != carets.len() {
+                let keep_capture = TEXT
+                    .try_rich()
+                    .and_then(|_| POINTER_CAPTURE.current_capture().with(|c| c.as_ref().map(|c| c.target.widget_id())));
                 for caret in carets.drain(..) {
-                    LAYERS.remove(caret.id);
+                    if Some(caret.id) == keep_capture {
+                        // keep dragging caret alive, in rich texts select ops that use window point are automatically passed to the
+                        // nearest sibling leaf, so the caret logic is still sound even tough a different caret will be visible now.
+                        let mut l = caret.input.lock();
+                        l.deinit_on_capture_lost = true;
+                        if !l.rich_text_hidden {
+                            l.rich_text_hidden = true;
+                            UPDATES.render(caret.id);
+                        }
+                    } else {
+                        LAYERS.remove(caret.id);
+                    }
                 }
                 carets.reserve_exact(expected_len);
 
@@ -162,6 +181,8 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                         inner_text: PxTransform::identity(),
                         x: Px::MIN,
                         y: Px::MIN,
+                        rich_text_hidden: false,
+                        deinit_on_capture_lost: false,
                         shape: CaretShape::Insert,
                         width: Px::MIN,
                         spot: PxPoint::zero(),
@@ -208,9 +229,10 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 origin.x -= l.spot.x;
                 origin.y += line_height_half - l.spot.y;
 
-                if l.x != origin.x || l.y != origin.y {
+                if l.x != origin.x || l.y != origin.y || l.rich_text_hidden {
                     l.x = origin.x;
                     l.y = origin.y;
+                    l.rich_text_hidden = false;
 
                     UPDATES.render(carets[0].id);
                 }
@@ -223,6 +245,14 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                     tracing::error!("caret instance, but no caret in context");
                     return;
                 };
+
+                let mut index_hidden = false;
+                let mut s_index_hidden = false;
+                if let Some(rr_ctx) = TEXT.try_rich() {
+                    let id = WIDGET.id();
+                    index_hidden = rr_ctx.caret.index != Some(id);
+                    s_index_hidden = rr_ctx.caret.selection_index != Some(id);
+                }
 
                 let mut index_is_left = index.index <= s_index.index;
                 let seg_txt = &r_txt.segmented_text;
@@ -277,12 +307,14 @@ pub fn interactive_carets(child: impl UiNode) -> impl UiNode {
                 }
 
                 let mut origins = [origin, s_origin];
+                let hidden = [index_hidden, s_index_hidden];
                 for i in 0..2 {
                     origins[i].x -= l[i].spot.x;
                     origins[i].y += line_height_half - l[i].spot.y;
-                    if l[i].x != origins[i].x || l[i].y != origins[i].y {
+                    if l[i].x != origins[i].x || l[i].y != origins[i].y || l[i].rich_text_hidden != hidden[i] {
                         l[i].x = origins[i].x;
                         l[i].y = origins[i].y;
+                        l[i].rich_text_hidden = hidden[i];
                         UPDATES.render(carets[i].id);
                     }
                 }
@@ -330,14 +362,17 @@ impl PartialEq for InteractiveCaretInput {
 struct InteractiveCaretInputMut {
     // # set by Text:
     inner_text: PxTransform,
-    // request render for Caret after changing.
+    // ## request render for Caret after changing:
     x: Px,
     y: Px,
-    // request update for Caret after changing.
+    rich_text_hidden: bool,
+    // ## request update for Caret after changing:
     shape: CaretShape,
+    // ## no request needed:
+    deinit_on_capture_lost: bool,
 
     // # set by Caret:
-    // request layout for Text after changing.
+    // ## request layout for Text after changing:
     width: Px,
     spot: PxPoint,
 }
@@ -395,6 +430,7 @@ fn interactive_caret_node(
                 FOCUS.focus_widget(parent_id, false);
                 if args.is_touch_start() {
                     let wgt_info = WIDGET.info();
+                    let wgt_id = wgt_info.id();
                     move_start_to_spot = wgt_info
                         .inner_transform()
                         .transform_vector(input.lock().spot.to_vector())
@@ -402,10 +438,10 @@ fn interactive_caret_node(
                         - args.position.to_vector();
 
                     let mut handles = EventHandles::dummy();
-                    handles.push(TOUCH_MOVE_EVENT.subscribe(WIDGET.id()));
-                    handles.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
+                    handles.push(TOUCH_MOVE_EVENT.subscribe(wgt_id));
+                    handles.push(POINTER_CAPTURE_EVENT.subscribe(wgt_id));
                     touch_move = Some((args.touch, handles));
-                    POINTER_CAPTURE.capture_subtree(WIDGET.id());
+                    POINTER_CAPTURE.capture_subtree(wgt_id);
                 } else if touch_move.is_some() {
                     touch_move = None;
                     POINTER_CAPTURE.release_capture();
@@ -430,15 +466,16 @@ fn interactive_caret_node(
                 FOCUS.focus_widget(parent_id, false);
                 if !args.is_click && args.is_mouse_down() && args.is_primary() {
                     let wgt_info = WIDGET.info();
+                    let wgt_id = wgt_info.id();
                     move_start_to_spot = wgt_info
                         .inner_transform()
                         .transform_vector(input.lock().spot.to_vector())
                         .to_dip(wgt_info.tree().scale_factor())
                         - args.position.to_vector();
 
-                    mouse_move.push(MOUSE_MOVE_EVENT.subscribe(WIDGET.id()));
-                    mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(WIDGET.id()));
-                    POINTER_CAPTURE.capture_subtree(WIDGET.id());
+                    mouse_move.push(MOUSE_MOVE_EVENT.subscribe(wgt_id));
+                    mouse_move.push(POINTER_CAPTURE_EVENT.subscribe(wgt_id));
+                    POINTER_CAPTURE.capture_subtree(wgt_id);
                 } else if !mouse_move.is_dummy() {
                     POINTER_CAPTURE.release_capture();
                     mouse_move.clear();
@@ -454,9 +491,14 @@ fn interactive_caret_node(
                     SELECT_CMD.scoped(parent_id).notify_param(op);
                 }
             } else if let Some(args) = POINTER_CAPTURE_EVENT.on(update) {
-                if args.is_lost(WIDGET.id()) {
+                let id = WIDGET.id();
+                if args.is_lost(id) {
                     touch_move = None;
                     mouse_move.clear();
+
+                    if input.lock().deinit_on_capture_lost {
+                        LAYERS.remove(id);
+                    }
                 }
             }
         }
@@ -481,9 +523,18 @@ fn interactive_caret_node(
 
             if input_m.x > Px::MIN && input_m.y > Px::MIN {
                 transform = transform.then(&PxTransform::from(PxVector::new(input_m.x, input_m.y)));
-                frame.push_inner_transform(&transform, |frame| {
-                    visual.render(frame);
-                });
+
+                let mut render = |frame: &mut FrameBuilder| {
+                    frame.push_inner_transform(&transform, |frame| {
+                        visual.render(frame);
+                    });
+                };
+
+                if input_m.rich_text_hidden {
+                    frame.hide(render);
+                } else {
+                    render(frame);
+                }
             }
         }
         _ => {}

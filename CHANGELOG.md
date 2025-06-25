@@ -1,6 +1,8 @@
 # Unreleased
 
-* Update `webrender` and  `swgl`.
+* Fix interactive carets in rich texts losing pointer capture when crossing over leaf texts.
+* Fix interactive insert caret appearing in non editable text.
+* Update renderer dependencies.
 
 # 0.15.3
 
