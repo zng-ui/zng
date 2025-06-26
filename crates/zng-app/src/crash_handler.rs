@@ -524,7 +524,7 @@ impl fmt::Display for CrashPanic {
                     let code = frame.code_snippet();
                     if !code.is_empty() {
                         snippet -= 1;
-                        writeln!(f, "{}", code)?;
+                        writeln!(f, "{code}")?;
                     }
                 }
             }
@@ -781,9 +781,9 @@ impl BacktraceFrame {
                     };
 
                     if line_n == self.line {
-                        writeln!(&mut r, "      {:>4} > {}", line_n, line).unwrap();
+                        writeln!(&mut r, "      {line_n:>4} > {line}").unwrap();
                     } else {
-                        writeln!(&mut r, "      {:>4} │ {}", line_n, line).unwrap();
+                        writeln!(&mut r, "      {line_n:>4} │ {line}").unwrap();
                     }
                 }
 
