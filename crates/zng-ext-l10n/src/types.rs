@@ -250,7 +250,7 @@ impl_from_and_into_var_number! {
 }
 impl L10nArgument {
     /// Borrow argument as a fluent value.
-    pub fn fluent_value(&self) -> fluent::FluentValue {
+    pub fn fluent_value(&self) -> fluent::FluentValue<'_> {
         match self {
             L10nArgument::Txt(t) => fluent::FluentValue::String(Cow::Borrowed(t.as_str())),
             L10nArgument::Number(n) => fluent::FluentValue::Number(n.clone()),

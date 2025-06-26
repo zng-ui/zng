@@ -90,7 +90,7 @@ impl WidgetInfoBuilder {
         builder
     }
 
-    fn node(&mut self, id: tree::NodeId) -> tree::NodeMut<WidgetInfoData> {
+    fn node(&mut self, id: tree::NodeId) -> tree::NodeMut<'_, WidgetInfoData> {
         self.tree.index_mut(id)
     }
 

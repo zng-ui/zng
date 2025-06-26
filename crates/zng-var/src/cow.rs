@@ -257,7 +257,7 @@ impl<T: VarValue, S: Var<T>> AnyVar for ArcCowVar<T, S> {
         }
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         VarPtr::new_arc(&self.0)
     }
 

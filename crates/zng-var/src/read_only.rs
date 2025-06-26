@@ -113,7 +113,7 @@ impl<T: VarValue, V: Var<T>> AnyVar for ReadOnlyVar<T, V> {
         self.1.modify_importance()
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         self.1.var_ptr()
     }
 

@@ -127,7 +127,7 @@ impl<T: VarValue> AnyVar for ArcVar<T> {
         self.0.modify_importance()
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         VarPtr::new_arc(&self.0)
     }
 

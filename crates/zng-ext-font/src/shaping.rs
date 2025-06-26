@@ -435,7 +435,7 @@ impl ShapedText {
     }
 
     /// Glyphs by font and palette color.
-    pub fn colored_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedColoredGlyphs)> {
+    pub fn colored_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedColoredGlyphs<'_>)> {
         ColoredGlyphsIter {
             glyphs: self.glyphs(),
             maybe_colored: None,
@@ -443,7 +443,7 @@ impl ShapedText {
     }
 
     /// Glyphs in a range by font and palette color.
-    pub fn colored_glyphs_slice(&self, range: impl ops::RangeBounds<usize>) -> impl Iterator<Item = (&Font, ShapedColoredGlyphs)> {
+    pub fn colored_glyphs_slice(&self, range: impl ops::RangeBounds<usize>) -> impl Iterator<Item = (&Font, ShapedColoredGlyphs<'_>)> {
         ColoredGlyphsIter {
             glyphs: self.glyphs_slice_impl(IndexRange::from_bounds(range)),
             maybe_colored: None,
@@ -451,7 +451,7 @@ impl ShapedText {
     }
 
     /// Glyphs by font and associated image.
-    pub fn image_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedImageGlyphs)> {
+    pub fn image_glyphs(&self) -> impl Iterator<Item = (&Font, ShapedImageGlyphs<'_>)> {
         ImageGlyphsIter {
             glyphs: self.glyphs(),
             glyphs_i: 0,
@@ -461,7 +461,7 @@ impl ShapedText {
     }
 
     /// Glyphs in a range by font and associated image.
-    pub fn image_glyphs_slice(&self, range: impl ops::RangeBounds<usize>) -> impl Iterator<Item = (&Font, ShapedImageGlyphs)> {
+    pub fn image_glyphs_slice(&self, range: impl ops::RangeBounds<usize>) -> impl Iterator<Item = (&Font, ShapedImageGlyphs<'_>)> {
         let range = IndexRange::from_bounds(range);
         ImageGlyphsIter {
             glyphs_i: range.start() as _,
@@ -586,7 +586,7 @@ impl ShapedText {
 
     /// Gets the first line that overflows the `max_height`. A line overflows when the line `PxRect::max_y`
     /// is greater than `max_height`.
-    pub fn overflow_line(&self, max_height: Px) -> Option<ShapedLine> {
+    pub fn overflow_line(&self, max_height: Px) -> Option<ShapedLine<'_>> {
         let mut y = self.first_line.max_y();
         if y > max_height {
             self.line(0)
@@ -1317,7 +1317,7 @@ impl ShapedText {
     /// Iterate over [`ShapedLine`] selections split by [`LineBreak`] or wrap.
     ///
     /// [`LineBreak`]: TextSegmentKind::LineBreak
-    pub fn lines(&self) -> impl Iterator<Item = ShapedLine> {
+    pub fn lines(&self) -> impl Iterator<Item = ShapedLine<'_>> {
         let just_width = self.justify_mode().map(|_| self.align_size.width);
         self.lines.iter_segs().enumerate().map(move |(i, (w, r))| ShapedLine {
             text: self,
@@ -1338,7 +1338,7 @@ impl ShapedText {
     }
 
     /// Gets the line by index.
-    pub fn line(&self, line_idx: usize) -> Option<ShapedLine> {
+    pub fn line(&self, line_idx: usize) -> Option<ShapedLine<'_>> {
         if line_idx >= self.lines.0.len() {
             None
         } else {
@@ -1628,7 +1628,7 @@ impl ShapedText {
     }
 
     /// Gets the line that contains the `y` offset or is nearest to it.
-    pub fn nearest_line(&self, y: Px) -> Option<ShapedLine> {
+    pub fn nearest_line(&self, y: Px) -> Option<ShapedLine<'_>> {
         let first_line_max_y = self.first_line.max_y();
         if first_line_max_y >= y {
             self.line(0)
@@ -3400,7 +3400,7 @@ impl<'a> ShapedLine<'a> {
     /// Get the segment by index.
     ///
     /// The first segment of the line is `0`.
-    pub fn seg(&self, seg_idx: usize) -> Option<ShapedSegment> {
+    pub fn seg(&self, seg_idx: usize) -> Option<ShapedSegment<'_>> {
         if self.seg_range.len() > seg_idx {
             Some(ShapedSegment {
                 text: self.text,

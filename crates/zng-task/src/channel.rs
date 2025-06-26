@@ -242,7 +242,7 @@ impl<T> Receiver<T> {
     }
 
     /// Takes all sitting in the channel.
-    pub fn drain(&self) -> flume::Drain<T> {
+    pub fn drain(&self) -> flume::Drain<'_, T> {
         self.0.drain()
     }
 }

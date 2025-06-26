@@ -236,7 +236,7 @@ impl L10nTarData {
     }
 
     /// Decompress bytes.
-    pub fn decode_bytes(&self) -> std::io::Result<Cow<[u8]>> {
+    pub fn decode_bytes(&self) -> std::io::Result<Cow<'_, [u8]>> {
         if self.is_gz() {
             let bytes = self.bytes();
             let mut data = vec![];

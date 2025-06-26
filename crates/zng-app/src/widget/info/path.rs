@@ -85,7 +85,7 @@ impl WidgetPath {
     }
 
     /// Make a path to an ancestor id that is contained in the current path.
-    pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<Cow<WidgetPath>> {
+    pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<Cow<'_, WidgetPath>> {
         self.path.iter().position(|&id| id == ancestor_id).map(|i| {
             if i == self.path.len() - 1 {
                 Cow::Borrowed(self)
@@ -122,7 +122,7 @@ impl WidgetPath {
     }
 
     /// Gets a path to the root widget of this path.
-    pub fn root_path(&self) -> Cow<WidgetPath> {
+    pub fn root_path(&self) -> Cow<'_, WidgetPath> {
         if self.path.len() == 1 {
             Cow::Borrowed(self)
         } else {
@@ -134,7 +134,7 @@ impl WidgetPath {
     }
 
     /// Gets a path to the `widget_id` of this path.
-    pub fn sub_path(&self, widget_id: WidgetId) -> Option<Cow<WidgetPath>> {
+    pub fn sub_path(&self, widget_id: WidgetId) -> Option<Cow<'_, WidgetPath>> {
         if self.widget_id() == widget_id {
             Some(Cow::Borrowed(self))
         } else {
@@ -379,7 +379,7 @@ impl InteractionPath {
     }
 
     /// Make a path to an ancestor id that is contained in the current path.
-    pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<Cow<InteractionPath>> {
+    pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<Cow<'_, InteractionPath>> {
         self.widgets_path().iter().position(|&id| id == ancestor_id).map(|i| {
             if i == self.path.path.len() - 1 {
                 Cow::Borrowed(self)
@@ -424,7 +424,7 @@ impl InteractionPath {
     }
 
     /// Gets a path to the root widget of this path.
-    pub fn root_path(&self) -> Cow<InteractionPath> {
+    pub fn root_path(&self) -> Cow<'_, InteractionPath> {
         if self.path.path.len() == 1 {
             Cow::Borrowed(self)
         } else {
@@ -440,7 +440,7 @@ impl InteractionPath {
     }
 
     /// Gets a sub-path up to `widget_id` (inclusive), or `None` if the widget is not in the path.
-    pub fn sub_path(&self, widget_id: WidgetId) -> Option<Cow<InteractionPath>> {
+    pub fn sub_path(&self, widget_id: WidgetId) -> Option<Cow<'_, InteractionPath>> {
         if widget_id == self.widget_id() {
             Some(Cow::Borrowed(self))
         } else {

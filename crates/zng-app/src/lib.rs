@@ -841,7 +841,7 @@ pub trait AppEventObserver {
     /// Cast to dynamically dispatched observer, this can help avoid code bloat.
     ///
     /// The app methods that accept observers automatically use this method if the feature `"dyn_app_extension"` is active.
-    fn as_dyn(&mut self) -> DynAppEventObserver
+    fn as_dyn(&mut self) -> DynAppEventObserver<'_>
     where
         Self: Sized,
     {
@@ -948,7 +948,7 @@ impl AppEventObserver for DynAppEventObserver<'_> {
         self.0.render_dyn(render_widgets, render_update_widgets)
     }
 
-    fn as_dyn(&mut self) -> DynAppEventObserver {
+    fn as_dyn(&mut self) -> DynAppEventObserver<'_> {
         DynAppEventObserver(self.0)
     }
 }

@@ -817,7 +817,7 @@ impl ops::Deref for AccessTreeBuilder {
 pub struct AccessTree(Vec<AccessNode>);
 impl AccessTree {
     /// Root node.
-    pub fn root(&self) -> AccessNodeRef {
+    pub fn root(&self) -> AccessNodeRef<'_> {
         AccessNodeRef { tree: self, index: 0 }
     }
 }
@@ -850,21 +850,21 @@ pub struct AccessNodeRef<'a> {
 }
 impl AccessNodeRef<'_> {
     /// Iterate over `self` and all descendant nodes.
-    pub fn self_and_descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
+    pub fn self_and_descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef<'_>> {
         let range = self.index..(self.index + self.descendants_len as usize);
         let tree = self.tree;
         range.map(move |i| AccessNodeRef { tree, index: i })
     }
 
     /// Iterate over all descendant nodes.
-    pub fn descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
+    pub fn descendants(&self) -> impl ExactSizeIterator<Item = AccessNodeRef<'_>> {
         let mut d = self.self_and_descendants();
         d.next();
         d
     }
 
     /// Iterate over children nodes.
-    pub fn children(&self) -> impl ExactSizeIterator<Item = AccessNodeRef> {
+    pub fn children(&self) -> impl ExactSizeIterator<Item = AccessNodeRef<'_>> {
         struct ChildrenIter<'a> {
             tree: &'a AccessTree,
             count: usize,

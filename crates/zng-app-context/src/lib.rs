@@ -1379,7 +1379,7 @@ impl<T> ReadOnlyRwLock<T> {
     /// Locks this `RwLock` with shared read access, blocking the current thread until it can be acquired.
     ///
     /// See `parking_lot::RwLock::read` for more details.
-    pub fn read(&self) -> parking_lot::RwLockReadGuard<T> {
+    pub fn read(&self) -> parking_lot::RwLockReadGuard<'_, T> {
         self.0.read()
     }
 
@@ -1389,21 +1389,21 @@ impl<T> ReadOnlyRwLock<T> {
     /// another read lock is held at the time of the call.
     ///
     /// See `parking_lot::RwLock::read_recursive` for more details.
-    pub fn read_recursive(&self) -> parking_lot::RwLockReadGuard<T> {
+    pub fn read_recursive(&self) -> parking_lot::RwLockReadGuard<'_, T> {
         self.0.read_recursive()
     }
 
     /// Attempts to acquire this `RwLock` with shared read access.
     ///
     /// See `parking_lot::RwLock::try_read` for more details.
-    pub fn try_read(&self) -> Option<parking_lot::RwLockReadGuard<T>> {
+    pub fn try_read(&self) -> Option<parking_lot::RwLockReadGuard<'_, T>> {
         self.0.try_read()
     }
 
     /// Attempts to acquire this `RwLock` with shared read access.
     ///
     /// See `parking_lot::RwLock::try_read_recursive` for more details.
-    pub fn try_read_recursive(&self) -> Option<parking_lot::RwLockReadGuard<T>> {
+    pub fn try_read_recursive(&self) -> Option<parking_lot::RwLockReadGuard<'_, T>> {
         self.0.try_read_recursive()
     }
 

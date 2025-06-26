@@ -204,7 +204,7 @@ where
         self.0.read().var.modify_importance()
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         VarPtr::new_arc(&self.0)
     }
 

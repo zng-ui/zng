@@ -96,7 +96,7 @@ impl<T: VarValue> AnyVar for LocalVar<T> {
         0
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         VarPtr::new_never_eq(self)
     }
 

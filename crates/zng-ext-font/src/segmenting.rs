@@ -252,7 +252,7 @@ impl SegmentedText {
     ///     println!("s: {sub_str:?} is a `{:?}`", seg.kind);
     /// }
     /// ```
-    pub fn iter(&self) -> SegmentedTextIter {
+    pub fn iter(&self) -> SegmentedTextIter<'_> {
         SegmentedTextIter {
             text: &self.text,
             start: 0,

@@ -186,7 +186,7 @@ impl WidgetInfoTree {
     /// Custom metadata associated with the tree during info build.
     ///
     /// Any widget (that was not reused) can have inserted metadata.
-    pub fn build_meta(&self) -> StateMapRef<WidgetInfoMeta> {
+    pub fn build_meta(&self) -> StateMapRef<'_, WidgetInfoMeta> {
         self.0.build_meta.borrow()
     }
 
@@ -569,7 +569,7 @@ impl WidgetBoundsInfo {
     /// Exclusive read the latest inline layout info.
     ///
     /// Returns `None` if the latest widget layout was not in an inlining context.
-    pub fn inline(&self) -> Option<MappedMutexGuard<WidgetInlineInfo>> {
+    pub fn inline(&self) -> Option<MappedMutexGuard<'_, WidgetInlineInfo>> {
         let me = self.0.lock();
         if me.inline.is_some() {
             Some(MutexGuard::map(me, |m| m.inline.as_mut().unwrap()))
@@ -1057,7 +1057,7 @@ impl WidgetInfo {
         Self { tree, node_id }
     }
 
-    fn node(&self) -> tree::NodeRef<WidgetInfoData> {
+    fn node(&self) -> tree::NodeRef<'_, WidgetInfoData> {
         self.tree.0.tree.index(self.node_id)
     }
 
@@ -1408,7 +1408,7 @@ impl WidgetInfo {
     }
 
     /// Custom metadata associated with the widget during info build.
-    pub fn meta(&self) -> StateMapRef<WidgetInfoMeta> {
+    pub fn meta(&self) -> StateMapRef<'_, WidgetInfoMeta> {
         self.info().meta.borrow()
     }
 

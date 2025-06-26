@@ -332,7 +332,7 @@ impl VarData {
         *self.0.into_inner().value.into_any().downcast::<T>().unwrap()
     }
 
-    fn read<T: VarValue>(&self) -> parking_lot::MappedRwLockReadGuard<T> {
+    fn read<T: VarValue>(&self) -> parking_lot::MappedRwLockReadGuard<'_, T> {
         let read = self.0.read();
         parking_lot::RwLockReadGuard::map(read, |r| r.value.as_any().downcast_ref::<T>().unwrap())
     }
