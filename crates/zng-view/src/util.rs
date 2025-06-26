@@ -1130,7 +1130,7 @@ pub(crate) fn wr_workers() -> Arc<rayon::ThreadPool> {
     //
     // we need the workers instance before renderer init for the extensions, but this
     // means that we removed some Webrender profiler instrumentation.
-    let worker = ThreadPoolBuilder::new().thread_name(|idx| format!("WRWorker#{}", idx)).build();
+    let worker = ThreadPoolBuilder::new().thread_name(|idx| format!("WRWorker#{idx}")).build();
     Arc::new(worker.unwrap())
 }
 

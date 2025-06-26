@@ -1165,7 +1165,7 @@ mod tests {
         assert_eq!(first, KeyCode::Backquote);
 
         for k in iter {
-            assert_eq!(k.name(), &format!("{:?}", k));
+            assert_eq!(k.name(), &format!("{k:?}"));
         }
     }
 }

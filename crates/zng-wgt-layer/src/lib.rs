@@ -844,7 +844,7 @@ impl fmt::Debug for LayerIndex {
             if f.alternate() {
                 write!(f, "LayerIndex::")?;
             }
-            write!(f, "{}", name)
+            write!(f, "{name}")
         } else {
             write!(f, "LayerIndex({})", self.0)
         }

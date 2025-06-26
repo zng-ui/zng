@@ -80,11 +80,11 @@ impl fmt::Display for GestureKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GestureKey::Key(k) => match k {
-                Key::Char(c) => write!(f, "{}", c),
-                Key::Str(s) => write!(f, "{}", s),
+                Key::Char(c) => write!(f, "{c}"),
+                Key::Str(s) => write!(f, "{s}"),
                 k => write!(f, "{k:?}"),
             },
-            GestureKey::Code(c) => write!(f, "{:?}", c),
+            GestureKey::Code(c) => write!(f, "{c:?}"),
         }
     }
 }

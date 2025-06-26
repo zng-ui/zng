@@ -1,4 +1,4 @@
-error[E0596]: cannot borrow `*child` as mutable, as it is behind a `&` reference
+error[E0596]: cannot borrow data in a `&` reference as mutable
  --> cases/ui_node/delegate_expr_error_incorrect_mut.rs:5:22
   |
 5 | #[ui_node(delegate = &self.inner)]
