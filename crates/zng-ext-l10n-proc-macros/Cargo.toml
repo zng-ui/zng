@@ -19,5 +19,5 @@ proc-macro2 = "1.0"
 syn = { version = "2.0", features = ["full", "visit", "extra-traits", "derive"] }
 quote = "1.0"
 
-fluent-syntax = "0.11"
+fluent-syntax = "0.12"
 unic-langid = "0.9"

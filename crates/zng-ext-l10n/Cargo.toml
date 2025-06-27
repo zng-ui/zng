@@ -30,8 +30,8 @@ zng-task = { path = "../zng-task", version = "0.6.2" }
 zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.5.3" }
 zng-env = { path = "../zng-env", version = "0.5.1" }
 
-fluent = "0.16"
-fluent-syntax = "0.11"
+fluent = "0.17"
+fluent-syntax = "0.12"
 intl-memoizer = "0.5"
 parking_lot = "0.12"
 unic-langid = "0.9"
