@@ -44,23 +44,23 @@ impl<T> Tree<T> {
         Tree { nodes }
     }
 
-    pub fn index(&self, id: NodeId) -> NodeRef<T> {
+    pub fn index(&self, id: NodeId) -> NodeRef<'_, T> {
         #[cfg(debug_assertions)]
         let _ = self.nodes[id.get()];
         NodeRef { tree: self, id }
     }
 
-    pub fn index_mut(&mut self, id: NodeId) -> NodeMut<T> {
+    pub fn index_mut(&mut self, id: NodeId) -> NodeMut<'_, T> {
         #[cfg(debug_assertions)]
         let _ = self.nodes[id.get()];
         NodeMut { tree: self, id }
     }
 
-    pub fn root(&self) -> NodeRef<T> {
+    pub fn root(&self) -> NodeRef<'_, T> {
         self.index(NodeId::new(0))
     }
 
-    pub fn root_mut(&mut self) -> NodeMut<T> {
+    pub fn root_mut(&mut self) -> NodeMut<'_, T> {
         self.index_mut(NodeId::new(0))
     }
 
@@ -200,7 +200,7 @@ impl<T> NodeMut<'_, T> {
         self.id
     }
 
-    pub fn push_child(&mut self, value: T) -> NodeMut<T> {
+    pub fn push_child(&mut self, value: T) -> NodeMut<'_, T> {
         let len = self.tree.nodes.len();
         let new_id = NodeId::new(len);
 
@@ -246,7 +246,7 @@ impl<T> NodeMut<'_, T> {
         clone.close();
     }
 
-    fn first_child(&mut self) -> Option<NodeMut<T>> {
+    fn first_child(&mut self) -> Option<NodeMut<'_, T>> {
         self.tree.nodes[self.id.get()].last_child.map(|_| NodeMut {
             tree: self.tree,
             id: self.id.next(), // if we have a last child, we have a first one, just after `self`

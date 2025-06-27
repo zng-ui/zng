@@ -105,7 +105,7 @@ impl FontFeatures {
     }
 
     /// Access to the named feature.
-    pub fn feature(&mut self, name: FontFeatureName) -> FontFeature {
+    pub fn feature(&mut self, name: FontFeatureName) -> FontFeature<'_> {
         FontFeature(self.0.entry(name))
     }
 
@@ -114,7 +114,7 @@ impl FontFeatures {
     /// # Panics
     ///
     /// If `names` has less than 2 names.
-    pub fn feature_set(&mut self, names: &'static [FontFeatureName]) -> FontFeatureSet {
+    pub fn feature_set(&mut self, names: &'static [FontFeatureName]) -> FontFeatureSet<'_> {
         assert!(names.len() >= 2);
         FontFeatureSet {
             features: &mut self.0,
@@ -127,7 +127,7 @@ impl FontFeatures {
     /// # Panics
     ///
     /// If `S::names()` has less than 2 names.
-    pub fn feature_exclusive_set<S: FontFeatureExclusiveSetState>(&mut self) -> FontFeatureExclusiveSet<S> {
+    pub fn feature_exclusive_set<S: FontFeatureExclusiveSetState>(&mut self) -> FontFeatureExclusiveSet<'_, S> {
         assert!(S::names().len() >= 2);
         FontFeatureExclusiveSet {
             features: &mut self.0,
@@ -141,7 +141,7 @@ impl FontFeatures {
     /// # Panics
     ///
     /// If `S::names()` has less than 2 entries.
-    pub fn feature_exclusive_sets<S: FontFeatureExclusiveSetsState>(&mut self) -> FontFeatureExclusiveSets<S> {
+    pub fn feature_exclusive_sets<S: FontFeatureExclusiveSetsState>(&mut self) -> FontFeatureExclusiveSets<'_, S> {
         assert!(S::names().len() >= 2);
         FontFeatureExclusiveSets {
             features: &mut self.0,
@@ -244,7 +244,7 @@ macro_rules! font_features {
     (feature $(#[$docs:meta])* fn $name:ident($feat0:tt, $feat1:tt); ) => {
         $(#[$docs])*
 
-        pub fn $name(&mut self) -> FontFeatureSet {
+        pub fn $name(&mut self) -> FontFeatureSet<'_> {
             static FEATS: [FontFeatureName; 2] = [FontFeatureName(*$feat0), FontFeatureName(*$feat1)];
             self.feature_set(&FEATS)
         }
@@ -254,7 +254,7 @@ macro_rules! font_features {
     (feature $(#[$docs:meta])* fn $name:ident($feat0:tt);) => {
         $(#[$docs])*
 
-        pub fn $name(&mut self) -> FontFeature {
+        pub fn $name(&mut self) -> FontFeature<'_> {
             self.feature(FontFeatureName(*$feat0))
         }
 
@@ -263,7 +263,7 @@ macro_rules! font_features {
     (feature $(#[$docs:meta])* fn $name:ident($Enum:ident) -> $Helper:ident;) => {
         $(#[$docs])*
 
-        pub fn $name(&mut self) -> $Helper<$Enum> {
+        pub fn $name(&mut self) -> $Helper<'_, $Enum> {
             $Helper { features: &mut self.0, _t: PhantomData }
         }
 

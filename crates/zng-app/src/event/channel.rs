@@ -145,13 +145,13 @@ where
 
     /// Creates a blocking iterator over event updates, if there are no updates sent the iterator blocks,
     /// the iterator only finishes when the app shuts-down.
-    pub fn iter(&self) -> flume::Iter<A> {
+    pub fn iter(&self) -> flume::Iter<'_, A> {
         self.receiver.iter()
     }
 
     /// Create a non-blocking iterator over event updates, the iterator finishes if
     /// there are no more updates sent.
-    pub fn try_iter(&self) -> flume::TryIter<A> {
+    pub fn try_iter(&self) -> flume::TryIter<'_, A> {
         self.receiver.try_iter()
     }
 

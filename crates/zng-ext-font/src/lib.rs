@@ -1212,7 +1212,7 @@ impl FontFace {
     ///
     /// [`is_empty`]: Self::is_empty
     /// [`bytes`]: Self::bytes
-    pub fn harfbuzz(&self) -> Option<rustybuzz::Face> {
+    pub fn harfbuzz(&self) -> Option<rustybuzz::Face<'_>> {
         if self.is_empty() {
             None
         } else {
@@ -1228,7 +1228,7 @@ impl FontFace {
     ///
     /// [`is_empty`]: Self::is_empty
     /// [`bytes`]: Self::bytes
-    pub fn ttf(&self) -> Option<ttf_parser::Face> {
+    pub fn ttf(&self) -> Option<ttf_parser::Face<'_>> {
         if self.is_empty() {
             None
         } else {
@@ -1464,7 +1464,7 @@ impl Font {
     }
 
     /// Gets the sized harfbuzz font.
-    pub fn harfbuzz(&self) -> Option<rustybuzz::Face> {
+    pub fn harfbuzz(&self) -> Option<rustybuzz::Face<'_>> {
         let ppem = self.0.size.0 as u16;
 
         let mut font = self.0.face.harfbuzz()?;
@@ -1612,7 +1612,7 @@ impl FontFaceList {
     }
 
     /// Iterate over font faces, more specific first.
-    pub fn iter(&self) -> std::slice::Iter<FontFace> {
+    pub fn iter(&self) -> std::slice::Iter<'_, FontFace> {
         self.fonts.iter()
     }
 
@@ -1720,7 +1720,7 @@ impl FontList {
     }
 
     /// Iterate over font faces, more specific first.
-    pub fn iter(&self) -> std::slice::Iter<Font> {
+    pub fn iter(&self) -> std::slice::Iter<'_, Font> {
         self.fonts.iter()
     }
 
@@ -3156,7 +3156,7 @@ impl WhiteSpace {
     /// Transform the white space of the text.
     ///
     /// Returns [`Cow::Owned`] if the text was changed.
-    pub fn transform(self, text: &Txt) -> Cow<Txt> {
+    pub fn transform(self, text: &Txt) -> Cow<'_, Txt> {
         match self {
             WhiteSpace::Preserve => Cow::Borrowed(text),
             WhiteSpace::Merge => {

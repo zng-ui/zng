@@ -44,7 +44,7 @@ impl<T: Recycle> RecycleVec<T> {
         self.push(item);
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
         self.vec[..self.fresh_len].iter_mut()
     }
 }

@@ -270,7 +270,7 @@ impl Category {
     }
 
     /// Custom category metadata.
-    pub fn meta(&self) -> StateMapRef<Category> {
+    pub fn meta(&self) -> StateMapRef<'_, Category> {
         self.meta.borrow()
     }
 
@@ -355,7 +355,7 @@ impl Setting {
     }
 
     /// Custom setting metadata.
-    pub fn meta(&self) -> StateMapRef<Setting> {
+    pub fn meta(&self) -> StateMapRef<'_, Setting> {
         self.meta.borrow()
     }
 
@@ -471,7 +471,7 @@ impl SettingsBuilder<'_> {
         }
         self
     }
-    fn entry_impl(&mut self, config_key: ConfigKey, category_id: CategoryId) -> Option<SettingBuilder> {
+    fn entry_impl(&mut self, config_key: ConfigKey, category_id: CategoryId) -> Option<SettingBuilder<'_>> {
         if (self.filter)(&config_key, &category_id) {
             if let Some(i) = self.settings.iter().position(|s| s.key == config_key) {
                 let existing = self.settings.swap_remove(i);
@@ -560,7 +560,7 @@ impl SettingBuilder<'_> {
     }
 
     /// Custom setting metadata.
-    pub fn meta(&mut self) -> StateMapMut<Setting> {
+    pub fn meta(&mut self) -> StateMapMut<'_, Setting> {
         self.meta.borrow_mut()
     }
 
@@ -642,7 +642,7 @@ impl CategoriesBuilder<'_> {
         }
         self
     }
-    fn entry_impl(&mut self, category_id: CategoryId) -> Option<CategoryBuilder> {
+    fn entry_impl(&mut self, category_id: CategoryId) -> Option<CategoryBuilder<'_>> {
         if (self.filter)(&category_id) {
             if let Some(i) = self.categories.iter().position(|s| s.id == category_id) {
                 let existing = self.categories.swap_remove(i);
@@ -709,7 +709,7 @@ impl CategoryBuilder<'_> {
     }
 
     /// Custom category metadata.
-    pub fn meta(&mut self) -> StateMapMut<Category> {
+    pub fn meta(&mut self) -> StateMapMut<'_, Category> {
         self.meta.borrow_mut()
     }
 }

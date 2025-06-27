@@ -79,15 +79,15 @@ impl VIEW_PROCESS {
         APP.is_running() && VIEW_PROCESS_SV.read().is_some()
     }
 
-    fn read(&self) -> MappedRwLockReadGuard<ViewProcessService> {
+    fn read(&self) -> MappedRwLockReadGuard<'_, ViewProcessService> {
         VIEW_PROCESS_SV.read_map(|e| e.as_ref().expect("VIEW_PROCESS not available"))
     }
 
-    fn write(&self) -> MappedRwLockWriteGuard<ViewProcessService> {
+    fn write(&self) -> MappedRwLockWriteGuard<'_, ViewProcessService> {
         VIEW_PROCESS_SV.write_map(|e| e.as_mut().expect("VIEW_PROCESS not available"))
     }
 
-    fn try_write(&self) -> Result<MappedRwLockWriteGuard<ViewProcessService>> {
+    fn try_write(&self) -> Result<MappedRwLockWriteGuard<'_, ViewProcessService>> {
         let vp = VIEW_PROCESS_SV.write();
         if let Some(w) = &*vp {
             if w.process.is_connected() {
@@ -104,7 +104,7 @@ impl VIEW_PROCESS {
         }
     }
 
-    fn handle_write(&self, id: AppId) -> MappedRwLockWriteGuard<ViewProcessService> {
+    fn handle_write(&self, id: AppId) -> MappedRwLockWriteGuard<'_, ViewProcessService> {
         self.check_app(id);
         self.write()
     }

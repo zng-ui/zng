@@ -2199,7 +2199,7 @@ impl WidgetBuilding {
     ///
     /// Note that captured properties are not instantiated in the final build, but they also are not removed like *unset*.
     /// A property can be "captured" more then once, and if the `"inspector"` feature is enabled they can be inspected.
-    pub fn capture_property(&mut self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
+    pub fn capture_property(&mut self, property_id: PropertyId) -> Option<BuilderPropertyRef<'_>> {
         self.capture_property_impl(property_id)
     }
 
@@ -2719,7 +2719,7 @@ pub struct WidgetBuilderProperties {
 }
 impl WidgetBuilderProperties {
     /// Reference the property, if it is present.
-    pub fn property(&self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
+    pub fn property(&self, property_id: PropertyId) -> Option<BuilderPropertyRef<'_>> {
         match self.property_index(property_id) {
             Some(i) => match &self.items[i].item {
                 WidgetItem::Property {
@@ -2739,7 +2739,7 @@ impl WidgetBuilderProperties {
     }
 
     /// Modify the property, if it is present.
-    pub fn property_mut(&mut self, property_id: PropertyId) -> Option<BuilderPropertyMut> {
+    pub fn property_mut(&mut self, property_id: PropertyId) -> Option<BuilderPropertyMut<'_>> {
         match self.property_index(property_id) {
             Some(i) => match &mut self.items[i] {
                 WidgetItemPositioned {
@@ -2766,7 +2766,7 @@ impl WidgetBuilderProperties {
     /// Iterate over the current properties.
     ///
     /// The properties may not be sorted in the correct order if the builder has never built.
-    pub fn properties(&self) -> impl Iterator<Item = BuilderPropertyRef> {
+    pub fn properties(&self) -> impl Iterator<Item = BuilderPropertyRef<'_>> {
         self.items.iter().filter_map(|it| match &it.item {
             WidgetItem::Intrinsic { .. } => None,
             WidgetItem::Property {
@@ -2783,7 +2783,7 @@ impl WidgetBuilderProperties {
     }
 
     /// iterate over mutable references to the current properties.
-    pub fn properties_mut(&mut self) -> impl Iterator<Item = BuilderPropertyMut> {
+    pub fn properties_mut(&mut self) -> impl Iterator<Item = BuilderPropertyMut<'_>> {
         self.items.iter_mut().filter_map(|it| match &mut it.item {
             WidgetItem::Intrinsic { .. } => None,
             WidgetItem::Property {
@@ -2834,7 +2834,7 @@ impl WidgetBuilderProperties {
         self.capture_value_or_else(property_id, T::default)
     }
 
-    fn capture_property_impl(&mut self, property_id: PropertyId) -> Option<BuilderPropertyRef> {
+    fn capture_property_impl(&mut self, property_id: PropertyId) -> Option<BuilderPropertyRef<'_>> {
         if let Some(i) = self.property_index(property_id) {
             match &mut self.items[i] {
                 WidgetItemPositioned {

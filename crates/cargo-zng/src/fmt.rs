@@ -330,7 +330,7 @@ fn try_fmt_macro(base_indent: usize, group_code: &str) -> Option<String> {
 // impl CargoZngFmt {
 //
 // ```
-fn replace_event_args(code: &str, reverse: bool) -> Cow<str> {
+fn replace_event_args(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^\s*(\.\.)\s*$").unwrap());
     static MARKER: &str = "// cargo-zng::fmt::dot_dot\n}\nimpl CargoZngFmt {\n";
     static RGX_REV: Lazy<Regex> =
@@ -350,7 +350,7 @@ fn replace_event_args(code: &str, reverse: bool) -> Cow<str> {
 }
 // replace `prop = 1, 2;` with `prop = (1, 2);`
 // AND replace `prop = { a: 1, b: 2, };` with `prop = __A_ { a: 1, b: 2, }`
-fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
+fn replace_widget_prop(code: &str, reverse: bool) -> Cow<'_, str> {
     static NAMED_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)\w+\s+=\s+(\{)").unwrap());
     static NAMED_MARKER: &str = "__A_ ";
 
@@ -418,7 +418,7 @@ fn replace_widget_prop(code: &str, reverse: bool) -> Cow<str> {
 }
 // replace `when <expr> { <properties> }` with `for cargo_zng_fmt_when in <expr> { <properties> }`
 // AND replace `#expr` with `__P_expr` AND `#{var}` with `__P_!{`
-fn replace_widget_when(code: &str, reverse: bool) -> Cow<str> {
+fn replace_widget_when(code: &str, reverse: bool) -> Cow<'_, str> {
     static RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)\n\s*(when) .+?\{").unwrap());
     static MARKER: &str = "for cargo_zng_fmt_when in";
     static POUND_MARKER: &str = "__P_";
@@ -447,7 +447,7 @@ static POUND_REV_RGX: Lazy<Regex> = Lazy::new(|| Regex::new(r"__P_!?\s?").unwrap
 static POUND_VAR_MARKER: &str = "__P_!";
 
 // replace `#{` with `__P_!{`
-fn replace_expr_var(code: &str, reverse: bool) -> Cow<str> {
+fn replace_expr_var(code: &str, reverse: bool) -> Cow<'_, str> {
     if !reverse {
         POUND_RGX.replace(code, |caps: &regex::Captures| {
             let c = &caps[0][caps.get(1).unwrap().end() - caps.get(0).unwrap().start()..];

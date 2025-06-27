@@ -199,7 +199,7 @@ impl<T: VarValue> AnyVar for ContextVar<T> {
         self.0.get().modify_importance()
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         VarPtr::new_ctx_local(self.0)
     }
 

@@ -176,7 +176,7 @@ pub enum UiNodeOp<'a> {
         update: &'a mut FrameUpdate,
     },
 }
-impl UiNodeOp<'_> {
+impl<'a> UiNodeOp<'a> {
     /// Gets the operation without the associated data.
     pub fn mtd(&self) -> UiNodeOpMethod {
         match self {
@@ -193,7 +193,7 @@ impl UiNodeOp<'_> {
     }
 
     /// Reborrow the op.
-    pub fn reborrow(&mut self) -> UiNodeOp {
+    pub fn reborrow(&mut self) -> UiNodeOp<'_> {
         match self {
             UiNodeOp::Init => UiNodeOp::Init,
             UiNodeOp::Deinit => UiNodeOp::Deinit,

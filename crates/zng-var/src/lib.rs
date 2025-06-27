@@ -628,7 +628,7 @@ pub trait AnyVar: Any + Send + Sync + crate::private::Sealed {
     ///
     /// If two of these values are equal, both variables point to the same *rc* or *context* at the moment of comparison.
     /// Note that this is only for comparison, trying to access the variable internals is never safe.
-    fn var_ptr(&self) -> VarPtr;
+    fn var_ptr(&self) -> VarPtr<'_>;
 
     /// Get the value as a debug [`Txt`].
     ///
@@ -994,7 +994,7 @@ impl<'a> AnyVarHookArgs<'a> {
     }
 
     /// Try cast to strongly typed args.
-    pub fn as_strong<T: VarValue>(&self) -> Option<VarHookArgs<T>> {
+    pub fn as_strong<T: VarValue>(&self) -> Option<VarHookArgs<'_, T>> {
         if TypeId::of::<T>() == self.value_type() {
             Some(VarHookArgs {
                 any: self,
@@ -1969,7 +1969,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         S: Fn(&animation::Transition<T>, EasingStep) -> T + Send + Sync + 'static;
 
     /// Returns a wrapper that implements [`fmt::Debug`] to write the var value.
-    fn debug(&self) -> types::VarDebug<T, Self> {
+    fn debug(&self) -> types::VarDebug<'_, T, Self> {
         types::VarDebug {
             var: self,
             _t: PhantomData,
@@ -1977,7 +1977,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     }
 
     /// Returns a wrapper that implements [`fmt::Display`] to write the var value.
-    fn display(&self) -> types::VarDisplay<T, Self>
+    fn display(&self) -> types::VarDisplay<'_, T, Self>
     where
         T: fmt::Display,
     {

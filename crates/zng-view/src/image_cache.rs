@@ -1180,7 +1180,7 @@ mod external {
         }
     }
     impl ExternalImageHandler for WrImageCache {
-        fn lock(&mut self, key: ExternalImageId, _channel_index: u8) -> ExternalImage {
+        fn lock(&mut self, key: ExternalImageId, _channel_index: u8) -> ExternalImage<'_> {
             // SAFETY: this is safe because the Arc is kept alive in `ImageUseMap`.
             let img = unsafe {
                 let ptr = key.0 as *const ImageData;

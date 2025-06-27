@@ -531,7 +531,7 @@ pub trait UndoInfo: Send + Sync + Any {
     /// edit action for example, or an icon.
     ///
     /// Is empty by default.
-    fn meta(&self) -> StateMapRef<UNDO> {
+    fn meta(&self) -> StateMapRef<'_, UNDO> {
         StateMapRef::empty()
     }
 
@@ -563,7 +563,7 @@ impl UndoInfo for Arc<dyn UndoInfo> {
         self.as_ref().description()
     }
 
-    fn meta(&self) -> StateMapRef<UNDO> {
+    fn meta(&self) -> StateMapRef<'_, UNDO> {
         self.as_ref().meta()
     }
 

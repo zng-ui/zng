@@ -212,7 +212,7 @@ impl<'a, U> StateMapMut<'a, U> {
     }
 
     /// Gets the given ID's corresponding entry in the map for in-place manipulation.
-    pub fn entry<T: StateValue>(&mut self, id: impl Into<StateId<T>>) -> state_map::StateMapEntry<T> {
+    pub fn entry<T: StateValue>(&mut self, id: impl Into<StateId<T>>) -> state_map::StateMapEntry<'_, T> {
         self.0.entry(id.into())
     }
 
@@ -229,12 +229,12 @@ impl<'a, U> StateMapMut<'a, U> {
     }
 
     /// Reborrow the mutable reference.
-    pub fn reborrow(&mut self) -> StateMapMut<U> {
+    pub fn reborrow(&mut self) -> StateMapMut<'_, U> {
         StateMapMut(self.0, PhantomData)
     }
 
     /// Reborrow the reference as read-only.
-    pub fn as_ref(&self) -> StateMapRef<U> {
+    pub fn as_ref(&self) -> StateMapRef<'_, U> {
         StateMapRef(self.0, PhantomData)
     }
 }
@@ -279,12 +279,12 @@ impl<U> OwnedStateMap<U> {
     }
 
     /// Create tagged read-only reference to the map.
-    pub fn borrow(&self) -> StateMapRef<U> {
+    pub fn borrow(&self) -> StateMapRef<'_, U> {
         StateMapRef(&self.0, PhantomData)
     }
 
     /// Crate tagged mutable reference to the map.
-    pub fn borrow_mut(&mut self) -> StateMapMut<U> {
+    pub fn borrow_mut(&mut self) -> StateMapMut<'_, U> {
         StateMapMut(&mut self.0, PhantomData)
     }
 }
@@ -343,7 +343,7 @@ pub mod state_map {
             self.get_mut(id).unwrap_or_else(move || panic!("expected `{id:?}` in state map"))
         }
 
-        pub fn entry<T: StateValue>(&mut self, id: StateId<T>) -> StateMapEntry<T> {
+        pub fn entry<T: StateValue>(&mut self, id: StateId<T>) -> StateMapEntry<'_, T> {
             match self.map.entry(id.get()) {
                 IdEntry::Occupied(e) => StateMapEntry::Occupied(OccupiedStateMapEntry {
                     _type: PhantomData,

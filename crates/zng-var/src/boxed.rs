@@ -115,7 +115,7 @@ impl AnyVar for Box<dyn AnyVar> {
         (**self).downgrade_any()
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         (**self).var_ptr()
     }
 
@@ -307,7 +307,7 @@ impl<T: VarValue> AnyVar for BoxedVar<T> {
         (**self).modify_importance()
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         (**self).var_ptr()
     }
 

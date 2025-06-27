@@ -145,7 +145,7 @@ impl<T: VarValue> ContextualizedVar<T> {
     }
 
     /// Borrow/initialize the actual var.
-    pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<BoxedVar<T>> {
+    pub fn borrow_init(&self) -> parking_lot::MappedRwLockReadGuard<'_, BoxedVar<T>> {
         #[cfg(feature = "dyn_closure")]
         {
             parking_lot::MappedRwLockReadGuard::map(
@@ -325,7 +325,7 @@ impl<T: VarValue> AnyVar for ContextualizedVar<T> {
         self.borrow_init().modify_importance()
     }
 
-    fn var_ptr(&self) -> VarPtr {
+    fn var_ptr(&self) -> VarPtr<'_> {
         VarPtr::new_arc(&self.init)
     }
 

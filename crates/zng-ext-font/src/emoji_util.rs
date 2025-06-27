@@ -169,13 +169,13 @@ impl ColorPalettes {
     }
 
     /// Gets the requested palette or the first if it is not found.
-    pub fn palette(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette> {
+    pub fn palette(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette<'_>> {
         let i = self.palette_i(p.into());
         self.palette_get(i.unwrap_or(0))
     }
 
     /// Gets the requested palette.
-    pub fn palette_exact(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette> {
+    pub fn palette_exact(&self, p: impl Into<FontColorPalette>) -> Option<ColorPalette<'_>> {
         let i = self.palette_i(p.into())?;
         self.palette_get(i)
     }
@@ -200,7 +200,7 @@ impl ColorPalettes {
         }
     }
 
-    fn palette_get(&self, i: usize) -> Option<ColorPalette> {
+    fn palette_get(&self, i: usize) -> Option<ColorPalette<'_>> {
         let len = self.num_palette_entries as usize;
         let s = len * i;
         let e = s + len;
@@ -212,7 +212,7 @@ impl ColorPalettes {
     }
 
     /// Iterate over color palettes.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = ColorPalette> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = ColorPalette<'_>> {
         self.colors
             .chunks_exact(self.num_palette_entries as _)
             .enumerate()
@@ -347,7 +347,7 @@ impl ColorGlyphs {
     /// `None` if the base text color must be used.
     ///
     /// Yields the `base_glyph` with no palette color if the font does not provide colored replacements for it.
-    pub fn glyph(&self, base_glyph: GlyphIndex) -> Option<ColorGlyph> {
+    pub fn glyph(&self, base_glyph: GlyphIndex) -> Option<ColorGlyph<'_>> {
         match self.base_glyph_records.binary_search_by_key(&(base_glyph as u16), |e| e.glyph_id) {
             Ok(i) => {
                 let rec = &self.base_glyph_records[i];
