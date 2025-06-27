@@ -81,7 +81,7 @@ fn generate(codepoints: &str, mod_name: &str) -> Result<[String; 2], Box<dyn Err
 
             writeln!(&mut docs, r#"| {name} | <span class="material-icons {mod_name}">{code}</span> |"#)?;
 
-            map.entry(name, &buffer);
+            map.entry(name, buffer.clone());
             buffer.clear();
         } else {
             return Err("invalid codepoints file".into());

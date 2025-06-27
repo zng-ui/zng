@@ -36,12 +36,12 @@ zng-var = { path = "../zng-var", version = "0.7.1" }
 zng-ext-font = { path = "../zng-ext-font", version = "0.7.3" }
 zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.4" }
 
-phf = { version = "0.11", default-features = false }
+phf = { version = "0.12", default-features = false }
 tracing = "0.1"
 
 [build-dependencies]
 dunce = "1.0"
-phf_codegen = "0.11"
+phf_codegen = "0.12"
 
 [package.metadata.docs.rs]
 all-features = true
