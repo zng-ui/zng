@@ -58,7 +58,7 @@ tracing-shared = { version = "0.1.5", default-features = false, features = ["log
 web-time = "1.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ipc-channel = { version = "0.19", optional = true }
+ipc-channel = { version = "0.20", optional = true }
 
 [build-dependencies]
 cfg_aliases = "0.2"
