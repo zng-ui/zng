@@ -1195,9 +1195,6 @@ pub(crate) fn accesskit_to_event(
                     AccessCmd::ReplaceSelectedText(Txt::from_str(""))
                 }
             }
-            Action::ScrollBackward => AccessCmd::Scroll(ScrollCmd::PageUp),
-            Action::ScrollForward => AccessCmd::Scroll(ScrollCmd::PageDown),
-
             Action::ScrollDown => AccessCmd::Scroll(ScrollCmd::PageDown),
             Action::ScrollLeft => AccessCmd::Scroll(ScrollCmd::PageLeft),
             Action::ScrollRight => AccessCmd::Scroll(ScrollCmd::PageRight),
@@ -1308,10 +1305,8 @@ fn access_node_to_kit(
                 builder.add_action(accesskit::Action::HideTooltip);
             }
             Scroll => {
-                builder.add_action(accesskit::Action::ScrollBackward);
                 builder.add_action(accesskit::Action::ScrollUp);
                 builder.add_action(accesskit::Action::ScrollLeft);
-                builder.add_action(accesskit::Action::ScrollForward);
                 builder.add_action(accesskit::Action::ScrollDown);
                 builder.add_action(accesskit::Action::ScrollRight);
                 builder.add_action(accesskit::Action::ScrollIntoView);
