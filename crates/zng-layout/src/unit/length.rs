@@ -1,5 +1,5 @@
 use super::{
-    ByteLength, ByteUnits, Dip, DipToPx, EQ_EPSILON, EQ_EPSILON_100, Factor, FactorPercent, FactorUnits, LayoutAxis, Px, about_eq,
+    ByteLength, ByteUnits, Dip, DipToPx, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorPercent, FactorUnits, LayoutAxis, Px, about_eq,
 };
 use std::{fmt, mem, ops};
 
@@ -20,7 +20,7 @@ use crate::context::{LAYOUT, LayoutMask};
 ///
 /// * `Dip` and `px` lengths uses [`Dip`] and [`Px`] equality.
 /// * `Relative`, `Em`, `RootEm` lengths use the [`Factor`] equality.
-/// * Viewport lengths uses [`about_eq`] with `0.00001` epsilon.
+/// * Viewport lengths uses [`about_eq`] with `0.00001` granularity.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum Length {
     /// The default (initial) value.
@@ -287,21 +287,21 @@ impl PartialEq for Length {
 
             (Dip(a), Dip(b)) => a == b,
             (Px(a), Px(b)) => a == b,
-            (Pt(a), Pt(b)) => about_eq(*a, *b, EQ_EPSILON_100),
+            (Pt(a), Pt(b)) => about_eq(*a, *b, EQ_GRANULARITY_100),
 
-            (DipF32(a), DipF32(b)) | (PxF32(a), PxF32(b)) => about_eq(*a, *b, EQ_EPSILON_100),
+            (DipF32(a), DipF32(b)) | (PxF32(a), PxF32(b)) => about_eq(*a, *b, EQ_GRANULARITY_100),
 
             (Factor(a), Factor(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) | (Leftover(a), Leftover(b)) => a == b,
 
             (ViewportWidth(a), ViewportWidth(b))
             | (ViewportHeight(a), ViewportHeight(b))
             | (ViewportMin(a), ViewportMin(b))
-            | (ViewportMax(a), ViewportMax(b)) => about_eq(a.0, b.0, EQ_EPSILON),
+            | (ViewportMax(a), ViewportMax(b)) => about_eq(a.0, b.0, EQ_GRANULARITY),
 
             (Expr(a), Expr(b)) => a == b,
 
-            (Dip(a), DipF32(b)) | (DipF32(b), Dip(a)) => about_eq(a.to_f32(), *b, EQ_EPSILON_100),
-            (Px(a), PxF32(b)) | (PxF32(b), Px(a)) => about_eq(a.0 as f32, *b, EQ_EPSILON_100),
+            (Dip(a), DipF32(b)) | (DipF32(b), Dip(a)) => about_eq(a.to_f32(), *b, EQ_GRANULARITY_100),
+            (Px(a), PxF32(b)) | (PxF32(b), Px(a)) => about_eq(a.0 as f32, *b, EQ_GRANULARITY_100),
 
             _ => false,
         }
@@ -504,17 +504,12 @@ impl Length {
             Default => None,
             Dip(l) => Some(*l == self::Dip::new(0)),
             Px(l) => Some(*l == self::Px(0)),
-            Pt(l) => Some(l.abs() < EQ_EPSILON),
-            Factor(f) => Some(f.0.abs() < EQ_EPSILON),
-            Leftover(f) => Some(f.0.abs() < EQ_EPSILON),
-            Em(f) => Some(f.0.abs() < EQ_EPSILON),
-            RootEm(f) => Some(f.0.abs() < EQ_EPSILON),
-            ViewportWidth(p) => Some(p.0.abs() < EQ_EPSILON),
-            ViewportHeight(p) => Some(p.0.abs() < EQ_EPSILON),
-            ViewportMin(p) => Some(p.0.abs() < EQ_EPSILON),
-            ViewportMax(p) => Some(p.0.abs() < EQ_EPSILON),
-            DipF32(l) => Some(about_eq(*l, 0.0, EQ_EPSILON_100)),
-            PxF32(l) => Some(about_eq(*l, 0.0, EQ_EPSILON_100)),
+            Pt(l) => Some(about_eq(*l, 0.0, EQ_GRANULARITY)),
+            Factor(f) | Leftover(f) | Em(f) | RootEm(f) | ViewportWidth(f) | ViewportHeight(f) | ViewportMin(f) | ViewportMax(f) => {
+                Some(*f == 0.fct())
+            }
+            DipF32(l) => Some(about_eq(*l, 0.0, EQ_GRANULARITY_100)),
+            PxF32(l) => Some(about_eq(*l, 0.0, EQ_GRANULARITY_100)),
             Expr(_) => None,
         }
     }

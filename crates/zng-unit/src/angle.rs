@@ -1,4 +1,6 @@
-use super::{EQ_EPSILON, EQ_EPSILON_100, Factor, about_eq};
+use crate::about_eq_hash;
+
+use super::{EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, about_eq};
 
 use std::{
     f32::consts::{PI, TAU},
@@ -11,7 +13,7 @@ use std::{
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.00001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleRadian(pub f32);
@@ -73,7 +75,12 @@ impl AngleRadian {
 
 impl PartialEq for AngleRadian {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON)
+        about_eq(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl std::hash::Hash for AngleRadian {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_GRANULARITY, state);
     }
 }
 
@@ -119,7 +126,7 @@ impl fmt::Display for AngleRadian {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleGradian(pub f32);
@@ -181,7 +188,12 @@ impl ops::Neg for AngleGradian {
 
 impl PartialEq for AngleGradian {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON_100)
+        about_eq(self.0, other.0, EQ_GRANULARITY_100)
+    }
+}
+impl std::hash::Hash for AngleGradian {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_GRANULARITY_100, state);
     }
 }
 impl From<AngleRadian> for AngleGradian {
@@ -220,7 +232,7 @@ impl fmt::Display for AngleGradian {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleDegree(pub f32);
@@ -282,7 +294,12 @@ impl ops::Neg for AngleDegree {
 
 impl PartialEq for AngleDegree {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON_100)
+        about_eq(self.0, other.0, EQ_GRANULARITY_100)
+    }
+}
+impl std::hash::Hash for AngleDegree {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_GRANULARITY_100, state);
     }
 }
 impl From<AngleRadian> for AngleDegree {
@@ -321,7 +338,7 @@ impl fmt::Display for AngleDegree {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.00001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleTurn(pub f32);
@@ -401,7 +418,12 @@ impl fmt::Display for AngleTurn {
 }
 impl PartialEq for AngleTurn {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON)
+        about_eq(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl std::hash::Hash for AngleTurn {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_GRANULARITY, state);
     }
 }
 

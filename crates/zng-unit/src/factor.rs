@@ -1,8 +1,8 @@
 use std::{fmt, ops, time::Duration};
 
 use crate::{
-    Dip, DipPoint, DipRect, DipSize, DipVector, EQ_EPSILON, EQ_EPSILON_100, Px, PxPoint, PxRect, PxSize, PxVector, about_eq, about_eq_hash,
-    about_eq_ord,
+    Dip, DipPoint, DipRect, DipSize, DipVector, EQ_GRANULARITY, EQ_GRANULARITY_100, Px, PxPoint, PxRect, PxSize, PxVector, about_eq,
+    about_eq_hash, about_eq_ord,
 };
 
 /// Extension methods for initializing factor units.
@@ -141,17 +141,17 @@ impl ops::SubAssign for Factor {
 }
 impl std::hash::Hash for Factor {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.0, EQ_EPSILON, state)
+        about_eq_hash(self.0, EQ_GRANULARITY, state)
     }
 }
 impl PartialEq for Factor {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON)
+        about_eq(self.0, other.0, EQ_GRANULARITY)
     }
 }
 impl std::cmp::PartialOrd for Factor {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(about_eq_ord(self.0, other.0, EQ_EPSILON))
+        Some(about_eq_ord(self.0, other.0, EQ_GRANULARITY))
     }
 }
 impl ops::Mul for Factor {
@@ -675,7 +675,7 @@ impl From<FactorPercent> for Factor {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct FactorPercent(pub f32);
@@ -723,7 +723,7 @@ impl ops::Neg for FactorPercent {
 }
 impl PartialEq for FactorPercent {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON_100)
+        about_eq(self.0, other.0, EQ_GRANULARITY_100)
     }
 }
 impl ops::Mul for FactorPercent {

@@ -58,8 +58,8 @@ use zng_app::{
 use zng_app_context::app_local;
 use zng_ext_l10n::{Lang, LangMap, lang};
 use zng_layout::unit::{
-    EQ_EPSILON, EQ_EPSILON_100, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, about_eq, about_eq_hash, about_eq_ord,
-    euclid,
+    EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorPercent, Px, PxPoint, PxRect, PxSize, TimeUnits as _, about_eq, about_eq_hash,
+    about_eq_ord, euclid,
 };
 use zng_task as task;
 use zng_txt::Txt;
@@ -2543,17 +2543,17 @@ impl fmt::Debug for FontStretch {
 }
 impl PartialOrd for FontStretch {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(about_eq_ord(self.0, other.0, EQ_EPSILON))
+        Some(about_eq_ord(self.0, other.0, EQ_GRANULARITY))
     }
 }
 impl PartialEq for FontStretch {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON)
+        about_eq(self.0, other.0, EQ_GRANULARITY)
     }
 }
 impl std::hash::Hash for FontStretch {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.0, EQ_EPSILON, state)
+        about_eq_hash(self.0, EQ_GRANULARITY, state)
     }
 }
 impl Default for FontStretch {
@@ -2723,17 +2723,17 @@ impl fmt::Debug for FontWeight {
 }
 impl PartialOrd for FontWeight {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(about_eq_ord(self.0, other.0, EQ_EPSILON_100))
+        Some(about_eq_ord(self.0, other.0, EQ_GRANULARITY_100))
     }
 }
 impl PartialEq for FontWeight {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON_100)
+        about_eq(self.0, other.0, EQ_GRANULARITY_100)
     }
 }
 impl std::hash::Hash for FontWeight {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.0, EQ_EPSILON_100, state)
+        about_eq_hash(self.0, EQ_GRANULARITY_100, state)
     }
 }
 impl FontWeight {
