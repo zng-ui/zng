@@ -292,7 +292,7 @@ impl fmt::Display for Align {
             } else if self.is_baseline() {
                 f.write_str("<baseline>")?;
             } else {
-                write!(f, "{}", FactorPercent::from(self.x))?;
+                write!(f, "{}", FactorPercent::from(self.y))?;
             }
             f.write_char(')')
         }
