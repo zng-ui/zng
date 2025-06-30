@@ -149,7 +149,7 @@ impl PartialEq for Factor {
         about_eq(self.0, other.0, EQ_GRANULARITY)
     }
 }
-impl Eq for Factor { }
+impl Eq for Factor {}
 impl std::cmp::PartialOrd for Factor {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(about_eq_ord(self.0, other.0, EQ_GRANULARITY))
@@ -727,7 +727,7 @@ impl PartialEq for FactorPercent {
         about_eq(self.0, other.0, EQ_GRANULARITY_100)
     }
 }
-impl Eq for FactorPercent { }
+impl Eq for FactorPercent {}
 impl ops::Mul for FactorPercent {
     type Output = Self;
 

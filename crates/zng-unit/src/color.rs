@@ -29,7 +29,7 @@ impl PartialEq for Rgba {
             && about_eq(self.alpha, other.alpha, EQ_GRANULARITY)
     }
 }
-impl Eq for Rgba { }
+impl Eq for Rgba {}
 impl std::hash::Hash for Rgba {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.red, EQ_GRANULARITY, state);

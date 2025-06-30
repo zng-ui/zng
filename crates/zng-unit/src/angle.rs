@@ -78,7 +78,7 @@ impl PartialEq for AngleRadian {
         about_eq(self.0, other.0, EQ_GRANULARITY)
     }
 }
-impl Eq for AngleRadian { }
+impl Eq for AngleRadian {}
 impl std::hash::Hash for AngleRadian {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY, state);
@@ -192,7 +192,7 @@ impl PartialEq for AngleGradian {
         about_eq(self.0, other.0, EQ_GRANULARITY_100)
     }
 }
-impl Eq for AngleGradian { }
+impl Eq for AngleGradian {}
 impl std::hash::Hash for AngleGradian {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY_100, state);
@@ -299,7 +299,7 @@ impl PartialEq for AngleDegree {
         about_eq(self.0, other.0, EQ_GRANULARITY_100)
     }
 }
-impl Eq for AngleDegree { }
+impl Eq for AngleDegree {}
 impl std::hash::Hash for AngleDegree {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY_100, state);
@@ -424,7 +424,7 @@ impl PartialEq for AngleTurn {
         about_eq(self.0, other.0, EQ_GRANULARITY)
     }
 }
-impl Eq for AngleTurn { }
+impl Eq for AngleTurn {}
 impl std::hash::Hash for AngleTurn {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY, state);

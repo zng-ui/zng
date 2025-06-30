@@ -22,11 +22,7 @@ fn f32_about_eq_snap(f: f32, granularity: f32) -> (u8, i64) {
     let (kind, bucket) = if f.is_nan() {
         (255u8, 0i64)
     } else if f.is_infinite() {
-        if f.is_sign_positive() {
-            (254, 0)
-        } else {
-            (1, 0)
-        }
+        if f.is_sign_positive() { (254, 0) } else { (1, 0) }
     } else {
         let bucket = (f / granularity).floor() as i64;
         (128, bucket)
@@ -35,7 +31,7 @@ fn f32_about_eq_snap(f: f32, granularity: f32) -> (u8, i64) {
 }
 
 /// [`f32`] ordering compatible with [`about_eq`] equality.
-/// 
+///
 /// The order is `-inf < finite < inf < NaN`.
 pub fn about_eq_ord(a: f32, b: f32, granularity: f32) -> std::cmp::Ordering {
     let a = f32_about_eq_snap(a, granularity);

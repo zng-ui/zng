@@ -28,7 +28,7 @@ impl PartialEq for Ppi {
         super::about_eq(self.0, other.0, 0.0001)
     }
 }
-impl Eq for Ppi { }
+impl Eq for Ppi {}
 impl std::hash::Hash for Ppi {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         super::about_eq_hash(self.0, 0.0001, state)
