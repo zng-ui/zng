@@ -207,7 +207,7 @@ impl<F: Into<Factor>> ops::Div<F> for Length {
             ViewportMax(m) => ViewportMax(m / rhs),
             DipF32(e) => DipF32(e / rhs.0),
             PxF32(e) => PxF32(e / rhs.0),
-            e => LengthExpr::Mul(e, rhs).to_length_checked(),
+            e => LengthExpr::Div(e, rhs).to_length_checked(),
         }
     }
 }
