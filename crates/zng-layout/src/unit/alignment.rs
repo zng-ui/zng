@@ -43,7 +43,7 @@ use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrain
 /// [`is_fill_x`]: Align::is_fill_x
 /// [`is_fill_y`]: Align::is_fill_y
 /// [`is_baseline`]: Align::is_baseline
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Align {
     /// *x* alignment in a `[0.0..=1.0]` range.
     pub x: Factor,
@@ -52,11 +52,6 @@ pub struct Align {
 
     /// *y* alignment in a `[0.0..=1.0]` range.
     pub y: Factor,
-}
-impl PartialEq for Align {
-    fn eq(&self, other: &Self) -> bool {
-        self.is_fill_x() == other.is_fill_x() && self.is_fill_y() == other.is_fill_y() && self.x == other.x && self.y == other.y
-    }
 }
 impl Default for Align {
     /// [`Align::START`].

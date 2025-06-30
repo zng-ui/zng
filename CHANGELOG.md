@@ -1,6 +1,7 @@
 # Unreleased
 
-* Implement `Hash` for `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`.
+* Implement `Eq` for `Factor`, `FactorPercent`, `Align`, `ColorMatrix`, `PreMulAlpha`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `Ppi`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Rgba`.
+* Implement `Hash` for `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Align`.
 
 * Fix hash equality for `f32` based unit types.
   - Refactor `zng_layout::unit::about_eq` to compare finite values by *bucket granularity*.

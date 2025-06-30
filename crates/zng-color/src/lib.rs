@@ -113,6 +113,7 @@ impl PartialEq for PreMulRgba {
             && about_eq(self.alpha, other.alpha, EQ_GRANULARITY)
     }
 }
+impl Eq for PreMulRgba { }
 impl std::hash::Hash for PreMulRgba {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.red, EQ_GRANULARITY, state);
@@ -185,6 +186,7 @@ impl PartialEq for Hsla {
             && about_eq(self.alpha, other.alpha, EQ_GRANULARITY)
     }
 }
+impl Eq for Hsla { }
 impl std::hash::Hash for Hsla {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.hue, EQ_GRANULARITY_100, state);
@@ -365,6 +367,7 @@ impl PartialEq for Hsva {
             && about_eq(self.alpha, other.alpha, EQ_GRANULARITY)
     }
 }
+impl Eq for Hsva { }
 impl std::hash::Hash for Hsva {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.hue, EQ_GRANULARITY_100, state);

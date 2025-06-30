@@ -546,6 +546,7 @@ impl PartialEq for ColorMatrix {
         self.0.iter().zip(&other.0).all(|(&a, &b)| about_eq(a, b, EQ_GRANULARITY))
     }
 }
+impl Eq for ColorMatrix { }
 impl std::hash::Hash for ColorMatrix {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         for f in self.0 {

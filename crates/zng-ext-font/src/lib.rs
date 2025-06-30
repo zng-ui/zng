@@ -2551,6 +2551,7 @@ impl PartialEq for FontStretch {
         about_eq(self.0, other.0, EQ_GRANULARITY)
     }
 }
+impl Eq for FontStretch { }
 impl std::hash::Hash for FontStretch {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY, state)
@@ -2731,6 +2732,7 @@ impl PartialEq for FontWeight {
         about_eq(self.0, other.0, EQ_GRANULARITY_100)
     }
 }
+impl Eq for FontWeight { }
 impl std::hash::Hash for FontWeight {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY_100, state)
