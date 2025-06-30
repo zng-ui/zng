@@ -1,6 +1,6 @@
 use std::{fmt, ops};
 
-use crate::{EQ_GRANULARITY, Factor, FactorPercent, about_eq, about_eq_hash};
+use crate::{EQ_GRANULARITY, Factor, FactorPercent, about_eq, about_eq_hash, about_eq_ord};
 
 /// RGB + alpha.
 ///
@@ -30,6 +30,19 @@ impl PartialEq for Rgba {
     }
 }
 impl Eq for Rgba {}
+impl PartialOrd for Rgba {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Rgba {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.red, other.red, EQ_GRANULARITY)
+            .cmp(&about_eq_ord(self.green, other.green, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.blue, other.blue, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.alpha, other.alpha, EQ_GRANULARITY))
+    }
+}
 impl std::hash::Hash for Rgba {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.red, EQ_GRANULARITY, state);

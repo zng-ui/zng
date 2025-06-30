@@ -5,9 +5,10 @@
 * Fix `Transitionable::lerp` implementation for `Align`. 
 * Fix `Align` equality not considering the `x_rtl_aware` field.
 
-* Implement `Ord` for `FontStretch`, `FontWeight`, `Factor`.
-* Implement `Eq` for `Factor`, `FactorPercent`, `Align`, `ColorMatrix`, `PreMulAlpha`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `Ppi`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Rgba`.
-* Implement `Hash` for `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Align`.
+* Implement `PartialOrd` for `PreMulRgba`, `Hsla`, `Hsva`, `Rgba`, `InlineSegmentPos`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`.
+* Implement `Ord` for `FontStretch`, `FontWeight`, `Factor`, `PreMulRgba`, `Hsla`, `Hsva`, `Rgba`, `InlineSegmentPos`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`.
+* Implement `Eq` for `Factor`, `FactorPercent`, `Align`, `ColorMatrix`, `PreMulAlpha`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Rgba`, `AngleGradian`.
+* Implement `Hash` for `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Align`, `Ppm`.
 
 * Fix hash equality for `f32` based unit types.
   - Refactor `zng_layout::unit::about_eq` to compare finite values by *bucket granularity*.

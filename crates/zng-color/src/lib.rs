@@ -13,7 +13,7 @@
 use std::{fmt, ops, sync::Arc};
 use zng_app_context::context_local;
 
-use zng_layout::unit::{AngleDegree, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorUnits, about_eq, about_eq_hash};
+use zng_layout::unit::{AngleDegree, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorUnits, about_eq, about_eq_hash, about_eq_ord};
 use zng_var::{
     IntoVar, Var, VarValue,
     animation::{Transition, Transitionable, easing::EasingStep},
@@ -122,6 +122,19 @@ impl std::hash::Hash for PreMulRgba {
         about_eq_hash(self.alpha, EQ_GRANULARITY, state);
     }
 }
+impl PartialOrd for PreMulRgba {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for PreMulRgba {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.red, other.red, EQ_GRANULARITY)
+            .cmp(&about_eq_ord(self.green, other.green, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.blue, other.blue, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.alpha, other.alpha, EQ_GRANULARITY))
+    }
+}
 
 impl_from_and_into_var! {
     fn from(c: Rgba) -> PreMulRgba {
@@ -187,6 +200,19 @@ impl PartialEq for Hsla {
     }
 }
 impl Eq for Hsla {}
+impl PartialOrd for Hsla {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Hsla {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.hue, other.hue, EQ_GRANULARITY_100)
+            .cmp(&about_eq_ord(self.saturation, other.saturation, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.lightness, other.lightness, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.alpha, other.alpha, EQ_GRANULARITY))
+    }
+}
 impl std::hash::Hash for Hsla {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.hue, EQ_GRANULARITY_100, state);
@@ -368,6 +394,19 @@ impl PartialEq for Hsva {
     }
 }
 impl Eq for Hsva {}
+impl PartialOrd for Hsva {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Hsva {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.hue, other.hue, EQ_GRANULARITY_100)
+            .cmp(&about_eq_ord(self.saturation, other.saturation, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.value, other.value, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.alpha, other.alpha, EQ_GRANULARITY))
+    }
+}
 impl std::hash::Hash for Hsva {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.hue, EQ_GRANULARITY_100, state);

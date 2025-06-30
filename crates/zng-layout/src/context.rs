@@ -5,7 +5,7 @@ use std::{fmt, sync::Arc};
 use bitflags::bitflags;
 use unicode_bidi::BidiDataSource as _;
 use zng_app_context::context_local;
-use zng_unit::{Factor, Px, PxRect, PxSize, about_eq, about_eq_hash, euclid};
+use zng_unit::{Factor, Px, PxRect, PxSize, about_eq, about_eq_hash, about_eq_ord, euclid};
 use zng_var::context_var;
 
 use atomic::{Atomic, Ordering::Relaxed};
@@ -320,6 +320,16 @@ impl Eq for InlineSegmentPos {}
 impl std::hash::Hash for InlineSegmentPos {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.x, 0.001, state);
+    }
+}
+impl PartialOrd for InlineSegmentPos {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for InlineSegmentPos {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.x, other.x, 0.001)
     }
 }
 

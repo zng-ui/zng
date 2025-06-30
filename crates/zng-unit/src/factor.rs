@@ -64,21 +64,6 @@ impl Factor {
         Factor(self.0.clamp(0.0, 1.0))
     }
 
-    /// Returns the maximum of two factors.
-    pub fn max(self, other: impl Into<Factor>) -> Factor {
-        Factor(self.0.max(other.into().0))
-    }
-
-    /// Returns the minimum of two factors.
-    pub fn min(self, other: impl Into<Factor>) -> Factor {
-        Factor(self.0.min(other.into().0))
-    }
-
-    /// Returns `self` if `min <= self <= max`, returns `min` if `self < min` or returns `max` if `self > max`.
-    pub fn clamp(self, min: impl Into<Factor>, max: impl Into<Factor>) -> Factor {
-        self.min(max).max(min)
-    }
-
     /// Computes the absolute value of self.
     pub fn abs(self) -> Factor {
         Factor(self.0.abs())

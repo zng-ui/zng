@@ -1,4 +1,4 @@
-use crate::about_eq_hash;
+use crate::{about_eq_hash, about_eq_ord};
 
 use super::{EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, about_eq};
 
@@ -82,6 +82,16 @@ impl Eq for AngleRadian {}
 impl std::hash::Hash for AngleRadian {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY, state);
+    }
+}
+impl Ord for AngleRadian {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl PartialOrd for AngleRadian {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -184,6 +194,16 @@ impl ops::Neg for AngleGradian {
 
     fn neg(self) -> Self::Output {
         Self(-self.0)
+    }
+}
+impl Ord for AngleGradian {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl PartialOrd for AngleGradian {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -300,6 +320,16 @@ impl PartialEq for AngleDegree {
     }
 }
 impl Eq for AngleDegree {}
+impl Ord for AngleDegree {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl PartialOrd for AngleDegree {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 impl std::hash::Hash for AngleDegree {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY_100, state);
@@ -425,6 +455,16 @@ impl PartialEq for AngleTurn {
     }
 }
 impl Eq for AngleTurn {}
+impl Ord for AngleTurn {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl PartialOrd for AngleTurn {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 impl std::hash::Hash for AngleTurn {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         about_eq_hash(self.0, EQ_GRANULARITY, state);
