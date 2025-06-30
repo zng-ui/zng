@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `TimeUnits::ms` impl for `f32`.
 * Fix `Txt::split_off` when the `Txt` is backed by `&'static str`. 
 
 # 0.15.4
