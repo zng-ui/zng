@@ -81,6 +81,10 @@ macro_rules! unique_id_32 {
                 ///
                 /// The unique ID cannot be generated at compile time, but you can use the `static_id!` macro to declare
                 /// a lazy static that instantiates the ID.
+                ///
+                /// # Exhaustion Handling
+                /// 
+                /// If more IDs are generated them `u32::MAX` an error is logged, the internal counter is reset and ids are reused.
                 $vis struct $Type $(< $T $(:($($bounds)+))? >)? $(: $ParentId)? ;
             }
             non_zero {
@@ -132,6 +136,10 @@ macro_rules! unique_id_64 {
                 ///
                 /// The unique ID cannot be generated at compile time, but you can use the `static_id!` macro to declare
                 /// a lazy static that instantiates the ID.
+                ///
+                /// # Exhaustion Handling
+                /// 
+                /// If more IDs are generated them `u64::MAX` an error is logged, the internal counter is reset and ids are reused.
                 $vis struct $Type $(< $T $(:($($bounds)+))? >)? $(: $ParentId)? ;
             }
             non_zero {
