@@ -366,13 +366,13 @@ impl Transitionable for Align {
             self.x_rtl_aware = to.x_rtl_aware;
         }
 
-        if self.x.0.is_finite() && self.y.0.is_finite() {
+        if self.x.0.is_finite() && to.x.0.is_finite() {
             self.x = self.x.lerp(&to.x, step);
         } else if end {
             self.x = to.x;
         }
 
-        if self.y.0.is_finite() && self.y.0.is_finite() {
+        if self.y.0.is_finite() && to.y.0.is_finite() {
             self.y = self.y.lerp(&to.y, step);
         } else if end {
             self.y = to.y;
