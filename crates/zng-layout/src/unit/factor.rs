@@ -408,12 +408,18 @@ impl ops::Div<FactorSideOffsets> for FactorSideOffsets {
 }
 impl ops::MulAssign<FactorSideOffsets> for FactorSideOffsets {
     fn mul_assign(&mut self, rhs: FactorSideOffsets) {
-        *self = *self * rhs;
+        self.top *= rhs.top;
+        self.right *= rhs.right;
+        self.bottom *= rhs.bottom;
+        self.left *= rhs.left;
     }
 }
 impl ops::DivAssign<FactorSideOffsets> for FactorSideOffsets {
     fn div_assign(&mut self, rhs: FactorSideOffsets) {
-        *self = *self / rhs;
+        self.top /= rhs.top;
+        self.right /= rhs.right;
+        self.bottom /= rhs.bottom;
+        self.left /= rhs.left;
     }
 }
 impl ops::Mul<FactorSideOffsets> for PxSideOffsets {
