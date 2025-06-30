@@ -5,6 +5,7 @@
 * Fix `Transitionable::lerp` implementation for `Align`. 
 * Fix `Align` equality not considering the `x_rtl_aware` field.
 
+* Implement `Ord` for `FontStretch`, `FontWeight`, `Factor`.
 * Implement `Eq` for `Factor`, `FactorPercent`, `Align`, `ColorMatrix`, `PreMulAlpha`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `Ppi`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Rgba`.
 * Implement `Hash` for `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Align`.
 

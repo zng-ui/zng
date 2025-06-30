@@ -2543,7 +2543,12 @@ impl fmt::Debug for FontStretch {
 }
 impl PartialOrd for FontStretch {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(about_eq_ord(self.0, other.0, EQ_GRANULARITY))
+        Some(self.cmp(other))
+    }
+}
+impl Ord for FontStretch {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
     }
 }
 impl PartialEq for FontStretch {
@@ -2724,7 +2729,12 @@ impl fmt::Debug for FontWeight {
 }
 impl PartialOrd for FontWeight {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(about_eq_ord(self.0, other.0, EQ_GRANULARITY_100))
+        Some(self.cmp(other))
+    }
+}
+impl Ord for FontWeight {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY_100)
     }
 }
 impl PartialEq for FontWeight {

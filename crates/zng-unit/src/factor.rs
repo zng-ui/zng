@@ -152,7 +152,12 @@ impl PartialEq for Factor {
 impl Eq for Factor {}
 impl std::cmp::PartialOrd for Factor {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(about_eq_ord(self.0, other.0, EQ_GRANULARITY))
+        Some(self.cmp(other))
+    }
+}
+impl std::cmp::Ord for Factor {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
     }
 }
 impl ops::Mul for Factor {
