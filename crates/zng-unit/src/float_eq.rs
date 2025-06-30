@@ -20,28 +20,27 @@ pub fn about_eq_hash<H: std::hash::Hasher>(f: f32, granularity: f32, state: &mut
 }
 fn f32_about_eq_snap(f: f32, granularity: f32) -> (u8, i64) {
     let (kind, bucket) = if f.is_nan() {
-        (0u8, 0i64)
+        (255u8, 0i64)
     } else if f.is_infinite() {
-        let sign = if f.is_sign_positive() { 1 } else { -1 };
-        (1, sign)
+        if f.is_sign_positive() {
+            (254, 0)
+        } else {
+            (1, 0)
+        }
     } else {
         let bucket = (f / granularity).floor() as i64;
-        (2, bucket)
+        (128, bucket)
     };
     (kind, bucket)
 }
 
 /// [`f32`] ordering compatible with [`about_eq`] equality.
+/// 
+/// The order is `-inf < finite < inf < NaN`.
 pub fn about_eq_ord(a: f32, b: f32, granularity: f32) -> std::cmp::Ordering {
-    if about_eq(a, b, granularity) {
-        std::cmp::Ordering::Equal
-    } else {
-        // Fallback to the standard partial_cmp for a robust ordering.
-        // This correctly handles all other cases, including comparisons with NaN.
-        // partial_cmp returns None if one operand is NaN.
-        // You can decide how to treat this case; here we default to Less.
-        a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Less)
-    }
+    let a = f32_about_eq_snap(a, granularity);
+    let b = f32_about_eq_snap(b, granularity);
+    a.cmp(&b)
 }
 
 /// Minimal bucket size for equality between values in around the 0.0..=1.0 scale.

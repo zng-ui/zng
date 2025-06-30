@@ -1,5 +1,8 @@
 # Unreleased
 
+
+* Fix `Align` equality not considering the `x_rtl_aware` field.
+
 * Implement `Eq` for `Factor`, `FactorPercent`, `Align`, `ColorMatrix`, `PreMulAlpha`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `Ppi`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Rgba`.
 * Implement `Hash` for `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Align`.
 
@@ -10,6 +13,7 @@
   - These are the types that incorrectly implemented hashing and are now fixed: `ColorMatrix`, `Rgba`, `PreMulRgba`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `InlineSegmentPos`, `Ppi`, `Factor` and `FactorPercent`.
   - In practice direct equality comparisons between two values has no significant change, the previous *epsilon distance* based
     equality was correct, it just was not compatible with hashing.
+  - Refactor `about_eq_ord` to enforce `-inf < finite < inf < NaN` using the new equality *bucket* value for the finite values.
 
 * Fix `TimeUnits::ms` impl for `f32`.
 * Fix `Txt::split_off` when the `Txt` is backed by `&'static str`. 
