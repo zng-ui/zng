@@ -330,7 +330,7 @@ impl Txt {
             TxtData::Static(s) => {
                 assert!(s.is_char_boundary(at));
                 let other = &s[at..];
-                *s = &s[at..];
+                *s = &s[..at];
                 Txt(TxtData::Static(other))
             }
             TxtData::Inline(d) => {
