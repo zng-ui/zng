@@ -1,5 +1,6 @@
 # Unreleased
 
+* Better error handling in `zng::env::migrate_config`.
 * Fix `zng::env::init_cache` setting the config path instead cache.
 * Fix `LayoutMetricsSnapshot` not comparing all fields.
 * Fix `Transform` interpolation.

@@ -522,7 +522,7 @@ lazy_static! {
     static ref ORIGINAL_CONFIG: PathBuf = find_config();
 }
 
-/// Copied all config to `new_path` and saves it as the config path.
+/// Copies all config to `new_path` and saves it as the config path.
 ///
 /// If copying and saving path succeeds make a best effort to wipe the previous config dir. If copy and save fails
 /// makes a best effort to undo already made copies.
@@ -567,10 +567,10 @@ fn migrate_config_impl(new_path: &Path) -> io::Result<()> {
     };
 
     if let Err(e) = migrate(prev_path, new_path) {
-        eprintln!("migration failed, {e}");
         if fs::remove_dir_all(new_path).is_ok() && !created {
             let _ = fs::create_dir(new_path);
         }
+        return Err(e);
     }
 
     tracing::info!("changed config dir to `{}`", new_path.display());
