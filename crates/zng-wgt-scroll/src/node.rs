@@ -793,7 +793,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
 
                 if let Some(scroll_info) = us.scroll_info() {
                     if let Some(s) = &mut zoom {
-                        *s = s.clamp(MIN_ZOOM_VAR.get(), MAX_ZOOM_VAR.get());
+                        *s = (*s).clamp(MIN_ZOOM_VAR.get(), MAX_ZOOM_VAR.get());
                     }
 
                     let rendered_content = scroll_info.content();
