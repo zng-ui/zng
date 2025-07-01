@@ -351,7 +351,7 @@ impl LocalContext {
         if self.data.is_empty() {
             f()
         } else {
-            let prev = LOCAL.with_borrow_mut_dyn(|c| {
+            let prev = LOCAL.with_borrow_mut_dyn(|c| {                
                 let (mut base, over) = if over { (c.clone(), &self.data) } else { (self.data.clone(), &*c) };
                 for (k, v) in over {
                     base.insert(*k, v.clone());
@@ -359,11 +359,20 @@ impl LocalContext {
 
                 mem::replace(c, base)
             });
+
+            let mut _tracing_restore = None;
+            if let Some(d) = &self.tracing {
+                if over {
+                    _tracing_restore = Some(tracing::dispatcher::set_default(d));
+                }
+            }
+
             let _restore = RunOnDrop::new(|| {
                 LOCAL.with_borrow_mut_dyn(|c| {
                     *c = prev;
                 });
             });
+            
             f()
         }
     }

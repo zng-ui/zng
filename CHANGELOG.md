@@ -1,5 +1,6 @@
 # Unreleased
 
+* `LocalContext::with_context_blend` now also overrides the tracing dispatcher if it captures a dispatcher.
 * Better error handling in `zng::env::migrate_config`.
 * Fix `zng::env::init_cache` setting the config path instead cache.
 * Fix `LayoutMetricsSnapshot` not comparing all fields.
