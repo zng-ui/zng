@@ -351,7 +351,7 @@ impl LocalContext {
         if self.data.is_empty() {
             f()
         } else {
-            let prev = LOCAL.with_borrow_mut_dyn(|c| {                
+            let prev = LOCAL.with_borrow_mut_dyn(|c| {
                 let (mut base, over) = if over { (c.clone(), &self.data) } else { (self.data.clone(), &*c) };
                 for (k, v) in over {
                     base.insert(*k, v.clone());
@@ -372,7 +372,7 @@ impl LocalContext {
                     *c = prev;
                 });
             });
-            
+
             f()
         }
     }
