@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `LayoutMetricsSnapshot` not comparing all fields.
 * Fix `Transform` interpolation.
 * Fix division between different kinds of `Length` not creating a Div expression.
 * Fix `PxConstraints::with_more` not saturating on overflow.

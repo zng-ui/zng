@@ -478,6 +478,8 @@ impl PartialEq for LayoutMetricsSnapshot {
             && self.scale_factor == other.scale_factor
             && self.viewport == other.viewport
             && self.screen_ppi == other.screen_ppi
+            && self.direction == other.direction
+            && self.leftover == other.leftover
     }
 }
 impl std::hash::Hash for LayoutMetricsSnapshot {
@@ -489,6 +491,8 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
         self.scale_factor.hash(state);
         self.viewport.hash(state);
         self.screen_ppi.hash(state);
+        self.direction.hash(state);
+        self.leftover.hash(state);
     }
 }
 
