@@ -582,7 +582,6 @@ impl MatrixDecomposed3D {
         matrix.m41 += self.translate.x * matrix.m11 + self.translate.y * matrix.m21 + self.translate.z * matrix.m31;
         matrix.m42 += self.translate.x * matrix.m12 + self.translate.y * matrix.m22 + self.translate.z * matrix.m32;
         matrix.m43 += self.translate.x * matrix.m13 + self.translate.y * matrix.m23 + self.translate.z * matrix.m33;
-        matrix.m44 += self.translate.x * matrix.m14 + self.translate.y * matrix.m24 + self.translate.z * matrix.m34;
 
         // apply rotation
         {
@@ -632,15 +631,12 @@ impl MatrixDecomposed3D {
         matrix.m11 *= self.scale.0;
         matrix.m12 *= self.scale.0;
         matrix.m13 *= self.scale.0;
-        matrix.m14 *= self.scale.0;
         matrix.m21 *= self.scale.1;
         matrix.m22 *= self.scale.1;
         matrix.m23 *= self.scale.1;
-        matrix.m24 *= self.scale.1;
         matrix.m31 *= self.scale.2;
         matrix.m32 *= self.scale.2;
         matrix.m33 *= self.scale.2;
-        matrix.m34 *= self.scale.2;
 
         matrix
     }
