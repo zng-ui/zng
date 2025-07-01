@@ -8,11 +8,13 @@ use zng_var::{animation::Transitionable, impl_from_and_into_var};
 pub struct Ppi(pub f32);
 impl Ppi {
     /// Returns the minimum of the two resolutions.
+    #[deprecated = "use Ord::min"]
     pub fn min(self, other: impl Into<Ppi>) -> Ppi {
         Ppi(self.0.min(other.into().0))
     }
 
     /// Returns the maximum of the two resolutions.
+    #[deprecated = "use Ord::max"]
     pub fn max(self, other: impl Into<Ppi>) -> Ppi {
         Ppi(self.0.max(other.into().0))
     }
@@ -49,6 +51,19 @@ impl PartialOrd for Ppi {
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, Transitionable)]
 #[serde(transparent)]
 pub struct Ppm(pub f32);
+impl Ppm {
+    /// Returns the minimum of the two resolutions.
+    #[deprecated = "use Ord::min"]
+    pub fn min(self, other: impl Into<Ppm>) -> Ppm {
+        Ppm(self.0.min(other.into().0))
+    }
+
+    /// Returns the maximum of the two resolutions.
+    #[deprecated = "use Ord::max"]
+    pub fn max(self, other: impl Into<Ppm>) -> Ppm {
+        Ppm(self.0.max(other.into().0))
+    }
+}
 impl PartialEq for Ppm {
     fn eq(&self, other: &Self) -> bool {
         super::about_eq(self.0, other.0, 0.0001)

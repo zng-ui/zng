@@ -12,6 +12,7 @@
 
 * Implement `PartialOrd` for `PreMulRgba`, `Hsla`, `Hsva`, `Rgba`, `InlineSegmentPos`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`.
 * Implement `Ord` for `FontStretch`, `FontWeight`, `Factor`, `PreMulRgba`, `Hsla`, `Hsva`, `Rgba`, `InlineSegmentPos`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`.
+  - *Deprecated* custom `max`, `min` and `clamp` methods of `Factor`,  `Ppi`, `Ppm`, use the Ord equivalent. 
 * Implement `Eq` for `Factor`, `FactorPercent`, `Align`, `ColorMatrix`, `PreMulAlpha`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Rgba`, `AngleGradian`.
 * Implement `Hash` for `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Align`, `Ppm`.
 
