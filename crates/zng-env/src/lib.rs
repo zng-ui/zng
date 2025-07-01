@@ -686,7 +686,7 @@ pub fn cache(relative_path: impl AsRef<Path>) -> PathBuf {
 ///
 /// Panics if not called at the beginning of the process.
 pub fn init_cache(path: impl Into<PathBuf>) {
-    match lazy_static_init(&CONFIG, path.into()) {
+    match lazy_static_init(&CACHE, path.into()) {
         Ok(p) => {
             create_dir_opt(p.to_owned());
         }

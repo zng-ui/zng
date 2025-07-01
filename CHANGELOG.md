@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `zng::env::init_cache` setting the config path instead cache.
 * Fix `LayoutMetricsSnapshot` not comparing all fields.
 * Fix `Transform` interpolation.
 * Fix division between different kinds of `Length` not creating a Div expression.
