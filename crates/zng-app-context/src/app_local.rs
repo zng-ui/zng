@@ -199,6 +199,8 @@ impl<T: Send + Sync + 'static> AppLocalImpl<T> for AppLocalConst<T> {
 ///
 /// Note that in `"multi_app"` builds the app local can only be used if an app is running in the thread,
 /// if no app is running read and write **will panic**.
+///
+/// [`app_local!`]: crate::app_local!
 pub struct AppLocal<T: Send + Sync + 'static> {
     inner: fn() -> &'static dyn AppLocalImpl<T>,
 }

@@ -26,6 +26,8 @@ impl<T: Send + Sync + 'static> ContextLocalData<T> {
 /// The *context* works across threads, as long as the threads are instrumented using [`LocalContext`].
 ///
 /// Use the [`context_local!`] macro to declare a static variable in the same style as [`thread_local!`].
+/// 
+/// [`context_local!`]: crate::context_local!
 pub struct ContextLocal<T: Send + Sync + 'static> {
     data: AppLocal<ContextLocalData<T>>,
 }
