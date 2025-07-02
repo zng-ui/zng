@@ -9,13 +9,11 @@
 * Fix `PxConstraints::with_more` not saturating on overflow.
 * Fix `Transitionable::lerp` implementation for `Align`. 
 * Fix `Align` equality not considering the `x_rtl_aware` field.
-
 * Implement `PartialOrd` for `PreMulRgba`, `Hsla`, `Hsva`, `Rgba`, `InlineSegmentPos`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`.
 * Implement `Ord` for `FontStretch`, `FontWeight`, `Factor`, `PreMulRgba`, `Hsla`, `Hsva`, `Rgba`, `InlineSegmentPos`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`.
   - *Deprecated* custom `max`, `min` and `clamp` methods of `Factor`,  `Ppi`, `Ppm`, use the Ord equivalent. 
 * Implement `Eq` for `Factor`, `FactorPercent`, `Align`, `ColorMatrix`, `PreMulAlpha`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `Ppi`, `Ppm`, `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Rgba`, `AngleGradian`.
 * Implement `Hash` for `AngleRadian`, `AngleGradian`, `AngleDegree`, `AngleTurn`, `Align`, `Ppm`.
-
 * Fix hash equality for `f32` based unit types.
   - Refactor `zng_layout::unit::about_eq` to compare finite values by *bucket granularity*.
   - Refactor `about_eq_hash` to hash the same *bucket*.
@@ -24,7 +22,6 @@
   - In practice direct equality comparisons between two values has no significant change, the previous *epsilon distance* based
     equality was correct, it just was not compatible with hashing.
   - Refactor `about_eq_ord` to enforce `-inf < finite < inf < NaN` using the new equality *bucket* value for the finite values.
-
 * Fix `TimeUnits::ms` impl for `f32`.
 * Fix `Txt::split_off` when the `Txt` is backed by `&'static str`. 
 
