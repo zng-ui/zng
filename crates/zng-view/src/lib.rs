@@ -2177,7 +2177,11 @@ impl Api for App {
                 ));
                 Ok(clipboard::ClipboardData::Image(id))
             }
-            clipboard::ClipboardType::FileList => Err(clipboard::ClipboardError::NotSupported),
+            clipboard::ClipboardType::FileList => self
+                .arboard()?
+                .get_file_list()
+                .map_err(util::arboard_to_clip)
+                .map(|l| clipboard::ClipboardData::FileList(l)),
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
             _ => Err(clipboard::ClipboardError::NotSupported),
         }

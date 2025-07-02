@@ -40,7 +40,7 @@ anyhow = "1.0"
 dunce = "1.0"
 zng-env = { path = "../zng-env", version = "0.5.1" }
 directories = "6.0"
-quick-xml = { version = "0.37", features = ["serialize"] }
+quick-xml = { version = "0.38", features = ["serialize"] }
 
 # fmt
 regex = "1.10"
