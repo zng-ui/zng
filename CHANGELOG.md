@@ -21,7 +21,7 @@
 * Fix hash equality for `f32` based unit types.
   - Refactor `zng_layout::unit::about_eq` to compare finite values by *bucket granularity*.
   - Refactor `about_eq_hash` to hash the same *bucket*.
-  - *Deprecated* `EQ_EPSILON` and `EQ_EPSILON_100` renamed to `EQ_EPSILON` and `EQ_EPSILON_100`.
+  - *Deprecated* `EQ_EPSILON` and `EQ_EPSILON_100` renamed to `EQ_GRANULARITY` and `EQ_GRANULARITY_100`.
   - These are the types that incorrectly implemented hashing and are now fixed: `ColorMatrix`, `Rgba`, `PreMulRgba`, `Hsla`, `Hsva`, `FontStretch`, `FontWeight`, `InlineSegmentPos`, `Ppi`, `Factor` and `FactorPercent`.
   - In practice direct equality comparisons between two values has no significant change, the previous *epsilon distance* based
     equality was correct, it just was not compatible with hashing.
