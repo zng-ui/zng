@@ -637,18 +637,21 @@ fn sh_run_try(sh: &std::ffi::OsStr, script: &str, capture: bool, current_dir: Op
     sh.arg("-c").arg(script);
     sh.stdin(std::process::Stdio::null());
     sh.stderr(std::process::Stdio::inherit());
-    if !capture {
+    let r = if capture {
+        sh.output().map(|o| (o.status, String::from_utf8_lossy(&o.stdout).into_owned()))
+    } else {
         sh.stdout(std::process::Stdio::inherit());
-    }
-    match sh.output() {
-        Ok(s) => {
-            if !s.status.success() {
-                return Err(match s.status.code() {
+        sh.status().map(|s| (s, String::new()))
+    };
+    match r {
+        Ok((s, o)) => {
+            if !s.success() {
+                return Err(match s.code() {
                     Some(c) => io::Error::other(format!("script failed, exit code {c}")),
                     None => io::Error::other("script failed"),
                 });
             }
-            Ok(Some(String::from_utf8_lossy(&s.stdout).into_owned()))
+            Ok(Some(o))
         }
         Err(e) => {
             if e.kind() == io::ErrorKind::NotFound {

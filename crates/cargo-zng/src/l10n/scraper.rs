@@ -30,11 +30,12 @@ pub fn scrape_fluent_text(code_files_glob: &str, custom_macro_names: &[&str]) ->
         }
         buf.push(file);
         if buf.len() == num_threads {
+            buf.sort();
             r.extend(scrape_files(&mut buf, custom_macro_names));
         }
     }
-    buf.sort();
     if !buf.is_empty() {
+        buf.sort();
         r.extend(scrape_files(&mut buf, custom_macro_names));
     }
 
@@ -562,10 +563,11 @@ impl FluentTemplate {
             // remove repeated
             let mut i = 0;
             while i < self.entries.len() {
-                while Arc::ptr_eq(&marker, &self.entries[i].section) {
+                if Arc::ptr_eq(&marker, &self.entries[i].section) {
                     self.entries.swap_remove(i);
+                } else {
+                    i += 1;
                 }
-                i += 1;
             }
         }
 

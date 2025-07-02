@@ -125,7 +125,7 @@ fn run_impl(mut args: L10nArgs, is_local_scrap_recursion: bool) {
 
     if !args.manifest_path.is_empty() {
         if !Path::new(&args.manifest_path).exists() {
-            fatal!("{input} does not exist")
+            fatal!("`{}` does not exist", args.manifest_path)
         }
 
         if let Some(path) = args.manifest_path.replace('\\', "/").strip_suffix("/Cargo.toml") {

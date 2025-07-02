@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `cargo zng l10n` handling of repeated sections.
+* Fix `cargo zng new` removing already existing target.
 
 # 0.15.5
 
