@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-config"
-version = "0.6.3"
+version = "0.6.4"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -20,17 +20,17 @@ toml = ["dep:toml", "zng-ext-fs-watcher/toml"]
 ron = ["dep:ron", "zng-ext-fs-watcher/ron"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.7.1" }
-zng-app = { path = "../zng-app", version = "0.16.3" }
-zng-var = { path = "../zng-var", version = "0.7.1" }
-zng-txt = { path = "../zng-txt", version = "0.3.1" }
-zng-task = { path = "../zng-task", version = "0.6.2" }
+zng-app-context = { path = "../zng-app-context", version = "0.7.2" }
+zng-app = { path = "../zng-app", version = "0.16.4" }
+zng-var = { path = "../zng-var", version = "0.7.2" }
+zng-txt = { path = "../zng-txt", version = "0.3.2" }
+zng-task = { path = "../zng-task", version = "0.6.3" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
-zng-unique-id = { path = "../zng-unique-id", version = "0.6.1" }
-zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.5.3", features = [
+zng-unique-id = { path = "../zng-unique-id", version = "0.6.2" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.5.4", features = [
     "json",
 ] }
-zng-state-map = { path = "../zng-state-map", version = "0.5.0" }
+zng-state-map = { path = "../zng-state-map", version = "0.5.1" }
 
 tracing = "0.1"
 bytemuck = { version = "1.15", features = ["derive"] }
