@@ -1,4 +1,6 @@
-use super::{EQ_EPSILON, EQ_EPSILON_100, Factor, about_eq};
+use crate::{about_eq_hash, about_eq_ord};
+
+use super::{EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, about_eq};
 
 use std::{
     f32::consts::{PI, TAU},
@@ -11,7 +13,7 @@ use std::{
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.00001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleRadian(pub f32);
@@ -73,7 +75,23 @@ impl AngleRadian {
 
 impl PartialEq for AngleRadian {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON)
+        about_eq(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl Eq for AngleRadian {}
+impl std::hash::Hash for AngleRadian {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_GRANULARITY, state);
+    }
+}
+impl Ord for AngleRadian {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl PartialOrd for AngleRadian {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -119,7 +137,7 @@ impl fmt::Display for AngleRadian {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleGradian(pub f32);
@@ -178,10 +196,26 @@ impl ops::Neg for AngleGradian {
         Self(-self.0)
     }
 }
+impl Ord for AngleGradian {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl PartialOrd for AngleGradian {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl PartialEq for AngleGradian {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON_100)
+        about_eq(self.0, other.0, EQ_GRANULARITY_100)
+    }
+}
+impl Eq for AngleGradian {}
+impl std::hash::Hash for AngleGradian {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_GRANULARITY_100, state);
     }
 }
 impl From<AngleRadian> for AngleGradian {
@@ -220,7 +254,7 @@ impl fmt::Display for AngleGradian {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleDegree(pub f32);
@@ -282,7 +316,23 @@ impl ops::Neg for AngleDegree {
 
 impl PartialEq for AngleDegree {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON_100)
+        about_eq(self.0, other.0, EQ_GRANULARITY_100)
+    }
+}
+impl Eq for AngleDegree {}
+impl Ord for AngleDegree {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl PartialOrd for AngleDegree {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl std::hash::Hash for AngleDegree {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_GRANULARITY_100, state);
     }
 }
 impl From<AngleRadian> for AngleDegree {
@@ -321,7 +371,7 @@ impl fmt::Display for AngleDegree {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.00001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct AngleTurn(pub f32);
@@ -401,7 +451,23 @@ impl fmt::Display for AngleTurn {
 }
 impl PartialEq for AngleTurn {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON)
+        about_eq(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl Eq for AngleTurn {}
+impl Ord for AngleTurn {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
+    }
+}
+impl PartialOrd for AngleTurn {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl std::hash::Hash for AngleTurn {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        about_eq_hash(self.0, EQ_GRANULARITY, state);
     }
 }
 

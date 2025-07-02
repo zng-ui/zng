@@ -1,12 +1,12 @@
 use std::{fmt, ops};
 
-use crate::{Factor, FactorPercent, about_eq, about_eq_hash};
+use crate::{EQ_GRANULARITY, Factor, FactorPercent, about_eq, about_eq_hash, about_eq_ord};
 
 /// RGB + alpha.
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.00001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.00001` granularity.
 ///
 /// [`about_eq`]: crate::about_eq
 #[repr(C)]
@@ -23,18 +23,32 @@ pub struct Rgba {
 }
 impl PartialEq for Rgba {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.red, other.red, EPSILON)
-            && about_eq(self.green, other.green, EPSILON)
-            && about_eq(self.blue, other.blue, EPSILON)
-            && about_eq(self.alpha, other.alpha, EPSILON)
+        about_eq(self.red, other.red, EQ_GRANULARITY)
+            && about_eq(self.green, other.green, EQ_GRANULARITY)
+            && about_eq(self.blue, other.blue, EQ_GRANULARITY)
+            && about_eq(self.alpha, other.alpha, EQ_GRANULARITY)
+    }
+}
+impl Eq for Rgba {}
+impl PartialOrd for Rgba {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Rgba {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.red, other.red, EQ_GRANULARITY)
+            .cmp(&about_eq_ord(self.green, other.green, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.blue, other.blue, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.alpha, other.alpha, EQ_GRANULARITY))
     }
 }
 impl std::hash::Hash for Rgba {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.red, EPSILON, state);
-        about_eq_hash(self.green, EPSILON, state);
-        about_eq_hash(self.blue, EPSILON, state);
-        about_eq_hash(self.alpha, EPSILON, state);
+        about_eq_hash(self.red, EQ_GRANULARITY, state);
+        about_eq_hash(self.green, EQ_GRANULARITY, state);
+        about_eq_hash(self.blue, EQ_GRANULARITY, state);
+        about_eq_hash(self.alpha, EQ_GRANULARITY, state);
     }
 }
 impl Rgba {
@@ -183,9 +197,6 @@ impl ops::SubAssign<Self> for Rgba {
         *self = *self - rhs;
     }
 }
-
-/// Minimal difference between values in around the 0.0..=1.0 scale.
-const EPSILON: f32 = 0.00001;
 
 // Util
 fn clamp_normal(i: f32) -> f32 {

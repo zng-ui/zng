@@ -4,7 +4,7 @@ use std::fmt;
 
 use zng_layout::{
     context::LayoutMask,
-    unit::{AngleDegree, Factor, FactorUnits, Layout1d, Layout2d, Length, Point, about_eq, about_eq_hash},
+    unit::{AngleDegree, EQ_GRANULARITY, Factor, FactorUnits, Layout1d, Layout2d, Length, Point, about_eq, about_eq_hash},
 };
 use zng_var::{
     animation::{Transitionable, easing::EasingStep},
@@ -543,13 +543,14 @@ impl Default for ColorMatrix {
 }
 impl PartialEq for ColorMatrix {
     fn eq(&self, other: &Self) -> bool {
-        self.0.iter().zip(&other.0).all(|(&a, &b)| about_eq(a, b, 0.00001))
+        self.0.iter().zip(&other.0).all(|(&a, &b)| about_eq(a, b, EQ_GRANULARITY))
     }
 }
+impl Eq for ColorMatrix {}
 impl std::hash::Hash for ColorMatrix {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         for f in self.0 {
-            about_eq_hash(f, 0.00001, state);
+            about_eq_hash(f, EQ_GRANULARITY, state);
         }
     }
 }

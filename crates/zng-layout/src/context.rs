@@ -5,7 +5,7 @@ use std::{fmt, sync::Arc};
 use bitflags::bitflags;
 use unicode_bidi::BidiDataSource as _;
 use zng_app_context::context_local;
-use zng_unit::{Factor, Px, PxRect, PxSize, about_eq, about_eq_hash, euclid};
+use zng_unit::{Factor, Px, PxRect, PxSize, about_eq, about_eq_hash, about_eq_ord, euclid};
 use zng_var::context_var;
 
 use atomic::{Atomic, Ordering::Relaxed};
@@ -322,6 +322,16 @@ impl std::hash::Hash for InlineSegmentPos {
         about_eq_hash(self.x, 0.001, state);
     }
 }
+impl PartialOrd for InlineSegmentPos {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for InlineSegmentPos {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.x, other.x, 0.001)
+    }
+}
 
 /// Constraints for inline layout.
 ///
@@ -468,6 +478,8 @@ impl PartialEq for LayoutMetricsSnapshot {
             && self.scale_factor == other.scale_factor
             && self.viewport == other.viewport
             && self.screen_ppi == other.screen_ppi
+            && self.direction == other.direction
+            && self.leftover == other.leftover
     }
 }
 impl std::hash::Hash for LayoutMetricsSnapshot {
@@ -479,6 +491,8 @@ impl std::hash::Hash for LayoutMetricsSnapshot {
         self.scale_factor.hash(state);
         self.viewport.hash(state);
         self.screen_ppi.hash(state);
+        self.direction.hash(state);
+        self.leftover.hash(state);
     }
 }
 

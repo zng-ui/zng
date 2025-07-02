@@ -43,7 +43,7 @@ use super::{Factor, Factor2d, FactorPercent, FactorUnits, Point, Px, PxConstrain
 /// [`is_fill_x`]: Align::is_fill_x
 /// [`is_fill_y`]: Align::is_fill_y
 /// [`is_baseline`]: Align::is_baseline
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Align {
     /// *x* alignment in a `[0.0..=1.0]` range.
     pub x: Factor,
@@ -52,11 +52,6 @@ pub struct Align {
 
     /// *y* alignment in a `[0.0..=1.0]` range.
     pub y: Factor,
-}
-impl PartialEq for Align {
-    fn eq(&self, other: &Self) -> bool {
-        self.is_fill_x() == other.is_fill_x() && self.is_fill_y() == other.is_fill_y() && self.x == other.x && self.y == other.y
-    }
 }
 impl Default for Align {
     /// [`Align::START`].
@@ -297,7 +292,7 @@ impl fmt::Display for Align {
             } else if self.is_baseline() {
                 f.write_str("<baseline>")?;
             } else {
-                write!(f, "{}", FactorPercent::from(self.x))?;
+                write!(f, "{}", FactorPercent::from(self.y))?;
             }
             f.write_char(')')
         }
@@ -371,13 +366,13 @@ impl Transitionable for Align {
             self.x_rtl_aware = to.x_rtl_aware;
         }
 
-        if self.x.0.is_finite() && self.y.0.is_finite() {
+        if self.x.0.is_finite() && to.x.0.is_finite() {
             self.x = self.x.lerp(&to.x, step);
         } else if end {
             self.x = to.x;
         }
 
-        if self.y.0.is_finite() && self.y.0.is_finite() {
+        if self.y.0.is_finite() && to.y.0.is_finite() {
             self.y = self.y.lerp(&to.y, step);
         } else if end {
             self.y = to.y;

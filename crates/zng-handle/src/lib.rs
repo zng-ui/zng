@@ -32,10 +32,11 @@ use std::{
 /// resource will be dropped regardless.
 ///
 /// The parameter type `D` is any [`Sync`] data type that will be shared using the handle.
-#[must_use = "the resource id dropped if the handle is dropped"]
+#[must_use = "the resource is dropped if the handle is dropped"]
 #[repr(transparent)]
 pub struct Handle<D: Send + Sync>(Arc<HandleState<D>>);
 struct HandleState<D> {
+    // only use the enum `State` variant values to set this field
     state: AtomicU8,
     data: D,
 }
@@ -43,7 +44,7 @@ impl<D: Send + Sync> Handle<D> {
     /// Create a handle with owner pair.
     pub fn new(data: D) -> (HandleOwner<D>, Handle<D>) {
         let handle = Handle(Arc::new(HandleState {
-            state: AtomicU8::new(NONE),
+            state: AtomicU8::new(State::None as u8),
             data,
         }));
         (HandleOwner(handle.clone()), handle)
@@ -54,7 +55,7 @@ impl<D: Send + Sync> Handle<D> {
     /// Note that `Option<Handle<D>>` takes up the same space as `Handle<D>` and avoids an allocation.
     pub fn dummy(data: D) -> Self {
         Handle(Arc::new(HandleState {
-            state: AtomicU8::new(FORCE_DROP),
+            state: AtomicU8::new(State::ForceDrop as u8),
             data,
         }))
     }
@@ -66,8 +67,16 @@ impl<D: Send + Sync> Handle<D> {
 
     /// Mark the handle as permanent and drops this clone of it. This causes the resource to stay in memory
     /// until the app exits, no need to hold a handle somewhere.
+    ///
+    /// Note that a clone can still force drop a perm handle and perm does nothing if the handle is already force dropped.
     pub fn perm(self) {
-        self.0.state.fetch_or(PERMANENT, Ordering::Relaxed);
+        let _ = self.0.state.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |s| {
+            if s != State::ForceDrop as u8 {
+                Some(State::Permanent as u8)
+            } else {
+                None
+            }
+        });
     }
 
     /// If [`perm`](Self::perm) was called in another clone of this handle.
@@ -75,12 +84,12 @@ impl<D: Send + Sync> Handle<D> {
     /// If `true` the resource will stay in memory for the duration of the app, unless [`force_drop`](Self::force_drop)
     /// is also called.
     pub fn is_permanent(&self) -> bool {
-        self.0.state.load(Ordering::Relaxed) == PERMANENT
+        self.0.state.load(Ordering::Relaxed) == State::Permanent as u8
     }
 
     /// Force drops the handle, meaning the resource will be dropped even if there are other handles active.
     pub fn force_drop(self) {
-        self.0.state.store(FORCE_DROP, Ordering::Relaxed);
+        self.0.state.store(State::ForceDrop as u8, Ordering::Relaxed);
     }
 
     /// If the handle is in *dropped* state.
@@ -90,7 +99,7 @@ impl<D: Send + Sync> Handle<D> {
     ///
     /// Note that in this method it can only be because [`force_drop`](Handle::force_drop) was called.
     pub fn is_dropped(&self) -> bool {
-        self.0.state.load(Ordering::Relaxed) == FORCE_DROP
+        self.0.state.load(Ordering::Relaxed) == State::ForceDrop as u8
     }
 
     /// Create a [`WeakHandle`] to this handle.
@@ -121,7 +130,7 @@ impl<D: Send + Sync> Drop for Handle<D> {
             // if we are about to drop the last handle and it is not permanent, force-drop
             // this causes potential weak-handles to not reanimate a dropping resource because
             // of the handle that HandleOwner holds.
-            self.0.state.store(FORCE_DROP, Ordering::Relaxed);
+            self.0.state.store(State::ForceDrop as u8, Ordering::Relaxed);
         }
     }
 }
@@ -191,7 +200,7 @@ impl<D: Send + Sync> fmt::Debug for WeakHandle<D> {
 ///
 /// Use [`Handle::new`] to create.
 ///
-/// Dropping the [`HandleOwner`] marks all active handles as *force-drop*.
+/// Dropping the [`HandleOwner`] marks all handles as force dropped.
 pub struct HandleOwner<D: Send + Sync>(Handle<D>);
 impl<D: Send + Sync> HandleOwner<D> {
     /// If the handle is in *dropped* state.
@@ -200,29 +209,8 @@ impl<D: Send + Sync> HandleOwner<D> {
     /// was called in any of the clones.
     pub fn is_dropped(&self) -> bool {
         let state = self.0.0.state.load(Ordering::Relaxed);
-        state == FORCE_DROP || (state != PERMANENT && Arc::strong_count(&self.0.0) <= 1)
+        state == State::ForceDrop as u8 || (state != State::Permanent as u8 && Arc::strong_count(&self.0.0) <= 1)
     }
-
-    /*
-    /// New handle owner in the dropped state.
-    pub fn dropped(data: D) -> HandleOwner<D> {
-        HandleOwner(Handle(Arc::new(HandleState {
-            state: AtomicU8::new(FORCE_DROP),
-            data,
-        })))
-    }
-
-    /// Gets a new handle and resets the state if it was *force-drop*.
-    ///
-    /// Note that handles are permanently dropped when the last handle is dropped.
-    pub fn reanimate(&self) -> Handle<D> {
-        if self.is_dropped() {
-            self.0 .0.state.store(NONE, Ordering::Relaxed);
-        }
-        self.0.clone()
-    }
-
-    */
 
     /// Gets an weak handle that may-not be able to upgrade.
     pub fn weak_handle(&self) -> WeakHandle<D> {
@@ -236,10 +224,13 @@ impl<D: Send + Sync> HandleOwner<D> {
 }
 impl<D: Send + Sync> Drop for HandleOwner<D> {
     fn drop(&mut self) {
-        self.0.0.state.store(FORCE_DROP, Ordering::Relaxed);
+        self.0.0.state.store(State::ForceDrop as u8, Ordering::Relaxed);
     }
 }
 
-const NONE: u8 = 0;
-const PERMANENT: u8 = 0b01;
-const FORCE_DROP: u8 = 0b11;
+#[repr(u8)]
+enum State {
+    None = 0,
+    Permanent = 1,
+    ForceDrop = 2,
+}

@@ -147,7 +147,7 @@ impl PxConstraints {
     ///
     /// Does a saturation addition, this can potentially unbound the constraints if [`Px::MAX`] is reached.
     pub fn with_more(mut self, add: Px) -> Self {
-        self.max += add;
+        self.max.0 = self.max.0.saturating_add(add.0);
         self
     }
 
@@ -730,6 +730,10 @@ impl PxConstraints2d {
 
     /// Gets the maximum fill size that preserves the `size` ratio.
     pub fn fill_ratio(self, size: PxSize) -> PxSize {
+        if size.width == Px(0) || size.height == Px(0) {
+            return self.fill_size_or(size);
+        }
+
         if self.x.is_unbounded() {
             if self.y.is_unbounded() {
                 // cover min

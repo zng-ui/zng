@@ -1,8 +1,8 @@
 use std::{fmt, ops, time::Duration};
 
 use crate::{
-    Dip, DipPoint, DipRect, DipSize, DipVector, EQ_EPSILON, EQ_EPSILON_100, Px, PxPoint, PxRect, PxSize, PxVector, about_eq, about_eq_hash,
-    about_eq_ord,
+    Dip, DipPoint, DipRect, DipSize, DipVector, EQ_GRANULARITY, EQ_GRANULARITY_100, Px, PxPoint, PxRect, PxSize, PxVector, about_eq,
+    about_eq_hash, about_eq_ord,
 };
 
 /// Extension methods for initializing factor units.
@@ -65,18 +65,21 @@ impl Factor {
     }
 
     /// Returns the maximum of two factors.
+    #[deprecated = "use the Ord::max method"]
     pub fn max(self, other: impl Into<Factor>) -> Factor {
-        Factor(self.0.max(other.into().0))
+        Ord::max(self, other.into())
     }
 
     /// Returns the minimum of two factors.
+    #[deprecated = "use the Ord::min method"]
     pub fn min(self, other: impl Into<Factor>) -> Factor {
-        Factor(self.0.min(other.into().0))
+        Ord::min(self, other.into())
     }
 
     /// Returns `self` if `min <= self <= max`, returns `min` if `self < min` or returns `max` if `self > max`.
+    #[deprecated = "use the Ord::clamp method"]
     pub fn clamp(self, min: impl Into<Factor>, max: impl Into<Factor>) -> Factor {
-        self.min(max).max(min)
+        Ord::clamp(self, min.into(), max.into())
     }
 
     /// Computes the absolute value of self.
@@ -141,17 +144,23 @@ impl ops::SubAssign for Factor {
 }
 impl std::hash::Hash for Factor {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.0, EQ_EPSILON, state)
+        about_eq_hash(self.0, EQ_GRANULARITY, state)
     }
 }
 impl PartialEq for Factor {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON)
+        about_eq(self.0, other.0, EQ_GRANULARITY)
     }
 }
+impl Eq for Factor {}
 impl std::cmp::PartialOrd for Factor {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(about_eq_ord(self.0, other.0, EQ_EPSILON))
+        Some(self.cmp(other))
+    }
+}
+impl std::cmp::Ord for Factor {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.0, other.0, EQ_GRANULARITY)
     }
 }
 impl ops::Mul for Factor {
@@ -675,7 +684,7 @@ impl From<FactorPercent> for Factor {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon.
+/// Equality is determined using [`about_eq`] with `0.001` granularity.
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct FactorPercent(pub f32);
@@ -723,9 +732,10 @@ impl ops::Neg for FactorPercent {
 }
 impl PartialEq for FactorPercent {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.0, other.0, EQ_EPSILON_100)
+        about_eq(self.0, other.0, EQ_GRANULARITY_100)
     }
 }
+impl Eq for FactorPercent {}
 impl ops::Mul for FactorPercent {
     type Output = Self;
 

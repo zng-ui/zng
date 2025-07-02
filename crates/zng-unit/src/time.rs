@@ -30,7 +30,7 @@ impl TimeUnits for u64 {
 }
 impl TimeUnits for f32 {
     fn ms(self) -> Duration {
-        Duration::from_secs_f32(self / 60.0)
+        Duration::from_secs_f32(self / 1000.0)
     }
 
     fn secs(self) -> Duration {

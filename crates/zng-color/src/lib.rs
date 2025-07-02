@@ -13,7 +13,7 @@
 use std::{fmt, ops, sync::Arc};
 use zng_app_context::context_local;
 
-use zng_layout::unit::{AngleDegree, Factor, FactorUnits, about_eq, about_eq_hash};
+use zng_layout::unit::{AngleDegree, EQ_GRANULARITY, EQ_GRANULARITY_100, Factor, FactorUnits, about_eq, about_eq_hash, about_eq_ord};
 use zng_var::{
     IntoVar, Var, VarValue,
     animation::{Transition, Transitionable, easing::EasingStep},
@@ -69,11 +69,6 @@ macro_rules! hex {
     };
 }
 
-/// Minimal difference between values in around the 0.0..=1.0 scale.
-const EPSILON: f32 = 0.00001;
-/// Minimal difference between values in around the 1.0..=100.0 scale.
-const EPSILON_100: f32 = 0.001;
-
 fn lerp_rgba_linear(mut from: Rgba, to: Rgba, factor: Factor) -> Rgba {
     from.red = from.red.lerp(&to.red, factor);
     from.green = from.green.lerp(&to.green, factor);
@@ -112,18 +107,32 @@ pub struct PreMulRgba {
 }
 impl PartialEq for PreMulRgba {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.red, other.red, EPSILON)
-            && about_eq(self.green, other.green, EPSILON)
-            && about_eq(self.blue, other.blue, EPSILON)
-            && about_eq(self.alpha, other.alpha, EPSILON)
+        about_eq(self.red, other.red, EQ_GRANULARITY)
+            && about_eq(self.green, other.green, EQ_GRANULARITY)
+            && about_eq(self.blue, other.blue, EQ_GRANULARITY)
+            && about_eq(self.alpha, other.alpha, EQ_GRANULARITY)
     }
 }
+impl Eq for PreMulRgba {}
 impl std::hash::Hash for PreMulRgba {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.red, EPSILON, state);
-        about_eq_hash(self.green, EPSILON, state);
-        about_eq_hash(self.blue, EPSILON, state);
-        about_eq_hash(self.alpha, EPSILON, state);
+        about_eq_hash(self.red, EQ_GRANULARITY, state);
+        about_eq_hash(self.green, EQ_GRANULARITY, state);
+        about_eq_hash(self.blue, EQ_GRANULARITY, state);
+        about_eq_hash(self.alpha, EQ_GRANULARITY, state);
+    }
+}
+impl PartialOrd for PreMulRgba {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for PreMulRgba {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.red, other.red, EQ_GRANULARITY)
+            .cmp(&about_eq_ord(self.green, other.green, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.blue, other.blue, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.alpha, other.alpha, EQ_GRANULARITY))
     }
 }
 
@@ -167,8 +176,8 @@ impl_from_and_into_var! {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsla::hue)
-/// and `0.00001` epsilon for the others.
+/// Equality is determined using [`about_eq`] with `0.001` granularity for [`hue`](Hsla::hue)
+/// and `0.00001` granularity for the others.
 ///
 /// [`about_eq`]: zng_layout::unit::about_eq
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
@@ -184,18 +193,32 @@ pub struct Hsla {
 }
 impl PartialEq for Hsla {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.hue, other.hue, EPSILON_100)
-            && about_eq(self.saturation, other.saturation, EPSILON)
-            && about_eq(self.lightness, other.lightness, EPSILON)
-            && about_eq(self.alpha, other.alpha, EPSILON)
+        about_eq(self.hue, other.hue, EQ_GRANULARITY_100)
+            && about_eq(self.saturation, other.saturation, EQ_GRANULARITY)
+            && about_eq(self.lightness, other.lightness, EQ_GRANULARITY)
+            && about_eq(self.alpha, other.alpha, EQ_GRANULARITY)
+    }
+}
+impl Eq for Hsla {}
+impl PartialOrd for Hsla {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Hsla {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.hue, other.hue, EQ_GRANULARITY_100)
+            .cmp(&about_eq_ord(self.saturation, other.saturation, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.lightness, other.lightness, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.alpha, other.alpha, EQ_GRANULARITY))
     }
 }
 impl std::hash::Hash for Hsla {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.hue, EPSILON_100, state);
-        about_eq_hash(self.saturation, EPSILON, state);
-        about_eq_hash(self.lightness, EPSILON, state);
-        about_eq_hash(self.alpha, EPSILON, state);
+        about_eq_hash(self.hue, EQ_GRANULARITY_100, state);
+        about_eq_hash(self.saturation, EQ_GRANULARITY, state);
+        about_eq_hash(self.lightness, EQ_GRANULARITY, state);
+        about_eq_hash(self.alpha, EQ_GRANULARITY, state);
     }
 }
 impl Hsla {
@@ -309,7 +332,7 @@ impl fmt::Debug for Hsla {
             }
             let a = p(self.alpha);
             let h = AngleDegree(self.hue).modulo().0.round();
-            if (a - 100.0).abs() <= EPSILON {
+            if (a - 100.0).abs() <= EQ_GRANULARITY {
                 write!(f, "hsl({h}.deg(), {}.pct(), {}.pct())", p(self.saturation), p(self.lightness))
             } else {
                 write!(
@@ -330,7 +353,7 @@ impl fmt::Display for Hsla {
         }
         let a = p(self.alpha);
         let h = AngleDegree(self.hue).modulo().0.round();
-        if (a - 100.0).abs() <= EPSILON {
+        if (a - 100.0).abs() <= EQ_GRANULARITY {
             write!(f, "hsl({h}º, {}%, {}%)", p(self.saturation), p(self.lightness))
         } else {
             write!(f, "hsla({h}º, {}%, {}%, {}%)", p(self.saturation), p(self.lightness), a)
@@ -347,8 +370,8 @@ impl Transitionable for Hsla {
 ///
 /// # Equality
 ///
-/// Equality is determined using [`about_eq`] with `0.001` epsilon for [`hue`](Hsva::hue)
-/// and `0.00001` epsilon for the others.
+/// Equality is determined using [`about_eq`] with `0.001` granularity for [`hue`](Hsva::hue)
+/// and `0.00001` granularity for the others.
 ///
 /// [`about_eq`]: zng_layout::unit::about_eq
 #[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
@@ -364,18 +387,32 @@ pub struct Hsva {
 }
 impl PartialEq for Hsva {
     fn eq(&self, other: &Self) -> bool {
-        about_eq(self.hue, other.hue, EPSILON_100)
-            && about_eq(self.saturation, other.saturation, EPSILON)
-            && about_eq(self.value, other.value, EPSILON)
-            && about_eq(self.alpha, other.alpha, EPSILON)
+        about_eq(self.hue, other.hue, EQ_GRANULARITY_100)
+            && about_eq(self.saturation, other.saturation, EQ_GRANULARITY)
+            && about_eq(self.value, other.value, EQ_GRANULARITY)
+            && about_eq(self.alpha, other.alpha, EQ_GRANULARITY)
+    }
+}
+impl Eq for Hsva {}
+impl PartialOrd for Hsva {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Hsva {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        about_eq_ord(self.hue, other.hue, EQ_GRANULARITY_100)
+            .cmp(&about_eq_ord(self.saturation, other.saturation, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.value, other.value, EQ_GRANULARITY))
+            .cmp(&about_eq_ord(self.alpha, other.alpha, EQ_GRANULARITY))
     }
 }
 impl std::hash::Hash for Hsva {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        about_eq_hash(self.hue, EPSILON_100, state);
-        about_eq_hash(self.saturation, EPSILON, state);
-        about_eq_hash(self.value, EPSILON, state);
-        about_eq_hash(self.alpha, EPSILON, state);
+        about_eq_hash(self.hue, EQ_GRANULARITY_100, state);
+        about_eq_hash(self.saturation, EQ_GRANULARITY, state);
+        about_eq_hash(self.value, EQ_GRANULARITY, state);
+        about_eq_hash(self.alpha, EQ_GRANULARITY, state);
     }
 }
 impl Hsva {
@@ -440,7 +477,7 @@ impl fmt::Debug for Hsva {
             }
             let a = p(self.alpha);
             let h = AngleDegree(self.hue).modulo().0.round();
-            if (a - 100.0).abs() <= EPSILON {
+            if (a - 100.0).abs() <= EQ_GRANULARITY {
                 write!(f, "hsv({h}.deg(), {}.pct(), {}.pct())", p(self.saturation), p(self.value))
             } else {
                 write!(
@@ -461,7 +498,7 @@ impl fmt::Display for Hsva {
         }
         let a = p(self.alpha);
         let h = AngleDegree(self.hue).modulo().0.round();
-        if (a - 100.0).abs() <= EPSILON {
+        if (a - 100.0).abs() <= EQ_GRANULARITY {
             write!(f, "hsv({h}º, {}%, {}%)", p(self.saturation), p(self.value))
         } else {
             write!(f, "hsva({h}º, {}%, {}%, {}%)", p(self.saturation), p(self.value), a)
@@ -474,7 +511,11 @@ impl_from_and_into_var! {
         let saturation = clamp_normal(hsla.saturation);
 
         let value = lightness + saturation * lightness.min(1.0 - lightness);
-        let saturation = if value <= EPSILON { 0.0 } else { 2.0 * (1.0 - lightness / value) };
+        let saturation = if value <= EQ_GRANULARITY {
+            0.0
+        } else {
+            2.0 * (1.0 - lightness / value)
+        };
 
         Hsva {
             hue: hsla.hue,
@@ -489,7 +530,7 @@ impl_from_and_into_var! {
         let value = clamp_normal(hsva.value);
 
         let lightness = value * (1.0 - saturation / 2.0);
-        let saturation = if lightness <= EPSILON || lightness >= 1.0 - EPSILON {
+        let saturation = if lightness <= EQ_GRANULARITY || lightness >= 1.0 - EQ_GRANULARITY {
             0.0
         } else {
             2.0 * (1.0 * lightness / value)
@@ -541,7 +582,7 @@ impl_from_and_into_var! {
     }
 
     fn from(hsla: Hsla) -> Rgba {
-        if hsla.saturation <= EPSILON {
+        if hsla.saturation <= EQ_GRANULARITY {
             return rgba(hsla.lightness, hsla.lightness, hsla.lightness, hsla.alpha);
         }
 
@@ -604,12 +645,12 @@ macro_rules! cylindrical_color {
         let $max = r.max(g).max(b);
 
         fn about_eq(a: f32, b: f32) -> bool {
-            (a - b) <= EPSILON
+            (a - b) <= EQ_GRANULARITY
         }
 
         let $delta = $max - $min;
 
-        let $hue = if $delta <= EPSILON {
+        let $hue = if $delta <= EQ_GRANULARITY {
             0.0
         } else {
             60.0 * if about_eq($max, r) {
@@ -628,7 +669,7 @@ impl_from_and_into_var! {
     fn from(rgba: Rgba) -> Hsva {
         cylindrical_color!(rgba -> (min, max, delta, hue));
 
-        let saturation = if max <= EPSILON { 0.0 } else { delta / max };
+        let saturation = if max <= EQ_GRANULARITY { 0.0 } else { delta / max };
 
         let value = max;
 
@@ -645,7 +686,7 @@ impl_from_and_into_var! {
 
         let lightness = (max + min) / 2.0;
 
-        let saturation = if delta <= EPSILON {
+        let saturation = if delta <= EQ_GRANULARITY {
             0.0
         } else {
             delta / (1.0 - (2.0 * lightness - 1.0).abs())

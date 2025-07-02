@@ -271,7 +271,7 @@ impl Txt {
             TxtData::Inline(d) => {
                 let s = inline_to_str(d);
                 if let Some((i, c)) = s.char_indices().last() {
-                    if !s.is_empty() {
+                    if i > 0 {
                         *d = str_to_inline(&s[..i]);
                     } else {
                         self.0 = TxtData::Static("");
@@ -330,7 +330,7 @@ impl Txt {
             TxtData::Static(s) => {
                 assert!(s.is_char_boundary(at));
                 let other = &s[at..];
-                *s = &s[at..];
+                *s = &s[..at];
                 Txt(TxtData::Static(other))
             }
             TxtData::Inline(d) => {
