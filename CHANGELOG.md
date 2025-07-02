@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `cargo zng new` removing already existing target.
 
 # 0.15.5
 

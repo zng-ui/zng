@@ -72,6 +72,15 @@ pub fn run(args: NewArgs) {
         .unwrap_or_else(|e| fatal!("{e}"))
         .replace(' ', "-")
         .to_lowercase();
+
+    if Path::new(project_name.as_str()).exists() {
+        let full_path = Path::new(project_name.as_str())
+            .canonicalize()
+            .map(|p| p.display().to_string())
+            .unwrap_or(project_name);
+        fatal!("destination `{full_path}` already exists");
+    }
+
     if let Err(e) = util::cmd("cargo new --quiet --bin", &[project_name.as_str()], &[]) {
         let _ = std::fs::remove_dir_all(&project_name);
         fatal!("cannot init project folder, {e}");
