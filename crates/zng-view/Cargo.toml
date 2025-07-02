@@ -173,7 +173,7 @@ features = ["Foundation_Collections", "System_UserProfile", "UI_ViewManagement",
 clipboard-win = { version = "5.0", features = ["std"] }
 
 [target.'cfg(not(any(windows, target_os = "android")))'.dependencies]
-arboard = "3.3"
+arboard = "3.6"
 [target.'cfg(not(windows))'.dependencies]
 sys-locale = "0.3"
 
