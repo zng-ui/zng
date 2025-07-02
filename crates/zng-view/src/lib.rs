@@ -2179,7 +2179,8 @@ impl Api for App {
             }
             clipboard::ClipboardType::FileList => self
                 .arboard()?
-                .get_file_list()
+                .get()
+                .file_list()
                 .map_err(util::arboard_to_clip)
                 .map(|l| clipboard::ClipboardData::FileList(l)),
             clipboard::ClipboardType::Extension(_) => Err(clipboard::ClipboardError::NotSupported),
