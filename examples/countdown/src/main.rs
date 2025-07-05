@@ -4,10 +4,12 @@ use zng::{image, prelude::*, widget::background_color};
 
 fn main() {
     unsafe {
+        // see zng::app::trace_recorder for more details
         std::env::set_var("ZNG_RECORD_TRACE", "");
+        std::env::set_var("ZNG_RECORD_TRACE_FILTER", "debug");
     }
-
     zng::env::init!();
+
     app_main();
 }
 

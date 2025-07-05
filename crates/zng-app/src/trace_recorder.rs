@@ -16,7 +16,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
+use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use zng_txt::Txt;
 
 /// Represents a recorded trace.
@@ -234,8 +234,9 @@ pub fn start_recording(output_dir: Option<PathBuf>) {
         .build();
     *rec = Some(guard);
 
-    let env_layer = tracing_subscriber::filter::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("trace"));
+    let env_layer = EnvFilter::try_from_env("ZNG_RECORD_TRACE_FILTER")
+        .or_else(|_| EnvFilter::try_from_default_env())
+        .unwrap_or_else(|_| EnvFilter::new("trace"));
 
     tracing_subscriber::registry().with(env_layer).with(chrome_layer).init();
     zng_env::on_process_exit(|_| stop_recording());

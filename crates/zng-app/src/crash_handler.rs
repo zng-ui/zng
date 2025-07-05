@@ -1157,8 +1157,6 @@ fn capture_and_print(mut stream: impl std::io::Read + Send + 'static, is_err: bo
 }
 
 fn crash_handler_app_process(dump_enabled: bool) {
-    tracing::info!("app-process is running");
-
     std::panic::set_hook(Box::new(panic_handler));
     if dump_enabled {
         minidump_attach();
