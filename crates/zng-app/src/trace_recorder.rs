@@ -1,4 +1,7 @@
-#![cfg(feature = "trace_recorder")]
+#![cfg(all(
+    feature = "trace_recorder",
+    not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))
+))]
 
 //! Trace recording and data model.
 //!
@@ -98,13 +101,13 @@ impl Trace {
     /// Parse a Chrome JSON Array format trace.
     ///
     /// You can use the `tracing_chrome` crate to collect traces.
-    pub fn parse_chrome_trace(json: &str) -> io::Result<Self> {
-        todo!()
+    pub fn parse_chrome_trace(_json: &str) -> io::Result<Self> {
+        todo!("!!:")
     }
 
     /// Convert the trace to Chrome JSON Array format.
     pub fn to_chrome_trace(&self) -> Txt {
-        todo!()
+        todo!("!!:")
     }
 
     /// Convert and write the trace to Chrome JSON Array format.
@@ -181,9 +184,9 @@ impl ThreadTrace {
 ///
 /// Note that this is called automatically on startup if the `ZNG_RECORD_TRACE` environment variable is set and that is
 /// the recommended way of recording traces.
-/// 
+///
 /// # Config and Output
-/// 
+///
 /// See the `zng::app::trace_recorder` module documentation for details on how to configure the recording and the output file structure.
 ///
 /// # Panics
@@ -245,7 +248,7 @@ pub fn stop_recording() {
 }
 
 zng_env::on_process_start!(|_| {
-    if let Ok(args) = std::env::var("ZNG_RECORD_TRACE") {
+    if let Ok(_args) = std::env::var("ZNG_RECORD_TRACE") {
         // !!: TODO handle args
         start_recording(None);
     }

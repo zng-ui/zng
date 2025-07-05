@@ -605,13 +605,13 @@ pub mod crash_handler {
 ///
 /// The example above hardcodes trace recording for all app processes by setting the `"ZNG_RECORD_TRACE"` environment
 /// variable before the `init!()` call.
-/// 
+///
 /// # Config
-/// 
+///
 /// The `"ZNG_RECORD_TRACE"` variable value can optionally contain command line style configuration.
-/// 
+///
 /// * `-o, --output-dir <dir>` - Defines a custom trace output directory.
-/// 
+///
 /// # Output
 ///
 /// Raw trace files are saved to `"{--output-dir}/{timestamp}/{pid}.json"`. If the `--output-dir` is not provided
@@ -627,6 +627,8 @@ pub mod crash_handler {
 /// # Full API
 ///
 /// See [`zng_app::trace_recorder`] for the full API.
+///
+/// [``Trace`]: zng::app::trace_recorder::Trace
 #[cfg(trace_recorder)]
 pub mod trace_recorder {
     pub use zng_app::trace_recorder::{EventTrace, ProcessTrace, ThreadTrace, Trace, stop_recording};
