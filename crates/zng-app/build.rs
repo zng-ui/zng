@@ -12,6 +12,7 @@ fn main() {
         enable!("dyn_node");
         enable!("dyn_closure");
         enable!("inspector");
+        enable!("trace_recorder");
         enable!("trace_widget");
     } else if cfg!(feature = "inspector") {
         enable!("dyn_node");

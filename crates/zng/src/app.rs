@@ -582,3 +582,35 @@ pub mod crash_handler {
         });
     });
 }
+
+/// Trace recording and data model.
+///
+/// All tracing instrumentation in Zng projects is done using the `tracing` crate, this module uses the `tracing-chrome` crate
+/// to record traces that can be viewed in `chrome://tracing` or `ui.perfetto.dev` and can be parsed to the [`Trace`] data model.
+///
+/// Call [`start_recording`] to start recording the current process or run the app with the `"ZNG_RECORD_TRACE"` env var set to record
+/// all app processes.
+///
+/// ```
+/// use zng::prelude::*;
+///
+/// fn main() {
+///     unsafe { std::env::set_var("ZNG_RECORD_TRACE", ""); }
+///
+///     // recording start here for all app processes when ZNG_RECORD_TRACE is set.
+///     zng::env::init!();
+///
+///     // .. app
+/// }
+/// ```
+///
+/// The example above hardcodes trace recording for all app processes by setting the `"ZNG_RECORD_TRACE"` environment
+/// variable before the `init!()` call.
+///
+/// # Full API
+///
+/// See [`zng_app::trace_recorder`] for the full API.
+#[cfg(trace_recorder)]
+pub mod trace_recorder {
+    pub use zng_app::trace_recorder::{EventTrace, ProcessTrace, ThreadTrace, Trace, start_recording, stop_recording};
+}

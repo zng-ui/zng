@@ -32,6 +32,7 @@ pub mod render;
 pub mod shortcut;
 pub mod third_party;
 pub mod timer;
+pub mod trace_recorder;
 pub mod update;
 pub mod view_process;
 pub mod widget;

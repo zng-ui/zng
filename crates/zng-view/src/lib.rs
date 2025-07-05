@@ -166,8 +166,13 @@ use zng_view_api::{
 use rustc_hash::FxHashMap;
 
 #[cfg(ipc)]
-zng_env::on_process_start!(|_| {
+zng_env::on_process_start!(|args| {
     if std::env::var("ZNG_VIEW_NO_INIT_START").is_err() {
+        if args.yield_count == 0 {
+            // give tracing handlers a chance to observe the view-process
+            return args.yield_once();
+        }
+
         view_process_main();
     }
 });
