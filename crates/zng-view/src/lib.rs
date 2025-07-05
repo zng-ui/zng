@@ -191,6 +191,8 @@ pub fn view_process_main() {
         None => return,
     };
 
+    zng_env::set_process_name("view-process");
+
     std::panic::set_hook(Box::new(init_abort));
     config.assert_version(false);
     let c = ipc::connect_view_process(config.server_name).expect("failed to connect to app-process");

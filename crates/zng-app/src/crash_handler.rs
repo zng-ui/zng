@@ -800,8 +800,7 @@ fn crash_handler_monitor_process(
     mut cfg_dialog: ConfigProcess,
     has_dialog_handler: bool,
 ) -> ! {
-    // monitor-process:
-    tracing::info!("crash monitor-process is running");
+    zng_env::set_process_name("crash-handler-process");
 
     let exe = std::env::current_exe()
         .and_then(dunce::canonicalize)
@@ -1169,7 +1168,7 @@ fn crash_handler_app_process(dump_enabled: bool) {
 }
 
 fn crash_handler_dialog_process(dump_enabled: bool, dialog: CrashDialogHandler, args_file: String) -> ! {
-    tracing::info!("crash dialog-process is running");
+    zng_env::set_process_name("crash-dialog-process");
 
     std::panic::set_hook(Box::new(panic_handler));
     if dump_enabled {

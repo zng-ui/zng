@@ -612,5 +612,5 @@ pub mod crash_handler {
 /// See [`zng_app::trace_recorder`] for the full API.
 #[cfg(trace_recorder)]
 pub mod trace_recorder {
-    pub use zng_app::trace_recorder::{EventTrace, ProcessTrace, ThreadTrace, Trace, start_recording, stop_recording};
+    pub use zng_app::trace_recorder::{EventTrace, ProcessTrace, ThreadTrace, Trace, stop_recording};
 }

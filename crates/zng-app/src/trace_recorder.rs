@@ -177,11 +177,14 @@ impl ThreadTrace {
     }
 }
 
-/// Starts recording, stops on app shutdown or on [`stop_recording`].
+/// Starts recording, stops on process exit or on [`stop_recording`].
 ///
 /// Note that this is called automatically on startup if the `ZNG_RECORD_TRACE` environment variable is set.
-///
-/// !!: TODO process name, process target file, custom target dir?
+/// 
+/// # Panics
+/// 
+/// Panics if another `tracing` subscriber was already inited. 
+/// Note that this can cause panics on any subsequent attempt to init subscribers, no other log subscriber must run when recording.
 pub fn start_recording() {
     let mut rec = recording();
     if rec.is_some() {
