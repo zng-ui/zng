@@ -77,6 +77,7 @@ pub struct SpanTrace {
 }
 
 /// Common info traced about events and spans.
+#[non_exhaustive]
 pub struct Info {
     /// Event or span name.
     pub name: Txt,
@@ -92,6 +93,8 @@ pub struct Info {
 
 impl Trace {
     /// Read and parse a Chrome JSON Array format trace.
+    /// 
+    /// See [`parse_chrome_trace`] for more details.
     pub fn read_chrome_trace(json_path: impl AsRef<Path>) -> io::Result<Self> {
         let json = std::fs::read_to_string(json_path)?;
         let trace = Self::parse_chrome_trace(&json)?;
@@ -100,9 +103,62 @@ impl Trace {
 
     /// Parse a Chrome JSON Array format trace.
     ///
-    /// You can use the `tracing_chrome` crate to collect traces.
-    pub fn parse_chrome_trace(_json: &str) -> io::Result<Self> {
-        todo!("!!:")
+    /// Only supports the "phases" emitted by `tracing-chrome` in `TraceStyle::Threaded` mode, those are `B, E, i, M` for `M` only
+    /// supports `thread_name` metadata. Also parses the custom messages that define the process name and start timestamp as defined
+    /// by the `zng::app::trace_recorder` documentation.
+    pub fn parse_chrome_trace(json: &str) -> io::Result<Self> {
+        fn invalid_data(msg: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> io::Error {
+            io::Error::new(io::ErrorKind::InvalidData, msg)
+        }        
+
+        // skip the array opening
+        let json = json.trim_start();
+        if !json.starts_with('[') {
+            return Err(invalid_data("expected JSON array"));
+        }
+        let json = &json[1..];
+
+
+        for entry in serde_json::Deserializer::from_str(json).into_iter::<serde_json::Value>() {
+            match entry {
+                Ok(entry) => match entry {
+                    serde_json::Value::Object(map) => {
+                        let phase = match map.get("ph") {
+                            Some(serde_json::Value::String(ph)) => ph,
+                            _ => return Err(invalid_data("expected \"ph\"")),
+                        };
+                        match phase.as_str() {
+                            "B" => {
+                                // begin span
+                                // !!: TODO
+                            },
+                            "E" => {
+                                // end span
+                                // !!: TODO
+                            },
+                            "i" => {
+                                // event
+                                // !!: TODO  
+                            },
+                            "M" => {
+                                // metadata update
+                                // !!: TODO
+                            }
+                            u => return Err(invalid_data(format!("unknown or unsupported phase `{u:?}`")))
+                        }
+                        // !!: TODO
+                    },
+                    _ => return Err(invalid_data("expected JSON array of objects"))
+                },
+                Err(_) => {
+                    // !!: TODO custom event
+                    // trace did not flush correctly
+                    break
+                }
+            }
+        }
+
+       todo!("!!:")
     }
 
     /// Convert the trace to Chrome JSON Array format.
@@ -231,6 +287,10 @@ pub fn start_recording(output_dir: Option<PathBuf>) {
     let (chrome_layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
         .include_args(true)
         .file(output_file)
+        .category_fn(Box::new(|es| match es {
+            tracing_chrome::EventOrSpan::Event(event) => format!("{},{}", event.metadata().target(), event.metadata().level()),
+            tracing_chrome::EventOrSpan::Span(span_ref) => format!("{},{}", span_ref.metadata().target(), span_ref.metadata().level()),
+        }))
         .build();
     *rec = Some(guard);
 
