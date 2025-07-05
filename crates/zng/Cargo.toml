@@ -67,7 +67,7 @@ http = [
     "zng-ext-window/http",
 ]
 
-# Enable the `"dyn_*"`, `"inspector"` features in debug builds.
+# Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
 debug_default = [
     "zng-app/debug_default",
     "zng-wgt-inspector/debug_default",
@@ -144,6 +144,11 @@ crash_handler_debug = ["zng-wgt-inspector/crash_handler", "window"]
 
 # Instrument every widget outer-most node to trace UI methods.
 trace_widget = ["zng-app/trace_widget", "zng-wgt-style/trace_widget"]
+
+# Enable trace recording.
+#
+# Note that this does not auto start recording, to do that run with the `ZNG_RECORD_TRACE` env var set.
+trace_recorder = ["zng-app/trace_recorder"]
 
 # Instrument every property and intrinsic node to trace UI methods.
 #

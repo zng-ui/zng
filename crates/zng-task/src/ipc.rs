@@ -370,6 +370,7 @@ where
     F: Future<Output = O> + Send + Sync + 'static,
 {
     let name = worker_name.into();
+    zng_env::init_process_name(zng_txt::formatx!("worker-process ({name}, {})", std::process::id()));
     if let Some(server_name) = run_worker_server(&name) {
         let app_init_sender = IpcSender::<WorkerInit<I, O>>::connect(server_name)
             .unwrap_or_else(|e| panic!("failed to connect to '{name}' init channel, {e}"));
