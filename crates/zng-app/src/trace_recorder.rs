@@ -183,7 +183,7 @@ impl ThreadTrace {
 /// Starts recording, stops on process exit or on [`stop_recording`].
 ///
 /// Note that this is called automatically on startup if the `ZNG_RECORD_TRACE` environment variable is set and that is
-/// the recommended way of recording traces.
+/// the recommended way of enabling recording as it record all processes not just the calling process.
 ///
 /// # Config and Output
 ///
@@ -234,7 +234,10 @@ pub fn start_recording(output_dir: Option<PathBuf>) {
         .build();
     *rec = Some(guard);
 
-    tracing_subscriber::registry().with(chrome_layer).init();
+    let env_layer = tracing_subscriber::filter::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::filter::EnvFilter::new("trace"));
+
+    tracing_subscriber::registry().with(env_layer).with(chrome_layer).init();
     zng_env::on_process_exit(|_| stop_recording());
 
     tracing::info!("zng-record-start: {process_start}");
@@ -248,9 +251,8 @@ pub fn stop_recording() {
 }
 
 zng_env::on_process_start!(|_| {
-    if let Ok(_args) = std::env::var("ZNG_RECORD_TRACE") {
-        // !!: TODO handle args
-        start_recording(None);
+    if std::env::var("ZNG_RECORD_TRACE").is_ok() {
+        start_recording(std::env::var("ZNG_RECORD_TRACE_DIR").ok().map(PathBuf::from));
     }
 });
 

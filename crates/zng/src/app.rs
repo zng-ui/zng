@@ -595,6 +595,7 @@ pub mod crash_handler {
 ///
 /// fn main() {
 ///     unsafe { std::env::set_var("ZNG_RECORD_TRACE", ""); }
+///     unsafe { std::env::set_var("ZNG_RECORD_TRACE_FILTER", "debug"); }
 ///
 ///     // recording start here for all app processes when ZNG_RECORD_TRACE is set.
 ///     zng::env::init!();
@@ -604,13 +605,15 @@ pub mod crash_handler {
 /// ```
 ///
 /// The example above hardcodes trace recording for all app processes by setting the `"ZNG_RECORD_TRACE"` environment
-/// variable before the `init!()` call.
+/// variable before the `init!()` call. It also sets `"ZNG_RECORD_TRACE_FILTER"` to a slightly less verbose level.
 ///
 /// # Config
 ///
-/// The `"ZNG_RECORD_TRACE"` variable value can optionally contain command line style configuration.
+/// The `"ZNG_RECORD_TRACE_DIR"` variable can be set to define a custom `output-dir` directory path, relative to the current dir.
+/// The default dir is `"./zng-trace/"`.
 ///
-/// * `-o, --output-dir <dir>` - Defines a custom trace output directory.
+/// The `"ZNG_RECORD_TRACE_FILTER"` or `"RUST_LOG"` variables can be used to set custom tracing filters, see the [filter syntax] for details.
+/// The default filter is `"trace"` that records all spans and events.
 ///
 /// # Output
 ///
@@ -628,7 +631,8 @@ pub mod crash_handler {
 ///
 /// See [`zng_app::trace_recorder`] for the full API.
 ///
-/// [``Trace`]: zng::app::trace_recorder::Trace
+/// [`Trace`]: zng::app::trace_recorder::Trace
+/// [filter syntax]: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables
 #[cfg(trace_recorder)]
 pub mod trace_recorder {
     pub use zng_app::trace_recorder::{EventTrace, ProcessTrace, ThreadTrace, Trace, stop_recording};
