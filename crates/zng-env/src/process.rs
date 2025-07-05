@@ -333,6 +333,7 @@ pub fn process_lifetime_state() -> ProcessLifetimeState {
 /// Gets a process runtime name.
 ///
 /// The primary use of this name is to identify the process in logs, see [`set_process_name`] for details about the logged name.
+/// On set or init the name is logged as an info message "pid: {pid}, name: {name}".
 ///
 /// # Common Names
 ///

@@ -585,11 +585,10 @@ pub mod crash_handler {
 
 /// Trace recording and data model.
 ///
-/// All tracing instrumentation in Zng projects is done using the `tracing` crate, this module uses the `tracing-chrome` crate
-/// to record traces that can be viewed in `chrome://tracing` or `ui.perfetto.dev` and can be parsed to the [`Trace`] data model.
+/// All tracing instrumentation in Zng projects is done using the `tracing` crate, trace recording is done using the `tracing-chrome` crate.
+/// The recorded traces can be viewed in `chrome://tracing` or `ui.perfetto.dev` and can be parsed by the [`Trace`] data model.
 ///
-/// Call [`start_recording`] to start recording the current process or run the app with the `"ZNG_RECORD_TRACE"` env var set to record
-/// all app processes.
+/// Run the app with the `"ZNG_RECORD_TRACE"` env var set to record the app-process and all other processes spawned by the app.
 ///
 /// ```
 /// use zng::prelude::*;
@@ -606,6 +605,24 @@ pub mod crash_handler {
 ///
 /// The example above hardcodes trace recording for all app processes by setting the `"ZNG_RECORD_TRACE"` environment
 /// variable before the `init!()` call.
+/// 
+/// # Config
+/// 
+/// The `"ZNG_RECORD_TRACE"` variable value can optionally contain command line style configuration.
+/// 
+/// * `-o, --output-dir <dir>` - Defines a custom trace output directory.
+/// 
+/// # Output
+///
+/// Raw trace files are saved to `"{--output-dir}/{timestamp}/{pid}.json"`. If the `--output-dir` is not provided
+/// it is `"{current_dir}/zng-trace/"`.
+///
+/// The dir timestamp is in microseconds from Unix epoch and is defined by the first process that runs.
+///
+/// The process name is defined by an event INFO message that reads `"pid: {pid}, name: {name}"`. See [`zng::env::process_name`] for more details.
+///
+/// The process record start timestamp is defined by an event INFO message that reads `"zng-record-start: {timestamp}"`. This timestamp is also
+/// in microseconds from Unix epoch.
 ///
 /// # Full API
 ///

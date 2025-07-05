@@ -8,7 +8,7 @@
 use std::{
     collections::HashMap,
     io,
-    path::Path,
+    path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
 
@@ -179,23 +179,62 @@ impl ThreadTrace {
 
 /// Starts recording, stops on process exit or on [`stop_recording`].
 ///
-/// Note that this is called automatically on startup if the `ZNG_RECORD_TRACE` environment variable is set.
+/// Note that this is called automatically on startup if the `ZNG_RECORD_TRACE` environment variable is set and that is
+/// the recommended way of recording traces.
 /// 
+/// # Config and Output
+/// 
+/// See the `zng::app::trace_recorder` module documentation for details on how to configure the recording and the output file structure.
+///
 /// # Panics
-/// 
-/// Panics if another `tracing` subscriber was already inited. 
-/// Note that this can cause panics on any subsequent attempt to init subscribers, no other log subscriber must run when recording.
-pub fn start_recording() {
+///
+/// Panics if another `tracing` subscriber was already inited.
+///
+/// Note that this can cause panics on any subsequent attempt to init subscribers, no other log subscriber must run after recording starts,
+/// including attempts to restart recording after stopping.
+///
+/// Panics cannot write to the output dir.
+pub fn start_recording(output_dir: Option<PathBuf>) {
     let mut rec = recording();
     if rec.is_some() {
+        // already recording
         return;
     }
 
-    let (chrome_layer, guard) = tracing_chrome::ChromeLayerBuilder::new().include_args(true).build();
+    let process_start = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .expect("cannot define process start timestamp")
+        .as_micros();
+
+    let output_dir = output_dir.unwrap_or_else(|| std::env::current_dir().expect("`current_dir` error").join("zng-trace"));
+
+    // first process sets the timestamp
+    let timestamp = match std::env::var("ZNG_RECORD_TRACE_TIMESTAMP") {
+        Ok(t) => t,
+        Err(_) => {
+            let t = process_start.to_string();
+            // SAFETY: safe, only read by this pure Rust code in subsequent started processes.
+            unsafe {
+                std::env::set_var("ZNG_RECORD_TRACE_TIMESTAMP", t.clone());
+            }
+            t
+        }
+    };
+
+    let output_dir = output_dir.join(timestamp);
+    std::fs::create_dir_all(&output_dir).expect("cannot create `output_dir`");
+    let output_file = output_dir.join(format!("{}.json", std::process::id()));
+
+    let (chrome_layer, guard) = tracing_chrome::ChromeLayerBuilder::new()
+        .include_args(true)
+        .file(output_file)
+        .build();
     *rec = Some(guard);
 
     tracing_subscriber::registry().with(chrome_layer).init();
     zng_env::on_process_exit(|_| stop_recording());
+
+    tracing::info!("zng-record-start: {process_start}");
 }
 
 /// Stops recording and flushes.
@@ -206,8 +245,9 @@ pub fn stop_recording() {
 }
 
 zng_env::on_process_start!(|_| {
-    if std::env::var("ZNG_RECORD_TRACE").is_ok() {
-        start_recording();
+    if let Ok(args) = std::env::var("ZNG_RECORD_TRACE") {
+        // !!: TODO handle args
+        start_recording(None);
     }
 });
 
