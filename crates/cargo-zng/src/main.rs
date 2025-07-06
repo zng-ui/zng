@@ -15,6 +15,7 @@ mod fmt;
 mod l10n;
 mod new;
 mod res;
+mod trace;
 
 /// Utilities for implementing `cargo-zng-res-{tool}` executables.
 ///
@@ -63,6 +64,11 @@ enum Command {
     /// Builds resources SOURCE to TARGET, delegates `.zr-{tool}` files to `cargo-zng-res-{tool}`
     /// executables and crates.
     Res(res::ResArgs),
+
+    /// Run an app with trace recording enabled.
+    ///
+    /// The app must be built with `"trace_recorder"` feature enabled.
+    Trace(trace::TraceArgs),
 }
 
 fn main() {
@@ -75,6 +81,7 @@ fn main() {
         Command::New(args) => new::run(args),
         Command::L10n(args) => l10n::run(args),
         Command::Res(args) => res::run(args),
+        Command::Trace(args) => trace::run(args),
     }
 
     crate::util::exit();

@@ -268,13 +268,12 @@ impl Trace {
                                 if let Ok(process_ts) = process_ts.parse::<u64>() {
                                     process_record_start.insert(pid, SystemTime::UNIX_EPOCH + Duration::from_micros(process_ts));
                                 }
-                            } else if let Some(rest) = msg.strip_prefix("pid: ") {
-                                if let Some((sys_pid, p_name)) = rest.split_once(", name: ") {
-                                    if let Ok(sys_pid) = sys_pid.parse::<u64>() {
-                                        process_sys_pid.insert(pid, sys_pid);
-                                        process_names.insert(pid, p_name.to_txt());
-                                    }
-                                }
+                            } else if let Some(rest) = msg.strip_prefix("pid: ")
+                                && let Some((sys_pid, p_name)) = rest.split_once(", name: ")
+                                && let Ok(sys_pid) = sys_pid.parse::<u64>()
+                            {
+                                process_sys_pid.insert(pid, sys_pid);
+                                process_names.insert(pid, p_name.to_txt());
                             }
                         }
 

@@ -627,6 +627,23 @@ pub mod crash_handler {
 /// The process record start timestamp is defined by an event INFO message that reads `"zng-record-start: {timestamp}"`. This timestamp is also
 /// in microseconds from Unix epoch.
 ///
+/// # Cargo Zng
+///
+/// You can also use the `cargo zng trace` subcommand to record traces, it handles setting the env variables, merges the multi
+/// process traces into a single file and properly names the processes for better compatibility with trace viewers.
+///
+/// ```console
+/// cargo zng trace --filter debug "path/my-exe"
+/// ```
+///
+/// You can also run using custom commands after `--`:
+///
+/// ```console
+/// cargo zng trace -- cargo run my-exe
+/// ```
+///
+/// Call `cargo zng trace --help` for more details.
+///
 /// # Full API
 ///
 /// See [`zng_app::trace_recorder`] for the full API.
