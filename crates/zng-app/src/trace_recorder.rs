@@ -117,7 +117,7 @@ impl Trace {
     /// Read and parse a Chrome JSON Array format trace.
     ///
     /// See [`parse_chrome_trace`] for more details.
-    /// 
+    ///
     /// [`parse_chrome_trace`]: Self::parse_chrome_trace
     pub fn read_chrome_trace(json_path: impl AsRef<Path>) -> io::Result<Self> {
         let json = std::fs::read_to_string(json_path)?;
@@ -180,6 +180,16 @@ impl Trace {
             match serde_json::Value::deserialize(&mut de) {
                 Ok(entry) => match entry {
                     serde_json::Value::Object(map) => {
+                        let phase_str = match map.get("ph") {
+                            Some(serde_json::Value::String(ph)) => match ph.as_str() {
+                                "B" | "E" | "i" | "M" => ph.as_str(),
+                                u => {
+                                    tracing::error!("ignoring unknown or unsupported phase `{u:?}`");
+                                    continue;
+                                }
+                            },
+                            _ => return Err(invalid_data("expected \"ph\"")),
+                        };
                         let pid = match map.get("pid") {
                             Some(serde_json::Value::Number(n)) => match n.as_u64() {
                                 Some(pid) => pid,
@@ -187,17 +197,11 @@ impl Trace {
                             },
                             _ => return Err(invalid_data("expected \"pid\"")),
                         };
-                        let tid = match map.get("tid") {
-                            Some(serde_json::Value::Number(n)) => match n.as_u64() {
-                                Some(tid) => tid,
-                                None => return Err(invalid_data("expected \"tid\"")),
-                            },
-                            _ => return Err(invalid_data("expected \"tid\"")),
-                        };
                         let name = match map.get("name") {
                             Some(serde_json::Value::String(name)) => name.to_txt(),
                             _ => return Err(invalid_data("expected \"name\"")),
                         };
+
                         let args: HashMap<Txt, Txt> = match map.get("args") {
                             Some(a) => match serde_json::from_value(a.clone()) {
                                 Ok(a) => a,
@@ -208,25 +212,35 @@ impl Trace {
                             },
                             _ => HashMap::new(),
                         };
-                        let phase = match map.get("ph") {
-                            Some(serde_json::Value::String(ph)) => match ph.as_str() {
-                                "B" => Phase::Begin,
-                                "E" => Phase::End,
-                                "i" => Phase::Event,
-                                "M" => {
-                                    if name == "thread_name" {
-                                        if let Some(n) = args.get("name") {
-                                            thread_names.insert(tid, n.to_txt());
-                                        }
-                                    }
-                                    continue;
-                                }
-                                u => {
-                                    tracing::error!("ignoring unknown or unsupported phase `{u:?}`");
-                                    continue;
-                                }
+
+                        if phase_str == "M" && name == "process_name" {
+                            if let Some(n) = args.get("name") {
+                                process_names.insert(pid, n.to_txt());
+                            }
+                            continue;
+                        }
+
+                        let tid = match map.get("tid") {
+                            Some(serde_json::Value::Number(n)) => match n.as_u64() {
+                                Some(tid) => tid,
+                                None => return Err(invalid_data("expected \"tid\"")),
                             },
-                            _ => return Err(invalid_data("expected \"ph\"")),
+                            _ => return Err(invalid_data("expected \"tid\"")),
+                        };
+
+                        let phase = match phase_str {
+                            "B" => Phase::Begin,
+                            "E" => Phase::End,
+                            "i" => Phase::Event,
+                            "M" => {
+                                if name == "thread_name" {
+                                    if let Some(n) = args.get("name") {
+                                        thread_names.insert(tid, n.to_txt());
+                                    }
+                                }
+                                continue;
+                            }
+                            _ => unreachable!(),
                         };
 
                         let ts = match map.get("ts") {
