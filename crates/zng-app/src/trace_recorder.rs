@@ -10,7 +10,7 @@
 
 use std::{
     collections::HashMap,
-    fmt,
+    fmt::{self, Write as _},
     io::{self, Read},
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
@@ -34,7 +34,7 @@ pub struct Trace {
 #[non_exhaustive]
 pub struct ProcessTrace {
     /// System process ID.
-    pub pid: u64,
+    pub id: u64,
 
     /// Process name.
     pub name: Txt,
@@ -302,11 +302,11 @@ impl Trace {
 
         for entry in entries {
             let sys_pid = *process_sys_pid.entry(entry.pid).or_insert(entry.pid);
-            let process = if let Some(p) = out.processes.iter_mut().find(|p| p.pid == sys_pid) {
+            let process = if let Some(p) = out.processes.iter_mut().find(|p| p.id == sys_pid) {
                 p
             } else {
                 out.processes.push(ProcessTrace {
-                    pid: sys_pid,
+                    id: sys_pid,
                     name: process_names.entry(entry.pid).or_insert_with(|| sys_pid.to_txt()).clone(),
                     threads: vec![],
                     start: process_record_start.get(&entry.pid).copied().unwrap_or(SystemTime::UNIX_EPOCH),
@@ -362,7 +362,82 @@ impl Trace {
 
     /// Convert the trace to Chrome JSON Array format.
     pub fn to_chrome_trace(&self) -> Txt {
-        todo!("!!:")
+        let mut out = String::new();
+
+        let _ = writeln!(&mut out, "[");
+
+        let mut sep = "";
+        for p in &self.processes {
+            let _ = write!(
+                &mut out,
+                r#"{sep}{{"ph":"M","pid":{},"name":"process_name","args":{{"name":"{}"}}}}"#,
+                p.id, p.name
+            );
+            sep = ",\n";
+            for (tid, t) in p.threads.iter().enumerate() {
+                let _ = write!(
+                    &mut out,
+                    r#"{sep}{{"ph":"M","pid":{}, "tid":{tid},"name":"process_name","args":{{"name":"{}"}}}}"#,
+                    p.id, t.name
+                );
+
+                let mut items = Vec::with_capacity(t.events.len() + t.spans.len() * 2);
+                for ev in &t.events {
+                    let obj = serde_json::json!({
+                        "ph": "i",
+                        "s": "t",
+                        "ts": (ev.instant.as_nanos() as f64 / 1000.0),
+                        "pid": p.id,
+                        "tid": tid,
+                        "name": ev.info.name,
+                        "cat": ev.info.categories.iter().fold(String::new(), |a, b| format!("{a},{b}")),
+                        "args": ev.info.args,
+                        ".file": ev.info.file,
+                        ".line": ev.info.line,
+                    });
+                    items.push((ev.instant, obj));
+                }
+                for sp in &t.spans {
+                    let start = serde_json::json!({
+                        "ph": "B",
+                        "s": "t",
+                        "ts": (sp.start.as_nanos() as f64 / 1000.0),
+                        "pid": p.id,
+                        "tid": tid,
+                        "name": sp.info.name,
+                        "cat": sp.info.categories.iter().fold(String::new(), |a, b| format!("{a},{b}")),
+                        "args": sp.info.args,
+                        ".file": sp.info.file,
+                        ".line": sp.info.line,
+                    });
+                    items.push((sp.start, start));
+
+                    let end = serde_json::json!({
+                        "ph": "E",
+                        "s": "t",
+                        "ts": (sp.end.as_nanos() as f64 / 1000.0),
+                        "pid": p.id,
+                        "tid": tid,
+                        "name": sp.info.name,
+                        "cat": sp.info.categories.iter().fold(String::new(), |a, b| format!("{a},{b}")),
+                        "args": sp.info.args,
+                        ".file": sp.info.file,
+                        ".line": sp.info.line,
+                    });
+                    items.push((sp.end, end));
+                }
+
+                items.sort_by(|a, b| a.0.cmp(&b.0));
+
+                for (_, item) in items {
+                    let item = serde_json::to_string(&item).unwrap();
+                    let _ = write!(&mut out, "{sep}{item}");
+                }
+            }
+        }
+
+        let _ = writeln!(&mut out, "]");
+        out.to_txt()
     }
 
     /// Convert and write the trace to Chrome JSON Array format.
@@ -373,7 +448,7 @@ impl Trace {
     /// Merge `other` into this.
     pub fn merge(&mut self, other: Self) {
         for p in other.processes {
-            if let Some(ep) = self.processes.iter_mut().find(|ep| ep.pid == p.pid && ep.name == p.name) {
+            if let Some(ep) = self.processes.iter_mut().find(|ep| ep.id == p.id && ep.name == p.name) {
                 ep.merge(p);
             } else {
                 self.processes.push(p);
