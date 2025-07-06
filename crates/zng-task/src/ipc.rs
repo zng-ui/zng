@@ -36,7 +36,12 @@
 //!
 //!     const NAME: &str = "zng::example::task1";
 //!
-//!     env::on_process_start!(|_| ipc::run_worker(NAME, work));
+//!     env::on_process_start!(|args| {
+//!         // give tracing handlers a chance to observe the worker-process
+//!         if args.yield_count == 0 { return args.yield_once(); }
+//          // run the worker server
+//!         ipc::run_worker(NAME, work);
+//!     });
 //!     async fn work(args: ipc::RequestArgs<Request>) -> Response {
 //!         let rsp = format!("received 'task1' request `{:?}` in worker-process #{}", &args.request.data, std::process::id());
 //!         Response { data: rsp }
@@ -157,7 +162,8 @@ impl<I: IpcValue, O: IpcValue> Worker<I, O> {
     /// Start a worker process from a custom configured [`duct`] process.
     ///
     /// Note that the worker executable must call [`run_worker`] at startup to actually work.
-    /// You can use [`zng_env::on_process_start!`] to inject startup code.
+    /// You can use [`zng_env::on_process_start!`] to inject startup code, see the module level documentation
+    /// for details on how to do that properly.
     ///
     /// [`duct`]: https://docs.rs/duct/
     pub async fn start_duct(worker_name: impl Into<Txt>, worker: duct::Expression) -> std::io::Result<Self> {

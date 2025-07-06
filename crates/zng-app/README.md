@@ -4,10 +4,10 @@ This crate is part of the [`zng`](https://github.com/zng-ui/zng?tab=readme-ov-fi
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 12 feature flags, 2 enabled by default.
+This crate provides 13 feature flags, 3 enabled by default.
 
 #### `"debug_default"`
-Enable the `"dyn_*"` and `"inspector"` features in debug builds.
+Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
 
 *Enabled by default.*
 
@@ -53,6 +53,13 @@ Note that this can cause very large trace files and bad performance.
 Allow app-process crash handler.
 
 Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))` builds.
+
+#### `"trace_recorder"`
+Enable trace recording.
+
+Note that this does not auto start recording, to do that run with the `ZNG_RECORD_TRACE` env var set.
+
+*Enabled by default.*
 
 #### `"ipc"`
 Enables IPC tasks and pre-build views and connecting to views running in another process.

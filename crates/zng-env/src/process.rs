@@ -19,7 +19,9 @@ use parking_lot::Mutex;
 /// The example below declares a "main" for a foo component and a function that spawns it.
 ///
 /// ```
-/// zng_env::on_process_start!(|_| {
+/// zng_env::on_process_start!(|args| {
+///     if args.yield_count == 0 { return args.yield_once(); }
+///
 ///     if std::env::var("FOO_MARKER").is_ok() {
 ///         println!("Spawned as foo!");
 ///         zng_env::exit(0);
@@ -37,7 +39,11 @@ use parking_lot::Mutex;
 /// }
 /// ```
 ///
-/// Note the use of [`exit`], it is important to call it to collaborate with [`on_process_exit`] handlers.
+/// Note that the handler yields once, this gives a chance for all handlers to run first before the handler is called again
+/// and takes over the process. It is good practice to yield at least once to ensure handlers that are supported to affect all
+/// processes actually init, as an example, the trace recorder may never start for the process if it does not yield.
+///
+/// Also note the use of custom [`exit`], it is important to call it to collaborate with [`on_process_exit`] handlers.
 ///
 /// # App Context
 ///

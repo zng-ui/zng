@@ -12,7 +12,7 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [features]
-default = ["ipc", "debug_default", "trace_recorder"] # !!: trace_recorder only for current dev
+default = ["ipc", "debug_default", "trace_recorder"]
 
 # Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
 debug_default = ["zng-var/debug_default", "zng-app-context/dyn_closure"]
