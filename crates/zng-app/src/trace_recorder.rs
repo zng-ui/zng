@@ -117,6 +117,8 @@ impl Trace {
     /// Read and parse a Chrome JSON Array format trace.
     ///
     /// See [`parse_chrome_trace`] for more details.
+    /// 
+    /// [`parse_chrome_trace`]: Self::parse_chrome_trace
     pub fn read_chrome_trace(json_path: impl AsRef<Path>) -> io::Result<Self> {
         let json = std::fs::read_to_string(json_path)?;
         let trace = Self::parse_chrome_trace(&json)?;
