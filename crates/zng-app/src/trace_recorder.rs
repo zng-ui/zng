@@ -10,16 +10,19 @@
 
 use std::{
     collections::HashMap,
-    io,
+    fmt,
+    io::{self, Read},
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
 
 use parking_lot::Mutex;
+use serde::Deserialize as _;
 use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt as _, util::SubscriberInitExt as _};
-use zng_txt::Txt;
+use zng_txt::{ToTxt as _, Txt};
 
 /// Represents a recorded trace.
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Trace {
     /// Traced app processes.
@@ -27,8 +30,12 @@ pub struct Trace {
 }
 
 /// Represents a single app process in a recorded trace.
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct ProcessTrace {
+    /// System process ID.
+    pub pid: u64,
+
     /// Process name.
     pub name: Txt,
 
@@ -44,6 +51,7 @@ pub struct ProcessTrace {
 }
 
 /// Represents a single thread in an app process in a recorded trace.
+#[derive(Clone)]
 #[non_exhaustive]
 pub struct ThreadTrace {
     /// Thread name.
@@ -54,8 +62,18 @@ pub struct ThreadTrace {
     /// Spans started and ended on the thread.
     pub spans: Vec<SpanTrace>,
 }
+impl fmt::Debug for ThreadTrace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ThreadTrace")
+            .field("name", &self.name)
+            .field("events.len()", &self.events.len())
+            .field("spans.len()", &self.spans.len())
+            .finish()
+    }
+}
 
 /// Represents a traced event.
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct EventTrace {
     /// Event info.
@@ -65,6 +83,7 @@ pub struct EventTrace {
 }
 
 /// Represents a traced span.
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct SpanTrace {
     /// Span info.
@@ -77,23 +96,26 @@ pub struct SpanTrace {
 }
 
 /// Common info traced about events and spans.
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Info {
     /// Event or span name.
     pub name: Txt,
-    /// Function where the event or span was traced.
-    pub target: Txt,
+    /// Categories.
+    ///
+    /// Zng recordings usually write two categories, "target" and "level".
+    pub categories: Vec<Txt>,
     /// File where the event or span was traced.
-    pub file: Option<Txt>,
+    pub file: Txt,
     /// Code line where the event or span was traced.
-    pub line: Option<u32>,
+    pub line: u32,
     /// Custom args traced with the event or span.
-    pub args: Option<HashMap<Txt, Txt>>,
+    pub args: HashMap<Txt, Txt>,
 }
 
 impl Trace {
     /// Read and parse a Chrome JSON Array format trace.
-    /// 
+    ///
     /// See [`parse_chrome_trace`] for more details.
     pub fn read_chrome_trace(json_path: impl AsRef<Path>) -> io::Result<Self> {
         let json = std::fs::read_to_string(json_path)?;
@@ -109,7 +131,7 @@ impl Trace {
     pub fn parse_chrome_trace(json: &str) -> io::Result<Self> {
         fn invalid_data(msg: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> io::Error {
             io::Error::new(io::ErrorKind::InvalidData, msg)
-        }        
+        }
 
         // skip the array opening
         let json = json.trim_start();
@@ -118,47 +140,209 @@ impl Trace {
         }
         let json = &json[1..];
 
+        enum Phase {
+            Begin,
+            End,
+            Event,
+        }
+        struct Entry {
+            phase: Phase,
+            pid: u64,
+            tid: u64,
+            ts: Duration,
+            name: Txt,
+            cat: Vec<Txt>,
+            file: Txt,
+            line: u32,
+            args: HashMap<Txt, Txt>,
+        }
+        let mut process_sys_pid = HashMap::new();
+        let mut process_names = HashMap::new();
+        let mut process_record_start = HashMap::new();
+        let mut thread_names = HashMap::new();
+        let mut entries = vec![];
 
-        for entry in serde_json::Deserializer::from_str(json).into_iter::<serde_json::Value>() {
-            match entry {
+        let mut reader = std::io::Cursor::new(json.as_bytes());
+        loop {
+            // skip white space and commas to the next object
+            let mut pos = reader.position();
+            let mut buf = [0u8];
+            while reader.read(&mut buf).is_ok() {
+                if !b" \r\n\t,".contains(&buf[0]) {
+                    break;
+                }
+                pos = reader.position();
+            }
+            reader.set_position(pos);
+            let mut de = serde_json::Deserializer::from_reader(&mut reader);
+            match serde_json::Value::deserialize(&mut de) {
                 Ok(entry) => match entry {
                     serde_json::Value::Object(map) => {
+                        let pid = match map.get("pid") {
+                            Some(serde_json::Value::Number(n)) => match n.as_u64() {
+                                Some(pid) => pid,
+                                None => return Err(invalid_data("expected \"pid\"")),
+                            },
+                            _ => return Err(invalid_data("expected \"pid\"")),
+                        };
+                        let tid = match map.get("tid") {
+                            Some(serde_json::Value::Number(n)) => match n.as_u64() {
+                                Some(tid) => tid,
+                                None => return Err(invalid_data("expected \"tid\"")),
+                            },
+                            _ => return Err(invalid_data("expected \"tid\"")),
+                        };
+                        let name = match map.get("name") {
+                            Some(serde_json::Value::String(name)) => name.to_txt(),
+                            _ => return Err(invalid_data("expected \"name\"")),
+                        };
+                        let args: HashMap<Txt, Txt> = match map.get("args") {
+                            Some(a) => match serde_json::from_value(a.clone()) {
+                                Ok(a) => a,
+                                Err(e) => {
+                                    tracing::error!("only simple text args are supported, {e}");
+                                    continue;
+                                }
+                            },
+                            _ => HashMap::new(),
+                        };
                         let phase = match map.get("ph") {
-                            Some(serde_json::Value::String(ph)) => ph,
+                            Some(serde_json::Value::String(ph)) => match ph.as_str() {
+                                "B" => Phase::Begin,
+                                "E" => Phase::End,
+                                "i" => Phase::Event,
+                                "M" => {
+                                    if name == "thread_name" {
+                                        if let Some(n) = args.get("name") {
+                                            thread_names.insert(tid, n.to_txt());
+                                        }
+                                    }
+                                    continue;
+                                }
+                                u => {
+                                    tracing::error!("ignoring unknown or unsupported phase `{u:?}`");
+                                    continue;
+                                }
+                            },
                             _ => return Err(invalid_data("expected \"ph\"")),
                         };
-                        match phase.as_str() {
-                            "B" => {
-                                // begin span
-                                // !!: TODO
+
+                        let ts = match map.get("ts") {
+                            Some(serde_json::Value::Number(ts)) => match ts.as_f64() {
+                                Some(ts) => Duration::from_nanos((ts * 1000.0).round() as u64),
+                                None => return Err(invalid_data("expected \"ts\"")),
                             },
-                            "E" => {
-                                // end span
-                                // !!: TODO
-                            },
-                            "i" => {
-                                // event
-                                // !!: TODO  
-                            },
-                            "M" => {
-                                // metadata update
-                                // !!: TODO
+                            _ => return Err(invalid_data("expected \"ts\"")),
+                        };
+                        let cat = match map.get("cat") {
+                            Some(serde_json::Value::String(cat)) => cat.split(',').map(|c| c.trim().to_txt()).collect(),
+                            _ => vec![],
+                        };
+                        let file = match map.get(".file") {
+                            Some(serde_json::Value::String(file)) => file.to_txt(),
+                            _ => Txt::from_static(""),
+                        };
+                        let line = match map.get(".line") {
+                            Some(serde_json::Value::Number(line)) => line.as_u64().unwrap_or(0) as u32,
+                            _ => 0,
+                        };
+
+                        if let Some(msg) = args.get("message") {
+                            if let Some(process_ts) = msg.strip_prefix("zng-record-start: ") {
+                                if let Ok(process_ts) = process_ts.parse::<u64>() {
+                                    process_record_start.insert(pid, SystemTime::UNIX_EPOCH + Duration::from_micros(process_ts));
+                                }
+                            } else if let Some(rest) = msg.strip_prefix("pid: ") {
+                                if let Some((sys_pid, p_name)) = rest.split_once(", name: ") {
+                                    if let Ok(sys_pid) = sys_pid.parse::<u64>() {
+                                        process_sys_pid.insert(pid, sys_pid);
+                                        process_names.insert(pid, p_name.to_txt());
+                                    }
+                                }
                             }
-                            u => return Err(invalid_data(format!("unknown or unsupported phase `{u:?}`")))
                         }
-                        // !!: TODO
-                    },
-                    _ => return Err(invalid_data("expected JSON array of objects"))
+
+                        entries.push(Entry {
+                            phase,
+                            pid,
+                            tid,
+                            ts,
+                            name,
+                            cat,
+                            file,
+                            line,
+                            args,
+                        });
+                    }
+                    _ => return Err(invalid_data("expected JSON array of objects")),
                 },
                 Err(_) => {
-                    // !!: TODO custom event
-                    // trace did not flush correctly
-                    break
+                    // EOF
+                    break;
                 }
             }
         }
 
-       todo!("!!:")
+        let mut out = Trace { processes: vec![] };
+
+        for entry in entries {
+            let sys_pid = *process_sys_pid.entry(entry.pid).or_insert(entry.pid);
+            let process = if let Some(p) = out.processes.iter_mut().find(|p| p.pid == sys_pid) {
+                p
+            } else {
+                out.processes.push(ProcessTrace {
+                    pid: sys_pid,
+                    name: process_names.entry(entry.pid).or_insert_with(|| sys_pid.to_txt()).clone(),
+                    threads: vec![],
+                    start: process_record_start.get(&entry.pid).copied().unwrap_or(SystemTime::UNIX_EPOCH),
+                });
+                out.processes.last_mut().unwrap()
+            };
+
+            let thread_name = thread_names.entry(entry.tid).or_insert_with(|| entry.tid.to_txt()).clone();
+            let thread = if let Some(t) = process.threads.iter_mut().find(|t| t.name == thread_name) {
+                t
+            } else {
+                process.threads.push(ThreadTrace {
+                    name: thread_name,
+                    events: vec![],
+                    spans: vec![],
+                });
+                process.threads.last_mut().unwrap()
+            };
+
+            fn entry_to_info(entry: Entry) -> Info {
+                Info {
+                    name: entry.name,
+                    categories: entry.cat,
+                    file: entry.file,
+                    line: entry.line,
+                    args: entry.args,
+                }
+            }
+
+            match entry.phase {
+                Phase::Begin => thread.spans.push(SpanTrace {
+                    start: entry.ts,
+                    end: entry.ts,
+                    info: entry_to_info(entry),
+                }),
+                Phase::End => {
+                    let end = entry.ts;
+                    let info = entry_to_info(entry);
+                    if let Some(open) = thread.spans.iter_mut().rev().find(|s| s.start == s.end && s.info.name == info.name) {
+                        open.end = end;
+                        open.info.merge(info);
+                    }
+                }
+                Phase::Event => thread.events.push(EventTrace {
+                    instant: entry.ts,
+                    info: entry_to_info(entry),
+                }),
+            }
+        }
+
+        Ok(out)
     }
 
     /// Convert the trace to Chrome JSON Array format.
@@ -174,7 +358,7 @@ impl Trace {
     /// Merge `other` into this.
     pub fn merge(&mut self, other: Self) {
         for p in other.processes {
-            if let Some(ep) = self.processes.iter_mut().find(|ep| ep.name == p.name) {
+            if let Some(ep) = self.processes.iter_mut().find(|ep| ep.pid == p.pid && ep.name == p.name) {
                 ep.merge(p);
             } else {
                 self.processes.push(p);
@@ -233,6 +417,17 @@ impl ThreadTrace {
     pub fn sort(&mut self) {
         self.events.sort_by(|a, b| a.instant.cmp(&b.instant));
         self.spans.sort_by(|a, b| a.start.cmp(&b.start));
+    }
+}
+
+impl Info {
+    /// Merge `other` into this.
+    pub fn merge(&mut self, info: Info) {
+        if !info.file.is_empty() {
+            self.file = info.file;
+            self.line = info.line;
+        }
+        self.args.extend(info.args);
     }
 }
 
