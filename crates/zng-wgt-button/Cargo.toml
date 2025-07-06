@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-button"
-version = "0.7.5"
+version = "0.7.6"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -17,15 +17,15 @@ default = ["tooltip"]
 tooltip = ["dep:zng-wgt-tooltip"]
 
 [dependencies]
-zng-var = { path = "../zng-var", version = "0.7.2" }
-zng-app = { path = "../zng-app", version = "0.16.4" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.7.4" }
-zng-wgt = { path = "../zng-wgt", version = "0.8.4" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.7.4" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.6.4" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.5.4" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.5.4" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.5.4" }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.5.4" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.5" }
-zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.7.5", optional = true }
+zng-var = { path = "../zng-var", version = "0.7.3" }
+zng-app = { path = "../zng-app", version = "0.16.5" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.7.5" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.5" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.7.5" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.6.5" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.5.5" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.5.5" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.5.5" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.5.5" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.6" }
+zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.7.6", optional = true }

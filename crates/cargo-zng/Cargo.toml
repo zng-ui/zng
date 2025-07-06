@@ -1,6 +1,6 @@
 [package]
 name = "cargo-zng"
-version = "0.6.2"
+version = "0.6.3"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -38,7 +38,7 @@ walkdir = "2.5"
 is_executable = "1.0"
 anyhow = "1.0"
 dunce = "1.0"
-zng-env = { path = "../zng-env", version = "0.5.2" }
+zng-env = { path = "../zng-env", version = "0.5.3" }
 directories = "6.0"
 quick-xml = { version = "0.38", features = ["serialize"] }
 
