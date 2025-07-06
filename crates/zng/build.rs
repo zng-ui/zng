@@ -10,6 +10,7 @@ fn main() {
         hot_reload: { all(feature="hot_reload", not(any(android, wasm))) },
         single_instance: { all(feature="single_instance", not(any(android, wasm))) },
         crash_handler: { all(feature="crash_handler", not(any(android, wasm))) },
+        trace_recorder: { all(feature="crash_handler", not(any(android, wasm))) },
     }
 
     macro_rules! enable {
@@ -26,6 +27,7 @@ fn main() {
         enable!("dyn_closure");
         enable!("inspector");
         enable!("trace_widget");
+        enable!("trace_recorder");
     } else if cfg!(feature = "inspector") {
         enable!("dyn_node");
     }

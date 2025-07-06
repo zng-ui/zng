@@ -23,11 +23,12 @@ Zng project manager.
 Usage: cargo zng <COMMAND>
 
 Commands:
-  fmt   Format code and macros
-  new   New project from a Zng template repository
-  l10n  Localization text scraper
-  res   Build resources
-  help  Print this message or the help of the given subcommand(s)
+  fmt    Format code and macros
+  new    New project from a Zng template repository
+  l10n   Localization text scraper
+  res    Build resources
+  trace  Run an app with trace recording enabled
+  help   Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help

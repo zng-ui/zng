@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 77 feature flags, 36 enabled by default.
+This crate provides 78 feature flags, 36 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -76,7 +76,7 @@ Only enables in `not(any(target_arch = "wasm32", target_os = "android", target_o
 Enables HTTP tasks and web features of widgets and services.
 
 #### `"debug_default"`
-Enable the `"dyn_*"`, `"inspector"` features in debug builds.
+Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
 
 *Enabled by default.*
 
@@ -145,6 +145,11 @@ Enable debug crash handler view.
 
 #### `"trace_widget"`
 Instrument every widget outer-most node to trace UI methods.
+
+#### `"trace_recorder"`
+Enable trace recording.
+
+Note that this does not auto start recording, to do that run with the `ZNG_RECORD_TRACE` env var set.
 
 #### `"trace_wgt_item"`
 Instrument every property and intrinsic node to trace UI methods.

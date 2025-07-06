@@ -19,7 +19,9 @@ use parking_lot::Mutex;
 /// The example below declares a "main" for a foo component and a function that spawns it.
 ///
 /// ```
-/// zng_env::on_process_start!(|_| {
+/// zng_env::on_process_start!(|args| {
+///     if args.yield_count == 0 { return args.yield_once(); }
+///
 ///     if std::env::var("FOO_MARKER").is_ok() {
 ///         println!("Spawned as foo!");
 ///         zng_env::exit(0);
@@ -37,7 +39,11 @@ use parking_lot::Mutex;
 /// }
 /// ```
 ///
-/// Note the use of [`exit`], it is important to call it to collaborate with [`on_process_exit`] handlers.
+/// Note that the handler yields once, this gives a chance for all handlers to run first before the handler is called again
+/// and takes over the process. It is good practice to yield at least once to ensure handlers that are supported to affect all
+/// processes actually init, as an example, the trace recorder may never start for the process if it does not yield.
+///
+/// Also note the use of custom [`exit`], it is important to call it to collaborate with [`on_process_exit`] handlers.
 ///
 /// # App Context
 ///
@@ -135,6 +141,7 @@ pub use wasm_bindgen::prelude::wasm_bindgen;
 #[doc(hidden)]
 #[cfg(target_arch = "wasm32")]
 pub use zng_env_proc_macros::wasm_process_start;
+use zng_txt::Txt;
 
 #[cfg(target_arch = "wasm32")]
 std::thread_local! {
@@ -320,10 +327,63 @@ pub enum ProcessLifetimeState {
 zng_unique_id::hot_static! {
     static PROCESS_LIFETIME_STATE: Mutex<ProcessLifetimeState> = Mutex::new(ProcessLifetimeState::BeforeInit);
 }
+zng_unique_id::hot_static! {
+    static PROCESS_NAME: Mutex<Txt> = Mutex::new(Txt::from_static(""));
+}
 
 /// Get the state of the current process instance.
 pub fn process_lifetime_state() -> ProcessLifetimeState {
     *zng_unique_id::hot_static_ref!(PROCESS_LIFETIME_STATE).lock()
+}
+
+/// Gets a process runtime name.
+///
+/// The primary use of this name is to identify the process in logs, see [`set_process_name`] for details about the logged name.
+/// On set or init the name is logged as an info message "pid: {pid}, name: {name}".
+///
+/// # Common Names
+///
+/// All Zng provided process handlers name the process.
+///
+/// * `"app-process"` - Set by `APP` if no other name was set before the app starts building.
+/// * `"view-process"` - Set by the view-process implementer when running in multi process mode.
+/// * `"crash-handler-process"` - Set by the crash-handler when running with crash handling.
+/// * `"crash-dialog-process"` - Set by the crash-handler on the crash dialog process.
+/// * `"worker-process ({worker_name}, {pid})"` - Set by task worker processes if no name was set before the task runner server starts.
+pub fn process_name() -> Txt {
+    zng_unique_id::hot_static_ref!(PROCESS_NAME).lock().clone()
+}
+
+/// Changes the process runtime name.
+///
+/// This sets [`process_name`] and traces an info message "pid: {pid}, name: {name}". If the same PID is named multiple times
+/// the last name should be used when presenting the process in trace viewers.
+///
+/// The process name ideally should be set only by the [`on_process_start!`] "process takeover" handlers. You can use [`init_process_name`]
+/// to only set the name if it has not been set yet.
+pub fn set_process_name(name: impl Into<Txt>) {
+    set_process_name_impl(name.into(), true);
+}
+
+/// Set the process runtime name if it has not been named yet.
+///
+/// See [`set_process_name`] for more details.
+///
+/// Returns `true` if the name was set.
+pub fn init_process_name(name: impl Into<Txt>) -> bool {
+    set_process_name_impl(name.into(), false)
+}
+
+fn set_process_name_impl(new_name: Txt, replace: bool) -> bool {
+    let mut name = zng_unique_id::hot_static_ref!(PROCESS_NAME).lock();
+    if replace || name.is_empty() {
+        *name = new_name;
+        drop(name);
+        tracing::info!("pid: {}, name: {}", std::process::id(), process_name());
+        true
+    } else {
+        false
+    }
 }
 
 /// Panics with an standard message if `zng::env::init!()` was not called or was not called correctly.

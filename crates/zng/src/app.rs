@@ -582,3 +582,75 @@ pub mod crash_handler {
         });
     });
 }
+
+/// Trace recording and data model.
+///
+/// All tracing instrumentation in Zng projects is done using the `tracing` crate, trace recording is done using the `tracing-chrome` crate.
+/// The recorded traces can be viewed in `chrome://tracing` or `ui.perfetto.dev` and can be parsed by the [`Trace`] data model.
+///
+/// Run the app with the `"ZNG_RECORD_TRACE"` env var set to record the app-process and all other processes spawned by the app.
+///
+/// ```
+/// use zng::prelude::*;
+///
+/// fn main() {
+///     unsafe { std::env::set_var("ZNG_RECORD_TRACE", ""); }
+///     unsafe { std::env::set_var("ZNG_RECORD_TRACE_FILTER", "debug"); }
+///
+///     // recording start here for all app processes when ZNG_RECORD_TRACE is set.
+///     zng::env::init!();
+///
+///     // .. app
+/// }
+/// ```
+///
+/// The example above hardcodes trace recording for all app processes by setting the `"ZNG_RECORD_TRACE"` environment
+/// variable before the `init!()` call. It also sets `"ZNG_RECORD_TRACE_FILTER"` to a slightly less verbose level.
+///
+/// # Config
+///
+/// The `"ZNG_RECORD_TRACE_DIR"` variable can be set to define a custom `output-dir` directory path, relative to the current dir.
+/// The default dir is `"./zng-trace/"`.
+///
+/// The `"ZNG_RECORD_TRACE_FILTER"` or `"RUST_LOG"` variables can be used to set custom tracing filters, see the [filter syntax] for details.
+/// The default filter is `"trace"` that records all spans and events.
+///
+/// # Output
+///
+/// Raw trace files are saved to `"{--output-dir}/{timestamp}/{pid}.json"`. If the `--output-dir` is not provided
+/// it is `"{current_dir}/zng-trace/"`.
+///
+/// The dir timestamp is in microseconds from Unix epoch and is defined by the first process that runs.
+///
+/// The process name is defined by an event INFO message that reads `"pid: {pid}, name: {name}"`. See [`zng::env::process_name`] for more details.
+///
+/// The process record start timestamp is defined by an event INFO message that reads `"zng-record-start: {timestamp}"`. This timestamp is also
+/// in microseconds from Unix epoch.
+///
+/// # Cargo Zng
+///
+/// You can also use the `cargo zng trace` subcommand to record traces, it handles setting the env variables, merges the multi
+/// process traces into a single file and properly names the processes for better compatibility with trace viewers.
+///
+/// ```console
+/// cargo zng trace --filter debug "path/my-exe"
+/// ```
+///
+/// You can also run using custom commands after `--`:
+///
+/// ```console
+/// cargo zng trace -- cargo run my-exe
+/// ```
+///
+/// Call `cargo zng trace --help` for more details.
+///
+/// # Full API
+///
+/// See [`zng_app::trace_recorder`] for the full API.
+///
+/// [`Trace`]: zng::app::trace_recorder::Trace
+/// [filter syntax]: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/index.html#filtering-events-with-environment-variables
+#[cfg(trace_recorder)]
+pub mod trace_recorder {
+    pub use zng_app::trace_recorder::{EventTrace, ProcessTrace, ThreadTrace, Trace, stop_recording};
+}

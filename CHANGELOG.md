@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add `cargo zng trace` subcommand for recording and post processing traces.
+* Add `zng::env::process_name` and name the Zng processes.
+* Add `zng::app::trace_recorder` and the `"trace_recorder"` feature.
 * Fix `cargo zng l10n` handling of repeated sections.
 * Fix `cargo zng new` removing already existing target.
 

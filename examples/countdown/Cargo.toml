@@ -5,7 +5,5 @@ publish = false
 edition = "2024"
 
 [dependencies]
-zng = { path = "../../crates/zng", features = ["view"] }
+zng = { path = "../../crates/zng", features = ["view", "trace_recorder"] }
 tracing = "0.1"
-tracing-chrome = "0.7"
-tracing-subscriber = "0.3"
