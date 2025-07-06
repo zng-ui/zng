@@ -9,15 +9,9 @@ use serde::Deserialize as _;
 
 #[derive(Args, Debug, Default)]
 pub struct TraceArgs {
-    /// Path to Zng executable to run
+    /// Path or command to run the Zng executable
     ///
-    /// Example: `"./some/exe"`
-    #[arg()]
-    exe: Option<PathBuf>,
-
-    /// Command to run the Zng executable
-    ///
-    /// Example: `-- cargo run exe`
+    /// Example: `cargo zng "./some/exe"` or `cargo zng -- cargo run exe`
     #[arg(trailing_var_arg = true)]
     command: Vec<String>,
 
@@ -33,16 +27,19 @@ pub struct TraceArgs {
 }
 
 pub fn run(args: TraceArgs) {
-    let mut cmd = if let Some(exe) = args.exe {
-        std::process::Command::new(exe)
-    } else {
-        let mut cmd = args.command.into_iter();
+    let mut cmd = {
+        let mut cmd = args.command.into_iter().peekable();
+        if let Some(c) = cmd.peek() {
+            if c == "--" {
+                cmd.next();
+            }
+        }
         if let Some(c) = cmd.next() {
             let mut o = std::process::Command::new(c);
             o.args(cmd);
             o
         } else {
-            fatal!("EXE or COMMAND are required")
+            fatal!("COMMAND is required")
         }
     };
 
@@ -70,25 +67,26 @@ pub fn run(args: TraceArgs) {
         Err(e) => fatal!("cannot output to {}, {e}", out_file.display()),
     };
 
-    cmd.env("ZNG_RECORD_TRACE", &tmp)
+    cmd.env("ZNG_RECORD_TRACE", "")
+        .env("ZNG_RECORD_TRACE_DIR", &tmp)
         .env("ZNG_RECORD_TRACE_FILTER", args.filter)
         .env("ZNG_RECORD_TRACE_TIMESTAMP", &ts);
 
     let mut cmd = match cmd.spawn() {
         Ok(c) => c,
-        Err(e) => fatal!("cannot run the executable or command, {e}"),
+        Err(e) => fatal!("cannot run, {e}"),
     };
 
     let code = match cmd.wait() {
         Ok(s) => s.code().unwrap_or(0),
         Err(e) => {
-            error!("cannot wait executable or command exit, {e}");
+            error!("cannot wait command exit, {e}");
             101
         }
     };
 
     if !out_dir.exists() {
-        fatal!("executable or command did not save any trace\nnote: the feature \"trace_recorder\" must be enabled during build")
+        fatal!("run did not save any trace\nnote: the feature \"trace_recorder\" must be enabled during build")
     }
 
     println!("merging trace files...");
@@ -124,6 +122,13 @@ pub fn run(args: TraceArgs) {
             .strip_suffix(".json")
             .unwrap_or_default()
             .to_owned();
+        let name_sys_pid = match name_sys_pid.parse::<u64>() {
+            Ok(i) => i,
+            Err(_) => {
+                error!("expected only {{pid}}.json files");
+                continue;
+            }
+        };
 
         // skip the array opening
         let json = json.trim_start();
@@ -147,23 +152,30 @@ pub fn run(args: TraceArgs) {
             reader.set_position(pos);
             let mut de = serde_json::Deserializer::from_reader(&mut reader);
             match serde_json::Value::deserialize(&mut de) {
-                Ok(entry) => {
+                Ok(mut entry) => {
+                    // patch "pid" to be unique
+                    if let Some(serde_json::Value::Number(pid)) = entry.get_mut("pid") {
+                        if pid.as_u64() != Some(1) {
+                            error!("expected only pid:1 in trace file");
+                            continue;
+                        }
+                        *pid = serde_json::Number::from(name_sys_pid);
+                    }
+
                     // convert the INFO message process name to actual "process_name" metadata
                     match &entry {
                         serde_json::Value::Object(entry) => {
                             if let Some(serde_json::Value::String(ph)) = entry.get("ph")
                                 && ph == "i"
-                                && let Some(serde_json::Value::Number(pid)) = entry.get("pid")
                                 && let Some(serde_json::Value::Object(args)) = entry.get("args")
                                 && let Some(serde_json::Value::String(msg)) = args.get("message")
                                 && let Some(rest) = msg.strip_prefix("pid: ")
                                 && let Some((sys_pid, p_name)) = rest.split_once(", name: ")
-                                && sys_pid.parse::<u64>().is_ok()
-                                && (name_sys_pid == sys_pid || name_sys_pid.is_empty())
+                                && let Ok(sys_pid) = sys_pid.parse::<u64>()
+                                && name_sys_pid == sys_pid
                             {
                                 out.write_fmt(format_args!(
-                                    r#"{separator}{{"ph":"M","pid":{},"name":"process_name","args":{{"name":"{p_name}"}}}},"#,
-                                    pid.as_u64().unwrap_or(1),
+                                    r#"{separator}{{"ph":"M","pid":{sys_pid},"name":"process_name","args":{{"name":"{p_name}"}}}}"#,
                                 ))
                                 .unwrap_or_else(|e| fatal!("cannot write {}, {e}", out_file.display()));
                             }
