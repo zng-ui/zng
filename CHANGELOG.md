@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix release builds with default features.
 
 # 0.15.6
 

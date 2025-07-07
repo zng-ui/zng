@@ -18,7 +18,8 @@ pub mod debug;
 
 mod live;
 
-pub use live::data_model::{INSPECTOR, InspectedInfo, InspectedTree, InspectedWidget, InspectorWatcherBuilder, WeakInspectedTree};
+#[cfg(feature = "live")]
+pub use crate::live::data_model::{INSPECTOR, InspectedInfo, InspectedTree, InspectedWidget, InspectorWatcherBuilder, WeakInspectedTree};
 
 command! {
     /// Represent the window **inspect** action.
