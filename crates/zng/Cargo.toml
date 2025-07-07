@@ -48,6 +48,7 @@ default = [
     "image_all",
     "button",
     "ansi_text",
+    "dyn_node",
 ]
 
 # Include the default view-process implementation.
@@ -70,7 +71,7 @@ http = [
 # Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
 debug_default = [
     "zng-app/debug_default",
-    "zng-wgt-inspector/debug_default",
+    "zng-wgt-inspector?/debug_default",
     "zng-wgt-scroll/debug_default",
     "zng-wgt-window/debug_default",
 ]
