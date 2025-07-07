@@ -1,6 +1,6 @@
 [package]
 name = "zng"
-version = "0.15.6"
+version = "0.15.7"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -420,7 +420,7 @@ zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.7.5", optional = tru
 zng-wgt-ansi-text = { path = "../zng-wgt-ansi-text", version = "0.6.6", optional = true }
 zng-wgt-tooltip = { path = "../zng-wgt-tooltip", version = "0.7.6", optional = true }
 zng-wgt-markdown = { path = "../zng-wgt-markdown", version = "0.6.6", optional = true }
-zng-wgt-inspector = { path = "../zng-wgt-inspector", version = "0.5.6", optional = true }
+zng-wgt-inspector = { path = "../zng-wgt-inspector", version = "0.5.7", optional = true }
 zng-wgt-settings = { path = "../zng-wgt-settings", version = "0.4.6", optional = true }
 zng-wgt-dialog = { path = "../zng-wgt-dialog", version = "0.4.6", optional = true }
 zng-wgt-progress = { path = "../zng-wgt-progress", version = "0.4.6", optional = true }
@@ -438,7 +438,7 @@ zng-view-api = { path = "../zng-view-api", version = "0.13.3", default-features 
 zng-view = { path = "../zng-view", version = "0.10.2", default-features = false, optional = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "android", target_os = "ios")))'.dependencies]
-zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.15.6", optional = true }
+zng-view-prebuilt = { path = "../zng-view-prebuilt", version = "0.15.7", optional = true }
 
 [build-dependencies]
 cfg_aliases = "0.2"
