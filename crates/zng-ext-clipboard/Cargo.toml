@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-clipboard"
-version = "0.5.4"
+version = "0.5.5"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,12 +12,12 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-app-context = { path = "../zng-app-context", version = "0.7.2" }
-zng-app = { path = "../zng-app", version = "0.16.4" }
-zng-var = { path = "../zng-var", version = "0.7.2" }
-zng-view-api = { path = "../zng-view-api", version = "0.13.2" }
+zng-app-context = { path = "../zng-app-context", version = "0.7.3" }
+zng-app = { path = "../zng-app", version = "0.16.5" }
+zng-var = { path = "../zng-var", version = "0.7.3" }
+zng-view-api = { path = "../zng-view-api", version = "0.13.3" }
 zng-txt = { path = "../zng-txt", version = "0.3.2" }
-zng-ext-image = { path = "../zng-ext-image", version = "0.5.4" }
-zng-wgt = { path = "../zng-wgt", version = "0.8.4" }
+zng-ext-image = { path = "../zng-ext-image", version = "0.5.5" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.5" }
 
 tracing = "0.1"

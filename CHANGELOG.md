@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.15.6
+
 * Add `cargo zng trace` subcommand for recording and post processing traces.
 * Add `zng::env::process_name` and name the Zng processes.
 * Add `zng::app::trace_recorder` and the `"trace_recorder"` feature.
