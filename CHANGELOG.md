@@ -1,6 +1,11 @@
 # Unreleased
 
+* Add `"dyn_node"` to `zng` default features to avoid linking issues in release builds.
+  - GitHub workflow runners can't handle building with all the generics inlining that happens without this feature.
+  - This is a better default for test release builds, the performance hit is negligible.
+  - Production builds should disable default features and configure depending on need, see [`docs/optimize-release.md`] for details.
 * Fix release builds with default features.
+* Fix `zng-wgt-inspector` builds without `"live"` feature.
 
 # 0.15.6
 

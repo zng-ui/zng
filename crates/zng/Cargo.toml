@@ -48,6 +48,7 @@ default = [
     "image_all",
     "button",
     "ansi_text",
+    "dyn_node",
 ]
 
 # Include the default view-process implementation.
