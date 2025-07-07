@@ -590,7 +590,7 @@ pub mod crash_handler {
 ///
 /// Run the app with the `"ZNG_RECORD_TRACE"` env var set to record the app-process and all other processes spawned by the app.
 ///
-/// ```
+/// ```no_run
 /// use zng::prelude::*;
 ///
 /// fn main() {
