@@ -1,5 +1,10 @@
 # Unreleased
 
+* Handle incorrect localization file name normalization.
+    - Assertion panic in debug builds.
+    - Warning logged and normalization in release builds.
+* Fix duplicate localization caching.
+* Fix localization resources fallback going to different file name.
 * Fix localization showing resource as loaded after load error.
 
 # 0.15.7

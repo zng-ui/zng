@@ -728,7 +728,7 @@ pub struct LangFilePath {
     pub pkg_name: Txt,
     /// Package version.
     pub pkg_version: Version,
-    /// The file name.
+    /// The localization file name, without extension.
     pub file: Txt,
 }
 impl Ord for LangFilePath {
@@ -766,11 +766,22 @@ impl PartialEq for LangFilePath {
 impl LangFilePath {
     /// New from package name, version and file.
     pub fn new(pkg_name: impl Into<Txt>, pkg_version: Version, file: impl Into<Txt>) -> Self {
-        Self {
+        let r = Self {
             pkg_name: pkg_name.into(),
             pkg_version,
             file: file.into(),
-        }
+        };
+        // these non-standard names are matched on fallback, but they can cause duplicate caching
+        debug_assert!(
+            r.file
+                .rsplit_once('.')
+                .map(|(_, ext)| !ext.eq_ignore_ascii_case("ftl"))
+                .unwrap_or(true),
+            "file `{}` must not have extension",
+            r.file
+        );
+        debug_assert!(r.file != "_", "file `_` should be an empty string");
+        r
     }
 
     /// Gets a file in the current app.
@@ -873,6 +884,23 @@ impl LangFilePath {
 
         if self_name != search_name {
             return None;
+        }
+
+        if self.file != search.file {
+            let file_a = self.file.rsplit_once('.').map(|t| t.0).unwrap_or(self.file.as_str());
+            let file_b = search.file.rsplit_once('.').map(|t| t.0).unwrap_or(self.file.as_str());
+            if file_a != file_b {
+                let is_empty_a = file_a == "_" || file_a.is_empty();
+                let is_empty_b = file_b == "_" || file_b.is_empty();
+                if !(is_empty_a && is_empty_b) {
+                    return None;
+                }
+            }
+            tracing::warn!(
+                "fallback matching `{}` with `{}`, file was not expected to have extension",
+                self.file,
+                search.file
+            )
         }
 
         fn dist(a: u64, b: u64, shift: u64) -> u64 {
