@@ -1184,12 +1184,13 @@ impl APP {
     /// Starts building an application with no extensions.
     #[cfg(feature = "dyn_app_extension")]
     pub fn minimal(&self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        zng_env::init_process_name("app-process");
+
         #[cfg(debug_assertions)]
         print_tracing(tracing::Level::INFO);
         assert_not_view_process();
         Self::assert_can_run();
         check_deadlock();
-        zng_env::init_process_name("app-process");
 
         let _ = INSTANT.now();
         let scope = LocalContext::start_app(AppId::new_unique());
