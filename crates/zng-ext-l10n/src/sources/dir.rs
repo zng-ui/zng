@@ -73,11 +73,12 @@ impl L10nDir {
                         }
                     }
 
-                    let (lang, mut file) = match entry.depth() {
+                    let (lang, file) = match entry.depth() {
                         // lang/file.ftl
                         2 => {
                             let lang = utf8_path[0];
-                            let file = Txt::from_str(utf8_path[1].rsplit_once('.').unwrap().0);
+                            let file_str = utf8_path[1].rsplit_once('.').unwrap().0;
+                            let file = Txt::from_str(if file_str == "_" { "" } else { file_str });
                             (lang, LangFilePath::current_app(file))
                         }
                         // lang/deps/pkg-name/pkg-version/file.ftl
@@ -94,7 +95,8 @@ impl L10nDir {
                                     continue;
                                 }
                             };
-                            let file = Txt::from_str(utf8_path[4]);
+                            let file_str = utf8_path[4].rsplit_once('.').unwrap().0;
+                            let file = Txt::from_str(if file_str == "_" { "" } else { file_str });
 
                             (lang, LangFilePath::new(pkg_name, pkg_version, file))
                         }
@@ -110,10 +112,6 @@ impl L10nDir {
                             continue;
                         }
                     };
-
-                    if file.file == "_" {
-                        file.file = "".into();
-                    }
 
                     set.get_exact_or_insert(lang, Default::default)
                         .insert(file, entry.path().to_owned());
@@ -235,7 +233,9 @@ fn resource_var(
                         Some(None)
                     }),
                 );
-                r.bind_map(&status, |_| LangResourceStatus::Loaded).perm();
+                // set Loaded status only after `r` updates to ensure the value is available.
+                r.bind_filter_map(&status, |v| v.as_ref().map(|_| LangResourceStatus::Loaded))
+                    .perm();
                 r.boxed()
             }
             None => LocalVar(None).boxed(),
