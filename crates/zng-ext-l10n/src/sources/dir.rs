@@ -235,7 +235,8 @@ fn resource_var(
                         Some(None)
                     }),
                 );
-                r.bind_map(&status, |_| LangResourceStatus::Loaded).perm();
+                // set Loaded status only after `r` updates to ensure the value is available.
+                r.bind_filter_map(&status, |v| v.as_ref().map(|_| LangResourceStatus::Loaded)).perm();
                 r.boxed()
             }
             None => LocalVar(None).boxed(),

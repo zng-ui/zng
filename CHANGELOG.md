@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix localization showing resource as loaded after load error.
 
 # 0.15.7
 
