@@ -3,7 +3,7 @@
 #[cfg(windows)]
 mod windows {
     use windows::Win32::{
-        Foundation::{CloseHandle, BOOL, HANDLE},
+        Foundation::{BOOL, CloseHandle, HANDLE},
         System::Memory::*,
     };
 
@@ -127,9 +127,7 @@ pub use linux::LowMemoryMonitor;
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use libc::{
-        c_uint, host_statistics64, sysconf, _SC_PAGESIZE, vm_statistics64, HOST_VM_INFO64, KERN_SUCCESS,
-    };
+    use libc::{_SC_PAGESIZE, HOST_VM_INFO64, KERN_SUCCESS, c_uint, host_statistics64, sysconf, vm_statistics64};
     use std::mem::MaybeUninit;
     #[allow(deprecated)] // suggestion says to use mach2, but that crate does not have this function
     fn mach_host_self() -> libc::mach_port_t {
