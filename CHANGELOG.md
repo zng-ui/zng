@@ -1,6 +1,6 @@
 # Unreleased
 
-* Implement `LOW_MEMORY_EVENT` for macOS.
+* Implement `LOW_MEMORY_EVENT` for macOS, all supported platforms covered now.
 * Fix view-process config in Linux not reading default values that are only defined in schema.
 * Implement `LOW_MEMORY_EVENT` for Linux.
 * Fix log printing in prebuilt view-process.
