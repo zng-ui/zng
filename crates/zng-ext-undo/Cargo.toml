@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-undo"
-version = "0.5.5"
+version = "0.5.6"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -14,12 +14,12 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
 zng-app-context = { path = "../zng-app-context", version = "0.7.3" }
-zng-app = { path = "../zng-app", version = "0.16.5" }
-zng-wgt = { path = "../zng-wgt", version = "0.8.5" }
+zng-app = { path = "../zng-app", version = "0.16.6" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.6" }
 zng-var = { path = "../zng-var", version = "0.7.3" }
 zng-txt = { path = "../zng-txt", version = "0.3.2" }
 zng-state-map = { path = "../zng-state-map", version = "0.5.1" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.8.5" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.8.6" }
 
 atomic = "0.6"
 parking_lot = "0.12"

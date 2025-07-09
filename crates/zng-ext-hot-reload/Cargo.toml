@@ -1,6 +1,6 @@
 [package]
 name = "zng-ext-hot-reload"
-version = "0.4.5"
+version = "0.4.6"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -19,8 +19,8 @@ zng-ext-hot-reload-proc-macros = { path = "../zng-ext-hot-reload-proc-macros", v
 zng-unique-id = { path = "../zng-unique-id", version = "0.6.2", features = ["hot_reload"] }
 zng-env = { path = "../zng-env", version = "0.5.3" }
 zng-app-context = { path = "../zng-app-context", version = "0.7.3" }
-zng-app = { path = "../zng-app", version = "0.16.5" }
-zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.5.5" }
+zng-app = { path = "../zng-app", version = "0.16.6" }
+zng-ext-fs-watcher = { path = "../zng-ext-fs-watcher", version = "0.5.6" }
 zng-unit = { path = "../zng-unit", version = "0.3.2" }
 zng-var = { path = "../zng-var", version = "0.7.3" }
 zng-task = { path = "../zng-task", version = "0.6.4" }

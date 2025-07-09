@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt"
-version = "0.8.5"
+version = "0.8.6"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -27,8 +27,8 @@ http = ["zng-task/http"]
 
 [dependencies]
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
-zng-app = { path = "../zng-app", version = "0.16.5" }
-zng-color = { path = "../zng-color", version = "0.6.3" }
+zng-app = { path = "../zng-app", version = "0.16.6" }
+zng-color = { path = "../zng-color", version = "0.6.4" }
 zng-app-context = { path = "../zng-app-context", version = "0.7.3" }
 zng-var = { path = "../zng-var", version = "0.7.3" }
 zng-state-map = { path = "../zng-state-map", version = "0.5.1" }

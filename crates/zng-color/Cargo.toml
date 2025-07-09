@@ -1,6 +1,6 @@
 [package]
 name = "zng-color"
-version = "0.6.3"
+version = "0.6.4"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -16,7 +16,7 @@ zng-color-proc-macros = { path = "../zng-color-proc-macros", version = "0.3.0" }
 zng-layout = { path = "../zng-layout", version = "0.4.3" }
 zng-app-context = { path = "../zng-app-context", version = "0.7.3" }
 zng-var = { path = "../zng-var", version = "0.7.3" }
-zng-view-api = { path = "../zng-view-api", version = "0.13.3" }
+zng-view-api = { path = "../zng-view-api", version = "0.13.4" }
 
 pastey = "=0.1.0"
 serde = "1.0"

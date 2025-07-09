@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-dialog"
-version = "0.4.6"
+version = "0.4.7"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,25 +12,25 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.8.5" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.7.5" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.6.5" }
-zng-wgt-input = { path = "../zng-wgt-input", version = "0.5.5" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.5.5" }
-zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.5.5" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.6.5" }
-zng-app = { path = "../zng-app", version = "0.16.5" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.6" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.7.6" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.6.6" }
+zng-wgt-input = { path = "../zng-wgt-input", version = "0.5.6" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.5.6" }
+zng-wgt-filter = { path = "../zng-wgt-filter", version = "0.5.6" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.6.6" }
+zng-app = { path = "../zng-app", version = "0.16.6" }
 zng-var = { path = "../zng-var", version = "0.7.3" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.8.5" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.6" }
-zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.7.6" }
-zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.6.6" }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.6.5" }
-zng-wgt-button = { path = "../zng-wgt-button", version = "0.7.6" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.7.5" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.5.5" }
-zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.5.5" }
-zng-view-api = { path = "../zng-view-api", version = "0.13.3" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.8.6" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.7" }
+zng-wgt-text-input = { path = "../zng-wgt-text-input", version = "0.7.7" }
+zng-wgt-wrap = { path = "../zng-wgt-wrap", version = "0.6.7" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.6.6" }
+zng-wgt-button = { path = "../zng-wgt-button", version = "0.7.7" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.7.6" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.5.6" }
+zng-wgt-transform = { path = "../zng-wgt-transform", version = "0.5.6" }
+zng-view-api = { path = "../zng-view-api", version = "0.13.4" }
 
 tracing = "0.1"
 parking_lot = "0.12"
