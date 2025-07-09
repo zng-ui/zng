@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-data"
-version = "0.5.5"
+version = "0.5.6"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,8 +12,8 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.8.5" }
-zng-color = { path = "../zng-color", version = "0.6.3" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.6" }
+zng-color = { path = "../zng-color", version = "0.6.4" }
 zng-var = { path = "../zng-var", version = "0.7.3" }
 
 serde = { version = "1.0", features = ["derive"] }
