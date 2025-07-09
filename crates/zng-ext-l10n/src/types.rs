@@ -888,7 +888,7 @@ impl LangFilePath {
 
         if self.file != search.file {
             let file_a = self.file.rsplit_once('.').map(|t| t.0).unwrap_or(self.file.as_str());
-            let file_b = search.file.rsplit_once('.').map(|t| t.0).unwrap_or(self.file.as_str());
+            let file_b = search.file.rsplit_once('.').map(|t| t.0).unwrap_or(search.file.as_str());
             if file_a != file_b {
                 let is_empty_a = file_a == "_" || file_a.is_empty();
                 let is_empty_b = file_b == "_" || file_b.is_empty();
@@ -967,5 +967,13 @@ mod tests {
         check("0.1.0", "0.2.0", "0.3.0");
         check("1.0.0", "2.0.0", "3.0.0");
         check("1.0.0", "1.1.0", "2.0.0");
+    }
+
+    #[test]
+    fn file_name_mismatches() {
+        let ap = LangFilePath::new("name", "1.0.0".parse().unwrap(), "file-a");
+        let bp = LangFilePath::new("name", "1.0.0".parse().unwrap(), "file-b");
+
+        assert!(ap.matches(&bp).is_none());
     }
 }
