@@ -77,8 +77,14 @@ mod linux {
         }
 
         pub fn notify(&mut self) -> bool {
-            let file = File::open("/proc/meminfo").ok()?;
-            let reader = BufReader::new(file);
+            let meminfo = match File::open("/proc/meminfo") {
+                Ok(f) => f,
+                Err(e) => {
+                    tracing::error!("cannot read /proc/meminfo, {e}");
+                    return false;
+                }
+            };
+            let reader = BufReader::new(meminfo);
             let mut available_kb = None;
 
             for line in reader.lines().flatten() {
@@ -91,7 +97,14 @@ mod linux {
                 }
             }
 
-            let available_bytes = available_kb? * 1024;
+            let available_kb = match available_kb {
+                Some(kb) => kb,
+                None => {
+                    tracing::error!("cannot read MemAvailable from /proc/meminfo");
+                    return false;
+                }
+            };
+            let available_bytes = available_kb * 1024;
             let is_low = available_bytes < 200 * 1024 * 1024; // less than 200MB
 
             if self.is_low != is_low {
