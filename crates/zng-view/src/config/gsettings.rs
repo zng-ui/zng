@@ -17,7 +17,7 @@ pub fn font_aa() -> FontAntiAliasing {
 
 pub fn multi_click_config() -> MultiClickConfig {
     let mut cfg = MultiClickConfig::default();
-    if let Some(d) = dconf_uint("/org/gnome/desktop/peripherals/mouse/double-click") {
+    if let Some(d) = gsettings_uint("org.gnome.desktop.peripherals.mouse", "double-click") {
         cfg.time = d.ms();
     }
     cfg
@@ -25,13 +25,13 @@ pub fn multi_click_config() -> MultiClickConfig {
 
 pub fn animations_config() -> AnimationsConfig {
     let mut cfg = AnimationsConfig::default();
-    if let Some(e) = dconf_bool("/org/gnome/desktop/interface/enable-animations") {
+    if let Some(e) = gsettings_bool("org.gnome.desktop.interface", "enable-animations") {
         cfg.enabled = e;
     }
-    if let Some(d) = dconf_uint("/org/gnome/desktop/interface/cursor-blink-time") {
+    if let Some(d) = gsettings_uint("org.gnome.desktop.interface", "cursor-blink-time") {
         cfg.caret_blink_interval = (d / 2).ms();
     }
-    if let Some(e) = dconf_bool("/org/gnome/desktop/interface/cursor-blink") {
+    if let Some(e) = gsettings_bool("org.gnome.desktop.interface", "cursor-blink") {
         if !e {
             cfg.caret_blink_interval = Duration::MAX;
         }
@@ -41,10 +41,10 @@ pub fn animations_config() -> AnimationsConfig {
 
 pub fn key_repeat_config() -> KeyRepeatConfig {
     let mut cfg = KeyRepeatConfig::default();
-    if let Some(d) = dconf_uint("/org/gnome/desktop/peripherals/keyboard/delay") {
+    if let Some(d) = gsettings_uint("org.gnome.desktop.peripherals.keyboard", "delay") {
         cfg.start_delay = d.ms();
     }
-    if let Some(d) = dconf_uint("/org/gnome/desktop/peripherals/keyboard/repeat-interval") {
+    if let Some(d) = gsettings_uint("org.gnome.desktop.peripherals.keyboard", "repeat-interval") {
         cfg.interval = d.ms();
     }
     cfg
@@ -55,7 +55,7 @@ pub fn touch_config() -> TouchConfig {
 }
 
 pub fn colors_config() -> ColorsConfig {
-    let scheme = match dconf("/org/gnome/desktop/interface/color-scheme") {
+    let scheme = match gsettings("org.gnome.desktop.interface", "color-scheme") {
         Some(cs) => {
             if cs.contains("dark") {
                 ColorScheme::Dark
@@ -67,7 +67,7 @@ pub fn colors_config() -> ColorsConfig {
     };
 
     // the color value is not in any config, need to parse theme name
-    let theme = dconf("/org/gnome/desktop/interface/gtk-theme");
+    let theme = gsettings("org.gnome.desktop.interface", "gtk-theme");
     let theme = match theme.as_ref() {
         Some(n) => n.strip_prefix("Yaru-").unwrap_or("").split('-').next().unwrap_or(""),
         None => "?",
@@ -127,8 +127,8 @@ fn on_change(key: &str, s: &crate::AppEventSender) {
     }
 }
 
-fn dconf_bool(key: &str) -> Option<bool> {
-    let s = dconf(key)?;
+fn gsettings_bool(schema: &str, key: &str) -> Option<bool> {
+    let s = gsettings(schema, key)?;
     match s.parse::<bool>() {
         Ok(b) => Some(b),
         Err(e) => {
@@ -138,8 +138,8 @@ fn dconf_bool(key: &str) -> Option<bool> {
     }
 }
 
-fn dconf_uint(key: &str) -> Option<u64> {
-    let s = dconf(key)?;
+fn gsettings_uint(schema: &str, key: &str) -> Option<u64> {
+    let s = gsettings(schema, key)?;
     let s = if let Some((t, i)) = s.rsplit_once(' ') {
         if !t.starts_with("uint") {
             tracing::error!("unexpected value for {key} '{s}'");
@@ -158,8 +158,8 @@ fn dconf_uint(key: &str) -> Option<u64> {
     }
 }
 
-fn dconf(key: &str) -> Option<String> {
-    let out = std::process::Command::new("dconf").arg("read").arg(key).output();
+fn gsettings(schema: &str, key: &str) -> Option<String> {
+    let out = std::process::Command::new("gsettings").arg("get").arg(schema).arg(key).output();
     match out {
         Ok(s) => {
             if s.status.success() {

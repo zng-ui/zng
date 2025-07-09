@@ -24,7 +24,7 @@ use android as platform;
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-mod dconf;
+mod gsettings;
 #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -32,7 +32,7 @@ mod dconf;
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-use dconf as platform;
+use gsettings as platform;
 
 mod other;
 #[cfg(not(any(
