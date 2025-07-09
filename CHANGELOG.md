@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix localization resources fallback going to different file name (take 2).
 
 # 0.15.8
 
