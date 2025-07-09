@@ -87,7 +87,7 @@ mod linux {
             let reader = BufReader::new(meminfo);
             let mut available_kb = None;
 
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 if line.starts_with("MemAvailable:") {
                     let parts: Vec<_> = line.split_whitespace().collect();
                     if parts.len() >= 2 {
