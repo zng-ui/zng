@@ -133,7 +133,7 @@ pub use linux::LowMemoryMonitor;
     target_os = "freebsd",
     target_os = "netbsd",
     target_os = "openbsd",
-    target_os = "android",
+    // target_os = "android", // winit provides LowMemory event for Android
 )))]
 #[non_exhaustive]
 pub struct LowMemoryMonitor {}
@@ -145,11 +145,11 @@ pub struct LowMemoryMonitor {}
     target_os = "freebsd",
     target_os = "netbsd",
     target_os = "openbsd",
-    target_os = "android",
+    // target_os = "android",
 )))]
 impl LowMemoryMonitor {
     pub fn new() -> Option<Self> {
-        Some(Self { is_low: false })
+        Some(Self {})
     }
 
     pub fn notify(&mut self) -> bool {
