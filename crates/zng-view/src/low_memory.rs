@@ -128,10 +128,14 @@ pub use linux::LowMemoryMonitor;
 #[cfg(target_os = "macos")]
 mod macos {
     use libc::{
-        c_uint, host_page_size, host_statistics64, mach_host_self, mach_port_t, vm_size_t, vm_statistics64, HOST_VM_INFO64, KERN_SUCCESS,
+        c_uint, host_statistics64, sysconf, _SC_PAGESIZE, vm_statistics64, HOST_VM_INFO64, KERN_SUCCESS,
     };
     use std::mem::MaybeUninit;
-
+    #[allow(deprecated)] // suggestion says to use mach2, but that crate does not have this function
+    fn mach_host_self() -> libc::mach_port_t {
+        // SAFETY: this the correct usage
+        unsafe { libc::mach_host_self() }
+    }
     pub struct LowMemoryMonitor {
         is_low: bool,
         page_size: usize,
@@ -139,14 +143,8 @@ mod macos {
 
     impl LowMemoryMonitor {
         pub fn new() -> Option<Self> {
-            let mut page_size: vm_size_t = 0;
             // SAFETY: this is the correct usage
-            let result = unsafe { host_page_size(mach_host_self(), &mut page_size) };
-
-            if result != KERN_SUCCESS {
-                tracing::error!("host_page_size failed with code {result}");
-                return None;
-            }
+            let page_size = unsafe { sysconf(_SC_PAGESIZE) };
 
             Some(Self {
                 is_low: false,
