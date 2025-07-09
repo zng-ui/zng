@@ -382,7 +382,6 @@ pub(crate) struct App {
     #[cfg(not(any(windows, target_os = "android")))]
     arboard: Option<arboard::Clipboard>,
 
-    #[cfg(windows)]
     low_memory_monitor: Option<low_memory::LowMemoryMonitor>,
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
@@ -1381,10 +1380,8 @@ impl App {
             config_listener_exit: None,
             drag_drop_hovered: None,
             drag_drop_next_move: None,
-
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
-            #[cfg(windows)]
             low_memory_monitor: low_memory::LowMemoryMonitor::new(),
         }
     }
@@ -1666,7 +1663,6 @@ impl App {
     }
 
     fn update_memory_monitor(&mut self, _winit_loop: &ActiveEventLoop) {
-        #[cfg(windows)]
         if let Some(m) = &mut self.low_memory_monitor {
             if m.notify() {
                 use winit::application::ApplicationHandler as _;

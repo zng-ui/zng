@@ -53,6 +53,106 @@ mod windows {
         }
     }
 }
-
 #[cfg(windows)]
 pub use windows::LowMemoryMonitor;
+
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
+mod linux {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    pub struct LowMemoryMonitor {
+        is_low: bool,
+    }
+
+    impl LowMemoryMonitor {
+        pub fn new() -> Option<Self> {
+            Some(Self { is_low: false })
+        }
+
+        pub fn notify(&mut self) -> bool {
+            let meminfo = match File::open("/proc/meminfo") {
+                Ok(f) => f,
+                Err(e) => {
+                    tracing::error!("cannot read /proc/meminfo, {e}");
+                    return false;
+                }
+            };
+            let reader = BufReader::new(meminfo);
+            let mut available_kb = None;
+
+            for line in reader.lines().map_while(Result::ok) {
+                if line.starts_with("MemAvailable:") {
+                    let parts: Vec<_> = line.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        available_kb = parts[1].parse::<u64>().ok();
+                        break;
+                    }
+                }
+            }
+
+            let available_kb = match available_kb {
+                Some(kb) => kb,
+                None => {
+                    tracing::error!("cannot read MemAvailable from /proc/meminfo");
+                    return false;
+                }
+            };
+            let available_bytes = available_kb * 1024;
+            let is_low = available_bytes < 200 * 1024 * 1024; // less than 200MB
+
+            if self.is_low != is_low {
+                self.is_low = is_low;
+                return is_low;
+            }
+
+            false
+        }
+    }
+}
+#[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+))]
+pub use linux::LowMemoryMonitor;
+
+#[cfg(not(any(
+    windows,
+    // target_os = "macos",
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    // target_os = "android", // winit provides LowMemory event for Android
+)))]
+#[non_exhaustive]
+pub struct LowMemoryMonitor {}
+#[cfg(not(any(
+    windows,
+    // target_os = "macos",
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+    // target_os = "android",
+)))]
+impl LowMemoryMonitor {
+    pub fn new() -> Option<Self> {
+        Some(Self {})
+    }
+
+    pub fn notify(&mut self) -> bool {
+        false
+    }
+}

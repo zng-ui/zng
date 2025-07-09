@@ -1,6 +1,7 @@
 # Unreleased
 
 * Fix view-process config in Linux not reading default values that are only defined in schema.
+* Implement `LOW_MEMORY_EVENT` for Linux.
 * Fix log printing in prebuilt view-process.
 * Handle incorrect localization file name normalization.
     - Assertion panic in debug builds.
