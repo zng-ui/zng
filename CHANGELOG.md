@@ -1,5 +1,6 @@
 # Unreleased
 
+* Implement `LOW_MEMORY_EVENT` for Linux.
 * Fix log printing in prebuilt view-process.
 * Handle incorrect localization file name normalization.
     - Assertion panic in debug builds.

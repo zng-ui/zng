@@ -33,7 +33,7 @@ pub enum ClipboardData {
 }
 
 /// Clipboard data type.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 #[non_exhaustive]
 pub enum ClipboardType {
     /// A [`ClipboardData::Text`].
