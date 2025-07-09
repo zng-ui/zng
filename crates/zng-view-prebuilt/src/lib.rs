@@ -57,7 +57,7 @@ pub fn run_same_process(run_app: impl FnOnce() + Send + 'static) -> ! {
 
 /// Dynamically linked pre-built view.
 pub struct ViewLib {
-    view_process_main_fn: unsafe extern "C" fn(),
+    view_process_main_fn: unsafe extern "C" fn(&StaticPatch),
     run_same_process_fn: unsafe extern "C" fn(&StaticPatch, extern "C" fn()),
     _lib: Library,
 }
@@ -199,7 +199,8 @@ impl ViewLib {
     ///
     /// [`view_process_main`]: https://docs.rs/zng-view/fn.view_process_main.html
     pub fn view_process_main(self) {
-        unsafe { (self.view_process_main_fn)() }
+        let patch = StaticPatch::capture();
+        unsafe { (self.view_process_main_fn)(&patch) }
     }
 
     /// Call the pre-build [`run_same_process`].

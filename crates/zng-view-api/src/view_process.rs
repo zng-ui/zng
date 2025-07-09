@@ -157,7 +157,7 @@ fn same_process() -> &'static Mutex<SameProcess> {
     unsafe { *std::ptr::addr_of!(SAME_PROCESS) }
 }
 
-/// Dynamic view-process "same process" implementations must patch the static variables used by
+/// Dynamic view-process implementations must patch the static variables used by
 /// the view-api. This patch also propagates the tracing and log contexts.
 pub struct StaticPatch {
     same_process: *const Mutex<SameProcess>,

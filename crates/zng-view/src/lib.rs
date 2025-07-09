@@ -214,8 +214,15 @@ pub fn view_process_main() {
 #[cfg(ipc)]
 #[doc(hidden)]
 #[unsafe(no_mangle)] // SAFETY: minimal risk of name collision, nothing else to do
-pub extern "C" fn extern_view_process_main() {
+pub extern "C" fn extern_view_process_main(patch: &StaticPatch) {
     std::panic::set_hook(Box::new(ffi_abort));
+
+    // SAFETY:
+    // safe because it is called before any view related code in the library.
+    unsafe {
+        patch.install();
+    }
+
     view_process_main()
 }
 

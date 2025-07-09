@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix log printing in prebuilt view-process.
 * Handle incorrect localization file name normalization.
     - Assertion panic in debug builds.
     - Warning logged and normalization in release builds.
