@@ -1,5 +1,10 @@
 # Unreleased
 
+* Add background and foreground image properties.
+    - An alternative to using the `Image!` widget as `background` or `foreground`.
+    - Properties implemented in `zng-wgt-image` and surfaced in `zng::widget`.
+    - `background_img`, `background_img_align`, `background_img_crop`, `background_img_fit`, `background_img_offset`, `background_img_opacity`, `background_img_repeat`, `background_img_repeat_spacing`.
+    - `foreground_img`, `foreground_img_align`, `foreground_img_crop`, `foreground_img_fit`, `foreground_img_offset`, `foreground_img_opacity`, `foreground_img_repeat`, `foreground_img_repeat_spacing`.
 * Fix `"http"` feature including the image widget crate in `zng`.
 * Remove warnings about `touch_config` not being implemented in Linux, macOS and Windows.
 * Fix localization resources fallback going to different file name (take 2).

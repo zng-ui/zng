@@ -792,7 +792,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                 let us = tree.get(WIDGET.id()).unwrap();
 
                 if let Some(scroll_info) = us.scroll_info() {
-                    #[allow(deprecated)] // TODO(0.16) - remove this allow
+                    #[allow(deprecated)] // TODO(breaking) - remove this allow
                     if let Some(s) = &mut zoom {
                         *s = (*s).clamp(MIN_ZOOM_VAR.get(), MAX_ZOOM_VAR.get());
                     }
