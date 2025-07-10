@@ -298,7 +298,8 @@ pub fn key_repeat_config() -> KeyRepeatConfig {
 }
 
 pub fn touch_config() -> TouchConfig {
-    super::other::touch_config()
+    // Windows does not provide touch config
+    TouchConfig::default()
 }
 
 pub fn chrome_config() -> ChromeConfig {
