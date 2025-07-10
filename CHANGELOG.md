@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix `"http"` feature including the image widget crate in `zng`.
 * Remove warnings about `touch_config` not being implemented in Linux, macOS and Windows.
 * Fix localization resources fallback going to different file name (take 2).
 

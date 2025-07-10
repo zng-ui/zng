@@ -64,8 +64,8 @@ view_prebuilt = ["dep:zng-view-prebuilt", "ipc"]
 http = [
     "zng-task/http",
     "zng-wgt/http",
-    "zng-ext-image/http",
-    "zng-ext-window/http",
+    "zng-ext-image?/http",
+    "zng-ext-window?/http",
 ]
 
 # Enable the `"dyn_*"`, `"inspector"` and `"trace_recorder"` features in debug builds.
@@ -112,7 +112,7 @@ dyn_closure = [
 # Test utilities.
 test_util = [
     "zng-app/test_util",
-    "zng-ext-window/test_util",
+    "zng-ext-window?/test_util",
     "zng-task/test_util",
 ]
 

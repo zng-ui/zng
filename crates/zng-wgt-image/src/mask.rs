@@ -10,11 +10,11 @@ use crate::ImageFit;
 
 /// Sets an image mask.
 ///
-/// The image alpha channel is used as a mask for the widget and descendants.
-///
 /// This property is configured by contextual values set by the properties in the [`mask`] module.
+/// By default the image alpha channel is used as mask, this can be changed by the [`mask_mode`] property.
 ///
 /// [`mask`]: crate::mask
+/// [`mask_mode`]: fn@mask_mode
 #[property(FILL-1)]
 pub fn mask_image(child: impl UiNode, source: impl IntoVar<ImageSource>) -> impl UiNode {
     let source = source.into_var();
