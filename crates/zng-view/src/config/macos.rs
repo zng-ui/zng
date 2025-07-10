@@ -27,7 +27,8 @@ pub fn key_repeat_config() -> KeyRepeatConfig {
 }
 
 pub fn touch_config() -> TouchConfig {
-    super::other::touch_config()
+    // macOS does not provide touch config
+    TouchConfig::default()
 }
 
 pub fn colors_config() -> ColorsConfig {
