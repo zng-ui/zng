@@ -19,5 +19,6 @@ zng-ext-image = { path = "../zng-ext-image", version = "0.5.6" }
 zng-ext-window = { path = "../zng-ext-window", version = "0.6.6" }
 zng-wgt-window = { path = "../zng-wgt-window", version = "0.9.7" }
 zng-wgt-stack = { path = "../zng-wgt-stack", version = "0.6.6" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.5.6" }
 
 serde = { version = "1.0", features = ["derive"] }

@@ -175,11 +175,11 @@ pub fn img_scale(child: impl UiNode, scale: impl IntoVar<Factor2d>) -> impl UiNo
     with_context_var(child, IMAGE_SCALE_VAR, scale)
 }
 
-/// If the image desired size is scaled by the screen scale factor.
+/// Sets if the image desired size is scaled by the screen scale factor.
 ///
 /// The image desired size is its original size after [`img_crop`], it is a pixel value, but widgets are layout using
 /// device independent pixels that automatically scale in higher definition displays, when this property is enabled
-/// the image size is also scaled so that the image will take the same screen space in all devices, the image can end
+/// the image size is also scaled so that the image will take the same screen space in all devices.
 ///
 /// This is enabled by default.
 ///
@@ -196,7 +196,7 @@ pub fn img_scale_factor(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
 /// The image desired size is its original size, after [`img_crop`], and it can be in pixels or scaled considering
 /// the image PPI, monitor PPI and scale factor.
 ///
-/// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, but it
+/// By default this is `false`, if `true` the image is scaled in a attempt to recreate the original physical dimensions, this
 /// only works if the image and monitor PPI are set correctly. The monitor PPI can be set using the [`MONITORS`] service.
 ///
 /// [`img_crop`]: fn@img_crop
@@ -222,7 +222,7 @@ pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// [`img_align`]: fn@crate::img_align
 #[property(CONTEXT, default(IMAGE_ALIGN_VAR), widget_impl(Image))]
 pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
-    with_context_var(child, IMAGE_ALIGN_VAR, fit)
+    with_context_var(child, IMAGE_ALIGN_VAR, fit) // TODO(breaking) rename fit to align
 }
 
 /// Sets a [`Point`] that is an offset applied to all inner images within each image widget area.

@@ -35,7 +35,7 @@
 //!
 //! # Full API
 //!
-//! See [`zng_app::widget`] for the full API.
+//! See [`zng_app::widget`], [`zng_wgt`], [`zng_wgt_fill`], [`zng_wgt_image::border`], [`zng_wgt_image::fill`] for the full API.
 
 pub use zng_app::widget::base::{HitTestMode, NonWidgetBase, PARALLEL_VAR, Parallel, WidgetBase, WidgetExt, WidgetImpl};
 
@@ -62,7 +62,14 @@ pub use zng_wgt::{
 };
 
 #[cfg(feature = "image")]
-pub use zng_wgt_image::border::{BorderRepeats, border_img, border_img_fill, border_img_repeat};
+pub use zng_wgt_image::{
+    border::{BorderRepeats, border_img, border_img_fill, border_img_repeat},
+    fill::{
+        background_img, background_img_align, background_img_crop, background_img_fit, background_img_offset, background_img_opacity,
+        background_img_repeat, background_img_repeat_spacing, foreground_img, foreground_img_align, foreground_img_crop,
+        foreground_img_fit, foreground_img_offset, foreground_img_opacity, foreground_img_repeat, foreground_img_repeat_spacing,
+    },
+};
 
 pub use zng_wgt_fill::{
     background, background_color, background_conic, background_fn, background_gradient, background_radial, foreground, foreground_color,

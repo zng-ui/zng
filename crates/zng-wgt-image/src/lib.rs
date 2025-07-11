@@ -16,6 +16,7 @@ mod image_properties;
 pub use image_properties::*;
 
 pub mod border;
+pub mod fill;
 pub mod mask;
 
 use zng_wgt_access::{AccessRole, access_role};
