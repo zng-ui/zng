@@ -5,7 +5,7 @@ use zng_var::{animation::Transitionable, impl_from_and_into_var};
 use super::{DipRect, Factor2d, LayoutMask, Length, Point, PxRect, Size, Vector, impl_length_comp_conversions};
 
 /// 2D rect in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Rect {
     /// Top-left origin of the rectangle in length units.
     pub origin: Point,

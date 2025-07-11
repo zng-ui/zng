@@ -10,14 +10,17 @@ use zng_app::{
     view_process::{EncodeError, ViewImage, ViewRenderer},
     window::WindowId,
 };
-use zng_color::Rgba;
+use zng_color::{
+    Hsla, Rgba,
+    gradient::{ExtendMode, GradientStops},
+};
 use zng_layout::{
-    context::LayoutMetrics,
-    unit::{ByteLength, ByteUnits, PxRect, PxSize},
+    context::{LAYOUT, LayoutMetrics, LayoutPassId},
+    unit::{ByteLength, ByteUnits, FactorUnits as _, LayoutAxis, Px, PxLine, PxPoint, PxRect, PxSize},
 };
 use zng_task::{self as task, SignalOnce};
 use zng_txt::Txt;
-use zng_var::{AnyVar, ReadOnlyArcVar, impl_from_and_into_var};
+use zng_var::{AnyVar, ReadOnlyArcVar, animation::Transitionable, impl_from_and_into_var};
 use zng_view_api::image::ImageTextureId;
 
 use crate::render::ImageRenderWindowRoot;
@@ -531,7 +534,7 @@ impl ImageRenderArgs {
 }
 
 /// The different sources of an image resource.
-#[derive(Clone)]
+#[derive(Clone)] // TODO(breaking): non_exhaustive?
 pub enum ImageSource {
     /// A path to an image file in the file system.
     ///
@@ -570,22 +573,6 @@ pub enum ImageSource {
     Image(ImageVar),
 }
 impl ImageSource {
-    /// New image data from solid color.
-    pub fn flood(size: impl Into<PxSize>, color: impl Into<Rgba>, ppi: Option<ImagePpi>) -> Self {
-        let size = size.into();
-        let color = color.into();
-        let len = size.width.0 as usize * size.height.0 as usize * 4;
-        let mut data = vec![0; len];
-        for bgra in data.chunks_exact_mut(4) {
-            let rgba = color.to_bytes();
-            bgra[0] = rgba[2];
-            bgra[1] = rgba[1];
-            bgra[2] = rgba[0];
-            bgra[3] = rgba[3];
-        }
-        Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, ppi })
-    }
-
     /// New source from data.
     pub fn from_data(data: Arc<Vec<u8>>, format: ImageDataFormat) -> Self {
         let mut hasher = ImageHasher::default();
@@ -686,6 +673,210 @@ impl ImageSource {
         h.finish()
     }
 }
+
+impl ImageSource {
+    /// New image data from solid color.
+    pub fn flood(size: impl Into<PxSize>, color: impl Into<Rgba>, ppi: Option<ImagePpi>) -> Self {
+        Self::flood_impl(size.into(), color.into(), ppi)
+    }
+    fn flood_impl(size: PxSize, color: Rgba, ppi: Option<ImagePpi>) -> Self {
+        let pixels = size.width.0 as usize * size.height.0 as usize;
+        let bgra = color.to_bgra_bytes();
+        let mut data = Vec::with_capacity(pixels * 4);
+        for _ in 0..pixels {
+            data.extend_from_slice(&bgra);
+        }
+        Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, ppi })
+    }
+
+    /// New image data from vertical linear gradient.
+    pub fn linear_vertical(
+        size: impl Into<PxSize>,
+        stops: impl Into<GradientStops>,
+        ppi: Option<ImagePpi>,
+        mask: Option<ImageMaskMode>,
+    ) -> Self {
+        Self::linear_vertical_impl(size.into(), stops.into(), ppi, mask)
+    }
+    fn linear_vertical_impl(size: PxSize, stops: GradientStops, ppi: Option<ImagePpi>, mask: Option<ImageMaskMode>) -> Self {
+        assert!(size.width > Px(0));
+        assert!(size.height > Px(0));
+
+        let mut line = PxLine::new(PxPoint::splat(Px(0)), PxPoint::new(Px(0), size.height));
+        let mut render_stops = vec![];
+
+        LAYOUT.with_root_context(LayoutPassId::new(), LayoutMetrics::new(1.fct(), size, Px(14)), || {
+            stops.layout_linear(LayoutAxis::Y, ExtendMode::Clamp, &mut line, &mut render_stops);
+        });
+        let line_a = line.start.y.0 as f32;
+        let line_b = line.end.y.0 as f32;
+
+        let mut bgra = Vec::with_capacity(size.height.0 as usize);
+        let mut render_stops = render_stops.into_iter();
+        let mut stop_a = render_stops.next().unwrap();
+        let mut stop_b = render_stops.next().unwrap();
+        'outer: for y in 0..size.height.0 {
+            let yf = y as f32;
+            let yf = (yf - line_a) / (line_b - line_a);
+            if yf < stop_a.offset {
+                // clamp start
+                bgra.push(stop_a.color.to_bgra_bytes());
+                continue;
+            }
+            while yf > stop_b.offset {
+                if let Some(next_b) = render_stops.next() {
+                    // advance
+                    stop_a = stop_b;
+                    stop_b = next_b;
+                } else {
+                    // clamp end
+                    for _ in y..size.height.0 {
+                        bgra.push(stop_b.color.to_bgra_bytes());
+                    }
+                    break 'outer;
+                }
+            }
+
+            // lerp a-b
+            let yf = (yf - stop_a.offset) / (stop_b.offset - stop_a.offset);
+            let sample = stop_a.color.lerp(&stop_b.color, yf.fct());
+            bgra.push(sample.to_bgra_bytes());
+        }
+
+        match mask {
+            Some(m) => {
+                let len = size.width.0 as usize * size.height.0 as usize;
+                let mut data = Vec::with_capacity(len);
+
+                for y in 0..size.height.0 {
+                    let c = bgra[y as usize];
+                    let c = match m {
+                        ImageMaskMode::A => c[3],
+                        ImageMaskMode::B => c[0],
+                        ImageMaskMode::G => c[1],
+                        ImageMaskMode::R => c[2],
+                        ImageMaskMode::Luminance => {
+                            let hsla = Hsla::from(Rgba::new(c[2], c[1], c[0], c[3]));
+                            (hsla.lightness * 255.0).round().clamp(0.0, 255.0) as u8
+                        }
+                        _ => unreachable!(),
+                    };
+                    for _x in 0..size.width.0 {
+                        data.push(c);
+                    }
+                }
+
+                Self::from_data(Arc::new(data), ImageDataFormat::A8 { size })
+            }
+            None => {
+                let len = size.width.0 as usize * size.height.0 as usize * 4;
+                let mut data = Vec::with_capacity(len);
+
+                for y in 0..size.height.0 {
+                    let c = bgra[y as usize];
+                    for _x in 0..size.width.0 {
+                        data.extend_from_slice(&c);
+                    }
+                }
+
+                Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, ppi })
+            }
+        }
+    }
+
+    /// New image data from horizontal linear gradient.
+    pub fn linear_horizontal(
+        size: impl Into<PxSize>,
+        stops: impl Into<GradientStops>,
+        ppi: Option<ImagePpi>,
+        mask: Option<ImageMaskMode>,
+    ) -> Self {
+        Self::linear_horizontal_impl(size.into(), stops.into(), ppi, mask)
+    }
+    fn linear_horizontal_impl(size: PxSize, stops: GradientStops, ppi: Option<ImagePpi>, mask: Option<ImageMaskMode>) -> Self {
+        assert!(size.width > Px(0));
+        assert!(size.height > Px(0));
+
+        let mut line = PxLine::new(PxPoint::splat(Px(0)), PxPoint::new(size.width, Px(0)));
+        let mut render_stops = vec![];
+        LAYOUT.with_root_context(LayoutPassId::new(), LayoutMetrics::new(1.fct(), size, Px(14)), || {
+            stops.layout_linear(LayoutAxis::Y, ExtendMode::Clamp, &mut line, &mut render_stops);
+        });
+        let line_a = line.start.x.0 as f32;
+        let line_b = line.end.x.0 as f32;
+
+        let mut bgra = Vec::with_capacity(size.width.0 as usize);
+        let mut render_stops = render_stops.into_iter();
+        let mut stop_a = render_stops.next().unwrap();
+        let mut stop_b = render_stops.next().unwrap();
+        'outer: for x in 0..size.width.0 {
+            let xf = x as f32;
+            let xf = (xf - line_a) / (line_b - line_a);
+            if xf < stop_a.offset {
+                // clamp start
+                bgra.push(stop_a.color.to_bgra_bytes());
+                continue;
+            }
+            while xf > stop_b.offset {
+                if let Some(next_b) = render_stops.next() {
+                    // advance
+                    stop_a = stop_b;
+                    stop_b = next_b;
+                } else {
+                    // clamp end
+                    for _ in x..size.width.0 {
+                        bgra.push(stop_b.color.to_bgra_bytes());
+                    }
+                    break 'outer;
+                }
+            }
+
+            // lerp a-b
+            let xf = (xf - stop_a.offset) / (stop_b.offset - stop_a.offset);
+            let sample = stop_a.color.lerp(&stop_b.color, xf.fct());
+            bgra.push(sample.to_bgra_bytes());
+        }
+
+        match mask {
+            Some(m) => {
+                let len = size.width.0 as usize * size.height.0 as usize;
+                let mut data = Vec::with_capacity(len);
+
+                for _y in 0..size.height.0 {
+                    for c in &bgra {
+                        let c = match m {
+                            ImageMaskMode::A => c[3],
+                            ImageMaskMode::B => c[0],
+                            ImageMaskMode::G => c[1],
+                            ImageMaskMode::R => c[2],
+                            ImageMaskMode::Luminance => {
+                                let hsla = Hsla::from(Rgba::new(c[2], c[1], c[0], c[3]));
+                                (hsla.lightness * 255.0).round().clamp(0.0, 255.0) as u8
+                            }
+                            _ => unreachable!(),
+                        };
+                        data.push(c);
+                    }
+                }
+
+                Self::from_data(Arc::new(data), ImageDataFormat::A8 { size })
+            }
+            None => {
+                let len = size.width.0 as usize * size.height.0 as usize * 4;
+                let mut data = Vec::with_capacity(len);
+
+                for _y in 0..size.height.0 {
+                    for c in &bgra {
+                        data.extend_from_slice(c);
+                    }
+                }
+
+                Self::from_data(Arc::new(data), ImageDataFormat::Bgra8 { size, ppi })
+            }
+        }
+    }
+}
+
 impl PartialEq for ImageSource {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

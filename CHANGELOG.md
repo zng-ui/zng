@@ -1,8 +1,7 @@
 # Unreleased
 
-* Implement `Eq` and `Hash` for `Length`, `LengthExpr`, `Size`, `Line`, `Point`, `LinearGradientAxis`, `ColorStop`, `GradientStop`, `GradientStops`. 
-  - !!: TODO all other Length based types
-  - !!: TODO consider `Ord` too, based on eval at standard context, then discriminant (decl. order)
+* Add `ImageSource::linear_vertical` and `linear_horizontal` for generating fast gradient masks.
+* Implement `Eq` and `Hash` for `Length`, `LengthExpr`, `Size`, `Line`, `Point`, `Factor2d`, `GridSpacing`, `FactorSideOffsets`, `Rect`, `SideOffsets`, `Vector`, `LinearGradientAxis`, `ColorStop`, `GradientStop`, `GradientStops`.
 * Add background and foreground image properties.
     - An alternative to using the `Image!` widget as `background` or `foreground`.
     - Properties implemented in `zng-wgt-image` and surfaced in `zng::widget`.

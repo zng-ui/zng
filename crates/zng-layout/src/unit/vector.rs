@@ -8,7 +8,7 @@ use super::{
 };
 
 /// 2D vector in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Vector {
     /// *x* displacement in length units.
     pub x: Length,

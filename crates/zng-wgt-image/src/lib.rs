@@ -17,7 +17,6 @@ pub use image_properties::*;
 
 pub mod border;
 pub mod fill;
-pub mod gradient_render;
 pub mod mask;
 
 use zng_wgt_access::{AccessRole, access_role};
