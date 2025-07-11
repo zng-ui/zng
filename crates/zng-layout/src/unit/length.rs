@@ -3,6 +3,7 @@ use super::{
 };
 use std::{fmt, mem, ops};
 
+use zng_unit::about_eq_hash;
 use zng_var::{
     animation::{Transitionable, easing::EasingStep},
     impl_from_and_into_var,
@@ -291,19 +292,45 @@ impl PartialEq for Length {
 
             (DipF32(a), DipF32(b)) | (PxF32(a), PxF32(b)) => about_eq(*a, *b, EQ_GRANULARITY_100),
 
-            (Factor(a), Factor(b)) | (Em(a), Em(b)) | (RootEm(a), RootEm(b)) | (Leftover(a), Leftover(b)) => a == b,
-
-            (ViewportWidth(a), ViewportWidth(b))
+            (Factor(a), Factor(b))
+            | (Em(a), Em(b))
+            | (RootEm(a), RootEm(b))
+            | (Leftover(a), Leftover(b))
+            | (ViewportWidth(a), ViewportWidth(b))
             | (ViewportHeight(a), ViewportHeight(b))
             | (ViewportMin(a), ViewportMin(b))
-            | (ViewportMax(a), ViewportMax(b)) => about_eq(a.0, b.0, EQ_GRANULARITY),
+            | (ViewportMax(a), ViewportMax(b)) => a == b,
 
             (Expr(a), Expr(b)) => a == b,
 
             (Dip(a), DipF32(b)) | (DipF32(b), Dip(a)) => about_eq(a.to_f32(), *b, EQ_GRANULARITY_100),
             (Px(a), PxF32(b)) | (PxF32(b), Px(a)) => about_eq(a.0 as f32, *b, EQ_GRANULARITY_100),
 
-            _ => false,
+            (a, b) => {
+                debug_assert_ne!(std::mem::discriminant(a), std::mem::discriminant(b));
+                false
+            }
+        }
+    }
+}
+impl Eq for Length {}
+impl std::hash::Hash for Length {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            Length::Default => {}
+            Length::Dip(dip) => dip.hash(state),
+            Length::Px(px) => px.hash(state),
+            Length::Factor(factor)
+            | Length::Leftover(factor)
+            | Length::Em(factor)
+            | Length::RootEm(factor)
+            | Length::ViewportWidth(factor)
+            | Length::ViewportHeight(factor)
+            | Length::ViewportMin(factor)
+            | Length::ViewportMax(factor) => factor.hash(state),
+            Length::DipF32(f) | Length::PxF32(f) | Length::Pt(f) => about_eq_hash(*f, EQ_GRANULARITY_100, state),
+            Length::Expr(length_expr) => length_expr.hash(state),
         }
     }
 }
@@ -658,7 +685,7 @@ impl super::Layout1d for Length {
 }
 
 /// Represents an unresolved [`Length`] expression.
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LengthExpr {
     /// Sums the both layout length.
     Add(Length, Length),

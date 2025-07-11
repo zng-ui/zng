@@ -32,7 +32,7 @@ impl ops::DivAssign<Factor> for Factor2d {
 }
 
 /// Scale factor applied to ***x*** and ***y*** dimensions.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Factor2d {
     /// Scale factor applied in the ***x*** dimension.
     pub x: Factor,
@@ -336,7 +336,7 @@ impl ops::Neg for Factor2d {
 }
 
 /// Scale factor applied to margins.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct FactorSideOffsets {
     /// Factor of top offset.
     pub top: Factor,

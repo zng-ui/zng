@@ -5,7 +5,7 @@ use zng_var::{animation::Transitionable, impl_from_and_into_var};
 use super::{Factor2d, LayoutMask, Length, Point, Px, PxPoint, PxRect};
 
 /// 2D line in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Line {
     /// Start point in length units.
     pub start: Point,

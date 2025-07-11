@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `ImageSource::linear_vertical` and `linear_horizontal` for generating fast gradient masks.
+* Implement `Eq` and `Hash` for `Length`, `LengthExpr`, `Size`, `Line`, `Point`, `Factor2d`, `GridSpacing`, `FactorSideOffsets`, `Rect`, `SideOffsets`, `Vector`, `LinearGradientAxis`, `ColorStop`, `GradientStop`, `GradientStops`.
 * Add background and foreground image properties.
     - An alternative to using the `Image!` widget as `background` or `foreground`.
     - Properties implemented in `zng-wgt-image` and surfaced in `zng::widget`.

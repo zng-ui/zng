@@ -120,6 +120,16 @@ impl Rgba {
             (self.alpha * 255.0) as u8,
         ]
     }
+
+    /// Convert a copy to [B, G, R, A] bytes.
+    pub fn to_bgra_bytes(self) -> [u8; 4] {
+        [
+            (self.blue * 255.0) as u8,
+            (self.green * 255.0) as u8,
+            (self.red * 255.0) as u8,
+            (self.alpha * 255.0) as u8,
+        ]
+    }
 }
 impl fmt::Debug for Rgba {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -284,7 +284,7 @@ impl_from_and_into_var! {
 /// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LinearGradientAxis {
     /// Line defined by an angle. 0º is a line from bottom-to-top, 90º is a line from left-to-right.
     ///
@@ -393,7 +393,7 @@ impl Transitionable for LinearGradientAxis {
 }
 
 /// A color stop in a gradient.
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ColorStop {
     /// The color.
     pub color: Rgba,
@@ -527,7 +527,7 @@ impl Transitionable for ColorStop {
 pub type RenderGradientStop = zng_view_api::GradientStop;
 
 /// A stop in a gradient.
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum GradientStop {
     /// Color stop.
     Color(ColorStop),
@@ -601,7 +601,7 @@ impl fmt::Debug for GradientStop {
 /// Stops in a gradient.
 ///
 /// Use [`stops!`] to create a new instance, you can convert from arrays for simpler gradients.
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct GradientStops {
     /// First color stop.
     pub start: ColorStop,

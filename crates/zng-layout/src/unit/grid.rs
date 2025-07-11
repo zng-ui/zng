@@ -5,7 +5,7 @@ use zng_var::{animation::Transitionable, impl_from_and_into_var};
 use super::{Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, Px, PxVector, impl_length_comp_conversions};
 
 /// Spacing in-between grid cells in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct GridSpacing {
     /// Spacing in-between columns, in length units.
     pub column: Length,
@@ -152,7 +152,7 @@ impl<S: Into<Factor2d>> ops::DivAssign<S> for GridSpacing {
 }
 
 /// Computed [`GridSpacing`].
-#[derive(Clone, Default, Copy, Debug)]
+#[derive(Clone, Default, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct PxGridSpacing {
     /// Spacing in-between columns, in layout pixels.
     pub column: Px,
