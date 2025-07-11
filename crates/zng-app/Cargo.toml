@@ -1,6 +1,6 @@
 [package]
 name = "zng-app"
-version = "0.16.6"
+version = "0.16.7"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -90,15 +90,15 @@ zng-tp-licenses = { path = "../zng-tp-licenses", version = "0.4.2" }
 zng-clone-move = { path = "../zng-clone-move", version = "0.3.0" }
 zng-app-context = { path = "../zng-app-context", version = "0.7.3" }
 zng-time = { path = "../zng-time", version = "0.4.3" }
-zng-var = { path = "../zng-var", version = "0.7.3" }
+zng-var = { path = "../zng-var", version = "0.7.4" }
 zng-txt = { path = "../zng-txt", version = "0.3.2" }
-zng-task = { path = "../zng-task", version = "0.6.4" }
-zng-view-api = { path = "../zng-view-api", version = "0.13.4", features = [
+zng-task = { path = "../zng-task", version = "0.6.5" }
+zng-view-api = { path = "../zng-view-api", version = "0.13.5", features = [
     "var",
 ] }
 zng-state-map = { path = "../zng-state-map", version = "0.5.1" }
-zng-layout = { path = "../zng-layout", version = "0.4.3" }
-zng-color = { path = "../zng-color", version = "0.6.4" }
+zng-layout = { path = "../zng-layout", version = "0.4.4" }
+zng-color = { path = "../zng-color", version = "0.6.5" }
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

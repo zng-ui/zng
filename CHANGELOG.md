@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.15.9
+
 * Add `ImageSource::linear_vertical` and `linear_horizontal` for generating fast gradient masks.
 * Implement `Eq` and `Hash` for `Length`, `LengthExpr`, `Size`, `Line`, `Point`, `Factor2d`, `GridSpacing`, `FactorSideOffsets`, `Rect`, `SideOffsets`, `Vector`, `LinearGradientAxis`, `ColorStop`, `GradientStop`, `GradientStops`.
 * Add background and foreground image properties.
