@@ -5,7 +5,7 @@ use zng_var::{animation::Transitionable, impl_from_and_into_var};
 use super::{DipPoint, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxPoint, Size, Vector, impl_length_comp_conversions};
 
 /// 2D point in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Point {
     /// *x* offset in length units.
     pub x: Length,

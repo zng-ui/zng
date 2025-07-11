@@ -5,7 +5,7 @@ use zng_var::{animation::Transitionable, impl_from_and_into_var};
 use super::{DipSize, Factor, Factor2d, FactorPercent, Layout1d, LayoutMask, Length, PxSize, Rect, Vector, impl_length_comp_conversions};
 
 /// 2D size in [`Length`] units.
-#[derive(Clone, Default, PartialEq, serde::Serialize, serde::Deserialize, Transitionable)]
+#[derive(Clone, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct Size {
     /// *width* in length units.
     pub width: Length,
