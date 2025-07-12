@@ -875,7 +875,7 @@ macro_rules! __command_property {
 ///
 /// [`Command::subscribe`]: zng_app::event::Command::subscribe
 #[macro_export]
-macro_rules! command_property {
+macro_rules! command_property { // TODO(breaking): generate `can_foo` property and `CAN_FOO_VAR` when `enabled` is not set
     ($(
         $(#[$on_cmd_attrs:meta])*
         $vis:vis fn $command:ident {
