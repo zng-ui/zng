@@ -451,10 +451,7 @@ impl NestGroup {
     pub fn name(self) -> Txt {
         let name = self.exact_name();
         if name.is_empty() {
-            let closest = Self::ITEMS
-                .into_iter()
-                .min_by_key(|i| (self.0 as i32 - i.0 as i32).abs())
-                .unwrap();
+            let closest = Self::ITEMS.into_iter().min_by_key(|i| (self.0 as i32 - i.0 as i32).abs()).unwrap();
             let diff = self.0 as i32 - closest.0 as i32;
 
             let name = closest.exact_name();
