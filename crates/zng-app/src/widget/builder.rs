@@ -453,7 +453,7 @@ impl NestGroup {
         if name.is_empty() {
             let closest = Self::ITEMS
                 .into_iter()
-                .min_by_key(|i| ((self.0 as i32 - i.0 as i32).abs()))
+                .min_by_key(|i| (self.0 as i32 - i.0 as i32).abs())
                 .unwrap();
             let diff = self.0 as i32 - closest.0 as i32;
 
