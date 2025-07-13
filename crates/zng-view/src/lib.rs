@@ -1043,10 +1043,11 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                         println!("!!: persistent_identifier: {:?}", device_id.persistent_identifier());
                     }
 
-                    let winit_no_info = InputDeviceInfo::new("winit device",InputDeviceCapability::empty());
+                    let winit_no_info = InputDeviceInfo::new("winit device", InputDeviceCapability::empty());
                     let devices = self.devices.iter().map(|(id, _)| (*id, winit_no_info.clone())).collect();
                     self.notify(Event::InputDevicesChanged(devices));
-                    self.notify(Event::DeviceAdded(d_id));                }
+                    self.notify(Event::DeviceAdded(d_id));
+                }
                 DeviceEvent::Removed => {
                     let winit_no_info = InputDeviceInfo::new("winit device", InputDeviceCapability::empty());
                     let devices = self.devices.iter().map(|(id, _)| (*id, winit_no_info.clone())).collect();
