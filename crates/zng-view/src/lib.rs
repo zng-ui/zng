@@ -2307,6 +2307,7 @@ impl Api for App {
 
 /// Message inserted in the event loop from the view-process.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum AppEvent {
     /// One or more [`RequestEvent`] are pending in the request channel.
     Request,

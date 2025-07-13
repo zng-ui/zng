@@ -13,6 +13,7 @@ use crate::{
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonId, ButtonState, MouseButton, MouseScrollDelta},
     touch::{TouchPhase, TouchUpdate},
+    audio::{AudioDeviceInfo, AudioDeviceId},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 use serde::{Deserialize, Serialize};
@@ -128,6 +129,9 @@ pub struct Inited {
 
     /// Available monitors.
     pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
+    /// Available audio input and output devices.
+    pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
+
     /// System multi-click config.
     pub multi_click_config: MultiClickConfig,
     /// System keyboard pressed key repeat start delay config.
@@ -170,6 +174,7 @@ impl Inited {
             generation,
             is_respawn,
             available_monitors,
+            available_audio_devices: vec![], // TODO(breaking): add to `new`
             multi_click_config,
             key_repeat_config,
             touch_config,
@@ -446,6 +451,8 @@ pub enum Event {
 
     /// The available monitors have changed.
     MonitorsChanged(Vec<(MonitorId, MonitorInfo)>),
+    /// The available audio input and output devices have changed.
+    AudioDevicesChanged(Vec<(AudioDeviceId, AudioDeviceInfo)>),
 
     /// The window has been requested to close.
     WindowCloseRequested(WindowId),
@@ -590,6 +597,7 @@ pub enum Event {
         /// If the key was pressed or released.
         state: KeyState,
     },
+
     /// User responded to a native message dialog.
     MsgDialogResponse(DialogId, MsgDialogResponse),
     /// User responded to a native file dialog.

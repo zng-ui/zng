@@ -38,6 +38,7 @@ pub mod dialog;
 pub mod display_list;
 pub mod drag_drop;
 pub mod font;
+pub mod audio;
 pub mod image;
 pub mod ipc;
 pub mod keyboard;
