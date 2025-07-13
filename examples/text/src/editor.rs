@@ -117,7 +117,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
     let clipboard_btn = clmv!(gt_600, |cmd: zng::event::Command| {
         let cmd = cmd.focus_scoped();
         Button! {
-            child = widget::node::presenter((), cmd.flat_map(|c| c.icon()));
+            child =  cmd.flat_map(|c| c.icon()).present_data(());
             child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_600.clone()), 4;
             tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
             visibility = true;
@@ -134,7 +134,7 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
             widget::enabled = cmd.flat_map(|c| c.is_enabled());
 
             child = Button! {
-                child = widget::node::presenter((), cmd.flat_map(|c| c.icon()));
+                child = cmd.flat_map(|c| c.icon()).present_data(());
                 child_right = Text!(txt = cmd.flat_map(|c| c.name()); visibility = gt_700.clone()), 4;
                 tooltip = Tip!(Text!(cmd.flat_map(|c|c.name_with_shortcut())));
                 on_click = hn!(|a: &gesture::ClickArgs| {

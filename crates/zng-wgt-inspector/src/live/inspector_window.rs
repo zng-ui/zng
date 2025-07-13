@@ -12,7 +12,7 @@ use zng_ext_input::focus::FOCUS;
 use zng_ext_l10n::{l10n, lang};
 use zng_ext_window::{WINDOWS, WindowRoot};
 use zng_var::animation::easing;
-use zng_wgt::{Wgt, border, corner_radius, margin, prelude::*, visibility};
+use zng_wgt::{Wgt, border, corner_radius, margin, node::VarPresent as _, prelude::*, visibility};
 use zng_wgt_button::Button;
 use zng_wgt_container::{Container, child_align, padding};
 use zng_wgt_dialog::{DIALOG, FileDialogFilters};
@@ -106,7 +106,7 @@ pub(super) fn new(
         };
         child_right = Container! {
             width = 600;
-            child = presenter(selected_wgt, wgt_fn!(|w| {
+            child = selected_wgt.present(wgt_fn!(|w| {
                 selected_view(w).boxed()
             }));
             background_color = SELECTED_BKG_VAR;
@@ -374,7 +374,7 @@ fn tree_item_view(wgt: InspectedWidget, filter: impl Var<Txt>, parent_desc_filte
             }
         };
 
-        child_bottom = presenter(wgt.children(), wgt_fn!(descendants_pass_filter, |children: Vec<InspectedWidget>| {
+        child_bottom = wgt.children().present(wgt_fn!(descendants_pass_filter, |children: Vec<InspectedWidget>| {
             let children: UiVec = children.into_iter().map(|c| {
                 tree_item_view(c, filter.clone(), descendants_pass_filter.clone())
             }).collect();
@@ -445,16 +445,13 @@ fn selected_view(wgt: Option<InspectedWidget>) -> impl UiNode {
                             },
                         ]
                     },
-                    presenter(
-                        wgt.inspector_info(),
-                        wgt_fn!(|i| {
-                            if let Some(i) = i {
-                                inspector_info_view(i).boxed()
-                            } else {
-                                NilUiNode.boxed()
-                            }
-                        })
-                    ),
+                    wgt.inspector_info().present(wgt_fn!(|i| {
+                        if let Some(i) = i {
+                            inspector_info_view(i).boxed()
+                        } else {
+                            NilUiNode.boxed()
+                        }
+                    })),
                     Hr!(),
                     info_watchers(&wgt),
                 ]

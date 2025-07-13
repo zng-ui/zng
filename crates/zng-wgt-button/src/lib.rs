@@ -16,7 +16,7 @@ use std::any::TypeId;
 use colors::{ACCENT_COLOR_VAR, BASE_COLOR_VAR};
 use zng_app::event::CommandParam;
 use zng_var::ReadOnlyContextVar;
-use zng_wgt::{base_color, border, corner_radius, is_disabled, prelude::*};
+use zng_wgt::{base_color, border, corner_radius, is_disabled, node::VarPresent as _, prelude::*};
 use zng_wgt_access::{AccessRole, access_role, labelled_by_child};
 use zng_wgt_container::{Container, child_align, padding};
 use zng_wgt_fill::background_color;
@@ -60,7 +60,7 @@ impl Button {
         self.widget_builder().push_build_action(|wgt| {
             if let Some(cmd) = wgt.capture_var::<Command>(property_id!(Self::cmd)) {
                 if wgt.property(property_id!(Self::child)).is_none() {
-                    wgt.set_child(presenter(cmd.clone(), CMD_CHILD_FN_VAR));
+                    wgt.set_child(cmd.present(CMD_CHILD_FN_VAR));
                 }
 
                 let enabled = wgt.property(property_id!(zng_wgt::enabled)).is_none();

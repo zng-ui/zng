@@ -299,21 +299,18 @@ fn dyn_buttons_from_data() -> impl UiNode {
     let data_source = var(ObservableVec::<char>::new());
     let mut btn = 'A';
 
-    let view = widget::node::list_presenter(
-        data_source.clone(),
-        wgt_fn!(data_source, |data: char| {
-            dyn_button(
-                data,
-                clmv!(data_source, || {
-                    data_source.modify(move |a| {
-                        if let Some(i) = a.iter().position(|&c| c == data) {
-                            a.to_mut().remove(i);
-                        }
-                    });
-                }),
-            )
-        }),
-    );
+    let view = data_source.present_list(wgt_fn!(data_source, |data: char| {
+        dyn_button(
+            data,
+            clmv!(data_source, || {
+                data_source.modify(move |a| {
+                    if let Some(i) = a.iter().position(|&c| c == data) {
+                        a.to_mut().remove(i);
+                    }
+                });
+            }),
+        )
+    }));
 
     Stack! {
         direction = StackDirection::top_to_bottom();

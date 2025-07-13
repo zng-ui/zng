@@ -130,9 +130,9 @@ context_local! {
 ///
 /// The image widget adds this node around the [`image_presenter`] node.
 pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
-    let view = presenter_opt(
-        CONTEXT_IMAGE_VAR.map(|i| i.error().map(|e| ImgErrorArgs { error: e })),
-        IMAGE_ERROR_FN_VAR.map(|f| {
+    let view = CONTEXT_IMAGE_VAR
+        .map(|i| i.error().map(|e| ImgErrorArgs { error: e }))
+        .present_opt(IMAGE_ERROR_FN_VAR.map(|f| {
             wgt_fn!(f, |e| {
                 if IN_ERROR_VIEW.get_clone() {
                     NilUiNode.boxed()
@@ -140,8 +140,7 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
                     with_context_local(f(e), &IN_ERROR_VIEW, true).boxed()
                 }
             })
-        }),
-    );
+        }));
 
     stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {
@@ -158,9 +157,9 @@ pub fn image_error_presenter(child: impl UiNode) -> impl UiNode {
 ///
 /// The image widget adds this node around the [`image_error_presenter`] node.
 pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
-    let view = presenter_opt(
-        CONTEXT_IMAGE_VAR.map(|i| if i.is_loading() { Some(ImgLoadingArgs {}) } else { None }),
-        IMAGE_LOADING_FN_VAR.map(|f| {
+    let view = CONTEXT_IMAGE_VAR
+        .map(|i| if i.is_loading() { Some(ImgLoadingArgs {}) } else { None })
+        .present_opt(IMAGE_LOADING_FN_VAR.map(|f| {
             wgt_fn!(f, |a| {
                 if IN_LOADING_VIEW.get_clone() {
                     NilUiNode.boxed()
@@ -168,8 +167,7 @@ pub fn image_loading_presenter(child: impl UiNode) -> impl UiNode {
                     with_context_local(f(a), &IN_LOADING_VIEW, true).boxed()
                 }
             })
-        }),
-    );
+        }));
 
     stack_nodes_layout_by(ui_vec![view, child], 1, |constraints, _, img_size| {
         if img_size == PxSize::zero() {

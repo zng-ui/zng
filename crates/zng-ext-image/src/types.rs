@@ -565,7 +565,7 @@ pub enum ImageSource {
     /// Use the [`render`](Self::render) or [`render_node`](Self::render_node) functions to construct this variant.
     ///
     /// The closure is set by the image widget user, the args is set by the image widget.
-    Render(RenderFn, Option<ImageRenderArgs>),
+    Render(RenderFn, Option<ImageRenderArgs>), // TODO(breaking): Option<ImageHash> for better caching?
 
     /// Already resolved (loaded or loading) image.
     ///

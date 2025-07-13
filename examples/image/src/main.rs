@@ -508,7 +508,7 @@ fn open_or_paste_image() -> impl UiNode {
                                         let cmd = cmd.scoped(WINDOW.id());
                                         Button! {
                                             padding = (2, 5);
-                                            child_left = widget::node::presenter((), cmd.icon()), 0;
+                                            child_left = cmd.icon().present_data(()), 0;
                                             child = Text!(cmd.name_with_shortcut());
                                             cmd;
                                         }

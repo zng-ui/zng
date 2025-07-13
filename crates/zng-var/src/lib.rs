@@ -1386,9 +1386,8 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     /// Creates a ref-counted var that maps from this variable, but can retain a previous mapped value.
     ///
     /// The `map` closure is called once on initialization, if it returns `None` the `fallback` closure is called to generate
-    /// a fallback value, after, the `map` closure is called once every time
-    /// the mapping variable reads and is out of sync with the source variable, if it returns `Some(_)` the mapping variable value changes,
-    /// otherwise the previous value is retained.
+    /// a fallback value, after, the `map` closure is called once every time the mapping variable reads and is out of sync
+    /// with the source variable, if it returns `Some(_)` the mapping variable value changes, otherwise the previous value is retained.
     ///
     /// The mapping variable is read-only, use [`filter_map_bidi`] to map back.
     ///

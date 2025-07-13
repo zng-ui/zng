@@ -19,7 +19,7 @@ use zng_ext_l10n::l10n;
 use zng_ext_window::{WINDOW_CLOSE_REQUESTED_EVENT, WINDOWS, WindowCloseRequestedArgs};
 use zng_var::{ContextInitHandle, animation::easing};
 use zng_view_api::dialog as native_api;
-use zng_wgt::{prelude::*, *};
+use zng_wgt::{node::VarPresent as _, prelude::*, *};
 use zng_wgt_container::Container;
 use zng_wgt_fill::background_color;
 use zng_wgt_filter::drop_shadow;
@@ -190,13 +190,13 @@ impl DefaultStyle {
             zng_wgt_container::child_out_top = Container! {
                 corner_radius = 0;
                 background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
-                child = presenter((), TITLE_VAR);
+                child = TITLE_VAR.present_data(());
                 child_align = Align::START;
                 padding = (4, 8);
                 zng_wgt_text::font_weight = zng_ext_font::FontWeight::BOLD;
             }, 0;
 
-            zng_wgt_container::child_out_bottom = presenter(RESPONSES_VAR, wgt_fn!(|responses: Responses| {
+            zng_wgt_container::child_out_bottom = RESPONSES_VAR.present(wgt_fn!(|responses: Responses| {
                 Wrap! {
                     corner_radius = 0;
                     background_color = light_dark(rgb(0.85, 0.85, 0.85), rgb(0.15, 0.15, 0.15));
@@ -218,11 +218,11 @@ impl DefaultStyle {
             })), 0;
 
             zng_wgt_container::child_out_left = Container! {
-                child = presenter((), ICON_VAR);
+                child = ICON_VAR.present_data(());
                 child_align = Align::TOP;
             }, 0;
 
-            zng_wgt_container::child = presenter((), CONTENT_VAR);
+            zng_wgt_container::child = CONTENT_VAR.present_data(());
 
             #[easing(250.ms())]
             zng_wgt_filter::opacity = 30.pct();
