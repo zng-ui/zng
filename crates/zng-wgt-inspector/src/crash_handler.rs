@@ -10,6 +10,7 @@ use zng_app::crash_handler::*;
 use zng_ext_config::CONFIG;
 use zng_ext_l10n::l10n;
 use zng_ext_window::{StartPosition, WINDOWS, WindowRoot};
+use zng_wgt::node::VarPresent as _;
 use zng_wgt::prelude::*;
 use zng_wgt::{align, corner_radius, enabled, margin};
 use zng_wgt_ansi_text::AnsiText;
@@ -104,7 +105,7 @@ fn panels(error: &CrashError) -> impl UiNode {
             };
             spacing = 5;
         }, 5;
-        child = presenter(active, wgt_fn!(error, |p: ErrorPanel| p.panel(&error)));
+        child = active.present(wgt_fn!(error, |p: ErrorPanel| p.panel(&error)));
     }
 }
 

@@ -13,7 +13,6 @@ use zng::{
     l10n::{LangFilePath, LangMap},
     layout::align,
     prelude::*,
-    widget::node::presenter,
 };
 
 // l10n-*-### Localize Example
@@ -138,9 +137,9 @@ fn locale_menu() -> impl UiNode {
     Container! {
         alt_focus_scope = true;
         focus_click_behavior = FocusClickBehavior::Exit;
-        child = presenter(
-            L10N.available_langs(),
-            wgt_fn!(|langs: Arc<LangMap<HashMap<LangFilePath, PathBuf>>>| {
+        child = L10N
+            .available_langs()
+            .present(wgt_fn!(|langs: Arc<LangMap<HashMap<LangFilePath, PathBuf>>>| {
                 let mut actual = vec![];
                 let mut pseudo = vec![];
                 let mut template = vec![];
@@ -186,8 +185,7 @@ fn locale_menu() -> impl UiNode {
                         })
                         .collect::<UiVec>()
                 }
-            }),
-        )
+            }))
     }
 }
 

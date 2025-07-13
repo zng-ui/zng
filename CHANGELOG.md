@@ -1,6 +1,11 @@
 # Unreleased
 
+* Add extension methods for generating node lists from vars, `present_list` and `present_list_from_iter`.
+    - Implemented by `zng_wgt::node::VarPresentList` and `VarPresentListFromIter` traits that are reexported as `_` in the preludes.
+* Add extension methods for generating nodes from vars, `present`, `present_opt` and `present_data`.
+    - Implemented by `zng_wgt::node::VarPresent`, `VarPresentOpt` and `VarPresentData` traits that are reexported as `_` in the preludes.
 * Add `zng::widget::node::list_presenter_from_iter`.
+    - Reexported by the `prelude_wgt`.
 
 # 0.15.9
 

@@ -2130,6 +2130,9 @@ pub fn with_index_len_node(
 /// either variable changes.
 ///
 /// See also [`presenter_opt`] for a presenter that is nil with the data is `None`.
+///
+/// See also the [`present`](VarPresent::present) method that can be called on the `data`` variable and [`present_data`](VarPresentData::present_data)
+/// that can be called on the `wgt_fn` variable.
 pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
     let data = data.into_var();
     let wgt_fn = wgt_fn.into_var();
@@ -2159,6 +2162,8 @@ pub fn presenter<D: VarValue>(data: impl IntoVar<D>, wgt_fn: impl IntoVar<Widget
 /// Node that presents `data` using `wgt_fn` if data is available, otherwise presents nil.
 ///
 /// This behaves like [`presenter`], but `wgt_fn` is not called if `data` is `None`.
+///
+/// See also the [`present_opt`](VarPresentOpt::present_opt) method that can be called on the data variable.
 pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
     let data = data.into_var();
     let wgt_fn = wgt_fn.into_var();
@@ -2197,6 +2202,8 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl In
 /// Node list that presents `list` using `item_fn` for each new list item.
 ///
 /// The node's children is the list mapped to node items, it is kept in sync, any list update is propagated to the node list.
+///
+/// See also the [`present_list`](VarPresentList::present_list) method that can be called on the list variable.
 pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
     ListPresenter {
         list: list.into_var(),
@@ -2209,6 +2216,8 @@ pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn
 /// Node list that presents `list` using `item_fn` for each list item.
 ///
 /// The node's children are **regenerated** for each change in `list`, if possible prefer using [`ObservableVec`] with [`list_presenter`].
+///
+/// See also the [`present_list_from_iter`](VarPresentListFromIter::present_list_from_iter) method that can be called on the list variable.
 pub fn list_presenter_from_iter<D, L>(list: impl IntoVar<L>, item_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList
 where
     D: VarValue,
@@ -2472,6 +2481,51 @@ where
         }
     }
 }
+
+/// Extension method to *convert* a variable to a node.
+pub trait VarPresent<D: VarValue>: Var<D> {
+    /// Present the variable data using a [`presenter`] node.
+    fn present(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
+        presenter(self.clone(), wgt_fn)
+    }
+}
+impl<D: VarValue, V: Var<D>> VarPresent<D> for V {}
+
+/// Extension method to *convert* a variable to a node.
+pub trait VarPresentOpt<D: VarValue>: Var<Option<D>> {
+    /// Present the variable data using a [`presenter_opt`] node.
+    fn present_opt(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNode {
+        presenter_opt(self.clone(), wgt_fn)
+    }
+}
+impl<D: VarValue, V: Var<Option<D>>> VarPresentOpt<D> for V {}
+
+/// Extension method fo *convert* a variable to a node list.
+pub trait VarPresentList<D: VarValue>: Var<ObservableVec<D>> {
+    /// Present the variable data using a [`list_presenter`] node list.
+    fn present_list(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
+        list_presenter(self.clone(), wgt_fn)
+    }
+}
+impl<D: VarValue, V: Var<ObservableVec<D>>> VarPresentList<D> for V {}
+
+/// Extension method fo *convert* a variable to a node list.
+pub trait VarPresentListFromIter<D: VarValue, L: IntoIterator<Item = D> + VarValue>: Var<L> {
+    /// Present the variable data using a [`list_presenter_from_iter`] node list.
+    fn present_list_from_iter(&self, wgt_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
+        list_presenter_from_iter(self.clone(), wgt_fn)
+    }
+}
+impl<D: VarValue, L: IntoIterator<Item = D> + VarValue, V: Var<L>> VarPresentListFromIter<D, L> for V {}
+
+/// Extension method to *convert* a variable to a node.
+pub trait VarPresentData<D: VarValue>: Var<WidgetFn<D>> {
+    /// Present the `data` variable using a [`presenter`] node.
+    fn present_data(&self, data: impl IntoVar<D>) -> impl UiNode {
+        presenter(data, self.clone())
+    }
+}
+impl<D: VarValue, V: Var<WidgetFn<D>>> VarPresentData<D> for V {}
 
 #[doc(inline)]
 pub use crate::command_property;

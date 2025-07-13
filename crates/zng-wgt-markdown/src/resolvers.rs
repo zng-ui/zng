@@ -420,7 +420,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
         child_end = Button! {
             style_fn = zng_wgt_button::LightStyle!();
             padding = 3;
-            child = presenter((), COPY_CMD.icon());
+            child = COPY_CMD.icon().present_data(());
             on_click = async_hn_once!(status, |args: ClickArgs| {
                 if status.get() != Status::Pending || args.timestamp().duration_since(open_time) < 300.ms() {
                     return;

@@ -11,7 +11,7 @@ use zng_ext_config::settings::{Category, CategoryId, SETTINGS};
 use zng_ext_input::focus::FOCUS;
 use zng_ext_l10n::l10n;
 use zng_ext_window::{WINDOW_Ext as _, WINDOWS};
-use zng_wgt::prelude::*;
+use zng_wgt::{node::VarPresent as _, prelude::*};
 use zng_wgt_input::cmd::SETTINGS_CMD;
 use zng_wgt_size_offset::actual_width;
 use zng_wgt_window::{SaveState, Window, save_state_node};
@@ -185,9 +185,9 @@ fn settings_view_fn() -> impl UiNode {
 
     let editor_state = SETTINGS.editor_state().actual_var();
 
-    let categories = presenter(
-        editor_state.map_ref(|r| &r.as_ref().unwrap().categories),
-        wgt_fn!(|categories: Vec<Category>| {
+    let categories = editor_state
+        .map_ref(|r| &r.as_ref().unwrap().categories)
+        .present(wgt_fn!(|categories: Vec<Category>| {
             let cat_fn = CATEGORY_ITEM_FN_VAR.get();
             let categories: UiVec = categories
                 .into_iter()
@@ -196,13 +196,11 @@ fn settings_view_fn() -> impl UiNode {
                 .collect();
 
             CATEGORIES_LIST_FN_VAR.get()(CategoriesListArgs { items: categories })
-        }),
-    )
-    .boxed();
+        }))
+        .boxed();
 
-    let settings = presenter(
-        editor_state,
-        wgt_fn!(|state: Option<SettingsEditorState>| {
+    let settings = editor_state
+        .present(wgt_fn!(|state: Option<SettingsEditorState>| {
             let SettingsEditorState {
                 selected_cat,
                 selected_settings,
@@ -226,9 +224,8 @@ fn settings_view_fn() -> impl UiNode {
             let header = CATEGORY_HEADER_FN_VAR.get()(CategoryHeaderArgs { category: selected_cat });
 
             SETTINGS_FN_VAR.get()(SettingsArgs { header, items: settings })
-        }),
-    )
-    .boxed();
+        }))
+        .boxed();
 
     PANEL_FN_VAR.get()(PanelArgs {
         search,

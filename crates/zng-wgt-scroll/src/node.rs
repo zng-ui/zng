@@ -304,7 +304,7 @@ fn scrollbar_presenter(var: impl IntoVar<WidgetFn<ScrollBarArgs>>, orientation: 
 ///
 /// [scrollbar joiner]: SCROLLBAR_JOINER_FN_VAR
 pub fn scrollbar_joiner_presenter() -> impl UiNode {
-    presenter((), SCROLLBAR_JOINER_FN_VAR)
+    SCROLLBAR_JOINER_FN_VAR.present_data(())
 }
 
 /// Create a node that implements [`SCROLL_UP_CMD`], [`SCROLL_DOWN_CMD`],
@@ -1477,7 +1477,7 @@ fn auto_scroller_wgt() -> (impl UiNode, WidgetId, Arc<Mutex<DInstant>>) {
         id;
         zng_wgt_input::focus::focusable = true;
         zng_wgt_input::focus::focus_on_init = true;
-        zng_wgt_container::child = presenter(AutoScrollArgs {}, AUTO_SCROLL_INDICATOR_VAR);
+        zng_wgt_container::child = AUTO_SCROLL_INDICATOR_VAR.present_data(AutoScrollArgs {});
     }
     wgt.widget_builder().push_build_action(clmv!(closed, |w| {
         w.push_intrinsic(

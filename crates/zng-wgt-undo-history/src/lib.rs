@@ -43,7 +43,7 @@ impl UndoHistory {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
             let op = wgt.capture_value::<UndoOp>(property_id!(Self::op)).unwrap_or(UndoOp::Undo);
-            wgt.set_child(presenter(UndoPanelArgs { op }, UNDO_PANEL_FN_VAR));
+            wgt.set_child(UNDO_PANEL_FN_VAR.present_data(UndoPanelArgs { op }));
         });
     }
 }
