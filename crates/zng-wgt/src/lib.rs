@@ -98,6 +98,7 @@ mod __prelude {
         list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend, with_context_local,
         with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
     };
+    // TODO(breaking): reexport list_presenter_from_iter
 
     pub use crate::{CommandIconExt as _, WidgetFn, wgt_fn};
 }

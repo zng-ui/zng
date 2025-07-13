@@ -7,6 +7,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::WidgetFn;
 use zng_app::{
     event::{Command, CommandArgs, CommandHandle, CommandScope, Event, EventArgs},
     handler::WidgetHandler,
@@ -2193,7 +2194,7 @@ pub fn presenter_opt<D: VarValue>(data: impl IntoVar<Option<D>>, wgt_fn: impl In
     })
 }
 
-/// Node that presents `list` using `item_fn` for each new list item.
+/// Node list that presents `list` using `item_fn` for each new list item.
 ///
 /// The node's children is the list mapped to node items, it is kept in sync, any list update is propagated to the node list.
 pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList {
@@ -2205,7 +2206,28 @@ pub fn list_presenter<D: VarValue>(list: impl IntoVar<ObservableVec<D>>, item_fn
     }
 }
 
-struct ListPresenter<D: VarValue, L: Var<ObservableVec<D>>, E: Var<WidgetFn<D>>> {
+/// Node list that presents `list` using `item_fn` for each list item.
+///
+/// The node's children are **regenerated** for each change in `list`, if possible prefer using [`ObservableVec`] with [`list_presenter`].
+pub fn list_presenter_from_iter<D, L>(list: impl IntoVar<L>, item_fn: impl IntoVar<WidgetFn<D>>) -> impl UiNodeList
+where
+    D: VarValue,
+    L: IntoIterator<Item = D> + VarValue,
+{
+    ListPresenterFromIter {
+        list: list.into_var(),
+        item_fn: item_fn.into_var(),
+        view: vec![],
+        _e: std::marker::PhantomData,
+    }
+}
+
+struct ListPresenter<D, L, E>
+where
+    D: VarValue,
+    L: Var<ObservableVec<D>>,
+    E: Var<WidgetFn<D>>,
+{
     list: L,
     item_fn: E,
     view: Vec<BoxedUiNode>,
@@ -2356,7 +2378,101 @@ where
     }
 }
 
-use crate::WidgetFn;
+struct ListPresenterFromIter<D, L, LV, E>
+where
+    D: VarValue,
+    L: IntoIterator<Item = D> + VarValue,
+    LV: Var<L>,
+    E: Var<WidgetFn<D>>,
+{
+    list: LV,
+    item_fn: E,
+    view: Vec<BoxedUiNode>,
+    _e: std::marker::PhantomData<(D, L)>,
+}
+
+impl<D, L, LV, E> UiNodeList for ListPresenterFromIter<D, L, LV, E>
+where
+    D: VarValue,
+    L: IntoIterator<Item = D> + VarValue,
+    LV: Var<L>,
+    E: Var<WidgetFn<D>>,
+{
+    fn with_node<R, F>(&mut self, index: usize, f: F) -> R
+    where
+        F: FnOnce(&mut BoxedUiNode) -> R,
+    {
+        self.view.with_node(index, f)
+    }
+
+    fn for_each<F>(&mut self, f: F)
+    where
+        F: FnMut(usize, &mut BoxedUiNode),
+    {
+        self.view.for_each(f)
+    }
+
+    fn par_each<F>(&mut self, f: F)
+    where
+        F: Fn(usize, &mut BoxedUiNode) + Send + Sync,
+    {
+        self.view.par_each(f)
+    }
+
+    fn par_fold_reduce<T, I, F, R>(&mut self, identity: I, fold: F, reduce: R) -> T
+    where
+        T: Send + 'static,
+        I: Fn() -> T + Send + Sync,
+        F: Fn(T, usize, &mut BoxedUiNode) -> T + Send + Sync,
+        R: Fn(T, T) -> T + Send + Sync,
+    {
+        self.view.par_fold_reduce(identity, fold, reduce)
+    }
+
+    fn len(&self) -> usize {
+        self.view.len()
+    }
+
+    fn boxed(self) -> BoxedUiNodeList {
+        Box::new(self)
+    }
+
+    fn drain_into(&mut self, vec: &mut Vec<BoxedUiNode>) {
+        self.view.drain_into(vec);
+        tracing::warn!("drained `list_presenter_from_iter`, now out of sync with data");
+    }
+
+    fn init_all(&mut self) {
+        debug_assert!(self.view.is_empty());
+        self.view.clear();
+
+        WIDGET.sub_var(&self.list).sub_var(&self.item_fn);
+
+        let e_fn = self.item_fn.get();
+
+        self.view.extend(self.list.get().into_iter().map(&*e_fn));
+        self.view.init_all();
+    }
+
+    fn deinit_all(&mut self) {
+        self.view.deinit_all();
+        self.view.clear();
+    }
+
+    fn update_all(&mut self, updates: &WidgetUpdates, observer: &mut dyn UiNodeListObserver) {
+        if self.list.is_new() || self.item_fn.is_new() {
+            self.view.deinit_all();
+            self.view.clear();
+            let e_fn = self.item_fn.get();
+            self.view.extend(self.list.get().into_iter().map(&*e_fn));
+            self.view.init_all();
+            observer.reset();
+        } else {
+            self.view.update_all(updates, observer);
+        }
+    }
+}
+
 #[doc(inline)]
 pub use crate::command_property;
 #[doc(inline)]

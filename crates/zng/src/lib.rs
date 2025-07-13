@@ -820,9 +820,11 @@ mod __prelude_wgt {
 
     pub use zng_wgt::node::{
         bind_state, bind_state_init, border_node, command_property, event_property, event_state, event_state2, event_state3, event_state4,
-        fill_node, list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state, with_context_blend,
-        with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state, with_widget_state_modify,
+        fill_node, list_presenter, presenter, presenter_opt, widget_state_get_state, widget_state_is_state,
+        with_context_blend, with_context_local, with_context_local_init, with_context_var, with_context_var_init, with_widget_state,
+        with_widget_state_modify,
     };
+    // TODO(breaking): reexport list_presenter_from_iter
 
     #[cfg(feature = "window")]
     pub use zng_ext_window::WidgetInfoBuilderImeArea as _;

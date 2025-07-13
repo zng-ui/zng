@@ -1,5 +1,6 @@
 # Unreleased
 
+* Add `zng::widget::node::list_presenter_from_iter`.
 
 # 0.15.9
 
