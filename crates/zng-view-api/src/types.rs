@@ -1,8 +1,13 @@
+#![allow(deprecated)]
+// TODO(breaking) remove this,
+// added here because deprecated enum variants show warning even when allowing for the full enum
+
 //! General event types.
 
 use crate::{
     access::{AccessCmd, AccessNodeId},
     api_extension::{ApiExtensionId, ApiExtensionPayload, ApiExtensions},
+    audio::{AudioDeviceId, AudioDeviceInfo},
     config::{
         AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, KeyRepeatConfig, LocaleConfig, MultiClickConfig, TouchConfig,
     },
@@ -12,8 +17,8 @@ use crate::{
     ipc::{self, IpcBytes},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonId, ButtonState, MouseButton, MouseScrollDelta},
+    raw_input::{InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchPhase, TouchUpdate},
-    audio::{AudioDeviceInfo, AudioDeviceId},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
 use serde::{Deserialize, Serialize};
@@ -88,20 +93,14 @@ macro_rules! declare_id {
 pub(crate) use declare_id;
 
 declare_id! {
-    /// Device ID in channel.
-    ///
-    /// In the View Process this is mapped to a system id.
-    ///
-    /// In the App Process this is mapped to an unique id, but does not survived View crashes.
-    ///
-    /// The View Process defines the ID.
-    pub struct DeviceId(_);
-
     /// View-process generation, starts at one and changes every respawn, it is never zero.
     ///
     /// The View Process defines the ID.
     pub struct ViewProcessGen(_);
 }
+
+#[deprecated = "use `InputDeviceId`"]
+pub use crate::raw_input::InputDeviceId as DeviceId;
 
 /// Identifier for a specific analog axis on some device.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -129,6 +128,8 @@ pub struct Inited {
 
     /// Available monitors.
     pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
+    /// Available raw input devices.
+    pub available_input_devices: Vec<(InputDeviceId, InputDeviceInfo)>,
     /// Available audio input and output devices.
     pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
 
@@ -174,6 +175,7 @@ impl Inited {
             generation,
             is_respawn,
             available_monitors,
+            available_input_devices: vec![], // TODO(breaking): add to `new`
             available_audio_devices: vec![], // TODO(breaking): add to `new`
             multi_click_config,
             key_repeat_config,
@@ -453,6 +455,8 @@ pub enum Event {
     MonitorsChanged(Vec<(MonitorId, MonitorInfo)>),
     /// The available audio input and output devices have changed.
     AudioDevicesChanged(Vec<(AudioDeviceId, AudioDeviceInfo)>),
+    /// The available raw input devices have changed.
+    InputDevicesChanged(Vec<(InputDeviceId, InputDeviceInfo)>),
 
     /// The window has been requested to close.
     WindowCloseRequested(WindowId),
@@ -547,14 +551,25 @@ pub enum Event {
     /// System window chrome (decorations) preference changed.
     ChromeConfigChanged(ChromeConfig),
 
-    /* Raw device events */
     /// Device added or installed.
+    #[deprecated = "use `InputDevicesChanged`"]
     DeviceAdded(DeviceId),
     /// Device removed.
+    #[deprecated = "use `InputDevicesChanged`"]
     DeviceRemoved(DeviceId),
+
+    /// Raw input device event.
+    InputDeviceEvent {
+        /// Device that generated the event.
+        device: DeviceId,
+        /// Event.
+        event: InputDeviceEvent,
+    },
+
     /// Mouse pointer motion.
     ///
     /// The values if the delta of movement (x, y), not position.
+    #[deprecated = "use `InputDeviceEvent`"]
     DeviceMouseMotion {
         /// Device that generated the event.
         device: DeviceId,
@@ -562,6 +577,7 @@ pub enum Event {
         delta: euclid::Vector2D<f64, ()>,
     },
     /// Mouse scroll wheel turn.
+    #[deprecated = "use `InputDeviceEvent`"]
     DeviceMouseWheel {
         /// Mouse device that generated the event.
         device: DeviceId,
@@ -571,6 +587,7 @@ pub enum Event {
     /// Motion on some analog axis.
     ///
     /// This includes the mouse device and any other that fits.
+    #[deprecated = "use `InputDeviceEvent`"]
     DeviceMotion {
         /// Device that generated the event.
         device: DeviceId,
@@ -580,6 +597,7 @@ pub enum Event {
         value: f64,
     },
     /// Device button press or release.
+    #[deprecated = "use `InputDeviceEvent`"]
     DeviceButton {
         /// Device that generated the event.
         device: DeviceId,
@@ -589,6 +607,7 @@ pub enum Event {
         state: ButtonState,
     },
     /// Device key press or release.
+    #[deprecated = "use `InputDeviceEvent`"]
     DeviceKey {
         /// Device that generated the key event.
         device: DeviceId,
@@ -684,7 +703,24 @@ impl Event {
                 coalesced_pos.extend(n_coal_pos);
                 *position = n_pos;
             }
+
+            (
+                InputDeviceEvent { device, event },
+                InputDeviceEvent {
+                    device: n_device,
+                    event: n_event,
+                },
+            ) if *device == n_device => {
+                if let Err(e) = event.coalesce(n_event) {
+                    return Err(InputDeviceEvent {
+                        device: n_device,
+                        event: e,
+                    });
+                }
+            }
+
             // raw mouse motion.
+            #[allow(deprecated)]
             (
                 DeviceMouseMotion { device, delta },
                 DeviceMouseMotion {
@@ -734,6 +770,7 @@ impl Event {
             }
 
             // raw wheel scroll.
+            #[allow(deprecated)]
             (
                 DeviceMouseWheel {
                     device,
@@ -749,6 +786,7 @@ impl Event {
             }
 
             // raw trackpad scroll-move.
+            #[allow(deprecated)]
             (
                 DeviceMouseWheel {
                     device,

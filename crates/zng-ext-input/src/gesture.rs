@@ -17,7 +17,7 @@ use zng_app::{
         shortcut,
     },
     update::EventUpdate,
-    view_process::raw_device_events::DeviceId,
+    view_process::raw_device_events::InputDeviceId,
     widget::{
         WidgetId,
         info::{HitTestInfo, InteractionPath, WidgetPath},
@@ -107,7 +107,7 @@ event_args! {
         /// Id of device that generated the event.
         ///
         /// Is `None` if the event was generated programmatically.
-        pub device_id: Option<DeviceId>,
+        pub device_id: Option<InputDeviceId>,
 
         /// Specific info from the source of this event.
         pub source: ClickArgsSource,
@@ -144,7 +144,7 @@ event_args! {
         /// Id of device that generated the event.
         ///
         /// Is `None` if the event was generated programmatically.
-        pub device_id: Option<DeviceId>,
+        pub device_id: Option<InputDeviceId>,
 
         /// The shortcut.
         pub shortcut: Shortcut,
@@ -974,7 +974,7 @@ impl ShortcutActions {
     }
 
     /// Send all events and focus request.
-    fn run(&self, timestamp: DInstant, propagation: &EventPropagationHandle, device_id: Option<DeviceId>, repeat_count: u32) {
+    fn run(&self, timestamp: DInstant, propagation: &EventPropagationHandle, device_id: Option<InputDeviceId>, repeat_count: u32) {
         if let Some(target) = self.focus() {
             FOCUS.focus(FocusRequest::new(target, true));
         }

@@ -34,7 +34,7 @@ use crate::{
     window::{MonitorId, WindowId},
 };
 
-use super::{ViewHeadless, ViewImage, ViewWindow, WindowOpenData, raw_device_events::DeviceId};
+use super::{ViewHeadless, ViewImage, ViewWindow, WindowOpenData, raw_device_events::InputDeviceId};
 
 event_args! {
     /// Arguments for the [`RAW_KEY_INPUT_EVENT`].
@@ -43,7 +43,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Keyboard device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Physical key.
         pub key_code: KeyCode,
@@ -359,7 +359,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Device that generated this event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Positions of the mouse in between the previous event and this one.
         ///
@@ -383,7 +383,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Device that generated this event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         ..
 
@@ -399,7 +399,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Device that generated this event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Wheel motion delta, value is in pixels if the *wheel* is a touchpad.
         pub delta: MouseScrollDelta,
@@ -421,7 +421,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Device that generated this event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// If the button was pressed or released.
         pub state: ButtonState,
@@ -443,7 +443,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Device that generated this event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Pressure level between 0 and 1.
         pub pressure: Factor,
@@ -465,7 +465,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Analog axis.
         pub axis: AxisId,
@@ -487,7 +487,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Device that generated this event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Coalesced touch updates.
         pub touches: Vec<TouchUpdate>,

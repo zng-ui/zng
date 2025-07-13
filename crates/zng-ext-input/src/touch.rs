@@ -11,7 +11,7 @@ use zng_app::{
     update::EventUpdate,
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
-        raw_device_events::DeviceId,
+        raw_device_events::InputDeviceId,
         raw_events::{RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_LEFT_EVENT, RAW_TOUCH_CONFIG_CHANGED_EVENT, RAW_TOUCH_EVENT, RawTouchArgs},
     },
     widget::{
@@ -67,7 +67,7 @@ pub struct TouchManager {
 struct PressedInfo {
     touch_propagation: EventPropagationHandle,
     target: InteractionPath,
-    device_id: DeviceId,
+    device_id: InputDeviceId,
     position: DipPoint,
     force: Option<TouchForce>,
     hits: HitTestInfo,
@@ -260,7 +260,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated all touches in this event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// All touch contacts that moved since last event.
         ///
@@ -295,7 +295,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Identify the touch contact or *finger*.
         ///
@@ -373,7 +373,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: Option<DeviceId>,
+        pub device_id: Option<InputDeviceId>,
 
         /// Identify the touch contact or *finger*.
         ///
@@ -437,7 +437,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Identify the touch contact or *finger*.
         ///
@@ -477,7 +477,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Identify the touch contact or *finger*.
         ///
@@ -517,7 +517,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of the device that generated the touch events.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Info collected when the second touch point started.
         pub first_info: TouchTransformInfo,
@@ -1203,7 +1203,7 @@ impl AppExtension for TouchManager {
 
                     RAW_TOUCH_EVENT.notify(RawTouchArgs::now(
                         args.window_id,
-                        args.device_id.unwrap_or(DeviceId::new_unique()),
+                        args.device_id.unwrap_or(InputDeviceId::new_unique()),
                         vec![TouchUpdate::new(TouchId(u64::MAX), phase, args.position, None)],
                     ));
                 }
@@ -1628,14 +1628,14 @@ impl TouchManager {
 
 struct PendingDoubleTap {
     window_id: WindowId,
-    device_id: DeviceId,
+    device_id: InputDeviceId,
     target: WidgetId,
     count: NonZeroU32,
     timestamp: DInstant,
 }
 struct PendingTap {
     window_id: WindowId,
-    device_id: DeviceId,
+    device_id: InputDeviceId,
     touch: TouchId,
     target: WidgetId,
 
@@ -1645,7 +1645,7 @@ impl PendingTap {
     /// Check if the tap is still possible after a touch move..
     ///
     /// Returns `true` if it is.
-    fn retain(&self, window_id: WindowId, device_id: DeviceId, touch: TouchId) -> bool {
+    fn retain(&self, window_id: WindowId, device_id: InputDeviceId, touch: TouchId) -> bool {
         if self.propagation.is_stopped() {
             // cancel, gesture opportunity handled.
             return false;
@@ -1668,7 +1668,7 @@ impl PendingTap {
 
 struct PendingLongPress {
     window_id: WindowId,
-    device_id: DeviceId,
+    device_id: InputDeviceId,
     touch: TouchId,
     target: WidgetId,
     position: DipPoint,
@@ -2123,14 +2123,14 @@ enum TransformGesture {
 
     NotStartedOne {
         window_id: WindowId,
-        device_id: DeviceId,
+        device_id: InputDeviceId,
         start_position: DipPoint,
         position: DipPoint,
         handle: EventPropagationHandle,
     },
     NotStartedTwo {
         window_id: WindowId,
-        device_id: DeviceId,
+        device_id: InputDeviceId,
         start_position: [DipPoint; 2],
         position: [DipPoint; 2],
         handle: [EventPropagationHandle; 2],
@@ -2139,7 +2139,7 @@ enum TransformGesture {
 
     StartedOne {
         window_id: WindowId,
-        device_id: DeviceId,
+        device_id: InputDeviceId,
         position: DipPoint,
         velocity: DipVector,
         scale_factor: Factor,
@@ -2150,7 +2150,7 @@ enum TransformGesture {
     },
     StartedTwo {
         window_id: WindowId,
-        device_id: DeviceId,
+        device_id: InputDeviceId,
         position: [DipPoint; 2],
         velocity: [DipVector; 2],
         scale_factor: Factor,

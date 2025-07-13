@@ -14,6 +14,7 @@ use zng_task::DEADLINE_APP;
 use zng_time::{INSTANT_APP, InstantMode};
 use zng_txt::Txt;
 use zng_var::{ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, VARS, VARS_APP, Var as _, response_var};
+use zng_view_api::raw_input::InputDeviceEvent;
 
 use crate::{
     APP, AppControlFlow, AppEventObserver, AppExtension, AppExtensionsInfo, DInstant, INSTANT,
@@ -25,7 +26,7 @@ use crate::{
     update::{
         ContextUpdates, EventUpdate, InfoUpdates, LayoutUpdates, RenderUpdates, UPDATES, UpdateOp, UpdateTrace, UpdatesTrace, WidgetUpdates,
     },
-    view_process::{raw_device_events::DeviceId, *},
+    view_process::{raw_device_events::InputDeviceId, *},
     widget::WidgetId,
     window::WindowId,
 };
@@ -156,8 +157,8 @@ impl<E: AppExtension> RunningApp<E> {
         update.call_pos_actions();
     }
 
-    fn device_id(&mut self, id: zng_view_api::DeviceId) -> DeviceId {
-        VIEW_PROCESS.device_id(id)
+    fn input_device_id(&mut self, id: zng_view_api::DeviceId) -> InputDeviceId {
+        VIEW_PROCESS.input_device_id(id)
     }
 
     /// Process a View Process event.
@@ -170,6 +171,7 @@ impl<E: AppExtension> RunningApp<E> {
             WindowId::from_raw(id.get())
         }
 
+        #[allow(deprecated)] // TODO(breaking)
         match ev {
             Event::MouseMoved {
                 window: w_id,
@@ -177,21 +179,21 @@ impl<E: AppExtension> RunningApp<E> {
                 coalesced_pos,
                 position,
             } => {
-                let args = RawMouseMovedArgs::now(window_id(w_id), self.device_id(d_id), coalesced_pos, position);
+                let args = RawMouseMovedArgs::now(window_id(w_id), self.input_device_id(d_id), coalesced_pos, position);
                 self.notify_event(RAW_MOUSE_MOVED_EVENT.new_update(args), observer);
             }
             Event::MouseEntered {
                 window: w_id,
                 device: d_id,
             } => {
-                let args = RawMouseArgs::now(window_id(w_id), self.device_id(d_id));
+                let args = RawMouseArgs::now(window_id(w_id), self.input_device_id(d_id));
                 self.notify_event(RAW_MOUSE_ENTERED_EVENT.new_update(args), observer);
             }
             Event::MouseLeft {
                 window: w_id,
                 device: d_id,
             } => {
-                let args = RawMouseArgs::now(window_id(w_id), self.device_id(d_id));
+                let args = RawMouseArgs::now(window_id(w_id), self.input_device_id(d_id));
                 self.notify_event(RAW_MOUSE_LEFT_EVENT.new_update(args), observer);
             }
             Event::WindowChanged(c) => {
@@ -253,7 +255,7 @@ impl<E: AppExtension> RunningApp<E> {
             } => {
                 let args = RawKeyInputArgs::now(
                     window_id(w_id),
-                    self.device_id(d_id),
+                    self.input_device_id(d_id),
                     key_code,
                     key_location,
                     state,
@@ -274,7 +276,7 @@ impl<E: AppExtension> RunningApp<E> {
                 delta,
                 phase,
             } => {
-                let args = RawMouseWheelArgs::now(window_id(w_id), self.device_id(d_id), delta, phase);
+                let args = RawMouseWheelArgs::now(window_id(w_id), self.input_device_id(d_id), delta, phase);
                 self.notify_event(RAW_MOUSE_WHEEL_EVENT.new_update(args), observer);
             }
             Event::MouseInput {
@@ -283,7 +285,7 @@ impl<E: AppExtension> RunningApp<E> {
                 state,
                 button,
             } => {
-                let args = RawMouseInputArgs::now(window_id(w_id), self.device_id(d_id), state, button);
+                let args = RawMouseInputArgs::now(window_id(w_id), self.input_device_id(d_id), state, button);
                 self.notify_event(RAW_MOUSE_INPUT_EVENT.new_update(args), observer);
             }
             Event::TouchpadPressure {
@@ -292,7 +294,7 @@ impl<E: AppExtension> RunningApp<E> {
                 pressure,
                 stage,
             } => {
-                let args = RawTouchpadPressureArgs::now(window_id(w_id), self.device_id(d_id), pressure, stage);
+                let args = RawTouchpadPressureArgs::now(window_id(w_id), self.input_device_id(d_id), pressure, stage);
                 self.notify_event(RAW_TOUCHPAD_PRESSURE_EVENT.new_update(args), observer);
             }
             Event::AxisMotion {
@@ -301,7 +303,7 @@ impl<E: AppExtension> RunningApp<E> {
                 axis,
                 value,
             } => {
-                let args = RawAxisMotionArgs::now(window_id(w_id), self.device_id(d_id), axis, value);
+                let args = RawAxisMotionArgs::now(window_id(w_id), self.input_device_id(d_id), axis, value);
                 self.notify_event(RAW_AXIS_MOTION_EVENT.new_update(args), observer);
             }
             Event::Touch {
@@ -309,7 +311,7 @@ impl<E: AppExtension> RunningApp<E> {
                 device: d_id,
                 touches,
             } => {
-                let args = RawTouchArgs::now(window_id(w_id), self.device_id(d_id), touches);
+                let args = RawTouchArgs::now(window_id(w_id), self.input_device_id(d_id), touches);
                 self.notify_event(RAW_TOUCH_EVENT.new_update(args), observer);
             }
             Event::ScaleFactorChanged {
@@ -477,24 +479,56 @@ impl<E: AppExtension> RunningApp<E> {
             }
 
             // `device_events`
+            Event::InputDevicesChanged(devices) => {
+                let devices: Vec<_> = devices.into_iter().map(|(d_id, info)| (self.input_device_id(d_id), info)).collect();
+                let args = InputDevicesChangedArgs::now(devices);
+                self.notify_event(INPUT_DEVICES_CHANGED_EVENT.new_update(args), observer);
+            }
+            Event::InputDeviceEvent { device, event } => {
+                let d_id = self.input_device_id(device);
+                match event {
+                    InputDeviceEvent::PointerMotion { delta } => {
+                        let args = PointerMotionArgs::now(d_id, delta);
+                        self.notify_event(POINTER_MOTION_EVENT.new_update(args), observer);
+                    }
+                    InputDeviceEvent::ScrollMotion { delta } => {
+                        let args = ScrollMotionArgs::now(d_id, delta);
+                        self.notify_event(SCROLL_MOTION_EVENT.new_update(args), observer);
+                    }
+                    InputDeviceEvent::AxisMotion { axis, value } => {
+                        let args = AxisMotionArgs::now(d_id, axis, value);
+                        self.notify_event(AXIS_MOTION_EVENT.new_update(args), observer);
+                    }
+                    InputDeviceEvent::Button { button, state } => {
+                        let args = ButtonArgs::now(d_id, button, state);
+                        self.notify_event(BUTTON_EVENT.new_update(args), observer);
+                    }
+                    InputDeviceEvent::Key { key_code, state } => {
+                        let args = KeyArgs::now(d_id, key_code, state);
+                        self.notify_event(KEY_EVENT.new_update(args), observer);
+                    }
+                    _ => {}
+                }
+            }
+
             Event::DeviceAdded(d_id) => {
-                let args = DeviceArgs::now(self.device_id(d_id));
+                let args = DeviceArgs::now(self.input_device_id(d_id));
                 self.notify_event(DEVICE_ADDED_EVENT.new_update(args), observer);
             }
             Event::DeviceRemoved(d_id) => {
-                let args = DeviceArgs::now(self.device_id(d_id));
+                let args = DeviceArgs::now(self.input_device_id(d_id));
                 self.notify_event(DEVICE_REMOVED_EVENT.new_update(args), observer);
             }
             Event::DeviceMouseMotion { device: d_id, delta } => {
-                let args = MouseMotionArgs::now(self.device_id(d_id), delta);
+                let args = MouseMotionArgs::now(self.input_device_id(d_id), delta);
                 self.notify_event(MOUSE_MOTION_EVENT.new_update(args), observer);
             }
             Event::DeviceMouseWheel { device: d_id, delta } => {
-                let args = MouseWheelArgs::now(self.device_id(d_id), delta);
+                let args = MouseWheelArgs::now(self.input_device_id(d_id), delta);
                 self.notify_event(MOUSE_WHEEL_EVENT.new_update(args), observer);
             }
             Event::DeviceMotion { device: d_id, axis, value } => {
-                let args = MotionArgs::now(self.device_id(d_id), axis, value);
+                let args = MotionArgs::now(self.input_device_id(d_id), axis, value);
                 self.notify_event(MOTION_EVENT.new_update(args), observer);
             }
             Event::DeviceButton {
@@ -502,7 +536,7 @@ impl<E: AppExtension> RunningApp<E> {
                 button,
                 state,
             } => {
-                let args = ButtonArgs::now(self.device_id(d_id), button, state);
+                let args = ButtonArgs::now(self.input_device_id(d_id), button, state);
                 self.notify_event(BUTTON_EVENT.new_update(args), observer);
             }
             Event::DeviceKey {
@@ -510,7 +544,7 @@ impl<E: AppExtension> RunningApp<E> {
                 key_code,
                 state,
             } => {
-                let args = KeyArgs::now(self.device_id(d_id), key_code, state);
+                let args = KeyArgs::now(self.input_device_id(d_id), key_code, state);
                 self.notify_event(KEY_EVENT.new_update(args), observer);
             }
 

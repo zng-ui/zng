@@ -32,17 +32,18 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod access;
 pub mod api_extension;
+pub mod audio;
 pub mod clipboard;
 pub mod config;
 pub mod dialog;
 pub mod display_list;
 pub mod drag_drop;
 pub mod font;
-pub mod audio;
 pub mod image;
 pub mod ipc;
 pub mod keyboard;
 pub mod mouse;
+pub mod raw_input;
 pub mod touch;
 pub mod window;
 
@@ -272,6 +273,7 @@ declare_api! {
     /// Sends an [`Event::Inited`] once the view is completely connected.
     /// Other methods may only be called after this event.
     fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool);
+    // TODO(breaking) device events -> input device events and add audio device events
 
     /// Called once after exit, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);

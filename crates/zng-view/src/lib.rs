@@ -154,6 +154,7 @@ use zng_view_api::{
     ipc::{IpcBytes, IpcBytesReceiver},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
+    raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceInfo},
     touch::{TouchId, TouchUpdate},
     window::{
         CursorIcon, CursorImage, EventCause, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId,
@@ -1033,32 +1034,91 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
             let d_id = self.device_id(device_id);
+            #[allow(deprecated)] // TODO(breaking) remove this
             match &event {
-                DeviceEvent::Added => self.notify(Event::DeviceAdded(d_id)),
-                DeviceEvent::Removed => self.notify(Event::DeviceRemoved(d_id)),
-                DeviceEvent::MouseMotion { delta } => self.notify(Event::DeviceMouseMotion {
-                    device: d_id,
-                    delta: euclid::vec2(delta.0, delta.1),
-                }),
-                DeviceEvent::MouseWheel { delta } => self.notify(Event::DeviceMouseWheel {
-                    device: d_id,
-                    delta: util::winit_mouse_wheel_delta_to_zng(*delta),
-                }),
-                DeviceEvent::Motion { axis, value } => self.notify(Event::DeviceMotion {
-                    device: d_id,
-                    axis: AxisId(*axis),
-                    value: *value,
-                }),
-                DeviceEvent::Button { button, state } => self.notify(Event::DeviceButton {
-                    device: d_id,
-                    button: ButtonId(*button),
-                    state: util::element_state_to_button_state(*state),
-                }),
-                DeviceEvent::Key(k) => self.notify(Event::DeviceKey {
-                    device: d_id,
-                    key_code: util::winit_physical_key_to_key_code(k.physical_key),
-                    state: util::element_state_to_key_state(k.state),
-                }),
+                DeviceEvent::Added => {
+                    #[cfg(windows)]
+                    {
+                        use winit::platform::windows::DeviceIdExtWindows as _;
+                        println!("!!: persistent_identifier: {:?}", device_id.persistent_identifier());
+                    }
+
+                    let winit_no_info = InputDeviceInfo::new("winit device",InputDeviceCapability::empty());
+                    let devices = self.devices.iter().map(|(id, _)| (*id, winit_no_info.clone())).collect();
+                    self.notify(Event::InputDevicesChanged(devices));
+                    self.notify(Event::DeviceAdded(d_id));                }
+                DeviceEvent::Removed => {
+                    let winit_no_info = InputDeviceInfo::new("winit device", InputDeviceCapability::empty());
+                    let devices = self.devices.iter().map(|(id, _)| (*id, winit_no_info.clone())).collect();
+                    self.notify(Event::InputDevicesChanged(devices));
+                    self.notify(Event::DeviceRemoved(d_id));
+                }
+                DeviceEvent::MouseMotion { delta } => {
+                    self.notify(Event::InputDeviceEvent {
+                        device: d_id,
+                        event: InputDeviceEvent::PointerMotion {
+                            delta: euclid::vec2(delta.0, delta.1),
+                        },
+                    });
+                    self.notify(Event::DeviceMouseMotion {
+                        device: d_id,
+                        delta: euclid::vec2(delta.0, delta.1),
+                    })
+                }
+                DeviceEvent::MouseWheel { delta } => {
+                    self.notify(Event::InputDeviceEvent {
+                        device: d_id,
+                        event: InputDeviceEvent::ScrollMotion {
+                            delta: util::winit_mouse_wheel_delta_to_zng(*delta),
+                        },
+                    });
+                    self.notify(Event::DeviceMouseWheel {
+                        device: d_id,
+                        delta: util::winit_mouse_wheel_delta_to_zng(*delta),
+                    });
+                }
+                DeviceEvent::Motion { axis, value } => {
+                    self.notify(Event::InputDeviceEvent {
+                        device: d_id,
+                        event: InputDeviceEvent::AxisMotion {
+                            axis: AxisId(*axis),
+                            value: *value,
+                        },
+                    });
+                    self.notify(Event::DeviceMotion {
+                        device: d_id,
+                        axis: AxisId(*axis),
+                        value: *value,
+                    })
+                }
+                DeviceEvent::Button { button, state } => {
+                    self.notify(Event::InputDeviceEvent {
+                        device: d_id,
+                        event: InputDeviceEvent::Button {
+                            button: ButtonId(*button),
+                            state: util::element_state_to_button_state(*state),
+                        },
+                    });
+                    self.notify(Event::DeviceButton {
+                        device: d_id,
+                        button: ButtonId(*button),
+                        state: util::element_state_to_button_state(*state),
+                    });
+                }
+                DeviceEvent::Key(k) => {
+                    self.notify(Event::InputDeviceEvent {
+                        device: d_id,
+                        event: InputDeviceEvent::Key {
+                            key_code: util::winit_physical_key_to_key_code(k.physical_key),
+                            state: util::element_state_to_key_state(k.state),
+                        },
+                    });
+                    self.notify(Event::DeviceKey {
+                        device: d_id,
+                        key_code: util::winit_physical_key_to_key_code(k.physical_key),
+                        state: util::element_state_to_key_state(k.state),
+                    })
+                }
             }
 
             winit_loop_guard.unset(&mut self.winit_loop);

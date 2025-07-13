@@ -12,7 +12,7 @@ use zng_app::{
     update::EventUpdate,
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
-        raw_device_events::DeviceId,
+        raw_device_events::InputDeviceId,
         raw_events::{
             RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_LEFT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_MOUSE_WHEEL_EVENT,
             RAW_MULTI_CLICK_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT,
@@ -47,7 +47,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
@@ -89,7 +89,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: Option<DeviceId>,
+        pub device_id: Option<InputDeviceId>,
 
         /// Which mouse button generated the event.
         pub button: MouseButton,
@@ -141,7 +141,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Which mouse button generated the event.
         pub button: MouseButton,
@@ -197,7 +197,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: Option<DeviceId>,
+        pub device_id: Option<InputDeviceId>,
 
         /// Position of the mouse in the window.
         pub position: DipPoint,
@@ -247,7 +247,7 @@ event_args! {
         /// Id of window that received the event.
         pub window_id: WindowId,
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Position of the mouse in the coordinates of [`target`](MouseWheelArgs::target).
         pub position: DipPoint,
@@ -704,7 +704,7 @@ pub struct MouseManager {
     pos: DipPoint,
     // last cursor move over `pos_window` and source device.
     pos_window: Option<WindowId>,
-    pos_device: Option<DeviceId>,
+    pos_device: Option<InputDeviceId>,
     // last cursor move hit-test (on the pos_window or a nested window).
     hits: Option<HitTestInfo>,
 
@@ -730,7 +730,7 @@ impl Default for MouseManager {
     }
 }
 impl MouseManager {
-    fn on_mouse_input(&mut self, mut window_id: WindowId, device_id: DeviceId, state: ButtonState, button: MouseButton) {
+    fn on_mouse_input(&mut self, mut window_id: WindowId, device_id: InputDeviceId, state: ButtonState, button: MouseButton) {
         let mouse = MOUSE_SV.read();
 
         let mut position = if self.pos_window == Some(window_id) {
@@ -902,7 +902,7 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, coalesced_pos: Vec<DipPoint>, mut position: DipPoint) {
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: InputDeviceId, coalesced_pos: Vec<DipPoint>, mut position: DipPoint) {
         let mut moved = Some(window_id) != self.pos_window || Some(device_id) != self.pos_device;
 
         if moved {
@@ -1022,7 +1022,7 @@ impl MouseManager {
         }
     }
 
-    fn on_scroll(&self, window_id: WindowId, device_id: DeviceId, delta: MouseScrollDelta, phase: TouchPhase) {
+    fn on_scroll(&self, window_id: WindowId, device_id: InputDeviceId, delta: MouseScrollDelta, phase: TouchPhase) {
         let position = if self.pos_window == Some(window_id) {
             self.pos
         } else {
@@ -1044,7 +1044,7 @@ impl MouseManager {
         }
     }
 
-    fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: DeviceId) {
+    fn on_cursor_left_window(&mut self, window_id: WindowId, device_id: InputDeviceId) {
         if Some(window_id) == self.pos_window.take() {
             MOUSE_SV.read().position.set(None);
             if let Some(path) = self.hovered.take() {

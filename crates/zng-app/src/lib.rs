@@ -1239,12 +1239,18 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         self
     }
 
-    /// If the application should notify raw device events.
+    /// Deprecated.
+    #[deprecated = "use `enable_input_device_events`"]
+    pub fn enable_device_events(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+        self.enable_input_device_events()
+    }
+
+    /// If the application should notify raw input device events.
     ///
-    /// Device events are raw events not targeting any window, like a mouse move on any part of the screen.
+    /// Input device events are raw events not targeting any window, like a mouse move on any part of the screen.
     /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
     /// this is `false` you still get the mouse move over windows of the app.
-    pub fn enable_device_events(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+    pub fn enable_input_device_events(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         struct EnableDeviceEvents;
         impl AppExtension for EnableDeviceEvents {
             fn enable_device_events(&self) -> bool {
@@ -1253,6 +1259,11 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         }
         self.extend(EnableDeviceEvents)
     }
+
+    // TODO(breaking) add this after adding the parameter in the view API
+    // pub fn enable_audio_device(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
+    //
+    // }
 
     fn run_dyn(self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
         let app = RunningApp::start(

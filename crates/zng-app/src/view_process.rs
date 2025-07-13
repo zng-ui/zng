@@ -36,7 +36,9 @@ use zng_view_api::{
     },
 };
 
-pub(crate) use zng_view_api::{Controller, DeviceId as ApiDeviceId, window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId};
+pub(crate) use zng_view_api::{
+    Controller, raw_input::InputDeviceId as ApiDeviceId, window::MonitorId as ApiMonitorId, window::WindowId as ApiWindowId,
+};
 use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
     config::KeyRepeatConfig,
@@ -44,7 +46,7 @@ use zng_view_api::{
     image::{ImageId, ImageLoadedData},
 };
 
-use self::raw_device_events::DeviceId;
+use self::raw_device_events::InputDeviceId;
 
 use super::{APP, AppId};
 
@@ -53,7 +55,7 @@ use super::{APP, AppId};
 pub struct VIEW_PROCESS;
 struct ViewProcessService {
     process: zng_view_api::Controller,
-    device_ids: HashMap<ApiDeviceId, DeviceId>,
+    input_device_ids: HashMap<ApiDeviceId, InputDeviceId>,
     monitor_ids: HashMap<ApiMonitorId, MonitorId>,
 
     data_generation: ViewProcessGen,
@@ -313,7 +315,7 @@ impl VIEW_PROCESS {
         *VIEW_PROCESS_SV.write() = Some(ViewProcessService {
             data_generation: process.generation(),
             process,
-            device_ids: HashMap::default(),
+            input_device_ids: HashMap::default(),
             monitor_ids: HashMap::default(),
             loading_images: vec![],
             encoding_images: vec![],
@@ -340,9 +342,9 @@ impl VIEW_PROCESS {
 
         (win, data)
     }
-    /// Translate `DevId` to `DeviceId`, generates a device id if it was unknown.
-    pub(super) fn device_id(&self, id: ApiDeviceId) -> DeviceId {
-        *self.write().device_ids.entry(id).or_insert_with(DeviceId::new_unique)
+    /// Translate input device ID, generates a device id if it was unknown.
+    pub(super) fn input_device_id(&self, id: ApiDeviceId) -> InputDeviceId {
+        *self.write().input_device_ids.entry(id).or_insert_with(InputDeviceId::new_unique)
     }
 
     /// Translate `MonId` to `MonitorId`, generates a monitor id if it was unknown.
@@ -551,7 +553,7 @@ impl ViewProcessService {
         let invalid = vp_gen != self.data_generation;
         if invalid {
             self.data_generation = vp_gen;
-            self.device_ids.clear();
+            self.input_device_ids.clear();
             self.monitor_ids.clear();
         }
         invalid
