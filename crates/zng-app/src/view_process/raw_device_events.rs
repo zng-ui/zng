@@ -9,11 +9,12 @@
 //! [`enable_input_device_events`]: crate::AppExtended::enable_input_device_events
 //! [`raw_events`]: crate::view_process::raw_events
 
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use crate::event::*;
 
 use zng_layout::unit::euclid;
+use zng_var::{ArcVar, Var, var};
 use zng_view_api::{
     keyboard::{KeyCode, KeyState},
     mouse::{ButtonId, ButtonState, MouseScrollDelta},
@@ -112,7 +113,7 @@ event_args! {
     /// Arguments for [`INPUT_DEVICES_CHANGED_EVENT`].
     pub struct InputDevicesChangedArgs {
         /// New list of available devices.
-        pub devices: Vec<(InputDeviceId, InputDeviceInfo)>,
+        pub devices: HashMap<InputDeviceId, InputDeviceInfo>,
 
         ..
 
@@ -262,4 +263,43 @@ event! {
     /// Raw text input.
     #[deprecated = "event is never fired and will be removed"]
     pub static TEXT_EVENT: TextArgs;
+}
+
+/// Input devices info service.
+///
+/// Note that this service only contains data if the app is running with [`enable_input_device_events`].
+///
+/// [`enable_input_device_events`]: crate::AppExtended::enable_input_device_events
+#[allow(non_camel_case_types)]
+pub struct INPUT_DEVICES;
+
+impl INPUT_DEVICES {
+    /// Read-only variable that tracks the current input devices.
+    pub fn available(&self) -> impl Var<HashMap<InputDeviceId, InputDeviceInfo>> {
+        INPUT_DEVICES_SV.read().devices.read_only()
+    }
+
+    /// Read-only variable that tracks the input device info.
+    ///
+    /// If the `id` is unknown returns an "Unknown Input Device" info.
+    pub fn info(&self, id: InputDeviceId) -> impl Var<InputDeviceInfo> {
+        INPUT_DEVICES_SV.read().devices.map(move |m| {
+            m.get(&id)
+                .cloned()
+                .unwrap_or_else(|| InputDeviceInfo::new("Unknown Input Device", InputDeviceCapability::empty()))
+        })
+    }
+
+    pub(crate) fn update(&self, devices: HashMap<InputDeviceId, InputDeviceInfo>) {
+        INPUT_DEVICES_SV.read().devices.set(devices);
+    }
+}
+
+struct InputDevicesSv {
+    devices: ArcVar<HashMap<InputDeviceId, InputDeviceInfo>>,
+}
+app_local! {
+    static INPUT_DEVICES_SV: InputDevicesSv = InputDevicesSv {
+        devices: var(HashMap::new()),
+    };
 }

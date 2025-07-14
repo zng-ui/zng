@@ -21,10 +21,11 @@ use winit::{
 use zng_txt::{ToTxt, Txt};
 use zng_unit::{DipPoint, DipRect, DipSideOffsets, DipSize, DipToPx, Factor, Px, PxPoint, PxRect, PxToDip, PxVector, Rgba};
 use zng_view_api::{
-    DeviceId, Event, ViewProcessGen,
+    Event, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     font::{FontFaceId, FontId, FontOptions, FontVariationName},
     image::{ImageId, ImageLoadedData, ImageMaskMode, ImageTextureId},
+    raw_input::InputDeviceId,
     window::{
         CursorIcon, FocusIndicator, FrameCapture, FrameId, FrameRequest, FrameUpdateRequest, RenderMode, ResizeDirection, VideoMode,
         WindowButton, WindowId, WindowRequest, WindowState, WindowStateAll,
@@ -99,10 +100,10 @@ pub(crate) struct Window {
     movable: bool,
 
     cursor_pos: DipPoint,
-    cursor_device: DeviceId,
+    cursor_device: InputDeviceId,
     cursor_over: bool,
 
-    touch_pos: Vec<((DeviceId, u64), DipPoint)>,
+    touch_pos: Vec<((InputDeviceId, u64), DipPoint)>,
 
     focused: Option<bool>,
 
@@ -301,7 +302,7 @@ impl Window {
 
                             let _ = event_sender.send(AppEvent::Notify(Event::KeyboardInput {
                                 window: id,
-                                device: DeviceId::INVALID, // same as winit
+                                device: InputDeviceId::INVALID, // same as winit
                                 key_code: KeyCode::F4,
                                 state: KeyState::Pressed,
                                 key: Key::F4,
@@ -464,7 +465,7 @@ impl Window {
             rendered_frame_id: FrameId::INVALID,
             cursor_pos: DipPoint::zero(),
             touch_pos: vec![],
-            cursor_device: DeviceId::INVALID,
+            cursor_device: InputDeviceId::INVALID,
             cursor_over: false,
             clear_color: None,
             focused: None,
@@ -567,7 +568,7 @@ impl Window {
     }
 
     /// Returns `true` if the cursor actually moved.
-    pub fn cursor_moved(&mut self, pos: DipPoint, device: DeviceId) -> bool {
+    pub fn cursor_moved(&mut self, pos: DipPoint, device: InputDeviceId) -> bool {
         if !self.cursor_over {
             // this can happen on X11
             return false;
@@ -584,7 +585,7 @@ impl Window {
     }
 
     /// Returns `true` if the touch actually moved.
-    pub fn touch_moved(&mut self, pos: DipPoint, device: DeviceId, touch: u64) -> bool {
+    pub fn touch_moved(&mut self, pos: DipPoint, device: InputDeviceId, touch: u64) -> bool {
         if let Some(p) = self.touch_pos.iter_mut().find(|p| p.0 == (device, touch)) {
             let moved = p.1 != pos;
             p.1 = pos;
@@ -596,7 +597,7 @@ impl Window {
     }
 
     /// Clear touch position.
-    pub fn touch_end(&mut self, device: DeviceId, touch: u64) {
+    pub fn touch_end(&mut self, device: InputDeviceId, touch: u64) {
         if let Some(i) = self.touch_pos.iter().position(|p| p.0 == (device, touch)) {
             self.touch_pos.swap_remove(i);
         }
@@ -631,7 +632,7 @@ impl Window {
     }
 
     /// Returns the last cursor moved data.
-    pub fn last_cursor_pos(&self) -> (DipPoint, DeviceId) {
+    pub fn last_cursor_pos(&self) -> (DipPoint, InputDeviceId) {
         (self.cursor_pos, self.cursor_device)
     }
 

@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::Deadline;
+use crate::{Deadline, view_process::raw_device_events::INPUT_DEVICES};
 use parking_lot::Mutex;
 use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
@@ -157,7 +157,7 @@ impl<E: AppExtension> RunningApp<E> {
         update.call_pos_actions();
     }
 
-    fn input_device_id(&mut self, id: zng_view_api::DeviceId) -> InputDeviceId {
+    fn input_device_id(&mut self, id: zng_view_api::raw_input::InputDeviceId) -> InputDeviceId {
         VIEW_PROCESS.input_device_id(id)
     }
 
@@ -480,7 +480,8 @@ impl<E: AppExtension> RunningApp<E> {
 
             // `device_events`
             Event::InputDevicesChanged(devices) => {
-                let devices: Vec<_> = devices.into_iter().map(|(d_id, info)| (self.input_device_id(d_id), info)).collect();
+                let devices: HashMap<_, _> = devices.into_iter().map(|(d_id, info)| (self.input_device_id(d_id), info)).collect();
+                INPUT_DEVICES.update(devices.clone());
                 let args = InputDevicesChangedArgs::now(devices);
                 self.notify_event(INPUT_DEVICES_CHANGED_EVENT.new_update(args), observer);
             }
@@ -623,6 +624,7 @@ impl<E: AppExtension> RunningApp<E> {
                     generation,
                     is_respawn,
                     available_monitors,
+                    available_input_devices,
                     multi_click_config,
                     key_repeat_config,
                     touch_config,
@@ -664,6 +666,12 @@ impl<E: AppExtension> RunningApp<E> {
                         extensions,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
+
+                    let devices: HashMap<_, _> = available_input_devices
+                        .into_iter()
+                        .map(|(d_id, info)| (self.input_device_id(d_id), info))
+                        .collect();
+                    INPUT_DEVICES.update(devices);
                 }
                 zng_view_api::Event::Suspended => {
                     VIEW_PROCESS.handle_suspended();
