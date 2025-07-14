@@ -11,7 +11,7 @@ use zng_app::{
     update::{EventUpdate, UPDATES},
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
-        raw_device_events::DeviceId,
+        raw_device_events::InputDeviceId,
         raw_events::{
             RAW_FRAME_RENDERED_EVENT, RAW_MOUSE_INPUT_EVENT, RAW_MOUSE_MOVED_EVENT, RAW_TOUCH_EVENT, RAW_WINDOW_CLOSE_EVENT,
             RAW_WINDOW_FOCUS_EVENT,
@@ -47,9 +47,9 @@ use zng_view_api::{
 /// * [`POINTER_CAPTURE`]
 #[derive(Default)]
 pub struct PointerCaptureManager {
-    mouse_position: HashMap<(WindowId, DeviceId), DipPoint>,
-    mouse_down: HashSet<(WindowId, DeviceId, MouseButton)>,
-    touch_down: HashSet<(WindowId, DeviceId, TouchId)>,
+    mouse_position: HashMap<(WindowId, InputDeviceId), DipPoint>,
+    mouse_down: HashSet<(WindowId, InputDeviceId, MouseButton)>,
+    touch_down: HashSet<(WindowId, InputDeviceId, TouchId)>,
     capture: Option<CaptureInfo>,
 }
 impl AppExtension for PointerCaptureManager {

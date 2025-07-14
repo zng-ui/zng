@@ -1,5 +1,10 @@
 # Unreleased
 
+* **Deprecated** the view-process API "raw devices", it is replaced by "raw input devices", distinct from audio or any other devices.
+    - This change mostly renames types and adds `InputDeviceInfo` with device metadata that is not implemented in this release.
+    - This change is mostly advanced API only, only some renamed types and events surface in `zng`.
+    - The normal processed window input events are not affected.
+* Add audio devices to the view-process API in preparation for a future release.
 * Add extension methods for generating node lists from vars, `present_list` and `present_list_from_iter`.
     - Implemented by `zng_wgt::node::VarPresentList` and `VarPresentListFromIter` traits that are reexported as `_` in the preludes.
 * Add extension methods for generating nodes from vars, `present`, `present_opt` and `present_data`.

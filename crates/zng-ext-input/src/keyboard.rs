@@ -9,7 +9,7 @@ use zng_app::{
     update::EventUpdate,
     view_process::{
         VIEW_PROCESS_INITED_EVENT,
-        raw_device_events::DeviceId,
+        raw_device_events::InputDeviceId,
         raw_events::{
             RAW_ANIMATIONS_CONFIG_CHANGED_EVENT, RAW_KEY_INPUT_EVENT, RAW_KEY_REPEAT_CONFIG_CHANGED_EVENT, RAW_WINDOW_FOCUS_EVENT,
             RawKeyInputArgs,
@@ -39,7 +39,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Physical key.
         pub key_code: KeyCode,
@@ -367,7 +367,7 @@ struct KeyboardService {
     caret_animation_config: ArcCowVar<(Duration, Duration), ArcVar<(Duration, Duration)>>,
     sys_caret_animation_config: ArcVar<(Duration, Duration)>,
 
-    last_key_down: Option<(DeviceId, KeyCode, DInstant, u32)>,
+    last_key_down: Option<(InputDeviceId, KeyCode, DInstant, u32)>,
 }
 impl KeyboardService {
     fn key_input(&mut self, args: &RawKeyInputArgs, focused: Option<InteractionPath>) {
@@ -547,7 +547,16 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, code: KeyCode, location: KeyLocation, key: Key, state: KeyState) {
         use zng_app::view_process::raw_events::*;
 
-        let args = RawKeyInputArgs::now(window_id, DeviceId::virtual_keyboard(), code, location, state, key.clone(), key, "");
+        let args = RawKeyInputArgs::now(
+            window_id,
+            InputDeviceId::virtual_keyboard(),
+            code,
+            location,
+            state,
+            key.clone(),
+            key,
+            "",
+        );
         RAW_KEY_INPUT_EVENT.notify(args);
     }
 
