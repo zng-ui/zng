@@ -425,8 +425,8 @@ pub use zng_app::view_process::raw_events::{LOW_MEMORY_EVENT, LowMemoryArgs};
 /// See [`zng_app::view_process::raw_device_events`] for the full API.
 pub mod raw_device_events {
     pub use zng_app::view_process::raw_device_events::{
-        AXIS_MOTION_EVENT, AxisId, AxisMotionArgs, INPUT_DEVICES_CHANGED_EVENT, InputDeviceCapability, InputDeviceId, InputDeviceInfo,
-        InputDevicesChangedArgs,
+        AXIS_MOTION_EVENT, AxisId, AxisMotionArgs, INPUT_DEVICES, INPUT_DEVICES_CHANGED_EVENT, InputDeviceCapability, InputDeviceId,
+        InputDeviceInfo, InputDevicesChangedArgs,
     };
 
     #[allow(deprecated)] // TODO(breaking)

@@ -120,6 +120,8 @@ mod config;
 mod display_list;
 mod gl;
 mod image_cache;
+#[cfg(windows)]
+mod input_device_info;
 mod low_memory;
 mod px_wr;
 mod surface;
@@ -154,7 +156,7 @@ use zng_view_api::{
     ipc::{IpcBytes, IpcBytesReceiver},
     keyboard::{Key, KeyCode, KeyState},
     mouse::ButtonId,
-    raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceInfo},
+    raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchId, TouchUpdate},
     window::{
         CursorIcon, CursorImage, EventCause, EventFrameRendered, FocusIndicator, FrameRequest, FrameUpdateRequest, FrameWaitId,
@@ -358,8 +360,8 @@ pub(crate) struct App {
     monitor_id_gen: MonitorId,
     pub monitors: Vec<(MonitorId, MonitorHandle)>,
 
-    device_id_gen: DeviceId,
-    devices: Vec<(DeviceId, winit::event::DeviceId)>,
+    device_id_gen: InputDeviceId,
+    devices: Vec<(InputDeviceId, winit::event::DeviceId, InputDeviceInfo)>,
 
     dialog_id_gen: DialogId,
 
@@ -376,7 +378,7 @@ pub(crate) struct App {
     #[cfg(windows)]
     skip_ralt: bool,
 
-    pressed_modifiers: FxHashMap<(Key, KeyLocation), (DeviceId, KeyCode)>,
+    pressed_modifiers: FxHashMap<(Key, KeyLocation), (InputDeviceId, KeyCode)>,
     pending_modifiers_update: Option<ModifiersState>,
     pending_modifiers_focus_clear: bool,
 
@@ -735,7 +737,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     let key = key_modified.clone();
                     let key_code = util::winit_physical_key_to_key_code(event.physical_key);
                     let key_location = util::winit_key_location_to_zng(event.location);
-                    let d_id = self.device_id(device_id);
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::KEY);
 
                     let mut send_event = true;
 
@@ -786,7 +788,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
                 let px_p = position.to_px();
                 let p = px_p.to_dip(scale_factor);
-                let d_id = self.device_id(device_id);
+                let d_id = self.input_device_id(device_id, InputDeviceCapability::POINTER_MOTION);
 
                 let mut is_after_cursor_enter = false;
                 if let Some(i) = self.cursor_entered_expect_move.iter().position(|&w| w == id) {
@@ -823,7 +825,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             WindowEvent::CursorEntered { device_id } => {
                 linux_modal_dialog_bail!();
                 if self.windows[i].cursor_entered() {
-                    let d_id = self.device_id(device_id);
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::POINTER_MOTION);
                     self.notify(Event::MouseEntered { window: id, device: d_id });
                     self.cursor_entered_expect_move.push(id);
                 }
@@ -831,7 +833,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             WindowEvent::CursorLeft { device_id } => {
                 linux_modal_dialog_bail!();
                 if self.windows[i].cursor_left() {
-                    let d_id = self.device_id(device_id);
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::POINTER_MOTION);
                     self.notify(Event::MouseLeft { window: id, device: d_id });
 
                     // unlikely but possible?
@@ -844,7 +846,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 device_id, delta, phase, ..
             } => {
                 linux_modal_dialog_bail!();
-                let d_id = self.device_id(device_id);
+                let d_id = self.input_device_id(device_id, InputDeviceCapability::SCROLL_MOTION);
                 self.notify(Event::MouseWheel {
                     window: id,
                     device: d_id,
@@ -856,7 +858,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 device_id, state, button, ..
             } => {
                 linux_modal_dialog_bail!();
-                let d_id = self.device_id(device_id);
+                let d_id = self.input_device_id(device_id, InputDeviceCapability::BUTTON);
                 self.notify(Event::MouseInput {
                     window: id,
                     device: d_id,
@@ -870,7 +872,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 stage,
             } => {
                 linux_modal_dialog_bail!();
-                let d_id = self.device_id(device_id);
+                let d_id = self.input_device_id(device_id, InputDeviceCapability::empty());
                 self.notify(Event::TouchpadPressure {
                     window: id,
                     device: d_id,
@@ -880,7 +882,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             }
             WindowEvent::AxisMotion { device_id, axis, value } => {
                 linux_modal_dialog_bail!();
-                let d_id = self.device_id(device_id);
+                let d_id = self.input_device_id(device_id, InputDeviceCapability::AXIS_MOTION);
                 self.notify(Event::AxisMotion {
                     window: id,
                     device: d_id,
@@ -889,7 +891,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 });
             }
             WindowEvent::Touch(t) => {
-                let d_id = self.device_id(t.device_id);
+                let d_id = self.input_device_id(t.device_id, InputDeviceCapability::empty());
                 let position = t.location.to_px().to_dip(scale_factor);
 
                 let notify = match t.phase {
@@ -1033,28 +1035,21 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
             let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
-            let d_id = self.device_id(device_id);
             #[allow(deprecated)] // TODO(breaking) remove this
             match &event {
                 DeviceEvent::Added => {
-                    #[cfg(windows)]
-                    {
-                        use winit::platform::windows::DeviceIdExtWindows as _;
-                        println!("!!: persistent_identifier: {:?}", device_id.persistent_identifier());
-                    }
-
-                    let winit_no_info = InputDeviceInfo::new("winit device", InputDeviceCapability::empty());
-                    let devices = self.devices.iter().map(|(id, _)| (*id, winit_no_info.clone())).collect();
-                    self.notify(Event::InputDevicesChanged(devices));
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::empty()); // already notifies here                   
                     self.notify(Event::DeviceAdded(d_id));
                 }
                 DeviceEvent::Removed => {
-                    let winit_no_info = InputDeviceInfo::new("winit device", InputDeviceCapability::empty());
-                    let devices = self.devices.iter().map(|(id, _)| (*id, winit_no_info.clone())).collect();
-                    self.notify(Event::InputDevicesChanged(devices));
-                    self.notify(Event::DeviceRemoved(d_id));
+                    if let Some(i) = self.devices.iter().position(|(_, id, _)| *id == device_id) {
+                        let (d_id, _, _) = self.devices.remove(i);
+                        self.notify_input_devices_changed();
+                        self.notify(Event::DeviceRemoved(d_id));
+                    }
                 }
                 DeviceEvent::MouseMotion { delta } => {
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::POINTER_MOTION);
                     self.notify(Event::InputDeviceEvent {
                         device: d_id,
                         event: InputDeviceEvent::PointerMotion {
@@ -1067,6 +1062,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     })
                 }
                 DeviceEvent::MouseWheel { delta } => {
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::SCROLL_MOTION);
                     self.notify(Event::InputDeviceEvent {
                         device: d_id,
                         event: InputDeviceEvent::ScrollMotion {
@@ -1079,6 +1075,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     });
                 }
                 DeviceEvent::Motion { axis, value } => {
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::AXIS_MOTION);
                     self.notify(Event::InputDeviceEvent {
                         device: d_id,
                         event: InputDeviceEvent::AxisMotion {
@@ -1093,6 +1090,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     })
                 }
                 DeviceEvent::Button { button, state } => {
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::BUTTON);
                     self.notify(Event::InputDeviceEvent {
                         device: d_id,
                         event: InputDeviceEvent::Button {
@@ -1107,6 +1105,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     });
                 }
                 DeviceEvent::Key(k) => {
+                    let d_id = self.input_device_id(device_id, InputDeviceCapability::KEY);
                     self.notify(Event::InputDeviceEvent {
                         device: d_id,
                         event: InputDeviceEvent::Key {
@@ -1426,7 +1425,7 @@ impl App {
             monitors: vec![],
             monitor_id_gen: MonitorId::INVALID,
             devices: vec![],
-            device_id_gen: DeviceId::INVALID,
+            device_id_gen: InputDeviceId::INVALID,
             dialog_id_gen: DialogId::INVALID,
             resize_frame_wait_id_gen: FrameWaitId::INVALID,
             coalescing_event: None,
@@ -1697,12 +1696,43 @@ impl App {
         }
     }
 
-    fn device_id(&mut self, device_id: winit::event::DeviceId) -> DeviceId {
-        if let Some((id, _)) = self.devices.iter().find(|(_, id)| *id == device_id) {
-            *id
+    fn notify_input_devices_changed(&mut self) {
+        let devices = self.devices.iter().map(|(id, _, info)| (*id, info.clone())).collect();
+        self.notify(Event::InputDevicesChanged(devices));
+    }
+
+    /// update `capability` by usage as device metadata query is not implemented for all systems yet.
+    fn input_device_id(&mut self, device_id: winit::event::DeviceId, capability: InputDeviceCapability) -> InputDeviceId {
+        if let Some((id, _, info)) = self.devices.iter_mut().find(|(_, id, _)| *id == device_id) {
+            let id = *id;
+            if self.device_events && capability != InputDeviceCapability::empty() && !info.capabilities.contains(capability) {
+                info.capabilities |= capability;
+                self.notify_input_devices_changed();
+            }
+            id
         } else {
             let id = self.device_id_gen.incr();
-            self.devices.push((id, device_id));
+
+            #[cfg(not(windows))]
+            let info = InputDeviceInfo::new("Winit Device", InputDeviceCapability::empty());
+            #[cfg(windows)]
+            let info = {
+                use winit::platform::windows::DeviceIdExtWindows as _;
+                if self.device_events
+                    && let Some(device_path) = device_id.persistent_identifier()
+                {
+                    input_device_info::get(&device_path)
+                } else {
+                    InputDeviceInfo::new("Winit Device", InputDeviceCapability::empty())
+                }
+            };
+
+            self.devices.push((id, device_id, info));
+
+            if self.device_events {
+                self.notify_input_devices_changed();
+            }
+
             id
         }
     }

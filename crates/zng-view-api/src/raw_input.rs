@@ -45,13 +45,13 @@ impl InputDeviceInfo {
 
 bitflags! {
     /// Capabilities of an input device.
-    #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct InputDeviceCapability: u8 {
         /// Device can produce keyboard key presses.
         const KEY = 0b0000_0001;
         /// Device can produce button presses.
         const BUTTON = 0b0000_0010;
-        /// Device provides scrolling wheel deltas.
+        /// Device provides scrolling wheel deltas, vertical or horizontal.
         const SCROLL_MOTION = 0b0001_0000;
         /// Device provides axis aligned 1D motion.
         const AXIS_MOTION = 0b0010_0000;

@@ -273,7 +273,7 @@ declare_api! {
     /// Sends an [`Event::Inited`] once the view is completely connected.
     /// Other methods may only be called after this event.
     fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool);
-    // TODO(breaking) device events -> input device events and add audio device events
+    // TODO(breaking) refactor device_events, add audio_events
 
     /// Called once after exit, if running in a managed external process it will be killed after this call.
     fn exit(&mut self);

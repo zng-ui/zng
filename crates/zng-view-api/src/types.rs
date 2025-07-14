@@ -99,8 +99,9 @@ declare_id! {
     pub struct ViewProcessGen(_);
 }
 
+/// Deprecated
 #[deprecated = "use `InputDeviceId`"]
-pub use crate::raw_input::InputDeviceId as DeviceId;
+pub type DeviceId = crate::raw_input::InputDeviceId;
 
 /// Identifier for a specific analog axis on some device.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -938,6 +939,14 @@ impl Event {
             }
             // drag cancelled
             (DragCancelled { window }, DragCancelled { window: n_window }) if *window == n_window => {}
+            // input devices changed
+            (InputDevicesChanged(devices), InputDevicesChanged(n_devices)) => {
+                *devices = n_devices;
+            }
+            // audio devices changed
+            (AudioDevicesChanged(devices), AudioDevicesChanged(n_devices)) => {
+                *devices = n_devices;
+            }
             (_, e) => return Err(e),
         }
         Ok(())
