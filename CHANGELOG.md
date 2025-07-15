@@ -1,5 +1,8 @@
 # Unreleased
 
+
+# 0.15.10
+
 * **Deprecated** Zng features "ron", "toml" and "yaml" renamed to "config_ron", "config_toml" and "config_yaml".
 * **Deprecated** the view-process API "raw devices", it is replaced by "raw input devices", distinct from audio or any other devices.
     - This change mostly renames types and adds `InputDeviceInfo` with device metadata.

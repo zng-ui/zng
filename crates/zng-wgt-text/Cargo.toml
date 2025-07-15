@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-text"
-version = "0.7.8"
+version = "0.7.9"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,23 +12,23 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.8.7" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.8" }
 zng-app-context = { path = "../zng-app-context", version = "0.7.3" }
-zng-app = { path = "../zng-app", version = "0.16.7" }
-zng-color = { path = "../zng-color", version = "0.6.5" }
-zng-layout = { path = "../zng-layout", version = "0.4.4" }
-zng-wgt-data = { path = "../zng-wgt-data", version = "0.5.7" }
-zng-wgt-access = { path = "../zng-wgt-access", version = "0.5.7" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.5.7" }
-zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.6.7" }
-zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.7.7" }
-zng-ext-undo = { path = "../zng-ext-undo", version = "0.5.7" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.7.7" }
-zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.8.7" }
-zng-view-api = { path = "../zng-view-api", version = "0.13.5" }
-zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.5.7" }
-zng-ext-input = { path = "../zng-ext-input", version = "0.8.7" }
-zng-ext-window = { path = "../zng-ext-window", version = "0.6.7" }
+zng-app = { path = "../zng-app", version = "0.16.8" }
+zng-color = { path = "../zng-color", version = "0.6.6" }
+zng-layout = { path = "../zng-layout", version = "0.4.5" }
+zng-wgt-data = { path = "../zng-wgt-data", version = "0.5.8" }
+zng-wgt-access = { path = "../zng-wgt-access", version = "0.5.8" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.5.8" }
+zng-wgt-layer = { path = "../zng-wgt-layer", version = "0.6.8" }
+zng-wgt-scroll = { path = "../zng-wgt-scroll", version = "0.7.8" }
+zng-ext-undo = { path = "../zng-ext-undo", version = "0.5.8" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.7.8" }
+zng-ext-l10n = { path = "../zng-ext-l10n", version = "0.8.8" }
+zng-view-api = { path = "../zng-view-api", version = "0.13.6" }
+zng-ext-clipboard = { path = "../zng-ext-clipboard", version = "0.5.8" }
+zng-ext-input = { path = "../zng-ext-input", version = "0.8.8" }
+zng-ext-window = { path = "../zng-ext-window", version = "0.6.8" }
 
 atomic = "0.6"
 tracing = "0.1"
