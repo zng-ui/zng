@@ -185,23 +185,20 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         close_timer = None;
                         if !is_open.get() {
                             // focused when not open
+
                             let info = WIDGET.info();
-                            if info.submenu_parent().is_none() {
-                                // is root sub-menu
-                                if let Some(prev_root) = args
+                            if info.submenu_parent().is_none() // is root sub-menu
+                                && let Some(prev_root) = args
                                     .prev_focus
                                     .as_ref()
                                     .and_then(|p| info.tree().get(p.widget_id()))
-                                    .and_then(|w| w.submenu_root())
-                                {
-                                    // prev focus was open
-                                    if prev_root.is_submenu_open().map(|v| v.get()).unwrap_or(false) {
-                                        if let (Some(prev_menu), Some(our_menu)) = (prev_root.menu(), info.menu()) {
-                                            // same menu and sibling was open, open
-                                            open_pop = our_menu.id() == prev_menu.id();
-                                        }
-                                    }
-                                }
+                                    .and_then(|w| w.submenu_root())  // prev focus was open
+                                && prev_root.is_submenu_open().map(|v| v.get()).unwrap_or(false)
+                                && let Some(prev_menu) = prev_root.menu()
+                                && let Some(our_menu) = info.menu()
+                            {
+                                // same menu and sibling was open, open
+                                open_pop = our_menu.id() == prev_menu.id();
                             }
                         }
                     } else if args.is_focus_leave_enabled(WIDGET.id())

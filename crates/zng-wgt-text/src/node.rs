@@ -913,13 +913,14 @@ pub(super) fn on_change_stop(child: impl UiNode, mut handler: impl WidgetHandler
             }
 
             if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                if let (KeyState::Pressed, Key::Enter) = (args.state, &args.key) {
-                    if !ACCEPTS_ENTER_VAR.get() {
-                        pending = None;
-                        handler.event(&ChangeStopArgs {
-                            cause: ChangeStopCause::Enter,
-                        });
-                    }
+                if let KeyState::Pressed = args.state
+                    && let Key::Enter = &args.key
+                    && !ACCEPTS_ENTER_VAR.get()
+                {
+                    pending = None;
+                    handler.event(&ChangeStopArgs {
+                        cause: ChangeStopCause::Enter,
+                    });
                 }
             } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
                 let target = WIDGET.id();

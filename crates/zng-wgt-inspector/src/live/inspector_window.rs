@@ -78,7 +78,9 @@ pub(super) fn new(
                 }
             }
 
-            if let (Some(id), true) = (last_focused, *select) {
+            if let Some(id) = last_focused
+                && *select
+            {
                 let _ = selected_wgt.set(inspected_tree.inspect(id));
             }
         })

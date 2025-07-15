@@ -1054,7 +1054,7 @@ impl WidgetAccessInfo {
 
         if let Some(prev) = prev_tree.get(self.info.id()) {
             let was_accessible = !vis_changed && prev.access().map(|w| w.is_local_accessible()).unwrap_or(false);
-            if let (true, Some(prev)) = (was_accessible, prev.access()) {
+            if was_accessible && let Some(prev) = prev.access() {
                 let mut children = None;
                 if bounds_changed || !prev.access().info_eq(self.access()) || {
                     // check children and cache result

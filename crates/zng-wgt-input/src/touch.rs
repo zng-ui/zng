@@ -23,49 +23,49 @@ event_property! {
     pub fn touch_input {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_enabled(WIDGET.id()) && args.capture_allows(),
+        filter: |args| args.target.contains_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
     /// Touch contact started or ended over the widget, it is disabled and cursor capture allows it.
     pub fn disabled_touch_input {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_disabled(WIDGET.id()) && args.capture_allows(),
+        filter: |args| args.target.contains_disabled(WIDGET.id()) && args.capture_allows(),
     }
 
     /// Touch contact started over the widget, it is enabled and cursor capture allows it.
     pub fn touch_start {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_touch_start() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
+        filter: |args| args.is_touch_start() && args.target.contains_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
     /// Touch contact ended over the widget, it is enabled and cursor capture allows it.
     pub fn touch_end {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_touch_end() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
+        filter: |args| args.is_touch_end() && args.target.contains_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
     /// Touch contact canceled over the widget, it is enabled and cursor capture allows it.
     pub fn touch_cancel {
         event: TOUCH_INPUT_EVENT,
         args: TouchInputArgs,
-        filter: |args| args.is_touch_cancel() && args.is_enabled(WIDGET.id()) && args.capture_allows(),
+        filter: |args| args.is_touch_cancel() && args.target.contains_enabled(WIDGET.id()) && args.capture_allows(),
     }
 
     /// Touch tap on the widget and it is enabled.
     pub fn touch_tap {
         event: TOUCH_TAP_EVENT,
         args: TouchTapArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.target.contains_enabled(WIDGET.id()),
     }
 
     /// Touch tap on the widget and it is disabled.
     pub fn disabled_touch_tap {
         event: TOUCH_TAP_EVENT,
         args: TouchTapArgs,
-        filter: |args| args.is_disabled(WIDGET.id()),
+        filter: |args| args.target.contains_disabled(WIDGET.id()),
     }
 
     /// Touch contact is now over the widget or a descendant and it is enabled.
@@ -98,7 +98,7 @@ event_property! {
     pub fn touch_transform {
         event: TOUCH_TRANSFORM_EVENT,
         args: TouchTransformArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.target.contains_enabled(WIDGET.id()),
     }
 
     /// Single touch contact was made and held in place for a duration of time (default 500ms) on
@@ -106,7 +106,7 @@ event_property! {
     pub fn touch_long_press {
         event: TOUCH_LONG_PRESS_EVENT,
         args: TouchLongPressArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.target.contains_enabled(WIDGET.id()),
     }
 
     /// Single touch contact was made and held in place for a duration of time (default 500ms) on
@@ -114,6 +114,6 @@ event_property! {
     pub fn disabled_touch_long_press {
         event: TOUCH_LONG_PRESS_EVENT,
         args: TouchLongPressArgs,
-        filter: |args| args.is_disabled(WIDGET.id()),
+        filter: |args| args.target.contains_disabled(WIDGET.id()),
     }
 }

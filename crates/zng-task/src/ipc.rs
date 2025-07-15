@@ -410,11 +410,10 @@ where
     }
 }
 fn run_worker_server(worker_name: &str) -> Option<String> {
-    if let (Ok(w_name), Ok(version), Ok(server_name)) = (
-        std::env::var(WORKER_NAME),
-        std::env::var(WORKER_VERSION),
-        std::env::var(WORKER_SERVER),
-    ) {
+    if let Ok(w_name) = std::env::var(WORKER_NAME)
+        && let Ok(version) = std::env::var(WORKER_VERSION)
+        && let Ok(server_name) = std::env::var(WORKER_SERVER)
+    {
         if w_name != worker_name {
             return None;
         }

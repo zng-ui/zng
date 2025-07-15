@@ -126,14 +126,12 @@ fn app_main() {
             }, 0;
             on_load = hn_once!(|_| {
                 // window position is saved, so we move the second window a bit
-                if let Ok(pos) = std::env::var("OTHER-PROCESS") {
-                    if let Some((x, y)) = pos.split_once(',') {
-                        if let (Ok(x), Ok(y)) = (x.parse(), y.parse()) {
-                            let pos = (layout::Dip::new(x), layout::Dip::new(y));
-                            WINDOW.vars().position().set(pos);
-                            WINDOWS.focus(WINDOW.id()).unwrap();
-                        }
-                    }
+                if let Ok(pos) = std::env::var("OTHER-PROCESS")
+                 && let Some((x, y)) = pos.split_once(',')
+                 && let Ok(x) = x.parse() && let Ok(y) = y.parse() {
+                        let pos = (layout::Dip::new(x), layout::Dip::new(y));
+                        WINDOW.vars().position().set(pos);
+                        WINDOWS.focus(WINDOW.id()).unwrap();
                 }
             });
         }

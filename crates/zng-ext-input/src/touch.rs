@@ -586,13 +586,13 @@ impl TouchInputArgs {
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_enabled`"]
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_enabled(widget_id)
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_disabled`"]
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_disabled(widget_id)
     }
@@ -666,13 +666,13 @@ impl TouchInputArgs {
 
 impl TouchTapArgs {
     /// Deprecated
-    #[deprecated = "use `self.target.contains_enabled`"]
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_enabled(widget_id)
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_disabled`"]
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_disabled(widget_id)
     }
@@ -680,13 +680,13 @@ impl TouchTapArgs {
 
 impl TouchLongPressArgs {
     /// Deprecated
-    #[deprecated = "use `self.target.contains_enabled`"]
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_enabled(widget_id)
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_disabled`"]
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_disabled(widget_id)
     }
@@ -848,13 +848,13 @@ impl TouchTransformArgs {
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_enabled`"]
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_enabled(widget_id)
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_disabled`"]
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_disabled(widget_id)
     }

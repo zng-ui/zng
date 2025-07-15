@@ -121,7 +121,7 @@ pub fn is_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl U
                 match input_args.state {
                     ButtonState::Pressed => {
                         if input_args.capture_allows() {
-                            return Some(input_args.is_enabled(WIDGET.id()));
+                            return Some(input_args.target.contains_enabled(WIDGET.id()));
                         }
                     }
                     ButtonState::Released => return Some(false),
@@ -178,7 +178,7 @@ pub fn is_cap_mouse_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> im
                 match input_args.state {
                     ButtonState::Pressed => {
                         if input_args.capture_allows() {
-                            return Some(input_args.is_enabled(WIDGET.id()));
+                            return Some(input_args.target.contains_enabled(WIDGET.id()));
                         }
                     }
                     ButtonState::Released => return Some(false),
@@ -219,7 +219,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = CLICK_EVENT.on(update) {
-                if (args.is_from_keyboard() || args.is_from_access()) && args.is_enabled(WIDGET.id()) {
+                if (args.is_from_keyboard() || args.is_from_access()) && args.target.contains_enabled(WIDGET.id()) {
                     // if a shortcut click happened, we show pressed for the duration of `shortcut_pressed_duration`
                     // unless we where already doing that, then we just stop showing pressed, this causes
                     // a flickering effect when rapid clicks are happening.

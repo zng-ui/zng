@@ -213,18 +213,16 @@ impl TextEditOp {
                 merged,
                 ..
             } => {
-                if within_undo_interval {
-                    if let Some(next_data) = next_data.downcast_mut::<InsertData>() {
-                        if let (SelectionState::Caret(mut after_idx), SelectionState::Caret(caret)) =
-                            (data.selection_state, next_data.selection_state)
-                        {
-                            after_idx.index += data.insert.len();
+                if within_undo_interval
+                    && let Some(next_data) = next_data.downcast_mut::<InsertData>()
+                    && let SelectionState::Caret(mut after_idx) = data.selection_state
+                    && let SelectionState::Caret(caret) = next_data.selection_state
+                {
+                    after_idx.index += data.insert.len();
 
-                            if after_idx.index == caret.index {
-                                data.insert.push_str(&next_data.insert);
-                                *merged = true;
-                            }
-                        }
+                    if after_idx.index == caret.index {
+                        data.insert.push_str(&next_data.insert);
+                        *merged = true;
                     }
                 }
             }
@@ -342,21 +340,19 @@ impl TextEditOp {
                 merged,
                 ..
             } => {
-                if within_undo_interval {
-                    if let Some(next_data) = next_data.downcast_mut::<BackspaceData>() {
-                        if let (SelectionState::Caret(mut after_idx), SelectionState::Caret(caret)) =
-                            (data.selection_state, next_data.selection_state)
-                        {
-                            after_idx.index -= data.removed.len();
+                if within_undo_interval
+                    && let Some(next_data) = next_data.downcast_mut::<BackspaceData>()
+                    && let SelectionState::Caret(mut after_idx) = data.selection_state
+                    && let SelectionState::Caret(caret) = next_data.selection_state
+                {
+                    after_idx.index -= data.removed.len();
 
-                            if after_idx.index == caret.index {
-                                data.count += next_data.count;
+                    if after_idx.index == caret.index {
+                        data.count += next_data.count;
 
-                                next_data.removed.push_str(&data.removed);
-                                data.removed = std::mem::take(&mut next_data.removed);
-                                *merged = true;
-                            }
-                        }
+                        next_data.removed.push_str(&data.removed);
+                        data.removed = std::mem::take(&mut next_data.removed);
+                        *merged = true;
                     }
                 }
             }
@@ -475,18 +471,15 @@ impl TextEditOp {
                 merged,
                 ..
             } => {
-                if within_undo_interval {
-                    if let Some(next_data) = next_data.downcast_ref::<DeleteData>() {
-                        if let (SelectionState::Caret(after_idx), SelectionState::Caret(caret)) =
-                            (data.selection_state, next_data.selection_state)
-                        {
-                            if after_idx.index == caret.index {
-                                data.count += next_data.count;
-                                data.removed.push_str(&next_data.removed);
-                                *merged = true;
-                            }
-                        }
-                    }
+                if within_undo_interval
+                    && let Some(next_data) = next_data.downcast_ref::<DeleteData>()
+                    && let SelectionState::Caret(after_idx) = data.selection_state
+                    && let SelectionState::Caret(caret) = next_data.selection_state
+                    && after_idx.index == caret.index
+                {
+                    data.count += next_data.count;
+                    data.removed.push_str(&next_data.removed);
+                    *merged = true;
                 }
             }
         })
@@ -1496,7 +1489,9 @@ fn rich_clear_next_prev(is_next: bool, is_word: bool) -> TextSelectOp {
     TextSelectOp::new_rich(
         // get prev/next leaf widget
         move |ctx| {
-            if let (Some(i), Some(s)) = (ctx.caret_index_info(), ctx.caret_selection_index_info()) {
+            if let Some(i) = ctx.caret_index_info()
+                && let Some(s) = ctx.caret_selection_index_info()
+            {
                 // clear selection, next places caret at end of selection, prev at start
 
                 let (a, b) = match i.cmp_sibling_in(&s, &i.root()).unwrap() {
@@ -1725,144 +1720,145 @@ fn rich_up_down(clear_selection: bool, is_down: bool, is_page: bool) -> TextSele
                 }
             }
 
-            if need_spatial_search {
-                if let (Some(local_line), Some(root_info)) = (laidout.shaped_text.line(local_line_i), ctx.root_info()) {
-                    // line ok, rich context ok
-                    let r = local_line.rect();
-                    let local_point = PxPoint::new(laidout.caret_retained_x, r.origin.y + r.size.height / Px(2));
-                    let local_info = WIDGET.info();
-                    let local_to_window = local_info.inner_transform();
+            if need_spatial_search
+                && let Some(local_line) = laidout.shaped_text.line(local_line_i)
+                && let Some(root_info) = ctx.root_info()
+            {
+                // line ok, rich context ok
+                let r = local_line.rect();
+                let local_point = PxPoint::new(laidout.caret_retained_x, r.origin.y + r.size.height / Px(2));
+                let local_info = WIDGET.info();
+                let local_to_window = local_info.inner_transform();
 
-                    let local_cut_y = if is_down { local_point.y + page_h } else { local_point.y - page_h };
-                    let window_cut_y = local_to_window
-                        .transform_point(PxPoint::new(Px(0), local_cut_y))
-                        .unwrap_or_default()
-                        .y;
+                let local_cut_y = if is_down { local_point.y + page_h } else { local_point.y - page_h };
+                let window_cut_y = local_to_window
+                    .transform_point(PxPoint::new(Px(0), local_cut_y))
+                    .unwrap_or_default()
+                    .y;
 
-                    if let Some(window_point) = local_to_window.transform_point(local_point) {
-                        // transform ok
+                if let Some(window_point) = local_to_window.transform_point(local_point) {
+                    // transform ok
 
-                        // find the nearest sibling considering only the prev/next rich lines
-                        let local_line_info = local_info.rich_text_line_info();
-                        let filter = |other: &WidgetInfo, rect: PxRect, row_i, rows_len| {
-                            if is_down {
-                                if rect.max_y() < window_cut_y {
-                                    // rectangle is before the page y line or the the current line
-                                    return false;
-                                }
-                            } else if rect.min_y() > window_cut_y {
-                                // rectangle is after the page y line or the current line
+                    // find the nearest sibling considering only the prev/next rich lines
+                    let local_line_info = local_info.rich_text_line_info();
+                    let filter = |other: &WidgetInfo, rect: PxRect, row_i, rows_len| {
+                        if is_down {
+                            if rect.max_y() < window_cut_y {
+                                // rectangle is before the page y line or the the current line
                                 return false;
                             }
-
-                            match local_info.cmp_sibling_in(other, &root_info).unwrap() {
-                                cmp::Ordering::Less => {
-                                    // other is after local
-
-                                    if !is_down {
-                                        return false;
-                                    }
-                                    if local_line_i < last_line_i {
-                                        return true; // local started next line
-                                    }
-                                    for next in local_info.rich_text_next() {
-                                        let line_info = next.rich_text_line_info();
-                                        if line_info.starts_new_line {
-                                            return true; // `other` starts new line or is after this line break
-                                        }
-                                        if line_info.ends_in_new_line {
-                                            if &next == other {
-                                                return row_i > 0; // `other` rect is not in the same line
-                                            }
-                                            return true; // `other` starts after this line break
-                                        }
-                                        if &next == other {
-                                            return false; // `other` is in same line
-                                        }
-                                    }
-                                    unreachable!() // filter only called if is sibling, cmp ensures that is next sibling
-                                }
-                                cmp::Ordering::Greater => {
-                                    // other is before local
-
-                                    if is_down {
-                                        return false;
-                                    }
-                                    if local_line_i > 0 || local_line_info.starts_new_line {
-                                        return true; // local started line, all prev wgt in prev lines
-                                    }
-                                    for prev in local_info.rich_text_prev() {
-                                        let line_info = prev.rich_text_line_info();
-                                        if line_info.ends_in_new_line {
-                                            if &prev == other {
-                                                return row_i < rows_len - 1; // `other` rect is not in the same line
-                                            }
-                                            return true; // `other` ends before this linebreak
-                                        }
-                                        if line_info.starts_new_line {
-                                            return &prev != other; // `other` starts the line (same line) or not (is before)
-                                        }
-
-                                        if &prev == other {
-                                            return false; // `other` is in same line
-                                        }
-                                    }
-                                    unreachable!()
-                                }
-                                cmp::Ordering::Equal => false,
-                            }
-                        };
-                        if let Some(next) = root_info.rich_text_nearest_leaf_filtered(window_point, filter) {
-                            // found nearest sibling on the next/prev rich lines
-
-                            let next_info = next.clone();
-
-                            // get the next(wgt) local line that is in the next/prev rich line
-                            let mut next_line = 0;
-                            if let Some(next_inline_rows_len) = next_info.bounds_info().inline().map(|i| i.rows.len()) {
-                                if next_inline_rows_len > 1 {
-                                    if is_down {
-                                        // next is logical next
-
-                                        if local_line_i == last_line_i {
-                                            // local did not start next line
-
-                                            for l_next in local_info.rich_text_next() {
-                                                let line_info = l_next.rich_text_line_info();
-                                                if line_info.starts_new_line || line_info.ends_in_new_line {
-                                                    // found rich line end
-                                                    if l_next == next {
-                                                        // its inside the `next`, meaning it starts on the same rich line
-                                                        next_line = 1;
-                                                    }
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        // next is up (logical prev)
-                                        next_line = next_inline_rows_len - 1;
-
-                                        if local_line_i == 0 && !local_line_info.starts_new_line {
-                                            // local did not start current line
-
-                                            for l_prev in local_info.rich_text_prev() {
-                                                let line_info = l_prev.rich_text_line_info();
-                                                if line_info.starts_new_line || line_info.ends_in_new_line {
-                                                    // found rich line start
-                                                    if l_prev == next {
-                                                        // its inside the `next`, meaning it ends on the same rich line
-                                                        next_line -= 1;
-                                                    }
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            return (next.id(), Some((window_point.x, next_line)));
+                        } else if rect.min_y() > window_cut_y {
+                            // rectangle is after the page y line or the current line
+                            return false;
                         }
+
+                        match local_info.cmp_sibling_in(other, &root_info).unwrap() {
+                            cmp::Ordering::Less => {
+                                // other is after local
+
+                                if !is_down {
+                                    return false;
+                                }
+                                if local_line_i < last_line_i {
+                                    return true; // local started next line
+                                }
+                                for next in local_info.rich_text_next() {
+                                    let line_info = next.rich_text_line_info();
+                                    if line_info.starts_new_line {
+                                        return true; // `other` starts new line or is after this line break
+                                    }
+                                    if line_info.ends_in_new_line {
+                                        if &next == other {
+                                            return row_i > 0; // `other` rect is not in the same line
+                                        }
+                                        return true; // `other` starts after this line break
+                                    }
+                                    if &next == other {
+                                        return false; // `other` is in same line
+                                    }
+                                }
+                                unreachable!() // filter only called if is sibling, cmp ensures that is next sibling
+                            }
+                            cmp::Ordering::Greater => {
+                                // other is before local
+
+                                if is_down {
+                                    return false;
+                                }
+                                if local_line_i > 0 || local_line_info.starts_new_line {
+                                    return true; // local started line, all prev wgt in prev lines
+                                }
+                                for prev in local_info.rich_text_prev() {
+                                    let line_info = prev.rich_text_line_info();
+                                    if line_info.ends_in_new_line {
+                                        if &prev == other {
+                                            return row_i < rows_len - 1; // `other` rect is not in the same line
+                                        }
+                                        return true; // `other` ends before this linebreak
+                                    }
+                                    if line_info.starts_new_line {
+                                        return &prev != other; // `other` starts the line (same line) or not (is before)
+                                    }
+
+                                    if &prev == other {
+                                        return false; // `other` is in same line
+                                    }
+                                }
+                                unreachable!()
+                            }
+                            cmp::Ordering::Equal => false,
+                        }
+                    };
+                    if let Some(next) = root_info.rich_text_nearest_leaf_filtered(window_point, filter) {
+                        // found nearest sibling on the next/prev rich lines
+
+                        let next_info = next.clone();
+
+                        // get the next(wgt) local line that is in the next/prev rich line
+                        let mut next_line = 0;
+                        if let Some(next_inline_rows_len) = next_info.bounds_info().inline().map(|i| i.rows.len()) {
+                            if next_inline_rows_len > 1 {
+                                if is_down {
+                                    // next is logical next
+
+                                    if local_line_i == last_line_i {
+                                        // local did not start next line
+
+                                        for l_next in local_info.rich_text_next() {
+                                            let line_info = l_next.rich_text_line_info();
+                                            if line_info.starts_new_line || line_info.ends_in_new_line {
+                                                // found rich line end
+                                                if l_next == next {
+                                                    // its inside the `next`, meaning it starts on the same rich line
+                                                    next_line = 1;
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // next is up (logical prev)
+                                    next_line = next_inline_rows_len - 1;
+
+                                    if local_line_i == 0 && !local_line_info.starts_new_line {
+                                        // local did not start current line
+
+                                        for l_prev in local_info.rich_text_prev() {
+                                            let line_info = l_prev.rich_text_line_info();
+                                            if line_info.starts_new_line || line_info.ends_in_new_line {
+                                                // found rich line start
+                                                if l_prev == next {
+                                                    // its inside the `next`, meaning it ends on the same rich line
+                                                    next_line -= 1;
+                                                }
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        return (next.id(), Some((window_point.x, next_line)));
                     }
                 }
             }

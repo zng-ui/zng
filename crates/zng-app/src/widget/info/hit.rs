@@ -175,10 +175,11 @@ impl HitTestClips {
             }
         }
 
-        if let (RelativeHitZ::Over(w), Some(c)) = (z, child) {
-            if w == c {
-                return RelativeHitZ::Front;
-            }
+        if let RelativeHitZ::Over(w) = z
+            && let Some(c) = child
+            && w == c
+        {
+            return RelativeHitZ::Front;
         }
         z
     }

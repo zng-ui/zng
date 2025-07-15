@@ -971,10 +971,11 @@ impl FocusService {
             .focused
             .as_ref()
             .and_then(|f| WINDOWS.widget_tree(f.path.window_id()).ok()?.get(f.path.widget_id()));
-        if let (Some(id), Some(focused)) = (self.navigation_origin, &origin) {
-            if let Some(o) = focused.tree().get(id) {
-                origin = Some(o);
-            }
+        if let Some(id) = self.navigation_origin
+            && let Some(focused) = &origin
+            && let Some(o) = focused.tree().get(id)
+        {
+            origin = Some(o);
         }
 
         if let Some(o) = origin {
@@ -1014,7 +1015,9 @@ impl FocusService {
                     origin_tree = None;
                 }
 
-                if let (Some(info), Some(origin)) = (origin_tree, origin) {
+                if let Some(info) = origin_tree
+                    && let Some(origin) = origin
+                {
                     if let Some(w) = info.get(origin) {
                         let w = w.into_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
                         if let Some(new_focus) = match move_ {

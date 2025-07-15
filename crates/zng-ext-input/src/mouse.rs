@@ -463,13 +463,13 @@ impl MouseInputArgs {
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_enabled`"]
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_enabled(widget_id)
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_disabled`"]
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_disabled(widget_id)
     }
@@ -508,13 +508,13 @@ impl MouseInputArgs {
 
 impl MouseClickArgs {
     /// Deprecated
-    #[deprecated = "use `self.target.contains_enabled`"]
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_enabled(widget_id)
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_disabled`"]
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_disabled(widget_id)
     }
@@ -626,13 +626,13 @@ impl MouseWheelArgs {
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_enabled`"]
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_enabled(widget_id)
     }
 
     /// Deprecated
-    #[deprecated = "use `self.target.contains_disabled`"]
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
         self.target.contains_disabled(widget_id)
     }
@@ -1225,7 +1225,9 @@ impl AppExtension for MouseManager {
                     // time to repeat
                     info.repeat_count = info.repeat_count.saturating_add(1);
 
-                    if let (Some(dv), Ok(tree)) = (self.pos_device, WINDOWS.widget_tree(info.path.window_id())) {
+                    if let Some(dv) = self.pos_device
+                        && let Ok(tree) = WINDOWS.widget_tree(info.path.window_id())
+                    {
                         // probably still valid
 
                         let hit_test = tree.root().hit_test(self.pos.to_px(tree.scale_factor()));

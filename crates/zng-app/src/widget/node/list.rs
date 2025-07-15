@@ -1928,7 +1928,9 @@ impl PanelListRange {
 
                 if let Some((s, e)) = range {
                     let tree = parent.tree();
-                    if let (Some(s), Some(e)) = (tree.get(s), tree.get(e)) {
+                    if let Some(s) = tree.get(s)
+                        && let Some(e) = tree.get(e)
+                    {
                         let parent = Some(parent);
                         if s.parent().as_ref() == parent && e.parent().as_ref() == parent {
                             return Some(crate::widget::info::iter::Children::new_range(s, e));
@@ -1945,7 +1947,9 @@ impl PanelListRange {
         let range = parent.meta().get_clone(panel_id);
         if let Some(Self { range: Some((s, e)), .. }) = range {
             let tree = parent.tree();
-            if let (Some(s), Some(e)) = (tree.get(s), tree.get(e)) {
+            if let Some(s) = tree.get(s)
+                && let Some(e) = tree.get(e)
+            {
                 let parent = Some(parent);
                 if s.parent().as_ref() == parent && e.parent().as_ref() == parent {
                     return Some(crate::widget::info::iter::Children::new_range(s, e));
