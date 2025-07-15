@@ -7,12 +7,12 @@ mod windows {
         System::Memory::*,
     };
 
-    pub struct LowMemoryMonitor {
+    pub struct LowMemoryWatcher {
         handle: HANDLE,
         is_low: bool,
     }
-    impl LowMemoryMonitor {
-        pub fn new() -> Option<LowMemoryMonitor> {
+    impl LowMemoryWatcher {
+        pub fn new() -> Option<LowMemoryWatcher> {
             // SAFETY: its save, strongly typed call.
             let handle = match unsafe { CreateMemoryResourceNotification(LowMemoryResourceNotification) } {
                 Ok(h) => h,
@@ -44,7 +44,7 @@ mod windows {
             false
         }
     }
-    impl Drop for LowMemoryMonitor {
+    impl Drop for LowMemoryWatcher {
         fn drop(&mut self) {
             // SAFETY: strongly typed function called as documented in CreateMemoryResourceNotification msdn page.
             if let Err(e) = unsafe { CloseHandle(self.handle) } {
@@ -54,7 +54,7 @@ mod windows {
     }
 }
 #[cfg(windows)]
-pub use windows::LowMemoryMonitor;
+pub use windows::LowMemoryWatcher;
 
 #[cfg(any(
     target_os = "linux",
@@ -67,11 +67,11 @@ mod linux {
     use std::fs::File;
     use std::io::{BufRead, BufReader};
 
-    pub struct LowMemoryMonitor {
+    pub struct LowMemoryWatcher {
         is_low: bool,
     }
 
-    impl LowMemoryMonitor {
+    impl LowMemoryWatcher {
         pub fn new() -> Option<Self> {
             Some(Self { is_low: false })
         }
@@ -123,7 +123,7 @@ mod linux {
     target_os = "netbsd",
     target_os = "openbsd"
 ))]
-pub use linux::LowMemoryMonitor;
+pub use linux::LowMemoryWatcher;
 
 #[cfg(target_os = "macos")]
 mod macos {
@@ -134,12 +134,12 @@ mod macos {
         // SAFETY: this the correct usage
         unsafe { libc::mach_host_self() }
     }
-    pub struct LowMemoryMonitor {
+    pub struct LowMemoryWatcher {
         is_low: bool,
         page_size: usize,
     }
 
-    impl LowMemoryMonitor {
+    impl LowMemoryWatcher {
         pub fn new() -> Option<Self> {
             // SAFETY: this is the correct usage
             let page_size = unsafe { sysconf(_SC_PAGESIZE) };
@@ -181,7 +181,7 @@ mod macos {
     }
 }
 #[cfg(target_os = "macos")]
-pub use macos::LowMemoryMonitor;
+pub use macos::LowMemoryWatcher;
 
 #[cfg(not(any(
     windows,
@@ -194,7 +194,7 @@ pub use macos::LowMemoryMonitor;
     // target_os = "android", // winit provides LowMemory event for Android
 )))]
 #[non_exhaustive]
-pub struct LowMemoryMonitor {}
+pub struct LowMemoryWatcher {}
 #[cfg(not(any(
     windows,
     target_os = "macos",
@@ -205,7 +205,7 @@ pub struct LowMemoryMonitor {}
     target_os = "openbsd",
     // target_os = "android",
 )))]
-impl LowMemoryMonitor {
+impl LowMemoryWatcher {
     pub fn new() -> Option<Self> {
         Some(Self {})
     }

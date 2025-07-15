@@ -10,18 +10,17 @@
 //! # Sources
 //!
 //! The default config source is the [`MemoryConfig`] that only lives for the app process lifetime, this can
-//! be used to connect different UI components, more importantly it also means that the [`CONFIG`] service always works
-//! so widgets can just set configs in case a persisting source is setup.
+//! be used to connect different UI components, more importantly it also means that the [`CONFIG`] service always works.
 //!
 //! ```
 //! use zng::prelude::*;
 //!
 //! fn txt_input() -> impl UiNode {
-//!     TextInput!(CONFIG.get("example.txt", Txt::from("")))
+//!     TextInput!(CONFIG.get("example-txt", Txt::from("")))
 //! }
 //!
 //! fn txt_display() -> impl UiNode {
-//!     Text!(CONFIG.get("example.txt", Txt::from("")))
+//!     Text!(CONFIG.get("example-txt", Txt::from("")))
 //! }
 //!
 //! # fn main() { }
@@ -35,8 +34,8 @@
 //! # ; }
 //! ```
 //!
-//! The example above uses a config `"example.txt"`, the text will be wiped when the app is closed, but the app
-//! components are ready in case they are used in an app that enables persistent config.
+//! The example above uses a config key `"example-txt"`, no config source is set so this config will only last for the
+//! duration of the app instance, but both widgets are synchronized because they are bound to the same config.
 //!
 //! The example below setups a [`JsonConfig`] that persists the configs to a JSON file. The file updates when
 //! a config variable is modified and the variables are updated when the file is modified externally.
@@ -56,10 +55,10 @@
 //! The JSON format is available by default, TOML, YAML and RON are also available behind a feature flags, you can
 //! also implement your own source.
 //!
-//! Apart from config sources that represents a format some *meta* sources are provided, they enables composite sources,
-//! such as having two sources app default and user where the user config file only records the non-default values.
+//! Some *meta* sources are also provided, they enables composite sources,
+//! such as having two sources, *default config* and *user config* where the user config file only records the non-default values.
 //!
-//! The crate example `examples/config.rs` demonstrates a more complex setup:
+//! The next example demonstrates a more complex setup:
 //!
 //! ```
 //! use zng::config::*;
@@ -68,7 +67,7 @@
 //!     // config file for the app, keys with prefix "main." are saved here.
 //!     let user_cfg = JsonConfig::sync("target/tmp/example.config.json");
 //!     // entries not found in `user_cfg` bind to this file first before going to embedded fallback.
-//!     let default_cfg = ReadOnlyConfig::new(JsonConfig::sync("examples/res/config/defaults.json"));
+//!     let default_cfg = ReadOnlyConfig::new(JsonConfig::sync("examples/config/res/defaults.json"));
 //!
 //!     // the app settings.
 //!     let main_cfg = FallbackConfig::new(user_cfg, default_cfg);
@@ -97,13 +96,13 @@ pub use zng_ext_config::{
 #[cfg(feature = "window")]
 pub use zng_wgt_window::{SaveState, save_state_node};
 
-#[cfg(feature = "ron")]
+#[cfg(feature = "config_ron")]
 pub use zng_ext_config::RonConfig;
 
-#[cfg(feature = "toml")]
+#[cfg(feature = "config_toml")]
 pub use zng_ext_config::TomlConfig;
 
-#[cfg(feature = "yaml")]
+#[cfg(feature = "config_yaml")]
 pub use zng_ext_config::YamlConfig;
 
 /// Settings are the config the user can directly edit, this module implements a basic settings data model.

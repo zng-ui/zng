@@ -165,7 +165,7 @@ impl<T: VarValue + serde::Serialize + serde::de::DeserializeOwned> ConfigValue f
 
 /// Represents any entry type in a config.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct RawConfigValue(pub serde_json::Value);
+pub struct RawConfigValue(pub serde_json::Value); // TODO(breaking) replace with something that can represent binary data, perhaps `rmpv`?
 impl RawConfigValue {
     /// Serialize to the raw config format.
     pub fn serialize<T: serde::Serialize>(value: T) -> Result<Self, serde_json::Error> {

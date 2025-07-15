@@ -11,8 +11,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! zng = "0.15.9"
-//! zng-view = "0.10.4"
+//! zng = "0.15.10"
+//! zng-view = "0.10.5"
 //! ```
 //!
 //! Then call `zng::env::init` before any other code in `main` to setup a view-process that uses
@@ -76,7 +76,7 @@
 //! This implementation of the view API provides these extensions:
 //!
 //! * `"zng-view.webrender_debug"`: `{ flags: DebugFlags, profiler_ui: String }`, sets Webrender debug flags.
-//!     - The `zng-wgt-webrender-debug` implements a property that uses this extension.
+//!     - The `zng-wgt-webrender-debug` crate implements a property that uses this extension.
 //! * `"zng-view.prefer_angle": bool`, on Windows, prefer ANGLE(EGL) over WGL if the `libEGL.dll` and `libGLESv2.dll`
 //!    libraries can by dynamically loaded. The `extend-view` example demonstrates this extension.
 //!
@@ -385,7 +385,7 @@ pub(crate) struct App {
     #[cfg(not(any(windows, target_os = "android")))]
     arboard: Option<arboard::Clipboard>,
 
-    low_memory_monitor: Option<low_memory::LowMemoryMonitor>,
+    low_memory_watcher: Option<low_memory::LowMemoryWatcher>,
 
     config_listener_exit: Option<Box<dyn FnOnce()>>,
 
@@ -434,7 +434,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
         }
         self.app_state = AppState::Resumed;
 
-        self.update_memory_monitor(winit_loop);
+        self.update_memory_watcher(winit_loop);
     }
 
     fn window_event(&mut self, winit_loop: &ActiveEventLoop, window_id: winit::window::WindowId, event: WindowEvent) {
@@ -984,7 +984,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
         #[cfg(windows)]
         if let winit::event::StartCause::ResumeTimeReached { .. } = _cause {
-            self.update_memory_monitor(_winit_loop);
+            self.update_memory_watcher(_winit_loop);
         }
     }
 
@@ -1442,7 +1442,7 @@ impl App {
             drag_drop_next_move: None,
             #[cfg(not(any(windows, target_os = "android")))]
             arboard: None,
-            low_memory_monitor: low_memory::LowMemoryMonitor::new(),
+            low_memory_watcher: low_memory::LowMemoryWatcher::new(),
         }
     }
 
@@ -1753,8 +1753,8 @@ impl App {
             .collect()
     }
 
-    fn update_memory_monitor(&mut self, _winit_loop: &ActiveEventLoop) {
-        if let Some(m) = &mut self.low_memory_monitor {
+    fn update_memory_watcher(&mut self, _winit_loop: &ActiveEventLoop) {
+        if let Some(m) = &mut self.low_memory_watcher {
             if m.notify() {
                 use winit::application::ApplicationHandler as _;
                 self.memory_warning(_winit_loop);

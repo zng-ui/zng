@@ -225,14 +225,14 @@ impl VIEW_PROCESS {
 
     /// Returns a list of image decoders supported by the view-process backend.
     ///
-    /// Each string is the lower-case file extension.
+    /// Each text is the lower-case file extension, without the dot.
     pub fn image_decoders(&self) -> Result<Vec<Txt>> {
         self.write().process.image_decoders()
     }
 
     /// Returns a list of image encoders supported by the view-process backend.
     ///
-    /// Each string is the lower-case file extension.
+    /// Each text is the lower-case file extension, without the dot.
     pub fn image_encoders(&self) -> Result<Vec<Txt>> {
         self.write().process.image_encoders()
     }
