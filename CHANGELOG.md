@@ -1,6 +1,7 @@
 # Unreleased
 
 * Add `InteractionPath` methods for checking if the path contains an widget with the given interactivity.
+    - **Deprecated** multiple event args methods that reimplemented this feature.
 * Fix disabled `SubMenu!` opening.
 
 # 0.15.10

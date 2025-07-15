@@ -156,7 +156,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                     }
                 } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
                     if let KeyState::Pressed = args.state
-                        && args.is_enabled(WIDGET.id())
+                        && args.target.contains_enabled(WIDGET.id())
                         && !is_open.get()
                     {
                         if let Some(info) = WIDGET.info().into_focusable(true, true) {
@@ -181,14 +181,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         }
                     }
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                    if args.is_focus_enter_enabled(WIDGET.id())
-                        && args
-                            .new_focus
-                            .as_ref()
-                            .and_then(|p| p.interactivity_of(WIDGET.id()))
-                            .unwrap_or_default()
-                            .is_enabled()
-                    {
+                    if args.is_focus_enter_enabled(WIDGET.id()) {
                         close_timer = None;
                         if !is_open.get() {
                             // focused when not open
@@ -229,7 +222,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                         }
                     }
                 } else if let Some(args) = CLICK_EVENT.on(update) {
-                    if args.is_primary() && args.is_enabled(WIDGET.id()) {
+                    if args.is_primary() && args.target.contains_enabled(WIDGET.id()) {
                         args.propagation().stop();
 
                         // open if is closed
