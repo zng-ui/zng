@@ -201,13 +201,20 @@ material_icons_sharp = [
     "zng-wgt-material-icons/embedded",
     "zng-wgt-material-icons/sharp",
 ]
-
-# Enable TOML configs.
-toml = ["zng-ext-config/toml"]
-# Enable RON configs.
-ron = ["zng-ext-config/ron"]
-# Enable YAML configs.
-yaml = ["zng-ext-config/yaml"]
+#[deprecated = "use config_toml"]
+toml = ["config_toml"] # TODO(breaking) remove these
+# Enable TOML config format and file watcher helper.
+config_toml = ["zng-ext-config/toml"]
+#[deprecated = "use config_ron"]
+ron = ["config_ron"]
+# Enable RON config format and file watcher helper.
+config_ron = ["zng-ext-config/ron"]
+#[deprecated = "use config_yaml"]
+yaml = ["config_yaml"]
+# Enable YAML config format and file watcher helper.
+config_yaml = ["zng-ext-config/yaml"]
+# Enable all config formats an file watcher helpers.
+config_all = ["config_toml", "config_ron", "config_yaml"]
 
 # Enables software renderer fallback in the default view-process.
 #

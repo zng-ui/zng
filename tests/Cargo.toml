@@ -9,7 +9,7 @@ default = ["ipc"]
 ipc = ["zng/ipc"]
 
 [dev-dependencies]
-zng = { path = "../crates/zng", features = ["test_util", "toml", "ron", "yaml"] }
+zng = { path = "../crates/zng", features = ["test_util", "config_all"] }
 zng-view = { path = "../crates/zng-view" }
 zng-wgt-webrender-debug = { path = "../crates/zng-wgt-webrender-debug" }
 zng-app = { path = "../crates/zng-app" }
