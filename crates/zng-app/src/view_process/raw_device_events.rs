@@ -275,14 +275,14 @@ pub struct INPUT_DEVICES;
 
 impl INPUT_DEVICES {
     /// Read-only variable that tracks the current input devices.
-    pub fn available(&self) -> impl Var<HashMap<InputDeviceId, InputDeviceInfo>> {
+    pub fn available_devices(&self) -> impl Var<HashMap<InputDeviceId, InputDeviceInfo>> {
         INPUT_DEVICES_SV.read().devices.read_only()
     }
 
     /// Read-only variable that tracks the input device info.
     ///
     /// If the `id` is unknown returns an "Unknown Input Device" info.
-    pub fn info(&self, id: InputDeviceId) -> impl Var<InputDeviceInfo> {
+    pub fn device(&self, id: InputDeviceId) -> impl Var<InputDeviceInfo> {
         INPUT_DEVICES_SV.read().devices.map(move |m| {
             m.get(&id)
                 .cloned()

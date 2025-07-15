@@ -1,7 +1,7 @@
 # Unreleased
 
 * **Deprecated** the view-process API "raw devices", it is replaced by "raw input devices", distinct from audio or any other devices.
-    - This change mostly renames types and adds `InputDeviceInfo` with device metadata that is not implemented in this release.
+    - This change mostly renames types and adds `InputDeviceInfo` with device metadata.
     - This change is mostly advanced API only, only some renamed types and events surface in `zng`.
     - The normal processed window input events are not affected.
 * Add audio devices to the view-process API in preparation for a future release.

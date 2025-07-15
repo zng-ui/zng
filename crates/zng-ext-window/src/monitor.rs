@@ -64,7 +64,7 @@ impl MONITORS {
         MONITORS_SV.read().monitors.get(&monitor_id).cloned()
     }
 
-    /// Iterate over all available monitors.
+    /// List all available monitors.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
     pub fn available_monitors(&self) -> Vec<MonitorInfo> {

@@ -1060,11 +1060,15 @@ impl IMAGES {
     }
 
     /// Image format decoders implemented by the current view-process.
-    pub fn available_decoders(&self) -> Vec<Txt> {
+    /// 
+    /// Each text is the lower-case file extension, without the dot.
+    pub fn available_decoders(&self) -> Vec<Txt> { // TODO(breaking) HashSet
         VIEW_PROCESS.image_decoders().unwrap_or_default()
     }
 
     /// Image format encoders implemented by the current view-process.
+    ///
+    /// Each text is the lower-case file extension, without the dot.
     pub fn available_encoders(&self) -> Vec<Txt> {
         VIEW_PROCESS.image_encoders().unwrap_or_default()
     }
