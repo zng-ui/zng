@@ -116,7 +116,7 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
             }
             UiNodeOp::Event { update } => {
                 if let Some(args) = MOUSE_HOVERED_EVENT.on(update) {
-                    if args.is_mouse_enter() {
+                    if args.is_mouse_enter_enabled() {
                         let info = WIDGET.info();
 
                         let is_root = info.submenu_parent().is_none();
@@ -126,24 +126,23 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                             // menus focus on hover (implemented in sub_menu_popup_node)
                             // root sub-menus focus on hover only if the menu is focused or a sibling is open (implemented here)
 
-                            if !is_open {
-                                if let (Some(menu), Some(focused)) = (info.menu(), FOCUS.focused().get()) {
-                                    let is_menu_focused = focused.contains(menu.id());
+                            if !is_open
+                                && let Some(menu) = info.menu()
+                                && let Some(focused) = FOCUS.focused().get()
+                            {
+                                let is_menu_focused = focused.contains(menu.id());
 
-                                    let mut focus_on_hover = is_menu_focused;
-                                    if !focus_on_hover {
-                                        if let Some(focused) = info.tree().get(focused.widget_id()) {
-                                            if let Some(f_menu) = focused.menu() {
-                                                // focused in menu-item, spawned from the same menu.
-                                                focus_on_hover = f_menu.id() == menu.id();
-                                            }
-                                        }
+                                let mut focus_on_hover = is_menu_focused;
+                                if !focus_on_hover && let Some(focused) = info.tree().get(focused.widget_id()) {
+                                    if let Some(f_menu) = focused.menu() {
+                                        // focused in menu-item, spawned from the same menu.
+                                        focus_on_hover = f_menu.id() == menu.id();
                                     }
+                                }
 
-                                    if focus_on_hover {
-                                        // focus, the popup will open on FOCUS_CHANGED_EVENT too.
-                                        FOCUS.focus_widget(WIDGET.id(), false);
-                                    }
+                                if focus_on_hover {
+                                    // focus, the popup will open on FOCUS_CHANGED_EVENT too.
+                                    FOCUS.focus_widget(WIDGET.id(), false);
                                 }
                             }
                         } else if !is_open && open_timer.is_none() {
@@ -152,36 +151,44 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                             t.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                             open_timer = Some(t);
                         }
-                    } else if args.is_mouse_leave() {
+                    } else if args.is_mouse_leave_enabled() {
                         open_timer = None;
                     }
                 } else if let Some(args) = KEY_INPUT_EVENT.on_unhandled(update) {
-                    if let KeyState::Pressed = args.state {
-                        if !is_open.get() {
-                            if let Some(info) = WIDGET.info().into_focusable(true, true) {
-                                if info.info().submenu_parent().is_none() {
-                                    // root, open for arrow keys that do not cause focus move
-                                    if matches!(&args.key, Key::ArrowUp | Key::ArrowDown) {
-                                        open_pop = info.focusable_down().is_none() && info.focusable_up().is_none();
-                                    } else if matches!(&args.key, Key::ArrowLeft | Key::ArrowRight) {
-                                        open_pop = info.focusable_left().is_none() && info.focusable_right().is_none();
-                                    }
-                                } else {
-                                    // sub, open in direction.
-                                    match DIRECTION_VAR.get() {
-                                        LayoutDirection::LTR => open_pop = matches!(&args.key, Key::ArrowRight),
-                                        LayoutDirection::RTL => open_pop = matches!(&args.key, Key::ArrowLeft),
-                                    }
+                    if let KeyState::Pressed = args.state
+                        && args.is_enabled(WIDGET.id())
+                        && !is_open.get()
+                    {
+                        if let Some(info) = WIDGET.info().into_focusable(true, true) {
+                            if info.info().submenu_parent().is_none() {
+                                // root, open for arrow keys that do not cause focus move
+                                if matches!(&args.key, Key::ArrowUp | Key::ArrowDown) {
+                                    open_pop = info.focusable_down().is_none() && info.focusable_up().is_none();
+                                } else if matches!(&args.key, Key::ArrowLeft | Key::ArrowRight) {
+                                    open_pop = info.focusable_left().is_none() && info.focusable_right().is_none();
+                                }
+                            } else {
+                                // sub, open in direction.
+                                match DIRECTION_VAR.get() {
+                                    LayoutDirection::LTR => open_pop = matches!(&args.key, Key::ArrowRight),
+                                    LayoutDirection::RTL => open_pop = matches!(&args.key, Key::ArrowLeft),
                                 }
                             }
+                        }
 
-                            if open_pop {
-                                args.propagation().stop();
-                            }
+                        if open_pop {
+                            args.propagation().stop();
                         }
                     }
                 } else if let Some(args) = FOCUS_CHANGED_EVENT.on(update) {
-                    if args.is_focus_enter(WIDGET.id()) {
+                    if args.is_focus_enter_enabled(WIDGET.id())
+                        && args
+                            .new_focus
+                            .as_ref()
+                            .and_then(|p| p.interactivity_of(WIDGET.id()))
+                            .unwrap_or_default()
+                            .is_enabled()
+                    {
                         close_timer = None;
                         if !is_open.get() {
                             // focused when not open
@@ -204,25 +211,25 @@ pub fn sub_menu_node(child: impl UiNode, children: ArcNodeList<BoxedUiNodeList>)
                                 }
                             }
                         }
-                    } else if args.is_focus_leave(WIDGET.id()) && is_open.get() {
-                        if let Some(f) = &args.new_focus {
-                            if let Some(f) = WINDOW.info().get(f.widget_id()) {
-                                let id = WIDGET.id();
-                                if !f.submenu_ancestors().any(|s| s.id() == id) {
-                                    // Focus did not move to child sub-menu,
-                                    // close after delay.
-                                    //
-                                    // This covers the case of focus moving back to the sub-menu and then away,
-                                    // `sub_menu_popup_node` covers the case of focus moving to a different sub-menu directly.
-                                    let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
-                                    t.subscribe(UpdateOp::Update, id).perm();
-                                    close_timer = Some(t);
-                                }
-                            }
+                    } else if args.is_focus_leave_enabled(WIDGET.id())
+                        && is_open.get()
+                        && let Some(f) = &args.new_focus
+                        && let Some(f) = WINDOW.info().get(f.widget_id())
+                    {
+                        let id = WIDGET.id();
+                        if !f.submenu_ancestors().any(|s| s.id() == id) {
+                            // Focus did not move to child sub-menu,
+                            // close after delay.
+                            //
+                            // This covers the case of focus moving back to the sub-menu and then away,
+                            // `sub_menu_popup_node` covers the case of focus moving to a different sub-menu directly.
+                            let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
+                            t.subscribe(UpdateOp::Update, id).perm();
+                            close_timer = Some(t);
                         }
                     }
                 } else if let Some(args) = CLICK_EVENT.on(update) {
-                    if args.is_primary() {
+                    if args.is_primary() && args.is_enabled(WIDGET.id()) {
                         args.propagation().stop();
 
                         // open if is closed

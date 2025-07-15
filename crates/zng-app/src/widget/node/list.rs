@@ -2459,7 +2459,7 @@ where
                     *v = v.wrapping_add(1);
                     *u = true;
                 }
-                // WIDGET.info(); already requested by init/deinit of children
+                WIDGET.info();
             }
         }
     }

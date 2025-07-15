@@ -148,11 +148,30 @@ impl FocusChangedArgs {
         }
     }
 
+    /// If `widget_id` is the new focus or a parent of the new focus and is enabled;
+    /// and was not the focus nor the parent of the previous focus or was not enabled.
+    pub fn is_focus_enter_enabled(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => !prev.contains_enabled(widget_id) && new.contains_enabled(widget_id),
+            (None, Some(new)) => new.contains_enabled(widget_id),
+            (_, None) => false,
+        }
+    }
+
     /// If `widget_id` is the previous focus or a parent of the previous focus and is not the new focus nor a parent of the new focus.
     pub fn is_focus_leave(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.contains(widget_id) && !new.contains(widget_id),
             (Some(prev), None) => prev.contains(widget_id),
+            (None, _) => false,
+        }
+    }
+
+    /// If `widget_id` is the previous focus or a parent of the previous focus and is not the new focus nor a parent of the new focus.
+    pub fn is_focus_leave_enabled(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => prev.contains_enabled(widget_id) && !new.contains_enabled(widget_id),
+            (Some(prev), None) => prev.contains_enabled(widget_id),
             (None, _) => false,
         }
     }

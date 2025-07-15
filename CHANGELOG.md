@@ -1,5 +1,7 @@
 # Unreleased
 
+* Add `InteractionPath` methods for checking if the path contains an widget with the given interactivity.
+* Fix disabled `SubMenu!` opening.
 
 # 0.15.10
 

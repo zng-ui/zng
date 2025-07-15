@@ -409,6 +409,7 @@ impl MouseHoverArgs {
     ///
     /// [`target`]: Self::target
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
+        // TODO(breaking) think about unifying these helpers in the InteractionPath
         self.target
             .as_ref()
             .and_then(|t| t.interactivity_of(widget_id))

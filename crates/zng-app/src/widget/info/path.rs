@@ -305,7 +305,7 @@ impl InteractionPath {
         }
     }
 
-    /// Search for the interactivity value associated with the widget in the path.
+    /// Gets the interactivity of `widget_id`, if its present on the path.
     pub fn interactivity_of(&self, widget_id: WidgetId) -> Option<Interactivity> {
         self.path.widgets_path().iter().position(|&w| w == widget_id).map(|i| {
             let mut interactivity = Interactivity::ENABLED;
@@ -317,6 +317,34 @@ impl InteractionPath {
             }
             interactivity
         })
+    }
+
+    /// Gets if the `widget_id` is on the path and enabled.
+    ///
+    /// Returns `false` if the `widget_id` is disabled or not in the path.
+    pub fn contains_enabled(&self, widget_id: WidgetId) -> bool {
+        self.interactivity_of(widget_id).map(Interactivity::is_enabled).unwrap_or(false)
+    }
+
+    /// Gets if the `widget_id` is on the path and visually enabled.
+    ///
+    /// Returns `false` if the `widget_id` is not visually enabled or not in the path.
+    pub fn contains_vis_enabled(&self, widget_id: WidgetId) -> bool {
+        self.interactivity_of(widget_id).map(Interactivity::is_vis_enabled).unwrap_or(false)
+    }
+
+    /// Gets if the `widget_id` is on the path and disabled.
+    ///
+    /// Returns `false` if the `widget_id` is enabled or not in the path.
+    pub fn contains_disabled(&self, widget_id: WidgetId) -> bool {
+        self.interactivity_of(widget_id).map(Interactivity::is_disabled).unwrap_or(false)
+    }
+
+    /// Gets if the `widget_id` is on the path and blocked.
+    ///
+    /// Returns `false` if the `widget_id` is not blocked or not in the path.
+    pub fn contains_blocked(&self, widget_id: WidgetId) -> bool {
+        self.interactivity_of(widget_id).map(Interactivity::is_blocked).unwrap_or(false)
     }
 
     /// Interactivity of the widget.
