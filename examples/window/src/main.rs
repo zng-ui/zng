@@ -562,13 +562,19 @@ fn misc() -> impl UiNode {
 }
 
 fn native() -> impl UiNode {
+    let use_native = var(true);
     section(
-        "Native Dialogs",
+        "Dialogs",
         ui_vec![
+            Toggle! {
+                child = Text!("Use native dialogs");
+                style_fn = toggle::CheckStyle!();
+                checked = use_native.clone();
+            },
             Button! {
                 child = Text!("Messages");
                 tooltip = Tip!(Text!(r#"Shows a "Yes/No" message, then an "Ok" message dialogs."#));
-                dialog::native_dialogs = true;
+                dialog::native_dialogs = use_native.map_into();
                 on_click = async_hn!(|_| {
                     let rsp = DIALOG
                         .ask("Question?", "Example message. Yes -> Warn, No -> Error.")
@@ -586,7 +592,7 @@ fn native() -> impl UiNode {
                 tooltip = Tip!(Text!(
                     r#"Shows a "Directory Picker", then an "Open Many Files", then a "Save File" dialogs."#
                 ));
-                dialog::native_dialogs = true;
+                dialog::native_dialogs = use_native.map_into();
                 on_click = async_hn!(|_| {
                     let res = DIALOG.select_folder("Select Dir", "", "").wait_rsp().await;
                     let dir = match res {
