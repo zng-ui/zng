@@ -482,7 +482,7 @@ impl Response {
 
     /// "ok"
     pub fn ok() -> Self {
-        Self::new("Ok", l10n!("response-ok", "Ok"))
+        Self::new("ok", l10n!("response-ok", "Ok"))
     }
 
     /// "cancel"
