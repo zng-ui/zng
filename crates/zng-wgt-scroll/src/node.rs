@@ -670,6 +670,7 @@ pub fn scroll_to_node(child: impl UiNode) -> impl UiNode {
                         && path.widget_id() != self_id
                         && !args.is_enabled_change()
                         && !args.is_highlight_changed()
+                        && !args.is_focus_leave_enabled(self_id)
                     {
                         // focus move inside.
                         if let Some(mode) = SCROLL_TO_FOCUSED_MODE_VAR.get() {

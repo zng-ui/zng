@@ -1,8 +1,9 @@
 # Unreleased
 
-* Fix auto scroll to focus when entire `Scroll!` is disabled. !!: TODO
+* Fix auto scroll on text caret move, only apply if the `Text!` or rich text context has focus.
+* Fix auto scroll on focus change, ignore focus change due to entire `Scroll!` disabling.
 * Fix `Button!` inside `SubMenu!` not filling horizontal space when the sub-menu header is wider them the button.
-* `Scroll!` child layout is now the same as `Container!` in the dimensions scrolling is not enabled. 
+* Change `Scroll!` child layout to act the same as a `Container!` in the dimensions scrolling is not enabled. 
 * Add `InteractionPath` methods for checking if the path contains an widget with the given interactivity.
     - **Deprecated** multiple event args methods that reimplemented this feature.
 * Fix disabled `SubMenu!` opening.
