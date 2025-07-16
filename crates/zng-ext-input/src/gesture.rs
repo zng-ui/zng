@@ -221,18 +221,16 @@ impl From<TouchLongPressArgs> for ClickArgs {
     }
 }
 impl ClickArgs {
-    /// Returns `true` if the widget is enabled in [`target`].
-    ///
-    /// [`target`]: Self::target
+    /// Deprecated
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
+        self.target.contains_enabled(widget_id)
     }
 
-    /// Returns `true` if the widget is disabled in [`target`].
-    ///
-    /// [`target`]: Self::target
+    /// Deprecated
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+        self.target.contains_disabled(widget_id)
     }
 
     /// If the event counts as *primary* click.
@@ -476,12 +474,13 @@ impl GesturesService {
                     }
                 }
                 KeyState::Released => {
-                    if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                        if let (Some((window_id, gesture)), true) = (self.pressed_modifier.take(), args.modifiers.is_empty()) {
-                            if window_id == args.target.window_id() && mod_gesture == gesture {
-                                self.on_shortcut_pressed(Shortcut::Modifier(mod_gesture), args);
-                            }
-                        }
+                    if let Ok(mod_gesture) = ModifierGesture::try_from(key)
+                        && let Some((window_id, gesture)) = self.pressed_modifier.take()
+                        && args.modifiers.is_empty()
+                        && window_id == args.target.window_id()
+                        && mod_gesture == gesture
+                    {
+                        self.on_shortcut_pressed(Shortcut::Modifier(mod_gesture), args);
                     }
                 }
             }
@@ -1165,7 +1164,7 @@ impl CommandShortcutMatchesExt for Command {
                         if !p.contains(id) {
                             return false;
                         }
-                        !filter.contains(ShortcutFilter::ENABLED) || p.interactivity_of(id).map(|i| i.is_enabled()).unwrap_or(false)
+                        !filter.contains(ShortcutFilter::ENABLED) || p.contains_enabled(id)
                     })
                 } else if filter.contains(ShortcutFilter::ENABLED) {
                     if let Some(w) = WINDOWS.widget_info(id) {

@@ -36,7 +36,7 @@ event_property! {
     pub fn key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.target.contains_enabled(WIDGET.id()),
     }
 
     /// Event fired when a keyboard key is pressed or released and the widget is disabled.
@@ -67,7 +67,7 @@ event_property! {
     pub fn disabled_key_input {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
-        filter: |args| args.is_disabled(WIDGET.id()),
+        filter: |args| args.target.contains_disabled(WIDGET.id()),
     }
 
     /// Event fired when a keyboard key is pressed and the widget is enabled.
@@ -98,7 +98,7 @@ event_property! {
     pub fn key_down {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
-        filter: |args| args.state == KeyState::Pressed && args.is_enabled(WIDGET.id()),
+        filter: |args| args.state == KeyState::Pressed && args.target.contains_enabled(WIDGET.id()),
     }
 
     /// Event fired when a keyboard key is released and the widget is enabled.
@@ -128,6 +128,6 @@ event_property! {
     pub fn key_up {
         event: KEY_INPUT_EVENT,
         args: KeyInputArgs,
-        filter: |args| args.state == KeyState::Released && args.is_enabled(WIDGET.id()),
+        filter: |args| args.state == KeyState::Released && args.target.contains_enabled(WIDGET.id()),
     }
 }

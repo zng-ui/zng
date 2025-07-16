@@ -1043,7 +1043,9 @@ impl ViewHeadless {
 pub struct ViewRenderer(sync::Weak<ViewWindowData>);
 impl PartialEq for ViewRenderer {
     fn eq(&self, other: &Self) -> bool {
-        if let (Some(s), Some(o)) = (self.0.upgrade(), other.0.upgrade()) {
+        if let Some(s) = self.0.upgrade()
+            && let Some(o) = other.0.upgrade()
+        {
             Arc::ptr_eq(&s, &o)
         } else {
             false

@@ -148,11 +148,30 @@ impl FocusChangedArgs {
         }
     }
 
+    /// If `widget_id` is the new focus or a parent of the new focus and is enabled;
+    /// and was not the focus nor the parent of the previous focus or was not enabled.
+    pub fn is_focus_enter_enabled(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => !prev.contains_enabled(widget_id) && new.contains_enabled(widget_id),
+            (None, Some(new)) => new.contains_enabled(widget_id),
+            (_, None) => false,
+        }
+    }
+
     /// If `widget_id` is the previous focus or a parent of the previous focus and is not the new focus nor a parent of the new focus.
     pub fn is_focus_leave(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.contains(widget_id) && !new.contains(widget_id),
             (Some(prev), None) => prev.contains(widget_id),
+            (None, _) => false,
+        }
+    }
+
+    /// If `widget_id` is the previous focus or a parent of the previous focus and is not the new focus nor a parent of the new focus.
+    pub fn is_focus_leave_enabled(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => prev.contains_enabled(widget_id) && !new.contains_enabled(widget_id),
+            (Some(prev), None) => prev.contains_enabled(widget_id),
             (None, _) => false,
         }
     }
@@ -952,10 +971,11 @@ impl FocusService {
             .focused
             .as_ref()
             .and_then(|f| WINDOWS.widget_tree(f.path.window_id()).ok()?.get(f.path.widget_id()));
-        if let (Some(id), Some(focused)) = (self.navigation_origin, &origin) {
-            if let Some(o) = focused.tree().get(id) {
-                origin = Some(o);
-            }
+        if let Some(id) = self.navigation_origin
+            && let Some(focused) = &origin
+            && let Some(o) = focused.tree().get(id)
+        {
+            origin = Some(o);
         }
 
         if let Some(o) = origin {
@@ -995,7 +1015,9 @@ impl FocusService {
                     origin_tree = None;
                 }
 
-                if let (Some(info), Some(origin)) = (origin_tree, origin) {
+                if let Some(info) = origin_tree
+                    && let Some(origin) = origin
+                {
                     if let Some(w) = info.get(origin) {
                         let w = w.into_focus_info(self.focus_disabled_widgets.get(), self.focus_hidden_widgets.get());
                         if let Some(new_focus) = match move_ {

@@ -266,16 +266,17 @@ pub fn macro_test_cases() -> Vec<(String, String)> {
 
             let mut lines = file.lines();
             while let Some(line) = lines.next() {
-                if line == "[[bin]]" {
-                    if let (Some(name_line), Some(path_line)) = (lines.next(), lines.next()) {
-                        assert!(name_line.starts_with("name = "));
-                        assert!(path_line.starts_with("path = "));
+                if line == "[[bin]]"
+                    && let Some(name_line) = lines.next()
+                    && let Some(path_line) = lines.next()
+                {
+                    assert!(name_line.starts_with("name = "));
+                    assert!(path_line.starts_with("path = "));
 
-                        let name = name_line["name = ".len()..].trim_matches('"');
-                        if name.starts_with("trybuild") {
-                            let path = path_line["path = ".len()..].trim_matches('"').replace(r#"\\"#, "\\");
-                            bin_names.push((name.to_owned(), path));
-                        }
+                    let name = name_line["name = ".len()..].trim_matches('"');
+                    if name.starts_with("trybuild") {
+                        let path = path_line["path = ".len()..].trim_matches('"').replace(r#"\\"#, "\\");
+                        bin_names.push((name.to_owned(), path));
                     }
                 }
             }

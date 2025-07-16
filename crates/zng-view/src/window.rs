@@ -1567,10 +1567,10 @@ impl Window {
                     target_os = "netbsd",
                     target_os = "openbsd"
                 ))]
-                if let (raw_window_handle::RawWindowHandle::Xlib(_), WindowState::Maximized) = (
-                    raw_window_handle::HasWindowHandle::window_handle(&self.window).unwrap().as_raw(),
-                    self.state.state,
-                ) {
+                if let raw_window_handle::RawWindowHandle::Xlib(_) =
+                    raw_window_handle::HasWindowHandle::window_handle(&self.window).unwrap().as_raw()
+                    && let WindowState::Maximized = self.state.state
+                {
                     self.xlib_maximize = self.window.request_inner_size(self.window.inner_size()).is_none();
                 }
 

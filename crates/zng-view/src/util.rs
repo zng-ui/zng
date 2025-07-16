@@ -1269,7 +1269,9 @@ fn access_node_to_kit(
     if !node.size.is_empty() {
         let mut bounds = accesskit::Rect::new(0.0, 0.0, node.size.width.0 as f64, node.size.height.0 as f64);
         if !node.transform.is_identity() {
-            if let (0, PxTransform::Offset(o)) = (node.children_count(), node.transform) {
+            if node.children_count() == 0
+                && let PxTransform::Offset(o) = node.transform
+            {
                 let (x, y) = o.cast().to_tuple();
                 bounds = bounds.with_origin(accesskit::Point::new(x, y));
             } else {

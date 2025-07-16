@@ -611,18 +611,16 @@ event! {
 }
 
 impl DropArgs {
-    /// If the `widget_id` is in the [`target`] is enabled.
-    ///
-    /// [`target`]: Self::target
+    /// Deprecated
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
+        self.target.contains_enabled(widget_id)
     }
 
-    /// If the `widget_id` is in the [`target`] is disabled.
-    ///
-    /// [`target`]: Self::target
+    /// Deprecated
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+        self.target.contains_disabled(widget_id)
     }
 
     /// Stop propagation and set the `effect` that was applied to the data.
@@ -698,44 +696,40 @@ impl DragHoveredArgs {
     ///
     /// [`prev_target`]: Self::prev_target
     pub fn was_enabled(&self, widget_id: WidgetId) -> bool {
-        self.prev_target
-            .as_ref()
-            .and_then(|t| t.interactivity_of(widget_id))
-            .map(|itr| itr.is_enabled())
-            .unwrap_or(false)
+        match &self.prev_target {
+            Some(t) => t.contains_enabled(widget_id),
+            None => false,
+        }
     }
 
     /// Returns `true` if the widget was disabled in [`prev_target`].
     ///
     /// [`prev_target`]: Self::prev_target
     pub fn was_disabled(&self, widget_id: WidgetId) -> bool {
-        self.prev_target
-            .as_ref()
-            .and_then(|t| t.interactivity_of(widget_id))
-            .map(|itr| itr.is_disabled())
-            .unwrap_or(false)
+        match &self.prev_target {
+            Some(t) => t.contains_disabled(widget_id),
+            None => false,
+        }
     }
 
     /// Returns `true` if the widget is enabled in [`target`].
     ///
     /// [`target`]: Self::target
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target
-            .as_ref()
-            .and_then(|t| t.interactivity_of(widget_id))
-            .map(|itr| itr.is_enabled())
-            .unwrap_or(false)
+        match &self.target {
+            Some(t) => t.contains_enabled(widget_id),
+            None => false,
+        }
     }
 
     /// Returns `true` if the widget is disabled in [`target`].
     ///
     /// [`target`]: Self::target
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target
-            .as_ref()
-            .and_then(|t| t.interactivity_of(widget_id))
-            .map(|itr| itr.is_disabled())
-            .unwrap_or(false)
+        match &self.target {
+            Some(t) => t.contains_disabled(widget_id),
+            None => false,
+        }
     }
 
     /// Returns `true` if the [`WIDGET`] was not hovered or was disabled, but now is hovered and enabled.

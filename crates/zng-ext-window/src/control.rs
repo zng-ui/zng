@@ -884,7 +884,9 @@ impl HeadedCtrl {
     pub fn info(&mut self, info_widgets: Arc<InfoUpdates>) -> Option<WidgetInfoTree> {
         let prev_tree = WINDOW.info();
         let info = self.content.info(info_widgets);
-        if let (Some(info), true) = (&info, self.window.is_some()) {
+        if let Some(info) = &info
+            && self.window.is_some()
+        {
             // updated widget info and has view-process window
             if info.access_enabled() == AccessEnabled::VIEW && self.render_access_update.is_none() {
                 // view window requires access info, next frame

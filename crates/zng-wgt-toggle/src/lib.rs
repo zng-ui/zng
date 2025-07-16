@@ -103,7 +103,7 @@ pub fn checked(child: impl UiNode, checked: impl IntoVar<bool>) -> impl UiNode {
                     if args.is_primary()
                         && checked.capabilities().contains(VarCapability::MODIFY)
                         && !args.propagation().is_stopped()
-                        && args.is_enabled(WIDGET.id())
+                        && args.target.contains_enabled(WIDGET.id())
                     {
                         args.propagation().stop();
 
@@ -166,7 +166,7 @@ pub fn checked_opt(child: impl UiNode, checked: impl IntoVar<Option<bool>>) -> i
                     if args.is_primary()
                         && checked.capabilities().contains(VarCapability::MODIFY)
                         && !args.propagation().is_stopped()
-                        && args.is_enabled(WIDGET.id())
+                        && args.target.contains_enabled(WIDGET.id())
                     {
                         args.propagation().stop();
 
@@ -346,7 +346,7 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
             child.event(update);
 
             if let Some(args) = CLICK_EVENT.on(update) {
-                if args.is_primary() && !args.propagation().is_stopped() && args.is_enabled(WIDGET.id()) {
+                if args.is_primary() && !args.propagation().is_stopped() && args.target.contains_enabled(WIDGET.id()) {
                     args.propagation().stop();
 
                     value.with_any(&mut |value| {

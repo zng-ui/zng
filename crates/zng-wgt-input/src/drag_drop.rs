@@ -75,7 +75,7 @@ event_property! {
     pub fn drop {
         event: DROP_EVENT,
         args: DropArgs,
-        filter: |args| args.is_enabled(WIDGET.id()),
+        filter: |args| args.target.contains_enabled(WIDGET.id()),
     }
 }
 

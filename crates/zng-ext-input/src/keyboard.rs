@@ -104,18 +104,16 @@ event_args! {
     }
 }
 impl KeyInputArgs {
-    /// Returns `true` if the widget is enabled in [`target`].
-    ///
-    /// [`target`]: Self::target
+    /// Deprecated
+    #[deprecated = "use `target.contains_enabled`"]
     pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.interactivity_of(widget_id).map(|i| i.is_enabled()).unwrap_or(false)
+        self.target.contains_enabled(widget_id)
     }
 
-    /// Returns `true` if the widget is disabled in [`target`].
-    ///
-    /// [`target`]: Self::target
+    /// Deprecated
+    #[deprecated = "use `target.contains_disabled`"]
     pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.interactivity_of(widget_id).map(|i| i.is_disabled()).unwrap_or(false)
+        self.target.contains_disabled(widget_id)
     }
 
     /// Gets the modified key for Numpad keys and the unmodified key for the rest.

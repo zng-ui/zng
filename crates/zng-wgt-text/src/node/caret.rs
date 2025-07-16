@@ -60,10 +60,9 @@ pub fn non_interactive_caret(child: impl UiNode) -> impl UiNode {
                 let t = TEXT.laidout();
                 let resolved = TEXT.resolved();
 
-                if let (false, Some(mut origin)) = (
-                    resolved.selection_by.matches_interactive_mode(INTERACTIVE_CARET_VAR.get()),
-                    t.caret_origin,
-                ) {
+                if !resolved.selection_by.matches_interactive_mode(INTERACTIVE_CARET_VAR.get())
+                    && let Some(mut origin) = t.caret_origin
+                {
                     let mut c = CARET_COLOR_VAR.get();
                     c.alpha = resolved.caret.opacity.get().0;
 

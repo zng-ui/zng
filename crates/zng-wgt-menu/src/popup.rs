@@ -265,18 +265,19 @@ pub fn sub_menu_popup_node(children: ArcNodeList<BoxedUiNodeList>, parent: Optio
                             // is context menu
                             Some(info.clone())
                         };
-                        if let (Some(sub_menu), Some(f)) = (sub_self, info.tree().get(f.widget_id())) {
-                            if !f.submenu_self_and_ancestors().any(|s| s.id() == sub_menu.id()) {
-                                // Focus did not move to child sub-menu nor parent,
-                                // close after delay.
-                                //
-                                // This covers the case of focus moving to a widget that is not
-                                // a child sub-menu and is not the parent sub-menu,
-                                // `sub_menu_node` covers the case of focus moving to the parent sub-menu and out.
-                                let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
-                                t.subscribe(UpdateOp::Update, info.id()).perm();
-                                close_timer = Some(t);
-                            }
+                        if let Some(sub_menu) = sub_self
+                            && let Some(f) = info.tree().get(f.widget_id())
+                            && !f.submenu_self_and_ancestors().any(|s| s.id() == sub_menu.id())
+                        {
+                            // Focus did not move to child sub-menu nor parent,
+                            // close after delay.
+                            //
+                            // This covers the case of focus moving to a widget that is not
+                            // a child sub-menu and is not the parent sub-menu,
+                            // `sub_menu_node` covers the case of focus moving to the parent sub-menu and out.
+                            let t = TIMERS.deadline(HOVER_OPEN_DELAY_VAR.get());
+                            t.subscribe(UpdateOp::Update, info.id()).perm();
+                            close_timer = Some(t);
                         }
                     }
                 }

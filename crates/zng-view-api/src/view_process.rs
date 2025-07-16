@@ -46,7 +46,9 @@ impl ViewConfig {
     ///
     /// [`Controller`]: crate::Controller
     pub fn from_env() -> Option<Self> {
-        if let (Ok(version), Ok(server_name)) = (env::var(VIEW_VERSION), env::var(VIEW_SERVER)) {
+        if let Ok(version) = env::var(VIEW_VERSION)
+            && let Ok(server_name) = env::var(VIEW_SERVER)
+        {
             let headless = env::var(VIEW_MODE).map(|m| m == "headless").unwrap_or(false);
             Some(ViewConfig {
                 version: Txt::from_str(&version),

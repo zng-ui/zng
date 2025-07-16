@@ -121,32 +121,33 @@ fn rich_text_cmds(child: impl UiNode) -> impl UiNode {
                 None => return, // disabled
             };
             if let Some(args) = COPY_CMD.event().on_unhandled(update) {
-                if let (None, CommandScope::Widget(scope_id)) = (&args.param, args.scope) {
-                    if ctx.root_id == scope_id || ctx.leaf_info(scope_id).is_some() {
-                        // is normal COPY_CMD request for the rich text or a leaf text.
-                        args.propagation().stop();
+                if args.param.is_none()
+                    && let CommandScope::Widget(scope_id) = args.scope
+                    && (ctx.root_id == scope_id || ctx.leaf_info(scope_id).is_some())
+                {
+                    // is normal COPY_CMD request for the rich text or a leaf text.
+                    args.propagation().stop();
 
-                        let mut txt = String::new();
+                    let mut txt = String::new();
 
-                        for leaf in ctx.selection() {
-                            let rich_copy = RichTextCopyParam::default();
-                            let mut update = COPY_CMD.scoped(leaf.id()).new_update_param(rich_copy.clone());
-                            update.delivery_list_mut().fulfill_search([leaf.tree()].into_iter());
+                    for leaf in ctx.selection() {
+                        let rich_copy = RichTextCopyParam::default();
+                        let mut update = COPY_CMD.scoped(leaf.id()).new_update_param(rich_copy.clone());
+                        update.delivery_list_mut().fulfill_search([leaf.tree()].into_iter());
 
-                            child.event(&update);
+                        child.event(&update);
 
-                            if let Some(t_frag) = rich_copy.into_text() {
-                                let line_info = leaf.rich_text_line_info();
-                                if line_info.starts_new_line && !line_info.is_wrap_start && !txt.is_empty() {
-                                    txt.push('\n');
-                                }
-
-                                txt.push_str(&t_frag);
+                        if let Some(t_frag) = rich_copy.into_text() {
+                            let line_info = leaf.rich_text_line_info();
+                            if line_info.starts_new_line && !line_info.is_wrap_start && !txt.is_empty() {
+                                txt.push('\n');
                             }
-                        }
 
-                        let _ = CLIPBOARD.set_text(txt);
+                            txt.push_str(&t_frag);
+                        }
                     }
+
+                    let _ = CLIPBOARD.set_text(txt);
                 }
             } else if let Some(args) = SELECT_CMD.scoped(ctx.root_id).on_unhandled(update) {
                 args.propagation().stop();

@@ -913,11 +913,12 @@ impl WidgetFocusInfo {
                 };
 
                 // if not IgnoreBounds and some candidate
-                if let (FocusScopeOnFocus::FirstDescendant | FocusScopeOnFocus::LastFocused, Some(candidate)) = (on_focus, &candidate) {
-                    if !self.info.inner_bounds().contains_rect(&candidate.info().inner_bounds()) {
-                        // not fully in bounds.
-                        return None;
-                    }
+                if let FocusScopeOnFocus::FirstDescendant | FocusScopeOnFocus::LastFocused = on_focus
+                    && let Some(candidate) = &candidate
+                    && !self.info.inner_bounds().contains_rect(&candidate.info().inner_bounds())
+                {
+                    // not fully in bounds.
+                    return None;
                 }
 
                 candidate

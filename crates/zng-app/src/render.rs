@@ -1373,7 +1373,9 @@ impl FrameBuilder {
         expect_inner!(self.push_border_image);
         warn_empty!(self.push_border_image(bounds));
 
-        if let (true, Some(r)) = (self.visible, &self.renderer) {
+        if self.visible
+            && let Some(r) = &self.renderer
+        {
             let image_id = image.renderer_id(r);
             self.display_list.push_nine_patch_border(
                 bounds,

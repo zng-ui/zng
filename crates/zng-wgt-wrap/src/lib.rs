@@ -320,7 +320,9 @@ impl InlineLayout {
         let metrics = LAYOUT.metrics();
         let constraints = metrics.constraints();
 
-        if let (None, Some(known)) = (metrics.inline_constraints(), constraints.fill_or_exact()) {
+        if metrics.inline_constraints().is_none()
+            && let Some(known) = constraints.fill_or_exact()
+        {
             return known;
         }
 
@@ -391,7 +393,9 @@ impl InlineLayout {
         let metrics = LAYOUT.metrics();
         let constraints = metrics.constraints();
 
-        if let (None, Some(known)) = (metrics.inline_constraints(), constraints.fill_or_exact()) {
+        if metrics.inline_constraints().is_none()
+            && let Some(known) = constraints.fill_or_exact()
+        {
             return known;
         }
 

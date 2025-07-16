@@ -50,7 +50,9 @@ pub(super) fn visual_runs(
                 reset_from = None;
             }
         }
-        if let (Some(from), Some(to)) = (reset_from, reset_to) {
+        if let Some(from) = reset_from
+            && let Some(to) = reset_to
+        {
             for level in &mut line_levels[from..to] {
                 *level = para_level;
             }
