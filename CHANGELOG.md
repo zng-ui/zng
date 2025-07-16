@@ -1,5 +1,8 @@
 # Unreleased
 
+* Fix auto scroll to focus when entire `Scroll!` is disabled. !!: TODO
+* Fix `Button!` inside `SubMenu!` not filling horizontal space when the sub-menu header is wider them the button.
+* `Scroll!` child layout is now the same as `Container!` in the dimensions scrolling is not enabled. 
 * Add `InteractionPath` methods for checking if the path contains an widget with the given interactivity.
     - **Deprecated** multiple event args methods that reimplemented this feature.
 * Fix disabled `SubMenu!` opening.

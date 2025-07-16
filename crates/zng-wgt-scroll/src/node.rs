@@ -75,19 +75,9 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                     let mut c = constraints;
                     if mode.contains(ScrollMode::VERTICAL) {
                         c = c.with_unbounded_y().with_new_min_y(vp_unit.height);
-                    } else {
-                        c = c.with_new_min_y(Px(0));
-                        if has_fill_size {
-                            c = c.with_new_max_y(vp_unit.height);
-                        }
                     }
                     if mode.contains(ScrollMode::HORIZONTAL) {
                         c = c.with_unbounded_x().with_new_min_x(vp_unit.width);
-                    } else {
-                        c = c.with_new_min_x(Px(0));
-                        if has_fill_size {
-                            c = c.with_new_max_x(vp_unit.width);
-                        }
                     }
 
                     child_align.child_constraints(c)
@@ -129,7 +119,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                         c = c.with_unbounded_y().with_new_min_y(vp_unit.height);
                     } else {
                         // If not scrollable Align::FILL works like normal `Container!` widgets.
-                        c = c.with_new_min_y(Px(0));
+                        // c = c.with_new_min_y(Px(0));
                         if has_fill_size {
                             c = c.with_new_max_y(vp_unit.height);
                         }
@@ -137,7 +127,7 @@ pub fn viewport(child: impl UiNode, mode: impl IntoVar<ScrollMode>, child_align:
                     if mode.contains(ScrollMode::HORIZONTAL) {
                         c = c.with_unbounded_x().with_new_min_x(vp_unit.width);
                     } else {
-                        c = c.with_new_min_x(Px(0));
+                        // c = c.with_new_min_x(Px(0));
                         if has_fill_size {
                             c = c.with_new_max_x(vp_unit.width);
                         }
