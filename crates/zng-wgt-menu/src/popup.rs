@@ -98,7 +98,7 @@ impl DefaultStyle {
 ///
 /// See [`PANEL_FN_VAR`] for more details.
 pub fn default_panel_fn(args: zng_wgt_panel::PanelArgs) -> impl UiNode {
-    // remove arrow key shortcuts, they are used to nav. focus.
+    // remove arrow key shortcuts, they are used to navigate focus.
     let scroll_id = WidgetId::new_unique();
     let _ = zng_wgt_scroll::cmd::SCROLL_UP_CMD
         .scoped(scroll_id)
@@ -112,7 +112,9 @@ pub fn default_panel_fn(args: zng_wgt_panel::PanelArgs) -> impl UiNode {
     zng_wgt_scroll::Scroll! {
         id = scroll_id;
         focusable = false;
+        child_align = Align::FILL;
         child = Stack! {
+            children_align = Align::FILL;
             children = args.children;
             direction = zng_wgt_stack::StackDirection::top_to_bottom();
         };

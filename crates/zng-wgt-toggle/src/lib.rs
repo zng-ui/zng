@@ -434,18 +434,19 @@ fn value_impl(child: impl UiNode, value: BoxedAnyVar) -> impl UiNode {
                 prev_value = None;
             }
 
-            if let Some(Some(true)) = checked.get_new() {
-                if SCROLL_ON_SELECT_VAR.get() {
-                    use zng_wgt_scroll::cmd::*;
-                    scroll_to(WIDGET.id(), ScrollToMode::minimal(10));
-                }
+            if let Some(Some(true)) = checked.get_new()
+                && SCROLL_ON_SELECT_VAR.get()
+            {
+                // TODO(breaking) - only scroll if parent selector scope is in view?
+                use zng_wgt_scroll::cmd::*;
+                scroll_to(WIDGET.id(), ScrollToMode::minimal(10));
             }
         }
         _ => {}
     })
 }
 
-/// If the scrolls into view when the [`value`] selected.
+/// If the widget scrolls into view when the [`value`] selected.
 ///
 /// This is enabled by default.
 ///

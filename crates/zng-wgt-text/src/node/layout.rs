@@ -769,7 +769,11 @@ impl LayoutTextFinal {
                         ctx.caret_selection_origin = Some(ctx.shaped_text.caret_origin(*sel, resolved_mut.segmented_text.text()));
                     }
 
-                    if !mem::take(&mut caret.skip_next_scroll) && SCROLL.try_id().is_some() {
+                    if !mem::take(&mut caret.skip_next_scroll)
+                        && SCROLL.try_id().is_some()
+                        && let Some(focused) = FOCUS.focused().get()
+                        && focused.contains(TEXT.try_rich().map(|r| r.root_id).unwrap_or_else(|| WIDGET.id()))
+                    {
                         let line_height = ctx
                             .shaped_text
                             .line(index.line)

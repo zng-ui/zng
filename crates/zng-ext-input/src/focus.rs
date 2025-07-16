@@ -167,7 +167,8 @@ impl FocusChangedArgs {
         }
     }
 
-    /// If `widget_id` is the previous focus or a parent of the previous focus and is not the new focus nor a parent of the new focus.
+    /// If `widget_id` is the previous focus or a parent of the previous focus and was enabled;
+    /// and is not the new focus nor a parent of the new focus or is disabled.
     pub fn is_focus_leave_enabled(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
             (Some(prev), Some(new)) => prev.contains_enabled(widget_id) && !new.contains_enabled(widget_id),
