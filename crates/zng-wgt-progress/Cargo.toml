@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-progress"
-version = "0.4.9"
+version = "0.4.10"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -12,16 +12,16 @@ categories = ["gui"]
 keywords = ["gui", "ui", "user-interface", "zng"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.8.8" }
-zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.9" }
-zng-ext-font = { path = "../zng-ext-font", version = "0.7.8" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.9" }
+zng-wgt-text = { path = "../zng-wgt-text", version = "0.7.10" }
+zng-ext-font = { path = "../zng-ext-font", version = "0.7.9" }
 zng-layout = { path = "../zng-layout", version = "0.4.5" }
-zng-app = { path = "../zng-app", version = "0.16.8" }
-zng-task = { path = "../zng-task", version = "0.6.6" }
-zng-wgt-style = { path = "../zng-wgt-style", version = "0.6.8" }
-zng-wgt-container = { path = "../zng-wgt-container", version = "0.7.8" }
-zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.5.8" }
-zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.5.8" }
+zng-app = { path = "../zng-app", version = "0.16.9" }
+zng-task = { path = "../zng-task", version = "0.6.7" }
+zng-wgt-style = { path = "../zng-wgt-style", version = "0.6.9" }
+zng-wgt-container = { path = "../zng-wgt-container", version = "0.7.9" }
+zng-wgt-fill = { path = "../zng-wgt-fill", version = "0.5.9" }
+zng-wgt-size-offset = { path = "../zng-wgt-size-offset", version = "0.5.9" }
 zng-var = { path = "../zng-var", version = "0.7.5" }
 
 tracing = "0.1"

@@ -1,6 +1,6 @@
 [package]
 name = "zng-task"
-version = "0.6.6"
+version = "0.6.7"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"

@@ -1,6 +1,6 @@
 [package]
 name = "zng-wgt-style"
-version = "0.6.8"
+version = "0.6.9"
 authors = ["The Zng Project Developers"]
 edition = "2024"
 license = "Apache-2.0 OR MIT"
@@ -16,8 +16,8 @@ keywords = ["gui", "ui", "user-interface", "zng"]
 trace_widget = ["zng-app/trace_widget"]
 
 [dependencies]
-zng-wgt = { path = "../zng-wgt", version = "0.8.8" }
-zng-app = { path = "../zng-app", version = "0.16.8" }
+zng-wgt = { path = "../zng-wgt", version = "0.8.9" }
+zng-app = { path = "../zng-app", version = "0.16.9" }
 
 tracing = "0.1"
 
