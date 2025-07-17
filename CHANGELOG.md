@@ -1,6 +1,9 @@
 # Unreleased
 
-* Fix `DIALOG` with `Response::ok` button not resulting in an ok signal.
+
+# 0.15.11
+
+* Fix `DIALOG.confirm` always cancelling.
 * Fix auto scroll on text caret move, only apply if the `Text!` or rich text context has focus.
 * Fix auto scroll on focus change, ignore focus change due to entire `Scroll!` disabling.
 * Fix `Button!` inside `SubMenu!` not filling horizontal space when the sub-menu header is wider them the button.
