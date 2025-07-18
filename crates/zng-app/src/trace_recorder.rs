@@ -510,7 +510,7 @@ impl ThreadTrace {
     }
 
     /// Sort events by instant and spans by start (then reverse end).
-    /// 
+    ///
     /// After sorting if a span starts within the start..=end of the previous it is "inside" it.
     pub fn sort(&mut self) {
         self.events.sort_by(|a, b| a.instant.cmp(&b.instant));
