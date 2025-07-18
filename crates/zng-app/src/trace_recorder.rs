@@ -345,8 +345,14 @@ impl Trace {
                 Phase::End => {
                     let end = entry.ts;
                     let info = entry_to_info(entry);
+                    // recording always closes inner first (example: [begin1,begin2,end2,end1])
+                    // this will search [begin1,begin2] in reverse for end2 and close that first, even if begin1 has the same name
                     if let Some(open) = thread.spans.iter_mut().rev().find(|s| s.start == s.end && s.info.name == info.name) {
                         open.end = end;
+                        if open.start == open.end {
+                            // timing is in microseconds so we can use 1ns here to help the logic
+                            open.end += Duration::from_nanos(1);
+                        }
                         open.info.merge(info);
                     }
                 }
@@ -503,10 +509,12 @@ impl ThreadTrace {
         self.spans.append(&mut other.spans);
     }
 
-    /// Sort events by instant and spans by start.
+    /// Sort events by instant and spans by start (then reverse end).
+    ///
+    /// After sorting if a span starts within the start..=end of the previous it is "inside" it.
     pub fn sort(&mut self) {
         self.events.sort_by(|a, b| a.instant.cmp(&b.instant));
-        self.spans.sort_by(|a, b| a.start.cmp(&b.start));
+        self.spans.sort_by(|a, b| a.start.cmp(&b.start).then(b.start.cmp(&a.start)));
     }
 }
 

@@ -1,5 +1,6 @@
 # Unreleased
 
+* Fix inherited widget properties not showing in documentation.
 
 # 0.15.11
 

@@ -21,9 +21,11 @@
         doc.querySelectorAll('h2').forEach(function (d) {
             if (d.id.startsWith('deref-methods')) {
                 let skipFirst = true;
-                let insertPoint = d.parentElement.nextElementSibling;
+                // details/summary/h2(d)
+                let insertPoint = d.parentElement.parentElement.nextElementSibling;
                 d.querySelectorAll('a.struct').forEach(function (a) {
                     if (skipFirst) {
+                        // first's items already included in HTML
                         skipFirst = false;
                         return;
                     }
@@ -38,13 +40,18 @@
                     let title = doc.createElement('h2');
                     title.innerHTML = 'Inherits from ' + a.outerHTML;
                     title.classList.add('inherit-fetch');
-                    insertPoint.parentElement.insertBefore(title, insertPoint);
+                    let summary = doc.createElement("summary");
+                    summary.appendChild(title);
+                    let details = doc.createElement("details");
+                    details.appendChild(summary);
 
                     let section = doc.createElement('div');
                     section.innerText = 'Loading...';
-                    insertPoint.parentElement.insertBefore(section, insertPoint);
+                    details.appendChild(section);
 
-                    insertPoint = section.nextElementSibling;
+                    insertPoint.parentElement.insertBefore(details, insertPoint);
+
+                    insertPoint = details.nextElementSibling;
                     a.remove();
                 });
                 refactorProperties(doc, propertiesSet, d.id);
@@ -202,7 +209,7 @@
         for (e of doc.querySelectorAll('h2.inherit-fetch')) {
             let page;
             let url = e.querySelector('a').href;
-            let place = e.nextElementSibling;
+            let place = e.parentElement.parentElement;
             try {
                 page = await fetch(url, { redirect: 'follow' });
                 if (!page.ok) {
@@ -227,7 +234,7 @@
                 }
             } catch (error) {
                 console.error("error fetching '" + url + "', " + error);
-                place.innerText = error;
+                place.querySelector("div") = error;
                 continue;
             }
             e.classList.remove('inherit-fetch');
@@ -240,7 +247,6 @@
             await refactorDocument(page, propertiesSet, inherits, fetchUrls);
 
             place.remove();
-            e.remove();
         }
     }
 
