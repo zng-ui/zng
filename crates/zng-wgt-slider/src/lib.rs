@@ -13,10 +13,15 @@ zng_wgt::enable_widget_macros!();
 
 pub mod thumb;
 
-use std::{any::Any, fmt, ops::Range, sync::Arc};
+use std::{any::Any, fmt, sync::Arc};
 
 use colors::ACCENT_COLOR_VAR;
 use parking_lot::Mutex;
+use zng_ext_input::{
+    mouse::{ButtonState, MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
+    pointer_capture::CaptureMode,
+    touch::{TOUCH_INPUT_EVENT, TouchPhase},
+};
 use zng_var::{AnyVar, AnyVarValue, BoxedAnyVar};
 use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
@@ -32,7 +37,6 @@ impl Slider {
         widget_set! {
             self;
             style_base_fn = style_fn!(|_| DefaultStyle!());
-            capture_pointer = true;
         }
     }
 }
@@ -64,18 +68,19 @@ impl DefaultStyle {
 
 trait SelectorImpl: Send {
     fn selection(&self) -> BoxedAnyVar;
-    fn set(&mut self, nearest: Factor, to: Factor);
-    fn thumbs(&self) -> Vec<ThumbValue>;
+    fn thumbs(&self) -> BoxedVar<Vec<ThumbValue>>;
+    fn set(&self, nearest: Factor, to: Factor);
+
     fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor>;
     #[allow(clippy::wrong_self_convention)]
     fn from_offset(&self, offset: Factor) -> Box<dyn Any>;
 }
 
-trait OffsetConvert<T>: Send {
+trait OffsetConvert<T>: Send + Sync {
     fn to(&self, t: &T) -> Factor;
     fn from(&self, f: Factor) -> T;
 }
-impl<T, Tf: Fn(&T) -> Factor + Send, Ff: Fn(Factor) -> T + Send> OffsetConvert<T> for (Tf, Ff) {
+impl<T, Tf: Fn(&T) -> Factor + Send + Sync, Ff: Fn(Factor) -> T + Send + Sync> OffsetConvert<T> for (Tf, Ff) {
     fn to(&self, t: &T) -> Factor {
         (self.0)(t)
     }
@@ -123,32 +128,28 @@ impl Selector {
     /// possible value. If a value outside of this range is returned it is clamped to the range and the `selection` variable is updated back.
     pub fn value_with<T>(
         selection: impl IntoVar<T>,
-        to_offset: impl Fn(&T) -> Factor + Send + 'static,
-        from_offset: impl Fn(Factor) -> T + Send + 'static,
+        to_offset: impl Fn(&T) -> Factor + Send + Sync + 'static,
+        from_offset: impl Fn(Factor) -> T + Send + Sync + 'static,
     ) -> Self
     where
         T: VarValue,
     {
         struct SingleImpl<T> {
             selection: BoxedVar<T>,
-            selection_fct: Factor,
-            to_from: Box<dyn OffsetConvert<T>>,
+            thumbs: BoxedVar<Vec<ThumbValue>>,
+            to_from: Arc<dyn OffsetConvert<T>>,
         }
         impl<T: VarValue> SelectorImpl for SingleImpl<T> {
             fn selection(&self) -> BoxedAnyVar {
                 self.selection.clone_any()
             }
 
-            fn set(&mut self, _: Factor, to: Factor) {
-                self.selection_fct = to;
+            fn set(&self, _: Factor, to: Factor) {
                 let _ = self.selection.set(self.to_from.from(to));
             }
 
-            fn thumbs(&self) -> Vec<ThumbValue> {
-                vec![ThumbValue {
-                    offset: self.selection_fct,
-                    n_of: (0, 0),
-                }]
+            fn thumbs(&self) -> BoxedVar<Vec<ThumbValue>> {
+                self.thumbs.clone()
             }
 
             fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor> {
@@ -160,90 +161,16 @@ impl Selector {
                 Box::new(self.to_from.from(offset))
             }
         }
+        let to_from = Arc::new((to_offset, from_offset));
         let selection = selection.into_var();
+        let thumbs = selection.map(clmv!(to_from, |s| vec![ThumbValue {
+            offset: to_from.to(s),
+            n_of: (0, 1)
+        }]));
         Self(Arc::new(Mutex::new(SingleImpl {
-            selection_fct: selection.with(&to_offset),
+            thumbs: thumbs.boxed(),
             selection: selection.boxed(),
-            to_from: Box::new((to_offset, from_offset)),
-        })))
-    }
-
-    /// New with two value thumbs of type `T` that can be set any value in the `min..=max` range.
-    pub fn range<T: SelectorValue>(range: impl IntoVar<std::ops::Range<T>>, min: T, max: T) -> Self { 
-        // TODO(breaking) don't use Range here, it should be an inclusive type
-
-        // create a selector just to get the conversion closures
-        let convert = T::to_selector(zng_var::LocalVar(min.clone()).boxed(), min, max);
-        Self::range_with(range.into_var(), clmv!(convert, |t| convert.to_offset(t).unwrap()), move |f| {
-            convert.from_offset(f).unwrap()
-        })
-    }
-
-    /// New with two values thumbs that define a range of type `T`.
-    ///
-    /// The conversion closure have the same constraints as [`value_with`].
-    ///
-    /// [`value_with`]: Self::value_with
-    pub fn range_with<T>(
-        range: impl IntoVar<std::ops::Range<T>>,
-        to_offset: impl Fn(&T) -> Factor + Send + 'static,
-        from_offset: impl Fn(Factor) -> T + Send + 'static,
-    ) -> Self
-    where
-        T: VarValue,
-    {
-        struct RangeImpl<T> {
-            selection: BoxedVar<Range<T>>,
-            selection_fct: [Factor; 2],
-            to_from: Box<dyn OffsetConvert<T>>,
-        }
-        impl<T: VarValue> SelectorImpl for RangeImpl<T> {
-            fn selection(&self) -> BoxedAnyVar {
-                self.selection.clone_any()
-            }
-
-            fn set(&mut self, nearest: Factor, to: Factor) {
-                if (self.selection_fct[0] - nearest).abs() < (self.selection_fct[1] - nearest).abs() {
-                    self.selection_fct[0] = to;
-                } else {
-                    self.selection_fct[1] = to;
-                }
-                if self.selection_fct[0] > self.selection_fct[1] {
-                    self.selection_fct.swap(0, 1);
-                }
-                let start = self.to_from.from(self.selection_fct[0]);
-                let end = self.to_from.from(self.selection_fct[1]);
-                let _ = self.selection.set(start..end);
-            }
-
-            fn thumbs(&self) -> Vec<ThumbValue> {
-                vec![
-                    ThumbValue {
-                        offset: self.selection_fct[0],
-                        n_of: (0, 2),
-                    },
-                    ThumbValue {
-                        offset: self.selection_fct[1],
-                        n_of: (1, 2),
-                    },
-                ]
-            }
-
-            fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor> {
-                let f = self.to_from.to(t.as_any().downcast_ref::<T>()?);
-                Some(f)
-            }
-
-            fn from_offset(&self, offset: Factor) -> Box<dyn Any> {
-                Box::new(self.to_from.from(offset))
-            }
-        }
-        let selection = range.into_var();
-
-        Self(Arc::new(Mutex::new(RangeImpl {
-            selection_fct: selection.with(|r| [to_offset(&r.start), to_offset(&r.end)]),
-            selection: selection.boxed(),
-            to_from: Box::new((to_offset, from_offset)),
+            to_from,
         })))
     }
 
@@ -263,47 +190,59 @@ impl Selector {
     /// [`value_with`]: Self::value_with
     pub fn many_with<T>(
         many: impl IntoVar<Vec<T>>,
-        to_offset: impl Fn(&T) -> Factor + Send + 'static,
-        from_offset: impl Fn(Factor) -> T + Send + 'static,
+        to_offset: impl Fn(&T) -> Factor + Send + Sync + 'static,
+        from_offset: impl Fn(Factor) -> T + Send + Sync + 'static,
     ) -> Self
     where
         T: VarValue,
     {
         struct ManyImpl<T> {
             selection: BoxedVar<Vec<T>>,
-            selection_fct: Vec<Factor>,
-            to_from: Box<dyn OffsetConvert<T>>,
+            thumbs: BoxedVar<Vec<ThumbValue>>,
+            to_from: Arc<dyn OffsetConvert<T>>,
         }
         impl<T: VarValue> SelectorImpl for ManyImpl<T> {
             fn selection(&self) -> BoxedAnyVar {
                 self.selection.clone_any()
             }
 
-            fn set(&mut self, nearest: Factor, to: Factor) {
-                if let Some((i, _)) = self
-                    .selection_fct
-                    .iter()
-                    .enumerate()
-                    .map(|(i, &f)| (i, (f - nearest).abs()))
-                    .reduce(|a, b| if a.1 < b.1 { a } else { b })
-                {
-                    self.selection_fct[i] = to;
-                    self.selection_fct.sort_by(|a, b| a.0.total_cmp(&b.0));
-                    let s: Vec<_> = self.selection_fct.iter().map(|&f| self.to_from.from(f)).collect();
-                    let _ = self.selection.set(s);
+            fn set(&self, from: Factor, to: Factor) {
+                // modify selection to remove nearest and insert to in new sorted position
+                // or just replace it if it is the same position
+
+                let mut selection = self.selection.get();
+                if selection.is_empty() {
+                    return;
                 }
+
+                let to_value = self.to_from.from(to);
+
+                let (remove_i, mut insert_i) = self.thumbs.with(|t| {
+                    let (remove_i, _) = t
+                        .iter()
+                        .enumerate()
+                        .map(|(i, f)| (i, (f.offset - from).abs()))
+                        .reduce(|a, b| if a.1 < b.1 { a } else { b })
+                        .unwrap_or((t.len(), 0.fct()));
+                    let insert_i = t.iter().position(|t| t.offset >= to).unwrap_or(t.len());
+                    (remove_i, insert_i)
+                });
+
+                if remove_i == insert_i {
+                    selection[remove_i] = to_value;
+                } else {
+                    if insert_i > remove_i {
+                        insert_i -= 1;
+                    }
+                    selection.remove(remove_i);
+                    selection.insert(insert_i, to_value)
+                }
+
+                let _ = self.selection.set(selection);
             }
 
-            fn thumbs(&self) -> Vec<ThumbValue> {
-                let len = self.selection_fct.len().min(u16::MAX as usize) as u16;
-                self.selection_fct
-                    .iter()
-                    .enumerate()
-                    .map(|(i, &f)| ThumbValue {
-                        offset: f,
-                        n_of: (i.min(u16::MAX as usize) as u16, len),
-                    })
-                    .collect()
+            fn thumbs(&self) -> BoxedVar<Vec<ThumbValue>> {
+                self.thumbs.clone()
             }
 
             fn to_offset(&self, t: &dyn AnyVarValue) -> Option<Factor> {
@@ -315,11 +254,25 @@ impl Selector {
                 Box::new(self.to_from.from(offset))
             }
         }
+
+        let to_from = Arc::new((to_offset, from_offset));
         let selection = many.into_var();
+        let thumbs = selection.map(clmv!(to_from, |s| {
+            let len = s.len().min(u16::MAX as _) as u16;
+            s.iter()
+                .enumerate()
+                .take(u16::MAX as _)
+                .map(|(i, s)| ThumbValue {
+                    offset: to_from.to(s),
+                    n_of: (i as u16, len),
+                })
+                .collect()
+        }));
+
         Self(Arc::new(Mutex::new(ManyImpl {
-            selection_fct: selection.with(|m| m.iter().map(&to_offset).collect()),
             selection: selection.boxed(),
-            to_from: Box::new((to_offset, from_offset)),
+            thumbs: thumbs.boxed(),
+            to_from,
         })))
     }
 
@@ -343,23 +296,25 @@ impl Selector {
         Some(*b)
     }
 
-    /// Gets the value thumbs.
-    pub fn thumbs(&self) -> Vec<ThumbValue> {
-        self.0.lock().thumbs()
-    }
-
-    /// Move the `nearest_thumb` to a new offset.
+    /// Move the thumb nearest to `from` to a new offset `to`.
     ///
     /// Note that ranges don't invert, this operation may swap the thumb roles.
-    pub fn set(&self, nearest_thumb: impl IntoValue<Factor>, to: impl IntoValue<Factor>) {
-        self.0.lock().set(nearest_thumb.into(), to.into())
+    pub fn set(&self, from: impl IntoValue<Factor>, to: impl IntoValue<Factor>) {
+        self.0.lock().set(from.into(), to.into())
     }
 
     /// The selection var.
     ///
-    /// Downcast to `T`, `Range<T>` or `Vec<T>` to get and set the value.
+    /// Downcast to `T`' or `Vec<T>` to get and set the value.
     pub fn selection(&self) -> BoxedAnyVar {
         self.0.lock().selection()
+    }
+
+    /// Read-only variable mapped from the [`selection`].
+    ///
+    /// [`selection`]: Self::selection
+    pub fn thumbs(&self) -> BoxedVar<Vec<ThumbValue>> {
+        self.0.lock().thumbs()
     }
 }
 
@@ -409,7 +364,7 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
 }
 
 /// Widget function that converts [`ThumbArgs`] to widgets.
-/// 
+///
 /// This property sets the [`THUMB_FN_VAR`].
 #[property(CONTEXT, default(THUMB_FN_VAR))]
 pub fn thumb_fn(child: impl UiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) -> impl UiNode {
@@ -418,12 +373,12 @@ pub fn thumb_fn(child: impl UiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) ->
 
 /// Arguments for a slider thumb widget generator.
 pub struct ThumbArgs {
-    thumb: ArcVar<ThumbValue>,
+    thumb: BoxedVar<ThumbValue>,
 }
 impl ThumbArgs {
     /// Variable with the thumb value that must be represented by the widget.
-    pub fn thumb(&self) -> ReadOnlyArcVar<ThumbValue> {
-        self.thumb.read_only()
+    pub fn thumb(&self) -> BoxedVar<ThumbValue> {
+        self.thumb.clone()
     }
 }
 
@@ -540,23 +495,38 @@ impl SliderTrack {
     fn widget_intrinsic(&mut self) {
         self.widget_builder().push_build_action(|wgt| {
             wgt.set_child(slider_track_node());
-        })
+        });
+        widget_set! {
+            self;
+            capture_pointer = CaptureMode::Subtree;
+        }
     }
 }
 
 fn slider_track_node() -> impl UiNode {
     let mut thumbs = ui_vec![];
-    let mut thumb_vars = vec![];
+    let mut layout_direction = LayoutDirection::LTR;
     match_node_leaf(move |op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var(&THUMB_FN_VAR);
-
-            thumb_vars = SELECTOR.get().thumbs().into_iter().map(zng_var::var).collect();
-            thumbs.reserve(thumb_vars.len());
+            WIDGET
+                .sub_var(&THUMB_FN_VAR)
+                .sub_event(&MOUSE_INPUT_EVENT)
+                .sub_event(&TOUCH_INPUT_EVENT)
+                .sub_event(&MOUSE_MOVE_EVENT);
 
             let thumb_fn = THUMB_FN_VAR.get();
-            for v in &thumb_vars {
-                thumbs.push(thumb_fn(ThumbArgs { thumb: v.clone() }))
+
+            let thumbs_var = SELECTOR.get().thumbs();
+            let thumbs_len = thumbs_var.with(|t| t.len());
+            thumbs.reserve(thumbs_len);
+            for i in 0..thumbs_len {
+                let thumb_var = thumbs_var.map(move |t| {
+                    t.get(i).copied().unwrap_or(ThumbValue {
+                        offset: 0.fct(),
+                        n_of: (0, 0),
+                    })
+                });
+                thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var.boxed() }))
             }
 
             thumbs.init_all();
@@ -564,7 +534,6 @@ fn slider_track_node() -> impl UiNode {
         UiNodeOp::Deinit => {
             thumbs.deinit_all();
             thumbs = ui_vec![];
-            thumb_vars = vec![];
         }
         UiNodeOp::Info { info } => {
             info.flag_meta(*IS_SLIDER_ID);
@@ -575,19 +544,73 @@ fn slider_track_node() -> impl UiNode {
         }
         UiNodeOp::Layout { final_size, wl } => {
             *final_size = LAYOUT.constraints().fill_size();
+            layout_direction = LAYOUT.direction();
             let _ = thumbs.layout_each(wl, |_, n, wl| n.layout(wl), |_, _| PxSize::zero());
+        }
+        UiNodeOp::Event { update } => {
+            thumbs.event_all(update);
+
+            let mut pos = None;
+
+            if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
+                if let Some(cap) = &args.capture {
+                    if cap.target.contains(WIDGET.id()) {
+                        pos = Some(args.position);
+                        args.propagation().stop();
+                    }
+                }
+            } else if let Some(args) = MOUSE_INPUT_EVENT.on_unhandled(update) {
+                if args.state == ButtonState::Pressed {
+                    pos = Some(args.position);
+                    args.propagation().stop();
+                }
+            } else if let Some(args) = TOUCH_INPUT_EVENT.on_unhandled(update) {
+                if args.phase == TouchPhase::Start {
+                    pos = Some(args.position);
+                    args.propagation().stop();
+                }
+            }
+
+            if let Some(pos) = pos {
+                let track_info = WIDGET.info();
+                let track_bounds = track_info.inner_bounds();
+                let track_orientation = SLIDER_DIRECTION_VAR.get();
+
+                let (track_min, track_max) = match track_orientation.layout(layout_direction) {
+                    SliderDirection::LeftToRight => (track_bounds.min_x(), track_bounds.max_x()),
+                    SliderDirection::RightToLeft => (track_bounds.max_x(), track_bounds.min_x()),
+                    SliderDirection::BottomToTop => (track_bounds.max_y(), track_bounds.min_y()),
+                    SliderDirection::TopToBottom => (track_bounds.min_y(), track_bounds.max_y()),
+                    _ => unreachable!(),
+                };
+                let cursor = if track_orientation.is_horizontal() {
+                    pos.x.to_px(track_info.tree().scale_factor())
+                } else {
+                    pos.y.to_px(track_info.tree().scale_factor())
+                };
+                let new_offset = (cursor - track_min).0 as f32 / (track_max - track_min).abs().0 as f32;
+                let new_offset = new_offset.fct().clamp_range();
+
+                let selector = crate::SELECTOR.get();
+                selector.set(new_offset, new_offset);
+            }
         }
         UiNodeOp::Update { updates } => {
             if let Some(thumb_fn) = THUMB_FN_VAR.get_new() {
                 thumbs.deinit_all();
-                thumb_vars.clear();
                 thumbs.clear();
 
-                for value in SELECTOR.get().thumbs() {
-                    let var = zng_var::var(value);
-                    let thumb = thumb_fn(ThumbArgs { thumb: var.clone() });
-                    thumb_vars.push(var);
-                    thumbs.push(thumb);
+                let thumbs_var = SELECTOR.get().thumbs();
+                let thumbs_len = thumbs_var.with(|t| t.len());
+                thumbs.reserve(thumbs_len);
+                for i in 0..thumbs_len {
+                    let thumb_var = thumbs_var.map(move |t| {
+                        t.get(i).copied().unwrap_or(ThumbValue {
+                            offset: 0.fct(),
+                            n_of: (0, 0),
+                        })
+                    });
+                    thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var.boxed() }))
                 }
 
                 thumbs.init_all();
@@ -598,32 +621,32 @@ fn slider_track_node() -> impl UiNode {
 
                 // sync views and vars with updated SELECTOR thumbs
 
-                let mut thumb_values = SELECTOR.get().thumbs();
-                match thumb_values.len().cmp(&thumb_vars.len()) {
+                let thumbs_var = SELECTOR.get().thumbs();
+                let thumbs_len = thumbs_var.with(|t| t.len());
+
+                match thumbs_len.cmp(&thumbs.len()) {
                     std::cmp::Ordering::Less => {
                         // now has less thumbs
-                        for mut drop in thumbs.drain(thumb_values.len()..) {
+                        for mut drop in thumbs.drain(thumbs_len..) {
                             drop.deinit();
                         }
-                        thumb_vars.truncate(thumbs.len());
                     }
                     std::cmp::Ordering::Greater => {
                         // now has more thumbs
                         let thumb_fn = THUMB_FN_VAR.get();
-                        for value in thumb_values.drain(thumbs.len()..) {
-                            let var = zng_var::var(value);
-                            let mut thumb = thumb_fn(ThumbArgs { thumb: var.clone() });
-                            thumb.init();
-                            thumb_vars.push(var);
-                            thumbs.push(thumb);
+                        let from_len = thumbs.len();
+                        thumbs.reserve(thumbs_len - from_len);
+                        for i in from_len..thumbs_len {
+                            let thumb_var = thumbs_var.map(move |t| {
+                                t.get(i).copied().unwrap_or(ThumbValue {
+                                    offset: 0.fct(),
+                                    n_of: (0, 0),
+                                })
+                            });
+                            thumbs.push(thumb_fn(ThumbArgs { thumb: thumb_var.boxed() }))
                         }
                     }
                     std::cmp::Ordering::Equal => {}
-                }
-
-                // reuse thumbs
-                for (var, value) in thumb_vars.iter().zip(thumb_values) {
-                    var.set(value);
                 }
             }
         }
@@ -764,53 +787,5 @@ mod tests {
     #[test]
     fn selector_value_length() {
         selector_value_t(20.px(), 200.px());
-    }
-
-    #[test]
-    fn selector_value_set() {
-        let s = Selector::value(10u8, 0, 100);
-        s.set(10.pct(), 20.pct());
-        assert_eq!(s.thumbs()[0].offset, 0.2.fct());
-    }
-
-    #[test]
-    fn selector_range_set() {
-        let s = Selector::range(10u8..20u8, 0, 100);
-        // less then first
-        s.set(0.pct(), 5.pct());
-        assert_eq!(s.thumbs()[0].offset, 0.05.fct());
-        assert_eq!(s.thumbs()[1].offset, 0.2.fct());
-
-        // more then last
-        s.set(25.pct(), 30.pct());
-        assert_eq!(s.thumbs()[0].offset, 0.05.fct());
-        assert_eq!(s.thumbs()[1].offset, 0.3.fct());
-
-        // nearest first
-        s.set(6.pct(), 7.pct());
-        assert_eq!(s.thumbs()[0].offset, 0.07.fct());
-        assert_eq!(s.thumbs()[1].offset, 0.3.fct());
-
-        // invert
-        s.set(7.pct(), 40.pct());
-        assert_eq!(s.thumbs()[0].offset, 0.3.fct());
-        assert_eq!(s.thumbs()[1].offset, 0.4.fct());
-    }
-
-    #[test]
-    fn selector_range_set_eq() {
-        let s = Selector::range(10u8..10, 0, 100);
-        assert_eq!(s.thumbs()[0].offset, 0.1.fct());
-        assert_eq!(s.thumbs()[1].offset, 0.1.fct());
-
-        // only the last must move
-        s.set(10.pct(), 20.pct());
-        assert_eq!(s.thumbs()[0].offset, 0.1.fct());
-        assert_eq!(s.thumbs()[1].offset, 0.2.fct());
-
-        let s = Selector::range(10u8..10, 0, 100);
-        s.set(5.pct(), 5.pct());
-        assert_eq!(s.thumbs()[0].offset, 0.05.fct());
-        assert_eq!(s.thumbs()[1].offset, 0.1.fct());
     }
 }
