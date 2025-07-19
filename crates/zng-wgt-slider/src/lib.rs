@@ -169,7 +169,9 @@ impl Selector {
     }
 
     /// New with two value thumbs of type `T` that can be set any value in the `min..=max` range.
-    pub fn range<T: SelectorValue>(range: impl IntoVar<std::ops::Range<T>>, min: T, max: T) -> Self {
+    pub fn range<T: SelectorValue>(range: impl IntoVar<std::ops::Range<T>>, min: T, max: T) -> Self { 
+        // TODO(breaking) don't use Range here, it should be an inclusive type
+
         // create a selector just to get the conversion closures
         let convert = T::to_selector(zng_var::LocalVar(min.clone()).boxed(), min, max);
         Self::range_with(range.into_var(), clmv!(convert, |t| convert.to_offset(t).unwrap()), move |f| {
@@ -355,7 +357,7 @@ impl Selector {
 
     /// The selection var.
     ///
-    /// Downcast to `T` or `Range<T>` to get and set the value.
+    /// Downcast to `T`, `Range<T>` or `Vec<T>` to get and set the value.
     pub fn selection(&self) -> BoxedAnyVar {
         self.0.lock().selection()
     }
@@ -407,6 +409,8 @@ pub fn selector(child: impl UiNode, selector: impl IntoValue<Selector>) -> impl 
 }
 
 /// Widget function that converts [`ThumbArgs`] to widgets.
+/// 
+/// This property sets the [`THUMB_FN_VAR`].
 #[property(CONTEXT, default(THUMB_FN_VAR))]
 pub fn thumb_fn(child: impl UiNode, thumb: impl IntoVar<WidgetFn<ThumbArgs>>) -> impl UiNode {
     with_context_var(child, THUMB_FN_VAR, thumb)
