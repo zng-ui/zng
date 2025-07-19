@@ -662,6 +662,11 @@ impl TouchInputArgs {
             (Dip::from(offset) * signal, time.secs())
         }
     }
+
+    /// Gets position in the widget inner bounds.
+    pub fn position_wgt(&self) -> Option<PxPoint> {
+        WIDGET.win_point_to_wgt(self.position)
+    }
 }
 
 impl TouchTapArgs {
