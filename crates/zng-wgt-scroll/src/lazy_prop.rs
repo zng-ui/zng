@@ -3,16 +3,16 @@ use std::{fmt, mem};
 use crate::ScrollMode;
 use zng_wgt::prelude::*;
 
-/// Lazy loading mode of a widget.
+/// Lazy init mode of a widget.
 ///
 /// See [`lazy`] property for more details.
 ///
 /// [`lazy`]: fn@lazy
 #[derive(Clone, PartialEq)]
 pub enum LazyMode {
-    /// Node always loaded.
+    /// Node always inited.
     Disabled,
-    /// Node lazy loaded.
+    /// Node lazy inited.
     Enabled {
         /// Function that instantiates the node that replaces the widget when it is not in the init viewport.
         ///
@@ -21,7 +21,7 @@ pub enum LazyMode {
         placeholder: WidgetFn<()>,
         /// If the node is deinited when is moved out of the viewport.
         ///
-        /// If `false` the node stays loaded after the first lazy load.
+        /// If `false` the node stays inited after the first lazy init.
         ///
         /// If `true` the placeholder size is always used, this is to avoid the app entering a "flickering" loop
         /// when the actual bounds are different causing an immediate deinit. An error is logged if the placeholder

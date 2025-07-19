@@ -1,5 +1,10 @@
 # Unreleased
 
+* **Breaking** Refactor `zng::slider` API.
+    - Removed direct support to std range type, use `Selector::many` with two values.
+    - Selector `value_with` and `many_with` now expects `Sync` closures.
+    - Thumb args now uses a boxed variable to track the position.
+* Fix `Slider!` not reacting to value changes.
 * Fix inherited widget properties not showing in documentation.
 
 # 0.15.11
