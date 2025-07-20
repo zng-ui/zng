@@ -1801,7 +1801,6 @@ impl Api for App {
         self.notify(Event::Inited(Inited::new(
             vp_gen,
             is_respawn,
-            config::locale_config(),
             config::colors_config(),
             config::chrome_config(),
             self.exts.api_extensions(),
@@ -1833,6 +1832,11 @@ impl Api for App {
         let cfg = config::animations_config();
         if is_respawn || cfg != zng_view_api::config::AnimationsConfig::default() {
             self.notify(Event::AnimationsConfigChanged(cfg));
+        }
+
+        let cfg = config::locale_config();
+        if is_respawn || cfg != zng_view_api::config::LocaleConfig::default() {
+            self.notify(Event::LocaleChanged(cfg));
         }
     }
 

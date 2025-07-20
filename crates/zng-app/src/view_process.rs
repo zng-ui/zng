@@ -24,7 +24,7 @@ use zng_var::ResponderVar;
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
-    config::{ChromeConfig, ColorsConfig, LocaleConfig},
+    config::{ChromeConfig, ColorsConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::FontOptions,
@@ -572,9 +572,6 @@ event_args! {
         ///
         /// This can happen after a view-process crash or app suspension.
         pub is_respawn: bool,
-
-        /// System locale config.
-        pub locale_config: LocaleConfig,
 
         /// System preferred color scheme and accent color.
         pub colors_config: ColorsConfig,

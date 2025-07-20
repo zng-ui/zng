@@ -124,8 +124,6 @@ pub struct Inited {
     /// Available audio input and output devices.
     pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
 
-    /// System locale config.
-    pub locale_config: LocaleConfig,
     /// System preferred color scheme and colors.
     pub colors_config: ColorsConfig,
     /// Window chrome (decorations) preference.
@@ -141,7 +139,6 @@ impl Inited {
     pub fn new(
         generation: ViewProcessGen,
         is_respawn: bool,
-        locale_config: LocaleConfig,
         colors_config: ColorsConfig,
         chrome_config: ChromeConfig,
         extensions: ApiExtensions,
@@ -151,7 +148,6 @@ impl Inited {
             is_respawn,
             available_input_devices: vec![], // TODO(breaking): add to `new`
             available_audio_devices: vec![], // TODO(breaking): add to `new`
-            locale_config,
             colors_config,
             chrome_config,
             extensions,
