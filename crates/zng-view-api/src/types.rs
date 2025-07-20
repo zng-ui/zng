@@ -13,7 +13,7 @@ use crate::{
     ipc::{self, IpcBytes},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
-    raw_input::{InputDeviceEvent, InputDeviceId, InputDeviceInfo},
+    raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchPhase, TouchUpdate},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
@@ -118,30 +118,6 @@ pub struct Inited {
     pub generation: ViewProcessGen,
     /// If the view-process is a respawn from a previous crashed process.
     pub is_respawn: bool,
-
-    /// Available monitors.
-    pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
-    /// Available raw input devices.
-    pub available_input_devices: Vec<(InputDeviceId, InputDeviceInfo)>,
-    /// Available audio input and output devices.
-    pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
-
-    /// System multi-click config.
-    pub multi_click_config: MultiClickConfig,
-    /// System keyboard pressed key repeat start delay config.
-    pub key_repeat_config: KeyRepeatConfig,
-    /// System touch config.
-    pub touch_config: TouchConfig,
-    /// System font anti-aliasing config.
-    pub font_aa: FontAntiAliasing,
-    /// System animations config.
-    pub animations_config: AnimationsConfig,
-    /// System locale config.
-    pub locale_config: LocaleConfig,
-    /// System preferred color scheme and colors.
-    pub colors_config: ColorsConfig,
-    /// Window chrome (decorations) preference.
-    pub chrome_config: ChromeConfig,
     /// API extensions implemented by the view-process.
     ///
     /// The extension IDs will stay valid for the duration of the view-process.
@@ -150,34 +126,10 @@ pub struct Inited {
 impl Inited {
     /// New response.
     #[allow(clippy::too_many_arguments)] // already grouping stuff.
-    pub fn new(
-        generation: ViewProcessGen,
-        is_respawn: bool,
-        available_monitors: Vec<(MonitorId, MonitorInfo)>,
-        multi_click_config: MultiClickConfig,
-        key_repeat_config: KeyRepeatConfig,
-        touch_config: TouchConfig,
-        font_aa: FontAntiAliasing,
-        animations_config: AnimationsConfig,
-        locale_config: LocaleConfig,
-        colors_config: ColorsConfig,
-        chrome_config: ChromeConfig,
-        extensions: ApiExtensions,
-    ) -> Self {
+    pub fn new(generation: ViewProcessGen, is_respawn: bool, extensions: ApiExtensions) -> Self {
         Self {
             generation,
             is_respawn,
-            available_monitors,
-            available_input_devices: vec![], // TODO(breaking): add to `new`
-            available_audio_devices: vec![], // TODO(breaking): add to `new`
-            multi_click_config,
-            key_repeat_config,
-            touch_config,
-            font_aa,
-            animations_config,
-            locale_config,
-            colors_config,
-            chrome_config,
             extensions,
         }
     }
@@ -1097,6 +1049,46 @@ pub enum FocusResult {
     Requested,
     /// Window is already focused.
     AlreadyFocused,
+}
+
+/// Defines what raw device events the view-process instance should monitor and notify.
+///
+/// Raw device events are global and can be received even when the app has no visible window.
+///
+/// These events are disabled by default as they can impact performance or may require special security clearance,
+/// depending on the view-process implementation and operating system.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct DeviceEventsFilter {
+    /// What raw input events should be watched/send.
+    ///
+    /// Note that although the view-process will filter input device events using these flags setting
+    /// just one of them may cause a general native listener to init.
+    pub input: InputDeviceCapability,
+    // TODO(breaking): add audio.
+}
+impl DeviceEventsFilter {
+    /// Default value, no device events are needed.
+    pub fn empty() -> Self {
+        Self {
+            input: InputDeviceCapability::empty(),
+        }
+    }
+
+    /// If the filter does not include any event.
+    pub fn is_empty(&self) -> bool {
+        self.input.is_empty()
+    }
+
+    /// New with input device events needed.
+    pub fn new(input: InputDeviceCapability) -> Self {
+        Self { input }
+    }
+}
+impl Default for DeviceEventsFilter {
+    fn default() -> Self {
+        Self::empty()
+    }
 }
 
 #[cfg(test)]

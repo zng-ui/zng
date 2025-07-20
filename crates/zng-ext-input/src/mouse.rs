@@ -1151,8 +1151,6 @@ impl AppExtension for MouseManager {
             MOUSE_SV.read().multi_click_config.set(args.config);
             self.clicking.clear();
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            MOUSE_SV.read().multi_click_config.set(args.multi_click_config);
-
             if args.is_respawn {
                 self.clean_all_state();
             }

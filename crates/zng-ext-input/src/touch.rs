@@ -1065,8 +1065,6 @@ impl AppExtension for TouchManager {
         } else if let Some(args) = RAW_TOUCH_CONFIG_CHANGED_EVENT.on(update) {
             TOUCH_SV.read().touch_config.set(args.config);
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            TOUCH_SV.read().touch_config.set(args.touch_config);
-
             if args.is_respawn {
                 self.tap_gesture.clear();
                 self.transform_gesture.clear();

@@ -22,17 +22,16 @@ use zng_task::SignalOnce;
 use zng_txt::Txt;
 use zng_var::ResponderVar;
 use zng_view_api::{
-    self, DragDropId, Event, FocusResult, ViewProcessGen,
+    self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
-    config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::FontOptions,
     image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
     ipc::{IpcBytes, IpcBytesReceiver, ViewChannelError},
     window::{
-        CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
-        ResizeDirection, VideoMode, WindowButton, WindowRequest, WindowStateAll,
+        CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
+        VideoMode, WindowButton, WindowRequest, WindowStateAll,
     },
 };
 
@@ -41,7 +40,6 @@ pub(crate) use zng_view_api::{
 };
 use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
-    config::KeyRepeatConfig,
     font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
 };
@@ -129,6 +127,14 @@ impl VIEW_PROCESS {
     /// Gets the current view-process generation.
     pub fn generation(&self) -> ViewProcessGen {
         self.read().process.generation()
+    }
+
+    /// Enable/disable global device events.
+    ///
+    /// This filter affects device events not targeted at windows, such as mouse move outside windows or
+    /// key presses when the app has no focused window.
+    pub fn set_device_events_filter(&self, filter: DeviceEventsFilter) -> Result<()> {
+        self.write().process.set_device_events_filter(filter)
     }
 
     /// Sends a request to open a window and associate it with the `window_id`.
@@ -299,19 +305,13 @@ impl VIEW_PROCESS {
     }
 
     /// Spawn the View Process.
-    pub(super) fn start<F>(
-        &self,
-        view_process_exe: PathBuf,
-        view_process_env: HashMap<Txt, Txt>,
-        device_events: bool,
-        headless: bool,
-        on_event: F,
-    ) where
+    pub(super) fn start<F>(&self, view_process_exe: PathBuf, view_process_env: HashMap<Txt, Txt>, headless: bool, on_event: F)
+    where
         F: FnMut(Event) + Send + 'static,
     {
         let _s = tracing::debug_span!("VIEW_PROCESS.start").entered();
 
-        let process = zng_view_api::Controller::start(view_process_exe, view_process_env, device_events, headless, on_event);
+        let process = zng_view_api::Controller::start(view_process_exe, view_process_env, headless, on_event);
         *VIEW_PROCESS_SV.write() = Some(ViewProcessService {
             data_generation: process.generation(),
             process,
@@ -571,35 +571,6 @@ event_args! {
         ///
         /// This can happen after a view-process crash or app suspension.
         pub is_respawn: bool,
-
-        /// Monitors list.
-        pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
-
-        // TODO(breaking): add `available_input_devices` and `available_audio_devices`, or remove all of this stuff and generate
-        // many update events on init?
-        /// System multi-click config.
-        pub multi_click_config: MultiClickConfig,
-
-        /// System keyboard pressed repeat config.
-        pub key_repeat_config: KeyRepeatConfig,
-
-        /// System touch config.
-        pub touch_config: TouchConfig,
-
-        /// System font font-aliasing config.
-        pub font_aa: FontAntiAliasing,
-
-        /// System animations config.
-        pub animations_config: AnimationsConfig,
-
-        /// System locale config.
-        pub locale_config: LocaleConfig,
-
-        /// System preferred color scheme and accent color.
-        pub colors_config: ColorsConfig,
-
-        /// System window chrome preferences.
-        pub chrome_config: ChromeConfig,
 
         /// API extensions implemented by the view-process.
         ///

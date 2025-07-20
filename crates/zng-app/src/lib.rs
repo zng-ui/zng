@@ -47,6 +47,7 @@ pub use zng_layout as layout;
 use zng_txt::Txt;
 #[doc(hidden)]
 pub use zng_var as var;
+use zng_var::ArcVar;
 
 pub use zng_time::{DInstant, Deadline, INSTANT, InstantMode};
 
@@ -204,20 +205,6 @@ pub trait AppExtension: 'static {
     #[inline(always)]
     fn init(&mut self) {}
 
-    /// If the application should notify raw input device events.
-    ///
-    /// Input device events are raw input events not targeting any window, like a mouse move on any part of the screen.
-    /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
-    /// this is `false` you still get the mouse move over windows of the app.
-    ///
-    /// This is called zero or one times before [`init`](Self::init).
-    ///
-    /// Returns `false` by default.
-    #[inline(always)]
-    fn enable_input_device_events(&self) -> bool {
-        false
-    }
-
     /// Called just before [`event_ui`](Self::event_ui) when an event notifies.
     ///
     /// Extensions can handle this method to intercept event updates before the UI.
@@ -329,7 +316,6 @@ pub trait AppExtension: 'static {
 pub trait AppExtensionBoxed: 'static {
     fn register_boxed(&self, info: &mut AppExtensionsInfo);
     fn init_boxed(&mut self);
-    fn enable_input_device_events_boxed(&self) -> bool;
     fn update_preview_boxed(&mut self);
     fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates);
     fn update_boxed(&mut self);
@@ -348,10 +334,6 @@ impl<T: AppExtension> AppExtensionBoxed for T {
 
     fn init_boxed(&mut self) {
         self.init();
-    }
-
-    fn enable_input_device_events_boxed(&self) -> bool {
-        self.enable_input_device_events()
     }
 
     fn update_preview_boxed(&mut self) {
@@ -401,10 +383,6 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
 
     fn init(&mut self) {
         self.as_mut().init_boxed();
-    }
-
-    fn enable_input_device_events(&self) -> bool {
-        self.as_ref().enable_input_device_events_boxed()
     }
 
     fn update_preview(&mut self) {
@@ -464,10 +442,6 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
     fn init(&mut self) {
         let _span = UpdatesTrace::extension_span::<E>("init");
         self.0.init();
-    }
-
-    fn enable_input_device_events(&self) -> bool {
-        self.0.enable_input_device_events()
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -968,10 +942,6 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.register(info);
     }
 
-    fn enable_input_device_events(&self) -> bool {
-        self.0.enable_input_device_events() || self.1.enable_input_device_events()
-    }
-
     fn update_preview(&mut self) {
         self.0.update_preview();
         self.1.update_preview();
@@ -1035,10 +1005,6 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         for ext in self {
             ext.register(info);
         }
-    }
-
-    fn enable_input_device_events(&self) -> bool {
-        self.iter().any(|e| e.enable_input_device_events())
     }
 
     fn update_preview(&mut self) {
@@ -1172,11 +1138,14 @@ impl APP {
         APP_PROCESS_SV.read().extensions()
     }
 
-    /// If device events are enabled for the current app.
+    /// Defines what raw device events the view-process instance should monitor and notify.
     ///
-    /// See [`AppExtension::enable_input_device_events`] for more details.
-    pub fn input_device_events(&self) -> bool {
-        APP_PROCESS_SV.read().device_events
+    /// Raw device events are global and can be received even when the app has no visible window.
+    ///
+    /// These events are disabled by default as they can impact performance or may require special security clearance,
+    /// depending on the view-process implementation and operating system.
+    pub fn device_events_filter(&self) -> ArcVar<DeviceEventsFilter> {
+        APP_PROCESS_SV.read().device_events_filter.clone()
     }
 }
 
@@ -1237,21 +1206,6 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     pub fn extend<F: AppExtension>(mut self, extension: F) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         self.extensions.push(TraceAppExt(extension).boxed());
         self
-    }
-
-    /// If the application should notify raw input device events.
-    ///
-    /// Input device events are raw events not targeting any window, like a mouse move on any part of the screen.
-    /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
-    /// this is `false` you still get the mouse move over windows of the app.
-    pub fn enable_input_device_events(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        struct EnableDeviceEvents;
-        impl AppExtension for EnableDeviceEvents {
-            fn enable_input_device_events(&self) -> bool {
-                true
-            }
-        }
-        self.extend(EnableDeviceEvents)
     }
 
     // TODO(breaking) add this after adding the parameter in the view API
@@ -1328,21 +1282,6 @@ impl<E: AppExtension> AppExtended<E> {
         }
     }
 
-    /// If the application should notify raw input device events.
-    ///
-    /// Input device events are raw events not targeting any window, like a mouse move on any part of the screen.
-    /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
-    /// this is `false` you still get the mouse move over windows of the app.
-    pub fn enable_input_device_events(self) -> AppExtended<impl AppExtension> {
-        struct EnableDeviceEvents;
-        impl AppExtension for EnableDeviceEvents {
-            fn enable_input_device_events(&self) -> bool {
-                true
-            }
-        }
-        self.extend(EnableDeviceEvents)
-    }
-
     fn run_impl(self, start: impl Future<Output = ()> + Send + 'static) {
         let app = RunningApp::start(
             self._cleanup,
@@ -1417,6 +1356,7 @@ impl<E: AppExtension> AppExtended<E> {
 // this module is declared here on purpose so that advanced `impl APP` blocks show later in the docs.
 mod running;
 pub use running::*;
+use zng_view_api::DeviceEventsFilter;
 
 mod private {
     // https://rust-lang.github.io/api-guidelines/future-proofing.html#sealed-traits-protect-against-downstream-implementations-c-sealed

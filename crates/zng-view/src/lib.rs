@@ -352,7 +352,7 @@ pub(crate) struct App {
     image_cache: ImageCache,
 
     generation: ViewProcessGen,
-    device_events: bool,
+    device_events_filter: DeviceEventsFilter,
 
     windows: Vec<Window>,
     surfaces: Vec<Surface>,
@@ -399,7 +399,7 @@ impl fmt::Debug for App {
         f.debug_struct("HeadlessBackend")
             .field("app_state", &self.app_state)
             .field("generation", &self.generation)
-            .field("device_events", &self.device_events)
+            .field("device_events_filter", &self.device_events_filter)
             .field("windows", &self.windows)
             .field("surfaces", &self.surfaces)
             .finish_non_exhaustive()
@@ -412,21 +412,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
             self.exts.resumed();
             self.generation = self.generation.next();
-            let available_monitors = self.available_monitors();
-            self.notify(Event::Inited(Inited::new(
-                self.generation,
-                true,
-                available_monitors,
-                config::multi_click_config(),
-                config::key_repeat_config(),
-                config::touch_config(),
-                config::font_aa(),
-                config::animations_config(),
-                config::locale_config(),
-                config::colors_config(),
-                config::chrome_config(),
-                self.exts.api_extensions(),
-            )));
+
+            self.init(self.generation.next(), true, self.headless);
 
             winit_loop_guard.unset(&mut self.winit_loop);
         } else {
@@ -642,7 +629,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 // winit does not provide mouse move events during drag/drop,
                 // so we enable device events to get mouse move, and use native APIs to get
                 // the cursor position on the window.
-                if !self.device_events {
+                if self.device_events_filter.input.is_empty() {
                     winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Always);
                 }
                 self.drag_drop_hovered = Some((id, DipPoint::splat(Dip::new(-1000))));
@@ -655,7 +642,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             WindowEvent::DroppedFile(file) => {
                 linux_modal_dialog_bail!();
 
-                if !self.device_events {
+                if self.device_events_filter.input.is_empty() {
                     winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Never);
                 }
 
@@ -688,7 +675,7 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 linux_modal_dialog_bail!();
 
                 self.drag_drop_hovered = None;
-                if !self.device_events {
+                if self.device_events_filter.input.is_empty() {
                     winit_loop.listen_device_events(winit::event_loop::DeviceEvents::Never);
                 }
 
@@ -1022,22 +1009,25 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     w.redraw();
                 }
             }
-            AppEvent::InitDeviceEvents(enabled) => {
-                self.init_device_events(enabled, Some(winit_loop));
+            AppEvent::SetDeviceEventsFilter(filter) => {
+                self.set_device_events_filter(filter, Some(winit_loop));
             }
         }
         winit_loop_guard.unset(&mut self.winit_loop);
     }
 
     fn device_event(&mut self, winit_loop: &ActiveEventLoop, device_id: winit::event::DeviceId, event: DeviceEvent) {
-        if self.device_events {
+        let filter = self.device_events_filter.input;
+
+        if !filter.is_empty() {
             let _s = tracing::trace_span!("on_device_event", ?event);
 
             let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
             match &event {
                 DeviceEvent::Added => {
-                    let _ = self.input_device_id(device_id, InputDeviceCapability::empty()); // already notifies here                   
+                    let _ = self.input_device_id(device_id, InputDeviceCapability::empty());
+                    // already notifies here
                 }
                 DeviceEvent::Removed => {
                     if let Some(i) = self.devices.iter().position(|(_, id, _)| *id == device_id) {
@@ -1046,52 +1036,67 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                     }
                 }
                 DeviceEvent::MouseMotion { delta } => {
-                    let d_id = self.input_device_id(device_id, InputDeviceCapability::POINTER_MOTION);
-                    self.notify(Event::InputDeviceEvent {
-                        device: d_id,
-                        event: InputDeviceEvent::PointerMotion {
-                            delta: euclid::vec2(delta.0, delta.1),
-                        },
-                    });
+                    let cap = InputDeviceCapability::POINTER_MOTION;
+                    if filter.contains(cap) {
+                        let d_id = self.input_device_id(device_id, cap);
+                        self.notify(Event::InputDeviceEvent {
+                            device: d_id,
+                            event: InputDeviceEvent::PointerMotion {
+                                delta: euclid::vec2(delta.0, delta.1),
+                            },
+                        });
+                    }
                 }
                 DeviceEvent::MouseWheel { delta } => {
-                    let d_id = self.input_device_id(device_id, InputDeviceCapability::SCROLL_MOTION);
-                    self.notify(Event::InputDeviceEvent {
-                        device: d_id,
-                        event: InputDeviceEvent::ScrollMotion {
-                            delta: util::winit_mouse_wheel_delta_to_zng(*delta),
-                        },
-                    });
+                    let cap = InputDeviceCapability::SCROLL_MOTION;
+                    if filter.contains(cap) {
+                        let d_id = self.input_device_id(device_id, cap);
+                        self.notify(Event::InputDeviceEvent {
+                            device: d_id,
+                            event: InputDeviceEvent::ScrollMotion {
+                                delta: util::winit_mouse_wheel_delta_to_zng(*delta),
+                            },
+                        });
+                    }
                 }
                 DeviceEvent::Motion { axis, value } => {
-                    let d_id = self.input_device_id(device_id, InputDeviceCapability::AXIS_MOTION);
-                    self.notify(Event::InputDeviceEvent {
-                        device: d_id,
-                        event: InputDeviceEvent::AxisMotion {
-                            axis: AxisId(*axis),
-                            value: *value,
-                        },
-                    });
+                    let cap = InputDeviceCapability::AXIS_MOTION;
+                    if filter.contains(cap) {
+                        let d_id = self.input_device_id(device_id, cap);
+                        self.notify(Event::InputDeviceEvent {
+                            device: d_id,
+                            event: InputDeviceEvent::AxisMotion {
+                                axis: AxisId(*axis),
+                                value: *value,
+                            },
+                        });
+                    }
                 }
                 DeviceEvent::Button { button, state } => {
-                    let d_id = self.input_device_id(device_id, InputDeviceCapability::BUTTON);
-                    self.notify(Event::InputDeviceEvent {
-                        device: d_id,
-                        event: InputDeviceEvent::Button {
-                            button: ButtonId(*button),
-                            state: util::element_state_to_button_state(*state),
-                        },
-                    });
+                    let cap = InputDeviceCapability::BUTTON;
+                    if filter.contains(cap) {
+                        let d_id = self.input_device_id(device_id, cap);
+                        self.notify(Event::InputDeviceEvent {
+                            device: d_id,
+                            event: InputDeviceEvent::Button {
+                                button: ButtonId(*button),
+                                state: util::element_state_to_button_state(*state),
+                            },
+                        });
+                    }
                 }
                 DeviceEvent::Key(k) => {
-                    let d_id = self.input_device_id(device_id, InputDeviceCapability::KEY);
-                    self.notify(Event::InputDeviceEvent {
-                        device: d_id,
-                        event: InputDeviceEvent::Key {
-                            key_code: util::winit_physical_key_to_key_code(k.physical_key),
-                            state: util::element_state_to_key_state(k.state),
-                        },
-                    });
+                    let cap = InputDeviceCapability::KEY;
+                    if filter.contains(cap) {
+                        let d_id = self.input_device_id(device_id, cap);
+                        self.notify(Event::InputDeviceEvent {
+                            device: d_id,
+                            event: InputDeviceEvent::Key {
+                                key_code: util::winit_physical_key_to_key_code(k.physical_key),
+                                state: util::element_state_to_key_state(k.state),
+                            },
+                        });
+                    }
                 }
             }
 
@@ -1190,17 +1195,15 @@ impl IdleTrace {
     }
 }
 impl App {
-    fn init_device_events(&mut self, enabled: bool, t: Option<&ActiveEventLoop>) {
-        self.device_events = enabled;
+    fn set_device_events_filter(&mut self, filter: DeviceEventsFilter, t: Option<&ActiveEventLoop>) {
+        self.device_events_filter = filter;
 
         if let Some(t) = t {
-            if enabled {
+            if !self.device_events_filter.input.is_empty() {
                 t.listen_device_events(winit::event_loop::DeviceEvents::Always);
             } else {
                 t.listen_device_events(winit::event_loop::DeviceEvents::Never);
             }
-        } else {
-            self.device_events = false;
         }
     }
 
@@ -1306,8 +1309,8 @@ impl App {
                                 self.app.image_cache.loaded(data);
                             }
                             AppEvent::MonitorPowerChanged => {} // headless
-                            AppEvent::InitDeviceEvents(enabled) => {
-                                self.app.init_device_events(enabled, None);
+                            AppEvent::SetDeviceEventsFilter(filter) => {
+                                self.app.set_device_events_filter(filter, None);
                             }
                         },
                         Err(_) => {
@@ -1393,7 +1396,7 @@ impl App {
             event_sender,
             winit_loop: util::WinitEventLoop::default(),
             generation: ViewProcessGen::INVALID,
-            device_events: false,
+            device_events_filter: DeviceEventsFilter::empty(),
             windows: vec![],
             surfaces: vec![],
             monitors: vec![],
@@ -1679,7 +1682,7 @@ impl App {
     fn input_device_id(&mut self, device_id: winit::event::DeviceId, capability: InputDeviceCapability) -> InputDeviceId {
         if let Some((id, _, info)) = self.devices.iter_mut().find(|(_, id, _)| *id == device_id) {
             let id = *id;
-            if self.device_events && capability != InputDeviceCapability::empty() && !info.capabilities.contains(capability) {
+            if !self.device_events_filter.input.is_empty() && !capability.is_empty() && !info.capabilities.contains(capability) {
                 info.capabilities |= capability;
                 self.notify_input_devices_changed();
             }
@@ -1692,7 +1695,7 @@ impl App {
             #[cfg(windows)]
             let info = {
                 use winit::platform::windows::DeviceIdExtWindows as _;
-                if self.device_events
+                if !self.device_events_filter.input.is_empty()
                     && let Some(device_path) = device_id.persistent_identifier()
                 {
                     input_device_info::get(&device_path)
@@ -1703,7 +1706,7 @@ impl App {
 
             self.devices.push((id, device_id, info));
 
-            if self.device_events {
+            if !self.device_events_filter.input.is_empty() {
                 self.notify_input_devices_changed();
             }
 
@@ -1788,32 +1791,58 @@ impl App {
 }
 
 impl Api for App {
-    fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, device_events: bool, headless: bool) {
+    fn init(&mut self, vp_gen: ViewProcessGen, is_respawn: bool, headless: bool) {
         if self.exited {
             panic!("cannot restart exited");
         }
 
         self.generation = vp_gen;
-        self.device_events = device_events;
         self.headless = headless;
 
-        self.app_sender.send(AppEvent::InitDeviceEvents(device_events)).unwrap();
+        self.notify(Event::Inited(Inited::new(vp_gen, is_respawn, self.exts.api_extensions())));
 
         let available_monitors = self.available_monitors();
-        self.notify(Event::Inited(Inited::new(
-            vp_gen,
-            is_respawn,
-            available_monitors,
-            config::multi_click_config(),
-            config::key_repeat_config(),
-            config::touch_config(),
-            config::font_aa(),
-            config::animations_config(),
-            config::locale_config(),
-            config::colors_config(),
-            config::chrome_config(),
-            self.exts.api_extensions(),
-        )));
+        self.notify(Event::MonitorsChanged(available_monitors));
+
+        let cfg = config::multi_click_config();
+        if is_respawn || cfg != zng_view_api::config::MultiClickConfig::default() {
+            self.notify(Event::MultiClickConfigChanged(cfg));
+        }
+
+        let cfg = config::key_repeat_config();
+        if is_respawn || cfg != zng_view_api::config::KeyRepeatConfig::default() {
+            self.notify(Event::KeyRepeatConfigChanged(cfg));
+        }
+
+        let cfg = config::touch_config();
+        if is_respawn || cfg != zng_view_api::config::TouchConfig::default() {
+            self.notify(Event::TouchConfigChanged(cfg));
+        }
+
+        let cfg = config::font_aa();
+        if is_respawn || cfg != zng_view_api::config::FontAntiAliasing::default() {
+            self.notify(Event::FontAaChanged(cfg));
+        }
+
+        let cfg = config::animations_config();
+        if is_respawn || cfg != zng_view_api::config::AnimationsConfig::default() {
+            self.notify(Event::AnimationsConfigChanged(cfg));
+        }
+
+        let cfg = config::locale_config();
+        if is_respawn || cfg != zng_view_api::config::LocaleConfig::default() {
+            self.notify(Event::LocaleChanged(cfg));
+        }
+
+        let cfg = config::colors_config();
+        if is_respawn || cfg != zng_view_api::config::ColorsConfig::default() {
+            self.notify(Event::ColorsConfigChanged(cfg));
+        }
+
+        let cfg = config::chrome_config();
+        if is_respawn || cfg != zng_view_api::config::ChromeConfig::default() {
+            self.notify(Event::ChromeConfigChanged(cfg));
+        }
     }
 
     fn exit(&mut self) {
@@ -1824,6 +1853,10 @@ impl Api for App {
         }
         // not really, but just to exit winit loop
         let _ = self.app_sender.send(AppEvent::ParentProcessExited);
+    }
+
+    fn set_device_events_filter(&mut self, filter: DeviceEventsFilter) {
+        let _ = self.app_sender.send(AppEvent::SetDeviceEventsFilter(filter));
     }
 
     fn open_window(&mut self, mut config: WindowRequest) {
@@ -2392,8 +2425,8 @@ pub(crate) enum AppEvent {
     /// Image finished decoding, must call [`ImageCache::loaded`].
     ImageLoaded(ImageLoadedData),
 
-    /// Send after init with `device_events`.
-    InitDeviceEvents(bool),
+    /// Enable disable winit device events.
+    SetDeviceEventsFilter(DeviceEventsFilter),
 
     /// Send when monitor was turned on/off by the OS, need to redraw all screens to avoid blank issue.
     #[allow(unused)]

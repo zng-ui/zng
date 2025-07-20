@@ -16,7 +16,7 @@ use zng_app::{
     AppExtension,
     event::{Command, CommandMetaVar, EVENTS_L10N},
     update::EventUpdate,
-    view_process::{VIEW_PROCESS_INITED_EVENT, raw_events::RAW_LOCALE_CONFIG_CHANGED_EVENT},
+    view_process::raw_events::RAW_LOCALE_CONFIG_CHANGED_EVENT,
 };
 use zng_layout::context::LayoutDirection;
 use zng_task as task;
@@ -75,12 +75,8 @@ impl AppExtension for L10nManager {
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT
-            .on(update)
-            .map(|args| &args.config)
-            .or_else(|| VIEW_PROCESS_INITED_EVENT.on(update).map(|args| &args.locale_config))
-        {
-            L10N_SV.read().set_sys_langs(u);
+        if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT.on(update) {
+            L10N_SV.read().set_sys_langs(&u.config);
         }
     }
 }

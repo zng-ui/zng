@@ -1,9 +1,9 @@
 //! Events directly from view-process not targeting any windows.
 //!
-//! These events get emitted only if the app [`enable_input_device_events`]. When enabled they
+//! These events get emitted only if the app [`APP.device_events_filter`] allows. When enabled they
 //! can be used like [`raw_events`].
 //!
-//! [`enable_input_device_events`]: crate::AppExtended::enable_input_device_events
+//! [`APP.device_events_filter`]: crate::APP::device_events_filter
 //! [`raw_events`]: crate::view_process::raw_events
 
 use std::{collections::HashMap, fmt};
@@ -193,9 +193,9 @@ event! {
 
 /// Input devices info service.
 ///
-/// Note that this service only contains data if the app is running with [`enable_input_device_events`].
+/// Note that this service data will depend on what [`APP.device_events_filter`] is set.
 ///
-/// [`enable_input_device_events`]: crate::AppExtended::enable_input_device_events
+/// [`APP.device_events_filter`]: crate::APP::device_events_filter
 #[allow(non_camel_case_types)]
 pub struct INPUT_DEVICES;
 

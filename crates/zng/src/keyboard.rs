@@ -42,8 +42,11 @@ pub use zng_wgt_input::keyboard::{
 ///
 /// ```no_run
 /// use zng::prelude::*;
+/// use zng::app::raw_device_events::InputDeviceCapability;
 ///
-/// APP.defaults().enable_input_device_events().run_window(async {
+/// APP.defaults().run_window(async {
+///     APP.device_events_filter().modify(|f| f.to_mut().input |= InputDeviceCapability::KEY);
+///
 ///     keyboard::raw_device_events::KEY_EVENT.on_pre_event(app_hn!(|args: &keyboard::raw_device_events::KeyArgs, _| {
 ///         if args.state == keyboard::KeyState::Pressed {
 ///             println!("key pressed {:?}", args.key_code);
