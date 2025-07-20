@@ -1004,8 +1004,7 @@ impl WINDOWS {
         } else if let Some(args) = RAW_CHROME_CONFIG_CHANGED_EVENT.on(update) {
             WINDOWS_SV.read().system_chrome.set(args.config);
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            let mut wns = WINDOWS_SV.write();
-            wns.latest_colors_cfg = args.colors_config;
+            let wns = WINDOWS_SV.write();
             wns.system_chrome.set(args.chrome_config);
 
             // we skipped request fulfillment until this event.
