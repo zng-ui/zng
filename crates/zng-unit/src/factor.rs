@@ -64,24 +64,6 @@ impl Factor {
         Factor(self.0.clamp(0.0, 1.0))
     }
 
-    /// Returns the maximum of two factors.
-    #[deprecated = "use the Ord::max method"]
-    pub fn max(self, other: impl Into<Factor>) -> Factor {
-        Ord::max(self, other.into())
-    }
-
-    /// Returns the minimum of two factors.
-    #[deprecated = "use the Ord::min method"]
-    pub fn min(self, other: impl Into<Factor>) -> Factor {
-        Ord::min(self, other.into())
-    }
-
-    /// Returns `self` if `min <= self <= max`, returns `min` if `self < min` or returns `max` if `self > max`.
-    #[deprecated = "use the Ord::clamp method"]
-    pub fn clamp(self, min: impl Into<Factor>, max: impl Into<Factor>) -> Factor {
-        Ord::clamp(self, min.into(), max.into())
-    }
-
     /// Computes the absolute value of self.
     pub fn abs(self) -> Factor {
         Factor(self.0.abs())

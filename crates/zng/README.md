@@ -60,7 +60,7 @@ The example above installs `cargo-zng` and uses it to generate a new './my-app' 
 <!--do doc --readme features-->
 ## Cargo Features
 
-This crate provides 82 feature flags, 37 enabled by default.
+This crate provides 79 feature flags, 37 enabled by default.
 
 #### `"view"`
 Include the default view-process implementation.
@@ -184,20 +184,11 @@ Material Icons Rounded icon set.
 #### `"material_icons_sharp"`
 Material Icons Sharp icon set.
 
-#### `"toml"`
-[deprecated = "use config_toml"]
-
 #### `"config_toml"`
 Enable TOML config format and file watcher helper.
 
-#### `"ron"`
-[deprecated = "use config_ron"]
-
 #### `"config_ron"`
 Enable RON config format and file watcher helper.
-
-#### `"yaml"`
-[deprecated = "use config_yaml"]
 
 #### `"config_yaml"`
 Enable YAML config format and file watcher helper.

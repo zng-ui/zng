@@ -55,6 +55,4 @@ pub use zng_wgt_input::keyboard::{
 /// ```
 pub mod raw_device_events {
     pub use zng_app::view_process::raw_device_events::{KEY_EVENT, KeyArgs};
-    #[allow(deprecated)] // TODO(breaking)
-    pub use zng_app::view_process::raw_device_events::{TEXT_EVENT, TextArgs};
 }

@@ -1239,12 +1239,6 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         self
     }
 
-    /// Deprecated.
-    #[deprecated = "use `enable_input_device_events`"]
-    pub fn enable_device_events(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-        self.enable_input_device_events()
-    }
-
     /// If the application should notify raw input device events.
     ///
     /// Input device events are raw events not targeting any window, like a mouse move on any part of the screen.

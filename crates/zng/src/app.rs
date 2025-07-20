@@ -428,11 +428,6 @@ pub mod raw_device_events {
         AXIS_MOTION_EVENT, AxisId, AxisMotionArgs, INPUT_DEVICES, INPUT_DEVICES_CHANGED_EVENT, InputDeviceCapability, InputDeviceId,
         InputDeviceInfo, InputDevicesChangedArgs,
     };
-
-    #[allow(deprecated)] // TODO(breaking)
-    pub use zng_app::view_process::raw_device_events::{
-        DEVICE_ADDED_EVENT, DEVICE_REMOVED_EVENT, DeviceArgs, DeviceId, MOTION_EVENT, MotionArgs,
-    };
 }
 
 #[cfg(single_instance)]

@@ -585,18 +585,6 @@ impl TouchInputArgs {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
     }
 
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
-    }
-
     /// If the [`phase`] is start.
     ///
     /// [`phase`]: Self::phase
@@ -666,34 +654,6 @@ impl TouchInputArgs {
     /// Gets position in the widget inner bounds.
     pub fn position_wgt(&self) -> Option<PxPoint> {
         WIDGET.win_point_to_wgt(self.position)
-    }
-}
-
-impl TouchTapArgs {
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
-    }
-}
-
-impl TouchLongPressArgs {
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
     }
 }
 
@@ -850,18 +810,6 @@ impl TouchTransformArgs {
     /// [`WIDGET`]: zng_app::widget::WIDGET
     pub fn capture_allows(&self) -> bool {
         self.capture.as_ref().map(|c| c.allows()).unwrap_or(true)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
     }
 
     /// Gets the [`first_info`] and [`latest_info`] in the [`WIDGET`] inner bounds space.

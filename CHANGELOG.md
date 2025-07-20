@@ -1,5 +1,6 @@
 # Unreleased
 
+* **Breaking** Remove all deprecated items.
 * **Breaking** Refactor `zng::slider` API.
     - Removed direct support to std range type, use `Selector::many` with two values.
     - Selector `value_with` and `many_with` now expects `Sync` closures.

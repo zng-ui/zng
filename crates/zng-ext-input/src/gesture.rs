@@ -35,10 +35,10 @@ use zng_view_api::{
 };
 
 use crate::{
-    focus::{FOCUS, FocusRequest, FocusTarget},
-    keyboard::{HeadlessAppKeyboardExt, KEY_INPUT_EVENT, KeyInputArgs},
-    mouse::{MOUSE_CLICK_EVENT, MouseClickArgs},
-    touch::{TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT, TouchLongPressArgs, TouchTapArgs},
+    focus::{FocusRequest, FocusTarget, FOCUS},
+    keyboard::{HeadlessAppKeyboardExt, KeyInputArgs, KEY_INPUT_EVENT},
+    mouse::{MouseClickArgs, MOUSE_CLICK_EVENT},
+    touch::{TouchLongPressArgs, TouchTapArgs, TOUCH_LONG_PRESS_EVENT, TOUCH_TAP_EVENT},
 };
 
 /// Specific information from the source of a [`ClickArgs`].
@@ -221,18 +221,6 @@ impl From<TouchLongPressArgs> for ClickArgs {
     }
 }
 impl ClickArgs {
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
-    }
-
     /// If the event counts as *primary* click.
     ///
     /// A primary click causes the default widget function interaction.

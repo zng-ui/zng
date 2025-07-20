@@ -15,7 +15,7 @@ use zng_app::{
             RawKeyInputArgs,
         },
     },
-    widget::{WidgetId, info::InteractionPath},
+    widget::info::InteractionPath,
     window::WindowId,
 };
 use zng_app_context::app_local;
@@ -104,18 +104,6 @@ event_args! {
     }
 }
 impl KeyInputArgs {
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
-    }
-
     /// Gets the modified key for Numpad keys and the unmodified key for the rest.
     pub fn shortcut_key(&self) -> &Key {
         if matches!(self.key_location, KeyLocation::Numpad) {

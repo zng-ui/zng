@@ -1038,14 +1038,12 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
             #[allow(deprecated)] // TODO(breaking) remove this
             match &event {
                 DeviceEvent::Added => {
-                    let d_id = self.input_device_id(device_id, InputDeviceCapability::empty()); // already notifies here                   
-                    self.notify(Event::DeviceAdded(d_id));
+                    let _ = self.input_device_id(device_id, InputDeviceCapability::empty()); // already notifies here                   
                 }
                 DeviceEvent::Removed => {
                     if let Some(i) = self.devices.iter().position(|(_, id, _)| *id == device_id) {
-                        let (d_id, _, _) = self.devices.remove(i);
+                        self.devices.remove(i);
                         self.notify_input_devices_changed();
-                        self.notify(Event::DeviceRemoved(d_id));
                     }
                 }
                 DeviceEvent::MouseMotion { delta } => {
@@ -1056,10 +1054,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             delta: euclid::vec2(delta.0, delta.1),
                         },
                     });
-                    self.notify(Event::DeviceMouseMotion {
-                        device: d_id,
-                        delta: euclid::vec2(delta.0, delta.1),
-                    })
                 }
                 DeviceEvent::MouseWheel { delta } => {
                     let d_id = self.input_device_id(device_id, InputDeviceCapability::SCROLL_MOTION);
@@ -1068,10 +1062,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                         event: InputDeviceEvent::ScrollMotion {
                             delta: util::winit_mouse_wheel_delta_to_zng(*delta),
                         },
-                    });
-                    self.notify(Event::DeviceMouseWheel {
-                        device: d_id,
-                        delta: util::winit_mouse_wheel_delta_to_zng(*delta),
                     });
                 }
                 DeviceEvent::Motion { axis, value } => {
@@ -1083,11 +1073,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             value: *value,
                         },
                     });
-                    self.notify(Event::DeviceMotion {
-                        device: d_id,
-                        axis: AxisId(*axis),
-                        value: *value,
-                    })
                 }
                 DeviceEvent::Button { button, state } => {
                     let d_id = self.input_device_id(device_id, InputDeviceCapability::BUTTON);
@@ -1097,11 +1082,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             button: ButtonId(*button),
                             state: util::element_state_to_button_state(*state),
                         },
-                    });
-                    self.notify(Event::DeviceButton {
-                        device: d_id,
-                        button: ButtonId(*button),
-                        state: util::element_state_to_button_state(*state),
                     });
                 }
                 DeviceEvent::Key(k) => {
@@ -1113,11 +1093,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                             state: util::element_state_to_key_state(k.state),
                         },
                     });
-                    self.notify(Event::DeviceKey {
-                        device: d_id,
-                        key_code: util::winit_physical_key_to_key_code(k.physical_key),
-                        state: util::element_state_to_key_state(k.state),
-                    })
                 }
             }
 

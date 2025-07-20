@@ -67,49 +67,7 @@ impl fmt::Display for InputDeviceId {
     }
 }
 
-/// Deprecated.
-#[deprecated = "renamed to `InputDeviceId`"]
-pub type DeviceId = InputDeviceId;
-
-/// Deprecated.
-#[deprecated = "renamed to `PointerMotionArgs`"]
-pub type MouseMotionArgs = PointerMotionArgs;
-
-/// Deprecated.
-#[deprecated = "renamed to `ScrollMotionArgs`"]
-pub type MouseWheelArgs = ScrollMotionArgs;
-
-/// Deprecated.
-#[deprecated = "renamed to `AxisMotionArgs`"]
-pub type MotionArgs = AxisMotionArgs;
-
-/// Deprecated.
-#[deprecated = "renamed to `POINTER_MOTION_EVENT`"]
-pub use POINTER_MOTION_EVENT as MOUSE_MOTION_EVENT;
-
-/// Deprecated.
-#[deprecated = "renamed to `SCROLL_MOTION_EVENT`"]
-pub use SCROLL_MOTION_EVENT as MOUSE_WHEEL_EVENT;
-
-/// Deprecated.
-#[deprecated = "renamed to `SCROLL_MOTION_EVENT`"]
-pub use AXIS_MOTION_EVENT as MOTION_EVENT;
-
 event_args! {
-    /// Arguments for [`DEVICE_ADDED_EVENT`] and [`DEVICE_REMOVED_EVENT`].
-    #[deprecated = "use `InputDevicesChangedArgs`"]
-    pub struct DeviceArgs {
-        /// Device that was added/removed.
-        pub device_id: DeviceId,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
-        }
-    }
-
     /// Arguments for [`INPUT_DEVICES_CHANGED_EVENT`].
     pub struct InputDevicesChangedArgs {
         /// New list of available devices.
@@ -126,7 +84,7 @@ event_args! {
     /// Arguments for [`POINTER_MOTION_EVENT`].
     pub struct PointerMotionArgs {
         /// Device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Motion (x, y) delta.
         pub delta: euclid::Vector2D<f64, ()>,
@@ -142,7 +100,7 @@ event_args! {
     /// Arguments for [`SCROLL_MOTION_EVENT`].
     pub struct ScrollMotionArgs {
         /// Device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Wheel motion delta, value is in pixels if the *wheel* is a touchpad.
         pub delta: MouseScrollDelta,
@@ -158,7 +116,7 @@ event_args! {
     /// Arguments for [`AXIS_MOTION_EVENT`].
     pub struct AxisMotionArgs {
         /// Device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Analog axis.
         pub axis: AxisId,
@@ -177,7 +135,7 @@ event_args! {
     /// Arguments for the [`BUTTON_EVENT`].
     pub struct ButtonArgs {
         /// Device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Button raw id.
         pub button: ButtonId,
@@ -196,7 +154,7 @@ event_args! {
     /// Arguments for the [`KEY_EVENT`].
     pub struct KeyArgs {
         /// Keyboard device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: InputDeviceId,
 
         /// Physical key.
         pub key_code: KeyCode,
@@ -211,34 +169,9 @@ event_args! {
             list.search_all()
         }
     }
-
-    /// Arguments for the [`TEXT_EVENT`].
-    #[deprecated = "event is never fired and will be removed"]
-    pub struct TextArgs {
-        /// Device that generated the event.
-        pub device_id: DeviceId,
-
-        /// Character received.
-        pub code_point: char,
-
-        ..
-
-        /// Broadcast to all widgets.
-        fn delivery_list(&self, list: &mut UpdateDeliveryList) {
-            list.search_all()
-        }
-    }
 }
 
 event! {
-    /// A device event source was added/installed.
-    #[deprecated = "use `INPUT_DEVICES_CHANGED_EVENT`"]
-    pub static DEVICE_ADDED_EVENT: DeviceArgs;
-
-    /// A device event source was removed/un-installed.
-    #[deprecated = "use `INPUT_DEVICES_CHANGED_EVENT`"]
-    pub static DEVICE_REMOVED_EVENT: DeviceArgs;
-
     /// Raw input devices have been added or removed from the system.
     pub static INPUT_DEVICES_CHANGED_EVENT: InputDevicesChangedArgs;
 
@@ -252,17 +185,13 @@ event! {
     ///
     /// This event will be reported for all arbitrary input devices that the view-process supports on this platform,
     /// including mouse devices. If the device is a mouse device then this will be reported alongside the [`POINTER_MOTION_EVENT`].
-    pub static AXIS_MOTION_EVENT: MotionArgs;
+    pub static AXIS_MOTION_EVENT: AxisMotionArgs;
 
     /// Button press/release from a device, probably a mouse.
     pub static BUTTON_EVENT: ButtonArgs;
 
     /// Keyboard device key press.
     pub static KEY_EVENT: KeyArgs;
-
-    /// Raw text input.
-    #[deprecated = "event is never fired and will be removed"]
-    pub static TEXT_EVENT: TextArgs;
 }
 
 /// Input devices info service.
