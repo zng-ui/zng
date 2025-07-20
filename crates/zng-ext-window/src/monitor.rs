@@ -66,7 +66,8 @@ impl MONITORS {
     /// List all available monitors.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&self) -> Vec<MonitorInfo> { // TODO(breaking) turn this into a var?
+    pub fn available_monitors(&self) -> Vec<MonitorInfo> {
+        // TODO(breaking) turn this into a var?
         MONITORS_SV.read().monitors.values().cloned().collect()
     }
 

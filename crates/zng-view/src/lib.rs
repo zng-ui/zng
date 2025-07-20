@@ -147,6 +147,7 @@ use window::Window;
 use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zng_view_api::{
+    Inited,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
@@ -162,7 +163,7 @@ use zng_view_api::{
         HeadlessOpenData, HeadlessRequest, MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest,
         WindowState, WindowStateAll,
     },
-    Inited, *,
+    *,
 };
 
 use rustc_hash::FxHashMap;
@@ -1798,11 +1799,7 @@ impl Api for App {
         self.generation = vp_gen;
         self.headless = headless;
 
-        self.notify(Event::Inited(Inited::new(
-            vp_gen,
-            is_respawn,
-            self.exts.api_extensions(),
-        )));
+        self.notify(Event::Inited(Inited::new(vp_gen, is_respawn, self.exts.api_extensions())));
 
         let available_monitors = self.available_monitors();
         self.notify(Event::MonitorsChanged(available_monitors));

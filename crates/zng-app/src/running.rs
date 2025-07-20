@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{Deadline, view_process::raw_device_events::INPUT_DEVICES};
+use crate::Deadline;
 use parking_lot::Mutex;
 use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
@@ -584,7 +584,6 @@ impl<E: AppExtension> RunningApp<E> {
                 zng_view_api::Event::Inited(zng_view_api::Inited {
                     generation,
                     is_respawn,
-                    available_input_devices,
                     extensions,
                     ..
                 }) => {
@@ -596,18 +595,8 @@ impl<E: AppExtension> RunningApp<E> {
 
                     VIEW_PROCESS.handle_inited(generation, extensions.clone());
 
-                    let args = crate::view_process::ViewProcessInitedArgs::now(
-                        generation,
-                        is_respawn,
-                        extensions,
-                    );
+                    let args = crate::view_process::ViewProcessInitedArgs::now(generation, is_respawn, extensions);
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
-
-                    let devices: HashMap<_, _> = available_input_devices
-                        .into_iter()
-                        .map(|(d_id, info)| (self.input_device_id(d_id), info))
-                        .collect();
-                    INPUT_DEVICES.update(devices);
                 }
                 zng_view_api::Event::Suspended => {
                     VIEW_PROCESS.handle_suspended();

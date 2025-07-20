@@ -75,9 +75,7 @@ impl AppExtension for L10nManager {
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT
-            .on(update)
-        {
+        if let Some(u) = RAW_LOCALE_CONFIG_CHANGED_EVENT.on(update) {
             L10N_SV.read().set_sys_langs(&u.config);
         }
     }

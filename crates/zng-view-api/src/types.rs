@@ -118,12 +118,6 @@ pub struct Inited {
     pub generation: ViewProcessGen,
     /// If the view-process is a respawn from a previous crashed process.
     pub is_respawn: bool,
-
-    /// Available raw input devices.
-    pub available_input_devices: Vec<(InputDeviceId, InputDeviceInfo)>,
-    /// Available audio input and output devices.
-    pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
-
     /// API extensions implemented by the view-process.
     ///
     /// The extension IDs will stay valid for the duration of the view-process.
@@ -132,16 +126,10 @@ pub struct Inited {
 impl Inited {
     /// New response.
     #[allow(clippy::too_many_arguments)] // already grouping stuff.
-    pub fn new(
-        generation: ViewProcessGen,
-        is_respawn: bool,
-        extensions: ApiExtensions,
-    ) -> Self {
+    pub fn new(generation: ViewProcessGen, is_respawn: bool, extensions: ApiExtensions) -> Self {
         Self {
             generation,
             is_respawn,
-            available_input_devices: vec![], // TODO(breaking): add to `new`
-            available_audio_devices: vec![], // TODO(breaking): add to `new`
             extensions,
         }
     }
