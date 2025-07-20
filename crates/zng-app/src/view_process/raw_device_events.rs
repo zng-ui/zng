@@ -1,6 +1,3 @@
-#![allow(deprecated)]
-// TODO(breaking) remove this, added here because of deprecation inside `event_args!` is not applied to all
-
 //! Events directly from view-process not targeting any windows.
 //!
 //! These events get emitted only if the app [`enable_input_device_events`]. When enabled they

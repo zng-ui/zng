@@ -171,7 +171,6 @@ impl<E: AppExtension> RunningApp<E> {
             WindowId::from_raw(id.get())
         }
 
-        #[allow(deprecated)] // TODO(breaking)
         match ev {
             Event::MouseMoved {
                 window: w_id,

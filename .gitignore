@@ -12,7 +12,6 @@ wip
 cargo-timing*
 large-image.*
 examples/test*
-TODO/_local.md
 crates/zng-view-prebuilt/lib/zng_view.*
 crates/zng-view-prebuilt/lib/libzng_view.*
 **/*.mm_profdata

@@ -1,7 +1,3 @@
-#![allow(deprecated)]
-// TODO(breaking) remove this,
-// added here because deprecated enum variants show warning even when allowing for the full enum
-
 //! General event types.
 
 use crate::{

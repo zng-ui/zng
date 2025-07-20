@@ -421,7 +421,6 @@ impl SCROLL {
         self.scroll_touch(false, SCROLL_HORIZONTAL_OFFSET_VAR, OVERSCROLL_HORIZONTAL_OFFSET_VAR, delta)
     }
 
-    #[allow(deprecated)] // TODO(breaking) - remove this allow
     fn scroll_touch(&self, vertical: bool, scroll_offset_var: ContextVar<Factor>, overscroll_offset_var: ContextVar<Factor>, delta: Px) {
         let viewport = SCROLL_VIEWPORT_SIZE_VAR.get().to_array()[vertical as usize];
         let content = SCROLL_CONTENT_SIZE_VAR.get().to_array()[vertical as usize];
@@ -472,7 +471,6 @@ impl SCROLL {
         }
         let mut state = State::Increment;
         overscroll.animate(move |a, o| match &mut state {
-            #[allow(deprecated)] // TODO(breaking) - remove this allow
             State::Increment => {
                 // set the increment and start delay to animation.
                 *o.to_mut() += delta;
@@ -529,7 +527,6 @@ impl SCROLL {
         )
     }
 
-    #[allow(deprecated)] // TODO(breaking) - remove this allow
     fn scroll_touch_inertia(
         &self,
         vertical: bool,
@@ -654,7 +651,6 @@ impl SCROLL {
         let modify_scale: Box<dyn FnOnce(Factor) -> Factor> = Box::new(modify_scale);
         self.chase_zoom_impl(modify_scale);
     }
-    #[allow(deprecated)] // TODO(breaking) - remove this allow
     fn chase_zoom_impl(&self, modify_scale: impl FnOnce(Factor) -> Factor) {
         if !SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) {
             return;
@@ -734,7 +730,6 @@ impl SCROLL {
     }
 
     /// Applies the `scale` to the current zoom scale without smooth scrolling and centered on the touch point.
-    #[allow(deprecated)] // TODO(breaking) - remove this allow
     pub fn zoom_touch(&self, phase: TouchPhase, scale: Factor, center_in_viewport: euclid::Point2D<f32, Px>) {
         if !SCROLL_MODE_VAR.get().contains(ScrollMode::ZOOM) {
             return;

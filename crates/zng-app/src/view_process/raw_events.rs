@@ -6,13 +6,13 @@
 //! # Synthetic Input
 //!
 //! You can [`notify`] these events to fake hardware input, please be careful that you mimic the exact sequence a real
-//! hardware would generate, [app extensions] can assume that the raw events are correct. The [`DeviceId`] for fake
+//! hardware would generate, [app extensions] can assume that the raw events are correct. The [`InputDeviceId`] for fake
 //! input must be unique but constant for each distinctive *synthetic event source*.
 //!
 //! [app extensions]: crate::AppExtension
 //! [`RAW_KEY_INPUT_EVENT`]: crate::view_process::raw_events::RAW_KEY_INPUT_EVENT
 //! [`notify`]: crate::event::Event::notify
-//! [`DeviceId`]: crate::view_process::raw_device_events::DeviceId
+//! [`InputDeviceId`]: crate::view_process::raw_device_events::InputDeviceId
 
 use zng_layout::unit::{DipPoint, DipSideOffsets, DipSize, Factor, PxPoint, PxRect};
 use zng_txt::Txt;

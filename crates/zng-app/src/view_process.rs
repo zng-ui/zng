@@ -575,7 +575,8 @@ event_args! {
         /// Monitors list.
         pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
 
-        // TODO(breaking): add `available_input_devices` and `available_audio_devices`
+        // TODO(breaking): add `available_input_devices` and `available_audio_devices`, or remove all of this stuff and generate
+        // many update events on init?
         /// System multi-click config.
         pub multi_click_config: MultiClickConfig,
 

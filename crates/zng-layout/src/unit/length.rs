@@ -448,7 +448,6 @@ impl Length {
     /// Returns a length that resolves to the maximum layout length between `self` and `other`.
     pub fn max(&self, other: impl Into<Length>) -> Length {
         use Length::*;
-        #[allow(deprecated)] // TODO(breaking) - remove this allow, max will be resolved to the Ord::max
         match (self.clone(), other.into()) {
             (Default, Default) => Default,
             (Dip(a), Dip(b)) => Dip(a.max(b)),
@@ -473,7 +472,6 @@ impl Length {
     /// Returns a length that resolves to the minimum layout length between `self` and `other`.
     pub fn min(&self, other: impl Into<Length>) -> Length {
         use Length::*;
-        #[allow(deprecated)] // TODO(breaking) - remove this allow, min will be resolved to the Ord::max
         match (self.clone(), other.into()) {
             (Default, Default) => Default,
             (Dip(a), Dip(b)) => Dip(a.min(b)),

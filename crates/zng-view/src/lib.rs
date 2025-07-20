@@ -1035,7 +1035,6 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
             let mut winit_loop_guard = self.winit_loop.set(winit_loop);
 
-            #[allow(deprecated)] // TODO(breaking) remove this
             match &event {
                 DeviceEvent::Added => {
                     let _ = self.input_device_id(device_id, InputDeviceCapability::empty()); // already notifies here                   
