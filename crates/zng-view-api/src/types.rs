@@ -123,8 +123,7 @@ pub struct Inited {
     pub available_input_devices: Vec<(InputDeviceId, InputDeviceInfo)>,
     /// Available audio input and output devices.
     pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
-    /// System animations config.
-    pub animations_config: AnimationsConfig,
+
     /// System locale config.
     pub locale_config: LocaleConfig,
     /// System preferred color scheme and colors.
@@ -142,7 +141,6 @@ impl Inited {
     pub fn new(
         generation: ViewProcessGen,
         is_respawn: bool,
-        animations_config: AnimationsConfig,
         locale_config: LocaleConfig,
         colors_config: ColorsConfig,
         chrome_config: ChromeConfig,
@@ -153,7 +151,6 @@ impl Inited {
             is_respawn,
             available_input_devices: vec![], // TODO(breaking): add to `new`
             available_audio_devices: vec![], // TODO(breaking): add to `new`
-            animations_config,
             locale_config,
             colors_config,
             chrome_config,

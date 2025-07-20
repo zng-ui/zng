@@ -13,7 +13,7 @@ use zng_app_context::{AppScope, app_local};
 use zng_task::DEADLINE_APP;
 use zng_time::{INSTANT_APP, InstantMode};
 use zng_txt::Txt;
-use zng_var::{ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, VARS, VARS_APP, Var as _, response_var};
+use zng_var::{ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, VARS_APP, Var as _, response_var};
 use zng_view_api::{DeviceEventsFilter, raw_input::InputDeviceEvent};
 
 use crate::{
@@ -585,7 +585,6 @@ impl<E: AppExtension> RunningApp<E> {
                     generation,
                     is_respawn,
                     available_input_devices,
-                    animations_config,
                     locale_config,
                     colors_config,
                     chrome_config,
@@ -600,12 +599,9 @@ impl<E: AppExtension> RunningApp<E> {
 
                     VIEW_PROCESS.handle_inited(generation, extensions.clone());
 
-                    VARS.animations_enabled().set(animations_config.enabled);
-
                     let args = crate::view_process::ViewProcessInitedArgs::now(
                         generation,
                         is_respawn,
-                        animations_config,
                         locale_config,
                         colors_config,
                         chrome_config,

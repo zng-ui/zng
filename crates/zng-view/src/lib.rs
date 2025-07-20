@@ -1801,7 +1801,6 @@ impl Api for App {
         self.notify(Event::Inited(Inited::new(
             vp_gen,
             is_respawn,
-            config::animations_config(),
             config::locale_config(),
             config::colors_config(),
             config::chrome_config(),
@@ -1829,6 +1828,11 @@ impl Api for App {
         let cfg = config::font_aa();
         if is_respawn || cfg != zng_view_api::config::FontAntiAliasing::default() {
             self.notify(Event::FontAaChanged(cfg));
+        }
+
+        let cfg = config::animations_config();
+        if is_respawn || cfg != zng_view_api::config::AnimationsConfig::default() {
+            self.notify(Event::AnimationsConfigChanged(cfg));
         }
     }
 

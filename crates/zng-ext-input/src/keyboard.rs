@@ -231,10 +231,6 @@ impl AppExtension for KeyboardManager {
             }
         } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
             let mut kb = KEYBOARD_SV.write();
-            kb.caret_animation_config.set((
-                args.animations_config.caret_blink_interval,
-                args.animations_config.caret_blink_timeout,
-            ));
 
             if args.is_respawn {
                 kb.clear_modifiers();
