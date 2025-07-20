@@ -124,8 +124,6 @@ pub struct Inited {
     /// Available audio input and output devices.
     pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
 
-    /// System touch config.
-    pub touch_config: TouchConfig,
     /// System font anti-aliasing config.
     pub font_aa: FontAntiAliasing,
     /// System animations config.
@@ -147,7 +145,6 @@ impl Inited {
     pub fn new(
         generation: ViewProcessGen,
         is_respawn: bool,
-        touch_config: TouchConfig,
         font_aa: FontAntiAliasing,
         animations_config: AnimationsConfig,
         locale_config: LocaleConfig,
@@ -160,7 +157,6 @@ impl Inited {
             is_respawn,
             available_input_devices: vec![], // TODO(breaking): add to `new`
             available_audio_devices: vec![], // TODO(breaking): add to `new`
-            touch_config,
             font_aa,
             animations_config,
             locale_config,

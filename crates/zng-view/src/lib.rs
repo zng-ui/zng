@@ -1801,7 +1801,6 @@ impl Api for App {
         self.notify(Event::Inited(Inited::new(
             vp_gen,
             is_respawn,
-            config::touch_config(),
             config::font_aa(),
             config::animations_config(),
             config::locale_config(),
@@ -1821,6 +1820,11 @@ impl Api for App {
         let cfg = config::key_repeat_config();
         if is_respawn || cfg != zng_view_api::config::KeyRepeatConfig::default() {
             self.notify(Event::KeyRepeatConfigChanged(cfg));
+        }
+
+        let cfg = config::touch_config();
+        if is_respawn || cfg != zng_view_api::config::TouchConfig::default() {
+            self.notify(Event::TouchConfigChanged(cfg));
         }
     }
 

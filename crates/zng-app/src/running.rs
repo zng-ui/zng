@@ -585,7 +585,6 @@ impl<E: AppExtension> RunningApp<E> {
                     generation,
                     is_respawn,
                     available_input_devices,
-                    touch_config,
                     font_aa,
                     animations_config,
                     locale_config,
@@ -607,7 +606,6 @@ impl<E: AppExtension> RunningApp<E> {
                     let args = crate::view_process::ViewProcessInitedArgs::now(
                         generation,
                         is_respawn,
-                        touch_config,
                         font_aa,
                         animations_config,
                         locale_config,

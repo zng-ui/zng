@@ -24,7 +24,7 @@ use zng_var::ResponderVar;
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
-    config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, TouchConfig},
+    config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::FontOptions,
@@ -572,9 +572,6 @@ event_args! {
         ///
         /// This can happen after a view-process crash or app suspension.
         pub is_respawn: bool,
-
-        /// System touch config.
-        pub touch_config: TouchConfig,
 
         /// System font font-aliasing config.
         pub font_aa: FontAntiAliasing,
