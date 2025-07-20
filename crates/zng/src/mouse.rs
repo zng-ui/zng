@@ -63,6 +63,4 @@ pub mod raw_device_events {
     pub use zng_app::view_process::raw_device_events::{
         BUTTON_EVENT, ButtonArgs, POINTER_MOTION_EVENT, PointerMotionArgs, SCROLL_MOTION_EVENT, ScrollMotionArgs,
     };
-    #[allow(deprecated)] // TODO(breaking)
-    pub use zng_app::view_process::raw_device_events::{MOUSE_MOTION_EVENT, MOUSE_WHEEL_EVENT, MouseMotionArgs, MouseWheelArgs};
 }

@@ -462,18 +462,6 @@ impl MouseInputArgs {
         self.target.contains(widget_id)
     }
 
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
-    }
-
     /// If the [`button`] is the primary.
     ///
     /// [`button`]: Self::button
@@ -507,18 +495,6 @@ impl MouseInputArgs {
 }
 
 impl MouseClickArgs {
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
-    }
-
     /// If the [`button`](Self::button) is the primary.
     pub fn is_primary(&self) -> bool {
         self.button == MouseButton::Left
@@ -623,18 +599,6 @@ impl MouseWheelArgs {
     /// [`modifiers`]: Self::modifiers
     pub fn zoom_delta(&self) -> Option<MouseScrollDelta> {
         if self.is_zoom() { Some(self.delta) } else { None }
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_enabled`"]
-    pub fn is_enabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_enabled(widget_id)
-    }
-
-    /// Deprecated
-    #[deprecated = "use `target.contains_disabled`"]
-    pub fn is_disabled(&self, widget_id: WidgetId) -> bool {
-        self.target.contains_disabled(widget_id)
     }
 
     /// Gets position in the widget inner bounds.

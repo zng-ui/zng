@@ -221,8 +221,8 @@ pub fn img_scale_ppi(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl Ui
 /// [`Align`]: zng_wgt::prelude::Align
 /// [`img_align`]: fn@crate::img_align
 #[property(CONTEXT, default(IMAGE_ALIGN_VAR), widget_impl(Image))]
-pub fn img_align(child: impl UiNode, fit: impl IntoVar<Align>) -> impl UiNode {
-    with_context_var(child, IMAGE_ALIGN_VAR, fit) // TODO(breaking) rename fit to align
+pub fn img_align(child: impl UiNode, align: impl IntoVar<Align>) -> impl UiNode {
+    with_context_var(child, IMAGE_ALIGN_VAR, align)
 }
 
 /// Sets a [`Point`] that is an offset applied to all inner images within each image widget area.

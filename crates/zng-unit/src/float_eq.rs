@@ -43,10 +43,3 @@ pub fn about_eq_ord(a: f32, b: f32, granularity: f32) -> std::cmp::Ordering {
 pub const EQ_GRANULARITY: f32 = 0.00001;
 /// Minimal bucket size for equality between values in around the 1.0..=100.0 scale.
 pub const EQ_GRANULARITY_100: f32 = 0.001;
-
-/// Minimal difference between values in around the 0.0..=1.0 scale.
-#[deprecated = "use EQ_GRANULARITY"]
-pub const EQ_EPSILON: f32 = 0.00001;
-/// Minimal difference between values in around the 1.0..=100.0 scale.
-#[deprecated = "use EQ_GRANULARITY_100"]
-pub const EQ_EPSILON_100: f32 = 0.001;

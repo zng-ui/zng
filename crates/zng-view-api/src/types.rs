@@ -1,7 +1,3 @@
-#![allow(deprecated)]
-// TODO(breaking) remove this,
-// added here because deprecated enum variants show warning even when allowing for the full enum
-
 //! General event types.
 
 use crate::{
@@ -16,7 +12,7 @@ use crate::{
     image::{ImageId, ImageLoadedData, ImagePpi},
     ipc::{self, IpcBytes},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
-    mouse::{ButtonId, ButtonState, MouseButton, MouseScrollDelta},
+    mouse::{ButtonState, MouseButton, MouseScrollDelta},
     raw_input::{InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchPhase, TouchUpdate},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
@@ -98,10 +94,6 @@ declare_id! {
     /// The View Process defines the ID.
     pub struct ViewProcessGen(_);
 }
-
-/// Deprecated
-#[deprecated = "use `InputDeviceId`"]
-pub type DeviceId = crate::raw_input::InputDeviceId;
 
 /// Identifier for a specific analog axis on some device.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -321,7 +313,7 @@ pub enum Event {
         /// Window that received the key event.
         window: WindowId,
         /// Device that generated the key event.
-        device: DeviceId,
+        device: InputDeviceId,
         /// Physical key.
         key_code: KeyCode,
         /// If the key was pressed or released.
@@ -362,7 +354,7 @@ pub enum Event {
         /// Window that received the cursor move.
         window: WindowId,
         /// Device that generated the cursor move.
-        device: DeviceId,
+        device: InputDeviceId,
 
         /// Cursor positions in between the previous event and this one.
         coalesced_pos: Vec<DipPoint>,
@@ -376,21 +368,21 @@ pub enum Event {
         /// Window that now is hovered by the cursor.
         window: WindowId,
         /// Device that generated the cursor move event.
-        device: DeviceId,
+        device: InputDeviceId,
     },
     /// The mouse cursor has left the window.
     MouseLeft {
         /// Window that is no longer hovered by the cursor.
         window: WindowId,
         /// Device that generated the cursor move event.
-        device: DeviceId,
+        device: InputDeviceId,
     },
     /// A mouse wheel movement or touchpad scroll occurred.
     MouseWheel {
         /// Window that was hovered by the cursor when the mouse wheel was used.
         window: WindowId,
         /// Device that generated the mouse wheel event.
-        device: DeviceId,
+        device: InputDeviceId,
         /// Delta of change in the mouse scroll wheel state.
         delta: MouseScrollDelta,
         /// Touch state if the device that generated the event is a touchpad.
@@ -401,7 +393,7 @@ pub enum Event {
         /// Window that was hovered by the cursor when the mouse button was used.
         window: WindowId,
         /// Mouse device that generated the event.
-        device: DeviceId,
+        device: InputDeviceId,
         /// If the button was pressed or released.
         state: ButtonState,
         /// The mouse button.
@@ -412,7 +404,7 @@ pub enum Event {
         /// Window that was hovered when the touchpad was touched.
         window: WindowId,
         /// Touchpad device.
-        device: DeviceId,
+        device: InputDeviceId,
         /// Pressure level between 0 and 1.
         pressure: f32,
         /// Click level.
@@ -423,7 +415,7 @@ pub enum Event {
         /// Window that was focused when the motion was realized.
         window: WindowId,
         /// Analog device.
-        device: DeviceId,
+        device: InputDeviceId,
         /// Axis.
         axis: AxisId,
         /// Motion value.
@@ -434,7 +426,7 @@ pub enum Event {
         /// Window that was touched.
         window: WindowId,
         /// Touch device.
-        device: DeviceId,
+        device: InputDeviceId,
 
         /// Coalesced touch updates, never empty.
         touches: Vec<TouchUpdate>,
@@ -552,70 +544,12 @@ pub enum Event {
     /// System window chrome (decorations) preference changed.
     ChromeConfigChanged(ChromeConfig),
 
-    /// Device added or installed.
-    #[deprecated = "use `InputDevicesChanged`"]
-    DeviceAdded(DeviceId),
-    /// Device removed.
-    #[deprecated = "use `InputDevicesChanged`"]
-    DeviceRemoved(DeviceId),
-
     /// Raw input device event.
     InputDeviceEvent {
         /// Device that generated the event.
-        device: DeviceId,
+        device: InputDeviceId,
         /// Event.
         event: InputDeviceEvent,
-    },
-
-    /// Mouse pointer motion.
-    ///
-    /// The values if the delta of movement (x, y), not position.
-    #[deprecated = "use `InputDeviceEvent`"]
-    DeviceMouseMotion {
-        /// Device that generated the event.
-        device: DeviceId,
-        /// Delta of change in the cursor position.
-        delta: euclid::Vector2D<f64, ()>,
-    },
-    /// Mouse scroll wheel turn.
-    #[deprecated = "use `InputDeviceEvent`"]
-    DeviceMouseWheel {
-        /// Mouse device that generated the event.
-        device: DeviceId,
-        /// Delta of change in the mouse scroll wheel state.
-        delta: MouseScrollDelta,
-    },
-    /// Motion on some analog axis.
-    ///
-    /// This includes the mouse device and any other that fits.
-    #[deprecated = "use `InputDeviceEvent`"]
-    DeviceMotion {
-        /// Device that generated the event.
-        device: DeviceId,
-        /// Device dependent axis of the motion.
-        axis: AxisId,
-        /// Device dependent value.
-        value: f64,
-    },
-    /// Device button press or release.
-    #[deprecated = "use `InputDeviceEvent`"]
-    DeviceButton {
-        /// Device that generated the event.
-        device: DeviceId,
-        /// Device dependent button that was used.
-        button: ButtonId,
-        /// If the button was pressed or released.
-        state: ButtonState,
-    },
-    /// Device key press or release.
-    #[deprecated = "use `InputDeviceEvent`"]
-    DeviceKey {
-        /// Device that generated the key event.
-        device: DeviceId,
-        /// Physical key.
-        key_code: KeyCode,
-        /// If the key was pressed or released.
-        state: KeyState,
     },
 
     /// User responded to a native message dialog.
@@ -720,18 +654,6 @@ impl Event {
                 }
             }
 
-            // raw mouse motion.
-            #[allow(deprecated)]
-            (
-                DeviceMouseMotion { device, delta },
-                DeviceMouseMotion {
-                    device: n_device,
-                    delta: n_delta,
-                },
-            ) if *device == n_device => {
-                *delta += n_delta;
-            }
-
             // wheel scroll.
             (
                 MouseWheel {
@@ -766,38 +688,6 @@ impl Event {
                     phase: n_phase,
                 },
             ) if *window == n_window && *device == n_device && *phase == n_phase => {
-                *delta_x += n_delta_x;
-                *delta_y += n_delta_y;
-            }
-
-            // raw wheel scroll.
-            #[allow(deprecated)]
-            (
-                DeviceMouseWheel {
-                    device,
-                    delta: MouseScrollDelta::LineDelta(delta_x, delta_y),
-                },
-                DeviceMouseWheel {
-                    device: n_device,
-                    delta: MouseScrollDelta::LineDelta(n_delta_x, n_delta_y),
-                },
-            ) if *device == n_device => {
-                *delta_x += n_delta_x;
-                *delta_y += n_delta_y;
-            }
-
-            // raw trackpad scroll-move.
-            #[allow(deprecated)]
-            (
-                DeviceMouseWheel {
-                    device,
-                    delta: MouseScrollDelta::PixelDelta(delta_x, delta_y),
-                },
-                DeviceMouseWheel {
-                    device: n_device,
-                    delta: MouseScrollDelta::PixelDelta(n_delta_x, n_delta_y),
-                },
-            ) if *device == n_device => {
                 *delta_x += n_delta_x;
                 *delta_y += n_delta_y;
             }

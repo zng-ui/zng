@@ -77,7 +77,7 @@ impl<E: AppExtension> RunningApp<E> {
             let _t = INSTANT_APP.pause_for_update();
             extensions.register(&mut info);
         }
-        let device_events = extensions.enable_device_events();
+        let device_events = extensions.enable_input_device_events();
 
         {
             let mut sv = APP_PROCESS_SV.write();
@@ -171,7 +171,6 @@ impl<E: AppExtension> RunningApp<E> {
             WindowId::from_raw(id.get())
         }
 
-        #[allow(deprecated)] // TODO(breaking)
         match ev {
             Event::MouseMoved {
                 window: w_id,
@@ -510,43 +509,6 @@ impl<E: AppExtension> RunningApp<E> {
                     }
                     _ => {}
                 }
-            }
-
-            Event::DeviceAdded(d_id) => {
-                let args = DeviceArgs::now(self.input_device_id(d_id));
-                self.notify_event(DEVICE_ADDED_EVENT.new_update(args), observer);
-            }
-            Event::DeviceRemoved(d_id) => {
-                let args = DeviceArgs::now(self.input_device_id(d_id));
-                self.notify_event(DEVICE_REMOVED_EVENT.new_update(args), observer);
-            }
-            Event::DeviceMouseMotion { device: d_id, delta } => {
-                let args = MouseMotionArgs::now(self.input_device_id(d_id), delta);
-                self.notify_event(MOUSE_MOTION_EVENT.new_update(args), observer);
-            }
-            Event::DeviceMouseWheel { device: d_id, delta } => {
-                let args = MouseWheelArgs::now(self.input_device_id(d_id), delta);
-                self.notify_event(MOUSE_WHEEL_EVENT.new_update(args), observer);
-            }
-            Event::DeviceMotion { device: d_id, axis, value } => {
-                let args = MotionArgs::now(self.input_device_id(d_id), axis, value);
-                self.notify_event(MOTION_EVENT.new_update(args), observer);
-            }
-            Event::DeviceButton {
-                device: d_id,
-                button,
-                state,
-            } => {
-                let args = ButtonArgs::now(self.input_device_id(d_id), button, state);
-                self.notify_event(BUTTON_EVENT.new_update(args), observer);
-            }
-            Event::DeviceKey {
-                device: d_id,
-                key_code,
-                state,
-            } => {
-                let args = KeyArgs::now(self.input_device_id(d_id), key_code, state);
-                self.notify_event(KEY_EVENT.new_update(args), observer);
             }
 
             Event::LowMemory => {

@@ -520,7 +520,7 @@ context_local! {
     static LAIDOUT_TEXT: RwLock<LaidoutText> = RwLock::new(LaidoutText::no_context());
     /// Represents a list of events send from rich text leaves to other leaves.
     static RICH_TEXT_NOTIFY: RwLock<Vec<EventUpdate>> = RwLock::new(RichText::no_dispatch_context());
-    /// TODO refactor into RichCaretInfo private field next breaking change.
+    /// TODO(breaking) refactor into RichCaretInfo private field.
     static RICH_TEXT_SELECTION_STARTED_BY_ALT: RwLock<bool> = RwLock::new(false);
 }
 
