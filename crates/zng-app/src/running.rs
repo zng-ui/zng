@@ -584,7 +584,6 @@ impl<E: AppExtension> RunningApp<E> {
                 zng_view_api::Event::Inited(zng_view_api::Inited {
                     generation,
                     is_respawn,
-                    available_monitors,
                     available_input_devices,
                     multi_click_config,
                     key_repeat_config,
@@ -605,17 +604,11 @@ impl<E: AppExtension> RunningApp<E> {
 
                     VIEW_PROCESS.handle_inited(generation, extensions.clone());
 
-                    let monitors: Vec<_> = available_monitors
-                        .into_iter()
-                        .map(|(id, info)| (VIEW_PROCESS.monitor_id(id), info))
-                        .collect();
-
                     VARS.animations_enabled().set(animations_config.enabled);
 
                     let args = crate::view_process::ViewProcessInitedArgs::now(
                         generation,
                         is_respawn,
-                        monitors,
                         multi_click_config,
                         key_repeat_config,
                         touch_config,

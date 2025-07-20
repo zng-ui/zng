@@ -412,11 +412,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
             self.exts.resumed();
             self.generation = self.generation.next();
-            let available_monitors = self.available_monitors();
             self.notify(Event::Inited(Inited::new(
                 self.generation,
                 true,
-                available_monitors,
                 config::multi_click_config(),
                 config::key_repeat_config(),
                 config::touch_config(),
@@ -427,6 +425,9 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
                 config::chrome_config(),
                 self.exts.api_extensions(),
             )));
+
+            let available_monitors = self.available_monitors();
+            self.notify(Event::MonitorsChanged(available_monitors));
 
             winit_loop_guard.unset(&mut self.winit_loop);
         } else {
@@ -1811,11 +1812,9 @@ impl Api for App {
         self.generation = vp_gen;
         self.headless = headless;
 
-        let available_monitors = self.available_monitors();
         self.notify(Event::Inited(Inited::new(
             vp_gen,
             is_respawn,
-            available_monitors,
             config::multi_click_config(),
             config::key_repeat_config(),
             config::touch_config(),
@@ -1826,6 +1825,9 @@ impl Api for App {
             config::chrome_config(),
             self.exts.api_extensions(),
         )));
+
+        let available_monitors = self.available_monitors();
+        self.notify(Event::MonitorsChanged(available_monitors));
     }
 
     fn exit(&mut self) {

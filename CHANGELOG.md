@@ -1,9 +1,8 @@
 # Unreleased
 
 * **Breaking** Refactored how view-process config events notify. !!: TODO
-    - Initial config state now reported as events.
-    - All config and monitors info removed from `ViewProcessInitedArgs`.
-    - View-process only notifies non default configs on first init, notifies all on respawn.
+    - Initial non default config state now reported as events on init.
+    - All config and monitors info removed from `ViewProcessInitedArgs` and related API.
 
 * **Breaking** Refactored how raw device events are enabled on the view-process.
     - Now can dynamically enable/disable and with more precision of what kind of events.

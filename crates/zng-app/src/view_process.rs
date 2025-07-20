@@ -31,8 +31,8 @@ use zng_view_api::{
     image::{ImageMaskMode, ImagePpi, ImageRequest, ImageTextureId},
     ipc::{IpcBytes, IpcBytesReceiver, ViewChannelError},
     window::{
-        CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, MonitorInfo, RenderMode,
-        ResizeDirection, VideoMode, WindowButton, WindowRequest, WindowStateAll,
+        CursorIcon, FocusIndicator, FrameRequest, FrameUpdateRequest, HeadlessOpenData, HeadlessRequest, RenderMode, ResizeDirection,
+        VideoMode, WindowButton, WindowRequest, WindowStateAll,
     },
 };
 
@@ -573,9 +573,6 @@ event_args! {
         ///
         /// This can happen after a view-process crash or app suspension.
         pub is_respawn: bool,
-
-        /// Monitors list.
-        pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
 
         // TODO(breaking): add `available_input_devices` and `available_audio_devices`, or remove all of this stuff and generate
         // many update events on init?

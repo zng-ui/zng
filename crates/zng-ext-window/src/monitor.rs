@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use zng_app::event::{AnyEventArgs, event, event_args};
 use zng_app::update::EventUpdate;
-use zng_app::view_process::VIEW_PROCESS_INITED_EVENT;
 use zng_app::view_process::raw_events::{RAW_MONITORS_CHANGED_EVENT, RAW_SCALE_FACTOR_CHANGED_EVENT, RawMonitorsChangedArgs};
 use zng_app::window::{MonitorId, WINDOW, WindowId};
 use zng_app_context::app_local;
@@ -67,7 +66,7 @@ impl MONITORS {
     /// List all available monitors.
     ///
     /// Is empty if no monitor was found or the app is running in headless mode without renderer.
-    pub fn available_monitors(&self) -> Vec<MonitorInfo> {
+    pub fn available_monitors(&self) -> Vec<MonitorInfo> { // TODO(breaking) turn this into a var?
         MONITORS_SV.read().monitors.values().cloned().collect()
     }
 
@@ -120,9 +119,6 @@ impl MonitorsService {
             }
         } else if let Some(args) = RAW_MONITORS_CHANGED_EVENT.on(update) {
             MONITORS_SV.write().on_monitors_changed(args);
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            let args = RawMonitorsChangedArgs::new(args.timestamp, args.propagation().clone(), args.available_monitors.clone());
-            MONITORS_SV.write().on_monitors_changed(&args);
         }
     }
 }
@@ -222,7 +218,12 @@ pub struct MonitorInfo {
 }
 impl fmt::Debug for MonitorInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MonitorFullInfo").field("id", &self.id).finish_non_exhaustive()
+        f.debug_struct("MonitorInfo")
+            .field("id", &self.id)
+            .field("name", &self.name.get())
+            .field("position", &self.position.get())
+            .field("size", &self.size.get())
+            .finish_non_exhaustive()
     }
 }
 impl MonitorInfo {

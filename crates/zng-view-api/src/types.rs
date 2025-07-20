@@ -119,8 +119,6 @@ pub struct Inited {
     /// If the view-process is a respawn from a previous crashed process.
     pub is_respawn: bool,
 
-    /// Available monitors.
-    pub available_monitors: Vec<(MonitorId, MonitorInfo)>,
     /// Available raw input devices.
     pub available_input_devices: Vec<(InputDeviceId, InputDeviceInfo)>,
     /// Available audio input and output devices.
@@ -153,7 +151,6 @@ impl Inited {
     pub fn new(
         generation: ViewProcessGen,
         is_respawn: bool,
-        available_monitors: Vec<(MonitorId, MonitorInfo)>,
         multi_click_config: MultiClickConfig,
         key_repeat_config: KeyRepeatConfig,
         touch_config: TouchConfig,
@@ -167,7 +164,6 @@ impl Inited {
         Self {
             generation,
             is_respawn,
-            available_monitors,
             available_input_devices: vec![], // TODO(breaking): add to `new`
             available_audio_devices: vec![], // TODO(breaking): add to `new`
             multi_click_config,
