@@ -147,7 +147,6 @@ use window::Window;
 use zng_txt::Txt;
 use zng_unit::{Dip, DipPoint, DipRect, DipSideOffsets, DipSize, Factor, Px, PxPoint, PxRect, PxToDip};
 use zng_view_api::{
-    Inited,
     api_extension::{ApiExtensionId, ApiExtensionPayload},
     dialog::{DialogId, FileDialog, MsgDialog, MsgDialogResponse},
     drag_drop::*,
@@ -163,7 +162,7 @@ use zng_view_api::{
         HeadlessOpenData, HeadlessRequest, MonitorId, MonitorInfo, VideoMode, WindowChanged, WindowId, WindowOpenData, WindowRequest,
         WindowState, WindowStateAll,
     },
-    *,
+    Inited, *,
 };
 
 use rustc_hash::FxHashMap;
@@ -412,22 +411,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
             self.exts.resumed();
             self.generation = self.generation.next();
-            self.notify(Event::Inited(Inited::new(
-                self.generation,
-                true,
-                config::multi_click_config(),
-                config::key_repeat_config(),
-                config::touch_config(),
-                config::font_aa(),
-                config::animations_config(),
-                config::locale_config(),
-                config::colors_config(),
-                config::chrome_config(),
-                self.exts.api_extensions(),
-            )));
 
-            let available_monitors = self.available_monitors();
-            self.notify(Event::MonitorsChanged(available_monitors));
+            self.init(self.generation.next(), true, self.headless);
 
             winit_loop_guard.unset(&mut self.winit_loop);
         } else {
@@ -1040,7 +1025,8 @@ impl winit::application::ApplicationHandler<AppEvent> for App {
 
             match &event {
                 DeviceEvent::Added => {
-                    let _ = self.input_device_id(device_id, InputDeviceCapability::empty()); // already notifies here                   
+                    let _ = self.input_device_id(device_id, InputDeviceCapability::empty());
+                    // already notifies here
                 }
                 DeviceEvent::Removed => {
                     if let Some(i) = self.devices.iter().position(|(_, id, _)| *id == device_id) {
@@ -1815,7 +1801,6 @@ impl Api for App {
         self.notify(Event::Inited(Inited::new(
             vp_gen,
             is_respawn,
-            config::multi_click_config(),
             config::key_repeat_config(),
             config::touch_config(),
             config::font_aa(),
@@ -1828,6 +1813,11 @@ impl Api for App {
 
         let available_monitors = self.available_monitors();
         self.notify(Event::MonitorsChanged(available_monitors));
+
+        let cfg = config::multi_click_config();
+        if is_respawn || cfg != zng_view_api::config::MultiClickConfig::default() {
+            self.notify(Event::MultiClickConfigChanged(cfg));
+        }
     }
 
     fn exit(&mut self) {

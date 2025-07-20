@@ -24,7 +24,7 @@ use zng_var::ResponderVar;
 use zng_view_api::{
     self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
-    config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
+    config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
     drag_drop::{DragDropData, DragDropEffect, DragDropError},
     font::FontOptions,
@@ -573,11 +573,6 @@ event_args! {
         ///
         /// This can happen after a view-process crash or app suspension.
         pub is_respawn: bool,
-
-        // TODO(breaking): add `available_input_devices` and `available_audio_devices`, or remove all of this stuff and generate
-        // many update events on init?
-        /// System multi-click config.
-        pub multi_click_config: MultiClickConfig,
 
         /// System keyboard pressed repeat config.
         pub key_repeat_config: KeyRepeatConfig,
