@@ -1,11 +1,10 @@
 //! Slider thumb widget.
 
-use zng_ext_input::mouse::MOUSE_MOVE_EVENT;
 use zng_wgt::prelude::*;
 use zng_wgt_input::{focus::FocusableMix, pointer_capture::capture_pointer};
 use zng_wgt_style::{Style, StyleMix, impl_style_fn, style_fn};
 
-use crate::{SLIDER_DIRECTION_VAR, SliderDirection, ThumbValue, WidgetInfoExt as _};
+use crate::{SLIDER_DIRECTION_VAR, SliderDirection, ThumbValue};
 
 /// Slider thumb widget.
 #[widget($crate::thumb::Thumb {
@@ -29,6 +28,8 @@ impl Thumb {
         widget_set! {
             self;
             style_base_fn = style_fn!(|_| DefaultStyle!());
+            // this to enable visual feedback on thumb (is_cap_hovered)
+            // the SliderTrack also captures the subtree
             capture_pointer = true;
         }
     }
@@ -73,53 +74,13 @@ pub fn value(thumb: impl IntoVar<ThumbValue>) {}
 /// Handles mouse and touch drag, applies the thumb offset as translation on layout.
 fn thumb_event_layout_node(child: impl UiNode, value: impl IntoVar<ThumbValue>) -> impl UiNode {
     let value = value.into_var();
-    let mut layout_direction = LayoutDirection::LTR;
     match_node(child, move |c, op| match op {
         UiNodeOp::Init => {
-            WIDGET.sub_var_layout(&value).sub_event(&MOUSE_MOVE_EVENT);
-        }
-        UiNodeOp::Event { update } => {
-            c.event(update);
-            if let Some(args) = MOUSE_MOVE_EVENT.on_unhandled(update) {
-                if let Some(c) = &args.capture {
-                    if c.target.widget_id() == WIDGET.id() {
-                        let thumb_info = WIDGET.info();
-                        let track_info = match thumb_info.slider_track() {
-                            Some(i) => i,
-                            None => {
-                                tracing::error!("slider::Thumb is not inside a slider_track");
-                                return;
-                            }
-                        };
-                        args.propagation().stop();
-
-                        let track_bounds = track_info.inner_bounds();
-                        let track_orientation = SLIDER_DIRECTION_VAR.get();
-
-                        let (track_min, track_max) = match track_orientation.layout(layout_direction) {
-                            SliderDirection::LeftToRight => (track_bounds.min_x(), track_bounds.max_x()),
-                            SliderDirection::RightToLeft => (track_bounds.max_x(), track_bounds.min_x()),
-                            SliderDirection::BottomToTop => (track_bounds.max_y(), track_bounds.min_y()),
-                            SliderDirection::TopToBottom => (track_bounds.min_y(), track_bounds.max_y()),
-                            _ => unreachable!(),
-                        };
-                        let cursor = if track_orientation.is_horizontal() {
-                            args.position.x.to_px(track_info.tree().scale_factor())
-                        } else {
-                            args.position.y.to_px(track_info.tree().scale_factor())
-                        };
-                        let new_offset = (cursor - track_min).0 as f32 / (track_max - track_min).abs().0 as f32;
-
-                        let selector = crate::SELECTOR.get();
-                        selector.set(value.get().offset(), new_offset.fct().clamp_range());
-                        WIDGET.update();
-                    }
-                }
-            }
+            WIDGET.sub_var_layout(&value);
         }
         UiNodeOp::Layout { wl, final_size } => {
             *final_size = c.layout(wl);
-            layout_direction = LAYOUT.direction();
+            let layout_direction = LAYOUT.direction();
 
             // max if bounded, otherwise min.
             let c = LAYOUT.constraints();
@@ -141,6 +102,7 @@ fn thumb_event_layout_node(child: impl UiNode, value: impl IntoVar<ThumbValue>) 
             };
             wl.translate(offset);
         }
+        // Actual "drag" is implemented by the parent SliderTrack
         _ => {}
     })
 }
