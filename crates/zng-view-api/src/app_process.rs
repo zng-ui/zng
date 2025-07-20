@@ -49,7 +49,6 @@ pub struct Controller {
     event_listener: Option<EventListenerJoin>,
     headless: bool,
     same_process: bool,
-    device_events: bool,
     last_respawn: Option<Instant>,
     fast_respawn_count: u8,
 }
@@ -76,22 +75,15 @@ impl Controller {
     ///
     /// [`current_exe`]: std::env::current_exe
     /// [`VERSION`]: crate::VERSION
-    pub fn start<F>(
-        view_process_exe: PathBuf,
-        view_process_env: HashMap<Txt, Txt>,
-        device_events: bool,
-        headless: bool,
-        on_event: F,
-    ) -> Self
+    pub fn start<F>(view_process_exe: PathBuf, view_process_env: HashMap<Txt, Txt>, headless: bool, on_event: F) -> Self
     where
         F: FnMut(Event) + Send + 'static,
     {
-        Self::start_impl(view_process_exe, view_process_env, device_events, headless, Box::new(on_event))
+        Self::start_impl(view_process_exe, view_process_env, headless, Box::new(on_event))
     }
     fn start_impl(
         view_process_exe: PathBuf,
         view_process_env: HashMap<Txt, Txt>,
-        device_events: bool,
         headless: bool,
         mut on_event: Box<dyn FnMut(Event) + Send>,
     ) -> Self {
@@ -122,7 +114,6 @@ impl Controller {
             response_receiver,
             event_listener: Some(ev),
             headless,
-            device_events,
             generation: ViewProcessGen::first(),
             is_respawn: false,
             last_respawn: None,
@@ -137,7 +128,7 @@ impl Controller {
     }
 
     fn try_init(&mut self) -> VpResult<()> {
-        self.init(self.generation, self.is_respawn, self.device_events, self.headless)?;
+        self.init(self.generation, self.is_respawn, self.headless)?;
         Ok(())
     }
 
@@ -154,11 +145,6 @@ impl Controller {
     /// If is running in headless mode.
     pub fn headless(&self) -> bool {
         self.headless
-    }
-
-    /// If device events are enabled.
-    pub fn device_events(&self) -> bool {
-        self.device_events
     }
 
     /// If is running both view and app in the same process.

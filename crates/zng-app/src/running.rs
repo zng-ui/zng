@@ -14,7 +14,7 @@ use zng_task::DEADLINE_APP;
 use zng_time::{INSTANT_APP, InstantMode};
 use zng_txt::Txt;
 use zng_var::{ArcVar, ReadOnlyArcVar, ResponderVar, ResponseVar, VARS, VARS_APP, Var as _, response_var};
-use zng_view_api::raw_input::InputDeviceEvent;
+use zng_view_api::{DeviceEventsFilter, raw_input::InputDeviceEvent};
 
 use crate::{
     APP, AppControlFlow, AppEventObserver, AppExtension, AppExtensionsInfo, DInstant, INSTANT,
@@ -77,11 +77,10 @@ impl<E: AppExtension> RunningApp<E> {
             let _t = INSTANT_APP.pause_for_update();
             extensions.register(&mut info);
         }
-        let device_events = extensions.enable_input_device_events();
 
         {
             let mut sv = APP_PROCESS_SV.write();
-            sv.set_extensions(info, device_events);
+            sv.set_extensions(info);
         }
 
         if with_renderer && view_process_exe.is_none() {
@@ -93,7 +92,7 @@ impl<E: AppExtension> RunningApp<E> {
         #[cfg(target_arch = "wasm32")]
         let view_process_exe = std::path::PathBuf::from("<wasm>");
 
-        let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, view_process_env, device_events);
+        let process = AppIntrinsic::pre_init(is_headed, with_renderer, view_process_exe, view_process_env);
 
         {
             let _s = tracing::debug_span!("extensions.init").entered();
@@ -1239,13 +1238,7 @@ struct PendingExit {
 }
 impl AppIntrinsic {
     /// Pre-init intrinsic services and commands, must be called before extensions init.
-    pub(super) fn pre_init(
-        is_headed: bool,
-        with_renderer: bool,
-        view_process_exe: PathBuf,
-        view_process_env: HashMap<Txt, Txt>,
-        device_events: bool,
-    ) -> Self {
+    pub(super) fn pre_init(is_headed: bool, with_renderer: bool, view_process_exe: PathBuf, view_process_env: HashMap<Txt, Txt>) -> Self {
         APP_PROCESS_SV
             .read()
             .pause_time_for_updates
@@ -1265,12 +1258,12 @@ impl AppIntrinsic {
             debug_assert!(with_renderer);
 
             let view_evs_sender = UPDATES.sender();
-            VIEW_PROCESS.start(view_process_exe, view_process_env, device_events, false, move |ev| {
+            VIEW_PROCESS.start(view_process_exe, view_process_env, false, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
         } else if with_renderer {
             let view_evs_sender = UPDATES.sender();
-            VIEW_PROCESS.start(view_process_exe, view_process_env, false, true, move |ev| {
+            VIEW_PROCESS.start(view_process_exe, view_process_env, true, move |ev| {
                 let _ = view_evs_sender.send_view_event(ev);
             });
         }
@@ -1297,7 +1290,14 @@ impl AppIntrinsic {
 }
 impl AppExtension for AppIntrinsic {
     fn event_preview(&mut self, update: &mut EventUpdate) {
-        if let Some(args) = EXIT_CMD.on(update) {
+        if VIEW_PROCESS_INITED_EVENT.has(update) {
+            let filter = APP_PROCESS_SV.read().device_events_filter.get();
+            if !filter.is_empty() {
+                if let Err(e) = VIEW_PROCESS.set_device_events_filter(filter) {
+                    tracing::error!("cannot set device events on the view-process, {e}");
+                }
+            }
+        } else if let Some(args) = EXIT_CMD.on(update) {
             args.handle_enabled(&self.exit_handle, |_| {
                 APP.exit();
             });
@@ -1305,7 +1305,13 @@ impl AppExtension for AppIntrinsic {
     }
 
     fn update(&mut self) {
-        if let Some(response) = APP_PROCESS_SV.write().take_requests() {
+        let mut sv = APP_PROCESS_SV.write();
+        if let Some(filter) = sv.device_events_filter.get_new() {
+            if let Err(e) = VIEW_PROCESS.set_device_events_filter(filter) {
+                tracing::error!("cannot set device events on the view-process, {e}");
+            }
+        }
+        if let Some(response) = sv.take_requests() {
             let args = ExitRequestedArgs::now();
             self.pending_exit = Some(PendingExit {
                 handle: args.propagation().clone(),
@@ -1379,7 +1385,7 @@ app_local! {
     pub(super) static APP_PROCESS_SV: AppProcessService = AppProcessService {
         exit_requests: None,
         extensions: None,
-        device_events: false,
+        device_events_filter: zng_var::var(Default::default()),
         pause_time_for_updates: zng_var::var(true),
         is_suspended: zng_var::var(false),
     };
@@ -1388,7 +1394,7 @@ app_local! {
 pub(super) struct AppProcessService {
     exit_requests: Option<ResponderVar<ExitCancelled>>,
     extensions: Option<Arc<AppExtensionsInfo>>,
-    pub(super) device_events: bool,
+    pub(crate) device_events_filter: ArcVar<DeviceEventsFilter>,
     pause_time_for_updates: ArcVar<bool>,
     is_suspended: ArcVar<bool>,
 }
@@ -1414,9 +1420,8 @@ impl AppProcessService {
             .unwrap_or_else(|| Arc::new(AppExtensionsInfo { infos: vec![] }))
     }
 
-    pub(super) fn set_extensions(&mut self, info: AppExtensionsInfo, device_events: bool) {
+    pub(super) fn set_extensions(&mut self, info: AppExtensionsInfo) {
         self.extensions = Some(Arc::new(info));
-        self.device_events = device_events;
     }
 }
 

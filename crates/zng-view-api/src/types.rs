@@ -13,7 +13,7 @@ use crate::{
     ipc::{self, IpcBytes},
     keyboard::{Key, KeyCode, KeyLocation, KeyState},
     mouse::{ButtonState, MouseButton, MouseScrollDelta},
-    raw_input::{InputDeviceEvent, InputDeviceId, InputDeviceInfo},
+    raw_input::{InputDeviceCapability, InputDeviceEvent, InputDeviceId, InputDeviceInfo},
     touch::{TouchPhase, TouchUpdate},
     window::{EventFrameRendered, FrameId, HeadlessOpenData, MonitorId, MonitorInfo, WindowChanged, WindowId, WindowOpenData},
 };
@@ -1097,6 +1097,46 @@ pub enum FocusResult {
     Requested,
     /// Window is already focused.
     AlreadyFocused,
+}
+
+/// Defines what raw device events the view-process instance should monitor and notify.
+///
+/// Raw device events are global and can be received even when the app has no visible window.
+///
+/// These events are disabled by default as they can impact performance or may require special security clearance,
+/// depending on the view-process implementation and operating system.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct DeviceEventsFilter {
+    /// What raw input events should be watched/send.
+    ///
+    /// Note that although the view-process will filter input device events using these flags setting
+    /// just one of them may cause a general native listener to init.
+    pub input: InputDeviceCapability,
+    // TODO(breaking): add audio.
+}
+impl DeviceEventsFilter {
+    /// Default value, no device events are needed.
+    pub fn empty() -> Self {
+        Self {
+            input: InputDeviceCapability::empty(),
+        }
+    }
+
+    /// If the filter does not include any event.
+    pub fn is_empty(&self) -> bool {
+        self.input.is_empty()
+    }
+
+    /// New with input device events needed.
+    pub fn new(input: InputDeviceCapability) -> Self {
+        Self { input }
+    }
+}
+impl Default for DeviceEventsFilter {
+    fn default() -> Self {
+        Self::empty()
+    }
 }
 
 #[cfg(test)]

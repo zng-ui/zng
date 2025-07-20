@@ -1,8 +1,17 @@
 # Unreleased
 
-* **Breaking** Renamed `AppExtension::enable_device_events` to `enable_input_device_events`.
-    - Also renamed `APP.device_events` `APP.input_device_events`.
+* **Breaking** Refactored how view-process config events notify. !!: TODO
+    - Initial config state now reported as events.
+    - All config and monitors info removed from `ViewProcessInitedArgs`.
+    - View-process only notifies non default configs on first init, notifies all on respawn.
+
+* **Breaking** Refactored how raw device events are enabled on the view-process.
+    - Now can dynamically enable/disable and with more precision of what kind of events.
+    - Removed `enable_input_device_events` and all related API from view-process controller.
+    - Added `APP.device_events_filter` variable that can be set to enable/disable device events.
+
 * **Breaking** Remove all deprecated items.
+
 * **Breaking** Refactor `zng::slider` API.
     - Removed direct support to std range type, use `Selector::many` with two values.
     - Selector `value_with` and `many_with` now expects `Sync` closures.

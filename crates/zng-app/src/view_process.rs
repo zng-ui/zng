@@ -22,7 +22,7 @@ use zng_task::SignalOnce;
 use zng_txt::Txt;
 use zng_var::ResponderVar;
 use zng_view_api::{
-    self, DragDropId, Event, FocusResult, ViewProcessGen,
+    self, DeviceEventsFilter, DragDropId, Event, FocusResult, ViewProcessGen,
     api_extension::{ApiExtensionId, ApiExtensionName, ApiExtensionPayload, ApiExtensionRecvError, ApiExtensions},
     config::{AnimationsConfig, ChromeConfig, ColorsConfig, FontAntiAliasing, LocaleConfig, MultiClickConfig, TouchConfig},
     dialog::{FileDialog, FileDialogResponse, MsgDialog, MsgDialogResponse},
@@ -129,6 +129,14 @@ impl VIEW_PROCESS {
     /// Gets the current view-process generation.
     pub fn generation(&self) -> ViewProcessGen {
         self.read().process.generation()
+    }
+
+    /// Enable/disable global device events.
+    ///
+    /// This filter affects device events not targeted at windows, such as mouse move outside windows or
+    /// key presses when the app has no focused window.
+    pub fn set_device_events_filter(&self, filter: DeviceEventsFilter) -> Result<()> {
+        self.write().process.set_device_events_filter(filter)
     }
 
     /// Sends a request to open a window and associate it with the `window_id`.
@@ -299,19 +307,13 @@ impl VIEW_PROCESS {
     }
 
     /// Spawn the View Process.
-    pub(super) fn start<F>(
-        &self,
-        view_process_exe: PathBuf,
-        view_process_env: HashMap<Txt, Txt>,
-        device_events: bool,
-        headless: bool,
-        on_event: F,
-    ) where
+    pub(super) fn start<F>(&self, view_process_exe: PathBuf, view_process_env: HashMap<Txt, Txt>, headless: bool, on_event: F)
+    where
         F: FnMut(Event) + Send + 'static,
     {
         let _s = tracing::debug_span!("VIEW_PROCESS.start").entered();
 
-        let process = zng_view_api::Controller::start(view_process_exe, view_process_env, device_events, headless, on_event);
+        let process = zng_view_api::Controller::start(view_process_exe, view_process_env, headless, on_event);
         *VIEW_PROCESS_SV.write() = Some(ViewProcessService {
             data_generation: process.generation(),
             process,
