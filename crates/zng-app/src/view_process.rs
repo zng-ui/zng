@@ -41,7 +41,6 @@ pub(crate) use zng_view_api::{
 };
 use zng_view_api::{
     clipboard::{ClipboardData, ClipboardError, ClipboardType},
-    config::KeyRepeatConfig,
     font::{FontFaceId, FontId, FontVariationName},
     image::{ImageId, ImageLoadedData},
 };
@@ -573,9 +572,6 @@ event_args! {
         ///
         /// This can happen after a view-process crash or app suspension.
         pub is_respawn: bool,
-
-        /// System keyboard pressed repeat config.
-        pub key_repeat_config: KeyRepeatConfig,
 
         /// System touch config.
         pub touch_config: TouchConfig,

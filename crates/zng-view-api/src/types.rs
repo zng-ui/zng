@@ -124,8 +124,6 @@ pub struct Inited {
     /// Available audio input and output devices.
     pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
 
-    /// System keyboard pressed key repeat start delay config.
-    pub key_repeat_config: KeyRepeatConfig,
     /// System touch config.
     pub touch_config: TouchConfig,
     /// System font anti-aliasing config.
@@ -149,7 +147,6 @@ impl Inited {
     pub fn new(
         generation: ViewProcessGen,
         is_respawn: bool,
-        key_repeat_config: KeyRepeatConfig,
         touch_config: TouchConfig,
         font_aa: FontAntiAliasing,
         animations_config: AnimationsConfig,
@@ -163,7 +160,6 @@ impl Inited {
             is_respawn,
             available_input_devices: vec![], // TODO(breaking): add to `new`
             available_audio_devices: vec![], // TODO(breaking): add to `new`
-            key_repeat_config,
             touch_config,
             font_aa,
             animations_config,

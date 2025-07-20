@@ -1801,7 +1801,6 @@ impl Api for App {
         self.notify(Event::Inited(Inited::new(
             vp_gen,
             is_respawn,
-            config::key_repeat_config(),
             config::touch_config(),
             config::font_aa(),
             config::animations_config(),
@@ -1817,6 +1816,11 @@ impl Api for App {
         let cfg = config::multi_click_config();
         if is_respawn || cfg != zng_view_api::config::MultiClickConfig::default() {
             self.notify(Event::MultiClickConfigChanged(cfg));
+        }
+
+        let cfg = config::key_repeat_config();
+        if is_respawn || cfg != zng_view_api::config::KeyRepeatConfig::default() {
+            self.notify(Event::KeyRepeatConfigChanged(cfg));
         }
     }
 
