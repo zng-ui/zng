@@ -1003,10 +1003,7 @@ impl WINDOWS {
             WINDOWS_SV.write().latest_colors_cfg = args.config;
         } else if let Some(args) = RAW_CHROME_CONFIG_CHANGED_EVENT.on(update) {
             WINDOWS_SV.read().system_chrome.set(args.config);
-        } else if let Some(args) = VIEW_PROCESS_INITED_EVENT.on(update) {
-            let wns = WINDOWS_SV.write();
-            wns.system_chrome.set(args.chrome_config);
-
+        } else if VIEW_PROCESS_INITED_EVENT.has(update) {
             // we skipped request fulfillment until this event.
             UPDATES.update(None);
         } else if let Some(args) = RAW_IMAGE_LOADED_EVENT.on(update).or_else(|| RAW_IMAGE_LOAD_ERROR_EVENT.on(update)) {

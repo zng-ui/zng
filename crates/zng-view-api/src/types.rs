@@ -124,8 +124,6 @@ pub struct Inited {
     /// Available audio input and output devices.
     pub available_audio_devices: Vec<(AudioDeviceId, AudioDeviceInfo)>,
 
-    /// Window chrome (decorations) preference.
-    pub chrome_config: ChromeConfig,
     /// API extensions implemented by the view-process.
     ///
     /// The extension IDs will stay valid for the duration of the view-process.
@@ -137,7 +135,6 @@ impl Inited {
     pub fn new(
         generation: ViewProcessGen,
         is_respawn: bool,
-        chrome_config: ChromeConfig,
         extensions: ApiExtensions,
     ) -> Self {
         Self {
@@ -145,7 +142,6 @@ impl Inited {
             is_respawn,
             available_input_devices: vec![], // TODO(breaking): add to `new`
             available_audio_devices: vec![], // TODO(breaking): add to `new`
-            chrome_config,
             extensions,
         }
     }

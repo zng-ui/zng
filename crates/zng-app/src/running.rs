@@ -585,7 +585,6 @@ impl<E: AppExtension> RunningApp<E> {
                     generation,
                     is_respawn,
                     available_input_devices,
-                    chrome_config,
                     extensions,
                     ..
                 }) => {
@@ -600,7 +599,6 @@ impl<E: AppExtension> RunningApp<E> {
                     let args = crate::view_process::ViewProcessInitedArgs::now(
                         generation,
                         is_respawn,
-                        chrome_config,
                         extensions,
                     );
                     self.notify_event(VIEW_PROCESS_INITED_EVENT.new_update(args), observer);
