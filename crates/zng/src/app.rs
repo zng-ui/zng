@@ -266,7 +266,7 @@
 //! A headed app initializes in this sequence:
 //!
 //! 1. [`AppExtension::register`] is called.
-//! 2. [`AppExtension::enable_device_events`] is queried.
+//! 2. [`AppExtension::enable_input_device_events`] is queried.
 //! 3. Spawn view-process.
 //! 4. [`AppExtension::init`] is called.
 //! 5. Schedule the app run future to run in the first preview update.

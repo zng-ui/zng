@@ -1,5 +1,7 @@
 # Unreleased
 
+* **Breaking** Renamed `AppExtension::enable_device_events` to `enable_input_device_events`.
+    - Also renamed `APP.device_events` `APP.input_device_events`.
 * **Breaking** Remove all deprecated items.
 * **Breaking** Refactor `zng::slider` API.
     - Removed direct support to std range type, use `Selector::many` with two values.

@@ -77,7 +77,7 @@ impl<E: AppExtension> RunningApp<E> {
             let _t = INSTANT_APP.pause_for_update();
             extensions.register(&mut info);
         }
-        let device_events = extensions.enable_device_events();
+        let device_events = extensions.enable_input_device_events();
 
         {
             let mut sv = APP_PROCESS_SV.write();

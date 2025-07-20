@@ -204,9 +204,9 @@ pub trait AppExtension: 'static {
     #[inline(always)]
     fn init(&mut self) {}
 
-    /// If the application should notify raw device events.
+    /// If the application should notify raw input device events.
     ///
-    /// Device events are raw events not targeting any window, like a mouse move on any part of the screen.
+    /// Input device events are raw input events not targeting any window, like a mouse move on any part of the screen.
     /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
     /// this is `false` you still get the mouse move over windows of the app.
     ///
@@ -214,7 +214,7 @@ pub trait AppExtension: 'static {
     ///
     /// Returns `false` by default.
     #[inline(always)]
-    fn enable_device_events(&self) -> bool {
+    fn enable_input_device_events(&self) -> bool {
         false
     }
 
@@ -329,7 +329,7 @@ pub trait AppExtension: 'static {
 pub trait AppExtensionBoxed: 'static {
     fn register_boxed(&self, info: &mut AppExtensionsInfo);
     fn init_boxed(&mut self);
-    fn enable_device_events_boxed(&self) -> bool;
+    fn enable_input_device_events_boxed(&self) -> bool;
     fn update_preview_boxed(&mut self);
     fn update_ui_boxed(&mut self, updates: &mut WidgetUpdates);
     fn update_boxed(&mut self);
@@ -350,8 +350,8 @@ impl<T: AppExtension> AppExtensionBoxed for T {
         self.init();
     }
 
-    fn enable_device_events_boxed(&self) -> bool {
-        self.enable_device_events()
+    fn enable_input_device_events_boxed(&self) -> bool {
+        self.enable_input_device_events()
     }
 
     fn update_preview_boxed(&mut self) {
@@ -403,8 +403,8 @@ impl AppExtension for Box<dyn AppExtensionBoxed> {
         self.as_mut().init_boxed();
     }
 
-    fn enable_device_events(&self) -> bool {
-        self.as_ref().enable_device_events_boxed()
+    fn enable_input_device_events(&self) -> bool {
+        self.as_ref().enable_input_device_events_boxed()
     }
 
     fn update_preview(&mut self) {
@@ -466,8 +466,8 @@ impl<E: AppExtension> AppExtension for TraceAppExt<E> {
         self.0.init();
     }
 
-    fn enable_device_events(&self) -> bool {
-        self.0.enable_device_events()
+    fn enable_input_device_events(&self) -> bool {
+        self.0.enable_input_device_events()
     }
 
     fn event_preview(&mut self, update: &mut EventUpdate) {
@@ -968,8 +968,8 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.register(info);
     }
 
-    fn enable_device_events(&self) -> bool {
-        self.0.enable_device_events() || self.1.enable_device_events()
+    fn enable_input_device_events(&self) -> bool {
+        self.0.enable_input_device_events() || self.1.enable_input_device_events()
     }
 
     fn update_preview(&mut self) {
@@ -1037,8 +1037,8 @@ impl AppExtension for Vec<Box<dyn AppExtensionBoxed>> {
         }
     }
 
-    fn enable_device_events(&self) -> bool {
-        self.iter().any(|e| e.enable_device_events())
+    fn enable_input_device_events(&self) -> bool {
+        self.iter().any(|e| e.enable_input_device_events())
     }
 
     fn update_preview(&mut self) {
@@ -1174,8 +1174,8 @@ impl APP {
 
     /// If device events are enabled for the current app.
     ///
-    /// See [`AppExtension::enable_device_events`] for more details.
-    pub fn device_events(&self) -> bool {
+    /// See [`AppExtension::enable_input_device_events`] for more details.
+    pub fn input_device_events(&self) -> bool {
         APP_PROCESS_SV.read().device_events
     }
 }
@@ -1247,7 +1247,7 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
     pub fn enable_input_device_events(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         struct EnableDeviceEvents;
         impl AppExtension for EnableDeviceEvents {
-            fn enable_device_events(&self) -> bool {
+            fn enable_input_device_events(&self) -> bool {
                 true
             }
         }
@@ -1328,15 +1328,15 @@ impl<E: AppExtension> AppExtended<E> {
         }
     }
 
-    /// If the application should notify raw device events.
+    /// If the application should notify raw input device events.
     ///
-    /// Device events are raw events not targeting any window, like a mouse move on any part of the screen.
+    /// Input device events are raw events not targeting any window, like a mouse move on any part of the screen.
     /// They tend to be high-volume events so there is a performance cost to activating this. Note that if
     /// this is `false` you still get the mouse move over windows of the app.
-    pub fn enable_device_events(self) -> AppExtended<impl AppExtension> {
+    pub fn enable_input_device_events(self) -> AppExtended<impl AppExtension> {
         struct EnableDeviceEvents;
         impl AppExtension for EnableDeviceEvents {
-            fn enable_device_events(&self) -> bool {
+            fn enable_input_device_events(&self) -> bool {
                 true
             }
         }
