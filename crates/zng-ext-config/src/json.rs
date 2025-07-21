@@ -16,11 +16,20 @@ impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_json::Value> {
     }
 
     fn get_raw(&self, key: &ConfigKey) -> Result<Option<RawConfigValue>, Arc<dyn std::error::Error + Send + Sync>> {
-        Ok(self.get(key).map(|v| RawConfigValue(v.clone())))
+        match self.get(key) {
+            Some(sv) => match RawConfigValue::serialize(sv) {
+                Ok(v) => Ok(Some(v)),
+                Err(e) => Err(Arc::new(e)),
+            },
+            None => Ok(None),
+        }
     }
 
     fn set_raw(map: &mut VarModify<Self>, key: ConfigKey, value: RawConfigValue) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
-        let value = value.0;
+        let value = match value.deserialize() {
+            Ok(v) => v,
+            Err(e) => return Err(Arc::new(e)),
+        };
         if map.get(&key) != Some(&value) {
             map.to_mut().insert(key, value);
         }

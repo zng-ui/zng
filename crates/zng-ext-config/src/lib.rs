@@ -14,9 +14,6 @@
 mod fallback;
 pub use fallback::*;
 
-mod json;
-pub use json::*;
-
 mod swap;
 pub use swap::*;
 
@@ -25,6 +22,11 @@ pub use switch::*;
 
 mod sync;
 pub use sync::*;
+
+#[cfg(feature = "json")]
+mod json;
+#[cfg(feature = "json")]
+pub use json::*;
 
 #[cfg(feature = "toml")]
 mod toml;
@@ -164,17 +166,19 @@ pub trait ConfigValue: VarValue + serde::Serialize + serde::de::DeserializeOwned
 impl<T: VarValue + serde::Serialize + serde::de::DeserializeOwned> ConfigValue for T {}
 
 /// Represents any entry type in a config.
+#[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct RawConfigValue(pub serde_json::Value); // TODO(breaking) replace with something that can represent binary data, perhaps `rmpv`?
+#[serde(transparent)]
+pub struct RawConfigValue(pub serde_value::Value);
 impl RawConfigValue {
     /// Serialize to the raw config format.
-    pub fn serialize<T: serde::Serialize>(value: T) -> Result<Self, serde_json::Error> {
-        serde_json::to_value(value).map(Self)
+    pub fn serialize<T: serde::Serialize>(value: T) -> Result<Self, serde_value::SerializerError> {
+        serde_value::to_value(value).map(Self)
     }
 
     /// Deserialize from the raw config format.
-    pub fn deserialize<T: serde::de::DeserializeOwned>(self) -> Result<T, serde_json::Error> {
-        serde_json::from_value(self.0)
+    pub fn deserialize<T: serde::de::DeserializeOwned>(self) -> Result<T, serde_value::DeserializerError> {
+        T::deserialize(self.0)
     }
 }
 

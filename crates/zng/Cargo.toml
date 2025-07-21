@@ -201,6 +201,8 @@ material_icons_sharp = [
     "zng-wgt-material-icons/embedded",
     "zng-wgt-material-icons/sharp",
 ]
+# Enable JSON config format and file watcher helper.
+config_json = ["zng-ext-config/json"]
 # Enable TOML config format and file watcher helper.
 config_toml = ["zng-ext-config/toml"]
 # Enable RON config format and file watcher helper.
@@ -208,7 +210,7 @@ config_ron = ["zng-ext-config/ron"]
 # Enable YAML config format and file watcher helper.
 config_yaml = ["zng-ext-config/yaml"]
 # Enable all config formats an file watcher helpers.
-config_all = ["config_toml", "config_ron", "config_yaml"]
+config_all = ["config_json", "config_toml", "config_ron", "config_yaml"]
 
 # Enables software renderer fallback in the default view-process.
 #
