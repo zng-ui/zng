@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix human readable deserialization of `PxConstraints` failing when the `max` field is not set.
+
 * **Breaking** Refactor `zng::config::SyncConfig` to use a map of `RawConfigValue` directly.
     - Removed `ConfigMap` trait, now use `SyncConfigBackend` to implement custom formats.
     - All provided formats work the same on the surface, this is only breaking for custom format implementers.

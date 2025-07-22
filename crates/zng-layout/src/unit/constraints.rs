@@ -14,6 +14,7 @@ pub use euclid::BoolVector2D;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Transitionable)]
 pub struct PxConstraints {
     #[serde(with = "serde_constraints_max")]
+    #[serde(default = "serde_constraints_max_default")]
     max: Px,
     min: Px,
 
@@ -284,6 +285,9 @@ mod serde_constraints_max {
             Px::deserialize(deserializer)
         }
     }
+}
+fn serde_constraints_max_default() -> Px {
+    Px::MAX
 }
 
 /// Pixel *size* constraints.
