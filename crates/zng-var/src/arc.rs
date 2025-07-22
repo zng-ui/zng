@@ -273,6 +273,7 @@ impl<T: VarValue> Var<T> for ArcVar<T> {
         M: FnMut(&T) -> O + Send + 'static,
         B: FnMut(&O) -> T + Send + 'static,
     {
+        // TODO(breaking) why not default like bind_map_bidi?
         var_map_bidi(self, map, map_back)
     }
 

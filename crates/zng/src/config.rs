@@ -54,7 +54,7 @@
 //!
 //! The JSON, TOML, YAML and RON are available behind a feature flags, you can also implement your own source.
 //!
-//! Some *meta* sources are also provided, they enables composite sources, such as having two sources, 
+//! Some *meta* sources are also provided, they enables composite sources, such as having two sources,
 //! *default config* and *user config* where the user config file only records the non-default values.
 //!
 //! The next example demonstrates a more complex setup:
@@ -88,8 +88,8 @@
 //! See [`zng_ext_config`] for the full config API.
 
 pub use zng_ext_config::{
-    AnyConfig, CONFIG, Config, ConfigKey, ConfigStatus, ConfigValue, FallbackConfig, FallbackConfigReset, MemoryConfig,
-    RawConfigValue, ReadOnlyConfig, SwapConfig, SwitchConfig,
+    AnyConfig, CONFIG, Config, ConfigKey, ConfigStatus, ConfigValue, FallbackConfig, FallbackConfigReset, MemoryConfig, RawConfigValue,
+    ReadOnlyConfig, SwapConfig, SwitchConfig,
 };
 
 #[cfg(feature = "window")]

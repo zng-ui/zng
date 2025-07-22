@@ -12,7 +12,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 # feature "view" is required to support Android and Wasm as the prebuilt view-process only supports desktop platforms.
 # feature "android_native_activity" selects the more basic Android backend that does not require any Java to build.
-zng = { path = "../../crates/zng", features = ["view", "android_native_activity", "material_icons"] }
+zng = { path = "../../crates/zng", features = ["view", "android_native_activity", "material_icons", "config_json"] }
 tracing = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

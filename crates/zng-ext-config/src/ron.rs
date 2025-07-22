@@ -1,77 +1,16 @@
 use super::*;
 
-use ::ron as serde_ron;
+/// Represents a config source that synchronizes with a RON file.
+pub type RonConfig = SyncConfig<RonBackend>;
 
-impl ConfigMap for indexmap::IndexMap<ConfigKey, serde_ron::Value> {
-    fn empty() -> Self {
-        Self::new()
-    }
-
-    fn read(mut file: WatchFile) -> io::Result<Self> {
+#[doc(hidden)]
+pub struct RonBackend;
+impl SyncConfigBackend for RonBackend {
+    fn read(mut file: WatchFile) -> io::Result<RawConfigMap> {
         file.ron().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
-    fn write(self, file: &mut WriteFile) -> io::Result<()> {
-        file.write_ron(&self, true)
-    }
-
-    fn get_raw(&self, key: &ConfigKey) -> Result<Option<RawConfigValue>, Arc<dyn std::error::Error + Send + Sync>> {
-        match self.get(key) {
-            Some(sv) => match RawConfigValue::serialize(sv) {
-                Ok(v) => Ok(Some(v)),
-                Err(e) => Err(Arc::new(e)),
-            },
-            None => Ok(None),
-        }
-    }
-
-    fn set_raw(map: &mut VarModify<Self>, key: ConfigKey, value: RawConfigValue) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
-        let value = match value.deserialize() {
-            Ok(v) => v,
-            Err(e) => return Err(Arc::new(e)),
-        };
-        if map.get(&key) != Some(&value) {
-            map.to_mut().insert(key, value);
-        }
-        Ok(())
-    }
-
-    fn contains_key(&self, key: &ConfigKey) -> bool {
-        self.contains_key(key)
-    }
-
-    fn get<O: ConfigValue>(&self, key: &ConfigKey) -> Result<Option<O>, Arc<dyn std::error::Error + Send + Sync>> {
-        if let Some(value) = self.get(key) {
-            match value.clone().into_rust() {
-                Ok(v) => Ok(Some(v)),
-                Err(e) => Err(Arc::new(e)),
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn set<O: ConfigValue>(map: &mut VarModify<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
-        match serde_ron::to_string(&value) {
-            Ok(value) => match serde_ron::from_str(&value) {
-                Ok(value) => {
-                    if map.get(&key) != Some(&value) {
-                        map.to_mut().insert(key, value);
-                    }
-                    Ok(())
-                }
-                Err(e) => Err(Arc::new(e)),
-            },
-            Err(e) => Err(Arc::new(e)),
-        }
-    }
-
-    fn remove(map: &mut VarModify<Self>, key: &ConfigKey) {
-        if map.contains_key(key) {
-            map.to_mut().shift_remove(key);
-        }
+    fn write(file: &mut WriteFile, map: &RawConfigMap) -> io::Result<()> {
+        file.write_ron(map, true)
     }
 }
-
-/// Represents a config source that synchronizes with a RON file.
-pub type RonConfig = SyncConfig<indexmap::IndexMap<ConfigKey, serde_ron::Value>>;

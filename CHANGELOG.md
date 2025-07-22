@@ -1,8 +1,12 @@
 # Unreleased
 
+* **Breaking** Refactor `zng::config::SyncConfig` to use a map of `RawConfigValue` directly.
+    - Removed `ConfigMap` trait, now use `SyncConfigBackend` to implement custom formats.
+    - All provided formats work the same on the surface, this is only breaking for custom format implementers.
+
 * **Breaking** Refactor `zng::config::RawConfigValue` to represent the full serde data model.
-   - Removed default JSON support, use the new `"config_json"` feature to enable.
-   - Remove conversions all provided formats, can now deserialize self describing formats directly to the raw value representation.
+   - Removed default JSON support, use the new `"config_json"` feature to enable JSON config files.
+   - Remove conversion implementations and related error types, can now (de)serialize directly to `RawConfigValue`.
 
 * **Breaking** Refactor how view-process config events notify.
     - Initial non default config state now reported as events on init.

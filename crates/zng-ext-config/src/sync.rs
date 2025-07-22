@@ -1,11 +1,24 @@
-use std::{path::PathBuf, sync::atomic::AtomicBool};
+use std::{marker::PhantomData, path::PathBuf};
 
-use atomic::{Atomic, Ordering};
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::WATCHER;
-use zng_var::{ReadOnlyArcVar, VARS, VarUpdateId};
+use zng_var::{ReadOnlyArcVar, types::SourceVarTag};
 
 use super::*;
+
+/// Internal representation of configs.
+pub type RawConfigMap = indexmap::IndexMap<ConfigKey, RawConfigValue>;
+
+/// Represents a serializing/encoding backend for [`SyncConfig`].
+pub trait SyncConfigBackend: 'static {
+    /// Read/deserialize raw config from the file.
+    ///
+    /// This method runs in unblocked context.
+    fn read(file: WatchFile) -> io::Result<RawConfigMap>;
+
+    /// Write/serialize raw config to the file.
+    fn write(file: &mut WriteFile, config: &RawConfigMap) -> io::Result<()>;
+}
 
 /// Config source that auto syncs with file.
 ///
@@ -13,18 +26,19 @@ use super::*;
 /// for each key.
 ///
 /// [`WATCHER.sync`]: WATCHER::sync
-pub struct SyncConfig<M: ConfigMap> {
-    sync_var: ArcVar<M>,
+pub struct SyncConfig<B: SyncConfigBackend> {
+    sync_var: ArcVar<RawConfigMap>,
+    backend: PhantomData<fn() -> B>,
     status: ReadOnlyArcVar<ConfigStatus>,
-    shared: ConfigVars,
 }
-impl<M: ConfigMap> SyncConfig<M> {
+impl<B: SyncConfigBackend> SyncConfig<B> {
     /// Open write the `file`
     pub fn sync(file: impl Into<PathBuf>) -> Self {
+        let file = file.into();
         let (sync_var, status) = WATCHER.sync_status::<_, _, ConfigStatusError, ConfigStatusError>(
             file,
-            M::empty(),
-            |r| match (|| M::read(r?))() {
+            RawConfigMap::default(),
+            |r| match (|| B::read(r?))() {
                 Ok(ok) => Ok(Some(ok)),
                 Err(e) => {
                     tracing::error!("sync config read error, {e:?}");
@@ -34,7 +48,7 @@ impl<M: ConfigMap> SyncConfig<M> {
             |map, w| {
                 let r = (|| {
                     let mut w = w?;
-                    map.write(&mut w)?;
+                    B::write(&mut w, &map)?;
                     w.commit()
                 })();
                 match r {
@@ -49,194 +63,77 @@ impl<M: ConfigMap> SyncConfig<M> {
 
         Self {
             sync_var,
+            backend: PhantomData,
             status,
-            shared: ConfigVars::default(),
         }
-    }
-
-    fn get_new_raw(sync_var: &ArcVar<M>, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
-        // init var to already present value, or default.
-        let mut used_default = false;
-        let var = match sync_var.with(|m| ConfigMap::get_raw(m, &key)) {
-            Ok(raw) => {
-                // get ok
-                match raw {
-                    Some(raw) => var(raw),
-                    None => {
-                        used_default = true;
-                        var(default)
-                    }
-                }
-            }
-            Err(e) => {
-                // get error
-                tracing::error!("sync config get({key:?}) error, {e:?}");
-                used_default = true;
-                var(default)
-            }
-        };
-
-        if insert && used_default {
-            var.update();
-        }
-
-        // bind entry var
-
-        // config -> entry
-        let wk_var = var.downgrade();
-        let last_update = Atomic::new(VarUpdateId::never());
-        let request_update = AtomicBool::new(used_default);
-        sync_var
-            .hook(clmv!(key, |map| {
-                let update_id = VARS.update_id();
-                if update_id == last_update.load(Ordering::Relaxed) {
-                    return true;
-                }
-                last_update.store(update_id, Ordering::Relaxed);
-                if let Some(var) = wk_var.upgrade() {
-                    match map.value().get_raw(&key) {
-                        Ok(raw) => {
-                            // get ok
-                            if let Some(raw) = raw {
-                                var.set(raw);
-                                if request_update.swap(false, Ordering::Relaxed) {
-                                    // restored after reset, var can already have the value,
-                                    // but upstream bindings are stale, cause an update.
-                                    var.update();
-                                }
-                            } else {
-                                // backend lost entry but did not report as error, probably a reset.
-                                request_update.store(true, Ordering::Relaxed);
-                            }
-                        }
-                        Err(e) => {
-                            // get error
-                            tracing::error!("sync config get({key:?}) error, {e:?}");
-                        }
-                    }
-                    // retain hook
-                    true
-                } else {
-                    // entry var dropped, drop hook
-                    false
-                }
-            }))
-            .perm();
-
-        // entry -> config
-        let wk_sync_var = sync_var.downgrade();
-        let last_update = Atomic::new(VarUpdateId::never());
-        var.hook(clmv!(|value| {
-            let update_id = VARS.update_id();
-            if update_id == last_update.load(Ordering::Relaxed) {
-                return true;
-            }
-            last_update.store(update_id, Ordering::Relaxed);
-            if let Some(sync_var) = wk_sync_var.upgrade() {
-                let raw = value.value().clone();
-                sync_var.modify(clmv!(key, |m| {
-                    // set, only if actually changed
-                    match ConfigMap::set_raw(m, key.clone(), raw) {
-                        Ok(()) => {
-                            // set ok
-                        }
-                        Err(e) => {
-                            // set error
-                            tracing::error!("sync config set({key:?}) error, {e:?}");
-                        }
-                    }
-                }));
-
-                // retain hook
-                true
-            } else {
-                // config dropped, drop hook
-                false
-            }
-        }))
-        .perm();
-
-        var.boxed()
-    }
-
-    fn get_new<T: ConfigValue>(sync_var: &ArcVar<M>, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
-        // init var to already present value, or default.
-        let key = key.into();
-        let mut used_default = false;
-        let var = match sync_var.with(|m| ConfigMap::get::<T>(m, &key)) {
-            Ok(value) => match value {
-                Some(val) => var(val),
-                None => {
-                    used_default = true;
-                    var(default)
-                }
-            },
-            Err(e) => {
-                tracing::error!("sync config get({key:?}) error, {e:?}");
-                used_default = true;
-                var(default)
-            }
-        };
-
-        if insert && used_default {
-            var.update();
-        }
-
-        // bind entry var
-
-        // config -> entry
-        let wk_var = var.downgrade();
-        sync_var
-            .hook(clmv!(key, |map| {
-                if let Some(var) = wk_var.upgrade() {
-                    match map.value().get::<T>(&key) {
-                        Ok(value) => {
-                            if let Some(value) = value {
-                                var.set(value);
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!("sync config get({key:?}) error, {e:?}");
-                        }
-                    }
-                    true
-                } else {
-                    false
-                }
-            }))
-            .perm();
-
-        // entry -> config
-        let wk_sync_var = sync_var.downgrade();
-        var.hook(clmv!(|value| {
-            if let Some(sync_var) = wk_sync_var.upgrade() {
-                let value = value.value().clone();
-                sync_var.modify(clmv!(key, |m| {
-                    match ConfigMap::set(m, key.clone(), value) {
-                        Ok(()) => {}
-                        Err(e) => {
-                            tracing::error!("sync config set({key:?}) error, {e:?}");
-                        }
-                    }
-                }));
-                true
-            } else {
-                false
-            }
-        }))
-        .perm();
-
-        var.boxed()
     }
 }
-impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
-        if shared {
-            self.shared
-                .get_or_bind(key, |key| Self::get_new_raw(&self.sync_var, key.clone(), default, insert))
-        } else {
-            Self::get_new_raw(&self.sync_var, key, default, insert)
-        }
+impl<B: SyncConfigBackend> AnyConfig for SyncConfig<B> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
+        // init value
+        let current_raw_value = self.sync_var.with(|m| m.get(&key).cloned());
+        let value_var = match current_raw_value {
+            Some(v) => var(v),
+            None => {
+                if insert {
+                    self.sync_var.modify(clmv!(key, default, |args| {
+                        if !args.contains_key(&key) {
+                            args.to_mut().insert(key, default);
+                        }
+                    }));
+                }
+                var(default)
+            }
+        };
+
+        // map -> value
+        let sync_var_tag = SourceVarTag::new(&self.sync_var);
+        let value_var_weak = value_var.downgrade();
+
+        self.sync_var
+            .hook(clmv!(key, |args| match value_var_weak.upgrade() {
+                Some(value_var) => {
+                    let is_from_value_var = args.downcast_tags::<SourceVarTag>().any(|&b| b == SourceVarTag::new(&value_var));
+
+                    if !is_from_value_var && let Some(raw_value) = args.value().get(&key) {
+                        value_var.modify(clmv!(raw_value, |args| {
+                            args.set(raw_value);
+                            args.push_tag(sync_var_tag);
+                        }));
+                    }
+                    true // retain
+                }
+                None => {
+                    false
+                }
+            }))
+            .perm();
+
+        // value -> map
+        let value_var_tag = SourceVarTag::new(&value_var);
+        let sync_var_weak = self.sync_var.downgrade();
+        value_var
+            .hook(move |args| match sync_var_weak.upgrade() {
+                Some(sync_var) => {
+                    let is_from_sync_var = args.downcast_tags::<SourceVarTag>().any(|&b| b == SourceVarTag::new(&sync_var));
+
+                    if !is_from_sync_var {
+                        let raw_value = args.value().clone();
+                        sync_var.modify(clmv!(key, |args| {
+                            if args.get(&key) != Some(&raw_value) {
+                                args.to_mut().insert(key, raw_value);
+                                args.push_tag(value_var_tag);
+                            }
+                        }));
+                    }
+
+                    true
+                }
+                None => false,
+            })
+            .perm();
+
+        value_var.boxed()
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
@@ -251,19 +148,13 @@ impl<M: ConfigMap> AnyConfig for SyncConfig<M> {
         let contains = self.sync_var.with(|q| q.contains_key(key));
         if contains {
             self.sync_var.modify(clmv!(key, |m| {
-                ConfigMap::remove(m, &key);
+                if m.contains_key(&key) {
+                    m.to_mut().shift_remove(&key);
+                }
             }));
         }
         contains
     }
 
-    fn low_memory(&mut self) {
-        self.shared.low_memory();
-    }
-}
-impl<M: ConfigMap> Config for SyncConfig<M> {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
-        self.shared
-            .get_or_bind(key.into(), |key| Self::get_new(&self.sync_var, key.clone(), default, insert))
-    }
+    fn low_memory(&mut self) {}
 }

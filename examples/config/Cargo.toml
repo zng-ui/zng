@@ -5,6 +5,6 @@ publish = false
 edition = "2024"
 
 [dependencies]
-zng = { path = "../../crates/zng", features = ["view_prebuilt", "config_json", "material_icons",] }
+zng = { path = "../../crates/zng", features = ["view_prebuilt", "config_json", "material_icons", "deadlock_detection"] }
 tracing = "0.1"
 dunce = "1"
