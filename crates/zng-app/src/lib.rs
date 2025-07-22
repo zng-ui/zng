@@ -1208,11 +1208,6 @@ impl AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
         self
     }
 
-    // TODO(breaking) add this after adding the parameter in the view API
-    // pub fn enable_audio_device(self) -> AppExtended<Vec<Box<dyn AppExtensionBoxed>>> {
-    //
-    // }
-
     fn run_dyn(self, start: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
         let app = RunningApp::start(
             self._cleanup,

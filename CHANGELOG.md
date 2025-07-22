@@ -1,11 +1,21 @@
 # Unreleased
 
-* **Breaking** Refactored how view-process config events notify.
+* Fix human readable deserialization of `PxConstraints` failing when the `max` field is not set.
+
+* **Breaking** Refactor `zng::config::SyncConfig` to use a map of `RawConfigValue` directly.
+    - Removed `ConfigMap` trait, now use `SyncConfigBackend` to implement custom formats.
+    - All provided formats work the same on the surface, this is only breaking for custom format implementers.
+
+* **Breaking** Refactor `zng::config::RawConfigValue` to represent the full serde data model.
+   - Removed default JSON support, use the new `"config_json"` feature to enable JSON config files.
+   - Remove conversion implementations and related error types, can now (de)serialize directly to `RawConfigValue`.
+
+* **Breaking** Refactor how view-process config events notify.
     - Initial non default config state now reported as events on init.
     - All config and monitors info removed from `ViewProcessInitedArgs` and related API.
 * Fix  `VARS.animations_enabled` not updating when it is not set and the `sys_animations_enabled` changes. 
 
-* **Breaking** Refactored how raw device events are enabled on the view-process.
+* **Breaking** Refactor how raw device events are enabled on the view-process.
     - Now can dynamically enable/disable and with more precision of what kind of events.
     - Removed `enable_input_device_events` and all related API from view-process controller.
     - Added `APP.device_events_filter` variable that can be set to enable/disable device events.

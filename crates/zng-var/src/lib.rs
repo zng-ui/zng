@@ -1465,6 +1465,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
         O: VarValue,
         M: Fn(&T) -> &O + Send + Sync + 'static,
         B: Fn(&mut T) -> &mut O + Send + Sync + 'static;
+
     /// Setup a hook that assigns `other` with the new values of `self` transformed by `map`.
     ///
     /// Only a weak reference to the `other` variable is held, both variables update in the same app update cycle.
@@ -1496,6 +1497,7 @@ pub trait Var<T: VarValue>: IntoVar<T, Var = Self> + AnyVar + Clone {
     {
         var_bind_filter_map(self, other, map)
     }
+    // TODO(breaking) bind_modify, use it in zng-ext-config
 
     /// Bind `self` to `other` and back without causing an infinite loop.
     ///

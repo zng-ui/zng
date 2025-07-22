@@ -379,7 +379,7 @@ impl Controller {
                 if t - last_respawn < Duration::from_secs(60) {
                     self.fast_respawn_count += 1;
                     if self.fast_respawn_count == 2 {
-                        panic!("disconnect respawn happened 2 times less than 1 minute apart");
+                        panic!("disconnect respawn happened 2 times in less than 1 minute");
                     }
                 } else {
                     self.fast_respawn_count = 0;

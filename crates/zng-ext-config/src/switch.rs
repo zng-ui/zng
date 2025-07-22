@@ -1,4 +1,3 @@
-use zng_clone_move::clmv;
 use zng_var::MergeVarBuilder;
 
 use super::*;
@@ -84,9 +83,9 @@ impl AnyConfig for SwitchConfig {
         s.build(|status| ConfigStatus::merge_status(status.iter().cloned())).boxed()
     }
 
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
         match self.cfg_mut(&key) {
-            Some((key, cfg)) => cfg.get_raw(key, default, insert, shared),
+            Some((key, cfg)) => cfg.get_raw(key, default, insert),
             None => LocalVar(default).boxed(),
         }
     }
@@ -108,53 +107,6 @@ impl AnyConfig for SwitchConfig {
     fn low_memory(&mut self) {
         for c in &mut self.cfgs {
             c.cfg.low_memory();
-        }
-    }
-}
-impl Config for SwitchConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
-        let key = key.into();
-        match self.cfg_mut(&key) {
-            Some((key, cfg)) => {
-                let source_var = cfg.get_raw(
-                    key.clone(),
-                    RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
-                    insert,
-                    false,
-                );
-                let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));
-
-                source_var
-                    .bind_filter_map_bidi(
-                        &var,
-                        // Raw -> T
-                        clmv!(key, |raw| {
-                            match RawConfigValue::deserialize(raw.clone()) {
-                                Ok(value) => Some(value),
-                                Err(e) => {
-                                    tracing::error!("switch config get({key:?}) error, {e:?}");
-                                    None
-                                }
-                            }
-                        }),
-                        // T -> Raw
-                        clmv!(key, source_var, |value| {
-                            let _strong_ref = &source_var;
-
-                            match RawConfigValue::serialize(value) {
-                                Ok(raw) => Some(raw),
-                                Err(e) => {
-                                    tracing::error!("switch config set({key:?}) error, {e:?}");
-                                    None
-                                }
-                            }
-                        }),
-                    )
-                    .perm();
-
-                var.boxed()
-            }
-            None => LocalVar(default).boxed(),
         }
     }
 }

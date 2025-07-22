@@ -52,11 +52,10 @@
 //!
 //! ## Other Sources
 //!
-//! The JSON format is available by default, TOML, YAML and RON are also available behind a feature flags, you can
-//! also implement your own source.
+//! The JSON, TOML, YAML and RON are available behind a feature flags, you can also implement your own source.
 //!
-//! Some *meta* sources are also provided, they enables composite sources,
-//! such as having two sources, *default config* and *user config* where the user config file only records the non-default values.
+//! Some *meta* sources are also provided, they enables composite sources, such as having two sources,
+//! *default config* and *user config* where the user config file only records the non-default values.
 //!
 //! The next example demonstrates a more complex setup:
 //!
@@ -89,12 +88,15 @@
 //! See [`zng_ext_config`] for the full config API.
 
 pub use zng_ext_config::{
-    AnyConfig, CONFIG, Config, ConfigKey, ConfigStatus, ConfigValue, FallbackConfig, FallbackConfigReset, JsonConfig, MemoryConfig,
-    RawConfigValue, ReadOnlyConfig, SwapConfig, SwitchConfig,
+    AnyConfig, CONFIG, Config, ConfigKey, ConfigStatus, ConfigValue, FallbackConfig, FallbackConfigReset, MemoryConfig, RawConfigValue,
+    ReadOnlyConfig, SwapConfig, SwitchConfig,
 };
 
 #[cfg(feature = "window")]
 pub use zng_wgt_window::{SaveState, save_state_node};
+
+#[cfg(feature = "config_json")]
+pub use zng_ext_config::JsonConfig;
 
 #[cfg(feature = "config_ron")]
 pub use zng_ext_config::RonConfig;

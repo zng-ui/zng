@@ -15,13 +15,9 @@ pub struct SwapConfig {
     status_binding: VarHandle,
 }
 impl AnyConfig for SwapConfig {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
-        if shared {
-            self.shared
-                .get_or_bind(key, |key| self.cfg.get_mut().get_raw(key.clone(), default, insert, false))
-        } else {
-            self.cfg.get_mut().get_raw(key, default, insert, false)
-        }
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
+        self.shared
+            .get_or_bind(key, |key| self.cfg.get_mut().get_raw(key.clone(), default, insert))
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
@@ -40,14 +36,6 @@ impl AnyConfig for SwapConfig {
     fn low_memory(&mut self) {
         self.cfg.get_mut().low_memory();
         self.shared.low_memory();
-    }
-}
-impl Config for SwapConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
-        self.shared.get_or_bind(key.into(), |key| {
-            // not in shared, bind with source json var.
-            self.cfg.get_mut().get_raw_serde_bidi(key.clone(), default, insert, false)
-        })
     }
 }
 impl SwapConfig {
@@ -102,13 +90,16 @@ mod tests {
 
         let mut cfg = SwapConfig::new();
 
-        let v = cfg.get("key", true, false);
-        assert!(v.get());
-        v.set(false).unwrap();
+        let raw_true = RawConfigValue::serialize(true).unwrap();
+        let raw_false = RawConfigValue::serialize(false).unwrap();
+
+        let v = cfg.get_raw("key".into(), raw_true.clone(), false);
+        assert_eq!(v.get(), raw_true);
+        v.set(raw_false.clone()).unwrap();
         app.update(false).assert_wait();
 
-        let v2 = cfg.get("key", true, false);
-        assert!(!v2.get() && !v.get());
+        let v2 = cfg.get_raw("key".into(), raw_true, false);
+        assert!(v2.get() == raw_false && v.get() == raw_false);
         assert_eq!(v.var_ptr(), v2.var_ptr());
     }
 
@@ -121,7 +112,7 @@ mod tests {
             .run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
-        let c1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
+        let c1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
         c1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
 
@@ -142,7 +133,7 @@ mod tests {
             .run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
-        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
 
@@ -154,7 +145,7 @@ mod tests {
         assert_eq!(32, cfg.get());
 
         let mut inner2 = MemoryConfig::default();
-        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
         inner_v2.set(RawConfigValue::serialize(42).unwrap()).unwrap();
         app.update(false).assert_wait();
 
@@ -173,7 +164,7 @@ mod tests {
             .run_headless(false);
 
         let mut inner1 = MemoryConfig::default();
-        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
 
@@ -185,7 +176,7 @@ mod tests {
         assert_eq!(32, cfg.get());
 
         let mut inner2 = MemoryConfig::default();
-        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
         app.update(false).assert_wait();
 
         test.replace_source(Box::new(inner2));
@@ -208,12 +199,12 @@ mod tests {
 
         let mut fallback = MemoryConfig::default();
         fallback
-            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true)
+            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false)
             .set(RawConfigValue::serialize(100).unwrap())
             .unwrap();
 
         let mut inner1 = MemoryConfig::default();
-        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
+        let inner_v1 = inner1.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
         inner_v1.set(RawConfigValue::serialize(32).unwrap()).unwrap();
         app.update(false).assert_wait();
 
@@ -226,11 +217,11 @@ mod tests {
 
         let mut fallback = MemoryConfig::default();
         fallback
-            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true)
+            .get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false)
             .set(RawConfigValue::serialize(100).unwrap())
             .unwrap();
         let mut inner2 = MemoryConfig::default();
-        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false, true);
+        let inner_v2 = inner2.get_raw("key".into(), RawConfigValue::serialize(0).unwrap(), false);
         app.update(false).assert_wait();
 
         test.replace_source(Box::new(FallbackConfig::new(inner2, fallback)));

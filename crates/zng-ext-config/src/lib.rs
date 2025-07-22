@@ -14,9 +14,6 @@
 mod fallback;
 pub use fallback::*;
 
-mod json;
-pub use json::*;
-
 mod swap;
 pub use swap::*;
 
@@ -25,6 +22,11 @@ pub use switch::*;
 
 mod sync;
 pub use sync::*;
+
+#[cfg(feature = "json")]
+mod json;
+#[cfg(feature = "json")]
+pub use json::*;
 
 #[cfg(feature = "toml")]
 mod toml;
@@ -56,7 +58,7 @@ use zng_clone_move::clmv;
 use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zng_task as task;
 use zng_txt::Txt;
-use zng_var::{AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarModify, VarValue, WeakVar, types::WeakArcVar, var};
+use zng_var::{AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarValue, WeakVar, types::WeakArcVar, var};
 
 /// Application extension that provides mouse events and service.
 ///
@@ -117,14 +119,15 @@ impl CONFIG {
         CONFIG_SV.write().get(key.into(), default, false)
     }
 
-    /// Gets a variable that is bound to the config `key`, the `value` is set and if the `key` was not present it is also inserted on the config.
+    /// Gets a variable that is bound to the config `key`, the `value` is set and if the `key` was
+    /// not present it is also inserted on the config.
     pub fn insert<T: ConfigValue>(&self, key: impl Into<ConfigKey>, value: T) -> BoxedVar<T> {
         CONFIG_SV.write().get(key.into(), value, true)
     }
 }
 impl AnyConfig for CONFIG {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue> {
-        CONFIG_SV.write().get_raw(key, default, insert, shared)
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
+        CONFIG_SV.write().get_raw(key, default, insert)
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
@@ -143,11 +146,6 @@ impl AnyConfig for CONFIG {
         CONFIG_SV.write().low_memory()
     }
 }
-impl Config for CONFIG {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
-        CONFIG_SV.write().get(key, default, insert)
-    }
-}
 
 app_local! {
     static CONFIG_SV: SwapConfig = SwapConfig::new();
@@ -164,89 +162,19 @@ pub trait ConfigValue: VarValue + serde::Serialize + serde::de::DeserializeOwned
 impl<T: VarValue + serde::Serialize + serde::de::DeserializeOwned> ConfigValue for T {}
 
 /// Represents any entry type in a config.
+#[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct RawConfigValue(pub serde_json::Value); // TODO(breaking) replace with something that can represent binary data, perhaps `rmpv`?
+#[serde(transparent)]
+pub struct RawConfigValue(pub serde_value::Value);
 impl RawConfigValue {
     /// Serialize to the raw config format.
-    pub fn serialize<T: serde::Serialize>(value: T) -> Result<Self, serde_json::Error> {
-        serde_json::to_value(value).map(Self)
+    pub fn serialize<T: serde::Serialize>(value: T) -> Result<Self, serde_value::SerializerError> {
+        serde_value::to_value(value).map(Self)
     }
 
     /// Deserialize from the raw config format.
-    pub fn deserialize<T: serde::de::DeserializeOwned>(self) -> Result<T, serde_json::Error> {
-        serde_json::from_value(self.0)
-    }
-}
-
-/// Represents a full config map in memory.
-///
-/// This can be used with [`SyncConfig`] to implement a full config.
-pub trait ConfigMap: VarValue + fmt::Debug {
-    /// New empty map.
-    fn empty() -> Self;
-
-    /// Read a map from the file.
-    ///
-    /// This method runs in unblocked context.
-    fn read(file: WatchFile) -> io::Result<Self>;
-    /// Write the map to a file.
-    ///
-    /// This method runs in unblocked context.
-    fn write(self, file: &mut WriteFile) -> io::Result<()>;
-
-    /// Gets the weak typed value.
-    ///
-    /// This method is used when `T` cannot be passed because the map is behind a dynamic reference,
-    /// the backend must convert the value from the in memory representation to [`RawConfigValue`].
-    ///
-    /// This method can run in blocking contexts, work with in memory storage only.
-    fn get_raw(&self, key: &ConfigKey) -> Result<Option<RawConfigValue>, Arc<dyn std::error::Error + Send + Sync>>;
-
-    /// Sets the weak typed value.
-    ///
-    /// This method is used when `T` cannot be passed because the map is behind a dynamic reference,
-    /// the backend must convert to the in memory representation.
-    ///
-    /// If `map` is dereferenced mutable a write task will, if possible check if the entry already has the same value
-    /// before mutating the map to avoid a potentially expensive IO write.
-    ///
-    /// This method can run in blocking contexts, work with in memory storage only.
-    fn set_raw(map: &mut VarModify<Self>, key: ConfigKey, value: RawConfigValue) -> Result<(), Arc<dyn std::error::Error + Send + Sync>>;
-
-    /// Returns if the key in config.
-    ///
-    /// This method can run in blocking contexts, work with in memory storage only.
-    fn contains_key(&self, key: &ConfigKey) -> bool;
-
-    /// Remove the config entry associated with the key.
-    fn remove(map: &mut VarModify<Self>, key: &ConfigKey);
-
-    /// Get the value if present.
-    ///
-    /// This method can run in blocking contexts, work with in memory storage only.
-    fn get<O: ConfigValue>(&self, key: &ConfigKey) -> Result<Option<O>, Arc<dyn std::error::Error + Send + Sync>> {
-        if let Some(value) = self.get_raw(key)? {
-            match RawConfigValue::deserialize(value) {
-                Ok(s) => Ok(Some(s)),
-                Err(e) => Err(Arc::new(e)),
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Set the value.
-    ///
-    /// If possible check if the entry already has the same value before mutating the map to avoid a
-    /// potentially expensive clone operation. Note that the map will only be written if the map actually
-    /// changes, or an update is explicitly requested.
-    ///
-    /// This method can run in blocking contexts, work with in memory storage only.
-    fn set<O: ConfigValue>(map: &mut VarModify<Self>, key: ConfigKey, value: O) -> Result<(), Arc<dyn std::error::Error + Send + Sync>> {
-        match RawConfigValue::serialize(value) {
-            Ok(s) => Self::set_raw(map, key, s),
-            Err(e) => Err(Arc::new(e)),
-        }
+    pub fn deserialize<T: serde::de::DeserializeOwned>(self) -> Result<T, serde_value::DeserializerError> {
+        T::deserialize(self.0)
     }
 }
 
@@ -262,13 +190,9 @@ pub trait AnyConfig: Send + Any {
     /// This method is used when `T` cannot be passed because the config is behind a dynamic reference,
     /// the backend must convert the value from the in memory representation to [`RawConfigValue`].
     ///
-    /// If `shared` is `true` and the key was already requested the same var is returned, if `false`
-    /// a new variable is always generated. Note that if you have two different variables for the same
-    /// key they will go out-of-sync as updates from setting one variable do not propagate to the other.
-    ///
     /// The `default` value is used if the key is not found in the config, the default value
     /// is only inserted in the config if `insert`, otherwise the key is inserted or replaced only when the returned variable changes.
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool, shared: bool) -> BoxedVar<RawConfigValue>;
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue>;
 
     /// Gets a read-only variable that tracks if an entry for the `key` is in the backing storage.
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool>;
@@ -285,53 +209,10 @@ pub trait AnyConfig: Send + Any {
     /// Cleanup and flush RAM caches.
     fn low_memory(&mut self);
 }
-impl dyn AnyConfig {
-    /// Get raw config and setup a bidi binding that converts to and from `T`.
-    ///
-    /// See [`get_raw`](AnyConfig::get_raw) for more details about the inputs.
-    pub fn get_raw_serde_bidi<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool, shared: bool) -> BoxedVar<T> {
-        let key = key.into();
-        let source_var = self.get_raw(
-            key.clone(),
-            RawConfigValue::serialize(&default).unwrap_or_else(|e| panic!("invalid default value, {e}")),
-            insert,
-            shared,
-        );
-        let var = var(RawConfigValue::deserialize(source_var.get()).unwrap_or(default));
-
-        source_var
-            .bind_filter_map_bidi(
-                &var,
-                // Raw -> T
-                clmv!(key, |raw| {
-                    match RawConfigValue::deserialize(raw.clone()) {
-                        Ok(value) => Some(value),
-                        Err(e) => {
-                            tracing::error!("get_raw_serde_bidi({key:?}) error, {e:?}");
-                            None
-                        }
-                    }
-                }),
-                // T -> Raw
-                clmv!(key, source_var, |value| {
-                    let _strong_ref = &source_var;
-
-                    match RawConfigValue::serialize(value) {
-                        Ok(raw) => Some(raw),
-                        Err(e) => {
-                            tracing::error!("get_raw_serde_bidi({key:?}) error, {e:?}");
-                            None
-                        }
-                    }
-                }),
-            )
-            .perm();
-
-        var.boxed()
-    }
-}
 
 /// Represents one or more config sources.
+///
+/// This trait is already implemented for all [`AnyConfig`] implementers.
 pub trait Config: AnyConfig {
     /// Gets a variable that is bound to the config `key`.
     ///
@@ -341,6 +222,40 @@ pub trait Config: AnyConfig {
     /// The `default` value is used if the key is not found in the config, the default value
     /// is only inserted in the config if `insert`, otherwise the key is inserted or replaced only when the returned variable changes.
     fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T>;
+}
+impl<C: AnyConfig> Config for C {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
+        get_impl(self, insert, key.into(), default)
+    }
+}
+fn get_impl<T: ConfigValue, C: AnyConfig>(source: &mut C, insert: bool, key: ConfigKey, default: T) -> BoxedVar<T> {
+    source
+        .get_raw(key, RawConfigValue::serialize(&default).unwrap(), insert)
+        .filter_map_bidi(
+            move |raw| match raw.clone().deserialize() {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    #[cfg(debug_assertions)]
+                    tracing::error!(
+                        "failed to get config as `{}`, raw value was {:?}, {e}",
+                        std::any::type_name::<T>(),
+                        raw
+                    );
+                    #[cfg(not(debug_assertions))]
+                    tracing::error!("failed to get config, {e}");
+                    None
+                }
+            },
+            |v| match RawConfigValue::serialize(v) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    tracing::error!("failed to set config, {e}");
+                    None
+                }
+            },
+            move || default.clone(),
+        )
+        .boxed()
 }
 
 /// Config wrapper that only provides read-only variables from the inner config.
@@ -354,8 +269,8 @@ impl<C: Config> ReadOnlyConfig<C> {
     }
 }
 impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _: bool, shared: bool) -> BoxedVar<RawConfigValue> {
-        self.cfg.get_raw(key, default, false, shared).read_only()
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _: bool) -> BoxedVar<RawConfigValue> {
+        self.cfg.get_raw(key, default, false).read_only()
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
@@ -374,11 +289,6 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
         self.cfg.low_memory()
     }
 }
-impl<C: Config> Config for ReadOnlyConfig<C> {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, _: bool) -> BoxedVar<T> {
-        self.cfg.get(key.into(), default, false).read_only()
-    }
-}
 
 /// Memory only config.
 ///
@@ -394,7 +304,7 @@ impl AnyConfig for MemoryConfig {
         LocalVar(ConfigStatus::Loaded).boxed()
     }
 
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _insert: bool, _shared: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _insert: bool) -> BoxedVar<RawConfigValue> {
         match self.values.entry(key) {
             hash_map::Entry::Occupied(e) => e.get().clone().boxed(),
             hash_map::Entry::Vacant(e) => {
@@ -447,17 +357,6 @@ impl AnyConfig for MemoryConfig {
 
     fn low_memory(&mut self) {
         self.contains.retain(|_, v| v.strong_count() > 0);
-    }
-}
-impl Config for MemoryConfig {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
-        self.get_raw(key.into(), RawConfigValue::serialize(default.clone()).unwrap(), insert, true)
-            .filter_map_bidi(
-                |m| m.clone().deserialize::<T>().ok(),
-                |v| RawConfigValue::serialize(v).ok(),
-                move || default.clone(),
-            )
-            .boxed()
     }
 }
 
@@ -622,7 +521,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
         };
 
         // get or insert the source var
-        let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), false, false);
+        let source_var = source.get_raw(key.clone(), RawConfigValue::serialize(var.get()).unwrap(), false);
 
         // var.set_from_map(source_var)
         var.modify(clmv!(source_var, key, |vm| {
