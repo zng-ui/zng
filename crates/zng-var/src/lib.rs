@@ -254,11 +254,14 @@ bitflags! {
 impl VarCapability {
     /// Remove only the `MODIFY` flag without removing `NEW`.
     pub fn as_read_only(self) -> Self {
-        Self::from_bits_truncate(self.bits() & 0b1111_1110)
+        let mut out = self;
+        out.remove(Self::MODIFY);
+        out
     }
 
     /// If cannot `MODIFY` and is not `CAPS_CHANGE`.
     pub fn is_always_read_only(self) -> bool {
+        // TODO(breaking) remove this
         !self.contains(Self::MODIFY) && !self.contains(Self::CAPS_CHANGE)
     }
 
