@@ -3,12 +3,12 @@ use super::*;
 use std::{pin::Pin, task::Poll};
 
 /// See [`Var::wait_update`].
-pub(crate) struct WaitUpdateFut<'a, V: AnyVar> {
-    var: &'a V,
+pub(crate) struct WaitUpdateFut<'a> {
+    var: &'a VarAny,
     update_id: VarUpdateId,
 }
-impl<'a, V: AnyVar> WaitUpdateFut<'a, V> {
-    pub(super) fn new(var: &'a V) -> Self {
+impl<'a> WaitUpdateFut<'a> {
+    pub(super) fn new(var: &'a VarAny) -> Self {
         Self {
             update_id: var.last_update(),
             var,
@@ -24,10 +24,10 @@ impl<'a, V: AnyVar> WaitUpdateFut<'a, V> {
         } else {
             // has not changed since init or last poll, register hook
             let waker = cx.waker().clone();
-            let handle = self.var.hook_any(Box::new(move |_| {
+            let handle = self.var.hook(move |_| {
                 waker.wake_by_ref();
                 false
-            }));
+            });
 
             // check if changed in parallel while was registering hook
             let update_id = self.var.last_update();
@@ -44,7 +44,7 @@ impl<'a, V: AnyVar> WaitUpdateFut<'a, V> {
         }
     }
 }
-impl<V: AnyVar> Future for WaitUpdateFut<'_, V> {
+impl Future for WaitUpdateFut<'_> {
     type Output = VarUpdateId;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
@@ -53,19 +53,19 @@ impl<V: AnyVar> Future for WaitUpdateFut<'_, V> {
 }
 
 /// See [`Var::wait_animation`].
-pub(crate) struct WaitIsNotAnimatingFut<'a, V: AnyVar> {
-    var: &'a V,
+pub(crate) struct WaitIsNotAnimatingFut<'a> {
+    var: &'a VarAny,
     observed_animation_start: bool,
 }
-impl<'a, V: AnyVar> WaitIsNotAnimatingFut<'a, V> {
-    pub(super) fn new(var: &'a V) -> Self {
+impl<'a> WaitIsNotAnimatingFut<'a> {
+    pub(super) fn new(var: &'a VarAny) -> Self {
         Self {
             observed_animation_start: var.is_animating(),
             var,
         }
     }
 }
-impl<V: AnyVar> Future for WaitIsNotAnimatingFut<'_, V> {
+impl Future for WaitIsNotAnimatingFut<'_> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<()> {
@@ -83,9 +83,9 @@ impl<V: AnyVar> Future for WaitIsNotAnimatingFut<'_, V> {
 
                 while self.var.capabilities().contains(VarCapability::NEW) {
                     let waker = cx.waker().clone();
-                    let r = self.var.hook_animation_stop(Box::new(move || {
+                    let r = self.var.hook_animation_stop(move || {
                         waker.wake_by_ref();
-                    }));
+                    });
                     if r.is_err() {
                         // failed to hook with new animation too.
                         if self.var.is_animating() {
@@ -115,10 +115,10 @@ impl<V: AnyVar> Future for WaitIsNotAnimatingFut<'_, V> {
 
             // hook with normal var updates, `is_animating && is_new` is always `true`.
             let waker = cx.waker().clone();
-            let start_hook = self.var.hook_any(Box::new(move |_| {
+            let start_hook = self.var.hook(move |_| {
                 waker.wake_by_ref();
                 false
-            }));
+            });
 
             if self.var.is_animating() {
                 // observed `is_animating` already, changed in other thread during the `hook` setup.

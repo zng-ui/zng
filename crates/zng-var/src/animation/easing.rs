@@ -1,6 +1,11 @@
 //! Common easing functions.
 
-use std::f32::consts::{FRAC_PI_2, TAU};
+use std::{
+    f32::consts::{FRAC_PI_2, TAU},
+    fmt, ops,
+};
+
+use crate::impl_from_and_into_var;
 
 use super::*;
 
@@ -414,7 +419,7 @@ pub fn reverse_out(ease_fn: impl Fn(EasingTime) -> EasingStep, time: EasingTime)
 }
 
 pub use bezier::*;
-use zng_unit::FactorPercent;
+use zng_unit::{FactorPercent, FactorUnits as _};
 
 mod bezier {
     /* This Source Code Form is subject to the terms of the Mozilla Public

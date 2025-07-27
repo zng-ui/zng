@@ -17,10 +17,13 @@ default = ["debug_default"]
 # Signal the build script to enable the `"dyn_*"` features in debug builds.
 debug_default = []
 
+# Add `value_type_name` method to get the diagnostics type name from variable values.
+value_type_name = []
+
 # Box closures at opportune places, such as `Var::map`, reducing the number of monomorphised types.
 #
 # This speeds-up compilation time at the cost of runtime.
-dyn_closure = []
+dyn_closure = [] # !!: TODO review this, now actually used
 
 [dependencies]
 zng-var-proc-macros = { path = "../zng-var-proc-macros", version = "0.3.0" }

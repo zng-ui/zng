@@ -47,30 +47,11 @@ use parking_lot::Mutex;
 use smallbox::{SmallBox, smallbox};
 use zng_clone_move::clmv;
 #[doc(hidden)]
-pub use zng_var_proc_macros::merge_var as __var_merge;
+pub use zng_var_proc_macros::var_merge as __var_merge;
 
 use crate::{BoxedVarValueAny, Var, VarAny, VarImpl, VarInstanceTag, VarValue, VarValueAny, WeakVarImpl, box_value_any, var_any};
 
 use super::VarCapability;
-
-// !!: TODO update __merge_var
-// Example generated function (generated and called by `var_merge!`)
-fn var_merge2<I0, I1, O>(input0: Var<I0>, input1: Var<I1>, mut merge: impl FnMut(&I0, &I1) -> O + Send + 'static) -> Var<O>
-where
-    I0: VarValue,
-    I1: VarValue,
-    O: VarValue,
-{
-    var_merge_macro(Box::new([var_merge_input(input0), var_merge_input(input1)]), move |inputs| {
-        let mut output = None;
-        var_merge_with(&inputs[0], &mut |v0| {
-            var_merge_with(&inputs[1], &mut |v1| {
-                output = Some(var_merge_output(merge(v0.downcast_ref().unwrap(), v1.downcast_ref().unwrap())));
-            })
-        });
-        output.unwrap()
-    })
-}
 
 #[doc(hidden)]
 pub fn var_merge_input<I: VarValue>(input: Var<I>) -> VarAny {
@@ -88,7 +69,7 @@ pub fn var_merge_output<O: VarValue>(output: O) -> BoxedVarValueAny {
 }
 
 #[doc(hidden)]
-pub fn var_merge_macro<O: VarValue>(inputs: Box<[VarAny]>, merge: impl FnMut(&[VarAny]) -> BoxedVarValueAny + Send + 'static) -> Var<O> {
+pub fn var_merge<O: VarValue>(inputs: Box<[VarAny]>, merge: impl FnMut(&[VarAny]) -> BoxedVarValueAny + Send + 'static) -> Var<O> {
     Var::new_any(var_merge_impl(inputs, smallbox!(merge)))
 }
 

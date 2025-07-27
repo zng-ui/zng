@@ -22,7 +22,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // start builder
     let mut out = quote! {
         #(#default_attrs)*
-        let mut __b = #vars_mod::types::WhenVarBuilder::new(#default_value);
+        let mut __b = #vars_mod::VarWhenBuilder::new(#default_value);
     };
 
     if let Some(m) = default_use_macro {

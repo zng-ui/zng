@@ -18,7 +18,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         if parse2::<Expr>(expr.clone()).is_ok() {
             quote_spanned! {expr.span()=>
-                #mod_::types::expr_var_into(#expr)
+                #mod_::var_expr_into(#expr)
             }
         } else {
             // support statement blocks using the macro braces, if we just add the braces for
@@ -26,7 +26,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // the span so that type mismatch gets highlighted correctly, so we *try* parse as expr and only
             // add the braces if not.
             quote_spanned! {expr.span()=>
-                #mod_::types::expr_var_into({#expr})
+                #mod_::var_expr_into({#expr})
             }
         }
     } else if vars.len() == 1 {
@@ -35,12 +35,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         if token_stream_eq(expr.clone(), quote!(#ident)) || token_stream_eq(expr.clone(), quote!(*#ident)) {
             // full expr is an interpolation, just return the var.
             quote_spanned! {expr.span()=>
-                #mod_::types::expr_var_as(#eval)
+                #mod_::var_expr_as(#eval)
             }
         } else {
             quote_spanned! {expr.span()=>
                 // single var interpolation, use map.
-                #mod_::types::expr_var_map(#eval, move |#[allow(non_snake_case)]#ident|{ #expr })
+                #mod_::var_expr_map(#eval, move |#[allow(non_snake_case)]#ident|{ #expr })
             }
         }
     } else {
@@ -48,8 +48,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let idents = vars.iter().map(|(id, _)| id);
         let evals = vars.iter().map(|(_, ev)| ev);
         quote_spanned! {expr.span()=>
-            #mod_::types::expr_var_as(
-                #mod_::merge_var!{ #({#evals}),* , move |#(#[allow(non_snake_case)]#idents),*| { #expr } }
+            #mod_::var_expr_as(
+                #mod_::var_merge!{ #({#evals}),* , move |#(#[allow(non_snake_case)]#idents),*| { #expr } }
             )
         }
     };

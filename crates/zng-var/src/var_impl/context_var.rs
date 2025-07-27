@@ -68,7 +68,7 @@ macro_rules! context_var {
             $crate::__context_var_local! {
                 static CTX: $crate::VarAny = $crate::context_var_init::<$Type>($default);
             }
-            static VAR: std::sync::OnceLock<Var<T>> = std::sync::OnceLock::new();
+            static VAR: std::sync::OnceLock<$crate::Var<$Type>> = std::sync::OnceLock::new();
             $crate::ContextVar::new(&CTX, &VAR)
         };
     )+}

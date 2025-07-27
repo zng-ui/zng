@@ -28,11 +28,11 @@ pub(crate) mod context_var;
 pub use context_var::{__context_var_local, ContextVar, context_var_init};
 
 pub(crate) mod merge;
-pub use merge::{__var_merge, var_merge_input, var_merge_macro, var_merge_output, var_merge_with};
+pub use merge::{__var_merge, var_merge_input, var_merge, var_merge_output, var_merge_with};
 
 pub(crate) mod response;
 pub(crate) mod when;
-pub use when::{VarWhenAnyBuilder, VarWhenBuilder};
+pub use when::{VarWhenAnyBuilder, VarWhenBuilder, __var_when};
 
 pub(crate) mod expr;
 pub use expr::{__var_expr, var_expr_as, var_expr_into, var_expr_map};

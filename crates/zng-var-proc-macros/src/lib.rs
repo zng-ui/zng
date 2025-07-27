@@ -17,10 +17,10 @@ extern crate quote;
 #[macro_use]
 mod util;
 
-mod expr_var;
-mod merge_var;
 mod transitionable;
-mod when_var;
+mod var_expr;
+mod var_merge;
+mod var_when;
 
 /// Implement transition by delegating all type parts.
 #[proc_macro_derive(Transitionable)]
@@ -30,18 +30,18 @@ pub fn transitionable(args: TokenStream) -> TokenStream {
 
 #[doc(hidden)]
 #[proc_macro]
-pub fn expr_var(input: TokenStream) -> TokenStream {
-    expr_var::expand(input)
+pub fn var_expr(input: TokenStream) -> TokenStream {
+    var_expr::expand(input)
 }
 
 #[doc(hidden)]
 #[proc_macro]
-pub fn when_var(input: TokenStream) -> TokenStream {
-    when_var::expand(input)
+pub fn var_when(input: TokenStream) -> TokenStream {
+    var_when::expand(input)
 }
 
 #[doc(hidden)]
 #[proc_macro]
-pub fn merge_var(input: TokenStream) -> TokenStream {
-    merge_var::expand(input)
+pub fn var_merge(input: TokenStream) -> TokenStream {
+    var_merge::expand(input)
 }

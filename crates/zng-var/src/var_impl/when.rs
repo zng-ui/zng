@@ -78,7 +78,7 @@ macro_rules! var_when {
 
 use zng_clone_move::clmv;
 #[doc(hidden)]
-pub use zng_var_proc_macros::when_var as __var_when;
+pub use zng_var_proc_macros::var_when as __var_when;
 
 /// Type erased [`var_when!`] manual builder.
 ///
@@ -204,10 +204,10 @@ fn var_when(builder: VarWhenAnyBuilder) -> VarAny {
 
                     active.0.with(&mut |v| {
                         data.hooks.notify(&VarAnyHookArgs {
-                                value: v,
-                                update: args.update,
-                                tags: args.tags,
-                            });
+                            value: v,
+                            update: args.update,
+                            tags: args.tags,
+                        });
                     });
                 }
 

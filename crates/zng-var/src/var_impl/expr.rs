@@ -64,7 +64,7 @@ macro_rules! var_expr {
 }
 
 #[doc(hidden)]
-pub use zng_var_proc_macros::expr_var as __var_expr;
+pub use zng_var_proc_macros::var_expr as __var_expr;
 
 use crate::{IntoVar, Var, VarValue};
 

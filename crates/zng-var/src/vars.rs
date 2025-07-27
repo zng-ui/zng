@@ -1,21 +1,25 @@
-use std::{mem, thread::ThreadId, time::Duration};
+//!: Vars service.
 
+use std::{mem, sync::Arc, thread::ThreadId, time::Duration};
+
+use parking_lot::Mutex;
+use smallbox::SmallBox;
 use zng_app_context::{app_local, context_local};
-use zng_time::INSTANT_APP;
+use zng_time::{DInstant, Deadline, INSTANT, INSTANT_APP};
+use zng_unit::{Factor, FactorUnits as _, TimeUnits as _};
 
-use crate::animation::AnimationTimer;
+use smallbox::smallbox;
 
-use self::types::ArcCowVar;
-
-use super::{
-    animation::{Animations, ModifyInfo},
-    *,
+use crate::{
+    Var, VarAny,
+    animation::{Animation, AnimationController, AnimationHandle, AnimationTimer, ModifyInfo},
+    var,
 };
 
 /// Represents the last time a variable was mutated or the current update cycle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, bytemuck::NoUninit)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, bytemuck::NoUninit)]
 #[repr(transparent)]
-pub struct VarUpdateId(u32);
+pub struct VarUpdateId(pub(crate) u32);
 impl VarUpdateId {
     /// ID that is never new.
     pub const fn never() -> Self {
@@ -36,47 +40,78 @@ impl Default for VarUpdateId {
     }
 }
 
-pub(super) type VarUpdateFn = Box<dyn FnOnce() + Send>;
+pub(super) type VarUpdateFn = SmallBox<dyn FnMut() + Send + 'static, smallbox::space::S8>;
 
 app_local! {
     pub(crate) static VARS_SV: VarsService = VarsService::new();
 }
-
 context_local! {
     pub(crate) static VARS_MODIFY_CTX: Option<ModifyInfo> = None;
+    pub(crate) static VARS_ANIMATION_CTRL_CTX: Box<dyn AnimationController> = {
+        let r: Box<dyn AnimationController> = Box::new(());
+        r
+    };
 }
 
+type AnimationFn = SmallBox<dyn FnMut(AnimationUpdateInfo) -> Option<Deadline> + Send, smallbox::space::S8>;
+
 pub(crate) struct VarsService {
-    pub(super) ans: Animations,
+    // animation config
+    animations_enabled: Var<bool>,
+    sys_animations_enabled: Var<bool>,
+    frame_duration: Var<Duration>,
+    animation_time_scale: Var<Factor>,
 
+    // VARS_APP stuff
+    app_waker: Option<SmallBox<dyn Fn() + Send + Sync + 'static, smallbox::space::S2>>,
+    modify_trace: Option<SmallBox<dyn Fn(&'static str) + Send + Sync + 'static, smallbox::space::S2>>,
+
+    // VarAny::perm storage
+    perm: Mutex<Vec<VarAny>>,
+
+    // update state
     update_id: VarUpdateId,
-
     updates: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
     updating_thread: Option<ThreadId>,
     updates_after: Mutex<Vec<(ModifyInfo, VarUpdateFn)>>,
 
-    app_waker: Option<Box<dyn Fn() + Send + Sync>>,
-    modify_trace: Option<Box<dyn Fn(&'static str) + Send + Sync>>,
-
-    perm: Mutex<Vec<Box<dyn Any + Send>>>,
+    // animations state
+    ans_animations: Mutex<Vec<AnimationFn>>,
+    ans_animation_imp: usize,
+    ans_current_modify: ModifyInfo,
+    ans_animation_start_time: Option<DInstant>,
+    ans_next_frame: Option<Deadline>,
 }
 impl VarsService {
     pub(crate) fn new() -> Self {
+        let sys_animations_enabled = var(true);
         Self {
-            ans: Animations::new(),
-            update_id: VarUpdateId(1),
+            animations_enabled: sys_animations_enabled.cow(),
+            sys_animations_enabled,
+            frame_duration: var((1.0 / 60.0).secs()),
+            animation_time_scale: var(1.fct()),
+
+            app_waker: None,
+            modify_trace: None,
+
+            perm: Mutex::new(vec![]),
+
+            update_id: VarUpdateId::never(),
             updates: Mutex::new(vec![]),
             updating_thread: None,
             updates_after: Mutex::new(vec![]),
-            app_waker: None,
-            modify_trace: None,
-            perm: Mutex::new(vec![]),
+
+            ans_animations: Mutex::new(vec![]),
+            ans_animation_imp: 0,
+            ans_current_modify: ModifyInfo::never(),
+            ans_animation_start_time: None,
+            ans_next_frame: None,
         }
     }
 
-    pub(crate) fn wake_app(&self) {
+    fn wake_app(&self) {
         if let Some(w) = &self.app_waker {
-            w()
+            w();
         }
     }
 }
@@ -96,25 +131,25 @@ impl VARS {
     /// The value is the same as [`sys_animations_enabled`], if set the variable disconnects from system config.
     ///
     /// [`sys_animations_enabled`]: Self::sys_animations_enabled
-    pub fn animations_enabled(&self) -> ArcCowVar<bool, ArcVar<bool>> {
-        VARS_SV.read().ans.animations_enabled.clone()
+    pub fn animations_enabled(&self) -> Var<bool> {
+        VARS_SV.read().animations_enabled.clone()
     }
 
     /// Read-only that tracks if animations are enabled in the operating system.
     ///
     /// This is `true` by default, it updates when the operating system config changes.
-    pub fn sys_animations_enabled(&self) -> ReadOnlyArcVar<bool> {
-        VARS_SV.read().ans.sys_animations_enabled.read_only()
+    pub fn sys_animations_enabled(&self) -> Var<bool> {
+        VARS_SV.read().sys_animations_enabled.read_only()
     }
 
     /// Variable that defines the global frame duration, the default is 60fps `(1.0 / 60.0).secs()`.
-    pub fn frame_duration(&self) -> ArcVar<Duration> {
-        VARS_SV.read().ans.frame_duration.clone()
+    pub fn frame_duration(&self) -> Var<Duration> {
+        VARS_SV.read().frame_duration.clone()
     }
 
     /// Variable that defines a global scale for the elapsed time of animations.
-    pub fn animation_time_scale(&self) -> ArcVar<Factor> {
-        VARS_SV.read().ans.animation_time_scale.clone()
+    pub fn animation_time_scale(&self) -> Var<Factor> {
+        VARS_SV.read().animation_time_scale.clone()
     }
 
     /// Info about the current context when requesting variable modification.
@@ -125,12 +160,12 @@ impl VARS {
     ///
     /// [`importance`]: ModifyInfo::importance
     /// [`modify_importance`]: AnyVar::modify_importance
-    /// [`AnimationController`]: animation::AnimationController
+    /// [`AnimationController`]: crate::animation::AnimationController
     /// [`VARS.animate`]: VARS::animate
     pub fn current_modify(&self) -> ModifyInfo {
         match VARS_MODIFY_CTX.get_clone() {
             Some(current) => current, // override set by modify and animation closures.
-            None => VARS_SV.read().ans.current_modify.clone(),
+            None => VARS_SV.read().ans_current_modify.clone(),
         }
     }
 
@@ -229,20 +264,17 @@ impl VARS {
     /// [`AnimationHandle`], and it can also be controlled by a registered [`AnimationController`] that can manage multiple
     /// animations at the same time, see [`with_animation_controller`] for more details.
     ///
-    /// [`AnimationHandle`]: animation::AnimationHandle
-    /// [`AnimationController`]: animation::AnimationController
-    /// [`Animation`]: animation::Animation
-    /// [`Animation::sleep`]: animation::Animation::sleep
-    /// [`stop`]: animation::AnimationHandle::stop
-    /// [`perm`]: animation::AnimationHandle::perm
-    /// [`with_animation_controller`]: Self::with_animation_controller
+    /// [`Animation::sleep`]: Animation::sleep
+    /// [`stop`]: AnimationHandle::stop
+    /// [`perm`]: AnimationHandle::perm
+    /// [`with_animation_controller`]: VARS::with_animation_controller
     /// [`VARS.frame_duration`]: VARS::frame_duration
     /// [`VARS.current_modify`]: VARS::current_modify
-    pub fn animate<A>(&self, animation: A) -> animation::AnimationHandle
+    pub fn animate<A>(&self, animation: A) -> AnimationHandle
     where
-        A: FnMut(&animation::Animation) + Send + 'static,
+        A: FnMut(&Animation) + Send + 'static,
     {
-        Animations::animate(animation)
+        VARS.animate_impl(smallbox!(animation))
     }
 
     /// Calls `animate` while `controller` is registered as the animation controller.
@@ -259,41 +291,25 @@ impl VARS {
     ///
     /// [`Animation`]: animation::Animation
     /// [`VARS.animate`]: VARS::animate
-    pub fn with_animation_controller<R>(&self, controller: impl animation::AnimationController, animate: impl FnOnce() -> R) -> R {
-        let controller: Box<dyn animation::AnimationController> = Box::new(controller);
+    pub fn with_animation_controller<R>(&self, controller: impl AnimationController, animate: impl FnOnce() -> R) -> R {
+        let controller: Box<dyn AnimationController> = Box::new(controller);
         let mut opt = Some(Arc::new(controller));
-        animation::VARS_ANIMATION_CTRL_CTX.with_context(&mut opt, animate)
+        VARS_ANIMATION_CTRL_CTX.with_context(&mut opt, animate)
     }
 
-    pub(super) fn schedule_update(&self, update: VarUpdateFn, type_name: &'static str) {
-        let vars = VARS_SV.read();
-        if let Some(trace) = &vars.modify_trace {
-            trace(type_name);
-        }
-        let cur_modify = match VARS_MODIFY_CTX.get_clone() {
-            Some(current) => current, // override set by modify and animation closures.
-            None => vars.ans.current_modify.clone(),
-        };
-
-        if let Some(id) = vars.updating_thread {
-            if std::thread::current().id() == id {
-                // is binding request, enqueue for immediate exec.
-                vars.updates.lock().push((cur_modify, update));
-            } else {
-                // is request from app task thread when we are already updating, enqueue for exec after current update.
-                vars.updates_after.lock().push((cur_modify, update));
-            }
-        } else {
-            // request from any app thread,
-            vars.updates.lock().push((cur_modify, update));
-            vars.wake_app();
-        }
+    pub(crate) fn schedule_update(&self, value_type_name: &'static str, apply_update: impl FnOnce() + Send + 'static) {
+        let mut once = Some(apply_update);
+        self.schedule_update_impl(
+            value_type_name,
+            smallbox!(move || {
+                let once = once.take().unwrap();
+                once();
+            }),
+        );
     }
 
-    /// Keep the `value` alive for  the app lifetime.
-    pub fn perm(&self, value: impl Any + Send) {
-        let value = Box::new(value);
-        VARS_SV.read().perm.lock().push(value);
+    pub(crate) fn perm(&self, var: VarAny) {
+        VARS_SV.read().perm.lock().push(var);
     }
 
     pub(crate) fn wake_app(&self) {
@@ -315,7 +331,7 @@ impl VARS_APP {
     pub fn init_app_waker(&self, waker: impl Fn() + Send + Sync + 'static) {
         let mut vars = VARS_SV.write();
         assert!(vars.app_waker.is_none());
-        vars.app_waker = Some(Box::new(waker));
+        vars.app_waker = Some(smallbox!(waker));
     }
 
     /// Register a closure called when a variable modify is about to be scheduled. The
@@ -327,7 +343,7 @@ impl VARS_APP {
     pub fn init_modify_trace(&self, trace: impl Fn(&'static str) + Send + Sync + 'static) {
         let mut vars = VARS_SV.write();
         assert!(vars.modify_trace.is_none());
-        vars.modify_trace = Some(Box::new(trace));
+        vars.modify_trace = Some(smallbox!(trace));
     }
 
     /// If [`apply_updates`] will do anything.
@@ -339,7 +355,7 @@ impl VARS_APP {
 
     /// Sets the `sys_animations_enabled` read-only variable.
     pub fn set_sys_animations_enabled(&self, enabled: bool) {
-        VARS_SV.read().ans.sys_animations_enabled.set(enabled);
+        VARS_SV.read().sys_animations_enabled.set(enabled).ok();
     }
 
     /// Apply all pending updates, call hooks and update bindings.
@@ -348,15 +364,57 @@ impl VARS_APP {
     pub fn apply_updates(&self) {
         let _s = tracing::trace_span!("VARS").entered();
         let _t = INSTANT_APP.pause_for_update();
-        Self::apply_updates_and_after(0)
+        VARS.apply_updates_and_after(0)
     }
-    fn apply_updates_and_after(depth: u8) {
+
+    /// Does one animation frame if the frame duration has elapsed.
+    ///
+    /// This must be called by app framework implementers only.
+    pub fn update_animations(&self, timer: &mut impl AnimationTimer) {
+        VARS.update_animations_impl(timer);
+    }
+
+    /// Register the next animation frame, if there are any active animations.
+    ///
+    /// This must be called by app framework implementers only.
+    pub fn next_deadline(&self, timer: &mut impl AnimationTimer) {
+        VARS.next_deadline_impl(timer)
+    }
+}
+
+impl VARS {
+    fn schedule_update_impl(&self, value_type_name: &'static str, update: VarUpdateFn) {
+        let vars = VARS_SV.read();
+        if let Some(trace) = &vars.modify_trace {
+            trace(value_type_name);
+        }
+        let cur_modify = match VARS_MODIFY_CTX.get_clone() {
+            Some(current) => current, // override set by modify and animation closures.
+            None => vars.ans_current_modify.clone(),
+        };
+
+        if let Some(id) = vars.updating_thread {
+            if std::thread::current().id() == id {
+                // is binding request, enqueue for immediate exec.
+                vars.updates.lock().push((cur_modify, update));
+            } else {
+                // is request from app task thread when we are already updating, enqueue for exec after current update.
+                vars.updates_after.lock().push((cur_modify, update));
+            }
+        } else {
+            // request from any app thread,
+            vars.updates.lock().push((cur_modify, update));
+            vars.wake_app();
+        }
+    }
+
+    fn apply_updates_and_after(&self, depth: u8) {
         let mut vars = VARS_SV.write();
 
         match depth {
             0 => {
                 vars.update_id.next();
-                vars.ans.animation_start_time = None;
+                vars.ans_animation_start_time = None;
             }
             10 => {
                 // high-pressure from worker threads, skip
@@ -386,7 +444,7 @@ impl VARS_APP {
 
             if !vars.updates_after.get_mut().is_empty() {
                 drop(vars);
-                Self::apply_updates_and_after(depth + 1)
+                VARS.apply_updates_and_after(depth + 1)
             }
         }
 
@@ -399,8 +457,9 @@ impl VARS_APP {
                 return;
             }
 
-            for (info, update) in updates {
-                VARS_MODIFY_CTX.with_context(&mut Some(Arc::new(Some(info))), update);
+            for (info, mut update) in updates {
+                #[allow(clippy::redundant_closure)] // false positive
+                VARS_MODIFY_CTX.with_context(&mut Some(Arc::new(Some(info))), || (update)());
 
                 let mut vars = VARS_SV.write();
                 let updates = mem::take(vars.updates.get_mut());
@@ -412,17 +471,192 @@ impl VARS_APP {
         }
     }
 
-    /// Does one animation frame if the frame duration has elapsed.
-    ///
-    /// This must be called by app framework implementers only.
-    pub fn update_animations(&self, timer: &mut impl AnimationTimer) {
-        Animations::update_animations(timer)
+    fn animate_impl(&self, mut animation: SmallBox<dyn FnMut(&Animation) + Send + 'static, smallbox::space::S4>) -> AnimationHandle {
+        let mut vars = VARS_SV.write();
+
+        // # Modify Importance
+        //
+        // Variables only accept modifications from an importance (IMP) >= the previous IM that modified it.
+        //
+        // Direct modifications always overwrite previous animations, so we advance the IMP for each call to
+        // this method **and then** advance the IMP again for all subsequent direct modifications.
+        //
+        // Example sequence of events:
+        //
+        // |IM| Modification  | Accepted
+        // |--|---------------|----------
+        // | 1| Var::set      | YES
+        // | 2| Var::ease     | YES
+        // | 2| ease update   | YES
+        // | 3| Var::set      | YES
+        // | 3| Var::set      | YES
+        // | 2| ease update   | NO
+        // | 4| Var::ease     | YES
+        // | 2| ease update   | NO
+        // | 4| ease update   | YES
+        // | 5| Var::set      | YES
+        // | 2| ease update   | NO
+        // | 4| ease update   | NO
+
+        // ensure that all animations started in this update have the same exact time, we update then with the same `now`
+        // timestamp also, this ensures that synchronized animations match perfectly.
+        let start_time = if let Some(t) = vars.ans_animation_start_time {
+            t
+        } else {
+            let t = INSTANT.now();
+            vars.ans_animation_start_time = Some(t);
+            t
+        };
+
+        let mut anim_imp = None;
+        if let Some(c) = VARS_MODIFY_CTX.get_clone() {
+            if c.is_animating() {
+                // nested animation uses parent importance.
+                anim_imp = Some(c.importance);
+            }
+        }
+        let anim_imp = match anim_imp {
+            Some(i) => i,
+            None => {
+                // not nested, advance base imp
+                let mut imp = vars.ans_animation_imp.wrapping_add(1);
+                if imp == 0 {
+                    imp = 1;
+                }
+
+                let mut next_imp = imp.wrapping_add(1);
+                if next_imp == 0 {
+                    next_imp = 1;
+                }
+
+                vars.ans_animation_imp = next_imp;
+                vars.ans_current_modify.importance = next_imp;
+
+                imp
+            }
+        };
+
+        let (handle_owner, handle) = AnimationHandle::new();
+        let weak_handle = handle.downgrade();
+
+        let controller = VARS_ANIMATION_CTRL_CTX.get();
+
+        let anim = Animation::new(vars.animations_enabled.get(), start_time, vars.animation_time_scale.get());
+
+        drop(vars);
+
+        controller.on_start(&anim);
+        let mut controller = Some(controller);
+        let mut anim_modify_info = Some(Arc::new(Some(ModifyInfo {
+            handle: Some(weak_handle.clone()),
+            importance: anim_imp,
+        })));
+
+        let mut vars = VARS_SV.write();
+
+        vars.ans_animations.get_mut().push(smallbox!(move |info: AnimationUpdateInfo| {
+            let _handle_owner = &handle_owner; // capture and own the handle owner.
+
+            if weak_handle.upgrade().is_some() {
+                if anim.stop_requested() {
+                    // drop
+                    controller.as_ref().unwrap().on_stop(&anim);
+                    return None;
+                }
+
+                if let Some(sleep) = anim.sleep_deadline() {
+                    if sleep > info.next_frame {
+                        // retain sleep
+                        return Some(sleep);
+                    } else if sleep.0 > info.now {
+                        // sync-up to frame rate after sleep
+                        anim.reset_sleep();
+                        return Some(info.next_frame);
+                    }
+                }
+
+                anim.reset_state(info.animations_enabled, info.now, info.time_scale);
+
+                VARS_ANIMATION_CTRL_CTX.with_context(&mut controller, || {
+                    VARS_MODIFY_CTX.with_context(&mut anim_modify_info, || animation(&anim))
+                });
+
+                // retain until next frame
+                //
+                // stop or sleep may be requested after this (during modify apply),
+                // these updates are applied on the next frame.
+                Some(info.next_frame)
+            } else {
+                // drop
+                controller.as_ref().unwrap().on_stop(&anim);
+                None
+            }
+        }));
+
+        vars.ans_next_frame = Some(Deadline(DInstant::EPOCH));
+
+        vars.wake_app();
+
+        handle
     }
 
-    /// Register the next animation frame, if there are any active animations.
-    ///
-    /// This must be called by app framework implementers only.
-    pub fn next_deadline(&self, timer: &mut impl AnimationTimer) {
-        Animations::next_deadline(timer)
+    fn update_animations_impl(&self, timer: &mut dyn AnimationTimer) {
+        let mut vars = VARS_SV.write();
+        if let Some(next_frame) = vars.ans_next_frame {
+            if timer.elapsed(next_frame) {
+                let mut animations = mem::take(vars.ans_animations.get_mut());
+                debug_assert!(!animations.is_empty());
+
+                let info = AnimationUpdateInfo {
+                    animations_enabled: vars.animations_enabled.get(),
+                    time_scale: vars.animation_time_scale.get(),
+                    now: timer.now(),
+                    next_frame: next_frame + vars.frame_duration.get(),
+                };
+
+                let mut min_sleep = Deadline(info.now + Duration::from_secs(60 * 60));
+
+                drop(vars);
+
+                animations.retain_mut(|animate| {
+                    if let Some(sleep) = animate(info) {
+                        min_sleep = min_sleep.min(sleep);
+                        true
+                    } else {
+                        false
+                    }
+                });
+
+                let mut vars = VARS_SV.write();
+
+                let self_animations = vars.ans_animations.get_mut();
+                if !self_animations.is_empty() {
+                    min_sleep = Deadline(info.now);
+                }
+                animations.append(self_animations);
+                *self_animations = animations;
+
+                if !self_animations.is_empty() {
+                    vars.ans_next_frame = Some(min_sleep);
+                    timer.register(min_sleep);
+                } else {
+                    vars.ans_next_frame = None;
+                }
+            }
+        }
     }
+
+    fn next_deadline_impl(&self, timer: &mut dyn AnimationTimer) {
+        if let Some(next_frame) = VARS_SV.read().ans_next_frame {
+            timer.register(next_frame);
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct AnimationUpdateInfo {
+    animations_enabled: bool,
+    now: DInstant,
+    time_scale: Factor,
+    next_frame: Deadline,
 }
