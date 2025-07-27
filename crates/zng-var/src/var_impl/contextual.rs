@@ -275,6 +275,15 @@ impl ContextInitHandle {
         let mut opt = self.0.clone();
         CONTEXT_INIT_ID.with_context(&mut opt, action)
     }
+
+    /// Create a weak handle that can be used to monitor this handle without holding it.
+    pub fn downgrade(&self) -> WeakContextInitHandle {
+        match &self.0 {
+            Some(a) => WeakContextInitHandle(Arc::downgrade(a)),
+            None => WeakContextInitHandle(std::sync::Weak::new()),
+        }
+        
+    }
 }
 impl fmt::Debug for ContextInitHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -291,3 +300,32 @@ impl PartialEq for ContextInitHandle {
     }
 }
 impl Eq for ContextInitHandle {}
+
+/// Weak [`ContextInitHandle`].
+#[derive(Clone, Default)]
+pub struct WeakContextInitHandle(std::sync::Weak<ContextInitHandleMarker>);
+impl WeakContextInitHandle {
+    /// Returns `true` if the strong handle still exists.
+    pub fn is_alive(&self) -> bool {
+        self.0.strong_count() > 0
+    }
+}
+impl fmt::Debug for WeakContextInitHandle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("WeakContextInitHandle")
+            .field(&std::sync::Weak::as_ptr(&self.0))
+            .finish()
+    }
+}
+impl PartialEq for WeakContextInitHandle {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Weak::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for WeakContextInitHandle {}
+impl std::hash::Hash for WeakContextInitHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let i = std::sync::Weak::as_ptr(&self.0) as usize;
+        std::hash::Hash::hash(&i, state)
+    }
+}

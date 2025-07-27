@@ -7,8 +7,11 @@
 ///
 /// All arguments are separated by comma like a function call.
 ///
-/// * `var0..N`: A list of [vars](crate::Var), minimal 2.
+/// * `var0..N`: A list of *vars*, minimal 2.
 /// * `merge`: A new closure that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
+///
+/// Note that the *vars* can be of any of `Var<T>`, `ContextVar<T>` or `ResponseVar<T>`, that is, already constructed
+/// var types, not all types that convert into var.
 ///
 /// # Contextualized
 ///
@@ -49,13 +52,16 @@ use zng_clone_move::clmv;
 #[doc(hidden)]
 pub use zng_var_proc_macros::var_merge as __var_merge;
 
-use crate::{BoxedVarValueAny, Var, VarAny, VarImpl, VarInstanceTag, VarValue, VarValueAny, WeakVarImpl, box_value_any, var_any};
+use crate::{
+    BoxedVarValueAny, ContextVar, Response, ResponseVar, Var, VarAny, VarImpl, VarInstanceTag, VarValue, VarValueAny, WeakVarImpl,
+    box_value_any, var_any,
+};
 
 use super::VarCapability;
 
 #[doc(hidden)]
-pub fn var_merge_input<I: VarValue>(input: Var<I>) -> VarAny {
-    input.into()
+pub fn var_merge_input<I: VarValue>(input: impl MergeInput<I>) -> VarAny {
+    input.into_merge_input().into()
 }
 
 #[doc(hidden)]
@@ -73,9 +79,30 @@ pub fn var_merge<O: VarValue>(inputs: Box<[VarAny]>, merge: impl FnMut(&[VarAny]
     Var::new_any(var_merge_impl(inputs, smallbox!(merge)))
 }
 
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(note = "var_merge! and var_expr! inputs can be: Var<T>, ContextVar<T> or ResponseVar<T>")]
+pub trait MergeInput<T: VarValue> {
+    fn into_merge_input(self) -> Var<T>;
+}
+impl<T: VarValue> MergeInput<T> for Var<T> {
+    fn into_merge_input(self) -> Var<T> {
+        self
+    }
+}
+impl<T: VarValue> MergeInput<T> for ContextVar<T> {
+    fn into_merge_input(self) -> Var<T> {
+        self.into()
+    }
+}
+impl<T: VarValue> MergeInput<Response<T>> for ResponseVar<T> {
+    fn into_merge_input(self) -> Var<Response<T>> {
+        self.into()
+    }
+}
+
 fn var_merge_impl(inputs: Box<[VarAny]>, merge: MergeFn) -> VarAny {
     if inputs.iter().any(|i| i.capabilities().is_contextual()) {
-        todo!()
+        todo!("!!: TODO")
     }
     var_merge_tail(inputs, merge)
 }

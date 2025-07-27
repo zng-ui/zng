@@ -86,7 +86,7 @@ impl<T: VarValue> Var<T> {
     /// Visit a reference to the current value if it [`is_new`].
     ///
     /// [`is_new`]: VarAny::is_new
-    pub fn with_new<O>(&self, visitor: impl FnMut(&T) -> O) -> Option<O> {
+    pub fn with_new<O>(&self, visitor: impl FnOnce(&T) -> O) -> Option<O> {
         if self.is_new() { Some(self.with(visitor)) } else { None }
     }
 

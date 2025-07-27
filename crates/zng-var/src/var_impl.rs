@@ -11,7 +11,7 @@ use bitflags::bitflags;
 use smallbox::{SmallBox, smallbox};
 
 pub(crate) mod shared;
-pub use shared::{var, var_any};
+pub use shared::{var, var_any, var_getter, var_state};
 
 pub(crate) mod clone_on_write;
 pub(crate) mod local;
@@ -22,17 +22,19 @@ pub(crate) mod map_ref_bidi;
 pub(crate) mod read_only;
 
 pub(crate) mod contextual;
-pub use contextual::{ContextInitHandle, var_ctx, var_ctx_any};
+pub use contextual::{ContextInitHandle, WeakContextInitHandle, var_ctx, var_ctx_any};
 
 pub(crate) mod context_var;
 pub use context_var::{__context_var_local, ContextVar, context_var_init};
 
 pub(crate) mod merge;
-pub use merge::{__var_merge, var_merge_input, var_merge, var_merge_output, var_merge_with};
+pub use merge::{__var_merge, MergeInput, var_merge, var_merge_input, var_merge_output, var_merge_with};
 
-pub(crate) mod response;
+pub(crate) mod response_var;
+pub use response_var::{ResponderVar, Response, ResponseVar, response_done_var, response_var};
+
 pub(crate) mod when;
-pub use when::{VarWhenAnyBuilder, VarWhenBuilder, __var_when};
+pub use when::{__var_when, VarWhenAnyBuilder, VarWhenBuilder};
 
 pub(crate) mod expr;
 pub use expr::{__var_expr, var_expr_as, var_expr_into, var_expr_map};

@@ -567,3 +567,39 @@ where
         self.handle = self.var.ease(self.target.clone(), duration, easing);
     }
 }
+
+/// Spherical linear interpolation sampler.
+///
+/// Animates rotations over the shortest change between angles by modulo wrapping.
+/// A transition from 358º to 1º goes directly to 361º (modulo normalized to 1º).
+///
+/// Types that support this use the [`is_slerp_enabled`] function inside [`Transitionable::lerp`] to change
+/// mode, types that don't support this use the normal linear interpolation. All angle and transform units
+/// implement this.
+///
+/// Samplers can be set in animations using the `Var::easing_with` method.
+pub fn slerp_sampler<T: Transitionable>(t: &Transition<T>, step: EasingStep) -> T {
+    slerp_enabled(true, || t.sample(step))
+}
+
+/// Gets if slerp mode is enabled in the context.
+///
+/// See [`slerp_sampler`] for more details.
+pub fn is_slerp_enabled() -> bool {
+    SLERP_ENABLED.get_clone()
+}
+
+/// Calls `f` with [`is_slerp_enabled`] set to `enabled`.
+///
+/// See [`slerp_sampler`] for a way to enable in animations.
+pub fn slerp_enabled<R>(enabled: bool, f: impl FnOnce() -> R) -> R {
+    SLERP_ENABLED.with_context(&mut Some(Arc::new(enabled)), f)
+}
+
+context_local! {
+    static SLERP_ENABLED: bool = false;
+}
+
+/// API for app implementers to replace the transitionable implementation for foreign types.
+#[expect(non_camel_case_types)]
+pub struct TRANSITIONABLE_APP;

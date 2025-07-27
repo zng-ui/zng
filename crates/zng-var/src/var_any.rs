@@ -71,7 +71,7 @@ impl VarAny {
     /// Visit a reference to the current value if it [`is_new`].
     ///
     /// [`is_new`]: Self::is_new
-    pub fn with_new<O>(&self, visitor: impl FnMut(&dyn VarValueAny) -> O) -> Option<O> {
+    pub fn with_new<O>(&self, visitor: impl FnOnce(&dyn VarValueAny) -> O) -> Option<O> {
         if self.is_new() { Some(self.with(visitor)) } else { None }
     }
 

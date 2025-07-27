@@ -8,13 +8,13 @@ use syn::{
 /*
 Example generated for 2 inputs:
 
-fn var_merge<I0, I1, O>(input0: Var<I0>, input1: Var<I1>, mut merge: impl FnMut(&I0, &I1) -> O + Send + 'static) -> Var<O>
+fn var_merge<I0, I1, O>(input0: impl MergeInputVar<I0>, input1: impl MergeInputVar<I1>, mut merge: impl FnMut(&I0, &I1) -> O + Send + 'static) -> Var<O>
 where
     I0: VarValue,
     I1: VarValue,
     O: VarValue,
 {
-    var_merge(Box::new([var_merge_input(input0), var_merge_input(input1)]), move |inputs| {
+    var_merge(Box::new([input0, input1]), move |inputs| {
         let mut output = None;
         var_merge_with(&inputs[0], &mut |v0| {
             var_merge_with(&inputs[1], &mut |v1| {
@@ -22,8 +22,10 @@ where
             })
         });
         output.unwrap()
-    })
+    });
 }
+
+var_merge(input0_expr, input1_expr)
 */
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -46,7 +48,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut merge_with = quote! {
         output = Some(#vars_mod::var_merge_output(
-            merge_var__(
+            merge(
                 #(#input_idents.downcast_ref().unwrap(),)*
             )
         ));
@@ -69,9 +71,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #(&#type_idents,)*
                 ) -> O + Send + 'static
             >(
-                #(#input_idents: #vars_mod::Var<#type_idents>,)*
+                #(#input_idents: impl #vars_mod::MergeInput<#type_idents>,)*
                 mut merge: F
-            ) -> #vars_mod::BoxedVar<O> {
+            ) -> #vars_mod::Var<O> {
                 #vars_mod::var_merge(Box::new([
                     #(#vars_mod::var_merge_input(#input_idents),)*
                 ]), move |inputs| {

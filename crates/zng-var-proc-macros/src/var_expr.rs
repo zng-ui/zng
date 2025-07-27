@@ -48,9 +48,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let idents = vars.iter().map(|(id, _)| id);
         let evals = vars.iter().map(|(_, ev)| ev);
         quote_spanned! {expr.span()=>
-            #mod_::var_expr_as(
-                #mod_::var_merge!{ #({#evals}),* , move |#(#[allow(non_snake_case)]#idents),*| { #expr } }
-            )
+            #mod_::var_merge!{ #({#evals}),* , move |#(#[allow(non_snake_case)]#idents),*| { #expr } }
         }
     };
 

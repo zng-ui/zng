@@ -123,6 +123,11 @@ impl VarWhenAnyBuilder {
     pub fn build(self) -> VarAny {
         var_when(self)
     }
+
+    /// Convert to typed builder.
+    pub fn into_typed<O: VarValue>(self) -> VarWhenBuilder<O> {
+        VarWhenBuilder { builder: self, _t: PhantomData }
+    }
 }
 impl VarWhenAnyBuilder {
     /// Returns the number of conditions set.

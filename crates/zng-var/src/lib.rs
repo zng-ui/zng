@@ -32,6 +32,8 @@ pub use vars::*;
 mod vec;
 pub use vec::*;
 
+mod impls;
+
 pub(crate) mod future;
 
 ///Implements `T: IntoVar<U>`, `T: IntoValue<U>` and optionally `U: From<T>` without boilerplate.
