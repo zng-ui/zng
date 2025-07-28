@@ -282,7 +282,6 @@ impl ContextInitHandle {
             Some(a) => WeakContextInitHandle(Arc::downgrade(a)),
             None => WeakContextInitHandle(std::sync::Weak::new()),
         }
-        
     }
 }
 impl fmt::Debug for ContextInitHandle {

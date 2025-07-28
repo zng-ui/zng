@@ -127,7 +127,7 @@ fn icons() -> impl UiNode {
             },
             DataView!(
                 ::<(&'static str, Txt)>,
-                merge_var!(selected_font, search, |f, s| (*f, s.clone())),
+                var_merge!(selected_font, search, |f, s| (*f, s.clone())),
                 hn!(|a: &DataViewArgs<(&'static str, Txt)>| {
                     if let Some((f, s)) = a.get_new() {
                         let mut icons: Vec<_> = match f {

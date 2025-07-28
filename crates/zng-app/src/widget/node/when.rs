@@ -1,5 +1,5 @@
 use zng_layout::unit::PxSize;
-use zng_var::{BoxedVar, Var};
+use zng_var::Var;
 
 use crate::{
     update::{EventUpdate, WidgetUpdates},
@@ -13,7 +13,7 @@ use super::{BoxedUiNode, BoxedUiNodeList, UiNode, UiNodeList, UiNodeListObserver
 /// When the selected node changes the previous one is deinited and the new one is inited.
 pub struct WhenUiNodeBuilder {
     default: BoxedUiNode,
-    conditions: Vec<(BoxedVar<bool>, BoxedUiNode)>,
+    conditions: Vec<(Var<bool>, BoxedUiNode)>,
 }
 impl WhenUiNodeBuilder {
     /// New with node that is used when no condition is active.
@@ -27,8 +27,8 @@ impl WhenUiNodeBuilder {
     /// Push a conditional node.
     ///
     /// When `condition` is `true` and no previous inserted condition is `true` the `node` is used.
-    pub fn push(&mut self, condition: impl Var<bool>, node: impl UiNode) {
-        self.conditions.push((condition.boxed(), node.boxed()));
+    pub fn push(&mut self, condition: Var<bool>, node: impl UiNode) {
+        self.conditions.push((condition, node.boxed()));
     }
 
     /// Build a node that is always the first `true` condition or the default.
@@ -47,7 +47,7 @@ impl WhenUiNodeBuilder {
 /// When the selected list changes the previous one is deinited and the new one is inited.
 pub struct WhenUiNodeListBuilder {
     default: BoxedUiNodeList,
-    conditions: Vec<(BoxedVar<bool>, BoxedUiNodeList)>,
+    conditions: Vec<(Var<bool>, BoxedUiNodeList)>,
 }
 impl WhenUiNodeListBuilder {
     /// New with list that is used when no condition is active.
@@ -61,8 +61,8 @@ impl WhenUiNodeListBuilder {
     /// Push a conditional list.
     ///
     /// When `condition` is `true` and no previous inserted condition is `true` the `list` is used.
-    pub fn push(&mut self, condition: impl Var<bool>, list: impl UiNodeList) {
-        self.conditions.push((condition.boxed(), list.boxed()));
+    pub fn push(&mut self, condition: Var<bool>, list: impl UiNodeList) {
+        self.conditions.push((condition, list.boxed()));
     }
 
     /// Build a list that is always the first `true` condition or the default.
@@ -78,7 +78,7 @@ impl WhenUiNodeListBuilder {
 
 struct WhenUiNode {
     default: BoxedUiNode,
-    conditions: Vec<(BoxedVar<bool>, BoxedUiNode)>,
+    conditions: Vec<(Var<bool>, BoxedUiNode)>,
     current: usize,
     wgt_handles: WidgetHandlesCtx,
 }
@@ -191,7 +191,7 @@ impl UiNode for WhenUiNode {
 
 struct WhenUiNodeList {
     default: BoxedUiNodeList,
-    conditions: Vec<(BoxedVar<bool>, BoxedUiNodeList)>,
+    conditions: Vec<(Var<bool>, BoxedUiNodeList)>,
     current: usize,
     wgt_handles: WidgetHandlesCtx,
 }

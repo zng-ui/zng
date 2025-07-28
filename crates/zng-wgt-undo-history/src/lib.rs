@@ -435,14 +435,14 @@ pub fn undo_entry(child: impl UiNode, entry: impl IntoValue<UndoEntryArgs>) -> i
     let child = is_cap_hovered(child, is_hovered.clone());
     let child = match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
-            let actual = HOVERED_TIMESTAMP_VAR.actual_var();
+            let actual = HOVERED_TIMESTAMP_VAR.current_context();
             is_hovered
                 .hook(move |a| {
                     let is_hovered = *a.value();
-                    let _ = actual.modify(move |a| {
+                    actual.modify(move |a| {
                         if is_hovered {
                             a.set(Some(timestamp));
-                        } else if a.as_ref() == &Some(timestamp) {
+                        } else if a.value() == &Some(timestamp) {
                             a.set(None);
                         }
                     });
@@ -473,7 +473,7 @@ pub fn is_cap_hovered_timestamp(child: impl UiNode, state: impl IntoVar<bool>) -
     // check the hovered timestamp
     bind_state(
         child,
-        merge_var!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, UNDO_STACK_VAR, |&ts, entry, &op| {
+        var_merge!(HOVERED_TIMESTAMP_VAR, UNDO_ENTRY_VAR, UNDO_STACK_VAR, |&ts, entry, &op| {
             match (ts, entry) {
                 (Some(ts), Some(entry)) => match op {
                     Some(UndoOp::Undo) => entry.timestamp() >= ts,

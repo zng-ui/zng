@@ -9,7 +9,7 @@ use zng_app_context::app_local;
 use zng_layout::unit::{Dip, DipRect, DipSize, DipToPx, Factor, FactorUnits, Ppi, Px, PxPoint, PxRect, PxSize, PxToDip};
 use zng_txt::{ToTxt, Txt};
 use zng_unique_id::IdMap;
-use zng_var::{ArcVar, ReadOnlyArcVar, Var, VarValue, impl_from_and_into_var, var};
+use zng_var::{Var, VarValue, impl_from_and_into_var, var};
 use zng_view_api::window::VideoMode;
 
 use crate::WINDOWS;
@@ -209,13 +209,13 @@ impl_from_and_into_var! {
 #[derive(Clone)]
 pub struct MonitorInfo {
     id: MonitorId,
-    is_primary: ArcVar<bool>,
-    name: ArcVar<Txt>,
-    position: ArcVar<PxPoint>,
-    size: ArcVar<PxSize>,
-    video_modes: ArcVar<Vec<VideoMode>>,
-    scale_factor: ArcVar<Factor>,
-    ppi: ArcVar<Ppi>,
+    is_primary: Var<bool>,
+    name: Var<Txt>,
+    position: Var<PxPoint>,
+    size: Var<PxSize>,
+    video_modes: Var<Vec<VideoMode>>,
+    scale_factor: Var<Factor>,
+    ppi: Var<Ppi>,
 }
 impl fmt::Debug for MonitorInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -245,9 +245,9 @@ impl MonitorInfo {
     /// Update variables from fresh [`zng_view_api::MonitorInfo`],
     /// returns if any value changed.
     fn update(&self, info: zng_view_api::window::MonitorInfo) -> bool {
-        fn check_set<T: VarValue + PartialEq>(var: &impl Var<T>, value: T) -> bool {
+        fn check_set<T: VarValue + PartialEq>(var: &Var<T>, value: T) -> bool {
             let ne = var.with(|v| v != &value);
-            var.set(value).unwrap();
+            var.set(value);
             ne
         }
 
@@ -265,36 +265,36 @@ impl MonitorInfo {
     }
 
     /// If this monitor is the primary screen.
-    pub fn is_primary(&self) -> ReadOnlyArcVar<bool> {
+    pub fn is_primary(&self) -> Var<bool> {
         self.is_primary.read_only()
     }
 
     /// Name of the monitor.
-    pub fn name(&self) -> ReadOnlyArcVar<Txt> {
+    pub fn name(&self) -> Var<Txt> {
         self.name.read_only()
     }
     /// Top-left offset of the monitor region in the virtual screen, in pixels.
-    pub fn position(&self) -> ReadOnlyArcVar<PxPoint> {
+    pub fn position(&self) -> Var<PxPoint> {
         self.position.read_only()
     }
     /// Width/height of the monitor region in the virtual screen, in pixels.
-    pub fn size(&self) -> ReadOnlyArcVar<PxSize> {
+    pub fn size(&self) -> Var<PxSize> {
         self.size.read_only()
     }
 
     /// Exclusive fullscreen video modes.
-    pub fn video_modes(&self) -> ReadOnlyArcVar<Vec<VideoMode>> {
+    pub fn video_modes(&self) -> Var<Vec<VideoMode>> {
         self.video_modes.read_only()
     }
 
     /// The monitor scale factor.
     ///
     /// Can update if the user changes system settings.
-    pub fn scale_factor(&self) -> ReadOnlyArcVar<Factor> {
+    pub fn scale_factor(&self) -> Var<Factor> {
         self.scale_factor.read_only()
     }
     /// Pixel-per-inch config var.
-    pub fn ppi(&self) -> ArcVar<Ppi> {
+    pub fn ppi(&self) -> Var<Ppi> {
         self.ppi.clone()
     }
 

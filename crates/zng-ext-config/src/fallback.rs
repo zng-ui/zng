@@ -1,5 +1,5 @@
 use crate::task::parking_lot::Mutex;
-use zng_var::{expr_var, types::SourceVarTag};
+use zng_var::var_expr;
 
 use super::*;
 
@@ -9,7 +9,7 @@ pub trait FallbackConfigReset: AnyConfig + Sync {
     fn reset(&self, key: &ConfigKey);
 
     /// Gets if the config source contains the `key`.
-    fn can_reset(&self, key: ConfigKey) -> BoxedVar<bool>;
+    fn can_reset(&self, key: ConfigKey) -> Var<bool>;
 
     /// Clone a reference to the config.
     fn clone_boxed(&self) -> Box<dyn FallbackConfigReset>;
@@ -41,24 +41,22 @@ impl<S: Config, F: Config> FallbackConfig<S, F> {
 }
 
 impl<S: AnyConfig, F: AnyConfig> AnyConfig for FallbackConfig<S, F> {
-    fn status(&self) -> BoxedVar<ConfigStatus> {
+    fn status(&self) -> Var<ConfigStatus> {
         let self_ = self.0.lock();
-        expr_var! {
+        var_expr! {
             ConfigStatus::merge_status([#{self_.fallback.status()}.clone(), #{self_.source.status()}.clone()].into_iter())
         }
-        .boxed()
     }
 
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> Var<RawConfigValue> {
         self.0.lock().bind_raw(key, default, insert)
     }
 
-    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+    fn contains_key(&mut self, key: ConfigKey) -> Var<bool> {
         let mut self_ = self.0.lock();
-        expr_var! {
+        var_expr! {
             *#{self_.source.contains_key(key.clone())} || *#{self_.fallback.contains_key(key)}
         }
-        .boxed()
     }
 
     fn remove(&mut self, key: &ConfigKey) -> bool {
@@ -82,7 +80,7 @@ impl<S: AnyConfig, F: AnyConfig> FallbackConfigReset for FallbackConfig<S, F> {
         self_.source.remove(key);
     }
 
-    fn can_reset(&self, key: ConfigKey) -> BoxedVar<bool> {
+    fn can_reset(&self, key: ConfigKey) -> Var<bool> {
         let mut self_ = self.0.lock();
         self_.source.contains_key(key)
     }
@@ -99,17 +97,17 @@ struct FallbackConfigData<S, F> {
 }
 
 impl<S: AnyConfig, F: AnyConfig> FallbackConfigData<S, F> {
-    fn bind_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
+    fn bind_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> Var<RawConfigValue> {
         if let Some(entry) = self.output.get(&key)
             && let Some(output) = entry.output_weak.upgrade()
         {
-            return output.boxed();
+            return output;
         }
 
         let fallback = self.fallback.get(key.clone(), default, false);
         let source = self.source.get(key.clone(), fallback.get(), insert);
         let source_contains = self.source.contains_key(key.clone());
-        let fallback_tag = SourceVarTag::new(&fallback);
+        let fallback_tag = fallback.var_instance_tag();
 
         let output = var(if source_contains.get() { source.get() } else { fallback.get() });
         let weak_output = output.downgrade();
@@ -133,8 +131,8 @@ impl<S: AnyConfig, F: AnyConfig> FallbackConfigData<S, F> {
         // update output
         let source_hook = source.hook(clmv!(weak_output, |args| {
             if let Some(output) = weak_output.upgrade() {
-                let output_tag = SourceVarTag::new(&output);
-                if !args.downcast_tags::<SourceVarTag>().any(|t| t == &output_tag) {
+                let output_tag = output.var_instance_tag();
+                if !args.contains_tag(&output_tag) {
                     output.set(args.value().clone());
                 }
                 true
@@ -153,7 +151,7 @@ impl<S: AnyConfig, F: AnyConfig> FallbackConfigData<S, F> {
                 } else {
                     let fallback = weak_fallback.upgrade().unwrap();
                     let fallback_value = fallback.get();
-                    let fallback_tag = SourceVarTag::new(&fallback);
+                    let fallback_tag = fallback.var_instance_tag();
                     output.modify(move |o| {
                         o.set(fallback_value);
                         o.push_tag(fallback_tag);
@@ -167,14 +165,14 @@ impl<S: AnyConfig, F: AnyConfig> FallbackConfigData<S, F> {
         }));
 
         // update source
-        let output_tag = SourceVarTag::new(&output);
+        let output_tag = output.var_instance_tag();
         output
             .hook(move |args| {
                 let _hold = (&fallback, &fallback_hook, &source_hook, &source_contains_hook);
 
-                if !args.downcast_tags::<SourceVarTag>().any(|t| t == &fallback_tag) {
+                if !args.contains_tag(&fallback_tag) {
                     let value = args.value().clone();
-                    let _ = source.modify(move |s| {
+                    source.modify(move |s| {
                         s.set(value);
                         s.update(); // in case of reset the source var can retain the old value
                         s.push_tag(output_tag);
@@ -191,9 +189,9 @@ impl<S: AnyConfig, F: AnyConfig> FallbackConfigData<S, F> {
             },
         );
 
-        output.boxed()
+        output
     }
 }
 struct OutputEntry {
-    output_weak: WeakArcVar<RawConfigValue>,
+    output_weak: WeakVar<RawConfigValue>,
 }

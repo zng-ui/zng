@@ -1,9 +1,8 @@
 use super::{Px, euclid};
 
 use zng_var::{
-    animation::{Transitionable, easing::EasingStep},
+    animation::{Transitionable, easing::EasingStep, is_slerp_enabled, slerp_enabled},
     impl_from_and_into_var,
-    types::{is_slerp_enabled, slerp_enabled},
 };
 
 use super::{AngleRadian, AngleUnits, Factor, FactorUnits, Layout1d, Length, PxTransform};

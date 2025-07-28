@@ -10,9 +10,7 @@ use std::{
 use parking_lot::Mutex;
 use zng_app_context::app_local;
 use zng_txt::Txt;
-use zng_var::{
-    ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, MergeVarBuilder, ReadOnlyArcVar, Var, WeakVar, merge_var, types::ArcCowVar, var,
-};
+use zng_var::{ArcEq, Var, VarMergeBuilder, WeakVar, var, var_local, var_merge};
 use zng_view_api::config::LocaleConfig;
 
 use crate::{
@@ -21,11 +19,11 @@ use crate::{
 
 pub(super) struct L10nService {
     source: Mutex<SwapL10nSource>, // Mutex for `Sync` only.
-    sys_lang: ArcVar<Langs>,
-    app_lang: ArcCowVar<Langs, ArcVar<Langs>>,
+    sys_lang: Var<Langs>,
+    app_lang: Var<Langs>,
 
-    perm_res: Vec<BoxedVar<Option<ArcEq<fluent::FluentResource>>>>,
-    bundles: HashMap<(Langs, LangFilePath), BoxedWeakVar<ArcFluentBundle>>,
+    perm_res: Vec<Var<Option<ArcEq<fluent::FluentResource>>>>,
+    bundles: HashMap<(Langs, LangFilePath), WeakVar<ArcFluentBundle>>,
 }
 impl L10nService {
     pub fn new() -> Self {
@@ -43,19 +41,19 @@ impl L10nService {
         self.source.get_mut().load(source);
     }
 
-    pub fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
+    pub fn available_langs(&mut self) -> Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         self.source.get_mut().available_langs()
     }
 
-    pub fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus> {
+    pub fn available_langs_status(&mut self) -> Var<LangResourceStatus> {
         self.source.get_mut().available_langs_status()
     }
 
-    pub fn sys_lang(&self) -> ReadOnlyArcVar<Langs> {
+    pub fn sys_lang(&self) -> Var<Langs> {
         self.sys_lang.read_only()
     }
 
-    pub fn app_lang(&self) -> ArcCowVar<Langs, ArcVar<Langs>> {
+    pub fn app_lang(&self) -> Var<Langs> {
         self.app_lang.clone()
     }
 
@@ -66,20 +64,18 @@ impl L10nService {
         id: Txt,
         attribute: Txt,
         fallback: Txt,
-        mut args: Vec<(Txt, BoxedVar<L10nArgument>)>,
-    ) -> BoxedVar<Txt> {
+        mut args: Vec<(Txt, Var<L10nArgument>)>,
+    ) -> Var<Txt> {
         if langs.is_empty() {
             return if args.is_empty() {
                 // no lang, no args
-                LocalVar(fallback).boxed()
+                var_local(fallback)
             } else {
                 // no lang, but args can change
-                fluent_args_var(args)
-                    .map(move |args| {
-                        let args = args.lock();
-                        format_fallback(&file.file, id.as_str(), attribute.as_str(), &fallback, Some(&*args))
-                    })
-                    .boxed()
+                fluent_args_var(args).map(move |args| {
+                    let args = args.lock();
+                    format_fallback(&file.file, id.as_str(), attribute.as_str(), &fallback, Some(&*args))
+                })
             };
         }
 
@@ -87,36 +83,34 @@ impl L10nService {
 
         if args.is_empty() {
             // no args, but message can change
-            bundle
-                .map(move |b| {
-                    if let Some(msg) = b.get_message(&id) {
-                        let value = if attribute.is_empty() {
-                            msg.value()
-                        } else {
-                            msg.get_attribute(&attribute).map(|attr| attr.value())
-                        };
-                        if let Some(pattern) = value {
-                            let mut errors = vec![];
-                            let r = b.format_pattern(pattern, None, &mut errors);
-                            if !errors.is_empty() {
-                                let e = FluentErrors(errors);
-                                if attribute.is_empty() {
-                                    tracing::error!("error formatting {id}\n{e}");
-                                } else {
-                                    tracing::error!("error formatting {id}.{attribute}\n{e}");
-                                }
+            bundle.map(move |b| {
+                if let Some(msg) = b.get_message(&id) {
+                    let value = if attribute.is_empty() {
+                        msg.value()
+                    } else {
+                        msg.get_attribute(&attribute).map(|attr| attr.value())
+                    };
+                    if let Some(pattern) = value {
+                        let mut errors = vec![];
+                        let r = b.format_pattern(pattern, None, &mut errors);
+                        if !errors.is_empty() {
+                            let e = FluentErrors(errors);
+                            if attribute.is_empty() {
+                                tracing::error!("error formatting {id}\n{e}");
+                            } else {
+                                tracing::error!("error formatting {id}.{attribute}\n{e}");
                             }
-                            return Txt::from_str(r.as_ref());
                         }
+                        return Txt::from_str(r.as_ref());
                     }
-                    fallback.clone()
-                })
-                .boxed()
+                }
+                fallback.clone()
+            })
         } else if args.len() == 1 {
             // one arg and message can change
             let (name, arg) = args.remove(0);
 
-            merge_var!(bundle, arg, move |b, arg| {
+            var_merge!(bundle, arg, move |b, arg| {
                 let mut args = fluent::FluentArgs::with_capacity(1);
                 args.set(Cow::Borrowed(name.as_str()), arg.fluent_value());
 
@@ -145,10 +139,9 @@ impl L10nService {
 
                 format_fallback(&file.file, id.as_str(), attribute.as_str(), &fallback, Some(&args))
             })
-            .boxed()
         } else {
             // many args and message can change
-            merge_var!(bundle, fluent_args_var(args), move |b, args| {
+            var_merge!(bundle, fluent_args_var(args), move |b, args| {
                 if let Some(msg) = b.get_message(&id) {
                     let value = if attribute.is_empty() {
                         msg.value()
@@ -176,11 +169,10 @@ impl L10nService {
                 let args = args.lock();
                 format_fallback(&file.file, id.as_str(), attribute.as_str(), &fallback, Some(&*args))
             })
-            .boxed()
         }
     }
 
-    fn resource_bundle(&mut self, langs: Langs, file: LangFilePath) -> BoxedVar<ArcFluentBundle> {
+    fn resource_bundle(&mut self, langs: Langs, file: LangFilePath) -> Var<ArcFluentBundle> {
         match self.bundles.entry((langs, file)) {
             hash_map::Entry::Occupied(mut e) => {
                 if let Some(r) = e.get().upgrade() {
@@ -199,7 +191,7 @@ impl L10nService {
             }
         }
     }
-    fn new_resource_bundle(source: &mut SwapL10nSource, langs: &Langs, file: &LangFilePath) -> BoxedVar<ArcFluentBundle> {
+    fn new_resource_bundle(source: &mut SwapL10nSource, langs: &Langs, file: &LangFilePath) -> Var<ArcFluentBundle> {
         if langs.len() == 1 {
             let lang = langs[0].clone();
             let res = source.lang_resource(lang.clone(), file.clone());
@@ -210,13 +202,12 @@ impl L10nService {
                 }
                 ArcFluentBundle(Arc::new(bundle))
             })
-            .boxed()
         } else {
             debug_assert!(langs.len() > 1);
 
             let langs = langs.0.clone();
 
-            let mut res = MergeVarBuilder::new();
+            let mut res = VarMergeBuilder::new();
             for l in langs.iter().rev() {
                 res.push(source.lang_resource(l.clone(), file.clone()));
             }
@@ -227,7 +218,6 @@ impl L10nService {
                 }
                 ArcFluentBundle(Arc::new(bundle))
             })
-            .boxed()
         }
     }
 
@@ -254,8 +244,7 @@ impl L10nService {
     }
 
     pub fn push_perm_resource(&mut self, r: LangResource) {
-        let ptr = r.res.var_ptr();
-        if !self.perm_res.iter().any(|r| r.var_ptr() == ptr) {
+        if !self.perm_res.iter().any(|rr| rr.var_eq(&r.res)) {
             self.perm_res.push(r.res);
         }
     }
@@ -341,8 +330,8 @@ fn format_fallback(file: &str, id: &str, attribute: &str, fallback: &Txt, args: 
     Txt::from_str(txt.as_ref())
 }
 
-fn fluent_args_var(args: Vec<(Txt, BoxedVar<L10nArgument>)>) -> impl Var<ArcEq<Mutex<fluent::FluentArgs<'static>>>> {
-    let mut fluent_args = MergeVarBuilder::new();
+fn fluent_args_var(args: Vec<(Txt, Var<L10nArgument>)>) -> Var<ArcEq<Mutex<fluent::FluentArgs<'static>>>> {
+    let mut fluent_args = VarMergeBuilder::new();
     let mut names = Vec::with_capacity(args.len());
     for (name, arg) in args {
         names.push(name);

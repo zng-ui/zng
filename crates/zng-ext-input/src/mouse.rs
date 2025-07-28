@@ -28,7 +28,7 @@ use zng_app_context::app_local;
 use zng_ext_window::{NestedWindowWidgetInfoExt, WINDOWS};
 use zng_layout::unit::{Dip, DipPoint, DipToPx, Factor, PxPoint, PxToDip};
 use zng_state_map::{StateId, state_map, static_id};
-use zng_var::{ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, impl_from_and_into_var, types::ArcCowVar, var};
+use zng_var::{IntoVar, Var, impl_from_and_into_var, var};
 use zng_view_api::touch::TouchPhase;
 pub use zng_view_api::{
     config::MultiClickConfig,
@@ -722,14 +722,14 @@ impl MouseManager {
         match state {
             ButtonState::Pressed => {
                 if !mouse.buttons.with(|b| b.contains(&button)) {
-                    mouse.buttons.modify(move |btns| btns.to_mut().push(button));
+                    mouse.buttons.modify(move |btns| btns.push(button));
                 }
             }
             ButtonState::Released => {
                 if mouse.buttons.with(|b| b.contains(&button)) {
                     mouse.buttons.modify(move |btns| {
-                        if let Some(i) = btns.as_ref().iter().position(|k| *k == button) {
-                            btns.to_mut().swap_remove(i);
+                        if let Some(i) = btns.iter().position(|k| *k == button) {
+                            btns.swap_remove(i);
                         }
                     });
                 }
@@ -1292,9 +1292,7 @@ impl Default for ClickMode {
     }
 }
 impl IntoVar<Option<ClickMode>> for ClickTrigger {
-    type Var = LocalVar<Option<ClickMode>>;
-
-    fn into_var(self) -> Self::Var {
+    fn into_var(self) -> Var<Option<ClickMode>> {
         Some(ClickMode::from(self)).into_var()
     }
 }
@@ -1421,7 +1419,7 @@ impl MOUSE {
     /// Returns a read-only variable that tracks the [buttons] that are currently pressed.
     ///
     /// [buttons]: MouseButton
-    pub fn buttons(&self) -> ReadOnlyArcVar<Vec<MouseButton>> {
+    pub fn buttons(&self) -> Var<Vec<MouseButton>> {
         MOUSE_SV.read().buttons.read_only()
     }
 
@@ -1432,7 +1430,7 @@ impl MOUSE {
     /// The value is the same as [`sys_multi_click_config`], if set the variable disconnects from system config.
     ///
     /// [`sys_multi_click_config`]: Self::sys_multi_click_config
-    pub fn multi_click_config(&self) -> ArcCowVar<MultiClickConfig, ArcVar<MultiClickConfig>> {
+    pub fn multi_click_config(&self) -> Var<MultiClickConfig> {
         MOUSE_SV.read().multi_click_config.clone()
     }
 
@@ -1444,7 +1442,7 @@ impl MOUSE {
     /// updates with a new value if the system setting is changed and on view-process (re)init.
     ///
     /// In headless apps the default is [`MultiClickConfig::default`] and does not change.
-    pub fn sys_multi_click_config(&self) -> ReadOnlyArcVar<MultiClickConfig> {
+    pub fn sys_multi_click_config(&self) -> Var<MultiClickConfig> {
         MOUSE_SV.read().sys_multi_click_config.read_only()
     }
 
@@ -1454,17 +1452,17 @@ impl MOUSE {
     /// it will update with the keyboard value.
     ///
     /// [`KEYBOARD.repeat_config`]: KEYBOARD::repeat_config
-    pub fn repeat_config(&self) -> BoxedVar<ButtonRepeatConfig> {
+    pub fn repeat_config(&self) -> Var<ButtonRepeatConfig> {
         MOUSE_SV.read().repeat_config.clone()
     }
 
     /// Variable that gets current hovered window and cursor point over that window.
-    pub fn position(&self) -> ReadOnlyArcVar<Option<MousePosition>> {
+    pub fn position(&self) -> Var<Option<MousePosition>> {
         MOUSE_SV.read().position.read_only()
     }
 
     /// Variable that gets the current hovered window and widgets.
-    pub fn hovered(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
+    pub fn hovered(&self) -> Var<Option<InteractionPath>> {
         MOUSE_SV.read().hovered.read_only()
     }
 }
@@ -1496,8 +1494,7 @@ app_local! {
                     start_delay: c.start_delay,
                     interval: c.interval,
                 })
-                .cow()
-                .boxed(),
+                .cow(),
             buttons: var(vec![]),
             hovered: var(None),
             position: var(None),
@@ -1505,10 +1502,10 @@ app_local! {
     };
 }
 struct MouseService {
-    multi_click_config: ArcCowVar<MultiClickConfig, ArcVar<MultiClickConfig>>,
-    sys_multi_click_config: ArcVar<MultiClickConfig>,
-    repeat_config: BoxedVar<ButtonRepeatConfig>,
-    buttons: ArcVar<Vec<MouseButton>>,
-    hovered: ArcVar<Option<InteractionPath>>,
-    position: ArcVar<Option<MousePosition>>,
+    multi_click_config: Var<MultiClickConfig>,
+    sys_multi_click_config: Var<MultiClickConfig>,
+    repeat_config: Var<ButtonRepeatConfig>,
+    buttons: Var<Vec<MouseButton>>,
+    hovered: Var<Option<InteractionPath>>,
+    position: Var<Option<MousePosition>>,
 }

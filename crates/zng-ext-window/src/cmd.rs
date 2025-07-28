@@ -6,7 +6,7 @@ use zng_app::{
     update::EventUpdate,
     window::{WINDOW, WindowId},
 };
-use zng_var::Var;
+
 use zng_view_api::window::WindowState;
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 

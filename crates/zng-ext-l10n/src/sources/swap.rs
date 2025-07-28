@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use zng_var::{ArcEq, ArcVar, BoxedVar, BoxedWeakVar, Var as _, VarHandle, WeakVar as _, types::WeakArcVar, var};
+use zng_var::{ArcEq, Var, VarHandle, WeakVar, var, weak_var};
 
 use crate::{L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 
@@ -15,8 +15,8 @@ use super::NilL10nSource;
 pub struct SwapL10nSource {
     actual: Box<dyn L10nSource>,
 
-    available_langs: ArcVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
-    available_langs_status: ArcVar<LangResourceStatus>,
+    available_langs: Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
+    available_langs_status: Var<LangResourceStatus>,
 
     res: HashMap<(Lang, LangFilePath), SwapFile>,
 }
@@ -67,15 +67,15 @@ impl Default for SwapL10nSource {
     }
 }
 impl L10nSource for SwapL10nSource {
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
-        self.available_langs.read_only().boxed()
+    fn available_langs(&mut self) -> Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
+        self.available_langs.read_only()
     }
 
-    fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus> {
-        self.available_langs_status.read_only().boxed()
+    fn available_langs_status(&mut self) -> Var<LangResourceStatus> {
+        self.available_langs_status.read_only()
     }
 
-    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> Var<Option<ArcEq<fluent::FluentResource>>> {
         match self.res.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 if let Some(res) = e.get().res.upgrade() {
@@ -90,7 +90,7 @@ impl L10nSource for SwapL10nSource {
                     let res = var(actual_f.get());
                     f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
                     f.res_strong_actual = res.hold(actual_f); // strong ref to `actual_f` is held by `res`.
-                    let res = res.boxed();
+                    let res = res;
                     f.res = res.downgrade();
 
                     f.status.set_from(&actual_s);
@@ -108,7 +108,7 @@ impl L10nSource for SwapL10nSource {
                 let res = var(actual_f.get());
                 f.actual_weak_res = actual_f.bind(&res); // weak ref to `res` is held by `actual_f`
                 f.res_strong_actual = res.hold(actual_f); // strong ref to `actual_f` is held by `res`.
-                let res = res.boxed();
+                let res = res;
                 f.res = res.downgrade();
 
                 f.status.set_from(&actual_s);
@@ -121,18 +121,13 @@ impl L10nSource for SwapL10nSource {
         }
     }
 
-    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<LangResourceStatus> {
-        self.res
-            .entry((lang, file))
-            .or_insert_with(SwapFile::new)
-            .status
-            .read_only()
-            .boxed()
+    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> Var<LangResourceStatus> {
+        self.res.entry((lang, file)).or_insert_with(SwapFile::new).status.read_only()
     }
 }
 struct SwapFile {
-    res: BoxedWeakVar<Option<ArcEq<fluent::FluentResource>>>,
-    status: ArcVar<LangResourceStatus>,
+    res: WeakVar<Option<ArcEq<fluent::FluentResource>>>,
+    status: Var<LangResourceStatus>,
     actual_weak_res: VarHandle,
     res_strong_actual: VarHandle,
     actual_weak_status: VarHandle,
@@ -140,7 +135,7 @@ struct SwapFile {
 impl SwapFile {
     fn new() -> Self {
         Self {
-            res: WeakArcVar::default().boxed(),
+            res: weak_var(),
             status: var(LangResourceStatus::Loading),
             actual_weak_res: VarHandle::dummy(),
             res_strong_actual: VarHandle::dummy(),

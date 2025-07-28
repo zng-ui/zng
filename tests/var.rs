@@ -1,48 +1,10 @@
 mod any {
-    use zng::{
-        prelude::*,
-        var::{ArcVar, BoxedVar, ContextVar},
-    };
+    use zng::{prelude::*, var::VarAny};
 
     #[test]
-    fn downcast_ref_rc() {
-        let any_var = var(true).boxed_any();
-        assert!(any_var.as_any().downcast_ref::<ArcVar<bool>>().is_some())
-    }
-
-    #[test]
-    fn downcast_ref_boxed() {
-        let any_var = var(true).boxed().boxed_any();
-        assert!(any_var.as_any().downcast_ref::<ArcVar<bool>>().is_some())
-    }
-
-    #[test]
-    fn downcast_ref_context_var() {
-        context_var! {
-            static FOO_VAR: bool = true;
-        }
-        let any_var = FOO_VAR.boxed_any();
-        assert!(any_var.as_any().downcast_ref::<ContextVar<bool>>().is_some());
-    }
-
-    #[test]
-    fn downcast_double_boxed() {
-        let any_var = var(true).boxed_any().double_boxed_any();
-        assert!(any_var.downcast_ref::<BoxedVar<bool>>().is_some())
-    }
-
-    #[test]
-    fn downcast_rc() {
-        let any_var = var(true).boxed_any();
-        let any_box = any_var.as_any();
-        assert!(any_box.downcast_ref::<ArcVar<bool>>().is_some());
-    }
-
-    #[test]
-    fn downcast_boxed() {
-        let any_var = var(true).boxed().boxed_any();
-        let any_box = any_var.as_any();
-        assert!(any_box.downcast_ref::<ArcVar<bool>>().is_some());
+    fn downcast() {
+        let any_var = VarAny::from(var(true));
+        assert!(any_var.downcast::<bool>().is_ok())
     }
 }
 
@@ -527,7 +489,7 @@ mod context {
         app::{AppExtended, AppExtension, HeadlessApp},
         prelude::*,
         prelude_wgt::*,
-        var::{AnyWhenVarBuilder, ContextInitHandle},
+        var::{ContextInitHandle, VarWhenAnyBuilder},
     };
 
     context_var! {
@@ -763,7 +725,7 @@ mod context {
         TEST_VAR.with_context_var(ContextInitHandle::new(), backing_var.clone(), || {
             let t = TEST_VAR;
             assert!(t.capabilities().contains(VarCapability::MODIFY));
-            t.set("set!").unwrap();
+            t.set("set!");
         });
 
         let _ = app.update(false);
@@ -804,7 +766,7 @@ mod context {
     fn context_var_recursion_when1() {
         let _scope = APP.minimal();
 
-        let var = when_var! {
+        let var = var_when! {
             false => var("hello".to_txt()),
             _ => TEST_VAR,
         };
@@ -818,7 +780,7 @@ mod context {
     fn context_var_recursion_when2() {
         let _scope = APP.minimal();
 
-        let var = when_var! {
+        let var = var_when! {
             true => TEST_VAR,
             _ => var("hello".to_txt()),
         };
@@ -832,9 +794,9 @@ mod context {
     fn context_var_recursion_issue_when_any() {
         let _scope = APP.minimal();
 
-        let mut var = AnyWhenVarBuilder::new(TEST_VAR);
-        var.push(self::var(false), self::var("hello".to_txt()));
-        let var = var.build().unwrap();
+        let mut var = VarWhenAnyBuilder::new(TEST_VAR.into());
+        var.push(self::var(false), self::var("hello".to_txt()).into());
+        let var = var.into_typed().build();
 
         let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
 
@@ -845,7 +807,7 @@ mod context {
     fn context_var_recursion_merge() {
         let _scope = APP.minimal();
 
-        let var = merge_var!(TEST_VAR, var(true), |t, _| t.clone());
+        let var = var_merge!(TEST_VAR, var(true), |t, _| t.clone());
 
         let r = TEST_VAR.with_context_var(ContextInitHandle::new(), var.clone(), || var.get());
 
@@ -855,16 +817,16 @@ mod context {
 
 mod flat_map {
     use std::fmt;
-    use zng::{prelude::*, var::ArcVar};
+    use zng::prelude::*;
 
     #[derive(Clone)]
     pub struct Foo {
         pub bar: bool,
-        pub var: ArcVar<usize>,
+        pub var: Var<usize>,
     }
     impl PartialEq for Foo {
         fn eq(&self, other: &Self) -> bool {
-            self.bar == other.bar && self.var.var_ptr() == other.var.var_ptr()
+            self.bar == other.bar && self.var.var_eq(&other.var)
         }
     }
     impl fmt::Debug for Foo {
@@ -1003,10 +965,10 @@ mod modify_importance {
 
         let test = var(Txt::from_static("v0"));
         let ease = var(0i32);
-        test.hook_any(Box::new(clmv!(ease, |_| {
+        test.hook(clmv!(ease, |_| {
             ease.ease(100, 10.ms(), easing::linear).perm();
             false // once
-        })))
+        }))
         .perm();
         let importance = VARS.current_modify().importance();
 
@@ -1185,7 +1147,7 @@ mod threads {
 mod contextualized {
     use zng::{
         prelude::*,
-        var::{ContextInitHandle, ContextualizedVar},
+        var::{ContextInitHandle, var_ctx},
     };
 
     #[test]
@@ -1193,7 +1155,7 @@ mod contextualized {
         let mut app = APP.defaults().run_headless(false);
 
         let var = var(0u32);
-        let source = ContextualizedVar::new(move || var.clone());
+        let source = var_ctx(move || var.clone());
         let mapped = source.map(|n| n + 1);
         let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();
@@ -1202,7 +1164,7 @@ mod contextualized {
         assert_eq!(0, mapped2.get());
         assert_eq!(0, mapped2_copy.get());
 
-        source.set(10u32).unwrap();
+        source.set(10u32);
         let mut updated = false;
         app.update_observe(
             || {
@@ -1224,7 +1186,7 @@ mod contextualized {
         let mut app = APP.defaults().run_headless(false);
 
         let var = var(0u32);
-        let source = ContextualizedVar::new(move || var.clone());
+        let source = var_ctx(move || var.clone());
         let mapped = source.map(|n| n + 1);
         let mapped2 = mapped.map(|n| n - 1);
         let mapped2_copy = mapped2.clone();
@@ -1236,7 +1198,7 @@ mod contextualized {
             assert_eq!(0, mapped2_copy.get());
         });
 
-        source.set(10u32).unwrap();
+        source.set(10u32);
         let mut updated = false;
         app.update_observe(
             || {
@@ -1269,7 +1231,7 @@ mod vec {
         let list = var(ObservableVec::<u32>::new());
 
         list.modify(|a| {
-            a.to_mut().push(32);
+            a.push(32);
         });
         app.update_observe(
             || {
@@ -1285,7 +1247,7 @@ mod vec {
         .assert_wait();
 
         list.modify(|a| {
-            a.to_mut().push(33);
+            a.push(33);
         });
         app.update_observe(
             || {

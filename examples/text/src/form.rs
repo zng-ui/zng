@@ -7,7 +7,6 @@ use zng::{
     prelude::*,
     text::font_weight,
     text_input,
-    var::ArcVar,
     window::WindowRoot,
 };
 
@@ -30,7 +29,7 @@ pub fn form_editor() -> impl UiNode {
     }
 }
 
-fn form_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
+fn form_editor_window(is_open: Var<bool>) -> WindowRoot {
     Window! {
         title = "Form";
         on_open = hn!(is_open, |_| {

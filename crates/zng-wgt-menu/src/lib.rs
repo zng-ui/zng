@@ -146,14 +146,14 @@ impl ButtonStyle {
             shortcut_txt = Text! {
                 txt = BUTTON.cmd().flat_map(|c| match c {
                     Some(c) => c.shortcut_txt(),
-                    None => LocalVar(Txt::from("")).boxed()
+                    None => var_local(Txt::from(""))
                 });
                 align = Align::CENTER;
             };
 
             icon_fn = BUTTON.cmd().flat_map(|c| match c {
-                Some(c) => c.icon().boxed(),
-                None => LocalVar(WidgetFn::nil()).boxed()
+                Some(c) => c.icon(),
+                None => var_local(WidgetFn::nil())
             });
 
             when *#is_focused {
@@ -188,8 +188,8 @@ impl TouchButtonStyle {
             zng_wgt::visibility = BUTTON
                 .cmd()
                 .flat_map(|c| match c {
-                    Some(c) => c.is_enabled().boxed(),
-                    None => LocalVar(true).boxed(),
+                    Some(c) => c.is_enabled(),
+                    None => var_local(true),
                 })
                 .map_into();
         }

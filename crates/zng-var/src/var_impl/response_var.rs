@@ -223,7 +223,7 @@ impl<T: VarValue> IntoFuture for ResponseVar<T> {
 impl<T: VarValue> ResponderVar<T> {
     /// Sets the one time response.
     pub fn respond(&self, response: T) {
-        self.set(Response::Done(response)).unwrap();
+        self.set(Response::Done(response));
     }
 
     /// Creates a [`ResponseVar`] linked to this responder.

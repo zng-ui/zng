@@ -8,7 +8,7 @@ use zng_app::{
     update::EventUpdate,
     widget::info::WidgetInfo,
 };
-use zng_var::{BoxedVar, merge_var};
+use zng_var::{Var, var_merge};
 
 use super::*;
 
@@ -203,7 +203,7 @@ pub trait CommandFocusExt {
     /// paste_in_focused_cmd.get().notify();
     /// # }
     /// ```
-    fn focus_scoped(self) -> BoxedVar<Command>;
+    fn focus_scoped(self) -> Var<Command>;
 
     /// Gets a command variable with `self` scoped to the output of `map`.
     ///
@@ -215,30 +215,28 @@ pub trait CommandFocusExt {
     /// [`focused`]: FOCUS::focused
     /// [`WidgetInfo`]: zng_app::widget::info::WidgetInfo
     /// [`CommandScope`]: zng_app::event::CommandScope
-    fn focus_scoped_with(self, map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> BoxedVar<Command>;
+    fn focus_scoped_with(self, map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> Var<Command>;
 }
 
 impl CommandFocusExt for Command {
-    fn focus_scoped(self) -> BoxedVar<Command> {
+    fn focus_scoped(self) -> Var<Command> {
         let cmd = self.scoped(CommandScope::App);
-        merge_var!(FOCUS.alt_return(), FOCUS.focused(), move |alt, f| {
+        var_merge!(FOCUS.alt_return(), FOCUS.focused(), move |alt, f| {
             match alt.as_ref().or(f.as_ref()) {
                 Some(p) => cmd.scoped(p.widget_id()),
                 None => cmd,
             }
         })
-        .boxed()
     }
 
-    fn focus_scoped_with(self, mut map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> BoxedVar<Command> {
+    fn focus_scoped_with(self, mut map: impl FnMut(Option<WidgetInfo>) -> CommandScope + Send + 'static) -> Var<Command> {
         let cmd = self.scoped(CommandScope::App);
-        merge_var!(FOCUS.alt_return(), FOCUS.focused(), |alt, f| {
+        var_merge!(FOCUS.alt_return(), FOCUS.focused(), |alt, f| {
             match alt.as_ref().or(f.as_ref()) {
                 Some(p) => WINDOWS.widget_tree(p.window_id()).ok()?.get(p.widget_id()),
                 None => None,
             }
         })
         .map(move |w| cmd.scoped(map(w.clone())))
-        .boxed()
     }
 }

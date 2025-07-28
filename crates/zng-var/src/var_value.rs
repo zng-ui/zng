@@ -3,17 +3,48 @@ use std::{any::Any, fmt, ops, sync::Arc};
 use smallbox::*;
 
 /// Small box for [`VarValueAny`] values.
-///
-/// You can use [`box_value_any`] to box a value.
-pub type BoxedVarValueAny = SmallBox<dyn VarValueAny, space::S4>;
+pub struct BoxedVarValueAny(SmallBox<dyn VarValueAny, space::S4>);
+impl ops::Deref for BoxedVarValueAny {
+    type Target = dyn VarValueAny;
 
-/// Box `value`.
-///
-/// Variables uses the [`smallbox`] crate boxes.
-///
-/// [`smallbox`]: https://docs.rs/smallbox/
-pub fn box_value_any(value: impl VarValueAny) -> BoxedVarValueAny {
-    smallbox!(value)
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+impl ops::DerefMut for BoxedVarValueAny {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
+impl BoxedVarValueAny {
+    /// Box `value`.
+    pub fn new(value: impl VarValueAny) -> Self {
+        BoxedVarValueAny(smallbox!(value))
+    }
+
+    /// Downcast to value.
+    pub fn downcast<T: VarValue>(self) -> Result<T, Self> {
+        // Can't cast to `SmallBox<dyn Any>` in stable, so need to clone here for now.
+        match self.downcast_ref::<T>() {
+            Some(v) => Ok(v.clone()),
+            None => Err(self),
+        }
+    }
+}
+impl Clone for BoxedVarValueAny {
+    fn clone(&self) -> Self {
+        self.0.clone_boxed()
+    }
+}
+impl fmt::Debug for BoxedVarValueAny {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&*self.0, f)
+    }
+}
+impl PartialEq for BoxedVarValueAny {
+    fn eq(&self, other: &Self) -> bool {
+        self.eq_any(&*other.0)
+    }
 }
 
 /// Represents any variable value.
@@ -67,7 +98,7 @@ where
     T: fmt::Debug + PartialEq + Clone + Any + Send + Sync,
 {
     fn clone_boxed(&self) -> BoxedVarValueAny {
-        smallbox!(self.clone())
+        BoxedVarValueAny::new(self.clone())
     }
 
     fn eq_any(&self, other: &dyn VarValueAny) -> bool {

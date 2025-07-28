@@ -47,7 +47,7 @@ pub use zng_layout as layout;
 use zng_txt::Txt;
 #[doc(hidden)]
 pub use zng_var as var;
-use zng_var::ArcVar;
+use zng_var::Var;
 
 pub use zng_time::{DInstant, Deadline, INSTANT, InstantMode};
 
@@ -103,10 +103,9 @@ pub mod __proc_macro_util {
             pub use crate::widget::builder::{
                 AnyArcWidgetHandler, ArcWidgetHandler, Importance, InputKind, PropertyArgs, PropertyId, PropertyInfo, PropertyInput,
                 PropertyInputTypes, PropertyNewArgs, SourceLocation, UiNodeInWhenExprError, UiNodeListInWhenExprError, WgtInfo, WhenInput,
-                WhenInputMember, WhenInputVar, WidgetHandlerInWhenExprError, WidgetType, getter_var, iter_input_build_actions,
-                nest_group_items, new_dyn_other, new_dyn_ui_node, new_dyn_ui_node_list, new_dyn_var, new_dyn_widget_handler, panic_input,
-                state_var, ui_node_list_to_args, ui_node_to_args, value_to_args, var_to_args, when_condition_expr_var,
-                widget_handler_to_args,
+                WhenInputMember, WhenInputVar, WidgetHandlerInWhenExprError, WidgetType, iter_input_build_actions, nest_group_items,
+                new_dyn_other, new_dyn_ui_node, new_dyn_ui_node_list, new_dyn_var, new_dyn_widget_handler, panic_input,
+                ui_node_list_to_args, ui_node_to_args, value_to_args, var_getter, var_state, var_to_args, widget_handler_to_args,
             };
         }
 
@@ -168,7 +167,7 @@ pub mod __proc_macro_util {
     #[doc(hidden)]
     pub mod var {
         #[doc(hidden)]
-        pub use crate::var::{AnyVar, AnyVarValue, BoxedVar, Var, expr_var};
+        pub use crate::var::{Var, VarAny, VarValueAny, var_expr};
 
         #[doc(hidden)]
         pub mod animation {
@@ -1144,7 +1143,7 @@ impl APP {
     ///
     /// These events are disabled by default as they can impact performance or may require special security clearance,
     /// depending on the view-process implementation and operating system.
-    pub fn device_events_filter(&self) -> ArcVar<DeviceEventsFilter> {
+    pub fn device_events_filter(&self) -> Var<DeviceEventsFilter> {
         APP_PROCESS_SV.read().device_events_filter.clone()
     }
 }

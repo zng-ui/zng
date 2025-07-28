@@ -68,7 +68,7 @@ fn controls() -> impl UiNode {
 fn btn_square() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().square()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.square()));
         child = Text!("x²");
     }
 }
@@ -76,7 +76,7 @@ fn btn_square() -> impl UiNode {
 fn btn_square_root() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().square_root()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.square_root()));
         child = Text!("√x");
     }
 }
@@ -84,7 +84,7 @@ fn btn_square_root() -> impl UiNode {
 fn btn_clear() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().clear()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.clear()));
         click_shortcut = shortcut!(Escape);
         child = Text!("C");
     }
@@ -93,7 +93,7 @@ fn btn_clear() -> impl UiNode {
 fn btn_backspace() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().backspace()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.backspace()));
         click_shortcut = shortcut!(Backspace);
         child = Text!("⌫");
     }
@@ -103,7 +103,7 @@ fn btn(c: char) -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
         on_click = hn!(|_| {
-            DATA.req::<Calculator>().modify(move |b| b.to_mut().push(c)).unwrap();
+            DATA.req::<Calculator>().modify(move |b| b.push(c));
         });
         click_shortcut = {
             let shortcuts: Shortcuts = c.try_into().unwrap_or_default();
@@ -117,7 +117,7 @@ fn btn(c: char) -> impl UiNode {
 fn btn_eval() -> impl UiNode {
     Button! {
         grid::cell::at = grid::cell::AT_AUTO;
-        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.to_mut().eval()).unwrap());
+        on_click = hn!(|_| DATA.req::<Calculator>().modify(|c| c.eval()));
         click_shortcut = vec![shortcut!(Enter), shortcut!('=')];
         child = Text!("=");
     }

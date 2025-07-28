@@ -58,7 +58,7 @@ use zng_clone_move::clmv;
 use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zng_task as task;
 use zng_txt::Txt;
-use zng_var::{AnyVar, AnyWeakVar, ArcVar, BoxedVar, LocalVar, Var, VarHandles, VarValue, WeakVar, types::WeakArcVar, var};
+use zng_var::{Var, VarHandles, VarValue, WeakVar, var, var_local};
 
 /// Application extension that provides mouse events and service.
 ///
@@ -96,7 +96,7 @@ impl CONFIG {
     }
 
     /// Gets a read-only variable that represents the IO status of the config.
-    pub fn status(&self) -> BoxedVar<ConfigStatus> {
+    pub fn status(&self) -> Var<ConfigStatus> {
         CONFIG_SV.read().status()
     }
 
@@ -105,7 +105,7 @@ impl CONFIG {
     /// [`status`]: Self::status
     pub async fn wait_idle(&self) {
         task::yield_now().await; // in case a `load` request was just made
-        self.status().wait_value(|s| s.is_idle()).await;
+        self.status().wait_match(|s| s.is_idle()).await;
     }
 
     /// Gets a variable that is bound to the config `key`.
@@ -115,26 +115,26 @@ impl CONFIG {
     ///
     /// The `default` value is used if the key is not found in the config, the default value
     /// is not inserted in the config, the key is inserted or replaced only when the returned variable updates.
-    pub fn get<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: T) -> BoxedVar<T> {
+    pub fn get<T: ConfigValue>(&self, key: impl Into<ConfigKey>, default: T) -> Var<T> {
         CONFIG_SV.write().get(key.into(), default, false)
     }
 
     /// Gets a variable that is bound to the config `key`, the `value` is set and if the `key` was
     /// not present it is also inserted on the config.
-    pub fn insert<T: ConfigValue>(&self, key: impl Into<ConfigKey>, value: T) -> BoxedVar<T> {
+    pub fn insert<T: ConfigValue>(&self, key: impl Into<ConfigKey>, value: T) -> Var<T> {
         CONFIG_SV.write().get(key.into(), value, true)
     }
 }
 impl AnyConfig for CONFIG {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> Var<RawConfigValue> {
         CONFIG_SV.write().get_raw(key, default, insert)
     }
 
-    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+    fn contains_key(&mut self, key: ConfigKey) -> Var<bool> {
         CONFIG_SV.write().contains_key(key)
     }
 
-    fn status(&self) -> BoxedVar<ConfigStatus> {
+    fn status(&self) -> Var<ConfigStatus> {
         CONFIG.status()
     }
 
@@ -183,7 +183,7 @@ impl RawConfigValue {
 /// See [`Config`] for the full trait.
 pub trait AnyConfig: Send + Any {
     /// Gets a read-only variable that represents the IO status of the config.
-    fn status(&self) -> BoxedVar<ConfigStatus>;
+    fn status(&self) -> Var<ConfigStatus>;
 
     /// Gets a weak typed variable to the config `key`.
     ///
@@ -192,10 +192,10 @@ pub trait AnyConfig: Send + Any {
     ///
     /// The `default` value is used if the key is not found in the config, the default value
     /// is only inserted in the config if `insert`, otherwise the key is inserted or replaced only when the returned variable changes.
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue>;
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> Var<RawConfigValue>;
 
     /// Gets a read-only variable that tracks if an entry for the `key` is in the backing storage.
-    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool>;
+    fn contains_key(&mut self, key: ConfigKey) -> Var<bool>;
 
     /// Removes the `key` from the backing storage.
     ///
@@ -221,14 +221,14 @@ pub trait Config: AnyConfig {
     ///
     /// The `default` value is used if the key is not found in the config, the default value
     /// is only inserted in the config if `insert`, otherwise the key is inserted or replaced only when the returned variable changes.
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T>;
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> Var<T>;
 }
 impl<C: AnyConfig> Config for C {
-    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> BoxedVar<T> {
+    fn get<T: ConfigValue>(&mut self, key: impl Into<ConfigKey>, default: T, insert: bool) -> Var<T> {
         get_impl(self, insert, key.into(), default)
     }
 }
-fn get_impl<T: ConfigValue, C: AnyConfig>(source: &mut C, insert: bool, key: ConfigKey, default: T) -> BoxedVar<T> {
+fn get_impl<T: ConfigValue, C: AnyConfig>(source: &mut C, insert: bool, key: ConfigKey, default: T) -> Var<T> {
     source
         .get_raw(key, RawConfigValue::serialize(&default).unwrap(), insert)
         .filter_map_bidi(
@@ -255,7 +255,6 @@ fn get_impl<T: ConfigValue, C: AnyConfig>(source: &mut C, insert: bool, key: Con
             },
             move || default.clone(),
         )
-        .boxed()
 }
 
 /// Config wrapper that only provides read-only variables from the inner config.
@@ -269,15 +268,15 @@ impl<C: Config> ReadOnlyConfig<C> {
     }
 }
 impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _: bool) -> Var<RawConfigValue> {
         self.cfg.get_raw(key, default, false).read_only()
     }
 
-    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+    fn contains_key(&mut self, key: ConfigKey) -> Var<bool> {
         self.cfg.contains_key(key)
     }
 
-    fn status(&self) -> BoxedVar<ConfigStatus> {
+    fn status(&self) -> Var<ConfigStatus> {
         self.cfg.status()
     }
 
@@ -295,18 +294,18 @@ impl<C: Config> AnyConfig for ReadOnlyConfig<C> {
 /// Values are retained in memory even if all variables to the key are dropped, but they are lost when the process ends.
 #[derive(Default)]
 pub struct MemoryConfig {
-    values: HashMap<ConfigKey, ArcVar<RawConfigValue>>,
-    contains: HashMap<ConfigKey, WeakArcVar<bool>>,
+    values: HashMap<ConfigKey, Var<RawConfigValue>>,
+    contains: HashMap<ConfigKey, WeakVar<bool>>,
 }
 
 impl AnyConfig for MemoryConfig {
-    fn status(&self) -> BoxedVar<ConfigStatus> {
-        LocalVar(ConfigStatus::Loaded).boxed()
+    fn status(&self) -> Var<ConfigStatus> {
+        var_local(ConfigStatus::Loaded)
     }
 
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _insert: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _insert: bool) -> Var<RawConfigValue> {
         match self.values.entry(key) {
-            hash_map::Entry::Occupied(e) => e.get().clone().boxed(),
+            hash_map::Entry::Occupied(e) => e.get().clone(),
             hash_map::Entry::Vacant(e) => {
                 let r = var(default);
 
@@ -316,26 +315,26 @@ impl AnyConfig for MemoryConfig {
                     }
                 }
 
-                e.insert(r).clone().boxed()
+                e.insert(r).clone()
             }
         }
     }
 
-    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
+    fn contains_key(&mut self, key: ConfigKey) -> Var<bool> {
         match self.contains.entry(key) {
             hash_map::Entry::Occupied(mut e) => {
                 if let Some(r) = e.get().upgrade() {
-                    r.boxed()
+                    r
                 } else {
                     let r = var(self.values.contains_key(e.key()));
                     e.insert(r.downgrade());
-                    r.boxed()
+                    r
                 }
             }
             hash_map::Entry::Vacant(e) => {
                 let r = var(self.values.contains_key(e.key()));
                 e.insert(r.downgrade());
-                r.boxed()
+                r
             }
         }
     }
@@ -361,16 +360,16 @@ impl AnyConfig for MemoryConfig {
 }
 
 struct ConfigVar<T: ConfigValue> {
-    var: WeakArcVar<T>,
+    var: WeakVar<T>,
     binding: VarHandles,
 }
 impl<T: ConfigValue> ConfigVar<T> {
-    fn new_any(var: WeakArcVar<T>, binding: VarHandles) -> Box<dyn AnyConfigVar> {
+    fn new_any(var: WeakVar<T>, binding: VarHandles) -> Box<dyn AnyConfigVar> {
         Box::new(Self { var, binding })
     }
 }
 struct ConfigContainsVar {
-    var: WeakArcVar<bool>,
+    var: WeakVar<bool>,
     binding: VarHandles,
 }
 
@@ -384,13 +383,13 @@ pub struct ConfigVars {
 }
 impl ConfigVars {
     /// Gets the already bound variable or calls `bind` to generate a new binding.
-    pub fn get_or_bind<T: ConfigValue>(&mut self, key: ConfigKey, bind: impl FnOnce(&ConfigKey) -> BoxedVar<T>) -> BoxedVar<T> {
+    pub fn get_or_bind<T: ConfigValue>(&mut self, key: ConfigKey, bind: impl FnOnce(&ConfigKey) -> Var<T>) -> Var<T> {
         match self.values.entry(key) {
             hash_map::Entry::Occupied(mut e) => {
                 if e.get().can_upgrade() {
                     if let Some(x) = e.get().as_any().downcast_ref::<ConfigVar<T>>() {
                         if let Some(var) = x.var.upgrade() {
-                            return var.boxed();
+                            return var;
                         }
                     } else {
                         tracing::error!(
@@ -415,7 +414,7 @@ impl ConfigVars {
                 );
 
                 e.insert(ConfigVar::new_any(res.downgrade(), binding));
-                res.boxed()
+                res
             }
             hash_map::Entry::Vacant(e) => {
                 let cfg = bind(e.key());
@@ -430,28 +429,28 @@ impl ConfigVars {
                 );
 
                 e.insert(ConfigVar::new_any(res.downgrade(), binding));
-                res.boxed()
+                res
             }
         }
     }
 
     /// Bind the contains variable.
-    pub fn get_or_bind_contains(&mut self, key: ConfigKey, bind: impl FnOnce(&ConfigKey) -> BoxedVar<bool>) -> BoxedVar<bool> {
+    pub fn get_or_bind_contains(&mut self, key: ConfigKey, bind: impl FnOnce(&ConfigKey) -> Var<bool>) -> Var<bool> {
         match self.contains.entry(key) {
             hash_map::Entry::Occupied(mut e) => {
                 if let Some(res) = e.get().var.upgrade() {
-                    return res.boxed();
+                    return res;
                 }
 
                 let cfg = bind(e.key());
                 let res = var(cfg.get());
 
-                let binding = VarHandles(vec![
+                let binding = VarHandles::from([
                     cfg.bind(&res),
-                    res.hook_any(Box::new(move |_| {
+                    res.hook(move |_| {
                         let _strong_ref = &cfg;
                         true
-                    })),
+                    }),
                 ]);
 
                 e.insert(ConfigContainsVar {
@@ -459,18 +458,18 @@ impl ConfigVars {
                     binding,
                 });
 
-                res.boxed()
+                res
             }
             hash_map::Entry::Vacant(e) => {
                 let cfg = bind(e.key());
                 let res = var(cfg.get());
 
-                let binding = VarHandles(vec![
+                let binding = VarHandles::from([
                     cfg.bind(&res),
-                    res.hook_any(Box::new(move |_| {
+                    res.hook(move |_| {
                         let _strong_ref = &cfg;
                         true
-                    })),
+                    }),
                 ]);
 
                 e.insert(ConfigContainsVar {
@@ -478,7 +477,7 @@ impl ConfigVars {
                     binding,
                 });
 
-                res.boxed()
+                res
             }
         }
     }
@@ -534,7 +533,7 @@ impl<T: ConfigValue> AnyConfigVar for ConfigVar<T> {
                     tracing::error!("rebind config get({key:?}) error, {e:?}");
 
                     // try to override
-                    let _ = source_var.set(RawConfigValue::serialize(vm.as_ref()).unwrap());
+                    source_var.set(RawConfigValue::serialize(vm.value()).unwrap());
                 }
             }
         }));
@@ -578,12 +577,12 @@ impl ConfigContainsVar {
             let cfg = source.contains_key(key.clone());
             res.set_from(&cfg);
 
-            self.binding = VarHandles(vec![
+            self.binding = VarHandles::from([
                 cfg.bind(&res),
-                res.hook_any(Box::new(move |_| {
+                res.hook(move |_| {
                     let _strong_ref = &cfg;
                     true
-                })),
+                }),
             ]);
 
             true

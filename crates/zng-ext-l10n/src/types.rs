@@ -6,7 +6,7 @@ use semver::Version;
 use zng_ext_fs_watcher::WatcherReadStatus;
 use zng_layout::context::LayoutDirection;
 use zng_txt::{ToTxt, Txt};
-use zng_var::{ArcEq, ArcVar, BoxedVar, IntoVar, LocalVar, ReadOnlyArcVar, Var, VarValue, context_var, impl_from_and_into_var};
+use zng_var::{ArcEq, IntoVar, Var, VarValue, context_var, impl_from_and_into_var, var_local};
 
 use crate::{L10N, lang, service::L10N_SV};
 
@@ -45,8 +45,8 @@ impl LangResources {
 #[derive(Clone)]
 #[must_use = "resource can unload if dropped"]
 pub struct LangResource {
-    pub(super) res: BoxedVar<Option<ArcEq<fluent::FluentResource>>>,
-    pub(super) status: BoxedVar<LangResourceStatus>,
+    pub(super) res: Var<Option<ArcEq<fluent::FluentResource>>>,
+    pub(super) status: Var<LangResourceStatus>,
 }
 
 impl fmt::Debug for LangResource {
@@ -58,12 +58,12 @@ impl fmt::Debug for LangResource {
 }
 impl LangResource {
     /// Read-only variable with the resource.
-    pub fn resource(&self) -> &BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+    pub fn resource(&self) -> &Var<Option<ArcEq<fluent::FluentResource>>> {
         &self.res
     }
 
     /// Read-only variable with the resource status.
-    pub fn status(&self) -> &BoxedVar<LangResourceStatus> {
+    pub fn status(&self) -> &Var<LangResourceStatus> {
         &self.status
     }
 
@@ -162,28 +162,28 @@ pub struct L10nMessageBuilder {
     pub(super) id: Txt,
     pub(super) attribute: Txt,
     pub(super) fallback: Txt,
-    pub(super) args: Vec<(Txt, BoxedVar<L10nArgument>)>,
+    pub(super) args: Vec<(Txt, Var<L10nArgument>)>,
 }
 impl L10nMessageBuilder {
     /// Add a format arg variable.
     pub fn arg(mut self, name: Txt, value: impl IntoVar<L10nArgument>) -> Self {
-        self.args.push((name, value.into_var().boxed()));
+        self.args.push((name, value.into_var()));
         self
     }
     #[doc(hidden)]
-    pub fn l10n_arg(self, name: &'static str, value: impl Var<L10nArgument>) -> Self {
+    pub fn l10n_arg(self, name: &'static str, value: Var<L10nArgument>) -> Self {
         self.arg(Txt::from_static(name), value)
     }
 
     /// Build the message var for the given languages.
-    pub fn build_for(self, lang: impl Into<Langs>) -> impl Var<Txt> {
+    pub fn build_for(self, lang: impl Into<Langs>) -> Var<Txt> {
         L10N_SV
             .write()
             .localized_message(lang.into(), self.file, self.id, self.attribute, self.fallback, self.args)
     }
 
     /// Build the message var for the contextual language.
-    pub fn build(self) -> impl Var<Txt> {
+    pub fn build(self) -> Var<Txt> {
         let Self {
             file,
             id,
@@ -269,28 +269,21 @@ impl L10nArgument {
 pub struct L10nSpecialize<T>(pub Option<T>);
 #[doc(hidden)]
 pub trait IntoL10nVar {
-    type Var: Var<L10nArgument>;
-    fn to_l10n_var(&mut self) -> Self::Var;
+    fn to_l10n_var(&mut self) -> Var<L10nArgument>;
 }
 
 impl<T: Into<L10nArgument>> IntoL10nVar for L10nSpecialize<T> {
-    type Var = LocalVar<L10nArgument>;
-
-    fn to_l10n_var(&mut self) -> Self::Var {
-        LocalVar(self.0.take().unwrap().into())
+    fn to_l10n_var(&mut self) -> Var<L10nArgument> {
+        var_local(self.0.take().unwrap().into())
     }
 }
-impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &mut L10nSpecialize<ArcVar<T>> {
-    type Var = ReadOnlyArcVar<L10nArgument>;
-
-    fn to_l10n_var(&mut self) -> Self::Var {
+impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &mut L10nSpecialize<Var<T>> {
+    fn to_l10n_var(&mut self) -> Var<L10nArgument> {
         self.0.take().unwrap().map_into()
     }
 }
-impl<V: Var<L10nArgument>> IntoL10nVar for &mut &mut L10nSpecialize<V> {
-    type Var = V;
-
-    fn to_l10n_var(&mut self) -> Self::Var {
+impl IntoL10nVar for &mut &mut L10nSpecialize<Var<L10nArgument>> {
+    fn to_l10n_var(&mut self) -> Var<L10nArgument> {
         self.0.take().unwrap()
     }
 }

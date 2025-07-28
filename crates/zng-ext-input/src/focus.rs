@@ -24,7 +24,7 @@ use zng_app_context::app_local;
 use zng_ext_window::{WINDOW_FOCUS, WINDOW_FOCUS_CHANGED_EVENT, WINDOWS};
 use zng_layout::unit::{Px, PxPoint, PxRect, TimeUnits};
 use zng_unique_id::{IdEntry, IdMap};
-use zng_var::{AnyVar, ArcVar, ReadOnlyArcVar, Var, var};
+use zng_var::{Var, var};
 use zng_view_api::window::FrameId;
 
 use std::{mem, time::Duration};
@@ -347,7 +347,7 @@ pub struct FocusManager {
 
 impl AppExtension for FocusManager {
     fn init(&mut self) {
-        WINDOW_FOCUS.hook_focus_service(FOCUS.focused().boxed());
+        WINDOW_FOCUS.hook_focus_service(FOCUS.focused());
         self.commands = Some(FocusCommands::new());
     }
 
@@ -567,7 +567,7 @@ impl FOCUS {
     ///
     /// Default is `300.ms()`.
     #[must_use]
-    pub fn auto_highlight(&self) -> ArcVar<Option<Duration>> {
+    pub fn auto_highlight(&self) -> Var<Option<Duration>> {
         FOCUS_SV.read().auto_highlight.clone()
     }
 
@@ -582,7 +582,7 @@ impl FOCUS {
     ///
     /// [`DISABLED`]: zng_app::widget::info::Interactivity::DISABLED
     #[must_use]
-    pub fn focus_disabled_widgets(&self) -> ArcVar<bool> {
+    pub fn focus_disabled_widgets(&self) -> Var<bool> {
         FOCUS_SV.read().focus_disabled_widgets.clone()
     }
 
@@ -597,7 +597,7 @@ impl FOCUS {
     ///
     /// [`Hidden`]: zng_app::widget::info::Visibility::Hidden
     #[must_use]
-    pub fn focus_hidden_widgets(&self) -> ArcVar<bool> {
+    pub fn focus_hidden_widgets(&self) -> Var<bool> {
         FOCUS_SV.read().focus_hidden_widgets.clone()
     }
 
@@ -613,19 +613,19 @@ impl FOCUS {
     ///
     /// [`focused`]: Self::focused
     #[must_use]
-    pub fn navigation_origin(&self) -> ArcVar<Option<WidgetId>> {
+    pub fn navigation_origin(&self) -> Var<Option<WidgetId>> {
         FOCUS_SV.read().navigation_origin_var.clone()
     }
 
     /// Current focused widget.
     #[must_use]
-    pub fn focused(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
+    pub fn focused(&self) -> Var<Option<InteractionPath>> {
         FOCUS_SV.read().focused_var.read_only()
     }
 
     /// Current return focus of a scope.
     #[must_use]
-    pub fn return_focused(&self, scope_id: WidgetId) -> ReadOnlyArcVar<Option<InteractionPath>> {
+    pub fn return_focused(&self, scope_id: WidgetId) -> Var<Option<InteractionPath>> {
         FOCUS_SV
             .write()
             .return_focused_var
@@ -637,39 +637,39 @@ impl FOCUS {
     /// If the [`focused`] path is in the given `window_id`.
     ///
     /// [`focused`]: Self::focused
-    pub fn is_window_focused(&self, window_id: WindowId) -> impl Var<bool> {
+    pub fn is_window_focused(&self, window_id: WindowId) -> Var<bool> {
         self.focused().map(move |p| matches!(p, Some(p) if p.window_id() == window_id))
     }
 
     /// If the [`focused`] path contains the given `widget_id`.
     ///
     /// [`focused`]: Self::focused
-    pub fn is_focus_within(&self, widget_id: WidgetId) -> impl Var<bool> {
+    pub fn is_focus_within(&self, widget_id: WidgetId) -> Var<bool> {
         self.focused().map(move |p| matches!(p, Some(p) if p.contains(widget_id)))
     }
 
     /// If the [`focused`] path is to the given `widget_id`.
     ///
     /// [`focused`]: Self::focused
-    pub fn is_focused(&self, widget_id: WidgetId) -> impl Var<bool> {
+    pub fn is_focused(&self, widget_id: WidgetId) -> Var<bool> {
         self.focused().map(move |p| matches!(p, Some(p) if p.widget_id() == widget_id))
     }
 
     /// Current ALT return focus.
     #[must_use]
-    pub fn alt_return(&self) -> ReadOnlyArcVar<Option<InteractionPath>> {
+    pub fn alt_return(&self) -> Var<Option<InteractionPath>> {
         FOCUS_SV.read().alt_return_var.read_only()
     }
 
     /// If focus is in an ALT scope.
     #[must_use]
-    pub fn in_alt(&self) -> impl Var<bool> {
+    pub fn in_alt(&self) -> Var<bool> {
         FOCUS_SV.read().alt_return_var.map(|p| p.is_some())
     }
 
     /// If the current focused widget is visually indicated.
     #[must_use]
-    pub fn is_highlighting(&self) -> ReadOnlyArcVar<bool> {
+    pub fn is_highlighting(&self) -> Var<bool> {
         FOCUS_SV.read().is_highlighting_var.read_only()
     }
 
@@ -898,26 +898,26 @@ struct PendingWindowFocus {
 }
 
 struct FocusService {
-    auto_highlight: ArcVar<Option<Duration>>,
+    auto_highlight: Var<Option<Duration>>,
     last_keyboard_event: DInstant,
 
-    focus_disabled_widgets: ArcVar<bool>,
-    focus_hidden_widgets: ArcVar<bool>,
+    focus_disabled_widgets: Var<bool>,
+    focus_hidden_widgets: Var<bool>,
 
     request: PendingFocusRequest,
 
-    focused_var: ArcVar<Option<InteractionPath>>,
+    focused_var: Var<Option<InteractionPath>>,
     focused: Option<FocusedInfo>,
-    navigation_origin_var: ArcVar<Option<WidgetId>>,
+    navigation_origin_var: Var<Option<WidgetId>>,
     navigation_origin: Option<WidgetId>,
 
-    return_focused_var: IdMap<WidgetId, ArcVar<Option<InteractionPath>>>,
+    return_focused_var: IdMap<WidgetId, Var<Option<InteractionPath>>>,
     return_focused: IdMap<WidgetId, InteractionPath>,
 
-    alt_return_var: ArcVar<Option<InteractionPath>>,
+    alt_return_var: Var<Option<InteractionPath>>,
     alt_return: Option<(InteractionPath, InteractionPath)>,
 
-    is_highlighting_var: ArcVar<bool>,
+    is_highlighting_var: Var<bool>,
     is_highlighting: bool,
 
     enabled_nav: EnabledNavWithFrame,

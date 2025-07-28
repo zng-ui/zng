@@ -3,7 +3,6 @@ use zng_ext_input::{
     mouse::{MOUSE_INPUT_EVENT, MOUSE_MOVE_EVENT},
     pointer_capture::POINTER_CAPTURE,
 };
-use zng_var::ReadOnlyContextVar;
 use zng_wgt::visibility;
 use zng_wgt_fill::node::flood;
 
@@ -489,7 +488,7 @@ pub fn horizontal_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> im
                 let binding = offset.bind_bidi(&scroll_offset);
                 WIDGET.push_var_handles(binding);
             }
-            scroll_offset.set_from(&offset).unwrap();
+            scroll_offset.set_from(&offset);
         }
     })
 }
@@ -513,7 +512,7 @@ pub fn vertical_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl
                 let binding = offset.bind_bidi(&scroll_offset);
                 WIDGET.push_var_handles(binding);
             }
-            scroll_offset.set_from(&offset).unwrap();
+            scroll_offset.set_from(&offset);
         }
     })
 }
@@ -537,7 +536,7 @@ pub fn zoom_scale(child: impl UiNode, scale: impl IntoVar<Factor>) -> impl UiNod
                 let binding = scale.bind_bidi(&scroll_scale);
                 WIDGET.push_var_handles(binding);
             }
-            scroll_scale.set_from(&scale).unwrap();
+            scroll_scale.set_from(&scale);
         }
     })
 }
@@ -573,7 +572,7 @@ impl ScrollBarArgs {
     /// Gets the context variable that gets the viewport/content ratio for the orientation.
     ///
     /// See [`SCROLL`] for more details.
-    pub fn viewport_ratio(&self) -> ReadOnlyContextVar<Factor> {
+    pub fn viewport_ratio(&self) -> Var<Factor> {
         use scrollbar::Orientation::*;
 
         match self.orientation {
@@ -585,12 +584,12 @@ impl ScrollBarArgs {
     /// Gets the context variable that gets if the scrollbar should be visible.
     ///
     /// See [`SCROLL`] for more details.
-    pub fn content_overflows(&self) -> BoxedVar<bool> {
+    pub fn content_overflows(&self) -> Var<bool> {
         use scrollbar::Orientation::*;
 
         match self.orientation {
-            Vertical => SCROLL.vertical_content_overflows().boxed(),
-            Horizontal => SCROLL.horizontal_content_overflows().boxed(),
+            Vertical => SCROLL.vertical_content_overflows(),
+            Horizontal => SCROLL.horizontal_content_overflows(),
         }
     }
 }

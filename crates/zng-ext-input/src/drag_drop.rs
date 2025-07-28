@@ -25,7 +25,7 @@ use zng_handle::{Handle, HandleOwner, WeakHandle};
 use zng_layout::unit::{DipPoint, DipToPx as _, PxToDip as _};
 use zng_state_map::StateId;
 use zng_txt::{Txt, formatx};
-use zng_var::{ArcVar, ReadOnlyArcVar, Var, var};
+use zng_var::{Var, var};
 use zng_view_api::{DragDropId, mouse::ButtonState, touch::TouchPhase};
 
 use crate::{mouse::MOUSE_INPUT_EVENT, touch::TOUCH_INPUT_EVENT};
@@ -316,7 +316,7 @@ impl AppExtension for DragDropManager {
 pub struct DRAG_DROP;
 impl DRAG_DROP {
     /// All data current dragging.
-    pub fn dragging_data(&self) -> ReadOnlyArcVar<Vec<DragDropData>> {
+    pub fn dragging_data(&self) -> Var<Vec<DragDropData>> {
         DRAG_DROP_SV.read().data.read_only()
     }
 
@@ -373,7 +373,7 @@ app_local! {
     };
 }
 struct DragDropService {
-    data: ArcVar<Vec<DragDropData>>,
+    data: Var<Vec<DragDropData>>,
 
     system_dragging: Vec<DragDropData>,
 
@@ -638,7 +638,7 @@ impl DragHoveredArgs {
     /// Gets the [`DRAG_DROP.dragging_data`].
     ///
     /// [`DRAG_DROP.dragging_data`]: DRAG_DROP::dragging_data
-    pub fn data(&self) -> ReadOnlyArcVar<Vec<DragDropData>> {
+    pub fn data(&self) -> Var<Vec<DragDropData>> {
         DRAG_DROP.dragging_data()
     }
 

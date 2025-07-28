@@ -30,8 +30,8 @@ mod inspector_only {
                     for (i, input) in prop.property().inputs.iter().enumerate() {
                         if matches!(input.kind, InputKind::Var) {
                             let var = prop.var(i);
-                            if var.is_contextual() {
-                                let var = var.actual_var_any();
+                            if var.capabilities().is_contextual() {
+                                let var = var.current_context();
                                 info.actual_vars.insert(property, i, var);
                             }
                         }
@@ -48,7 +48,7 @@ use parking_lot::RwLock;
 use zng_state_map::StateId;
 use zng_txt::Txt;
 use zng_unique_id::static_id;
-use zng_var::{BoxedAnyVar, BoxedVar, VarValue};
+use zng_var::{Var, VarAny, VarValue};
 
 use std::{any::TypeId, collections::HashMap, sync::Arc};
 
@@ -89,27 +89,26 @@ pub enum InstanceItem {
 
 /// Inspected contextual variables actualized at the moment of info build.
 #[derive(Default)]
-pub struct InspectorActualVars(RwLock<HashMap<(PropertyId, usize), BoxedAnyVar>>);
+pub struct InspectorActualVars(RwLock<HashMap<(PropertyId, usize), VarAny>>);
 impl InspectorActualVars {
     /// Get the actualized property var, if at the moment of info build it was contextual (and existed).
-    pub fn get(&self, property: PropertyId, member: usize) -> Option<BoxedAnyVar> {
+    pub fn get(&self, property: PropertyId, member: usize) -> Option<VarAny> {
         self.0.read().get(&(property, member)).cloned()
     }
 
     /// Get and downcast.
-    pub fn downcast<T: VarValue>(&self, property: PropertyId, member: usize) -> Option<BoxedVar<T>> {
-        let b = self.get(property, member)?.double_boxed_any().downcast::<BoxedVar<T>>().ok()?;
-        Some(*b)
+    pub fn downcast<T: VarValue>(&self, property: PropertyId, member: usize) -> Option<Var<T>> {
+        self.get(property, member)?.downcast::<T>().ok()
     }
 
     /// Get and map debug.
-    pub fn get_debug(&self, property: PropertyId, member: usize) -> Option<BoxedVar<Txt>> {
+    pub fn get_debug(&self, property: PropertyId, member: usize) -> Option<Var<Txt>> {
         let b = self.get(property, member)?;
-        Some(b.map_debug())
+        Some(b.map_debug(false))
     }
 
     #[cfg(feature = "inspector")]
-    fn insert(&self, property: PropertyId, member: usize, var: BoxedAnyVar) {
+    fn insert(&self, property: PropertyId, member: usize, var: VarAny) {
         self.0.write().insert((property, member), var);
     }
 }

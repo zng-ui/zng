@@ -9,13 +9,7 @@ use zng::{
     var::animation::{self, easing::EasingFn},
 };
 
-pub(crate) fn ease_btn(
-    l: &ArcVar<Length>,
-    color: &ArcVar<Rgba>,
-    name: &'static str,
-    easing: EasingFn,
-    easing_mod: &ArcVar<Txt>,
-) -> impl UiNode {
+pub(crate) fn ease_btn(l: &Var<Length>, color: &Var<Rgba>, name: &'static str, easing: EasingFn, easing_mod: &Var<Txt>) -> impl UiNode {
     let name = if name.is_empty() { formatx!("{easing:?}") } else { name.to_txt() };
     let easing = easing_mod.map(clmv!(easing, |m| {
         let f = match m.as_str() {

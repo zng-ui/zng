@@ -13,7 +13,6 @@ use zng::{
     layout::{align, margin, padding},
     prelude::*,
     text::font_color,
-    var::ArcVar,
     widget::{background_color, border, corner_radius, enabled, node::ArcNode},
     window::FocusIndicator,
 };
@@ -74,7 +73,7 @@ fn tab_index_example() -> impl UiNode {
     }
 }
 
-fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
+fn functions(window_enabled: Var<bool>) -> impl UiNode {
     Stack! {
         direction = StackDirection::top_to_bottom();
         spacing = 5;
@@ -142,7 +141,7 @@ fn functions(window_enabled: ArcVar<bool>) -> impl UiNode {
         ]
     }
 }
-fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
+fn disable_window(window_enabled: Var<bool>) -> impl UiNode {
     Button! {
         child = Text!(window_enabled.map(|&e| if e { "Disable Window" } else { "Enabling in 1s..." }.into()));
         layout::min_width = 140;
@@ -153,7 +152,7 @@ fn disable_window(window_enabled: ArcVar<bool>) -> impl UiNode {
         });
     }
 }
-fn overlay(window_enabled: ArcVar<bool>) -> impl UiNode {
+fn overlay(window_enabled: Var<bool>) -> impl UiNode {
     Container! {
         id = "overlay";
         widget::modal = true;

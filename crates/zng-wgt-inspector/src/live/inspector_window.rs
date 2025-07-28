@@ -41,10 +41,10 @@ use super::HitSelect;
 pub(super) fn new(
     inspected: WindowId,
     inspected_tree: InspectedTree,
-    selected_wgt: impl Var<Option<InspectedWidget>>,
-    hit_select: impl Var<HitSelect>,
-    adorn_selected: impl Var<bool>,
-    select_focused: impl Var<bool>,
+    selected_wgt: Var<Option<InspectedWidget>>,
+    hit_select: Var<HitSelect>,
+    adorn_selected: Var<bool>,
+    select_focused: Var<bool>,
 ) -> WindowRoot {
     let parent = WINDOWS.vars(inspected).unwrap().parent().get().unwrap_or(inspected);
 
@@ -63,12 +63,12 @@ pub(super) fn new(
     let hit_select_handle = hit_select.on_new(app_hn!(inspected_tree, selected_wgt, |a: &OnVarArgs<HitSelect>, _| {
         if let HitSelect::Select(id) = a.value {
             // clicked on a widget to select
-            let _ = selected_wgt.set(inspected_tree.inspect(id));
+            selected_wgt.set(inspected_tree.inspect(id));
         }
     }));
 
     let mut last_focused = None;
-    let focus_selected = merge_var!(
+    let focus_selected = var_merge!(
         FOCUS.focused(),
         select_focused.clone(),
         clmv!(inspected_tree, selected_wgt, |focused, select| {
@@ -81,7 +81,7 @@ pub(super) fn new(
             if let Some(id) = last_focused
                 && *select
             {
-                let _ = selected_wgt.set(inspected_tree.inspect(id));
+                selected_wgt.set(inspected_tree.inspect(id));
             }
         })
     );
@@ -95,7 +95,7 @@ pub(super) fn new(
         set_inspected = inspected;
         color_scheme = ColorScheme::Dark;
         on_close = hn!(selected_wgt, |_| {
-            let _ = selected_wgt.set(None);
+             selected_wgt.set(None);
         });
         child = Container! {
             child_top = menu(hit_select, adorn_selected, select_focused, wgt_filter.clone()), 0;
@@ -155,12 +155,7 @@ context_var! {
     pub static SELECTED_BORDER_VAR: Rgba = colors::AZURE;
 }
 
-fn menu(
-    hit_test_select: impl Var<HitSelect>,
-    adorn_selected: impl Var<bool>,
-    select_focused: impl Var<bool>,
-    search: impl Var<Txt>,
-) -> impl UiNode {
+fn menu(hit_test_select: Var<HitSelect>, adorn_selected: Var<bool>, select_focused: Var<bool>, search: Var<Txt>) -> impl UiNode {
     Container! {
         background_color = MENU_BKG_VAR;
         child_left = Stack! {
@@ -288,30 +283,30 @@ fn crosshair_16x16() -> impl UiNode {
 }
 
 /// Widgets tree view.
-fn tree_view(tree: InspectedTree, filter: impl Var<Txt>) -> impl UiNode {
+fn tree_view(tree: InspectedTree, filter: Var<Txt>) -> impl UiNode {
     Container! {
         font_family = ["JetBrains Mono", "Consolas", "monospace"];
-        child = tree_item_view(tree.inspect_root(), filter, LocalVar(0u32).boxed());
+        child = tree_item_view(tree.inspect_root(), filter, var_local(0u32));
     }
 }
 
-fn tree_item_view(wgt: InspectedWidget, filter: impl Var<Txt>, parent_desc_filter: BoxedVar<u32>) -> impl UiNode {
+fn tree_item_view(wgt: InspectedWidget, filter: Var<Txt>, parent_desc_filter: Var<u32>) -> impl UiNode {
     let wgt_type = wgt.wgt_type();
     let wgt_id = wgt.id();
 
     let mut pass = false;
-    let pass_filter = merge_var!(
+    let pass_filter = var_merge!(
         filter.clone(),
         wgt_type,
         clmv!(parent_desc_filter, |f, t| {
             let p = wgt_filter(f, *t, wgt_id);
             if p != pass {
                 pass = p;
-                let _ = parent_desc_filter.modify(move |c| {
+                parent_desc_filter.modify(move |c| {
                     if pass {
-                        *c.to_mut() += 1;
+                        **c += 1;
                     } else {
-                        *c.to_mut() -= 1;
+                        **c -= 1;
                     }
                 });
             }
@@ -319,18 +314,18 @@ fn tree_item_view(wgt: InspectedWidget, filter: impl Var<Txt>, parent_desc_filte
         })
     );
 
-    let descendants_pass_filter = var(0u32).boxed();
+    let descendants_pass_filter = var(0u32);
 
     let prev_any_desc = std::sync::atomic::AtomicBool::new(false);
     descendants_pass_filter
         .hook(move |a| {
             let any_desc = 0 < *a.value();
             if any_desc != prev_any_desc.swap(any_desc, std::sync::atomic::Ordering::Relaxed) {
-                let _ = parent_desc_filter.modify(move |c| {
+                parent_desc_filter.modify(move |c| {
                     if any_desc {
-                        *c.to_mut() += 1;
+                        **c += 1;
                     } else {
-                        *c.to_mut() -= 1;
+                        **c -= 1;
                     }
                 });
             }
@@ -533,7 +528,7 @@ fn nest_group_view(group: NestGroup, mut items: UiVec) -> impl UiNode {
     }
 }
 
-fn value_background(value: &BoxedVar<Txt>) -> impl Var<Rgba> {
+fn value_background(value: &Var<Txt>) -> Var<Rgba> {
     let flash = var(rgba(0, 0, 0, 0));
     let mut _flashing = None;
     value
@@ -698,7 +693,7 @@ async fn save_screenshot(inspected: WindowId) {
         _ => return,
     };
 
-    frame.wait_value(|f| !f.is_loading()).await;
+    frame.wait_match(|f| !f.is_loading()).await;
     let frame = frame.get();
 
     if let Some(e) = frame.error() {
@@ -722,7 +717,7 @@ async fn save_screenshot(inspected: WindowId) {
 async fn copy_screenshot(inspected: WindowId) {
     let frame = WINDOWS.frame_image(inspected, None);
 
-    frame.wait_value(|f| !f.is_loading()).await;
+    frame.wait_match(|f| !f.is_loading()).await;
     let frame = frame.get();
 
     if let Some(e) = frame.error() {

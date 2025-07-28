@@ -311,16 +311,12 @@
 //!
 //! See [`zng_var`] for the full var API.
 
-pub use zng_var::types::{
-    AnyWhenVarBuilder, ArcCowVar, ArcWhenVar, ContextualizedVar, ReadOnlyVar, Response, VecChange, WeakArcVar, WeakContextualizedVar,
-    WeakReadOnlyVar, WeakWhenVar,
-};
 pub use zng_var::{
-    AnyVar, AnyVarValue, AnyWeakVar, ArcEq, ArcVar, BoxedAnyVar, BoxedAnyWeakVar, BoxedVar, BoxedWeakVar, ContextInitHandle, ContextVar,
-    IntoValue, IntoVar, LocalVar, MergeVarBuilder, ObservableVec, ReadOnlyArcVar, ReadOnlyContextVar, ResponderVar, ResponseVar,
-    TraceValueArgs, VARS, Var, VarCapability, VarHandle, VarHandles, VarHookArgs, VarModify, VarPtr, VarUpdateId, VarValue, WeakVar,
-    context_var, expr_var, getter_var, impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_default,
-    var_from, when_var,
+    ArcEq, BoxedVarValueAny, ContextInitHandle, ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, Response, ResponseVar, VARS,
+    Var, VarAny, VarCapability, VarHandle, VarHandles, VarHookArgs, VarInstanceTag, VarMergeBuilder, VarModify, VarUpdateId, VarValue,
+    VarValueAny, VarWhenAnyBuilder, VecChange, WeakVar, WeakVarAny, context_var, impl_from_and_into_var, response_done_var, response_var,
+    var, var_any, var_ctx, var_ctx_any, var_default, var_expr, var_from, var_getter, var_local, var_local_any, var_merge, var_state,
+    var_when,
 };
 
 pub use zng_app::widget::{AnyVarSubscribe, OnVarArgs, VarLayout, VarSubscribe};

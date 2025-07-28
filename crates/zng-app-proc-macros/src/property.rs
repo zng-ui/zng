@@ -170,12 +170,12 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                             if ident_str.starts_with("is_") || ident_str.starts_with("has_") {
                                 let core = set_stream_span(core.clone(), input.ty.span());
                                 default.extend(quote_spanned! {input.ty.span()=>
-                                    #core::widget::builder::state_var(),
+                                    #core::widget::builder::var_state(),
                                 })
                             } else if ident_str.starts_with("get_") || ident_str.starts_with("actual_") {
                                 let core = set_stream_span(core.clone(), input.ty.span());
                                 default.extend(quote_spanned! {input.ty.span()=>
-                                    #core::widget::builder::getter_var(),
+                                    #core::widget::builder::var_getter(),
                                 })
                             }
                         }
@@ -281,11 +281,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident #impl_gens(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#info_ty>) #where_gens {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#info_ty>) #where_gens {
                             #core::widget::builder::WhenInputVar::new::<#info_ty>()
                         }
                         pub fn #get_ident_i #impl_gens(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#info_ty>) #where_gens {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#info_ty>) #where_gens {
                             #core::widget::builder::WhenInputVar::new::<#info_ty>()
                         }
                     });
@@ -314,11 +314,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident #impl_gens(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#info_ty>) #where_gens {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#info_ty>) #where_gens {
                             #core::widget::builder::WhenInputVar::new::<#info_ty>()
                         }
                         pub fn #get_ident_i #impl_gens(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#info_ty>) #where_gens {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#info_ty>) #where_gens {
                             #core::widget::builder::WhenInputVar::new::<#info_ty>()
                         }
                     });
@@ -347,11 +347,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#core::widget::builder::UiNodeInWhenExprError>) {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::UiNodeInWhenExprError>) {
                             #core::widget::builder::WhenInputVar::new::<#core::widget::builder::UiNodeInWhenExprError>()
                         }
                         pub fn #get_ident_i(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#core::widget::builder::UiNodeInWhenExprError>) {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::UiNodeInWhenExprError>) {
                             #core::widget::builder::WhenInputVar::new::<#core::widget::builder::UiNodeInWhenExprError>()
                         }
                     });
@@ -380,11 +380,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#core::widget::builder::UiNodeListInWhenExprError>) {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::UiNodeListInWhenExprError>) {
                             #core::widget::builder::WhenInputVar::new::<#core::widget::builder::UiNodeListInWhenExprError>()
                         }
                         pub fn #get_ident_i(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#core::widget::builder::UiNodeListInWhenExprError>) {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::UiNodeListInWhenExprError>) {
                             #core::widget::builder::WhenInputVar::new::<#core::widget::builder::UiNodeListInWhenExprError>()
                         }
                     });
@@ -413,11 +413,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                     let get_ident_i = ident!("__w_{i}__");
                     get_when_input.extend(quote! {
                         pub fn #get_ident #impl_gens(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#core::widget::builder::WidgetHandlerInWhenExprError>) #where_gens {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::WidgetHandlerInWhenExprError>) #where_gens {
                             #core::widget::builder::WhenInputVar::new::<#core::widget::builder::WidgetHandlerInWhenExprError>()
                         }
                         pub fn #get_ident_i #impl_gens(&self)
-                        -> (#core::widget::builder::WhenInputVar, impl #core::var::Var<#core::widget::builder::WidgetHandlerInWhenExprError>) #where_gens {
+                        -> (#core::widget::builder::WhenInputVar, #core::var::Var<#core::widget::builder::WidgetHandlerInWhenExprError>) #where_gens {
                             #core::widget::builder::WhenInputVar::new::<#core::widget::builder::WidgetHandlerInWhenExprError>()
                         }
                     });
@@ -427,7 +427,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
         if !get_var.is_empty() {
             get_var = quote! {
-                fn var(&self, __index__: usize) -> &dyn #core::var::AnyVar {
+                fn var(&self, __index__: usize) -> &#core::var::VarAny {
                     match __index__ {
                         #get_var
                         n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::Var),
@@ -437,7 +437,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
         if !get_value.is_empty() {
             get_value = quote! {
-                fn value(&self, __index__: usize) -> &dyn #core::var::AnyVarValue {
+                fn value(&self, __index__: usize) -> &dyn #core::var::VarValueAny {
                     match __index__ {
                         #get_value
                         n => #core::widget::builder::panic_input(&self.property(), n, #core::widget::builder::InputKind::Value),
@@ -922,7 +922,7 @@ impl Input {
                                     "IntoVar" if !seg.arguments.is_empty() => {
                                         if ty_from_generic(&mut input, errors, &t.ty, InputKind::Var, &seg.arguments) {
                                             let t = &input.info_ty;
-                                            input.storage_ty = quote!(#core::var::BoxedVar<#t>);
+                                            input.storage_ty = quote!(#core::var::Var<#t>);
                                         }
                                     }
                                     "IntoValue" if !seg.arguments.is_empty() => {

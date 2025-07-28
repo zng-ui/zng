@@ -4,7 +4,7 @@ use semver::Version;
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::WATCHER;
 use zng_txt::Txt;
-use zng_var::{ArcEq, ArcVar, BoxedVar, BoxedWeakVar, LocalVar, Var as _, WeakVar as _, types::WeakArcVar, var};
+use zng_var::{ArcEq, Var, WeakVar, var, var_local, weak_var};
 
 use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 
@@ -13,8 +13,8 @@ use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangRes
 /// The expected directory layout is `{dir}/{lang}/{file}.ftl` app files and `{dir}/{lang}/deps/{pkg-name}/{pkg-version}/{file}.ftl`
 /// for dependencies.
 pub struct L10nDir {
-    dir_watch: BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
-    dir_watch_status: BoxedVar<LangResourceStatus>,
+    dir_watch: Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
+    dir_watch_status: Var<LangResourceStatus>,
     res: HashMap<(Lang, LangFilePath), L10nFile>,
 }
 impl L10nDir {
@@ -130,21 +130,21 @@ impl L10nDir {
         );
 
         Self {
-            dir_watch: dir_watch.boxed(),
-            dir_watch_status: status.read_only().boxed(),
+            dir_watch,
+            dir_watch_status: status.read_only(),
             res: HashMap::new(),
         }
     }
 }
 impl L10nSource for L10nDir {
-    fn available_langs(&mut self) -> BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
+    fn available_langs(&mut self) -> Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>> {
         self.dir_watch.clone()
     }
-    fn available_langs_status(&mut self) -> BoxedVar<LangResourceStatus> {
+    fn available_langs_status(&mut self) -> Var<LangResourceStatus> {
         self.dir_watch_status.clone()
     }
 
-    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+    fn lang_resource(&mut self, lang: Lang, file: LangFilePath) -> Var<Option<ArcEq<fluent::FluentResource>>> {
         match self.res.entry((lang, file)) {
             std::collections::hash_map::Entry::Occupied(mut e) => {
                 if let Some(out) = e.get().res.upgrade() {
@@ -167,34 +167,29 @@ impl L10nSource for L10nDir {
         }
     }
 
-    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> BoxedVar<LangResourceStatus> {
-        self.res
-            .entry((lang, file))
-            .or_insert_with(L10nFile::new)
-            .status
-            .read_only()
-            .boxed()
+    fn lang_resource_status(&mut self, lang: Lang, file: LangFilePath) -> Var<LangResourceStatus> {
+        self.res.entry((lang, file)).or_insert_with(L10nFile::new).status.read_only()
     }
 }
 struct L10nFile {
-    res: BoxedWeakVar<Option<ArcEq<fluent::FluentResource>>>,
-    status: ArcVar<LangResourceStatus>,
+    res: WeakVar<Option<ArcEq<fluent::FluentResource>>>,
+    status: Var<LangResourceStatus>,
 }
 impl L10nFile {
     fn new() -> Self {
         Self {
-            res: WeakArcVar::default().boxed(),
+            res: weak_var(),
             status: var(LangResourceStatus::Loading),
         }
     }
 }
 
 fn resource_var(
-    dir_watch: &BoxedVar<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
-    status: ArcVar<LangResourceStatus>,
+    dir_watch: &Var<Arc<LangMap<HashMap<LangFilePath, PathBuf>>>>,
+    status: Var<LangResourceStatus>,
     lang: Lang,
     file: LangFilePath,
-) -> BoxedVar<Option<ArcEq<fluent::FluentResource>>> {
+) -> Var<Option<ArcEq<fluent::FluentResource>>> {
     dir_watch
         .map(move |w| w.get_file(&lang, &file).cloned())
         .flat_map(move |p| match p {
@@ -236,8 +231,8 @@ fn resource_var(
                 // set Loaded status only after `r` updates to ensure the value is available.
                 r.bind_filter_map(&status, |v| v.as_ref().map(|_| LangResourceStatus::Loaded))
                     .perm();
-                r.boxed()
+                r
             }
-            None => LocalVar(None).boxed(),
+            None => var_local(None),
         })
 }

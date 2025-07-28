@@ -88,7 +88,7 @@ impl VarImpl for MapBidiRefVar {
         let weak = Arc::downgrade(&self.0);
         self.0
             .source
-            .modify(move |value| {
+            .try_modify(move |value| {
                 if let Some(s) = weak.upgrade() {
                     (s.deref_mut)(&mut **value).try_swap(&mut *new_value);
                 }
@@ -97,14 +97,14 @@ impl VarImpl for MapBidiRefVar {
     }
 
     fn update(&self) -> bool {
-        self.0.source.update().is_ok()
+        self.0.source.0.update()
     }
 
     fn modify(&self, mut modify: SmallBox<dyn FnMut(&mut VarModifyAny) + Send + 'static, smallbox::space::S4>) -> bool {
         let weak = Arc::downgrade(&self.0);
         self.0
             .source
-            .modify(move |value| {
+            .try_modify(move |value| {
                 if let Some(s) = weak.upgrade() {
                     let mut m = VarModifyAny {
                         update: value.update,

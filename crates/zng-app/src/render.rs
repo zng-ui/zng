@@ -3073,14 +3073,14 @@ impl<T> FrameValueKey<T> {
     /// Create a binding with this key and `var`.
     ///
     /// The `map` must produce a copy or clone of the frame value.
-    pub fn bind_var<VT: VarValue>(self, var: &impl Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
+    pub fn bind_var<VT: VarValue>(self, var: &Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
         self.bind_var_child(u32::MAX, var, map)
     }
 
     /// Like [`bind_var`] but the key is modified to include the `child_index`.
     ///
     /// [`bind_var`]: Self::bind_var
-    pub fn bind_var_child<VT: VarValue>(self, child_index: u32, var: &impl Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
+    pub fn bind_var_child<VT: VarValue>(self, child_index: u32, var: &Var<VT>, map: impl FnOnce(&VT) -> T) -> FrameValue<T> {
         if var.capabilities().contains(VarCapability::NEW) {
             FrameValue::Bind {
                 id: self.to_wr_child(child_index),
@@ -3093,14 +3093,14 @@ impl<T> FrameValueKey<T> {
     }
 
     /// Create a binding with this key, `var` and already mapped `value`.
-    pub fn bind_var_mapped<VT: VarValue>(&self, var: &impl Var<VT>, value: T) -> FrameValue<T> {
+    pub fn bind_var_mapped<VT: VarValue>(&self, var: &Var<VT>, value: T) -> FrameValue<T> {
         self.bind_var_mapped_child(u32::MAX, var, value)
     }
 
     /// Like [`bind_var_mapped`] but the key is modified to include the `child_index`.
     ///
     /// [`bind_var_mapped`]: Self::bind_var_mapped
-    pub fn bind_var_mapped_child<VT: VarValue>(&self, child_index: u32, var: &impl Var<VT>, value: T) -> FrameValue<T> {
+    pub fn bind_var_mapped_child<VT: VarValue>(&self, child_index: u32, var: &Var<VT>, value: T) -> FrameValue<T> {
         if var.capabilities().contains(VarCapability::NEW) {
             FrameValue::Bind {
                 id: self.to_wr_child(child_index),
@@ -3113,7 +3113,7 @@ impl<T> FrameValueKey<T> {
     }
 
     /// Create a value update with this key and `var`.
-    pub fn update_var<VT: VarValue>(self, var: &impl Var<VT>, map: impl FnOnce(&VT) -> T) -> Option<FrameValueUpdate<T>> {
+    pub fn update_var<VT: VarValue>(self, var: &Var<VT>, map: impl FnOnce(&VT) -> T) -> Option<FrameValueUpdate<T>> {
         self.update_var_child(u32::MAX, var, map)
     }
 
@@ -3123,7 +3123,7 @@ impl<T> FrameValueKey<T> {
     pub fn update_var_child<VT: VarValue>(
         self,
         child_index: u32,
-        var: &impl Var<VT>,
+        var: &Var<VT>,
         map: impl FnOnce(&VT) -> T,
     ) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(VarCapability::NEW) {
@@ -3138,14 +3138,14 @@ impl<T> FrameValueKey<T> {
     }
 
     /// Create a value update with this key, `var` and already mapped `value`.
-    pub fn update_var_mapped<VT: VarValue>(self, var: &impl Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
+    pub fn update_var_mapped<VT: VarValue>(self, var: &Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
         self.update_var_mapped_child(u32::MAX, var, value)
     }
 
     /// Like [`update_var_mapped`] but the key is modified to include the `child_index`.
     ///
     /// [`update_var_mapped`]: Self::update_var_mapped
-    pub fn update_var_mapped_child<VT: VarValue>(self, child_index: u32, var: &impl Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
+    pub fn update_var_mapped_child<VT: VarValue>(self, child_index: u32, var: &Var<VT>, value: T) -> Option<FrameValueUpdate<T>> {
         if var.capabilities().contains(VarCapability::NEW) {
             Some(FrameValueUpdate::new(self.to_wr_child(child_index), value, var.is_animating()))
         } else {

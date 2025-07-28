@@ -141,7 +141,7 @@ pub fn scale(child: impl UiNode, s: impl IntoVar<Factor>) -> impl UiNode {
 pub fn scale_xy(child: impl UiNode, x: impl IntoVar<Factor>, y: impl IntoVar<Factor>) -> impl UiNode {
     transform(
         child,
-        merge_var!(x.into_var(), y.into_var(), |&x, &y| Transform::new_scale_xy(x, y)),
+        var_merge!(x.into_var(), y.into_var(), |&x, &y| Transform::new_scale_xy(x, y)),
     )
 }
 
@@ -172,7 +172,7 @@ pub fn scale_y(child: impl UiNode, y: impl IntoVar<Factor>) -> impl UiNode {
 /// [`transform`]: fn@transform
 #[property(LAYOUT, default(0.rad(), 0.rad()))]
 pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| Transform::new_skew(x, y)))
+    transform(child, var_merge!(x.into_var(), y.into_var(), |&x, &y| Transform::new_skew(x, y)))
 }
 
 /// Skew X transform.
@@ -204,7 +204,7 @@ pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
 pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> impl UiNode {
     transform(
         child,
-        merge_var!(x.into_var(), y.into_var(), |x, y| Transform::new_translate(x.clone(), y.clone())),
+        var_merge!(x.into_var(), y.into_var(), |x, y| Transform::new_translate(x.clone(), y.clone())),
     )
 }
 

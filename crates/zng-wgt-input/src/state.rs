@@ -211,11 +211,11 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
 
     match_node(child, move |child, op| match op {
         UiNodeOp::Init => {
-            let _ = state.set(false);
+            state.set(false);
             WIDGET.sub_event(&CLICK_EVENT);
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(false);
+            state.set(false);
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = CLICK_EVENT.on(update) {
@@ -229,10 +229,10 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
                             let dl = TIMERS.deadline(duration);
                             dl.subscribe(UpdateOp::Update, WIDGET.id()).perm();
                             shortcut_press = Some(dl);
-                            let _ = state.set(true);
+                            state.set(true);
                         }
                     } else {
-                        let _ = state.set(false);
+                        state.set(false);
                     }
                 }
             }
@@ -243,7 +243,7 @@ pub fn is_shortcut_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> imp
             if let Some(timer) = &shortcut_press {
                 if timer.is_new() {
                     shortcut_press = None;
-                    let _ = state.set(false);
+                    state.set(false);
                 }
             }
         }
@@ -409,13 +409,13 @@ pub fn is_cap_touched_from_start(child: impl UiNode, state: impl IntoVar<bool>) 
 /// [`is_cap_pointer_pressed`]: fn@is_cap_pointer_pressed
 #[property(EVENT)]
 pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    let pressed = state_var();
+    let pressed = var_state();
     let child = is_mouse_pressed(child, pressed.clone());
 
-    let touched = state_var();
+    let touched = var_state();
     let child = is_touched_from_start(child, touched.clone());
 
-    bind_state(child, merge_var!(pressed, touched, |&p, &t| p || t), state)
+    bind_state(child, var_merge!(pressed, touched, |&p, &t| p || t), state)
 }
 
 /// If [`is_mouse_pressed`], [`is_touched_from_start`] or [`is_shortcut_pressed`].
@@ -429,18 +429,18 @@ pub fn is_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl
 /// [`is_cap_pressed`]: fn@is_cap_pressed
 #[property(EVENT)]
 pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    let pressed = state_var();
+    let pressed = var_state();
     let child = is_mouse_pressed(child, pressed.clone());
 
-    let touched = state_var();
+    let touched = var_state();
     let child = is_touched_from_start(child, touched.clone());
 
-    let shortcut_pressed = state_var();
+    let shortcut_pressed = var_state();
     let child = is_shortcut_pressed(child, shortcut_pressed.clone());
 
     bind_state(
         child,
-        merge_var!(pressed, touched, shortcut_pressed, |&p, &t, &s| p || t || s),
+        var_merge!(pressed, touched, shortcut_pressed, |&p, &t, &s| p || t || s),
         state,
     )
 }
@@ -451,13 +451,13 @@ pub fn is_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode 
 /// [`is_cap_touched_from_start`]: fn@is_cap_touched_from_start
 #[property(EVENT)]
 pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    let pressed = state_var();
+    let pressed = var_state();
     let child = is_cap_mouse_pressed(child, pressed.clone());
 
-    let touched = state_var();
+    let touched = var_state();
     let child = is_cap_touched_from_start(child, touched.clone());
 
-    bind_state(child, merge_var!(pressed, touched, |&p, &t| p || t), state)
+    bind_state(child, var_merge!(pressed, touched, |&p, &t| p || t), state)
 }
 
 /// If [`is_cap_mouse_pressed`], [`is_cap_touched_from_start`] or [`is_shortcut_pressed`].
@@ -467,18 +467,18 @@ pub fn is_cap_pointer_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> 
 /// [`is_shortcut_pressed`]: fn@is_shortcut_pressed
 #[property(EVENT)]
 pub fn is_cap_pressed(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
-    let pressed = state_var();
+    let pressed = var_state();
     let child = is_cap_mouse_pressed(child, pressed.clone());
 
-    let touched = state_var();
+    let touched = var_state();
     let child = is_cap_touched_from_start(child, touched.clone());
 
-    let shortcut_pressed = state_var();
+    let shortcut_pressed = var_state();
     let child = is_shortcut_pressed(child, pressed.clone());
 
     bind_state(
         child,
-        merge_var!(pressed, touched, shortcut_pressed, |&p, &t, &s| p || t || s),
+        var_merge!(pressed, touched, shortcut_pressed, |&p, &t, &s| p || t || s),
         state,
     )
 }

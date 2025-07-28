@@ -1005,9 +1005,9 @@ pub fn default_block_quote_fn(args: BlockQuoteFnArgs) -> impl UiNode {
             children = args.items;
             corner_radius = 2;
             background_color = if args.level < 3 {
-                FONT_COLOR_VAR.map(|c| c.with_alpha(5.pct())).boxed()
+                FONT_COLOR_VAR.map(|c| c.with_alpha(5.pct()))
             } else {
-                colors::BLACK.transparent().into_boxed_var()
+                colors::BLACK.transparent().into_var()
             };
             border = {
                 widths: (0, 0, 0, 4u32.saturating_sub(args.level).max(1) as i32),

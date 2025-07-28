@@ -31,7 +31,7 @@ use zng_app::{
 use zng_handle::Handle;
 use zng_txt::Txt;
 use zng_unit::TimeUnits;
-use zng_var::{ArcVar, ReadOnlyArcVar, VarValue};
+use zng_var::{Var, VarValue};
 
 mod service;
 use service::*;
@@ -92,7 +92,7 @@ impl WATCHER {
     /// Note that the first event notifies immediately, only subsequent events within this interval are debounced.
     ///
     /// Is `100.ms()` by default.
-    pub fn debounce(&self) -> ArcVar<Duration> {
+    pub fn debounce(&self) -> Var<Duration> {
         WATCHER_SV.read().debounce.clone()
     }
 
@@ -101,7 +101,7 @@ impl WATCHER {
     /// Is `100.ms()` by default.
     ///
     /// [`sync`]: WATCHER::sync
-    pub fn sync_debounce(&self) -> ArcVar<Duration> {
+    pub fn sync_debounce(&self) -> Var<Duration> {
         WATCHER_SV.read().debounce.clone()
     }
 
@@ -112,14 +112,14 @@ impl WATCHER {
     /// do not exist yet, that is also affected by this interval.
     ///
     /// Is `1.secs()` by default.
-    pub fn poll_interval(&self) -> ArcVar<Duration> {
+    pub fn poll_interval(&self) -> Var<Duration> {
         WATCHER_SV.read().poll_interval.clone()
     }
 
     /// Maximum time the service keeps the process alive to process pending IO operations when the app shuts down.
     ///
     /// Is 1 minute by default.
-    pub fn shutdown_timeout(&self) -> ArcVar<Duration> {
+    pub fn shutdown_timeout(&self) -> Var<Duration> {
         WATCHER_SV.read().shutdown_timeout.clone()
     }
 
@@ -160,7 +160,7 @@ impl WATCHER {
         file: impl Into<PathBuf>,
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
-    ) -> ReadOnlyArcVar<O> {
+    ) -> Var<O> {
         WATCHER_SV.write().read(file.into(), init, read)
     }
 
@@ -176,7 +176,7 @@ impl WATCHER {
         file: impl Into<PathBuf>,
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, E> + Send + 'static,
-    ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
+    ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherReadStatus<E>,
@@ -201,7 +201,7 @@ impl WATCHER {
         recursive: bool,
         init: O,
         read: impl FnMut(walkdir::WalkDir) -> Option<O> + Send + 'static,
-    ) -> ReadOnlyArcVar<O> {
+    ) -> Var<O> {
         WATCHER_SV.write().read_dir(dir.into(), recursive, init, read)
     }
 
@@ -218,7 +218,7 @@ impl WATCHER {
         recursive: bool,
         init: O,
         read: impl FnMut(walkdir::WalkDir) -> Result<Option<O>, E> + Send + 'static,
-    ) -> (ReadOnlyArcVar<O>, ReadOnlyArcVar<S>)
+    ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherReadStatus<E>,
@@ -285,7 +285,7 @@ impl WATCHER {
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Option<O> + Send + 'static,
         write: impl FnMut(O, io::Result<WriteFile>) + Send + 'static,
-    ) -> ArcVar<O> {
+    ) -> Var<O> {
         WATCHER_SV.write().sync(file.into(), init, read, write)
     }
 
@@ -306,7 +306,7 @@ impl WATCHER {
         init: O,
         read: impl FnMut(io::Result<WatchFile>) -> Result<Option<O>, ER> + Send + 'static,
         write: impl FnMut(O, io::Result<WriteFile>) -> Result<(), EW> + Send + 'static,
-    ) -> (ArcVar<O>, ReadOnlyArcVar<S>)
+    ) -> (Var<O>, Var<S>)
     where
         O: VarValue,
         S: WatcherSyncStatus<ER, EW>,

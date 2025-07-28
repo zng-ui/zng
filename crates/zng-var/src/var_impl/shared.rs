@@ -14,7 +14,7 @@ use super::*;
 
 /// New read/write shared reference variable.
 pub fn var<T: VarValue>(initial_value: T) -> Var<T> {
-    Var::new_any(VarAny(smallbox!(SharedVar::new(smallbox!(initial_value)))))
+    Var::new_any(VarAny(smallbox!(SharedVar::new(BoxedVarValueAny::new(initial_value)))))
 }
 
 /// New read/write shared reference type-erased variable.

@@ -2,7 +2,7 @@ use std::{marker::PhantomData, path::PathBuf};
 
 use zng_clone_move::clmv;
 use zng_ext_fs_watcher::WATCHER;
-use zng_var::{ReadOnlyArcVar, types::SourceVarTag};
+use zng_var::Var;
 
 use super::*;
 
@@ -27,9 +27,9 @@ pub trait SyncConfigBackend: 'static {
 ///
 /// [`WATCHER.sync`]: WATCHER::sync
 pub struct SyncConfig<B: SyncConfigBackend> {
-    sync_var: ArcVar<RawConfigMap>,
+    sync_var: Var<RawConfigMap>,
     backend: PhantomData<fn() -> B>,
-    status: ReadOnlyArcVar<ConfigStatus>,
+    status: Var<ConfigStatus>,
 }
 impl<B: SyncConfigBackend> SyncConfig<B> {
     /// Open write the `file`
@@ -69,7 +69,7 @@ impl<B: SyncConfigBackend> SyncConfig<B> {
     }
 }
 impl<B: SyncConfigBackend> AnyConfig for SyncConfig<B> {
-    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> BoxedVar<RawConfigValue> {
+    fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> Var<RawConfigValue> {
         // init value
         let current_raw_value = self.sync_var.with(|m| m.get(&key).cloned());
         let value_var = match current_raw_value {
@@ -78,7 +78,7 @@ impl<B: SyncConfigBackend> AnyConfig for SyncConfig<B> {
                 if insert {
                     self.sync_var.modify(clmv!(key, default, |args| {
                         if !args.contains_key(&key) {
-                            args.to_mut().insert(key, default);
+                            args.insert(key, default);
                         }
                     }));
                 }
@@ -87,13 +87,13 @@ impl<B: SyncConfigBackend> AnyConfig for SyncConfig<B> {
         };
 
         // map -> value
-        let sync_var_tag = SourceVarTag::new(&self.sync_var);
+        let sync_var_tag = self.sync_var.var_instance_tag();
         let value_var_weak = value_var.downgrade();
 
         self.sync_var
             .hook(clmv!(key, |args| match value_var_weak.upgrade() {
                 Some(value_var) => {
-                    let is_from_value_var = args.downcast_tags::<SourceVarTag>().any(|&b| b == SourceVarTag::new(&value_var));
+                    let is_from_value_var = args.contains_tag(&value_var.var_instance_tag());
 
                     if !is_from_value_var && let Some(raw_value) = args.value().get(&key) {
                         value_var.modify(clmv!(raw_value, |args| {
@@ -110,18 +110,18 @@ impl<B: SyncConfigBackend> AnyConfig for SyncConfig<B> {
             .perm();
 
         // value -> map
-        let value_var_tag = SourceVarTag::new(&value_var);
+        let value_var_tag = value_var.var_instance_tag();
         let sync_var_weak = self.sync_var.downgrade();
         value_var
             .hook(move |args| match sync_var_weak.upgrade() {
                 Some(sync_var) => {
-                    let is_from_sync_var = args.downcast_tags::<SourceVarTag>().any(|&b| b == SourceVarTag::new(&sync_var));
+                    let is_from_sync_var = args.contains_tag(&sync_var.var_instance_tag());
 
                     if !is_from_sync_var {
                         let raw_value = args.value().clone();
                         sync_var.modify(clmv!(key, |args| {
                             if args.get(&key) != Some(&raw_value) {
-                                args.to_mut().insert(key, raw_value);
+                                args.insert(key, raw_value);
                                 args.push_tag(value_var_tag);
                             }
                         }));
@@ -133,15 +133,15 @@ impl<B: SyncConfigBackend> AnyConfig for SyncConfig<B> {
             })
             .perm();
 
-        value_var.boxed()
+        value_var
     }
 
-    fn contains_key(&mut self, key: ConfigKey) -> BoxedVar<bool> {
-        self.sync_var.map(move |q| q.contains_key(&key)).boxed()
+    fn contains_key(&mut self, key: ConfigKey) -> Var<bool> {
+        self.sync_var.map(move |q| q.contains_key(&key))
     }
 
-    fn status(&self) -> BoxedVar<ConfigStatus> {
-        self.status.clone().boxed()
+    fn status(&self) -> Var<ConfigStatus> {
+        self.status.clone()
     }
 
     fn remove(&mut self, key: &ConfigKey) -> bool {
@@ -149,7 +149,7 @@ impl<B: SyncConfigBackend> AnyConfig for SyncConfig<B> {
         if contains {
             self.sync_var.modify(clmv!(key, |m| {
                 if m.contains_key(&key) {
-                    m.to_mut().shift_remove(&key);
+                    m.shift_remove(&key);
                 }
             }));
         }

@@ -178,7 +178,7 @@ pub fn drop_shadow(
 ) -> impl UiNode {
     filter_layout(
         child,
-        merge_var!(offset.into_var(), blur_radius.into_var(), color.into_var(), |o, r, &c| {
+        var_merge!(offset.into_var(), blur_radius.into_var(), color.into_var(), |o, r, &c| {
             Filter::new_drop_shadow(o.clone(), r.clone(), c)
         }),
         false,

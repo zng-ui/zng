@@ -212,7 +212,7 @@ impl SearchStyle {
                 style_fn = zng_wgt_button::LightStyle!();
                 child = zng_wgt::ICONS.req("backspace");
                 focusable = false;
-                zng_wgt::visibility = zng_var::types::ContextualizedVar::new(|| {
+                zng_wgt::visibility = zng_var::var_ctx(|| {
                     zng_wgt_text::node::TEXT.resolved().txt.clone().map(|t| match t.is_empty() {
                         true => Visibility::Collapsed,
                         false => Visibility::Visible,
@@ -305,7 +305,7 @@ impl FieldStyle {
         let top_color = DATA.note_color(top_level_and_txt.map_ref(|(l, _)| l));
 
         let highlight = top_level_and_txt.map(|(l, _)| *l >= DataNoteLevel::WARN);
-        let adorn = merge_var!(top_txt.clone(), FIELD_HELP_VAR, |t, h| (t.is_empty(), h.is_empty()));
+        let adorn = var_merge!(top_txt.clone(), FIELD_HELP_VAR, |t, h| (t.is_empty(), h.is_empty()));
 
         let chars_count = var(0usize);
         let has_max_count = MAX_CHARS_COUNT_VAR.map(|&c| c > 0);
@@ -319,7 +319,7 @@ impl FieldStyle {
             foreground_highlight = {
                 offsets: -2, // -1 border plus -1 to be outside
                 widths: 1,
-                sides: merge_var!(highlight, top_color.clone(), |&h, &c| if h {
+                sides: var_merge!(highlight, top_color.clone(), |&h, &c| if h {
                     c.into()
                 } else {
                     BorderSides::hidden()
@@ -361,7 +361,7 @@ impl FieldStyle {
                         focusable = false;
                         txt_editable = false;
                         txt_selectable = false;
-                        txt = merge_var!(chars_count.clone(), text::MAX_CHARS_COUNT_VAR, |c, m| formatx!("{c}/{m}"));
+                        txt = var_merge!(chars_count.clone(), text::MAX_CHARS_COUNT_VAR, |c, m| formatx!("{c}/{m}"));
                         font_color = text::FONT_COLOR_VAR.map(|c| colors::GRAY.with_alpha(10.pct()).mix_normal(*c));
                         font_size = 0.8.em();
                         align = Align::BOTTOM_END;

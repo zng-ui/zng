@@ -19,7 +19,7 @@ use zng_wgt::prelude::*;
 /// [`DataView!`]: struct@DataView
 #[derive(Clone)]
 pub struct DataViewArgs<D: VarValue> {
-    data: BoxedVar<D>,
+    data: Var<D>,
     replace: Arc<Mutex<Option<BoxedUiNode>>>,
     is_nil: bool,
 }
@@ -29,7 +29,7 @@ impl<D: VarValue> DataViewArgs<D> {
     /// Can be cloned and used in the [`set_view`] to avoid rebuilding the info tree for every update.
     ///
     /// [`set_view`]: Self::set_view
-    pub fn data(&self) -> &BoxedVar<D> {
+    pub fn data(&self) -> &Var<D> {
         &self.data
     }
 
@@ -124,7 +124,7 @@ impl DataView {
 /// [`DataView!`]: struct@DataView
 #[property(CHILD, widget_impl(DataView))]
 pub fn view<D: VarValue>(child: impl UiNode, data: impl IntoVar<D>, update: impl WidgetHandler<DataViewArgs<D>>) -> impl UiNode {
-    let data = data.into_var().boxed();
+    let data = data.into_var();
     let mut update = update.cfg_boxed();
     let replace = Arc::new(Mutex::new(None));
 

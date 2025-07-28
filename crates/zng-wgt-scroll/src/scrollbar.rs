@@ -68,8 +68,8 @@ context_var! {
 pub struct SCROLLBAR;
 impl SCROLLBAR {
     /// Gets the context scrollbar orientation.
-    pub fn orientation(&self) -> BoxedVar<Orientation> {
-        ORIENTATION_VAR.read_only().boxed()
+    pub fn orientation(&self) -> Var<Orientation> {
+        ORIENTATION_VAR.read_only()
     }
 }
 
@@ -164,8 +164,8 @@ fn access_node(child: impl UiNode) -> impl UiNode {
                 }
 
                 match ORIENTATION_VAR.get() {
-                    Orientation::Horizontal => info.set_scroll_horizontal(SCROLL_HORIZONTAL_OFFSET_VAR.actual_var()),
-                    Orientation::Vertical => info.set_scroll_vertical(SCROLL_VERTICAL_OFFSET_VAR.actual_var()),
+                    Orientation::Horizontal => info.set_scroll_horizontal(SCROLL_HORIZONTAL_OFFSET_VAR.current_context()),
+                    Orientation::Vertical => info.set_scroll_vertical(SCROLL_VERTICAL_OFFSET_VAR.current_context()),
                 }
 
                 info.push_controls(SCROLL.id());

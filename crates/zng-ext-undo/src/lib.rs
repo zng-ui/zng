@@ -40,7 +40,7 @@ use zng_clone_move::clmv;
 use zng_ext_input::{focus::cmd::CommandFocusExt, keyboard::KEYBOARD};
 use zng_state_map::{StateId, StateMapRef, static_id};
 use zng_txt::Txt;
-use zng_var::{BoxedVar, Var, VarHandle, VarValue, WeakVar, context_var, var};
+use zng_var::{Var, VarHandle, VarValue, context_var, var};
 use zng_wgt::{CommandIconExt as _, ICONS, wgt_fn};
 
 mod private {
@@ -112,7 +112,7 @@ impl UNDO {
     ///
     /// Note that undo scopes get the max undo from [`UNDO_LIMIT_VAR`] in context, the context var is
     /// set to this var by default.
-    pub fn undo_limit(&self) -> BoxedVar<u32> {
+    pub fn undo_limit(&self) -> Var<u32> {
         UNDO_SV.read().undo_limit.clone()
     }
 
@@ -129,7 +129,7 @@ impl UNDO {
     /// [`undo`]: Self::undo
     /// [`redo`]: Self::redo
     /// [keyboard repeat start delay + interval]: zng_ext_input::keyboard::KEYBOARD::repeat_config
-    pub fn undo_interval(&self) -> BoxedVar<Duration> {
+    pub fn undo_interval(&self) -> Var<Duration> {
         UNDO_SV.read().undo_interval.clone()
     }
 
@@ -338,11 +338,11 @@ impl UNDO {
     /// entries for it, they will still try to assign the variable, failing silently if the variable is dropped too.
     ///
     /// Var updates caused by undo and redo are tagged with [`UndoVarModifyTag`].
-    pub fn watch_var<T: VarValue>(&self, info: impl UndoInfo, var: impl Var<T>) -> VarHandle {
+    pub fn watch_var<T: VarValue>(&self, info: impl UndoInfo, var: Var<T>) -> VarHandle {
         if var.capabilities().is_always_read_only() {
             return VarHandle::dummy();
         }
-        let var = var.actual_var();
+        let var = var.current_context();
         let wk_var = var.downgrade();
 
         let mut prev_value = Some(var.get());
@@ -361,7 +361,7 @@ impl UNDO {
                 UNDO.register_op(
                     info.clone(),
                     clmv!(wk_var, new, |op| if let Some(var) = wk_var.upgrade() {
-                        let _ = match op {
+                        match op {
                             UndoOp::Undo => var.modify(clmv!(prev, |args| {
                                 args.set(prev);
                                 args.push_tag(UndoVarModifyTag);
@@ -548,7 +548,7 @@ impl UndoInfo for Txt {
         self.clone()
     }
 }
-impl UndoInfo for BoxedVar<Txt> {
+impl UndoInfo for Var<Txt> {
     fn description(&self) -> Txt {
         self.get()
     }
@@ -840,7 +840,7 @@ impl WidgetUndoScope {
 
         let scope = Arc::new(scope);
         let wk_scope = Arc::downgrade(&scope);
-        let interval = UNDO_INTERVAL_VAR.actual_var();
+        let interval = UNDO_INTERVAL_VAR.current_context();
 
         UNDO_CMD
             .scoped(id)
@@ -1163,15 +1163,15 @@ impl RedoAction for UndoRedoFullOp {
 }
 
 struct UndoService {
-    undo_limit: BoxedVar<u32>,
-    undo_interval: BoxedVar<Duration>,
+    undo_limit: Var<u32>,
+    undo_interval: Var<Duration>,
 }
 
 impl Default for UndoService {
     fn default() -> Self {
         Self {
-            undo_limit: var(u32::MAX).boxed(),
-            undo_interval: KEYBOARD.repeat_config().map(|c| c.start_delay + c.interval).cow().boxed(),
+            undo_limit: var(u32::MAX),
+            undo_interval: KEYBOARD.repeat_config().map(|c| c.start_delay + c.interval).cow(),
         }
     }
 }
@@ -1209,7 +1209,7 @@ static_id! {
 pub trait CommandUndoExt {
     /// Gets the command scoped in the undo scope widget that is or contains the focused widget, or
     /// scoped on the app if there is no focused undo scope.
-    fn undo_scoped(self) -> BoxedVar<Command>;
+    fn undo_scoped(self) -> Var<Command>;
 
     /// Latest undo stack for the given scope, same as calling [`UNDO::undo_stack`] inside the scope.
     fn undo_stack(self) -> UndoStackInfo;
@@ -1217,7 +1217,7 @@ pub trait CommandUndoExt {
     fn redo_stack(self) -> UndoStackInfo;
 }
 impl CommandUndoExt for Command {
-    fn undo_scoped(self) -> BoxedVar<Command> {
+    fn undo_scoped(self) -> Var<Command> {
         self.focus_scoped_with(|w| match w {
             Some(w) => {
                 if w.is_undo_scope() {
@@ -1274,7 +1274,7 @@ impl CommandUndoExt for Command {
 }
 
 static_id! {
-    static ref WEAK_UNDO_SCOPE_ID: StateId<(std::sync::Weak<UndoScope>, BoxedVar<Duration>)>;
+    static ref WEAK_UNDO_SCOPE_ID: StateId<(std::sync::Weak<UndoScope>, Var<Duration>)>;
 }
 
 /// Represents a type that can select actions for undo or redo once.

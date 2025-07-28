@@ -66,7 +66,7 @@ macro_rules! var_expr {
 #[doc(hidden)]
 pub use zng_var_proc_macros::var_expr as __var_expr;
 
-use crate::{IntoVar, Var, VarValue};
+use crate::{IntoVar, MergeInput, Var, VarValue};
 
 #[doc(hidden)]
 pub fn var_expr_into<T: VarValue>(expr: impl IntoVar<T>) -> Var<T> {
@@ -74,11 +74,11 @@ pub fn var_expr_into<T: VarValue>(expr: impl IntoVar<T>) -> Var<T> {
 }
 
 #[doc(hidden)]
-pub fn var_expr_as<T: VarValue>(var: Var<T>) -> Var<T> {
-    var
+pub fn var_expr_as<T: VarValue>(var: impl MergeInput<T>) -> Var<T> {
+    var.into_merge_input()
 }
 
 #[doc(hidden)]
-pub fn var_expr_map<I: VarValue, O: VarValue>(input: Var<I>, map: impl FnMut(&I) -> O + Send + 'static) -> Var<O> {
-    input.map(map)
+pub fn var_expr_map<I: VarValue, O: VarValue>(input: impl MergeInput<I>, map: impl FnMut(&I) -> O + Send + 'static) -> Var<O> {
+    input.into_merge_input().map(map)
 }

@@ -433,7 +433,7 @@ pub fn try_open_link(args: &LinkArgs) -> bool {
                     Link::Path(p) => p.display().to_txt(),
                 };
 
-                let r = CLIPBOARD.set_text(txt.clone()).wait_into_rsp().await;
+                let r = CLIPBOARD.set_text(txt.clone()).wait_rsp().await;
                 if let Err(e) = &r {
                     tracing::error!("error copying uri, {e}");
                 }

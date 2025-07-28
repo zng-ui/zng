@@ -6,7 +6,7 @@ use crate::{
         Animation, AnimationHandle, ChaseAnimation, Transition, TransitionKeyed, Transitionable,
         easing::{EasingStep, EasingTime},
     },
-    box_value_any, var_ctx,
+    var_ctx,
 };
 
 use smallbox::smallbox;
@@ -107,38 +107,83 @@ impl<T: VarValue> Var<T> {
     }
 
     /// Schedule `new_value` to be assigned next update.
+    pub fn try_set(&self, new_value: impl Into<T>) -> Result<(), VarIsReadOnlyError> {
+        self.any.try_set(BoxedVarValueAny::new(new_value.into()))
+    }
+
+    /// Schedule `new_value` to be assigned next update.
     ///
-    /// Returns `Err(new_value)` if the variable is read-only.
-    pub fn set(&self, new_value: impl Into<T>) -> Result<(), VarIsReadOnlyError> {
-        self.any.set(smallbox!(new_value.into()))
+    /// If the variable is read-only this is ignored and a DEBUG level log is recorded.
+    /// Use [`try_set`] to get an error for read-only vars.
+    ///
+    /// [`try_set`]: Self::try_set
+    pub fn set(&self, new_value: impl Into<T>) {
+        trace_debug_error!(self.try_set(new_value))
     }
 
     /// Schedule `modify` to be called on the value for the next update.
     ///
     /// If the [`VarModify`] value is deref mut the variable will notify an update.
-    pub fn modify(&self, modify: impl FnOnce(&mut VarModify<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
-        self.any.modify(move |value| {
+    pub fn try_modify(&self, modify: impl FnOnce(&mut VarModify<T>) + Send + 'static) -> Result<(), VarIsReadOnlyError> {
+        self.any.try_modify(move |value| {
             modify(&mut value.downcast::<T>().unwrap());
         })
+    }
+
+    /// Schedule `modify` to be called on the value for the next update.
+    ///
+    /// If the [`VarModify`] value is deref mut the variable will notify an update.
+    ///
+    /// If the variable is read-only this is ignored and a DEBUG level log is recorded.
+    /// Use [`try_modify`] to get an error for read-only vars.
+    ///
+    /// [`try_modify`]: Self::try_modify
+    pub fn modify(&self, modify: impl FnOnce(&mut VarModify<T>) + Send + 'static) {
+        trace_debug_error!(self.try_modify(modify))
     }
 
     /// Schedule a new `value` for the variable, it will be set in the end of the current app update to the updated
     /// value of `other`, so if the other var has already scheduled an update, the updated value will be used.
     ///  
     /// This can be used just before creating a binding to start with synchronized values.
-    pub fn set_from(&self, other: &Var<T>) -> Result<(), VarIsReadOnlyError> {
-        self.any.set_from(other)
+    pub fn try_set_from(&self, other: &Var<T>) -> Result<(), VarIsReadOnlyError> {
+        self.any.try_set_from(other)
+    }
+
+    /// Schedule a new `value` for the variable, it will be set in the end of the current app update to the updated
+    /// value of `other`, so if the other var has already scheduled an update, the updated value will be used.
+    ///  
+    /// This can be used just before creating a binding to start with synchronized values.
+    ///
+    /// If the variable is read-only this is ignored and a DEBUG level log is recorded.
+    /// Use [`try_set_from`] to get an error for read-only vars.
+    ///
+    /// [`try_set_from`]: Self::try_set_from
+    pub fn set_from(&self, other: &Var<T>) {
+        trace_debug_error!(self.try_set_from(other))
+    }
+
+    /// Like [`try_set_from`], but uses `map` to produce the new value from the updated value of `other`.
+    ///
+    /// [`try_set_from`]: Self::try_set_from
+    pub fn try_set_from_map<O: VarValue>(
+        &self,
+        other: &Var<O>,
+        map: impl FnOnce(&O) -> T + Send + 'static,
+    ) -> Result<(), VarIsReadOnlyError> {
+        self.any
+            .try_set_from_map(other, move |v| BoxedVarValueAny::new(map(v.downcast_ref::<O>().unwrap())))
     }
 
     /// Like [`set_from`], but uses `map` to produce the new value from the updated value of `other`.
     ///
+    /// If the variable is read-only this is ignored and a DEBUG level log is recorded.
+    /// Use [`try_set_from_map`] to get an error for read-only vars.
+    ///
+    /// [`try_set_from_map`]: Self::try_set_from_map
     /// [`set_from`]: Self::set_from
-    pub fn set_from_map(
-        &self,
-        other: &VarAny,
-        map: impl FnOnce(&T) -> BoxedVarValueAny + Send + 'static,
-    ) -> Result<(), VarIsReadOnlyError> {
-        self.any.set_from_map(other, move |v| map(v.downcast_ref::<T>().unwrap()))
+    pub fn set_from_map<O: VarValue>(&self, other: &Var<O>, map: impl FnOnce(&O) -> T + Send + 'static) {
+        trace_debug_error!(self.try_set_from_map(other, map))
     }
 
     /// Setups a callback for just after the variable value update is applied, the closure runs in the root app context, just like
@@ -415,8 +460,8 @@ impl<T: VarValue> Var<T> {
         mut map_back: impl FnMut(&O) -> T + Send + 'static,
     ) -> Var<O> {
         let mapping = self.map_bidi_any(
-            move |input| smallbox!(map(input.downcast_ref::<T>().unwrap())),
-            move |output| smallbox!(map_back(output.downcast_ref::<O>().unwrap())),
+            move |input| BoxedVarValueAny::new(map(input.downcast_ref::<T>().unwrap())),
+            move |output| BoxedVarValueAny::new(map_back(output.downcast_ref::<O>().unwrap())),
         );
         Var::new_any(mapping)
     }
@@ -512,15 +557,9 @@ impl<T: VarValue> Var<T> {
         fallback_init: impl Fn() -> O + Send + 'static,
     ) -> Var<O> {
         let mapping = self.filter_map_bidi_any(
-            move |t| match map(t.downcast_ref::<T>().unwrap()) {
-                Some(o) => Some(smallbox!(o)),
-                None => None,
-            },
-            move |o| match map_back(o.downcast_ref::<O>().unwrap()) {
-                Some(t) => Some(smallbox!(t)),
-                None => None,
-            },
-            move || smallbox!(fallback_init()),
+            move |t| map(t.downcast_ref::<T>().unwrap()).map(BoxedVarValueAny::new),
+            move |o| map_back(o.downcast_ref::<O>().unwrap()).map(BoxedVarValueAny::new),
+            move || BoxedVarValueAny::new(fallback_init()),
         );
         Var::new_any(mapping)
     }
@@ -612,8 +651,8 @@ impl<T: VarValue> Var<T> {
     ) -> VarHandles {
         self.any.bind_map_bidi_any(
             other,
-            move |v| box_value_any(map(v.downcast_ref::<T>().unwrap())),
-            move |v| box_value_any(map_back(v.downcast_ref::<O>().unwrap())),
+            move |v| BoxedVarValueAny::new(map(v.downcast_ref::<T>().unwrap())),
+            move |v| BoxedVarValueAny::new(map_back(v.downcast_ref::<O>().unwrap())),
         )
     }
 
@@ -634,8 +673,8 @@ impl<T: VarValue> Var<T> {
     ) -> VarHandles {
         self.any.bind_filter_map_bidi_any(
             other,
-            move |v| map(v.downcast_ref::<T>().unwrap()).map(box_value_any),
-            move |v| map_back(v.downcast_ref::<O>().unwrap()).map(box_value_any),
+            move |v| map(v.downcast_ref::<T>().unwrap()).map(BoxedVarValueAny::new),
+            move |v| map_back(v.downcast_ref::<O>().unwrap()).map(BoxedVarValueAny::new),
         )
     }
 }
@@ -1363,12 +1402,26 @@ pub fn var_default<T: VarValue + Default>() -> Var<T> {
 
 /// New read-only static variable that stores the `value` directly.
 pub fn var_local<T: VarValue>(value: T) -> Var<T> {
+    // !!: TODO imm_var? as in immutable
     crate::IntoVar::into_var(value)
 }
 
 /// New read-only static type-erased variable that stores `value` directly.
 pub fn var_local_any(value: BoxedVarValueAny) -> VarAny {
     VarAny(smallbox!(crate::var_impl::local::LocalAny::new(value)))
+}
+
+/// Weak variable that never upgrades.
+pub fn weak_var<T: VarValue>() -> WeakVar<T> {
+    WeakVar {
+        any: weak_var_any(),
+        _t: PhantomData,
+    }
+}
+
+/// Weak variable that never upgrades.
+pub fn weak_var_any() -> WeakVarAny {
+    WeakVarAny(smallbox!(crate::var_impl::local::WeakLocalVar))
 }
 
 /// Arguments for [`Var::hook`].

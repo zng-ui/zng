@@ -7,64 +7,46 @@ use zng_wgt::prelude::{gradient::*, *};
 /// Use [`gradient`] to start building.
 ///
 /// [`gradient`]: fn@gradient
-pub struct GradientBuilder<S> {
-    stops: S,
+pub struct GradientBuilder {
+    stops: Var<GradientStops>,
 }
 
 /// Starts building a gradient with the color stops.
-pub fn gradient<S>(stops: S) -> GradientBuilder<S::Var>
-where
-    S: IntoVar<GradientStops>,
-{
+pub fn gradient(stops: impl IntoVar<GradientStops>) -> GradientBuilder {
     GradientBuilder { stops: stops.into_var() }
 }
 
 /// Starts building a linear gradient with the axis and color stops.
 ///
 /// Returns a node that is also a builder that can be used to refine the gradient definition.
-pub fn linear_gradient<A: IntoVar<LinearGradientAxis>, S: IntoVar<GradientStops>>(
-    axis: A,
-    stops: S,
-) -> LinearGradient<S::Var, A::Var, LocalVar<ExtendMode>> {
+pub fn linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> LinearGradient {
     gradient(stops).linear(axis)
 }
 
 /// Starts building a radial gradient with the radius and color stops.
 ///
 /// Returns a node that is also a builder that can be used to refine the gradient definition.
-pub fn radial_gradient<C, R, S>(center: C, radius: R, stops: S) -> RadialGradient<S::Var, C::Var, R::Var, LocalVar<ExtendMode>>
-where
-    C: IntoVar<Point>,
-    R: IntoVar<GradientRadius>,
-    S: IntoVar<GradientStops>,
-{
+pub fn radial_gradient(
+    center: impl IntoVar<Point>,
+    radius: impl IntoVar<GradientRadius>,
+    stops: impl IntoVar<GradientStops>,
+) -> RadialGradient {
     gradient(stops).radial(center, radius)
 }
 
 /// Starts building a conic gradient with the angle and color stops.
 ///
 /// Returns a node that is also a builder that can be used to refine the gradient definition.
-pub fn conic_gradient<C, A, S>(center: C, angle: A, stops: S) -> ConicGradient<S::Var, C::Var, A::Var, LocalVar<ExtendMode>>
-where
-    C: IntoVar<Point>,
-    A: IntoVar<AngleRadian>,
-    S: IntoVar<GradientStops>,
-{
+pub fn conic_gradient(center: impl IntoVar<Point>, angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> ConicGradient {
     gradient(stops).conic(center, angle)
 }
 
-impl<S> GradientBuilder<S>
-where
-    S: Var<GradientStops>,
-{
+impl GradientBuilder {
     /// Builds a linear gradient.
     ///
     /// Returns a node that fills the available space with the gradient, the node type doubles
     /// as a builder that can continue building a linear gradient.
-    pub fn linear<A>(self, axis: A) -> LinearGradient<S, A::Var, LocalVar<ExtendMode>>
-    where
-        A: IntoVar<LinearGradientAxis>,
-    {
+    pub fn linear(self, axis: impl IntoVar<LinearGradientAxis>) -> LinearGradient {
         LinearGradient {
             stops: self.stops,
             axis: axis.into_var(),
@@ -78,11 +60,7 @@ where
     ///
     /// Returns a node that fills the available space with the gradient, the node type doubles
     /// as a builder that can continue building a radial gradient.
-    pub fn radial<C, R>(self, center: C, radius: R) -> RadialGradient<S, C::Var, R::Var, LocalVar<ExtendMode>>
-    where
-        C: IntoVar<Point>,
-        R: IntoVar<GradientRadius>,
-    {
+    pub fn radial(self, center: impl IntoVar<Point>, radius: impl IntoVar<GradientRadius>) -> RadialGradient {
         RadialGradient {
             stops: self.stops,
             center: center.into_var(),
@@ -96,11 +74,7 @@ where
     ///
     /// Returns a node that fills the available space with the gradient, the node type doubles
     /// as a builder that can continue building a conic gradient.
-    pub fn conic<C: IntoVar<Point>, A: IntoVar<AngleRadian>>(
-        self,
-        center: C,
-        angle: A,
-    ) -> ConicGradient<S, C::Var, A::Var, LocalVar<ExtendMode>> {
+    pub fn conic(self, center: impl IntoVar<Point>, angle: impl IntoVar<AngleRadian>) -> ConicGradient {
         ConicGradient {
             stops: self.stops,
             center: center.into_var(),
@@ -119,25 +93,20 @@ where
 /// Use [`gradient`] or [`linear_gradient`] to start building.
 ///
 /// [`gradient`]: fn@gradient
-pub struct LinearGradient<S, A, E> {
-    stops: S,
-    axis: A,
-    extend_mode: E,
+pub struct LinearGradient {
+    stops: Var<GradientStops>,
+    axis: Var<LinearGradientAxis>,
+    extend_mode: Var<ExtendMode>,
 
     data: LinearNodeData,
 }
-impl<S, A, E> LinearGradient<S, A, E>
-where
-    S: Var<GradientStops>,
-    A: Var<LinearGradientAxis>,
-    E: Var<ExtendMode>,
-{
+impl LinearGradient {
     /// Sets the extend mode of the linear gradient.
     ///
     /// By default is [`ExtendMode::Clamp`].
     ///
     /// [`ExtendMode::Clamp`]: zng_wgt::prelude::gradient::ExtendMode::Clamp
-    pub fn extend_mode<E2: IntoVar<ExtendMode>>(self, mode: E2) -> LinearGradient<S, A, E2::Var> {
+    pub fn extend_mode(self, mode: impl IntoVar<ExtendMode>) -> LinearGradient {
         LinearGradient {
             stops: self.stops,
             axis: self.axis,
@@ -149,28 +118,24 @@ where
     /// Sets the extend mode to [`ExtendMode::Repeat`].
     ///
     /// [`ExtendMode::Repeat`]: zng_wgt::prelude::gradient::ExtendMode::Repeat
-    pub fn repeat(self) -> LinearGradient<S, A, LocalVar<ExtendMode>> {
+    pub fn repeat(self) -> LinearGradient {
         self.extend_mode(ExtendMode::Repeat)
     }
 
     /// Sets the extend mode to [`ExtendMode::Reflect`].
     ///
     /// [`ExtendMode::Reflect`]: zng_wgt::prelude::gradient::ExtendMode::Reflect
-    pub fn reflect(self) -> LinearGradient<S, A, LocalVar<ExtendMode>> {
+    pub fn reflect(self) -> LinearGradient {
         self.extend_mode(ExtendMode::Reflect)
     }
 
     /// Continue building a tiled linear gradient.
-    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledLinearGradient<S, A, E, LocalVar<Point>, T::Var, TS::Var>
-    where
-        T: IntoVar<Size>,
-        TS: IntoVar<Size>,
-    {
+    pub fn tile(self, tile_size: impl IntoVar<Size>, tile_spacing: impl IntoVar<Size>) -> TiledLinearGradient {
         TiledLinearGradient {
             stops: self.stops,
             axis: self.axis,
             extend_mode: self.extend_mode,
-            tile_origin: LocalVar(Point::zero()),
+            tile_origin: var_local(Point::zero()),
             tile_size: tile_size.into_var(),
             tile_spacing: tile_spacing.into_var(),
             data: self.data,
@@ -182,10 +147,7 @@ where
     ///
     /// Relative values are resolved on the full available size, so settings this to `100.pct()` is
     /// the same as not tiling.
-    pub fn tile_size<T>(self, size: T) -> TiledLinearGradient<S, A, E, LocalVar<Point>, T::Var, LocalVar<Size>>
-    where
-        T: IntoVar<Size>,
-    {
+    pub fn tile_size(self, size: impl IntoVar<Size>) -> TiledLinearGradient {
         self.tile(size, Size::zero())
     }
 }
@@ -196,25 +158,17 @@ where
 /// tiled linear gradient.
 ///
 /// Use [`LinearGradient::tile`] to build.
-pub struct TiledLinearGradient<S, A, E, O, T, TS> {
-    stops: S,
-    axis: A,
-    extend_mode: E,
-    tile_origin: O,
-    tile_size: T,
-    tile_spacing: TS,
+pub struct TiledLinearGradient {
+    stops: Var<GradientStops>,
+    axis: Var<LinearGradientAxis>,
+    extend_mode: Var<ExtendMode>,
+    tile_origin: Var<Point>,
+    tile_size: Var<Size>,
+    tile_spacing: Var<Size>,
     data: LinearNodeData,
     tile_data: TiledNodeData,
 }
-impl<S, A, E, O, T, TS> TiledLinearGradient<S, A, E, O, T, TS>
-where
-    S: Var<GradientStops>,
-    A: Var<LinearGradientAxis>,
-    E: Var<ExtendMode>,
-    O: Var<Point>,
-    T: Var<Size>,
-    TS: Var<Size>,
-{
+impl TiledLinearGradient {
     /// Set the space between tiles.
     ///
     /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
@@ -224,10 +178,7 @@ where
     /// fully fit in the available space, so setting this to `1.lft()` will cause the *border* tiles
     /// to always touch the full bounds and the middle filled with the maximum full tiles that fit or
     /// empty space.
-    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledLinearGradient<S, A, E, O, T, TS2::Var>
-    where
-        TS2: IntoVar<Size>,
-    {
+    pub fn tile_spacing(self, spacing: impl IntoVar<Size>) -> TiledLinearGradient {
         TiledLinearGradient {
             stops: self.stops,
             axis: self.axis,
@@ -244,10 +195,7 @@ where
     ///
     /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
     /// offset a full *turn*.
-    pub fn tile_origin<O2>(self, origin: O2) -> TiledLinearGradient<S, A, E, O2::Var, T, TS>
-    where
-        O2: IntoVar<Point>,
-    {
+    pub fn tile_origin(self, origin: impl IntoVar<Point>) -> TiledLinearGradient {
         TiledLinearGradient {
             stops: self.stops,
             axis: self.axis,
@@ -269,27 +217,21 @@ where
 /// Use [`gradient`] or [`radial_gradient`] to start building.
 ///  
 /// [`gradient`]: fn@gradient
-pub struct RadialGradient<S, C, R, E> {
-    stops: S,
-    center: C,
-    radius: R,
-    extend_mode: E,
+pub struct RadialGradient {
+    stops: Var<GradientStops>,
+    center: Var<Point>,
+    radius: Var<GradientRadius>,
+    extend_mode: Var<ExtendMode>,
 
     data: RadialNodeData,
 }
-impl<S, C, R, E> RadialGradient<S, C, R, E>
-where
-    S: Var<GradientStops>,
-    C: Var<Point>,
-    R: Var<GradientRadius>,
-    E: Var<ExtendMode>,
-{
+impl RadialGradient {
     /// Sets the extend mode of the radial gradient.
     ///
     /// By default is [`ExtendMode::Clamp`].
     ///
     /// [`ExtendMode::Clamp`]: zng_wgt::prelude::gradient::ExtendMode::Clamp
-    pub fn extend_mode<E2: IntoVar<ExtendMode>>(self, mode: E2) -> RadialGradient<S, C, R, E2::Var> {
+    pub fn extend_mode(self, mode: impl IntoVar<ExtendMode>) -> RadialGradient {
         RadialGradient {
             stops: self.stops,
             center: self.center,
@@ -302,29 +244,25 @@ where
     /// Sets the extend mode to [`ExtendMode::Repeat`].
     ///
     /// [`ExtendMode::Repeat`]: zng_wgt::prelude::gradient::ExtendMode::Repeat
-    pub fn repeat(self) -> RadialGradient<S, C, R, LocalVar<ExtendMode>> {
+    pub fn repeat(self) -> RadialGradient {
         self.extend_mode(ExtendMode::Repeat)
     }
 
     /// Sets the extend mode to [`ExtendMode::Reflect`].
     ///
     /// [`ExtendMode::Reflect`]: zng_wgt::prelude::gradient::ExtendMode::Reflect
-    pub fn reflect(self) -> RadialGradient<S, C, R, LocalVar<ExtendMode>> {
+    pub fn reflect(self) -> RadialGradient {
         self.extend_mode(ExtendMode::Reflect)
     }
 
     /// Continue building a tiled radial gradient.
-    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledRadialGradient<S, C, R, E, LocalVar<Point>, T::Var, TS::Var>
-    where
-        T: IntoVar<Size>,
-        TS: IntoVar<Size>,
-    {
+    pub fn tile(self, tile_size: impl IntoVar<Size>, tile_spacing: impl IntoVar<Size>) -> TiledRadialGradient {
         TiledRadialGradient {
             stops: self.stops,
             center: self.center,
             radius: self.radius,
             extend_mode: self.extend_mode,
-            tile_origin: LocalVar(Point::zero()),
+            tile_origin: var_local(Point::zero()),
             tile_size: tile_size.into_var(),
             tile_spacing: tile_spacing.into_var(),
             data: self.data,
@@ -333,10 +271,7 @@ where
     }
 
     /// Continue building a tiled radial gradient.
-    pub fn tile_size<T>(self, size: T) -> TiledRadialGradient<S, C, R, E, LocalVar<Point>, T::Var, LocalVar<Size>>
-    where
-        T: IntoVar<Size>,
-    {
+    pub fn tile_size(self, size: impl IntoVar<Size>) -> TiledRadialGradient {
         self.tile(size, Size::zero())
     }
 }
@@ -348,27 +283,18 @@ where
 /// Use [`RadialGradient::tile`] to build.
 ///  
 /// [`gradient`]: fn@gradient
-pub struct TiledRadialGradient<S, C, R, E, O, T, TS> {
-    stops: S,
-    center: C,
-    radius: R,
-    extend_mode: E,
-    tile_origin: O,
-    tile_size: T,
-    tile_spacing: TS,
+pub struct TiledRadialGradient {
+    stops: Var<GradientStops>,
+    center: Var<Point>,
+    radius: Var<GradientRadius>,
+    extend_mode: Var<ExtendMode>,
+    tile_origin: Var<Point>,
+    tile_size: Var<Size>,
+    tile_spacing: Var<Size>,
     data: RadialNodeData,
     tile_data: TiledNodeData,
 }
-impl<S, C, R, E, O, T, TS> TiledRadialGradient<S, C, R, E, O, T, TS>
-where
-    S: Var<GradientStops>,
-    C: Var<Point>,
-    R: Var<GradientRadius>,
-    E: Var<ExtendMode>,
-    O: Var<Point>,
-    T: Var<Size>,
-    TS: Var<Size>,
-{
+impl TiledRadialGradient {
     /// Set the space between tiles.
     ///
     /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
@@ -378,10 +304,7 @@ where
     /// fully fit in the available space, so setting this to `1.lft()` will cause the *border* tiles
     /// to always touch the full bounds and the middle filled with the maximum full tiles that fit or
     /// empty space.
-    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledRadialGradient<S, C, R, E, O, T, TS2::Var>
-    where
-        TS2: IntoVar<Size>,
-    {
+    pub fn tile_spacing(self, spacing: impl IntoVar<Size>) -> TiledRadialGradient {
         TiledRadialGradient {
             stops: self.stops,
             center: self.center,
@@ -399,10 +322,7 @@ where
     ///
     /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
     /// offset a full *turn*.
-    pub fn tile_origin<O2>(self, origin: O2) -> TiledRadialGradient<S, C, R, E, O2::Var, T, TS>
-    where
-        O2: IntoVar<Point>,
-    {
+    pub fn tile_origin(self, origin: impl IntoVar<Point>) -> TiledRadialGradient {
         TiledRadialGradient {
             stops: self.stops,
             center: self.center,
@@ -425,27 +345,21 @@ where
 /// Use [`gradient`] or [`conic_gradient`] to start building.
 ///  
 /// [`gradient`]: fn@gradient
-pub struct ConicGradient<S, C, A, E> {
-    stops: S,
-    center: C,
-    angle: A,
-    extend_mode: E,
+pub struct ConicGradient {
+    stops: Var<GradientStops>,
+    center: Var<Point>,
+    angle: Var<AngleRadian>,
+    extend_mode: Var<ExtendMode>,
 
     data: ConicNodeData,
 }
-impl<S, C, A, E> ConicGradient<S, C, A, E>
-where
-    S: Var<GradientStops>,
-    C: Var<Point>,
-    A: Var<AngleRadian>,
-    E: Var<ExtendMode>,
-{
+impl ConicGradient {
     /// Sets the extend mode of the conic gradient.
     ///
     /// By default is [`ExtendMode::Clamp`].
     ///
     /// [`ExtendMode::Clamp`]: zng_wgt::prelude::gradient::ExtendMode::Clamp
-    pub fn extend_mode<E2: IntoVar<ExtendMode>>(self, mode: E2) -> ConicGradient<S, C, A, E2::Var> {
+    pub fn extend_mode(self, mode: impl IntoVar<ExtendMode>) -> ConicGradient {
         ConicGradient {
             stops: self.stops,
             center: self.center,
@@ -458,29 +372,25 @@ where
     /// Sets the extend mode to [`ExtendMode::Repeat`].
     ///
     /// [`ExtendMode::Repeat`]: zng_wgt::prelude::gradient::ExtendMode::Repeat
-    pub fn repeat(self) -> ConicGradient<S, C, A, LocalVar<ExtendMode>> {
+    pub fn repeat(self) -> ConicGradient {
         self.extend_mode(ExtendMode::Repeat)
     }
 
     /// Sets the extend mode to [`ExtendMode::Reflect`].
     ///
     /// [`ExtendMode::Reflect`]: zng_wgt::prelude::gradient::ExtendMode::Reflect
-    pub fn reflect(self) -> ConicGradient<S, C, A, LocalVar<ExtendMode>> {
+    pub fn reflect(self) -> ConicGradient {
         self.extend_mode(ExtendMode::Reflect)
     }
 
     /// Continue building a tiled radial gradient.
-    pub fn tile<T, TS>(self, tile_size: T, tile_spacing: TS) -> TiledConicGradient<S, C, A, E, LocalVar<Point>, T::Var, TS::Var>
-    where
-        T: IntoVar<Size>,
-        TS: IntoVar<Size>,
-    {
+    pub fn tile(self, tile_size: impl IntoVar<Size>, tile_spacing: impl IntoVar<Size>) -> TiledConicGradient {
         TiledConicGradient {
             stops: self.stops,
             center: self.center,
             angle: self.angle,
             extend_mode: self.extend_mode,
-            tile_origin: LocalVar(Point::zero()),
+            tile_origin: var_local(Point::zero()),
             tile_size: tile_size.into_var(),
             tile_spacing: tile_spacing.into_var(),
             data: self.data,
@@ -489,10 +399,7 @@ where
     }
 
     /// Continue building a tiled radial gradient.
-    pub fn tile_size<T>(self, size: T) -> TiledConicGradient<S, C, A, E, LocalVar<Point>, T::Var, LocalVar<Size>>
-    where
-        T: IntoVar<Size>,
-    {
+    pub fn tile_size(self, size: impl IntoVar<Size>) -> TiledConicGradient {
         self.tile(size, Size::zero())
     }
 }
@@ -504,27 +411,18 @@ where
 /// Use [`ConicGradient::tile`] to build.
 ///  
 /// [`gradient`]: fn@gradient
-pub struct TiledConicGradient<S, C, A, E, O, T, TS> {
-    stops: S,
-    center: C,
-    angle: A,
-    extend_mode: E,
-    tile_origin: O,
-    tile_size: T,
-    tile_spacing: TS,
+pub struct TiledConicGradient {
+    stops: Var<GradientStops>,
+    center: Var<Point>,
+    angle: Var<AngleRadian>,
+    extend_mode: Var<ExtendMode>,
+    tile_origin: Var<Point>,
+    tile_size: Var<Size>,
+    tile_spacing: Var<Size>,
     data: ConicNodeData,
     tile_data: TiledNodeData,
 }
-impl<S, C, A, E, O, T, TS> TiledConicGradient<S, C, A, E, O, T, TS>
-where
-    S: Var<GradientStops>,
-    C: Var<Point>,
-    A: Var<AngleRadian>,
-    E: Var<ExtendMode>,
-    O: Var<Point>,
-    T: Var<Size>,
-    TS: Var<Size>,
-{
+impl TiledConicGradient {
     /// Set the space between tiles.
     ///
     /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
@@ -534,10 +432,7 @@ where
     /// fully fit in the available space, so setting this to `1.lft()` will cause the *border* tiles
     /// to always touch the full bounds and the middle filled with the maximum full tiles that fit or
     /// empty space.
-    pub fn tile_spacing<TS2>(self, spacing: TS2) -> TiledConicGradient<S, C, A, E, O, T, TS2::Var>
-    where
-        TS2: IntoVar<Size>,
-    {
+    pub fn tile_spacing<TS2>(self, spacing: impl IntoVar<Size>) -> TiledConicGradient {
         TiledConicGradient {
             stops: self.stops,
             center: self.center,
@@ -555,10 +450,7 @@ where
     ///
     /// Relative values are resolved on the tile size, so setting this to `100.pct()` will
     /// offset a full *turn*.
-    pub fn tile_origin<O2>(self, origin: O2) -> TiledConicGradient<S, C, A, E, O2::Var, T, TS>
-    where
-        O2: IntoVar<Point>,
-    {
+    pub fn tile_origin(self, origin: impl IntoVar<Point>) -> TiledConicGradient {
         TiledConicGradient {
             stops: self.stops,
             center: self.center,
@@ -580,12 +472,7 @@ struct LinearNodeData {
     size: PxSize,
 }
 #[ui_node(none)]
-impl<S, A, E> UiNode for LinearGradient<S, A, E>
-where
-    S: Var<GradientStops>,
-    A: Var<LinearGradientAxis>,
-    E: Var<ExtendMode>,
-{
+impl UiNode for LinearGradient {
     fn init(&mut self) {
         WIDGET.sub_var_layout(&self.axis).sub_var(&self.stops).sub_var(&self.extend_mode);
     }
@@ -638,15 +525,7 @@ struct TiledNodeData {
     spacing: PxSize,
 }
 #[ui_node(none)]
-impl<S, A, E, O, T, TS> UiNode for TiledLinearGradient<S, A, E, O, T, TS>
-where
-    S: Var<GradientStops>,
-    A: Var<LinearGradientAxis>,
-    E: Var<ExtendMode>,
-    O: Var<Point>,
-    T: Var<Size>,
-    TS: Var<Size>,
-{
+impl UiNode for TiledLinearGradient {
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.axis)
@@ -729,13 +608,7 @@ struct RadialNodeData {
 }
 
 #[ui_node(none)]
-impl<S, C, R, E> UiNode for RadialGradient<S, C, R, E>
-where
-    S: Var<GradientStops>,
-    C: Var<Point>,
-    R: Var<GradientRadius>,
-    E: Var<ExtendMode>,
-{
+impl UiNode for RadialGradient {
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.center)
@@ -800,16 +673,7 @@ where
 }
 
 #[ui_node(none)]
-impl<S, C, R, E, O, T, TS> UiNode for TiledRadialGradient<S, C, R, E, O, T, TS>
-where
-    S: Var<GradientStops>,
-    C: Var<Point>,
-    R: Var<GradientRadius>,
-    E: Var<ExtendMode>,
-    O: Var<Point>,
-    T: Var<Size>,
-    TS: Var<Size>,
-{
+impl UiNode for TiledRadialGradient {
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.center)
@@ -898,13 +762,7 @@ struct ConicNodeData {
 }
 
 #[ui_node(none)]
-impl<S, C, A, E> UiNode for ConicGradient<S, C, A, E>
-where
-    S: Var<GradientStops>,
-    C: Var<Point>,
-    A: Var<AngleRadian>,
-    E: Var<ExtendMode>,
-{
+impl UiNode for ConicGradient {
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.center)
@@ -967,16 +825,7 @@ where
 }
 
 #[ui_node(none)]
-impl<S, C, A, E, O, T, TS> UiNode for TiledConicGradient<S, C, A, E, O, T, TS>
-where
-    S: Var<GradientStops>,
-    C: Var<Point>,
-    A: Var<AngleRadian>,
-    E: Var<ExtendMode>,
-    O: Var<Point>,
-    T: Var<Size>,
-    TS: Var<Size>,
-{
+impl UiNode for TiledConicGradient {
     fn init(&mut self) {
         WIDGET
             .sub_var_layout(&self.center)

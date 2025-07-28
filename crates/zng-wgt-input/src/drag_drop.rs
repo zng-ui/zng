@@ -121,16 +121,16 @@ pub fn is_dragging(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode
             WIDGET.sub_event(&DRAG_START_EVENT).sub_event(&DRAG_END_EVENT);
         }
         UiNodeOp::Deinit => {
-            let _ = state.set(false);
+            state.set(false);
         }
         UiNodeOp::Event { update } => {
             if let Some(args) = DRAG_START_EVENT.on(update) {
                 if args.target.contains(WIDGET.id()) {
-                    let _ = state.set(true);
+                    state.set(true);
                 }
             } else if let Some(args) = DRAG_END_EVENT.on(update) {
                 if args.target.contains(WIDGET.id()) {
-                    let _ = state.set(false);
+                    state.set(false);
                 }
             }
         }

@@ -5,7 +5,7 @@ use bitflags::bitflags;
 use parking_lot::Mutex;
 use zng_ext_input::touch::TouchPhase;
 use zng_var::{
-    ReadOnlyContextVar, VARS,
+    VARS,
     animation::{
         AnimationHandle, ChaseAnimation, Transition,
         easing::{self, EasingStep, EasingTime},
@@ -219,7 +219,7 @@ impl SCROLL {
     }
 
     /// Scroll mode of the parent scroll.
-    pub fn mode(&self) -> ReadOnlyContextVar<ScrollMode> {
+    pub fn mode(&self) -> Var<ScrollMode> {
         SCROLL_MODE_VAR.read_only()
     }
 
@@ -272,7 +272,7 @@ impl SCROLL {
     /// by the viewport width.
     ///
     /// [`vertical_offset`]: Self::vertical_offset
-    pub fn vertical_overscroll(&self) -> ReadOnlyContextVar<Factor> {
+    pub fn vertical_overscroll(&self) -> Var<Factor> {
         OVERSCROLL_VERTICAL_OFFSET_VAR.read_only()
     }
 
@@ -283,40 +283,40 @@ impl SCROLL {
     /// by the viewport width.
     ///
     /// [`horizontal_offset`]: Self::horizontal_offset
-    pub fn horizontal_overscroll(&self) -> ReadOnlyContextVar<Factor> {
+    pub fn horizontal_overscroll(&self) -> Var<Factor> {
         OVERSCROLL_HORIZONTAL_OFFSET_VAR.read_only()
     }
 
     /// Ratio of the scroll parent viewport height to its content.
     ///
     /// The value is `viewport.height / content.height`.
-    pub fn vertical_ratio(&self) -> ReadOnlyContextVar<Factor> {
+    pub fn vertical_ratio(&self) -> Var<Factor> {
         SCROLL_VERTICAL_RATIO_VAR.read_only()
     }
     /// Ratio of the scroll parent viewport width to its content.
     ///
     /// The value is `viewport.width / content.width`.
-    pub fn horizontal_ratio(&self) -> ReadOnlyContextVar<Factor> {
+    pub fn horizontal_ratio(&self) -> Var<Factor> {
         SCROLL_HORIZONTAL_RATIO_VAR.read_only()
     }
 
     /// If the vertical scrollbar should be visible.
-    pub fn vertical_content_overflows(&self) -> ReadOnlyContextVar<bool> {
+    pub fn vertical_content_overflows(&self) -> Var<bool> {
         SCROLL_VERTICAL_CONTENT_OVERFLOWS_VAR.read_only()
     }
 
     /// If the horizontal scrollbar should be visible.
-    pub fn horizontal_content_overflows(&self) -> ReadOnlyContextVar<bool> {
+    pub fn horizontal_content_overflows(&self) -> Var<bool> {
         SCROLL_HORIZONTAL_CONTENT_OVERFLOWS_VAR.read_only()
     }
 
     /// Latest computed viewport size of the parent scroll.
-    pub fn viewport_size(&self) -> ReadOnlyContextVar<PxSize> {
+    pub fn viewport_size(&self) -> Var<PxSize> {
         SCROLL_VIEWPORT_SIZE_VAR.read_only()
     }
 
     /// Latest computed content size of the parent scroll.
-    pub fn content_size(&self) -> ReadOnlyContextVar<PxSize> {
+    pub fn content_size(&self) -> Var<PxSize> {
         SCROLL_CONTENT_SIZE_VAR.read_only()
     }
 
@@ -451,7 +451,7 @@ impl SCROLL {
             overscroll = -(overscroll_px.min(overscroll_max) / overscroll_max);
         }
 
-        let _ = scroll_offset_var.set(next);
+        scroll_offset_var.set(next);
         if overscroll != 0.fct() {
             let new_handle = self.increment_overscroll(overscroll_offset_var, overscroll);
 
@@ -473,8 +473,8 @@ impl SCROLL {
         overscroll.animate(move |a, o| match &mut state {
             State::Increment => {
                 // set the increment and start delay to animation.
-                *o.to_mut() += delta;
-                *o.to_mut() = (*o).clamp((-1).fct(), 1.fct());
+                **o += delta;
+                **o = (*o).clamp((-1).fct(), 1.fct());
 
                 a.sleep(300.ms());
                 state = State::ClearDelay;
@@ -569,7 +569,7 @@ impl SCROLL {
         *cfg.inertia[vertical as usize].lock() = if overscroll != 0.fct() {
             let transition = Transition::new(current, next + overscroll);
 
-            let overscroll_var = overscroll_offset_var.actual_var();
+            let overscroll_var = overscroll_offset_var.current_context();
             let overscroll_tr = Transition::new(overscroll, 0.fct());
             let mut is_inertia_anim = true;
 
@@ -584,7 +584,7 @@ impl SCROLL {
                         value.set(v.clamp_range());
                         animation.restart();
                         is_inertia_anim = false;
-                        let _ = overscroll_var.set(overscroll_tr.from);
+                        overscroll_var.set(overscroll_tr.from);
                     } else {
                         value.set(v);
                     }
@@ -592,7 +592,7 @@ impl SCROLL {
                     // overscroll clear ease animation
                     let step = easing::linear(animation.elapsed_stop(300.ms()));
                     let v = overscroll_tr.sample(step);
-                    let _ = overscroll_var.set(v);
+                    overscroll_var.set(v);
                 }
             })
         } else {
@@ -624,7 +624,7 @@ impl SCROLL {
             Some(t) => {
                 if smooth.is_disabled() {
                     let t = modify_offset(*t.target()).clamp_range();
-                    let _ = scroll_offset_var.set(t);
+                    scroll_offset_var.set(t);
                     *chase = None;
                 } else {
                     let easing = smooth.easing.clone();
@@ -634,7 +634,7 @@ impl SCROLL {
             None => {
                 let t = modify_offset(scroll_offset_var.get()).clamp_range();
                 if smooth.is_disabled() {
-                    let _ = scroll_offset_var.set(t);
+                    scroll_offset_var.set(t);
                 } else {
                     let easing = smooth.easing.clone();
                     let anim = scroll_offset_var.chase(t, smooth.duration, move |t| easing(t));
@@ -667,7 +667,7 @@ impl SCROLL {
             ZoomState::Chasing(t) => {
                 if smooth.is_disabled() {
                     let next = modify_scale(*t.target()).clamp(min, max);
-                    let _ = SCROLL_SCALE_VAR.set(next);
+                    SCROLL_SCALE_VAR.set(next);
                     *zoom = ZoomState::None;
                 } else {
                     let easing = smooth.easing.clone();
@@ -677,7 +677,7 @@ impl SCROLL {
             _ => {
                 let t = modify_scale(SCROLL_SCALE_VAR.get()).clamp(min, max);
                 if smooth.is_disabled() {
-                    let _ = SCROLL_SCALE_VAR.set(t);
+                    SCROLL_SCALE_VAR.set(t);
                 } else {
                     let easing = smooth.easing.clone();
                     let anim = SCROLL_SCALE_VAR.chase(t, smooth.duration, move |t| easing(t));
@@ -800,34 +800,34 @@ impl SCROLL {
 
         let offset = zoom_offset + translate_delta;
 
-        let _ = SCROLL_SCALE_VAR.set(scale);
+        SCROLL_SCALE_VAR.set(scale);
 
         if offset.y != 0.0 && max_scroll.height > 0.0 {
             let offset_y = offset.y / max_scroll.height;
-            let _ = SCROLL_VERTICAL_OFFSET_VAR.set(offset_y.clamp(0.0, 1.0));
+            SCROLL_VERTICAL_OFFSET_VAR.set(offset_y.clamp(0.0, 1.0));
         }
         if offset.x != 0.0 && max_scroll.width > 0.0 {
             let offset_x = offset.x / max_scroll.width;
-            let _ = SCROLL_HORIZONTAL_OFFSET_VAR.set(offset_x.clamp(0.0, 1.0));
+            SCROLL_HORIZONTAL_OFFSET_VAR.set(offset_x.clamp(0.0, 1.0));
         }
     }
 
-    fn can_scroll(&self, predicate: impl Fn(PxSize, PxSize) -> bool + Send + Sync + 'static) -> impl Var<bool> {
-        merge_var!(SCROLL_VIEWPORT_SIZE_VAR, SCROLL_CONTENT_SIZE_VAR, move |&vp, &ct| predicate(vp, ct))
+    fn can_scroll(&self, predicate: impl Fn(PxSize, PxSize) -> bool + Send + Sync + 'static) -> Var<bool> {
+        var_merge!(SCROLL_VIEWPORT_SIZE_VAR, SCROLL_CONTENT_SIZE_VAR, move |&vp, &ct| predicate(vp, ct))
     }
 
     /// Gets a var that is `true` when the content height is greater then the viewport height.
-    pub fn can_scroll_vertical(&self) -> impl Var<bool> {
+    pub fn can_scroll_vertical(&self) -> Var<bool> {
         self.can_scroll(|vp, ct| ct.height > vp.height)
     }
 
     /// Gets a var that is `true` when the content width is greater then the viewport with.
-    pub fn can_scroll_horizontal(&self) -> impl Var<bool> {
+    pub fn can_scroll_horizontal(&self) -> Var<bool> {
         self.can_scroll(|vp, ct| ct.width > vp.width)
     }
 
-    fn can_scroll_v(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> impl Var<bool> {
-        merge_var!(
+    fn can_scroll_v(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> Var<bool> {
+        var_merge!(
             SCROLL_VIEWPORT_SIZE_VAR,
             SCROLL_CONTENT_SIZE_VAR,
             SCROLL_VERTICAL_OFFSET_VAR,
@@ -837,18 +837,18 @@ impl SCROLL {
 
     /// Gets a var that is `true` when the content height is greater then the viewport height and the vertical offset
     /// is not at the maximum.
-    pub fn can_scroll_down(&self) -> impl Var<bool> {
+    pub fn can_scroll_down(&self) -> Var<bool> {
         self.can_scroll_v(|vp, ct, vo| ct.height > vp.height && 1.fct() > vo)
     }
 
     /// Gets a var that is `true` when the content height is greater then the viewport height and the vertical offset
     /// is not at the minimum.
-    pub fn can_scroll_up(&self) -> impl Var<bool> {
+    pub fn can_scroll_up(&self) -> Var<bool> {
         self.can_scroll_v(|vp, ct, vo| ct.height > vp.height && 0.fct() < vo)
     }
 
-    fn can_scroll_h(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> impl Var<bool> {
-        merge_var!(
+    fn can_scroll_h(&self, predicate: impl Fn(PxSize, PxSize, Factor) -> bool + Send + Sync + 'static) -> Var<bool> {
+        var_merge!(
             SCROLL_VIEWPORT_SIZE_VAR,
             SCROLL_CONTENT_SIZE_VAR,
             SCROLL_HORIZONTAL_OFFSET_VAR,
@@ -858,13 +858,13 @@ impl SCROLL {
 
     /// Gets a var that is `true` when the content width is greater then the viewport width and the horizontal offset
     /// is not at the minimum.
-    pub fn can_scroll_left(&self) -> impl Var<bool> {
+    pub fn can_scroll_left(&self) -> Var<bool> {
         self.can_scroll_h(|vp, ct, ho| ct.width > vp.width && 0.fct() < ho)
     }
 
     /// Gets a var that is `true` when the content width is greater then the viewport width and the horizontal offset
     /// is not at the maximum.
-    pub fn can_scroll_right(&self) -> impl Var<bool> {
+    pub fn can_scroll_right(&self) -> Var<bool> {
         self.can_scroll_h(|vp, ct, ho| ct.width > vp.width && 1.fct() > ho)
     }
 

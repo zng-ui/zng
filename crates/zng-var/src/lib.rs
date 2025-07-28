@@ -12,6 +12,14 @@
 #![warn(missing_docs)]
 #![deny(clippy::future_not_send)]
 
+macro_rules! trace_debug_error {
+    ($result:expr) => {
+        if let Err(e) = $result {
+            tracing::debug!("{e}")
+        }
+    };
+}
+
 mod var_value;
 pub use var_value::*;
 

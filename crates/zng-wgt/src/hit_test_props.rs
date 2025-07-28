@@ -30,7 +30,7 @@ pub fn hit_test_mode(child: impl UiNode, mode: impl IntoVar<HitTestMode>) -> imp
     with_context_var(
         child,
         HIT_TEST_MODE_VAR,
-        merge_var!(HIT_TEST_MODE_VAR, mode.into_var(), |&a, &b| match (a, b) {
+        var_merge!(HIT_TEST_MODE_VAR, mode.into_var(), |&a, &b| match (a, b) {
             (HitTestMode::Disabled, _) | (_, HitTestMode::Disabled) => HitTestMode::Disabled,
             (_, b) => b,
         }),

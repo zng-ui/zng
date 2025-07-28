@@ -273,7 +273,7 @@ fn minidump_panel(path: PathBuf) -> impl UiNode {
         }
     }
 }
-async fn open_path(enabled: ArcVar<bool>, path: PathBuf) {
+async fn open_path(enabled: Var<bool>, path: PathBuf) {
     enabled.set(false);
 
     #[cfg(windows)]
@@ -295,7 +295,7 @@ async fn open_path(enabled: ArcVar<bool>, path: PathBuf) {
 
     enabled.set(true);
 }
-async fn save_copy(enabled: ArcVar<bool>, path: PathBuf) {
+async fn save_copy(enabled: Var<bool>, path: PathBuf) {
     enabled.set(false);
 
     let mut filters = FileDialogFilters::new();
@@ -315,7 +315,7 @@ async fn save_copy(enabled: ArcVar<bool>, path: PathBuf) {
             l10n!("crash-handler/minidump.save-copy-starting-name", "minidump"),
             filters,
         )
-        .wait_into_rsp()
+        .wait_rsp()
         .await;
 
     match r {
@@ -354,7 +354,7 @@ async fn save_copy(enabled: ArcVar<bool>, path: PathBuf) {
 
     enabled.set(true);
 }
-async fn remove_path(enabled: ArcVar<bool>, path: PathBuf) {
+async fn remove_path(enabled: Var<bool>, path: PathBuf) {
     enabled.set(false);
 
     if let Err(e) = task::wait(move || std::fs::remove_file(path)).await {
@@ -368,7 +368,7 @@ async fn remove_path(enabled: ArcVar<bool>, path: PathBuf) {
                         error = e.to_string()
                     ),
                 )
-                .wait_into_rsp()
+                .wait_rsp()
                 .await
         }
     }

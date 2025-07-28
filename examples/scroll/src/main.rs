@@ -55,7 +55,7 @@ fn main() {
     })
 }
 
-fn commands(mouse_pan: impl Var<bool>, smooth_scrolling: impl Var<bool>) -> impl UiNode {
+fn commands(mouse_pan: Var<bool>, smooth_scrolling: Var<bool>) -> impl UiNode {
     use zng::scroll::cmd::*;
 
     let scope = WidgetId::named("scroll");

@@ -27,7 +27,7 @@ impl PartialEq for CowVarSource {
 pub(crate) struct CowVar(super::shared::SharedVar);
 impl CowVar {
     pub(crate) fn new(source: VarAny) -> Self {
-        let me = super::shared::SharedVar::new(smallbox!(()));
+        let me = super::shared::SharedVar::new(BoxedVarValueAny::new(()));
         let weak_me = me.downgrade_typed();
 
         // update CowVar on source update
@@ -39,7 +39,10 @@ impl CowVar {
             None => false,
         });
 
-        Self(super::shared::SharedVar::new(smallbox!(CowVarSource { source, _source_hook })))
+        Self(super::shared::SharedVar::new(BoxedVarValueAny::new(CowVarSource {
+            source,
+            _source_hook,
+        })))
     }
 }
 impl VarImpl for CowVar {

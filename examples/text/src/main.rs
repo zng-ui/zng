@@ -7,7 +7,6 @@ use zng::{
     layout::{align, margin, padding},
     prelude::*,
     text::{UnderlinePosition, UnderlineSkip, font_family, font_weight},
-    var::ArcVar,
     widget::{LineStyle, background_color, corner_radius},
 };
 
@@ -64,10 +63,10 @@ fn main() {
     })
 }
 
-fn font_size_example(font_size: ArcVar<Length>) -> impl UiNode {
-    fn change_size(font_size: &ArcVar<Length>, change: f32) {
+fn font_size_example(font_size: Var<Length>) -> impl UiNode {
+    fn change_size(font_size: &Var<Length>, change: f32) {
         font_size.modify(move |s| {
-            *s.to_mut() += Length::Pt(change);
+            **s += Length::Pt(change);
         });
     }
     Stack! {

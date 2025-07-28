@@ -2,7 +2,7 @@
 
 use zng_app_context::app_local;
 pub use zng_tp_licenses::{License, LicenseUsed, User, UserLicense};
-use zng_var::{ArcVar, Var as _, var};
+use zng_var::{Var, var};
 
 use crate::{
     event::{CommandNameExt as _, command},
@@ -66,7 +66,7 @@ impl LICENSES {
     /// This is `true` by default.
     ///
     /// [`licenses`]: Self::licenses
-    pub fn include_view_process(&self) -> ArcVar<bool> {
+    pub fn include_view_process(&self) -> Var<bool> {
         LICENSES_SV.read().include_view_process.clone()
     }
 
@@ -85,7 +85,7 @@ app_local! {
 
 struct Licenses {
     sources: Vec<fn() -> Vec<LicenseUsed>>,
-    include_view_process: ArcVar<bool>,
+    include_view_process: Var<bool>,
 }
 
 command! {

@@ -423,7 +423,7 @@ fn with_access_state<T: VarValue>(
 fn with_access_state_var<T: VarValue, I: IntoVar<T>>(
     child: impl UiNode,
     state: I,
-    set_info: impl Fn(&mut WidgetAccessInfoBuilder, &I::Var) + Send + 'static,
+    set_info: impl Fn(&mut WidgetAccessInfoBuilder, &Var<T>) + Send + 'static,
 ) -> impl UiNode {
     let state = state.into_var();
     let mut handle = VarHandle::dummy();

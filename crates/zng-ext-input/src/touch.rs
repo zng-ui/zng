@@ -26,7 +26,7 @@ use zng_ext_window::{NestedWindowWidgetInfoExt as _, WINDOWS};
 use zng_layout::unit::{
     AngleRadian, Dip, DipPoint, DipToPx, DipVector, Factor, Px, PxPoint, PxToDip, PxTransform, PxVector, TimeUnits, euclid,
 };
-use zng_var::{ArcVar, ReadOnlyArcVar, Var, impl_from_and_into_var, types::ArcCowVar, var};
+use zng_var::{Var, impl_from_and_into_var, var};
 pub use zng_view_api::{
     config::TouchConfig,
     touch::{TouchForce, TouchId, TouchPhase, TouchUpdate},
@@ -145,7 +145,7 @@ impl TOUCH {
     /// The value is the same as [`sys_touch_config`], if set the variable disconnects from system config.
     ///
     /// [`sys_touch_config`]: Self::sys_touch_config
-    pub fn touch_config(&self) -> ArcCowVar<TouchConfig, ArcVar<TouchConfig>> {
+    pub fn touch_config(&self) -> Var<TouchConfig> {
         TOUCH_SV.read().touch_config.clone()
     }
 
@@ -160,19 +160,19 @@ impl TOUCH {
     /// updates with a new value if the system setting is changed and on view-process (re)init.
     ///
     /// In headless apps the default is [`TouchConfig::default`] and does not change.
-    pub fn sys_touch_config(&self) -> ReadOnlyArcVar<TouchConfig> {
+    pub fn sys_touch_config(&self) -> Var<TouchConfig> {
         TOUCH_SV.read().sys_touch_config.read_only()
     }
 
     /// Variable that tracks all current active touches.
-    pub fn positions(&self) -> ReadOnlyArcVar<Vec<TouchPosition>> {
+    pub fn positions(&self) -> Var<Vec<TouchPosition>> {
         TOUCH_SV.read().positions.read_only()
     }
 
     /// Test mode, generates touch events for a single touch contact from raw mouse events.
     ///
     /// Is disabled by default.
-    pub fn touch_from_mouse_events(&self) -> ArcVar<bool> {
+    pub fn touch_from_mouse_events(&self) -> Var<bool> {
         TOUCH_SV.read().touch_from_mouse_events.clone()
     }
 }
@@ -209,10 +209,10 @@ app_local! {
     };
 }
 struct TouchService {
-    touch_config: ArcCowVar<TouchConfig, ArcVar<TouchConfig>>,
-    sys_touch_config: ArcVar<TouchConfig>,
-    positions: ArcVar<Vec<TouchPosition>>,
-    touch_from_mouse_events: ArcVar<bool>,
+    touch_config: Var<TouchConfig>,
+    sys_touch_config: Var<TouchConfig>,
+    positions: Var<Vec<TouchPosition>>,
+    touch_from_mouse_events: Var<bool>,
 }
 
 /// Identify the moves of one touch contact in [`TouchMoveArgs`].
@@ -1272,7 +1272,7 @@ impl TouchManager {
                         update_time: args.timestamp,
                     };
                     TOUCH_SV.read().positions.modify(move |p| {
-                        let p = p.to_mut();
+                        let p = &mut **p;
                         if let Some(weird) = p.iter().position(|p| p.touch == pos_info.touch) {
                             p.remove(weird);
                         }
@@ -1283,7 +1283,7 @@ impl TouchManager {
                     let touch = update.touch;
                     TOUCH_SV.read().positions.modify(move |p| {
                         if let Some(i) = p.iter().position(|p| p.touch == touch) {
-                            p.to_mut().remove(i);
+                            p.remove(i);
                         }
                     });
                 }
@@ -1419,7 +1419,7 @@ impl TouchManager {
                     for mut update in position_updates {
                         if let Some(i) = p.iter().position(|p| p.touch == update.touch) {
                             update.start_time = p[i].start_time;
-                            p.to_mut()[i] = update;
+                            p[i] = update;
                         }
                     }
                 });

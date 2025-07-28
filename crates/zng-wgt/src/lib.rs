@@ -60,9 +60,9 @@ mod __prelude {
     };
 
     pub use zng_var::{
-        AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ObservableVec, ReadOnlyArcVar,
-        ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarUpdateId, VarValue, WeakVar as _, context_var, expr_var,
-        impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, var_from, when_var,
+        ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarUpdateId,
+        VarValue, WeakVar, context_var, impl_from_and_into_var, response_done_var, response_var, var, var_default, var_expr, var_from,
+        var_local, var_merge, var_state, var_when,
     };
 
     pub use zng_layout::{

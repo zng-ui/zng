@@ -355,7 +355,7 @@ pub use zng_layout::unit::{
     SideOffsets, SideOffsets2D, Size, TimeUnits, Transform, Vector,
 };
 
-pub use zng_var::types::{slerp_enabled, slerp_sampler};
+pub use zng_var::animation::{slerp_enabled, slerp_sampler};
 
 pub use zng_layout::context::{
     DIRECTION_VAR, InlineConstraints, InlineConstraintsLayout, InlineConstraintsMeasure, InlineSegment, InlineSegmentPos, LAYOUT,

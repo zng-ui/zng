@@ -13,7 +13,6 @@ use zng_layout::{
     unit::{Align, Factor2d, FactorUnits, Px, PxBox, PxConstraints2d, PxPoint, PxRect, PxSize, about_eq, euclid},
 };
 use zng_txt::Txt;
-use zng_var::{AnyVar, Var as _};
 use zng_view_api::font::{GlyphIndex, GlyphInstance};
 
 use crate::{
@@ -297,7 +296,7 @@ impl FontRangeVec {
 struct GlyphImage(ImageVar);
 impl PartialEq for GlyphImage {
     fn eq(&self, other: &Self) -> bool {
-        self.0.var_ptr() == other.0.var_ptr()
+        self.0.var_eq(&other.0)
     }
 }
 impl fmt::Debug for GlyphImage {

@@ -55,7 +55,7 @@ pub fn run() {
             });
 
             on_load = async_hn!(recorded, temp, |_| {
-                recorded.wait_value(|&f| f).await;
+                recorded.wait_match(|&f| f).await;
 
                 let encoded = var(false);
                 print_status("encoding", &encoded);
@@ -85,7 +85,7 @@ pub fn run() {
                         Err(e) => panic!("cannot run 'ffmpeg', {e}"),
                     }
                 }));
-                encoded.wait_value(|&f| f).await;
+                encoded.wait_match(|&f| f).await;
                 println!("\rfinished.");
 
                 APP.exit();
@@ -95,7 +95,7 @@ pub fn run() {
     while !matches!(app.update(true), zng::app::AppControlFlow::Exit) {}
 }
 
-fn video(finished: zng::var::ArcVar<bool>) -> impl UiNode {
+fn video(finished: Var<bool>) -> impl UiNode {
     let bkg_rotate = var(0.turn());
     let txt_fade = var(0.fct());
     let txt_size = var(32.dip());
@@ -158,7 +158,7 @@ fn video(finished: zng::var::ArcVar<bool>) -> impl UiNode {
     }
 }
 
-fn print_status(task: &'static str, done: &zng::var::ArcVar<bool>) {
+fn print_status(task: &'static str, done: &Var<bool>) {
     task::spawn(async_clmv!(done, {
         let mut dots = 0;
         while !done.get() {

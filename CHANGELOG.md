@@ -1,6 +1,26 @@
 # Unreleased
 
-!!: start smallbox
+* **Breaking** refactor `zng::var` API.
+    
+    Unified var types to new `Var<T>` and `VarAny` structs. Variables still behave the same 
+    and everything that could be done before can still be done with the new API. The main motivation
+    for this refactor is the reduction of generics code bloat, but since a breaking change is already happening
+    some poorly named methods and functions where renamed as well.
+
+    To migrate:
+
+    - Replace `impl Var<T>` and other var structs with `Var<T>`.
+    - Replace `impl AnyVar` with `VarAny`. 
+    - Replace `expr_var!`, `merge_var!` and `when_var!` with `var_expr!`, `var_merge!` and `var_when!`. !!: TODO undo this
+    - Replace `LocalVar(_)` with `var_local(_)`.
+    - Replace `ContextualizedVar::new(_)` with `var_ctx(_)`.
+    - Replace `Var::wait_value` with `Var::wait_match`.
+    - Now always use `Var::capabilities` to inspect *kind* of var.
+    - Modify methods `Var::{set, update, modify}` now simply DEBUG log if the variable is read-only, 
+      use `try_set, try_update, try_modify` to get the error.
+
+    !!: TODO review type alias vars, TimerVar should be a struct, CommandVar should not exist.
+    !!: TODO search for hook(Box::new)
 
 * Fix human readable deserialization of `PxConstraints` failing when the `max` field is not set.
 
@@ -27,7 +47,7 @@
 * **Breaking** Refactor `zng::slider` API.
     - Removed direct support to std range type, use `Selector::many` with two values.
     - Selector `value_with` and `many_with` now expects `Sync` closures.
-    - Thumb args now uses a boxed variable to track the position.
+    - Thumb args now uses a variable to track the position.
 * Fix `Slider!` not reacting to value changes.
 * Fix inherited widget properties not showing in documentation.
 

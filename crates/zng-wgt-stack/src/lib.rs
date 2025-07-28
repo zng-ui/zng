@@ -569,7 +569,7 @@ static_id! {
 pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
-        let _ = state.set(id.unwrap_or(0));
+        state.set(id.unwrap_or(0));
     })
 }
 
@@ -578,7 +578,7 @@ pub fn get_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode 
 pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) -> impl UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_len_node(child, *PANEL_LIST_ID, move |id_len| {
-        let _ = state.set(id_len.unwrap_or((0, 0)));
+        state.set(id_len.unwrap_or((0, 0)));
     })
 }
 
@@ -587,7 +587,7 @@ pub fn get_index_len(child: impl UiNode, state: impl IntoVar<(usize, usize)>) ->
 pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiNode {
     let state = state.into_var();
     zng_wgt::node::with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
-        let _ = state.set(id.unwrap_or(0));
+        state.set(id.unwrap_or(0));
     })
 }
 
@@ -600,7 +600,7 @@ pub fn get_rev_index(child: impl UiNode, state: impl IntoVar<usize>) -> impl UiN
 pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
-        let _ = state.set(id.map(|i| i % 2 == 0).unwrap_or(false));
+        state.set(id.map(|i| i % 2 == 0).unwrap_or(false));
     })
 }
 
@@ -613,7 +613,7 @@ pub fn is_even(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
-        let _ = state.set(id.map(|i| i % 2 != 0).unwrap_or(false));
+        state.set(id.map(|i| i % 2 != 0).unwrap_or(false));
     })
 }
 
@@ -622,7 +622,7 @@ pub fn is_odd(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
     zng_wgt::node::with_index_node(child, *PANEL_LIST_ID, move |id| {
-        let _ = state.set(id == Some(0));
+        state.set(id == Some(0));
     })
 }
 
@@ -631,7 +631,7 @@ pub fn is_first(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
 pub fn is_last(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNode {
     let state = state.into_var();
     zng_wgt::node::with_rev_index_node(child, *PANEL_LIST_ID, move |id| {
-        let _ = state.set(id == Some(0));
+        state.set(id == Some(0));
     })
 }
 

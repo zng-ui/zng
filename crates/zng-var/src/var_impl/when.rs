@@ -60,7 +60,7 @@ use super::*;
 /// In the example above only one of the conditions will be compiled, the generated variable is the same
 /// type as if you had written a single condition.
 ///
-/// # Contextualized
+/// # Capabilities
 ///
 /// The when var is contextualized when needed, meaning if any input is [`CONTEXT`] at the moment the var is created it
 /// is also contextual. The full output type of this macro is a `Var<T>`.
@@ -69,7 +69,7 @@ use super::*;
 #[macro_export]
 macro_rules! var_when {
     ($($tt:tt)*) => {
-        $crate::types::__var_when! {
+        $crate::__var_when! {
             $crate
             $($tt)*
         }
@@ -126,7 +126,22 @@ impl VarWhenAnyBuilder {
 
     /// Convert to typed builder.
     pub fn into_typed<O: VarValue>(self) -> VarWhenBuilder<O> {
-        VarWhenBuilder { builder: self, _t: PhantomData }
+        VarWhenBuilder {
+            builder: self,
+            _t: PhantomData,
+        }
+    }
+
+    /// If the `var` was built by [`build`] clones the internal conditions, values and default variables into a new builder.
+    ///
+    /// [`build`]: Self::build
+    pub fn try_from_built(var: &VarAny) -> Option<Self> {
+        let any: &dyn Any = &*var.0;
+        let built = any.downcast_ref::<WhenVar>()?;
+        Some(Self {
+            conditions: built.0.conditions.clone(),
+            default: built.0.default.clone(),
+        })
     }
 }
 impl VarWhenAnyBuilder {
@@ -169,9 +184,21 @@ impl<O: VarValue> VarWhenBuilder<O> {
     pub fn as_any(&mut self) -> &mut VarWhenAnyBuilder {
         &mut self.builder
     }
+
+    /// If the `var` was built by [`build`] clones the internal conditions, values and default variables into a new builder.
+    ///
+    /// [`build`]: Self::build
+    pub fn try_from_built(var: &Var<O>) -> Option<Self> {
+        // this is used by #[easing(_)] in PropertyBuildAction to modify widget properties
+
+        let builder = VarWhenAnyBuilder::try_from_built(var)?;
+        Some(Self { builder, _t: PhantomData })
+    }
 }
 
 fn var_when(builder: VarWhenAnyBuilder) -> VarAny {
+    // !!: TODO contextualize? And in a way that can recover builder in `try_from_built`
+
     let data = Arc::new(WhenVarData {
         active_condition: AtomicUsize::new(builder.conditions.iter().position(|(c, _)| c.get()).unwrap_or(usize::MAX)),
         conditions: builder.conditions,
@@ -371,3 +398,52 @@ impl WeakVarImpl for WeakWhenVar {
         Some(smallbox!(s))
     }
 }
+
+/*
+!!:TODO This was on the ArcWhenVar, used by #[easing(_)] in properties
+
+
+    /// Create a variable similar to [`Var::easing`], but with different duration and easing functions for each condition.
+    ///
+    /// The `condition_easing` must contain one entry for each when condition, entries can be `None`, the easing used
+    /// is the first entry that corresponds to a `true` condition, or falls back to the `default_easing`.
+    pub fn easing_when(
+        &self,
+        condition_easing: Vec<Option<(Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>)>>,
+        default_easing: (Duration, Arc<dyn Fn(EasingTime) -> EasingStep + Send + Sync>),
+    ) -> types::ContextualizedVar<T>
+    where
+        T: Transitionable,
+    {
+        let source = self.clone();
+        types::ContextualizedVar::new(move || {
+            debug_assert_eq!(source.0.conditions.len(), condition_easing.len());
+
+            let source_wk = source.downgrade();
+            let easing_var = super::var(source.get());
+
+            let condition_easing = condition_easing.clone();
+            let default_easing = default_easing.clone();
+            let mut _anim_handle = AnimationHandle::dummy();
+            var_bind(&source, &easing_var, move |value, _, easing_var| {
+                let source = source_wk.upgrade().unwrap();
+                for ((c, _), easing) in source.0.conditions.iter().zip(&condition_easing) {
+                    if let Some((duration, func)) = easing {
+                        if c.get() {
+                            let func = func.clone();
+                            _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
+                            return;
+                        }
+                    }
+                }
+
+                let (duration, func) = &default_easing;
+                let func = func.clone();
+                _anim_handle = easing_var.ease(value.clone(), *duration, move |t| func(t));
+            })
+            .perm();
+            easing_var.read_only()
+        })
+    }
+
+*/

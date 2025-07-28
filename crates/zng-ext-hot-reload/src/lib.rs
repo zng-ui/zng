@@ -36,7 +36,7 @@ use zng_task::{SignalOnce, parking_lot::Mutex};
 use zng_txt::Txt;
 use zng_unique_id::hot_reload::HOT_STATICS;
 use zng_unit::TimeUnits as _;
-use zng_var::{ArcVar, ReadOnlyArcVar, ResponseVar, Var as _};
+use zng_var::{ResponseVar, Var};
 
 #[doc(inline)]
 pub use zng_unique_id::{hot_static, hot_static_ref, lazy_static};
@@ -278,7 +278,7 @@ impl AppExtension for HotReloadManager {
 
                     let manifest_dir = *manifest_dir;
                     HOT_RELOAD_SV.read().status.modify(move |s| {
-                        let s = s.to_mut().iter_mut().find(|s| s.manifest_dir == manifest_dir).unwrap();
+                        let s = s.iter_mut().find(|s| s.manifest_dir == manifest_dir).unwrap();
                         s.building = None;
                         s.last_build = status_r;
                         s.rebuild_count += 1;
@@ -445,7 +445,7 @@ impl BuildArgs {
 pub struct HOT_RELOAD;
 impl HOT_RELOAD {
     /// Hot reload status, libs that are rebuilding, errors.
-    pub fn status(&self) -> ReadOnlyArcVar<Vec<HotStatus>> {
+    pub fn status(&self) -> Var<Vec<HotStatus>> {
         HOT_RELOAD_SV.read().status.read_only()
     }
 
@@ -510,7 +510,7 @@ struct HotReloadService {
     #[expect(clippy::type_complexity)]
     rebuilders: Mutex<Vec<Box<dyn FnMut(BuildArgs) -> Option<RebuildVar> + Send + 'static>>>,
 
-    status: ArcVar<Vec<HotStatus>>,
+    status: Var<Vec<HotStatus>>,
     rebuild_requests: Vec<Txt>,
     cancel_requests: Vec<Txt>,
 }
@@ -518,7 +518,7 @@ impl HotReloadService {
     fn rebuild_reload(&mut self, manifest_dir: Txt, static_patch: &StaticPatch) -> (RebuildLoadVar, SignalOnce) {
         let (rebuild, cancel) = self.rebuild(manifest_dir.clone());
         let rebuild_load = zng_task::respond(async_clmv!(static_patch, {
-            let build_path = rebuild.wait_into_rsp().await?;
+            let build_path = rebuild.wait_rsp().await?;
 
             // copy dylib to not block the next rebuild
             let file_name = match build_path.file_name() {
@@ -633,7 +633,7 @@ impl WatchedLib {
             });
 
             sv.status.modify(move |s| {
-                s.to_mut().iter_mut().find(|s| s.manifest_dir == manifest_dir).unwrap().building = Some(start_time);
+                s.iter_mut().find(|s| s.manifest_dir == manifest_dir).unwrap().building = Some(start_time);
             });
         }
     }

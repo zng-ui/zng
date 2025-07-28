@@ -28,7 +28,7 @@ pub(crate) mod context_var;
 pub use context_var::{__context_var_local, ContextVar, context_var_init};
 
 pub(crate) mod merge;
-pub use merge::{__var_merge, MergeInput, var_merge, var_merge_input, var_merge_output, var_merge_with};
+pub use merge::{__var_merge, MergeInput, VarMergeBuilder, VarMergeInputs, var_merge, var_merge_input, var_merge_output, var_merge_with};
 
 pub(crate) mod response_var;
 pub use response_var::{ResponderVar, Response, ResponseVar, response_done_var, response_var};
@@ -243,7 +243,7 @@ impl<'a> VarModifyAny<'a> {
 
     /// Add a custom tag object that will be shared with the var hooks if the value updates.
     pub fn push_tag(&mut self, tag: impl VarValueAny) {
-        self.tags.push(smallbox!(tag));
+        self.tags.push(BoxedVarValueAny::new(tag));
     }
 
     /// Sets a custom [`VarAny::modify_importance`] value.
@@ -383,7 +383,7 @@ impl<'s, 'a, T: VarValue> ops::DerefMut for VarModify<'s, 'a, T> {
 ///
 /// This can represent a widget subscriber, a var binding, var app handler or animation, dropping the handler stops
 /// the behavior it represents.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[must_use = "var handle stops the behavior it represents on drop"]
 pub struct VarHandle(Option<Arc<AtomicBool>>); // !!: TODO, this should drop immediately on last drop, that was the case before 
 impl PartialEq for VarHandle {

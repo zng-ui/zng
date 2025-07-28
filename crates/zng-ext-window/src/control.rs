@@ -38,7 +38,7 @@ use zng_layout::{
     },
 };
 use zng_state_map::StateId;
-use zng_var::{AnyVar, ReadOnlyArcVar, Var, VarHandle, VarHandles};
+use zng_var::{Var, VarHandle, VarHandles};
 use zng_view_api::{
     DragDropId, FocusResult, Ime,
     config::{ColorScheme, FontAntiAliasing},
@@ -106,8 +106,8 @@ struct HeadedCtrl {
     resize_wait_id: Option<FrameWaitId>,
     img_res: ImageResources,
     actual_state: Option<WindowState>, // for WindowChangedEvent
-    parent_color_scheme: Option<ReadOnlyArcVar<ColorScheme>>,
-    parent_accent_color: Option<ReadOnlyArcVar<LightDark>>,
+    parent_color_scheme: Option<Var<ColorScheme>>,
+    parent_accent_color: Option<Var<LightDark>>,
     actual_parent: Option<WindowId>,
     root_font_size: Dip,
     render_access_update: Option<WidgetInfoTree>, // previous info tree
@@ -813,7 +813,7 @@ impl HeadedCtrl {
                 tracing::info!("accessibility info disabled in view for {:?}", args.window_id);
                 self.vars.0.access_enabled.modify(|a| {
                     if a.is_enabled() {
-                        *a.to_mut() = AccessEnabled::APP;
+                        **a = AccessEnabled::APP;
                     }
                 });
             }
@@ -1439,7 +1439,7 @@ fn update_parent(parent: &mut Option<WindowId>, vars: &WindowVars) -> bool {
                         if let Ok(parent_vars) = WINDOWS.vars(parent_id) {
                             let id = WINDOW.id();
                             parent_vars.0.children.modify(move |c| {
-                                c.to_mut().remove(&id);
+                                c.remove(&id);
                             });
                         }
                     }
@@ -1448,7 +1448,7 @@ fn update_parent(parent: &mut Option<WindowId>, vars: &WindowVars) -> bool {
                     *parent = Some(parent_id);
                     let id = WINDOW.id();
                     parent_vars.0.children.modify(move |c| {
-                        c.to_mut().insert(id);
+                        c.insert(id);
                     });
 
                     true
@@ -1463,7 +1463,7 @@ fn update_parent(parent: &mut Option<WindowId>, vars: &WindowVars) -> bool {
                     if let Ok(parent_vars) = WINDOWS.vars(parent_id) {
                         let id = WINDOW.id();
                         parent_vars.0.children.modify(move |c| {
-                            c.to_mut().remove(&id);
+                            c.remove(&id);
                         });
                     }
                     true

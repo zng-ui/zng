@@ -73,8 +73,8 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorSource>) -> impl Ui
             binding = None;
             let value = cursor.get();
             WINDOW.vars().cursor().modify(move |c| {
-                if c.as_ref() == &value {
-                    *c.to_mut() = CursorIcon::Default.into();
+                if c.value() == &value {
+                    **c = CursorIcon::Default.into();
                 }
             });
         }

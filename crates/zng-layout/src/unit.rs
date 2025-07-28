@@ -66,11 +66,9 @@ macro_rules! impl_length_comp_conversions {
             where
             $($N: Into<Length> + Clone,)+
             {
-                type Var = zng_var::LocalVar<$For>;
-
                 $(#[$docs])*
-                fn into_var(self) -> Self::Var {
-                    zng_var::LocalVar(self.into())
+                fn into_var(self) -> zng_var::Var<$For> {
+                    zng_var::var_local(self.into())
                 }
             }
         )+

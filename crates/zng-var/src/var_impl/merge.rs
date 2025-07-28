@@ -43,6 +43,8 @@ macro_rules! var_merge {
 
 use std::{
     any::Any,
+    marker::PhantomData,
+    ops,
     sync::{Arc, Weak},
 };
 
@@ -53,8 +55,7 @@ use zng_clone_move::clmv;
 pub use zng_var_proc_macros::var_merge as __var_merge;
 
 use crate::{
-    BoxedVarValueAny, ContextVar, Response, ResponseVar, Var, VarAny, VarImpl, VarInstanceTag, VarValue, VarValueAny, WeakVarImpl,
-    box_value_any, var_any,
+    BoxedVarValueAny, ContextVar, Response, ResponseVar, Var, VarAny, VarImpl, VarInstanceTag, VarValue, VarValueAny, WeakVarImpl, var_any,
 };
 
 use super::VarCapability;
@@ -71,7 +72,7 @@ pub fn var_merge_with(var: &VarAny, visitor: &mut dyn FnMut(&dyn VarValueAny)) {
 
 #[doc(hidden)]
 pub fn var_merge_output<O: VarValue>(output: O) -> BoxedVarValueAny {
-    box_value_any(output)
+    BoxedVarValueAny::new(output)
 }
 
 #[doc(hidden)]
@@ -124,7 +125,7 @@ fn var_merge_tail(inputs: Box<[VarAny]>, mut merge: MergeFn) -> VarAny {
                     // so it runs after the current burst on the same cycle, and use
                     // this counter to skip subsequent modify requests on the same cycle
                     let modify_id = data.merge.lock().1;
-                    let _ = data.output.modify(clmv!(weak, |output| {
+                    data.output.modify(clmv!(weak, |output| {
                         if let Some(data) = weak.upgrade() {
                             let mut m = data.merge.lock();
                             if m.1 != modify_id {
@@ -251,5 +252,79 @@ impl WeakVarImpl for WeakMergeVar {
     fn upgrade(&self) -> Option<SmallBox<dyn VarImpl, smallbox::space::S2>> {
         let s = self.0.upgrade()?;
         Some(smallbox!(MergeVar(s)))
+    }
+}
+
+/// Build a [`var_merge!`] from any number of input vars of the same type `I`.
+pub struct VarMergeBuilder<I: VarValue> {
+    inputs: Vec<VarAny>,
+    _type: PhantomData<fn() -> I>,
+}
+impl<I: VarValue> VarMergeBuilder<I> {
+    /// New empty.
+    pub fn new() -> Self {
+        Self {
+            inputs: vec![],
+            _type: PhantomData,
+        }
+    }
+
+    /// New with pre-allocated inputs.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            inputs: Vec::with_capacity(capacity),
+            _type: PhantomData,
+        }
+    }
+
+    /// Push an input.
+    pub fn push(&mut self, input: impl MergeInput<I>) {
+        self.inputs.push(input.into_merge_input().into())
+    }
+
+    /// Build the merge var.
+    pub fn build<O: VarValue>(self, mut merge: impl FnMut(VarMergeInputs<I>) -> O + Send + 'static) -> Var<O> {
+        let any = var_merge_impl(
+            self.inputs.into_boxed_slice(),
+            smallbox!(move |vars: &[VarAny]| {
+                let values: Box<[BoxedVarValueAny]> = vars.iter().map(|v| v.get()).collect();
+                let out = merge(VarMergeInputs {
+                    inputs: &values[..],
+                    _type: PhantomData,
+                });
+                BoxedVarValueAny::new(out)
+            }),
+        );
+        Var::new_any(any)
+    }
+}
+impl<I: VarValue> Default for VarMergeBuilder<I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Input arguments for the merge closure of [`VarMergeBuilder`] merge vars.
+pub struct VarMergeInputs<'a, I: VarValue> {
+    inputs: &'a [BoxedVarValueAny],
+    _type: PhantomData<&'a I>,
+}
+impl<I: VarValue> VarMergeInputs<'_, I> {
+    /// Number of inputs.
+    #[expect(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.inputs.len()
+    }
+
+    /// Iterate over the values.
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &I> + '_ {
+        (0..self.len()).map(move |i| &self[i])
+    }
+}
+impl<I: VarValue> ops::Index<usize> for VarMergeInputs<'_, I> {
+    type Output = I;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.inputs[index].downcast_ref().unwrap()
     }
 }

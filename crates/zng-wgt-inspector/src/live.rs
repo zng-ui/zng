@@ -131,14 +131,14 @@ pub fn inspect_node(can_inspect: impl IntoVar<bool>) -> impl UiNode {
 }
 
 /// Node in the inspected window, draws adorners around widgets selected on the inspector window.
-fn adorn_selected(child: impl UiNode, selected_wgt: impl Var<Option<data_model::InspectedWidget>>, enabled: impl Var<bool>) -> impl UiNode {
+fn adorn_selected(child: impl UiNode, selected_wgt: Var<Option<data_model::InspectedWidget>>, enabled: Var<bool>) -> impl UiNode {
     use inspector_window::SELECTED_BORDER_VAR;
 
     let selected_info = selected_wgt.flat_map(|s| {
         if let Some(s) = s {
-            s.info().map(|i| Some(i.clone())).boxed()
+            s.info().map(|i| Some(i.clone()))
         } else {
-            var(None).boxed()
+            var_local(None)
         }
     });
     let transform_id = SpatialFrameId::new_unique();
@@ -178,7 +178,7 @@ fn adorn_selected(child: impl UiNode, selected_wgt: impl Var<Option<data_model::
 }
 
 // node in the inspected window, handles selection on click.
-fn select_on_click(child: impl UiNode, hit_select: impl Var<HitSelect>) -> impl UiNode {
+fn select_on_click(child: impl UiNode, hit_select: Var<HitSelect>) -> impl UiNode {
     // when `pending` we need to block interaction with window content, as if a modal
     // overlay was opened, but we can't rebuild info, and we actually want the click target,
     // so we only manually block common pointer events.
@@ -266,7 +266,7 @@ fn select_on_click(child: impl UiNode, hit_select: impl Var<HitSelect>) -> impl 
                 }
 
                 if let Some(id) = select {
-                    let _ = hit_select.set(HitSelect::Select(id));
+                    hit_select.set(HitSelect::Select(id));
                 }
             }
         }

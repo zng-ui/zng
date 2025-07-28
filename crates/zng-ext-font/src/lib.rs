@@ -64,8 +64,8 @@ use zng_layout::unit::{
 use zng_task as task;
 use zng_txt::Txt;
 use zng_var::{
-    AnyVar, ArcVar, IntoVar, LocalVar, ResponderVar, ResponseVar, Var, animation::Transitionable, impl_from_and_into_var,
-    response_done_var, response_var, var,
+    IntoVar, ResponderVar, ResponseVar, Var, animation::Transitionable, impl_from_and_into_var, response_done_var, response_var, var,
+    var_local,
 };
 use zng_view_api::config::FontAntiAliasing;
 
@@ -517,10 +517,8 @@ impl<const N: usize> From<[FontName; N]> for FontNames {
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [FontName; N] {
-    type Var = LocalVar<FontNames>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
+    fn into_var(self) -> Var<FontNames> {
+        var_local(self.into())
     }
 }
 impl<const N: usize> From<[&'static str; N]> for FontNames {
@@ -529,10 +527,8 @@ impl<const N: usize> From<[&'static str; N]> for FontNames {
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [&'static str; N] {
-    type Var = LocalVar<FontNames>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
+    fn into_var(self) -> Var<FontNames> {
+        var_local(self.into())
     }
 }
 impl<const N: usize> From<[String; N]> for FontNames {
@@ -541,10 +537,8 @@ impl<const N: usize> From<[String; N]> for FontNames {
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [String; N] {
-    type Var = LocalVar<FontNames>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
+    fn into_var(self) -> Var<FontNames> {
+        var_local(self.into())
     }
 }
 impl<const N: usize> From<[Txt; N]> for FontNames {
@@ -553,10 +547,8 @@ impl<const N: usize> From<[Txt; N]> for FontNames {
     }
 }
 impl<const N: usize> IntoVar<FontNames> for [Txt; N] {
-    type Var = LocalVar<FontNames>;
-
-    fn into_var(self) -> Self::Var {
-        LocalVar(self.into())
+    fn into_var(self) -> Var<FontNames> {
+        var_local(self.into())
     }
 }
 
@@ -697,7 +689,7 @@ app_local! {
 struct FontsService {
     loader: FontFaceLoader,
     prune_requested: bool,
-    font_aa: ArcVar<FontAntiAliasing>,
+    font_aa: Var<FontAntiAliasing>,
 }
 impl FontsService {
     fn on_fonts_changed(&mut self) {
@@ -818,7 +810,7 @@ impl FONTS {
     /// Gets the system font anti-aliasing config as a read-only var.
     ///
     /// The variable updates when the system config changes.
-    pub fn system_font_aa(&self) -> impl Var<FontAntiAliasing> {
+    pub fn system_font_aa(&self) -> Var<FontAntiAliasing> {
         FONTS_SV.read().font_aa.read_only()
     }
 }
@@ -982,7 +974,7 @@ impl FontFace {
                     .write()
                     .loader
                     .load_resolved(&other_font, custom_font.style, custom_font.weight, custom_font.stretch);
-                return match result.wait_into_rsp().await {
+                return match result.wait_rsp().await {
                     Some(other_font) => Ok(FontFace(Arc::new(LoadedFontFace {
                         data: other_font.0.data.clone(),
                         face_index: other_font.0.face_index,
@@ -1935,7 +1927,7 @@ impl FontFaceLoader {
 
                 let face = self.load(name, style, weight, stretch, lang);
                 if face.is_done() {
-                    if let Some(face) = face.into_rsp().unwrap() {
+                    if let Some(face) = face.rsp().unwrap() {
                         list.push(face);
                     }
                 } else {
@@ -1958,7 +1950,7 @@ impl FontFaceLoader {
         } else {
             task::respond(async move {
                 for (i, pending) in pending.into_iter().rev() {
-                    if let Some(rsp) = pending.wait_into_rsp().await {
+                    if let Some(rsp) = pending.wait_rsp().await {
                         list.insert(i, rsp);
                     }
                 }

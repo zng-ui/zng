@@ -5,7 +5,7 @@ use crate::{Var, VarValue};
 use super::*;
 
 struct LocalVar<T: VarValue>(T);
-struct WeakLocalVar;
+pub(crate) struct WeakLocalVar;
 
 impl<T: VarValue> VarImpl for LocalVar<T> {
     fn value_type(&self) -> TypeId {
@@ -42,7 +42,7 @@ impl<T: VarValue> VarImpl for LocalVar<T> {
     }
 
     fn get(&self) -> BoxedVarValueAny {
-        smallbox!(self.0.clone())
+        BoxedVarValueAny::new(self.0.clone())
     }
 
     fn set(&self, _: BoxedVarValueAny) -> bool {

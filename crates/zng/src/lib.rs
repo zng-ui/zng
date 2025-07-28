@@ -586,8 +586,7 @@ mod __prelude {
     pub use zng_app::widget::inspector::WidgetInfoInspectorExt as _;
 
     pub use zng_var::{
-        AnyVar as _, AnyWeakVar as _, IntoValue, IntoVar, Var, VarValue, WeakVar as _, context_var, expr_var, getter_var, merge_var,
-        state_var, var, var_from, when_var,
+        IntoValue, IntoVar, Var, VarValue, context_var, var, var_expr, var_from, var_getter, var_local, var_merge, var_state, var_when,
     };
 
     pub use crate::var::animation::easing;
@@ -786,9 +785,8 @@ mod __prelude_wgt {
     };
 
     pub use zng_var::{
-        AnyVar as _, AnyWeakVar as _, ArcVar, BoxedVar, ContextVar, IntoValue, IntoVar, LocalVar, ReadOnlyArcVar, ResponderVar,
-        ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, WeakVar as _, context_var, expr_var, getter_var,
-        impl_from_and_into_var, merge_var, response_done_var, response_var, state_var, var, when_var,
+        ContextVar, IntoValue, IntoVar, ResponderVar, ResponseVar, Var, VarCapability, VarHandle, VarHandles, VarValue, context_var,
+        impl_from_and_into_var, response_done_var, response_var, var, var_expr, var_getter, var_local, var_merge, var_state, var_when,
     };
 
     pub use zng_layout::{

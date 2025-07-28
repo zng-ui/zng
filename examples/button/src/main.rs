@@ -156,7 +156,7 @@ fn split_button() -> impl UiNode {
                 args.propagation().stop();
             });
 
-            child = Text!(merge_var!(button_count, split_count, |&b, &s| {
+            child = Text!(var_merge!(button_count, split_count, |&b, &s| {
                 if b == 0 && s == 0 {
                     formatx!("Split!")
                 } else {
@@ -305,7 +305,7 @@ fn dyn_buttons_from_data() -> impl UiNode {
             clmv!(data_source, || {
                 data_source.modify(move |a| {
                     if let Some(i) = a.iter().position(|&c| c == data) {
-                        a.to_mut().remove(i);
+                        a.remove(i);
                     }
                 });
             }),
@@ -322,7 +322,7 @@ fn dyn_buttons_from_data() -> impl UiNode {
                 tooltip = Tip!(Text!("Add data that generates `Button!`"));
                 on_click = hn!(|_| {
                     data_source.modify(move |a| {
-                        a.to_mut().push(btn);
+                        a.push(btn);
                     });
 
                     if btn == 'Z' {

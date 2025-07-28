@@ -13,7 +13,6 @@ use zng::{
     rule_line,
     scroll::ScrollMode,
     undo::UNDO_CMD,
-    var::ArcVar,
     widget::{Visibility, corner_radius, enabled, visibility},
     window::WindowRoot,
 };
@@ -37,7 +36,7 @@ pub fn text_editor() -> impl UiNode {
     }
 }
 
-fn text_editor_window(is_open: ArcVar<bool>) -> WindowRoot {
+fn text_editor_window(is_open: Var<bool>) -> WindowRoot {
     let editor = TextEditor::init();
     Window! {
         title = editor.title();
@@ -222,14 +221,14 @@ fn text_editor_menu(editor: Arc<TextEditor>) -> impl UiNode {
 }
 struct TextEditor {
     input_wgt_id: WidgetId,
-    file: ArcVar<Option<std::path::PathBuf>>,
-    txt: ArcVar<Txt>,
+    file: Var<Option<std::path::PathBuf>>,
+    txt: Var<Txt>,
 
-    txt_touched: ArcVar<bool>,
+    txt_touched: Var<bool>,
 
-    caret_status: ArcVar<text::CaretStatus>,
-    lines: ArcVar<text::LinesWrapCount>,
-    busy: ArcVar<u32>,
+    caret_status: Var<text::CaretStatus>,
+    lines: Var<text::LinesWrapCount>,
+    busy: Var<u32>,
 }
 impl TextEditor {
     pub fn init() -> Arc<Self> {
@@ -251,8 +250,8 @@ impl TextEditor {
         self.input_wgt_id
     }
 
-    pub fn title(&self) -> impl Var<Txt> {
-        merge_var!(self.unsaved(), self.file.clone(), |u, f| {
+    pub fn title(&self) -> Var<Txt> {
+        var_merge!(self.unsaved(), self.file.clone(), |u, f| {
             let mut t = "Text Example - Editor".to_owned();
             if *u {
                 t.push('*');
@@ -265,12 +264,12 @@ impl TextEditor {
         })
     }
 
-    pub fn unsaved(&self) -> impl Var<bool> {
+    pub fn unsaved(&self) -> Var<bool> {
         let can_undo = UNDO_CMD.scoped(self.input_wgt_id).is_enabled();
-        merge_var!(self.txt_touched.clone(), can_undo, |&t, &u| t && u)
+        var_merge!(self.txt_touched.clone(), can_undo, |&t, &u| t && u)
     }
 
-    pub fn enabled(&self) -> impl Var<bool> {
+    pub fn enabled(&self) -> Var<bool> {
         self.busy.map(|&b| b == 0)
     }
 
@@ -430,13 +429,13 @@ impl TextEditor {
     }
 
     fn enter_busy(&self) -> impl Drop {
-        struct BusyTracker(ArcVar<u32>);
+        struct BusyTracker(Var<u32>);
         impl Drop for BusyTracker {
             fn drop(&mut self) {
-                self.0.modify(|b| *b.to_mut() -= 1);
+                self.0.modify(|b| **b -= 1);
             }
         }
-        self.busy.modify(|b| *b.to_mut() += 1);
+        self.busy.modify(|b| **b += 1);
         BusyTracker(self.busy.clone())
     }
 }

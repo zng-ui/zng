@@ -254,7 +254,7 @@ pub fn with_font_palette_color(child: impl UiNode, index: u16, color: impl IntoV
     with_context_var(
         child,
         FONT_PALETTE_COLORS_VAR,
-        merge_var!(FONT_PALETTE_COLORS_VAR, color.into_var(), move |set, color| {
+        var_merge!(FONT_PALETTE_COLORS_VAR, color.into_var(), move |set, color| {
             let mut set = set.clone();
             if let Some(i) = set.iter().position(|(i, _)| *i == index) {
                 set[i].1 = *color;
@@ -542,12 +542,12 @@ pub fn is_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNod
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Deinit => {
-            let _ = state.set(false);
+            state.set(false);
         }
         UiNodeOp::Layout { .. } => {
             let is_o = super::node::TEXT.laidout().overflow.is_some();
             if is_o != state.get() {
-                let _ = state.set(is_o);
+                state.set(is_o);
             }
         }
         _ => {}
@@ -563,7 +563,7 @@ pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
     let state = state.into_var();
     match_node(child, move |_, op| match op {
         UiNodeOp::Deinit => {
-            let _ = state.set(false);
+            state.set(false);
         }
         UiNodeOp::Layout { .. } => {
             let txt = super::node::TEXT.laidout();
@@ -573,7 +573,7 @@ pub fn is_line_overflown(child: impl UiNode, state: impl IntoVar<bool>) -> impl 
                 false
             };
             if is_o != state.get() {
-                let _ = state.set(is_o);
+                state.set(is_o);
             }
         }
         _ => {}
@@ -595,10 +595,10 @@ pub fn get_overflow(child: impl UiNode, txt: impl IntoVar<Txt>) -> impl UiNode {
                 let r = super::node::TEXT.resolved();
                 let tail = &r.segmented_text.text()[info.text_char..];
                 if txt.with(|t| t != tail) {
-                    let _ = txt.set(Txt::from_str(tail));
+                    txt.set(Txt::from_str(tail));
                 }
             } else if txt.with(|t| !t.is_empty()) {
-                let _ = txt.set(Txt::from_static(""));
+                txt.set(Txt::from_static(""));
             }
         }
     })
@@ -1059,7 +1059,7 @@ pub fn with_font_variation(child: impl UiNode, name: FontVariationName, value: i
     with_context_var(
         child,
         FONT_VARIATIONS_VAR,
-        merge_var!(FONT_VARIATIONS_VAR, value.into_var(), move |variations, value| {
+        var_merge!(FONT_VARIATIONS_VAR, value.into_var(), move |variations, value| {
             let mut variations = variations.clone();
             variations.insert(name, *value);
             variations
@@ -1082,7 +1082,7 @@ where
     with_context_var(
         child,
         FONT_FEATURES_VAR,
-        merge_var!(FONT_FEATURES_VAR, state.into_var(), move |features, state| {
+        var_merge!(FONT_FEATURES_VAR, state.into_var(), move |features, state| {
             let mut features = features.clone();
             set_feature(&mut features, state.clone());
             features
@@ -1898,7 +1898,7 @@ pub fn get_chars_count(child: impl UiNode, chars: impl IntoVar<usize>) -> impl U
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
             let ctx = super::node::TEXT.resolved();
-            let _ = chars.set_from_map(&ctx.txt, |t| t.chars().count());
+            chars.set_from_map(&ctx.txt, |t| t.chars().count());
             let handle = ctx.txt.bind_map(&chars, |t| t.chars().count());
             WIDGET.push_var_handle(handle);
         }
@@ -1974,7 +1974,7 @@ pub fn get_font_use(child: impl UiNode, font_use: impl IntoVar<Vec<(Font, std::o
                     }
                 }
 
-                let _ = font_use.set(r);
+                font_use.set(r);
             }
         }
     })
@@ -1993,7 +1993,7 @@ pub fn has_selection(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNo
                 update = true;
             }
             UiNodeOp::Deinit => {
-                let _ = state.set(false);
+                state.set(false);
             }
             UiNodeOp::Event { .. } => {
                 update = true;
@@ -2015,7 +2015,7 @@ pub fn has_selection(child: impl UiNode, state: impl IntoVar<bool>) -> impl UiNo
                 false
             };
             if new != state.get() {
-                let _ = state.set(new);
+                state.set(new);
             }
         }
     })
@@ -2033,7 +2033,7 @@ pub fn get_selection(child: impl UiNode, state: impl IntoVar<Txt>) -> impl UiNod
                 update = true;
             }
             UiNodeOp::Deinit => {
-                let _ = state.set(Txt::from_static(""));
+                state.set(Txt::from_static(""));
             }
             UiNodeOp::Event { .. } => {
                 update = true;
@@ -2059,7 +2059,7 @@ pub fn get_selection(child: impl UiNode, state: impl IntoVar<Txt>) -> impl UiNod
                         Txt::from_static("")
                     };
 
-                    let _ = state.set(txt);
+                    state.set(txt);
                 }
             }
         }

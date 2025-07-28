@@ -311,10 +311,6 @@ impl VARS {
     pub(crate) fn perm(&self, var: VarAny) {
         VARS_SV.read().perm.lock().push(var);
     }
-
-    pub(crate) fn wake_app(&self) {
-        VARS_SV.read().wake_app();
-    }
 }
 
 /// VARS APP integration.
@@ -355,7 +351,7 @@ impl VARS_APP {
 
     /// Sets the `sys_animations_enabled` read-only variable.
     pub fn set_sys_animations_enabled(&self, enabled: bool) {
-        VARS_SV.read().sys_animations_enabled.set(enabled).ok();
+        VARS_SV.read().sys_animations_enabled.set(enabled);
     }
 
     /// Apply all pending updates, call hooks and update bindings.

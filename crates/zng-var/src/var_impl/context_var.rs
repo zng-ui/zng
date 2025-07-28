@@ -97,10 +97,15 @@ impl<T: VarValue> ContextLocalKeyProvider for ContextVar<T> {
 /// contextualizing variables.
 ///
 /// [`var_ctx`]: crate::var_ctx
-#[derive(Clone, Copy)]
 pub struct ContextVar<T: VarValue> {
     ctx: &'static ContextLocal<VarAny>,
     var: &'static std::sync::OnceLock<Var<T>>,
+}
+impl<T: VarValue> Copy for ContextVar<T> {}
+impl<T: VarValue> Clone for ContextVar<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl<T: VarValue> ContextVar<T> {
