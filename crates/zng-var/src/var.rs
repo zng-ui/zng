@@ -1151,7 +1151,7 @@ impl<T: VarValue> Var<T> {
         T: Transitionable,
     {
         let caps = self.capabilities();
-        if caps.is_always_static() {
+        if caps.is_const() {
             return self.clone();
         }
 
@@ -1400,15 +1400,16 @@ pub fn var_default<T: VarValue + Default>() -> Var<T> {
     crate::var(T::default())
 }
 
-/// New read-only static variable that stores the `value` directly.
-pub fn var_local<T: VarValue>(value: T) -> Var<T> {
-    // !!: TODO imm_var? as in immutable
+/// New immutable variable that stores the `value` directly.
+/// 
+/// Cloning this variable clones the value.
+pub fn const_var<T: VarValue>(value: T) -> Var<T> {
     crate::IntoVar::into_var(value)
 }
 
-/// New read-only static type-erased variable that stores `value` directly.
-pub fn var_local_any(value: BoxedVarValueAny) -> VarAny {
-    VarAny(smallbox!(crate::var_impl::local::LocalAny::new(value)))
+/// Type erased [`const_var`].
+pub fn any_const_var(value: BoxedVarValueAny) -> VarAny {
+    VarAny(smallbox!(crate::var_impl::local::AnyConstVar::new(value)))
 }
 
 /// Weak variable that never upgrades.
@@ -1421,7 +1422,7 @@ pub fn weak_var<T: VarValue>() -> WeakVar<T> {
 
 /// Weak variable that never upgrades.
 pub fn weak_var_any() -> WeakVarAny {
-    WeakVarAny(smallbox!(crate::var_impl::local::WeakLocalVar))
+    WeakVarAny(smallbox!(crate::var_impl::local::WeakConstVar))
 }
 
 /// Arguments for [`Var::hook`].

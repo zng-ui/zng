@@ -6,7 +6,7 @@ use semver::Version;
 use zng_ext_fs_watcher::WatcherReadStatus;
 use zng_layout::context::LayoutDirection;
 use zng_txt::{ToTxt, Txt};
-use zng_var::{ArcEq, IntoVar, Var, VarValue, context_var, impl_from_and_into_var, var_local};
+use zng_var::{ArcEq, IntoVar, Var, VarValue, context_var, impl_from_and_into_var, const_var};
 
 use crate::{L10N, lang, service::L10N_SV};
 
@@ -274,7 +274,7 @@ pub trait IntoL10nVar {
 
 impl<T: Into<L10nArgument>> IntoL10nVar for L10nSpecialize<T> {
     fn to_l10n_var(&mut self) -> Var<L10nArgument> {
-        var_local(self.0.take().unwrap().into())
+        const_var(self.0.take().unwrap().into())
     }
 }
 impl<T: VarValue + Into<L10nArgument>> IntoL10nVar for &mut L10nSpecialize<Var<T>> {

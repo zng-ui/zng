@@ -62,13 +62,13 @@ fn on_build(wgt: &mut WidgetBuilding) {
         .capture_var(property_id!(orientation))
         .unwrap_or_else(|| LineOrientation::Horizontal.into_var());
 
-    let length = wgt.capture_var(property_id!(length)).unwrap_or_else(|| var_local(Length::Default));
+    let length = wgt.capture_var(property_id!(length)).unwrap_or_else(|| const_var(Length::Default));
 
     let stroke_thickness = wgt
         .capture_var(property_id!(stroke_thickness))
-        .unwrap_or_else(|| var_local(Length::from(1)));
+        .unwrap_or_else(|| const_var(Length::from(1)));
 
-    let color = wgt.capture_var(property_id!(color)).unwrap_or_else(|| var_local(rgb(0, 0, 0)));
+    let color = wgt.capture_var(property_id!(color)).unwrap_or_else(|| const_var(rgb(0, 0, 0)));
 
     let style = wgt
         .capture_var(property_id!(line_style))

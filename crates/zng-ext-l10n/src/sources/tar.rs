@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, fmt, io::Read as _, path::PathBuf, 
 use semver::Version;
 use zng_clone_move::clmv;
 use zng_txt::Txt;
-use zng_var::{ArcEq, Var, WeakVar, var, var_local, weak_var};
+use zng_var::{ArcEq, Var, WeakVar, var, const_var, weak_var};
 
 use crate::{FluentParserErrors, L10nSource, Lang, LangFilePath, LangMap, LangResourceStatus};
 
@@ -305,6 +305,6 @@ fn resource_var(
                     .perm();
                 rsp.map(|r| r.done().cloned().flatten())
             }
-            None => var_local(None),
+            None => const_var(None),
         })
 }

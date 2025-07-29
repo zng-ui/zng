@@ -33,7 +33,7 @@ use zng_task::{
 use zng_txt::{ToTxt as _, Txt, formatx};
 use zng_unique_id::{IdMap, IdSet};
 use zng_var::{
-    ResponderVar, ResponseVar, Var, WeakVar, impl_from_and_into_var, response_done_var, response_var, var, var_default, var_local,
+    ResponderVar, ResponseVar, Var, WeakVar, impl_from_and_into_var, response_done_var, response_var, var, var_default, const_var,
 };
 use zng_view_api::{
     DragDropId,
@@ -55,7 +55,7 @@ use crate::{
 
 app_local! {
     pub(super) static WINDOWS_SV: WindowsService = WindowsService::new();
-    static FOCUS_SV: Var<Option<InteractionPath>> = var_local(None);
+    static FOCUS_SV: Var<Option<InteractionPath>> = const_var(None);
 }
 pub(super) struct WindowsService {
     exit_on_last_close: Var<bool>,

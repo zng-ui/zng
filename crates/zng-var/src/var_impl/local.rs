@@ -4,10 +4,10 @@ use crate::{Var, VarValue};
 
 use super::*;
 
-struct LocalVar<T: VarValue>(T);
-pub(crate) struct WeakLocalVar;
+struct ConstVar<T: VarValue>(T);
+pub(crate) struct WeakConstVar;
 
-impl<T: VarValue> VarImpl for LocalVar<T> {
+impl<T: VarValue> VarImpl for ConstVar<T> {
     fn value_type(&self) -> TypeId {
         TypeId::of::<T>()
     }
@@ -38,7 +38,7 @@ impl<T: VarValue> VarImpl for LocalVar<T> {
     }
 
     fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakLocalVar)
+        smallbox!(WeakConstVar)
     }
 
     fn get(&self) -> BoxedVarValueAny {
@@ -86,7 +86,7 @@ impl<T: VarValue> VarImpl for LocalVar<T> {
     }
 }
 
-impl WeakVarImpl for WeakLocalVar {
+impl WeakVarImpl for WeakConstVar {
     fn strong_count(&self) -> usize {
         0
     }
@@ -96,26 +96,27 @@ impl WeakVarImpl for WeakLocalVar {
     }
 
     fn clone_boxed(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakLocalVar)
+        smallbox!(WeakConstVar)
     }
 }
 
 /// A value-to-var conversion that consumes the value.
 ///
 /// Every [`Var<T>`] implements this to convert to itself, every [`VarValue`] implements this to
-/// convert to a [`LocalVar<T>`].
+/// convert to a [`const_var`].
 ///
 /// This trait is used by most properties, it allows then to accept literal values, variables and context variables
-/// all with a single signature. Together with [`Var<T>`] this gives properties great flexibility of usage, at zero-cost. Widget
-/// `when` blocks also use [`IntoVar<T>`] to support *changing* the property value depending on the widget state.
+/// all with a single signature. Together with [`Var<T>`] this gives properties great flexibility of usage. Widget
+/// `when` blocks also use [`IntoVar<T>`] to support changing the property value depending on the widget state.
 ///
 /// Value types can also manually implement this to support a shorthand literal syntax for when they are used in properties,
-/// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`LocalVar`]
-/// too. They can implement the trait multiple times to support different shorthand syntaxes or different types in the shorthand
-/// value.
+/// this converts the *shorthand value* like a tuple into the actual value type and wraps it into a variable, usually [`const_var`].
+/// Value types can implement the trait multiple times to support different shorthand syntaxes.
+/// 
+/// [`const_var`]: crate::const_var
 #[diagnostic::on_unimplemented(
     note = "`IntoVar<T>` is implemented for all `T: VarValue`",
-    note = "`IntoVar<T>` is implemented for all `V: Var<T>`"
+    note = "`IntoVar<T>` is implemented for `Var<T>`, `ContextVar<T>` and others",
 )]
 pub trait IntoVar<T: VarValue> {
     #[allow(missing_docs)]
@@ -123,7 +124,7 @@ pub trait IntoVar<T: VarValue> {
 }
 impl<T: VarValue> IntoVar<T> for T {
     fn into_var(self) -> Var<T> {
-        Var::new_impl(LocalVar::<T>(self))
+        Var::new_impl(ConstVar::<T>(self))
     }
 }
 impl<T: VarValue> IntoVar<T> for Var<T> {
@@ -132,16 +133,16 @@ impl<T: VarValue> IntoVar<T> for Var<T> {
     }
 }
 
-pub(crate) struct LocalAny(BoxedVarValueAny);
+pub(crate) struct AnyConstVar(BoxedVarValueAny);
 
-impl LocalAny {
+impl AnyConstVar {
     pub(crate) fn new(small_box: BoxedVarValueAny) -> Self {
         Self(small_box)
     }
 }
-impl VarImpl for LocalAny {
+impl VarImpl for AnyConstVar {
     fn clone_boxed(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
-        smallbox!(LocalAny(self.0.clone_boxed()))
+        smallbox!(AnyConstVar(self.0.clone_boxed()))
     }
 
     fn current_context(&self) -> SmallBox<dyn VarImpl, smallbox::space::S2> {
@@ -175,7 +176,7 @@ impl VarImpl for LocalAny {
     }
 
     fn downgrade(&self) -> SmallBox<dyn WeakVarImpl, smallbox::space::S2> {
-        smallbox!(WeakLocalVar)
+        smallbox!(WeakConstVar)
     }
 
     fn capabilities(&self) -> VarCapability {

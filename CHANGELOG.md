@@ -10,8 +10,8 @@
     To migrate:
 
     - Replace `impl Var<T>` and other var structs with `Var<T>`.
-    - Replace `impl AnyVar` with `VarAny`.
-    - Replace `LocalVar(_)` with `var_local(_)`. !!: TODO const_var
+    - Replace `impl AnyVar` with `AnyVar`.
+    - Replace `LocalVar(_)` with `const_var(_)`.
     - Replace `ContextualizedVar::new(_)` with `contextual_var(_)`.
     - Replace `Var::wait_value` with `Var::wait_match`.
     - Now always use `Var::capabilities` to inspect *kind* of var.

@@ -177,7 +177,7 @@ impl Selector {
     /// New with many value thumbs of type `T` that can be set any value in the `min..=max` range.
     pub fn many<T: SelectorValue>(many: impl IntoVar<Vec<T>>, min: T, max: T) -> Self {
         // create a selector just to get the conversion closures
-        let convert = T::to_selector(zng_var::var_local(min.clone()), min, max);
+        let convert = T::to_selector(zng_var::const_var(min.clone()), min, max);
         Self::many_with(many.into_var(), clmv!(convert, |t| convert.to_offset(t).unwrap()), move |f| {
             convert.from_offset(f).unwrap()
         })

@@ -513,7 +513,7 @@ impl_from_and_into_var! {
             native_api::MsgDialogResponse::Cancel => Response::cancel(),
             native_api::MsgDialogResponse::Error(e) => Response {
                 name: Txt::from_static("native-error"),
-                label: var_local(e),
+                label: const_var(e),
             },
             _ => unimplemented!(),
         }

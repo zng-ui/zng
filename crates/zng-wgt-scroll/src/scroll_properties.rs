@@ -484,7 +484,7 @@ pub fn horizontal_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> im
         if let UiNodeOp::Init = op {
             let scroll_offset = super::SCROLL.horizontal_offset();
 
-            if !offset.capabilities().is_always_static() {
+            if !offset.capabilities().is_const() {
                 let binding = offset.bind_bidi(&scroll_offset);
                 WIDGET.push_var_handles(binding);
             }
@@ -508,7 +508,7 @@ pub fn vertical_offset(child: impl UiNode, offset: impl IntoVar<Factor>) -> impl
         if let UiNodeOp::Init = op {
             let scroll_offset = super::SCROLL.vertical_offset();
 
-            if !offset.capabilities().is_always_static() {
+            if !offset.capabilities().is_const() {
                 let binding = offset.bind_bidi(&scroll_offset);
                 WIDGET.push_var_handles(binding);
             }
@@ -532,7 +532,7 @@ pub fn zoom_scale(child: impl UiNode, scale: impl IntoVar<Factor>) -> impl UiNod
         if let UiNodeOp::Init = op {
             let scroll_scale = super::SCROLL.zoom_scale();
 
-            if !scale.capabilities().is_always_static() {
+            if !scale.capabilities().is_const() {
                 let binding = scale.bind_bidi(&scroll_scale);
                 WIDGET.push_var_handles(binding);
             }

@@ -408,7 +408,7 @@ impl<const N: usize> From<[Shortcut; N]> for Shortcuts {
 }
 impl<const N: usize> crate::var::IntoVar<Shortcuts> for [Shortcut; N] {
     fn into_var(self) -> Var<Shortcuts> {
-        crate::var::var_local(self.into())
+        crate::var::const_var(self.into())
     }
 }
 

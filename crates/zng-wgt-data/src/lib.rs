@@ -355,7 +355,7 @@ impl DATA {
 
     /// Get context data of type `T` if the context data is set with the same type, or gets the `fallback` value.
     pub fn get<T: VarValue>(&self, fallback: impl Fn() -> T + Send + Sync + 'static) -> Var<T> {
-        contextual_var(move || DATA_CTX.get_clone().downcast::<T>().unwrap_or_else(|_| var_local(fallback())))
+        contextual_var(move || DATA_CTX.get_clone().downcast::<T>().unwrap_or_else(|_| const_var(fallback())))
     }
 
     /// Gets the current context data.
@@ -458,7 +458,7 @@ impl DATA {
 }
 
 context_local! {
-    static DATA_CTX: VarAny = var_local(());
+    static DATA_CTX: VarAny = const_var(());
     static DATA_NOTES_CTX: RwLock<DataNotesProbe> = RwLock::default();
 }
 

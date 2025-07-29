@@ -217,7 +217,7 @@ impl WeakVarImpl for WeakContextualVar {
 }
 
 fn no_ctx_var() -> VarAny {
-    crate::var_local(()).into()
+    crate::const_var(()).into()
 }
 
 #[derive(Default)]

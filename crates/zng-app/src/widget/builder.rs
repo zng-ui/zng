@@ -219,7 +219,7 @@ use zng_txt::{Txt, formatx};
 use zng_unique_id::{IdEntry, IdMap, IdSet, unique_id_32};
 use zng_var::{
     ContextInitHandle, IntoValue, IntoVar, Var, VarAny, VarValue, VarValueAny, AnyWhenVarBuilder, WeakContextInitHandle,
-    impl_from_and_into_var, contextual_var, var_local, var_local_any,
+    impl_from_and_into_var, contextual_var, const_var, any_const_var,
 };
 
 use super::{
@@ -938,10 +938,10 @@ impl dyn PropertyArgs + '_ {
         let p = self.property();
         match p.inputs[i].kind {
             InputKind::Var => self.var(i).map_debug(false),
-            InputKind::Value => var_local(formatx!("{:?}", self.value(i))),
-            InputKind::UiNode => var_local(Txt::from_static("<impl UiNode>")),
-            InputKind::UiNodeList => var_local(Txt::from_static("<impl UiNodeList>")),
-            InputKind::WidgetHandler => var_local(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())),
+            InputKind::Value => const_var(formatx!("{:?}", self.value(i))),
+            InputKind::UiNode => const_var(Txt::from_static("<impl UiNode>")),
+            InputKind::UiNodeList => const_var(Txt::from_static("<impl UiNodeList>")),
+            InputKind::WidgetHandler => const_var(formatx!("<impl WidgetHandler<{}>>", p.inputs[i].display_ty_name())),
         }
     }
 
@@ -2465,7 +2465,7 @@ impl WidgetBuilding {
 
             let actual = match info.inputs[member_i].kind {
                 InputKind::Var => args.var(member_i).clone(),
-                InputKind::Value => var_local_any(args.value(member_i).clone_boxed()),
+                InputKind::Value => any_const_var(args.value(member_i).clone_boxed()),
                 _ => panic!("can only ref var or values in when expr"),
             };
             input.var.set(when_init_context_id.clone(), actual);

@@ -138,7 +138,7 @@ fn adorn_selected(child: impl UiNode, selected_wgt: Var<Option<data_model::Inspe
         if let Some(s) = s {
             s.info().map(|i| Some(i.clone()))
         } else {
-            var_local(None)
+            const_var(None)
         }
     });
     let transform_id = SpatialFrameId::new_unique();

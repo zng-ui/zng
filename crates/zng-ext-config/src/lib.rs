@@ -58,7 +58,7 @@ use zng_clone_move::clmv;
 use zng_ext_fs_watcher::{WatchFile, WatcherReadStatus, WatcherSyncStatus, WriteFile};
 use zng_task as task;
 use zng_txt::Txt;
-use zng_var::{Var, VarHandles, VarValue, WeakVar, var, var_local};
+use zng_var::{Var, VarHandles, VarValue, WeakVar, var, const_var};
 
 /// Application extension that provides mouse events and service.
 ///
@@ -300,7 +300,7 @@ pub struct MemoryConfig {
 
 impl AnyConfig for MemoryConfig {
     fn status(&self) -> Var<ConfigStatus> {
-        var_local(ConfigStatus::Loaded)
+        const_var(ConfigStatus::Loaded)
     }
 
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, _insert: bool) -> Var<RawConfigValue> {

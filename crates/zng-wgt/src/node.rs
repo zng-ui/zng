@@ -795,7 +795,7 @@ macro_rules! __command_property {
             $(#[$on_cmd_attrs])*
             $vis fn $command {
                 cmd { $cmd_init }
-                enabled { $crate::node::zng_app::var::var_local(true) }
+                enabled { $crate::node::zng_app::var::const_var(true) }
                 widget_impl { }
             }
         }

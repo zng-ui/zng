@@ -111,8 +111,8 @@ impl<P> StyleMix<P> {
             style_builder.push_build_action(move |b| {
                 // 3 - The actual style_node and builder is a child of the "mini widget".
 
-                let style_base = b.capture_var::<StyleFn>(style_base_id).unwrap_or_else(|| var_local(StyleFn::nil()));
-                let style = b.capture_var::<StyleFn>(style_id).unwrap_or_else(|| var_local(StyleFn::nil()));
+                let style_base = b.capture_var::<StyleFn>(style_base_id).unwrap_or_else(|| const_var(StyleFn::nil()));
+                let style = b.capture_var::<StyleFn>(style_id).unwrap_or_else(|| const_var(StyleFn::nil()));
 
                 b.set_child(style_node(None, wgt.take().unwrap(), style_base, style_var, style));
             });

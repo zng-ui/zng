@@ -18,7 +18,7 @@
 //!
 //! fn local(size: impl IntoVar<layout::Size>) {
 //!     let size = size.into_var();
-//!     assert!(size.capabilities().is_always_static());
+//!     assert!(size.capabilities().is_const());
 //!     assert!(size.capabilities().is_always_read_only());
 //! }
 //!
@@ -315,7 +315,7 @@ pub use zng_var::{
     ArcEq, BoxedVarValueAny, ContextInitHandle, ContextVar, IntoValue, IntoVar, ObservableVec, ResponderVar, Response, ResponseVar, VARS,
     Var, VarAny, VarCapability, VarHandle, VarHandles, VarHookArgs, VarInstanceTag, VarMergeBuilder, VarModify, VarUpdateId, VarValue,
     VarValueAny, AnyWhenVarBuilder, VecChange, WeakVar, WeakVarAny, context_var, impl_from_and_into_var, response_done_var, response_var,
-    var, var_any, contextual_var, any_contextual_var, var_default, expr_var, var_from, var_getter, var_local, var_local_any, merge_var, var_state,
+    var, var_any, contextual_var, any_contextual_var, var_default, expr_var, var_from, var_getter, const_var, any_const_var, merge_var, var_state,
     when_var,
 };
 

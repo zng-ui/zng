@@ -8,7 +8,7 @@ use std::{any::TypeId, cmp::Ordering, mem, ops, sync::Arc};
 use zng_app_context::app_local;
 use zng_state_map::{OwnedStateMap, StateId, StateMapMut, StateMapRef, StateValue};
 use zng_txt::Txt;
-use zng_var::{BoxedVarValueAny, IntoVar, Var, VarAny, VarAnyHookArgs, impl_from_and_into_var, var, var_local};
+use zng_var::{BoxedVarValueAny, IntoVar, Var, VarAny, VarAnyHookArgs, impl_from_and_into_var, var, const_var};
 
 use crate::{CONFIG, Config, ConfigKey, ConfigValue, FallbackConfigReset};
 
@@ -59,7 +59,7 @@ impl SETTINGS {
                     Category {
                         id: s.category.clone(),
                         order: u16::MAX,
-                        name: var_local(s.category.0.clone()),
+                        name: const_var(s.category.0.clone()),
                         meta: Arc::new(OwnedStateMap::new()),
                     },
                     vec![s],
@@ -279,7 +279,7 @@ impl Category {
         Self {
             id: missing.clone(),
             order: u16::MAX,
-            name: var_local(missing.0),
+            name: const_var(missing.0),
             meta: Arc::default(),
         }
     }
@@ -298,7 +298,7 @@ impl fmt::Debug for Category {
 
 #[cfg(test)]
 fn _setting_in_var(s: Setting) {
-    let _x = var_local(s).get();
+    let _x = const_var(s).get();
 }
 
 /// Setting entry.
@@ -605,7 +605,7 @@ impl Drop for SettingBuilder<'_> {
         let (cfg, cfg_type) = self
             .value
             .take()
-            .unwrap_or_else(|| (var_local(SettingValueNotSet).into(), TypeId::of::<SettingValueNotSet>()));
+            .unwrap_or_else(|| (const_var(SettingValueNotSet).into(), TypeId::of::<SettingValueNotSet>()));
         self.settings.push(Setting {
             key: mem::take(&mut self.config_key),
             order: self.order,
@@ -771,7 +771,7 @@ impl SettingReset for BoxedVarValueAny {
 }
 impl SettingReset for SettingValueNotSet {
     fn can_reset(&self, _: &ConfigKey, _: &VarAny) -> Var<bool> {
-        var_local(false)
+        const_var(false)
     }
     fn reset(&self, _: &ConfigKey, _: &VarAny) {}
 }

@@ -68,7 +68,7 @@ macro_rules! impl_length_comp_conversions {
             {
                 $(#[$docs])*
                 fn into_var(self) -> zng_var::Var<$For> {
-                    zng_var::var_local(self.into())
+                    zng_var::const_var(self.into())
                 }
             }
         )+

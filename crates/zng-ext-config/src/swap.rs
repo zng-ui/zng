@@ -44,7 +44,7 @@ impl SwapConfig {
         Self {
             cfg: Mutex::new(Box::<MemoryConfig>::default()),
             shared: ConfigVars::default(),
-            source_status: var_local(ConfigStatus::Loaded),
+            source_status: const_var(ConfigStatus::Loaded),
             status: var(ConfigStatus::Loaded),
             status_binding: VarHandle::dummy(),
         }

@@ -59,7 +59,7 @@ fn on_build(wgt: &mut WidgetBuilding) {
     let source = wgt.capture_var::<ImageSource>(property_id!(source)).unwrap_or_else(|| {
         let error = Img::dummy(Some(Txt::from_static("no source")));
         let error = ImageSource::Image(var(error).read_only());
-        var_local(error)
+        const_var(error)
     });
     wgt.push_intrinsic(NestGroup::EVENT, "image_source", |child| node::image_source(child, source));
 }

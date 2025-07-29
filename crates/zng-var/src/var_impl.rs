@@ -118,7 +118,7 @@ bitflags! {
 }
 impl VarCapability {
     /// If cannot `NEW` and is not `CAPS_CHANGE`.
-    pub fn is_always_static(self) -> bool {
+    pub fn is_const(self) -> bool {
         !self.contains(Self::NEW) && !self.contains(Self::CAPS_CHANGE)
     }
 

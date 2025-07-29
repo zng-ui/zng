@@ -286,7 +286,7 @@ fn crosshair_16x16() -> impl UiNode {
 fn tree_view(tree: InspectedTree, filter: Var<Txt>) -> impl UiNode {
     Container! {
         font_family = ["JetBrains Mono", "Consolas", "monospace"];
-        child = tree_item_view(tree.inspect_root(), filter, var_local(0u32));
+        child = tree_item_view(tree.inspect_root(), filter, const_var(0u32));
     }
 }
 

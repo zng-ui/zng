@@ -10,7 +10,7 @@ use std::{
 use parking_lot::Mutex;
 use zng_app_context::app_local;
 use zng_txt::Txt;
-use zng_var::{ArcEq, Var, VarMergeBuilder, WeakVar, var, var_local, merge_var};
+use zng_var::{ArcEq, Var, VarMergeBuilder, WeakVar, var, const_var, merge_var};
 use zng_view_api::config::LocaleConfig;
 
 use crate::{
@@ -69,7 +69,7 @@ impl L10nService {
         if langs.is_empty() {
             return if args.is_empty() {
                 // no lang, no args
-                var_local(fallback)
+                const_var(fallback)
             } else {
                 // no lang, but args can change
                 fluent_args_var(args).map(move |args| {

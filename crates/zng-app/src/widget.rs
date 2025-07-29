@@ -1367,7 +1367,7 @@ pub trait AnyVarSubscribe {
 }
 impl AnyVarSubscribe for VarAny {
     fn subscribe(&self, op: UpdateOp, widget_id: WidgetId) -> VarHandle {
-        if !self.capabilities().is_always_static() {
+        if !self.capabilities().is_const() {
             self.hook(move |_| {
                 UPDATES.update_op(op, widget_id);
                 true
@@ -1514,7 +1514,7 @@ fn var_on_new<T>(var: &Var<T>, handler: impl AppHandler<OnVarArgs<T>>, is_previe
 where
     T: VarValue,
 {
-    if var.capabilities().is_always_static() {
+    if var.capabilities().is_const() {
         return VarHandle::dummy();
     }
 

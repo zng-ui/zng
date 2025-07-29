@@ -34,7 +34,7 @@ where
     match_node(child, move |_, op| {
         if let UiNodeOp::Init = op {
             let window_var = select(&WINDOW.vars());
-            if !user_var.capabilities().is_always_static() {
+            if !user_var.capabilities().is_const() {
                 let binding = user_var.bind_bidi(&window_var);
                 WIDGET.push_var_handles(binding);
             }
@@ -475,7 +475,7 @@ pub fn needs_fallback_chrome(child: impl UiNode, needs: impl IntoVar<bool>) -> i
         child,
         || {
             if WINDOW.mode().is_headless() {
-                var_local(false)
+                const_var(false)
             } else {
                 let vars = WINDOW.vars();
                 expr_var! {

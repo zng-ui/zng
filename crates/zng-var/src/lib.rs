@@ -46,7 +46,7 @@ pub(crate) mod future;
 
 ///Implements `T: IntoVar<U>`, `T: IntoValue<U>` and optionally `U: From<T>` without boilerplate.
 ///
-/// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`var_local`]
+/// The macro syntax is one or more functions with signature `fn from(t: T) -> U`. The [`const_var`]
 /// kind is used for variables. The syntax also supports generic types and constraints, but not `where` constraints.
 /// You can also destructure the input if it is a tuple using the pattern `fn from((a, b): (A, B)) -> U`, but no other pattern
 /// matching in the input is supported.

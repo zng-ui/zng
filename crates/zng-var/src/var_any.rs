@@ -147,7 +147,7 @@ impl VarAny {
     ///  
     /// This can be used just before creating a binding to start with synchronized values.
     pub fn try_set_from(&self, other: &VarAny) -> Result<(), VarIsReadOnlyError> {
-        if other.capabilities().is_always_static() {
+        if other.capabilities().is_const() {
             self.try_set(other.get())
         } else if self.capabilities().is_read_only() {
             Err(VarIsReadOnlyError {})
@@ -193,7 +193,7 @@ impl VarAny {
         other: &VarAny,
         map: impl FnOnce(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static,
     ) -> Result<(), VarIsReadOnlyError> {
-        if other.capabilities().is_always_static() {
+        if other.capabilities().is_const() {
             self.try_set(other.get())
         } else if self.capabilities().is_read_only() {
             Err(VarIsReadOnlyError {})
@@ -344,8 +344,8 @@ impl VarAny {
         self.with(&mut |v: &dyn VarValueAny| init_value = Some(map(v)));
         let init_value = init_value.unwrap();
 
-        if caps.is_always_static() {
-            return crate::var_local_any(init_value);
+        if caps.is_const() {
+            return crate::any_const_var(init_value);
         }
 
         let output = crate::var_any(init_value);
@@ -442,8 +442,8 @@ impl VarAny {
             None => fallback_init(),
         };
 
-        if caps.is_always_static() {
-            return crate::var_local_any(init_value);
+        if caps.is_const() {
+            return crate::any_const_var(init_value);
         }
 
         let output = crate::var_any(init_value);
@@ -548,8 +548,8 @@ impl VarAny {
         self.with(&mut |v: &dyn VarValueAny| init_value = Some(map(v)));
         let init_value = init_value.unwrap();
 
-        if caps.is_always_static() {
-            return crate::var_local_any(init_value);
+        if caps.is_const() {
+            return crate::any_const_var(init_value);
         }
 
         let output = crate::var_any(init_value);
@@ -609,8 +609,8 @@ impl VarAny {
         self.with(&mut |v: &dyn VarValueAny| init_value = map(v));
         let init_value = init_value.unwrap_or_else(&fallback_init);
 
-        if caps.is_always_static() {
-            return crate::var_local_any(init_value);
+        if caps.is_const() {
+            return crate::any_const_var(init_value);
         }
 
         let output = crate::var_any(init_value);
@@ -672,7 +672,7 @@ impl VarAny {
     ///
     /// [`bind_map`]: Var::bind_map
     pub fn bind_map_any(&self, other: &VarAny, map: impl FnMut(&dyn VarValueAny) -> BoxedVarValueAny + Send + 'static) -> VarHandle {
-        if self.capabilities().is_always_static() || other.capabilities().is_always_read_only() {
+        if self.capabilities().is_const() || other.capabilities().is_always_read_only() {
             return VarHandle::dummy();
         }
 
@@ -761,7 +761,7 @@ impl VarAny {
 
         let self_cap = self.capabilities();
         let other_cap = other.capabilities();
-        if self_cap.is_always_static() || other_cap.is_always_static() {
+        if self_cap.is_const() || other_cap.is_const() {
             return VarHandles::dummy();
         }
         if self_cap.is_always_read_only() {
@@ -787,7 +787,7 @@ impl VarAny {
         other: &VarAny,
         map: impl FnMut(&dyn VarValueAny) -> Option<BoxedVarValueAny> + Send + 'static,
     ) -> VarHandle {
-        if self.capabilities().is_always_static() || other.capabilities().is_always_read_only() {
+        if self.capabilities().is_const() || other.capabilities().is_always_read_only() {
             return VarHandle::dummy();
         }
 
@@ -821,7 +821,7 @@ impl VarAny {
     ) -> VarHandles {
         let self_cap = self.capabilities();
         let other_cap = other.capabilities();
-        if self_cap.is_always_static() || other_cap.is_always_static() {
+        if self_cap.is_const() || other_cap.is_const() {
             return VarHandles::dummy();
         }
         if self_cap.is_always_read_only() {

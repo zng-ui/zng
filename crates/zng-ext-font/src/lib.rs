@@ -65,7 +65,7 @@ use zng_task as task;
 use zng_txt::Txt;
 use zng_var::{
     IntoVar, ResponderVar, ResponseVar, Var, animation::Transitionable, impl_from_and_into_var, response_done_var, response_var, var,
-    var_local,
+    const_var,
 };
 use zng_view_api::config::FontAntiAliasing;
 
@@ -518,7 +518,7 @@ impl<const N: usize> From<[FontName; N]> for FontNames {
 }
 impl<const N: usize> IntoVar<FontNames> for [FontName; N] {
     fn into_var(self) -> Var<FontNames> {
-        var_local(self.into())
+        const_var(self.into())
     }
 }
 impl<const N: usize> From<[&'static str; N]> for FontNames {
@@ -528,7 +528,7 @@ impl<const N: usize> From<[&'static str; N]> for FontNames {
 }
 impl<const N: usize> IntoVar<FontNames> for [&'static str; N] {
     fn into_var(self) -> Var<FontNames> {
-        var_local(self.into())
+        const_var(self.into())
     }
 }
 impl<const N: usize> From<[String; N]> for FontNames {
@@ -538,7 +538,7 @@ impl<const N: usize> From<[String; N]> for FontNames {
 }
 impl<const N: usize> IntoVar<FontNames> for [String; N] {
     fn into_var(self) -> Var<FontNames> {
-        var_local(self.into())
+        const_var(self.into())
     }
 }
 impl<const N: usize> From<[Txt; N]> for FontNames {
@@ -548,7 +548,7 @@ impl<const N: usize> From<[Txt; N]> for FontNames {
 }
 impl<const N: usize> IntoVar<FontNames> for [Txt; N] {
     fn into_var(self) -> Var<FontNames> {
-        var_local(self.into())
+        const_var(self.into())
     }
 }
 

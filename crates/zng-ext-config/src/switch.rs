@@ -86,14 +86,14 @@ impl AnyConfig for SwitchConfig {
     fn get_raw(&mut self, key: ConfigKey, default: RawConfigValue, insert: bool) -> Var<RawConfigValue> {
         match self.cfg_mut(&key) {
             Some((key, cfg)) => cfg.get_raw(key, default, insert),
-            None => var_local(default),
+            None => const_var(default),
         }
     }
 
     fn contains_key(&mut self, key: ConfigKey) -> Var<bool> {
         match self.cfg_mut(&key) {
             Some((key, cfg)) => cfg.contains_key(key),
-            None => var_local(false),
+            None => const_var(false),
         }
     }
 
